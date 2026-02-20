@@ -391,6 +391,59 @@ class APIClient {
     });
     return response.data;
   }
+
+  // --- ALM Enterprise (DB-backed) ---
+
+  async getInstitutions(workspaceId?: string) {
+    const params = workspaceId ? { workspaceId } : {};
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/institutions`, { params });
+    return response.data;
+  }
+
+  async createInstitution(data: {
+    name: string;
+    type: string;
+    totalAssets: number;
+    reportingDate: string;
+    workspaceId: string;
+    currency?: string;
+  }) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/institutions`, data);
+    return response.data;
+  }
+
+  async getInstitution(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/institutions/${institutionId}`);
+    return response.data;
+  }
+
+  async getALMSummary(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/summary`);
+    return response.data;
+  }
+
+  async getNIISensitivity(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/nii-sensitivity`);
+    return response.data;
+  }
+
+  async getLiquidityPosition(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/liquidity`);
+    return response.data;
+  }
+
+  async getDurationGap(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/duration-gap`);
+    return response.data;
+  }
+
+  async importBalanceSheetItems(institutionId: string, items: any[]) {
+    const response = await this.client.post(
+      `${NODE_API_URL}/api/alm/institutions/${institutionId}/balance-sheet-items`,
+      { items },
+    );
+    return response.data;
+  }
 }
 
 export const apiClient = new APIClient();

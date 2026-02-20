@@ -180,17 +180,22 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
-                    {/* ALM Dashboard Card */}
+                    {/* ALM Intelligence Card */}
                     <div
                         onClick={() => router.push('/alm')}
                         className="bg-gradient-to-br from-amber-500/20 to-orange-500/20 backdrop-blur-md rounded-xl p-6 border-2 border-amber-500/50 hover:border-amber-400 hover:shadow-lg hover:shadow-amber-500/30 transition cursor-pointer"
                     >
                         <h3 className="text-xl font-semibold text-white mb-2">
-                            ALM Dashboard
+                            ALM Intelligence
                         </h3>
-                        <p className="text-gray-300 mb-4">
-                            Duration gap, NII simulation, rate sensitivity, LCR
+                        <p className="text-gray-300 mb-3">
+                            Enterprise risk overview with duration gap, NII sensitivity, LCR
                         </p>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">Rate Sensitivity</span>
+                            <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded">Liquidity</span>
+                            <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded">Balance Sheet</span>
+                        </div>
                         <div className="flex items-center gap-2 text-amber-300 font-medium">
                             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                             Live

@@ -124,12 +124,89 @@ model Workspace {
   name      String
   createdAt DateTime @default(now()) @map("created_at")
 
-  uploads  Upload[]
-  invoices Invoice[]
-  findings Finding[]
-  reports  Report[]
+  uploads      Upload[]
+  invoices     Invoice[]
+  findings     Finding[]
+  reports      Report[]
+  institutions Institution[]
 
   @@map("workspaces")
+}
+
+// ===== ALM Enterprise Models =====
+
+model Institution {
+  id            String   @id @default(cuid())
+  workspaceId   String   @map("workspace_id")
+  name          String
+  type          String   // bank | credit_union | family_office
+  totalAssets   Float    @map("total_assets")
+  currency      String   @default("USD")
+  reportingDate DateTime @map("reporting_date")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  workspace             Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  balanceSheetItems     BalanceSheetItem[]
+  interestRateScenarios InterestRateScenario[]
+  liquidityPositions    LiquidityPosition[]
+
+  @@index([workspaceId])
+  @@map("institutions")
+}
+
+model BalanceSheetItem {
+  id            String    @id @default(cuid())
+  institutionId String    @map("institution_id")
+  category      String    // asset | liability
+  subcategory   String    // loans | securities | deposits | borrowings | equity | cash
+  name          String
+  balance       Float     // in millions
+  rate          Float     // current yield/cost as decimal (0.055 = 5.5%)
+  duration      Float     // Macaulay duration in years
+  repriceDate   DateTime? @map("reprice_date")
+  maturityDate  DateTime? @map("maturity_date")
+  rateType      String    @map("rate_type") // fixed | variable | hybrid
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@map("balance_sheet_items")
+}
+
+model InterestRateScenario {
+  id            String   @id @default(cuid())
+  institutionId String   @map("institution_id")
+  name          String
+  shiftBps      Int      @map("shift_bps")
+  niImpact      Float    @map("ni_impact")
+  mveImpact     Float    @map("mve_impact")
+  duration      Float
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@map("interest_rate_scenarios")
+}
+
+model LiquidityPosition {
+  id            String   @id @default(cuid())
+  institutionId String   @map("institution_id")
+  date          DateTime
+  hqlaLevel1    Float    @map("hqla_level1")
+  hqlaLevel2    Float    @map("hqla_level2")
+  cashOutflows  Float    @map("cash_outflows")
+  cashInflows   Float    @map("cash_inflows")
+  lcr           Float
+  nsfr          Float
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@map("liquidity_positions")
 }
 
 model Upload {
