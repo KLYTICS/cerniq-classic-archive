@@ -195,6 +195,7 @@ export default function DashboardPage() {
                             <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">Rate Sensitivity</span>
                             <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded">Liquidity</span>
                             <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded">Balance Sheet</span>
+                            <span className="text-xs bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded">Stress Testing</span>
                         </div>
                         <div className="flex items-center gap-2 text-amber-300 font-medium">
                             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>

@@ -26,6 +26,10 @@ export const EVENTS = {
 
   // Features
   ALM_ANALYSIS_RUN: 'ALM Analysis Run',
+  ALM_STRESS_TEST_RUN: 'ALM Stress Test Run',
+  ALM_REPORT_DOWNLOADED: 'ALM Report Downloaded',
+  INSTITUTION_TYPE_SELECTED: 'Institution Type Selected',
+  DEMO_DATA_SEEDED: 'Demo Data Seeded',
   TICKER_SEARCHED: 'Ticker Searched',
   PORTFOLIO_CREATED: 'Portfolio Created',
   VALUATION_VIEWED: 'Valuation Viewed',

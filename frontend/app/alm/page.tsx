@@ -5,7 +5,7 @@ import { apiClient } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, RefreshCw, Landmark, TrendingUp, Shield, DollarSign, ChevronRight } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Landmark, TrendingUp, Shield, DollarSign, ChevronRight, Zap, Download, FileText } from 'lucide-react';
 import RiskScoreGauge from '@/components/alm/RiskScoreGauge';
 import ALMKPICard from '@/components/alm/ALMKPICard';
 import RiskBadge from '@/components/alm/RiskBadge';
@@ -127,19 +127,30 @@ export default function ALMOverviewPage() {
   // Empty state — no institutions
   if (!loading && institutions.length === 0) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Landmark className="h-16 w-16 text-amber-400 mx-auto" />
-          <h2 className="text-2xl font-bold text-white">No Institutions Yet</h2>
-          <p className="text-slate-400 max-w-md">
-            Create an institution and import your balance sheet to get started with ALM analysis.
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/20 flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center text-center max-w-lg">
+          <Landmark className="h-16 w-16 text-amber-400 mb-6" />
+          <h2 className="text-2xl font-bold text-white mb-3">
+            Set Up Your Institution
+          </h2>
+          <p className="text-slate-400 mb-8">
+            Connect your bank&apos;s balance sheet to get real-time ALM intelligence —
+            duration gap, NII sensitivity, and Basel III compliance in minutes.
           </p>
-          <Link
-            href="/alm/balance-sheet"
-            className="inline-block bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-6 py-3 rounded-lg transition"
-          >
-            Set Up Balance Sheet
-          </Link>
+          <div className="flex gap-4">
+            <button
+              onClick={() => router.push('/onboarding/institution-type')}
+              className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold rounded-lg transition"
+            >
+              Load Demo Institution
+            </button>
+            <Link
+              href="/alm/balance-sheet"
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition"
+            >
+              Add Manually
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -177,6 +188,18 @@ export default function ALMOverviewPage() {
                   </option>
                 ))}
               </select>
+            )}
+            {selectedId && (
+              <a
+                href={apiClient.getALMReportUrl(selectedId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => analytics.track(EVENTS.ALM_REPORT_DOWNLOADED, { institutionId: selectedId, reportDate: new Date().toISOString() })}
+                className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-slate-300 px-4 py-2 rounded-lg transition"
+              >
+                <Download className="h-4 w-4" />
+                Report
+              </a>
             )}
             <button
               onClick={() => selectedId && fetchSummary(selectedId)}
@@ -260,11 +283,12 @@ export default function ALMOverviewPage() {
           </div>
 
           {/* Quick Nav to Sub-Pages */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { href: '/alm/sensitivity', icon: TrendingUp, title: 'Rate Sensitivity', desc: 'NII & MVE impact analysis', color: 'text-blue-400' },
               { href: '/alm/liquidity', icon: Shield, title: 'Liquidity', desc: 'LCR, HQLA & cash flows', color: 'text-emerald-400' },
               { href: '/alm/balance-sheet', icon: DollarSign, title: 'Balance Sheet', desc: 'Assets, liabilities & import', color: 'text-purple-400' },
+              { href: '/alm/stress-test', icon: Zap, title: 'Stress Testing', desc: 'Monte Carlo & regulatory scenarios', color: 'text-orange-400' },
             ].map((item) => (
               <Link
                 key={item.href}

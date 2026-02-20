@@ -444,6 +444,28 @@ class APIClient {
     );
     return response.data;
   }
+
+  async runStressTest(institutionId: string, params?: {
+    paths?: number; horizon?: number; volatility?: number; meanReversion?: number;
+  }) {
+    const response = await this.client.post(
+      `${NODE_API_URL}/api/alm/${institutionId}/stress-test`,
+      params || {},
+    );
+    return response.data;
+  }
+
+  getALMReportUrl(institutionId: string): string {
+    return `${NODE_API_URL}/api/alm/${institutionId}/report`;
+  }
+
+  async seedDemoInstitution(workspaceId: string, type: 'bank' | 'credit_union' | 'family_office') {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/seed-demo`, {
+      workspaceId,
+      type,
+    });
+    return response.data;
+  }
 }
 
 export const apiClient = new APIClient();

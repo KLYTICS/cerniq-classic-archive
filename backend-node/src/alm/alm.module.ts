@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { AlmService } from './alm.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
+import { StressTestingService } from './stress-testing/stress-testing.service';
+import { ReportsService } from './reports/reports.service';
+import { WorkspaceOnboardingService } from './workspace-onboarding.service';
 import { AlmController } from './alm.controller';
 import { AuthGuard } from '../auth/auth.guard';
 import { PrismaService } from '../prisma.service';
@@ -14,7 +17,15 @@ import { PrismaService } from '../prisma.service';
     }),
   ],
   controllers: [AlmController],
-  providers: [AlmService, AlmEnterpriseService, AuthGuard, PrismaService],
-  exports: [AlmService, AlmEnterpriseService],
+  providers: [
+    AlmService,
+    AlmEnterpriseService,
+    StressTestingService,
+    ReportsService,
+    WorkspaceOnboardingService,
+    AuthGuard,
+    PrismaService,
+  ],
+  exports: [AlmService, AlmEnterpriseService, StressTestingService, WorkspaceOnboardingService],
 })
 export class AlmModule {}

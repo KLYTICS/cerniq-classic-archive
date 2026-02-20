@@ -1,6 +1,9 @@
-import { Controller, Post, Get, Body, Param, Logger, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Logger, UseGuards, Req, Res, Header } from '@nestjs/common';
 import { AlmService } from './alm.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
+import { StressTestingService } from './stress-testing/stress-testing.service';
+import { ReportsService } from './reports/reports.service';
+import { WorkspaceOnboardingService } from './workspace-onboarding.service';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   ScenarioRequestDto,
@@ -26,6 +29,9 @@ export class AlmController {
   constructor(
     private readonly almService: AlmService,
     private readonly almEnterprise: AlmEnterpriseService,
+    private readonly stressTesting: StressTestingService,
+    private readonly reportsService: ReportsService,
+    private readonly onboarding: WorkspaceOnboardingService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -88,6 +94,45 @@ export class AlmController {
   @UseGuards(AuthGuard)
   async getLiquidity(@Param('institutionId') institutionId: string) {
     return this.almEnterprise.calculateLCR(institutionId);
+  }
+
+  @Post('seed-demo')
+  @UseGuards(AuthGuard)
+  async seedDemoData(
+    @Body() body: { workspaceId: string; type: 'bank' | 'credit_union' | 'family_office' },
+  ) {
+    this.logger.log(`Seeding demo data: type=${body.type}, workspace=${body.workspaceId}`);
+    return this.onboarding.seedDemoData(body.workspaceId, body.type);
+  }
+
+  @Post(':institutionId/stress-test')
+  @UseGuards(AuthGuard)
+  async runStressTest(
+    @Param('institutionId') institutionId: string,
+    @Body() params: { paths?: number; horizon?: number; volatility?: number; meanReversion?: number },
+  ) {
+    this.logger.log(`Stress test requested for institution ${institutionId}`);
+    return this.stressTesting.runFullStressTest(institutionId, params);
+  }
+
+  @Get(':institutionId/report')
+  @UseGuards(AuthGuard)
+  async downloadReport(
+    @Param('institutionId') institutionId: string,
+    @Res() res: any,
+  ) {
+    this.logger.log(`PDF report requested for institution ${institutionId}`);
+    const buffer = await this.reportsService.generateALMReport(institutionId);
+    const institution = await this.almEnterprise.getInstitution(institutionId);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const filename = `alm-report-${institution.name.replace(/\s+/g, '-').toLowerCase()}-${dateStr}.pdf`;
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer);
   }
 
   // ═══════════════════════════════════════════════════════════════
