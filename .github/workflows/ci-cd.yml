@@ -47,8 +47,8 @@ jobs:
         working-directory: backend-node
         run: |
           echo "Checking required env vars are documented..."
-          grep -q "JWT_SECRET" ../\.env.example || (echo "JWT_SECRET missing from .env.example" && exit 1)
-          grep -q "DATABASE_URL" ../\.env.example || (echo "DATABASE_URL missing from .env.example" && exit 1)
+          grep -q "JWT_SECRET" ../.env.example || (echo "JWT_SECRET missing from .env.example" && exit 1)
+          grep -q "DATABASE_URL" ../.env.example || (echo "DATABASE_URL missing from .env.example" && exit 1)
 
       - name: Validate Prisma schema
         working-directory: backend-node
@@ -150,61 +150,46 @@ jobs:
         working-directory: backend
         run: cargo build --release
 
-  # Docker Build
-  docker-build:
-    name: Build Docker Images
+  # Deploy Backend to Railway
+  deploy-backend:
+    name: Deploy Backend to Railway
     runs-on: ubuntu-latest
-    needs: [backend-node-test, frontend-test]
+    needs: [backend-node-test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    permissions:
-      contents: read
-      packages: write
+    environment: production
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Deploy to Railway
+        working-directory: backend-node
+        run: railway up --service backend-node
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
-      - name: Build and push backend-node
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend-node
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend-node:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and push frontend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # Deploy to Staging
-  deploy-staging:
-    name: Deploy to Staging
+  # Deploy Frontend to Vercel
+  deploy-frontend:
+    name: Deploy Frontend to Vercel
     runs-on: ubuntu-latest
-    needs: [docker-build]
-    if: github.ref == 'refs/heads/main'
-    environment: staging
+    needs: [frontend-test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
 
     steps:
-      - name: Deploy notification
-        run: echo "Deploying to staging environment..."
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # Add your deployment steps here (e.g., kubectl, docker-compose, etc.)
-      - name: Placeholder for deployment
-        run: echo "Deployment would happen here"
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Deploy to Vercel
+        working-directory: frontend
+        run: vercel --prod --yes
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

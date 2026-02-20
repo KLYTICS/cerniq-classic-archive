@@ -63,6 +63,19 @@ class APIClient {
     return response.data;
   }
 
+  // Demo Request (landing page)
+  async submitDemoRequest(data: {
+    email: string;
+    name?: string;
+    institutionName?: string;
+    institutionType?: string;
+    totalAssets?: string;
+    message?: string;
+  }) {
+    const response = await this.client.post(`${NODE_API_URL}/api/demo-request`, data);
+    return response.data;
+  }
+
   // Risk Analysis
   async getRiskAnalysis(portfolioId: string) {
     const response = await this.client.get(`/risk/${portfolioId}`);

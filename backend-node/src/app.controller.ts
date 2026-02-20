@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 
@@ -8,6 +8,32 @@ export class AppController {
     private readonly appService: AppService,
     private readonly prisma: PrismaService,
   ) {}
+
+  @Post('api/demo-request')
+  @HttpCode(HttpStatus.CREATED)
+  async submitDemoRequest(
+    @Body()
+    body: {
+      email: string;
+      name?: string;
+      institutionName?: string;
+      institutionType?: string;
+      totalAssets?: string;
+      message?: string;
+    },
+  ) {
+    const record = await this.prisma.demoRequest.create({
+      data: {
+        email: body.email,
+        name: body.name,
+        institutionName: body.institutionName,
+        institutionType: body.institutionType,
+        totalAssets: body.totalAssets,
+        message: body.message,
+      },
+    });
+    return { id: record.id, message: 'Demo request received' };
+  }
 
   @Get()
   getHello(): string {

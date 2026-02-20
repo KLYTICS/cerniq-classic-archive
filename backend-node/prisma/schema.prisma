@@ -364,3 +364,18 @@ model MarketPrice {
   @@index([date])
   @@map("market_prices")
 }
+
+// ===== Demo Request (Landing Page) =====
+
+model DemoRequest {
+  id              String   @id @default(uuid()) @db.Uuid
+  email           String
+  name            String?
+  institutionName String?  @map("institution_name")
+  institutionType String?  @map("institution_type")
+  totalAssets     String?  @map("total_assets")
+  message         String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("demo_requests")
+}

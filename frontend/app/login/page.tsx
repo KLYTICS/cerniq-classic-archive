@@ -5,6 +5,7 @@ import { apiClient } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { analytics, EVENTS } from '@/lib/analytics';
+import Link from 'next/link';
 
 const NODE_API_URL = process.env.NEXT_PUBLIC_NODE_API_URL || 'http://localhost:3000';
 
@@ -43,7 +44,6 @@ function LoginContent() {
 
             setUser(user);
 
-            // Analytics
             analytics.identify(user.id, { email: user.email, name: user.name });
             analytics.track(isLogin ? EVENTS.LOGIN : EVENTS.SIGNUP, {
                 method: 'email',
@@ -64,11 +64,20 @@ function LoginContent() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/20">
             <div className="bg-slate-900 border border-white/10 p-8 rounded-2xl shadow-2xl w-full max-w-md">
-                <h1 className="text-3xl font-bold text-white mb-2 text-center">SpendCheck</h1>
+                {/* Logo */}
+                <div className="flex items-center justify-center gap-2 mb-6">
+                    <Link href="/" className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center">
+                            <span className="text-slate-900 font-bold text-sm">C</span>
+                        </div>
+                        <span className="text-xl font-bold text-white">CapexCycleOS</span>
+                    </Link>
+                </div>
+
                 <p className="text-gray-400 mb-8 text-center">
-                    {isLogin ? 'Sign in to access your audit' : 'Create an account'}
+                    {isLogin ? 'Sign in to your account' : 'Create your account'}
                 </p>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -80,8 +89,8 @@ function LoginContent() {
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            placeholder="name@company.com"
+                            className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                            placeholder="name@institution.com"
                             required
                         />
                     </div>
@@ -94,7 +103,7 @@ function LoginContent() {
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
                             placeholder="••••••••"
                             required
                             minLength={8}
@@ -110,7 +119,7 @@ function LoginContent() {
                     <button
                         type="submit"
                         disabled={!initialized || loading}
-                        className="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50"
+                        className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50"
                     >
                         {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Sign Up'}
                     </button>
@@ -167,8 +176,8 @@ export default function LoginPage() {
     return (
         <Suspense
             fallback={
-                <div className="min-h-screen flex items-center justify-center bg-slate-950">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500" />
+                <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/20">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-amber-500" />
                 </div>
             }
         >

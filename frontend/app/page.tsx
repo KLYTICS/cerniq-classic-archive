@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import { apiClient } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { Landmark, Shield, TrendingUp, Zap, BarChart3, ArrowRight, CheckCircle2 } from 'lucide-react';
 
-export default function WaitlistPage() {
+export default function LandingPage() {
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('');
-  const [companySize, setCompanySize] = useState('');
-  const [pain, setPain] = useState('');
+  const [name, setName] = useState('');
+  const [institutionName, setInstitutionName] = useState('');
+  const [institutionType, setInstitutionType] = useState('');
+  const [totalAssets, setTotalAssets] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,19 +22,17 @@ export default function WaitlistPage() {
     setLoading(true);
 
     try {
-      await apiClient.joinWaitlist({
+      await apiClient.submitDemoRequest({
         email,
-        role,
-        company_size: companySize,
-        top_pain: pain || null,
+        name,
+        institutionName,
+        institutionType,
+        totalAssets,
       });
       setSubmitted(true);
     } catch (err: any) {
       setSubmitError(
-        err?.response?.data?.error ||
-        err?.response?.data?.message ||
-        err?.response?.data?.detail ||
-        'Failed to submit. Please try again.'
+        err?.response?.data?.message || 'Failed to submit. Please try again.'
       );
     } finally {
       setLoading(false);
@@ -40,113 +40,245 @@ export default function WaitlistPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-purple-500/30">
+    <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-amber-500/30">
       {/* Navbar */}
       <nav className="flex items-center justify-between px-6 py-6 max-w-7xl mx-auto">
-        <div className="text-xl font-bold tracking-tight">SpendCheck</div>
-        <div className="flex gap-4">
-          <button onClick={() => router.push('/login')} className="text-sm font-medium hover:text-purple-400 transition">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center">
+            <span className="text-slate-900 font-bold text-sm">C</span>
+          </div>
+          <span className="text-xl font-bold tracking-tight">CapexCycleOS</span>
+        </div>
+        <div className="flex gap-4 items-center">
+          <button
+            onClick={() => router.push('/login')}
+            className="text-sm font-medium hover:text-amber-400 transition"
+          >
             Login
           </button>
-          <button onClick={() => document.getElementById('waitlist')?.scrollIntoView({ behavior: 'smooth' })} className="bg-white text-slate-900 px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-100 transition">
-            Get Early Access
+          <button
+            onClick={() =>
+              document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })
+            }
+            className="bg-amber-500 hover:bg-amber-400 text-slate-900 px-4 py-2 rounded-full text-sm font-semibold transition"
+          >
+            Request Demo
           </button>
         </div>
       </nav>
 
       {/* Hero */}
       <section className="pt-20 pb-32 px-6 max-w-5xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 text-xs font-medium mb-8">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs font-medium mb-8">
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
           </span>
-          For CFOs & Finance Leaders
+          For Banks, Credit Unions & Family Offices
         </div>
 
         <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 bg-gradient-to-br from-white via-white to-gray-500 bg-clip-text text-transparent">
-          Stop Losing 1-5% of Vendor Spend to Billing Errors
+          Enterprise Risk Intelligence
+          <br />
+          <span className="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
+            in Minutes, Not Months
+          </span>
         </h1>
 
         <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-          Use SpendCheck to find duplicate payments, price drift, and zombie subscriptions in 14 days.
-          Upload AP exports & contracts. Get a recovery plan. No integrations required.
+          CapexCycleOS gives mid-market financial institutions the ALM analytics, stress testing,
+          and regulatory compliance tools that used to require a $500K consulting engagement.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <button onClick={() => document.getElementById('waitlist')?.scrollIntoView({ behavior: 'smooth' })} className="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 text-white px-8 py-4 rounded-full font-bold text-lg transition shadow-lg shadow-purple-500/20">
-            Audit My Spend
+          <button
+            onClick={() =>
+              document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })
+            }
+            className="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-slate-900 px-8 py-4 rounded-full font-bold text-lg transition shadow-lg shadow-amber-500/20"
+          >
+            See It Live
           </button>
-          <button className="w-full sm:w-auto px-8 py-4 rounded-full font-medium text-gray-300 hover:text-white transition border border-white/10 hover:border-white/20">
-            View Sample Report
+          <button
+            onClick={() => router.push('/login?mode=signup')}
+            className="w-full sm:w-auto px-8 py-4 rounded-full font-medium text-gray-300 hover:text-white transition border border-white/10 hover:border-white/20"
+          >
+            Start Free Trial
           </button>
         </div>
       </section>
 
-      {/* Social Proof / Stats */}
-      <section className="border-y border-white/5 bg-white/2 py-12">
+      {/* Stats */}
+      <section className="border-y border-white/5 py-12">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           <div>
-            <div className="text-3xl font-bold text-white mb-1">$50K+</div>
-            <div className="text-sm text-gray-500">Avg. Found / Audit</div>
+            <div className="text-3xl font-bold text-white mb-1">Basel III</div>
+            <div className="text-sm text-gray-500">LCR & NSFR Compliant</div>
           </div>
           <div>
-            <div className="text-3xl font-bold text-white mb-1">14 Days</div>
-            <div className="text-sm text-gray-500">Time to Value</div>
+            <div className="text-3xl font-bold text-white mb-1">1,000</div>
+            <div className="text-sm text-gray-500">Monte Carlo Paths</div>
           </div>
           <div>
-            <div className="text-3xl font-bold text-white mb-1">ZERO</div>
-            <div className="text-sm text-gray-500">Integrations Needed</div>
+            <div className="text-3xl font-bold text-white mb-1">&lt; 2 sec</div>
+            <div className="text-sm text-gray-500">Stress Test Runtime</div>
           </div>
           <div>
-            <div className="text-3xl font-bold text-white mb-1">100%</div>
-            <div className="text-sm text-gray-500">Secure & Confidential</div>
+            <div className="text-3xl font-bold text-white mb-1">PDF</div>
+            <div className="text-sm text-gray-500">Board-Ready Reports</div>
           </div>
         </div>
       </section>
 
-      {/* How it works */}
+      {/* Features */}
       <section className="py-32 px-6 max-w-7xl mx-auto">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">How It Works</h2>
-        <div className="grid md:grid-cols-3 gap-12">
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-            <div className="relative bg-slate-900 border border-white/10 p-8 rounded-2xl h-full">
-              <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center mb-6 text-2xl">📂</div>
-              <h3 className="text-xl font-bold mb-3">1. Upload Exports</h3>
-              <p className="text-gray-400">Drag & drop your AP export (CSV) and vendor contracts (PDF). We handle the parsing and normalization automatically.</p>
+        <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
+          Everything Your Risk Team Needs
+        </h2>
+        <p className="text-gray-400 text-center mb-16 max-w-2xl mx-auto">
+          From balance sheet ingestion to board-ready reports — one platform.
+        </p>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {[
+            {
+              icon: TrendingUp,
+              title: 'Interest Rate Risk',
+              desc: 'NII and MVE sensitivity across parallel and twist scenarios. Duration gap analysis with asset/liability breakdown.',
+              color: 'text-blue-400',
+              bg: 'from-blue-500/20 to-blue-600/10',
+            },
+            {
+              icon: Shield,
+              title: 'Liquidity & LCR',
+              desc: 'Basel III LCR/NSFR with HQLA decomposition, cash flow waterfall, and regulatory buffer tracking.',
+              color: 'text-emerald-400',
+              bg: 'from-emerald-500/20 to-emerald-600/10',
+            },
+            {
+              icon: Zap,
+              title: 'Monte Carlo Stress Tests',
+              desc: 'Vasicek interest rate model with 1,000 paths. Regulatory scenarios (rapid rise, inversion, shock down).',
+              color: 'text-orange-400',
+              bg: 'from-orange-500/20 to-orange-600/10',
+            },
+            {
+              icon: BarChart3,
+              title: 'Balance Sheet Analytics',
+              desc: 'Inline editing, CSV upload, duration heatmap. Real-time repricing gap and maturity distribution.',
+              color: 'text-purple-400',
+              bg: 'from-purple-500/20 to-purple-600/10',
+            },
+            {
+              icon: Landmark,
+              title: 'Multi-Institution',
+              desc: 'Manage multiple institutions from a single workspace. Compare risk metrics across your portfolio.',
+              color: 'text-amber-400',
+              bg: 'from-amber-500/20 to-amber-600/10',
+            },
+            {
+              icon: ArrowRight,
+              title: 'Board-Ready PDF Reports',
+              desc: 'One-click PDF export with executive summary, risk metrics, stress results, and recommendations.',
+              color: 'text-cyan-400',
+              bg: 'from-cyan-500/20 to-cyan-600/10',
+            },
+          ].map((feature) => (
+            <div
+              key={feature.title}
+              className={`bg-gradient-to-br ${feature.bg} border border-white/10 p-8 rounded-2xl hover:border-white/20 transition`}
+            >
+              <feature.icon className={`h-8 w-8 ${feature.color} mb-4`} />
+              <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
+              <p className="text-gray-400 leading-relaxed">{feature.desc}</p>
             </div>
-          </div>
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-            <div className="relative bg-slate-900 border border-white/10 p-8 rounded-2xl h-full">
-              <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center mb-6 text-2xl">🔍</div>
-              <h3 className="text-xl font-bold mb-3">2. AI Analysis</h3>
-              <p className="text-gray-400">Our engine detects duplicate payments, unit price drift, and risky auto-renewal clauses hidden in your data.</p>
-            </div>
-          </div>
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-            <div className="relative bg-slate-900 border border-white/10 p-8 rounded-2xl h-full">
-              <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center mb-6 text-2xl">💰</div>
-              <h3 className="text-xl font-bold mb-3">3. Recover Cash</h3>
-              <p className="text-gray-400">Get a prioritized "Leak Report" with actionable steps to recover overpayments and stop future leakage.</p>
-            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Who It's For */}
+      <section className="py-24 px-6 border-y border-white/5">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">Built For</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                title: 'Community Banks',
+                desc: 'Full IRRBB compliance without the Big 4 price tag. Duration gap, NII sensitivity, and stress testing.',
+                stat: '$500M - $5B assets',
+              },
+              {
+                title: 'Credit Unions',
+                desc: 'Meet NCUA requirements with automated ALM reporting. NEV analysis, concentration risk, and LCR.',
+                stat: '$100M - $1B assets',
+              },
+              {
+                title: 'Family Offices',
+                desc: 'Portfolio-level interest rate and liquidity risk. Monte Carlo stress testing across multi-asset allocations.',
+                stat: '$25M - $500M AUM',
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className="bg-slate-900/60 border border-white/10 rounded-2xl p-8"
+              >
+                <h3 className="text-xl font-bold text-white mb-3">{item.title}</h3>
+                <p className="text-gray-400 mb-4 leading-relaxed">{item.desc}</p>
+                <span className="text-xs text-amber-400 font-medium">{item.stat}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Waitlist Form */}
-      <section id="waitlist" className="py-24 px-6 max-w-3xl mx-auto text-center">
+      {/* How It Works */}
+      <section className="py-32 px-6 max-w-5xl mx-auto">
+        <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
+          Up and Running in 3 Steps
+        </h2>
+        <div className="grid md:grid-cols-3 gap-12">
+          {[
+            {
+              step: '1',
+              title: 'Import Balance Sheet',
+              desc: 'Upload a CSV or enter positions manually. We auto-calculate durations, repricing schedules, and rate sensitivity.',
+            },
+            {
+              step: '2',
+              title: 'Run Risk Analysis',
+              desc: 'Instant duration gap, NII sensitivity (8 scenarios), LCR compliance, and Monte Carlo stress tests.',
+            },
+            {
+              step: '3',
+              title: 'Download Reports',
+              desc: 'Generate branded PDF reports for your board, auditors, or regulators. One click.',
+            },
+          ].map((item) => (
+            <div key={item.step} className="text-center">
+              <div className="w-12 h-12 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-6 text-amber-400 font-bold text-xl">
+                {item.step}
+              </div>
+              <h3 className="text-xl font-bold mb-3">{item.title}</h3>
+              <p className="text-gray-400 leading-relaxed">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Demo Request Form */}
+      <section id="demo" className="py-24 px-6 max-w-3xl mx-auto text-center">
         <div className="bg-gradient-to-b from-white/10 to-white/5 p-px rounded-3xl">
           <div className="bg-slate-950 rounded-3xl p-8 md:p-12">
-            <h2 className="text-3xl font-bold mb-4">Join the Waitlist</h2>
-            <p className="text-gray-400 mb-8">We are currently onboarding mid-market finance teams. Secure your spot for early access.</p>
+            <h2 className="text-3xl font-bold mb-4">Request a Demo</h2>
+            <p className="text-gray-400 mb-8">
+              See how CapexCycleOS can streamline your institution&apos;s risk management.
+            </p>
 
             {submitted ? (
-              <div className="bg-green-500/10 border border-green-500/20 text-green-200 p-6 rounded-xl">
-                <h3 className="font-bold text-lg mb-2">You're on the list! 🎉</h3>
-                <p>We'll be in touch shortly to schedule your onboarding.</p>
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-200 p-6 rounded-xl">
+                <CheckCircle2 className="h-8 w-8 mx-auto mb-3 text-emerald-400" />
+                <h3 className="font-bold text-lg mb-2">Request Received</h3>
+                <p>We&apos;ll reach out within 24 hours to schedule your live demo.</p>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4 text-left">
@@ -155,69 +287,90 @@ export default function WaitlistPage() {
                     {submitError}
                   </div>
                 )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Jane Smith"
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Work Email *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="jane@institution.com"
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Work Email</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Institution Name
+                  </label>
                   <input
-                    type="email"
-                    required
-                    placeholder="name@company.com"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    type="text"
+                    placeholder="First National Bank"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    value={institutionName}
+                    onChange={(e) => setInstitutionName(e.target.value)}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Role</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Institution Type
+                    </label>
                     <select
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      required
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      value={institutionType}
+                      onChange={(e) => setInstitutionType(e.target.value)}
                     >
-                      <option value="">Select Role</option>
-                      <option value="CFO">CFO</option>
-                      <option value="VP Finance">VP Finance</option>
-                      <option value="Controller">Controller</option>
-                      <option value="Procurement">Procurement</option>
-                      <option value="Other">Other</option>
+                      <option value="">Select Type</option>
+                      <option value="bank">Community Bank</option>
+                      <option value="credit_union">Credit Union</option>
+                      <option value="family_office">Family Office</option>
+                      <option value="other">Other</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Company Size</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Total Assets
+                    </label>
                     <select
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      value={companySize}
-                      onChange={(e) => setCompanySize(e.target.value)}
-                      required
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      value={totalAssets}
+                      onChange={(e) => setTotalAssets(e.target.value)}
                     >
-                      <option value="">Select Size</option>
-                      <option value="1-200">1-200</option>
-                      <option value="201-500">201-500</option>
-                      <option value="501-1000">501-1000</option>
-                      <option value="1000+">1000+</option>
+                      <option value="">Select Range</option>
+                      <option value="< $100M">&lt; $100M</option>
+                      <option value="$100M - $500M">$100M - $500M</option>
+                      <option value="$500M - $1B">$500M - $1B</option>
+                      <option value="$1B - $5B">$1B - $5B</option>
+                      <option value="$5B+">$5B+</option>
                     </select>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Biggest Spend Pain?</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Duplicate invoices, Surprise renewals..."
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={pain}
-                    onChange={(e) => setPain(e.target.value)}
-                  />
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-lg transition mt-4 disabled:opacity-50"
+                  className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-4 rounded-lg transition mt-4 disabled:opacity-50"
                 >
-                  {loading ? 'Joining...' : 'Request Access'}
+                  {loading ? 'Submitting...' : 'Request Demo'}
                 </button>
               </form>
             )}
@@ -225,8 +378,20 @@ export default function WaitlistPage() {
         </div>
       </section>
 
-      <footer className="py-12 text-center text-gray-500 text-sm">
-        &copy; 2026 SpendCheck. All rights reserved.
+      {/* Footer */}
+      <footer className="py-12 border-t border-white/5">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-gradient-to-br from-amber-400 to-orange-500 rounded flex items-center justify-center">
+              <span className="text-slate-900 font-bold text-xs">C</span>
+            </div>
+            <span className="text-sm font-semibold text-gray-400">CapexCycleOS</span>
+            <span className="text-gray-600 text-sm ml-2">by KLYTICS</span>
+          </div>
+          <div className="text-gray-500 text-sm">
+            &copy; 2026 KLYTICS. All rights reserved.
+          </div>
+        </div>
       </footer>
     </div>
   );

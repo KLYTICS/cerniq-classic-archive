@@ -61,6 +61,7 @@ async function bootstrap() {
   );
 
   // --- CORS ---
+  const frontendUrl = process.env.FRONTEND_URL || '';
   const configuredOrigins = (
     process.env.ALLOWED_ORIGINS ||
     process.env.CORS_ORIGIN ||
@@ -73,6 +74,7 @@ async function bootstrap() {
   const staticAllowedOrigins = new Set([
     'http://localhost:3000',
     'http://localhost:3001',
+    ...(frontendUrl ? [frontendUrl] : []),
     ...configuredOrigins,
   ]);
 
@@ -86,11 +88,18 @@ async function bootstrap() {
         callback(null, true);
         return;
       }
-      if (/^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(origin)) {
+      // Allow all Vercel preview deployments
+      if (/\.vercel\.app$/.test(origin)) {
         callback(null, true);
         return;
       }
-      if (/^https:\/\/[a-zA-Z0-9-]+\.fly\.dev$/.test(origin)) {
+      // Allow Railway deployments
+      if (/\.railway\.app$/.test(origin)) {
+        callback(null, true);
+        return;
+      }
+      // Allow custom domain
+      if (/capexcycleos\.com$/.test(origin)) {
         callback(null, true);
         return;
       }
@@ -98,8 +107,12 @@ async function bootstrap() {
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
-  await app.listen(process.env.PORT ?? 3000);
+  // --- Start server ---
+  const port = process.env.PORT || process.env.BACKEND_PORT || 3000;
+  await app.listen(port, '0.0.0.0');
+  console.log(`CapexCycleOS backend running on 0.0.0.0:${port}`);
 }
 bootstrap();
