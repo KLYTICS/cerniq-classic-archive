@@ -1,0 +1,68 @@
+# Rust Backend
+/backend/target/
+/backend/**/*.rs.bk
+/backend/Cargo.lock
+
+# Node modules
+node_modules/
+
+# Frontend
+/frontend/node_modules/
+/frontend/.next/
+/frontend/out/
+/frontend/build/
+/frontend/.env*.local
+/frontend/.turbo
+
+# Environment files
+.env
+.env.local
+.env.production.local
+.env.development.local
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+*.log
+logs/
+/backend/*.log
+/frontend/*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+
+# Docker
+docker-compose.override.yml
+
+# Python (legacy)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# Data cache
+/data/*.parquet
+/data/*.csv
+*.parquet
+
+# Temporary files
+tmp/
+temp/
+*.tmp

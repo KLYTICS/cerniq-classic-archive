@@ -1,0 +1,81 @@
+    /// Detect cycles using rolling average smoothing
+    /// 
+    /// This approach smooths quarterly revenue data with a 4-quarter rolling average
+    /// to filter out noise, then detects peaks and troughs using clean comparisons.
+    pub fn detect_cycles(data: &[(NaiveDate, f64)]) -> Vec<Cycle> {
+        if data.len() < 8 {
+            return vec![];
+        }
+
+        // Step 1: Apply 4-quarter rolling average to smooth the data
+        let smoothed = Self::apply_rolling_average(data, 4);
+        
+        if smoothed.len() < 5 {
+            return vec![];
+        }
+
+        // Step 2: Detect peaks and troughs on smoothed data
+        let mut peaks: Vec<(NaiveDate, f64, usize)> = Vec::new();
+        let mut troughs: Vec<(NaiveDate, f64, usize)> = Vec::new();
+
+        // Use a window of 2 points on each side for peak/trough detection
+        let window_size = 2;
+        for i in window_size..smoothed.len() - window_size {
+            let current = smoothed[i].1;
+            
+            // Strict peak: higher than ALL neighbors
+            let is_peak = smoothed[i - window_size..i].iter().all(|&(_, v)| current > v)
+                && smoothed[i + 1..=i + window_size].iter().all(|&(_, v)| current > v);
+            
+            // Strict trough: lower than ALL neighbors  
+            let is_trough = smoothed[i - window_size..i].iter().all(|&(_, v)| current < v)
+                && smoothed[i + 1..=i + window_size].iter().all(|&(_, v)| current < v);
+            
+            if is_peak {
+                peaks.push((smoothed[i].0, current, i));
+            }
+            if is_trough {
+                troughs.push((smoothed[i].0, current, i));
+            }
+        }
+
+        // Step 3: Match troughs and peaks to form complete cycles
+        let mut cycles = Vec::new();
+        for i in 0..troughs.len().saturating_sub(1) {
+            let trough_start = &troughs[i];
+            let trough_end = &troughs[i + 1];
+
+            // Find peak between consecutive troughs
+            if let Some(peak) = peaks.iter().find(|p| p.2 > trough_start.2 && p.2 < trough_end.2) {
+                let duration_days = (trough_end.0 - trough_start.0).num_days();
+                cycles.push(Cycle {
+                    peak_date: peak.0,
+                    trough_date: trough_start.0,
+                    peak_value: peak.1,
+                    trough_value: trough_start.1,
+                    duration_quarters: (duration_days / 90) as i32,
+                });
+            }
+        }
+
+        cycles
+    }
+
+    /// Apply rolling average to smooth time series data
+    fn apply_rolling_average(data: &[(NaiveDate, f64)], window: usize) -> Vec<(NaiveDate, f64)> {
+        if data.len() < window {
+            return data.to_vec();
+        }
+
+        let mut smoothed = Vec::new();
+        
+        for i in 0..=data.len() - window {
+            let sum: f64 = data[i..i + window].iter().map(|(_, v)| v).sum();
+            let avg = sum / window as f64;
+            // Use the date of the middle point in the window
+            let mid_idx = i + window / 2;
+            smoothed.push((data[mid_idx].0, avg));
+        }
+
+        smoothed
+    }

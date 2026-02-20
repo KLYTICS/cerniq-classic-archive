@@ -1,0 +1,12 @@
+import { Module } from '@nestjs/common';
+import { RealtimeGateway } from './realtime.gateway';
+import { MarketDataModule } from '../market-data/market-data.module';
+import { OptionsModule } from '../options/options.module';
+import { PortfolioModule } from '../portfolio/portfolio.module';
+
+@Module({
+    imports: [MarketDataModule, OptionsModule, PortfolioModule],
+    providers: [RealtimeGateway],
+    exports: [RealtimeGateway],
+})
+export class RealtimeModule { }

@@ -1,0 +1,26 @@
+Vendor,Invoice Number,Date,Amount,Description
+AWS,INV-2024-001,2024-01-15,5000.00,Monthly hosting - EC2 and S3
+AWS,INV-2024-001,2024-01-15,5000.00,Monthly hosting - EC2 and S3
+Amazon Web Services,INV-2024-002,2024-02-15,5200.00,Monthly hosting - EC2 and S3
+Acme Corp,INV-1001,2024-01-20,25000.00,Q1 Consulting services
+Acme Corp,INV-1002,2024-02-01,3500.00,Monthly retainer
+Slack Technologies,SUB-JAN,2024-01-01,850.00,Business+ plan - 50 users
+Slack Technologies,SUB-FEB,2024-02-01,975.00,Business+ plan - 50 users
+Zoom Video Communications,ZM-12345,2024-01-10,150.00,Pro plan
+Zoom Video Communications,ZM-12346,2024-02-10,150.00,Pro plan
+Office Depot,OD-789,2024-01-05,234.56,Office supplies
+Staples,ST-1011,2024-01-12,189.23,Office supplies
+Adobe Inc,ADOBE-JAN,2024-01-01,599.00,Creative Cloud teams
+Adobe Inc,ADOBE-FEB,2024-02-01,599.00,Creative Cloud teams
+Google Workspace,GWS-JAN24,2024-01-01,1200.00,Business Standard - 75 users
+Google Workspace,GWS-FEB24,2024-02-01,1200.00,Business Standard - 75 users
+Cloudflare,CF-789123,2024-01-15,450.00,Pro plan with add-ons
+Cloudflare,CF-789456,2024-02-15,450.00,Pro plan with add-ons
+HubSpot,HUB-JAN-2024,2024-01-01,1500.00,Professional CRM
+HubSpot,HUB-FEB-2024,2024-02-01,1650.00,Professional CRM
+GitHub,GH-ENT-JAN,2024-01-01,2100.00,Enterprise plan - 100 seats
+GitHub,GH-ENT-FEB,2024-02-01,2100.00,Enterprise plan - 100 seats
+DataDog,DD-INFRA-JAN,2024-01-05,3500.00,Infrastructure monitoring
+DataDog,DD-INFRA-FEB,2024-02-05,3500.00,Infrastructure monitoring
+Stripe,STRIPE-FEE-JAN,2024-01-31,2347.89,Payment processing fees
+Stripe,STRIPE-FEE-FEB,2024-02-29,2456.12,Payment processing fees
