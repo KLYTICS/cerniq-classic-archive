@@ -22,6 +22,7 @@ import {
 import RiskScoreGauge from '@/components/alm/RiskScoreGauge';
 import RiskBadge from '@/components/alm/RiskBadge';
 import { useALM } from '@/components/alm/ALMProvider';
+import { useTranslation } from '@/lib/i18n';
 
 interface ALMSummary {
   institution: {
@@ -138,6 +139,7 @@ function SkeletonPulse() {
 export default function ALMOverviewPage() {
   const router = useRouter();
   const { selectedId, institutions, loading: institutionsLoading } = useALM();
+  const { t, ta } = useTranslation();
   const [summary, setSummary] = useState<ALMSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -176,27 +178,26 @@ export default function ALMOverviewPage() {
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 flex items-center justify-center mb-6">
             <Building2 className="h-8 w-8 text-amber-400" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Welcome to ALM Intelligence</h2>
+          <h2 className="text-xl font-bold text-white mb-2">{t('alm.welcome')}</h2>
           <p className="text-sm text-slate-400 mb-8 leading-relaxed">
-            Set up your institution to start analyzing interest rate risk, liquidity coverage,
-            and Basel III compliance. Load a demo institution or add your own data.
+            {t('alm.welcomeDesc')}
           </p>
           <div className="flex gap-3">
             <button
               onClick={() => router.push('/demo?type=bank')}
               className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-900 text-sm font-semibold rounded-lg transition"
             >
-              Load Demo Institution
+              {t('alm.loadDemo')}
             </button>
             <Link
               href="/alm/balance-sheet"
               className="px-5 py-2.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 text-sm rounded-lg transition"
             >
-              Add Manually
+              {t('alm.addManually')}
             </Link>
           </div>
           <p className="text-[11px] text-slate-600 mt-6">
-            Demo loads a pre-configured $1.2B Puerto Rico community bank
+            {t('alm.demoDesc')}
           </p>
         </div>
       </div>
@@ -204,6 +205,15 @@ export default function ALMOverviewPage() {
   }
 
   if ((loading && !summary) || institutionsLoading) return <SkeletonPulse />;
+
+  const navCards = [
+    { href: '/alm/sensitivity', icon: TrendingUp, title: t('alm.rateSensitivity'), desc: t('alm.rateSensitivityDesc'), accent: 'from-blue-500/10 to-blue-600/5 border-blue-500/10 hover:border-blue-500/25', iconColor: 'text-blue-400' },
+    { href: '/alm/liquidity', icon: Shield, title: t('alm.liquidity'), desc: t('alm.liquidityDesc'), accent: 'from-emerald-500/10 to-emerald-600/5 border-emerald-500/10 hover:border-emerald-500/25', iconColor: 'text-emerald-400' },
+    { href: '/alm/balance-sheet', icon: DollarSign, title: t('alm.balanceSheet'), desc: t('alm.balanceSheetDesc'), accent: 'from-purple-500/10 to-purple-600/5 border-purple-500/10 hover:border-purple-500/25', iconColor: 'text-purple-400' },
+    { href: '/alm/stress-test', icon: Zap, title: t('alm.stressTesting'), desc: t('alm.stressTestingDesc'), accent: 'from-orange-500/10 to-orange-600/5 border-orange-500/10 hover:border-orange-500/25', iconColor: 'text-orange-400' },
+  ];
+
+  const fallbackRecs = ta('alm.fallbackRecs');
 
   return (
     <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
@@ -224,7 +234,7 @@ export default function ALMOverviewPage() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider">Live Data</span>
+              <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider">{t('common.liveData')}</span>
             </div>
             <button
               onClick={() => selectedId && fetchSummary(selectedId)}
@@ -232,7 +242,7 @@ export default function ALMOverviewPage() {
               className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-slate-400 hover:text-white px-3 py-1.5 rounded-lg text-xs transition disabled:opacity-50"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
+              {t('common.refresh')}
             </button>
           </div>
         </div>
@@ -250,7 +260,7 @@ export default function ALMOverviewPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/[0.03] rounded-xl overflow-hidden border border-white/[0.06]">
             <div className="bg-slate-900/80">
               <KPIMetric
-                label="Duration Gap"
+                label={t('alm.durationGap')}
                 value={`${summary.durationGap.durationGap > 0 ? '+' : ''}${summary.durationGap.durationGap}yr`}
                 subtitle={summary.durationGap.riskProfile.replace(/-/g, ' ')}
                 color={Math.abs(summary.durationGap.durationGap) < 1 ? 'emerald' : Math.abs(summary.durationGap.durationGap) < 2 ? 'amber' : 'red'}
@@ -258,7 +268,7 @@ export default function ALMOverviewPage() {
             </div>
             <div className="bg-slate-900/80">
               <KPIMetric
-                label="Base NII"
+                label={t('alm.baseNII')}
                 value={`$${summary.niiSensitivity.baseNII.toFixed(1)}M`}
                 subtitle={`Rating: ${summary.niiSensitivity.riskRating}`}
                 color={summary.niiSensitivity.riskRating === 'low' ? 'emerald' : summary.niiSensitivity.riskRating === 'moderate' ? 'amber' : 'red'}
@@ -266,7 +276,7 @@ export default function ALMOverviewPage() {
             </div>
             <div className="bg-slate-900/80">
               <KPIMetric
-                label="LCR"
+                label={t('alm.lcr')}
                 value={`${summary.liquidity.lcr.toFixed(1)}%`}
                 subtitle={summary.liquidity.status}
                 color={summary.liquidity.status === 'compliant' ? 'emerald' : summary.liquidity.status === 'warning' ? 'amber' : 'red'}
@@ -274,9 +284,9 @@ export default function ALMOverviewPage() {
             </div>
             <div className="bg-slate-900/80">
               <KPIMetric
-                label="LCR Buffer"
+                label={t('alm.lcrBuffer')}
                 value={`${summary.liquidity.buffer > 0 ? '+' : ''}${summary.liquidity.buffer.toFixed(1)}%`}
-                subtitle="vs 100% minimum"
+                subtitle={t('alm.vsMinimum')}
                 color={summary.liquidity.buffer >= 20 ? 'cyan' : summary.liquidity.buffer >= 0 ? 'amber' : 'red'}
               />
             </div>
@@ -287,13 +297,13 @@ export default function ALMOverviewPage() {
             {/* Risk Score Gauge */}
             <div className="lg:col-span-4 bg-slate-900/40 border border-white/[0.06] rounded-xl p-6 flex flex-col items-center justify-center">
               <RiskScoreGauge score={summary.riskScore} size={220} />
-              <p className="text-[11px] text-slate-500 mt-3 uppercase tracking-wider">Composite Risk Score</p>
+              <p className="text-[11px] text-slate-500 mt-3 uppercase tracking-wider">{t('alm.compositeRisk')}</p>
             </div>
 
             {/* Top Risks */}
             <div className="lg:col-span-4 bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
-                <SectionHeader title="Key Risk Factors" />
+                <SectionHeader title={t('alm.keyRiskFactors')} />
                 <RiskBadge status={summary.niiSensitivity.riskRating} size="sm" />
               </div>
               <div className="space-y-2.5">
@@ -310,12 +320,12 @@ export default function ALMOverviewPage() {
 
             {/* Duration & Assets */}
             <div className="lg:col-span-4 bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
-              <SectionHeader title="Duration Profile" />
+              <SectionHeader title={t('alm.durationProfile')} />
               <div className="space-y-4 mt-4">
                 {/* Duration bar visualization */}
                 <div>
                   <div className="flex justify-between text-[11px] text-slate-500 mb-1.5">
-                    <span>Asset Duration</span>
+                    <span>{t('alm.assetDuration')}</span>
                     <span className="text-white font-medium">{summary.durationGap.assetDuration}yr</span>
                   </div>
                   <div className="h-2 bg-white/[0.04] rounded-full overflow-hidden">
@@ -327,7 +337,7 @@ export default function ALMOverviewPage() {
                 </div>
                 <div>
                   <div className="flex justify-between text-[11px] text-slate-500 mb-1.5">
-                    <span>Liability Duration</span>
+                    <span>{t('alm.liabilityDuration')}</span>
                     <span className="text-white font-medium">{summary.durationGap.liabilityDuration}yr</span>
                   </div>
                   <div className="h-2 bg-white/[0.04] rounded-full overflow-hidden">
@@ -339,7 +349,7 @@ export default function ALMOverviewPage() {
                 </div>
                 <div className="pt-3 border-t border-white/[0.06]">
                   <div className="flex justify-between text-[11px] text-slate-500 mb-1">
-                    <span>Gap</span>
+                    <span>{t('alm.gap')}</span>
                     <span className={`font-bold ${Math.abs(summary.durationGap.durationGap) < 1 ? 'text-emerald-400' : Math.abs(summary.durationGap.durationGap) < 2 ? 'text-amber-400' : 'text-red-400'}`}>
                       {summary.durationGap.durationGap > 0 ? '+' : ''}{summary.durationGap.durationGap}yr
                     </span>
@@ -348,15 +358,15 @@ export default function ALMOverviewPage() {
 
                 <div className="pt-3 border-t border-white/[0.06] space-y-2">
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-slate-500">Total Assets</span>
+                    <span className="text-slate-500">{t('alm.totalAssets')}</span>
                     <span className="text-white font-medium">${(summary.institution.totalAssets).toLocaleString()}M</span>
                   </div>
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-slate-500">HQLA</span>
+                    <span className="text-slate-500">{t('alm.hqla')}</span>
                     <span className="text-white font-medium">${summary.liquidity.hqla.toFixed(1)}M</span>
                   </div>
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-slate-500">Net Outflows</span>
+                    <span className="text-slate-500">{t('alm.netOutflows')}</span>
                     <span className="text-white font-medium">${summary.liquidity.netOutflows.toFixed(1)}M</span>
                   </div>
                 </div>
@@ -365,14 +375,9 @@ export default function ALMOverviewPage() {
           </div>
 
           {/* Quick Navigation */}
-          <SectionHeader title="Analysis Modules" />
+          <SectionHeader title={t('alm.analysisModules')} />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {[
-              { href: '/alm/sensitivity', icon: TrendingUp, title: 'Rate Sensitivity', desc: 'NII & MVE impact analysis', accent: 'from-blue-500/10 to-blue-600/5 border-blue-500/10 hover:border-blue-500/25', iconColor: 'text-blue-400' },
-              { href: '/alm/liquidity', icon: Shield, title: 'Liquidity', desc: 'LCR, HQLA & cash flows', accent: 'from-emerald-500/10 to-emerald-600/5 border-emerald-500/10 hover:border-emerald-500/25', iconColor: 'text-emerald-400' },
-              { href: '/alm/balance-sheet', icon: DollarSign, title: 'Balance Sheet', desc: 'Assets, liabilities & import', accent: 'from-purple-500/10 to-purple-600/5 border-purple-500/10 hover:border-purple-500/25', iconColor: 'text-purple-400' },
-              { href: '/alm/stress-test', icon: Zap, title: 'Stress Testing', desc: 'Monte Carlo & scenarios', accent: 'from-orange-500/10 to-orange-600/5 border-orange-500/10 hover:border-orange-500/25', iconColor: 'text-orange-400' },
-            ].map((item) => (
+            {navCards.map((item) => (
               <Link
                 key={item.href}
                 href={`${item.href}?id=${selectedId}`}
@@ -396,19 +401,14 @@ export default function ALMOverviewPage() {
 
           {/* Recommendations */}
           <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
-            <SectionHeader title="Recommendations" />
+            <SectionHeader title={t('alm.recommendations')} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
               {(summary.recommendations && summary.recommendations.length > 0
                 ? summary.recommendations
-                : [
-                    'Consider interest rate swaps to reduce the duration gap before the next Fed cycle',
-                    `LCR buffer of ${summary.liquidity.buffer.toFixed(1)}% is healthy — evaluate deploying excess HQLA into higher-yield assets`,
-                    `NII sensitivity at +200bps shows potential impact — asset repricing plan recommended`,
-                    'Annual OCIF examination preparation: document Basel III LCR calculation methodology',
-                  ]
+                : fallbackRecs
               ).map((rec, i) => {
-                const priority = i < 1 ? 'HIGH' : i < 3 ? 'MEDIUM' : 'LOW';
-                const prioColor = priority === 'HIGH' ? 'text-red-400 bg-red-500/10 border-red-500/20' : priority === 'MEDIUM' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+                const priority = i < 1 ? t('common.high') : i < 3 ? t('common.medium') : t('common.low');
+                const prioColor = i < 1 ? 'text-red-400 bg-red-500/10 border-red-500/20' : i < 3 ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
                 return (
                   <div key={i} className="flex items-start gap-3 bg-white/[0.02] rounded-lg p-3">
                     <span className={`mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${prioColor}`}>
@@ -427,13 +427,13 @@ export default function ALMOverviewPage() {
               href={`/alm/sensitivity?id=${selectedId}`}
               className="flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 text-blue-300 px-4 py-2.5 rounded-lg text-sm font-medium transition"
             >
-              <TrendingUp className="h-4 w-4" /> View Rate Sensitivity
+              <TrendingUp className="h-4 w-4" /> {t('alm.viewRateSensitivity')}
             </Link>
             <Link
               href={`/alm/stress-test?id=${selectedId}`}
               className="flex items-center gap-2 bg-orange-500/10 hover:bg-orange-500/15 border border-orange-500/20 text-orange-300 px-4 py-2.5 rounded-lg text-sm font-medium transition"
             >
-              <Zap className="h-4 w-4" /> Run Stress Test
+              <Zap className="h-4 w-4" /> {t('alm.runStressTest')}
             </Link>
             <a
               href={apiClient.getALMReportUrl(selectedId)}
@@ -441,7 +441,7 @@ export default function ALMOverviewPage() {
               rel="noopener noreferrer"
               className="flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-300 px-4 py-2.5 rounded-lg text-sm font-medium transition"
             >
-              <Download className="h-4 w-4" /> Download PDF Report
+              <Download className="h-4 w-4" /> {t('alm.downloadPdf')}
             </a>
           </div>
         </>

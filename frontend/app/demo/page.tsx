@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useRef } from 'react';
 import { apiClient } from '@/lib/api';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Building2, CheckCircle, ChevronRight, Shield, TrendingUp, Droplets } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
 
 const PRESETS: Record<string, { name: string; assets: string; assetBucket: string; type: string }> = {
   'banco-comunidad': { name: 'Banco Comunidad PR', assets: '$1.2B', assetBucket: '$1B - $5B', type: 'bank' },
@@ -12,16 +13,10 @@ const PRESETS: Record<string, { name: string; assets: string; assetBucket: strin
   family_office: { name: 'Caribbean Family Capital', assets: '$45M', assetBucket: 'Under $100M', type: 'family_office' },
 };
 
-const PROGRESS_STEPS = [
-  { text: 'Loading balance sheet positions', delay: 600 },
-  { text: 'Running NII sensitivity scenarios', delay: 800 },
-  { text: 'Calculating Basel III compliance', delay: 700 },
-  { text: 'Generating risk assessment', delay: 500 },
-];
-
 function DemoContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t, ta } = useTranslation();
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +40,8 @@ function DemoContent() {
   } | null>(null);
 
   const runningRef = useRef(false);
+
+  const progressSteps = ta('demo.progressSteps');
 
   const startSetup = async () => {
     if (runningRef.current) return;
@@ -157,13 +154,13 @@ function DemoContent() {
         <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center mb-6">
           <span className="text-red-400 font-bold text-xl">!</span>
         </div>
-        <h2 className="text-white text-xl font-bold mb-2">Setup Failed</h2>
+        <h2 className="text-white text-xl font-bold mb-2">{t('demo.setupFailed')}</h2>
         <p className="text-slate-400 text-sm mb-6 max-w-md">{error}</p>
         <button
           onClick={() => { setError(null); setStep(1); runningRef.current = false; }}
           className="bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-6 py-2.5 rounded-lg transition"
         >
-          Try Again
+          {t('common.tryAgain')}
         </button>
       </div>
     );
@@ -183,12 +180,12 @@ function DemoContent() {
         {/* Step 1: Institution Setup */}
         {step === 1 && (
           <div className="bg-slate-900/60 border border-white/[0.08] rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-white mb-1">Set up your institution</h2>
-            <p className="text-xs text-slate-500 mb-6">Takes about 10 seconds</p>
+            <h2 className="text-lg font-bold text-white mb-1">{t('demo.setupInstitution')}</h2>
+            <p className="text-xs text-slate-500 mb-6">{t('demo.takesAbout')}</p>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">Institution Name</label>
+                <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">{t('demo.institutionName')}</label>
                 <input
                   type="text"
                   value={instName}
@@ -198,7 +195,7 @@ function DemoContent() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">Asset Size</label>
+                  <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">{t('demo.assetSize')}</label>
                   <select
                     defaultValue={defaults.assetBucket}
                     className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition appearance-none"
@@ -211,15 +208,15 @@ function DemoContent() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">Type</label>
+                  <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">{t('demo.type')}</label>
                   <select
                     value={instType}
                     onChange={(e) => setInstType(e.target.value)}
                     className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition appearance-none"
                   >
-                    <option value="bank" className="bg-slate-800">Community Bank</option>
-                    <option value="credit_union" className="bg-slate-800">Credit Union</option>
-                    <option value="family_office" className="bg-slate-800">Family Office</option>
+                    <option value="bank" className="bg-slate-800">{t('demo.communityBank')}</option>
+                    <option value="credit_union" className="bg-slate-800">{t('demo.creditUnion')}</option>
+                    <option value="family_office" className="bg-slate-800">{t('demo.familyOffice')}</option>
                   </select>
                 </div>
               </div>
@@ -229,7 +226,7 @@ function DemoContent() {
               onClick={startSetup}
               className="w-full mt-6 flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-lg transition text-sm"
             >
-              Continue <ChevronRight className="h-4 w-4" />
+              {t('common.continue')} <ChevronRight className="h-4 w-4" />
             </button>
           </div>
         )}
@@ -237,7 +234,7 @@ function DemoContent() {
         {/* Step 2: Animated Progress */}
         {step === 2 && (
           <div className="bg-slate-900/60 border border-white/[0.08] rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-white mb-1">Creating your ALM profile</h2>
+            <h2 className="text-lg font-bold text-white mb-1">{t('demo.creatingProfile')}</h2>
             <p className="text-xs text-slate-500 mb-6">{instName}</p>
 
             {/* Progress bar */}
@@ -250,7 +247,7 @@ function DemoContent() {
 
             {/* Sequential messages */}
             <div className="space-y-3">
-              {PROGRESS_STEPS.map((s, i) => {
+              {progressSteps.map((text, i) => {
                 const done = completedSteps.includes(i);
                 const current = !done && completedSteps.length === i;
                 return (
@@ -268,7 +265,7 @@ function DemoContent() {
                       <div className="w-4 h-4 rounded-full border border-white/[0.08] shrink-0" />
                     )}
                     <span className={`text-sm ${done ? 'text-slate-300' : 'text-slate-500'}`}>
-                      {s.text}
+                      {text}
                     </span>
                   </div>
                 );
@@ -282,7 +279,7 @@ function DemoContent() {
           <div className="bg-slate-900/60 border border-white/[0.08] rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-1">
               <CheckCircle className="h-5 w-5 text-emerald-400" />
-              <h2 className="text-lg font-bold text-white">Your ALM dashboard is ready</h2>
+              <h2 className="text-lg font-bold text-white">{t('demo.dashboardReady')}</h2>
             </div>
             <p className="text-xs text-slate-500 mb-6">{instName}</p>
 
@@ -296,7 +293,7 @@ function DemoContent() {
                   </div>
                 </div>
                 <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full whitespace-nowrap">
-                  Moderate
+                  {t('common.moderate')}
                 </span>
               </div>
             </div>
@@ -306,7 +303,7 @@ function DemoContent() {
               <div className="bg-slate-900/80 p-3 text-center">
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <Shield className="h-3 w-3 text-emerald-400" />
-                  <span className="text-[10px] text-slate-500 uppercase">LCR</span>
+                  <span className="text-[10px] text-slate-500 uppercase">{t('alm.lcr')}</span>
                 </div>
                 <span className="text-lg font-bold text-emerald-400 tabular-nums">{results.lcr.toFixed(1)}%</span>
                 <CheckCircle className="h-3 w-3 text-emerald-400 mx-auto mt-0.5" />
@@ -314,10 +311,10 @@ function DemoContent() {
               <div className="bg-slate-900/80 p-3 text-center">
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <TrendingUp className="h-3 w-3 text-cyan-400" />
-                  <span className="text-[10px] text-slate-500 uppercase">Gap</span>
+                  <span className="text-[10px] text-slate-500 uppercase">{t('alm.gap')}</span>
                 </div>
                 <span className="text-lg font-bold text-white tabular-nums">+{results.durationGap}yr</span>
-                <span className="text-[10px] text-slate-500 block mt-0.5">Neutral</span>
+                <span className="text-[10px] text-slate-500 block mt-0.5">{t('common.neutral')}</span>
               </div>
               <div className="bg-slate-900/80 p-3 text-center">
                 <div className="flex items-center justify-center gap-1 mb-1">
@@ -334,7 +331,7 @@ function DemoContent() {
               className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-lg transition text-sm"
             >
               <Building2 className="h-4 w-4" />
-              Open ALM Dashboard
+              {t('demo.openDashboard')}
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>

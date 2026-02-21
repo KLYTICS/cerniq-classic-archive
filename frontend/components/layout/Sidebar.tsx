@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
+import { useTranslation } from '@/lib/i18n';
 import {
   BarChart3,
   Briefcase,
@@ -26,36 +27,36 @@ import {
 interface NavItem {
   href: string;
   icon: React.ElementType;
-  label: string;
+  labelKey: string;
   children?: NavItem[];
 }
 
 const mainNav: NavItem[] = [
-  { href: '/dashboard', icon: BarChart3, label: 'Dashboard' },
-  { href: '/portfolios', icon: Briefcase, label: 'Portfolios' },
-  { href: '/risk-analytics', icon: Activity, label: 'Risk Analytics' },
-  { href: '/execution-quality', icon: Zap, label: 'Execution Quality' },
-  { href: '/spendcheck', icon: CreditCard, label: 'Expenses' },
+  { href: '/dashboard', icon: BarChart3, labelKey: 'sidebar.dashboard' },
+  { href: '/portfolios', icon: Briefcase, labelKey: 'sidebar.portfolios' },
+  { href: '/risk-analytics', icon: Activity, labelKey: 'sidebar.riskAnalytics' },
+  { href: '/execution-quality', icon: Zap, labelKey: 'sidebar.executionQuality' },
+  { href: '/spendcheck', icon: CreditCard, labelKey: 'sidebar.expenses' },
 ];
 
 const almNav: NavItem[] = [
   {
     href: '/alm',
     icon: Landmark,
-    label: 'ALM Intelligence',
+    labelKey: 'sidebar.almIntelligence',
     children: [
-      { href: '/alm', icon: BarChart3, label: 'Overview' },
-      { href: '/alm/sensitivity', icon: TrendingUp, label: 'Rate Sensitivity' },
-      { href: '/alm/liquidity', icon: Shield, label: 'Liquidity' },
-      { href: '/alm/balance-sheet', icon: DollarSign, label: 'Balance Sheet' },
-      { href: '/alm/stress-test', icon: AlertOctagon, label: 'Stress Testing' },
+      { href: '/alm', icon: BarChart3, labelKey: 'sidebar.overview' },
+      { href: '/alm/sensitivity', icon: TrendingUp, labelKey: 'sidebar.rateSensitivity' },
+      { href: '/alm/liquidity', icon: Shield, labelKey: 'sidebar.liquidity' },
+      { href: '/alm/balance-sheet', icon: DollarSign, labelKey: 'sidebar.balanceSheet' },
+      { href: '/alm/stress-test', icon: AlertOctagon, labelKey: 'sidebar.stressTesting' },
     ],
   },
 ];
 
 const settingsNav: NavItem[] = [
-  { href: '/onboarding', icon: User, label: 'Profile' },
-  { href: '/settings/api-keys', icon: Key, label: 'API Keys' },
+  { href: '/onboarding', icon: User, labelKey: 'sidebar.profile' },
+  { href: '/settings/api-keys', icon: Key, labelKey: 'sidebar.apiKeys' },
 ];
 
 interface SidebarProps {
@@ -67,6 +68,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { logout } = useAuthStore();
+  const { t } = useTranslation();
   const [almExpanded, setAlmExpanded] = useState(false);
 
   // Auto-expand ALM section when on an ALM route
@@ -120,7 +122,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         <nav className="flex-1 overflow-y-auto py-4">
           {/* Main */}
           <div className="px-4 mb-4">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 px-2">Main</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 px-2">{t('sidebar.main')}</p>
             {mainNav.map((item) => (
               <Link
                 key={item.href}
@@ -133,14 +135,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 }`}
               >
                 <item.icon className="h-4 w-4" />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             ))}
           </div>
 
           {/* Enterprise */}
           <div className="px-4 mb-4">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 px-2">Enterprise</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 px-2">{t('sidebar.enterprise')}</p>
             {almNav.map((item) => (
               <div key={item.href}>
                 <button
@@ -153,7 +155,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 >
                   <div className="flex items-center gap-3">
                     <item.icon className="h-4 w-4" />
-                    {item.label}
+                    {t(item.labelKey)}
                   </div>
                   {almExpanded ? (
                     <ChevronDown className="h-3.5 w-3.5" />
@@ -165,7 +167,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                   <div className="ml-4 pl-3 border-l border-white/10">
                     {item.children.map((child) => (
                       <Link
-                        key={child.href + child.label}
+                        key={child.href + child.labelKey}
                         href={child.href}
                         onClick={onClose}
                         className={`flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition mb-0.5 ${
@@ -175,7 +177,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                         }`}
                       >
                         <child.icon className="h-3.5 w-3.5" />
-                        {child.label}
+                        {t(child.labelKey)}
                       </Link>
                     ))}
                   </div>
@@ -186,7 +188,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
           {/* Settings */}
           <div className="px-4">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 px-2">Settings</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 px-2">{t('sidebar.settings')}</p>
             {settingsNav.map((item) => (
               <Link
                 key={item.href}
@@ -199,7 +201,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 }`}
               >
                 <item.icon className="h-4 w-4" />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             ))}
           </div>
@@ -212,7 +214,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition"
           >
             <LogOut className="h-4 w-4" />
-            Logout
+            {t('common.logout')}
           </button>
         </div>
       </aside>

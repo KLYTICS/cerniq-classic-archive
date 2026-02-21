@@ -6,8 +6,33 @@ import { useAuthStore } from '@/lib/store';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { analytics, EVENTS } from '@/lib/analytics';
 import Link from 'next/link';
+import { useTranslation } from '@/lib/i18n';
 
 const NODE_API_URL = process.env.NEXT_PUBLIC_NODE_API_URL || 'http://localhost:3000';
+
+function LanguageToggle() {
+    const { locale, setLocale } = useTranslation();
+    return (
+        <div className="absolute top-4 right-4 flex items-center gap-1 bg-white/[0.04] border border-white/[0.08] rounded-lg p-0.5">
+            <button
+                onClick={() => setLocale('en')}
+                className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                    locale === 'en' ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white'
+                }`}
+            >
+                EN
+            </button>
+            <button
+                onClick={() => setLocale('es')}
+                className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                    locale === 'es' ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white'
+                }`}
+            >
+                ES
+            </button>
+        </div>
+    );
+}
 
 function LoginContent() {
     const [email, setEmail] = useState('');
@@ -19,6 +44,7 @@ function LoginContent() {
     const { initialized, setUser } = useAuthStore();
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { t } = useTranslation();
 
     useEffect(() => {
         const mode = searchParams.get('mode');
@@ -70,7 +96,9 @@ function LoginContent() {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/20">
-            <div className="bg-slate-900 border border-white/10 p-8 rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="bg-slate-900 border border-white/10 p-8 rounded-2xl shadow-2xl w-full max-w-md relative">
+                <LanguageToggle />
+
                 {/* Logo */}
                 <div className="flex items-center justify-center gap-2 mb-6">
                     <Link href="/" className="flex items-center gap-2">
@@ -82,27 +110,27 @@ function LoginContent() {
                 </div>
 
                 <p className="text-gray-400 mb-8 text-center">
-                    {isLogin ? 'Sign in to your account' : 'Create your account'}
+                    {isLogin ? t('login.signInToAccount') : t('login.createAccount')}
                 </p>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
-                            Email
+                            {t('login.email')}
                         </label>
                         <input
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                            placeholder="name@institution.com"
+                            placeholder={t('login.emailPlaceholder')}
                             required
                         />
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
-                            Password
+                            {t('login.password')}
                         </label>
                         <input
                             type="password"
@@ -126,7 +154,7 @@ function LoginContent() {
                         disabled={!initialized || loading}
                         className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50"
                     >
-                        {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Sign Up'}
+                        {loading ? t('common.processing') : isLogin ? t('login.signIn') : t('login.signUp')}
                     </button>
                 </form>
 
@@ -136,7 +164,7 @@ function LoginContent() {
                         <div className="w-full border-t border-white/10" />
                     </div>
                     <div className="relative flex justify-center text-sm">
-                        <span className="bg-slate-900 px-3 text-gray-400">Or continue with</span>
+                        <span className="bg-slate-900 px-3 text-gray-400">{t('login.orContinueWith')}</span>
                     </div>
                 </div>
 
@@ -152,7 +180,7 @@ function LoginContent() {
                             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                         </svg>
-                        Google
+                        {t('common.google')}
                     </a>
                     <a
                         href={`${NODE_API_URL}/api/auth/github`}
@@ -161,7 +189,7 @@ function LoginContent() {
                         <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                             <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
                         </svg>
-                        GitHub
+                        {t('common.github')}
                     </a>
                 </div>
 
@@ -170,7 +198,7 @@ function LoginContent() {
                     onClick={() => setIsLogin(!isLogin)}
                     className="w-full mt-4 text-sm text-gray-400 hover:text-white transition"
                 >
-                    {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+                    {isLogin ? t('login.noAccount') : t('login.hasAccount')}
                 </button>
             </div>
         </div>

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
-import AuthInitializer from '@/components/auth/AuthInitializer';
-import AnalyticsPageTracker from '@/components/analytics/AnalyticsPageTracker';
+import Providers from '@/components/Providers';
 
 export const metadata: Metadata = {
   title: "CapexCycle OS - AI Market Analysis Platform",
@@ -19,9 +18,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AuthInitializer />
-        <AnalyticsPageTracker />
+        <Providers>
         {children}
+        </Providers>
         {SEGMENT_WRITE_KEY && (
           <Script id="segment-analytics" strategy="afterInteractive">
             {`
