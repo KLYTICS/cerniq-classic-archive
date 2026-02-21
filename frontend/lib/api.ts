@@ -512,6 +512,33 @@ class APIClient {
     const response = await this.client.post(`${NODE_API_URL}/api/workspaces`, { name });
     return response.data;
   }
+
+  // Prospect CRM
+  async getProspects(stage?: string) {
+    const params = stage ? `?stage=${stage}` : '';
+    const response = await this.client.get(`${NODE_API_URL}/api/admin/prospects${params}`);
+    return response.data;
+  }
+
+  async createProspect(data: { name: string; email?: string; company?: string; role?: string; stage?: string; source?: string; notes?: string }) {
+    const response = await this.client.post(`${NODE_API_URL}/api/admin/prospects`, data);
+    return response.data;
+  }
+
+  async updateProspect(id: string, data: { stage?: string; notes?: string; name?: string; email?: string; company?: string; role?: string }) {
+    const response = await this.client.patch(`${NODE_API_URL}/api/admin/prospects/${id}`, data);
+    return response.data;
+  }
+
+  async deleteProspect(id: string) {
+    const response = await this.client.delete(`${NODE_API_URL}/api/admin/prospects/${id}`);
+    return response.data;
+  }
+
+  async seedProspects() {
+    const response = await this.client.post(`${NODE_API_URL}/api/admin/seed-prospects`);
+    return response.data;
+  }
 }
 
 export const apiClient = new APIClient();

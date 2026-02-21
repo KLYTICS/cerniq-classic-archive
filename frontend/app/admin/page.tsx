@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { apiClient } from '@/lib/api';
-import { Landmark, RefreshCw, Copy, Check, Trash2, ExternalLink, Users, Building2, FileText } from 'lucide-react';
+import { Landmark, RefreshCw, Copy, Check, Trash2, ExternalLink, Users, Building2, FileText, ClipboardCheck, UserSearch } from 'lucide-react';
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'klytics2026';
 const VERCEL_URL = typeof window !== 'undefined' ? window.location.origin : '';
@@ -23,6 +24,7 @@ interface Stats {
   institutions: number;
   users: number;
   recentUsers: number;
+  prospects: number;
 }
 
 function AdminAuth({ onAuth }: { onAuth: () => void }) {
@@ -178,7 +180,7 @@ export default function AdminPage() {
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         {/* Stats */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="bg-slate-900/60 border border-white/10 rounded-xl p-4">
               <div className="flex items-center gap-2 text-slate-400 text-xs mb-1"><FileText className="h-3.5 w-3.5" /> Demo Requests</div>
               <div className="text-2xl font-bold">{stats.demoRequests}</div>
@@ -195,8 +197,22 @@ export default function AdminPage() {
               <div className="flex items-center gap-2 text-slate-400 text-xs mb-1"><Users className="h-3.5 w-3.5" /> Last 7 Days</div>
               <div className="text-2xl font-bold">{stats.recentUsers}</div>
             </div>
+            <div className="bg-slate-900/60 border border-white/10 rounded-xl p-4">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1"><UserSearch className="h-3.5 w-3.5" /> Prospects</div>
+              <div className="text-2xl font-bold">{stats.prospects}</div>
+            </div>
           </div>
         )}
+
+        {/* Quick Links */}
+        <div className="flex gap-3">
+          <Link href="/admin/prospects" className="flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
+            <UserSearch className="h-4 w-4" /> Prospect Pipeline
+          </Link>
+          <Link href="/admin/checklist" className="flex items-center gap-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
+            <ClipboardCheck className="h-4 w-4" /> Pre-Demo Checklist
+          </Link>
+        </div>
 
         {/* Tabs */}
         <div className="flex gap-2 border-b border-white/10 pb-2">

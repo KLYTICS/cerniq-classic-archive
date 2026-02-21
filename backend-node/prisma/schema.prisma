@@ -382,3 +382,31 @@ model DemoRequest {
 
   @@map("demo_requests")
 }
+
+// ===== Prospect CRM =====
+
+enum ProspectStage {
+  lead
+  contacted
+  demo_scheduled
+  demo_done
+  proposal
+  closed_won
+  closed_lost
+}
+
+model Prospect {
+  id        String        @id @default(uuid()) @db.Uuid
+  name      String
+  email     String?
+  company   String?
+  role      String?
+  stage     ProspectStage @default(lead)
+  source    String?       // demo_request | manual | referral | outbound
+  notes     String?
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  @@index([stage])
+  @@map("prospects")
+}
