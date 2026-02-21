@@ -107,6 +107,9 @@ export class ReportsService {
     summary: {
       institution: { name: string; type: string; totalAssets: number; currency: string; reportingDate: string };
       riskScore: number;
+      durationGap: { durationGap: number; riskProfile: string };
+      niiSensitivity: { baseNII: number; riskRating: string; scenarios: Array<{ shiftBps: number; niImpact: number; niImpactPct: number }> };
+      liquidity: { lcr: number; status: string };
     },
   ) {
     const pw = doc.page.width;
@@ -114,80 +117,110 @@ export class ReportsService {
     const mR = doc.page.margins.right;
     const contentWidth = pw - mL - mR;
 
-    // Dark header rectangle
-    doc.rect(0, 0, pw, 140).fill(COLORS.dark);
+    // Dark header rectangle — 80px
+    doc.rect(0, 0, pw, 80).fill(COLORS.dark);
 
     // Brand bar at very top
     doc.rect(0, 0, pw, 4).fill(COLORS.brand);
 
-    // Brand text on dark header
-    doc.fontSize(11).fillColor('#ffffff').text('CAPEXCYCLEOS', mL, 50, { align: 'left' });
-    doc.fontSize(9).fillColor(COLORS.muted).text('Enterprise Risk Intelligence', mL, 65);
+    // Top left: CapexCycleOS
+    doc.fontSize(18).fillColor('#ffffff').text('CapexCycleOS', mL, 30, { align: 'left' });
 
-    // CONFIDENTIAL badge on right
-    doc.fontSize(8).fillColor(COLORS.muted).text('CONFIDENTIAL', 0, 55, {
+    // Top right: KLYTICS in amber
+    doc.fontSize(14).fillColor(COLORS.brand).text('KLYTICS', 0, 33, {
       align: 'right',
       width: pw - mR,
     });
 
-    // KLYTICS text
-    doc.fontSize(9).fillColor('#ffffff').text('KLYTICS', 0, 110, {
-      align: 'right',
-      width: pw - mR,
-    });
-
-    // Main title area
-    doc.y = 200;
-    doc.fontSize(32).fillColor(COLORS.heading).text('ALM Risk Report', mL, 200, {
-      width: contentWidth,
-      align: 'left',
-    });
-
-    doc.moveDown(0.3);
-    doc.fontSize(20).fillColor(COLORS.body).text(summary.institution.name, {
+    // Institution name — large
+    doc.y = 120;
+    doc.fontSize(28).fillColor(COLORS.heading).text(summary.institution.name, mL, 120, {
       width: contentWidth,
     });
 
-    doc.moveDown(0.3);
-    doc.fontSize(12).fillColor(COLORS.muted).text('Asset Liability Management Analysis', {
+    // Subtitle
+    doc.moveDown(0.2);
+    doc.fontSize(14).fillColor(COLORS.body).text('Asset Liability Management Report', {
       width: contentWidth,
     });
 
-    // Horizontal rule
-    doc.moveDown(2);
-    const ruleY = doc.y;
-    doc.moveTo(mL, ruleY).lineTo(mL + contentWidth, ruleY).lineWidth(0.5).stroke(COLORS.border);
-
-    // Info block
-    doc.moveDown(1.5);
+    // Report date
     const reportDate = new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
+    doc.moveDown(0.3);
+    doc.fontSize(11).fillColor(COLORS.muted).text(reportDate, { width: contentWidth });
 
-    const infoItems = [
-      ['Report Date', reportDate],
-      ['Institution Type', summary.institution.type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())],
+    // Horizontal rule — amber
+    doc.moveDown(1);
+    const ruleY = doc.y;
+    doc.moveTo(mL, ruleY).lineTo(mL + contentWidth, ruleY).lineWidth(2).stroke(COLORS.brand);
+
+    // CONFIDENTIAL
+    doc.moveDown(0.5);
+    doc.fontSize(9).fillColor(COLORS.muted).text(
+      'CONFIDENTIAL — For Internal Use Only',
+      mL,
+      doc.y,
+      { width: contentWidth, align: 'center' },
+    );
+
+    // ─── Executive Summary on page 1 ────────────────────────
+    doc.moveDown(2);
+    doc.fontSize(12).fillColor(COLORS.heading).text('Executive Summary', mL, doc.y);
+    doc.moveDown(0.5);
+
+    // Highlight box
+    const boxY = doc.y;
+    const boxH = 130;
+    doc.rect(mL, boxY, contentWidth, boxH).fill('#f8fafc');
+    doc.rect(mL, boxY, 4, boxH).fill(COLORS.brand);
+
+    const scoreLabel =
+      summary.riskScore >= 80 ? 'LOW RISK' :
+      summary.riskScore >= 60 ? 'MODERATE' :
+      summary.riskScore >= 40 ? 'ELEVATED' : 'HIGH RISK';
+
+    const lcrStatus = summary.liquidity.status === 'compliant' ? 'COMPLIANT' : 'WARNING';
+
+    const scenario200 = summary.niiSensitivity.scenarios?.find((s) => s.shiftBps === 200);
+    const nii200 = scenario200 ? `$${scenario200.niImpact >= 0 ? '+' : ''}${scenario200.niImpact.toFixed(1)}M (${scenario200.niImpactPct >= 0 ? '+' : ''}${scenario200.niImpactPct.toFixed(1)}%)` : 'N/A';
+
+    const summaryRows = [
+      ['Overall Risk Score', `${summary.riskScore}/100 — ${scoreLabel}`],
+      ['Duration Gap', `${summary.durationGap.durationGap > 0 ? '+' : ''}${summary.durationGap.durationGap} years (${summary.durationGap.riskProfile.replace(/-/g, ' ')})`],
+      ['LCR (Basel III)', `${summary.liquidity.lcr.toFixed(1)}% — ${lcrStatus}`],
+      ['NII at Risk (+200bps)', nii200],
       ['Total Assets', `$${summary.institution.totalAssets.toLocaleString()}M`],
-      ['Risk Score', `${summary.riskScore}/100`],
-      ['Reporting Period', summary.institution.reportingDate],
+      ['Report Sections', 'Interest Rate Risk, Liquidity, Stress Testing, Recommendations'],
+    ];
+
+    let rowY = boxY + 10;
+    summaryRows.forEach(([label, value]) => {
+      doc.fontSize(9).fillColor(COLORS.muted).text(label, mL + 16, rowY, { width: 140, continued: false });
+      doc.fontSize(9).fillColor(COLORS.heading).text(value, mL + 165, rowY, { width: contentWidth - 180, continued: false });
+      rowY += 19;
+    });
+
+    doc.y = boxY + boxH + 15;
+
+    // Info block
+    const infoItems = [
+      ['Institution Type', summary.institution.type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())],
+      ['Prepared By', 'KLYTICS | CapexCycleOS'],
+      ['Reporting Period', new Date(summary.institution.reportingDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })],
     ];
 
     infoItems.forEach(([label, value]) => {
       const y = doc.y;
       doc.fontSize(9).fillColor(COLORS.muted).text(label, mL, y, { width: 120, continued: false });
       doc.fontSize(9).fillColor(COLORS.heading).text(value, mL + 130, y, { continued: false });
-      doc.y = y + 18;
+      doc.y = y + 16;
     });
 
-    // Footer area
-    doc.fontSize(8).fillColor(COLORS.muted).text(
-      'Prepared by KLYTICS | CapexCycleOS',
-      mL,
-      doc.page.height - 100,
-      { width: contentWidth, align: 'center' },
-    );
+    // Footer
     doc.fontSize(7).fillColor(COLORS.muted).text(
       'This document contains confidential information intended for authorized recipients only.',
       mL,
@@ -575,10 +608,19 @@ export class ReportsService {
   private renderSectionHeader(doc: typeof PDFDocument, num: string, title: string, subtitle?: string) {
     this.pageNum++;
     const mL = doc.page.margins.left;
-    const contentWidth = doc.page.width - mL - doc.page.margins.right;
+    const mR = doc.page.margins.right;
+    const contentWidth = doc.page.width - mL - mR;
 
     // Brand bar at top
     doc.rect(0, 0, doc.page.width, 4).fill(COLORS.brand);
+
+    // Section X of 5 — top right
+    doc.fontSize(8).fillColor(COLORS.muted).text(
+      `Section ${num} of 5`,
+      0,
+      doc.page.margins.top + 4,
+      { align: 'right', width: doc.page.width - mR },
+    );
 
     // Left border accent + section title
     doc.y = doc.page.margins.top;

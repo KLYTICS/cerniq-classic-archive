@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
 import { RefreshCw, Zap, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
@@ -72,6 +72,65 @@ const ratingBadge: Record<string, 'low' | 'moderate' | 'high' | 'critical'> = {
   vulnerable: 'high',
   critical: 'critical',
 };
+
+const LOADING_STEPS = [
+  { text: 'Initializing Vasicek rate model', ms: 500 },
+  { text: 'Running 1,000 Monte Carlo paths', ms: 1000 },
+  { text: 'Calculating NII distribution', ms: 500 },
+  { text: 'Applying 4 regulatory scenarios', ms: 500 },
+  { text: 'Generating risk assessment', ms: 300 },
+];
+
+function StressTestLoadingAnimation() {
+  const [completed, setCompleted] = useState<number[]>([]);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    let step = 0;
+    const advance = () => {
+      if (step < LOADING_STEPS.length) {
+        setCompleted((prev) => [...prev, step]);
+        step++;
+        timerRef.current = setTimeout(advance, LOADING_STEPS[step - 1]?.ms || 300);
+      }
+    };
+    timerRef.current = setTimeout(advance, 200);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500/20 to-red-500/10 border border-orange-500/20 flex items-center justify-center mb-6">
+        <Zap className="h-6 w-6 text-orange-400 animate-pulse" />
+      </div>
+      <h3 className="text-white font-bold mb-1">Running Stress Test</h3>
+      <p className="text-xs text-slate-500 mb-8">1,000 Monte Carlo simulations</p>
+      <div className="w-full max-w-xs space-y-3">
+        {LOADING_STEPS.map((s, i) => {
+          const done = completed.includes(i);
+          const current = !done && completed.length === i;
+          return (
+            <div
+              key={i}
+              className={`flex items-center gap-3 transition-all duration-300 ${
+                done ? 'opacity-100' : current ? 'opacity-70' : 'opacity-20'
+              }`}
+            >
+              {done ? (
+                <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />
+              ) : current ? (
+                <div className="w-4 h-4 border-2 border-orange-500/40 border-t-orange-500 rounded-full animate-spin shrink-0" />
+              ) : (
+                <div className="w-4 h-4 rounded-full border border-white/[0.08] shrink-0" />
+              )}
+              <span className={`text-sm ${done ? 'text-slate-300' : 'text-slate-500'}`}>{s.text}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function StressTestPage() {
   const { selectedId } = useALM();
@@ -166,23 +225,18 @@ export default function StressTestPage() {
         </div>
       )}
 
-      {/* Loading */}
-      {loading && (
-        <div className="flex flex-col items-center justify-center py-24">
-          <div className="w-10 h-10 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mb-4" />
-          <p className="text-sm text-slate-400">Simulating 1,000 rate paths...</p>
-        </div>
-      )}
+      {/* Loading — sequential computation animation */}
+      {loading && <StressTestLoadingAnimation />}
 
       {/* Results */}
       {result && !loading && (
         <>
           {/* Hero KPIs */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/[0.03] rounded-xl overflow-hidden border border-white/[0.06]">
-            <div className="bg-gradient-to-br from-orange-500/10 to-red-500/5 px-5 py-4 text-center">
+            <div className="bg-gradient-to-br from-orange-500/10 to-red-500/5 px-5 py-5 text-center">
               <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">NII at Risk</p>
-              <p className="text-3xl font-bold text-orange-300 mt-1 tabular-nums">${result.monteCarlo.niiAtRisk}M</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Expected - 5th percentile</p>
+              <p className="text-5xl font-bold text-orange-300 mt-2 tabular-nums">${result.monteCarlo.niiAtRisk}M</p>
+              <p className="text-[11px] text-slate-500 mt-1.5 max-w-[220px] mx-auto leading-relaxed">Maximum potential NII loss over 12 months under adverse rate conditions</p>
             </div>
             <div className="bg-slate-900/80 px-5 py-4 text-center">
               <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Expected NII</p>
@@ -203,7 +257,7 @@ export default function StressTestPage() {
           {/* Monte Carlo Fan Chart */}
           <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">NII Distribution — 12 Month Projection</h3>
-            <ResponsiveContainer width="100%" height={320}>
+            <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={result.monteCarlo.monthlyNIIBands} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
                 <XAxis
@@ -247,7 +301,7 @@ export default function StressTestPage() {
             <div className="px-5 py-3 border-b border-white/[0.06]">
               <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">NII Distribution Summary</h3>
             </div>
-            <div className="grid grid-cols-5 gap-px bg-white/[0.02]">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-px bg-white/[0.02]">
               {[
                 { label: '5th Percentile', value: result.monteCarlo.niiDistribution.p5, color: 'text-red-400' },
                 { label: '25th Percentile', value: result.monteCarlo.niiDistribution.p25, color: 'text-orange-400' },

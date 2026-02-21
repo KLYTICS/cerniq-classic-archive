@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
+import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import ALMProvider, { useALM } from '@/components/alm/ALMProvider';
 import { Download, Menu, Building2, ChevronDown } from 'lucide-react';
@@ -45,6 +46,12 @@ function ALMTopBar() {
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-500 pointer-events-none" />
           </div>
         )}
+        <Link
+          href="/pricing"
+          className="text-[11px] text-slate-500 hover:text-amber-400 transition hidden sm:inline"
+        >
+          Pricing
+        </Link>
         {selectedId && (
           <a
             href={apiClient.getALMReportUrl(selectedId)}

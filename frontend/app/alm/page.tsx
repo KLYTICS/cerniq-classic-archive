@@ -17,6 +17,7 @@ import {
   ArrowDownRight,
   Activity,
   Building2,
+  Download,
 } from 'lucide-react';
 import RiskScoreGauge from '@/components/alm/RiskScoreGauge';
 import RiskBadge from '@/components/alm/RiskBadge';
@@ -206,25 +207,36 @@ export default function ALMOverviewPage() {
 
   return (
     <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-white">Risk Overview</h1>
-          {summary && (
-            <p className="text-xs text-slate-500 mt-0.5">
-              {summary.institution.name} &middot; Reporting: {new Date(summary.institution.reportingDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-            </p>
-          )}
+      {/* Institution Header Strip */}
+      {summary && (
+        <div className="flex items-center justify-between bg-slate-900/60 border border-white/[0.06] rounded-xl px-5 py-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center">
+              <Building2 className="h-4 w-4 text-amber-400" />
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-white">{summary.institution.name}</h1>
+              <p className="text-[11px] text-slate-500">
+                ${summary.institution.totalAssets.toLocaleString()}M {summary.institution.type.replace(/_/g, ' ')} &middot; Reporting {new Date(summary.institution.reportingDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider">Live Data</span>
+            </div>
+            <button
+              onClick={() => selectedId && fetchSummary(selectedId)}
+              disabled={loading}
+              className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-slate-400 hover:text-white px-3 py-1.5 rounded-lg text-xs transition disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => selectedId && fetchSummary(selectedId)}
-          disabled={loading}
-          className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-slate-400 hover:text-white px-3 py-1.5 rounded-lg text-xs transition disabled:opacity-50"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
-      </div>
+      )}
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-red-300 text-sm">
@@ -273,13 +285,13 @@ export default function ALMOverviewPage() {
           {/* Risk Score + Institution Detail */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
             {/* Risk Score Gauge */}
-            <div className="lg:col-span-3 bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 flex flex-col items-center justify-center">
-              <RiskScoreGauge score={summary.riskScore} size={180} />
-              <p className="text-[11px] text-slate-500 mt-2 uppercase tracking-wider">Composite Risk</p>
+            <div className="lg:col-span-4 bg-slate-900/40 border border-white/[0.06] rounded-xl p-6 flex flex-col items-center justify-center">
+              <RiskScoreGauge score={summary.riskScore} size={220} />
+              <p className="text-[11px] text-slate-500 mt-3 uppercase tracking-wider">Composite Risk Score</p>
             </div>
 
             {/* Top Risks */}
-            <div className="lg:col-span-5 bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
+            <div className="lg:col-span-4 bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <SectionHeader title="Key Risk Factors" />
                 <RiskBadge status={summary.niiSensitivity.riskRating} size="sm" />
@@ -386,15 +398,51 @@ export default function ALMOverviewPage() {
           <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
             <SectionHeader title="Recommendations" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-              {summary.recommendations.map((rec, i) => (
-                <div key={i} className="flex items-start gap-3 bg-white/[0.02] rounded-lg p-3">
-                  <div className="mt-0.5 w-5 h-5 rounded bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0">
-                    <Activity className="h-3 w-3 text-cyan-400" />
+              {(summary.recommendations && summary.recommendations.length > 0
+                ? summary.recommendations
+                : [
+                    'Consider interest rate swaps to reduce the duration gap before the next Fed cycle',
+                    `LCR buffer of ${summary.liquidity.buffer.toFixed(1)}% is healthy — evaluate deploying excess HQLA into higher-yield assets`,
+                    `NII sensitivity at +200bps shows potential impact — asset repricing plan recommended`,
+                    'Annual OCIF examination preparation: document Basel III LCR calculation methodology',
+                  ]
+              ).map((rec, i) => {
+                const priority = i < 1 ? 'HIGH' : i < 3 ? 'MEDIUM' : 'LOW';
+                const prioColor = priority === 'HIGH' ? 'text-red-400 bg-red-500/10 border-red-500/20' : priority === 'MEDIUM' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+                return (
+                  <div key={i} className="flex items-start gap-3 bg-white/[0.02] rounded-lg p-3">
+                    <span className={`mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${prioColor}`}>
+                      {priority}
+                    </span>
+                    <p className="text-sm text-slate-300 leading-relaxed">{rec}</p>
                   </div>
-                  <p className="text-sm text-slate-300 leading-relaxed">{rec}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
+          </div>
+
+          {/* Quick Action Buttons */}
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={`/alm/sensitivity?id=${selectedId}`}
+              className="flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 text-blue-300 px-4 py-2.5 rounded-lg text-sm font-medium transition"
+            >
+              <TrendingUp className="h-4 w-4" /> View Rate Sensitivity
+            </Link>
+            <Link
+              href={`/alm/stress-test?id=${selectedId}`}
+              className="flex items-center gap-2 bg-orange-500/10 hover:bg-orange-500/15 border border-orange-500/20 text-orange-300 px-4 py-2.5 rounded-lg text-sm font-medium transition"
+            >
+              <Zap className="h-4 w-4" /> Run Stress Test
+            </Link>
+            <a
+              href={apiClient.getALMReportUrl(selectedId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-300 px-4 py-2.5 rounded-lg text-sm font-medium transition"
+            >
+              <Download className="h-4 w-4" /> Download PDF Report
+            </a>
           </div>
         </>
       )}

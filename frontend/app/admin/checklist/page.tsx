@@ -18,44 +18,48 @@ interface CheckSection {
 
 const SECTIONS: CheckSection[] = [
   {
-    title: 'Environment',
+    title: 'Day Before (Tuesday)',
     items: [
-      { id: 'health', label: 'API health returns database: up', link: 'https://capexcycleos-api.fly.dev/health', linkLabel: 'Check' },
-      { id: 'frontend', label: 'Frontend loads without redirect', link: 'https://capexcycle.vercel.app', linkLabel: 'Open' },
-      { id: 'demo-link', label: 'Demo link works: /demo?type=bank', link: 'https://capexcycle.vercel.app/demo?type=bank', linkLabel: 'Test' },
+      { id: 'pablo-url', label: 'Open capexcycle.vercel.app/pablo — verify redirect + load', link: 'https://capexcycle.vercel.app/pablo', linkLabel: 'Test' },
+      { id: 'full-flow', label: 'Run full demo: register → seed → ALM overview → stress test → PDF', link: 'https://capexcycle.vercel.app/demo?preset=banco-comunidad', linkLabel: 'Run' },
+      { id: 'pdf-check', label: 'Download PDF, verify it opens and looks board-ready' },
+      { id: 'laptop-charge', label: 'Charge laptop to 100%' },
+      { id: 'wifi-test', label: 'Test on hotel/coffee shop WiFi (not just home connection)' },
+      { id: 'health-check', label: 'API health: database up, API up', link: 'https://capexcycleos-api.fly.dev/health', linkLabel: 'Check' },
     ],
   },
   {
-    title: 'Data',
+    title: 'Day Of (Wednesday)',
     items: [
-      { id: 'register', label: 'Register new account with fresh email' },
-      { id: 'seeded', label: 'Banco Comunidad PR seeded after onboarding' },
-      { id: 'risk-score', label: 'ALM overview shows Risk Score 87/100', link: '/alm', linkLabel: 'Check' },
-      { id: 'lcr', label: 'LCR shows 118.1% Compliant', link: '/alm/liquidity', linkLabel: 'Check' },
+      { id: 'close-tabs', label: 'Close all browser tabs except the demo' },
+      { id: 'chrome-pablo', label: 'Open capexcycle.vercel.app/pablo in Chrome (NOT Safari)', link: 'https://capexcycle.vercel.app/pablo', linkLabel: 'Open' },
+      { id: 'pricing-tab', label: 'Have /pricing page open in second tab', link: 'https://capexcycle.vercel.app/pricing', linkLabel: 'Open' },
+      { id: 'phone-url', label: 'Phone: have URL ready to text Pablo — capexcycle.vercel.app/pablo' },
+      { id: 'kill-notifs', label: 'Kill Slack, email, and notification sounds' },
+      { id: 'admin-tab', label: 'Admin page open in background tab', link: '/admin', linkLabel: 'Open' },
     ],
   },
   {
-    title: 'Features',
+    title: 'During Demo',
     items: [
-      { id: 'sensitivity', label: 'Rate Sensitivity chart loads (NII at +100bps positive)', link: '/alm/sensitivity', linkLabel: 'Check' },
-      { id: 'stress-test', label: 'Stress Test runs in < 3 seconds', link: '/alm/stress-test', linkLabel: 'Check' },
-      { id: 'pdf', label: 'PDF report downloads (check file size > 50KB)' },
-      { id: 'balance-sheet', label: 'Balance sheet shows tabbed assets/liabilities', link: '/alm/balance-sheet', linkLabel: 'Check' },
+      { id: 'let-pablo-type', label: 'Let Pablo type his institution name in Step 1 — makes it feel personal' },
+      { id: 'narrate-mc', label: 'When stress test runs, narrate: "1,000 Monte Carlo simulations..."' },
+      { id: 'hand-pdf', label: 'Download PDF and hand him the laptop to scroll through it' },
+      { id: 'ask-question', label: 'Ask: "Is this the kind of report your team currently produces manually?"' },
+      { id: 'show-pricing', label: 'When he asks cost: switch to /pricing tab' },
     ],
   },
   {
-    title: 'Presentation',
+    title: 'After',
     items: [
-      { id: 'laptop', label: 'Laptop charged + charger packed' },
-      { id: 'chrome', label: 'Demo on Chrome, NOT Safari (cookie behavior)' },
-      { id: 'tabs', label: 'Close all other browser tabs' },
-      { id: 'notifications', label: 'Kill Slack/notification sounds' },
-      { id: 'admin-tab', label: 'Admin page open in separate tab', link: '/admin', linkLabel: 'Open' },
+      { id: 'text-link', label: 'Text Pablo the demo link before he walks out' },
+      { id: 'follow-up-24h', label: 'Follow up email within 24 hours' },
+      { id: 'update-crm', label: 'Update prospect stage in admin → Prospect Pipeline', link: '/admin/prospects', linkLabel: 'Open' },
     ],
   },
 ];
 
-const STORAGE_KEY = 'capex_demo_checklist';
+const STORAGE_KEY = 'capex_wednesday_checklist';
 
 export default function ChecklistPage() {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
@@ -89,8 +93,8 @@ export default function ChecklistPage() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="text-lg font-bold">Pre-Demo Checklist</h1>
-            <p className="text-xs text-slate-500">Run through before any prospect meeting</p>
+            <h1 className="text-lg font-bold">Wednesday Demo Checklist</h1>
+            <p className="text-xs text-slate-500">Pablo meeting — February 25, 2026</p>
           </div>
         </div>
 
@@ -99,7 +103,7 @@ export default function ChecklistPage() {
           <div className="flex items-center justify-between text-xs mb-2">
             <span className="text-slate-500">{checkedCount} of {totalItems} complete</span>
             <span className={`font-medium ${allDone ? 'text-emerald-400' : 'text-slate-400'}`}>
-              {allDone ? 'All clear' : `${pct}%`}
+              {allDone ? 'All clear — go get him' : `${pct}%`}
             </span>
           </div>
           <div className="h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
