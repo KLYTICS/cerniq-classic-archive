@@ -5,7 +5,7 @@
 ```
 [Vercel - Frontend]  ──HTTPS──>  [Fly.io - Backend]  ──>  [Fly Postgres]
      Next.js 15                     NestJS + Prisma         PostgreSQL 16
-   showrate.vercel.app          capexcycleos-api.fly.dev
+   capexcycle.vercel.app          capexcycleos-api.fly.dev
 ```
 
 ## Backend (Fly.io)
@@ -23,7 +23,7 @@
 | `DATABASE_URL` | PostgreSQL connection string | `postgres://user:pass@host:5432/db` (auto-attached) |
 | `JWT_SECRET` | Min 32 chars, used for JWT signing | `your-secret-key-at-least-32-chars` |
 | `NODE_ENV` | Must be `production` | `production` |
-| `FRONTEND_URL` | Vercel deployment URL | `https://showrate.vercel.app` |
+| `FRONTEND_URL` | Vercel deployment URL | `https://capexcycle.vercel.app` |
 
 ### Optional Environment Variables
 
@@ -49,7 +49,7 @@
    ```bash
    fly secrets set JWT_SECRET="your-secret-min-32-chars" \
      NODE_ENV=production \
-     FRONTEND_URL=https://showrate.vercel.app \
+     FRONTEND_URL=https://capexcycle.vercel.app \
      --app capexcycleos-api
    ```
 7. Deploy: `fly deploy --app capexcycleos-api` (from `backend-node/`)
@@ -107,12 +107,12 @@ vercel --prod --yes
 
 | Service | URL |
 |---------|-----|
-| Frontend | https://showrate.vercel.app |
+| Frontend | https://capexcycle.vercel.app |
 | Backend API | https://capexcycleos-api.fly.dev |
 | Health Check | https://capexcycleos-api.fly.dev/health |
-| Status Page | https://showrate.vercel.app/status |
-| Admin Dashboard | https://showrate.vercel.app/admin |
-| Demo Deep Link | https://showrate.vercel.app/demo |
+| Status Page | https://capexcycle.vercel.app/status |
+| Admin Dashboard | https://capexcycle.vercel.app/admin |
+| Demo Deep Link | https://capexcycle.vercel.app/demo |
 
 ---
 

@@ -61,6 +61,14 @@ export class AuthService {
       },
     });
 
+    // Auto-create a default workspace for the new user
+    await this.prisma.workspace.create({
+      data: {
+        name: `${dto.name || dto.email.split('@')[0]}'s Workspace`,
+        ownerId: user.id,
+      },
+    });
+
     return this.generateTokens(user);
   }
 
@@ -119,6 +127,14 @@ export class AuthService {
             providerId: profile.providerId,
             avatarUrl: profile.avatarUrl,
             emailVerified: true,
+          },
+        });
+
+        // Auto-create workspace for OAuth users
+        await this.prisma.workspace.create({
+          data: {
+            name: `${profile.name || profile.email.split('@')[0]}'s Workspace`,
+            ownerId: user.id,
           },
         });
       }

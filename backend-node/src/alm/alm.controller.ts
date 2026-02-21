@@ -48,11 +48,12 @@ export class AlmController {
   @Get('institutions')
   @UseGuards(AuthGuard)
   async listInstitutions(@Req() req: any) {
-    // Return all institutions (in production, filter by user's workspaces)
-    const institutions = await this.almEnterprise.getInstitutionsByWorkspace(
-      req.query?.workspaceId || '',
-    );
-    return institutions;
+    const workspaceId = req.query?.workspaceId;
+    if (workspaceId) {
+      return this.almEnterprise.getInstitutionsByWorkspace(workspaceId);
+    }
+    // No workspaceId provided — find all institutions for user's workspaces
+    return this.almEnterprise.getInstitutionsByUser(req.user.userId);
   }
 
   @Get('institutions/:institutionId')

@@ -56,28 +56,20 @@ function DemoContent() {
           return;
         }
 
-        // Need a workspace — get from onboarding or create
-        const NODE_API_URL = process.env.NEXT_PUBLIC_NODE_API_URL || 'http://localhost:3000';
+        // Need a workspace — get existing or create one
         let workspaceId: string;
         try {
-          const wsRes = await fetch(`${NODE_API_URL}/api/workspaces`, { credentials: 'include' });
-          const workspaces = await wsRes.json();
+          const workspaces = await apiClient.getMyWorkspaces();
           if (Array.isArray(workspaces) && workspaces.length > 0) {
             workspaceId = workspaces[0].id;
           } else {
-            // Create a workspace
-            const createRes = await fetch(`${NODE_API_URL}/api/workspaces`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({ name: 'Demo Workspace' }),
-            });
-            const created = await createRes.json();
+            const created = await apiClient.createMyWorkspace('Demo Workspace');
             workspaceId = created.id;
           }
         } catch {
-          // Fallback: use a fixed demo workspace ID — the seed endpoint will handle it
-          workspaceId = 'demo';
+          // Fallback: create a workspace
+          const created = await apiClient.createMyWorkspace('Demo Workspace');
+          workspaceId = created.id;
         }
 
         if (cancelled) return;
@@ -86,7 +78,7 @@ function DemoContent() {
         if (cancelled) return;
 
         setStatus('Redirecting to ALM dashboard...');
-        const institutionId = result?.institution?.id || result?.id;
+        const institutionId = result?.institutionId || result?.institution?.id || result?.id;
         setTimeout(() => {
           router.push(institutionId ? `/alm?id=${institutionId}` : '/alm');
         }, 1000);

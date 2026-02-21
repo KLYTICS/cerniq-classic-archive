@@ -1,12 +1,15 @@
-import { Controller, Get, Post, Delete, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, HttpCode, HttpStatus, UseGuards, Req } from '@nestjs/common';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
+import { AuthGuard } from './auth/auth.guard';
+import { EmailService } from './email/email.service';
 
 @Controller()
 export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
   ) {}
 
   @Post('api/demo-request')
@@ -32,6 +35,11 @@ export class AppController {
         message: body.message,
       },
     });
+
+    // Send email notifications (fire-and-forget)
+    this.emailService.sendDemoRequestNotification(body).catch(() => {});
+    this.emailService.sendDemoConfirmation({ name: body.name, email: body.email }).catch(() => {});
+
     return { id: record.id, message: 'Demo request received' };
   }
 
@@ -108,6 +116,28 @@ export class AppController {
       },
     });
     return { demoRequests, institutions, users, recentUsers };
+  }
+
+  // --- Workspace Endpoints ---
+
+  @Get('api/workspaces')
+  @UseGuards(AuthGuard)
+  async getWorkspaces(@Req() req: any) {
+    return this.prisma.workspace.findMany({
+      where: { ownerId: req.user.userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  @Post('api/workspaces')
+  @UseGuards(AuthGuard)
+  async createWorkspace(@Req() req: any, @Body() body: { name: string }) {
+    return this.prisma.workspace.create({
+      data: {
+        name: body.name || 'My Workspace',
+        ownerId: req.user.userId,
+      },
+    });
   }
 
   @Get('api/status')

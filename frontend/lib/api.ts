@@ -15,13 +15,18 @@ class APIClient {
       withCredentials: true,
     });
 
-    // Handle 401 — redirect to login
+    // Handle 401 — redirect to login only from protected pages
+    const publicPaths = ['/', '/login', '/signup', '/status', '/admin', '/demo'];
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-            window.location.href = '/login';
+          if (typeof window !== 'undefined') {
+            const path = window.location.pathname;
+            const isPublic = publicPaths.some((p) => path === p || (p !== '/' && path.startsWith(p + '/')));
+            if (!isPublic) {
+              window.location.href = '/login';
+            }
           }
         }
         return Promise.reject(error);
@@ -493,6 +498,18 @@ class APIClient {
       workspaceId,
       type,
     });
+    return response.data;
+  }
+
+  // --- Workspaces (ALM) ---
+
+  async getMyWorkspaces() {
+    const response = await this.client.get(`${NODE_API_URL}/api/workspaces`);
+    return response.data;
+  }
+
+  async createMyWorkspace(name: string) {
+    const response = await this.client.post(`${NODE_API_URL}/api/workspaces`, { name });
     return response.data;
   }
 }

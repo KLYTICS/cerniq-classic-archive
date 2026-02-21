@@ -21,6 +21,7 @@ import { AuthModule } from './auth/auth.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { JobsModule } from './jobs/jobs.module';
 import { AlmModule } from './alm/alm.module';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -46,6 +47,8 @@ import { AlmModule } from './alm/alm.module';
     JobsModule,
     // Asset Liability Management
     AlmModule,
+    // Email notifications
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [

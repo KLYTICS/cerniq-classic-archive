@@ -112,6 +112,19 @@ export class AlmEnterpriseService {
     });
   }
 
+  async getInstitutionsByUser(userId: string) {
+    const workspaces = await this.prisma.workspace.findMany({
+      where: { ownerId: userId },
+      select: { id: true },
+    });
+    const workspaceIds = workspaces.map((w) => w.id);
+    if (workspaceIds.length === 0) return [];
+    return this.prisma.institution.findMany({
+      where: { workspaceId: { in: workspaceIds } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   // ─── Balance Sheet Import ──────────────────────────────────────
 
   async importBalanceSheetItems(

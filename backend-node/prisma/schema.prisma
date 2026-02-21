@@ -24,6 +24,7 @@ model User {
   expenses            Expense[]
   portfolios          Portfolio[]
   refreshTokens       RefreshToken[]
+  workspaces          Workspace[]
 
   @@unique([provider, providerId])
   @@map("users")
@@ -122,8 +123,10 @@ enum ExpenseStatus {
 model Workspace {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
+  ownerId   String?  @map("owner_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
 
+  owner        User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   uploads      Upload[]
   invoices     Invoice[]
   findings     Finding[]
