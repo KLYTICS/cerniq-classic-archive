@@ -73,6 +73,26 @@ function DemoBanner() {
   );
 }
 
+function MobileHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
+  const { institution } = useALM();
+  return (
+    <div className="lg:hidden flex items-center justify-between h-12 px-4 border-b border-white/[0.06] bg-slate-900/70">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onOpenSidebar}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <span className="text-sm font-semibold text-white">ALM Intelligence</span>
+      </div>
+      {institution && (
+        <span className="text-[11px] text-slate-500 truncate max-w-[140px]">{institution.name}</span>
+      )}
+    </div>
+  );
+}
+
 function ALMShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -81,16 +101,7 @@ function ALMShell({ children }: { children: React.ReactNode }) {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Mobile menu button */}
-        <div className="lg:hidden flex items-center h-12 px-4 border-b border-white/[0.06] bg-slate-900/70">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <span className="ml-3 text-sm font-semibold text-white">ALM Intelligence</span>
-        </div>
+        <MobileHeader onOpenSidebar={() => setSidebarOpen(true)} />
 
         <DemoBanner />
         <ALMTopBar />

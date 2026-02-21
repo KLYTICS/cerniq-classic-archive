@@ -16,7 +16,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Activity,
-  BarChart3,
+  Building2,
 } from 'lucide-react';
 import RiskScoreGauge from '@/components/alm/RiskScoreGauge';
 import RiskBadge from '@/components/alm/RiskBadge';
@@ -171,29 +171,32 @@ export default function ALMOverviewPage() {
   if (!institutionsLoading && institutions.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-6">
-        <div className="flex flex-col items-center text-center max-w-md">
+        <div className="flex flex-col items-center text-center max-w-lg">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 flex items-center justify-center mb-6">
-            <Landmark className="h-8 w-8 text-amber-400" />
+            <Building2 className="h-8 w-8 text-amber-400" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Set Up Your Institution</h2>
+          <h2 className="text-xl font-bold text-white mb-2">Welcome to ALM Intelligence</h2>
           <p className="text-sm text-slate-400 mb-8 leading-relaxed">
-            Connect your balance sheet data to get real-time ALM intelligence —
-            duration gap analysis, NII sensitivity, and Basel III compliance monitoring.
+            Set up your institution to start analyzing interest rate risk, liquidity coverage,
+            and Basel III compliance. Load a demo institution or add your own data.
           </p>
           <div className="flex gap-3">
             <button
-              onClick={() => router.push('/onboarding/institution-type')}
+              onClick={() => router.push('/demo?type=bank')}
               className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-900 text-sm font-semibold rounded-lg transition"
             >
-              Get Started
+              Load Demo Institution
             </button>
             <Link
               href="/alm/balance-sheet"
               className="px-5 py-2.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 text-sm rounded-lg transition"
             >
-              Import Data
+              Add Manually
             </Link>
           </div>
+          <p className="text-[11px] text-slate-600 mt-6">
+            Demo loads a pre-configured $1.2B Puerto Rico community bank
+          </p>
         </div>
       </div>
     );

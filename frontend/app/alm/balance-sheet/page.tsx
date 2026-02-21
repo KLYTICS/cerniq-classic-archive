@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, RefreshCw, DollarSign, Upload, RotateCcw, Plus, Trash2, AlertTriangle, Check } from 'lucide-react';
+import { RefreshCw, DollarSign, Upload, Plus, Trash2, AlertTriangle, Check, Download, Table } from 'lucide-react';
+import { useALM } from '@/components/alm/ALMProvider';
 
 interface BalanceSheetItem {
   id?: string;
@@ -28,17 +27,6 @@ interface Institution {
   balanceSheetItems: BalanceSheetItem[];
 }
 
-function LoadingSkeleton() {
-  return (
-    <div className="min-h-screen bg-slate-950 p-6 animate-pulse">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="h-8 bg-slate-800 rounded w-64" />
-        <div className="h-96 bg-slate-800/50 rounded-xl" />
-      </div>
-    </div>
-  );
-}
-
 const ASSET_SUBCATEGORIES = [
   'commercial_loans', 'residential_mortgages', 'consumer_loans',
   'investment_securities', 'cash_equivalents', 'other_assets',
@@ -49,13 +37,35 @@ const LIABILITY_SUBCATEGORIES = [
   'borrowings', 'subordinated_debt', 'other_liabilities',
 ];
 
-function getDurationColor(duration: number): string {
-  if (duration <= 1) return 'bg-emerald-500/30 text-emerald-300';
-  if (duration <= 3) return 'bg-blue-500/30 text-blue-300';
-  if (duration <= 5) return 'bg-amber-500/30 text-amber-300';
-  if (duration <= 10) return 'bg-orange-500/30 text-orange-300';
-  return 'bg-red-500/30 text-red-300';
-}
+const SUBCATEGORY_COLORS: Record<string, string> = {
+  commercial_loans: 'border-l-blue-500',
+  residential_mortgages: 'border-l-indigo-500',
+  consumer_loans: 'border-l-cyan-500',
+  investment_securities: 'border-l-purple-500',
+  cash_equivalents: 'border-l-emerald-500',
+  other_assets: 'border-l-slate-500',
+  demand_deposits: 'border-l-green-500',
+  savings_deposits: 'border-l-teal-500',
+  time_deposits: 'border-l-amber-500',
+  borrowings: 'border-l-orange-500',
+  subordinated_debt: 'border-l-red-500',
+  other_liabilities: 'border-l-slate-500',
+};
+
+const DURATION_BAR_COLORS: Record<string, string> = {
+  commercial_loans: 'bg-blue-500/70',
+  residential_mortgages: 'bg-indigo-500/70',
+  consumer_loans: 'bg-cyan-500/70',
+  investment_securities: 'bg-purple-500/70',
+  cash_equivalents: 'bg-emerald-500/70',
+  other_assets: 'bg-slate-500/70',
+  demand_deposits: 'bg-green-500/70',
+  savings_deposits: 'bg-teal-500/70',
+  time_deposits: 'bg-amber-500/70',
+  borrowings: 'bg-orange-500/70',
+  subordinated_debt: 'bg-red-500/70',
+  other_liabilities: 'bg-slate-500/70',
+};
 
 function emptyItem(category: 'asset' | 'liability'): BalanceSheetItem {
   return {
@@ -69,17 +79,97 @@ function emptyItem(category: 'asset' | 'liability'): BalanceSheetItem {
   };
 }
 
-export default function BalanceSheetPage() {
+function formatSubcategory(sc: string): string {
+  return sc.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+}
+
+function SkeletonPulse() {
   return (
-    <Suspense fallback={<LoadingSkeleton />}>
-      <BalanceSheetContent />
-    </Suspense>
+    <div className="p-6 space-y-5 animate-pulse">
+      <div className="h-6 bg-slate-800 rounded w-48" />
+      <div className="grid grid-cols-4 gap-px bg-white/[0.03] rounded-xl overflow-hidden border border-white/[0.06]">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="bg-slate-900/80 px-4 py-4">
+            <div className="h-3 bg-slate-800 rounded w-16 mb-3" />
+            <div className="h-6 bg-slate-800 rounded w-24" />
+          </div>
+        ))}
+      </div>
+      <div className="h-96 bg-slate-900/40 rounded-xl border border-white/[0.06]" />
+    </div>
   );
 }
 
-function BalanceSheetContent() {
-  const searchParams = useSearchParams();
-  const institutionId = searchParams.get('id') || '';
+function DurationHeatmap({ items }: { items: BalanceSheetItem[] }) {
+  // Group by subcategory, calculate weighted duration contribution
+  const groups: Record<string, { subcategory: string; totalBalance: number; weightedDuration: number }> = {};
+  items.forEach((item) => {
+    if (!groups[item.subcategory]) {
+      groups[item.subcategory] = { subcategory: item.subcategory, totalBalance: 0, weightedDuration: 0 };
+    }
+    groups[item.subcategory].totalBalance += Number(item.balance);
+    groups[item.subcategory].weightedDuration += Number(item.balance) * Number(item.duration);
+  });
+
+  const segments = Object.values(groups)
+    .map((g) => ({
+      subcategory: g.subcategory,
+      balance: g.totalBalance,
+      avgDuration: g.totalBalance > 0 ? g.weightedDuration / g.totalBalance : 0,
+      weight: g.totalBalance, // proportional width
+    }))
+    .filter((s) => s.balance > 0)
+    .sort((a, b) => a.avgDuration - b.avgDuration);
+
+  const totalBalance = segments.reduce((s, g) => s + g.balance, 0);
+  if (totalBalance === 0) return null;
+
+  return (
+    <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Duration Distribution</h3>
+        <span className="text-[10px] text-slate-600">Width = balance weight, position = avg duration</span>
+      </div>
+
+      {/* Bar */}
+      <div className="flex rounded-lg overflow-hidden h-10 gap-px">
+        {segments.map((seg) => {
+          const widthPct = (seg.balance / totalBalance) * 100;
+          if (widthPct < 1) return null;
+          return (
+            <div
+              key={seg.subcategory}
+              className={`${DURATION_BAR_COLORS[seg.subcategory] || 'bg-slate-500/70'} flex items-center justify-center transition-all relative group cursor-default`}
+              style={{ width: `${widthPct}%`, minWidth: widthPct > 5 ? undefined : '20px' }}
+              title={`${formatSubcategory(seg.subcategory)}: $${seg.balance.toFixed(0)}M, ${seg.avgDuration.toFixed(1)}yr avg`}
+            >
+              {widthPct > 12 && (
+                <span className="text-[10px] text-white/90 font-medium truncate px-1">
+                  {formatSubcategory(seg.subcategory).split(' ')[0]}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
+        {segments.map((seg) => (
+          <div key={seg.subcategory} className="flex items-center gap-1.5">
+            <div className={`w-2 h-2 rounded-sm ${DURATION_BAR_COLORS[seg.subcategory] || 'bg-slate-500/70'}`} />
+            <span className="text-[10px] text-slate-500">
+              {formatSubcategory(seg.subcategory)} <span className="text-slate-400 font-mono">{seg.avgDuration.toFixed(1)}yr</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function BalanceSheetPage() {
+  const { selectedId, institution: almInstitution } = useALM();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [institution, setInstitution] = useState<Institution | null>(null);
   const [items, setItems] = useState<BalanceSheetItem[]>([]);
@@ -88,13 +178,14 @@ function BalanceSheetContent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [activeTab, setActiveTab] = useState<'asset' | 'liability'>('asset');
 
   const fetchData = useCallback(async () => {
-    if (!institutionId) return;
+    if (!selectedId) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await apiClient.getInstitution(institutionId);
+      const data = await apiClient.getInstitution(selectedId);
       setInstitution(data);
       setItems(data.balanceSheetItems || []);
       setDirty(false);
@@ -104,7 +195,7 @@ function BalanceSheetContent() {
     } finally {
       setLoading(false);
     }
-  }, [institutionId]);
+  }, [selectedId]);
 
   useEffect(() => {
     fetchData();
@@ -130,7 +221,7 @@ function BalanceSheetContent() {
   };
 
   const handleSave = async () => {
-    if (!institutionId) return;
+    if (!selectedId) return;
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -146,17 +237,18 @@ function BalanceSheetContent() {
         maturityDate: item.maturityDate || undefined,
         rateType: item.rateType,
       }));
-      await apiClient.importBalanceSheetItems(institutionId, payload);
-      setSuccess(`Saved ${payload.length} items. ALM calculations will reflect the updated balance sheet.`);
+      await apiClient.importBalanceSheetItems(selectedId, payload);
+      setSuccess(`Saved ${payload.length} items`);
       setDirty(false);
       analytics.track(EVENTS.ALM_ANALYSIS_RUN, {
-        institutionId,
+        institutionId: selectedId,
         view: 'balance-sheet',
         action: 'save',
         itemCount: payload.length,
       });
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to save balance sheet';
+      const message = err instanceof Error ? err.message : 'Failed to save';
       setError(message);
     } finally {
       setSaving(false);
@@ -173,7 +265,7 @@ function BalanceSheetContent() {
         const text = e.target?.result as string;
         const lines = text.split('\n').filter((l) => l.trim());
         if (lines.length < 2) {
-          setError('CSV must have at least a header row and one data row');
+          setError('CSV must have a header row and at least one data row');
           return;
         }
 
@@ -181,7 +273,7 @@ function BalanceSheetContent() {
         const requiredHeaders = ['category', 'subcategory', 'name', 'balance', 'rate', 'duration', 'ratetype'];
         const missing = requiredHeaders.filter((h) => !headers.includes(h));
         if (missing.length > 0) {
-          setError(`CSV missing required columns: ${missing.join(', ')}`);
+          setError(`Missing columns: ${missing.join(', ')}`);
           return;
         }
 
@@ -208,9 +300,10 @@ function BalanceSheetContent() {
 
         setItems(parsed);
         setDirty(true);
-        setSuccess(`Imported ${parsed.length} items from CSV. Review and save.`);
+        setSuccess(`Imported ${parsed.length} items from CSV — review and save`);
+        setTimeout(() => setSuccess(null), 5000);
         analytics.track(EVENTS.ALM_ANALYSIS_RUN, {
-          institutionId,
+          institutionId: selectedId,
           view: 'balance-sheet',
           action: 'csv-upload',
           itemCount: parsed.length,
@@ -220,8 +313,27 @@ function BalanceSheetContent() {
       }
     };
     reader.readAsText(file);
-    // Reset input so same file can be re-uploaded
     event.target.value = '';
+  };
+
+  const downloadTemplate = () => {
+    const csv = `category,subcategory,name,balance,rate,duration,rateType
+asset,commercial_loans,Commercial Real Estate,350,5.25,4.5,fixed
+asset,residential_mortgages,30yr Fixed Mortgages,280,4.75,6.2,fixed
+asset,investment_securities,Treasury Notes,120,4.10,2.8,fixed
+asset,cash_equivalents,Cash & Fed Funds,80,5.30,0.1,variable
+liability,demand_deposits,Checking Accounts,200,0.50,0.1,variable
+liability,savings_deposits,Money Market,150,3.80,0.3,variable
+liability,time_deposits,12-Month CDs,180,4.00,0.9,fixed
+liability,borrowings,FHLB Advances,100,4.50,1.5,fixed`;
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'balance_sheet_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const assets = items.filter((i) => i.category === 'asset');
@@ -229,69 +341,193 @@ function BalanceSheetContent() {
   const totalAssets = assets.reduce((s, a) => s + Number(a.balance), 0);
   const totalLiabilities = liabilities.reduce((s, l) => s + Number(l.balance), 0);
   const equity = totalAssets - totalLiabilities;
+  const capitalRatio = totalAssets > 0 ? (equity / totalAssets) * 100 : 0;
 
-  if (!institutionId) {
+  const currentItems = activeTab === 'asset' ? assets : liabilities;
+  const subcategories = activeTab === 'asset' ? ASSET_SUBCATEGORIES : LIABILITY_SUBCATEGORIES;
+
+  if (!selectedId) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center p-6">
         <div className="text-center space-y-4">
           <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto" />
-          <p className="text-slate-400">No institution selected. Go back to the ALM overview.</p>
-          <Link href="/alm" className="inline-block bg-amber-500/20 text-amber-300 px-4 py-2 rounded-lg hover:bg-amber-500/30 transition">
-            Back to ALM
-          </Link>
+          <p className="text-slate-400 text-sm">No institution selected.</p>
         </div>
       </div>
     );
   }
 
-  if (loading) return <LoadingSkeleton />;
+  if (loading) return <SkeletonPulse />;
 
-  const renderTable = (category: 'asset' | 'liability', categoryItems: BalanceSheetItem[]) => {
-    const subcategories = category === 'asset' ? ASSET_SUBCATEGORIES : LIABILITY_SUBCATEGORIES;
-    const total = categoryItems.reduce((s, i) => s + Number(i.balance), 0);
-
-    return (
-      <div className="bg-slate-900/60 border border-white/10 rounded-xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-white capitalize">{category === 'asset' ? 'Assets' : 'Liabilities'}</h3>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-400">Total: <span className="text-white font-bold">${total.toFixed(1)}M</span></span>
-            <button
-              onClick={() => addItem(category)}
-              className="flex items-center gap-1 text-sm bg-white/5 hover:bg-white/10 text-slate-300 px-3 py-1.5 rounded-lg transition"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add Row
-            </button>
+  return (
+    <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+            <Table className="h-4 w-4 text-purple-400" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-white">Balance Sheet</h1>
+            <p className="text-xs text-slate-500">
+              {institution?.name || almInstitution?.name || 'Institution'} &middot; Asset & Liability Positions
+            </p>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleCSVUpload}
+            className="hidden"
+          />
+          <button
+            onClick={downloadTemplate}
+            className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs transition"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Template</span>
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs transition"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Upload CSV</span>
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !dirty}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition ${
+              dirty
+                ? 'bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/25 text-purple-300'
+                : 'bg-white/[0.04] border border-white/[0.08] text-slate-500'
+            } disabled:opacity-40`}
+          >
+            {saving ? (
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            ) : success ? (
+              <Check className="h-3.5 w-3.5 text-emerald-400" />
+            ) : (
+              <Check className="h-3.5 w-3.5" />
+            )}
+            {saving ? 'Saving...' : success ? 'Saved' : 'Save & Recalculate'}
+          </button>
+        </div>
+      </div>
 
+      {/* Alerts */}
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-2.5 text-red-300 text-sm flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 shrink-0" /> {error}
+          <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-300 text-xs">Dismiss</button>
+        </div>
+      )}
+      {success && (
+        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-2.5 text-emerald-300 text-sm flex items-center gap-2">
+          <Check className="h-4 w-4 shrink-0" /> {success}
+        </div>
+      )}
+
+      {/* KPI Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/[0.03] rounded-xl overflow-hidden border border-white/[0.06]">
+        <div className="bg-slate-900/80 px-4 py-3">
+          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">Total Assets</p>
+          <p className="text-xl font-bold text-white tabular-nums">${totalAssets.toFixed(1)}M</p>
+          <p className="text-[11px] text-slate-500">{assets.length} positions</p>
+        </div>
+        <div className="bg-slate-900/80 px-4 py-3">
+          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">Total Liabilities</p>
+          <p className="text-xl font-bold text-white tabular-nums">${totalLiabilities.toFixed(1)}M</p>
+          <p className="text-[11px] text-slate-500">{liabilities.length} positions</p>
+        </div>
+        <div className="bg-slate-900/80 px-4 py-3">
+          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">Equity</p>
+          <p className={`text-xl font-bold tabular-nums ${equity >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            ${equity.toFixed(1)}M
+          </p>
+          <p className="text-[11px] text-slate-500">Assets - Liabilities</p>
+        </div>
+        <div className="bg-slate-900/80 px-4 py-3">
+          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">Capital Ratio</p>
+          <p className={`text-xl font-bold tabular-nums ${capitalRatio >= 8 ? 'text-emerald-400' : capitalRatio >= 5 ? 'text-amber-400' : 'text-red-400'}`}>
+            {capitalRatio.toFixed(1)}%
+          </p>
+          <p className="text-[11px] text-slate-500">Equity / Assets</p>
+        </div>
+      </div>
+
+      {/* Duration Heatmap */}
+      {items.length > 0 && <DurationHeatmap items={items} />}
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-white/[0.06]">
+        {(['asset', 'liability'] as const).map((tab) => {
+          const count = tab === 'asset' ? assets.length : liabilities.length;
+          const isActive = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2.5 text-sm font-medium transition relative ${
+                isActive ? 'text-white' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {tab === 'asset' ? 'Assets' : 'Liabilities'}
+              <span className={`ml-1.5 text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                isActive ? 'bg-amber-500/20 text-amber-300' : 'bg-white/[0.04] text-slate-500'
+              }`}>
+                {count}
+              </span>
+              {isActive && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500 rounded-full" />
+              )}
+            </button>
+          );
+        })}
+        <div className="ml-auto">
+          <button
+            onClick={() => addItem(activeTab)}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] px-3 py-1.5 rounded-lg transition mb-1"
+          >
+            <Plus className="h-3 w-3" /> Add Row
+          </button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/10">
-                <th className="text-left py-2 px-2 text-slate-400 font-medium w-36">Subcategory</th>
-                <th className="text-left py-2 px-2 text-slate-400 font-medium">Name</th>
-                <th className="text-right py-2 px-2 text-slate-400 font-medium w-28">Balance ($M)</th>
-                <th className="text-right py-2 px-2 text-slate-400 font-medium w-24">Rate (%)</th>
-                <th className="text-center py-2 px-2 text-slate-400 font-medium w-24">Duration</th>
-                <th className="text-center py-2 px-2 text-slate-400 font-medium w-24">Rate Type</th>
-                <th className="text-center py-2 px-2 text-slate-400 font-medium w-12"></th>
+              <tr className="border-b border-white/[0.06]">
+                <th className="text-left py-2.5 pl-5 pr-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-40">Subcategory</th>
+                <th className="text-left py-2.5 px-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Name</th>
+                <th className="text-right py-2.5 px-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-28">Balance ($M)</th>
+                <th className="text-right py-2.5 px-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-24">Rate (%)</th>
+                <th className="text-right py-2.5 px-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-24">Duration</th>
+                <th className="text-center py-2.5 px-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-20">Type</th>
+                <th className="text-center py-2.5 pr-5 pl-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-10"></th>
               </tr>
             </thead>
             <tbody>
-              {categoryItems.map((item, idx) => {
-                // Find the actual index in the full items array
+              {currentItems.map((item) => {
                 const globalIdx = items.indexOf(item);
+                const borderColor = SUBCATEGORY_COLORS[item.subcategory] || 'border-l-slate-500';
                 return (
-                  <tr key={globalIdx} className="border-b border-white/5 hover:bg-white/5 transition">
-                    <td className="py-2 px-2">
+                  <tr
+                    key={globalIdx}
+                    className={`border-b border-white/[0.03] hover:bg-white/[0.02] transition border-l-2 ${borderColor} group`}
+                  >
+                    <td className="py-2 pl-4 pr-2">
                       <select
                         value={item.subcategory}
                         onChange={(e) => handleItemChange(globalIdx, 'subcategory', e.target.value)}
-                        className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        className="w-full bg-transparent hover:bg-white/[0.04] border border-transparent hover:border-white/[0.08] rounded px-1.5 py-1 text-slate-300 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:bg-white/[0.04] cursor-pointer transition"
                       >
                         {subcategories.map((sc) => (
-                          <option key={sc} value={sc}>{sc.replace(/_/g, ' ')}</option>
+                          <option key={sc} value={sc} className="bg-slate-800">{formatSubcategory(sc)}</option>
                         ))}
                       </select>
                     </td>
@@ -300,47 +536,48 @@ function BalanceSheetContent() {
                         type="text"
                         value={item.name}
                         onChange={(e) => handleItemChange(globalIdx, 'name', e.target.value)}
-                        placeholder="e.g., Commercial Real Estate"
-                        className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        placeholder="Position name..."
+                        className="w-full bg-transparent hover:bg-white/[0.04] border border-transparent hover:border-white/[0.08] rounded px-1.5 py-1 text-white text-xs placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:bg-white/[0.04] transition"
                       />
                     </td>
                     <td className="py-2 px-2">
                       <input
                         type="number"
-                        value={item.balance}
+                        value={item.balance || ''}
                         onChange={(e) => handleItemChange(globalIdx, 'balance', parseFloat(e.target.value) || 0)}
-                        className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white text-right text-xs font-mono focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        className="w-full bg-transparent hover:bg-white/[0.04] border border-transparent hover:border-white/[0.08] rounded px-1.5 py-1 text-white text-right text-xs font-mono tabular-nums focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:bg-white/[0.04] transition"
                       />
                     </td>
                     <td className="py-2 px-2">
                       <input
                         type="number"
                         step="0.01"
-                        value={item.rate}
+                        value={item.rate || ''}
                         onChange={(e) => handleItemChange(globalIdx, 'rate', parseFloat(e.target.value) || 0)}
-                        className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white text-right text-xs font-mono focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        className="w-full bg-transparent hover:bg-white/[0.04] border border-transparent hover:border-white/[0.08] rounded px-1.5 py-1 text-white text-right text-xs font-mono tabular-nums focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:bg-white/[0.04] transition"
                       />
                     </td>
-                    <td className="py-2 px-2 text-center">
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-mono ${getDurationColor(item.duration)}`}>
+                    <td className="py-2 px-2 text-right">
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-mono tabular-nums ${
+                        item.duration > 3 ? 'text-amber-400' : 'text-slate-300'
+                      }`}>
                         {item.duration}yr
                       </span>
                     </td>
                     <td className="py-2 px-2 text-center">
-                      <select
-                        value={item.rateType}
-                        onChange={(e) => handleItemChange(globalIdx, 'rateType', e.target.value)}
-                        className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"
-                      >
-                        <option value="fixed">Fixed</option>
-                        <option value="variable">Variable</option>
-                      </select>
+                      <span className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                        item.rateType === 'fixed'
+                          ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                          : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      }`}>
+                        {item.rateType}
+                      </span>
                     </td>
-                    <td className="py-2 px-2 text-center">
+                    <td className="py-2 pr-4 pl-2 text-center">
                       <button
                         onClick={() => removeItem(globalIdx)}
-                        className="text-slate-500 hover:text-red-400 transition"
-                        title="Remove row"
+                        className="text-slate-600 hover:text-red-400 transition opacity-0 group-hover:opacity-100"
+                        title="Remove"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -348,10 +585,27 @@ function BalanceSheetContent() {
                   </tr>
                 );
               })}
-              {categoryItems.length === 0 && (
+              {currentItems.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500">
-                    No {category === 'asset' ? 'assets' : 'liabilities'} yet. Add rows or upload a CSV.
+                  <td colSpan={7} className="py-12 text-center">
+                    <DollarSign className="h-8 w-8 text-slate-600 mx-auto mb-3" />
+                    <p className="text-sm text-slate-500 mb-4">
+                      No {activeTab === 'asset' ? 'asset' : 'liability'} positions yet
+                    </p>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center gap-1.5 text-xs text-slate-400 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] px-3 py-1.5 rounded-lg transition"
+                      >
+                        <Upload className="h-3 w-3" /> Upload CSV
+                      </button>
+                      <button
+                        onClick={() => addItem(activeTab)}
+                        className="flex items-center gap-1.5 text-xs text-purple-300 bg-purple-500/10 hover:bg-purple-500/15 border border-purple-500/20 px-3 py-1.5 rounded-lg transition"
+                      >
+                        <Plus className="h-3 w-3" /> Add Manually
+                      </button>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -359,156 +613,20 @@ function BalanceSheetContent() {
           </table>
         </div>
       </div>
-    );
-  };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950/20 text-white">
-      {/* Header */}
-      <div className="border-b border-white/10 bg-slate-900/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href={`/alm`} className="text-slate-400 hover:text-white transition">
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <div>
-              <h1 className="text-xl font-bold flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-purple-400" />
-                Balance Sheet
-              </h1>
-              <p className="text-sm text-slate-400">
-                {institution?.name || 'Institution'} &middot; Assets, Liabilities & Import
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              onChange={handleCSVUpload}
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-slate-300 px-4 py-2 rounded-lg transition"
-            >
-              <Upload className="h-4 w-4" /> Upload CSV
-            </button>
-            <button
-              onClick={fetchData}
-              disabled={loading}
-              className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-slate-300 px-4 py-2 rounded-lg transition disabled:opacity-50"
-            >
-              <RotateCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Reset
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || !dirty}
-              className="flex items-center gap-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 px-4 py-2 rounded-lg transition disabled:opacity-50"
-            >
-              {saving ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="h-4 w-4" />
-              )}
-              {saving ? 'Saving...' : 'Save & Recalculate'}
-            </button>
-          </div>
+      {/* CSV Format Help */}
+      <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">CSV Import Format</h3>
+        <div className="bg-slate-950/50 rounded-lg p-3 font-mono text-[11px] text-slate-400 overflow-x-auto leading-relaxed">
+          <p className="text-slate-500">category,subcategory,name,balance,rate,duration,rateType</p>
+          <p>asset,commercial_loans,Commercial Real Estate,350,5.25,4.5,fixed</p>
+          <p>asset,residential_mortgages,30yr Fixed Mortgages,280,4.75,6.2,fixed</p>
+          <p>liability,demand_deposits,Checking Accounts,200,0.5,0.1,variable</p>
+          <p>liability,time_deposits,12-Month CDs,180,4.0,0.9,fixed</p>
         </div>
-      </div>
-
-      {error && (
-        <div className="max-w-7xl mx-auto px-6 mt-4">
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-300 text-sm">
-            {error}
-          </div>
-        </div>
-      )}
-
-      {success && (
-        <div className="max-w-7xl mx-auto px-6 mt-4">
-          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-4 py-3 text-emerald-300 text-sm flex items-center gap-2">
-            <Check className="h-4 w-4" /> {success}
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-slate-900/60 border border-white/10 rounded-xl p-5">
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Assets</p>
-            <p className="text-2xl font-bold text-white mt-2">${totalAssets.toFixed(1)}M</p>
-            <p className="text-sm text-slate-300 mt-1">{assets.length} line items</p>
-          </div>
-          <div className="bg-slate-900/60 border border-white/10 rounded-xl p-5">
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Liabilities</p>
-            <p className="text-2xl font-bold text-white mt-2">${totalLiabilities.toFixed(1)}M</p>
-            <p className="text-sm text-slate-300 mt-1">{liabilities.length} line items</p>
-          </div>
-          <div className="bg-slate-900/60 border border-white/10 rounded-xl p-5">
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Equity</p>
-            <p className={`text-2xl font-bold mt-2 ${equity >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>${equity.toFixed(1)}M</p>
-            <p className="text-sm text-slate-300 mt-1">Assets - Liabilities</p>
-          </div>
-          <div className="bg-slate-900/60 border border-white/10 rounded-xl p-5">
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Equity / Assets</p>
-            <p className="text-2xl font-bold text-white mt-2">
-              {totalAssets > 0 ? ((equity / totalAssets) * 100).toFixed(1) : '0.0'}%
-            </p>
-            <p className="text-sm text-slate-300 mt-1">Capital ratio</p>
-          </div>
-        </div>
-
-        {/* Duration Heatmap */}
-        {items.length > 0 && (
-          <div className="bg-slate-900/60 border border-white/10 rounded-xl p-6">
-            <h3 className="text-sm font-medium text-slate-300 mb-3">Duration Heatmap</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-              {items.map((item, i) => (
-                <div
-                  key={i}
-                  className={`rounded-lg p-3 ${getDurationColor(item.duration)} border border-white/5`}
-                >
-                  <p className="text-xs font-medium truncate">{item.name || item.subcategory.replace(/_/g, ' ')}</p>
-                  <p className="text-lg font-bold mt-1">{item.duration}yr</p>
-                  <p className="text-xs opacity-75">${Number(item.balance).toFixed(0)}M &middot; {item.rateType}</p>
-                </div>
-              ))}
-            </div>
-            <div className="flex items-center gap-4 mt-4 text-xs text-slate-400">
-              <span>Duration Scale:</span>
-              <span className="px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300">0-1yr</span>
-              <span className="px-2 py-0.5 rounded bg-blue-500/30 text-blue-300">1-3yr</span>
-              <span className="px-2 py-0.5 rounded bg-amber-500/30 text-amber-300">3-5yr</span>
-              <span className="px-2 py-0.5 rounded bg-orange-500/30 text-orange-300">5-10yr</span>
-              <span className="px-2 py-0.5 rounded bg-red-500/30 text-red-300">10yr+</span>
-            </div>
-          </div>
-        )}
-
-        {/* Asset Table */}
-        {renderTable('asset', assets)}
-
-        {/* Liability Table */}
-        {renderTable('liability', liabilities)}
-
-        {/* CSV Format Help */}
-        <div className="bg-slate-900/60 border border-white/10 rounded-xl p-6">
-          <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">CSV Import Format</h3>
-          <div className="bg-slate-800 rounded-lg p-4 font-mono text-xs text-slate-300 overflow-x-auto">
-            <p>category,subcategory,name,balance,rate,duration,rateType</p>
-            <p>asset,commercial_loans,Commercial Real Estate,350,5.25,4.5,fixed</p>
-            <p>asset,residential_mortgages,30yr Fixed Mortgages,280,4.75,6.2,fixed</p>
-            <p>liability,demand_deposits,Checking Accounts,200,0.5,0.1,variable</p>
-            <p>liability,time_deposits,12-Month CDs,180,4.0,0.9,fixed</p>
-          </div>
-          <p className="text-xs text-slate-500 mt-2">
-            Balance in millions ($M). Rate as percentage. Duration in years. rateType: fixed or variable.
-          </p>
-        </div>
+        <p className="text-[10px] text-slate-600 mt-2">
+          Balance in $M &middot; Rate as % &middot; Duration in years &middot; rateType: fixed or variable
+        </p>
       </div>
     </div>
   );
