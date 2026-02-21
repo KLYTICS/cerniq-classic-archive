@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 
@@ -76,6 +76,38 @@ export class AppController {
       version: '2.0.0',
       services: checks,
     };
+  }
+
+  @Get('api/admin/demo-requests')
+  async getDemoRequests() {
+    return this.prisma.demoRequest.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  @Delete('api/admin/demo-data')
+  @HttpCode(HttpStatus.OK)
+  async resetDemoData() {
+    await this.prisma.balanceSheetItem.deleteMany({});
+    await this.prisma.interestRateScenario.deleteMany({});
+    await this.prisma.liquidityPosition.deleteMany({});
+    await this.prisma.institution.deleteMany({});
+    return { message: 'Demo data cleared' };
+  }
+
+  @Get('api/admin/stats')
+  async getAdminStats() {
+    const [demoRequests, institutions, users] = await Promise.all([
+      this.prisma.demoRequest.count(),
+      this.prisma.institution.count(),
+      this.prisma.user.count(),
+    ]);
+    const recentUsers = await this.prisma.user.count({
+      where: {
+        createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+      },
+    });
+    return { demoRequests, institutions, users, recentUsers };
   }
 
   @Get('api/status')

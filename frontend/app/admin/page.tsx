@@ -1,0 +1,362 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { apiClient } from '@/lib/api';
+import { Landmark, RefreshCw, Copy, Check, Trash2, ExternalLink, Users, Building2, FileText } from 'lucide-react';
+
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'klytics2026';
+const VERCEL_URL = typeof window !== 'undefined' ? window.location.origin : '';
+
+interface DemoRequest {
+  id: string;
+  email: string;
+  name: string | null;
+  institutionName: string | null;
+  institutionType: string | null;
+  totalAssets: string | null;
+  message: string | null;
+  createdAt: string;
+}
+
+interface Stats {
+  demoRequests: number;
+  institutions: number;
+  users: number;
+  recentUsers: number;
+}
+
+function AdminAuth({ onAuth }: { onAuth: () => void }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === ADMIN_PASSWORD) {
+      sessionStorage.setItem('admin_auth', 'true');
+      onAuth();
+    } else {
+      setError(true);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <form onSubmit={handleSubmit} className="bg-slate-900 border border-white/10 p-8 rounded-2xl w-full max-w-sm">
+        <h1 className="text-xl font-bold text-white mb-6 text-center">Admin Access</h1>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => { setPassword(e.target.value); setError(false); }}
+          placeholder="Enter admin password"
+          className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          autoFocus
+        />
+        {error && <p className="text-red-400 text-sm mb-4">Incorrect password</p>}
+        <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-lg transition">
+          Enter
+        </button>
+      </form>
+    </div>
+  );
+}
+
+export default function AdminPage() {
+  const [authed, setAuthed] = useState(false);
+  const [tab, setTab] = useState<'requests' | 'outreach'>('requests');
+  const [requests, setRequests] = useState<DemoRequest[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [healthStatus, setHealthStatus] = useState<string>('checking...');
+  const [copied, setCopied] = useState<string | null>(null);
+
+  // Outreach state
+  const [contactName, setContactName] = useState('');
+  const [outreachInstitution, setOutreachInstitution] = useState('');
+  const [outreachAssets, setOutreachAssets] = useState('');
+  const [outreachLang, setOutreachLang] = useState<'EN' | 'ES'>('EN');
+  const [outreachResult, setOutreachResult] = useState('');
+  const [outreachLoading, setOutreachLoading] = useState(false);
+
+  useEffect(() => {
+    if (sessionStorage.getItem('admin_auth') === 'true') {
+      setAuthed(true);
+    }
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [reqs, st] = await Promise.all([
+        apiClient.getDemoRequests(),
+        apiClient.getAdminStats(),
+      ]);
+      setRequests(reqs);
+      setStats(st);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const checkHealth = useCallback(async () => {
+    try {
+      const NODE_API_URL = process.env.NEXT_PUBLIC_NODE_API_URL || 'http://localhost:3000';
+      const res = await fetch(`${NODE_API_URL}/health`);
+      const data = await res.json();
+      setHealthStatus(data.status === 'healthy' ? 'Healthy' : 'Degraded');
+    } catch {
+      setHealthStatus('Unreachable');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (authed) {
+      fetchData();
+      checkHealth();
+    }
+  }, [authed, fetchData, checkHealth]);
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const generateDemoMessage = (req: DemoRequest) => {
+    const name = req.name || 'there';
+    return `Hi ${name}, here's your personalized CapexCycleOS demo: ${VERCEL_URL}/demo?type=bank — I've pre-loaded it with a $1.2B Puerto Rico community bank profile. Takes 2 min to register. Let me know when you're ready to walk through it together. — Erwin`;
+  };
+
+  const handleResetDemo = async () => {
+    if (!confirm('Delete all institution data? This cannot be undone.')) return;
+    await apiClient.resetDemoData();
+    fetchData();
+  };
+
+  const generateOutreach = () => {
+    setOutreachLoading(true);
+    const templates = {
+      EN: `Hi ${contactName}, I'm Erwin from KLYTICS in San Juan. We built CapexCycleOS — a platform that replaces Excel-based ALM with automated duration gap analysis, NII sensitivity, and stress testing. Built specifically for ${outreachInstitution}-sized institutions (${outreachAssets}) preparing for OCIF exams. Would you have 15 minutes this week for a quick walkthrough? Happy to pre-load your institution's profile so you can see real outputs.`,
+      ES: `Hola ${contactName}, soy Erwin de KLYTICS en San Juan. Desarrollamos CapexCycleOS — una plataforma que reemplaza el ALM basado en Excel con analisis automatizado de duration gap, sensibilidad NII y pruebas de estres. Disenado especificamente para instituciones como ${outreachInstitution} (${outreachAssets}) preparandose para examenes OCIF. Tendrias 15 minutos esta semana para una demostracion rapida? Puedo pre-cargar el perfil de tu institucion para que veas resultados reales.`,
+    };
+    setTimeout(() => {
+      setOutreachResult(templates[outreachLang]);
+      setOutreachLoading(false);
+    }, 500);
+  };
+
+  if (!authed) {
+    return <AdminAuth onAuth={() => setAuthed(true)} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white">
+      {/* Header */}
+      <div className="border-b border-white/10 bg-slate-900/80">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Landmark className="h-5 w-5 text-amber-400" />
+            <h1 className="text-lg font-bold">CapexCycleOS Admin</h1>
+          </div>
+          <div className="flex items-center gap-4 text-sm">
+            <a href={VERCEL_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-slate-400 hover:text-white transition">
+              <ExternalLink className="h-3.5 w-3.5" /> Live Site
+            </a>
+            <span className={`px-2 py-1 rounded text-xs font-medium ${healthStatus === 'Healthy' ? 'bg-emerald-500/20 text-emerald-300' : healthStatus === 'Degraded' ? 'bg-amber-500/20 text-amber-300' : 'bg-red-500/20 text-red-300'}`}>
+              Backend: {healthStatus}
+            </span>
+            {stats && (
+              <span className="px-2 py-1 rounded bg-blue-500/20 text-blue-300 text-xs font-medium">
+                {stats.demoRequests} requests
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+        {/* Stats */}
+        {stats && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-slate-900/60 border border-white/10 rounded-xl p-4">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1"><FileText className="h-3.5 w-3.5" /> Demo Requests</div>
+              <div className="text-2xl font-bold">{stats.demoRequests}</div>
+            </div>
+            <div className="bg-slate-900/60 border border-white/10 rounded-xl p-4">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1"><Building2 className="h-3.5 w-3.5" /> Institutions</div>
+              <div className="text-2xl font-bold">{stats.institutions}</div>
+            </div>
+            <div className="bg-slate-900/60 border border-white/10 rounded-xl p-4">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1"><Users className="h-3.5 w-3.5" /> Total Users</div>
+              <div className="text-2xl font-bold">{stats.users}</div>
+            </div>
+            <div className="bg-slate-900/60 border border-white/10 rounded-xl p-4">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1"><Users className="h-3.5 w-3.5" /> Last 7 Days</div>
+              <div className="text-2xl font-bold">{stats.recentUsers}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex gap-2 border-b border-white/10 pb-2">
+          <button onClick={() => setTab('requests')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tab === 'requests' ? 'bg-amber-500/20 text-amber-300' : 'text-slate-400 hover:text-white'}`}>
+            Demo Requests
+          </button>
+          <button onClick={() => setTab('outreach')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tab === 'outreach' ? 'bg-amber-500/20 text-amber-300' : 'text-slate-400 hover:text-white'}`}>
+            Outreach
+          </button>
+        </div>
+
+        {tab === 'requests' && (
+          <>
+            {/* Quick Actions */}
+            <div className="flex gap-3">
+              <button onClick={fetchData} disabled={loading} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg text-sm transition">
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+              </button>
+              <button onClick={() => copyToClipboard(`${VERCEL_URL}/demo?type=bank`, 'demo-url')} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg text-sm transition">
+                {copied === 'demo-url' ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />} Copy Demo URL
+              </button>
+              <button onClick={handleResetDemo} className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-300 px-4 py-2 rounded-lg text-sm transition">
+                <Trash2 className="h-3.5 w-3.5" /> Reset Demo Data
+              </button>
+            </div>
+
+            {/* Table */}
+            <div className="bg-slate-900/60 border border-white/10 rounded-xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 text-left text-slate-400">
+                    <th className="px-4 py-3 font-medium">Date</th>
+                    <th className="px-4 py-3 font-medium">Name</th>
+                    <th className="px-4 py-3 font-medium">Email</th>
+                    <th className="px-4 py-3 font-medium">Institution</th>
+                    <th className="px-4 py-3 font-medium">Type</th>
+                    <th className="px-4 py-3 font-medium">Assets</th>
+                    <th className="px-4 py-3 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {requests.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                        No demo requests yet
+                      </td>
+                    </tr>
+                  ) : (
+                    requests.map((req) => (
+                      <tr key={req.id} className="border-b border-white/5 hover:bg-white/5">
+                        <td className="px-4 py-3 text-slate-400">
+                          {new Date(req.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3">{req.name || '—'}</td>
+                        <td className="px-4 py-3 text-amber-300">{req.email}</td>
+                        <td className="px-4 py-3">{req.institutionName || '—'}</td>
+                        <td className="px-4 py-3 capitalize">{req.institutionType?.replace('_', ' ') || '—'}</td>
+                        <td className="px-4 py-3">{req.totalAssets || '—'}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => copyToClipboard(generateDemoMessage(req), req.id)}
+                              className="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-2 py-1 rounded transition"
+                            >
+                              {copied === req.id ? 'Copied!' : 'Send Demo Link'}
+                            </button>
+                            <button
+                              onClick={() => copyToClipboard(req.email, `email-${req.id}`)}
+                              className="text-xs bg-white/5 hover:bg-white/10 px-2 py-1 rounded transition"
+                            >
+                              {copied === `email-${req.id}` ? 'Copied!' : 'Copy Email'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {tab === 'outreach' && (
+          <div className="bg-slate-900/60 border border-white/10 rounded-xl p-6 max-w-2xl">
+            <h3 className="text-lg font-bold mb-4">Generate Outreach Message</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Contact Name</label>
+                <input
+                  type="text"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="Jose Pablo"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Institution Name</label>
+                <input
+                  type="text"
+                  value={outreachInstitution}
+                  onChange={(e) => setOutreachInstitution(e.target.value)}
+                  placeholder="Banco Popular"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Asset Size</label>
+                  <select
+                    value={outreachAssets}
+                    onChange={(e) => setOutreachAssets(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  >
+                    <option value="">Select</option>
+                    <option value="$100M-$500M">$100M-$500M</option>
+                    <option value="$500M-$1B">$500M-$1B</option>
+                    <option value="$1B-$5B">$1B-$5B</option>
+                    <option value="$5B+">$5B+</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Language</label>
+                  <select
+                    value={outreachLang}
+                    onChange={(e) => setOutreachLang(e.target.value as 'EN' | 'ES')}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  >
+                    <option value="EN">English</option>
+                    <option value="ES">Spanish</option>
+                  </select>
+                </div>
+              </div>
+              <button
+                onClick={generateOutreach}
+                disabled={!contactName || !outreachInstitution || outreachLoading}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-6 py-2 rounded-lg transition disabled:opacity-50"
+              >
+                {outreachLoading ? 'Generating...' : 'Generate'}
+              </button>
+
+              {outreachResult && (
+                <div className="mt-4">
+                  <div className="bg-slate-800 border border-white/10 rounded-lg p-4 text-sm text-slate-200 leading-relaxed">
+                    {outreachResult}
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(outreachResult, 'outreach')}
+                    className="mt-2 flex items-center gap-2 text-sm text-amber-300 hover:text-amber-200 transition"
+                  >
+                    {copied === 'outreach' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copied === 'outreach' ? 'Copied!' : 'Copy to Clipboard'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

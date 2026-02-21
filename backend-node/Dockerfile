@@ -9,7 +9,7 @@ RUN npm ci --legacy-peer-deps
 
 # Copy source and build
 COPY . .
-RUN npm run build
+RUN npx prisma generate && npm run build
 
 # Production image
 FROM node:20-alpine AS production
@@ -19,6 +19,12 @@ WORKDIR /app
 # Install production dependencies only
 COPY package*.json ./
 RUN npm ci --only=production --legacy-peer-deps
+
+# Copy Prisma schema, config + migrations for runtime migrate
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
@@ -33,4 +39,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 EXPOSE 3000
 
-CMD ["node", "dist/main.js"]
+CMD sh -c "npx prisma migrate deploy && node dist/src/main.js"

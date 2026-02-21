@@ -98,6 +98,11 @@ async function bootstrap() {
         callback(null, true);
         return;
       }
+      // Allow Fly.io deployments
+      if (/\.fly\.dev$/.test(origin)) {
+        callback(null, true);
+        return;
+      }
       // Allow custom domain
       if (/capexcycleos\.com$/.test(origin)) {
         callback(null, true);

@@ -49,8 +49,13 @@ function LoginContent() {
                 method: 'email',
             });
 
-            const onboardingComplete = localStorage.getItem(`capex_onboarding_${user.id}`) === 'true';
-            router.push(onboardingComplete ? '/dashboard' : '/onboarding');
+            const returnUrl = searchParams.get('returnUrl');
+            if (returnUrl) {
+                router.push(returnUrl);
+            } else {
+                const onboardingComplete = localStorage.getItem(`capex_onboarding_${user.id}`) === 'true';
+                router.push(onboardingComplete ? '/dashboard' : '/onboarding');
+            }
         } catch (err: any) {
             setError(
                 err?.response?.data?.error ||

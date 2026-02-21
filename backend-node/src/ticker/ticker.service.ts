@@ -8,15 +8,19 @@ export class TickerService {
     private supabase: SupabaseClient;
 
     constructor() {
-        // Initialize Supabase client
-        const supabaseUrl = process.env.SUPABASE_URL || process.env.DATABASE_URL;
+        // Initialize Supabase client — only if a real Supabase URL is provided
+        const supabaseUrl = process.env.SUPABASE_URL;
         const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || 'dummy-key';
 
-        if (supabaseUrl) {
-            this.supabase = createClient(supabaseUrl, supabaseKey);
-            this.logger.log('Supabase client initialized');
+        if (supabaseUrl && supabaseUrl.startsWith('http')) {
+            try {
+                this.supabase = createClient(supabaseUrl, supabaseKey);
+                this.logger.log('Supabase client initialized');
+            } catch (err) {
+                this.logger.warn('Supabase client initialization failed — ticker service will use fallback');
+            }
         } else {
-            this.logger.warn('No database connection configured - using in-memory storage');
+            this.logger.warn('No Supabase URL configured — ticker service will use fallback');
         }
     }
 

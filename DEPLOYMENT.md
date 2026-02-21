@@ -3,26 +3,27 @@
 ## Architecture
 
 ```
-[Vercel - Frontend]  ──HTTPS──>  [Railway - Backend]  ──>  [Railway PostgreSQL]
-     Next.js 15                     NestJS + Prisma            PostgreSQL 15
+[Vercel - Frontend]  ──HTTPS──>  [Fly.io - Backend]  ──>  [Fly Postgres]
+     Next.js 15                     NestJS + Prisma         PostgreSQL 16
+   showrate.vercel.app          capexcycleos-api.fly.dev
 ```
 
-## Backend (Railway)
+## Backend (Fly.io)
 
-### Service: `backend-node`
+### Service: `capexcycleos-api`
 
-**Build:** Nixpacks (auto-detected)
-**Start:** `npx prisma migrate deploy && node dist/main.js`
+**Build:** Docker multi-stage (node:20-alpine)
+**Start:** `npx prisma migrate deploy && node dist/src/main.js`
+**Region:** `iad` (Ashburn, Virginia)
 
 ### Required Environment Variables
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/db` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgres://user:pass@host:5432/db` (auto-attached) |
 | `JWT_SECRET` | Min 32 chars, used for JWT signing | `your-secret-key-at-least-32-chars` |
 | `NODE_ENV` | Must be `production` | `production` |
-| `FRONTEND_URL` | Vercel deployment URL | `https://capexcycleos.vercel.app` |
-| `PORT` | Railway sets this automatically | (auto) |
+| `FRONTEND_URL` | Vercel deployment URL | `https://showrate.vercel.app` |
 
 ### Optional Environment Variables
 
@@ -34,15 +35,32 @@
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | none |
 | `GITHUB_CLIENT_ID` | GitHub OAuth client ID | none |
 | `GITHUB_CLIENT_SECRET` | GitHub OAuth client secret | none |
+| `SUPABASE_URL` | Supabase project URL (optional ticker service) | none |
+| `SUPABASE_KEY` | Supabase anon key | none |
 
 ### Setup Steps
 
-1. Create a new Railway project
-2. Add a PostgreSQL service
-3. Add a new service from the `backend-node` directory
-4. Set all required env vars (Railway auto-provides `DATABASE_URL` if linked)
-5. Deploy — Railway runs `prisma migrate deploy` then starts the server
-6. Health check: `GET /health` should return `{"status": "healthy"}`
+1. Install Fly CLI: `brew install flyctl`
+2. Login: `fly auth login`
+3. Create app: `fly apps create capexcycleos-api`
+4. Create Postgres: `fly postgres create --name capexcycleos-db --region iad`
+5. Attach DB: `fly postgres attach capexcycleos-db --app capexcycleos-api`
+6. Set secrets:
+   ```bash
+   fly secrets set JWT_SECRET="your-secret-min-32-chars" \
+     NODE_ENV=production \
+     FRONTEND_URL=https://showrate.vercel.app \
+     --app capexcycleos-api
+   ```
+7. Deploy: `fly deploy --app capexcycleos-api` (from `backend-node/`)
+8. Health check: `curl https://capexcycleos-api.fly.dev/health`
+
+### Redeploying
+
+```bash
+cd backend-node
+fly deploy
+```
 
 ---
 
@@ -53,12 +71,13 @@
 **Framework:** Auto-detected as Next.js
 **Build:** `npm run build`
 **Output:** `.next`
+**Root Directory:** `frontend`
 
 ### Required Environment Variables
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `NEXT_PUBLIC_NODE_API_URL` | Railway backend URL | `https://your-backend.railway.app` |
+| `NEXT_PUBLIC_NODE_API_URL` | Fly.io backend URL | `https://capexcycleos-api.fly.dev` |
 
 ### Optional Environment Variables
 
@@ -72,35 +91,58 @@
 
 1. Import repository to Vercel
 2. Set root directory to `frontend`
-3. Set `NEXT_PUBLIC_NODE_API_URL` to the Railway backend URL
+3. Set `NEXT_PUBLIC_NODE_API_URL` to `https://capexcycleos-api.fly.dev`
 4. Deploy
+
+### CLI Deploy
+
+```bash
+cd frontend
+vercel --prod --yes
+```
+
+---
+
+## Live URLs
+
+| Service | URL |
+|---------|-----|
+| Frontend | https://showrate.vercel.app |
+| Backend API | https://capexcycleos-api.fly.dev |
+| Health Check | https://capexcycleos-api.fly.dev/health |
+| Status Page | https://showrate.vercel.app/status |
+| Admin Dashboard | https://showrate.vercel.app/admin |
+| Demo Deep Link | https://showrate.vercel.app/demo |
 
 ---
 
 ## Post-Deploy Checklist
 
-- [ ] Backend health check returns healthy: `curl https://<backend>.railway.app/health`
+- [ ] Backend health check returns healthy: `curl https://capexcycleos-api.fly.dev/health`
 - [ ] Frontend loads at Vercel URL
 - [ ] Registration works (creates user with bcrypt hash)
 - [ ] Login sets HttpOnly cookies (not visible in `document.cookie`)
 - [ ] ALM demo data seeds via onboarding flow
 - [ ] PDF report downloads successfully
 - [ ] CORS allows frontend origin (check Network tab for preflight)
+- [ ] Status page shows API and DB as "up"
 
 ## Custom Domain
 
 To use `capexcycleos.com`:
 1. Add CNAME record pointing to Vercel
 2. Add domain in Vercel project settings
-3. Update `FRONTEND_URL` on Railway to match
+3. Update `FRONTEND_URL` on Fly.io: `fly secrets set FRONTEND_URL=https://capexcycleos.com --app capexcycleos-api`
 4. The CORS config already allows `*.capexcycleos.com`
 
 ## Troubleshooting
 
-**CORS errors:** Ensure `FRONTEND_URL` on Railway matches the exact Vercel URL (including `https://`).
+**CORS errors:** Ensure `FRONTEND_URL` on Fly.io matches the exact Vercel URL (including `https://`). The backend also allows `*.vercel.app`, `*.fly.dev`, and `*.capexcycleos.com`.
 
 **Cookie not set:** In production, cookies use `SameSite=None; Secure=true`. Both frontend and backend must use HTTPS.
 
-**Prisma migration fails:** Check `DATABASE_URL` is correct and the DB is accessible from Railway's network.
+**Prisma migration fails:** Check `DATABASE_URL` is correct. Run `fly postgres connect --app capexcycleos-db` to verify connectivity.
 
-**502 on Railway:** Check logs — likely a missing env var (`JWT_SECRET` or `DATABASE_URL`). The server exits with a clear error message.
+**502 on Fly.io:** Check logs with `fly logs --app capexcycleos-api`. Likely a missing env var (`JWT_SECRET` or `DATABASE_URL`). The server exits with a clear error message.
+
+**Cache degraded:** Expected if no Redis is provisioned. The app runs fully without Redis — cache just returns misses.

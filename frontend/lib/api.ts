@@ -76,6 +76,22 @@ class APIClient {
     return response.data;
   }
 
+  // Admin
+  async getDemoRequests() {
+    const response = await this.client.get(`${NODE_API_URL}/api/admin/demo-requests`);
+    return response.data;
+  }
+
+  async resetDemoData() {
+    const response = await this.client.delete(`${NODE_API_URL}/api/admin/demo-data`);
+    return response.data;
+  }
+
+  async getAdminStats() {
+    const response = await this.client.get(`${NODE_API_URL}/api/admin/stats`);
+    return response.data;
+  }
+
   // Risk Analysis
   async getRiskAnalysis(portfolioId: string) {
     const response = await this.client.get(`/risk/${portfolioId}`);
