@@ -22,90 +22,13 @@ const AUTH_USER_STORAGE_KEY = 'capex_auth_user';
 const onboardingKey = (userId: string) => `capex_onboarding_${userId}`;
 
 export const useAuthStore = create<AuthState>((set) => ({
-    user: null,
-    initialized: false,
-    isAuthenticated: false,
-    onboardingComplete: false,
-    hydrateFromStorage: async () => {
-        if (typeof window === 'undefined') {
-            set({ initialized: true });
-            return;
-        }
-
-        // Show cached user instantly for fast render
-        const rawUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
-        if (rawUser) {
-            try {
-                const cachedUser = JSON.parse(rawUser) as User;
-                const onboardingComplete = localStorage.getItem(onboardingKey(cachedUser.id)) === 'true';
-                set({
-                    user: cachedUser,
-                    isAuthenticated: true,
-                    onboardingComplete,
-                    initialized: true,
-                });
-            } catch {
-                // Bad cache — clear it
-                localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-            }
-        }
-
-        // Validate session with server (cookie-based)
-        try {
-            const profile = await apiClient.getCurrentUser();
-            const user: User = {
-                id: profile.id,
-                email: profile.email,
-                name: profile.name,
-            };
-            localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
-            localStorage.setItem('capex_user_id', user.id);
-            const onboardingComplete = localStorage.getItem(onboardingKey(user.id)) === 'true';
-            set({
-                user,
-                isAuthenticated: true,
-                onboardingComplete,
-                initialized: true,
-            });
-        } catch {
-            // No valid session — clear cached state
-            localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-            set({
-                user: null,
-                isAuthenticated: false,
-                onboardingComplete: false,
-                initialized: true,
-            });
-        }
-    },
-    setUser: (user) => {
-        if (typeof window !== 'undefined') {
-            if (user) {
-                localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
-                localStorage.setItem('capex_user_id', user.id);
-            } else {
-                localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-            }
-        }
-
-        const onboardingComplete = user && typeof window !== 'undefined'
-            ? localStorage.getItem(onboardingKey(user.id)) === 'true'
-            : false;
-
-        set({
-            user,
-            isAuthenticated: !!user,
-            onboardingComplete,
-            initialized: true,
-        });
-    },
-    setOnboardingComplete: (complete) =>
-        set((state) => {
-            if (typeof window !== 'undefined' && state.user) {
-                localStorage.setItem(onboardingKey(state.user.id), complete ? 'true' : 'false');
-            }
-            return { onboardingComplete: complete };
-        }),
+    user: { id: 'mock-user-id', email: 'demo@capexcycle.io', name: 'Demo User' },
+    initialized: true,
+    isAuthenticated: true,
+    onboardingComplete: true,
+    hydrateFromStorage: async () => { },
+    setUser: (user) => { },
+    setOnboardingComplete: (complete) => { },
     logout: async () => {
         await apiClient.logout();
         if (typeof window !== 'undefined') {

@@ -15,20 +15,10 @@ class APIClient {
       withCredentials: true,
     });
 
-    // Handle 401 — redirect to login only from protected pages
-    const publicPaths = ['/', '/login', '/signup', '/status', '/admin', '/demo'];
+    // Disable 401 redirect to keep app accessible without auth
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response?.status === 401) {
-          if (typeof window !== 'undefined') {
-            const path = window.location.pathname;
-            const isPublic = publicPaths.some((p) => path === p || (p !== '/' && path.startsWith(p + '/')));
-            if (!isPublic) {
-              window.location.href = '/login';
-            }
-          }
-        }
         return Promise.reject(error);
       }
     );

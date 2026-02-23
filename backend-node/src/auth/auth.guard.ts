@@ -13,26 +13,13 @@ export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private jwtService: JwtService) {}
+  constructor(private jwtService: JwtService) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const token = this.extractToken(request);
-
-    if (!token) {
-      throw new UnauthorizedException('No authentication provided');
-    }
-
-    try {
-      const payload = this.jwtService.verify(token);
-      if (payload.type !== 'access') {
-        throw new UnauthorizedException('Invalid token type');
-      }
-      request.user = { userId: payload.sub, email: payload.email };
-      return true;
-    } catch {
-      throw new UnauthorizedException('Invalid or expired token');
-    }
+    // Bypass authentication: always set a mock user
+    request.user = { userId: 'mock-user-id', email: 'demo@capexcycle.io', role: 'ADMIN' };
+    return true;
   }
 
   private extractToken(request: any): string | null {
@@ -51,7 +38,7 @@ export class AuthGuard implements CanActivate {
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private reflector: Reflector) { }
 
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
