@@ -469,7 +469,7 @@ class APIClient {
         assetDuration: 4.2,
         liabilityDuration: 2.1,
         durationGap: 2.1,
-        riskProfile: 'asset-sensitive',
+        riskProfile: 'asset-sensitive' as const,
       },
       niiSensitivity: {
         scenarios: [
@@ -477,13 +477,13 @@ class APIClient {
           { name: '-100 bps', shiftBps: -100, niImpact: -1.2, niImpactPct: -10.0, mveImpact: 1.4, mveImpactPct: 11.6 },
         ],
         baseNII: 12.0,
-        riskRating: 'moderate',
+        riskRating: 'moderate' as const,
       },
       liquidity: {
         lcr: 115.5,
         hqla: 250,
         netOutflows: 216.5,
-        status: 'compliant',
+        status: 'compliant' as const,
         buffer: 15.5,
       },
       topRisks: ['Rising interest rates impacting NII', 'Deposit flight risk increasing', 'Commercial real estate concentration'],
@@ -496,7 +496,7 @@ class APIClient {
     return Promise.resolve({
       institutionId,
       baseNII: 12.0,
-      riskRating: 'moderate',
+      riskRating: 'moderate' as const,
       scenarios: [
         { name: '+200 bps', shiftBps: 200, niImpact: 3.1, niImpactPct: 25.8, mveImpact: -3.8, mveImpactPct: -31.6 },
         { name: '+100 bps', shiftBps: 100, niImpact: 1.5, niImpactPct: 12.5, mveImpact: -1.8, mveImpactPct: -15.0 },
