@@ -473,8 +473,8 @@ class APIClient {
       },
       niiSensitivity: {
         scenarios: [
-          { name: '+100 bps', shiftBps: 100, niImpact: 1.5, niImpactPct: 12.5 },
-          { name: '-100 bps', shiftBps: -100, niImpact: -1.2, niImpactPct: -10.0 },
+          { name: '+100 bps', shiftBps: 100, niImpact: 1.5, niImpactPct: 12.5, mveImpact: -1.8, mveImpactPct: -15.0 },
+          { name: '-100 bps', shiftBps: -100, niImpact: -1.2, niImpactPct: -10.0, mveImpact: 1.4, mveImpactPct: 11.6 },
         ],
         baseNII: 12.0,
         riskRating: 'moderate',
@@ -496,9 +496,13 @@ class APIClient {
     return {
       institutionId,
       baseNII: 12.0,
+      riskRating: 'moderate',
       scenarios: [
-        { name: '+100 bps', shiftBps: 100, niImpact: 1.5, niImpactPct: 12.5 },
-        { name: '-100 bps', shiftBps: -100, niImpact: -1.2, niImpactPct: -10.0 },
+        { name: '+200 bps', shiftBps: 200, niImpact: 3.1, niImpactPct: 25.8, mveImpact: -3.8, mveImpactPct: -31.6 },
+        { name: '+100 bps', shiftBps: 100, niImpact: 1.5, niImpactPct: 12.5, mveImpact: -1.8, mveImpactPct: -15.0 },
+        { name: 'Base', shiftBps: 0, niImpact: 0, niImpactPct: 0, mveImpact: 0, mveImpactPct: 0 },
+        { name: '-100 bps', shiftBps: -100, niImpact: -1.2, niImpactPct: -10.0, mveImpact: 1.4, mveImpactPct: 11.6 },
+        { name: '-200 bps', shiftBps: -200, niImpact: -2.5, niImpactPct: -20.8, mveImpact: 2.9, mveImpactPct: 24.1 },
       ],
     };
   }
