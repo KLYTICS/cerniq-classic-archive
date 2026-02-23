@@ -25,14 +25,20 @@ class APIClient {
   }
 
   // Authentication
-  async register(email: string, password: string, name?: string) {
-    const response = await this.client.post(`${NODE_API_URL}/api/auth/register`, { email, password, name });
-    return response.data;
+  async register(email: string, password: string, name?: string): Promise<any> {
+    // Bypass authentication unconditionally
+    return {
+      access_token: 'mock-token',
+      user: { id: 'mock-user-id', email: 'demo@capexcycle.io', name: 'Demo User' }
+    };
   }
 
-  async login(email: string, password: string) {
-    const response = await this.client.post(`${NODE_API_URL}/api/auth/login`, { email, password });
-    return response.data;
+  async login(email: string, password: string): Promise<any> {
+    // Bypass authentication unconditionally
+    return {
+      access_token: 'mock-token',
+      user: { id: 'mock-user-id', email: 'demo@capexcycle.io', name: 'Demo User' }
+    };
   }
 
   async getCurrentUser() {

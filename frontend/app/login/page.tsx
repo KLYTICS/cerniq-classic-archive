@@ -16,17 +16,15 @@ function LanguageToggle() {
         <div className="absolute top-4 right-4 flex items-center gap-1 bg-white/[0.04] border border-white/[0.08] rounded-lg p-0.5">
             <button
                 onClick={() => setLocale('en')}
-                className={`px-2 py-1 rounded text-xs font-semibold transition ${
-                    locale === 'en' ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-2 py-1 rounded text-xs font-semibold transition ${locale === 'en' ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white'
+                    }`}
             >
                 EN
             </button>
             <button
                 onClick={() => setLocale('es')}
-                className={`px-2 py-1 rounded text-xs font-semibold transition ${
-                    locale === 'es' ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-2 py-1 rounded text-xs font-semibold transition ${locale === 'es' ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white'
+                    }`}
             >
                 ES
             </button>
@@ -51,7 +49,10 @@ function LoginContent() {
         if (mode === 'signup') {
             setIsLogin(false);
         }
-    }, [searchParams]);
+
+        // Auto-redirect since auth is bypassed!
+        router.push('/dashboard');
+    }, [searchParams, router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
