@@ -428,14 +428,14 @@ class APIClient {
   // --- ALM Enterprise (DB-backed) ---
 
   async getInstitutions(workspaceId?: string) {
-    return [{
+    return Promise.resolve([{
       id: 'demo-bank-id',
       name: 'First Community Bank',
       type: 'community_bank',
       totalAssets: 1250,
       currency: 'USD',
       reportingDate: new Date().toISOString(),
-    }];
+    }]);
   }
 
   async createInstitution(data: {
@@ -456,7 +456,7 @@ class APIClient {
   }
 
   async getALMSummary(institutionId: string) {
-    return {
+    return Promise.resolve({
       institution: {
         id: 'demo-bank-id',
         name: 'First Community Bank',
@@ -489,11 +489,11 @@ class APIClient {
       topRisks: ['Rising interest rates impacting NII', 'Deposit flight risk increasing', 'Commercial real estate concentration'],
       recommendations: ['Hedge 2.1yr duration gap using receive-fixed swaps', 'Increase HQLA buffer by $25M', 'Run severe deposit stress scenario'],
       riskScore: 68,
-    };
+    });
   }
 
   async getNIISensitivity(institutionId: string) {
-    return {
+    return Promise.resolve({
       institutionId,
       baseNII: 12.0,
       riskRating: 'moderate',
@@ -504,7 +504,7 @@ class APIClient {
         { name: '-100 bps', shiftBps: -100, niImpact: -1.2, niImpactPct: -10.0, mveImpact: 1.4, mveImpactPct: 11.6 },
         { name: '-200 bps', shiftBps: -200, niImpact: -2.5, niImpactPct: -20.8, mveImpact: 2.9, mveImpactPct: 24.1 },
       ],
-    };
+    });
   }
 
   async getLiquidityPosition(institutionId: string) {
@@ -552,7 +552,7 @@ class APIClient {
   }
 
   async seedDemoInstitution(workspaceId: string, type: 'bank' | 'credit_union' | 'family_office') {
-    return {
+    return Promise.resolve({
       success: true,
       institutionId: 'demo-bank-id',
       institution: {
@@ -562,7 +562,7 @@ class APIClient {
         totalAssets: 1250,
         currency: 'USD',
       }
-    };
+    });
   }
 
   // --- Workspaces (ALM) ---
