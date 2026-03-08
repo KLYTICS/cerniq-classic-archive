@@ -18,7 +18,9 @@ export default function StatusPage() {
 
   const checkHealth = useCallback(async () => {
     try {
-      const NODE_API_URL = process.env.NEXT_PUBLIC_NODE_API_URL || 'http://localhost:3000';
+      const NODE_API_URL = (
+        process.env.NEXT_PUBLIC_NODE_API_URL || ''
+      ).trim().replace(/\/+$/, '');
       const res = await fetch(`${NODE_API_URL}/health`);
       const data = await res.json();
       setHealth(data);
@@ -67,7 +69,7 @@ export default function StatusPage() {
               <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center">
                 <span className="text-slate-900 font-bold text-sm">C</span>
               </div>
-              <span className="font-bold">CapexCycleOS</span>
+              <span className="font-bold">CERNIQ</span>
             </Link>
           </div>
           <span className="text-sm text-slate-500">System Status</span>

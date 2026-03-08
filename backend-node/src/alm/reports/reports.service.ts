@@ -28,29 +28,75 @@ const COLORS = {
   redBg: '#fef2f2',
 };
 
+// ── Bilingual text lookup ─────────────────────────────────────────
+type Lang = 'en' | 'es';
+const T: Record<string, Record<Lang, string>> = {
+  almReport: { en: 'Asset Liability Management Report', es: 'Informe de Gestión de Activos y Pasivos' },
+  confidential: { en: 'CONFIDENTIAL — For Internal Use Only', es: 'CONFIDENCIAL — Solo para Uso Interno' },
+  executiveSummary: { en: 'EXECUTIVE SUMMARY', es: 'RESUMEN EJECUTIVO' },
+  keyMetrics: { en: 'Key metrics and risk assessment', es: 'Métricas clave y evaluación de riesgo' },
+  balanceSheetSnapshot: { en: 'BALANCE SHEET SNAPSHOT', es: 'ESTADO DE SITUACIÓN FINANCIERA' },
+  bsSubtitle: { en: 'Asset and liability positions', es: 'Posiciones de activos y pasivos' },
+  interestRateRisk: { en: 'INTEREST RATE RISK', es: 'RIESGO DE TASA DE INTERÉS' },
+  irSubtitle: { en: 'Duration gap and NII sensitivity analysis', es: 'Análisis de brecha de duración y sensibilidad NII' },
+  liquidityRisk: { en: 'LIQUIDITY RISK', es: 'RIESGO DE LIQUIDEZ' },
+  liqSubtitle: { en: 'LCR compliance and HQLA composition', es: 'Cumplimiento LCR y composición HQLA' },
+  stressTesting: { en: 'STRESS TESTING', es: 'PRUEBAS DE ESTRÉS' },
+  stressSubtitle: { en: 'Monte Carlo simulation and regulatory scenarios', es: 'Simulación Monte Carlo y escenarios regulatorios' },
+  cossecCompliance: { en: 'COSSEC COMPLIANCE', es: 'CUMPLIMIENTO COSSEC' },
+  cossecSubtitle: { en: 'Regulatory checklist and capital adequacy', es: 'Lista regulatoria y suficiencia de capital' },
+  recommendations: { en: 'RECOMMENDATIONS', es: 'RECOMENDACIONES' },
+  recSubtitle: { en: 'Actionable risk mitigation strategies', es: 'Estrategias de mitigación de riesgo' },
+  totalAssets: { en: 'Total Assets', es: 'Total Activos' },
+  totalLiabilities: { en: 'Total Liabilities', es: 'Total Pasivos' },
+  equity: { en: 'Equity', es: 'Capital' },
+  category: { en: 'Category', es: 'Categoría' },
+  name: { en: 'Name', es: 'Nombre' },
+  balance: { en: 'Balance ($M)', es: 'Saldo ($M)' },
+  rate: { en: 'Rate (%)', es: 'Tasa (%)' },
+  duration: { en: 'Duration (yr)', es: 'Duración (años)' },
+  rateType: { en: 'Type', es: 'Tipo' },
+  assets: { en: 'Assets', es: 'Activos' },
+  liabilities: { en: 'Liabilities', es: 'Pasivos' },
+  preparedBy: { en: 'Prepared By', es: 'Preparado Por' },
+  reportId: { en: 'Report ID', es: 'ID de Informe' },
+  metric: { en: 'Metric', es: 'Métrica' },
+  value: { en: 'Value', es: 'Valor' },
+  disclaimer: {
+    en: 'This report is generated automatically by CERNIQ and should be reviewed by qualified risk management professionals before making any decisions. Past performance and simulated scenarios do not guarantee future results. KLYTICS is not a registered investment advisor.',
+    es: 'Este informe es generado automáticamente por CERNIQ y debe ser revisado por profesionales cualificados de gestión de riesgo antes de tomar decisiones. Rendimientos pasados y escenarios simulados no garantizan resultados futuros. KLYTICS no es un asesor de inversión registrado.',
+  },
+};
+
+function t(key: string, lang: Lang): string {
+  return T[key]?.[lang] || T[key]?.en || key;
+}
+
 @Injectable()
 export class ReportsService {
   private readonly logger = new Logger(ReportsService.name);
   private pageNum = 0;
-  private totalPages = 6; // cover + 5 content pages
+  private totalPages = 8; // cover + 7 content pages
+  private lang: Lang = 'en';
 
   constructor(
     private readonly almEnterprise: AlmEnterpriseService,
     private readonly stressTesting: StressTestingService,
   ) {}
 
-  async generateALMReport(institutionId: string): Promise<Buffer> {
-    this.logger.log(`Generating ALM report for institution ${institutionId}`);
+  async generateALMReport(institutionId: string, language?: string): Promise<Buffer> {
+    this.logger.log(`Generating ALM report for institution ${institutionId} (lang=${language || 'en'})`);
+    this.lang = language === 'es' ? 'es' : 'en';
 
-    const [summary, stressTest] = await Promise.all([
+    const [summary, stressTest, cossec, institution] = await Promise.all([
       this.almEnterprise.getALMSummary(institutionId),
-      this.stressTesting.runFullStressTest(institutionId, {
-        paths: 500,
-        horizon: 12,
-      }),
+      this.stressTesting.runFullStressTest(institutionId, { paths: 500, horizon: 12 }),
+      this.almEnterprise.getCOSSECCompliance(institutionId),
+      this.almEnterprise.getInstitution(institutionId),
     ]);
 
     this.pageNum = 0;
+    const reportId = `RPT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
     return new Promise<Buffer>((resolve, reject) => {
       try {
@@ -59,8 +105,8 @@ export class ReportsService {
           margins: { top: 60, bottom: 70, left: 60, right: 60 },
           info: {
             Title: `ALM Risk Report — ${summary.institution.name}`,
-            Author: 'CapexCycleOS | KLYTICS',
-            Subject: 'Asset Liability Management Risk Report',
+            Author: 'CERNIQ | KLYTICS',
+            Subject: t('almReport', this.lang),
           },
           bufferPages: true,
         });
@@ -71,25 +117,35 @@ export class ReportsService {
         doc.on('error', reject);
 
         // ─── COVER PAGE ────────────────────────────────
-        this.renderCoverPage(doc, summary);
+        this.renderCoverPage(doc, summary, reportId);
 
         // ─── SECTION 1: EXECUTIVE SUMMARY ──────────────
         doc.addPage();
         this.renderExecutiveSummary(doc, summary);
 
-        // ─── SECTION 2: INTEREST RATE RISK ─────────────
+        // ─── SECTION 2: BALANCE SHEET SNAPSHOT ─────────
+        doc.addPage();
+        this.renderBalanceSheetSnapshot(doc, institution, summary);
+
+        // ─── SECTION 3: INTEREST RATE RISK ─────────────
         doc.addPage();
         this.renderInterestRateRisk(doc, summary);
 
-        // ─── SECTION 3: LIQUIDITY RISK ─────────────────
+        // ─── SECTION 4: LIQUIDITY RISK ─────────────────
         doc.addPage();
         this.renderLiquidityRisk(doc, summary);
 
-        // ─── SECTION 4: STRESS TESTING ─────────────────
+        // ─── SECTION 5: STRESS TESTING ─────────────────
         doc.addPage();
         this.renderStressTesting(doc, stressTest, summary);
 
-        // ─── SECTION 5: RECOMMENDATIONS ────────────────
+        // ─── SECTION 6: COSSEC COMPLIANCE ──────────────
+        if (cossec && institution.type === 'cooperativa') {
+          doc.addPage();
+          this.renderCOSSECCompliance(doc, cossec, summary);
+        }
+
+        // ─── SECTION 7: RECOMMENDATIONS ────────────────
         doc.addPage();
         this.renderRecommendations(doc, summary);
 
@@ -111,6 +167,7 @@ export class ReportsService {
       niiSensitivity: { baseNII: number; riskRating: string; scenarios: Array<{ shiftBps: number; niImpact: number; niImpactPct: number }> };
       liquidity: { lcr: number; status: string };
     },
+    reportId?: string,
   ) {
     const pw = doc.page.width;
     const mL = doc.page.margins.left;
@@ -123,8 +180,8 @@ export class ReportsService {
     // Brand bar at very top
     doc.rect(0, 0, pw, 4).fill(COLORS.brand);
 
-    // Top left: CapexCycleOS
-    doc.fontSize(18).fillColor('#ffffff').text('CapexCycleOS', mL, 30, { align: 'left' });
+    // Top left: CERNIQ
+    doc.fontSize(18).fillColor('#ffffff').text('CERNIQ', mL, 30, { align: 'left' });
 
     // Top right: KLYTICS in amber
     doc.fontSize(14).fillColor(COLORS.brand).text('KLYTICS', 0, 33, {
@@ -140,18 +197,22 @@ export class ReportsService {
 
     // Subtitle
     doc.moveDown(0.2);
-    doc.fontSize(14).fillColor(COLORS.body).text('Asset Liability Management Report', {
+    doc.fontSize(14).fillColor(COLORS.body).text(t('almReport', this.lang), {
       width: contentWidth,
     });
 
-    // Report date
-    const reportDate = new Date().toLocaleDateString('en-US', {
+    // Report date + ID
+    const locale = this.lang === 'es' ? 'es-PR' : 'en-US';
+    const reportDate = new Date().toLocaleDateString(locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
     doc.moveDown(0.3);
     doc.fontSize(11).fillColor(COLORS.muted).text(reportDate, { width: contentWidth });
+    if (reportId) {
+      doc.fontSize(8).fillColor(COLORS.muted).text(`${t('reportId', this.lang)}: ${reportId}`, { width: contentWidth });
+    }
 
     // Horizontal rule — amber
     doc.moveDown(1);
@@ -161,7 +222,7 @@ export class ReportsService {
     // CONFIDENTIAL
     doc.moveDown(0.5);
     doc.fontSize(9).fillColor(COLORS.muted).text(
-      'CONFIDENTIAL — For Internal Use Only',
+      t('confidential', this.lang),
       mL,
       doc.y,
       { width: contentWidth, align: 'center' },
@@ -209,7 +270,7 @@ export class ReportsService {
     // Info block
     const infoItems = [
       ['Institution Type', summary.institution.type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())],
-      ['Prepared By', 'KLYTICS | CapexCycleOS'],
+      ['Prepared By', 'KLYTICS | CERNIQ'],
       ['Reporting Period', new Date(summary.institution.reportingDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })],
     ];
 
@@ -321,7 +382,7 @@ export class ReportsService {
       };
     },
   ) {
-    this.renderSectionHeader(doc, '2', 'INTEREST RATE RISK', 'Duration gap and NII sensitivity analysis');
+    this.renderSectionHeader(doc, '3', t('interestRateRisk', this.lang), t('irSubtitle', this.lang));
 
     // Duration Gap narrative
     this.renderSubsectionHeader(doc, 'Duration Gap Analysis');
@@ -378,7 +439,7 @@ export class ReportsService {
       liquidity: { lcr: number; hqla: number; netOutflows: number; status: string; buffer: number };
     },
   ) {
-    this.renderSectionHeader(doc, '3', 'LIQUIDITY RISK', 'LCR compliance and HQLA composition');
+    this.renderSectionHeader(doc, '4', t('liquidityRisk', this.lang), t('liqSubtitle', this.lang));
 
     const statusLabel =
       summary.liquidity.status === 'compliant' ? 'COMPLIANT' :
@@ -462,7 +523,7 @@ export class ReportsService {
     },
     summary: { institution: { name: string } },
   ) {
-    this.renderSectionHeader(doc, '4', 'STRESS TESTING', 'Monte Carlo simulation and regulatory scenarios');
+    this.renderSectionHeader(doc, '5', t('stressTesting', this.lang), t('stressSubtitle', this.lang));
 
     // Monte Carlo section
     this.renderSubsectionHeader(doc, 'Monte Carlo Simulation (Vasicek Model)');
@@ -544,17 +605,133 @@ export class ReportsService {
     this.renderFooter(doc, summary.institution.name);
   }
 
+  // ─── Balance Sheet Snapshot ──────────────────────────────────
+
+  private renderBalanceSheetSnapshot(
+    doc: typeof PDFDocument,
+    institution: any,
+    summary: { institution: { name: string; totalAssets: number } },
+  ) {
+    this.renderSectionHeader(doc, '2', t('balanceSheetSnapshot', this.lang), t('bsSubtitle', this.lang));
+
+    const items = institution.balanceSheetItems || [];
+    const assets = items.filter((i: any) => i.category === 'asset');
+    const liabilities = items.filter((i: any) => i.category === 'liability');
+    const totalA = assets.reduce((s: number, i: any) => s + i.balance, 0);
+    const totalL = liabilities.reduce((s: number, i: any) => s + i.balance, 0);
+    const equity = totalA - totalL;
+
+    // Summary KPIs
+    const kpis = [
+      [t('totalAssets', this.lang), `$${totalA.toFixed(1)}M`],
+      [t('totalLiabilities', this.lang), `$${totalL.toFixed(1)}M`],
+      [t('equity', this.lang), `$${equity.toFixed(1)}M`],
+      [this.lang === 'es' ? 'Razón de Capital' : 'Capital Ratio', `${totalA > 0 ? ((equity / totalA) * 100).toFixed(1) : '0.0'}%`],
+    ];
+    this.renderStyledTable(doc, [t('metric', this.lang), t('value', this.lang)], kpis, { boldRows: [2, 3] });
+    doc.moveDown(1);
+
+    // Assets table
+    this.renderSubsectionHeader(doc, t('assets', this.lang));
+    doc.moveDown(0.3);
+    const assetRows = assets.map((a: any) => [
+      a.name,
+      `$${a.balance.toFixed(1)}M`,
+      `${(a.rate * 100).toFixed(2)}%`,
+      `${a.duration.toFixed(1)}yr`,
+      a.rateType,
+    ]);
+    this.renderStyledTable(doc, [t('name', this.lang), t('balance', this.lang), t('rate', this.lang), t('duration', this.lang), t('rateType', this.lang)], assetRows);
+    doc.moveDown(1);
+
+    // Liabilities table
+    if (doc.y > doc.page.height - 200) { doc.addPage(); this.renderFooter(doc, summary.institution.name); }
+    this.renderSubsectionHeader(doc, t('liabilities', this.lang));
+    doc.moveDown(0.3);
+    const liabRows = liabilities.map((l: any) => [
+      l.name,
+      `$${l.balance.toFixed(1)}M`,
+      `${(l.rate * 100).toFixed(2)}%`,
+      `${l.duration.toFixed(1)}yr`,
+      l.rateType,
+    ]);
+    this.renderStyledTable(doc, [t('name', this.lang), t('balance', this.lang), t('rate', this.lang), t('duration', this.lang), t('rateType', this.lang)], liabRows);
+
+    this.renderFooter(doc, summary.institution.name);
+  }
+
+  // ─── COSSEC Compliance ─────────────────────────────────────
+
+  private renderCOSSECCompliance(
+    doc: typeof PDFDocument,
+    cossec: any,
+    summary: { institution: { name: string } },
+  ) {
+    this.renderSectionHeader(doc, '6', t('cossecCompliance', this.lang), t('cossecSubtitle', this.lang));
+
+    // Overall status
+    const statusColor = cossec.overallStatus === 'compliant' ? COLORS.green
+      : cossec.overallStatus === 'conditional' ? COLORS.brand : COLORS.red;
+    const statusText = cossec.overallStatus.toUpperCase();
+
+    const mL = doc.page.margins.left;
+    const cw = doc.page.width - mL - doc.page.margins.right;
+
+    const boxY = doc.y;
+    doc.rect(mL, boxY, cw, 36).fill(cossec.overallStatus === 'compliant' ? COLORS.greenBg : cossec.overallStatus === 'conditional' ? '#fffbeb' : COLORS.redBg);
+    doc.rect(mL, boxY, 4, 36).fill(statusColor);
+    doc.fontSize(11).fillColor(statusColor).text(
+      `${this.lang === 'es' ? 'Estado General' : 'Overall Status'}: ${statusText}`,
+      mL + 16, boxY + 10,
+    );
+    doc.y = boxY + 46;
+
+    // Compliance checks table
+    const checkRows = cossec.checks.map((c: any) => [
+      this.lang === 'es' ? c.nameEs : c.name,
+      `${c.value}${c.unit}`,
+      `${c.threshold}${c.unit}`,
+      c.status.toUpperCase(),
+    ]);
+
+    const headers = this.lang === 'es'
+      ? ['Métrica', 'Valor Actual', 'Umbral', 'Estado']
+      : ['Metric', 'Current Value', 'Threshold', 'Status'];
+
+    this.renderStyledTable(doc, headers, checkRows, {
+      highlightRows: cossec.checks.map((c: any, i: number) => ({
+        index: i,
+        color: c.status === 'pass' ? COLORS.greenBg : c.status === 'warning' ? '#fffbeb' : COLORS.redBg,
+      })),
+      statusColumn: 3,
+    });
+
+    doc.moveDown(1.5);
+
+    // Details for each check
+    cossec.checks.forEach((check: any) => {
+      if (doc.y > doc.page.height - 80) { doc.addPage(); this.renderFooter(doc, summary.institution.name); }
+      doc.fontSize(9).fillColor(COLORS.body).text(
+        this.lang === 'es' ? check.descriptionEs : check.description,
+      );
+      doc.moveDown(0.4);
+    });
+
+    this.renderFooter(doc, summary.institution.name);
+  }
+
   // ─── Recommendations ─────────────────────────────────────────
 
   private renderRecommendations(
     doc: typeof PDFDocument,
     summary: {
-      institution: { name: string };
+      institution: { name: string; type?: string };
       recommendations: string[];
       riskScore: number;
     },
   ) {
-    this.renderSectionHeader(doc, '5', 'RECOMMENDATIONS', 'Actionable risk mitigation strategies');
+    const recNum = summary.institution?.type === 'cooperativa' ? '7' : '6';
+    this.renderSectionHeader(doc, recNum, t('recommendations', this.lang), t('recSubtitle', this.lang));
 
     doc.fontSize(10).fillColor(COLORS.body);
     doc.text(`Based on the comprehensive ALM analysis for ${summary.institution.name} (Risk Score: ${summary.riskScore}/100):`);
@@ -594,11 +771,7 @@ export class ReportsService {
     doc.moveDown(1);
 
     doc.fontSize(8).fillColor(COLORS.muted);
-    doc.text(
-      'Disclaimer: This report is generated automatically by CapexCycleOS and should be reviewed by qualified ' +
-      'risk management professionals before making any decisions. Past performance and simulated scenarios do not ' +
-      'guarantee future results. KLYTICS is not a registered investment advisor.',
-    );
+    doc.text(`${this.lang === 'es' ? 'Descargo' : 'Disclaimer'}: ${t('disclaimer', this.lang)}`);
 
     this.renderFooter(doc, summary.institution.name);
   }
@@ -751,7 +924,7 @@ export class ReportsService {
 
     // Center: branding
     doc.text(
-      'CapexCycleOS by KLYTICS | Confidential',
+      'CERNIQ by KLYTICS | Confidential',
       mL + contentWidth / 3,
       bottom,
       { width: contentWidth / 3, align: 'center' },

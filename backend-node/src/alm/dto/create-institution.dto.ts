@@ -5,7 +5,7 @@ export class CreateInstitutionDto {
   name: string;
 
   @IsString()
-  @IsIn(['bank', 'credit_union', 'family_office'])
+  @IsIn(['bank', 'credit_union', 'family_office', 'cooperativa'])
   type: string;
 
   @IsNumber()

@@ -37,7 +37,11 @@ interface TeamMemberSpend {
     rejectedCount: number;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = (
+    process.env.NEXT_PUBLIC_NODE_API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    ''
+).trim().replace(/\/+$/, '');
 
 const categoryColors: Record<string, string> = {
     'Meals & Entertainment': '#f59e0b',

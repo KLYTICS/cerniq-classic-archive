@@ -1,0 +1,48 @@
+# KIESSCLAW Configuration
+# Environment variables can be referenced using ${VAR_NAME} syntax
+
+# LLM Configuration
+llm:
+  # Supported providers: openai, anthropic, openai-compatible, ollama
+  provider: ollama
+  # Ollama doesn't require an API key
+  base_url: http://localhost:11434
+  model: llama2
+  temperature: 0.7
+  max_tokens: 2000
+
+# Email Configuration
+email:
+  # Supported providers: smtp, sendgrid, mailgun
+  provider: smtp
+  from_address: noreply@example.com
+  smtp:
+    host: smtp.example.com
+    port: 587
+    username: user@example.com
+    password: changeme
+    use_tls: true
+
+# CRM Configuration
+crm:
+  # Supported providers: none, hubspot, salesforce, pipedrive
+  provider: none
+  sync_enabled: false
+
+# Analytics/Klytics Configuration
+klytics:
+  enabled: false
+  webhook_url: ""
+  lead_threshold: 60
+
+# Database Configuration
+database:
+  path: workspace/kiessclaw.db
+
+# Workspace Configuration
+workspace:
+  root: workspace
+  contacts_file: workspace/contacts.csv
+  sequences_dir: workspace/sequences
+  prompts_dir: workspace/prompts
+  usecases_dir: workspace/usecases

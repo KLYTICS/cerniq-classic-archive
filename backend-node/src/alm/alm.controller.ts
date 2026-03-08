@@ -1,9 +1,15 @@
-import { Controller, Post, Get, Body, Param, Logger, UseGuards, Req, Res, Header } from '@nestjs/common';
+import {
+  Controller, Post, Get, Body, Param, Query, Logger,
+  UseGuards, UseInterceptors, Req, Res, UploadedFile,
+  BadRequestException,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AlmService } from './alm.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
 import { ReportsService } from './reports/reports.service';
 import { WorkspaceOnboardingService } from './workspace-onboarding.service';
+import { CSVIngestionService } from './csv-ingestion.service';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   ScenarioRequestDto,
@@ -32,6 +38,7 @@ export class AlmController {
     private readonly stressTesting: StressTestingService,
     private readonly reportsService: ReportsService,
     private readonly onboarding: WorkspaceOnboardingService,
+    private readonly csvIngestion: CSVIngestionService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -79,6 +86,13 @@ export class AlmController {
     return this.almEnterprise.getALMSummary(institutionId);
   }
 
+  @Get(':institutionId/cossec-compliance')
+  @UseGuards(AuthGuard)
+  async getCOSSECCompliance(@Param('institutionId') institutionId: string) {
+    this.logger.log(`COSSEC compliance check for institution ${institutionId}`);
+    return this.almEnterprise.getCOSSECCompliance(institutionId);
+  }
+
   @Get(':institutionId/duration-gap')
   @UseGuards(AuthGuard)
   async getDurationGap(@Param('institutionId') institutionId: string) {
@@ -97,10 +111,75 @@ export class AlmController {
     return this.almEnterprise.calculateLCR(institutionId);
   }
 
+  @Post('institutions/:institutionId/upload-csv')
+  @UseGuards(AuthGuard)
+  @UseInterceptors(FileInterceptor('file', {
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max
+    fileFilter: (_req, file, cb) => {
+      if (!file.originalname.match(/\.csv$/i)) {
+        return cb(new BadRequestException('Only .csv files are accepted'), false);
+      }
+      cb(null, true);
+    },
+  }))
+  async uploadCSV(
+    @Param('institutionId') institutionId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Query('dryRun') dryRun?: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No CSV file provided');
+    }
+
+    this.logger.log(`CSV upload for institution ${institutionId} (${file.size} bytes, dryRun=${dryRun})`);
+
+    const csvContent = file.buffer.toString('utf-8');
+    const result = this.csvIngestion.parseCSV(csvContent);
+
+    if (!result.valid) {
+      return { ...result, imported: false };
+    }
+
+    // Dry run: validate only, don't import
+    if (dryRun === 'true') {
+      return { ...result, imported: false };
+    }
+
+    // Import validated items
+    const importResult = await this.almEnterprise.importBalanceSheetItems(
+      institutionId,
+      result.items,
+    );
+
+    return {
+      ...result,
+      imported: true,
+      importedCount: importResult.count,
+    };
+  }
+
+  @Get('templates/:type')
+  getCSVTemplate(
+    @Param('type') type: string,
+    @Res() res: any,
+  ) {
+    const csv = type === 'cooperativa'
+      ? this.csvIngestion.getCooperativaTemplate()
+      : this.csvIngestion.getGenericTemplate();
+
+    const filename = `balance_sheet_template_${type}.csv`;
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    // BOM for Excel UTF-8 compatibility
+    res.send('\uFEFF' + csv);
+  }
+
   @Post('seed-demo')
   @UseGuards(AuthGuard)
   async seedDemoData(
-    @Body() body: { workspaceId: string; type: 'bank' | 'credit_union' | 'family_office' },
+    @Body() body: { workspaceId: string; type: 'bank' | 'credit_union' | 'family_office' | 'cooperativa' },
   ) {
     this.logger.log(`Seeding demo data: type=${body.type}, workspace=${body.workspaceId}`);
     return this.onboarding.seedDemoData(body.workspaceId, body.type);
@@ -120,10 +199,11 @@ export class AlmController {
   @UseGuards(AuthGuard)
   async downloadReport(
     @Param('institutionId') institutionId: string,
+    @Query('lang') lang: string,
     @Res() res: any,
   ) {
-    this.logger.log(`PDF report requested for institution ${institutionId}`);
-    const buffer = await this.reportsService.generateALMReport(institutionId);
+    this.logger.log(`PDF report requested for institution ${institutionId} (lang=${lang || 'en'})`);
+    const buffer = await this.reportsService.generateALMReport(institutionId, lang);
     const institution = await this.almEnterprise.getInstitution(institutionId);
     const dateStr = new Date().toISOString().split('T')[0];
     const filename = `alm-report-${institution.name.replace(/\s+/g, '-').toLowerCase()}-${dateStr}.pdf`;

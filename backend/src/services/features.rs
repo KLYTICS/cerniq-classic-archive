@@ -1,5 +1,5 @@
 //! Feature engineering service
-//! 
+//!
 //! Calculates derived metrics and features from raw market data and financial statements.
 //! These features power the KPI scoreboard and valuation engines.
 
@@ -19,42 +19,42 @@ pub struct ComputedFeatures {
     pub id: Option<i32>,
     pub ticker: String,
     pub as_of_date: NaiveDate,
-    
+
     // Growth Metrics (%)
     pub revenue_growth_qoq: Option<f64>,
     pub revenue_growth_yoy: Option<f64>,
     pub eps_growth_qoq: Option<f64>,
     pub eps_growth_yoy: Option<f64>,
     pub fcf_growth_yoy: Option<f64>,
-    
+
     // Valuation Metrics
     pub price_to_earnings: Option<f64>,
     pub price_to_sales: Option<f64>,
     pub price_to_book: Option<f64>,
     pub ev_to_ebitda: Option<f64>,
     pub fcf_yield: Option<f64>,
-    
+
     // Margins (%)
     pub gross_margin: Option<f64>,
     pub operating_margin: Option<f64>,
     pub net_margin: Option<f64>,
-    
+
     // Capital Efficiency
     pub return_on_equity: Option<f64>,
     pub return_on_assets: Option<f64>,
     pub asset_turnover: Option<f64>,
-    
+
     // Technical Indicators
     pub ma_50_day: Option<f64>,
     pub ma_200_day: Option<f64>,
     pub volatility_30_day: Option<f64>,
     pub rsi_14_day: Option<f64>,
-    
+
     // Percentile Rankings (vs 5-year history)
     pub pe_percentile: Option<f64>,
     pub price_percentile: Option<f64>,
     pub volume_percentile: Option<f64>,
-    
+
     pub created_at: Option<chrono::NaiveDateTime>,
 }
 
@@ -138,9 +138,7 @@ impl FeatureService {
                 );
             }
 
-            if let (Some(eps_curr), Some(eps_prev)) =
-                (current.eps_diluted, prev_year.eps_diluted)
-            {
+            if let (Some(eps_curr), Some(eps_prev)) = (current.eps_diluted, prev_year.eps_diluted) {
                 growth.insert(
                     "eps_growth_yoy".to_string(),
                     Self::calculate_growth(eps_curr, eps_prev),
@@ -195,10 +193,7 @@ impl FeatureService {
             // P/S ratio
             if let Some(revenue) = metrics.revenue {
                 if revenue > 0.0 {
-                    valuations.insert(
-                        "price_to_sales".to_string(),
-                        Some(market_cap / revenue),
-                    );
+                    valuations.insert("price_to_sales".to_string(), Some(market_cap / revenue));
                 }
             }
 
@@ -295,20 +290,14 @@ impl FeatureService {
             // ROE = Net Income / Shareholders Equity
             if let (Some(ni), Some(equity)) = (metrics.net_income, metrics.shareholders_equity) {
                 if equity > 0.0 {
-                    efficiency.insert(
-                        "return_on_equity".to_string(),
-                        Some((ni / equity) * 100.0),
-                    );
+                    efficiency.insert("return_on_equity".to_string(), Some((ni / equity) * 100.0));
                 }
             }
 
             // ROA = Net Income / Total Assets
             if let (Some(ni), Some(assets)) = (metrics.net_income, metrics.total_assets) {
                 if assets > 0.0 {
-                    efficiency.insert(
-                        "return_on_assets".to_string(),
-                        Some((ni / assets) * 100.0),
-                    );
+                    efficiency.insert("return_on_assets".to_string(), Some((ni / assets) * 100.0));
                 }
             }
 
@@ -470,36 +459,36 @@ impl FeatureService {
             id: None,
             ticker: ticker.to_uppercase(),
             as_of_date: today,
-            
+
             revenue_growth_qoq: growth.get("revenue_growth_qoq").and_then(|v| *v),
             revenue_growth_yoy: growth.get("revenue_growth_yoy").and_then(|v| *v),
             eps_growth_qoq: growth.get("eps_growth_qoq").and_then(|v| *v),
             eps_growth_yoy: growth.get("eps_growth_yoy").and_then(|v| *v),
             fcf_growth_yoy: growth.get("fcf_growth_yoy").and_then(|v| *v),
-            
+
             price_to_earnings: pe,
             price_to_sales: valuations.get("price_to_sales").and_then(|v| *v),
             price_to_book: valuations.get("price_to_book").and_then(|v| *v),
             ev_to_ebitda: valuations.get("ev_to_ebitda").and_then(|v| *v),
             fcf_yield: valuations.get("fcf_yield").and_then(|v| *v),
-            
+
             gross_margin: margins.get("gross_margin").and_then(|v| *v),
             operating_margin: margins.get("operating_margin").and_then(|v| *v),
             net_margin: margins.get("net_margin").and_then(|v| *v),
-            
+
             return_on_equity: efficiency.get("return_on_equity").and_then(|v| *v),
             return_on_assets: efficiency.get("return_on_assets").and_then(|v| *v),
             asset_turnover: efficiency.get("asset_turnover").and_then(|v| *v),
-            
+
             ma_50_day: ma_50,
             ma_200_day: ma_200,
             volatility_30_day: volatility_30,
             rsi_14_day: rsi,
-            
+
             pe_percentile,
             price_percentile,
             volume_percentile: None, // TODO: Calculate
-            
+
             created_at: None,
         })
     }

@@ -16,6 +16,10 @@ interface SlippageAnalysis {
     notional: number;
 }
 
+const NODE_API_URL = (
+    process.env.NEXT_PUBLIC_NODE_API_URL || ''
+).trim().replace(/\/+$/, '');
+
 export default function ExecutionQualityPage() {
     const [executions, setExecutions] = useState([
         { ticker: 'AAPL', executionPrice: 175.50, side: 'BUY', quantity: 100 },
@@ -31,7 +35,7 @@ export default function ExecutionQualityPage() {
 
         for (const exec of executions) {
             try {
-                const response = await fetch('http://localhost:3000/api/execution/slippage', {
+                const response = await fetch(`${NODE_API_URL}/api/execution/slippage`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

@@ -1,16 +1,37 @@
+import { IsNumber, IsArray, IsString, IsOptional, Min, Max, ArrayMinSize } from 'class-validator';
+
 export class MonteCarloRequestDto {
+    @IsNumber()
+    @Min(0)
     initialValue: number;
+
+    @IsNumber()
     meanDailyReturn: number;
+
+    @IsNumber()
+    @Min(0)
     dailyVolatility: number;
+
+    @IsNumber()
+    @Min(1)
+    @Max(100000)
     numSimulations: number;
+
+    @IsNumber()
+    @Min(1)
+    @Max(3650)
     timeHorizon: number; // days
+
+    @IsNumber()
+    @Min(0.5)
+    @Max(0.999)
     confidenceLevel: number; // e.g., 0.95 for 95%
 }
 
 export class MonteCarloResultDto {
     finalValues: number[];
-    var: number; // Value at Risk
-    cvar: number; // Conditional Value at Risk
+    var: number;
+    cvar: number;
     worstCase: number;
     bestCase: number;
     median: number;
@@ -20,8 +41,18 @@ export class MonteCarloResultDto {
 }
 
 export class VaRRequestDto {
+    @IsNumber()
+    @Min(0)
     portfolioValue: number;
+
+    @IsArray()
+    @ArrayMinSize(1)
+    @IsNumber({}, { each: true })
     returns: number[]; // Historical returns
+
+    @IsNumber()
+    @Min(0.5)
+    @Max(0.999)
     confidenceLevel: number; // e.g., 0.95
 }
 
@@ -33,14 +64,23 @@ export class VaRResultDto {
 }
 
 export class CorrelationMatrixRequestDto {
+    @IsArray()
+    @ArrayMinSize(2)
+    @IsString({ each: true })
     tickers: string[];
+
+    @IsOptional()
+    @IsString()
     startDate?: string;
+
+    @IsOptional()
+    @IsString()
     endDate?: string;
 }
 
 export class CorrelationMatrixDto {
     tickers: string[];
-    matrix: number[][]; // Correlation matrix
+    matrix: number[][];
     computedAt: Date;
 }
 
@@ -49,7 +89,7 @@ export class PortfolioRiskDto {
     totalValue: number;
     var95: number;
     cvar95: number;
-    volatility: number; // Annualized
+    volatility: number;
     sharpeRatio: number;
     beta: number;
     maxDrawdown: number;
@@ -57,10 +97,17 @@ export class PortfolioRiskDto {
 }
 
 export class StressTestScenarioDto {
+    @IsString()
     name: string;
+
+    @IsString()
     description: string;
+
+    @IsNumber()
     marketShock: number; // e.g., -0.20 for 20% drop
-    sectorShocks?: Record<string, number>; // Sector-specific shocks
+
+    @IsOptional()
+    sectorShocks?: Record<string, number>;
 }
 
 export class StressTestResultDto {
@@ -69,5 +116,5 @@ export class StressTestResultDto {
     portfolioLoss: number;
     portfolioLossPercent: number;
     worstPosition: { ticker: string; loss: number };
-    recoveryTime?: number; // days (placeholder)
+    recoveryTime?: number;
 }

@@ -29,6 +29,10 @@ interface StressTestResult {
     averageLoss: number;
 }
 
+const NODE_API_URL = (
+    process.env.NEXT_PUBLIC_NODE_API_URL || ''
+).trim().replace(/\/+$/, '');
+
 export default function StressTestPage() {
     const [positions, setPositions] = useState([
         { ticker: 'AAPL', quantity: 100 },
@@ -43,7 +47,7 @@ export default function StressTestPage() {
     const runStressTest = async () => {
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:3000/api/risk/stress-test', {
+            const response = await fetch(`${NODE_API_URL}/api/risk/stress-test`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ positions, scenarioType }),

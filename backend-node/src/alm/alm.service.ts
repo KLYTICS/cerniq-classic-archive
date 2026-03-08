@@ -505,15 +505,42 @@ export class AlmService {
      * NII for a single instrument under a rate shock.
      *
      * Fixed-rate: income = amount × rate (unchanged).
-     * Floating-rate: income = amount × (rate + deltaR).
-     * We floor the shocked rate at 0 to avoid negative interest.
+     * Floating-rate: income = amount × (rate + beta × deltaR).
+     *
+     * Deposit repricing betas reflect the empirical pass-through of
+     * market rate changes to deposit rates. Cooperativas and community
+     * banks typically see partial pass-through on member deposits:
+     *   - Demand/savings deposits: beta = 0.40 (sticky, slow to reprice)
+     *   - Time deposits/CDs:      beta = 0.80 (competitive, faster reprice)
+     *   - Borrowed funds (FHLB):   beta = 1.00 (market-rate indexed)
+     *   - Loans (asset side):      beta = 1.00 (contractual repricing)
      */
     private shockedIncome(inst: InstrumentDto, deltaR: number): number {
         if (inst.isFloating) {
-            const shockedRate = Math.max(inst.rate + deltaR, 0);
+            const beta = this.getRepricingBeta(inst);
+            const shockedRate = Math.max(inst.rate + beta * deltaR, 0);
             return inst.amount * shockedRate;
         }
         return inst.amount * inst.rate;
+    }
+
+    /**
+     * Determine the repricing beta for a floating-rate instrument.
+     * Uses name-based heuristics to classify deposit types.
+     */
+    private getRepricingBeta(inst: InstrumentDto): number {
+        const name = inst.name.toLowerCase();
+
+        // Liability-side deposit betas (partial pass-through)
+        if (name.includes('demand') || name.includes('checking') || name.includes('corriente') || name.includes('savings') || name.includes('ahorro')) {
+            return 0.40;
+        }
+        if (name.includes('time') || name.includes('cd') || name.includes('certificate') || name.includes('certificado') || name.includes('plazo')) {
+            return 0.80;
+        }
+
+        // Everything else (loans, borrowings, FHLB) = full pass-through
+        return 1.00;
     }
 
     /**

@@ -20,7 +20,7 @@ export default function PricingPage() {
           <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center">
             <span className="text-slate-900 font-bold text-sm">C</span>
           </div>
-          <span className="text-sm font-semibold">CapexCycleOS</span>
+          <span className="text-sm font-semibold">CERNIQ</span>
         </div>
       </div>
 
@@ -62,7 +62,7 @@ export default function PricingPage() {
             </ul>
 
             <a
-              href="mailto:erwin@klytics.io?subject=CapexCycleOS%20Pilot%20—%20Getting%20Started&body=Hi%20Erwin%2C%0A%0AI'd%20like%20to%20start%20a%20CapexCycleOS%20pilot.%0A%0AInstitution%3A%20%0AAsset%20Size%3A%20%0A%0AThanks"
+              href="mailto:erwin@klytics.io?subject=CERNIQ%20Pilot%20—%20Getting%20Started&body=Hi%20Erwin%2C%0A%0AI'd%20like%20to%20start%20a%20CERNIQ%20pilot.%0A%0AInstitution%3A%20%0AAsset%20Size%3A%20%0A%0AThanks"
               className="block w-full text-center bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-lg transition text-sm"
             >
               {t('pricing.startPilot')}
@@ -90,7 +90,7 @@ export default function PricingPage() {
             </ul>
 
             <a
-              href="mailto:erwin@klytics.io?subject=CapexCycleOS%20Enterprise%20Inquiry&body=Hi%20Erwin%2C%0A%0AWe're%20interested%20in%20the%20Enterprise%20plan.%0A%0AInstitution%3A%20%0AAsset%20Size%3A%20%0ANumber%20of%20entities%3A%20%0A%0AThanks"
+              href="mailto:erwin@klytics.io?subject=CERNIQ%20Enterprise%20Inquiry&body=Hi%20Erwin%2C%0A%0AWe're%20interested%20in%20the%20Enterprise%20plan.%0A%0AInstitution%3A%20%0AAsset%20Size%3A%20%0ANumber%20of%20entities%3A%20%0A%0AThanks"
               className="block w-full text-center bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 font-semibold py-3 rounded-lg transition text-sm"
             >
               {t('pricing.contactErwin')}

@@ -4,7 +4,7 @@ import pg from 'pg';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { PrismaClient } = require('@prisma/client');
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://capexcycle:dev_password_change_in_prod@localhost:5433/capexcycle?schema=public';
+const connectionString = process.env.DATABASE_URL || 'postgresql://cerniq:dev_password_change_in_prod@localhost:5433/cerniq?schema=public';
 const pool = new pg.Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });

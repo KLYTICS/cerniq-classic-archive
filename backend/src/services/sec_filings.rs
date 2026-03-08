@@ -1,5 +1,5 @@
 //! SEC EDGAR filing ingestion and parsing service
-//! 
+//!
 //! This service fetches and parses SEC filings (10-K, 10-Q) to extract
 //! fundamental financial metrics needed for valuation and KPI scoring.
 
@@ -33,7 +33,7 @@ pub struct FinancialMetrics {
     pub filing_id: i32,
     pub ticker: String,
     pub period_end: NaiveDate,
-    
+
     // Income Statement
     pub revenue: Option<f64>,
     pub cost_of_revenue: Option<f64>,
@@ -42,21 +42,21 @@ pub struct FinancialMetrics {
     pub net_income: Option<f64>,
     pub eps_basic: Option<f64>,
     pub eps_diluted: Option<f64>,
-    
+
     // Balance Sheet
     pub total_assets: Option<f64>,
     pub total_liabilities: Option<f64>,
     pub shareholders_equity: Option<f64>,
     pub cash_and_equivalents: Option<f64>,
     pub total_debt: Option<f64>,
-    
+
     // Cash Flow
     pub operating_cash_flow: Option<f64>,
     pub investing_cash_flow: Option<f64>,
     pub financing_cash_flow: Option<f64>,
     pub free_cash_flow: Option<f64>,
     pub capex: Option<f64>,
-    
+
     // Other
     pub shares_outstanding: Option<f64>,
     pub rd_expense: Option<f64>,
@@ -115,7 +115,7 @@ impl SecFilingService {
         limit: usize,
     ) -> Result<Vec<SecFiling>> {
         let cik = self.get_cik(ticker).await?;
-        
+
         let mut filings = Vec::new();
 
         for form_type in form_types {
@@ -203,7 +203,7 @@ impl SecFilingService {
     }
 
     /// Parse XBRL data from filing (simplified version)
-    /// 
+    ///
     /// Note: Full XBRL parsing is complex. This is a basic implementation
     /// that extracts common financial metrics. For production, consider
     /// using a dedicated XBRL library or the SEC's XBRL API.
@@ -223,7 +223,7 @@ impl SecFilingService {
             filing_id: filing.id.unwrap_or(0),
             ticker: filing.ticker.clone(),
             period_end: filing.filing_date,
-            
+
             // These would be extracted from XBRL tags
             // For now, returning None - will implement proper parser next
             revenue: Self::extract_metric(&html, "Revenues?|Total\\s+Revenue"),
@@ -232,15 +232,15 @@ impl SecFilingService {
             operating_income: Self::extract_metric(&html, "Operating\\s+Income"),
             net_income: Self::extract_metric(&html, "Net\\s+Income"),
             eps_diluted: Self::extract_metric(&html, "Earnings\\s+Per\\s+Share.*Diluted"),
-            
+
             total_assets: Self::extract_metric(&html, "Total\\s+Assets"),
             total_liabilities: Self::extract_metric(&html, "Total\\s+Liabilities"),
             cash_and_equivalents: Self::extract_metric(&html, "Cash\\s+and\\s+Cash\\s+Equivalents"),
             total_debt: Self::extract_metric(&html, "Total\\s+Debt"),
-            
+
             operating_cash_flow: Self::extract_metric(&html, "Operating\\s+Activities.*Cash"),
             capex: Self::extract_metric(&html, "Capital\\s+Expenditures"),
-            
+
             // Calculated field
             free_cash_flow: None,
             shareholders_equity: None,
@@ -259,7 +259,7 @@ impl SecFilingService {
     /// Note: This is a placeholder - proper implementation would use XBRL parsing
     fn extract_metric(html: &str, pattern: &str) -> Option<f64> {
         let re = Regex::new(&format!(r"{}:\s*\$?([\d,]+)", pattern)).ok()?;
-        
+
         if let Some(caps) = re.captures(html) {
             let value_str = caps.get(1)?.as_str().replace(",", "");
             value_str.parse::<f64>().ok()
@@ -328,17 +328,17 @@ impl SecFilingService {
 
         // Fetch recent 10-K and 10-Q filings
         let filings = self.fetch_filings(ticker, &["10-K", "10-Q"], 8).await?;
-        
+
         let mut processed = 0;
 
         for filing in filings {
             // Store filing metadata
             let filing_id = self.store_filing(&filing).await?;
-            
+
             // Parse and extract metrics
             let mut filing_with_id = filing.clone();
             filing_with_id.id = Some(filing_id);
-            
+
             match self.parse_filing(&filing_with_id).await {
                 Ok(metrics) => {
                     self.store_metrics(&metrics).await?;
@@ -367,14 +367,12 @@ mod tests {
     async fn test_fetch_filings() {
         let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
         let db = PgPool::connect(&db_url).await.unwrap();
-        
-        let service = SecFilingService::new(
-            db,
-            "CapexCycleOS/1.0 (contact@example.com)".to_string(),
-        );
+
+        let service =
+            SecFilingService::new(db, "CERNIQ/1.0 (contact@example.com)".to_string());
 
         let filings = service.fetch_filings("NVDA", &["10-K"], 2).await.unwrap();
-        
+
         assert!(!filings.is_empty());
         assert_eq!(filings[0].ticker, "NVDA");
         println!("Found {} filings", filings.len());

@@ -3,6 +3,7 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
+  ForbiddenException,
   SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -17,8 +18,32 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    // Bypass authentication: always set a mock user
-    request.user = { userId: 'mock-user-id', email: 'demo@capexcycle.io', role: 'ADMIN' };
+    const token = this.extractToken(request);
+    if (!token) {
+      throw new UnauthorizedException('Authentication required');
+    }
+
+    let user = await this.verifySupabaseToken(token);
+    if (!user && this.allowLegacy()) {
+      user = this.verifyLegacyToken(token);
+    }
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+
+    const orgHeader = this.getHeader(request, 'x-klytics-org-id');
+    const orgId = user.orgId || orgHeader || null;
+    const orgAllowed = await this.enforceOrgAccess(user.userId, orgId);
+    if (!orgAllowed) {
+      throw new ForbiddenException('Org membership or entitlement check failed');
+    }
+
+    request.user = {
+      ...user,
+      orgId,
+      role: user.role || 'authenticated',
+    };
     return true;
   }
 
@@ -33,6 +58,136 @@ export class AuthGuard implements CanActivate {
       return authHeader.substring(7);
     }
     return null;
+  }
+
+  private getHeader(request: any, name: string): string | null {
+    const value = request?.headers?.[name];
+    if (!value) return null;
+    if (Array.isArray(value)) return value[0] || null;
+    return String(value);
+  }
+
+  private allowLegacy(): boolean {
+    const raw = (process.env.AUTH_ALLOW_LEGACY || '').trim().toLowerCase();
+    return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+  }
+
+  private decodeClaims(token: string): Record<string, any> {
+    const claims = this.jwtService.decode(token);
+    if (!claims || typeof claims !== 'object') {
+      return {};
+    }
+    return claims as Record<string, any>;
+  }
+
+  private verifyLegacyToken(token: string): { userId: string; email?: string; role?: string; claims: Record<string, any>; orgId?: string } | null {
+    try {
+      const payload = this.jwtService.verify(token) as Record<string, any>;
+      return {
+        userId: payload.sub,
+        email: payload.email,
+        role: payload.role || 'authenticated',
+        claims: payload,
+        orgId: payload.org_id || payload.tenant_id || null,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private async verifySupabaseToken(token: string): Promise<{ userId: string; email?: string; role?: string; claims: Record<string, any>; orgId?: string } | null> {
+    const supabaseUrl = (process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
+    const anonKey =
+      (process.env.SUPABASE_ANON_KEY || '').trim() ||
+      (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+
+    if (!supabaseUrl || !anonKey) {
+      return null;
+    }
+
+    try {
+      const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        return null;
+      }
+      const user = (await response.json()) as { id?: string; email?: string };
+      if (!user?.id) {
+        return null;
+      }
+      const claims = this.decodeClaims(token);
+      return {
+        userId: user.id,
+        email: user.email || claims.email,
+        role: claims.role || (Array.isArray(claims.roles) ? claims.roles[0] : 'authenticated'),
+        claims,
+        orgId: claims.org_id || claims.tenant_id || null,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private async enforceOrgAccess(userId: string, orgId: string | null): Promise<boolean> {
+    const requireOrg = ((process.env.KLYTICS_REQUIRE_ORG || '').toLowerCase() === 'true');
+    const requireEntitlement = ((process.env.KLYTICS_REQUIRE_ENTITLEMENT || '').toLowerCase() === 'true');
+    if (!requireOrg && !requireEntitlement) {
+      return true;
+    }
+    if (requireOrg && !orgId) {
+      return false;
+    }
+    if (!orgId) {
+      return true;
+    }
+
+    const supabaseUrl = (process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
+    const serviceRole = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+    if (!supabaseUrl || !serviceRole) {
+      return false;
+    }
+
+    const headers = {
+      apikey: serviceRole,
+      Authorization: `Bearer ${serviceRole}`,
+    };
+
+    try {
+      const membershipsRes = await fetch(
+        `${supabaseUrl}/rest/v1/memberships?select=org_id,role&org_id=eq.${encodeURIComponent(orgId)}&user_id=eq.${encodeURIComponent(userId)}&limit=1`,
+        { headers },
+      );
+      if (!membershipsRes.ok) {
+        return false;
+      }
+      const memberships = (await membershipsRes.json()) as any[];
+      if (!memberships?.length) {
+        return false;
+      }
+
+      if (requireEntitlement) {
+        const appId = (process.env.KLYTICS_APP_ID || 'cerniq').trim();
+        const entitlementRes = await fetch(
+          `${supabaseUrl}/rest/v1/org_apps?select=app_id&org_id=eq.${encodeURIComponent(orgId)}&app_id=eq.${encodeURIComponent(appId)}&enabled=is.true&limit=1`,
+          { headers },
+        );
+        if (!entitlementRes.ok) {
+          return false;
+        }
+        const entitlements = (await entitlementRes.json()) as any[];
+        if (!entitlements?.length) {
+          return false;
+        }
+      }
+
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 

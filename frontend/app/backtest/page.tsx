@@ -34,6 +34,10 @@ interface BacktestResult {
     equityCurve: { date: string; value: number }[];
 }
 
+const NODE_API_URL = (
+    process.env.NEXT_PUBLIC_NODE_API_URL || ''
+).trim().replace(/\/+$/, '');
+
 export default function BacktestPage() {
     const [result, setResult] = useState<BacktestResult | null>(null);
     const [loading, setLoading] = useState(false);
@@ -57,7 +61,7 @@ export default function BacktestPage() {
                 params: { shortPeriod: config.shortPeriod, longPeriod: config.longPeriod },
             };
 
-            const response = await fetch('http://localhost:3000/api/execution/backtest', {
+            const response = await fetch(`${NODE_API_URL}/api/execution/backtest`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

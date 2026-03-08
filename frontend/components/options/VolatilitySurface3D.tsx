@@ -16,6 +16,8 @@ interface VolatilitySurface {
     timestamp: Date;
 }
 
+const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+
 export function VolatilitySurface3D() {
     const [ticker, setTicker] = useState('AAPL');
     const [data, setData] = useState<VolatilitySurface | null>(null);
@@ -25,7 +27,7 @@ export function VolatilitySurface3D() {
     const fetchSurface = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`http://localhost:3000/api/risk/volatility/heatmap/${ticker}`);
+            const response = await fetch(`${NODE_API_URL}/api/risk/volatility/heatmap/${ticker}`);
             const result = await response.json();
             setData(result);
         } catch (err) {

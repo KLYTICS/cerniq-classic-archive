@@ -26,6 +26,10 @@ interface FactorExposure {
     description: string;
 }
 
+const NODE_API_URL = (
+    process.env.NEXT_PUBLIC_NODE_API_URL || ''
+).trim().replace(/\/+$/, '');
+
 export default function FactorRiskPage() {
     const [positions, setPositions] = useState([
         { ticker: 'AAPL', quantity: 100 },
@@ -44,7 +48,7 @@ export default function FactorRiskPage() {
     const analyzeFactors = async () => {
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:3000/api/risk/factor-exposures', {
+            const response = await fetch(`${NODE_API_URL}/api/risk/factor-exposures`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ positions }),

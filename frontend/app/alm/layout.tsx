@@ -4,10 +4,12 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import ALMProvider, { useALM } from '@/components/alm/ALMProvider';
-import { Download, Menu, Building2, ChevronDown } from 'lucide-react';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { Download, Menu, Building2, ChevronDown, RefreshCw } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
 import { useTranslation } from '@/lib/i18n';
+import { usePDFExport } from '@/hooks/usePDFExport';
 
 function LanguageToggle() {
   const { locale, setLocale } = useTranslation();
@@ -15,17 +17,15 @@ function LanguageToggle() {
     <div className="flex items-center gap-0.5 bg-white/[0.04] border border-white/[0.08] rounded-lg p-0.5">
       <button
         onClick={() => setLocale('en')}
-        className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
-          locale === 'en' ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white'
-        }`}
+        className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${locale === 'en' ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white'
+          }`}
       >
         EN
       </button>
       <button
         onClick={() => setLocale('es')}
-        className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
-          locale === 'es' ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white'
-        }`}
+        className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${locale === 'es' ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white'
+          }`}
       >
         ES
       </button>
@@ -35,7 +35,21 @@ function LanguageToggle() {
 
 function ALMTopBar() {
   const { institutions, selectedId, institution, setSelectedId } = useALM();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const { exportToPDF, isExporting } = usePDFExport();
+
+  const handleExport = async () => {
+    if (!selectedId) return;
+    analytics.track(EVENTS.ALM_REPORT_DOWNLOADED, { institutionId: selectedId });
+    try {
+      await apiClient.downloadALMReport(selectedId, locale);
+    } catch {
+      exportToPDF({
+        elementId: 'alm-report-content',
+        filename: `ALM_Report_${institution?.name?.replace(/\s+/g, '_') || selectedId}.pdf`,
+      });
+    }
+  };
 
   return (
     <div className="h-14 border-b border-white/[0.06] bg-slate-900/70 backdrop-blur-md flex items-center justify-between px-6 shrink-0">
@@ -80,16 +94,14 @@ function ALMTopBar() {
           {t('alm.pricing')}
         </Link>
         {selectedId && (
-          <a
-            href={apiClient.getALMReportUrl(selectedId)}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => analytics.track(EVENTS.ALM_REPORT_DOWNLOADED, { institutionId: selectedId })}
-            className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs transition"
+          <button
+            onClick={handleExport}
+            disabled={isExporting}
+            className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs transition disabled:opacity-50"
           >
-            <Download className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t('alm.exportPdf')}</span>
-          </a>
+            {isExporting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">{isExporting ? 'Generating...' : t('alm.exportPdf')}</span>
+          </button>
         )}
       </div>
     </div>
@@ -143,7 +155,7 @@ function ALMShell({ children }: { children: React.ReactNode }) {
         <ALMTopBar />
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
+        <main id="alm-report-content" className="flex-1 overflow-y-auto">
           {children}
         </main>
       </div>
@@ -165,7 +177,11 @@ export default function ALMLayout({ children }: { children: React.ReactNode }) {
       }
     >
       <ALMProvider>
-        <ALMShell>{children}</ALMShell>
+        <ALMShell>
+          <ErrorBoundary context="alm">
+            {children}
+          </ErrorBoundary>
+        </ALMShell>
       </ALMProvider>
     </Suspense>
   );

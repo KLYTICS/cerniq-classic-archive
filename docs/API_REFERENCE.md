@@ -1,4 +1,4 @@
-# CapexCycleOS API Reference
+# CERNIQ API Reference
 
 > **Version:** 2.0.0  
 > **Base URL:** `http://localhost:3000/api`

@@ -8,7 +8,9 @@ import { analytics, EVENTS } from '@/lib/analytics';
 import Link from 'next/link';
 import { useTranslation } from '@/lib/i18n';
 
-const NODE_API_URL = process.env.NEXT_PUBLIC_NODE_API_URL || 'http://localhost:3000';
+const NODE_API_URL = (
+    process.env.NEXT_PUBLIC_NODE_API_URL || ''
+).trim().replace(/\/+$/, '');
 
 function LanguageToggle() {
     const { locale, setLocale } = useTranslation();
@@ -39,7 +41,7 @@ function LoginContent() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const { initialized, setUser } = useAuthStore();
+    const { initialized, isAuthenticated, setUser } = useAuthStore();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { t } = useTranslation();
@@ -50,9 +52,10 @@ function LoginContent() {
             setIsLogin(false);
         }
 
-        // Auto-redirect since auth is bypassed!
-        router.push('/dashboard');
-    }, [searchParams, router]);
+        if (initialized && isAuthenticated) {
+            router.push('/dashboard');
+        }
+    }, [searchParams, router, initialized, isAuthenticated]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -106,7 +109,7 @@ function LoginContent() {
                         <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center">
                             <span className="text-slate-900 font-bold text-sm">C</span>
                         </div>
-                        <span className="text-xl font-bold text-white">CapexCycleOS</span>
+                        <span className="text-xl font-bold text-white">CERNIQ</span>
                     </Link>
                 </div>
 

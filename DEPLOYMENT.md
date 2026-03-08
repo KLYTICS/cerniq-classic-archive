@@ -1,148 +1,104 @@
-# CapexCycleOS Deployment Guide
+# CERNIQ Deployment Guide (Vercel + Railway)
 
-## Architecture
+## Target Production Topology
 
 ```
-[Vercel - Frontend]  ──HTTPS──>  [Fly.io - Backend]  ──>  [Fly Postgres]
-     Next.js 15                     NestJS + Prisma         PostgreSQL 16
-   capexcycle.vercel.app          capexcycleos-api.fly.dev
+[ Vercel ] cerniq.io / www.cerniq.io  --->  [ Railway ] api.cerniq.io
+                 Next.js frontend                    NestJS backend
 ```
 
-## Backend (Fly.io)
+## Domain Best Practices
 
-### Service: `capexcycleos-api`
+- Use `cerniq.io` as canonical primary domain.
+- Redirect `www.cerniq.io` -> `cerniq.io` (handled by Vercel domain redirect).
+- Put API on subdomain `api.cerniq.io` (keeps cookies/security boundaries cleaner).
+- Keep preview deployments on `*.vercel.app` for testing only.
 
-**Build:** Docker multi-stage (node:20-alpine)
-**Start:** `npx prisma migrate deploy && node dist/src/main.js`
-**Region:** `iad` (Ashburn, Virginia)
+## DNS Setup
 
-### Required Environment Variables
+Configure these records at your DNS provider:
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgres://user:pass@host:5432/db` (auto-attached) |
-| `JWT_SECRET` | Min 32 chars, used for JWT signing | `your-secret-key-at-least-32-chars` |
-| `NODE_ENV` | Must be `production` | `production` |
-| `FRONTEND_URL` | Vercel deployment URL | `https://capexcycle.vercel.app` |
+| Type | Host | Value |
+|---|---|---|
+| `A` | `@` | `76.76.21.21` (Vercel apex) |
+| `CNAME` | `www` | `cname.vercel-dns.com` |
+| `CNAME` | `api` | `<your-railway-service>.up.railway.app` |
 
-### Optional Environment Variables
+Notes:
+- Replace `<your-railway-service>.up.railway.app` with your real Railway generated domain.
+- Keep TTL at `300` while migrating, then raise to `3600`.
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `REDIS_URL` | Redis connection (graceful degradation) | none |
-| `ALLOWED_ORIGINS` | Additional CORS origins (comma-separated) | none |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | none |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | none |
-| `GITHUB_CLIENT_ID` | GitHub OAuth client ID | none |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth client secret | none |
-| `SUPABASE_URL` | Supabase project URL (optional ticker service) | none |
-| `SUPABASE_KEY` | Supabase anon key | none |
+## Vercel Setup (Frontend)
 
-### Setup Steps
-
-1. Install Fly CLI: `brew install flyctl`
-2. Login: `fly auth login`
-3. Create app: `fly apps create capexcycleos-api`
-4. Create Postgres: `fly postgres create --name capexcycleos-db --region iad`
-5. Attach DB: `fly postgres attach capexcycleos-db --app capexcycleos-api`
-6. Set secrets:
-   ```bash
-   fly secrets set JWT_SECRET="your-secret-min-32-chars" \
-     NODE_ENV=production \
-     FRONTEND_URL=https://capexcycle.vercel.app \
-     --app capexcycleos-api
-   ```
-7. Deploy: `fly deploy --app capexcycleos-api` (from `backend-node/`)
-8. Health check: `curl https://capexcycleos-api.fly.dev/health`
-
-### Redeploying
+1. Link/import the frontend project (`frontend/`) to Vercel.
+2. Add domains in project settings:
+   - `cerniq.io`
+   - `www.cerniq.io`
+3. Set production environment variables:
 
 ```bash
-cd backend-node
-fly deploy
+NEXT_PUBLIC_APP_URL=https://cerniq.io
+NEXT_PUBLIC_NODE_API_URL=https://api.cerniq.io
 ```
 
----
+4. Redeploy production after env updates (public vars are build-time in Next.js).
 
-## Frontend (Vercel)
+## Railway Setup (Backend)
 
-### Service: Next.js frontend
-
-**Framework:** Auto-detected as Next.js
-**Build:** `npm run build`
-**Output:** `.next`
-**Root Directory:** `frontend`
-
-### Required Environment Variables
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_NODE_API_URL` | Fly.io backend URL | `https://capexcycleos-api.fly.dev` |
-
-### Optional Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_SEGMENT_WRITE_KEY` | Segment analytics key | none |
-| `NEXT_PUBLIC_GA4_MEASUREMENT_ID` | Google Analytics 4 ID | none |
-| `NEXT_PUBLIC_POSTHOG_KEY` | PostHog analytics key | none |
-
-### Setup Steps
-
-1. Import repository to Vercel
-2. Set root directory to `frontend`
-3. Set `NEXT_PUBLIC_NODE_API_URL` to `https://capexcycleos-api.fly.dev`
-4. Deploy
-
-### CLI Deploy
+1. Deploy `backend-node/` service on Railway.
+2. Add custom domain `api.cerniq.io` to the backend service.
+3. Set required production variables:
 
 ```bash
-cd frontend
-vercel --prod --yes
+NODE_ENV=production
+JWT_SECRET=<32+ chars>
+DATABASE_URL=<railway postgres url>
+FRONTEND_URL=https://cerniq.io
+ALLOWED_ORIGINS=https://cerniq.io,https://www.cerniq.io
+KLYTICS_APP_ID=cerniq
 ```
 
----
+4. Optional OAuth variables:
 
-## Live URLs
+```bash
+GITHUB_CLIENT_ID=<id>
+GITHUB_CLIENT_SECRET=<secret>
+GITHUB_CALLBACK_URL=https://api.cerniq.io/api/auth/github/callback
 
-| Service | URL |
-|---------|-----|
-| Frontend | https://capexcycle.vercel.app |
-| Backend API | https://capexcycleos-api.fly.dev |
-| Health Check | https://capexcycleos-api.fly.dev/health |
-| Status Page | https://capexcycle.vercel.app/status |
-| Admin Dashboard | https://capexcycle.vercel.app/admin |
-| Demo Deep Link | https://capexcycle.vercel.app/demo |
+GOOGLE_CLIENT_ID=<id>
+GOOGLE_CLIENT_SECRET=<secret>
+GOOGLE_CALLBACK_URL=https://api.cerniq.io/api/auth/google/callback
+```
 
----
+## OAuth App Configuration
 
-## Post-Deploy Checklist
+For GitHub OAuth App:
+- Homepage URL: `https://cerniq.io`
+- Authorization callback URL: `https://api.cerniq.io/api/auth/github/callback`
 
-- [ ] Backend health check returns healthy: `curl https://capexcycleos-api.fly.dev/health`
-- [ ] Frontend loads at Vercel URL
-- [ ] Registration works (creates user with bcrypt hash)
-- [ ] Login sets HttpOnly cookies (not visible in `document.cookie`)
-- [ ] ALM demo data seeds via onboarding flow
-- [ ] PDF report downloads successfully
-- [ ] CORS allows frontend origin (check Network tab for preflight)
-- [ ] Status page shows API and DB as "up"
+For Google OAuth:
+- Authorized JavaScript origins: `https://cerniq.io`
+- Authorized redirect URI: `https://api.cerniq.io/api/auth/google/callback`
 
-## Custom Domain
+## Verification Checklist
 
-To use `capexcycleos.com`:
-1. Add CNAME record pointing to Vercel
-2. Add domain in Vercel project settings
-3. Update `FRONTEND_URL` on Fly.io: `fly secrets set FRONTEND_URL=https://capexcycleos.com --app capexcycleos-api`
-4. The CORS config already allows `*.capexcycleos.com`
+- Frontend loads at `https://cerniq.io`
+- `https://api.cerniq.io/health` returns healthy/degraded JSON (not 404)
+- Login page OAuth buttons point to `https://api.cerniq.io/api/auth/...`
+- Demo request submits successfully (no localhost calls)
+- Admin page and status page load with API connectivity
+- CORS allows `https://cerniq.io` and `https://www.cerniq.io`
 
-## Troubleshooting
+## Quick Smoke Tests
 
-**CORS errors:** Ensure `FRONTEND_URL` on Fly.io matches the exact Vercel URL (including `https://`). The backend also allows `*.vercel.app`, `*.fly.dev`, and `*.capexcycleos.com`.
+```bash
+curl -i https://api.cerniq.io/health
+curl -i https://cerniq.io/status
+curl -i https://cerniq.io/login
+```
 
-**Cookie not set:** In production, cookies use `SameSite=None; Secure=true`. Both frontend and backend must use HTTPS.
+## Rollback Plan
 
-**Prisma migration fails:** Check `DATABASE_URL` is correct. Run `fly postgres connect --app capexcycleos-db` to verify connectivity.
-
-**502 on Fly.io:** Check logs with `fly logs --app capexcycleos-api`. Likely a missing env var (`JWT_SECRET` or `DATABASE_URL`). The server exits with a clear error message.
-
-**Cache degraded:** Expected if no Redis is provisioned. The app runs fully without Redis — cache just returns misses.
+- Keep previous `*.vercel.app` production deployment available until DNS stabilizes.
+- If issues occur, temporarily point `NEXT_PUBLIC_NODE_API_URL` back to last known-good API URL and redeploy frontend.
+- Keep Railway service URL active even after custom domain cutover.

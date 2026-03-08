@@ -1,13 +1,13 @@
 use axum::{
-    extract::{State, Path, Query},
+    extract::{Path, Query, State},
     response::Json as AxumJson,
 };
+use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::{Utc, Duration};
-use std::collections::HashMap;
 
 use crate::error::{AppError, Result};
 use crate::state::AppState;
@@ -84,15 +84,15 @@ pub async fn generate_report(
 
     // Store report in database
     let report_id = Uuid::new_v4();
-    let title = payload.title.unwrap_or_else(|| {
-        format!("Spend Leak Report - {}", Utc::now().format("%Y-%m-%d"))
-    });
+    let title = payload
+        .title
+        .unwrap_or_else(|| format!("Spend Leak Report - {}", Utc::now().format("%Y-%m-%d")));
 
     sqlx::query(
         r#"
         INSERT INTO reports (id, workspace_id, title, report_data, generated_at)
         VALUES ($1, $2, $3, $4, NOW())
-        "#
+        "#,
     )
     .bind(report_id)
     .bind(workspace_id)
@@ -124,23 +124,21 @@ pub async fn get_report(
     Path(report_id): Path<Uuid>,
 ) -> Result<AxumJson<Value>> {
     let report: Option<(Uuid, Uuid, String, Value, chrono::DateTime<Utc>)> = sqlx::query_as(
-        "SELECT id, workspace_id, title, report_data, generated_at FROM reports WHERE id = $1"
+        "SELECT id, workspace_id, title, report_data, generated_at FROM reports WHERE id = $1",
     )
     .bind(report_id)
     .fetch_optional(&state.db)
     .await?;
 
     match report {
-        Some((id, workspace_id, title, data, generated_at)) => {
-            Ok(AxumJson(json!({
-                "id": id,
-                "workspace_id": workspace_id,
-                "title": title,
-                "generated_at": generated_at.to_rfc3339(),
-                "data": data
-            })))
-        }
-        None => Err(AppError::NotFound("Report not found".to_string()))
+        Some((id, workspace_id, title, data, generated_at)) => Ok(AxumJson(json!({
+            "id": id,
+            "workspace_id": workspace_id,
+            "title": title,
+            "generated_at": generated_at.to_rfc3339(),
+            "data": data
+        }))),
+        None => Err(AppError::NotFound("Report not found".to_string())),
     }
 }
 
@@ -150,28 +148,25 @@ pub async fn export_report(
     Path(report_id): Path<Uuid>,
     Query(query): Query<ExportQuery>,
 ) -> Result<AxumJson<Value>> {
-    let report: Option<(Uuid, String, Value)> = sqlx::query_as(
-        "SELECT workspace_id, title, report_data FROM reports WHERE id = $1"
-    )
-    .bind(report_id)
-    .fetch_optional(&state.db)
-    .await?;
+    let report: Option<(Uuid, String, Value)> =
+        sqlx::query_as("SELECT workspace_id, title, report_data FROM reports WHERE id = $1")
+            .bind(report_id)
+            .fetch_optional(&state.db)
+            .await?;
 
-    let (workspace_id, title, data) = report
-        .ok_or_else(|| AppError::NotFound("Report not found".to_string()))?;
+    let (workspace_id, title, data) =
+        report.ok_or_else(|| AppError::NotFound("Report not found".to_string()))?;
 
     let format = query.format.unwrap_or_else(|| "json".to_string());
 
     match format.as_str() {
-        "json" => {
-            Ok(AxumJson(json!({
-                "format": "json",
-                "report_id": report_id,
-                "title": title,
-                "workspace_id": workspace_id,
-                "data": data
-            })))
-        }
+        "json" => Ok(AxumJson(json!({
+            "format": "json",
+            "report_id": report_id,
+            "title": title,
+            "workspace_id": workspace_id,
+            "data": data
+        }))),
         "text" => {
             let text_report = generate_text_report(&title, &data);
             Ok(AxumJson(json!({
@@ -181,7 +176,10 @@ pub async fn export_report(
                 "content": text_report
             })))
         }
-        _ => Err(AppError::InvalidInput(format!("Unknown format: {}", format)))
+        _ => Err(AppError::InvalidInput(format!(
+            "Unknown format: {}",
+            format
+        ))),
     }
 }
 
@@ -191,15 +189,14 @@ pub async fn create_brief(
     Path(report_id): Path<Uuid>,
 ) -> Result<AxumJson<Value>> {
     // Check report exists
-    let report: Option<(Uuid, String, Value)> = sqlx::query_as(
-        "SELECT workspace_id, title, report_data FROM reports WHERE id = $1"
-    )
-    .bind(report_id)
-    .fetch_optional(&state.db)
-    .await?;
+    let report: Option<(Uuid, String, Value)> =
+        sqlx::query_as("SELECT workspace_id, title, report_data FROM reports WHERE id = $1")
+            .bind(report_id)
+            .fetch_optional(&state.db)
+            .await?;
 
-    let (workspace_id, title, data) = report
-        .ok_or_else(|| AppError::NotFound("Report not found".to_string()))?;
+    let (workspace_id, title, data) =
+        report.ok_or_else(|| AppError::NotFound("Report not found".to_string()))?;
 
     // Generate public token
     let token = Uuid::new_v4().to_string().replace("-", "")[..12].to_string();
@@ -212,7 +209,7 @@ pub async fn create_brief(
         r#"
         INSERT INTO briefs (id, report_id, workspace_id, token, title, summary_data, expires_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
-        "#
+        "#,
     )
     .bind(Uuid::new_v4())
     .bind(report_id)
@@ -245,28 +242,28 @@ pub async fn get_public_brief(
     .await?;
 
     match brief {
-        Some((title, summary, expires_at)) => {
-            Ok(AxumJson(json!({
-                "title": title,
-                "summary": summary,
-                "expires_at": expires_at.to_rfc3339(),
-                "is_public": true
-            })))
-        }
-        None => Err(AppError::NotFound("Brief not found or expired".to_string()))
+        Some((title, summary, expires_at)) => Ok(AxumJson(json!({
+            "title": title,
+            "summary": summary,
+            "expires_at": expires_at.to_rfc3339(),
+            "is_public": true
+        }))),
+        None => Err(AppError::NotFound("Brief not found or expired".to_string())),
     }
 }
 
 // Helper functions
 
-async fn get_executive_summary(workspace_id: Uuid, state: &Arc<AppState>) -> Result<ExecutiveSummary> {
+async fn get_executive_summary(
+    workspace_id: Uuid,
+    state: &Arc<AppState>,
+) -> Result<ExecutiveSummary> {
     // Total spend analyzed
-    let (total_spend,): (Option<f64>,) = sqlx::query_as(
-        "SELECT COALESCE(SUM(amount), 0) FROM invoices WHERE workspace_id = $1"
-    )
-    .bind(workspace_id)
-    .fetch_one(&state.db)
-    .await?;
+    let (total_spend,): (Option<f64>,) =
+        sqlx::query_as("SELECT COALESCE(SUM(amount), 0) FROM invoices WHERE workspace_id = $1")
+            .bind(workspace_id)
+            .fetch_one(&state.db)
+            .await?;
 
     // Total leaks and counts
     let (total_leaks, findings_count): (Option<f64>, i64) = sqlx::query_as(
@@ -278,7 +275,7 @@ async fn get_executive_summary(workspace_id: Uuid, state: &Arc<AppState>) -> Res
 
     // Resolved count
     let (resolved_count,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM findings WHERE workspace_id = $1 AND status = 'resolved'"
+        "SELECT COUNT(*) FROM findings WHERE workspace_id = $1 AND status = 'resolved'",
     )
     .bind(workspace_id)
     .fetch_one(&state.db)
@@ -286,7 +283,11 @@ async fn get_executive_summary(workspace_id: Uuid, state: &Arc<AppState>) -> Res
 
     let spend = total_spend.unwrap_or(0.0);
     let leaks = total_leaks.unwrap_or(0.0);
-    let percentage = if spend > 0.0 { (leaks / spend) * 100.0 } else { 0.0 };
+    let percentage = if spend > 0.0 {
+        (leaks / spend) * 100.0
+    } else {
+        0.0
+    };
 
     Ok(ExecutiveSummary {
         total_spend_analyzed: spend,
@@ -298,14 +299,17 @@ async fn get_executive_summary(workspace_id: Uuid, state: &Arc<AppState>) -> Res
     })
 }
 
-async fn get_findings_by_type(workspace_id: Uuid, state: &Arc<AppState>) -> Result<HashMap<String, Vec<FindingSummary>>> {
+async fn get_findings_by_type(
+    workspace_id: Uuid,
+    state: &Arc<AppState>,
+) -> Result<HashMap<String, Vec<FindingSummary>>> {
     let findings: Vec<(Uuid, String, String, String, i32, Option<f64>, String)> = sqlx::query_as(
         r#"
         SELECT id, type::text, title, entity_name, severity, potential_savings_amount, status::text
         FROM findings 
         WHERE workspace_id = $1
         ORDER BY severity DESC
-        "#
+        "#,
     )
     .bind(workspace_id)
     .fetch_all(&state.db)
@@ -322,13 +326,19 @@ async fn get_findings_by_type(workspace_id: Uuid, state: &Arc<AppState>) -> Resu
             potential_savings: savings.unwrap_or(0.0),
             status,
         };
-        grouped.entry(finding_type).or_insert_with(Vec::new).push(summary);
+        grouped
+            .entry(finding_type)
+            .or_insert_with(Vec::new)
+            .push(summary);
     }
 
     Ok(grouped)
 }
 
-async fn get_vendor_breakdown(workspace_id: Uuid, state: &Arc<AppState>) -> Result<Vec<VendorBreakdown>> {
+async fn get_vendor_breakdown(
+    workspace_id: Uuid,
+    state: &Arc<AppState>,
+) -> Result<Vec<VendorBreakdown>> {
     let vendors: Vec<(String, Option<f64>, i64, Option<f64>)> = sqlx::query_as(
         r#"
         SELECT 
@@ -343,20 +353,21 @@ async fn get_vendor_breakdown(workspace_id: Uuid, state: &Arc<AppState>) -> Resu
         HAVING COUNT(f.id) > 0
         ORDER BY potential_savings DESC
         LIMIT 10
-        "#
+        "#,
     )
     .bind(workspace_id)
     .fetch_all(&state.db)
     .await?;
 
-    Ok(vendors.into_iter().map(|(name, spend, count, savings)| {
-        VendorBreakdown {
+    Ok(vendors
+        .into_iter()
+        .map(|(name, spend, count, savings)| VendorBreakdown {
             vendor_name: name,
             total_spend: spend.unwrap_or(0.0),
             findings_count: count,
             potential_savings: savings.unwrap_or(0.0),
-        }
-    }).collect())
+        })
+        .collect())
 }
 
 fn generate_recommendations(findings: &HashMap<String, Vec<FindingSummary>>) -> Vec<String> {
@@ -367,7 +378,8 @@ fn generate_recommendations(findings: &HashMap<String, Vec<FindingSummary>>) -> 
             let total: f64 = duplicates.iter().map(|f| f.potential_savings).sum();
             recommendations.push(format!(
                 "Priority 1: Request refunds for {} duplicate payments (${:.2} potential recovery)",
-                duplicates.len(), total
+                duplicates.len(),
+                total
             ));
         }
     }
@@ -417,30 +429,59 @@ fn generate_recommendations(findings: &HashMap<String, Vec<FindingSummary>>) -> 
 
 fn generate_text_report(title: &str, data: &Value) -> String {
     let summary = data.get("executive_summary").cloned().unwrap_or(json!({}));
-    let actions = data.get("recommended_actions")
+    let actions = data
+        .get("recommended_actions")
         .and_then(|v| v.as_array())
         .cloned()
         .unwrap_or_default();
 
     let mut report = String::new();
-    
+
     report.push_str("═══════════════════════════════════════════════════════════\n");
     report.push_str(&format!("  {}\n", title.to_uppercase()));
-    report.push_str(&format!("  Generated: {}\n", Utc::now().format("%B %d, %Y")));
+    report.push_str(&format!(
+        "  Generated: {}\n",
+        Utc::now().format("%B %d, %Y")
+    ));
     report.push_str("═══════════════════════════════════════════════════════════\n\n");
 
     report.push_str("EXECUTIVE SUMMARY\n");
     report.push_str("─────────────────\n");
-    report.push_str(&format!("  Total Spend Analyzed:    ${:.2}\n", 
-        summary.get("total_spend_analyzed").and_then(|v| v.as_f64()).unwrap_or(0.0)));
-    report.push_str(&format!("  Total Leaks Found:       ${:.2}\n", 
-        summary.get("total_leaks_found").and_then(|v| v.as_f64()).unwrap_or(0.0)));
-    report.push_str(&format!("  Leak Percentage:         {:.1}%\n", 
-        summary.get("leaks_percentage").and_then(|v| v.as_f64()).unwrap_or(0.0)));
-    report.push_str(&format!("  Findings Count:          {}\n", 
-        summary.get("findings_count").and_then(|v| v.as_i64()).unwrap_or(0)));
-    report.push_str(&format!("  Potential Annual Savings: ${:.2}\n\n", 
-        summary.get("potential_annual_savings").and_then(|v| v.as_f64()).unwrap_or(0.0)));
+    report.push_str(&format!(
+        "  Total Spend Analyzed:    ${:.2}\n",
+        summary
+            .get("total_spend_analyzed")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0)
+    ));
+    report.push_str(&format!(
+        "  Total Leaks Found:       ${:.2}\n",
+        summary
+            .get("total_leaks_found")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0)
+    ));
+    report.push_str(&format!(
+        "  Leak Percentage:         {:.1}%\n",
+        summary
+            .get("leaks_percentage")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0)
+    ));
+    report.push_str(&format!(
+        "  Findings Count:          {}\n",
+        summary
+            .get("findings_count")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0)
+    ));
+    report.push_str(&format!(
+        "  Potential Annual Savings: ${:.2}\n\n",
+        summary
+            .get("potential_annual_savings")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0)
+    ));
 
     report.push_str("RECOMMENDED ACTIONS\n");
     report.push_str("───────────────────\n");

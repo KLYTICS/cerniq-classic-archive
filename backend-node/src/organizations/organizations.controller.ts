@@ -6,50 +6,48 @@ import {
     Param,
     Delete,
     Patch,
-    Request,
+    Req,
+    UseGuards,
 } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service';
+import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('api/organizations')
+@UseGuards(AuthGuard)
 export class OrganizationsController {
     constructor(private readonly organizationsService: OrganizationsService) { }
 
     @Post()
-    create(@Body() createDto: { name: string; slug: string; description?: string }, @Request() req: any) {
-        const userId = req.headers['x-user-id'] || 'user-id-placeholder';
-        return this.organizationsService.create(createDto, userId);
+    create(@Body() createDto: { name: string; slug: string; description?: string }, @Req() req: any) {
+        return this.organizationsService.create(createDto, req.user.userId);
     }
 
     @Get()
-    findAll(@Request() req: any) {
-        const userId = req.headers['x-user-id'] || 'user-id-placeholder';
-        return this.organizationsService.findAll(userId);
+    findAll(@Req() req: any) {
+        return this.organizationsService.findAll(req.user.userId);
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string, @Request() req: any) {
-        const userId = req.headers['x-user-id'] || 'user-id-placeholder';
-        return this.organizationsService.findOne(id, userId);
+    findOne(@Param('id') id: string, @Req() req: any) {
+        return this.organizationsService.findOne(id, req.user.userId);
     }
 
     @Post(':id/members')
     addMember(
         @Param('id') id: string,
         @Body() addMemberDto: { userId: string; role: string },
-        @Request() req: any,
+        @Req() req: any,
     ) {
-        const requesterId = req.headers['x-user-id'] || 'user-id-placeholder';
-        return this.organizationsService.addMember(id, addMemberDto as any, requesterId);
+        return this.organizationsService.addMember(id, addMemberDto as any, req.user.userId);
     }
 
     @Delete(':id/members/:userId')
     removeMember(
         @Param('id') id: string,
         @Param('userId') userId: string,
-        @Request() req: any,
+        @Req() req: any,
     ) {
-        const requesterId = req.headers['x-user-id'] || 'user-id-placeholder';
-        return this.organizationsService.removeMember(id, userId, requesterId);
+        return this.organizationsService.removeMember(id, userId, req.user.userId);
     }
 
     @Patch(':id/members/:userId/role')
@@ -57,14 +55,13 @@ export class OrganizationsController {
         @Param('id') id: string,
         @Param('userId') userId: string,
         @Body() body: { role: string },
-        @Request() req: any,
+        @Req() req: any,
     ) {
-        const requesterId = req.headers['x-user-id'] || 'user-id-placeholder';
         return this.organizationsService.updateMemberRole(
             id,
             userId,
             body.role as any,
-            requesterId,
+            req.user.userId,
         );
     }
 }

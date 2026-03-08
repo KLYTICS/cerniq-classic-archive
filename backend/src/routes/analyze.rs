@@ -1,24 +1,22 @@
 use axum::{
-    extract::{State, Json},
+    extract::{Json, State},
     response::Json as AxumJson,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use uuid::Uuid;
-use std::path::PathBuf;
-use std::collections::HashMap;
 
 use crate::error::{AppError, Result};
-use crate::state::AppState;
 use crate::models::{Upload, Vendor};
 use crate::parsers::parse_ap_export;
 use crate::services::leak_detectors::{
-    detect_duplicates, detect_subscription_drift, 
-    detect_spend_spikes, detect_new_vendor_risks,
-    detect_zombie_subscriptions, detect_vendor_duplicates,
-    DetectedFinding,
+    detect_duplicates, detect_new_vendor_risks, detect_spend_spikes, detect_subscription_drift,
+    detect_vendor_duplicates, detect_zombie_subscriptions, DetectedFinding,
 };
+use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct AnalyzeRequest {
@@ -50,7 +48,9 @@ pub async fn run_analysis(
         .ok_or_else(|| AppError::NotFound("Upload not found".to_string()))?;
 
     // 2. Parse file
-    let file_path = upload.file_url.ok_or_else(|| AppError::InvalidInput("No file path".to_string()))?;
+    let file_path = upload
+        .file_url
+        .ok_or_else(|| AppError::InvalidInput("No file path".to_string()))?;
     let path = PathBuf::from(&file_path);
 
     if !path.exists() {
@@ -99,7 +99,7 @@ pub async fn run_analysis(
                 invoice_number, invoice_date, amount, description
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            "#
+            "#,
         )
         .bind(Uuid::new_v4())
         .bind(payload.workspace_id)
@@ -115,7 +115,7 @@ pub async fn run_analysis(
 
     // 4. Run all leak detectors
     let mut all_findings: Vec<DetectedFinding> = Vec::new();
-    
+
     // Run each detector and collect findings
     let duplicates = detect_duplicates(payload.workspace_id, &state.db).await?;
     let drift = detect_subscription_drift(payload.workspace_id, &state.db).await?;
@@ -138,13 +138,12 @@ pub async fn run_analysis(
 
     for finding in &all_findings {
         // Check if finding with this hash already exists
-        let exists: Option<(Uuid,)> = sqlx::query_as(
-            "SELECT id FROM findings WHERE workspace_id = $1 AND hash = $2"
-        )
-        .bind(payload.workspace_id)
-        .bind(&finding.hash)
-        .fetch_optional(&state.db)
-        .await?;
+        let exists: Option<(Uuid,)> =
+            sqlx::query_as("SELECT id FROM findings WHERE workspace_id = $1 AND hash = $2")
+                .bind(payload.workspace_id)
+                .bind(&finding.hash)
+                .fetch_optional(&state.db)
+                .await?;
 
         if exists.is_none() {
             // Map severity int to string
@@ -153,7 +152,7 @@ pub async fn run_analysis(
                 s if s >= 50 => "medium",
                 _ => "low",
             };
-            
+
             sqlx::query(
                 r#"
                 INSERT INTO findings (
@@ -161,7 +160,7 @@ pub async fn run_analysis(
                     description, evidence, amount, confidence, hash
                 )
                 VALUES ($1, $2, $3, $4, 'open', $5, $6, $7, $8, $9)
-                "#
+                "#,
             )
             .bind(Uuid::new_v4())
             .bind(payload.workspace_id)
@@ -179,7 +178,9 @@ pub async fn run_analysis(
             total_savings += finding.potential_savings;
 
             // Count by type
-            *findings_by_type.entry(finding.finding_type.clone()).or_insert(0) += 1;
+            *findings_by_type
+                .entry(finding.finding_type.clone())
+                .or_insert(0) += 1;
         }
     }
 
@@ -219,29 +220,27 @@ pub async fn get_analysis_status(
     axum::extract::Path(workspace_id): axum::extract::Path<Uuid>,
 ) -> Result<AxumJson<Value>> {
     // Get counts
-    let (invoices,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM invoices WHERE workspace_id = $1"
-    )
-    .bind(workspace_id)
-    .fetch_one(&state.db)
-    .await?;
+    let (invoices,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM invoices WHERE workspace_id = $1")
+            .bind(workspace_id)
+            .fetch_one(&state.db)
+            .await?;
 
-    let (findings,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM findings WHERE workspace_id = $1"
-    )
-    .bind(workspace_id)
-    .fetch_one(&state.db)
-    .await?;
+    let (findings,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM findings WHERE workspace_id = $1")
+            .bind(workspace_id)
+            .fetch_one(&state.db)
+            .await?;
 
     let (pending_uploads,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM uploads WHERE workspace_id = $1 AND status = 'pending'"
+        "SELECT COUNT(*) FROM uploads WHERE workspace_id = $1 AND status = 'pending'",
     )
     .bind(workspace_id)
     .fetch_one(&state.db)
     .await?;
 
     let (total_savings,): (Option<f64>,) = sqlx::query_as(
-        "SELECT COALESCE(SUM(potential_savings_amount), 0) FROM findings WHERE workspace_id = $1"
+        "SELECT COALESCE(SUM(potential_savings_amount), 0) FROM findings WHERE workspace_id = $1",
     )
     .bind(workspace_id)
     .fetch_one(&state.db)
@@ -256,4 +255,3 @@ pub async fn get_analysis_status(
         "status": if pending_uploads > 0 { "processing" } else { "ready" }
     })))
 }
-

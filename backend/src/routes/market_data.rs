@@ -20,13 +20,13 @@ pub fn router() -> Router<Arc<AppState>> {
 
 #[derive(Debug, Deserialize)]
 struct PriceQueryParams {
-    start: Option<String>,  // YYYY-MM-DD
-    end: Option<String>,    // YYYY-MM-DD
+    start: Option<String>, // YYYY-MM-DD
+    end: Option<String>,   // YYYY-MM-DD
 }
 
 #[derive(Debug, Deserialize)]
 struct BatchQueryParams {
-    tickers: String,  // Comma-separated tickers
+    tickers: String, // Comma-separated tickers
     start: Option<String>,
     end: Option<String>,
 }
@@ -55,11 +55,13 @@ async fn get_ticker_prices(
     Query(params): Query<PriceQueryParams>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     // Parse dates or use defaults
-    let end_date = params.end
+    let end_date = params
+        .end
         .and_then(|s| NaiveDate::parse_from_str(&s, "%Y-%m-%d").ok())
         .unwrap_or_else(|| chrono::Utc::now().naive_utc().date());
-    
-    let start_date = params.start
+
+    let start_date = params
+        .start
         .and_then(|s| NaiveDate::parse_from_str(&s, "%Y-%m-%d").ok())
         .unwrap_or_else(|| end_date - chrono::Duration::days(365));
 
@@ -102,17 +104,20 @@ async fn get_batch_prices(
     Query(params): Query<BatchQueryParams>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     // Parse tickers
-    let tickers: Vec<String> = params.tickers
+    let tickers: Vec<String> = params
+        .tickers
         .split(',')
         .map(|s| s.trim().to_uppercase())
         .collect();
 
     // Parse dates
-    let end_date = params.end
+    let end_date = params
+        .end
         .and_then(|s| NaiveDate::parse_from_str(&s, "%Y-%m-%d").ok())
         .unwrap_or_else(|| chrono::Utc::now().naive_utc().date());
-    
-    let start_date = params.start
+
+    let start_date = params
+        .start
         .and_then(|s| NaiveDate::parse_from_str(&s, "%Y-%m-%d").ok())
         .unwrap_or_else(|| end_date - chrono::Duration::days(90));
 
@@ -124,7 +129,9 @@ async fn get_batch_prices(
     );
 
     // Fetch batch
-    let results = service.get_prices_batch(&tickers, start_date, end_date).await;
+    let results = service
+        .get_prices_batch(&tickers, start_date, end_date)
+        .await;
 
     // Convert to response
     let responses: Vec<PriceResponse> = results
@@ -142,7 +149,7 @@ async fn get_batch_prices(
                     volume: p.volume,
                 })
                 .collect();
-            
+
             PriceResponse { ticker, data }
         })
         .collect();

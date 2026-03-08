@@ -1,4 +1,7 @@
-use axum::extract::{ws::{Message, WebSocket, WebSocketUpgrade}, State};
+use axum::extract::{
+    ws::{Message, WebSocket, WebSocketUpgrade},
+    State,
+};
 use axum::response::Response;
 use futures::{sink::SinkExt, stream::StreamExt};
 use serde::{Deserialize, Serialize};
@@ -40,16 +43,13 @@ enum ServerMessage {
     Pong,
 }
 
-pub async fn handler(
-    ws: WebSocketUpgrade,
-    State(state): State<Arc<AppState>>,
-) -> Response {
+pub async fn handler(ws: WebSocketUpgrade, State(state): State<Arc<AppState>>) -> Response {
     ws.on_upgrade(move |socket| handle_socket(socket, state))
 }
 
 async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     let (mut sender, mut receiver) = socket.split();
-    
+
     let mut subscribed_tickers: Vec<String> = Vec::new();
     let mut update_interval = interval(Duration::from_secs(5)); // Update every 5 seconds
 
@@ -67,11 +67,11 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                                 subscribed_tickers.extend(tickers.clone());
                                 subscribed_tickers.sort();
                                 subscribed_tickers.dedup();
-                                
+
                                 let response = ServerMessage::Subscribed {
                                     tickers: subscribed_tickers.clone(),
                                 };
-                                
+
                                 if let Ok(json) = serde_json::to_string(&response) {
                                     let _ = sender.send(Message::Text(json)).await;
                                 }
@@ -108,7 +108,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                     _ => {}
                 }
             }
-            
+
             // Send periodic price updates
             _ = update_interval.tick() => {
                 if !subscribed_tickers.is_empty() {
@@ -118,10 +118,10 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                         state.redis.clone(),
                         state.config.alphavantage_api_key.clone(),
                     );
-                    
+
                     let end_date = chrono::Utc::now().naive_utc().date();
                     let start_date = end_date - chrono::Duration::days(2); // Last 2 days
-                    
+
                     for ticker in &subscribed_tickers {
                         match market_service.get_prices(ticker, start_date, end_date).await {
                             Ok(prices) if !prices.is_empty() => {
@@ -132,14 +132,14 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                                 } else {
                                     latest
                                 };
-                                
+
                                 let change = latest.close - previous.close;
                                 let change_percent = if previous.close != 0.0 {
                                     (change / previous.close) * 100.0
                                 } else {
                                     0.0
                                 };
-                                
+
                                 let update = ServerMessage::PriceUpdate {
                                     ticker: ticker.clone(),
                                     price: latest.close,
@@ -148,7 +148,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                                     volume: latest.volume,
                                     timestamp: chrono::Utc::now().to_rfc3339(),
                                 };
-                                
+
                                 if let Ok(json) = serde_json::to_string(&update) {
                                     if sender.send(Message::Text(json)).await.is_err() {
                                         warn!("Failed to send update for {}", ticker);
@@ -169,7 +169,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                                 }
                             }
                         }
-                        
+
                         // Small delay between tickers to avoid overwhelming the client
                         tokio::time::sleep(Duration::from_millis(100)).await;
                     }

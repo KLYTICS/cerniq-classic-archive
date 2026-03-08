@@ -8,7 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::services::sec_filings::{SecFilingService, SecFiling, FinancialMetrics};
+use crate::services::sec_filings::{FinancialMetrics, SecFiling, SecFilingService};
 use crate::state::AppState;
 
 pub fn router() -> Router<Arc<AppState>> {
@@ -20,7 +20,7 @@ pub fn router() -> Router<Arc<AppState>> {
 
 #[derive(Debug, Deserialize)]
 struct FilingQueryParams {
-    form_type: Option<String>,  // 10-K or 10-Q
+    form_type: Option<String>, // 10-K or 10-Q
     limit: Option<usize>,
 }
 
@@ -64,7 +64,7 @@ async fn process_ticker(
     Path(ticker): Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let user_agent = format!(
-        "CapexCycleOS/1.0 ({})",
+        "CERNIQ/1.0 ({})",
         state.config.jwt_secret.chars().take(10).collect::<String>()
     );
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Param, Query, Body, HttpCode, HttpStatus, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Query, Body, Headers, HttpCode, HttpStatus, UseGuards, UnauthorizedException, Req } from '@nestjs/common';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import { AuthGuard } from './auth/auth.guard';
@@ -73,7 +73,7 @@ export class AppController {
 
     // Check DB
     try {
-      await this.prisma.$queryRawUnsafe('SELECT 1');
+      await this.prisma.$queryRaw`SELECT 1`;
       checks.database = 'up';
     } catch {
       checks.database = 'down';
@@ -105,8 +105,52 @@ export class AppController {
     };
   }
 
+  @Get('health/detailed')
+  @SkipThrottle()
+  async getHealthDetailed() {
+    const services: Record<string, { status: string; latencyMs: number }> = {};
+
+    // DB check with timing
+    const dbStart = Date.now();
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      services.database = { status: 'up', latencyMs: Date.now() - dbStart };
+    } catch {
+      services.database = { status: 'down', latencyMs: Date.now() - dbStart };
+    }
+
+    // Redis check with timing
+    const redisStart = Date.now();
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const Redis = require('ioredis');
+      const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+        connectTimeout: 2000,
+        lazyConnect: true,
+      });
+      await redis.connect();
+      await redis.ping();
+      services.cache = { status: 'up', latencyMs: Date.now() - redisStart };
+      await redis.quit();
+    } catch {
+      services.cache = { status: 'degraded', latencyMs: Date.now() - redisStart };
+    }
+
+    const allUp = Object.values(services).every((s) => s.status === 'up');
+
+    return {
+      status: allUp ? 'healthy' : 'degraded',
+      timestamp: new Date().toISOString(),
+      version: '2.0.0',
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      services,
+    };
+  }
+
   @Get('api/admin/demo-requests')
-  async getDemoRequests() {
+  async getDemoRequests(@Headers('x-admin-key') adminKey: string) {
+    this.verifyAdmin(adminKey);
     return this.prisma.demoRequest.findMany({
       orderBy: { createdAt: 'desc' },
     });
@@ -114,7 +158,8 @@ export class AppController {
 
   @Delete('api/admin/demo-data')
   @HttpCode(HttpStatus.OK)
-  async resetDemoData() {
+  async resetDemoData(@Headers('x-admin-key') adminKey: string) {
+    this.verifyAdmin(adminKey);
     await this.prisma.balanceSheetItem.deleteMany({});
     await this.prisma.interestRateScenario.deleteMany({});
     await this.prisma.liquidityPosition.deleteMany({});
@@ -123,7 +168,8 @@ export class AppController {
   }
 
   @Get('api/admin/stats')
-  async getAdminStats() {
+  async getAdminStats(@Headers('x-admin-key') adminKey: string) {
+    this.verifyAdmin(adminKey);
     const [demoRequests, institutions, users, prospects] = await Promise.all([
       this.prisma.demoRequest.count(),
       this.prisma.institution.count(),
@@ -140,14 +186,18 @@ export class AppController {
 
   @Post('api/admin/seed-prospects')
   @HttpCode(HttpStatus.CREATED)
-  async seedProspects() {
-    const seeds = [
-      { name: 'Jose Pablo Colon', email: 'jpcolon@bancocomunidad.pr', company: 'Banco Comunidad PR', role: 'CFO', stage: 'demo_done' as const, source: 'referral', notes: 'Met at OCIF conference. $1.2B assets. Very interested in ALM automation.' },
-      { name: 'Maria del Carmen Ortiz', email: 'mortiz@cooperativaponce.pr', company: 'Cooperativa de Ahorro Ponce', role: 'VP Risk', stage: 'contacted' as const, source: 'outbound', notes: '$380M assets. Currently using Excel for ALM. OCIF exam in Q3.' },
-      { name: 'Roberto Iglesias', email: 'riglesias@firstbankpr.com', company: 'FirstBank Puerto Rico', role: 'CRO', stage: 'lead' as const, source: 'demo_request', notes: '$14B assets. Large institution, enterprise deal potential.' },
-      { name: 'Ana Sofia Mendez', email: 'amendez@orientalbank.com', company: 'Oriental Bank', role: 'Treasury Manager', stage: 'demo_scheduled' as const, source: 'outbound', notes: '$8.5B assets. Demo scheduled for next week. Interested in stress testing.' },
-      { name: 'Carlos Rivera Santiago', email: 'crivera@coopjuventud.pr', company: 'Cooperativa Juventud', role: 'CEO', stage: 'proposal' as const, source: 'referral', notes: '$220M assets. Small CU, perfect fit for starter tier. Sent proposal 2/18.' },
-    ];
+  async seedProspects(@Headers('x-admin-key') adminKey: string) {
+    this.verifyAdmin(adminKey);
+    const seedJson = process.env.PROSPECT_SEED_DATA;
+    if (!seedJson) {
+      return { error: 'PROSPECT_SEED_DATA env var not configured', seeded: 0, total: 0 };
+    }
+    let seeds: Array<{ name: string; email: string; company: string; role: string; stage: 'lead' | 'contacted' | 'demo_done' | 'demo_scheduled' | 'proposal'; source: string; notes: string }>;
+    try {
+      seeds = JSON.parse(seedJson);
+    } catch {
+      return { error: 'PROSPECT_SEED_DATA is not valid JSON', seeded: 0, total: 0 };
+    }
 
     const results = [];
     for (const seed of seeds) {
@@ -185,7 +235,7 @@ export class AppController {
   @SkipThrottle()
   getStatus() {
     return {
-      name: 'CapexCycleOS API',
+      name: 'CERNIQ API',
       version: '2.0.0',
       environment: process.env.NODE_ENV || 'development',
       uptime: process.uptime(),
@@ -203,7 +253,8 @@ export class AppController {
   // --- Prospect CRM Endpoints ---
 
   @Get('api/admin/prospects')
-  async getProspects(@Query('stage') stage?: string) {
+  async getProspects(@Headers('x-admin-key') adminKey: string, @Query('stage') stage?: string) {
+    this.verifyAdmin(adminKey);
     const where = stage ? { stage: stage as any } : {};
     return this.prisma.prospect.findMany({
       where,
@@ -214,8 +265,10 @@ export class AppController {
   @Post('api/admin/prospects')
   @HttpCode(HttpStatus.CREATED)
   async createProspect(
+    @Headers('x-admin-key') adminKey: string,
     @Body() body: { name: string; email?: string; company?: string; role?: string; stage?: string; source?: string; notes?: string },
   ) {
+    this.verifyAdmin(adminKey);
     return this.prisma.prospect.create({
       data: {
         name: body.name,
@@ -231,9 +284,11 @@ export class AppController {
 
   @Patch('api/admin/prospects/:id')
   async updateProspect(
+    @Headers('x-admin-key') adminKey: string,
     @Param('id') id: string,
     @Body() body: { stage?: string; notes?: string; name?: string; email?: string; company?: string; role?: string },
   ) {
+    this.verifyAdmin(adminKey);
     const data: any = {};
     if (body.stage !== undefined) data.stage = body.stage;
     if (body.notes !== undefined) data.notes = body.notes;
@@ -246,8 +301,16 @@ export class AppController {
 
   @Delete('api/admin/prospects/:id')
   @HttpCode(HttpStatus.OK)
-  async deleteProspect(@Param('id') id: string) {
+  async deleteProspect(@Headers('x-admin-key') adminKey: string, @Param('id') id: string) {
+    this.verifyAdmin(adminKey);
     await this.prisma.prospect.delete({ where: { id } });
     return { message: 'Prospect deleted' };
+  }
+
+  private verifyAdmin(key: string) {
+    const adminKey = process.env.ADMIN_KEY;
+    if (!adminKey || key !== adminKey) {
+      throw new UnauthorizedException('Invalid admin key');
+    }
   }
 }

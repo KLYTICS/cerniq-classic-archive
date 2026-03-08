@@ -4,8 +4,20 @@ import "./globals.css";
 import Providers from '@/components/Providers';
 
 export const metadata: Metadata = {
-  title: "CapexCycle OS - AI Market Analysis Platform",
-  description: "Real-time market analysis for crypto, AI, and tech with advanced risk management",
+  title: "CERNIQ — Risk Intelligence Platform",
+  description: "ALM analysis, COSSEC compliance monitoring, and stress testing for Puerto Rico financial institutions.",
+  keywords: "ALM, COSSEC, cooperativa, banco comunitario, Puerto Rico, riesgo, cumplimiento",
+  openGraph: {
+    title: "CERNIQ — Risk Intelligence Platform",
+    description: "Your quant team. Without the quant team.",
+    url: "https://cerniq.io",
+    siteName: "CERNIQ",
+    locale: "es_PR",
+  },
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+  },
 };
 
 const SEGMENT_WRITE_KEY = process.env.NEXT_PUBLIC_SEGMENT_WRITE_KEY;

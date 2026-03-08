@@ -22,6 +22,8 @@ interface VolatilityConeData {
     timestamp: Date;
 }
 
+const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+
 export function VolatilityCone() {
     const [ticker, setTicker] = useState('AAPL');
     const [data, setData] = useState<VolatilityConeData | null>(null);
@@ -30,7 +32,7 @@ export function VolatilityCone() {
     const fetchCone = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`http://localhost:3000/api/risk/volatility/cone/${ticker}`);
+            const response = await fetch(`${NODE_API_URL}/api/risk/volatility/cone/${ticker}`);
             const result = await response.json();
             setData(result);
         } catch (err) {

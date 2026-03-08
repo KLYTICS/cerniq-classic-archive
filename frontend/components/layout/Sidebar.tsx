@@ -111,7 +111,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center">
               <span className="text-slate-900 font-bold text-sm">C</span>
             </div>
-            <span className="text-white font-bold">CapexCycleOS</span>
+            <span className="text-white font-bold">CERNIQ</span>
           </Link>
           <button onClick={onClose} className="lg:hidden text-slate-400 hover:text-white">
             <X className="h-5 w-5" />

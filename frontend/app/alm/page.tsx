@@ -23,6 +23,7 @@ import RiskScoreGauge from '@/components/alm/RiskScoreGauge';
 import RiskBadge from '@/components/alm/RiskBadge';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
+import { usePDFExport } from '@/hooks/usePDFExport';
 
 interface ALMSummary {
   institution: {
@@ -139,7 +140,8 @@ function SkeletonPulse() {
 export default function ALMOverviewPage() {
   const router = useRouter();
   const { selectedId, institutions, loading: institutionsLoading } = useALM();
-  const { t, ta } = useTranslation();
+  const { t, ta, locale } = useTranslation();
+  const { exportToPDF, isExporting } = usePDFExport();
   const [summary, setSummary] = useState<ALMSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -227,7 +229,7 @@ export default function ALMOverviewPage() {
             <div>
               <h1 className="text-base font-bold text-white">{summary.institution.name}</h1>
               <p className="text-[11px] text-slate-500">
-                ${summary.institution.totalAssets.toLocaleString()}M {summary.institution.type.replace(/_/g, ' ')} &middot; Reporting {new Date(summary.institution.reportingDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                ${summary.institution.totalAssets.toLocaleString()}M {summary.institution.type.replace(/_/g, ' ')} &middot; {new Date(summary.institution.reportingDate).toLocaleDateString(locale === 'es' ? 'es-PR' : 'en-US', { month: 'short', year: 'numeric' })}
               </p>
             </div>
           </div>
@@ -435,14 +437,26 @@ export default function ALMOverviewPage() {
             >
               <Zap className="h-4 w-4" /> {t('alm.runStressTest')}
             </Link>
-            <a
-              href={apiClient.getALMReportUrl(selectedId)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-300 px-4 py-2.5 rounded-lg text-sm font-medium transition"
+            <button
+              onClick={async () => {
+                if (!selectedId) return;
+                analytics.track(EVENTS.ALM_REPORT_DOWNLOADED, { institutionId: selectedId });
+                try {
+                  await apiClient.downloadALMReport(selectedId, locale);
+                } catch {
+                  // Fallback to client-side export
+                  exportToPDF({
+                    elementId: 'alm-report-content',
+                    filename: `ALM_Report_${summary?.institution?.name?.replace(/\s+/g, '_') || selectedId}.pdf`,
+                  });
+                }
+              }}
+              disabled={isExporting}
+              className="flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-300 px-4 py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-50"
             >
-              <Download className="h-4 w-4" /> {t('alm.downloadPdf')}
-            </a>
+              {isExporting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {isExporting ? t('common.processing') : t('alm.downloadPdf')}
+            </button>
           </div>
         </>
       )}

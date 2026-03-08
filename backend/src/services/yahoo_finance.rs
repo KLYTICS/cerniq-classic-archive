@@ -1,15 +1,16 @@
 //! Yahoo Finance API Client
-//! 
+//!
 //! Fetches real-time and historical market data for stocks, ETFs, and crypto
 
 use anyhow::{Context, Result};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::collections::HashMap;
-use chrono::{DateTime, Utc, NaiveDate};
 
 const YAHOO_FINANCE_QUOTE_URL: &str = "https://query1.finance.yahoo.com/v8/finance/chart";
-const YAHOO_FINANCE_FUNDAMENTALS_URL: &str = "https://query2.finance.yahoo.com/v10/finance/quoteSummary";
+const YAHOO_FINANCE_FUNDAMENTALS_URL: &str =
+    "https://query2.finance.yahoo.com/v10/finance/quoteSummary";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct YahooQuoteResponse {
@@ -105,9 +106,13 @@ impl YahooFinanceClient {
         }
 
         // Fetch from Yahoo Finance
-        let url = format!("{}/{}?interval=1d&range=1d", YAHOO_FINANCE_QUOTE_URL, ticker);
-        
-        let response = self.client
+        let url = format!(
+            "{}/{}?interval=1d&range=1d",
+            YAHOO_FINANCE_QUOTE_URL, ticker
+        );
+
+        let response = self
+            .client
             .get(&url)
             .send()
             .await
@@ -118,18 +123,23 @@ impl YahooFinanceClient {
             .await
             .context("Failed to parse Yahoo Finance response")?;
 
-        let result = data.chart.result
+        let result = data
+            .chart
+            .result
             .first()
             .context("No data in Yahoo Finance response")?;
 
-        let price = result.meta.regular_market_price
+        let price = result
+            .meta
+            .regular_market_price
             .context("No price data available")?;
 
-        let previous_close = result.meta.previous_close.or(result.meta.chart_previous_close);
-        
-        let change_percent = previous_close.map(|prev| {
-            ((price - prev) / prev) * 100.0
-        });
+        let previous_close = result
+            .meta
+            .previous_close
+            .or(result.meta.chart_previous_close);
+
+        let change_percent = previous_close.map(|prev| ((price - prev) / prev) * 100.0);
 
         let ticker_price = TickerPrice {
             ticker: ticker.to_uppercase(),
@@ -161,7 +171,8 @@ impl YahooFinanceClient {
             YAHOO_FINANCE_QUOTE_URL, ticker, start_ts, end_ts
         );
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .send()
             .await
@@ -172,17 +183,15 @@ impl YahooFinanceClient {
             .await
             .context("Failed to parse historical data")?;
 
-        let result = data.chart.result
+        let result = data
+            .chart
+            .result
             .first()
             .context("No historical data available")?;
 
-        let timestamps = result.timestamp
-            .as_ref()
-            .context("No timestamp data")?;
+        let timestamps = result.timestamp.as_ref().context("No timestamp data")?;
 
-        let quotes = result.indicators.quote
-            .first()
-            .context("No quote data")?;
+        let quotes = result.indicators.quote.first().context("No quote data")?;
 
         let mut data_points = Vec::new();
 
@@ -194,17 +203,20 @@ impl YahooFinanceClient {
             &quotes.volume,
         ) {
             for (i, &ts) in timestamps.iter().enumerate() {
-                if let (Some(Some(open)), Some(Some(high)), Some(Some(low)), Some(Some(close)), Some(Some(volume))) = (
+                if let (
+                    Some(Some(open)),
+                    Some(Some(high)),
+                    Some(Some(low)),
+                    Some(Some(close)),
+                    Some(Some(volume)),
+                ) = (
                     opens.get(i),
                     highs.get(i),
                     lows.get(i),
                     closes.get(i),
                     volumes.get(i),
                 ) {
-                    let date = DateTime::from_timestamp(ts, 0)
-                        .unwrap()
-                        .naive_utc()
-                        .date();
+                    let date = DateTime::from_timestamp(ts, 0).unwrap().naive_utc().date();
 
                     data_points.push(PricePoint {
                         date,
@@ -228,7 +240,7 @@ impl YahooFinanceClient {
     pub async fn get_quarterly_financials(&self, ticker: &str) -> Result<Vec<QuarterlyFinancials>> {
         // Yahoo Finance doesn't provide great fundamental data
         // This is a placeholder - in production, use SEC EDGAR or Financial Modeling Prep API
-        
+
         // For now, return empty and fallback to existing SEC data
         Ok(Vec::new())
     }
@@ -238,7 +250,7 @@ impl YahooFinanceClient {
         let cached = sqlx::query_scalar::<_, serde_json::Value>(
             "SELECT data FROM market_data_cache 
              WHERE ticker = $1 AND data_type = 'price' 
-             AND fetched_at > NOW() - INTERVAL '5 minutes'"
+             AND fetched_at > NOW() - INTERVAL '5 minutes'",
         )
         .bind(ticker.to_uppercase())
         .fetch_optional(&self.db)
@@ -249,7 +261,7 @@ impl YahooFinanceClient {
 
     async fn cache_price(&self, price: &TickerPrice) -> Result<()> {
         let data = serde_json::to_value(price)?;
-        
+
         sqlx::query(
             "INSERT INTO market_data_cache (ticker, data_type, data, source, expires_at)
              VALUES ($1, 'price', $2, 'yahoo_finance', NOW() + INTERVAL '5 minutes')

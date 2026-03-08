@@ -20,7 +20,11 @@ interface Expense {
     user: { id: string; name?: string; email: string; avatarUrl?: string };
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = (
+    process.env.NEXT_PUBLIC_NODE_API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    ''
+).trim().replace(/\/+$/, '');
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
     DRAFT: { label: 'Draft', color: 'text-gray-400', bg: 'bg-gray-500/20 border-gray-500/30' },

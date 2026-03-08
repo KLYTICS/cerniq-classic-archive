@@ -105,6 +105,27 @@ export class AuthController {
     return this.authService.getUserProfile(req.user.userId);
   }
 
+  @Get('whoami')
+  @UseGuards(AuthGuard)
+  async whoami(@Req() req: any) {
+    const claims = req.user?.claims || {};
+    const expectedIssuer = process.env.SUPABASE_JWT_ISSUER || process.env.SUPABASE_ISSUER || null;
+    const expectedAudience = process.env.SUPABASE_JWT_AUDIENCE || process.env.SUPABASE_AUDIENCE || null;
+    const tokenAud = claims?.aud;
+    const audOk = !expectedAudience
+      || tokenAud === expectedAudience
+      || (Array.isArray(tokenAud) && tokenAud.includes(expectedAudience));
+
+    return {
+      user_id: req.user.userId,
+      email: req.user.email,
+      orgs: await this.authService.getUserOrgs(req.user.userId),
+      app: process.env.KLYTICS_APP_ID || 'cerniq',
+      issuer_ok: !expectedIssuer || claims?.iss === expectedIssuer,
+      aud_ok: audOk,
+    };
+  }
+
   @Put('password')
   @UseGuards(AuthGuard)
   changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {

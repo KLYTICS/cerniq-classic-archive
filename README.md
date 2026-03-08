@@ -1,15 +1,15 @@
-# CapexCycleOS
+# CERNIQ
 
 > **Institutional-Grade Quantitative Finance Platform**
 
-[![CI/CD](https://github.com/your-org/capexcycleos/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/your-org/capexcycleos/actions)
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/your-org/capexcycleos)
+[![CI/CD](https://github.com/your-org/cerniq/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/your-org/cerniq/actions)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/your-org/cerniq)
 
 ---
 
 ## 🎯 Overview
 
-CapexCycleOS is a professional-grade financial analytics platform designed for quantitative analysts, portfolio managers, and options traders. It provides real-time market data, advanced risk analytics, technical charting, and execution quality analysis.
+CERNIQ is a professional-grade financial analytics platform designed for quantitative analysts, portfolio managers, and options traders. It provides real-time market data, advanced risk analytics, technical charting, and execution quality analysis.
 
 ---
 
@@ -56,8 +56,8 @@ CapexCycleOS is a professional-grade financial analytics platform designed for q
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/capexcycleos.git
-cd capexcycleos
+git clone https://github.com/your-org/cerniq.git
+cd cerniq
 
 # Start infrastructure
 docker-compose up postgres redis -d

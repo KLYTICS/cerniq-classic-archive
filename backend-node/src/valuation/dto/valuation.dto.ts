@@ -1,14 +1,16 @@
+import { IsString, IsNumber, IsOptional, IsIn, Min, Max } from 'class-validator';
+
 export class CyclicalValuationDto {
     ticker: string;
     currentPrice: number;
     fairValue: number;
     fairValueLow: number;
     fairValueHigh: number;
-    upside: number; // %
+    upside: number;
     normalizedEarnings: number;
     peMultiple: number;
     cycleStage: 'early' | 'mid' | 'late' | 'peak' | 'trough';
-    revenueGrowth: number; // YoY
+    revenueGrowth: number;
     marginTrend: 'expanding' | 'stable' | 'contracting';
 }
 
@@ -16,12 +18,12 @@ export class CompounderValuationDto {
     ticker: string;
     currentPrice: number;
     fairValue: number;
-    upside: number; // %
-    qualityScore: number; // 0-100
-    roicSpread: number; // ROIC - WACC
-    revenueGrowth: number; // 3-year CAGR
-    marginStability: number; // Score 0-100
-    cashConversion: number; // FCF / Net Income
+    upside: number;
+    qualityScore: number;
+    roicSpread: number;
+    revenueGrowth: number;
+    marginStability: number;
+    cashConversion: number;
     peMultiple: number;
     pegRatio: number;
 }
@@ -31,8 +33,8 @@ export class FrontierValuationDto {
     currentPrice: number;
     scenarios: ScenarioValuationDto[];
     probabilityWeightedValue: number;
-    upside: number; // %
-    optionality: number; // Score 0-100
+    upside: number;
+    optionality: number;
     catalysts: string[];
 }
 
@@ -45,11 +47,11 @@ export class ScenarioValuationDto {
 
 export class KPIScoreDto {
     ticker: string;
-    overallScore: number; // 0-100
-    fundamentalScore: number; // 0-100
-    momentumScore: number; // 0-100
-    valuationScore: number; // 0-100
-    qualityScore: number; // 0-100
+    overallScore: number;
+    fundamentalScore: number;
+    momentumScore: number;
+    valuationScore: number;
+    qualityScore: number;
     breakdown: {
         revenueGrowth: number;
         marginTrend: number;
@@ -62,13 +64,42 @@ export class KPIScoreDto {
 }
 
 export class ScreenerRequestDto {
+    @IsOptional()
+    @IsIn(['stock', 'etf'])
     assetType?: 'stock' | 'etf';
+
+    @IsOptional()
+    @IsString()
     sector?: string;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
     minMarketCap?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
     maxMarketCap?: number;
+
+    @IsOptional()
+    @IsIn(['cyclical', 'compounder', 'frontier'])
     valuationType?: 'cyclical' | 'compounder' | 'frontier';
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    @Max(100)
     minScore?: number;
+
+    @IsOptional()
+    @IsIn(['score', 'upside', 'marketCap'])
     sortBy?: 'score' | 'upside' | 'marketCap';
+
+    @IsOptional()
+    @IsNumber()
+    @Min(1)
+    @Max(100)
     limit?: number;
 }
 
@@ -85,6 +116,10 @@ export class ScreenerResultDto {
 }
 
 export class ValuationRequestDto {
+    @IsString()
     ticker: string;
+
+    @IsOptional()
+    @IsIn(['auto', 'cyclical', 'compounder', 'frontier'])
     valuationType?: 'auto' | 'cyclical' | 'compounder' | 'frontier';
 }

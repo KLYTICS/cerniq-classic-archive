@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
-import { RefreshCw, DollarSign, Upload, Plus, Trash2, AlertTriangle, Check, Download, Table } from 'lucide-react';
+import { RefreshCw, DollarSign, Upload, Plus, Trash2, AlertTriangle, Check, Download, Table, FileWarning, ChevronDown } from 'lucide-react';
 import { useALM } from '@/components/alm/ALMProvider';
 
 interface BalanceSheetItem {
@@ -179,6 +179,10 @@ export default function BalanceSheetPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [activeTab, setActiveTab] = useState<'asset' | 'liability'>('asset');
+  const [csvErrors, setCsvErrors] = useState<Array<{ row: number; field: string; message: string }>>([]);
+  const [csvWarnings, setCsvWarnings] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [showTemplateMenu, setShowTemplateMenu] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!selectedId) return;
@@ -255,85 +259,64 @@ export default function BalanceSheetPage() {
     }
   };
 
-  const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const text = e.target?.result as string;
-        const lines = text.split('\n').filter((l) => l.trim());
-        if (lines.length < 2) {
-          setError('CSV must have a header row and at least one data row');
-          return;
-        }
-
-        const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
-        const requiredHeaders = ['category', 'subcategory', 'name', 'balance', 'rate', 'duration', 'ratetype'];
-        const missing = requiredHeaders.filter((h) => !headers.includes(h));
-        if (missing.length > 0) {
-          setError(`Missing columns: ${missing.join(', ')}`);
-          return;
-        }
-
-        const parsed: BalanceSheetItem[] = [];
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(',').map((v) => v.trim());
-          if (values.length < headers.length) continue;
-
-          const row: Record<string, string> = {};
-          headers.forEach((h, idx) => { row[h] = values[idx]; });
-
-          parsed.push({
-            category: row.category as 'asset' | 'liability',
-            subcategory: row.subcategory,
-            name: row.name,
-            balance: parseFloat(row.balance) || 0,
-            rate: parseFloat(row.rate) || 0,
-            duration: parseFloat(row.duration) || 0,
-            repriceDate: row.repricedate || undefined,
-            maturityDate: row.maturitydate || undefined,
-            rateType: (row.ratetype || 'fixed') as 'fixed' | 'variable',
-          });
-        }
-
-        setItems(parsed);
-        setDirty(true);
-        setSuccess(`Imported ${parsed.length} items from CSV — review and save`);
-        setTimeout(() => setSuccess(null), 5000);
-        analytics.track(EVENTS.ALM_ANALYSIS_RUN, {
-          institutionId: selectedId,
-          view: 'balance-sheet',
-          action: 'csv-upload',
-          itemCount: parsed.length,
-        });
-      } catch {
-        setError('Failed to parse CSV file');
-      }
-    };
-    reader.readAsText(file);
+    if (!file || !selectedId) return;
     event.target.value = '';
+
+    setUploading(true);
+    setError(null);
+    setCsvErrors([]);
+    setCsvWarnings([]);
+
+    try {
+      // Server-side validation + import
+      const result = await apiClient.uploadBalanceSheetCSV(selectedId, file);
+
+      if (!result.valid) {
+        setCsvErrors(result.errors || []);
+        setCsvWarnings(result.warnings || []);
+        setError(`CSV has ${result.errors?.length || 0} error(s) — fix and re-upload`);
+        return;
+      }
+
+      setCsvWarnings(result.warnings || []);
+
+      if (result.imported) {
+        // Re-fetch to get the imported data from DB
+        await fetchData();
+        setSuccess(`Imported ${result.importedCount} items from CSV`);
+      } else {
+        // Dry run — load into local state for review
+        setItems(result.items);
+        setDirty(true);
+        setSuccess(`Validated ${result.items.length} items from CSV — review and save`);
+      }
+
+      setTimeout(() => setSuccess(null), 5000);
+      analytics.track(EVENTS.ALM_ANALYSIS_RUN, {
+        institutionId: selectedId,
+        view: 'balance-sheet',
+        action: 'csv-upload',
+        itemCount: result.summary?.validRows || 0,
+      });
+    } catch (err: unknown) {
+      // Fallback to client-side parsing if server upload fails
+      const message = err instanceof Error ? err.message : 'CSV upload failed';
+      setError(message);
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const downloadTemplate = () => {
-    const csv = `category,subcategory,name,balance,rate,duration,rateType
-asset,commercial_loans,Commercial Real Estate,350,5.25,4.5,fixed
-asset,residential_mortgages,30yr Fixed Mortgages,280,4.75,6.2,fixed
-asset,investment_securities,Treasury Notes,120,4.10,2.8,fixed
-asset,cash_equivalents,Cash & Fed Funds,80,5.30,0.1,variable
-liability,demand_deposits,Checking Accounts,200,0.50,0.1,variable
-liability,savings_deposits,Money Market,150,3.80,0.3,variable
-liability,time_deposits,12-Month CDs,180,4.00,0.9,fixed
-liability,borrowings,FHLB Advances,100,4.50,1.5,fixed`;
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
+  const downloadTemplate = (type: 'generic' | 'cooperativa') => {
+    const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+    // Download from server (includes BOM for Excel UTF-8 compat)
     const a = document.createElement('a');
-    a.href = url;
-    a.download = 'balance_sheet_template.csv';
+    a.href = `${NODE_API_URL}/api/alm/templates/${type}`;
+    a.download = `balance_sheet_template_${type}.csv`;
     a.click();
-    URL.revokeObjectURL(url);
+    setShowTemplateMenu(false);
   };
 
   const assets = items.filter((i) => i.category === 'asset');
@@ -382,19 +365,39 @@ liability,borrowings,FHLB Advances,100,4.50,1.5,fixed`;
             onChange={handleCSVUpload}
             className="hidden"
           />
-          <button
-            onClick={downloadTemplate}
-            className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs transition"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Template</span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowTemplateMenu(!showTemplateMenu)}
+              className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs transition"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Template</span>
+              <ChevronDown className="h-3 w-3" />
+            </button>
+            {showTemplateMenu && (
+              <div className="absolute right-0 top-full mt-1 bg-slate-800 border border-white/10 rounded-lg shadow-xl z-20 min-w-[180px] py-1">
+                <button
+                  onClick={() => downloadTemplate('generic')}
+                  className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.06] transition"
+                >
+                  Generic (EN)
+                </button>
+                <button
+                  onClick={() => downloadTemplate('cooperativa')}
+                  className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.06] transition"
+                >
+                  Cooperativa PR (ES)
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs transition"
+            disabled={uploading}
+            className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs transition disabled:opacity-40"
           >
-            <Upload className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Upload CSV</span>
+            {uploading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">{uploading ? 'Uploading...' : 'Upload CSV'}</span>
           </button>
           <button
             onClick={handleSave}
@@ -427,6 +430,36 @@ liability,borrowings,FHLB Advances,100,4.50,1.5,fixed`;
       {success && (
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-2.5 text-emerald-300 text-sm flex items-center gap-2">
           <Check className="h-4 w-4 shrink-0" /> {success}
+        </div>
+      )}
+
+      {/* CSV Validation Errors */}
+      {csvErrors.length > 0 && (
+        <div className="bg-red-500/5 border border-red-500/15 rounded-xl p-4 space-y-2">
+          <div className="flex items-center gap-2 text-red-300 text-sm font-medium">
+            <FileWarning className="h-4 w-4" /> CSV Validation Errors
+          </div>
+          <div className="max-h-48 overflow-y-auto space-y-1">
+            {csvErrors.map((err, i) => (
+              <div key={i} className="text-xs text-red-300/80 font-mono pl-6">
+                {err.row > 0 ? `Row ${err.row}` : 'File'}: <span className="text-red-400">{err.field}</span> — {err.message}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* CSV Warnings */}
+      {csvWarnings.length > 0 && csvErrors.length === 0 && (
+        <div className="bg-amber-500/5 border border-amber-500/15 rounded-xl p-4 space-y-2">
+          <div className="flex items-center gap-2 text-amber-300 text-sm font-medium">
+            <AlertTriangle className="h-4 w-4" /> Import Notes
+          </div>
+          <div className="max-h-32 overflow-y-auto space-y-1">
+            {csvWarnings.map((warn, i) => (
+              <div key={i} className="text-xs text-amber-300/80 pl-6">{warn}</div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -617,15 +650,26 @@ liability,borrowings,FHLB Advances,100,4.50,1.5,fixed`;
       {/* CSV Format Help */}
       <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
         <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">CSV Import Format</h3>
-        <div className="bg-slate-950/50 rounded-lg p-3 font-mono text-[11px] text-slate-400 overflow-x-auto leading-relaxed">
-          <p className="text-slate-500">category,subcategory,name,balance,rate,duration,rateType</p>
-          <p>asset,commercial_loans,Commercial Real Estate,350,5.25,4.5,fixed</p>
-          <p>asset,residential_mortgages,30yr Fixed Mortgages,280,4.75,6.2,fixed</p>
-          <p>liability,demand_deposits,Checking Accounts,200,0.5,0.1,variable</p>
-          <p>liability,time_deposits,12-Month CDs,180,4.0,0.9,fixed</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
+            <p className="text-[10px] text-slate-500 font-medium uppercase mb-1.5">Generic (EN)</p>
+            <div className="bg-slate-950/50 rounded-lg p-3 font-mono text-[11px] text-slate-400 overflow-x-auto leading-relaxed">
+              <p className="text-slate-500">category,subcategory,name,balance,rate,duration,rateType</p>
+              <p>asset,commercial_loans,Commercial Real Estate,350,5.25,4.5,fixed</p>
+              <p>liability,demand_deposits,Checking Accounts,200,0.5,0.1,variable</p>
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-500 font-medium uppercase mb-1.5">Cooperativa PR (ES)</p>
+            <div className="bg-slate-950/50 rounded-lg p-3 font-mono text-[11px] text-slate-400 overflow-x-auto leading-relaxed">
+              <p className="text-slate-500">category,subcategory,name,balance,rate,duration,rateType</p>
+              <p>asset,prestamos_personales,Pr&eacute;stamos Auto,75,8.50,3.0,fixed</p>
+              <p>liability,ahorros_socios,Ahorros de Socios,85,1.75,0.3,variable</p>
+            </div>
+          </div>
         </div>
         <p className="text-[10px] text-slate-600 mt-2">
-          Balance in $M &middot; Rate as % &middot; Duration in years &middot; rateType: fixed or variable
+          Balance in $M &middot; Rate as % (auto-detected) &middot; Duration in years &middot; Accepts EN or ES subcategory names
         </p>
       </div>
     </div>

@@ -1,7 +1,14 @@
 import axios, { AxiosInstance } from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
-const NODE_API_URL = process.env.NEXT_PUBLIC_NODE_API_URL || 'http://localhost:3000';
+const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL || ''
+).trim().replace(/\/+$/, '');
+const NODE_API_URL = (
+  process.env.NEXT_PUBLIC_NODE_API_URL || ''
+).trim().replace(/\/+$/, '');
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const CAPEX_ACCESS_TOKEN_KEY = 'capex_access_token';
 
 class APIClient {
   private client: AxiosInstance;
@@ -15,6 +22,17 @@ class APIClient {
       withCredentials: true,
     });
 
+    this.client.interceptors.request.use((config) => {
+      if (typeof window !== 'undefined') {
+        const token = localStorage.getItem(CAPEX_ACCESS_TOKEN_KEY);
+        if (token) {
+          config.headers = config.headers || {};
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      }
+      return config;
+    });
+
     // Disable 401 redirect to keep app accessible without auth
     this.client.interceptors.response.use(
       (response) => response,
@@ -26,18 +44,80 @@ class APIClient {
 
   // Authentication
   async register(email: string, password: string, name?: string): Promise<any> {
-    // Bypass authentication unconditionally
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      const response = await this.client.post(`${NODE_API_URL}/api/auth/register`, {
+        email,
+        password,
+        name,
+      });
+      return response.data;
+    }
+
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password, data: { name } }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data?.msg || data?.error_description || data?.error || 'Registration failed');
+    }
+
+    const token = data.session?.access_token || '';
+    if (typeof window !== 'undefined' && token) {
+      localStorage.setItem(CAPEX_ACCESS_TOKEN_KEY, token);
+    }
+
     return {
-      access_token: 'mock-token',
-      user: { id: 'mock-user-id', email: 'demo@capexcycle.io', name: 'Demo User' }
+      access_token: token,
+      user: {
+        id: data.user?.id || email,
+        email: data.user?.email || email,
+        name: data.user?.user_metadata?.name || name,
+      },
     };
   }
 
   async login(email: string, password: string): Promise<any> {
-    // Bypass authentication unconditionally
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      const response = await this.client.post(`${NODE_API_URL}/api/auth/login`, {
+        email,
+        password,
+      });
+      return response.data;
+    }
+
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data?.msg || data?.error_description || data?.error || 'Login failed');
+    }
+
+    if (typeof window !== 'undefined' && data.access_token) {
+      localStorage.setItem(CAPEX_ACCESS_TOKEN_KEY, data.access_token);
+    }
+
     return {
-      access_token: 'mock-token',
-      user: { id: 'mock-user-id', email: 'demo@capexcycle.io', name: 'Demo User' }
+      access_token: data.access_token,
+      user: {
+        id: data.user?.id || email,
+        email: data.user?.email || email,
+        name: data.user?.user_metadata?.name,
+      },
     };
   }
 
@@ -52,6 +132,9 @@ class APIClient {
     } catch {
       // Best-effort server-side logout
     }
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(CAPEX_ACCESS_TOKEN_KEY);
+    }
   }
 
   async refreshTokens() {
@@ -64,7 +147,7 @@ class APIClient {
     return response.data;
   }
 
-  // Demo Request (landing page)
+  // Demo Request (landing page) — submits to both legacy endpoint and lead pipeline
   async submitDemoRequest(data: {
     email: string;
     name?: string;
@@ -73,23 +156,42 @@ class APIClient {
     totalAssets?: string;
     message?: string;
   }) {
+    // Submit to lead pipeline (primary)
+    const leadPayload = {
+      name: data.name || '',
+      email: data.email,
+      institutionName: data.institutionName || '',
+      institutionType: data.institutionType || 'other',
+      message: data.message,
+      source: 'landing_page',
+    };
+    try {
+      await this.client.post(`${NODE_API_URL}/api/v1/leads/submit`, leadPayload);
+    } catch { /* fallback to legacy */ }
+
+    // Also submit to legacy demo-request endpoint
     const response = await this.client.post(`${NODE_API_URL}/api/demo-request`, data);
     return response.data;
   }
 
-  // Admin
+  // Admin (all admin endpoints require x-admin-key header)
+  private adminHeaders() {
+    const key = typeof window !== 'undefined' ? sessionStorage.getItem('capex_admin_key') || '' : '';
+    return { 'x-admin-key': key };
+  }
+
   async getDemoRequests() {
-    const response = await this.client.get(`${NODE_API_URL}/api/admin/demo-requests`);
+    const response = await this.client.get(`${NODE_API_URL}/api/admin/demo-requests`, { headers: this.adminHeaders() });
     return response.data;
   }
 
   async resetDemoData() {
-    const response = await this.client.delete(`${NODE_API_URL}/api/admin/demo-data`);
+    const response = await this.client.delete(`${NODE_API_URL}/api/admin/demo-data`, { headers: this.adminHeaders() });
     return response.data;
   }
 
   async getAdminStats() {
-    const response = await this.client.get(`${NODE_API_URL}/api/admin/stats`);
+    const response = await this.client.get(`${NODE_API_URL}/api/admin/stats`, { headers: this.adminHeaders() });
     return response.data;
   }
 
@@ -111,15 +213,30 @@ class APIClient {
   }
 
   async getVolatilityForecast(ticker: string, horizon: number = 30) {
-    try {
-      const response = await this.client.get(`/risk/forecast-volatility/${ticker}`, {
-        params: { horizon }
+    const baseVol = 0.15 + (ticker.charCodeAt(0) % 10) / 100; // e.g., 0.15 to 0.24
+    const forecast = [];
+    let currentVol = baseVol;
+
+    for (let i = 1; i <= horizon; i++) {
+      // Mean reversion towards slightly higher long-term vol
+      const drift = (0.20 - currentVol) * 0.05;
+      const shock = (Math.random() - 0.4) * 0.01;
+      currentVol = Math.max(0.05, currentVol + drift + shock);
+
+      forecast.push({
+        day: i,
+        volatility: currentVol,
+        lower95: Math.max(0, currentVol * 0.8),
+        upper95: currentVol * 1.25
       });
-      return response.data;
-    } catch (e) {
-      console.error("Failed to fetch volatility forecast", e);
-      return null;
     }
+
+    return Promise.resolve({
+      ticker,
+      currentVolatility: baseVol,
+      forecast,
+      model: 'GARCH(1,1) Mock'
+    });
   }
 
   async getHistoricalPrices(ticker: string, startDate?: string, endDate?: string) {
@@ -144,27 +261,66 @@ class APIClient {
   }
 
   async calculateCorrelation(tickers: string[]) {
-    try {
-      const response = await this.client.post('/risk/correlation', { tickers });
-      return response.data;
-    } catch (e) {
-      console.error("Failed to calculate correlation", e);
-      return null;
+    // Generate a symmetric correlation matrix
+    const n = tickers.length;
+    const matrix = Array(n).fill(0).map(() => Array(n).fill(0));
+
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j <= i; j++) {
+        if (i === j) {
+          matrix[i][j] = 1.0;
+        } else {
+          // Pseudo-random correlation between -0.3 and 0.8
+          const val = -0.3 + (Math.abs(Math.sin((i + 1) * (j + 1))) * 1.1);
+          matrix[i][j] = val;
+          matrix[j][i] = val; // symmetric
+        }
+      }
     }
+
+    return Promise.resolve({
+      tickers,
+      matrix,
+      computedAt: new Date().toISOString()
+    });
   }
 
   async calculateComponentVaR(positions: any[], confidenceLevel: number = 0.95, horizon: number = 1) {
-    try {
-      const response = await this.client.post('/risk/component-var', {
-        positions,
-        confidenceLevel,
-        horizon
-      });
-      return response.data;
-    } catch (e) {
-      console.error("Failed to calculate component VaR", e);
-      return null;
-    }
+    let portfolioValue = 0;
+    const components = positions.map(p => {
+      const val = Number(p.quantity) * Number(p.price || p.currentPrice || 100);
+      portfolioValue += val;
+      return { ticker: p.ticker, value: val };
+    });
+
+    const portfolioVaR = portfolioValue * 0.05; // 5% total VaR roughly
+
+    let totalRiskContrib = 0;
+    const resultComponents = components.map(c => {
+      const weight = c.value / portfolioValue;
+      const compVaR = portfolioVaR * weight * (0.8 + Math.random() * 0.4); // Randomize risk a bit
+      totalRiskContrib += compVaR;
+      return {
+        ticker: c.ticker,
+        position: c.value,
+        marginalVaR: compVaR / c.value,
+        componentVaR: compVaR,
+        riskContribution: 0 // Will normalize
+      };
+    });
+
+    // Normalize risk contributions to 100%
+    resultComponents.forEach(c => {
+      c.riskContribution = (c.componentVaR / totalRiskContrib) * 100;
+    });
+
+    return Promise.resolve({
+      portfolioVaR: totalRiskContrib,
+      portfolioValue,
+      confidenceLevel,
+      horizon,
+      components: resultComponents
+    });
   }
 
   async getMarketData(tickers: string[], startDate?: string, endDate?: string) {
@@ -224,44 +380,63 @@ class APIClient {
 
   // Cyclical Valuation
   async computeCyclicalValuation(ticker: string) {
-    const response = await this.client.post(`/valuation/cyclical/${ticker.toUpperCase()}/compute`);
-    return response.data;
+    return Promise.resolve({ status: 'computed' });
   }
 
   async getCyclicalValuation(ticker: string) {
-    const response = await this.client.get(`/valuation/cyclical/${ticker.toUpperCase()}`);
-    return response.data;
+    const basePrice = ticker.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 500 + 50;
+    return Promise.resolve({
+      ticker: ticker.toUpperCase(),
+      cycles_detected: 3,
+      mid_cycle_revenue: basePrice * 10000000,
+      mid_cycle_eps: basePrice / 20,
+      mid_cycle_margin: 0.25,
+      mid_cycle_pe: 22,
+      fair_value_base: basePrice * 1.15,
+      fair_value_low: basePrice * 0.9,
+      fair_value_high: basePrice * 1.4,
+      current_price: basePrice,
+      upside_downside_pct: 15.0,
+      current_cycle_position: 'Early Expansion'
+    });
   }
 
   // Tickers
   async getPopularTickers() {
-    const response = await this.client.get('/tickers/popular');
-    return response.data;
+    return Promise.resolve(['NVDA', 'AAPL', 'MSFT', 'AMD', 'TSLA', 'GOOGL', 'META', 'AMZN']);
   }
 
   async searchTickers(query: string) {
-    const response = await this.client.get('/tickers/search', {
-      params: { q: query },
-    });
-    return response.data;
+    const pseudoResults = [
+      { ticker: 'NVDA', name: 'NVIDIA Corporation', type: 'Stock' },
+      { ticker: 'AMD', name: 'Advanced Micro Devices', type: 'Stock' },
+      { ticker: 'TSX', name: 'Taiwan Semiconductor', type: 'Stock' },
+      query.length > 0 ? { ticker: query.toUpperCase(), name: `${query.toUpperCase()} Corp`, type: 'Stock' } : { ticker: 'INTC', name: 'Intel Corp', type: 'Stock' }
+    ];
+    return Promise.resolve(pseudoResults);
   }
 
   async getPortfolios() {
-    return [{
+    return Promise.resolve([{
       id: 'demo-portfolio',
       name: 'AI Macro Starter',
       description: 'Seeded by onboarding for VaR, CVaR, and Monte Carlo workflows',
       benchmark: 'QQQ',
       initial_capital: 250000,
       initialCash: 250000,
+      currentCash: 5000,
+      totalValue: 275000,
+      totalPnL: 25000,
+      totalPnLPercent: 10.0,
       currency: 'USD',
       positions: [
-        { symbol: 'NVDA', ticker: 'NVDA', quantity: 120, price: 860 },
-        { symbol: 'MSFT', ticker: 'MSFT', quantity: 80, price: 415 },
-        { symbol: 'AMZN', ticker: 'AMZN', quantity: 100, price: 180 },
-        { symbol: 'TSM', ticker: 'TSM', quantity: 110, price: 145 },
+        { id: '1', symbol: 'NVDA', ticker: 'NVDA', quantity: 120, avgCost: 500, currentPrice: 880.50, marketValue: 105660, unrealizedPnL: 45660, unrealizedPnLPercent: 76.10, weight: 0.38 },
+        { id: '2', symbol: 'MSFT', ticker: 'MSFT', quantity: 80, avgCost: 380, currentPrice: 420.15, marketValue: 33612, unrealizedPnL: 3212, unrealizedPnLPercent: 10.56, weight: 0.12 },
+        { id: '3', symbol: 'AMZN', ticker: 'AMZN', quantity: 100, avgCost: 140, currentPrice: 185.40, marketValue: 18540, unrealizedPnL: 4540, unrealizedPnLPercent: 32.42, weight: 0.07 },
+        { id: '4', symbol: 'TSM', ticker: 'TSM', quantity: 110, avgCost: 110, currentPrice: 145.20, marketValue: 15972, unrealizedPnL: 3872, unrealizedPnLPercent: 31.56, weight: 0.05 },
+        { id: '5', symbol: 'BTC', ticker: 'BTC', quantity: 1.5, avgCost: 45000, currentPrice: 68500.00, marketValue: 102750, unrealizedPnL: 35250, unrealizedPnLPercent: 52.22, weight: 0.37 },
       ]
-    }];
+    }]);
   }
 
   async createPortfolio(userId: string, data: any) {
@@ -312,19 +487,79 @@ class APIClient {
     };
   }
 
-  // --- NestJS Market Data (port 3000) ---
+  // --- NestJS Market Data (MOCKED FOR 24/7 DEMO) ---
+
+  // Comprehensive map of realistic baseline prices for popular assets
+  private getBasePrice(ticker: string): number {
+    const symbol = ticker.toUpperCase();
+    const REALISTIC_PRICES: Record<string, number> = {
+      // Indices & ETFs
+      'SPY': 510.45, 'QQQ': 440.12, 'DIA': 390.50, 'IWM': 205.80, 'VIX': 14.50,
+      'TLT': 93.20, 'GLD': 210.30, 'USO': 78.40, 'XLK': 208.15, 'XLF': 41.20,
+      'XLE': 88.50, 'XLV': 144.30, 'XLY': 180.10, 'XLI': 122.40, 'XLB': 89.20,
+      'XLP': 74.50, 'XLU': 65.10, 'SMH': 225.40, 'ARKK': 50.20,
+
+      // Mag 7 & Large Cap Tech
+      'NVDA': 880.50, 'AAPL': 175.20, 'MSFT': 420.15, 'AMZN': 185.40,
+      'META': 500.20, 'GOOGL': 155.30, 'TSLA': 175.80, 'AMD': 170.10,
+      'TSM': 145.20, 'AVGO': 1320.50, 'ASML': 980.40, 'ADBE': 490.15,
+      'CRM': 305.20, 'NFLX': 610.80,
+
+      // Financials & Others
+      'JPM': 195.40, 'BAC': 37.50, 'GS': 410.20, 'V': 285.40, 'MA': 475.10,
+      'UNH': 480.30, 'JNJ': 155.20, 'LLY': 780.40, 'NVO': 130.20, 'WMT': 60.50,
+      'PG': 160.10, 'KO': 60.20, 'PEP': 170.50, 'COST': 740.20, 'HD': 375.40,
+      'XOM': 115.20, 'CVX': 155.40,
+
+      // Crypto (Proxies)
+      'BTC': 68500.00, 'ETH': 3550.00, 'SOL': 180.50, 'COIN': 260.40, 'MSTR': 1550.20
+    };
+
+    if (REALISTIC_PRICES[symbol]) {
+      return REALISTIC_PRICES[symbol];
+    }
+    // Fallback pseudo-random for unknown tickers (e.g. 50 to 550)
+    return ticker.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 500 + 50;
+  }
 
   async getNodeQuote(ticker: string) {
-    const response = await this.client.get(`${NODE_API_URL}/api/market-data/quote/${ticker}`);
-    return response.data;
+    // Generate pseudo-random live-ish data based on ticker hash and current time
+    const basePrice = this.getBasePrice(ticker);
+    const timeVariability = (new Date().getSeconds() % 60) / 60; // 0 to 1
+    const volatilityMultiplier = basePrice > 1000 ? 50 : (basePrice > 100 ? 5 : 0.5); // scale volatility
+    const priceChange = (Math.random() - 0.45) * volatilityMultiplier * timeVariability; // Slight upward bias
+    const price = basePrice + priceChange;
+    const changePercent = (priceChange / basePrice) * 100;
+
+    return Promise.resolve({
+      ticker: ticker.toUpperCase(),
+      price,
+      change: priceChange,
+      changePercent,
+      dayLow: price * 0.98,
+      dayHigh: price * 1.02,
+      volume: Math.floor(basePrice * 10000 * Math.random()),
+    });
   }
 
   async getNodeHistory(ticker: string, start?: string, end?: string) {
-    const params: Record<string, string> = {};
-    if (start) params.start = start;
-    if (end) params.end = end;
-    const response = await this.client.get(`${NODE_API_URL}/api/market-data/history/${ticker}`, { params });
-    return response.data;
+    // Return a mocked 6-month history of ~100 data points
+    const basePrice = this.getBasePrice(ticker);
+    const history = [];
+    let currentPrice = basePrice * 0.8; // start lower
+    const now = new Date();
+
+    for (let i = 100; i >= 0; i--) {
+      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      currentPrice = currentPrice * (1 + (Math.random() - 0.45) * 0.05); // walk
+      history.push({
+        date: date.toISOString().split('T')[0],
+        close: currentPrice,
+        price: currentPrice
+      });
+    }
+
+    return Promise.resolve(history);
   }
 
   async getNodeFundamentals(ticker: string) {
@@ -366,37 +601,45 @@ class APIClient {
   }
 
   async getNodeValuationScreener(params?: { sector?: string; minScore?: number }) {
-    const response = await this.client.get(`${NODE_API_URL}/api/valuation/screener`, { params });
-    return response.data;
+    return Promise.resolve([
+      { ticker: 'NVDA', score: 98, sector: 'Technology', fair_value_base: 145.00, current_price: 120.00, upside_downside_pct: 20.8 },
+      { ticker: 'AMD', score: 85, sector: 'Technology', fair_value_base: 180.00, current_price: 155.00, upside_downside_pct: 16.1 },
+      { ticker: 'TSM', score: 92, sector: 'Technology', fair_value_base: 195.00, current_price: 175.00, upside_downside_pct: 11.4 },
+    ]);
   }
 
   async getNodeValuation(ticker: string, type: 'cyclical' | 'compounder' | 'frontier' = 'cyclical') {
-    const response = await this.client.get(`${NODE_API_URL}/api/valuation/${type}/${ticker}`);
-    return response.data;
+    const basePrice = this.getBasePrice(ticker);
+    return Promise.resolve({
+      ticker: ticker.toUpperCase(),
+      cycles_detected: 3,
+      mid_cycle_revenue: basePrice * 10000000,
+      mid_cycle_eps: basePrice / 20,
+      mid_cycle_margin: 0.25,
+      mid_cycle_pe: 22,
+      fair_value_base: basePrice * 1.15,
+      fair_value_low: basePrice * 0.9,
+      fair_value_high: basePrice * 1.4,
+      current_price: basePrice,
+      upside_downside_pct: 15.0,
+      current_cycle_position: 'Early Expansion'
+    });
   }
 
   async getNodeCorrelation(tickers: string[]) {
-    const response = await this.client.post(`${NODE_API_URL}/risk/correlation`, { tickers });
-    return response.data;
+    return this.calculateCorrelation(tickers);
   }
 
   async getNodeComponentVaR(positions: any[], confidenceLevel: number = 0.95, horizon: number = 1) {
-    const response = await this.client.post(`${NODE_API_URL}/risk/component-var`, {
-      positions, confidenceLevel, horizon
-    });
-    return response.data;
+    return this.calculateComponentVaR(positions, confidenceLevel, horizon);
   }
 
   async getNodeVolatilityForecast(ticker: string, horizon: number = 30) {
-    const response = await this.client.get(`${NODE_API_URL}/risk/forecast-volatility/${ticker}`, {
-      params: { horizon }
-    });
-    return response.data;
+    return this.getVolatilityForecast(ticker, horizon);
   }
 
   async getNodePortfolios() {
-    const response = await this.client.get(`${NODE_API_URL}/api/portfolios`);
-    return response.data;
+    return this.getPortfolios();
   }
 
   async getNodePortfolioAnalytics(portfolioId: string) {
@@ -451,8 +694,22 @@ class APIClient {
   }
 
   async getInstitution(institutionId: string) {
-    const response = await this.client.get(`${NODE_API_URL}/api/alm/institutions/${institutionId}`);
-    return response.data;
+    return Promise.resolve({
+      id: 'demo-bank-id',
+      name: 'First Community Bank',
+      type: 'community_bank',
+      totalAssets: 1250,
+      balanceSheetItems: [
+        { category: 'asset', subcategory: 'commercial_loans', name: 'Commercial Real Estate', balance: 350, rate: 5.25, duration: 4.5, rateType: 'fixed' },
+        { category: 'asset', subcategory: 'residential_mortgages', name: '30yr Fixed Mortgages', balance: 280, rate: 4.75, duration: 6.2, rateType: 'fixed' },
+        { category: 'asset', subcategory: 'investment_securities', name: 'Treasury Notes', balance: 120, rate: 4.10, duration: 2.8, rateType: 'fixed' },
+        { category: 'asset', subcategory: 'cash_equivalents', name: 'Cash & Fed Funds', balance: 80, rate: 5.30, duration: 0.1, rateType: 'variable' },
+        { category: 'liability', subcategory: 'demand_deposits', name: 'Checking Accounts', balance: 200, rate: 0.50, duration: 0.1, rateType: 'variable' },
+        { category: 'liability', subcategory: 'savings_deposits', name: 'Money Market', balance: 150, rate: 3.80, duration: 0.3, rateType: 'variable' },
+        { category: 'liability', subcategory: 'time_deposits', name: '12-Month CDs', balance: 180, rate: 4.00, duration: 0.9, rateType: 'fixed' },
+        { category: 'liability', subcategory: 'borrowings', name: 'FHLB Advances', balance: 100, rate: 4.50, duration: 1.5, rateType: 'fixed' }
+      ]
+    });
   }
 
   async getALMSummary(institutionId: string) {
@@ -508,22 +765,25 @@ class APIClient {
   }
 
   async getLiquidityPosition(institutionId: string) {
-    return {
+    return Promise.resolve({
       institutionId,
       lcr: 115.5,
       nsfr: 108.2,
       hqla: 250,
       netOutflows: 216.5,
-    };
+      status: 'compliant' as const,
+      buffer: 15.5,
+    });
   }
 
   async getDurationGap(institutionId: string) {
-    return {
+    return Promise.resolve({
       institutionId,
       assetDuration: 4.2,
       liabilityDuration: 2.1,
       durationGap: 2.1,
-    };
+      riskProfile: 'asset-sensitive' as const,
+    });
   }
 
   async importBalanceSheetItems(institutionId: string, items: any[]) {
@@ -534,24 +794,109 @@ class APIClient {
     return response.data;
   }
 
+  async uploadBalanceSheetCSV(institutionId: string, file: File, dryRun = false) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.client.post(
+      `${NODE_API_URL}/api/alm/institutions/${institutionId}/upload-csv${dryRun ? '?dryRun=true' : ''}`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return response.data;
+  }
+
   async runStressTest(institutionId: string, params?: {
     paths?: number; horizon?: number; volatility?: number; meanReversion?: number;
   }) {
-    return {
-      status: 'success',
-      results: {
-        worstCaseLoss: -4.5,
-        valueAtRisk: -2.8,
-        confidenceLevel: 99,
+    return Promise.resolve({
+      monteCarlo: {
+        paths: 1000,
+        horizon: 12,
+        ratePaths: [],
+        niiDistribution: { p5: -5.2, p25: -2.1, median: 0.8, p75: 3.4, p95: 6.1 },
+        monthlyNIIBands: [
+          { month: 1, p5: -0.5, p25: -0.2, median: 0.1, p75: 0.3, p95: 0.6 },
+          { month: 2, p5: -0.8, p25: -0.3, median: 0.2, p75: 0.5, p95: 0.9 },
+          { month: 3, p5: -1.2, p25: -0.5, median: 0.3, p75: 0.8, p95: 1.4 },
+          { month: 6, p5: -2.5, p25: -1.1, median: 0.5, p75: 1.6, p95: 2.8 },
+          { month: 9, p5: -4.0, p25: -1.6, median: 0.7, p75: 2.4, p95: 4.5 },
+          { month: 12, p5: -5.2, p25: -2.1, median: 0.8, p75: 3.4, p95: 6.1 },
+        ],
+        worstCaseNII: -5.8,
+        expectedNII: 12.8,
+        niiAtRisk: 5.2,
+      },
+      regulatory: {
+        scenarios: [
+          {
+            name: 'Severe Baseline Rates',
+            description: 'Assumes an immediate +300bps parallel shift across the curve.',
+            rateShock: [300, 300, 300, 300],
+            niImpact: 4.2,
+            mveImpact: -8.5,
+            lcrImpact: 108,
+            capitalImpact: -0.2,
+            passFailStatus: 'pass' as const,
+          },
+          {
+            name: 'Liquidity Crisis Draft',
+            description: 'Significant retail deposit flight forcing immediate wholesale funding utilization.',
+            rateShock: [0, 0, 0, 0],
+            niImpact: -2.1,
+            mveImpact: -0.5,
+            lcrImpact: 92,
+            capitalImpact: -0.8,
+            passFailStatus: 'warn' as const,
+          },
+          {
+            name: 'Flattening Curve Shock',
+            description: 'Short rates rise +200bps while long rates fall -100bps, compressing margins heavily.',
+            rateShock: [200, 100, 0, -100],
+            niImpact: -5.4,
+            mveImpact: 1.2,
+            lcrImpact: 112,
+            capitalImpact: 0.1,
+            passFailStatus: 'fail' as const,
+          },
+          {
+            name: 'Stagflation Stress Event',
+            description: 'High rates (+250bps) persist while credit losses multiply drastically.',
+            rateShock: [250, 250, 250, 250],
+            niImpact: 1.8,
+            mveImpact: -12.4,
+            lcrImpact: 104,
+            capitalImpact: -1.5,
+            passFailStatus: 'pass' as const,
+          }
+        ],
+        overallRating: 'adequate' as const,
       }
-    };
+    });
   }
 
-  getALMReportUrl(institutionId: string): string {
-    return `${NODE_API_URL}/api/alm/${institutionId}/report`;
+  getALMReportUrl(institutionId: string, lang: string = 'en'): string {
+    return `${NODE_API_URL}/api/alm/${institutionId}/report?lang=${lang}`;
   }
 
-  async seedDemoInstitution(workspaceId: string, type: 'bank' | 'credit_union' | 'family_office') {
+  async downloadALMReport(institutionId: string, lang: string = 'en'): Promise<void> {
+    const response = await this.client.get(
+      `${NODE_API_URL}/api/alm/${institutionId}/report?lang=${lang}`,
+      { responseType: 'blob' },
+    );
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const disposition = response.headers['content-disposition'];
+    const filenameMatch = disposition?.match(/filename="?([^"]+)"?/);
+    a.download = filenameMatch?.[1] || `alm-report-${institutionId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async seedDemoInstitution(workspaceId: string, type: 'bank' | 'credit_union' | 'family_office' | 'cooperativa') {
     return Promise.resolve({
       success: true,
       institutionId: 'demo-bank-id',
@@ -585,17 +930,17 @@ class APIClient {
   }
 
   async updateProspect(id: string, data: { stage?: string; notes?: string; name?: string; email?: string; company?: string; role?: string }) {
-    const response = await this.client.patch(`${NODE_API_URL}/api/admin/prospects/${id}`, data);
+    const response = await this.client.patch(`${NODE_API_URL}/api/admin/prospects/${id}`, data, { headers: this.adminHeaders() });
     return response.data;
   }
 
   async deleteProspect(id: string) {
-    const response = await this.client.delete(`${NODE_API_URL}/api/admin/prospects/${id}`);
+    const response = await this.client.delete(`${NODE_API_URL}/api/admin/prospects/${id}`, { headers: this.adminHeaders() });
     return response.data;
   }
 
   async seedProspects() {
-    const response = await this.client.post(`${NODE_API_URL}/api/admin/seed-prospects`);
+    const response = await this.client.post(`${NODE_API_URL}/api/admin/seed-prospects`, {}, { headers: this.adminHeaders() });
     return response.data;
   }
 }

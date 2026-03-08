@@ -23,6 +23,8 @@ interface VolatilitySurface {
 
 const MATURITY_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#10b981', '#eab308'];
 
+const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+
 export function VolatilitySmile() {
     const [ticker, setTicker] = useState('AAPL');
     const [data, setData] = useState<VolatilitySurface | null>(null);
@@ -32,7 +34,7 @@ export function VolatilitySmile() {
     const fetchSurface = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`http://localhost:3000/api/options/surface/${ticker}`);
+            const response = await fetch(`${NODE_API_URL}/api/options/surface/${ticker}`);
             const result = await response.json();
             setData(result);
         } catch (err) {

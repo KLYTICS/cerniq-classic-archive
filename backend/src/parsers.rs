@@ -1,13 +1,17 @@
-use std::path::Path;
-use serde::Deserialize;
 use crate::error::{AppError, Result};
 use chrono::NaiveDate;
+use serde::Deserialize;
+use std::path::Path;
 
 #[derive(Debug, Deserialize)]
 struct ApExportRow {
     #[serde(alias = "Vendor", alias = "vendor", alias = "Vendor Name")]
     vendor: String,
-    #[serde(alias = "Invoice Number", alias = "invoice_number", alias = "Invoice #")]
+    #[serde(
+        alias = "Invoice Number",
+        alias = "invoice_number",
+        alias = "Invoice #"
+    )]
     invoice_number: String,
     #[serde(alias = "Date", alias = "date", alias = "Invoice Date")]
     date: String,
@@ -37,8 +41,9 @@ pub fn parse_ap_export(path: &Path) -> Result<Vec<ParsedInvoice>> {
             .map_err(|e| AppError::InvalidInput(format!("Failed to parse CSV row: {}", e)))?;
 
         // Parse date (try multiple formats)
-        let date = parse_date(&record.date)
-            .ok_or_else(|| AppError::InvalidInput(format!("Invalid date format: {}", record.date)))?;
+        let date = parse_date(&record.date).ok_or_else(|| {
+            AppError::InvalidInput(format!("Invalid date format: {}", record.date))
+        })?;
 
         invoices.push(ParsedInvoice {
             vendor: record.vendor,
@@ -53,13 +58,7 @@ pub fn parse_ap_export(path: &Path) -> Result<Vec<ParsedInvoice>> {
 }
 
 fn parse_date(date_str: &str) -> Option<NaiveDate> {
-    let formats = [
-        "%Y-%m-%d",
-        "%m/%d/%Y",
-        "%d/%m/%Y",
-        "%Y/%m/%d",
-        "%d-%b-%Y",
-    ];
+    let formats = ["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y/%m/%d", "%d-%b-%Y"];
 
     for fmt in formats {
         if let Ok(dt) = NaiveDate::parse_from_str(date_str, fmt) {

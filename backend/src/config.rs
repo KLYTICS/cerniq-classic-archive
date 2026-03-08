@@ -17,15 +17,16 @@ impl Config {
     pub fn from_env() -> anyhow::Result<Self> {
         dotenvy::dotenv().ok();
 
+        let jwt_secret = std::env::var("SUPABASE_JWT_SECRET")
+            .or_else(|_| std::env::var("JWT_SECRET"))
+            .expect("SUPABASE_JWT_SECRET (or JWT_SECRET) must be set");
+
         Ok(Config {
-            database_url: std::env::var("DATABASE_URL")
-                .expect("DATABASE_URL must be set"),
+            database_url: std::env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
             redis_url: std::env::var("REDIS_URL")
                 .unwrap_or_else(|_| "redis://localhost:6379".to_string()),
-            jwt_secret: std::env::var("JWT_SECRET")
-                .expect("JWT_SECRET must be set"),
-            jwt_expiration: std::env::var("JWT_EXPIRATION")
-                .unwrap_or_else(|_| "24h".to_string()),
+            jwt_secret,
+            jwt_expiration: std::env::var("JWT_EXPIRATION").unwrap_or_else(|_| "24h".to_string()),
             backend_port: std::env::var("BACKEND_PORT")
                 .unwrap_or_else(|_| "8000".to_string())
                 .parse()?,

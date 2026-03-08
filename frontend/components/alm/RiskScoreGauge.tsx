@@ -1,6 +1,7 @@
 'use client';
 
 import { RadialBarChart, RadialBar, ResponsiveContainer, PolarAngleAxis } from 'recharts';
+import { useTranslation } from '@/lib/i18n';
 
 interface RiskScoreGaugeProps {
   score: number; // 0-100
@@ -14,16 +15,17 @@ function getScoreColor(score: number): string {
   return '#ef4444'; // red
 }
 
-function getScoreLabel(score: number): string {
-  if (score >= 80) return 'Low Risk';
-  if (score >= 60) return 'Moderate';
-  if (score >= 40) return 'Elevated';
-  return 'High Risk';
+function getScoreLabelKey(score: number): string {
+  if (score >= 80) return 'risk.lowRisk';
+  if (score >= 60) return 'risk.moderate';
+  if (score >= 40) return 'risk.elevated';
+  return 'risk.highRisk';
 }
 
 export default function RiskScoreGauge({ score, size = 200 }: RiskScoreGaugeProps) {
+  const { t } = useTranslation();
   const color = getScoreColor(score);
-  const label = getScoreLabel(score);
+  const label = t(getScoreLabelKey(score));
   const data = [{ value: score, fill: color }];
 
   return (

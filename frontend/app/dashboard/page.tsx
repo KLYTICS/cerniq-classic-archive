@@ -28,7 +28,18 @@ export default function DashboardPage() {
         router.push(`/dashboard/ticker/${ticker}`);
     };
 
-    if (!initialized || !isAuthenticated || !onboardingComplete) {
+    if (!initialized) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm text-slate-400">Loading dashboard...</span>
+                </div>
+            </div>
+        );
+    }
+
+    if (!isAuthenticated || !onboardingComplete) {
         return null;
     }
 
@@ -39,7 +50,7 @@ export default function DashboardPage() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-4">
-                            <h1 className="text-xl font-bold text-white">CapexCycle OS</h1>
+                            <h1 className="text-xl font-bold text-white">CERNIQ</h1>
                             {lastUpdated && (
                                 <span className="text-xs text-gray-400">
                                     Data as of {new Date(lastUpdated).toLocaleTimeString()}

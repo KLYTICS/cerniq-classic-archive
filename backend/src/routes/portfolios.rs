@@ -2,28 +2,36 @@
 //! Full CRUD for portfolios, positions, and transactions with P&L calculations
 
 use axum::{
-    extract::{Path, Query, State, Json},
+    extract::{Json, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post, put, delete},
+    routing::{delete, get, post, put},
     Extension, Router,
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 use crate::error::{AppError, Result};
-use crate::state::AppState;
 use crate::services::mock_valuations::get_mock_valuation;
+use crate::state::AppState;
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/", get(list_portfolios).post(create_portfolio))
-        .route("/:id", get(get_portfolio).put(update_portfolio).delete(delete_portfolio))
+        .route(
+            "/:id",
+            get(get_portfolio)
+                .put(update_portfolio)
+                .delete(delete_portfolio),
+        )
         .route("/:id/positions", get(list_positions).post(add_position))
-        .route("/:id/positions/:pid", put(update_position).delete(close_position))
+        .route(
+            "/:id/positions/:pid",
+            put(update_position).delete(close_position),
+        )
         .route("/:id/transactions", get(list_transactions))
         .route("/:id/performance", get(get_performance))
 }
@@ -131,12 +139,11 @@ pub async fn list_portfolios(
     State(state): State<Arc<AppState>>,
     Extension(user_id): Extension<Uuid>,
 ) -> Result<Json<Vec<PortfolioWithStats>>> {
-    let portfolios: Vec<Portfolio> = sqlx::query_as(
-        "SELECT * FROM portfolios WHERE user_id = $1 ORDER BY created_at DESC"
-    )
-    .bind(user_id)
-    .fetch_all(&state.db)
-    .await?;
+    let portfolios: Vec<Portfolio> =
+        sqlx::query_as("SELECT * FROM portfolios WHERE user_id = $1 ORDER BY created_at DESC")
+            .bind(user_id)
+            .fetch_all(&state.db)
+            .await?;
 
     let mut result = Vec::new();
     for portfolio in portfolios {
@@ -158,7 +165,7 @@ pub async fn create_portfolio(
         INSERT INTO portfolios (user_id, name, description, benchmark, initial_capital)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING *
-        "#
+        "#,
     )
     .bind(user_id)
     .bind(&payload.name)
@@ -177,14 +184,13 @@ pub async fn get_portfolio(
     Extension(user_id): Extension<Uuid>,
     Path(portfolio_id): Path<Uuid>,
 ) -> Result<Json<PortfolioWithStats>> {
-    let portfolio: Portfolio = sqlx::query_as(
-        "SELECT * FROM portfolios WHERE id = $1 AND user_id = $2"
-    )
-    .bind(portfolio_id)
-    .bind(user_id)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or_else(|| AppError::NotFound("Portfolio not found".to_string()))?;
+    let portfolio: Portfolio =
+        sqlx::query_as("SELECT * FROM portfolios WHERE id = $1 AND user_id = $2")
+            .bind(portfolio_id)
+            .bind(user_id)
+            .fetch_optional(&state.db)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Portfolio not found".to_string()))?;
 
     let stats = calculate_portfolio_stats(&state, &portfolio).await?;
     Ok(Json(stats))
@@ -206,7 +212,7 @@ pub async fn update_portfolio(
             updated_at = NOW()
         WHERE id = $4 AND user_id = $5
         RETURNING *
-        "#
+        "#,
     )
     .bind(&payload.name)
     .bind(&payload.description)
@@ -226,13 +232,11 @@ pub async fn delete_portfolio(
     Extension(user_id): Extension<Uuid>,
     Path(portfolio_id): Path<Uuid>,
 ) -> Result<Json<Value>> {
-    let result = sqlx::query(
-        "DELETE FROM portfolios WHERE id = $1 AND user_id = $2"
-    )
-    .bind(portfolio_id)
-    .bind(user_id)
-    .execute(&state.db)
-    .await?;
+    let result = sqlx::query("DELETE FROM portfolios WHERE id = $1 AND user_id = $2")
+        .bind(portfolio_id)
+        .bind(user_id)
+        .execute(&state.db)
+        .await?;
 
     if result.rows_affected() == 0 {
         return Err(AppError::NotFound("Portfolio not found".to_string()));
@@ -255,30 +259,41 @@ pub async fn list_positions(
         FROM positions 
         WHERE portfolio_id = $1 AND closed_at IS NULL
         ORDER BY symbol
-        "#
+        "#,
     )
     .bind(portfolio_id)
     .fetch_all(&state.db)
     .await?;
 
-    let result: Vec<PositionWithPnL> = positions.into_iter().map(|p| {
-        let current_price = p.current_price
-            .or_else(|| get_mock_valuation(&p.symbol).map(|m| m.current_price))
-            .unwrap_or(p.avg_cost);
-        
-        let market_value = p.quantity * current_price;
-        let cost_basis = p.quantity * p.avg_cost;
-        let unrealized_pnl = market_value - cost_basis;
-        let unrealized_pnl_pct = if cost_basis > 0.0 { (unrealized_pnl / cost_basis) * 100.0 } else { 0.0 };
+    let result: Vec<PositionWithPnL> = positions
+        .into_iter()
+        .map(|p| {
+            let current_price = p
+                .current_price
+                .or_else(|| get_mock_valuation(&p.symbol).map(|m| m.current_price))
+                .unwrap_or(p.avg_cost);
 
-        PositionWithPnL {
-            position: Position { current_price: Some(current_price), ..p },
-            market_value,
-            cost_basis,
-            unrealized_pnl,
-            unrealized_pnl_pct,
-        }
-    }).collect();
+            let market_value = p.quantity * current_price;
+            let cost_basis = p.quantity * p.avg_cost;
+            let unrealized_pnl = market_value - cost_basis;
+            let unrealized_pnl_pct = if cost_basis > 0.0 {
+                (unrealized_pnl / cost_basis) * 100.0
+            } else {
+                0.0
+            };
+
+            PositionWithPnL {
+                position: Position {
+                    current_price: Some(current_price),
+                    ..p
+                },
+                market_value,
+                cost_basis,
+                unrealized_pnl,
+                unrealized_pnl_pct,
+            }
+        })
+        .collect();
 
     Ok(Json(result))
 }
@@ -290,7 +305,7 @@ pub async fn add_position(
     Json(payload): Json<AddPositionRequest>,
 ) -> Result<Json<Position>> {
     let symbol = payload.symbol.to_uppercase();
-    
+
     // Check if position exists
     let existing: Option<Position> = sqlx::query_as(
         r#"
@@ -298,7 +313,7 @@ pub async fn add_position(
                current_price::float8, opened_at, closed_at
         FROM positions 
         WHERE portfolio_id = $1 AND symbol = $2 AND closed_at IS NULL
-        "#
+        "#,
     )
     .bind(portfolio_id)
     .bind(&symbol)
@@ -308,15 +323,17 @@ pub async fn add_position(
     let position: Position = if let Some(existing) = existing {
         // Average up/down existing position
         let new_quantity = existing.quantity + payload.quantity;
-        let new_avg_cost = ((existing.quantity * existing.avg_cost) + (payload.quantity * payload.price)) / new_quantity;
-        
+        let new_avg_cost = ((existing.quantity * existing.avg_cost)
+            + (payload.quantity * payload.price))
+            / new_quantity;
+
         sqlx::query_as(
             r#"
             UPDATE positions SET quantity = $1, avg_cost = $2
             WHERE id = $3
             RETURNING id, portfolio_id, symbol, quantity::float8, avg_cost::float8, 
                       current_price::float8, opened_at, closed_at
-            "#
+            "#,
         )
         .bind(new_quantity)
         .bind(new_avg_cost)
@@ -331,7 +348,7 @@ pub async fn add_position(
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING id, portfolio_id, symbol, quantity::float8, avg_cost::float8, 
                       current_price::float8, opened_at, closed_at
-            "#
+            "#,
         )
         .bind(portfolio_id)
         .bind(&symbol)
@@ -348,7 +365,7 @@ pub async fn add_position(
         r#"
         INSERT INTO transactions (portfolio_id, position_id, symbol, action, quantity, price, notes)
         VALUES ($1, $2, $3, 'buy', $4, $5, $6)
-        "#
+        "#,
     )
     .bind(portfolio_id)
     .bind(position.id)
@@ -375,7 +392,7 @@ pub async fn update_position(
         WHERE id = $2 AND portfolio_id = $3
         RETURNING id, portfolio_id, symbol, quantity::float8, avg_cost::float8, 
                   current_price::float8, opened_at, closed_at
-        "#
+        "#,
     )
     .bind(payload.quantity)
     .bind(position_id)
@@ -389,7 +406,7 @@ pub async fn update_position(
         r#"
         INSERT INTO transactions (portfolio_id, position_id, symbol, action, quantity, price, notes)
         VALUES ($1, $2, $3, 'sell', $4, $5, $6)
-        "#
+        "#,
     )
     .bind(portfolio_id)
     .bind(position_id)
@@ -414,7 +431,7 @@ pub async fn close_position(
         WHERE id = $1 AND portfolio_id = $2
         RETURNING id, portfolio_id, symbol, quantity::float8, avg_cost::float8, 
                   current_price::float8, opened_at, closed_at
-        "#
+        "#,
     )
     .bind(position_id)
     .bind(portfolio_id)
@@ -432,7 +449,7 @@ pub async fn close_position(
         r#"
         INSERT INTO transactions (portfolio_id, position_id, symbol, action, quantity, price)
         VALUES ($1, $2, $3, 'sell', $4, $5)
-        "#
+        "#,
     )
     .bind(portfolio_id)
     .bind(position_id)
@@ -467,7 +484,7 @@ pub async fn list_transactions(
         WHERE portfolio_id = $1
         ORDER BY executed_at DESC
         LIMIT 100
-        "#
+        "#,
     )
     .bind(portfolio_id)
     .fetch_all(&state.db)
@@ -487,7 +504,7 @@ pub async fn get_performance(
                current_price::float8, opened_at, closed_at
         FROM positions 
         WHERE portfolio_id = $1 AND closed_at IS NULL
-        "#
+        "#,
     )
     .bind(portfolio_id)
     .fetch_all(&state.db)
@@ -498,20 +515,28 @@ pub async fn get_performance(
     let mut positions_with_pnl = Vec::new();
 
     for p in positions {
-        let current_price = p.current_price
+        let current_price = p
+            .current_price
             .or_else(|| get_mock_valuation(&p.symbol).map(|m| m.current_price))
             .unwrap_or(p.avg_cost);
-        
+
         let market_value = p.quantity * current_price;
         let cost_basis = p.quantity * p.avg_cost;
         let unrealized_pnl = market_value - cost_basis;
-        let unrealized_pnl_pct = if cost_basis > 0.0 { (unrealized_pnl / cost_basis) * 100.0 } else { 0.0 };
+        let unrealized_pnl_pct = if cost_basis > 0.0 {
+            (unrealized_pnl / cost_basis) * 100.0
+        } else {
+            0.0
+        };
 
         total_value += market_value;
         total_cost += cost_basis;
 
         positions_with_pnl.push(PositionWithPnL {
-            position: Position { current_price: Some(current_price), ..p },
+            position: Position {
+                current_price: Some(current_price),
+                ..p
+            },
             market_value,
             cost_basis,
             unrealized_pnl,
@@ -520,7 +545,11 @@ pub async fn get_performance(
     }
 
     let total_pnl = total_value - total_cost;
-    let total_pnl_pct = if total_cost > 0.0 { (total_pnl / total_cost) * 100.0 } else { 0.0 };
+    let total_pnl_pct = if total_cost > 0.0 {
+        (total_pnl / total_cost) * 100.0
+    } else {
+        0.0
+    };
 
     Ok(Json(PerformanceStats {
         portfolio_id,
@@ -546,7 +575,7 @@ async fn calculate_portfolio_stats(
                current_price::float8, opened_at, closed_at
         FROM positions 
         WHERE portfolio_id = $1 AND closed_at IS NULL
-        "#
+        "#,
     )
     .bind(portfolio.id)
     .fetch_all(&state.db)
@@ -556,7 +585,8 @@ async fn calculate_portfolio_stats(
     let mut total_cost = 0.0;
 
     for p in &positions {
-        let current_price = p.current_price
+        let current_price = p
+            .current_price
             .or_else(|| get_mock_valuation(&p.symbol).map(|m| m.current_price))
             .unwrap_or(p.avg_cost);
         total_value += p.quantity * current_price;
@@ -564,7 +594,11 @@ async fn calculate_portfolio_stats(
     }
 
     let total_pnl = total_value - total_cost;
-    let total_pnl_pct = if total_cost > 0.0 { (total_pnl / total_cost) * 100.0 } else { 0.0 };
+    let total_pnl_pct = if total_cost > 0.0 {
+        (total_pnl / total_cost) * 100.0
+    } else {
+        0.0
+    };
 
     Ok(PortfolioWithStats {
         portfolio: portfolio.clone(),

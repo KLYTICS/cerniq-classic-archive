@@ -8,15 +8,15 @@ use axum::{
     routing::get,
     Json, Router,
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::sync::Arc;
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
+use std::sync::Arc;
 
 use crate::error::{AppError, Result};
+use crate::services::mock_valuations::{get_all_mock_valuations, get_mock_valuation};
 use crate::state::AppState;
-use crate::services::mock_valuations::{get_mock_valuation, get_all_mock_valuations};
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
@@ -31,9 +31,9 @@ pub fn router() -> Router<Arc<AppState>> {
 
 #[derive(Serialize)]
 pub struct MarketSentiment {
-    overall_score: f64,           // -100 to 100
-    sentiment_label: String,      // "Extreme Fear", "Fear", "Neutral", "Greed", "Extreme Greed"
-    fear_greed_index: i32,        // 0-100
+    overall_score: f64,      // -100 to 100
+    sentiment_label: String, // "Extreme Fear", "Fear", "Neutral", "Greed", "Extreme Greed"
+    fear_greed_index: i32,   // 0-100
     components: SentimentComponents,
     updated_at: DateTime<Utc>,
 }
@@ -54,9 +54,9 @@ pub struct TrendingTicker {
     sector: String,
     price: f64,
     change_pct: f64,
-    volume_spike: f64,   // multiplier vs average
-    mentions: i32,       // social/news mentions
-    sentiment: String,   // "bullish", "bearish", "neutral"
+    volume_spike: f64, // multiplier vs average
+    mentions: i32,     // social/news mentions
+    sentiment: String, // "bullish", "bearish", "neutral"
 }
 
 #[derive(Serialize)]
@@ -105,23 +105,23 @@ pub struct NewsItem {
 /// GET /api/insights/sentiment - Overall market sentiment
 pub async fn get_market_sentiment() -> impl IntoResponse {
     // Generate realistic market sentiment based on a mix of factors
-    let momentum = 65.0;      // Market is slightly bullish
-    let volatility = -15.0;   // Low volatility = positive
-    let put_call = 12.0;      // Put/call ratio neutral
-    let safe_haven = -8.0;    // Low safe haven demand = risk-on
-    let breadth = 58.0;       // More stocks advancing than declining
-    
+    let momentum = 65.0; // Market is slightly bullish
+    let volatility = -15.0; // Low volatility = positive
+    let put_call = 12.0; // Put/call ratio neutral
+    let safe_haven = -8.0; // Low safe haven demand = risk-on
+    let breadth = 58.0; // More stocks advancing than declining
+
     let overall = (momentum + volatility + put_call + safe_haven + breadth) / 5.0;
     let fear_greed = ((overall + 100.0) / 2.0) as i32;
-    
+
     let label = match fear_greed {
         0..=20 => "Extreme Fear",
-        21..=40 => "Fear", 
+        21..=40 => "Fear",
         41..=60 => "Neutral",
         61..=80 => "Greed",
         _ => "Extreme Greed",
     };
-    
+
     Json(MarketSentiment {
         overall_score: overall,
         sentiment_label: label.to_string(),
@@ -221,7 +221,7 @@ pub async fn get_trending() -> impl IntoResponse {
             sentiment: "bearish".to_string(),
         },
     ];
-    
+
     Json(trending)
 }
 
@@ -317,7 +317,7 @@ pub async fn get_sector_heatmap() -> impl IntoResponse {
             sentiment: "bullish".to_string(),
         },
     ];
-    
+
     Json(SectorHeatMap {
         sectors,
         updated_at: Utc::now(),
@@ -325,14 +325,12 @@ pub async fn get_sector_heatmap() -> impl IntoResponse {
 }
 
 /// GET /api/insights/summary/:ticker - AI-generated ticker summary
-pub async fn get_ticker_summary(
-    Path(ticker): Path<String>,
-) -> Result<Json<TickerSummary>> {
+pub async fn get_ticker_summary(Path(ticker): Path<String>) -> Result<Json<TickerSummary>> {
     let ticker_upper = ticker.to_uppercase();
-    
+
     let mock = get_mock_valuation(&ticker_upper)
         .ok_or_else(|| AppError::NotFound(format!("No data for {}", ticker_upper)))?;
-    
+
     // Generate summary based on valuation data
     let summary = format!(
         "{} ({}) is currently trading at ${:.2}, representing a potential {}% {} based on our fair value estimate of ${:.2}. \
@@ -346,23 +344,43 @@ pub async fn get_ticker_summary(
         mock.revenue_growth,
         mock.cycle_position
     );
-    
+
     let key_points = vec![
-        format!("Current P/E: {:.1}x vs forward P/E: {:.1}x", mock.pe_ratio, mock.forward_pe),
-        format!("Fair value estimate: ${:.2} ({:+.1}% from current)", mock.fair_value, mock.upside_pct),
-        format!("Sector: {} - Cycle position: {}", mock.sector, mock.cycle_position),
-        format!("Growth: Revenue {:.1}%, Earnings {:.1}%", mock.revenue_growth, mock.earnings_growth),
+        format!(
+            "Current P/E: {:.1}x vs forward P/E: {:.1}x",
+            mock.pe_ratio, mock.forward_pe
+        ),
+        format!(
+            "Fair value estimate: ${:.2} ({:+.1}% from current)",
+            mock.fair_value, mock.upside_pct
+        ),
+        format!(
+            "Sector: {} - Cycle position: {}",
+            mock.sector, mock.cycle_position
+        ),
+        format!(
+            "Growth: Revenue {:.1}%, Earnings {:.1}%",
+            mock.revenue_growth, mock.earnings_growth
+        ),
         format!("Analyst rating: {}", mock.rating),
     ];
-    
-    let sentiment = if mock.upside_pct > 15.0 { "bullish" }
-        else if mock.upside_pct > 0.0 { "slightly bullish" }
-        else if mock.upside_pct > -15.0 { "slightly bearish" }
-        else { "bearish" };
-    
+
+    let sentiment = if mock.upside_pct > 15.0 {
+        "bullish"
+    } else if mock.upside_pct > 0.0 {
+        "slightly bullish"
+    } else if mock.upside_pct > -15.0 {
+        "slightly bearish"
+    } else {
+        "bearish"
+    };
+
     let news = vec![
         NewsItem {
-            title: format!("{} reports strong quarterly results, beats expectations", mock.name),
+            title: format!(
+                "{} reports strong quarterly results, beats expectations",
+                mock.name
+            ),
             source: "Reuters".to_string(),
             sentiment: "positive".to_string(),
             published_at: Utc::now(),
@@ -371,19 +389,27 @@ pub async fn get_ticker_summary(
         NewsItem {
             title: format!("Analyst upgrades {} to {}", mock.ticker, mock.rating),
             source: "Bloomberg".to_string(),
-            sentiment: if mock.upside_pct > 0.0 { "positive" } else { "neutral" }.to_string(),
+            sentiment: if mock.upside_pct > 0.0 {
+                "positive"
+            } else {
+                "neutral"
+            }
+            .to_string(),
             published_at: Utc::now(),
             url: format!("https://bloomberg.com/{}", mock.ticker.to_lowercase()),
         },
         NewsItem {
-            title: format!("{} announces new product launch in {} sector", mock.name, mock.sector),
+            title: format!(
+                "{} announces new product launch in {} sector",
+                mock.name, mock.sector
+            ),
             source: "CNBC".to_string(),
             sentiment: "positive".to_string(),
             published_at: Utc::now(),
             url: format!("https://cnbc.com/{}", mock.ticker.to_lowercase()),
         },
     ];
-    
+
     Ok(Json(TickerSummary {
         ticker: mock.ticker,
         name: mock.name,
@@ -443,6 +469,6 @@ pub async fn get_news_feed() -> impl IntoResponse {
             url: "https://reuters.com/oil".to_string(),
         },
     ];
-    
+
     Json(news)
 }

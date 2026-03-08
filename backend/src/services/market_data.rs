@@ -1,5 +1,5 @@
 //! Market data service for fetching and caching price data
-//! 
+//!
 //! This service provides institutional-grade market data with:
 //! - Primary source: yfinance (free, high quality)
 //! - Fallback: AlphaVantage (paid tier for reliability)
@@ -56,7 +56,7 @@ impl MarketDataService {
     }
 
     /// Fetch price data for a ticker between dates
-    /// 
+    ///
     /// Strategy:
     /// 1. Check Redis cache (key: market_data:{ticker}:{start}:{end})
     /// 2. If miss, check PostgreSQL
@@ -79,7 +79,9 @@ impl MarketDataService {
             if !db_data.is_empty() {
                 info!("Database hit for {} ({} rows)", ticker, db_data.len());
                 // Cache for next time
-                let _ = self.cache_prices(ticker, start_date, end_date, &db_data).await;
+                let _ = self
+                    .cache_prices(ticker, start_date, end_date, &db_data)
+                    .await;
                 return Ok(db_data);
             }
         }
@@ -92,7 +94,9 @@ impl MarketDataService {
         self.store_prices(&prices).await?;
 
         // Cache
-        let _ = self.cache_prices(ticker, start_date, end_date, &prices).await;
+        let _ = self
+            .cache_prices(ticker, start_date, end_date, &prices)
+            .await;
 
         Ok(prices)
     }
@@ -132,7 +136,7 @@ impl MarketDataService {
     }
 
     /// Fetch from yfinance API
-    /// 
+    ///
     /// Uses the unofficial yfinance v8 API endpoint
     async fn fetch_yfinance(
         &self,
@@ -169,9 +173,15 @@ impl MarketDataService {
             .ok_or_else(|| anyhow::anyhow!("Empty response"))?;
 
         let timestamps = &chart.timestamp;
-        let quote = &chart.indicators.quote.first()
+        let quote = &chart
+            .indicators
+            .quote
+            .first()
             .ok_or_else(|| anyhow::anyhow!("No quote data"))?;
-        let adj_close = &chart.indicators.adjclose.first()
+        let adj_close = &chart
+            .indicators
+            .adjclose
+            .first()
             .ok_or_else(|| anyhow::anyhow!("No adjusted close data"))?;
 
         let mut prices = Vec::new();
@@ -199,7 +209,9 @@ impl MarketDataService {
 
     /// Fetch from AlphaVantage (fallback)
     async fn fetch_alphavantage(&self, ticker: &str) -> Result<Vec<PriceData>> {
-        let api_key = self.alphavantage_key.as_ref()
+        let api_key = self
+            .alphavantage_key
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("AlphaVantage API key not configured"))?;
 
         let url = format!(
@@ -207,23 +219,21 @@ impl MarketDataService {
             ticker, api_key
         );
 
-        let response: AlphaVantageResponse = self
-            .http_client
-            .get(&url)
-            .send()
-            .await?
-            .json()
-            .await?;
+        let response: AlphaVantageResponse =
+            self.http_client.get(&url).send().await?.json().await?;
 
         Self::parse_alphavantage_response(ticker, response)
     }
 
-    fn parse_alphavantage_response(ticker: &str, response: AlphaVantageResponse) -> Result<Vec<PriceData>> {
+    fn parse_alphavantage_response(
+        ticker: &str,
+        response: AlphaVantageResponse,
+    ) -> Result<Vec<PriceData>> {
         let mut prices = Vec::new();
-        
+
         for (date_str, daily) in response.time_series {
             let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")?;
-            
+
             prices.push(PriceData {
                 ticker: ticker.to_string(),
                 date,
@@ -248,10 +258,10 @@ impl MarketDataService {
         end_date: NaiveDate,
     ) -> Result<Vec<PriceData>> {
         let key = format!("market_data:{}:{}:{}", ticker, start_date, end_date);
-        
+
         let mut conn = self.redis.clone();
         let cached: String = conn.get(&key).await?;
-        
+
         let prices: Vec<PriceData> = serde_json::from_str(&cached)?;
         Ok(prices)
     }
@@ -266,10 +276,10 @@ impl MarketDataService {
     ) -> Result<()> {
         let key = format!("market_data:{}:{}:{}", ticker, start_date, end_date);
         let value = serde_json::to_string(prices)?;
-        
+
         let mut conn = self.redis.clone();
         conn.set_ex::<_, _, ()>(&key, value, 86400).await?; // 24 hours
-        
+
         Ok(())
     }
 
@@ -332,7 +342,11 @@ impl MarketDataService {
             .await?;
         }
 
-        info!("Stored {} price records for {}", prices.len(), prices[0].ticker);
+        info!(
+            "Stored {} price records for {}",
+            prices.len(),
+            prices[0].ticker
+        );
         Ok(())
     }
 
@@ -433,7 +447,8 @@ mod tests {
     #[ignore] // Run with: cargo test -- --ignored
     async fn test_yfinance_integration() {
         let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
-        let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1/".to_string());
+        let redis_url =
+            std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1/".to_string());
 
         let db = PgPool::connect(&db_url).await.unwrap();
         let redis_client = redis::Client::open(redis_url).unwrap();
@@ -445,7 +460,7 @@ mod tests {
         let end = NaiveDate::from_ymd_opt(2024, 12, 31).unwrap();
 
         let prices = service.get_prices("NVDA", start, end).await.unwrap();
-        
+
         assert!(!prices.is_empty());
         assert_eq!(prices[0].ticker, "NVDA");
         println!("Fetched {} price points for NVDA", prices.len());

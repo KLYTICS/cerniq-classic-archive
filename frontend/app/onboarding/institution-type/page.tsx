@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
-import { Landmark, Users, Briefcase, RefreshCw, ArrowRight } from 'lucide-react';
+import { Landmark, Users, Briefcase, Building, RefreshCw, ArrowRight } from 'lucide-react';
 
-type InstitutionType = 'bank' | 'credit_union' | 'family_office';
+type InstitutionType = 'bank' | 'credit_union' | 'family_office' | 'cooperativa';
 
 interface TypeOption {
   type: InstitutionType;
@@ -36,6 +36,15 @@ const options: TypeOption[] = [
     size: '$50M–$500M assets',
     color: 'from-emerald-500/20 to-teal-500/10',
     borderColor: 'border-emerald-500/30 hover:border-emerald-400',
+  },
+  {
+    type: 'cooperativa',
+    icon: Building,
+    title: 'Cooperativa PR',
+    description: 'ALM para cooperativas de ahorro y crédito. COSSEC compliance, análisis de riesgo, y reportes regulatorios.',
+    size: '$50M–$500M activos',
+    color: 'from-cyan-500/20 to-blue-500/10',
+    borderColor: 'border-cyan-500/30 hover:border-cyan-400',
   },
   {
     type: 'family_office',
@@ -88,7 +97,7 @@ export default function InstitutionTypePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/20 flex items-center justify-center p-6">
-      <div className="max-w-3xl w-full">
+      <div className="max-w-4xl w-full">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">What type of institution?</h1>
@@ -98,7 +107,7 @@ export default function InstitutionTypePage() {
         </div>
 
         {/* Type Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {options.map((opt) => (
             <button
               key={opt.type}

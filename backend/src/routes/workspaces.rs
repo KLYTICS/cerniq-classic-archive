@@ -1,7 +1,7 @@
 //! Workspace Management Routes for SpendCheck
 
 use axum::{
-    extract::{Path, State, Json},
+    extract::{Json, Path, State},
     response::Json as AxumJson,
     Extension,
 };
@@ -11,8 +11,8 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::error::{AppError, Result};
-use crate::state::AppState;
 use crate::models::Workspace;
+use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct CreateWorkspaceRequest {
@@ -61,7 +61,7 @@ pub async fn create_workspace(
         INSERT INTO workspaces (id, user_id, name, company_name)
         VALUES ($1, $2, $3, $4)
         RETURNING *
-        "#
+        "#,
     )
     .bind(Uuid::new_v4())
     .bind(user_uuid)
@@ -90,7 +90,7 @@ pub async fn list_workspaces(
         .unwrap_or_else(|| Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap());
 
     let workspaces = sqlx::query_as::<_, Workspace>(
-        "SELECT * FROM workspaces WHERE user_id = $1 ORDER BY created_at DESC"
+        "SELECT * FROM workspaces WHERE user_id = $1 ORDER BY created_at DESC",
     )
     .bind(user_uuid)
     .fetch_all(&state.db)
@@ -120,14 +120,13 @@ pub async fn get_workspace(
         .map(|Extension(id)| id)
         .unwrap_or_else(|| Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap());
 
-    let workspace = sqlx::query_as::<_, Workspace>(
-        "SELECT * FROM workspaces WHERE id = $1 AND user_id = $2"
-    )
-    .bind(workspace_id)
-    .bind(user_uuid)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or_else(|| AppError::NotFound("Workspace not found".to_string()))?;
+    let workspace =
+        sqlx::query_as::<_, Workspace>("SELECT * FROM workspaces WHERE id = $1 AND user_id = $2")
+            .bind(workspace_id)
+            .bind(user_uuid)
+            .fetch_optional(&state.db)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Workspace not found".to_string()))?;
 
     // Get stats
     let stats = get_workspace_stats(workspace_id, &state.db).await?;
@@ -153,14 +152,13 @@ pub async fn update_workspace(
         .unwrap_or_else(|| Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap());
 
     // Verify ownership
-    let existing = sqlx::query_as::<_, Workspace>(
-        "SELECT * FROM workspaces WHERE id = $1 AND user_id = $2"
-    )
-    .bind(workspace_id)
-    .bind(user_uuid)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or_else(|| AppError::NotFound("Workspace not found".to_string()))?;
+    let existing =
+        sqlx::query_as::<_, Workspace>("SELECT * FROM workspaces WHERE id = $1 AND user_id = $2")
+            .bind(workspace_id)
+            .bind(user_uuid)
+            .fetch_optional(&state.db)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Workspace not found".to_string()))?;
 
     let name = payload.name.unwrap_or(existing.name);
     let company_name = payload.company_name.or(existing.company_name);
@@ -171,7 +169,7 @@ pub async fn update_workspace(
         SET name = $1, company_name = $2, updated_at = NOW()
         WHERE id = $3
         RETURNING *
-        "#
+        "#,
     )
     .bind(&name)
     .bind(&company_name)
@@ -199,13 +197,11 @@ pub async fn delete_workspace(
         .unwrap_or_else(|| Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap());
 
     // Verify ownership
-    let result = sqlx::query(
-        "DELETE FROM workspaces WHERE id = $1 AND user_id = $2"
-    )
-    .bind(workspace_id)
-    .bind(user_uuid)
-    .execute(&state.db)
-    .await?;
+    let result = sqlx::query("DELETE FROM workspaces WHERE id = $1 AND user_id = $2")
+        .bind(workspace_id)
+        .bind(user_uuid)
+        .execute(&state.db)
+        .await?;
 
     if result.rows_affected() == 0 {
         return Err(AppError::NotFound("Workspace not found".to_string()));
@@ -218,29 +214,25 @@ pub async fn delete_workspace(
 }
 
 async fn get_workspace_stats(workspace_id: Uuid, db: &sqlx::PgPool) -> Result<WorkspaceStats> {
-    let uploads: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM uploads WHERE workspace_id = $1"
-    )
-    .bind(workspace_id)
-    .fetch_one(db)
-    .await?;
+    let uploads: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM uploads WHERE workspace_id = $1")
+        .bind(workspace_id)
+        .fetch_one(db)
+        .await?;
 
     let invoices: (i64, Option<f64>) = sqlx::query_as(
-        "SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM invoices WHERE workspace_id = $1"
+        "SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM invoices WHERE workspace_id = $1",
     )
     .bind(workspace_id)
     .fetch_one(db)
     .await?;
 
-    let vendors: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM vendors WHERE workspace_id = $1"
-    )
-    .bind(workspace_id)
-    .fetch_one(db)
-    .await?;
+    let vendors: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM vendors WHERE workspace_id = $1")
+        .bind(workspace_id)
+        .fetch_one(db)
+        .await?;
 
     let findings: (i64, Option<f64>) = sqlx::query_as(
-        "SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM findings WHERE workspace_id = $1"
+        "SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM findings WHERE workspace_id = $1",
     )
     .bind(workspace_id)
     .fetch_one(db)

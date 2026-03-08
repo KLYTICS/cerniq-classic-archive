@@ -9,10 +9,11 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::services::mock_valuations::{
-    get_mock_valuation, get_all_mock_valuations, screen_valuations, compare_valuations, MockValuation
+    compare_valuations, get_all_mock_valuations, get_mock_valuation, screen_valuations,
+    MockValuation,
 };
-use crate::valuation::cyclical::{CyclicalValuationEngine, CyclicalValuation};
 use crate::state::AppState;
+use crate::valuation::cyclical::{CyclicalValuation, CyclicalValuationEngine};
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
@@ -20,7 +21,10 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/compare", get(compare))
         .route("/screener", get(screener))
         .route("/cyclical/:ticker", get(get_cyclical_valuation))
-        .route("/cyclical/:ticker/compute", post(compute_cyclical_valuation))
+        .route(
+            "/cyclical/:ticker/compute",
+            post(compute_cyclical_valuation),
+        )
 }
 
 #[derive(Deserialize)]
@@ -43,7 +47,7 @@ async fn get_valuation(
     Path(ticker): Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let ticker_upper = ticker.to_uppercase();
-    
+
     // First try database for real cyclical valuation
     if let Ok(Some(valuation)) = sqlx::query_as::<_, CyclicalValuation>(
         r#"
@@ -73,15 +77,21 @@ async fn get_valuation(
             revenue_growth: 0.0,
             earnings_growth: 0.0,
             upside_pct: valuation.upside_downside_pct,
-            rating: if valuation.upside_downside_pct > 20.0 { "Strong Buy" }
-                else if valuation.upside_downside_pct > 10.0 { "Buy" }
-                else if valuation.upside_downside_pct > -10.0 { "Hold" }
-                else { "Sell" }.to_string(),
+            rating: if valuation.upside_downside_pct > 20.0 {
+                "Strong Buy"
+            } else if valuation.upside_downside_pct > 10.0 {
+                "Buy"
+            } else if valuation.upside_downside_pct > -10.0 {
+                "Hold"
+            } else {
+                "Sell"
+            }
+            .to_string(),
             cycle_position: valuation.current_cycle_position,
             source: "cyclical_valuation".to_string(),
         }));
     }
-    
+
     // Fallback to mock data
     if let Some(mock) = get_mock_valuation(&ticker_upper) {
         return Ok(Json(ValuationResponse {
@@ -104,8 +114,11 @@ async fn get_valuation(
             source: "mock_valuation".to_string(),
         }));
     }
-    
-    Err((StatusCode::NOT_FOUND, format!("No valuation data for {}", ticker)))
+
+    Err((
+        StatusCode::NOT_FOUND,
+        format!("No valuation data for {}", ticker),
+    ))
 }
 
 #[derive(Serialize)]
@@ -130,22 +143,19 @@ struct ValuationResponse {
 }
 
 /// GET /api/valuation/compare?tickers=NVDA,AMD,INTC
-async fn compare(
-    Query(params): Query<CompareQuery>,
-) -> impl IntoResponse {
-    let tickers: Vec<String> = params.tickers
+async fn compare(Query(params): Query<CompareQuery>) -> impl IntoResponse {
+    let tickers: Vec<String> = params
+        .tickers
         .split(',')
         .map(|s| s.trim().to_uppercase())
         .collect();
-    
+
     let valuations = compare_valuations(&tickers);
     Json(valuations)
 }
 
 /// GET /api/valuation/screener?sector=tech&min_upside=10&max_pe=30
-async fn screener(
-    Query(params): Query<ScreenerQuery>,
-) -> impl IntoResponse {
+async fn screener(Query(params): Query<ScreenerQuery>) -> impl IntoResponse {
     let valuations = screen_valuations(
         params.sector.as_deref(),
         params.min_upside,
@@ -228,9 +238,7 @@ async fn compute_cyclical_valuation(
         cycle_position: valuation.current_cycle_position.clone(),
         message: format!(
             "Cyclical valuation complete. Fair value: ${:.2}, Current: ${:.2} ({:+.1}%)",
-            valuation.fair_value_base,
-            valuation.current_price,
-            valuation.upside_downside_pct
+            valuation.fair_value_base, valuation.current_price, valuation.upside_downside_pct
         ),
     }))
 }

@@ -1,15 +1,15 @@
 use axum::{
-    extract::{State, Json},
+    extract::{Json, State},
     response::Json as AxumJson,
 };
-use serde::{Deserialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::error::{AppError, Result};
+use crate::models::{Finding, Report};
 use crate::state::AppState;
-use crate::models::{Report, Finding};
 
 #[derive(Deserialize)]
 pub struct GenerateReportRequest {
@@ -22,20 +22,22 @@ pub async fn generate_report(
 ) -> Result<AxumJson<Value>> {
     // 1. Fetch all findings for workspace
     let findings = sqlx::query_as::<_, Finding>(
-        "SELECT * FROM findings WHERE workspace_id = $1 ORDER BY amount DESC"
+        "SELECT * FROM findings WHERE workspace_id = $1 ORDER BY amount DESC",
     )
     .bind(payload.workspace_id)
     .fetch_all(&state.db)
     .await?;
 
     if findings.is_empty() {
-        return Err(AppError::InvalidInput("No findings to report. Run analysis first.".to_string()));
+        return Err(AppError::InvalidInput(
+            "No findings to report. Run analysis first.".to_string(),
+        ));
     }
 
     // 2. Calculate aggregations
     let findings_count = findings.len() as i32;
     let total_leaks_found: f64 = findings.iter().map(|f| f.amount.unwrap_or(0.0)).sum();
-    
+
     // In a real app, we'd fetch total_spend from vendors table
     let total_spend_analyzed = 1_000_000.0; // Placeholder
     let leaks_percentage = (total_leaks_found / total_spend_analyzed) * 100.0;
@@ -44,20 +46,27 @@ pub async fn generate_report(
     let mut memo = String::new();
     memo.push_str("EXECUTIVE LEAK AUDIT REPORT\n");
     memo.push_str("===========================\n\n");
-    
+
     memo.push_str("SUMMARY\n");
-    memo.push_str(&format!("Total Potential Recovery: ${:.2}\n", total_leaks_found));
-    memo.push_str(&format!("Leakage Rate: {:.2}% of analyzed spend\n", leaks_percentage));
+    memo.push_str(&format!(
+        "Total Potential Recovery: ${:.2}\n",
+        total_leaks_found
+    ));
+    memo.push_str(&format!(
+        "Leakage Rate: {:.2}% of analyzed spend\n",
+        leaks_percentage
+    ));
     memo.push_str(&format!("Issues Identified: {}\n\n", findings_count));
 
     memo.push_str("TOP PRIORITY LEAKS\n");
     memo.push_str("------------------\n");
-    
+
     for (i, finding) in findings.iter().take(5).enumerate() {
         let amount = finding.amount.unwrap_or(0.0);
         let vendor = finding.description.as_deref().unwrap_or("Unknown Vendor");
         memo.push_str(&format!("{}. ${:.2} - {}\n", i + 1, amount, vendor));
-        memo.push_str(&format!("   Risk: {} | Type: {}\n\n", 
+        memo.push_str(&format!(
+            "   Risk: {} | Type: {}\n\n",
             finding.severity.as_deref().unwrap_or("Medium"),
             finding.finding_type
         ));
@@ -83,7 +92,7 @@ pub async fn generate_report(
         )
         VALUES ($1, $2, 'leak_audit', $3, $4, $5, $6, $7)
         RETURNING *
-        "#
+        "#,
     )
     .bind(Uuid::new_v4())
     .bind(payload.workspace_id)

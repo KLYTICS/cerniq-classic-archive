@@ -46,6 +46,13 @@ export interface TranslationKeys {
     progressSteps: string[];
     dashboardReady: string;
     openDashboard: string;
+    salesMode: string;
+    riskScore: string;
+    capital: string;
+    niiLabel: string;
+    atBps200: string;
+    preparingReport: string;
+    cossecCompliance: string;
   };
   pricing: {
     title: string;
@@ -64,6 +71,18 @@ export interface TranslationKeys {
     baselCompliant: string;
     builtInPR: string;
     ocifAware: string;
+  };
+  risk: {
+    lowRisk: string;
+    moderate: string;
+    elevated: string;
+    highRisk: string;
+    critical: string;
+    compliant: string;
+    warning: string;
+    breach: string;
+    niiImpactByScenario: string;
+    millions: string;
   };
   alm: {
     welcome: string;

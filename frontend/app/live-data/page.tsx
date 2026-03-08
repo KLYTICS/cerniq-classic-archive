@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { io, Socket } from 'socket.io-client';
 import { apiClient } from '@/lib/api';
 
-const NODE_API_URL = process.env.NEXT_PUBLIC_NODE_API_URL || 'http://localhost:3000';
+const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
 
 interface PriceData {
     symbol: string;

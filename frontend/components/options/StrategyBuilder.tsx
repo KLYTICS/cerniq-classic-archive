@@ -114,9 +114,10 @@ export function StrategyBuilder() {
     const calculateStrategy = async () => {
         if (legs.length === 0) return;
 
+        const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:3000/api/options/strategy', {
+            const response = await fetch(`${NODE_API_URL}/api/options/strategy`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

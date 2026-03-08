@@ -1,15 +1,15 @@
 //! Findings Management Routes for SpendCheck
 
 use axum::{
-    extract::{Path, Query, State, Json},
+    extract::{Json, Path, Query, State},
     response::Json as AxumJson,
     Extension,
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 use crate::error::{AppError, Result};
 use crate::state::AppState;
@@ -102,7 +102,7 @@ pub async fn list_findings(
                created_at
         FROM findings
         WHERE workspace_id = $1
-        "#
+        "#,
     );
 
     if params.finding_type.is_some() {
@@ -117,7 +117,21 @@ pub async fn list_findings(
 
     query.push_str(" ORDER BY severity DESC, created_at DESC LIMIT $2 OFFSET $3");
 
-    let findings: Vec<(Uuid, Uuid, String, Option<i32>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<Value>, Option<f64>, Option<String>, DateTime<Utc>)> = sqlx::query_as(&query)
+    let findings: Vec<(
+        Uuid,
+        Uuid,
+        String,
+        Option<i32>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<Value>,
+        Option<f64>,
+        Option<String>,
+        DateTime<Utc>,
+    )> = sqlx::query_as(&query)
         .bind(params.workspace_id)
         .bind(limit)
         .bind(offset)
@@ -125,16 +139,15 @@ pub async fn list_findings(
         .await?;
 
     // Get total count
-    let (total_count,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM findings WHERE workspace_id = $1"
-    )
-    .bind(params.workspace_id)
-    .fetch_one(&state.db)
-    .await?;
+    let (total_count,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM findings WHERE workspace_id = $1")
+            .bind(params.workspace_id)
+            .fetch_one(&state.db)
+            .await?;
 
     // Get total savings
     let (total_savings,): (Option<f64>,) = sqlx::query_as(
-        "SELECT COALESCE(SUM(amount)::float8, 0) FROM findings WHERE workspace_id = $1"
+        "SELECT COALESCE(SUM(amount)::float8, 0) FROM findings WHERE workspace_id = $1",
     )
     .bind(params.workspace_id)
     .fetch_one(&state.db)
@@ -171,7 +184,21 @@ pub async fn get_finding(
     State(state): State<Arc<AppState>>,
     Path(finding_id): Path<Uuid>,
 ) -> Result<AxumJson<FindingResponse>> {
-    let finding: (Uuid, Uuid, String, Option<i32>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<Value>, Option<f64>, Option<String>, DateTime<Utc>) = sqlx::query_as(
+    let finding: (
+        Uuid,
+        Uuid,
+        String,
+        Option<i32>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<Value>,
+        Option<f64>,
+        Option<String>,
+        DateTime<Utc>,
+    ) = sqlx::query_as(
         r#"
         SELECT id, workspace_id, 
                COALESCE(finding_type::text, 'unknown'),
@@ -182,7 +209,7 @@ pub async fn get_finding(
                created_at
         FROM findings
         WHERE id = $1
-        "#
+        "#,
     )
     .bind(finding_id)
     .fetch_optional(&state.db)
@@ -213,11 +240,12 @@ pub async fn update_finding(
     Json(payload): Json<UpdateFindingRequest>,
 ) -> Result<AxumJson<Value>> {
     let valid_statuses = ["new", "triaged", "investigating", "resolved", "ignored"];
-    
+
     if let Some(ref status) = payload.status {
         if !valid_statuses.contains(&status.as_str()) {
             return Err(AppError::InvalidInput(format!(
-                "Invalid status. Must be one of: {:?}", valid_statuses
+                "Invalid status. Must be one of: {:?}",
+                valid_statuses
             )));
         }
     }
@@ -229,7 +257,7 @@ pub async fn update_finding(
             resolved_at = CASE WHEN $1 = 'resolved' THEN NOW() ELSE resolved_at END,
             updated_at = NOW()
         WHERE id = $2
-        "#
+        "#,
     )
     .bind(&payload.status)
     .bind(finding_id)
@@ -270,7 +298,7 @@ pub async fn submit_feedback(
         r#"
         INSERT INTO finding_feedback (id, finding_id, user_id, is_true_positive, notes)
         VALUES ($1, $2, $3, $4, $5)
-        "#
+        "#,
     )
     .bind(Uuid::new_v4())
     .bind(finding_id)
@@ -281,7 +309,11 @@ pub async fn submit_feedback(
     .await?;
 
     // Update finding status based on feedback
-    let new_status = if payload.is_true_positive { "triaged" } else { "ignored" };
+    let new_status = if payload.is_true_positive {
+        "triaged"
+    } else {
+        "ignored"
+    };
     sqlx::query("UPDATE findings SET status = $1, updated_at = NOW() WHERE id = $2")
         .bind(new_status)
         .bind(finding_id)
@@ -302,12 +334,10 @@ pub async fn get_findings_stats(
     Query(params): Query<FindingsQuery>,
 ) -> Result<AxumJson<FindingsStatsResponse>> {
     // Total findings
-    let (total,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM findings WHERE workspace_id = $1"
-    )
-    .bind(params.workspace_id)
-    .fetch_one(&state.db)
-    .await?;
+    let (total,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM findings WHERE workspace_id = $1")
+        .bind(params.workspace_id)
+        .fetch_one(&state.db)
+        .await?;
 
     // By type
     let by_type: Vec<(String, i64, Option<f64>)> = sqlx::query_as(
@@ -316,7 +346,7 @@ pub async fn get_findings_stats(
         FROM findings 
         WHERE workspace_id = $1
         GROUP BY finding_type
-        "#
+        "#,
     )
     .bind(params.workspace_id)
     .fetch_all(&state.db)
@@ -329,7 +359,7 @@ pub async fn get_findings_stats(
         FROM findings 
         WHERE workspace_id = $1
         GROUP BY status
-        "#
+        "#,
     )
     .bind(params.workspace_id)
     .fetch_all(&state.db)
@@ -337,7 +367,7 @@ pub async fn get_findings_stats(
 
     // Total potential savings
     let (total_savings,): (Option<f64>,) = sqlx::query_as(
-        "SELECT COALESCE(SUM(amount)::float8, 0) FROM findings WHERE workspace_id = $1"
+        "SELECT COALESCE(SUM(amount)::float8, 0) FROM findings WHERE workspace_id = $1",
     )
     .bind(params.workspace_id)
     .fetch_one(&state.db)
@@ -353,15 +383,21 @@ pub async fn get_findings_stats(
 
     Ok(AxumJson(FindingsStatsResponse {
         total_findings: total,
-        by_type: by_type.into_iter().map(|(t, c, a)| TypeStats {
-            finding_type: t,
-            count: c,
-            total_amount: a.unwrap_or(0.0),
-        }).collect(),
-        by_status: by_status.into_iter().map(|(s, c)| StatusStats {
-            status: s,
-            count: c,
-        }).collect(),
+        by_type: by_type
+            .into_iter()
+            .map(|(t, c, a)| TypeStats {
+                finding_type: t,
+                count: c,
+                total_amount: a.unwrap_or(0.0),
+            })
+            .collect(),
+        by_status: by_status
+            .into_iter()
+            .map(|(s, c)| StatusStats {
+                status: s,
+                count: c,
+            })
+            .collect(),
         total_potential_savings: total_savings.unwrap_or(0.0),
         resolved_savings: resolved_savings.unwrap_or(0.0),
     }))

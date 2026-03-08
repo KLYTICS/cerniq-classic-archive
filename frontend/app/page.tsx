@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { apiClient } from '@/lib/api';
 import { useRouter } from 'next/navigation';
-import { Landmark, Shield, TrendingUp, Zap, BarChart3, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Landmark, Shield, TrendingUp, Zap, BarChart3, ArrowRight, CheckCircle2, Check } from 'lucide-react';
+
+const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
 
 export default function LandingPage() {
   const [email, setEmail] = useState('');
@@ -14,7 +16,30 @@ export default function LandingPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingTier, setLoadingTier] = useState<string | null>(null);
   const router = useRouter();
+
+  async function handleCheckout(tier: string) {
+    setLoadingTier(tier);
+    try {
+      const res = await fetch(`${NODE_API_URL}/api/billing/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tier,
+          successUrl: '/portal?welcome=1',
+          cancelUrl: '/#pricing',
+        }),
+      });
+      if (!res.ok) throw new Error('Checkout failed');
+      const { checkoutUrl } = await res.json();
+      window.location.href = checkoutUrl;
+    } catch {
+      alert('Unable to start checkout. Please try again.');
+    } finally {
+      setLoadingTier(null);
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,9 +72,17 @@ export default function LandingPage() {
           <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center">
             <span className="text-slate-900 font-bold text-sm">C</span>
           </div>
-          <span className="text-xl font-bold tracking-tight">CapexCycleOS</span>
+          <span className="text-xl font-bold tracking-tight">CERNIQ</span>
         </div>
         <div className="flex gap-4 items-center">
+          <button
+            onClick={() =>
+              document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })
+            }
+            className="text-sm font-medium hover:text-amber-400 transition hidden sm:block"
+          >
+            Pricing
+          </button>
           <button
             onClick={() => router.push('/login')}
             className="text-sm font-medium hover:text-amber-400 transition"
@@ -74,7 +107,7 @@ export default function LandingPage() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
           </span>
-          For Banks, Credit Unions & Family Offices
+          For Banks, Credit Unions, Cooperativas & Family Offices
         </div>
 
         <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 bg-gradient-to-br from-white via-white to-gray-500 bg-clip-text text-transparent">
@@ -86,7 +119,7 @@ export default function LandingPage() {
         </h1>
 
         <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-          CapexCycleOS gives mid-market financial institutions the ALM analytics, stress testing,
+          CERNIQ gives mid-market financial institutions the ALM analytics, stress testing,
           and regulatory compliance tools that used to require a $500K consulting engagement.
         </p>
 
@@ -200,7 +233,7 @@ export default function LandingPage() {
       <section className="py-24 px-6 border-y border-white/5">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">Built For</h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
               {
                 title: 'Community Banks',
@@ -211,6 +244,11 @@ export default function LandingPage() {
                 title: 'Credit Unions',
                 desc: 'Meet NCUA requirements with automated ALM reporting. NEV analysis, concentration risk, and LCR.',
                 stat: '$100M - $1B assets',
+              },
+              {
+                title: 'Cooperativas PR',
+                desc: 'Cumplimiento COSSEC con reportes bilingues. Ratio de capital, liquidez, y pruebas de estres automatizadas.',
+                stat: '$50M - $500M activos',
               },
               {
                 title: 'Family Offices',
@@ -265,13 +303,125 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Pricing */}
+      <section id="pricing" className="py-32 px-6 border-y border-white/5">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
+            Simple, Transparent Pricing
+          </h2>
+          <p className="text-gray-400 text-center mb-16 max-w-2xl mx-auto">
+            From a single report to full-service risk management. Pick what fits.
+          </p>
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* One-Time Report */}
+            <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-8 flex flex-col">
+              <h3 className="text-lg font-bold text-white mb-1">ALM Report</h3>
+              <p className="text-gray-500 text-sm mb-6">One-time engagement</p>
+              <div className="mb-6">
+                <span className="text-4xl font-bold text-white">$750</span>
+                <span className="text-gray-500 ml-1">/ report</span>
+              </div>
+              <ul className="space-y-3 mb-8 flex-1">
+                {[
+                  'Full balance sheet analysis',
+                  'NII & EVE sensitivity',
+                  'Monte Carlo stress test',
+                  'COSSEC / NCUA compliance',
+                  'Bilingual PDF (EN/ES)',
+                  'Board-ready formatting',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-sm text-gray-300">
+                    <Check className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => handleCheckout('one_time')}
+                disabled={loadingTier === 'one_time'}
+                className="w-full py-3 rounded-lg font-semibold border border-amber-500/50 text-amber-400 hover:bg-amber-500/10 transition disabled:opacity-60"
+              >
+                {loadingTier === 'one_time' ? 'Loading...' : 'Get Started — $750'}
+              </button>
+            </div>
+
+            {/* SaaS */}
+            <div className="bg-gradient-to-b from-amber-500/10 to-slate-900/60 border-2 border-amber-500/40 rounded-2xl p-8 flex flex-col relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-900 text-xs font-bold px-3 py-1 rounded-full">
+                MOST POPULAR
+              </div>
+              <h3 className="text-lg font-bold text-white mb-1">Platform</h3>
+              <p className="text-gray-500 text-sm mb-6">Self-serve SaaS access</p>
+              <div className="mb-6">
+                <span className="text-4xl font-bold text-white">$299</span>
+                <span className="text-gray-500 ml-1">/ month</span>
+              </div>
+              <ul className="space-y-3 mb-8 flex-1">
+                {[
+                  'Everything in ALM Report',
+                  'Unlimited reports',
+                  'Real-time dashboard',
+                  'CSV & API data ingestion',
+                  'Multi-institution support',
+                  'Monthly compliance snapshots',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-sm text-gray-300">
+                    <Check className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => handleCheckout('monthly')}
+                disabled={loadingTier === 'monthly'}
+                className="w-full py-3 rounded-lg font-semibold bg-amber-500 hover:bg-amber-400 text-slate-900 transition disabled:opacity-60"
+              >
+                {loadingTier === 'monthly' ? 'Loading...' : 'Start — $299/mo'}
+              </button>
+            </div>
+
+            {/* Partner */}
+            <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-8 flex flex-col">
+              <h3 className="text-lg font-bold text-white mb-1">Partner</h3>
+              <p className="text-gray-500 text-sm mb-6">White-label for consultants</p>
+              <div className="mb-6">
+                <span className="text-4xl font-bold text-white">$499</span>
+                <span className="text-gray-500 ml-1">/ month</span>
+              </div>
+              <ul className="space-y-3 mb-8 flex-1">
+                {[
+                  'Everything in Platform',
+                  'White-label PDF branding',
+                  'Client workspace management',
+                  'Bulk CSV pipeline',
+                  'API access & webhooks',
+                  'Priority support',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-sm text-gray-300">
+                    <Check className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => handleCheckout('partner')}
+                disabled={loadingTier === 'partner'}
+                className="w-full py-3 rounded-lg font-semibold border border-white/20 text-white hover:bg-white/5 transition disabled:opacity-60"
+              >
+                {loadingTier === 'partner' ? 'Loading...' : 'Start — $499/mo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Demo Request Form */}
       <section id="demo" className="py-24 px-6 max-w-3xl mx-auto text-center">
         <div className="bg-gradient-to-b from-white/10 to-white/5 p-px rounded-3xl">
           <div className="bg-slate-950 rounded-3xl p-8 md:p-12">
             <h2 className="text-3xl font-bold mb-4">Request a Demo</h2>
             <p className="text-gray-400 mb-8">
-              See how CapexCycleOS can streamline your institution&apos;s risk management.
+              See how CERNIQ can streamline your institution&apos;s risk management.
             </p>
 
             {submitted ? (
@@ -342,6 +492,7 @@ export default function LandingPage() {
                       <option value="">Select Type</option>
                       <option value="bank">Community Bank</option>
                       <option value="credit_union">Credit Union</option>
+                      <option value="cooperativa">Cooperativa (PR)</option>
                       <option value="family_office">Family Office</option>
                       <option value="other">Other</option>
                     </select>
@@ -385,7 +536,7 @@ export default function LandingPage() {
             <div className="w-6 h-6 bg-gradient-to-br from-amber-400 to-orange-500 rounded flex items-center justify-center">
               <span className="text-slate-900 font-bold text-xs">C</span>
             </div>
-            <span className="text-sm font-semibold text-gray-400">CapexCycleOS</span>
+            <span className="text-sm font-semibold text-gray-400">CERNIQ</span>
             <span className="text-gray-600 text-sm ml-2">by KLYTICS</span>
           </div>
           <div className="text-gray-500 text-sm">

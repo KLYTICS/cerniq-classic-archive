@@ -1,15 +1,15 @@
 use axum::{
-    extract::{State, Json},
+    extract::{Json, State},
     response::Json as AxumJson,
 };
-use serde::{Deserialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::error::{AppError, Result};
-use crate::state::AppState;
 use crate::models::Waitlist;
+use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct WaitlistRequest {
@@ -45,7 +45,7 @@ pub async fn join_waitlist(
         r#"
         INSERT INTO waitlist (id, email, role, company_size, top_pain)
         VALUES ($1, $2, $3, $4, $5)
-        "#
+        "#,
     )
     .bind(Uuid::new_v4())
     .bind(&payload.email)

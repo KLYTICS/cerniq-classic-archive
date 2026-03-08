@@ -44,6 +44,36 @@ export interface LCRSummary {
   buffer: number;
 }
 
+export interface COSSECCheck {
+  name: string;
+  nameEs: string;
+  value: number;
+  threshold: number;
+  unit: string;
+  status: 'pass' | 'warning' | 'fail';
+  description: string;
+  descriptionEs: string;
+}
+
+export interface COSSECComplianceResult {
+  institutionName: string;
+  institutionType: string;
+  reportingDate: string;
+  checks: COSSECCheck[];
+  overallStatus: 'compliant' | 'conditional' | 'non-compliant';
+  summary: {
+    totalAssets: number;
+    totalLiabilities: number;
+    equity: number;
+    totalLoans: number;
+    totalShares: number;
+    liquidAssets: number;
+    capitalRatio: number;
+    loanToShareRatio: number;
+    liquidityRatio: number;
+  };
+}
+
 export interface ALMSummaryResult {
   institution: {
     id: string;
@@ -335,6 +365,104 @@ export class AlmEnterpriseService {
       netOutflows: round(lcrResult.totalNetOutflows / 1_000_000, 2),
       status: lcrResult.status,
       buffer: round(lcrResult.lcr - 100, 2),
+    };
+  }
+
+  // ─── COSSEC Compliance Checklist ──────────────────────────────
+
+  async getCOSSECCompliance(institutionId: string): Promise<COSSECComplianceResult> {
+    const institution = await this.getInstitution(institutionId);
+    const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
+
+    const totalAssets = items.filter(i => i.category === 'asset').reduce((s, i) => s + i.balance, 0);
+    const totalLiabilities = items.filter(i => i.category === 'liability').reduce((s, i) => s + i.balance, 0);
+    const equity = totalAssets - totalLiabilities;
+
+    // Loan totals
+    const totalLoans = items
+      .filter(i => i.category === 'asset' && ['consumer_loans', 'residential_mortgages', 'commercial_loans'].includes(i.subcategory))
+      .reduce((s, i) => s + i.balance, 0);
+
+    // Member shares/deposits
+    const totalShares = items
+      .filter(i => i.category === 'liability' && ['savings_deposits', 'demand_deposits', 'time_deposits'].includes(i.subcategory))
+      .reduce((s, i) => s + i.balance, 0);
+
+    // Cash and liquid assets
+    const liquidAssets = items
+      .filter(i => i.category === 'asset' && ['cash_equivalents', 'investment_securities'].includes(i.subcategory))
+      .reduce((s, i) => s + i.balance, 0);
+
+    const capitalRatio = totalAssets > 0 ? (equity / totalAssets) * 100 : 0;
+    const loanToShareRatio = totalShares > 0 ? (totalLoans / totalShares) * 100 : 0;
+    const liquidityRatio = totalAssets > 0 ? (liquidAssets / totalAssets) * 100 : 0;
+
+    // LCR
+    const lcr = await this.calculateLCR(institutionId);
+
+    const checks: COSSECCheck[] = [
+      {
+        name: 'Capital Adequacy Ratio',
+        nameEs: 'Razón de Capital',
+        value: round(capitalRatio, 2),
+        threshold: 6.0,
+        unit: '%',
+        status: capitalRatio >= 8 ? 'pass' : capitalRatio >= 6 ? 'warning' : 'fail',
+        description: `Equity/Assets: ${round(capitalRatio, 1)}%. COSSEC minimum: 6%. Well-capitalized: 8%+.`,
+        descriptionEs: `Capital/Activos: ${round(capitalRatio, 1)}%. Mínimo COSSEC: 6%. Bien capitalizado: 8%+.`,
+      },
+      {
+        name: 'Loan-to-Share Ratio',
+        nameEs: 'Razón Préstamos/Acciones',
+        value: round(loanToShareRatio, 2),
+        threshold: 100.0,
+        unit: '%',
+        status: loanToShareRatio <= 80 ? 'pass' : loanToShareRatio <= 100 ? 'warning' : 'fail',
+        description: `Loans/Shares: ${round(loanToShareRatio, 1)}%. Target: ≤80%. Maximum: 100%.`,
+        descriptionEs: `Préstamos/Acciones: ${round(loanToShareRatio, 1)}%. Meta: ≤80%. Máximo: 100%.`,
+      },
+      {
+        name: 'Liquidity Ratio',
+        nameEs: 'Razón de Liquidez',
+        value: round(liquidityRatio, 2),
+        threshold: 15.0,
+        unit: '%',
+        status: liquidityRatio >= 20 ? 'pass' : liquidityRatio >= 15 ? 'warning' : 'fail',
+        description: `Liquid assets/Total assets: ${round(liquidityRatio, 1)}%. Minimum: 15%.`,
+        descriptionEs: `Activos líquidos/Activos totales: ${round(liquidityRatio, 1)}%. Mínimo: 15%.`,
+      },
+      {
+        name: 'LCR (Basel III)',
+        nameEs: 'LCR (Basilea III)',
+        value: round(lcr.lcr, 2),
+        threshold: 100.0,
+        unit: '%',
+        status: lcr.lcr >= 120 ? 'pass' : lcr.lcr >= 100 ? 'warning' : 'fail',
+        description: `HQLA/Net outflows: ${round(lcr.lcr, 1)}%. Required: 100%. Target: 120%+.`,
+        descriptionEs: `HQLA/Flujos netos: ${round(lcr.lcr, 1)}%. Requerido: 100%. Meta: 120%+.`,
+      },
+    ];
+
+    const overallStatus = checks.some(c => c.status === 'fail') ? 'non-compliant'
+      : checks.some(c => c.status === 'warning') ? 'conditional' : 'compliant';
+
+    return {
+      institutionName: institution.name,
+      institutionType: institution.type,
+      reportingDate: institution.reportingDate.toISOString(),
+      checks,
+      overallStatus,
+      summary: {
+        totalAssets,
+        totalLiabilities,
+        equity,
+        totalLoans,
+        totalShares,
+        liquidAssets,
+        capitalRatio: round(capitalRatio, 2),
+        loanToShareRatio: round(loanToShareRatio, 2),
+        liquidityRatio: round(liquidityRatio, 2),
+      },
     };
   }
 

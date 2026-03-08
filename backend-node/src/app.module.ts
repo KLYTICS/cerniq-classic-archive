@@ -22,6 +22,10 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { JobsModule } from './jobs/jobs.module';
 import { AlmModule } from './alm/alm.module';
 import { EmailModule } from './email/email.module';
+import { LeadsModule } from './leads/leads.module';
+import { BillingModule } from './billing/billing.module';
+import { PipelineModule } from './pipeline/pipeline.module';
+import { PortalModule } from './portal/portal.module';
 
 @Module({
   imports: [
@@ -49,6 +53,14 @@ import { EmailModule } from './email/email.module';
     AlmModule,
     // Email notifications
     EmailModule,
+    // Lead pipeline & revenue ops
+    LeadsModule,
+    // Billing & subscriptions (Stripe)
+    BillingModule,
+    // Report pipeline automation
+    PipelineModule,
+    // Client portal API
+    PortalModule,
   ],
   controllers: [AppController],
   providers: [

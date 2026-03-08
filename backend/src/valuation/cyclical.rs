@@ -1,5 +1,5 @@
 //! Cyclical Valuation Engine - Simplified Version
-//! 
+//!
 //! For businesses with cyclical revenue patterns (e.g., semiconductor equipment),
 //! this engine detects cycles, normalizes earnings, and calculates fair value.
 
@@ -24,11 +24,11 @@ pub struct Cycle {
 /// Current position within a cycle
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CyclePosition {
-    EarlyCycle,    // 0-25% from trough
-    MidCycle,      // 25-75%
-    LateCycle,     // 75-100% approaching peak
-    Peak,          // At or near peak
-    Downturn,      // Declining from peak
+    EarlyCycle, // 0-25% from trough
+    MidCycle,   // 25-75%
+    LateCycle,  // 75-100% approaching peak
+    Peak,       // At or near peak
+    Downturn,   // Declining from peak
 }
 
 /// Cyclical valuation result
@@ -37,22 +37,22 @@ pub struct CyclicalValuation {
     pub id: Option<i32>,
     pub ticker: String,
     pub as_of_date: NaiveDate,
-    
+
     // Cycle Analysis
     pub cycles_detected: i32,
     pub avg_cycle_duration_quarters: f64,
     pub current_cycle_position: String,
     pub quarters_into_cycle: i32,
-    
+
     // Normalized Metrics
     pub mid_cycle_revenue: f64,
     pub mid_cycle_eps: f64,
     pub mid_cycle_margin: f64,
-    
+
     // Current vs Mid-Cycle
     pub revenue_vs_midcycle_pct: f64,
     pub eps_vs_midcycle_pct: f64,
-    
+
     // Valuation
     pub current_price: f64,
     pub mid_cycle_pe: f64,
@@ -60,11 +60,11 @@ pub struct CyclicalValuation {
     pub fair_value_low: f64,
     pub fair_value_high: f64,
     pub upside_downside_pct: f64,
-    
+
     // Regime-Specific Multiple
     pub applied_multiple: f64,
     pub cycle_adjustment_factor: f64,
-    
+
     pub created_at: Option<chrono::NaiveDateTime>,
 }
 
@@ -78,7 +78,7 @@ impl CyclicalValuationEngine {
     }
 
     /// Detect cycles using rolling average smoothing
-    /// 
+    ///
     /// This approach smooths quarterly revenue data with a 4-quarter rolling average
     /// to filter out noise, then detects peaks and troughs using clean comparisons.
     pub fn detect_cycles(data: &[(NaiveDate, f64)]) -> Vec<Cycle> {
@@ -88,7 +88,7 @@ impl CyclicalValuationEngine {
 
         // Step 1: Apply 3-quarter rolling average to smooth the data
         let smoothed = Self::apply_rolling_average(data, 3);
-        
+
         if smoothed.len() < 5 {
             return vec![];
         }
@@ -101,15 +101,23 @@ impl CyclicalValuationEngine {
         let window_size = 1;
         for i in window_size..smoothed.len() - window_size {
             let current = smoothed[i].1;
-            
+
             // Strict peak: higher than ALL neighbors
-            let is_peak = smoothed[i - window_size..i].iter().all(|&(_, v)| current > v)
-                && smoothed[i + 1..=i + window_size].iter().all(|&(_, v)| current > v);
-            
-            // Strict trough: lower than ALL neighbors  
-            let is_trough = smoothed[i - window_size..i].iter().all(|&(_, v)| current < v)
-                && smoothed[i + 1..=i + window_size].iter().all(|&(_, v)| current < v);
-            
+            let is_peak = smoothed[i - window_size..i]
+                .iter()
+                .all(|&(_, v)| current > v)
+                && smoothed[i + 1..=i + window_size]
+                    .iter()
+                    .all(|&(_, v)| current > v);
+
+            // Strict trough: lower than ALL neighbors
+            let is_trough = smoothed[i - window_size..i]
+                .iter()
+                .all(|&(_, v)| current < v)
+                && smoothed[i + 1..=i + window_size]
+                    .iter()
+                    .all(|&(_, v)| current < v);
+
             if is_peak {
                 peaks.push((smoothed[i].0, current, i));
             }
@@ -120,7 +128,7 @@ impl CyclicalValuationEngine {
 
         // Step 3: Match peaks and troughs to form cycles (including partial cycles)
         let mut cycles = Vec::new();
-        
+
         // Strategy: Create cycles from any peak-trough pair
         // This handles incomplete data where we might not have full trough-peak-trough patterns
         for peak in &peaks {
@@ -136,13 +144,15 @@ impl CyclicalValuationEngine {
                 });
             }
         }
-        
+
         // Also check for trough-to-peak patterns (ascending part of cycle)
         for trough in &troughs {
             // Find nearest peak AFTER this trough (if we don't already have a cycle)
             if let Some(peak) = peaks.iter().find(|p| p.2 > trough.2) {
                 // Check if we already created this cycle from the peak side
-                let already_exists = cycles.iter().any(|c| c.peak_date == peak.0 && c.trough_date == trough.0);
+                let already_exists = cycles
+                    .iter()
+                    .any(|c| c.peak_date == peak.0 && c.trough_date == trough.0);
                 if !already_exists {
                     let duration_days = (peak.0 - trough.0).num_days();
                     cycles.push(Cycle {
@@ -166,7 +176,7 @@ impl CyclicalValuationEngine {
         }
 
         let mut smoothed = Vec::new();
-        
+
         for i in 0..=data.len() - window {
             let sum: f64 = data[i..i + window].iter().map(|(_, v)| v).sum();
             let avg = sum / window as f64;
@@ -231,7 +241,11 @@ impl CyclicalValuationEngine {
     }
 
     /// Perform cyclical valuation analysis
-    pub async fn value_ticker(&self, ticker: &str, current_price: f64) -> Result<CyclicalValuation> {
+    pub async fn value_ticker(
+        &self,
+        ticker: &str,
+        current_price: f64,
+    ) -> Result<CyclicalValuation> {
         info!("Running cyclical valuation for {}", ticker);
 
         let revenue_history = sqlx::query_as::<_, FinancialMetrics>(
@@ -294,14 +308,15 @@ impl CyclicalValuationEngine {
             .filter_map(|m| m.revenue)
             .collect();
 
-        let cycle_position = Self::determine_cycle_position(
-            current_revenue,
-            mid_cycle_revenue,
-            &recent_revenues,
-        );
+        let cycle_position =
+            Self::determine_cycle_position(current_revenue, mid_cycle_revenue, &recent_revenues);
 
         let avg_duration = if !cycles.is_empty() {
-            cycles.iter().map(|c| c.duration_quarters as f64).sum::<f64>() / cycles.len() as f64
+            cycles
+                .iter()
+                .map(|c| c.duration_quarters as f64)
+                .sum::<f64>()
+                / cycles.len() as f64
         } else {
             12.0
         };
@@ -314,7 +329,8 @@ impl CyclicalValuationEngine {
         let fair_value_high = fair_value_base * 1.15;
 
         let upside_downside = ((fair_value_base - current_price) / current_price) * 100.0;
-        let revenue_vs_midcycle = ((current_revenue - mid_cycle_revenue) / mid_cycle_revenue) * 100.0;
+        let revenue_vs_midcycle =
+            ((current_revenue - mid_cycle_revenue) / mid_cycle_revenue) * 100.0;
 
         let today = chrono::Utc::now().naive_utc().date();
 
@@ -406,47 +422,59 @@ mod tests {
             (NaiveDate::from_ymd_opt(2020, 12, 31).unwrap(), 1500.0), // Peak 1
             (NaiveDate::from_ymd_opt(2021, 3, 31).unwrap(), 1200.0),
             (NaiveDate::from_ymd_opt(2021, 6, 30).unwrap(), 900.0),
-            (NaiveDate::from_ymd_opt(2021, 9, 30).unwrap(), 700.0),   // Trough
+            (NaiveDate::from_ymd_opt(2021, 9, 30).unwrap(), 700.0), // Trough
             (NaiveDate::from_ymd_opt(2021, 12, 31).unwrap(), 1000.0),
             (NaiveDate::from_ymd_opt(2022, 3, 31).unwrap(), 1300.0),
-            (NaiveDate::from_ymd_opt(2022, 6, 30).unwrap(), 1600.0),  // Peak 2
+            (NaiveDate::from_ymd_opt(2022, 6, 30).unwrap(), 1600.0), // Peak 2
             (NaiveDate::from_ymd_opt(2022, 9, 30).unwrap(), 1300.0),
             (NaiveDate::from_ymd_opt(2022, 12, 31).unwrap(), 950.0),
-            (NaiveDate::from_ymd_opt(2023, 3, 31).unwrap(), 750.0),   // Trough 2
+            (NaiveDate::from_ymd_opt(2023, 3, 31).unwrap(), 750.0), // Trough 2
         ];
 
         let cycles = CyclicalValuationEngine::detect_cycles(&data);
-        
+
         println!("Detected {} cycles", cycles.len());
         for (i, cycle) in cycles.iter().enumerate() {
-            println!("Cycle {}: Peak={:.0} at {:?}, Trough={:.0} at {:?}, Duration={} quarters", 
-                i+1, cycle.peak_value, cycle.peak_date, 
-                cycle.trough_value, cycle.trough_date, 
-                cycle.duration_quarters);
+            println!(
+                "Cycle {}: Peak={:.0} at {:?}, Trough={:.0} at {:?}, Duration={} quarters",
+                i + 1,
+                cycle.peak_value,
+                cycle.peak_date,
+                cycle.trough_value,
+                cycle.trough_date,
+                cycle.duration_quarters
+            );
         }
-        
+
         assert!(!cycles.is_empty(), "Should detect at least 1 cycle");
-        
+
         if let Some(cycle) = cycles.first() {
-            assert!(cycle.peak_value > cycle.trough_value, "Peak should be higher than trough");
-            assert!(cycle.duration_quarters > 0, "Cycle should have positive duration");
+            assert!(
+                cycle.peak_value > cycle.trough_value,
+                "Peak should be higher than trough"
+            );
+            assert!(
+                cycle.duration_quarters > 0,
+                "Cycle should have positive duration"
+            );
         }
     }
 
     #[test]
     fn test_midcycle_calculation() {
-        let cycles = vec![
-            Cycle {
-                peak_date: NaiveDate::from_ymd_opt(2020, 9, 30).unwrap(),
-                trough_date: NaiveDate::from_ymd_opt(2020, 3, 31).unwrap(),
-                peak_value: 1500.0,
-                trough_value: 1000.0,
-                duration_quarters: 6,
-            },
-        ];
+        let cycles = vec![Cycle {
+            peak_date: NaiveDate::from_ymd_opt(2020, 9, 30).unwrap(),
+            trough_date: NaiveDate::from_ymd_opt(2020, 3, 31).unwrap(),
+            peak_value: 1500.0,
+            trough_value: 1000.0,
+            duration_quarters: 6,
+        }];
 
         let midcycle = CyclicalValuationEngine::calculate_midcycle_value(&cycles);
-        
-        assert_eq!(midcycle, 1250.0, "Mid-cycle should be average of peak and trough");
+
+        assert_eq!(
+            midcycle, 1250.0,
+            "Mid-cycle should be average of peak and trough"
+        );
     }
 }

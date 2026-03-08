@@ -74,7 +74,8 @@ const DEFAULT_PARAMS: MonteCarloParams = {
 };
 
 // Current Fed Funds rate as mean-reversion target (θ)
-const THETA_BPS = 525; // 5.25% — update periodically or make configurable
+// Reads from env or defaults to 4.50% (as of Q1 2026)
+const THETA_BPS = parseInt(process.env.FED_FUNDS_RATE_BPS || '450', 10);
 
 @Injectable()
 export class StressTestingService {

@@ -288,6 +288,14 @@ export default function LiquidityPage() {
         </div>
       )}
 
+      {!loading && !error && !liquidity && (
+        <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-10 text-center">
+          <Shield className="h-10 w-10 text-slate-600 mx-auto mb-3" />
+          <p className="text-sm text-slate-400 mb-1">No liquidity data available</p>
+          <p className="text-xs text-slate-600">Upload balance sheet data to generate LCR and HQLA analysis.</p>
+        </div>
+      )}
+
       {liquidity && (
         <>
           {/* Basel III Compliance Banner */}

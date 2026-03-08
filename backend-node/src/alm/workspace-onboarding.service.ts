@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
-type InstitutionType = 'bank' | 'credit_union' | 'family_office';
+type InstitutionType = 'bank' | 'credit_union' | 'family_office' | 'cooperativa';
 
 interface SeedItem {
   category: 'asset' | 'liability';
@@ -89,6 +89,8 @@ export class WorkspaceOnboardingService {
         return this.creditUnionProfile();
       case 'family_office':
         return this.familyOfficeProfile();
+      case 'cooperativa':
+        return this.cooperativaProfile();
     }
   }
 
@@ -178,6 +180,41 @@ export class WorkspaceOnboardingService {
         cashInflows: 0,
         lcr: 200.0,
         nsfr: 150.0,
+      },
+    };
+  }
+
+  // ─── Cooperativa: Cooperativa de Ahorro y Crédito ($250M) ───
+  // Realistic PR cooperativa: ~35,000 members, COSSEC-regulated
+  // Balance sheet based on industry averages from COSSEC annual reports
+
+  private cooperativaProfile(): SeedProfile {
+    return {
+      name: 'CoopAhorro San Juan',
+      type: 'cooperativa',
+      totalAssets: 250,
+      reportingDate: '2026-01-31',
+      items: [
+        // Assets ($250M)
+        { category: 'asset', subcategory: 'consumer_loans', name: 'Préstamos Auto y Personal', balance: 75, rate: 8.5, duration: 3.0, rateType: 'fixed' },
+        { category: 'asset', subcategory: 'residential_mortgages', name: 'Préstamos Hipotecarios', balance: 90, rate: 6.25, duration: 12.0, rateType: 'fixed' },
+        { category: 'asset', subcategory: 'commercial_loans', name: 'Préstamos Comerciales', balance: 25, rate: 9.0, duration: 2.0, rateType: 'variable' },
+        { category: 'asset', subcategory: 'investment_securities', name: 'Bonos e Inversiones', balance: 40, rate: 4.5, duration: 3.5, rateType: 'fixed' },
+        { category: 'asset', subcategory: 'cash_equivalents', name: 'Efectivo y Equivalentes', balance: 20, rate: 5.25, duration: 0.1, rateType: 'variable' },
+        // Liabilities ($225M — equity ~$25M, 10% capital ratio)
+        { category: 'liability', subcategory: 'savings_deposits', name: 'Ahorros de Socios', balance: 85, rate: 1.75, duration: 0.3, rateType: 'variable' },
+        { category: 'liability', subcategory: 'time_deposits', name: 'Certificados de Acción', balance: 55, rate: 4.5, duration: 1.2, rateType: 'fixed' },
+        { category: 'liability', subcategory: 'demand_deposits', name: 'Cuentas Corrientes', balance: 35, rate: 0.25, duration: 0.1, rateType: 'variable' },
+        { category: 'liability', subcategory: 'borrowings', name: 'Préstamos FHLB', balance: 30, rate: 5.5, duration: 2.0, rateType: 'fixed' },
+        { category: 'liability', subcategory: 'time_deposits', name: 'Depósitos a Plazo', balance: 20, rate: 3.8, duration: 0.8, rateType: 'fixed' },
+      ],
+      liquidity: {
+        hqlaLevel1: 18, // Cash + govt securities
+        hqlaLevel2: 5,  // Agency MBS
+        cashOutflows: 19.5,
+        cashInflows: 0,
+        lcr: 117.9,
+        nsfr: 109.0,
       },
     };
   }

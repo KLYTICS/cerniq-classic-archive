@@ -22,13 +22,74 @@ const AUTH_USER_STORAGE_KEY = 'capex_auth_user';
 const onboardingKey = (userId: string) => `capex_onboarding_${userId}`;
 
 export const useAuthStore = create<AuthState>((set) => ({
-    user: { id: 'mock-user-id', email: 'demo@capexcycle.io', name: 'Demo User' },
-    initialized: true,
-    isAuthenticated: true,
-    onboardingComplete: true,
-    hydrateFromStorage: async () => { },
-    setUser: (user) => { },
-    setOnboardingComplete: (complete) => { },
+    user: null,
+    initialized: false,
+    isAuthenticated: false,
+    onboardingComplete: false,
+    hydrateFromStorage: async () => {
+        if (typeof window === 'undefined') {
+            set({ initialized: true });
+            return;
+        }
+
+        const storedUserRaw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+        if (!storedUserRaw) {
+            set({
+                user: null,
+                isAuthenticated: false,
+                onboardingComplete: false,
+                initialized: true,
+            });
+            return;
+        }
+
+        try {
+            const user = JSON.parse(storedUserRaw) as User;
+            const onboardingComplete = localStorage.getItem(onboardingKey(user.id)) === 'true';
+            set({
+                user,
+                isAuthenticated: true,
+                onboardingComplete,
+                initialized: true,
+            });
+        } catch {
+            localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+            set({
+                user: null,
+                isAuthenticated: false,
+                onboardingComplete: false,
+                initialized: true,
+            });
+        }
+    },
+    setUser: (user) => {
+        if (typeof window !== 'undefined') {
+            if (user) {
+                localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
+            } else {
+                localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+            }
+        }
+
+        const onboardingComplete = user
+            ? (typeof window !== 'undefined' && localStorage.getItem(onboardingKey(user.id)) === 'true')
+            : false;
+
+        set({
+            user,
+            isAuthenticated: Boolean(user),
+            onboardingComplete,
+            initialized: true,
+        });
+    },
+    setOnboardingComplete: (complete) => {
+        set((state) => {
+            if (typeof window !== 'undefined' && state.user) {
+                localStorage.setItem(onboardingKey(state.user.id), String(complete));
+            }
+            return { onboardingComplete: complete };
+        });
+    },
     logout: async () => {
         await apiClient.logout();
         if (typeof window !== 'undefined') {

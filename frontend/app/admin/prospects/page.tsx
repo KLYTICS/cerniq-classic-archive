@@ -35,9 +35,9 @@ interface Prospect {
 
 const OUTREACH_TEMPLATES = {
   EN: (name: string, company: string) =>
-    `Hi ${name}, I'm Erwin from KLYTICS in San Juan. We built CapexCycleOS — a platform that replaces Excel-based ALM with automated duration gap analysis, NII sensitivity, and stress testing. Built specifically for ${company}-sized institutions preparing for OCIF exams. Would you have 15 minutes this week for a quick walkthrough? Happy to pre-load your institution's profile so you can see real outputs.`,
+    `Hi ${name}, I'm Erwin from KLYTICS in San Juan. We built CERNIQ — a platform that replaces Excel-based ALM with automated duration gap analysis, NII sensitivity, and stress testing. Built specifically for ${company}-sized institutions preparing for OCIF exams. Would you have 15 minutes this week for a quick walkthrough? Happy to pre-load your institution's profile so you can see real outputs.`,
   ES: (name: string, company: string) =>
-    `Hola ${name}, soy Erwin de KLYTICS en San Juan. Desarrollamos CapexCycleOS — una plataforma que reemplaza el ALM basado en Excel con analisis automatizado de duration gap, sensibilidad NII y pruebas de estres. Disenado especificamente para instituciones como ${company} preparandose para examenes OCIF. Tendrias 15 minutos esta semana para una demostracion rapida? Puedo pre-cargar el perfil de tu institucion para que veas resultados reales.`,
+    `Hola ${name}, soy Erwin de KLYTICS en San Juan. Desarrollamos CERNIQ — una plataforma que reemplaza el ALM basado en Excel con analisis automatizado de duration gap, sensibilidad NII y pruebas de estres. Disenado especificamente para instituciones como ${company} preparandose para examenes OCIF. Tendrias 15 minutos esta semana para una demostracion rapida? Puedo pre-cargar el perfil de tu institucion para que veas resultados reales.`,
 };
 
 export default function ProspectsPage() {

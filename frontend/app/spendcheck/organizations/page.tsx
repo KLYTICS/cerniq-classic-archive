@@ -26,7 +26,11 @@ interface OrganizationMember {
     };
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = (
+    process.env.NEXT_PUBLIC_NODE_API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    ''
+).trim().replace(/\/+$/, '');
 
 export default function OrganizationsPage() {
     const [organizations, setOrganizations] = useState<Organization[]>([]);

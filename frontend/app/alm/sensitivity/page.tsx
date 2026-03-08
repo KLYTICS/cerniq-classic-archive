@@ -7,6 +7,7 @@ import { RefreshCw, TrendingUp, AlertTriangle, Info } from 'lucide-react';
 import ScenarioChart from '@/components/alm/ScenarioChart';
 import RiskBadge from '@/components/alm/RiskBadge';
 import { useALM } from '@/components/alm/ALMProvider';
+import { useTranslation } from '@/lib/i18n';
 
 interface NIISensitivity {
   scenarios: Array<{
@@ -81,6 +82,7 @@ function SkeletonPulse() {
 }
 
 export default function SensitivityPage() {
+  const { t } = useTranslation();
   const { selectedId } = useALM();
   const [nii, setNII] = useState<NIISensitivity | null>(null);
   const [durationGap, setDurationGap] = useState<DurationGap | null>(null);
@@ -160,6 +162,14 @@ export default function SensitivityPage() {
         </div>
       )}
 
+      {!loading && !error && (!nii || !durationGap) && (
+        <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-10 text-center">
+          <TrendingUp className="h-10 w-10 text-slate-600 mx-auto mb-3" />
+          <p className="text-sm text-slate-400 mb-1">No sensitivity data available</p>
+          <p className="text-xs text-slate-600">Upload balance sheet data to generate NII and duration gap analysis.</p>
+        </div>
+      )}
+
       {nii && durationGap && (
         <>
           {/* KPI Strip */}
@@ -194,16 +204,16 @@ export default function SensitivityPage() {
               <ScenarioChart
                 scenarios={nii.scenarios}
                 dataKey="niImpact"
-                title="NII Impact by Scenario"
-                yAxisLabel="$ Millions"
+                title={t('risk.niiImpactByScenario')}
+                yAxisLabel={t('risk.millions')}
               />
             </div>
             <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
               <ScenarioChart
                 scenarios={nii.scenarios}
                 dataKey="mveImpact"
-                title="MVE Impact by Scenario"
-                yAxisLabel="$ Millions"
+                title={`${t('stressTest.mveImpact')} by Scenario`}
+                yAxisLabel={t('risk.millions')}
               />
             </div>
           </div>

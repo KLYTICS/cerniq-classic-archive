@@ -42,7 +42,7 @@ pub async fn search_tickers(
     let mut query = sqlx::QueryBuilder::new(
         "SELECT ticker, name, sector, industry, asset_type, exchange 
          FROM tickers 
-         WHERE is_active = true AND ("
+         WHERE is_active = true AND (",
     );
 
     query.push("ticker LIKE ");
@@ -56,18 +56,24 @@ pub async fn search_tickers(
         query.push_bind(asset_type);
     }
 
-    query.push(" ORDER BY 
+    query.push(
+        " ORDER BY 
         CASE 
-            WHEN ticker = ");
+            WHEN ticker = ",
+    );
     query.push_bind(params.q.to_uppercase());
-    query.push(" THEN 1 
-            WHEN ticker LIKE ");
+    query.push(
+        " THEN 1 
+            WHEN ticker LIKE ",
+    );
     query.push_bind(format!("{}%", params.q.to_uppercase()));
-    query.push(" THEN 2 
+    query.push(
+        " THEN 2 
             ELSE 3 
         END,
         ticker 
-        LIMIT ");
+        LIMIT ",
+    );
     query.push_bind(limit);
 
     let results = query
@@ -94,7 +100,7 @@ pub async fn get_ticker_info(
     let info = sqlx::query_as::<_, TickerInfo>(
         "SELECT ticker, name, sector, industry, asset_type, exchange 
          FROM tickers 
-         WHERE ticker = $1 AND is_active = true"
+         WHERE ticker = $1 AND is_active = true",
     )
     .bind(ticker.to_uppercase())
     .fetch_optional(&state.db)
@@ -105,10 +111,7 @@ pub async fn get_ticker_info(
             format!("Database error: {}", e),
         )
     })?
-    .ok_or((
-        StatusCode::NOT_FOUND,
-        "Ticker not found".to_string(),
-    ))?;
+    .ok_or((StatusCode::NOT_FOUND, "Ticker not found".to_string()))?;
 
     Ok(Json(info))
 }
@@ -121,16 +124,13 @@ pub async fn get_ticker_price(
     use crate::services::yahoo_finance::YahooFinanceClient;
 
     let client = YahooFinanceClient::new(state.db.clone());
-    
-    let price = client
-        .get_current_price(&ticker)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to fetch price: {}", e),
-            )
-        })?;
+
+    let price = client.get_current_price(&ticker).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to fetch price: {}", e),
+        )
+    })?;
 
     Ok(Json(price))
 }
@@ -151,7 +151,7 @@ pub async fn get_popular_tickers(
                 ELSE 4 
             END,
             ticker 
-         LIMIT 50"
+         LIMIT 50",
     )
     .fetch_all(&state.db)
     .await

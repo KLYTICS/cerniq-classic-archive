@@ -6,11 +6,11 @@
 //! - Spend spikes (statistical anomalies)
 //! - New vendor risks
 
+use crate::error::Result;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use uuid::Uuid;
-use serde::{Deserialize, Serialize};
-use sha2::{Sha256, Digest};
-use crate::error::Result;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DetectedFinding {
@@ -31,9 +31,15 @@ pub async fn detect_duplicates(workspace_id: Uuid, db: &PgPool) -> Result<Vec<De
     let mut findings = Vec::new();
 
     // Exact duplicates: same vendor, amount, date
-    let rows: Vec<(Uuid, Option<Uuid>, Option<String>, Option<f64>, Option<chrono::NaiveDate>, i64)> = 
-        sqlx::query_as(
-            r#"
+    let rows: Vec<(
+        Uuid,
+        Option<Uuid>,
+        Option<String>,
+        Option<f64>,
+        Option<chrono::NaiveDate>,
+        i64,
+    )> = sqlx::query_as(
+        r#"
             SELECT 
                 i1.id,
                 i1.vendor_id,
@@ -54,18 +60,18 @@ pub async fn detect_duplicates(workspace_id: Uuid, db: &PgPool) -> Result<Vec<De
                     AND i2.amount = i1.amount 
                     AND i2.invoice_date = i1.invoice_date
                     AND i2.workspace_id = i1.workspace_id) > 1
-            "#
-        )
-        .bind(workspace_id)
-        .fetch_all(db)
-        .await?;
+            "#,
+    )
+    .bind(workspace_id)
+    .fetch_all(db)
+    .await?;
 
     // Dedupe by hash
     let mut seen_hashes = std::collections::HashSet::new();
 
     for (_, vendor_id, vendor_name, amount, date, dup_count) in rows {
         let hash = calculate_hash(&format!(
-            "duplicate_{}_{}_{}", 
+            "duplicate_{}_{}_{}",
             vendor_id.map(|v| v.to_string()).unwrap_or_default(),
             amount.unwrap_or_default(),
             date.map(|d| d.to_string()).unwrap_or_default()
@@ -87,7 +93,9 @@ pub async fn detect_duplicates(workspace_id: Uuid, db: &PgPool) -> Result<Vec<De
             title: "Duplicate Payment Detected".to_string(),
             explanation: format!(
                 "Found {} identical payments to {} for {}",
-                dup_count, vendor_name_str, format_currency(amount_val)
+                dup_count,
+                vendor_name_str,
+                format_currency(amount_val)
             ),
             evidence: serde_json::json!({
                 "amount": amount_val,
@@ -107,7 +115,10 @@ pub async fn detect_duplicates(workspace_id: Uuid, db: &PgPool) -> Result<Vec<De
 }
 
 /// Detect subscription price drift (recurring charges with >10% change)
-pub async fn detect_subscription_drift(workspace_id: Uuid, db: &PgPool) -> Result<Vec<DetectedFinding>> {
+pub async fn detect_subscription_drift(
+    workspace_id: Uuid,
+    db: &PgPool,
+) -> Result<Vec<DetectedFinding>> {
     let mut findings = Vec::new();
 
     // Get vendors with 2+ invoices
@@ -119,7 +130,7 @@ pub async fn detect_subscription_drift(workspace_id: Uuid, db: &PgPool) -> Resul
         WHERE v.workspace_id = $1
         GROUP BY v.id, v.vendor_name
         HAVING COUNT(i.id) >= 2
-        "#
+        "#,
     )
     .bind(workspace_id)
     .fetch_all(db)
@@ -199,7 +210,7 @@ pub async fn detect_spend_spikes(workspace_id: Uuid, db: &PgPool) -> Result<Vec<
         WHERE v.workspace_id = $1
         GROUP BY v.id, v.vendor_name
         HAVING COUNT(i.id) >= 3 AND STDDEV(i.amount) > 0
-        "#
+        "#,
     )
     .bind(workspace_id)
     .fetch_all(db)
@@ -225,9 +236,7 @@ pub async fn detect_spend_spikes(workspace_id: Uuid, db: &PgPool) -> Result<Vec<
                 let amount = amount_opt.unwrap_or(0.0);
                 let sigma_deviation = (amount - avg) / stddev;
 
-                let hash = calculate_hash(&format!(
-                    "spend_spike_{}_{}", invoice_id, amount
-                ));
+                let hash = calculate_hash(&format!("spend_spike_{}_{}", invoice_id, amount));
 
                 let vendor_name_str = vendor_name.clone().unwrap_or_default();
 
@@ -255,7 +264,8 @@ pub async fn detect_spend_spikes(workspace_id: Uuid, db: &PgPool) -> Result<Vec<
                     potential_savings: amount - avg,
                     recommended_action: format!(
                         "Verify {} invoice for legitimacy. Typical spend is {}",
-                        vendor_name_str, format_currency(avg)
+                        vendor_name_str,
+                        format_currency(avg)
                     ),
                     hash,
                 });
@@ -267,12 +277,16 @@ pub async fn detect_spend_spikes(workspace_id: Uuid, db: &PgPool) -> Result<Vec<
 }
 
 /// Detect new vendors with large first payments
-pub async fn detect_new_vendor_risks(workspace_id: Uuid, db: &PgPool) -> Result<Vec<DetectedFinding>> {
+pub async fn detect_new_vendor_risks(
+    workspace_id: Uuid,
+    db: &PgPool,
+) -> Result<Vec<DetectedFinding>> {
     let mut findings = Vec::new();
     let threshold = 10000.0;
 
-    let new_vendors: Vec<(Uuid, String, f64, Option<String>, Option<chrono::NaiveDate>)> = sqlx::query_as(
-        r#"
+    let new_vendors: Vec<(Uuid, String, f64, Option<String>, Option<chrono::NaiveDate>)> =
+        sqlx::query_as(
+            r#"
         SELECT v.id, v.vendor_name, i.amount::float8, i.invoice_number, i.invoice_date
         FROM vendors v
         JOIN invoices i ON v.id = i.vendor_id
@@ -280,17 +294,15 @@ pub async fn detect_new_vendor_risks(workspace_id: Uuid, db: &PgPool) -> Result<
         AND v.created_at > NOW() - INTERVAL '30 days'
         AND i.amount > $2
         AND (SELECT COUNT(*) FROM invoices i2 WHERE i2.vendor_id = v.id) = 1
-        "#
-    )
-    .bind(workspace_id)
-    .bind(threshold)
-    .fetch_all(db)
-    .await?;
+        "#,
+        )
+        .bind(workspace_id)
+        .bind(threshold)
+        .fetch_all(db)
+        .await?;
 
     for (vendor_id, vendor_name, amount, invoice_number, date) in new_vendors {
-        let hash = calculate_hash(&format!(
-            "new_vendor_risk_{}_{}", vendor_id, amount
-        ));
+        let hash = calculate_hash(&format!("new_vendor_risk_{}_{}", vendor_id, amount));
 
         findings.push(DetectedFinding {
             finding_type: "vendor_anomaly".to_string(),
@@ -332,11 +344,22 @@ fn format_currency(amount: f64) -> String {
 }
 
 /// Detect zombie subscriptions (charges after contract end date)
-pub async fn detect_zombie_subscriptions(workspace_id: Uuid, db: &PgPool) -> Result<Vec<DetectedFinding>> {
+pub async fn detect_zombie_subscriptions(
+    workspace_id: Uuid,
+    db: &PgPool,
+) -> Result<Vec<DetectedFinding>> {
     let mut findings = Vec::new();
 
     // Find invoices paid after contract end date
-    let zombies: Vec<(Uuid, String, f64, Option<String>, Option<chrono::NaiveDate>, Option<chrono::NaiveDate>, String)> = sqlx::query_as(
+    let zombies: Vec<(
+        Uuid,
+        String,
+        f64,
+        Option<String>,
+        Option<chrono::NaiveDate>,
+        Option<chrono::NaiveDate>,
+        String,
+    )> = sqlx::query_as(
         r#"
         SELECT 
             i.id,
@@ -353,16 +376,16 @@ pub async fn detect_zombie_subscriptions(workspace_id: Uuid, db: &PgPool) -> Res
         AND c.end_date IS NOT NULL
         AND i.invoice_date > c.end_date
         AND c.auto_renew = false
-        "#
+        "#,
     )
     .bind(workspace_id)
     .fetch_all(db)
     .await?;
 
-    for (invoice_id, vendor_name, amount, invoice_number, invoice_date, end_date, contract_name) in zombies {
-        let hash = calculate_hash(&format!(
-            "zombie_sub_{}_{}", invoice_id, vendor_name
-        ));
+    for (invoice_id, vendor_name, amount, invoice_number, invoice_date, end_date, contract_name) in
+        zombies
+    {
+        let hash = calculate_hash(&format!("zombie_sub_{}_{}", invoice_id, vendor_name));
 
         let days_past = invoice_date
             .and_then(|inv| end_date.map(|end| (inv - end).num_days()))
@@ -404,7 +427,10 @@ pub async fn detect_zombie_subscriptions(workspace_id: Uuid, db: &PgPool) -> Res
 }
 
 /// Detect potential duplicate vendors (fuzzy name matching)
-pub async fn detect_vendor_duplicates(workspace_id: Uuid, db: &PgPool) -> Result<Vec<DetectedFinding>> {
+pub async fn detect_vendor_duplicates(
+    workspace_id: Uuid,
+    db: &PgPool,
+) -> Result<Vec<DetectedFinding>> {
     let mut findings = Vec::new();
 
     // Get all vendors for workspace
@@ -437,9 +463,7 @@ pub async fn detect_vendor_duplicates(workspace_id: Uuid, db: &PgPool) -> Result
                 }
                 seen_pairs.insert(pair_key);
 
-                let hash = calculate_hash(&format!(
-                    "vendor_dup_{}_{}", id1, id2
-                ));
+                let hash = calculate_hash(&format!("vendor_dup_{}_{}", id1, id2));
 
                 let combined_spend = spend1.unwrap_or(0.0) + spend2.unwrap_or(0.0);
                 let combined_count = count1.unwrap_or(0) + count2.unwrap_or(0);
@@ -479,37 +503,51 @@ pub async fn detect_vendor_duplicates(workspace_id: Uuid, db: &PgPool) -> Result
 fn levenshtein_distance(s1: &str, s2: &str) -> usize {
     let s1_lower = s1.to_lowercase();
     let s2_lower = s2.to_lowercase();
-    
+
     let s1_chars: Vec<char> = s1_lower.chars().collect();
     let s2_chars: Vec<char> = s2_lower.chars().collect();
-    
+
     let len1 = s1_chars.len();
     let len2 = s2_chars.len();
-    
-    if len1 == 0 { return len2; }
-    if len2 == 0 { return len1; }
-    
+
+    if len1 == 0 {
+        return len2;
+    }
+    if len2 == 0 {
+        return len1;
+    }
+
     let mut matrix = vec![vec![0usize; len2 + 1]; len1 + 1];
-    
-    for i in 0..=len1 { matrix[i][0] = i; }
-    for j in 0..=len2 { matrix[0][j] = j; }
-    
+
+    for i in 0..=len1 {
+        matrix[i][0] = i;
+    }
+    for j in 0..=len2 {
+        matrix[0][j] = j;
+    }
+
     for i in 1..=len1 {
         for j in 1..=len2 {
-            let cost = if s1_chars[i - 1] == s2_chars[j - 1] { 0 } else { 1 };
+            let cost = if s1_chars[i - 1] == s2_chars[j - 1] {
+                0
+            } else {
+                1
+            };
             matrix[i][j] = (matrix[i - 1][j] + 1)
                 .min(matrix[i][j - 1] + 1)
                 .min(matrix[i - 1][j - 1] + cost);
         }
     }
-    
+
     matrix[len1][len2]
 }
 
 /// Calculate similarity (0.0 to 1.0) between two strings
 fn levenshtein_similarity(s1: &str, s2: &str) -> f64 {
     let max_len = s1.len().max(s2.len());
-    if max_len == 0 { return 1.0; }
+    if max_len == 0 {
+        return 1.0;
+    }
     let distance = levenshtein_distance(s1, s2);
     1.0 - (distance as f64 / max_len as f64)
 }

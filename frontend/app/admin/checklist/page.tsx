@@ -16,25 +16,28 @@ interface CheckSection {
   items: CheckItem[];
 }
 
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://cerniq.io').trim().replace(/\/+$/, '');
+const API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || 'https://api.cerniq.io').trim().replace(/\/+$/, '');
+
 const SECTIONS: CheckSection[] = [
   {
     title: 'Day Before (Tuesday)',
     items: [
-      { id: 'pablo-url', label: 'Open capexcycle.vercel.app/pablo — verify redirect + load', link: 'https://capexcycle.vercel.app/pablo', linkLabel: 'Test' },
-      { id: 'full-flow', label: 'Run full demo: register → seed → ALM overview → stress test → PDF', link: 'https://capexcycle.vercel.app/demo?preset=banco-comunidad', linkLabel: 'Run' },
+      { id: 'pablo-url', label: 'Open cerniq.io/pablo — verify redirect + load', link: `${APP_URL}/pablo`, linkLabel: 'Test' },
+      { id: 'full-flow', label: 'Run full demo: register → seed → ALM overview → stress test → PDF', link: `${APP_URL}/demo?preset=banco-comunidad`, linkLabel: 'Run' },
       { id: 'pdf-check', label: 'Download PDF, verify it opens and looks board-ready' },
       { id: 'laptop-charge', label: 'Charge laptop to 100%' },
       { id: 'wifi-test', label: 'Test on hotel/coffee shop WiFi (not just home connection)' },
-      { id: 'health-check', label: 'API health: database up, API up', link: 'https://capexcycleos-api.fly.dev/health', linkLabel: 'Check' },
+      { id: 'health-check', label: 'API health: database up, API up', link: `${API_URL}/health`, linkLabel: 'Check' },
     ],
   },
   {
     title: 'Day Of (Wednesday)',
     items: [
       { id: 'close-tabs', label: 'Close all browser tabs except the demo' },
-      { id: 'chrome-pablo', label: 'Open capexcycle.vercel.app/pablo in Chrome (NOT Safari)', link: 'https://capexcycle.vercel.app/pablo', linkLabel: 'Open' },
-      { id: 'pricing-tab', label: 'Have /pricing page open in second tab', link: 'https://capexcycle.vercel.app/pricing', linkLabel: 'Open' },
-      { id: 'phone-url', label: 'Phone: have URL ready to text Pablo — capexcycle.vercel.app/pablo' },
+      { id: 'chrome-pablo', label: 'Open cerniq.io/pablo in Chrome (NOT Safari)', link: `${APP_URL}/pablo`, linkLabel: 'Open' },
+      { id: 'pricing-tab', label: 'Have /pricing page open in second tab', link: `${APP_URL}/pricing`, linkLabel: 'Open' },
+      { id: 'phone-url', label: 'Phone: have URL ready to text Pablo — cerniq.io/pablo' },
       { id: 'kill-notifs', label: 'Kill Slack, email, and notification sounds' },
       { id: 'admin-tab', label: 'Admin page open in background tab', link: '/admin', linkLabel: 'Open' },
     ],

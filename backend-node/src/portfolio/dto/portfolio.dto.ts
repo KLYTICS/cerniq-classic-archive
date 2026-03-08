@@ -1,3 +1,5 @@
+import { IsString, IsNumber, IsOptional, Min, MaxLength } from 'class-validator';
+
 export class PortfolioDto {
     id: string;
     userId: string;
@@ -24,32 +26,70 @@ export class PositionDto {
     marketValue: number;
     unrealizedPnL: number;
     unrealizedPnLPercent: number;
-    weight: number; // % of portfolio
+    weight: number;
     addedAt: Date;
     updatedAt: Date;
 }
 
 export class CreatePortfolioDto {
+    @IsString()
+    @MaxLength(100)
     name: string;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(500)
     description?: string;
+
+    @IsOptional()
+    @IsString()
     currency?: string;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
     initialCash?: number;
 }
 
 export class UpdatePortfolioDto {
+    @IsOptional()
+    @IsString()
+    @MaxLength(100)
     name?: string;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(500)
     description?: string;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
     currentCash?: number;
 }
 
 export class AddPositionDto {
+    @IsString()
     ticker: string;
+
+    @IsNumber()
+    @Min(0.0001)
     quantity: number;
-    price: number; // Purchase price
+
+    @IsNumber()
+    @Min(0)
+    price: number;
 }
 
 export class UpdatePositionDto {
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
     quantity?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
     avgCost?: number;
 }
 
@@ -59,7 +99,7 @@ export class PortfolioAnalyticsDto {
     totalReturnPercent: number;
     dailyReturn: number;
     dailyReturnPercent: number;
-    volatility: number; // Annualized
+    volatility: number;
     sharpeRatio: number;
     beta: number;
     maxDrawdown: number;

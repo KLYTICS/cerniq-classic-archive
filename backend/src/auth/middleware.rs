@@ -8,7 +8,7 @@ use axum::{
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::auth::verify_jwt;
+use crate::auth::verify_request;
 use crate::error::AppError;
 use crate::state::AppState;
 
@@ -17,7 +17,7 @@ pub async fn auth_context(
     mut request: Request<Body>,
     next: Next,
 ) -> Response {
-    let user_id = match extract_user_id(request.headers(), &state) {
+    let user_id = match extract_user_id(request.headers(), &state).await {
         Ok(user_id) => user_id,
         Err(err) => return err.into_response(),
     };
@@ -26,34 +26,62 @@ pub async fn auth_context(
     next.run(request).await
 }
 
-fn extract_user_id(headers: &axum::http::HeaderMap, state: &AppState) -> Result<Uuid, AppError> {
-    if let Some(auth_header) = headers.get(header::AUTHORIZATION) {
-        let auth_str = auth_header
-            .to_str()
-            .map_err(|_| AppError::Auth("Invalid authorization header".to_string()))?;
+async fn extract_user_id(
+    headers: &axum::http::HeaderMap,
+    state: &AppState,
+) -> Result<Uuid, AppError> {
+    extract_bearer_token(headers)?;
 
-        let token = auth_str
-            .strip_prefix("Bearer ")
-            .or_else(|| auth_str.strip_prefix("bearer "))
-            .ok_or_else(|| AppError::Auth("Authorization header must use Bearer token".to_string()))?;
+    let ctx = verify_request(headers, &state.config.jwt_secret).await?;
+    Uuid::parse_str(&ctx.user_id)
+        .map_err(|_| AppError::Auth("Invalid subject in token".to_string()))
+}
 
-        let claims = verify_jwt(token, &state.config.jwt_secret)
-            .map_err(|_| AppError::Auth("Invalid or expired token".to_string()))?;
-
-        return Uuid::parse_str(&claims.sub)
-            .map_err(|_| AppError::Auth("Invalid subject in token".to_string()));
-    }
-
-    // Backward-compatible header auth for existing frontend calls.
-    let header_user_id = headers
-        .get("x-user-id")
-        .or_else(|| headers.get("user-id"))
+fn extract_bearer_token<'a>(headers: &'a axum::http::HeaderMap) -> Result<&'a str, AppError> {
+    let auth_header = headers
+        .get(header::AUTHORIZATION)
         .ok_or_else(|| AppError::Auth("Authentication required".to_string()))?;
 
-    let user_id_str = header_user_id
+    let auth_header = auth_header
         .to_str()
-        .map_err(|_| AppError::Auth("Invalid user-id header".to_string()))?;
+        .map_err(|_| AppError::Auth("Invalid authorization header".to_string()))?;
 
-    Uuid::parse_str(user_id_str)
-        .map_err(|_| AppError::Auth("Invalid user-id format".to_string()))
+    auth_header
+        .strip_prefix("Bearer ")
+        .ok_or_else(|| AppError::Auth("Authentication required".to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_bearer_token;
+    use crate::error::AppError;
+    use axum::http::{header, HeaderMap, HeaderValue};
+
+    #[test]
+    fn extract_bearer_token_rejects_legacy_user_headers() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-user-id",
+            HeaderValue::from_static("3fa85f64-5717-4562-b3fc-2c963f66afa6"),
+        );
+
+        let err =
+            extract_bearer_token(&headers).expect_err("legacy header auth should be rejected");
+        match err {
+            AppError::Auth(message) => assert_eq!(message, "Authentication required"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn extract_bearer_token_returns_bearer_token() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer token-123"),
+        );
+
+        let token = extract_bearer_token(&headers).expect("bearer token");
+        assert_eq!(token, "token-123");
+    }
 }

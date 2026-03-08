@@ -8,7 +8,7 @@ use axum::{
 use serde::Serialize;
 use std::sync::Arc;
 
-use crate::services::features::{FeatureService, ComputedFeatures};
+use crate::services::features::{ComputedFeatures, FeatureService};
 use crate::services::market_data::MarketDataService;
 use crate::state::AppState;
 
@@ -53,7 +53,7 @@ async fn compute_features(
     Path(ticker): Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let feature_service = FeatureService::new(state.db.clone());
-    
+
     let market_service = MarketDataService::new(
         state.db.clone(),
         state.redis.clone(),

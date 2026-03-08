@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const cookieParser = require('cookie-parser');
@@ -20,7 +21,12 @@ async function bootstrap() {
     process.exit(1);
   }
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true, // Required for Stripe webhook signature verification
+  });
+
+  // Trust Railway/Vercel proxy for correct client IP in rate limiting
+  app.set('trust proxy', 1);
 
   // --- Security middleware ---
   app.use(cookieParser());
@@ -104,7 +110,7 @@ async function bootstrap() {
         return;
       }
       // Allow custom domain
-      if (/capexcycleos\.com$/.test(origin)) {
+      if (/^https?:\/\/([a-z0-9-]+\.)*cerniq\.io(?::\d+)?$/i.test(origin)) {
         callback(null, true);
         return;
       }
@@ -112,12 +118,12 @@ async function bootstrap() {
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key', 'x-organization-id'],
   });
 
   // --- Start server ---
   const port = process.env.PORT || process.env.BACKEND_PORT || 3000;
   await app.listen(port, '0.0.0.0');
-  console.log(`CapexCycleOS backend running on 0.0.0.0:${port}`);
+  console.log(`CERNIQ backend running on 0.0.0.0:${port}`);
 }
 bootstrap();

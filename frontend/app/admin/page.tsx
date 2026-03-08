@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { apiClient } from '@/lib/api';
 import { Landmark, RefreshCw, Copy, Check, Trash2, ExternalLink, Users, Building2, FileText, ClipboardCheck, UserSearch } from 'lucide-react';
 
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'klytics2026';
+const ADMIN_KEY_STORAGE = 'capex_admin_key';
 const VERCEL_URL = typeof window !== 'undefined' ? window.location.origin : '';
 
 interface DemoRequest {
@@ -30,14 +30,27 @@ interface Stats {
 function AdminAuth({ onAuth }: { onAuth: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
+  const [checking, setChecking] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      sessionStorage.setItem('admin_auth', 'true');
-      onAuth();
-    } else {
+    setChecking(true);
+    try {
+      // Validate key against the server
+      const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+      const res = await fetch(`${NODE_API_URL}/api/admin/stats`, {
+        headers: { 'x-admin-key': password },
+      });
+      if (res.ok) {
+        sessionStorage.setItem(ADMIN_KEY_STORAGE, password);
+        onAuth();
+      } else {
+        setError(true);
+      }
+    } catch {
       setError(true);
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -49,13 +62,13 @@ function AdminAuth({ onAuth }: { onAuth: () => void }) {
           type="password"
           value={password}
           onChange={(e) => { setPassword(e.target.value); setError(false); }}
-          placeholder="Enter admin password"
+          placeholder="Enter admin key"
           className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500"
           autoFocus
         />
-        {error && <p className="text-red-400 text-sm mb-4">Incorrect password</p>}
-        <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-lg transition">
-          Enter
+        {error && <p className="text-red-400 text-sm mb-4">Invalid admin key</p>}
+        <button type="submit" disabled={checking} className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-lg transition disabled:opacity-50">
+          {checking ? 'Verifying...' : 'Enter'}
         </button>
       </form>
     </div>
@@ -78,9 +91,10 @@ export default function AdminPage() {
   const [outreachLang, setOutreachLang] = useState<'EN' | 'ES'>('EN');
   const [outreachResult, setOutreachResult] = useState('');
   const [outreachLoading, setOutreachLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (sessionStorage.getItem('admin_auth') === 'true') {
+    if (sessionStorage.getItem(ADMIN_KEY_STORAGE)) {
       setAuthed(true);
     }
   }, []);
@@ -94,8 +108,8 @@ export default function AdminPage() {
       ]);
       setRequests(reqs);
       setStats(st);
-    } catch {
-      // ignore
+    } catch (err: any) {
+      setFetchError(err?.response?.status === 401 ? 'Invalid admin key' : 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -103,7 +117,7 @@ export default function AdminPage() {
 
   const checkHealth = useCallback(async () => {
     try {
-      const NODE_API_URL = process.env.NEXT_PUBLIC_NODE_API_URL || 'http://localhost:3000';
+      const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
       const res = await fetch(`${NODE_API_URL}/health`);
       const data = await res.json();
       setHealthStatus(data.status === 'healthy' ? 'Healthy' : 'Degraded');
@@ -127,7 +141,7 @@ export default function AdminPage() {
 
   const generateDemoMessage = (req: DemoRequest) => {
     const name = req.name || 'there';
-    return `Hi ${name}, here's your personalized CapexCycleOS demo: ${VERCEL_URL}/demo?type=bank — I've pre-loaded it with a $1.2B Puerto Rico community bank profile. Takes 2 min to register. Let me know when you're ready to walk through it together. — Erwin`;
+    return `Hi ${name}, here's your personalized CERNIQ demo: ${VERCEL_URL}/demo?type=bank — I've pre-loaded it with a $1.2B Puerto Rico community bank profile. Takes 2 min to register. Let me know when you're ready to walk through it together. — Erwin`;
   };
 
   const handleResetDemo = async () => {
@@ -139,8 +153,8 @@ export default function AdminPage() {
   const generateOutreach = () => {
     setOutreachLoading(true);
     const templates = {
-      EN: `Hi ${contactName}, I'm Erwin from KLYTICS in San Juan. We built CapexCycleOS — a platform that replaces Excel-based ALM with automated duration gap analysis, NII sensitivity, and stress testing. Built specifically for ${outreachInstitution}-sized institutions (${outreachAssets}) preparing for OCIF exams. Would you have 15 minutes this week for a quick walkthrough? Happy to pre-load your institution's profile so you can see real outputs.`,
-      ES: `Hola ${contactName}, soy Erwin de KLYTICS en San Juan. Desarrollamos CapexCycleOS — una plataforma que reemplaza el ALM basado en Excel con analisis automatizado de duration gap, sensibilidad NII y pruebas de estres. Disenado especificamente para instituciones como ${outreachInstitution} (${outreachAssets}) preparandose para examenes OCIF. Tendrias 15 minutos esta semana para una demostracion rapida? Puedo pre-cargar el perfil de tu institucion para que veas resultados reales.`,
+      EN: `Hi ${contactName}, I'm Erwin from KLYTICS in San Juan. We built CERNIQ — a platform that replaces Excel-based ALM with automated duration gap analysis, NII sensitivity, and stress testing. Built specifically for ${outreachInstitution}-sized institutions (${outreachAssets}) preparing for OCIF exams. Would you have 15 minutes this week for a quick walkthrough? Happy to pre-load your institution's profile so you can see real outputs.`,
+      ES: `Hola ${contactName}, soy Erwin de KLYTICS en San Juan. Desarrollamos CERNIQ — una plataforma que reemplaza el ALM basado en Excel con analisis automatizado de duration gap, sensibilidad NII y pruebas de estres. Disenado especificamente para instituciones como ${outreachInstitution} (${outreachAssets}) preparandose para examenes OCIF. Tendrias 15 minutos esta semana para una demostracion rapida? Puedo pre-cargar el perfil de tu institucion para que veas resultados reales.`,
     };
     setTimeout(() => {
       setOutreachResult(templates[outreachLang]);
@@ -159,7 +173,7 @@ export default function AdminPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Landmark className="h-5 w-5 text-amber-400" />
-            <h1 className="text-lg font-bold">CapexCycleOS Admin</h1>
+            <h1 className="text-lg font-bold">CERNIQ Admin</h1>
           </div>
           <div className="flex items-center gap-4 text-sm">
             <a href={VERCEL_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-slate-400 hover:text-white transition">
@@ -176,6 +190,15 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      {fetchError && (
+        <div className="max-w-7xl mx-auto px-6 pt-4">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 flex items-center gap-2">
+            <span className="text-red-400 text-sm">{fetchError}</span>
+            <button onClick={() => { setFetchError(null); fetchData(); }} className="text-xs text-red-300 hover:text-white ml-auto underline">Retry</button>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         {/* Stats */}
@@ -205,7 +228,10 @@ export default function AdminPage() {
         )}
 
         {/* Quick Links */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          <Link href="/admin/leads" className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
+            <Users className="h-4 w-4" /> Lead Pipeline
+          </Link>
           <Link href="/admin/prospects" className="flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
             <UserSearch className="h-4 w-4" /> Prospect Pipeline
           </Link>

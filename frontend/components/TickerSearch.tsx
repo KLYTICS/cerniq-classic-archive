@@ -16,6 +16,8 @@ interface TickerSearchProps {
     placeholder?: string;
 }
 
+const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+
 export default function TickerSearch({ onSelect, placeholder = 'Search stocks, ETFs, crypto...' }: TickerSearchProps) {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<TickerSearchResult[]>([]);
@@ -34,7 +36,7 @@ export default function TickerSearch({ onSelect, placeholder = 'Search stocks, E
             setLoading(true);
             try {
                 const response = await fetch(
-                    `http://localhost:3000/api/market-data/search?q=${encodeURIComponent(query)}`
+                    `${NODE_API_URL}/api/market-data/search?q=${encodeURIComponent(query)}`
                 );
                 if (response.ok) {
                     const data = await response.json();

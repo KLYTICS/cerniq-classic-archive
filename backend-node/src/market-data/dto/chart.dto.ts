@@ -1,3 +1,5 @@
+import { IsString, IsOptional, IsArray, IsIn } from 'class-validator';
+
 export class OHLCVDataDto {
     date: Date;
     open: number;
@@ -36,7 +38,15 @@ export class TechnicalDataDto {
 }
 
 export class ChartDataRequestDto {
+    @IsString()
     ticker: string;
+
+    @IsOptional()
+    @IsIn(['1D', '1W', '1M', '3M', '1Y', 'ALL'])
     timeframe?: '1D' | '1W' | '1M' | '3M' | '1Y' | 'ALL';
-    indicators?: string[]; // Array of indicator names to include
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    indicators?: string[];
 }

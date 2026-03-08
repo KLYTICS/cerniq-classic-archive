@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Param, Query, Headers, HttpException, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { MarketDataService } from './market-data.service';
 import { QuoteDto, HistoricalPriceDto, FundamentalsDto, TickerSearchResultDto } from './dto/quote.dto';
 
@@ -127,11 +127,15 @@ export class MarketDataController {
     }
 
     /**
-     * Clear all caches (admin only - add auth later)
+     * Clear all caches (admin only)
      * GET /api/market-data/clear-cache
      */
     @Get('clear-cache')
-    clearCaches(): { message: string } {
+    clearCaches(@Headers('x-admin-key') adminKey: string): { message: string } {
+        const key = process.env.ADMIN_KEY;
+        if (!key || adminKey !== key) {
+            throw new UnauthorizedException('Invalid admin key');
+        }
         this.marketDataService.clearCaches();
         return { message: 'Caches cleared successfully' };
     }

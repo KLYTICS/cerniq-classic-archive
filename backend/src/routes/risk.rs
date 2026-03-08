@@ -2,22 +2,22 @@
 //! VaR/CVaR calculations, Risk Parity optimization, and Monte Carlo simulations
 
 use axum::{
-    extract::{Path, Query, State, Json},
+    extract::{Json, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
     Extension, Router,
 };
+use chrono::{DateTime, Utc};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use rand::Rng;
 
 use crate::error::{AppError, Result};
-use crate::state::AppState;
 use crate::services::mock_valuations::get_mock_valuation;
+use crate::state::AppState;
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
@@ -35,8 +35,8 @@ pub struct VarRequest {
     symbols: Vec<String>,
     weights: Option<Vec<f64>>,
     portfolio_value: f64,
-    confidence_level: Option<f64>,  // 0.95 or 0.99
-    time_horizon: Option<i32>,       // days
+    confidence_level: Option<f64>, // 0.95 or 0.99
+    time_horizon: Option<i32>,     // days
 }
 
 #[derive(Serialize)]
@@ -58,7 +58,7 @@ pub struct VarResponse {
 #[derive(Deserialize)]
 pub struct RiskParityRequest {
     symbols: Vec<String>,
-    target_volatility: Option<f64>,  // e.g., 0.15 for 15%
+    target_volatility: Option<f64>, // e.g., 0.15 for 15%
 }
 
 #[derive(Serialize)]
@@ -115,16 +115,17 @@ pub async fn calculate_var(
 ) -> Result<Json<VarResponse>> {
     let confidence = payload.confidence_level.unwrap_or(0.95);
     let horizon = payload.time_horizon.unwrap_or(1);
-    
+
     let n = payload.symbols.len();
-    let weights = payload.weights.clone().unwrap_or_else(|| {
-        vec![1.0 / n as f64; n]
-    });
-    
+    let weights = payload
+        .weights
+        .clone()
+        .unwrap_or_else(|| vec![1.0 / n as f64; n]);
+
     // Get mock volatilities and expected returns
     let mut volatilities = Vec::new();
     let mut returns = Vec::new();
-    
+
     for symbol in &payload.symbols {
         if let Some(mock) = get_mock_valuation(symbol) {
             // Estimate volatility from sector and P/E
@@ -142,16 +143,18 @@ pub async fn calculate_var(
             returns.push(mock.upside_pct / 100.0 * 0.5); // Scale upside to expected return
         } else {
             volatilities.push(0.30); // Default volatility
-            returns.push(0.08);      // Default expected return
+            returns.push(0.08); // Default expected return
         }
     }
-    
+
     // Calculate portfolio metrics
     let portfolio_vol = calculate_portfolio_volatility(&weights, &volatilities);
-    let portfolio_return = weights.iter().zip(returns.iter())
+    let portfolio_return = weights
+        .iter()
+        .zip(returns.iter())
         .map(|(w, r)| w * r)
         .sum::<f64>();
-    
+
     // VaR calculation (parametric)
     let z_score = match confidence {
         c if c >= 0.99 => 2.326,
@@ -159,19 +162,23 @@ pub async fn calculate_var(
         c if c >= 0.90 => 1.282,
         _ => 1.645,
     };
-    
+
     let daily_vol = portfolio_vol / (252.0_f64).sqrt();
     let horizon_vol = daily_vol * (horizon as f64).sqrt();
-    
+
     let var_pct = z_score * horizon_vol;
     let var_amount = payload.portfolio_value * var_pct;
-    
+
     // CVaR (Expected Shortfall) - approximately 1.25x VaR for normal distribution
     let cvar_pct = var_pct * 1.25;
     let cvar_amount = payload.portfolio_value * cvar_pct;
-    
-    let sharpe = if portfolio_vol > 0.0 { portfolio_return / portfolio_vol } else { 0.0 };
-    
+
+    let sharpe = if portfolio_vol > 0.0 {
+        portfolio_return / portfolio_vol
+    } else {
+        0.0
+    };
+
     // Store report
     sqlx::query(
         r#"
@@ -187,7 +194,7 @@ pub async fn calculate_var(
     .bind(payload.portfolio_value)
     .execute(&state.db)
     .await.ok(); // Ignore errors for now
-    
+
     Ok(Json(VarResponse {
         portfolio_value: payload.portfolio_value,
         confidence_level: confidence,
@@ -212,11 +219,11 @@ pub async fn calculate_risk_parity(
 ) -> Result<Json<RiskParityResponse>> {
     let n = payload.symbols.len();
     let target_vol = payload.target_volatility.unwrap_or(0.15);
-    
+
     // Get volatilities for each asset
     let mut volatilities = Vec::new();
     let mut returns = Vec::new();
-    
+
     for symbol in &payload.symbols {
         if let Some(mock) = get_mock_valuation(symbol) {
             let vol = match mock.sector.as_str() {
@@ -235,37 +242,43 @@ pub async fn calculate_risk_parity(
             returns.push(0.08);
         }
     }
-    
+
     // Risk parity weights: inversely proportional to volatility
     let inv_vols: Vec<f64> = volatilities.iter().map(|v| 1.0 / v).collect();
     let sum_inv_vols: f64 = inv_vols.iter().sum();
     let mut optimal_weights: Vec<f64> = inv_vols.iter().map(|iv| iv / sum_inv_vols).collect();
-    
+
     // Scale to target volatility
     let current_vol = calculate_portfolio_volatility(&optimal_weights, &volatilities);
     let scale = target_vol / current_vol;
     optimal_weights = optimal_weights.iter().map(|w| w * scale.min(1.0)).collect();
-    
+
     // Normalize weights
     let sum_weights: f64 = optimal_weights.iter().sum();
     optimal_weights = optimal_weights.iter().map(|w| w / sum_weights).collect();
-    
+
     // Calculate risk contributions
     let portfolio_vol = calculate_portfolio_volatility(&optimal_weights, &volatilities);
-    let risk_contributions: Vec<f64> = optimal_weights.iter()
+    let risk_contributions: Vec<f64> = optimal_weights
+        .iter()
         .zip(volatilities.iter())
         .map(|(w, v)| (w * v * v) / (portfolio_vol * portfolio_vol) * 100.0)
         .collect();
-    
+
     let equal_contribution = 100.0 / n as f64;
-    
-    let expected_return: f64 = optimal_weights.iter()
+
+    let expected_return: f64 = optimal_weights
+        .iter()
         .zip(returns.iter())
         .map(|(w, r)| w * r)
         .sum();
-    
-    let sharpe = if portfolio_vol > 0.0 { expected_return / portfolio_vol } else { 0.0 };
-    
+
+    let sharpe = if portfolio_vol > 0.0 {
+        expected_return / portfolio_vol
+    } else {
+        0.0
+    };
+
     Ok(Json(RiskParityResponse {
         symbols: payload.symbols,
         optimal_weights,
@@ -285,14 +298,17 @@ pub async fn run_monte_carlo(
 ) -> Result<Json<MonteCarloResponse>> {
     let num_sims = payload.num_simulations.unwrap_or(10000).min(50000);
     let horizon = payload.time_horizon.unwrap_or(252);
-    
+
     let n = payload.symbols.len();
-    let weights = payload.weights.clone().unwrap_or_else(|| vec![1.0 / n as f64; n]);
-    
+    let weights = payload
+        .weights
+        .clone()
+        .unwrap_or_else(|| vec![1.0 / n as f64; n]);
+
     // Get parameters
     let mut volatilities = Vec::new();
     let mut returns = Vec::new();
-    
+
     for symbol in &payload.symbols {
         if let Some(mock) = get_mock_valuation(symbol) {
             let vol = match mock.sector.as_str() {
@@ -308,17 +324,17 @@ pub async fn run_monte_carlo(
             returns.push(0.08);
         }
     }
-    
+
     let portfolio_vol = calculate_portfolio_volatility(&weights, &volatilities);
     let portfolio_return: f64 = weights.iter().zip(returns.iter()).map(|(w, r)| w * r).sum();
-    
+
     // Run simulations
     let mut rng = rand::thread_rng();
     let mut final_values: Vec<f64> = Vec::with_capacity(num_sims as usize);
-    
+
     let daily_return = portfolio_return / 252.0;
     let daily_vol = portfolio_vol / (252.0_f64).sqrt();
-    
+
     for _ in 0..num_sims {
         let mut value = payload.portfolio_value;
         for _ in 0..horizon {
@@ -327,32 +343,35 @@ pub async fn run_monte_carlo(
         }
         final_values.push(value);
     }
-    
+
     final_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    
+
     let mean_val: f64 = final_values.iter().sum::<f64>() / num_sims as f64;
-    let variance: f64 = final_values.iter()
+    let variance: f64 = final_values
+        .iter()
         .map(|v| (v - mean_val).powi(2))
-        .sum::<f64>() / num_sims as f64;
+        .sum::<f64>()
+        / num_sims as f64;
     let std_val = variance.sqrt();
-    
+
     // Percentiles
     let p5 = final_values[(num_sims as f64 * 0.05) as usize];
     let p25 = final_values[(num_sims as f64 * 0.25) as usize];
     let p50 = final_values[(num_sims as f64 * 0.50) as usize];
     let p75 = final_values[(num_sims as f64 * 0.75) as usize];
     let p95 = final_values[(num_sims as f64 * 0.95) as usize];
-    
+
     // Create histogram
     let min_val = *final_values.first().unwrap();
     let max_val = *final_values.last().unwrap();
     let bin_width = (max_val - min_val) / 20.0;
-    
+
     let mut histogram: Vec<HistogramBin> = Vec::new();
     for i in 0..20 {
         let range_start = min_val + i as f64 * bin_width;
         let range_end = range_start + bin_width;
-        let count = final_values.iter()
+        let count = final_values
+            .iter()
             .filter(|v| **v >= range_start && **v < range_end)
             .count() as i32;
         histogram.push(HistogramBin {
@@ -362,7 +381,7 @@ pub async fn run_monte_carlo(
             percentage: count as f64 / num_sims as f64 * 100.0,
         });
     }
-    
+
     Ok(Json(MonteCarloResponse {
         simulations: num_sims,
         time_horizon: horizon,
@@ -411,12 +430,12 @@ pub async fn list_risk_reports(
         WHERE user_id = $1
         ORDER BY created_at DESC
         LIMIT 50
-        "#
+        "#,
     )
     .bind(user_id)
     .fetch_all(&state.db)
     .await?;
-    
+
     Ok(Json(reports))
 }
 
@@ -433,14 +452,14 @@ pub async fn get_risk_report(
                confidence_level::float8, time_horizon, portfolio_value::float8, created_at
         FROM risk_reports 
         WHERE id = $1 AND user_id = $2
-        "#
+        "#,
     )
     .bind(report_id)
     .bind(user_id)
     .fetch_optional(&state.db)
     .await?
     .ok_or_else(|| AppError::NotFound("Report not found".to_string()))?;
-    
+
     Ok(Json(report))
 }
 
@@ -449,12 +468,12 @@ pub async fn get_risk_report(
 fn calculate_portfolio_volatility(weights: &[f64], volatilities: &[f64]) -> f64 {
     // Simplified: assume low correlation (0.3) between assets
     let correlation = 0.3;
-    
+
     let mut variance = 0.0;
     for (i, (wi, vi)) in weights.iter().zip(volatilities.iter()).enumerate() {
         // Diagonal term
         variance += wi * wi * vi * vi;
-        
+
         // Off-diagonal terms
         for (j, (wj, vj)) in weights.iter().zip(volatilities.iter()).enumerate() {
             if i != j {
@@ -462,6 +481,6 @@ fn calculate_portfolio_volatility(weights: &[f64], volatilities: &[f64]) -> f64 
             }
         }
     }
-    
+
     variance.sqrt()
 }

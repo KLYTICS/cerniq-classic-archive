@@ -5,6 +5,7 @@ import { AlmEnterpriseService } from './alm-enterprise.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
 import { ReportsService } from './reports/reports.service';
 import { WorkspaceOnboardingService } from './workspace-onboarding.service';
+import { CSVIngestionService } from './csv-ingestion.service';
 import { AlmController } from './alm.controller';
 import { AuthGuard } from '../auth/auth.guard';
 import { PrismaService } from '../prisma.service';
@@ -23,9 +24,10 @@ import { PrismaService } from '../prisma.service';
     StressTestingService,
     ReportsService,
     WorkspaceOnboardingService,
+    CSVIngestionService,
     AuthGuard,
     PrismaService,
   ],
-  exports: [AlmService, AlmEnterpriseService, StressTestingService, WorkspaceOnboardingService],
+  exports: [AlmService, AlmEnterpriseService, StressTestingService, WorkspaceOnboardingService, CSVIngestionService],
 })
 export class AlmModule {}
