@@ -32,6 +32,16 @@ export default function OnboardingPage() {
     }
     if (onboardingComplete) {
       router.replace('/dashboard');
+      return;
+    }
+    // ALM/billing subscription buyers should go to /portal, not onboarding
+    // Check if user arrived via magic link (portal flow) or has a subscription indicator
+    const portalUser = typeof window !== 'undefined' &&
+      (localStorage.getItem('cerniq_portal_user') === 'true' ||
+       new URLSearchParams(window.location.search).get('welcome') === '1');
+    if (portalUser) {
+      router.replace('/portal');
+      return;
     }
   }, [initialized, isAuthenticated, onboardingComplete, router]);
 

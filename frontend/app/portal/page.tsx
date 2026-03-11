@@ -22,6 +22,11 @@ function WelcomeBanner() {
   const searchParams = useSearchParams();
   const isWelcome = searchParams.get('welcome') === '1';
 
+  // Mark this user as a portal/billing user so they skip retail onboarding
+  if (isWelcome && typeof window !== 'undefined') {
+    localStorage.setItem('cerniq_portal_user', 'true');
+  }
+
   if (!isWelcome) return null;
 
   return (

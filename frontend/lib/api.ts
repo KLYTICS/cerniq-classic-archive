@@ -1004,11 +1004,14 @@ class APIClient {
 
   // Prospect CRM
   async getProspects(stage?: string) {
-    return [];
+    const params = stage ? `?stage=${stage}` : '';
+    const response = await this.client.get(`${NODE_API_URL}/api/admin/prospects${params}`, { headers: this.adminHeaders() });
+    return response.data;
   }
 
   async createProspect(data: { name: string; email?: string; company?: string; role?: string; stage?: string; source?: string; notes?: string }) {
-    return { id: `prospect-${Date.now()}`, ...data };
+    const response = await this.client.post(`${NODE_API_URL}/api/admin/prospects`, data, { headers: this.adminHeaders() });
+    return response.data;
   }
 
   async updateProspect(id: string, data: { stage?: string; notes?: string; name?: string; email?: string; company?: string; role?: string }) {
