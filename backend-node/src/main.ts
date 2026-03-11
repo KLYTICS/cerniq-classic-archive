@@ -6,6 +6,7 @@ const cookieParser = require('cookie-parser');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const helmet = require('helmet');
 import { AppModule } from './app.module';
+import { corsOriginCallback } from './security/origin-allowlist';
 
 async function bootstrap() {
   // --- Env var validation ---
@@ -67,58 +68,12 @@ async function bootstrap() {
   );
 
   // --- CORS ---
-  const frontendUrl = process.env.FRONTEND_URL || '';
-  const configuredOrigins = (
-    process.env.ALLOWED_ORIGINS ||
-    process.env.CORS_ORIGIN ||
-    ''
-  )
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-
-  const staticAllowedOrigins = new Set([
-    'http://localhost:3000',
-    'http://localhost:3001',
-    ...(frontendUrl ? [frontendUrl] : []),
-    ...configuredOrigins,
-  ]);
-
   app.enableCors({
-    origin: (origin, callback) => {
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
-      if (staticAllowedOrigins.has(origin)) {
-        callback(null, true);
-        return;
-      }
-      // Allow all Vercel preview deployments
-      if (/\.vercel\.app$/.test(origin)) {
-        callback(null, true);
-        return;
-      }
-      // Allow Railway deployments
-      if (/\.railway\.app$/.test(origin)) {
-        callback(null, true);
-        return;
-      }
-      // Allow Fly.io deployments
-      if (/\.fly\.dev$/.test(origin)) {
-        callback(null, true);
-        return;
-      }
-      // Allow custom domain
-      if (/^https?:\/\/([a-z0-9-]+\.)*cerniq\.io(?::\d+)?$/i.test(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error(`CORS origin not allowed: ${origin}`), false);
-    },
+    origin: corsOriginCallback,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key', 'x-organization-id'],
+    maxAge: 86400,
   });
 
   // --- Start server ---

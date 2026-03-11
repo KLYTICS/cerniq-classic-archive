@@ -66,3 +66,4 @@ ENV/
 tmp/
 temp/
 *.tmp
+.vercel

@@ -6,10 +6,14 @@ import { AuthService } from '../auth.service';
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(private authService: AuthService) {
+    const callbackURL = (
+      process.env.GOOGLE_CALLBACK_URL ||
+      'https://api.cerniq.io/api/auth/google/callback'
+    ).trim();
     super({
       clientID: process.env.GOOGLE_CLIENT_ID || 'not-configured',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'not-configured',
-      callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/api/auth/google/callback',
+      callbackURL,
       scope: ['email', 'profile'],
     });
   }

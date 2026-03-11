@@ -5,11 +5,13 @@ import { QuoteDto, HistoricalPriceDto, FundamentalsDto } from '../dto/quote.dto'
 @Injectable()
 export class YahooFinanceProvider {
     private readonly logger = new Logger(YahooFinanceProvider.name);
+    // yahoo-finance2 v3+ expects an instance; this also works on older versions.
+    private readonly client = new (yahooFinance as any)();
 
     async getQuote(ticker: string): Promise<QuoteDto | null> {
         try {
             this.logger.debug(`Fetching quote for ${ticker}`);
-            const quote: any = await yahooFinance.quote(ticker);
+            const quote: any = await this.client.quote(ticker);
 
             if (!quote) {
                 this.logger.warn(`No quote data found for ${ticker}`);
@@ -49,7 +51,7 @@ export class YahooFinanceProvider {
                 interval: '1d' as const,
             };
 
-            const result: any[] = await yahooFinance.historical(ticker, queryOptions);
+            const result: any[] = await this.client.historical(ticker, queryOptions);
 
             return result.map((item: any) => ({
                 date: item.date.toISOString().split('T')[0],
@@ -69,7 +71,7 @@ export class YahooFinanceProvider {
     async getFundamentals(ticker: string): Promise<FundamentalsDto | null> {
         try {
             this.logger.debug(`Fetching fundamentals for ${ticker}`);
-            const quote: any = await yahooFinance.quote(ticker);
+            const quote: any = await this.client.quote(ticker);
 
             if (!quote) {
                 return null;
@@ -99,7 +101,7 @@ export class YahooFinanceProvider {
     async searchTickers(query: string): Promise<Array<{ symbol: string; name: string; exchange?: string }>> {
         try {
             this.logger.debug(`Searching for tickers with query: ${query}`);
-            const results: any = await yahooFinance.search(query);
+            const results: any = await this.client.search(query);
 
             return results.quotes.slice(0, 10).map((quote: any) => ({
                 symbol: quote.symbol,

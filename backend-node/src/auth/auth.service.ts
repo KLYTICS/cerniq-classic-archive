@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { apiKeyPrefix, generateApiKeyToken, hashApiKey } from './api-key.util';
 
 const BCRYPT_SALT_ROUNDS = 12;
 const ACCESS_TOKEN_EXPIRY = '24h';
@@ -389,5 +390,76 @@ export class AuthService {
     } catch {
       return [];
     }
+  }
+
+  async listApiKeys(userId: string) {
+    return this.prisma.apiKey.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        keyPrefix: true,
+        createdAt: true,
+        lastUsedAt: true,
+        revokedAt: true,
+        expiresAt: true,
+      },
+    });
+  }
+
+  async createApiKey(userId: string, name: string, expiresInDays?: number) {
+    const normalizedName = (name || '').trim();
+    if (!normalizedName) {
+      throw new BadRequestException('API key name is required');
+    }
+
+    const token = generateApiKeyToken();
+    const expiresAt = expiresInDays
+      ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000)
+      : null;
+
+    const created = await this.prisma.apiKey.create({
+      data: {
+        userId,
+        name: normalizedName,
+        keyPrefix: apiKeyPrefix(token),
+        keyHash: hashApiKey(token),
+        expiresAt,
+      },
+      select: {
+        id: true,
+        name: true,
+        keyPrefix: true,
+        createdAt: true,
+        lastUsedAt: true,
+        revokedAt: true,
+        expiresAt: true,
+      },
+    });
+
+    return {
+      apiKey: token,
+      record: created,
+    };
+  }
+
+  async revokeApiKey(userId: string, keyId: string) {
+    const revoked = await this.prisma.apiKey.updateMany({
+      where: {
+        id: keyId,
+        userId,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+
+    if (revoked.count === 0) {
+      throw new BadRequestException('API key not found or already revoked');
+    }
+
+    return { revoked: true };
   }
 }

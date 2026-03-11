@@ -1,9 +1,18 @@
-import { Controller, Get, Post, Patch, Delete, Param, Query, Body, Headers, HttpCode, HttpStatus, UseGuards, UnauthorizedException, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Query, Body, Headers, HttpCode, HttpStatus, UseGuards, UnauthorizedException, Req, NotFoundException } from '@nestjs/common';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import { AuthGuard } from './auth/auth.guard';
 import { EmailService } from './email/email.service';
-import { SkipThrottle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import { DemoRequestDto } from './dto/demo-request.dto';
+
+function shouldExposeDetailedHealth(): boolean {
+  const raw = (process.env.HEALTH_DETAILS_PUBLIC || '').trim().toLowerCase();
+  if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on') {
+    return true;
+  }
+  return process.env.NODE_ENV !== 'production';
+}
 
 @Controller()
 export class AppController {
@@ -14,18 +23,9 @@ export class AppController {
   ) {}
 
   @Post('api/demo-request')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(HttpStatus.CREATED)
-  async submitDemoRequest(
-    @Body()
-    body: {
-      email: string;
-      name?: string;
-      institutionName?: string;
-      institutionType?: string;
-      totalAssets?: string;
-      message?: string;
-    },
-  ) {
+  async submitDemoRequest(@Body() body: DemoRequestDto) {
     const record = await this.prisma.demoRequest.create({
       data: {
         email: body.email,
@@ -108,6 +108,10 @@ export class AppController {
   @Get('health/detailed')
   @SkipThrottle()
   async getHealthDetailed() {
+    if (!shouldExposeDetailedHealth()) {
+      throw new NotFoundException();
+    }
+
     const services: Record<string, { status: string; latencyMs: number }> = {};
 
     // DB check with timing

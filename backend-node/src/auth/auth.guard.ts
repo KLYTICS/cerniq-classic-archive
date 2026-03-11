@@ -8,41 +8,67 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '../prisma.service';
+import { hashApiKey, isReadOnlyMethod } from './api-key.util';
 
 export const ROLES_KEY = 'roles';
 export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
 
+type AuthenticatedRequestUser = {
+  userId: string;
+  email?: string;
+  role?: string;
+  claims: Record<string, any>;
+  orgId?: string | null;
+  authMethod?: 'token' | 'api_key';
+};
+
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private jwtService: JwtService) { }
+  constructor(
+    private jwtService: JwtService,
+    private prisma: PrismaService,
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const token = this.extractToken(request);
-    if (!token) {
-      throw new UnauthorizedException('Authentication required');
-    }
+    let user: AuthenticatedRequestUser | null = null;
 
-    let user = await this.verifySupabaseToken(token);
-    if (!user && this.allowLegacy()) {
-      user = this.verifyLegacyToken(token);
+    if (token) {
+      user = await this.verifySupabaseToken(token);
+      if (!user && this.allowLegacy()) {
+        user = this.verifyLegacyToken(token);
+      }
+    } else {
+      const apiKey = this.extractApiKey(request);
+      if (apiKey) {
+        user = await this.verifyApiKey(apiKey);
+      }
     }
 
     if (!user) {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    const orgHeader = this.getHeader(request, 'x-klytics-org-id');
-    const orgId = user.orgId || orgHeader || null;
-    const orgAllowed = await this.enforceOrgAccess(user.userId, orgId);
-    if (!orgAllowed) {
-      throw new ForbiddenException('Org membership or entitlement check failed');
+    if (user.authMethod === 'api_key' && !isReadOnlyMethod(request.method)) {
+      throw new ForbiddenException('API keys are read-only');
+    }
+
+    let orgId = user.orgId || null;
+    if (user.authMethod !== 'api_key') {
+      const orgHeader = this.getHeader(request, 'x-klytics-org-id');
+      orgId = orgId || orgHeader || null;
+      const orgAllowed = await this.enforceOrgAccess(user.userId, orgId);
+      if (!orgAllowed) {
+        throw new ForbiddenException('Org membership or entitlement check failed');
+      }
     }
 
     request.user = {
       ...user,
       orgId,
-      role: user.role || 'authenticated',
+      role: user.role || (user.authMethod === 'api_key' ? 'api_key' : 'authenticated'),
     };
     return true;
   }
@@ -58,6 +84,12 @@ export class AuthGuard implements CanActivate {
       return authHeader.substring(7);
     }
     return null;
+  }
+
+  private extractApiKey(request: any): string | null {
+    const key = this.getHeader(request, 'x-api-key');
+    if (!key) return null;
+    return key.trim() || null;
   }
 
   private getHeader(request: any, name: string): string | null {
@@ -80,7 +112,7 @@ export class AuthGuard implements CanActivate {
     return claims as Record<string, any>;
   }
 
-  private verifyLegacyToken(token: string): { userId: string; email?: string; role?: string; claims: Record<string, any>; orgId?: string } | null {
+  private verifyLegacyToken(token: string): AuthenticatedRequestUser | null {
     try {
       const payload = this.jwtService.verify(token) as Record<string, any>;
       return {
@@ -89,13 +121,14 @@ export class AuthGuard implements CanActivate {
         role: payload.role || 'authenticated',
         claims: payload,
         orgId: payload.org_id || payload.tenant_id || null,
+        authMethod: 'token',
       };
     } catch {
       return null;
     }
   }
 
-  private async verifySupabaseToken(token: string): Promise<{ userId: string; email?: string; role?: string; claims: Record<string, any>; orgId?: string } | null> {
+  private async verifySupabaseToken(token: string): Promise<AuthenticatedRequestUser | null> {
     const supabaseUrl = (process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
     const anonKey =
       (process.env.SUPABASE_ANON_KEY || '').trim() ||
@@ -126,10 +159,58 @@ export class AuthGuard implements CanActivate {
         role: claims.role || (Array.isArray(claims.roles) ? claims.roles[0] : 'authenticated'),
         claims,
         orgId: claims.org_id || claims.tenant_id || null,
+        authMethod: 'token',
       };
     } catch {
       return null;
     }
+  }
+
+  private async verifyApiKey(apiKey: string): Promise<AuthenticatedRequestUser | null> {
+    const keyHash = hashApiKey(apiKey);
+    const key = await this.prisma.apiKey.findUnique({
+      where: { keyHash },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!key || !key.user) {
+      return null;
+    }
+    if (key.revokedAt) {
+      return null;
+    }
+    if (key.expiresAt && key.expiresAt < new Date()) {
+      return null;
+    }
+
+    try {
+      await this.prisma.apiKey.update({
+        where: { id: key.id },
+        data: { lastUsedAt: new Date() },
+      });
+    } catch {
+      // Best-effort usage timestamp update.
+    }
+
+    return {
+      userId: key.user.id,
+      email: key.user.email,
+      role: 'api_key',
+      claims: {
+        auth_method: 'api_key',
+        api_key_id: key.id,
+        api_key_prefix: key.keyPrefix,
+      },
+      orgId: null,
+      authMethod: 'api_key',
+    };
   }
 
   private async enforceOrgAccess(userId: string, orgId: string | null): Promise<boolean> {

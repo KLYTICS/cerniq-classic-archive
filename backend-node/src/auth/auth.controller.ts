@@ -4,6 +4,7 @@ import {
   Put,
   Body,
   Get,
+  Param,
   Req,
   Res,
   UseGuards,
@@ -22,14 +23,45 @@ import {
   ChangePasswordDto,
   RefreshTokenDto,
 } from './dto/auth.dto';
+import { CreateApiKeyDto } from './dto/api-key.dto';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+function parseBoolean(raw: string | undefined, fallback: boolean): boolean {
+  const normalized = (raw || '').trim().toLowerCase();
+  if (!normalized) return fallback;
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+function resolveCookieSameSite(): 'lax' | 'strict' | 'none' {
+  const configured = (process.env.AUTH_COOKIE_SAMESITE || '').trim().toLowerCase();
+  if (configured === 'strict' || configured === 'none' || configured === 'lax') {
+    return configured;
+  }
+  return 'lax';
+}
+
+function resolveFrontendUrl(): string {
+  const configured = (process.env.FRONTEND_URL || '').trim().replace(/\/+$/, '');
+  if (configured) {
+    return configured;
+  }
+  if (!isProduction) {
+    return 'http://localhost:3001';
+  }
+  return 'https://cerniq.io';
+}
+
+const COOKIE_SECURE = parseBoolean(process.env.AUTH_COOKIE_SECURE, isProduction);
+const COOKIE_SAME_SITE = resolveCookieSameSite();
+const COOKIE_DOMAIN = (process.env.AUTH_COOKIE_DOMAIN || '').trim();
+
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: isProduction,
-  sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+  secure: COOKIE_SECURE,
+  sameSite: COOKIE_SAME_SITE,
   path: '/',
+  ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
 };
 
 const ACCESS_TOKEN_MAX_AGE = 24 * 60 * 60 * 1000; // 24h
@@ -132,6 +164,28 @@ export class AuthController {
     return this.authService.changePassword(req.user.userId, dto.currentPassword, dto.newPassword);
   }
 
+  @Get('api-keys')
+  @UseGuards(AuthGuard)
+  async listApiKeys(@Req() req: any) {
+    const keys = await this.authService.listApiKeys(req.user.userId);
+    return { keys };
+  }
+
+  @Post('api-keys')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @UseGuards(AuthGuard)
+  async createApiKey(@Req() req: any, @Body() dto: CreateApiKeyDto) {
+    const created = await this.authService.createApiKey(req.user.userId, dto.name, dto.expiresInDays);
+    return created;
+  }
+
+  @Post('api-keys/:keyId/revoke')
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
+  @UseGuards(AuthGuard)
+  async revokeApiKey(@Req() req: any, @Param('keyId') keyId: string) {
+    return this.authService.revokeApiKey(req.user.userId, keyId);
+  }
+
   @Post('password-reset')
   @Throttle({ default: { ttl: 3600000, limit: 3 } })
   @HttpCode(HttpStatus.OK)
@@ -159,7 +213,7 @@ export class AuthController {
     const user = req.user;
     const tokens = await this.authService.generateTokens(user);
     setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    const frontendUrl = resolveFrontendUrl();
     res.redirect(`${frontendUrl}/dashboard`);
   }
 
@@ -176,7 +230,7 @@ export class AuthController {
     const user = req.user;
     const tokens = await this.authService.generateTokens(user);
     setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    const frontendUrl = resolveFrontendUrl();
     res.redirect(`${frontendUrl}/dashboard`);
   }
 }

@@ -8,7 +8,6 @@ import { WorkspaceOnboardingService } from './workspace-onboarding.service';
 import { CSVIngestionService } from './csv-ingestion.service';
 import { AlmController } from './alm.controller';
 import { AuthGuard } from '../auth/auth.guard';
-import { PrismaService } from '../prisma.service';
 
 @Module({
   imports: [
@@ -26,7 +25,6 @@ import { PrismaService } from '../prisma.service';
     WorkspaceOnboardingService,
     CSVIngestionService,
     AuthGuard,
-    PrismaService,
   ],
   exports: [AlmService, AlmEnterpriseService, StressTestingService, WorkspaceOnboardingService, CSVIngestionService],
 })

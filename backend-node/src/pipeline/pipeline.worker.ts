@@ -23,11 +23,20 @@ export class PipelineWorker {
 
   @Cron('*/2 * * * *') // Every 2 minutes
   async processQueue() {
-    const job = await this.prisma.reportJob.findFirst({
-      where: { status: 'QUEUED' },
-      orderBy: { createdAt: 'asc' },
-      include: { user: true },
-    });
+    let job: any;
+    try {
+      job = await this.prisma.reportJob.findFirst({
+        where: { status: 'QUEUED' },
+        orderBy: { createdAt: 'asc' },
+        include: { user: true },
+      });
+    } catch (error: any) {
+      if (this.isReportJobsTableMissing(error)) {
+        this.logger.warn('Skipping pipeline queue processing: report_jobs table is missing');
+        return;
+      }
+      throw error;
+    }
 
     if (!job) return;
 
@@ -132,6 +141,14 @@ export class PipelineWorker {
     const data: any = { status };
     if (status === 'PROCESSING') data.processingStartedAt = new Date();
     await this.prisma.reportJob.update({ where: { id: jobId }, data });
+  }
+
+  private isReportJobsTableMissing(error: any): boolean {
+    const code = error?.code || error?.meta?.code;
+    if (code === 'P2021') return true;
+
+    const message = String(error?.message || '').toLowerCase();
+    return message.includes('report_jobs') && message.includes('does not exist');
   }
 
   private async loadInstitutionData(userId: string, institutionId?: string | null) {

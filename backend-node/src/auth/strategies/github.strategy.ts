@@ -6,10 +6,14 @@ import { AuthService } from '../auth.service';
 @Injectable()
 export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
   constructor(private authService: AuthService) {
+    const callbackURL = (
+      process.env.GITHUB_CALLBACK_URL ||
+      'https://api.cerniq.io/api/auth/github/callback'
+    ).trim();
     super({
       clientID: process.env.GITHUB_CLIENT_ID || 'not-configured',
       clientSecret: process.env.GITHUB_CLIENT_SECRET || 'not-configured',
-      callbackURL: process.env.GITHUB_CALLBACK_URL || 'http://localhost:3000/api/auth/github/callback',
+      callbackURL,
       scope: ['user:email'],
     });
   }

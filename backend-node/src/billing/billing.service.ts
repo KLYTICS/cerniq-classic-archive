@@ -5,6 +5,8 @@ import { PrismaService } from '../prisma.service';
 import { EmailService } from '../email/email.service';
 import { STRIPE_PRICE_IDS } from './stripe.config';
 
+type BillingTier = 'one_time' | 'monthly' | 'annual' | 'partner';
+
 @Injectable()
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
@@ -97,7 +99,7 @@ export class BillingService {
     const { customer_email: customerEmail, metadata, customer, amount_total } = session;
     if (!customerEmail || !metadata) return;
 
-    const tier = (metadata.tier || 'one_time') as 'one_time' | 'monthly' | 'annual' | 'partner';
+    const tier = (metadata.tier || 'one_time') as BillingTier;
 
     // 1. Find or create user
     let user = await this.prisma.user.findUnique({ where: { email: customerEmail } });
@@ -189,21 +191,11 @@ export class BillingService {
   }
 
   async handleSubscriptionCreated(subscription: Stripe.Subscription) {
-    const customerId = subscription.customer as string;
-    const sub = await this.prisma.subscription.findFirst({
-      where: { stripeCustomerId: customerId },
-    });
-    if (!sub) return;
+    await this.syncSubscriptionFromStripe(subscription, 'subscription.created');
+  }
 
-    await this.prisma.subscription.update({
-      where: { id: sub.id },
-      data: {
-        stripeSubscriptionId: subscription.id,
-        currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
-      },
-    });
-
-    this.logger.log({ event: 'subscription.created', customerId, subscriptionId: subscription.id });
+  async handleSubscriptionUpdated(subscription: Stripe.Subscription) {
+    await this.syncSubscriptionFromStripe(subscription, 'subscription.updated');
   }
 
   async handleInvoicePaid(invoice: Stripe.Invoice) {
@@ -393,5 +385,61 @@ export class BillingService {
     const d = new Date(date);
     d.setMonth(d.getMonth() + months);
     return d;
+  }
+
+  private resolveSubscriptionStatus(
+    status: Stripe.Subscription.Status,
+  ): 'active' | 'past_due' | 'cancelled' | 'grace_period' {
+    switch (status) {
+      case 'active':
+      case 'trialing':
+        return 'active';
+      case 'past_due':
+      case 'unpaid':
+      case 'incomplete':
+        return 'past_due';
+      case 'paused':
+        return 'grace_period';
+      case 'canceled':
+      case 'incomplete_expired':
+        return 'cancelled';
+      default:
+        return 'active';
+    }
+  }
+
+  private resolveTierFromPriceId(subscription: Stripe.Subscription): BillingTier | null {
+    const priceId = subscription.items?.data?.[0]?.price?.id;
+    if (!priceId) return null;
+    const match = Object.entries(STRIPE_PRICE_IDS).find(([, configuredPriceId]) => configuredPriceId === priceId);
+    if (!match) return null;
+    return match[0] as BillingTier;
+  }
+
+  private async syncSubscriptionFromStripe(subscription: Stripe.Subscription, eventName: string) {
+    const customerId = subscription.customer as string;
+    const sub = await this.prisma.subscription.findFirst({
+      where: { stripeCustomerId: customerId },
+    });
+    if (!sub) return;
+
+    const status = this.resolveSubscriptionStatus(subscription.status);
+    const nextTier = this.resolveTierFromPriceId(subscription);
+    const periodEndUnix = (subscription as any).current_period_end as number | undefined;
+
+    await this.prisma.subscription.update({
+      where: { id: sub.id },
+      data: {
+        stripeSubscriptionId: subscription.id,
+        status,
+        ...(nextTier ? { tier: nextTier } : {}),
+        ...(periodEndUnix ? { currentPeriodEnd: new Date(periodEndUnix * 1000) } : {}),
+        ...(status === 'cancelled'
+          ? { cancelledAt: new Date() }
+          : { cancelledAt: null }),
+      },
+    });
+
+    this.logger.log({ event: eventName, customerId, subscriptionId: subscription.id, status, tier: nextTier || sub.tier });
   }
 }

@@ -3,7 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PrismaService } from './prisma.service';
+import { PrismaModule } from './prisma.module';
 import { MarketDataModule } from './market-data/market-data.module';
 import { TickerModule } from './ticker/ticker.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
@@ -31,6 +31,7 @@ import { PortalModule } from './portal/portal.module';
   imports: [
     // Rate limiting — 100 requests per minute globally
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    PrismaModule,
     CacheModule,
     MarketDataModule,
     TickerModule,
@@ -65,7 +66,6 @@ import { PortalModule } from './portal/portal.module';
   controllers: [AppController],
   providers: [
     AppService,
-    PrismaService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

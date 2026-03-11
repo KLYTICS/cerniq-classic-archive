@@ -5,6 +5,7 @@ import { MarketDataService } from '../market-data/market-data.service';
 import { OptionsService } from '../options/options.service';
 import { PortfolioService } from '../portfolio/portfolio.service';
 import { OptionType } from '../options/dto/options.dto';
+import { isAllowedOrigin } from '../security/origin-allowlist';
 
 interface SubscriptionPayload {
     ticker: string;
@@ -26,7 +27,13 @@ interface PortfolioPnLPayload {
 
 @WebSocketGateway({
     cors: {
-        origin: '*', // Configure appropriately for production
+        origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
+            if (isAllowedOrigin(origin)) {
+                callback(null, true);
+                return;
+            }
+            callback(new Error(`Socket origin not allowed: ${origin || 'unknown'}`), false);
+        },
         credentials: true,
     },
     namespace: 'market-data',
