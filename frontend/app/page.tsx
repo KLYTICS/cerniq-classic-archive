@@ -199,8 +199,8 @@ export default function LandingPage() {
               icon: BarChart3,
               title: 'Balance Sheet Analytics',
               desc: 'Inline editing, CSV upload, duration heatmap. Real-time repricing gap and maturity distribution.',
-              color: 'text-purple-400',
-              bg: 'from-purple-500/20 to-purple-600/10',
+              color: 'text-indigo-400',
+              bg: 'from-indigo-500/20 to-indigo-600/10',
             },
             {
               icon: Landmark,
@@ -490,10 +490,11 @@ export default function LandingPage() {
                       onChange={(e) => setInstitutionType(e.target.value)}
                     >
                       <option value="">Select Type</option>
-                      <option value="bank">Community Bank</option>
+                      <option value="community_bank">Community Bank</option>
                       <option value="credit_union">Credit Union</option>
                       <option value="cooperativa">Cooperativa (PR)</option>
-                      <option value="family_office">Family Office</option>
+                      <option value="cpa_consultant">CPA Consultant</option>
+                      <option value="other">Family Office</option>
                       <option value="other">Other</option>
                     </select>
                   </div>

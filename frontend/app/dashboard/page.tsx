@@ -30,9 +30,9 @@ export default function DashboardPage() {
 
     if (!initialized) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#1B3A6B]/80 to-slate-900 flex items-center justify-center">
                 <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
                     <span className="text-sm text-slate-400">Loading dashboard...</span>
                 </div>
             </div>
@@ -44,7 +44,7 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#1B3A6B]/80 to-slate-900">
             {/* Navigation */}
             <nav className="bg-white/5 backdrop-blur-md border-b border-white/10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -126,7 +126,7 @@ export default function DashboardPage() {
                     {/* Valuation Screener Card */}
                     <div
                         onClick={() => router.push('/dashboard/valuation')}
-                        className="bg-gradient-to-br from-purple-500/20 to-blue-500/20 backdrop-blur-md rounded-xl p-6 border-2 border-purple-500/50 hover:border-purple-400 hover:shadow-lg hover:shadow-purple-500/30 transition cursor-pointer"
+                        className="bg-gradient-to-br from-indigo-500/20 to-blue-500/20 backdrop-blur-md rounded-xl p-6 border-2 border-indigo-500/50 hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-500/30 transition cursor-pointer"
                     >
                         <h3 className="text-xl font-semibold text-white mb-2">
                             Valuation Screener
@@ -134,7 +134,7 @@ export default function DashboardPage() {
                         <p className="text-gray-300 mb-4">
                             Multi-regime valuation for semiconductor and AI stocks
                         </p>
-                        <div className="flex items-center gap-2 text-purple-300 font-medium">
+                        <div className="flex items-center gap-2 text-indigo-300 font-medium">
                             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                             Live & Ready
                         </div>
@@ -160,7 +160,7 @@ export default function DashboardPage() {
                     {/* AI Insights Card */}
                     <div
                         onClick={() => router.push('/ai-insights')}
-                        className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-md rounded-xl p-6 border-2 border-purple-500/50 hover:border-purple-400 hover:shadow-lg hover:shadow-purple-500/30 transition cursor-pointer"
+                        className="bg-gradient-to-br from-sky-500/20 to-pink-500/20 backdrop-blur-md rounded-xl p-6 border-2 border-sky-500/50 hover:border-sky-400 hover:shadow-lg hover:shadow-sky-500/30 transition cursor-pointer"
                     >
                         <h3 className="text-xl font-semibold text-white mb-2">
                             AI Market Insights
@@ -168,7 +168,7 @@ export default function DashboardPage() {
                         <p className="text-gray-300 mb-4">
                             LLM-powered analysis of crypto, AI, and tech markets
                         </p>
-                        <div className="flex items-center gap-2 text-purple-300 font-medium">
+                        <div className="flex items-center gap-2 text-sky-300 font-medium">
                             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                             Live & Ready
                         </div>
@@ -205,7 +205,7 @@ export default function DashboardPage() {
                         <div className="flex flex-wrap gap-2 mb-3">
                             <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">Rate Sensitivity</span>
                             <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded">Liquidity</span>
-                            <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded">Balance Sheet</span>
+                            <span className="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded">Balance Sheet</span>
                             <span className="text-xs bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded">Stress Testing</span>
                         </div>
                         <div className="flex items-center gap-2 text-amber-300 font-medium">

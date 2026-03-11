@@ -440,16 +440,22 @@ export default function ALMOverviewPage() {
             <button
               onClick={async () => {
                 if (!selectedId) return;
+                const isDemoInstitution = selectedId.startsWith('demo-');
                 analytics.track(EVENTS.ALM_REPORT_DOWNLOADED, { institutionId: selectedId });
-                try {
-                  await apiClient.downloadALMReport(selectedId, locale);
-                } catch {
-                  // Fallback to client-side export
-                  exportToPDF({
-                    elementId: 'alm-report-content',
-                    filename: `ALM_Report_${summary?.institution?.name?.replace(/\s+/g, '_') || selectedId}.pdf`,
-                  });
+
+                if (!isDemoInstitution) {
+                  try {
+                    await apiClient.downloadALMReport(selectedId, locale);
+                    return;
+                  } catch {
+                    // Fallback to client-side export below.
+                  }
                 }
+
+                exportToPDF({
+                  elementId: 'alm-report-content',
+                  filename: `ALM_Report_${summary?.institution?.name?.replace(/\s+/g, '_') || selectedId}.pdf`,
+                });
               }}
               disabled={isExporting}
               className="flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-300 px-4 py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-50"

@@ -114,7 +114,7 @@ export default function MarketTicker({ tickers }: MarketTickerProps) {
                                     <StockInsightsPopup
                                         ticker={ticker}
                                         trigger={
-                                            <button className="text-xs bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 px-2 py-1 rounded transition flex items-center gap-1">
+                                            <button className="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-2 py-1 rounded transition flex items-center gap-1">
                                                 ✨ AI Insight
                                             </button>
                                         }

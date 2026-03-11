@@ -40,15 +40,24 @@ function ALMTopBar() {
 
   const handleExport = async () => {
     if (!selectedId) return;
+
+    const isDemoInstitution = selectedId.startsWith('demo-');
+
     analytics.track(EVENTS.ALM_REPORT_DOWNLOADED, { institutionId: selectedId });
-    try {
-      await apiClient.downloadALMReport(selectedId, locale);
-    } catch {
-      exportToPDF({
-        elementId: 'alm-report-content',
-        filename: `ALM_Report_${institution?.name?.replace(/\s+/g, '_') || selectedId}.pdf`,
-      });
+
+    if (!isDemoInstitution) {
+      try {
+        await apiClient.downloadALMReport(selectedId, locale);
+        return;
+      } catch {
+        // Fall back to client-side export below.
+      }
     }
+
+    exportToPDF({
+      elementId: 'alm-report-content',
+      filename: `ALM_Report_${institution?.name?.replace(/\s+/g, '_') || selectedId}.pdf`,
+    });
   };
 
   return (

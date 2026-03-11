@@ -104,7 +104,7 @@ RECOMMENDED ACTIONS
                         </button>
                         <button
                             onClick={copyToClipboard}
-                            className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-lg font-bold transition shadow-lg shadow-purple-500/20"
+                            className="bg-amber-600 hover:bg-amber-500 text-white px-6 py-2 rounded-lg font-bold transition shadow-lg shadow-amber-500/20"
                         >
                             Copy Report
                         </button>
@@ -135,7 +135,7 @@ RECOMMENDED ACTIONS
                     <div className="flex flex-col gap-4">
                         <h2 className="text-xl font-bold mb-2">Leak Inventory</h2>
                         {currentReport.findings.map((finding: any, idx: number) => (
-                            <div key={idx} className="bg-white/5 border border-white/5 p-4 rounded-xl hover:border-purple-500/30 transition">
+                            <div key={idx} className="bg-white/5 border border-white/5 p-4 rounded-xl hover:border-amber-500/30 transition">
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="font-bold text-lg">{finding.vendor}</div>
                                     <div className="text-green-400 font-mono font-bold">${finding.amount.toLocaleString()}</div>

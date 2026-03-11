@@ -94,11 +94,11 @@ export default function TickerSearch({ onSelect, placeholder = 'Search stocks, E
                     onChange={(e) => setQuery(e.target.value)}
                     onFocus={() => query.length >= 2 && setShowResults(true)}
                     placeholder={placeholder}
-                    className="w-full bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-6 py-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                    className="w-full bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-6 py-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
                 />
                 {loading && (
                     <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                        <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
                     </div>
                 )}
             </div>
@@ -121,7 +121,7 @@ export default function TickerSearch({ onSelect, placeholder = 'Search stocks, E
                                 <div className="flex items-center gap-3">
                                     <span className="text-2xl">{getAssetIcon(result.assetType)}</span>
                                     <div className="text-left">
-                                        <div className="font-semibold text-white group-hover:text-purple-400 transition">
+                                        <div className="font-semibold text-white group-hover:text-amber-400 transition">
                                             {result.ticker}
                                         </div>
                                         <div className="text-sm text-gray-400">{result.name}</div>

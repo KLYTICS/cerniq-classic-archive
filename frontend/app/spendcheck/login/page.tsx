@@ -8,6 +8,8 @@ const API_URL = (
     process.env.NEXT_PUBLIC_API_URL ||
     ''
 ).trim().replace(/\/+$/, '');
+const AUTH_TOKEN_STORAGE = 'auth_token';
+const REFRESH_TOKEN_STORAGE = 'refresh_token';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -41,9 +43,11 @@ export default function LoginPage() {
 
             const data = await res.json();
 
-            // Store tokens
-            localStorage.setItem('auth_token', data.accessToken);
-            localStorage.setItem('refresh_token', data.refreshToken);
+            // Keep bearer tokens session-scoped to reduce XSS persistence risk.
+            sessionStorage.setItem(AUTH_TOKEN_STORAGE, data.accessToken);
+            sessionStorage.setItem(REFRESH_TOKEN_STORAGE, data.refreshToken);
+            localStorage.removeItem(AUTH_TOKEN_STORAGE);
+            localStorage.removeItem(REFRESH_TOKEN_STORAGE);
             localStorage.setItem('userId', data.user.id);
             localStorage.setItem('userEmail', data.user.email);
             if (data.user.name) localStorage.setItem('userName', data.user.name);

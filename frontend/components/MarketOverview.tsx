@@ -129,7 +129,7 @@ export default function MarketOverview() {
                 {tickers.map((ticker) => (
                     <div
                         key={ticker.ticker}
-                        className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md rounded-lg p-4 border border-white/10 hover:border-purple-500/50 transition"
+                        className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md rounded-lg p-4 border border-white/10 hover:border-amber-500/50 transition"
                     >
                         <div className="text-xs text-gray-400 mb-1">{ticker.name}</div>
                         <div className="text-xl font-bold text-white mb-1">

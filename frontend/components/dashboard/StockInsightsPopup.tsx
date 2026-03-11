@@ -43,9 +43,9 @@ export default function StockInsightsPopup({ ticker, trigger }: StockInsightsPop
                         className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
                         onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
                     />
-                    <div className="absolute z-50 left-full top-0 ml-4 w-80 bg-slate-900 border border-purple-500/30 rounded-xl shadow-xl shadow-purple-500/20 p-4 text-white overflow-hidden">
+                    <div className="absolute z-50 left-full top-0 ml-4 w-80 bg-slate-900 border border-amber-500/30 rounded-xl shadow-xl shadow-amber-500/20 p-4 text-white overflow-hidden">
                         <div className="flex justify-between items-center mb-3">
-                            <h3 className="font-bold text-purple-300 flex items-center gap-2">
+                            <h3 className="font-bold text-amber-300 flex items-center gap-2">
                                 ✨ AI Analysis: {ticker}
                             </h3>
                             <button

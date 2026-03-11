@@ -97,7 +97,7 @@ export default function TickerDetailPage({ params }: TickerPageProps) {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#1B3A6B]/80 to-slate-900 flex items-center justify-center">
                 <div className="text-white text-xl">Loading {symbol}...</div>
             </div>
         );
@@ -105,14 +105,14 @@ export default function TickerDetailPage({ params }: TickerPageProps) {
 
     if (error || !quote) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#1B3A6B]/80 to-slate-900 flex items-center justify-center">
                 <div className="text-center">
                     <div className="text-red-400 text-xl mb-4">
                         {error || `Could not load data for ${symbol}`}
                     </div>
                     <button
                         onClick={() => router.push('/dashboard')}
-                        className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-lg transition"
+                        className="bg-amber-600 hover:bg-amber-500 text-white px-6 py-3 rounded-lg transition"
                     >
                         Back to Dashboard
                     </button>
@@ -124,13 +124,13 @@ export default function TickerDetailPage({ params }: TickerPageProps) {
     const isPositive = quote.changePercent >= 0;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#1B3A6B]/80 to-slate-900">
             {/* Header */}
             <div className="bg-white/5 backdrop-blur-md border-b border-white/10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     <button
                         onClick={() => router.push('/dashboard')}
-                        className="text-purple-400 hover:text-purple-300 mb-4 flex items-center gap-2"
+                        className="text-amber-400 hover:text-amber-300 mb-4 flex items-center gap-2"
                     >
                         ← Back to Dashboard
                     </button>
@@ -141,7 +141,7 @@ export default function TickerDetailPage({ params }: TickerPageProps) {
                                 <StockInsightsPopup
                                     ticker={symbol}
                                     trigger={
-                                        <button className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 px-3 py-1.5 rounded-lg transition flex items-center gap-2 text-sm font-medium border border-purple-500/30">
+                                        <button className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-3 py-1.5 rounded-lg transition flex items-center gap-2 text-sm font-medium border border-amber-500/30">
                                             ✨ AI Insight
                                         </button>
                                     }
@@ -255,7 +255,7 @@ export default function TickerDetailPage({ params }: TickerPageProps) {
                     transition={{ delay: 0.3 }}
                     className="mt-8 flex gap-4"
                 >
-                    <button className="flex-1 bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-lg transition font-medium">
+                    <button className="flex-1 bg-amber-600 hover:bg-amber-500 text-white px-6 py-3 rounded-lg transition font-medium">
                         Add to Watchlist
                     </button>
                     <button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition font-medium">

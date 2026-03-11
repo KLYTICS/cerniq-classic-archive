@@ -81,7 +81,7 @@ export default function FileUploadPage() {
                                 <div className="text-xs text-gray-500">Invoices Parsed</div>
                             </div>
                             <div className="bg-slate-900 p-4 rounded-xl border border-white/5">
-                                <div className="text-2xl font-bold text-purple-400">{analysisResult?.findings_found}</div>
+                                <div className="text-2xl font-bold text-amber-400">{analysisResult?.findings_found}</div>
                                 <div className="text-xs text-gray-500">Potential Leaks</div>
                             </div>
                         </div>
@@ -97,7 +97,7 @@ export default function FileUploadPage() {
                     <div
                         onDragOver={handleDragOver}
                         onDrop={handleDrop}
-                        className={`border-2 border-dashed rounded-2xl p-12 text-center transition ${file ? 'border-purple-500 bg-purple-500/10' : 'border-white/10 hover:border-purple-500/50 hover:bg-white/5'
+                        className={`border-2 border-dashed rounded-2xl p-12 text-center transition ${file ? 'border-amber-500 bg-amber-500/10' : 'border-white/10 hover:border-amber-500/50 hover:bg-white/5'
                             }`}
                     >
                         {file ? (
@@ -108,8 +108,8 @@ export default function FileUploadPage() {
 
                                 {loading ? (
                                     <div className="flex flex-col items-center">
-                                        <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                                        <div className="text-purple-300 font-medium animate-pulse">
+                                        <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                        <div className="text-amber-300 font-medium animate-pulse">
                                             {status === 'uploading' ? 'Uploading...' : 'Analyzing for Leaks...'}
                                         </div>
                                     </div>
@@ -123,7 +123,7 @@ export default function FileUploadPage() {
                                         </button>
                                         <button
                                             onClick={handleUpload}
-                                            className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-lg font-bold transition shadow-lg shadow-purple-500/20"
+                                            className="bg-amber-600 hover:bg-amber-500 text-white px-6 py-2 rounded-lg font-bold transition shadow-lg shadow-amber-500/20"
                                         >
                                             Run Audit
                                         </button>

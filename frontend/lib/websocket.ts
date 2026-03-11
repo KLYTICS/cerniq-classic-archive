@@ -1,6 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/market-data';
+function resolveWebSocketUrl(): string {
+    const explicitWsUrl = (process.env.NEXT_PUBLIC_WS_URL || '').trim();
+    if (explicitWsUrl) {
+        return explicitWsUrl;
+    }
+
+    const nodeApiUrl = (process.env.NEXT_PUBLIC_NODE_API_URL || process.env.NEXT_PUBLIC_API_URL || '').trim();
+    if (!nodeApiUrl) {
+        return '/market-data';
+    }
+
+    try {
+        const parsed = new URL(nodeApiUrl);
+        const protocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${protocol}//${parsed.host}/market-data`;
+    } catch {
+        return '/market-data';
+    }
+}
+
+const WS_URL = resolveWebSocketUrl();
 
 export interface WebSocketMessage {
     type: string;

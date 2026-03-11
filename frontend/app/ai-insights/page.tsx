@@ -211,10 +211,10 @@ export default function AIInsightsPage() {
         return (
             <div className="min-h-screen bg-gray-950 text-white p-8">
                 <div className="mb-8">
-                    <Link href="/dashboard" className="text-purple-400 hover:text-purple-300 text-sm mb-2 block">
+                    <Link href="/dashboard" className="text-amber-400 hover:text-amber-300 text-sm mb-2 block">
                         &larr; Back to Dashboard
                     </Link>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
                         AI Market Insights
                     </h1>
                     <p className="text-gray-400 mt-1">Loading real-time market sentiment...</p>
@@ -246,10 +246,10 @@ export default function AIInsightsPage() {
         return (
             <div className="min-h-screen bg-gray-950 text-white p-8">
                 <div className="mb-8">
-                    <Link href="/dashboard" className="text-purple-400 hover:text-purple-300 text-sm mb-2 block">
+                    <Link href="/dashboard" className="text-amber-400 hover:text-amber-300 text-sm mb-2 block">
                         &larr; Back to Dashboard
                     </Link>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
                         AI Market Insights
                     </h1>
                 </div>
@@ -257,7 +257,7 @@ export default function AIInsightsPage() {
                     <p className="text-red-300 mb-4">{error}</p>
                     <button
                         onClick={fetchAll}
-                        className="px-6 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg transition"
+                        className="px-6 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg transition"
                     >
                         Retry
                     </button>
@@ -270,10 +270,10 @@ export default function AIInsightsPage() {
         <div className="min-h-screen bg-gray-950 text-white p-8">
             {/* Header */}
             <div className="mb-8">
-                <Link href="/dashboard" className="text-purple-400 hover:text-purple-300 text-sm mb-2 block">
+                <Link href="/dashboard" className="text-amber-400 hover:text-amber-300 text-sm mb-2 block">
                     &larr; Back to Dashboard
                 </Link>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
                     AI Market Insights
                 </h1>
                 <p className="text-gray-400 mt-1">Real-time market sentiment and trend analysis</p>
@@ -364,7 +364,7 @@ export default function AIInsightsPage() {
                         <Link
                             href={`/dashboard/ticker/${t.ticker}`}
                             key={t.ticker}
-                            className="bg-gray-900/50 rounded-xl border border-gray-800 p-4 hover:border-purple-500/50 transition"
+                            className="bg-gray-900/50 rounded-xl border border-gray-800 p-4 hover:border-amber-500/50 transition"
                         >
                             <div className="flex justify-between items-start mb-2">
                                 <span className="font-bold text-lg text-blue-400">{t.ticker}</span>

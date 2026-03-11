@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { useTranslation } from '@/lib/i18n';
 
 interface ExportConfig {
     elementId: string;
@@ -12,7 +11,6 @@ interface ExportConfig {
 
 export function usePDFExport() {
     const [isExporting, setIsExporting] = useState(false);
-    const { t } = useTranslation();
 
     const exportToPDF = useCallback(async ({
         elementId,
@@ -37,17 +35,46 @@ export function usePDFExport() {
             element.style.height = 'auto';
             element.style.overflow = 'visible';
 
-            const canvas = await html2canvas(element, {
-                scale: 2, // Higher quality
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#020617', // Match slate-950 background
-            });
-
-            // Restore original styles
-            element.style.cssText = originalStyle;
-            element.style.height = originalHeight;
-            element.style.overflow = originalOverflow;
+            let canvas: HTMLCanvasElement;
+            try {
+                canvas = await html2canvas(element, {
+                    scale: 2, // Higher quality
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#020617', // Match slate-950 background
+                    foreignObjectRendering: true,
+                    onclone: (doc) => {
+                        // html2canvas cannot parse Tailwind v4 oklch/oklab values reliably.
+                        // Override the key variables in the cloned document with hex fallbacks.
+                        const style = doc.createElement('style');
+                        style.textContent = `
+                          :root {
+                            --color-slate-950: #020617;
+                            --color-slate-900: #0f172a;
+                            --color-slate-800: #1e293b;
+                            --color-slate-700: #334155;
+                            --color-slate-600: #475569;
+                            --color-slate-500: #64748b;
+                            --color-slate-400: #94a3b8;
+                            --color-amber-500: #f59e0b;
+                            --color-amber-400: #fbbf24;
+                            --color-orange-500: #f97316;
+                            --color-blue-500: #3b82f6;
+                            --color-emerald-500: #10b981;
+                            --color-red-500: #ef4444;
+                            --color-white: #ffffff;
+                            --color-black: #000000;
+                          }
+                        `;
+                        doc.head.appendChild(style);
+                    },
+                });
+            } finally {
+                // Always restore styles even if export fails.
+                element.style.cssText = originalStyle;
+                element.style.height = originalHeight;
+                element.style.overflow = originalOverflow;
+            }
 
             const imgWidth = 210; // A4 width in mm
             const pageHeight = 295; // A4 height in mm

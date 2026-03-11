@@ -8,6 +8,23 @@ import {
 } from 'lucide-react';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+const ADMIN_KEY_STORAGE = 'cerniq_admin_key';
+
+function loadAdminKey(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  const sessionKey = sessionStorage.getItem(ADMIN_KEY_STORAGE) || '';
+  if (sessionKey) {
+    return sessionKey;
+  }
+  const legacyKey = localStorage.getItem('admin_key') || '';
+  if (legacyKey) {
+    sessionStorage.setItem(ADMIN_KEY_STORAGE, legacyKey);
+    localStorage.removeItem('admin_key');
+  }
+  return legacyKey;
+}
 
 interface PipelineJob {
   id: string;
@@ -64,7 +81,7 @@ export default function AdminPipeline() {
   };
 
   useEffect(() => {
-    const key = localStorage.getItem('admin_key') || '';
+    const key = loadAdminKey();
     if (key) {
       setAdminKey(key);
       fetchJobs(key);
@@ -74,7 +91,8 @@ export default function AdminPipeline() {
   }, [statusFilter]);
 
   const handleLogin = () => {
-    localStorage.setItem('admin_key', adminKey);
+    sessionStorage.setItem(ADMIN_KEY_STORAGE, adminKey);
+    localStorage.removeItem('admin_key');
     setLoading(true);
     fetchJobs(adminKey);
   };

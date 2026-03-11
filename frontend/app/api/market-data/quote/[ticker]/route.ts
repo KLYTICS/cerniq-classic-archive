@@ -18,6 +18,15 @@ const MOCK_QUOTES: Record<string, { name: string; price: number; change: number;
     'ASML': { name: 'ASML Holding', price: 728.45, change: 9.80, changePercent: 1.36 },
 };
 
+function allowMockQuoteFallback(): boolean {
+    const raw = (
+        process.env.ALLOW_DEMO_MOCKS ||
+        process.env.NEXT_PUBLIC_ALLOW_DEMO_MOCKS ||
+        ''
+    ).trim().toLowerCase();
+    return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
 // Add small random variation to make it look live
 function addVariation(quote: typeof MOCK_QUOTES['SPY']) {
     const variation = (Math.random() - 0.5) * 0.005; // ±0.25%
@@ -42,7 +51,14 @@ export async function GET(
 
     // First, try to get live data from the backend
     try {
-        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+        const backendUrl = (
+            process.env.API_URL ||
+            process.env.NEXT_PUBLIC_API_URL ||
+            ''
+        ).trim().replace(/\/+$/, '');
+        if (!backendUrl) {
+            throw new Error('Backend URL is not configured');
+        }
         const today = new Date();
         const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -73,11 +89,17 @@ export async function GET(
             }
         }
     } catch (error) {
-        // Backend not available or errored, fall through to mock data
-        console.log(`Using mock data for ${symbol} - backend unavailable`);
+        // Backend not available or not configured, fall through to mock data
     }
 
-    // Fallback to mock data
+    if (!allowMockQuoteFallback()) {
+        return NextResponse.json(
+            { error: `Live quote unavailable for ${symbol}` },
+            { status: 503 }
+        );
+    }
+
+    // Fallback to mock data (explicitly enabled only)
     const mockQuote = MOCK_QUOTES[symbol];
 
     if (mockQuote) {
@@ -87,7 +109,7 @@ export async function GET(
         });
     }
 
-    // Unknown ticker - generate random data
+    // Unknown ticker - generate synthetic data only in demo mode
     const randomPrice = 50 + Math.random() * 500;
     const randomChange = (Math.random() - 0.5) * 10;
 

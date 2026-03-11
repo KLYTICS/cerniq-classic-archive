@@ -10,6 +10,51 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const CAPEX_ACCESS_TOKEN_KEY = 'capex_access_token';
 
+function getAccessToken(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  const sessionToken = sessionStorage.getItem(CAPEX_ACCESS_TOKEN_KEY);
+  if (sessionToken) {
+    return sessionToken;
+  }
+
+  // Migrate any legacy persisted token to session scope.
+  const legacyToken = localStorage.getItem(CAPEX_ACCESS_TOKEN_KEY) || '';
+  if (legacyToken) {
+    sessionStorage.setItem(CAPEX_ACCESS_TOKEN_KEY, legacyToken);
+    localStorage.removeItem(CAPEX_ACCESS_TOKEN_KEY);
+  }
+  return legacyToken;
+}
+
+function setAccessToken(token: string): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  sessionStorage.setItem(CAPEX_ACCESS_TOKEN_KEY, token);
+  localStorage.removeItem(CAPEX_ACCESS_TOKEN_KEY);
+}
+
+function clearAccessToken(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  sessionStorage.removeItem(CAPEX_ACCESS_TOKEN_KEY);
+  localStorage.removeItem(CAPEX_ACCESS_TOKEN_KEY);
+}
+
+export interface ManagedApiKey {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  createdAt: string;
+  lastUsedAt?: string | null;
+  revokedAt?: string | null;
+  expiresAt?: string | null;
+}
+
 class APIClient {
   private client: AxiosInstance;
 
@@ -24,7 +69,7 @@ class APIClient {
 
     this.client.interceptors.request.use((config) => {
       if (typeof window !== 'undefined') {
-        const token = localStorage.getItem(CAPEX_ACCESS_TOKEN_KEY);
+        const token = getAccessToken();
         if (token) {
           config.headers = config.headers || {};
           config.headers.Authorization = `Bearer ${token}`;
@@ -69,8 +114,8 @@ class APIClient {
     }
 
     const token = data.session?.access_token || '';
-    if (typeof window !== 'undefined' && token) {
-      localStorage.setItem(CAPEX_ACCESS_TOKEN_KEY, token);
+    if (token) {
+      setAccessToken(token);
     }
 
     return {
@@ -107,8 +152,8 @@ class APIClient {
       throw new Error(data?.msg || data?.error_description || data?.error || 'Login failed');
     }
 
-    if (typeof window !== 'undefined' && data.access_token) {
-      localStorage.setItem(CAPEX_ACCESS_TOKEN_KEY, data.access_token);
+    if (data.access_token) {
+      setAccessToken(data.access_token);
     }
 
     return {
@@ -132,9 +177,7 @@ class APIClient {
     } catch {
       // Best-effort server-side logout
     }
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(CAPEX_ACCESS_TOKEN_KEY);
-    }
+    clearAccessToken();
   }
 
   async refreshTokens() {
@@ -147,6 +190,21 @@ class APIClient {
     return response.data;
   }
 
+  async listApiKeys(): Promise<{ keys: ManagedApiKey[] }> {
+    const response = await this.client.get(`${NODE_API_URL}/api/auth/api-keys`);
+    return response.data;
+  }
+
+  async createApiKey(name: string, expiresInDays?: number): Promise<{ apiKey: string; record: ManagedApiKey }> {
+    const response = await this.client.post(`${NODE_API_URL}/api/auth/api-keys`, { name, expiresInDays });
+    return response.data;
+  }
+
+  async revokeApiKey(keyId: string): Promise<{ revoked: boolean }> {
+    const response = await this.client.post(`${NODE_API_URL}/api/auth/api-keys/${keyId}/revoke`);
+    return response.data;
+  }
+
   // Demo Request (landing page) — submits to both legacy endpoint and lead pipeline
   async submitDemoRequest(data: {
     email: string;
@@ -155,13 +213,32 @@ class APIClient {
     institutionType?: string;
     totalAssets?: string;
     message?: string;
+    company?: string;
   }) {
+    const rawInstitutionType = (data.institutionType || '').trim().toLowerCase();
+    const institutionTypeAliases: Record<string, string> = {
+      bank: 'community_bank',
+      family_office: 'other',
+    };
+    const allowedInstitutionTypes = new Set([
+      'cooperativa',
+      'credit_union',
+      'community_bank',
+      'cpa_consultant',
+      'other',
+    ]);
+    const mappedInstitutionType = institutionTypeAliases[rawInstitutionType] || rawInstitutionType;
+    const normalizedInstitutionType = allowedInstitutionTypes.has(mappedInstitutionType)
+      ? mappedInstitutionType
+      : 'other';
+    const normalizedInstitutionName = (data.institutionName || data.company || '').trim();
+
     // Submit to lead pipeline (primary)
     const leadPayload = {
       name: data.name || '',
       email: data.email,
-      institutionName: data.institutionName || '',
-      institutionType: data.institutionType || 'other',
+      institutionName: normalizedInstitutionName,
+      institutionType: normalizedInstitutionType,
       message: data.message,
       source: 'landing_page',
     };
@@ -170,7 +247,12 @@ class APIClient {
     } catch { /* fallback to legacy */ }
 
     // Also submit to legacy demo-request endpoint
-    const response = await this.client.post(`${NODE_API_URL}/api/demo-request`, data);
+    const legacyPayload = {
+      ...data,
+      institutionName: normalizedInstitutionName || undefined,
+      institutionType: normalizedInstitutionType,
+    };
+    const response = await this.client.post(`${NODE_API_URL}/api/demo-request`, legacyPayload);
     return response.data;
   }
 

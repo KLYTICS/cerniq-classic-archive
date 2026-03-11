@@ -104,7 +104,7 @@ export default function ValuationPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#1B3A6B]/80 to-slate-900">
             {/* Navigation */}
             <nav className="bg-white/5 backdrop-blur-md border-b border-white/10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -174,7 +174,7 @@ export default function ValuationPage() {
                 {isLoading && (
                     <div className="flex items-center justify-center py-20">
                         <div className="text-center">
-                            <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-purple-500 border-t-transparent mb-4"></div>
+                            <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-amber-500 border-t-transparent mb-4"></div>
                             <p className="text-gray-300 text-lg">Computing valuation...</p>
                             <p className="text-gray-400 text-sm mt-2">Detecting cycles and normalizing earnings</p>
                         </div>
@@ -225,7 +225,7 @@ export default function ValuationPage() {
                 {!valuationData && !isLoading && !error && (
                     <div className="text-center py-20">
                         <div className="inline-block p-6 bg-white/5 rounded-full mb-6">
-                            <svg className="w-16 h-16 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-16 h-16 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                             </svg>
                         </div>
