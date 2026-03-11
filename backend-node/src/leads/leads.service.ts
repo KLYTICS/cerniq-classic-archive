@@ -306,7 +306,7 @@ Hemos preparado un informe ALM de muestra para ${prospect.name} basado en datos 
 ¿Le gustaría recibir su informe personalizado? Responda a este correo o programe una demostración de 15 minutos.
 
 Saludos cordiales,
-Erwin Cabrera
+Erwin Kiess
 CERNIQ — San Juan, PR`
       : `Dear ${prospect.contactRole || 'CFO'},
 
@@ -324,7 +324,7 @@ We've prepared a sample ALM report for ${prospect.name} using publicly available
 Would you like to receive your personalized report? Reply to this email or schedule a 15-minute demo.
 
 Best regards,
-Erwin Cabrera
+Erwin Kiess
 CERNIQ — San Juan, PR`;
 
     return { subject, body, flags, prospect: { name: prospect.name, assets: assetsM, location: prospect.location } };
