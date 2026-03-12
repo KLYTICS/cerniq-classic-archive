@@ -150,9 +150,9 @@ jobs:
         working-directory: backend
         run: cargo build --release
 
-  # Deploy Backend to Fly.io
+  # Deploy Backend to Railway
   deploy-backend:
-    name: Deploy Backend to Fly.io
+    name: Deploy Backend to Railway
     runs-on: ubuntu-latest
     needs: [backend-node-test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -162,34 +162,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Fly CLI
-        uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
 
-      - name: Deploy to Fly.io
+      - name: Deploy to Railway
         working-directory: backend-node
-        run: flyctl deploy --remote-only
+        run: railway up --ci --service "${{ vars.RAILWAY_SERVICE_ID }}" --environment "${{ vars.RAILWAY_ENVIRONMENT_NAME }}" --project "${{ vars.RAILWAY_PROJECT_ID }}"
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
-  # Deploy Frontend to Vercel
+  # Frontend deploys are handled by Vercel's GitHub integration
   deploy-frontend:
-    name: Deploy Frontend to Vercel
+    name: Frontend Deploy Managed by Vercel
     runs-on: ubuntu-latest
     needs: [frontend-test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    environment: production
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Deploy to Vercel
-        working-directory: frontend
-        run: vercel --prod --yes
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Confirm Vercel integration
+        run: echo "Production frontend deployments are triggered by Vercel's GitHub integration."
