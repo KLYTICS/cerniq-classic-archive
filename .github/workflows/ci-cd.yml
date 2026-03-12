@@ -43,6 +43,10 @@ jobs:
         working-directory: backend-node
         run: npm ci --legacy-peer-deps
 
+      - name: Generate Prisma client
+        working-directory: backend-node
+        run: npx prisma generate
+
       - name: Validate env vars
         working-directory: backend-node
         run: |
