@@ -1,391 +1,430 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Briefcase, Plus, Wallet } from 'lucide-react';
+import PlatformPage from '@/components/layout/PlatformPage';
 import { apiClient } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 
 interface Portfolio {
-    id: string;
-    name: string;
-    description: string | null;
-    currency: string;
-    initialCash: number;
-    currentCash: number;
-    totalValue: number;
-    totalPnL: number;
-    totalPnLPercent: number;
-    positions: Position[];
+  id: string;
+  name: string;
+  description: string | null;
+  currency: string;
+  initialCash: number;
+  currentCash: number;
+  totalValue: number;
+  totalPnL: number;
+  totalPnLPercent: number;
+  positions: Position[];
 }
 
 interface Position {
-    id: string;
-    ticker: string;
-    quantity: number;
-    avgCost: number;
-    currentPrice: number;
-    marketValue: number;
-    unrealizedPnL: number;
-    unrealizedPnLPercent: number;
-    weight: number;
+  id: string;
+  ticker: string;
+  quantity: number;
+  avgCost: number;
+  currentPrice: number;
+  marketValue: number;
+  unrealizedPnL: number;
+  unrealizedPnLPercent: number;
+  weight: number;
 }
 
 export default function PortfoliosPage() {
-    const router = useRouter();
-    const { initialized, isAuthenticated, onboardingComplete, user } = useAuthStore();
-    const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
-    const [selectedPortfolio, setSelectedPortfolio] = useState<Portfolio | null>(null);
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [showPositionModal, setShowPositionModal] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [newPortfolio, setNewPortfolio] = useState({ name: '', description: '', benchmark: 'SPY' });
-    const [newPosition, setNewPosition] = useState({ symbol: '', quantity: '', price: '' });
-    useEffect(() => {
-        if (!initialized) {
-            return;
-        }
+  const router = useRouter();
+  const { initialized, isAuthenticated, onboardingComplete, user } = useAuthStore();
+  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [selectedPortfolio, setSelectedPortfolio] = useState<Portfolio | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showPositionModal, setShowPositionModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [newPortfolio, setNewPortfolio] = useState({ name: '', description: '', benchmark: 'SPY' });
+  const [newPosition, setNewPosition] = useState({ symbol: '', quantity: '', price: '' });
 
-        if (!isAuthenticated) {
-            router.push('/login');
-            return;
-        }
-
-        if (!onboardingComplete) {
-            router.push('/onboarding');
-            return;
-        }
-
-        if (user?.id) {
-            fetchPortfolios(user.id);
-        }
-    }, [initialized, isAuthenticated, onboardingComplete, user, router]);
-
-    const fetchPortfolios = async (uid: string) => {
-        setLoading(true);
-        try {
-            const data = await apiClient.getPortfolios();
-            const nextPortfolios: Portfolio[] = Array.isArray(data) ? data : [];
-
-            setPortfolios(nextPortfolios);
-            setSelectedPortfolio((current) => {
-                if (nextPortfolios.length === 0) {
-                    return null;
-                }
-
-                if (!current) {
-                    return nextPortfolios[0];
-                }
-
-                return nextPortfolios.find((p) => p.id === current.id) || nextPortfolios[0];
-            });
-        } catch (error) {
-            console.error('Failed to fetch portfolios:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleCreatePortfolio = async () => {
-        if (!newPortfolio.name || !user?.id) return;
-
-        try {
-            await apiClient.createPortfolio(user.id, {
-                name: newPortfolio.name,
-                description: newPortfolio.description,
-                currency: 'USD',
-                initial_capital: 100000,
-                initialCash: 100000 // Backward-compatible for legacy services
-            });
-            setShowAddModal(false);
-            setNewPortfolio({ name: '', description: '', benchmark: 'SPY' });
-            fetchPortfolios(user.id);
-        } catch (error) {
-            console.error('Failed to create portfolio:', error);
-        }
-    };
-
-    const handleAddPosition = async () => {
-        if (!selectedPortfolio || !user?.id || !newPosition.symbol || !newPosition.quantity || !newPosition.price) return;
-
-        try {
-            await apiClient.addPosition(selectedPortfolio.id, user.id, {
-                symbol: newPosition.symbol.toUpperCase(),
-                ticker: newPosition.symbol.toUpperCase(),
-                quantity: Number(newPosition.quantity),
-                price: Number(newPosition.price)
-            });
-            setShowPositionModal(false);
-            setNewPosition({ symbol: '', quantity: '', price: '' });
-            fetchPortfolios(user.id);
-        } catch (error) {
-            console.error('Failed to add position:', error);
-        }
-    };
-
-    const selectPortfolio = (portfolio: Portfolio) => {
-        setSelectedPortfolio(portfolio);
-    };
-
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 2,
-        }).format(value);
-    };
-
-    const formatPercent = (value: number) => {
-        const sign = value >= 0 ? '+' : '';
-        return `${sign}${value.toFixed(2)}%`;
-    };
-
-    if (!initialized || !isAuthenticated || !onboardingComplete) {
-        return null;
+  useEffect(() => {
+    if (!initialized) {
+      return;
     }
 
-    if (loading && portfolios.length === 0) {
-        return (
-            <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-        );
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
     }
 
+    if (!onboardingComplete) {
+      router.push('/onboarding');
+      return;
+    }
+
+    if (user?.id) {
+      void fetchPortfolios();
+    }
+  }, [initialized, isAuthenticated, onboardingComplete, router, user]);
+
+  const fetchPortfolios = async () => {
+    setLoading(true);
+    try {
+      const data = await apiClient.getPortfolios();
+      const nextPortfolios: Portfolio[] = Array.isArray(data) ? data : [];
+
+      setPortfolios(nextPortfolios);
+      setSelectedPortfolio((current) => {
+        if (nextPortfolios.length === 0) {
+          return null;
+        }
+
+        if (!current) {
+          return nextPortfolios[0];
+        }
+
+        return nextPortfolios.find((portfolio) => portfolio.id === current.id) || nextPortfolios[0];
+      });
+    } catch (error) {
+      console.error('Failed to fetch portfolios:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreatePortfolio = async () => {
+    if (!newPortfolio.name || !user?.id) {
+      return;
+    }
+
+    try {
+      await apiClient.createPortfolio(user.id, {
+        name: newPortfolio.name,
+        description: newPortfolio.description,
+        currency: 'USD',
+        initial_capital: 100000,
+        initialCash: 100000,
+      });
+      setShowAddModal(false);
+      setNewPortfolio({ name: '', description: '', benchmark: 'SPY' });
+      await fetchPortfolios();
+    } catch (error) {
+      console.error('Failed to create portfolio:', error);
+    }
+  };
+
+  const handleAddPosition = async () => {
+    if (!selectedPortfolio || !user?.id || !newPosition.symbol || !newPosition.quantity || !newPosition.price) {
+      return;
+    }
+
+    try {
+      await apiClient.addPosition(selectedPortfolio.id, user.id, {
+        symbol: newPosition.symbol.toUpperCase(),
+        ticker: newPosition.symbol.toUpperCase(),
+        quantity: Number(newPosition.quantity),
+        price: Number(newPosition.price),
+      });
+      setShowPositionModal(false);
+      setNewPosition({ symbol: '', quantity: '', price: '' });
+      await fetchPortfolios();
+    } catch (error) {
+      console.error('Failed to add position:', error);
+    }
+  };
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    }).format(value);
+
+  const formatPercent = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+
+  if (!initialized || !isAuthenticated || !onboardingComplete) {
+    return null;
+  }
+
+  if (loading && portfolios.length === 0) {
     return (
-        <div className="min-h-screen bg-gray-950 text-white p-8">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    <Link href="/dashboard" className="text-blue-400 hover:text-blue-300 text-sm mb-2 block">
-                        ← Back to Dashboard
-                    </Link>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                        Portfolio Manager
-                    </h1>
-                    <p className="text-gray-400 mt-1">Track your investments and analyze performance</p>
-                </div>
-                <button
-                    onClick={() => setShowAddModal(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg hover:opacity-90 transition font-medium"
-                >
-                    + New Portfolio
-                </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Portfolio List */}
-                <div className="space-y-4">
-                    <h2 className="text-xl font-semibold text-gray-200">Your Portfolios</h2>
-                    {portfolios.length === 0 && (
-                        <div className="text-gray-500 italic">No portfolios created yet.</div>
-                    )}
-                    {portfolios.map((portfolio) => (
-                        <div
-                            key={portfolio.id}
-                            onClick={() => selectPortfolio(portfolio)}
-                            className={`p-5 rounded-xl cursor-pointer transition-all ${selectedPortfolio?.id === portfolio.id
-                                ? 'bg-gradient-to-br from-blue-900/50 to-purple-900/50 border border-blue-500/50'
-                                : 'bg-gray-900/50 border border-gray-800 hover:border-gray-600'
-                                }`}
-                        >
-                            <div className="flex justify-between items-start mb-3">
-                                <div>
-                                    <h3 className="font-semibold text-lg">{portfolio.name}</h3>
-                                    <p className="text-gray-400 text-sm">{portfolio.description || 'No description'}</p>
-                                </div>
-                                <span className="text-xs bg-gray-800 px-2 py-1 rounded">
-                                    {portfolio.currency}
-                                </span>
-                            </div>
-                            <div className="flex justify-between items-end">
-                                <div>
-                                    <p className="text-2xl font-bold">{formatCurrency(portfolio.totalValue)}</p>
-                                    <p className="text-sm text-gray-400">{portfolio.positions.length} positions</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className={`text-lg font-semibold ${portfolio.totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        {formatCurrency(portfolio.totalPnL)}
-                                    </p>
-                                    <p className={`text-sm ${portfolio.totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        {formatPercent(portfolio.totalPnLPercent)}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Positions Table */}
-                <div className="lg:col-span-2">
-                    {selectedPortfolio ? (
-                        <div className="bg-gray-900/50 rounded-xl border border-gray-800 overflow-hidden">
-                            <div className="p-5 border-b border-gray-800 flex justify-between items-center">
-                                <div>
-                                    <h2 className="text-xl font-semibold">{selectedPortfolio.name} Positions</h2>
-                                    <p className="text-gray-400 text-sm">
-                                        Cash: {formatCurrency(selectedPortfolio.currentCash)}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => setShowPositionModal(true)}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
-                                >
-                                    + Add Position
-                                </button>
-                            </div>
-
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead className="bg-gray-800/50">
-                                        <tr>
-                                            <th className="text-left p-4 text-gray-400 font-medium">Symbol</th>
-                                            <th className="text-right p-4 text-gray-400 font-medium">Quantity</th>
-                                            <th className="text-right p-4 text-gray-400 font-medium">Avg Cost</th>
-                                            <th className="text-right p-4 text-gray-400 font-medium">Price</th>
-                                            <th className="text-right p-4 text-gray-400 font-medium">Value</th>
-                                            <th className="text-right p-4 text-gray-400 font-medium">P&L</th>
-                                            <th className="text-right p-4 text-gray-400 font-medium">%</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {selectedPortfolio.positions.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={7} className="p-8 text-center text-gray-500">
-                                                    No positions yet. click "+ Add Position" to start trading.
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            selectedPortfolio.positions.map((position) => (
-                                                <tr key={position.id} className="border-t border-gray-800 hover:bg-gray-800/30 transition">
-                                                    <td className="p-4">
-                                                        <span className="font-semibold text-blue-400">{position.ticker}</span>
-                                                    </td>
-                                                    <td className="p-4 text-right">{position.quantity}</td>
-                                                    <td className="p-4 text-right text-gray-400">{formatCurrency(position.avgCost)}</td>
-                                                    <td className="p-4 text-right">{formatCurrency(position.currentPrice)}</td>
-                                                    <td className="p-4 text-right font-medium">{formatCurrency(position.marketValue)}</td>
-                                                    <td className={`p-4 text-right font-medium ${position.unrealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                        {formatCurrency(position.unrealizedPnL)}
-                                                    </td>
-                                                    <td className={`p-4 text-right ${position.unrealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                        {formatPercent(position.unrealizedPnLPercent)}
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                    <tfoot className="bg-gray-800/50 font-semibold">
-                                        <tr>
-                                            <td className="p-4">Total Value</td>
-                                            <td className="p-4" colSpan={3}></td>
-                                            <td className="p-4 text-right">{formatCurrency(selectedPortfolio.totalValue)}</td>
-                                            <td className={`p-4 text-right ${selectedPortfolio.totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                {formatCurrency(selectedPortfolio.totalPnL)}
-                                            </td>
-                                            <td className={`p-4 text-right ${selectedPortfolio.totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                {formatPercent(selectedPortfolio.totalPnLPercent)}
-                                            </td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-12 text-center">
-                            <div className="text-6xl mb-4">💼</div>
-                            <h3 className="text-xl font-semibold mb-2">Select a Portfolio</h3>
-                            <p className="text-gray-400">Click on a portfolio to view its positions and performance</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Add Portfolio Modal */}
-            {showAddModal && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-                    <div className="bg-gray-900 rounded-xl p-6 w-full max-w-md border border-gray-700">
-                        <h3 className="text-xl font-semibold mb-4">Create New Portfolio</h3>
-                        <div className="space-y-4">
-                            <input
-                                type="text"
-                                placeholder="Portfolio Name"
-                                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none"
-                                value={newPortfolio.name}
-                                onChange={(e) => setNewPortfolio({ ...newPortfolio, name: e.target.value })}
-                            />
-                            <input
-                                type="text"
-                                placeholder="Description (optional)"
-                                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none"
-                                value={newPortfolio.description}
-                                onChange={(e) => setNewPortfolio({ ...newPortfolio, description: e.target.value })}
-                            />
-                        </div>
-                        <div className="flex gap-3 mt-6">
-                            <button
-                                onClick={() => setShowAddModal(false)}
-                                className="flex-1 px-4 py-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleCreatePortfolio}
-                                className="flex-1 px-4 py-3 bg-blue-600 rounded-lg hover:bg-blue-500 transition"
-                            >
-                                Create
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Add Position Modal */}
-            {showPositionModal && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-                    <div className="bg-gray-900 rounded-xl p-6 w-full max-w-md border border-gray-700">
-                        <h3 className="text-xl font-semibold mb-4">Add Position</h3>
-                        <div className="space-y-4">
-                            <input
-                                type="text"
-                                placeholder="Ticker Symbol (e.g., AAPL)"
-                                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none uppercase"
-                                value={newPosition.symbol}
-                                onChange={(e) => setNewPosition({ ...newPosition, symbol: e.target.value.toUpperCase() })}
-                            />
-                            <input
-                                type="number"
-                                placeholder="Quantity"
-                                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none"
-                                value={newPosition.quantity}
-                                onChange={(e) => setNewPosition({ ...newPosition, quantity: e.target.value })}
-                            />
-                            <input
-                                type="number"
-                                step="0.01"
-                                placeholder="Price per share"
-                                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none"
-                                value={newPosition.price}
-                                onChange={(e) => setNewPosition({ ...newPosition, price: e.target.value })}
-                            />
-                        </div>
-                        <div className="flex gap-3 mt-6">
-                            <button
-                                onClick={() => setShowPositionModal(false)}
-                                className="flex-1 px-4 py-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleAddPosition}
-                                className="flex-1 px-4 py-3 bg-green-600 rounded-lg hover:bg-green-500 transition"
-                            >
-                                Buy
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-[#f7fbff]">
+        <div className="h-12 w-12 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" />
+      </div>
     );
+  }
+
+  return (
+    <>
+      <PlatformPage
+        kicker="Portfolio manager"
+        title="Track holdings, cash, and unrealized performance without leaving the CERNIQ workspace."
+        description="Portfolio Manager keeps the operating picture clean: one list of mandates on the left, one position surface on the right, and clear performance totals at the top."
+        meta={
+          <>
+            <span className="cerniq-mini-stat">
+              <strong>{portfolios.length}</strong> portfolios
+            </span>
+            {selectedPortfolio ? (
+              <>
+                <span className="cerniq-mini-stat">
+                  <strong>{selectedPortfolio.positions.length}</strong> positions
+                </span>
+                <span className="cerniq-mini-stat">
+                  <strong>{formatCurrency(selectedPortfolio.currentCash)}</strong> cash
+                </span>
+              </>
+            ) : null}
+          </>
+        }
+        actions={
+          <>
+            <Link href="/dashboard" className="cerniq-button-secondary px-5 py-3 text-sm">
+              Back to dashboard
+            </Link>
+            <button onClick={() => setShowAddModal(true)} className="cerniq-button-primary px-5 py-3 text-sm">
+              <Plus className="h-4 w-4" />
+              New portfolio
+            </button>
+          </>
+        }
+      >
+        <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <div className="cerniq-panel p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="cerniq-section-label">Portfolio list</p>
+                <h2 className="mt-2 font-display text-2xl text-slate-950">Your mandates</h2>
+              </div>
+              <Briefcase className="h-5 w-5 text-cyan-700" />
+            </div>
+
+            {portfolios.length === 0 ? (
+              <div className="cerniq-empty-state px-6 py-10">
+                <p className="font-display text-2xl text-slate-950">No portfolios created yet</p>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
+                  Create your first portfolio to start tracking positions, cash, and performance.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {portfolios.map((portfolio) => {
+                  const isSelected = selectedPortfolio?.id === portfolio.id;
+                  return (
+                    <button
+                      key={portfolio.id}
+                      onClick={() => setSelectedPortfolio(portfolio)}
+                      className={`w-full rounded-[1.35rem] border p-5 text-left transition ${
+                        isSelected
+                          ? 'border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-sky-50 shadow-[0_18px_38px_rgba(63,93,132,0.1)]'
+                          : 'border-slate-200 bg-white/88 hover:border-cyan-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h3 className="font-display text-xl text-slate-950">{portfolio.name}</h3>
+                          <p className="mt-2 text-sm leading-6 text-slate-600">
+                            {portfolio.description || 'No description provided'}
+                          </p>
+                        </div>
+                        <span className="cerniq-chip">{portfolio.currency}</span>
+                      </div>
+
+                      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                        <div>
+                          <p className="cerniq-caption">Market value</p>
+                          <p className="mt-1 text-lg font-semibold text-slate-950">{formatCurrency(portfolio.totalValue)}</p>
+                        </div>
+                        <div>
+                          <p className="cerniq-caption">Unrealized P&L</p>
+                          <p className={`mt-1 text-lg font-semibold ${portfolio.totalPnL >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                            {formatCurrency(portfolio.totalPnL)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="cerniq-caption">Return</p>
+                          <p className={`mt-1 text-lg font-semibold ${portfolio.totalPnLPercent >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                            {formatPercent(portfolio.totalPnLPercent)}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-6">
+            {selectedPortfolio ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="cerniq-stat-card cerniq-stat-card-accent">
+                    <p className="cerniq-caption">Current cash</p>
+                    <p className="mt-3 text-3xl font-bold text-slate-950">{formatCurrency(selectedPortfolio.currentCash)}</p>
+                  </div>
+                  <div className="cerniq-stat-card cerniq-stat-card-accent">
+                    <p className="cerniq-caption">Total value</p>
+                    <p className="mt-3 text-3xl font-bold text-slate-950">{formatCurrency(selectedPortfolio.totalValue)}</p>
+                  </div>
+                  <div className="cerniq-stat-card cerniq-stat-card-accent">
+                    <p className="cerniq-caption">Unrealized return</p>
+                    <p className={`mt-3 text-3xl font-bold ${selectedPortfolio.totalPnLPercent >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      {formatPercent(selectedPortfolio.totalPnLPercent)}
+                    </p>
+                  </div>
+                </div>
+
+                <section className="cerniq-table-shell">
+                  <div className="flex items-center justify-between border-b border-slate-200/80 px-6 py-5">
+                    <div>
+                      <p className="cerniq-section-label">Positions</p>
+                      <h2 className="mt-2 font-display text-2xl text-slate-950">{selectedPortfolio.name}</h2>
+                    </div>
+                    <button onClick={() => setShowPositionModal(true)} className="cerniq-button-primary px-5 py-3 text-sm">
+                      <Plus className="h-4 w-4" />
+                      Add position
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="cerniq-table text-sm">
+                      <thead>
+                        <tr>
+                          <th className="text-left">Symbol</th>
+                          <th className="text-right">Quantity</th>
+                          <th className="text-right">Average cost</th>
+                          <th className="text-right">Current price</th>
+                          <th className="text-right">Market value</th>
+                          <th className="text-right">P&amp;L</th>
+                          <th className="text-right">Return</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedPortfolio.positions.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="py-10 text-center text-slate-500">
+                              No positions yet. Add the first holding to start performance tracking.
+                            </td>
+                          </tr>
+                        ) : (
+                          selectedPortfolio.positions.map((position) => (
+                            <tr key={position.id}>
+                              <td className="font-semibold text-cyan-800">{position.ticker}</td>
+                              <td className="text-right tabular-nums">{position.quantity}</td>
+                              <td className="text-right tabular-nums text-slate-600">{formatCurrency(position.avgCost)}</td>
+                              <td className="text-right tabular-nums">{formatCurrency(position.currentPrice)}</td>
+                              <td className="text-right tabular-nums font-semibold">{formatCurrency(position.marketValue)}</td>
+                              <td className={`text-right tabular-nums font-semibold ${position.unrealizedPnL >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                {formatCurrency(position.unrealizedPnL)}
+                              </td>
+                              <td className={`text-right tabular-nums ${position.unrealizedPnLPercent >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                {formatPercent(position.unrealizedPnLPercent)}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td>Total value</td>
+                          <td colSpan={3} />
+                          <td className="text-right">{formatCurrency(selectedPortfolio.totalValue)}</td>
+                          <td className={`text-right ${selectedPortfolio.totalPnL >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                            {formatCurrency(selectedPortfolio.totalPnL)}
+                          </td>
+                          <td className={`text-right ${selectedPortfolio.totalPnLPercent >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                            {formatPercent(selectedPortfolio.totalPnLPercent)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </section>
+              </>
+            ) : (
+              <section className="cerniq-empty-state">
+                <Wallet className="mx-auto h-12 w-12 text-cyan-700/70" />
+                <h2 className="mt-5 font-display text-3xl text-slate-950">Select a portfolio</h2>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
+                  Pick a portfolio from the left to inspect its holdings and current performance.
+                </p>
+              </section>
+            )}
+          </div>
+        </section>
+      </PlatformPage>
+
+      {showAddModal ? (
+        <div className="cerniq-modal-backdrop">
+          <div className="cerniq-modal">
+            <h3 className="font-display text-2xl text-slate-950">Create new portfolio</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Start a new mandate inside the CERNIQ portfolio manager.</p>
+            <div className="mt-6 space-y-4">
+              <input
+                type="text"
+                placeholder="Portfolio name"
+                className="cerniq-field"
+                value={newPortfolio.name}
+                onChange={(event) => setNewPortfolio({ ...newPortfolio, name: event.target.value })}
+              />
+              <input
+                type="text"
+                placeholder="Description (optional)"
+                className="cerniq-field"
+                value={newPortfolio.description}
+                onChange={(event) => setNewPortfolio({ ...newPortfolio, description: event.target.value })}
+              />
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button onClick={() => setShowAddModal(false)} className="cerniq-button-secondary flex-1 py-3">
+                Cancel
+              </button>
+              <button onClick={handleCreatePortfolio} className="cerniq-button-primary flex-1 py-3">
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showPositionModal ? (
+        <div className="cerniq-modal-backdrop">
+          <div className="cerniq-modal">
+            <h3 className="font-display text-2xl text-slate-950">Add position</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Enter the security, quantity, and price to update the current portfolio.</p>
+            <div className="mt-6 space-y-4">
+              <input
+                type="text"
+                placeholder="Ticker symbol"
+                className="cerniq-field uppercase"
+                value={newPosition.symbol}
+                onChange={(event) => setNewPosition({ ...newPosition, symbol: event.target.value.toUpperCase() })}
+              />
+              <input
+                type="number"
+                placeholder="Quantity"
+                className="cerniq-field"
+                value={newPosition.quantity}
+                onChange={(event) => setNewPosition({ ...newPosition, quantity: event.target.value })}
+              />
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Price per share"
+                className="cerniq-field"
+                value={newPosition.price}
+                onChange={(event) => setNewPosition({ ...newPosition, price: event.target.value })}
+              />
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button onClick={() => setShowPositionModal(false)} className="cerniq-button-secondary flex-1 py-3">
+                Cancel
+              </button>
+              <button onClick={handleAddPosition} className="cerniq-button-primary flex-1 py-3">
+                Buy
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
 }

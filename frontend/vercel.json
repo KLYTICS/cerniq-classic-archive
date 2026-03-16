@@ -1,26 +1,8 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "redirects": [
-    {
-      "source": "/(.*)",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.cerniq.io"
-        }
-      ],
-      "destination": "https://cerniq.io/$1",
-      "permanent": true
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "${NEXT_PUBLIC_NODE_API_URL}/api/:path*"
-    }
-  ],
+  "installCommand": "bun install",
+  "buildCommand": "bun run build",
   "headers": [
     {
       "source": "/(.*)",
@@ -29,6 +11,12 @@
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
       ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://api.cerniq.io/api/:path*"
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Headers, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { RiskService } from './risk.service';
 import { AdvancedRiskService } from './advanced-risk.service';
 import {
@@ -12,8 +12,10 @@ import {
     VolatilityForecastRequestDto,
     ParametricVaRRequestDto,
 } from './dto/advanced-risk.dto';
+import { AuthGuard } from '../auth/auth.guard';
 
-@Controller('risk')
+@Controller('api/risk')
+@UseGuards(AuthGuard)
 export class RiskController {
     constructor(
         private readonly riskService: RiskService,
@@ -38,35 +40,27 @@ export class RiskController {
     @Get('portfolio/:portfolioId')
     async getPortfolioRisk(
         @Param('portfolioId') portfolioId: string,
-        @Headers('user-id') userId: string,
+        @Req() req: any,
     ) {
-        return this.riskService.getPortfolioRisk(portfolioId, userId);
+        return this.riskService.getPortfolioRisk(portfolioId, req.user.userId);
     }
 
     @Post('stress-test/:portfolioId')
     async runStressTest(
         @Param('portfolioId') portfolioId: string,
-        @Headers('user-id') userId: string,
+        @Req() req: any,
         @Body() scenarios: StressTestScenarioDto[],
     ) {
-        return this.riskService.runStressTest(portfolioId, userId, scenarios);
+        return this.riskService.runStressTest(portfolioId, req.user.userId, scenarios);
     }
 
     // ==================== Advanced Risk Analytics ====================
 
-    /**
-     * Calculate Component VaR - risk contribution breakdown
-     * POST /api/risk/component-var
-     */
     @Post('component-var')
     async calculateComponentVaR(@Body() request: ComponentVaRRequestDto) {
         return this.advancedRiskService.calculateComponentVaR(request);
     }
 
-    /**
-     * GARCH volatility forecasting
-     * GET /api/risk/forecast-volatility/:ticker?horizon=30
-     */
     @Get('forecast-volatility/:ticker')
     async forecastVolatility(
         @Param('ticker') ticker: string,
@@ -78,10 +72,6 @@ export class RiskController {
         });
     }
 
-    /**
-     * Parametric VaR calculation
-     * POST /api/risk/parametric-var
-     */
     @Post('parametric-var')
     async calculateParametricVaR(@Body() request: ParametricVaRRequestDto) {
         return this.advancedRiskService.calculateParametricVaR(request);

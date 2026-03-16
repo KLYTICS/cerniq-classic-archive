@@ -9,23 +9,23 @@ interface ALMKPICardProps {
 }
 
 const colorMap = {
-  blue: 'from-blue-500/20 to-blue-600/10 border-blue-500/30',
-  purple: 'from-purple-500/20 to-purple-600/10 border-purple-500/30',
-  emerald: 'from-emerald-500/20 to-emerald-600/10 border-emerald-500/30',
-  amber: 'from-amber-500/20 to-amber-600/10 border-amber-500/30',
-  red: 'from-red-500/20 to-red-600/10 border-red-500/30',
-  cyan: 'from-cyan-500/20 to-cyan-600/10 border-cyan-500/30',
+  blue: 'bg-sky-50 border-sky-100',
+  purple: 'bg-cyan-50 border-cyan-100',
+  emerald: 'bg-emerald-50 border-emerald-100',
+  amber: 'bg-amber-50 border-amber-100',
+  red: 'bg-rose-50 border-rose-100',
+  cyan: 'bg-cyan-50 border-cyan-100',
 };
 
 export default function ALMKPICard({ title, value, subtitle, trend, color = 'blue' }: ALMKPICardProps) {
   return (
-    <div className={`rounded-xl border bg-gradient-to-br p-5 ${colorMap[color]}`}>
-      <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">{title}</p>
-      <p className="text-2xl font-bold text-white mt-2">{value}</p>
+    <div className={`rounded-xl border p-5 ${colorMap[color]}`}>
+      <p className="text-xs font-medium uppercase tracking-wider text-slate-500">{title}</p>
+      <p className="mt-2 text-2xl font-bold text-slate-950">{value}</p>
       {subtitle && (
-        <p className="text-sm text-slate-300 mt-1 flex items-center gap-1">
-          {trend === 'up' && <span className="text-emerald-400">&#9650;</span>}
-          {trend === 'down' && <span className="text-red-400">&#9660;</span>}
+        <p className="mt-1 flex items-center gap-1 text-sm text-slate-600">
+          {trend === 'up' && <span className="text-emerald-600">&#9650;</span>}
+          {trend === 'down' && <span className="text-rose-600">&#9660;</span>}
           {subtitle}
         </p>
       )}

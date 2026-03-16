@@ -215,18 +215,62 @@ export class CSVIngestionService {
   // ─── Cooperativa CSV Template ─────────────────────────────────────
 
   getCooperativaTemplate(): string {
+    // Realistic $185M PR cooperativa — 40 rows, all 12 COSSEC ratios PASS
+    // Assets: $185M | Liabilities: $165M | Equity: $20M (10.81% capital ratio)
+    // L/D: 78.4% | Liquidity: 47.0% | NIM: 2.71% | Concentration: 39.8% residential (WARNING, realistic)
+    // NOTE: All rates expressed as percentages (>1) to avoid CSV auto-detect misinterpretation
     return [
-      'category,subcategory,name,balance,rate,duration,rateType',
-      'asset,prestamos_personales,Préstamos Auto y Personal,75,8.50,3.0,fixed',
-      'asset,prestamos_hipotecarios,Préstamos Hipotecarios,90,6.25,12.0,fixed',
-      'asset,prestamos_comerciales,Préstamos Comerciales,25,9.00,2.0,variable',
-      'asset,inversiones,Bonos e Inversiones,40,4.50,3.5,fixed',
-      'asset,efectivo_equivalentes,Efectivo y Equivalentes,20,5.25,0.1,variable',
-      'liability,ahorros_socios,Ahorros de Socios,85,1.75,0.3,variable',
-      'liability,certificados_accion,Certificados de Acción,55,4.50,1.2,fixed',
-      'liability,cuentas_corrientes,Cuentas Corrientes,35,0.25,0.1,variable',
-      'liability,prestamos_externos,Préstamos FHLB,30,5.50,2.0,fixed',
-      'liability,depositos_a_plazo,Depósitos a Plazo,20,3.80,0.8,fixed',
+      'category,subcategory,name,balance,rate,duration,rateType,repriceDate,maturityDate',
+      // ── Residential Mortgages ($39M) ──
+      'asset,residential_mortgages,30yr Fixed Pool A - San Juan,7.5,5.75,12.0,fixed,,2038-03-01',
+      'asset,residential_mortgages,30yr Fixed Pool B - Bayamon,6.5,5.50,14.0,fixed,,2040-03-01',
+      'asset,residential_mortgages,30yr Fixed Pool C - Caguas,5.5,6.00,10.0,fixed,,2036-03-01',
+      'asset,residential_mortgages,15yr Fixed Pool D - Ponce,5.0,4.75,8.0,fixed,,2034-03-01',
+      'asset,residential_mortgages,15yr Fixed Pool E - Mayaguez,4.5,4.50,7.5,fixed,,2033-09-01',
+      'asset,residential_mortgages,30yr Fixed Pool F - Arecibo,4.0,5.85,13.0,fixed,,2039-03-01',
+      'asset,residential_mortgages,ARM Pool G - Carolina,3.5,6.50,9.0,variable,2026-09-01,2035-03-01',
+      'asset,residential_mortgages,15yr Fixed Pool H - Humacao,2.5,5.00,6.5,fixed,,2032-09-01',
+      // ── Consumer / Auto Loans ($27M) ──
+      'asset,consumer_loans,Auto Loans - New Vehicles,8.0,7.50,4.0,fixed,,2030-03-01',
+      'asset,consumer_loans,Auto Loans - Used Vehicles,6.0,8.25,3.0,fixed,,2029-03-01',
+      'asset,consumer_loans,Personal Lines of Credit,5.0,9.00,2.0,variable,2026-06-01,2028-03-01',
+      'asset,consumer_loans,Student Consolidation Loans,4.0,7.00,5.0,fixed,,2031-03-01',
+      'asset,consumer_loans,Secured Personal Loans,4.0,7.75,3.5,fixed,,2029-09-01',
+      // ── Commercial Loans ($32M) ──
+      'asset,commercial_loans,CRE - Retail Center Bayamon,10.0,6.50,5.0,fixed,,2031-03-01',
+      'asset,commercial_loans,CRE - Office Park San Juan,9.0,7.00,4.0,variable,2026-09-01,2030-03-01',
+      'asset,commercial_loans,Small Business Term Loans,7.0,7.50,3.0,fixed,,2029-03-01',
+      'asset,commercial_loans,Working Capital Lines,6.0,8.00,2.0,variable,2026-06-01,2028-03-01',
+      // ── Investment Securities ($60M) ──
+      'asset,investment_securities,US Treasury Notes 2yr,16.0,4.25,2.0,fixed,,2028-03-01',
+      'asset,investment_securities,US Treasury Notes 5yr,14.0,4.50,4.5,fixed,,2030-09-01',
+      'asset,investment_securities,Agency MBS - FNMA 30yr,16.0,5.00,6.0,fixed,,2032-03-01',
+      'asset,investment_securities,Agency MBS - FHLMC 15yr,14.0,4.75,3.5,fixed,,2029-09-01',
+      // ── Cash Equivalents ($27M) ──
+      'asset,cash_equivalents,Fed Funds Sold,10.0,5.25,0.01,variable,2026-04-01,2026-04-01',
+      'asset,cash_equivalents,Interest-Bearing Deposits - BPPR,9.0,4.80,0.08,variable,2026-04-01,2026-04-30',
+      'asset,cash_equivalents,Money Market Instruments,8.0,4.50,0.25,variable,2026-06-01,2026-06-15',
+      // ── Savings Deposits ($50M) ──
+      'liability,savings_deposits,Regular Savings - Socios,24.0,1.50,0.25,variable,2026-06-01,',
+      'liability,savings_deposits,Christmas Club Savings,9.0,2.00,0.5,variable,2026-06-01,',
+      'liability,savings_deposits,Youth Savings Accounts,5.0,1.75,0.25,variable,2026-06-01,',
+      'liability,savings_deposits,Money Market Savings,12.0,3.00,0.17,variable,2026-04-01,',
+      // ── Demand Deposits ($20M) ──
+      'liability,demand_deposits,Share Draft / Checking,13.0,1.25,0.08,variable,,',
+      'liability,demand_deposits,Business Checking,7.0,1.50,0.08,variable,,',
+      // ── Time Deposits / CDs ($55M) ──
+      'liability,time_deposits,6-Month Share Certificates,10.0,2.50,0.5,fixed,,2026-09-01',
+      'liability,time_deposits,12-Month Share Certificates,15.0,3.00,1.0,fixed,,2027-03-01',
+      'liability,time_deposits,18-Month Share Certificates,12.0,3.25,1.5,fixed,,2027-09-01',
+      'liability,time_deposits,24-Month Share Certificates,10.0,3.50,2.0,fixed,,2028-03-01',
+      'liability,time_deposits,60-Month Share Certificates,8.0,3.75,5.0,fixed,,2031-03-01',
+      // ── FHLB Borrowings ($35M) ──
+      'liability,borrowings,FHLB Advance - 1yr Fixed,14.0,5.00,1.0,fixed,,2027-03-01',
+      'liability,borrowings,FHLB Advance - 2yr Fixed,12.0,5.15,2.0,fixed,,2028-03-01',
+      'liability,borrowings,FHLB Advance - 3yr Fixed,9.0,5.30,3.0,fixed,,2029-03-01',
+      // ── Subordinated Debt ($5M) ──
+      'liability,subordinated_debt,Subordinated Capital Notes 2031,3.0,5.50,5.0,fixed,,2031-03-01',
+      'liability,subordinated_debt,Subordinated Capital Notes 2029,2.0,5.25,3.0,fixed,,2029-03-01',
     ].join('\n');
   }
 

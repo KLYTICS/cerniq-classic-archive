@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Get, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { StorageService } from './storage.service';
+import { AuthGuard } from '../auth/auth.guard';
 
 interface GenerateUploadUrlDto {
     filename: string;
@@ -7,6 +8,7 @@ interface GenerateUploadUrlDto {
 }
 
 @Controller('api/storage')
+@UseGuards(AuthGuard)
 export class StorageController {
     constructor(private readonly storageService: StorageService) { }
 

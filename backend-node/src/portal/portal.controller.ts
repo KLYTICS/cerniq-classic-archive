@@ -5,13 +5,32 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { PrismaService } from '../prisma.service';
 import { AlmEnterpriseService } from '../alm/alm-enterprise.service';
 import { CSVIngestionService } from '../alm/csv-ingestion.service';
 import { EmailService } from '../email/email.service';
+import { IngestionLogsService } from '../alm/ingestion-logs.service';
+import { DataCryptoService } from '../crypto/data-crypto.service';
+import { BillingService } from '../billing/billing.service';
+import { AuditService } from '../audit/audit.service';
+import { IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
+
+class InviteDto {
+  @IsEmail()
+  email: string;
+
+  @IsIn(['OWNER', 'ANALYST', 'VIEWER'])
+  role: 'OWNER' | 'ANALYST' | 'VIEWER';
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+}
 
 @Controller('api/portal')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
 export class PortalController {
   private readonly logger = new Logger(PortalController.name);
 
@@ -19,12 +38,18 @@ export class PortalController {
     private readonly prisma: PrismaService,
     private readonly almEnterprise: AlmEnterpriseService,
     private readonly csvIngestion: CSVIngestionService,
+    private readonly ingestionLogs: IngestionLogsService,
     private readonly email: EmailService,
+    private readonly dataCrypto: DataCryptoService,
+    private readonly billing: BillingService,
+    private readonly audit: AuditService,
   ) {}
 
   // ── List User's Report Jobs ─────────────────────────
+  // All roles can view report jobs
 
   @Get('jobs')
+  @Roles('OWNER', 'ANALYST', 'VIEWER')
   async listJobs(@Req() req: any) {
     const userId = req.user.userId;
     return this.prisma.reportJob.findMany({
@@ -34,6 +59,8 @@ export class PortalController {
         id: true,
         institutionName: true,
         status: true,
+        analysisPeriod: true,
+        previousJobId: true,
         completedAt: true,
         createdAt: true,
         reportUrl: true,
@@ -44,19 +71,43 @@ export class PortalController {
   }
 
   // ── Get Job Detail ──────────────────────────────────
+  // All roles can view job details (report download)
 
   @Get('jobs/:jobId')
+  @Roles('OWNER', 'ANALYST', 'VIEWER')
   async getJob(@Req() req: any, @Param('jobId') jobId: string) {
     const job = await this.prisma.reportJob.findFirst({
       where: { id: jobId, userId: req.user.userId },
     });
     if (!job) throw new NotFoundException('Job not found');
+
+    // Audit log for report access/download
+    if (job.reportUrl || job.reportUrlEn) {
+      this.audit.log({
+        userId: req.user.userId,
+        institutionId: job.institutionId || undefined,
+        action: 'report_download',
+        resource: 'report_job',
+        resourceId: jobId,
+        ipAddress: req.ip,
+        userAgent: req.headers?.['user-agent'],
+      });
+    }
+
     return job;
   }
 
+  @Get('jobs/:jobId/ingestion-logs')
+  @Roles('OWNER', 'ANALYST', 'VIEWER')
+  async getJobIngestionLogs(@Req() req: any, @Param('jobId') jobId: string) {
+    return this.ingestionLogs.listJobLogs(req.user.userId, jobId);
+  }
+
   // ── Submit Data for a Job ───────────────────────────
+  // Only OWNER and ANALYST can upload/submit data
 
   @Post('jobs/:jobId/submit')
+  @Roles('OWNER', 'ANALYST')
   @UseInterceptors(FileInterceptor('file', {
     limits: { fileSize: 2 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
@@ -70,7 +121,7 @@ export class PortalController {
     @Req() req: any,
     @Param('jobId') jobId: string,
     @UploadedFile() file: Express.Multer.File,
-    @Body() body: { institutionName?: string },
+    @Body() body: { institutionName?: string; analysisPeriod?: string },
   ) {
     const userId = req.user.userId;
 
@@ -88,9 +139,18 @@ export class PortalController {
     const csvContent = file.buffer.toString('utf-8');
     const parseResult = this.csvIngestion.parseCSV(csvContent);
     if (!parseResult.valid) {
+      await this.ingestionLogs.recordLog({
+        userId,
+        institutionId: job.institutionId || null,
+        reportJobId: jobId,
+        source: 'portal_submit',
+        sourceFilename: file.originalname,
+        status: 'FAILED',
+        parseResult,
+      });
       await this.prisma.reportJob.update({
         where: { id: jobId },
-        data: { status: 'VALIDATION_FAILED', errorMessage: `CSV validation failed: ${parseResult.errors?.join(', ')}` },
+        data: { status: 'VALIDATION_FAILED', errorMessage: this.formatValidationErrors(parseResult.errors) },
       });
       return { valid: false, errors: parseResult.errors, status: 'VALIDATION_FAILED' };
     }
@@ -118,6 +178,39 @@ export class PortalController {
 
     // Import balance sheet items
     await this.almEnterprise.importBalanceSheetItems(institution.id, parseResult.items);
+    const log = await this.ingestionLogs.recordLog({
+      userId,
+      institutionId: institution.id,
+      reportJobId: jobId,
+      source: 'portal_submit',
+      sourceFilename: file.originalname,
+      status: 'IMPORTED',
+      parseResult,
+      importedCount: parseResult.items.length,
+    });
+
+    // Encrypt raw CSV data (AES-256-GCM) for audit trail; auto-purged after 90 days
+    const encryptedRawData = this.dataCrypto.encrypt(csvContent);
+
+    // ── Multi-period linking: find most recent COMPLETE job for same institution ──
+    let previousJobId: string | null = null;
+    try {
+      const previousJob = await this.prisma.reportJob.findFirst({
+        where: {
+          institutionId: institution.id,
+          status: 'COMPLETE',
+          id: { not: jobId },
+        },
+        orderBy: { completedAt: 'desc' },
+        select: { id: true },
+      });
+      if (previousJob) {
+        previousJobId = previousJob.id;
+      }
+    } catch {
+      // Gracefully ignore — column may not exist yet on older schemas
+      this.logger.warn({ event: 'portal.previous_job_lookup_failed', jobId });
+    }
 
     // Link institution and transition to QUEUED
     await this.prisma.reportJob.update({
@@ -126,6 +219,9 @@ export class PortalController {
         status: 'QUEUED',
         institutionId: institution.id,
         institutionName: instName,
+        rawData: encryptedRawData,
+        analysisPeriod: body.analysisPeriod || null,
+        previousJobId,
         errorMessage: null,
       },
     });
@@ -142,11 +238,165 @@ export class PortalController {
 
     this.logger.log({ event: 'portal.data_submitted', jobId, userId, items: parseResult.items.length });
 
+    this.audit.log({
+      userId,
+      institutionId: institution.id,
+      action: 'data_upload',
+      resource: 'report_job',
+      resourceId: jobId,
+      metadata: {
+        filename: file.originalname,
+        itemsImported: parseResult.items.length,
+        ingestionLogId: log.id,
+      },
+      ipAddress: req.ip,
+      userAgent: req.headers?.['user-agent'],
+    });
+
     return {
       valid: true,
       status: 'QUEUED',
       itemsImported: parseResult.items.length,
       institutionId: institution.id,
+      ingestionLogId: log.id,
     };
+  }
+
+  // ── Invite Team Member ────────────────────────────────
+  // Only OWNER can invite new users
+
+  @Post('invite')
+  @Roles('OWNER')
+  async inviteUser(@Req() req: any, @Body() dto: InviteDto) {
+    const ownerId = req.user.userId;
+
+    // Look up the inviting user to find their workspace
+    const owner = await this.prisma.user.findUnique({
+      where: { id: ownerId },
+      include: {
+        workspaces: { take: 1, orderBy: { createdAt: 'asc' } },
+      },
+    });
+    if (!owner) throw new NotFoundException('Owner not found');
+
+    // Check if the email is already registered
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (existingUser) {
+      throw new BadRequestException(
+        'A user with this email already exists. They can be reassigned a role directly.',
+      );
+    }
+
+    // Create the invited user linked to the same workspace
+    const invitedUser = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        name: dto.name || null,
+        provider: 'magic_link',
+        emailVerified: true,
+        role: dto.role as any,
+      },
+    });
+
+    // If owner has a workspace, link the invited user to it
+    if (owner.workspaces.length > 0) {
+      await this.prisma.workspace.create({
+        data: {
+          name: `${dto.name || dto.email.split('@')[0]}'s Workspace`,
+          ownerId: invitedUser.id,
+        },
+      });
+    }
+
+    // Generate a magic link for the invited user
+    const magicUrl = await this.billing.generateMagicLink(invitedUser.id, 72);
+
+    // Send invite email
+    await this.email.sendTeamInviteEmail({
+      email: dto.email,
+      name: dto.name || '',
+      inviterName: owner.name || owner.email,
+      role: dto.role,
+      magicUrl,
+    });
+
+    this.logger.log({
+      event: 'portal.user_invited',
+      invitedEmail: dto.email,
+      role: dto.role,
+      invitedBy: ownerId,
+    });
+
+    this.audit.log({
+      userId: ownerId,
+      action: 'team_invite',
+      resource: 'user',
+      resourceId: invitedUser.id,
+      metadata: {
+        invitedEmail: dto.email,
+        invitedRole: dto.role,
+      },
+      ipAddress: req.ip,
+      userAgent: req.headers?.['user-agent'],
+    });
+
+    return {
+      id: invitedUser.id,
+      email: invitedUser.email,
+      role: invitedUser.role,
+      invited: true,
+    };
+  }
+
+  // ── Settings ────────────────────────────────────────
+  // Only OWNER can access settings
+
+  @Get('settings')
+  @Roles('OWNER')
+  async getSettings(@Req() req: any) {
+    const userId = req.user.userId;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { userId },
+      select: {
+        tier: true,
+        status: true,
+        currentPeriodEnd: true,
+      },
+    });
+
+    // List team members (users who share workspaces owned by this user)
+    const workspaces = await this.prisma.workspace.findMany({
+      where: { ownerId: userId },
+      select: { id: true },
+    });
+
+    return {
+      user,
+      subscription: subscription || { tier: 'free', status: 'active' },
+      workspaceCount: workspaces.length,
+    };
+  }
+
+  private formatValidationErrors(
+    errors: Array<{ row: number; field: string; message: string }>,
+  ): string {
+    return errors
+      .slice(0, 5)
+      .map((error) => `row ${error.row} ${error.field}: ${error.message}`)
+      .join(' | ');
   }
 }

@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
+import { Activity, Newspaper } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import StockInsightsPopup from '@/components/dashboard/StockInsightsPopup';
+import { useMarketDataSocket } from '@/lib/marketDataSocket';
 
 interface TickerPageProps {
     params: { symbol: string };
@@ -13,6 +15,18 @@ interface TickerPageProps {
 
 interface QuoteData {
     ticker: string;
+    assetType?: 'stock' | 'etf' | 'crypto' | 'index';
+    shortName?: string;
+    longName?: string;
+    exchange?: string;
+    currency?: string;
+    marketState?: string;
+    session?: 'PREMARKET' | 'REGULAR' | 'AFTER_HOURS' | 'CLOSED' | 'CRYPTO' | 'UNKNOWN';
+    freshnessState?: 'NEAR_REALTIME' | 'DELAYED' | 'STALE' | 'DISCONNECTED' | 'UNAVAILABLE';
+    provider?: string;
+    quoteTimestamp?: string | Date;
+    serverTimestamp?: string | Date;
+    ageMs?: number;
     price: number;
     change: number;
     changePercent: number;
@@ -45,15 +59,50 @@ interface HistoricalData {
     volume: number;
 }
 
+interface InstrumentProfile {
+    ticker: string;
+    assetType: 'stock' | 'etf' | 'crypto' | 'index';
+    shortName?: string;
+    longName?: string;
+    exchange?: string;
+    currency?: string;
+    marketState?: string;
+    sector?: string;
+    industry?: string;
+    categoryName?: string;
+    family?: string;
+    description?: string;
+    website?: string;
+    marketCap?: number;
+    totalAssets?: number;
+    expenseRatio?: number;
+    yield?: number;
+    ytdReturn?: number;
+    topHoldings?: Array<{ symbol: string; name: string; weight: number }>;
+}
+
+interface NewsArticle {
+    id: string;
+    title: string;
+    publisher: string;
+    link: string;
+    publishedAt: string;
+    relatedTickers?: string[];
+}
+
 export default function TickerDetailPage({ params }: TickerPageProps) {
     const router = useRouter();
     const symbol = params.symbol.toUpperCase();
 
     const [quote, setQuote] = useState<QuoteData | null>(null);
     const [fundamentals, setFundamentals] = useState<FundamentalsData | null>(null);
+    const [profile, setProfile] = useState<InstrumentProfile | null>(null);
+    const [news, setNews] = useState<NewsArticle[]>([]);
+    const [connected, setConnected] = useState(false);
     const [historical, setHistorical] = useState<HistoricalData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { isConnected, subscribeTicker, subscribeInstrument, subscribeNews } = useMarketDataSocket();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -61,13 +110,14 @@ export default function TickerDetailPage({ params }: TickerPageProps) {
             setError(null);
 
             try {
-                // Fetch quote
-                const quoteData = await apiClient.getQuote(symbol);
-                setQuote(quoteData);
+                const snapshot = await apiClient.getNodeSnapshot(symbol, 8);
+                setQuote(snapshot.quote);
+                setProfile(snapshot.profile);
+                setNews(snapshot.news || []);
 
                 // Fetch fundamentals (stocks only)
                 try {
-                    const fundData = await apiClient.getFundamentals(symbol);
+                    const fundData = await apiClient.getNodeFundamentals(symbol);
                     setFundamentals(fundData);
                 } catch (err) {
                     console.log('Fundamentals not available');
@@ -94,6 +144,54 @@ export default function TickerDetailPage({ params }: TickerPageProps) {
 
         fetchData();
     }, [symbol]);
+
+    useEffect(() => {
+        setConnected(isConnected);
+    }, [isConnected]);
+
+    useEffect(() => {
+        if (!isConnected) {
+            return;
+        }
+
+        const cleanups: Array<() => void> = [];
+
+        const unsubscribeTicker = subscribeTicker(symbol, (payload) => {
+            setQuote((current) => ({
+                ...(current || { ticker: symbol, price: 0, change: 0, changePercent: 0, volume: 0, high: 0, low: 0, open: 0, previousClose: 0 }),
+                ...payload,
+            }));
+        });
+        if (unsubscribeTicker) {
+            cleanups.push(unsubscribeTicker);
+        }
+
+        const unsubscribeInstrument = subscribeInstrument(symbol, (payload) => {
+            if (payload.profile) {
+                setProfile(payload.profile);
+            }
+            if (payload.quote) {
+                setQuote((current) => ({
+                    ...(current || { ticker: symbol, price: 0, change: 0, changePercent: 0, volume: 0, high: 0, low: 0, open: 0, previousClose: 0 }),
+                    ...payload.quote,
+                }));
+            }
+        });
+        if (unsubscribeInstrument) {
+            cleanups.push(unsubscribeInstrument);
+        }
+
+        const unsubscribeNews = subscribeNews(symbol, (payload) => {
+            setNews(payload.items || []);
+        });
+        if (unsubscribeNews) {
+            cleanups.push(unsubscribeNews);
+        }
+
+        return () => {
+            cleanups.forEach((cleanup) => cleanup());
+        };
+    }, [isConnected, subscribeInstrument, subscribeNews, subscribeTicker, symbol]);
 
     if (loading) {
         return (
@@ -138,6 +236,11 @@ export default function TickerDetailPage({ params }: TickerPageProps) {
                         <div>
                             <div className="flex items-center gap-4">
                                 <h1 className="text-4xl font-bold text-white">{symbol}</h1>
+                                {profile ? (
+                                    <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.24em] text-slate-200">
+                                        {profile.assetType}
+                                    </span>
+                                ) : null}
                                 <StockInsightsPopup
                                     ticker={symbol}
                                     trigger={
@@ -147,16 +250,27 @@ export default function TickerDetailPage({ params }: TickerPageProps) {
                                     }
                                 />
                             </div>
-                            {fundamentals && (
+                            {profile ? (
+                                <p className="text-gray-400 mt-1">
+                                    {[profile.longName || profile.shortName, profile.exchange, profile.marketState].filter(Boolean).join(' • ')}
+                                </p>
+                            ) : fundamentals ? (
                                 <p className="text-gray-400 mt-1">
                                     {fundamentals.sector} • {fundamentals.industry}
                                 </p>
-                            )}
+                            ) : null}
                         </div>
                         <div className="text-right">
                             <div className="text-4xl font-bold text-white">${quote.price.toFixed(2)}</div>
                             <div className={`text-xl font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
                                 {isPositive ? '↑' : '↓'} ${Math.abs(quote.change).toFixed(2)} ({Math.abs(quote.changePercent).toFixed(2)}%)
+                            </div>
+                            <div className="mt-2 flex items-center justify-end gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
+                                <Activity className={`h-3.5 w-3.5 ${connected ? 'text-emerald-400' : 'text-amber-400'}`} />
+                                {connected ? 'Live stream' : 'Snapshot'}
+                            </div>
+                            <div className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">
+                                {quote.session || 'UNKNOWN'} • {quote.freshnessState || 'UNAVAILABLE'}{quote.provider ? ` • ${quote.provider}` : ''}
                             </div>
                         </div>
                     </div>
@@ -247,6 +361,77 @@ export default function TickerDetailPage({ params }: TickerPageProps) {
                         </motion.div>
                     )}
                 </div>
+
+                {(profile || news.length > 0) && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                        {profile && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.25 }}
+                                className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10"
+                            >
+                                <h3 className="text-xl font-semibold text-white mb-4">Instrument Profile</h3>
+                                <div className="space-y-3">
+                                    {profile.categoryName && <StatRow label="Category" value={profile.categoryName} />}
+                                    {profile.family && <StatRow label="Family" value={profile.family} />}
+                                    {profile.totalAssets ? <StatRow label="Total Assets" value={`$${(profile.totalAssets / 1e9).toFixed(2)}B`} /> : null}
+                                    {profile.expenseRatio !== undefined ? <StatRow label="Expense Ratio" value={`${(profile.expenseRatio * 100).toFixed(2)}%`} /> : null}
+                                    {profile.yield !== undefined ? <StatRow label="Yield" value={`${(profile.yield * 100).toFixed(2)}%`} /> : null}
+                                    {profile.ytdReturn !== undefined ? <StatRow label="YTD Return" value={`${(profile.ytdReturn * 100).toFixed(2)}%`} /> : null}
+                                </div>
+                                {profile.description ? (
+                                    <p className="mt-5 text-sm leading-6 text-slate-300">{profile.description}</p>
+                                ) : null}
+                                {profile.topHoldings && profile.topHoldings.length > 0 ? (
+                                    <div className="mt-5">
+                                        <div className="text-sm font-semibold text-white">Top Holdings</div>
+                                        <div className="mt-3 space-y-2">
+                                            {profile.topHoldings.slice(0, 5).map((holding) => (
+                                                <div key={`${holding.symbol}-${holding.name}`} className="flex items-center justify-between text-sm">
+                                                    <span className="text-slate-200">{holding.symbol}</span>
+                                                    <span className="text-slate-400">{holding.weight.toFixed(2)}%</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </motion.div>
+                        )}
+
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10"
+                        >
+                            <div className="flex items-center gap-2">
+                                <Newspaper className="h-5 w-5 text-amber-300" />
+                                <h3 className="text-xl font-semibold text-white">Latest News</h3>
+                            </div>
+                            <div className="mt-4 space-y-3">
+                                {news.length === 0 ? (
+                                    <p className="text-sm text-slate-400">No headlines available yet for {symbol}.</p>
+                                ) : (
+                                    news.slice(0, 5).map((item) => (
+                                        <a
+                                            key={item.id}
+                                            href={item.link}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="block rounded-xl border border-white/10 bg-white/5 px-4 py-3 transition hover:border-white/20 hover:bg-white/10"
+                                        >
+                                            <div className="text-sm font-semibold text-white">{item.title}</div>
+                                            <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
+                                                {item.publisher} • {new Date(item.publishedAt).toLocaleString()}
+                                            </div>
+                                        </a>
+                                    ))
+                                )}
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
 
                 {/* Actions */}
                 <motion.div

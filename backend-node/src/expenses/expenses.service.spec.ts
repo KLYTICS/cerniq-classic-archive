@@ -13,6 +13,7 @@ describe('ExpensesService', () => {
             expense: {
                 create: jest.fn(),
                 findMany: jest.fn(),
+                findFirst: jest.fn(),
                 findUnique: jest.fn(),
                 update: jest.fn(),
                 delete: jest.fn(),
@@ -54,13 +55,11 @@ describe('ExpensesService', () => {
                 status: 'DRAFT',
             });
 
-            const result = await service.create({
-                organizationId: 'org-1',
-                userId: 'user-1',
+            const result = await service.create('org-1', 'user-1', {
                 merchantName: 'Starbucks',
                 amount: 12.50,
-                transactionDate: new Date(),
-            });
+                transactionDate: new Date().toISOString(),
+            } as any);
 
             expect(result.merchantName).toBe('Starbucks');
             expect(prisma.expense.create).toHaveBeenCalled();
@@ -95,7 +94,7 @@ describe('ExpensesService', () => {
     describe('submit', () => {
         it('should submit a draft expense', async () => {
             prisma.organizationMember.findUnique.mockResolvedValue({ id: '1', role: 'MEMBER' });
-            prisma.expense.findUnique.mockResolvedValue({
+            prisma.expense.findFirst.mockResolvedValue({
                 id: 'exp-1',
                 userId: 'user-1',
                 status: 'DRAFT',
@@ -114,7 +113,7 @@ describe('ExpensesService', () => {
     describe('approve', () => {
         it('should approve a submitted expense (admin only)', async () => {
             prisma.organizationMember.findUnique.mockResolvedValue({ id: '1', role: 'ADMIN' });
-            prisma.expense.findUnique.mockResolvedValue({
+            prisma.expense.findFirst.mockResolvedValue({
                 id: 'exp-1',
                 status: 'SUBMITTED',
             });
@@ -133,7 +132,7 @@ describe('ExpensesService', () => {
     describe('reject', () => {
         it('should reject a submitted expense (admin only)', async () => {
             prisma.organizationMember.findUnique.mockResolvedValue({ id: '1', role: 'ADMIN' });
-            prisma.expense.findUnique.mockResolvedValue({
+            prisma.expense.findFirst.mockResolvedValue({
                 id: 'exp-1',
                 status: 'SUBMITTED',
             });

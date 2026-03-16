@@ -2,93 +2,112 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle, ArrowLeft, Shield, Star, Zap, Building2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ShieldCheck, Building2, ChevronRight, HelpCircle } from 'lucide-react';
+import { CerniqMark } from '@/components/brand/CerniqLogo';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+const SITE_URL = 'https://cerniq.io';
 
 const TIERS = [
   {
     id: 'one_time',
-    name: 'Informe ALM',
-    nameEn: 'ALM Report',
+    nameEs: 'Informe Piloto',
+    nameEn: 'Pilot Report',
     price: '$750',
-    period: 'único / one-time',
-    badge: null,
-    icon: Zap,
-    iconColor: 'text-amber-400',
-    borderColor: 'border-amber-500/30',
-    features: [
-      'Informe ALM completo (ES + EN)',
-      'COSSEC: 12 ratios con cumplimiento',
-      'Stress test: +100, +200, +300 bps',
-      'PDF listo para junta directiva',
-      'Entrega en 2 días hábiles',
+    cadenceEs: 'unico',
+    cadenceEn: 'one-time',
+    featured: false,
+    bullets: [
+      'Un informe ALM completo de 14+ paginas',
+      'Revision de datos y configuracion guiada',
+      'Entrega de PDF bilingue listo para junta',
     ],
-    cta: 'Comenzar — $750',
-    ctaClass: 'bg-amber-500 hover:bg-amber-400 text-slate-900',
+    ctaEs: 'Comenzar — $750',
+    ctaEn: null,
   },
   {
     id: 'monthly',
-    name: 'Plataforma Mensual',
-    nameEn: 'Monthly Platform',
+    nameEs: 'Plataforma Recurrente',
+    nameEn: 'Recurring Platform',
     price: '$299',
-    period: '/mes · /month',
-    badge: { text: 'MÁS POPULAR', color: 'bg-[#18C87A]' },
-    icon: Star,
-    iconColor: 'text-[#18C87A]',
-    borderColor: 'border-[#18C87A]/40',
-    features: [
-      'Todos los módulos activos',
-      'Informes ilimitados',
-      'Dashboard ALM en tiempo real',
-      'Alertas de entorno de tasas',
-      'Monitoreo COSSEC continuo',
-      'Datos de mercado en vivo',
+    cadenceEs: '/mes',
+    cadenceEn: '/month',
+    featured: true,
+    bullets: [
+      'Flujo de trabajo recurrente de carga a informe',
+      'Entrega bilingue de informes',
+      'Acceso al portal para recuperacion de informes',
+      '12 ratios COSSEC actualizados mensualmente',
     ],
-    cta: 'Suscribirse — $299/mes',
-    ctaClass: 'bg-[#18C87A] hover:bg-[#18C87A]/90 text-slate-900',
-  },
-  {
-    id: 'annual',
-    name: 'Paquete Anual',
-    nameEn: 'Annual Package',
-    price: '$2,400',
-    period: '/año · $200/mes',
-    badge: { text: 'MEJOR VALOR', color: 'bg-amber-500' },
-    icon: Shield,
-    iconColor: 'text-amber-400',
-    borderColor: 'border-amber-500/30',
-    features: [
-      'Todo en Plataforma Mensual',
-      'Soporte prioritario',
-      'Benchmark trimestral vs sector PR',
-      'Paquete ALCO para junta directiva',
-      'Ahorre $1,188/año vs mensual',
-    ],
-    cta: 'Suscribirse — $2,400/año',
-    ctaClass: 'bg-amber-500 hover:bg-amber-400 text-slate-900',
+    ctaEs: 'Suscribirse — $299/mes',
+    ctaEn: null,
   },
   {
     id: 'partner',
-    name: 'Acceso Partner',
+    nameEs: 'Acceso Partner',
     nameEn: 'Partner Access',
     price: '$499',
-    period: '/mes · para firmas CPA',
-    badge: null,
-    icon: Building2,
-    iconColor: 'text-[#1ABFFF]',
-    borderColor: 'border-[#1ABFFF]/30',
-    features: [
-      'Dashboard multi-cliente',
-      'Exportación white-label',
-      'Portal para partners',
-      'Precios por volumen',
-      'Informes con su marca',
+    cadenceEs: '/mes',
+    cadenceEn: '/month',
+    featured: false,
+    bullets: [
+      'Flujo de trabajo multi-cliente',
+      'Portal de acceso para partners',
+      'Soporte de entrega white-label',
+      'Panel de administracion de clientes',
     ],
-    cta: 'Contactar — $499/mes',
-    ctaClass: 'bg-[#1ABFFF]/20 hover:bg-[#1ABFFF]/30 text-[#1ABFFF] border border-[#1ABFFF]/30',
+    ctaEs: 'Contactar ventas',
+    ctaEn: 'Contact sales',
   },
 ] as const;
+
+const costComparison = [
+  {
+    item: 'Informe ALM trimestral',
+    itemEn: 'Quarterly ALM report',
+    consultant: '$8,000 - $12,000',
+    cerniq: '$750',
+  },
+  {
+    item: 'Acceso anual (4 informes)',
+    itemEn: 'Annual access (4 reports)',
+    consultant: '$32,000 - $48,000',
+    cerniq: '$2,400',
+  },
+  {
+    item: 'Tiempo de entrega',
+    itemEn: 'Delivery time',
+    consultant: '3-6 semanas',
+    cerniq: '24 horas',
+  },
+  {
+    item: 'Bilingue incluido',
+    itemEn: 'Bilingual included',
+    consultant: 'Cargo adicional',
+    cerniq: 'Incluido',
+  },
+];
+
+const faqItems = [
+  {
+    questionEs: '¿Por que empezar con un piloto?',
+    questionEn: 'Why start with a pilot?',
+    answerEs: 'Un informe piloto permite validar el proceso con datos reales de su institucion antes de comprometerse a un plan recurrente. Usted ve la calidad del informe, la precision de los ratios y la claridad del formato bilingue sin riesgo.',
+    answerEn: 'A pilot report lets you validate the process with your institution\'s real data before committing to a recurring plan. You see the report quality, ratio accuracy, and bilingual format clarity with no risk.',
+  },
+  {
+    questionEs: '¿Que incluye cada informe?',
+    questionEn: 'What\'s in each report?',
+    answerEs: 'Cada informe contiene 14+ paginas con los 12 ratios clave COSSEC, analisis de gap de duracion, sensibilidad NII, cobertura de liquidez, escenarios de estres y recomendaciones. Todo en espanol e ingles, listo para junta y regulador.',
+    answerEn: 'Each report contains 14+ pages with all 12 key COSSEC ratios, duration gap analysis, NII sensitivity, liquidity coverage, stress scenarios, and recommendations. All in Spanish and English, ready for board and regulator.',
+  },
+  {
+    questionEs: '¿Como funciona la suscripcion?',
+    questionEn: 'How does the subscription work?',
+    answerEs: 'La suscripcion se factura mensualmente a traves de Stripe. Puede cancelar en cualquier momento sin penalidad. Mientras esta activa, tiene acceso al flujo completo de carga, analisis y entrega de informes.',
+    answerEn: 'The subscription is billed monthly through Stripe. You can cancel anytime with no penalty. While active, you have access to the full upload, analysis, and report delivery workflow.',
+  },
+];
 
 export default function PricingPage() {
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
@@ -96,130 +115,237 @@ export default function PricingPage() {
   async function handleCheckout(tier: string) {
     setLoadingTier(tier);
     try {
-      const res = await fetch(`${NODE_API_URL}/api/billing/checkout`, {
+      const response = await fetch(`${NODE_API_URL}/api/billing/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tier,
-          successUrl: '/portal?welcome=1',
-          cancelUrl: '/pricing',
+          successUrl: `${SITE_URL}/portal?welcome=1`,
+          cancelUrl: `${SITE_URL}/pricing`,
         }),
       });
-      const data = await res.json();
+
+      const data = await response.json();
       if (data.url) {
         window.location.href = data.url;
       }
     } catch {
-      // Fall back to landing page checkout if API fails
-      window.location.href = '/#pricing';
+      window.location.href = `${SITE_URL}/#pricing`;
     } finally {
       setLoadingTier(null);
     }
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      {/* Header */}
-      <div className="border-b border-white/[0.06] bg-slate-900/70">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-3">
-          <Link href="/" className="text-slate-500 hover:text-white transition">
+    <div className="min-h-screen overflow-x-clip text-slate-950">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mb-6 flex items-center gap-3 rounded-full border border-slate-200/80 bg-white/80 px-4 py-3 backdrop-blur-xl sm:px-6">
+          <Link href="/" className="text-slate-500 transition hover:text-slate-950">
             <ArrowLeft className="h-5 w-5" />
           </Link>
-          <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center">
-            <span className="text-slate-900 font-bold text-sm">C</span>
+          <CerniqMark size="sm" />
+          <div>
+            <div className="font-display text-sm uppercase tracking-[0.4em] text-slate-950">Cerniq</div>
+            <div className="text-[10px] uppercase tracking-[0.36em] text-cyan-700/60">Precios / Pricing</div>
           </div>
-          <span className="text-sm font-semibold tracking-wide">CERNIQ</span>
-        </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-6 py-16">
-        {/* Heading */}
-        <div className="text-center mb-4">
-          <h1 className="text-3xl font-bold mb-3">
-            Planes y Precios
-          </h1>
-          <p className="text-slate-400 text-sm max-w-lg mx-auto">
-            Inteligencia de riesgo institucional para cooperativas y bancos comunitarios de Puerto Rico.
-          </p>
-          <p className="text-slate-500 text-xs mt-1">
-            Institutional risk intelligence for PR cooperativas and community banks.
-          </p>
         </div>
 
-        {/* ROI Banner */}
-        <div className="max-w-2xl mx-auto mb-12 bg-[#1B3A6B]/20 border border-[#1B3A6B]/40 rounded-xl px-6 py-4 text-center">
-          <p className="text-sm text-slate-300">
-            Su institución gasta <span className="text-amber-400 font-semibold">$13,900–$33,000/año</span> en consultores ALM, terminales de datos, y auditorías manuales.
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            CERNIQ reemplaza todo eso desde $2,400/año — <span className="text-[#18C87A]">ahorro del 83–93%</span>.
-          </p>
-        </div>
+        <main className="space-y-6 pb-20">
+          {/* ── HERO ── */}
+          <section className="cerniq-shell p-4 sm:p-6 lg:p-8">
+            <div className="cerniq-panel p-6 sm:p-8 lg:p-10">
+              <div className="cerniq-data-wave opacity-55" />
+              <div className="relative z-10 mx-auto max-w-4xl">
+                <span className="cerniq-kicker mb-8 w-fit">Precios / Pricing</span>
+                <h1 className="font-display text-3xl leading-tight text-slate-950 sm:text-5xl">
+                  Planes y Precios
+                </h1>
+                <p className="mt-1 text-lg text-slate-500">Plans &amp; Pricing</p>
+                <p className="mt-5 max-w-3xl text-base leading-8 text-slate-700">
+                  Comience con un informe piloto. Escale cuando este listo.
+                </p>
+                <p className="mt-1 max-w-3xl text-sm leading-7 text-slate-500">
+                  Start with a pilot report. Scale when ready.
+                </p>
 
-        {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {TIERS.map((tier) => {
-            const Icon = tier.icon;
-            return (
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <span className="cerniq-mini-stat">
+                    <strong>Piloto</strong> para validar
+                  </span>
+                  <span className="cerniq-mini-stat">
+                    <strong>Recurrente</strong> para informes continuos
+                  </span>
+                  <span className="cerniq-mini-stat">
+                    <strong>Partner</strong> para firmas multi-cliente
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ── TIER CARDS ── */}
+          <section className="grid gap-6 lg:grid-cols-3">
+            {TIERS.map((tier) => (
               <div
                 key={tier.id}
-                className={`bg-slate-900/60 border-2 ${tier.borderColor} rounded-2xl p-6 relative flex flex-col`}
+                className={`cerniq-panel cerniq-card-hover flex flex-col p-6 ${tier.featured ? 'border-cyan-300/25 shadow-[0_20px_60px_rgba(34,211,238,0.12)]' : ''}`}
               >
-                {tier.badge && (
-                  <div className="absolute -top-3 left-5">
-                    <span className={`${tier.badge.color} text-slate-900 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full`}>
-                      {tier.badge.text}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2 mb-4">
-                  <Icon className={`h-5 w-5 ${tier.iconColor}`} />
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-bold">{tier.name}</h2>
-                    <p className="text-[11px] text-slate-500">{tier.nameEn}</p>
+                    <p className="font-display text-2xl text-slate-950">{tier.nameEs}</p>
+                    <p className="mt-1 text-xs text-slate-400">{tier.nameEn}</p>
                   </div>
+                  {tier.featured ? (
+                    <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] uppercase tracking-[0.26em] text-cyan-700">
+                      Recomendado / Recommended
+                    </span>
+                  ) : null}
                 </div>
 
-                <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-3xl font-bold">{tier.price}</span>
-                  <span className="text-slate-400 text-xs">{tier.period}</span>
+                <div className="mt-8">
+                  <span className="font-display text-5xl text-slate-950">{tier.price}</span>
+                  <span className="ml-2 text-sm uppercase tracking-[0.24em] text-slate-500">{tier.cadenceEs}</span>
+                  {tier.cadenceEn !== tier.cadenceEs && (
+                    <span className="ml-1 text-xs text-slate-400">/ {tier.cadenceEn}</span>
+                  )}
                 </div>
 
-                <ul className="space-y-2.5 my-6 flex-1">
-                  {tier.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm text-slate-300">
-                      <CheckCircle className={`h-4 w-4 ${tier.iconColor} shrink-0 mt-0.5`} />
-                      {f}
-                    </li>
+                <div className="mt-8 flex-1 space-y-4">
+                  {tier.bullets.map((bullet) => (
+                    <div key={bullet} className="flex items-start gap-3 text-sm leading-7 text-slate-700">
+                      <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-cyan-700" />
+                      <span>{bullet}</span>
+                    </div>
                   ))}
-                </ul>
+                </div>
 
-                <button
-                  onClick={() => handleCheckout(tier.id)}
-                  disabled={loadingTier === tier.id}
-                  className={`w-full text-center font-semibold py-3 rounded-lg transition text-sm disabled:opacity-60 ${tier.ctaClass}`}
-                >
-                  {loadingTier === tier.id ? 'Cargando...' : tier.cta}
-                </button>
+                {tier.id === 'partner' ? (
+                  <a
+                    href="mailto:erwin@cerniq.io?subject=Acceso%20Partner%20/%20Partner%20Access"
+                    className="mt-8 w-full cerniq-button-secondary text-center"
+                  >
+                    {tier.ctaEs} / {tier.ctaEn}
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => handleCheckout(tier.id)}
+                    disabled={loadingTier === tier.id}
+                    className={`mt-8 w-full ${tier.featured ? 'inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5' : 'inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5'} disabled:opacity-60`}
+                  >
+                    {loadingTier === tier.id ? 'Procesando...' : tier.ctaEs}
+                  </button>
+                )}
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </section>
 
-        {/* Trust */}
-        <div className="text-center mt-12 space-y-2">
-          <div className="flex items-center justify-center gap-4 text-[11px] text-slate-600">
-            <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> COSSEC Compliant</span>
-            <span>·</span>
-            <span>Hecho en Puerto Rico</span>
-            <span>·</span>
-            <span>OCIF Aware</span>
-          </div>
-          <p className="text-[10px] text-slate-700">
-            ¿Preguntas? hello@cerniq.io · KLYTICS LLC · San Juan, Puerto Rico
-          </p>
-        </div>
+          {/* ── ROI / COST COMPARISON ── */}
+          <section className="cerniq-panel cerniq-card-hover p-6 sm:p-8 lg:p-10">
+            <div className="mx-auto max-w-4xl space-y-6">
+              <div>
+                <p className="cerniq-section-label">Comparacion de costos / Cost comparison</p>
+                <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
+                  Su institucion gasta entre $13,900 y $33,000 al ano en analisis ALM con consultores
+                </h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Your institution spends between $13,900 and $33,000/year on ALM analysis with consultants
+                </p>
+                <p className="mt-4 text-base leading-8 text-slate-700">
+                  CERNIQ desde $2,400/ano. Mismos ratios, misma precision, fraccion del costo.
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  CERNIQ from $2,400/year. Same ratios, same accuracy, fraction of the cost.
+                </p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500" />
+                      <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500">Consultor tradicional</th>
+                      <th className="py-3 text-xs font-semibold uppercase tracking-wider text-cyan-700">CERNIQ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {costComparison.map((row) => (
+                      <tr key={row.item} className="border-b border-slate-100">
+                        <td className="py-3 pr-4">
+                          <span className="font-medium text-slate-700">{row.item}</span>
+                          <span className="block text-xs text-slate-400">{row.itemEn}</span>
+                        </td>
+                        <td className="py-3 pr-4 text-slate-500">{row.consultant}</td>
+                        <td className="py-3 font-semibold text-cyan-700">{row.cerniq}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 text-center">
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-700">AHORRO ESTIMADO: 83-93%</p>
+                <p className="mt-1 text-xs text-emerald-600">Estimated savings: 83-93%</p>
+              </div>
+            </div>
+          </section>
+
+          {/* ── FAQ ── */}
+          <section className="cerniq-panel cerniq-card-hover p-6 sm:p-8 lg:p-10">
+            <div className="mx-auto max-w-4xl space-y-6">
+              <div className="flex items-center gap-3">
+                <HelpCircle className="h-5 w-5 text-cyan-700" />
+                <p className="cerniq-section-label">Preguntas frecuentes / FAQ</p>
+              </div>
+
+              <div className="space-y-3">
+                {faqItems.map((item) => (
+                  <details key={item.questionEs} className="group rounded-2xl border border-slate-200 bg-white/86">
+                    <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950 sm:text-base [&::-webkit-details-marker]:hidden">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <span>{item.questionEs}</span>
+                          <span className="ml-2 text-xs font-normal text-slate-400">/ {item.questionEn}</span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
+                      </div>
+                    </summary>
+                    <div className="border-t border-slate-100 px-5 py-4">
+                      <p className="text-sm leading-7 text-slate-700">{item.answerEs}</p>
+                      <p className="mt-2 text-xs leading-6 text-slate-400">{item.answerEn}</p>
+                    </div>
+                  </details>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* ── BOTTOM CTA ── */}
+          <section className="cerniq-panel cerniq-card-hover overflow-hidden px-6 py-8 sm:px-8 lg:px-10">
+            <div className="cerniq-data-wave opacity-90" />
+            <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-3xl">
+                <p className="cerniq-section-label">CERNIQ</p>
+                <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
+                  Informes ALM bilingues. Listos para COSSEC. En 24 horas.
+                </h2>
+                <p className="mt-2 text-sm text-slate-500">Bilingual ALM reports. COSSEC-ready. In 24 hours.</p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => handleCheckout('one_time')}
+                  disabled={loadingTier === 'one_time'}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5 disabled:opacity-60"
+                >
+                  {loadingTier === 'one_time' ? 'Procesando...' : 'Comenzar — $750'}
+                </button>
+                <Link href="/" className="cerniq-button-secondary">
+                  Volver al inicio / Back to home
+                </Link>
+              </div>
+            </div>
+          </section>
+        </main>
       </div>
     </div>
   );

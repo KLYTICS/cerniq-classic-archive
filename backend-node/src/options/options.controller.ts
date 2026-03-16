@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, Query, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Query, HttpException, HttpStatus, UseGuards } from '@nestjs/common';
 import { OptionsService } from './options.service';
 import {
     CalculateGreeksDto,
@@ -9,8 +9,10 @@ import {
     ImpliedVolatilityResponseDto,
 } from './dto/options.dto';
 import { CalculateStrategyDto, StrategyResponseDto, STRATEGY_PRESETS } from './dto/strategy.dto';
+import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('api/options')
+@UseGuards(AuthGuard)
 export class OptionsController {
     constructor(private readonly optionsService: OptionsService) { }
 

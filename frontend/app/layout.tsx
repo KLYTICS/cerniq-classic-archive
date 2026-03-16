@@ -1,15 +1,30 @@
 import type { Metadata } from "next";
+import { Manrope, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Providers from '@/components/Providers';
 
+const bodyFont = Manrope({
+  subsets: ['latin'],
+  variable: '--font-manrope',
+});
+
+const displayFont = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-space-grotesk',
+});
+
 export const metadata: Metadata = {
-  title: "CERNIQ — Risk Intelligence Platform",
-  description: "ALM analysis, COSSEC compliance monitoring, and stress testing for Puerto Rico financial institutions.",
-  keywords: "ALM, COSSEC, cooperativa, banco comunitario, Puerto Rico, riesgo, cumplimiento",
+  title: "CERNIQ — ALM Reports for Cooperativas and Credit Unions",
+  description: "Bilingual ALM reporting software for cooperativas and credit unions with secure balance-sheet upload, compliance-ready workflow, and board-ready PDF output.",
+  keywords: "ALM reports, cooperativas, credit unions, bilingual reporting, balance sheet upload, CERNIQ",
+  metadataBase: new URL("https://cerniq.io"),
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
-    title: "CERNIQ — Risk Intelligence Platform",
-    description: "Your quant team. Without the quant team.",
+    title: "CERNIQ — ALM Reports for Cooperativas and Credit Unions",
+    description: "Upload your balance sheet and generate a bilingual, compliance-ready ALM report through CERNIQ.",
     url: "https://cerniq.io",
     siteName: "CERNIQ",
     locale: "es_PR",
@@ -29,7 +44,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
+      <body className={`${bodyFont.variable} ${displayFont.variable}`}>
         <Providers>
         {children}
         </Providers>

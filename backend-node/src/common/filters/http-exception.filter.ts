@@ -1,0 +1,79 @@
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
+import { Response } from 'express';
+
+export interface ApiErrorResponse {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    details?: any;
+    timestamp: string;
+    path: string;
+  };
+}
+
+@Catch()
+export class GlobalExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(GlobalExceptionFilter.name);
+
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest();
+
+    let status = HttpStatus.INTERNAL_SERVER_ERROR;
+    let message = 'Internal server error';
+    let code = 'INTERNAL_ERROR';
+    let details: any = undefined;
+
+    if (exception instanceof HttpException) {
+      status = exception.getStatus();
+      const exResponse = exception.getResponse();
+      if (typeof exResponse === 'string') {
+        message = exResponse;
+      } else if (typeof exResponse === 'object' && exResponse !== null) {
+        const obj = exResponse as any;
+        message = obj.message || message;
+        details = obj.errors || obj.details;
+      }
+      code = this.statusToCode(status);
+    } else if (exception instanceof Error) {
+      message = exception.message;
+      this.logger.error(`Unhandled exception: ${message}`, exception.stack);
+    }
+
+    const errorResponse: ApiErrorResponse = {
+      success: false,
+      error: {
+        code,
+        message: Array.isArray(message) ? message.join('; ') : message,
+        details,
+        timestamp: new Date().toISOString(),
+        path: request.url,
+      },
+    };
+
+    response.status(status).json(errorResponse);
+  }
+
+  private statusToCode(status: number): string {
+    const map: Record<number, string> = {
+      400: 'BAD_REQUEST',
+      401: 'UNAUTHORIZED',
+      403: 'FORBIDDEN',
+      404: 'NOT_FOUND',
+      409: 'CONFLICT',
+      422: 'UNPROCESSABLE_ENTITY',
+      429: 'TOO_MANY_REQUESTS',
+      500: 'INTERNAL_ERROR',
+    };
+    return map[status] || 'UNKNOWN_ERROR';
+  }
+}

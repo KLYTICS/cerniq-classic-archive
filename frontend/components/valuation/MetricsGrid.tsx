@@ -30,49 +30,49 @@ export default function MetricsGrid({
             label: 'Cycles Detected',
             value: cyclesDetected.toString(),
             icon: Activity,
-            color: 'from-blue-500 to-cyan-500',
-            bgColor: 'bg-blue-500/10',
+            color: 'bg-cyan-600 text-white',
+            bgColor: 'bg-cyan-50 border-cyan-100',
         },
         {
             label: 'Mid-Cycle Revenue',
             value: formatLargeNumber(midCycleRevenue),
             icon: DollarSign,
-            color: 'from-green-500 to-emerald-500',
-            bgColor: 'bg-green-500/10',
+            color: 'bg-emerald-600 text-white',
+            bgColor: 'bg-emerald-50 border-emerald-100',
         },
         {
             label: 'Mid-Cycle EPS',
             value: `$${midCycleEps.toFixed(2)}`,
             icon: TrendingUp,
-            color: 'from-purple-500 to-pink-500',
-            bgColor: 'bg-purple-500/10',
+            color: 'bg-blue-600 text-white',
+            bgColor: 'bg-sky-50 border-sky-100',
         },
         {
             label: 'Mid-Cycle Margin',
             value: `${midCycleMargin.toFixed(1)}%`,
             icon: BarChart3,
-            color: 'from-orange-500 to-red-500',
-            bgColor: 'bg-orange-500/10',
+            color: 'bg-amber-500 text-slate-950',
+            bgColor: 'bg-amber-50 border-amber-100',
         },
         {
             label: 'Applied P/E Multiple',
             value: `${midCyclePe.toFixed(1)}x`,
             icon: Activity,
-            color: 'from-indigo-500 to-violet-500',
-            bgColor: 'bg-indigo-500/10',
+            color: 'bg-slate-900 text-white',
+            bgColor: 'bg-slate-50 border-slate-200',
         },
         {
             label: 'Fair Value (Base)',
             value: `$${fairValueBase.toFixed(2)}`,
             icon: DollarSign,
-            color: 'from-yellow-500 to-amber-500',
-            bgColor: 'bg-yellow-500/10',
+            color: 'bg-cyan-500 text-slate-950',
+            bgColor: 'bg-cyan-50 border-cyan-100',
         },
     ];
 
     return (
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
-            <h3 className="text-2xl font-bold text-white mb-6">Valuation Metrics</h3>
+        <div className="cerniq-panel p-8">
+            <h3 className="text-2xl font-bold text-slate-950 mb-6">Valuation Metrics</h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {metrics.map((metric, index) => {
@@ -80,15 +80,15 @@ export default function MetricsGrid({
                     return (
                         <div
                             key={index}
-                            className={`${metric.bgColor} rounded-xl p-5 border border-white/10 hover:border-white/30 transition group`}
+                            className={`${metric.bgColor} rounded-xl p-5 border transition group`}
                         >
                             <div className="flex items-center gap-3 mb-3">
-                                <div className={`p-2 rounded-lg bg-gradient-to-br ${metric.color}`}>
-                                    <Icon className="w-5 h-5 text-white" />
+                                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${metric.color}`}>
+                                    <Icon className="w-5 h-5" />
                                 </div>
-                                <span className="text-gray-300 text-sm font-medium">{metric.label}</span>
+                                <span className="text-slate-500 text-sm font-medium">{metric.label}</span>
                             </div>
-                            <div className="text-3xl font-bold text-white group-hover:scale-105 transition">
+                            <div className="text-3xl font-bold text-slate-950 transition group-hover:scale-105">
                                 {metric.value}
                             </div>
                         </div>
@@ -96,9 +96,9 @@ export default function MetricsGrid({
                 })}
             </div>
 
-            <div className="mt-6 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
-                <p className="text-sm text-gray-300">
-                    <span className="font-semibold text-purple-400">Methodology:</span> Fair value calculated using mid-cycle normalized earnings with regime-specific P/E multiples. Range represents ±15% confidence interval.
+            <div className="mt-6 rounded-xl border border-cyan-200 bg-cyan-50/80 p-4">
+                <p className="text-sm text-slate-700">
+                    <span className="font-semibold text-cyan-700">Methodology:</span> Fair value is calculated using mid-cycle normalized earnings with regime-specific P/E multiples. The range represents a ±15% confidence interval.
                 </p>
             </div>
         </div>

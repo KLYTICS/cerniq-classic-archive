@@ -5,8 +5,12 @@ import { ValidationPipe } from '@nestjs/common';
 const cookieParser = require('cookie-parser');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const helmet = require('helmet');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const express = require('express');
 import { AppModule } from './app.module';
 import { corsOriginCallback } from './security/origin-allowlist';
+import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
+import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
 
 async function bootstrap() {
   // --- Env var validation ---
@@ -28,6 +32,10 @@ async function bootstrap() {
 
   // Trust Railway/Vercel proxy for correct client IP in rate limiting
   app.set('trust proxy', 1);
+
+  // --- Request body size limits ---
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // --- Security middleware ---
   app.use(cookieParser());
@@ -58,6 +66,10 @@ async function bootstrap() {
     }),
   );
 
+  // --- Global exception filter & response envelope ---
+  app.useGlobalFilters(new GlobalExceptionFilter());
+  app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
+
   // --- Global validation pipe ---
   app.useGlobalPipes(
     new ValidationPipe({
@@ -76,9 +88,12 @@ async function bootstrap() {
     maxAge: 86400,
   });
 
+  // --- Graceful shutdown (drain connections on SIGTERM) ---
+  app.enableShutdownHooks();
+
   // --- Start server ---
   const port = process.env.PORT || process.env.BACKEND_PORT || 3000;
   await app.listen(port, '0.0.0.0');
-  console.log(`CERNIQ backend running on 0.0.0.0:${port}`);
+  console.log(`CERNIQ backend running on 0.0.0.0:${port} [${process.env.NODE_ENV || 'development'}]`);
 }
 bootstrap();

@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PortalController } from './portal.controller';
 import { AlmModule } from '../alm/alm.module';
 import { EmailModule } from '../email/email.module';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { EmailModule } from '../email/email.module';
     }),
     AlmModule,
     EmailModule,
+    BillingModule,
   ],
   controllers: [PortalController],
 })

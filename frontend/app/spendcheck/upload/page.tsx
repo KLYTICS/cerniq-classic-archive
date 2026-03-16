@@ -1,242 +1,219 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { spendcheckApi, Workspace, AnalysisResult, AnalysisStatus } from '@/lib/spendcheck-api';
+import { useSearchParams } from 'next/navigation';
+import PlatformPage from '@/components/layout/PlatformPage';
 import UploadZone from '@/components/spendcheck/UploadZone';
+import { spendcheckApi, AnalysisResult, Workspace } from '@/lib/spendcheck-api';
 
 function UploadContent() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    const workspaceId = searchParams.get('workspace');
+  const searchParams = useSearchParams();
+  const workspaceId = searchParams.get('workspace');
 
-    const [workspace, setWorkspace] = useState<Workspace | null>(null);
-    const [file, setFile] = useState<File | null>(null);
-    const [uploading, setUploading] = useState(false);
-    const [analyzing, setAnalyzing] = useState(false);
-    const [progress, setProgress] = useState(0);
-    const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-    const [error, setError] = useState<string | null>(null);
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (workspaceId) {
-            loadWorkspace(workspaceId);
-        }
-    }, [workspaceId]);
+  useEffect(() => {
+    if (workspaceId) {
+      void loadWorkspace(workspaceId);
+    }
+  }, [workspaceId]);
 
-    async function loadWorkspace(id: string) {
-        try {
-            const data = await spendcheckApi.getWorkspace(id);
-            setWorkspace(data);
-        } catch (err) {
-            console.error('Failed to load workspace:', err);
-            setError('Workspace not found');
-        }
+  async function loadWorkspace(id: string) {
+    try {
+      const data = await spendcheckApi.getWorkspace(id);
+      setWorkspace(data);
+    } catch (err) {
+      console.error('Failed to load workspace:', err);
+      setError('Workspace not found');
+    }
+  }
+
+  async function handleUploadAndAnalyze() {
+    if (!file || !workspaceId) {
+      return;
     }
 
-    async function handleFileSelect(selectedFile: File) {
-        setFile(selectedFile);
-        setError(null);
+    setUploading(true);
+    setProgress(10);
+
+    try {
+      setProgress(30);
+      const uploadResponse = await spendcheckApi.uploadFile(workspaceId, file);
+
+      setUploading(false);
+      setAnalyzing(true);
+      setProgress(60);
+
+      const result = await spendcheckApi.runAnalysis(uploadResponse.id, workspaceId);
+      setProgress(100);
+      setAnalysisResult(result);
+    } catch (err) {
+      console.error('Process failed:', err);
+      setError('Failed to process file. Please try again.');
+    } finally {
+      setUploading(false);
+      setAnalyzing(false);
     }
+  }
 
-    async function handleUploadAndAnalyze() {
-        if (!file || !workspaceId) return;
-
-        setUploading(true);
-        setProgress(10);
-
-        try {
-            // 1. Upload File
-            setProgress(30);
-            const uploadRes = await spendcheckApi.uploadFile(workspaceId, file);
-
-            // 2. Run Analysis
-            setUploading(false);
-            setAnalyzing(true);
-            setProgress(60);
-
-            const result = await spendcheckApi.runAnalysis(uploadRes.id, workspaceId);
-            setProgress(100);
-            setAnalysisResult(result);
-
-        } catch (err) {
-            console.error('Process failed:', err);
-            setError('Failed to process file. Please try again.');
-        } finally {
-            setUploading(false);
-            setAnalyzing(false);
-        }
-    }
-
-    if (!workspaceId) {
-        return (
-            <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">
-                <div className="text-center">
-                    <h2 className="text-xl font-bold mb-4">No Workspace Selected</h2>
-                    <Link href="/spendcheck" className="text-emerald-400 hover:text-emerald-300">
-                        Return to Dashboard
-                    </Link>
-                </div>
-            </div>
-        );
-    }
-
+  if (!workspaceId) {
     return (
-        <div className="min-h-screen bg-gray-950 text-white">
-            {/* Header */}
-            <div className="border-b border-gray-800 bg-gray-900/50 backdrop-blur">
-                <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href="/spendcheck" className="text-gray-400 hover:text-white transition">
-                            ← Back
-                        </Link>
-                        <h1 className="text-2xl font-bold">Upload Invoices</h1>
-                    </div>
-                    {workspace && (
-                        <div className="text-sm text-gray-400">
-                            Workspace: <span className="text-emerald-400">{workspace.name}</span>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div className="max-w-4xl mx-auto px-6 py-12">
-                {!analysisResult ? (
-                    <div className="space-y-8">
-                        {/* Steps Indicator */}
-                        <div className="flex items-center justify-center gap-4 text-sm font-medium mb-12">
-                            <div className={`flex items-center gap-2 ${file ? 'text-emerald-400' : 'text-white'}`}>
-                                <span className="w-8 h-8 rounded-full bg-gray-800 border-2 border-current flex items-center justify-center">1</span>
-                                Select File
-                            </div>
-                            <div className={`w-16 h-0.5 ${analyzing || analysisResult ? 'bg-emerald-500' : 'bg-gray-800'}`} />
-                            <div className={`flex items-center gap-2 ${analyzing ? 'text-emerald-400' : 'text-gray-500'}`}>
-                                <span className="w-8 h-8 rounded-full bg-gray-800 border-2 border-current flex items-center justify-center">2</span>
-                                Analyze
-                            </div>
-                            <div className="w-16 h-0.5 bg-gray-800" />
-                            <div className="flex items-center gap-2 text-gray-500">
-                                <span className="w-8 h-8 rounded-full bg-gray-800 border-2 border-current flex items-center justify-center">3</span>
-                                Results
-                            </div>
-                        </div>
-
-                        {/* Error Message */}
-                        {error && (
-                            <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded-lg">
-                                ❌ {error}
-                            </div>
-                        )}
-
-                        {/* Upload Zone */}
-                        {!file ? (
-                            <UploadZone onFileSelect={handleFileSelect} isUploading={uploading} />
-                        ) : (
-                            <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
-                                <div className="text-5xl mb-4">📄</div>
-                                <h3 className="text-xl font-bold mb-2">{file.name}</h3>
-                                <p className="text-gray-400 mb-6">{(file.size / 1024).toFixed(1)} KB • CSV</p>
-
-                                {!uploading && !analyzing && (
-                                    <div className="flex justify-center gap-4">
-                                        <button
-                                            onClick={() => setFile(null)}
-                                            className="px-6 py-2 text-gray-400 hover:text-white transition"
-                                        >
-                                            Change File
-                                        </button>
-                                        <button
-                                            onClick={handleUploadAndAnalyze}
-                                            className="bg-emerald-600 hover:bg-emerald-500 px-8 py-2 rounded-lg font-bold shadow-lg shadow-emerald-500/20 transition hover:scale-105"
-                                        >
-                                            Run Analysis 🚀
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* Progress Bar */}
-                                {(uploading || analyzing) && (
-                                    <div className="max-w-md mx-auto mt-8">
-                                        <div className="flex justify-between text-sm mb-2">
-                                            <span className="text-emerald-400">
-                                                {uploading ? 'Uploading...' : 'Detecting Leaks...'}
-                                            </span>
-                                            <span className="text-gray-400">{progress}%</span>
-                                        </div>
-                                        <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-emerald-500 transition-all duration-500 ease-out"
-                                                style={{ width: `${progress}%` }}
-                                            />
-                                        </div>
-                                        <p className="text-xs text-gray-500 mt-4 animate-pulse">
-                                            Analyzing supplier patterns, price drift, and duplicate charges...
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    /* Analysis Results View */
-                    <div className="animate-in fade-in slide-in-from-bottom-8 duration-500">
-                        <div className="bg-gradient-to-br from-emerald-900/20 to-gray-900 border border-emerald-500/30 rounded-2xl p-8 mb-8 text-center">
-                            <div className="text-6xl mb-4">🎉</div>
-                            <h2 className="text-3xl font-bold mb-2">Analysis Complete!</h2>
-                            <p className="text-gray-400 text-lg mb-8">
-                                We processed <span className="text-white font-bold">{analysisResult.invoices_parsed}</span> invoices
-                                and found <span className="text-white font-bold">{analysisResult.findings_found}</span> potential leaks.
-                            </p>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto mb-8">
-                                <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800">
-                                    <div className="text-gray-400 text-sm mb-1">Potential Savings</div>
-                                    <div className="text-3xl font-bold text-emerald-400">
-                                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(analysisResult.total_potential_savings)}
-                                    </div>
-                                </div>
-                                <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 text-left">
-                                    <div className="text-gray-400 text-sm mb-3">Breakdown</div>
-                                    {Object.entries(analysisResult.findings_by_type).map(([type, count]) => (
-                                        <div key={type} className="flex justify-between text-sm mb-1">
-                                            <span className="capitalize">{type.replace(/_/g, ' ')}</span>
-                                            <span className="font-bold text-white">{count}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="flex justify-center gap-4">
-                                <Link
-                                    href={`/spendcheck/upload?workspace=${workspaceId}`}
-                                    onClick={() => {
-                                        setFile(null);
-                                        setAnalysisResult(null);
-                                    }}
-                                    className="px-6 py-3 text-gray-400 hover:text-white transition"
-                                >
-                                    Upload Another
-                                </Link>
-                                <Link
-                                    href={`/spendcheck/findings?workspace=${workspaceId}`}
-                                    className="bg-emerald-600 hover:bg-emerald-500 px-8 py-3 rounded-lg font-bold shadow-lg shadow-emerald-500/20 transition hover:scale-105"
-                                >
-                                    View Findings →
-                                </Link>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
+      <section className="cerniq-empty-state">
+        <h2 className="font-display text-3xl text-slate-950">No workspace selected</h2>
+        <p className="mt-3 text-sm leading-7 text-slate-600">Return to SpendCheck and choose a workspace before uploading files.</p>
+        <Link href="/spendcheck" className="cerniq-button-secondary mt-6 px-5 py-3 text-sm">
+          Return to SpendCheck
+        </Link>
+      </section>
     );
+  }
+
+  return (
+    <PlatformPage
+      kicker="SpendCheck upload"
+      title="Upload AP exports and push them straight into the SpendCheck analysis engine."
+      description="This flow keeps the ingestion path simple: confirm the workspace, drop the CSV, and watch CERNIQ move from upload to leak detection in one clear sequence."
+      meta={
+        workspace ? (
+          <span className="cerniq-mini-stat">
+            <strong>{workspace.name}</strong>
+          </span>
+        ) : undefined
+      }
+      actions={
+        <Link href="/spendcheck" className="cerniq-button-secondary px-5 py-3 text-sm">
+          Back to SpendCheck
+        </Link>
+      }
+    >
+      {!analysisResult ? (
+        <div className="space-y-6">
+          <section className="cerniq-panel p-6">
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                ['1', 'Select file', file ? 'CSV attached and ready for processing.' : 'Choose the AP export you want to analyze.'],
+                ['2', 'Run analysis', analyzing ? 'Leak detection is running now.' : 'CERNIQ validates the file and starts the findings engine.'],
+                ['3', 'Review results', analysisResult ? 'Results are available.' : 'Move directly into findings once the run completes.'],
+              ].map(([step, title, copy]) => (
+                <div key={step} className="rounded-[1.25rem] border border-slate-200 bg-white/86 p-5">
+                  <span className="cerniq-chip">{step}</span>
+                  <h2 className="mt-4 font-display text-2xl text-slate-950">{title}</h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{copy}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {error ? (
+            <section className="rounded-[1.5rem] border border-rose-200 bg-rose-50/90 p-5 text-sm text-rose-700">
+              {error}
+            </section>
+          ) : null}
+
+          {!file ? (
+            <UploadZone onFileSelect={(selectedFile) => {
+              setFile(selectedFile);
+              setError(null);
+            }} isUploading={uploading} />
+          ) : (
+            <section className="cerniq-panel p-8 text-center">
+              <div className="text-5xl">📄</div>
+              <h2 className="mt-5 font-display text-3xl text-slate-950">{file.name}</h2>
+              <p className="mt-3 text-sm text-slate-500">{(file.size / 1024).toFixed(1)} KB · CSV</p>
+
+              {!uploading && !analyzing ? (
+                <div className="mt-8 flex flex-wrap justify-center gap-3">
+                  <button onClick={() => setFile(null)} className="cerniq-button-secondary px-5 py-3 text-sm">
+                    Change file
+                  </button>
+                  <button onClick={handleUploadAndAnalyze} className="cerniq-button-primary px-5 py-3 text-sm">
+                    Run analysis
+                  </button>
+                </div>
+              ) : (
+                <div className="mx-auto mt-8 max-w-md">
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="text-cyan-700">{uploading ? 'Uploading…' : 'Detecting spend leaks…'}</span>
+                    <span className="text-slate-500">{progress}%</span>
+                  </div>
+                  <div className="cerniq-progress-track">
+                    <div className="cerniq-progress-bar" style={{ width: `${progress}%` }} />
+                  </div>
+                  <p className="mt-4 text-xs text-slate-500">
+                    Analyzing supplier patterns, duplicate charges, and price drift across the file.
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
+        </div>
+      ) : (
+        <section className="cerniq-panel p-8 text-center">
+          <div className="text-6xl">🎉</div>
+          <h2 className="mt-5 font-display text-4xl text-slate-950">Analysis complete</h2>
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            CERNIQ processed <strong>{analysisResult.invoices_parsed}</strong> invoices and found{' '}
+            <strong>{analysisResult.findings_found}</strong> potential leaks.
+          </p>
+
+          <div className="mx-auto mt-8 grid max-w-3xl gap-4 md:grid-cols-2">
+            <div className="rounded-[1.25rem] border border-slate-200 bg-white/86 p-6">
+              <p className="cerniq-caption">Potential savings</p>
+              <p className="mt-3 text-3xl font-bold text-emerald-700">
+                {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(analysisResult.total_potential_savings)}
+              </p>
+            </div>
+            <div className="rounded-[1.25rem] border border-slate-200 bg-white/86 p-6 text-left">
+              <p className="cerniq-caption">Breakdown</p>
+              <div className="mt-4 space-y-2">
+                {Object.entries(analysisResult.findings_by_type).map(([type, count]) => (
+                  <div key={type} className="flex items-center justify-between text-sm">
+                    <span className="capitalize text-slate-600">{type.replace(/_/g, ' ')}</span>
+                    <span className="font-semibold text-slate-950">{count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link
+              href={`/spendcheck/upload?workspace=${workspaceId}`}
+              onClick={() => {
+                setFile(null);
+                setAnalysisResult(null);
+              }}
+              className="cerniq-button-secondary px-5 py-3 text-sm"
+            >
+              Upload another
+            </Link>
+            <Link href={`/spendcheck/findings?workspace=${workspaceId}`} className="cerniq-button-primary px-5 py-3 text-sm">
+              View findings
+            </Link>
+          </div>
+        </section>
+      )}
+    </PlatformPage>
+  );
 }
 
 export default function UploadPage() {
-    return (
-        <Suspense fallback={<div className="min-h-screen bg-gray-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div></div>}>
-            <UploadContent />
-        </Suspense>
-    );
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#f7fbff]">
+          <div className="h-12 w-12 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" />
+        </div>
+      }
+    >
+      <UploadContent />
+    </Suspense>
+  );
 }

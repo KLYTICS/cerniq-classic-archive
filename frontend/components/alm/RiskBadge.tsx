@@ -8,13 +8,13 @@ interface RiskBadgeProps {
 }
 
 const badgeStyles: Record<string, string> = {
-  compliant: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  low: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  warning: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-  moderate: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-  breach: 'bg-red-500/20 text-red-300 border-red-500/30',
-  high: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-  critical: 'bg-red-500/20 text-red-300 border-red-500/30',
+  compliant: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  low: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  warning: 'bg-amber-50 text-amber-700 border-amber-200',
+  moderate: 'bg-amber-50 text-amber-700 border-amber-200',
+  breach: 'bg-rose-50 text-rose-700 border-rose-200',
+  high: 'bg-orange-50 text-orange-700 border-orange-200',
+  critical: 'bg-rose-50 text-rose-700 border-rose-200',
 };
 
 const labelKeys: Record<string, string> = {

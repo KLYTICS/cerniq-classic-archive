@@ -24,6 +24,7 @@ import {
   RefreshTokenDto,
 } from './dto/auth.dto';
 import { CreateApiKeyDto } from './dto/api-key.dto';
+import { AuditService } from '../audit/audit.service';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -85,7 +86,10 @@ function clearAuthCookies(res: any) {
 
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly audit: AuditService,
+  ) {}
 
   @Post('register')
   @Throttle({ default: { ttl: 60000, limit: 3 } })
@@ -98,9 +102,20 @@ export class AuthController {
   @Post('login')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: any) {
+  async login(@Body() dto: LoginDto, @Req() req: any, @Res({ passthrough: true }) res: any) {
     const result = await this.authService.login(dto);
     setAuthCookies(res, result.accessToken, result.refreshToken);
+
+    this.audit.log({
+      userId: result.user.id,
+      action: 'login',
+      resource: 'user',
+      outcome: 'success',
+      metadata: { method: 'password' },
+      ipAddress: req.ip,
+      userAgent: req.headers?.['user-agent'],
+    });
+
     return { user: result.user };
   }
 

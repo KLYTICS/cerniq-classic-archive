@@ -6,6 +6,8 @@ import { StressTestingService } from './stress-testing/stress-testing.service';
 import { ReportsService } from './reports/reports.service';
 import { WorkspaceOnboardingService } from './workspace-onboarding.service';
 import { CSVIngestionService } from './csv-ingestion.service';
+import { AnalysisRunsService } from './analysis-runs.service';
+import { IngestionLogsService } from './ingestion-logs.service';
 import { AlmController } from './alm.controller';
 import { AuthGuard } from '../auth/auth.guard';
 
@@ -24,8 +26,10 @@ import { AuthGuard } from '../auth/auth.guard';
     ReportsService,
     WorkspaceOnboardingService,
     CSVIngestionService,
+    AnalysisRunsService,
+    IngestionLogsService,
     AuthGuard,
   ],
-  exports: [AlmService, AlmEnterpriseService, StressTestingService, WorkspaceOnboardingService, CSVIngestionService],
+  exports: [AlmService, AlmEnterpriseService, StressTestingService, WorkspaceOnboardingService, CSVIngestionService, AnalysisRunsService, IngestionLogsService],
 })
 export class AlmModule {}

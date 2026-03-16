@@ -8,17 +8,25 @@ datasource db {
 
 // ===== SpendCheck Models =====
 
+enum InstitutionRole {
+  OWNER
+  ANALYST
+  VIEWER
+}
+
 model User {
-  id            String   @id @default(uuid()) @db.Uuid
-  email         String   @unique
+  id            String          @id @default(uuid()) @db.Uuid
+  email         String          @unique
   name          String?
-  avatarUrl     String?  @map("avatar_url")
-  passwordHash  String?  @map("password_hash")
-  emailVerified Boolean  @default(false) @map("email_verified")
-  provider      String   @default("email")
-  providerId    String?  @map("provider_id")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  avatarUrl     String?         @map("avatar_url")
+  passwordHash  String?         @map("password_hash")
+  emailVerified Boolean         @default(false) @map("email_verified")
+  provider      String          @default("email")
+  providerId    String?         @map("provider_id")
+  role          InstitutionRole @default(OWNER)
+  lastLoginAt   DateTime?       @map("last_login_at")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
 
   organizationMembers OrganizationMember[]
   expenses            Expense[]
@@ -30,6 +38,9 @@ model User {
   reportJobs          ReportJob[]
   magicLinks          MagicLink[]
   partnerConfig       PartnerConfig?
+  analysisRuns        AnalysisRun[]
+  ingestionLogs       IngestionLog[]
+  passwordResetTokens PasswordResetToken[]
 
   @@unique([provider, providerId])
   @@map("users")
@@ -48,6 +59,20 @@ model RefreshToken {
   @@index([userId])
   @@index([token])
   @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@map("password_reset_tokens")
 }
 
 model ApiKey {
@@ -162,20 +187,33 @@ model Workspace {
 // ===== ALM Enterprise Models =====
 
 model Institution {
-  id            String   @id @default(cuid())
-  workspaceId   String   @map("workspace_id")
-  name          String
-  type          String   // bank | credit_union | family_office
-  totalAssets   Float    @map("total_assets")
-  currency      String   @default("USD")
-  reportingDate DateTime @map("reporting_date")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id                       String    @id @default(cuid())
+  workspaceId              String    @map("workspace_id")
+  name                     String
+  type                     String    // bank | credit_union | family_office | cooperativa
+  totalAssets              Float     @map("total_assets")
+  currency                 String    @default("USD")
+  reportingDate            DateTime  @map("reporting_date")
+  cossecRegistrationNumber String?   @map("cossec_registration_number")
+  fiscalYearEnd            String?   @map("fiscal_year_end")       // "december" | "june" | "march"
+  alcoMeetingFrequency     String?   @map("alco_meeting_frequency") // "monthly" | "quarterly"
+  alcoNextDate             DateTime? @map("alco_next_date")
+  lastExamDate             DateTime? @map("last_exam_date")
+  nextExamDate             DateTime? @map("next_exam_date")
+  primaryRegulator         String    @default("COSSEC") @map("primary_regulator")
+  contactName              String?   @map("contact_name")
+  contactEmail             String?   @map("contact_email")
+  contactPhone             String?   @map("contact_phone")
+  preferredLanguage        String    @default("es") @map("preferred_language") // "es" | "en" | "both"
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
 
   workspace             Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   balanceSheetItems     BalanceSheetItem[]
   interestRateScenarios InterestRateScenario[]
   liquidityPositions    LiquidityPosition[]
+  analysisRuns          AnalysisRun[]
+  ingestionLogs         IngestionLog[]
 
   @@index([workspaceId])
   @@map("institutions")
@@ -529,6 +567,75 @@ enum SubscriptionStatus {
   grace_period
 }
 
+enum AnalysisRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum IngestionLogStatus {
+  VALIDATED
+  IMPORTED
+  FAILED
+  DRY_RUN
+}
+
+model AnalysisRun {
+  id                 String            @id @default(cuid())
+  institutionId      String            @map("institution_id")
+  createdByUserId    String            @map("created_by_user_id") @db.Uuid
+  status             AnalysisRunStatus @default(RUNNING)
+  analysisType       String            @default("full_analysis") @map("analysis_type")
+  triggeredBy        String            @default("manual") @map("triggered_by")
+  modelVersion       String            @default("alm-v1") @map("model_version")
+  scenarioSet        String            @default("base_parallel_shocks") @map("scenario_set")
+  assumptions        Json?
+  parameterSnapshot  Json              @map("parameter_snapshot")
+  balanceSheetSnapshot Json            @map("balance_sheet_snapshot")
+  resultSummary      Json?             @map("result_summary")
+  errorMessage       String?           @map("error_message")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  completedAt        DateTime?         @map("completed_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  createdByUser User      @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, createdAt])
+  @@index([createdByUserId, createdAt])
+  @@index([status])
+  @@map("analysis_runs")
+}
+
+model IngestionLog {
+  id               String             @id @default(cuid())
+  institutionId    String?            @map("institution_id")
+  createdByUserId  String             @map("created_by_user_id") @db.Uuid
+  reportJobId      String?            @map("report_job_id")
+  source           String             @default("manual_upload")
+  sourceFilename   String?            @map("source_filename")
+  schemaVersion    String             @default("alm_csv_v1") @map("schema_version")
+  status           IngestionLogStatus
+  dryRun           Boolean            @default(false) @map("dry_run")
+  totalRows        Int                @default(0) @map("total_rows")
+  validRows        Int                @default(0) @map("valid_rows")
+  errorRows        Int                @default(0) @map("error_rows")
+  totalAssets      Float              @default(0) @map("total_assets")
+  totalLiabilities Float              @default(0) @map("total_liabilities")
+  importedCount    Int                @default(0) @map("imported_count")
+  warnings         Json?
+  errors           Json?
+  createdAt        DateTime           @default(now()) @map("created_at")
+
+  institution Institution? @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  createdByUser User       @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, createdAt])
+  @@index([createdByUserId, createdAt])
+  @@index([reportJobId, createdAt])
+  @@map("ingestion_logs")
+}
+
 model Subscription {
   id                String             @id @default(cuid())
   userId            String             @unique @map("user_id") @db.Uuid
@@ -568,12 +675,16 @@ model ReportJob {
   institutionId       String?         @map("institution_id")
   institutionName     String          @map("institution_name")
   status              ReportJobStatus @default(AWAITING_DATA)
+  analysisPeriod      String?         @map("analysis_period")   // e.g. "Q1-2026", "Annual-2026"
+  previousJobId       String?         @map("previous_job_id")   // links to prior period job for trend tracking
   submittedAt         DateTime?       @map("submitted_at")
   processingStartedAt DateTime?       @map("processing_started_at")
   completedAt         DateTime?       @map("completed_at")
   reportUrl           String?         @map("report_url")
   reportUrlEn         String?         @map("report_url_en")
   reportLang          String          @default("es") @map("report_lang")
+  rawData             String?         @map("raw_data")       // AES-256-GCM encrypted CSV snapshot; nulled 90 days after completion
+  rawDataPurgedAt     DateTime?       @map("raw_data_purged_at")
   errorMessage        String?         @map("error_message")
   retryCount          Int             @default(0) @map("retry_count")
   triggeredBy         String          @default("payment") @map("triggered_by")
@@ -583,6 +694,7 @@ model ReportJob {
 
   @@index([userId, status])
   @@index([status])
+  @@index([institutionId, status])
   @@map("report_jobs")
 }
 
@@ -658,4 +770,43 @@ model Prospect {
 
   @@index([stage])
   @@map("prospects")
+}
+
+// ===== OCIF Audit Compliance =====
+
+model AuditLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String?  @map("user_id") @db.Uuid
+  institutionId String?  @map("institution_id")
+  action        String   // login, data_upload, report_download, team_invite, payment_initiated, settings_change, data_deleted
+  resource      String   // alm_report, institution, user, subscription, magic_link
+  resourceId    String?  @map("resource_id")
+  outcome       String   @default("success") // success, failure, denied
+  changes       Json?
+  metadata      Json?
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+  tenantId      String?  @map("tenant_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([resource, resourceId])
+  @@index([userId, createdAt])
+  @@index([institutionId, createdAt])
+  @@map("audit_logs")
+}
+
+// ===== Feedback / NPS =====
+
+model Feedback {
+  id            String    @id @default(cuid())
+  institutionId String?   @map("institution_id")
+  jobId         String?   @map("job_id")
+  npsScore      Int?      @map("nps_score")
+  comment       String?
+  contactOk     Boolean   @default(false) @map("contact_ok")
+  respondedAt   DateTime? @map("responded_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([institutionId])
+  @@map("feedback")
 }

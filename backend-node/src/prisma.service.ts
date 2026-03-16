@@ -4,7 +4,10 @@ import pg from 'pg';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { PrismaClient } = require('@prisma/client');
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://cerniq:dev_password_change_in_prod@localhost:5433/cerniq';
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+    throw new Error('FATAL: DATABASE_URL environment variable is required');
+}
 const pool = new pg.Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 

@@ -1,92 +1,84 @@
-.PHONY: help dev build test clean docker-up docker-down migrate db-reset install
+.PHONY: dev prod build test deploy-backend deploy-frontend migrate health lint
 
-help: ## Show this help message
-	@echo 'Usage: make [target]'
-	@echo ''
-	@echo 'Available targets:'
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-
-install: ## Install all dependencies
-	@echo "Installing backend dependencies..."
-	cd backend && cargo build
-	@echo "Installing frontend dependencies..."
-	cd frontend && bun install
-
-dev: ## Start development environment
-	docker-compose up -d postgres redis
-	@echo "Waiting for services to be healthy..."
-	@sleep 5
-	@echo "Starting backend and frontend..."
-	$(MAKE) -j2 dev-backend dev-frontend
-
-dev-backend: ## Start backend in development mode
-	cd backend && cargo watch -x run
-
-dev-frontend: ## Start frontend in development mode
+# ─── Development ───────────────────────────────
+dev:
+	docker compose up -d postgres redis
+	@echo "Waiting for services..."
+	@sleep 3
+	cd backend-node && npm run start:dev &
 	cd frontend && bun run dev
 
-build: ## Build all services for production
-	cd backend && cargo build --release
-	cd frontend && bun run build
+dev-docker:
+	docker compose up --build
 
-test: ## Run all tests
-	cd backend && cargo test
-	cd frontend && bun test
+# ─── Production ────────────────────────────────
+prod:
+	docker compose -f docker-compose.prod.yml up -d --build
 
-test-integration: ## Run integration tests
-	cd backend && cargo test --test '*' -- --test-threads=1
+prod-down:
+	docker compose -f docker-compose.prod.yml down
 
-docker-up: ## Start all services with Docker Compose
-	docker-compose up -d
+# ─── Build ─────────────────────────────────────
+build-backend:
+	cd backend-node && npm ci --legacy-peer-deps && npm run build
 
-docker-down: ## Stop all Docker services
-	docker-compose down
+build-frontend:
+	cd frontend && bun install && bun run build
 
-docker-build: ## Build Docker images
-	docker-compose build
+build: build-backend build-frontend
 
-docker-logs: ## View Docker logs
-	docker-compose logs -f
+# ─── Database ──────────────────────────────────
+migrate:
+	cd backend-node && npx prisma migrate deploy
 
-migrate: ## Run database migrations
-	cd backend && sqlx migrate run
+migrate-dev:
+	cd backend-node && npx prisma migrate dev
 
-migrate-new: ## Create a new migration (usage: make migrate-new NAME=migration_name)
-	cd backend && sqlx migrate add $(NAME)
+db-studio:
+	cd backend-node && npx prisma studio
 
-db-reset: ## Reset database (WARNING: destroys all data)
-	docker-compose down -v
-	docker-compose up -d postgres
-	@sleep 3
-	$(MAKE) migrate
+db-seed:
+	cd backend-node && npx prisma db seed
 
-db-shell: ## Open PostgreSQL shell
-	docker-compose exec postgres psql -U capexcycle -d capexcycle
+# ─── Test ──────────────────────────────────────
+test:
+	cd backend-node && npm test
 
-redis-shell: ## Open Redis CLI
-	docker-compose exec redis redis-cli
+test-e2e:
+	cd frontend && bun run test:e2e
 
-clean: ## Clean build artifacts
-	cd backend && cargo clean
-	cd frontend && rm -rf .next node_modules
-	docker-compose down -v
+test-cov:
+	cd backend-node && npm run test:cov
 
-format: ## Format code
-	cd backend && cargo fmt
-	cd frontend && bun run format
+# ─── Deploy ────────────────────────────────────
+deploy-backend:
+	cd backend-node && railway up
 
-lint: ## Lint code
-	cd backend && cargo clippy -- -D warnings
+deploy-frontend:
+	cd frontend && vercel --prod
+
+deploy: deploy-backend deploy-frontend
+
+# ─── Health ────────────────────────────────────
+health:
+	@curl -sf http://localhost:3000/health | python3 -m json.tool || echo "Backend not running"
+
+health-prod:
+	@curl -sf https://api.cerniq.io/health | python3 -m json.tool || echo "Backend not reachable"
+
+# ─── Lint ──────────────────────────────────────
+lint:
+	cd backend-node && npm run lint
 	cd frontend && bun run lint
 
-check: format lint test ## Run all checks (format, lint, test)
+# ─── Clean ─────────────────────────────────────
+clean:
+	cd backend-node && rm -rf dist node_modules
+	cd frontend && rm -rf .next node_modules
 
-deploy-staging: ## Deploy to staging environment
-	@echo "Deploying to staging..."
-	# Add your deployment commands here
+# ─── Logs ──────────────────────────────────────
+logs:
+	docker compose logs -f --tail=100
 
-deploy-prod: ## Deploy to production environment
-	@echo "Deploying to production..."
-	# Add your deployment commands here
-
-.DEFAULT_GOAL := help
+logs-prod:
+	docker compose -f docker-compose.prod.yml logs -f --tail=100

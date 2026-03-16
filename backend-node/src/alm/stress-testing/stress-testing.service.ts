@@ -1,6 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { AlmEnterpriseService } from '../alm-enterprise.service';
+import {
+  COSSEC_SCENARIOS,
+  NamedScenario,
+  NamedScenarioResult,
+} from '../scenarios/cossec-scenarios';
+
+// Re-export for consumers (e.g. pipeline worker, controller)
+export type { NamedScenario, NamedScenarioResult } from '../scenarios/cossec-scenarios';
 
 /** Round to n decimal places */
 function round(value: number, decimals: number): number {
@@ -62,6 +70,7 @@ export interface RegulatoryStressResult {
 export interface StressTestResult {
   monteCarlo: MonteCarloResult;
   regulatory: RegulatoryStressResult;
+  cossecScenarios: NamedScenarioResult[];
 }
 
 // ─── Vasicek Model Parameters ─────────────────────────────────
@@ -304,11 +313,95 @@ export class StressTestingService {
     institutionId: string,
     params: Partial<MonteCarloParams> = {},
   ): Promise<StressTestResult> {
-    const [monteCarlo, regulatory] = await Promise.all([
+    const [monteCarlo, regulatory, cossecScenarios] = await Promise.all([
       this.runMonteCarloSimulation(institutionId, params),
       this.runRegulatoryStress(institutionId),
+      this.runCOSSECScenarios(institutionId),
     ]);
-    return { monteCarlo, regulatory };
+    return { monteCarlo, regulatory, cossecScenarios };
+  }
+
+  // ─── Named COSSEC Regulatory Scenarios ────────────────────────
+
+  async runCOSSECScenarios(
+    institutionId: string,
+  ): Promise<NamedScenarioResult[]> {
+    this.logger.log(`COSSEC named scenarios for institution ${institutionId}`);
+
+    const [niiSensitivity, liquidity, cossec] = await Promise.all([
+      this.almEnterprise.calculateNIISensitivity(institutionId),
+      this.almEnterprise.calculateLCR(institutionId),
+      this.almEnterprise.getCOSSECCompliance(institutionId),
+    ]);
+
+    const baseNII = niiSensitivity.baseNII;
+    const totalDeposits = cossec?.summary?.totalShares ?? 0;
+    const totalLoans = cossec?.summary?.totalLoans ?? 0;
+
+    return COSSEC_SCENARIOS.map((scenario) => {
+      // ── NII impact from rate shift ──
+      // Find closest NII sensitivity scenario for interpolation
+      const closestScenario = niiSensitivity.scenarios.reduce((prev, curr) =>
+        Math.abs(curr.shiftBps - scenario.rateShiftBps) <
+        Math.abs(prev.shiftBps - scenario.rateShiftBps)
+          ? curr
+          : prev,
+      );
+
+      // Scale linearly from closest known scenario
+      const scaleFactor =
+        closestScenario.shiftBps !== 0
+          ? scenario.rateShiftBps / closestScenario.shiftBps
+          : 1;
+      let niiImpact = round(closestScenario.niImpact * scaleFactor, 2);
+
+      // For steepening, apply NIM compression adjustment
+      if (scenario.type === 'steepening') {
+        niiImpact = round(niiImpact * 0.7 - baseNII * 0.02, 2);
+      }
+
+      const niiImpactPct =
+        baseNII !== 0 ? round((niiImpact / baseNII) * 100, 2) : 0;
+
+      // ── Deposit shock ──
+      // Cost of replacing lost deposits at higher marginal rates (+1.5% above avg)
+      const depositOutflow =
+        totalDeposits * (Math.abs(scenario.depositShockPct) / 100);
+      const depositImpact =
+        scenario.depositShockPct !== 0
+          ? round(depositOutflow * 0.015, 2) // 150bps marginal funding cost
+          : 0;
+
+      // ── Credit shock ──
+      // Additional defaults applied to total loan portfolio
+      const creditLoss =
+        scenario.creditShockPct !== 0
+          ? round(totalLoans * (scenario.creditShockPct / 100), 2)
+          : 0;
+
+      // ── Combined total impact ──
+      const totalImpact = round(niiImpact - depositImpact - creditLoss, 2);
+      const totalImpactPct =
+        baseNII !== 0 ? round((totalImpact / baseNII) * 100, 2) : 0;
+
+      // ── Pass/Fail assessment ──
+      const absImpactPct = Math.abs(totalImpactPct);
+      let passFailStatus: 'pass' | 'warn' | 'fail';
+      if (absImpactPct > 20 && totalImpact < 0) passFailStatus = 'fail';
+      else if (absImpactPct > 10 && totalImpact < 0) passFailStatus = 'warn';
+      else passFailStatus = 'pass';
+
+      return {
+        scenario,
+        niiImpact,
+        niiImpactPct,
+        depositImpact,
+        creditLoss,
+        totalImpact,
+        totalImpactPct,
+        passFailStatus,
+      };
+    });
   }
 
   // ─── Scenario Builders ───────────────────────────────────────

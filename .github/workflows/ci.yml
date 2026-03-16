@@ -1,0 +1,42 @@
+name: CI Quick Check
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: cd backend-node && npm ci --legacy-peer-deps
+      - run: cd backend-node && npx prisma generate
+      - run: cd backend-node && npx tsc --noEmit
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+
+  frontend-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: cd frontend && npm ci --legacy-peer-deps
+      - run: cd frontend && npx next build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3000
+
+  prisma-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: cd backend-node && npm ci --legacy-peer-deps
+      - run: cd backend-node && npx prisma validate

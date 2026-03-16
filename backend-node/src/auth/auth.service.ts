@@ -99,6 +99,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Update lastLoginAt timestamp
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    }).catch(() => { /* best-effort */ });
+
     this.logger.log({ event: 'user_login', userId: user.id, email: dto.email, provider: 'email' });
     return this.generateTokens(user);
   }
@@ -149,6 +155,12 @@ export class AuthService {
         });
       }
     }
+
+    // Update lastLoginAt timestamp for OAuth login
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    }).catch(() => { /* best-effort */ });
 
     this.logger.log({ event: 'oauth_login', userId: user.id, provider: profile.provider });
     return user;
@@ -326,24 +338,116 @@ export class AuthService {
   }
 
   async requestPasswordReset(email: string) {
+    const successMsg = 'If that email exists, a reset link has been sent';
     const user = await this.prisma.user.findUnique({ where: { email } });
     // Always return success to prevent email enumeration
     if (!user) {
-      return { message: 'If that email exists, a reset link has been sent' };
+      return { message: successMsg };
     }
 
-    // In production: generate a time-limited token and send email
-    // For now, log the reset request (token NOT logged — security)
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    this.logger.log({ event: 'password_reset_requested', email });
+    // Invalidate any existing reset tokens for this user
+    await this.prisma.passwordResetToken.updateMany({
+      where: { userId: user.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
 
-    return { message: 'If that email exists, a reset link has been sent' };
+    // Generate a cryptographically random token (plaintext goes in email)
+    const plainToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(plainToken).digest('hex');
+
+    await this.prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+      },
+    });
+
+    // Send reset email via Resend (fire-and-forget)
+    this.sendPasswordResetEmail(user.email, user.name || '', plainToken).catch(() => {});
+
+    this.logger.log({ event: 'password_reset_requested', userId: user.id });
+    return { message: successMsg };
   }
 
   async resetPassword(token: string, newPassword: string) {
-    // In production: validate the reset token from DB/cache
-    // For now, this is a placeholder
-    throw new BadRequestException('Password reset via email not yet configured. Contact support.');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const resetRecord = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!resetRecord || resetRecord.usedAt || resetRecord.expiresAt < new Date()) {
+      throw new BadRequestException('Reset link is invalid or has expired. Please request a new one.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: resetRecord.userId },
+        data: { passwordHash },
+      }),
+      this.prisma.passwordResetToken.update({
+        where: { id: resetRecord.id },
+        data: { usedAt: new Date() },
+      }),
+      // Revoke all refresh tokens on password reset
+      this.prisma.refreshToken.updateMany({
+        where: { userId: resetRecord.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    this.logger.log({ event: 'password_reset_completed', userId: resetRecord.userId });
+    return { message: 'Password has been reset successfully. Please log in with your new password.' };
+  }
+
+  private async sendPasswordResetEmail(email: string, name: string, token: string): Promise<void> {
+    const frontendUrl = (process.env.FRONTEND_URL || 'https://cerniq.io').trim().replace(/\/+$/, '');
+    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { Resend } = require('resend');
+      const apiKey = process.env.RESEND_API_KEY;
+      if (!apiKey) {
+        this.logger.warn('RESEND_API_KEY not set — password reset email not sent');
+        return;
+      }
+      const resend = new Resend(apiKey);
+      await resend.emails.send({
+        from: 'CERNIQ <onboarding@resend.dev>',
+        replyTo: 'erwin@klytics.io',
+        to: email,
+        subject: 'Restablecer contraseña — CERNIQ / Reset your password',
+        html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#F8FAFC;font-family:Georgia,serif;">
+          <div style="max-width:580px;margin:0 auto;">
+            <div style="background:#1B3A6B;padding:24px 32px;border-radius:8px 8px 0 0;">
+              <span style="color:#FFF;font-size:22px;font-weight:bold;">CERNIQ</span>
+            </div>
+            <div style="background:#FFF;padding:32px;border:1px solid #E2E8F0;border-top:none;line-height:1.7;color:#1E293B;font-size:15px;">
+              <p>Hola ${name || ''},</p>
+              <p>Recibimos una solicitud para restablecer su contraseña de CERNIQ. Haga clic en el botón de abajo para crear una nueva contraseña. Este enlace es válido por <strong>1 hora</strong>.</p>
+              <div style="margin:28px 0;text-align:center;">
+                <a href="${resetUrl}" style="background:#E8A020;color:#FFF;padding:16px 36px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;">Restablecer contraseña / Reset password</a>
+              </div>
+              <p style="color:#64748B;font-size:13px;">Si usted no solicitó este cambio, puede ignorar este correo. Su contraseña actual no será modificada.</p>
+              <hr style="border:none;border-top:2px solid #E2E8F0;margin:32px 0;">
+              <p>Hi ${name || ''},</p>
+              <p>We received a request to reset your CERNIQ password. Click the button above to create a new password. This link is valid for <strong>1 hour</strong>.</p>
+              <p style="color:#64748B;font-size:13px;">If you didn't request this change, you can safely ignore this email. Your current password will not be modified.</p>
+            </div>
+            <div style="background:#F1F5F9;padding:16px 32px;border-radius:0 0 8px 8px;border:1px solid #E2E8F0;border-top:none;">
+              <p style="margin:0;font-size:11px;color:#64748B;">CERNIQ &middot; KLYTICS LLC &middot; San Juan, Puerto Rico</p>
+            </div>
+          </div>
+        </body></html>`,
+      });
+      this.logger.log({ event: 'password_reset_email_sent', email });
+    } catch (err) {
+      this.logger.error(`Failed to send password reset email: ${err}`);
+    }
   }
 
   async getUserOrgs(userId: string): Promise<Array<{ org_id: string; role: string; apps: string[] }>> {

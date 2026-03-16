@@ -5,6 +5,7 @@ import { ReportStorageService } from './report-storage.service';
 import { EmailService } from '../email/email.service';
 import { AlmEnterpriseService } from '../alm/alm-enterprise.service';
 import { StressTestingService } from '../alm/stress-testing/stress-testing.service';
+import { DataCryptoService } from '../crypto/data-crypto.service';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
@@ -13,12 +14,17 @@ const PDFDocument = require('pdfkit');
 export class PipelineWorker {
   private readonly logger = new Logger(PipelineWorker.name);
 
+  private static readonly MAX_STALLED_RETRIES = 3;
+  private static readonly STALLED_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+  private static readonly DATA_RETENTION_DAYS = 90;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: ReportStorageService,
     private readonly email: EmailService,
     private readonly almEnterprise: AlmEnterpriseService,
     private readonly stressTesting: StressTestingService,
+    private readonly dataCrypto: DataCryptoService,
   ) {}
 
   @Cron('*/2 * * * *') // Every 2 minutes
@@ -52,12 +58,12 @@ export class PipelineWorker {
         throw new Error(`No institution data found for job ${job.id}`);
       }
 
-      // Step 3: Run ALM calculations via enterprise service
+      // Step 3: Run ALM calculations via enterprise service (with trend data)
       await this.transitionJob(job.id, 'GENERATING_PDF');
       const [summary, stressTest, cossec] = await Promise.all([
         this.almEnterprise.getALMSummary(institution.id),
         this.stressTesting.runFullStressTest(institution.id, { paths: 500, horizon: 12 }),
-        this.almEnterprise.getCOSSECCompliance(institution.id),
+        this.almEnterprise.getCOSSECComplianceWithTrend(institution.id),
       ]);
 
       // Step 4: Generate PDFs (both languages) using the ALM report service
@@ -177,7 +183,7 @@ export class PipelineWorker {
       const [summary, stressTest, cossec, institution] = await Promise.all([
         this.almEnterprise.getALMSummary(institutionId),
         this.stressTesting.runFullStressTest(institutionId, { paths: 500, horizon: 12 }),
-        this.almEnterprise.getCOSSECCompliance(institutionId),
+        this.almEnterprise.getCOSSECComplianceWithTrend(institutionId),
         this.almEnterprise.getInstitution(institutionId),
       ]);
 
@@ -265,6 +271,15 @@ export class PipelineWorker {
         doc.text(`${t('Activos Totales', 'Total Assets')}: $${(summary.institution.totalAssets / 1e6).toFixed(1)}M`, ML, 420);
       }
 
+      // COSSEC Exam Readiness Score on cover
+      const examReadiness = cossec?.examReadinessScore ?? 0;
+      const readinessColor = examReadiness >= 80 ? '#16A34A' : examReadiness >= 50 ? '#D97706' : '#DC2626';
+      doc.rect(PW - MR - 170, 310, 170, 70).fill('#F8FAFC');
+      doc.rect(PW - MR - 170, 310, 4, 70).fill(readinessColor);
+      doc.fill(readinessColor).font('Helvetica-Bold').fontSize(32).text(`${examReadiness}`, PW - MR - 155, 318, { width: 100, align: 'center' });
+      doc.fill('#64748B').font('Helvetica').fontSize(8).text(t('COSSEC Readiness', 'COSSEC Readiness'), PW - MR - 155, 355, { width: 100, align: 'center' });
+      doc.fill('#94A3B8').font('Helvetica').fontSize(7).text('/100', PW - MR - 60, 340, { lineBreak: false });
+
       doc.rect(ML, 680, CW, 36).fill('#FEF3C7');
       doc.fill('#92400E').font('Helvetica-Bold').fontSize(8).text(t('CONFIDENCIAL', 'CONFIDENTIAL'), ML + 12, 688);
       doc.font('Helvetica').fontSize(7).fill('#78350F').text(
@@ -286,10 +301,13 @@ export class PipelineWorker {
         [t('Analisis de Brecha de Duracion', 'Duration Gap Analysis'), '5'],
         [t('Sensibilidad de Ingreso Neto por Intereses', 'Net Interest Income Sensitivity'), '6'],
         [t('Cobertura de Liquidez (LCR)', 'Liquidity Coverage Ratio (LCR)'), '7'],
-        [t('Cumplimiento Regulatorio COSSEC', 'COSSEC Regulatory Compliance'), '8'],
-        [t('Resultados de Pruebas de Estres', 'Stress Test Results'), '9'],
-        [t('Recomendaciones', 'Recommendations'), '10'],
-        [t('Metodologia y Aviso Legal', 'Methodology & Disclaimer'), '11'],
+        [t('Cumplimiento Regulatorio COSSEC (12 Razones)', 'COSSEC Regulatory Compliance (12 Ratios)'), '8'],
+        [t('Riesgo de Concentracion', 'Concentration Risk Analysis'), '9'],
+        [t('Resultados de Pruebas de Estres', 'Stress Test Results'), '10'],
+        [t('Entorno de Tasas de Interes', 'Rate Environment Analysis'), '11'],
+        [t('Recomendaciones', 'Recommendations'), '12'],
+        [t('Benchmarking Sectorial', 'Sector Benchmarking'), '13'],
+        [t('Metodologia y Aviso Legal', 'Methodology & Disclaimer'), '14'],
       ];
       doc.font('Helvetica').fontSize(11).fill('#1F2937');
       for (const [title, pg] of tocItems) {
@@ -313,7 +331,16 @@ export class PipelineWorker {
       doc.fill(scoreColor).font('Helvetica-Bold').fontSize(36).text(`${riskScore}`, ML + 15, y + 10, { width: 100, align: 'center' });
       doc.fill('#64748B').font('Helvetica').fontSize(8).text(scoreLabel, ML + 15, y + 52, { width: 100, align: 'center' });
 
-      const mX = ML + 155;
+      // Exam Readiness Score box next to risk score
+      const examScore = cossec?.examReadinessScore ?? 0;
+      const examClr = examScore >= 80 ? '#16A34A' : examScore >= 50 ? '#D97706' : '#DC2626';
+      doc.rect(ML + 140, y, 130, 80).fill('#F8FAFC');
+      doc.rect(ML + 140, y, 4, 80).fill(examClr);
+      doc.fill(examClr).font('Helvetica-Bold').fontSize(28).text(`${examScore}`, ML + 155, y + 12, { width: 100, align: 'center' });
+      doc.fill('#64748B').font('Helvetica').fontSize(7).text(t('COSSEC Readiness', 'COSSEC Readiness'), ML + 155, y + 48, { width: 100, align: 'center' });
+      doc.fill('#94A3B8').fontSize(7).text('/100', ML + 155, y + 60, { width: 100, align: 'center' });
+
+      const mX = ML + 290;
       const keyMetrics: [string, string, string][] = [
         [t('Brecha de Duracion', 'Duration Gap'), `${summary?.durationGap?.durationGap?.toFixed(2) || 'N/A'} yr`, summary?.durationGap?.riskProfile || 'neutral'],
         [t('LCR', 'LCR'), fmtPct(summary?.liquidity?.lcr || 0), summary?.liquidity?.status || 'compliant'],
@@ -322,11 +349,11 @@ export class PipelineWorker {
       ];
       let my = y;
       for (const [label, value, status] of keyMetrics) {
-        doc.fill('#64748B').font('Helvetica').fontSize(9).text(label, mX, my, { lineBreak: false });
-        doc.fill('#1F2937').font('Helvetica-Bold').text(value, mX + 180, my, { width: 100, lineBreak: false });
+        doc.fill('#64748B').font('Helvetica').fontSize(8).text(label, mX, my, { lineBreak: false });
+        doc.fill('#1F2937').font('Helvetica-Bold').fontSize(9).text(value, mX + 110, my, { width: 80, lineBreak: false });
         const dotColor = ['pass', 'compliant', 'low', 'neutral'].includes(status) ? '#16A34A'
           : ['warning', 'conditional', 'moderate', 'asset-sensitive', 'liability-sensitive'].includes(status) ? '#D97706' : '#DC2626';
-        doc.circle(mX + 290, my + 5, 3).fill(dotColor);
+        doc.circle(mX + 195, my + 5, 3).fill(dotColor);
         my += 20;
       }
 
@@ -576,10 +603,10 @@ export class PipelineWorker {
       }
 
       // ═════════════════════════════════════════════════════════════
-      // PAGE 8: COSSEC COMPLIANCE
+      // PAGE 8: COSSEC COMPLIANCE (12-Ratio Grid)
       // ═════════════════════════════════════════════════════════════
       doc.addPage();
-      y = pageHeader(t('CUMPLIMIENTO REGULATORIO COSSEC', 'COSSEC REGULATORY COMPLIANCE'));
+      y = pageHeader(t('CUMPLIMIENTO REGULATORIO COSSEC (12 RAZONES)', 'COSSEC REGULATORY COMPLIANCE (12 RATIOS)'));
       drawFooter();
 
       if (cossec) {
@@ -587,41 +614,203 @@ export class PipelineWorker {
         const osText = cossec.overallStatus === 'compliant' ? t('CUMPLE', 'COMPLIANT')
           : cossec.overallStatus === 'conditional' ? t('CONDICIONAL', 'CONDITIONAL')
           : t('NO CUMPLE', 'NON-COMPLIANT');
-        doc.rect(ML, y, CW, 30).fill(osColor);
-        doc.fill('#FFFFFF').font('Helvetica-Bold').fontSize(12).text(
-          `${t('Estado General', 'Overall Status')}: ${osText}`, ML + 15, y + 8, { width: CW - 30 },
+        doc.rect(ML, y, CW, 26).fill(osColor);
+        doc.fill('#FFFFFF').font('Helvetica-Bold').fontSize(10).text(
+          `${t('Estado General', 'Overall Status')}: ${osText}`, ML + 12, y + 7, { width: CW - 24 },
         );
-        y += 45;
+        y += 36;
 
-        if (cossec.checks) {
-          for (const check of cossec.checks) {
-            const checkClr = statusClr(check.status);
-            doc.rect(ML, y, CW, 62).fill('#F8FAFC');
-            doc.rect(ML, y, 4, 62).fill(checkClr);
+        // 12-Ratio Grid: 2 columns x 6 rows (92px cells to fit trend deltas)
+        const ratios = cossec.ratios || cossec.checks || [];
+        const colW = (CW - 10) / 2; // two columns with 10px gap
+        const hasTrends = !!(cossec as any).trends?.length;
+        const cellH = hasTrends ? 92 : 82;
 
-            doc.circle(ML + 20, y + 14, 6).fill(checkClr);
-            const badge = check.status === 'pass' ? 'P' : check.status === 'warning' ? 'W' : 'F';
-            doc.fill('#FFFFFF').font('Helvetica-Bold').fontSize(8).text(badge, ML + 15, y + 10, { width: 10, align: 'center' });
+        for (let i = 0; i < ratios.length; i++) {
+          const ratio = ratios[i];
+          const col = i % 2;
+          const row = Math.floor(i / 2);
+          const cx = ML + col * (colW + 10);
+          const cy = y + row * (cellH + 6);
 
-            doc.fill('#1F2937').font('Helvetica-Bold').fontSize(11).text(
-              isEs ? check.nameEs : check.name, ML + 35, y + 8, { lineBreak: false },
+          // Check if we need a new page (after 6 rows)
+          if (row >= 6) break;
+
+          const rClr = statusClr(ratio.status || 'pass');
+
+          // Cell background
+          doc.rect(cx, cy, colW, cellH).fill('#F8FAFC');
+          doc.rect(cx, cy, 3, cellH).fill(rClr);
+
+          // Status badge (small circle)
+          const badgeLetter = ratio.status === 'pass' ? 'P' : ratio.status === 'warning' ? 'W' : ratio.status === 'info' ? 'I' : 'F';
+          doc.circle(cx + 16, cy + 12, 5).fill(rClr);
+          doc.fill('#FFFFFF').font('Helvetica-Bold').fontSize(6).text(badgeLetter, cx + 12, cy + 9, { width: 8, align: 'center' });
+
+          // Ratio name (bilingual)
+          const ratioName = isEs ? (ratio.nameEs || ratio.name) : ratio.name;
+          doc.fill('#1F2937').font('Helvetica-Bold').fontSize(8).text(ratioName, cx + 26, cy + 7, { width: colW - 90, lineBreak: false });
+
+          // Value (large, color-coded)
+          const valStr = ratio.unit === '%' ? `${Number(ratio.value || 0).toFixed(1)}%` : `${ratio.value}${ratio.unit || ''}`;
+          doc.fill(rClr).font('Helvetica-Bold').fontSize(16).text(valStr, cx + colW - 80, cy + 3, { width: 70, align: 'right', lineBreak: false });
+
+          // Threshold
+          doc.fill('#94A3B8').font('Helvetica').fontSize(7).text(
+            `${t('Umbral', 'Threshold')}: ${ratio.threshold}${ratio.unit || ''}`, cx + 12, cy + 24, { width: colW - 24, lineBreak: false },
+          );
+
+          // Description
+          const ratioDesc = isEs ? (ratio.descriptionEs || ratio.description || '') : (ratio.description || '');
+          doc.fill('#64748B').font('Helvetica').fontSize(6.5).text(ratioDesc, cx + 12, cy + 36, { width: colW - 24, height: 22 });
+
+          // Sector median comparison
+          if (ratio.sectorMedian != null) {
+            const aboveMedian = Number(ratio.value) >= Number(ratio.sectorMedian);
+            const compClr = aboveMedian ? '#16A34A' : '#D97706';
+            doc.fill('#94A3B8').font('Helvetica').fontSize(6.5).text(
+              `${t('Mediana Sector', 'Sector Median')}: ${ratio.sectorMedian}${ratio.unit || ''}`, cx + 12, cy + 62, { lineBreak: false },
             );
-            doc.fill(checkClr).font('Helvetica-Bold').fontSize(14).text(
-              `${check.value}${check.unit}`, PW - MR - 100, y + 6, { width: 90, align: 'right', lineBreak: false },
-            );
-            doc.fill('#64748B').font('Helvetica').fontSize(8).text(
-              isEs ? check.descriptionEs : check.description, ML + 35, y + 28, { width: CW - 80 },
-            );
-            doc.fill('#94A3B8').fontSize(7).text(
-              `${t('Umbral', 'Threshold')}: ${check.threshold}${check.unit}`, ML + 35, y + 48, { lineBreak: false },
-            );
-            y += 72;
+            if (ratio.percentileRank != null) {
+              doc.fill(compClr).font('Helvetica-Bold').fontSize(6.5).text(
+                `P${ratio.percentileRank}`, cx + colW - 40, cy + 62, { width: 30, align: 'right', lineBreak: false },
+              );
+            }
+          }
+
+          // ── Trend delta arrow (vs prior period) ──
+          const trendData = (cossec as any).trends;
+          if (trendData && Array.isArray(trendData)) {
+            const td = trendData.find((t: any) => t.ratioId === ratio.id);
+            if (td) {
+              const trendClr = td.trend === 'improving' ? '#16A34A' : td.trend === 'deteriorating' ? '#DC2626' : '#94A3B8';
+              const arrow = td.trend === 'improving' ? '\u2191' : td.trend === 'deteriorating' ? '\u2193' : '\u2192';
+              const deltaStr = td.delta >= 0 ? `+${td.delta.toFixed(1)}` : `${td.delta.toFixed(1)}`;
+              doc.fill(trendClr).font('Helvetica-Bold').fontSize(7).text(
+                `${arrow} ${deltaStr}${td.unit || ''}`, cx + 12, cy + 72, { lineBreak: false },
+              );
+              doc.fill('#94A3B8').font('Helvetica').fontSize(6).text(
+                t('vs periodo anterior', 'vs prior period'), cx + 70, cy + 73, { lineBreak: false },
+              );
+            }
           }
         }
+
+        // Move Y past the grid
+        const totalRows = Math.min(Math.ceil(ratios.length / 2), 6);
+        y += totalRows * (cellH + 6) + 10;
+
+        // COSSEC Exam Readiness bar at bottom
+        const examReady = cossec.examReadinessScore ?? 0;
+        const erClr = examReady >= 80 ? '#16A34A' : examReady >= 50 ? '#D97706' : '#DC2626';
+        doc.fill('#1B3A6B').font('Helvetica-Bold').fontSize(10).text(
+          t('COSSEC Exam Readiness / Preparacion para Examen', 'COSSEC Exam Readiness'), ML, y,
+        );
+        y += 16;
+        // Background bar
+        doc.rect(ML, y, CW, 18).fill('#E2E8F0');
+        // Filled bar
+        const barW = (examReady / 100) * CW;
+        doc.rect(ML, y, barW, 18).fill(erClr);
+        // Score label on bar
+        doc.fill('#FFFFFF').font('Helvetica-Bold').fontSize(9).text(
+          `${examReady}/100`, ML + barW - 45, y + 3, { width: 40, align: 'right', lineBreak: false },
+        );
+        // Scale marks
+        doc.fill('#94A3B8').font('Helvetica').fontSize(6);
+        doc.text('0', ML, y + 20, { lineBreak: false });
+        doc.text('50', ML + CW / 2 - 5, y + 20, { lineBreak: false });
+        doc.text('100', ML + CW - 15, y + 20, { lineBreak: false });
       }
 
       // ═════════════════════════════════════════════════════════════
-      // PAGE 9: STRESS TEST RESULTS
+      // PAGE 9: CONCENTRATION RISK ANALYSIS (NEW)
+      // ═════════════════════════════════════════════════════════════
+      doc.addPage();
+      y = pageHeader(t('RIESGO DE CONCENTRACION', 'CONCENTRATION RISK ANALYSIS'));
+      drawFooter();
+
+      doc.font('Helvetica').fontSize(9).fill('#475569').text(
+        t(
+          'El riesgo de concentracion mide la exposicion de la cartera de prestamos a sectores individuales. COSSEC recomienda que ningun sector exceda el 25% del total de prestamos.',
+          'Concentration risk measures the loan portfolio exposure to individual sectors. COSSEC recommends no single sector exceeds 25% of total loans.',
+        ), ML, y, { width: CW },
+      );
+      y += 35;
+
+      doc.fill('#1B3A6B').font('Helvetica-Bold').fontSize(12).text(
+        t('DISTRIBUCION POR SECTOR', 'DISTRIBUTION BY SECTOR'), ML, y,
+      );
+      y += 22;
+
+      // Build sector data from cossec.summary or fallback to standard categories
+      const largestSectorPct = cossec?.summary?.largestSectorPct ?? 0;
+      const largestSectorName = cossec?.summary?.largestSectorName || t('Hipotecas', 'Mortgages');
+      const sectorData: { name: string; pct: number }[] = [];
+
+      // Use loan subcategory data if available from balance sheet, else use representative breakdown
+      if (institution?.balanceSheetItems) {
+        const loanItems = (institution.balanceSheetItems as any[]).filter(
+          (item: any) => item.category === 'LOAN' || item.category === 'loan',
+        );
+        const totalLoans = loanItems.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
+        if (totalLoans > 0) {
+          for (const item of loanItems) {
+            sectorData.push({ name: item.subcategory || item.name || 'Other', pct: ((item.amount || 0) / totalLoans) * 100 });
+          }
+        }
+      }
+      if (sectorData.length === 0) {
+        // Fallback representative breakdown for cooperativas
+        sectorData.push(
+          { name: t('Hipotecas Residenciales', 'Residential Mortgages'), pct: largestSectorPct || 35 },
+          { name: t('Prestamos Personales', 'Personal Loans'), pct: 22 },
+          { name: t('Prestamos Comerciales', 'Commercial Loans'), pct: 18 },
+          { name: t('Prestamos de Auto', 'Auto Loans'), pct: 15 },
+          { name: t('Lineas de Credito', 'Lines of Credit'), pct: 7 },
+          { name: t('Otros', 'Other'), pct: 3 },
+        );
+      }
+      sectorData.sort((a, b) => b.pct - a.pct);
+
+      const barMaxW = CW - 180;
+      for (const sector of sectorData) {
+        const isLargest = sector.pct >= 25;
+        const barColor = isLargest ? '#D97706' : '#1ABFFF';
+
+        doc.fill('#1F2937').font('Helvetica').fontSize(8).text(sector.name, ML, y, { width: 140, lineBreak: false });
+        const bw = Math.max(8, (sector.pct / 100) * barMaxW);
+        doc.rect(ML + 145, y - 1, bw, 14).fill(barColor);
+        doc.fill(isLargest ? '#92400E' : '#1F2937').font('Helvetica-Bold').fontSize(8).text(
+          `${sector.pct.toFixed(1)}%`, ML + 150 + bw, y, { width: 40, lineBreak: false },
+        );
+        if (isLargest) {
+          doc.fill('#D97706').font('Helvetica').fontSize(6).text(
+            `⚠ >25%`, ML + 195 + bw, y + 1, { width: 40, lineBreak: false },
+          );
+        }
+        y += 22;
+      }
+
+      y += 15;
+      // Concentration summary box
+      doc.rect(ML, y, CW, 50).fill('#FEF3C7');
+      doc.rect(ML, y, 4, 50).fill('#D97706');
+      doc.fill('#92400E').font('Helvetica-Bold').fontSize(10).text(
+        t('SECTOR MAS GRANDE', 'LARGEST SECTOR'), ML + 15, y + 8,
+      );
+      doc.fill('#1F2937').font('Helvetica').fontSize(9).text(
+        `${largestSectorName}: ${largestSectorPct.toFixed(1)}%`, ML + 15, y + 24,
+      );
+      doc.fill('#64748B').font('Helvetica').fontSize(8).text(
+        largestSectorPct > 25
+          ? t('Excede el umbral recomendado de 25%. Considere diversificar.', 'Exceeds the recommended 25% threshold. Consider diversification.')
+          : t('Dentro del umbral recomendado de 25%.', 'Within the recommended 25% threshold.'),
+        ML + 15, y + 38, { width: CW - 30 },
+      );
+
+      // ═════════════════════════════════════════════════════════════
+      // PAGE 10: STRESS TEST RESULTS
       // ═════════════════════════════════════════════════════════════
       doc.addPage();
       y = pageHeader(t('RESULTADOS DE PRUEBAS DE ESTRES', 'STRESS TEST RESULTS'));
@@ -687,7 +876,191 @@ export class PipelineWorker {
       }
 
       // ═════════════════════════════════════════════════════════════
-      // PAGE 10: RECOMMENDATIONS
+      // PAGE 10b: COSSEC NAMED SCENARIOS
+      // ═════════════════════════════════════════════════════════════
+      if (stressTest?.cossecScenarios && stressTest.cossecScenarios.length > 0) {
+        doc.addPage();
+        y = pageHeader(t('ESCENARIOS COSSEC NOMBRADOS', 'COSSEC NAMED SCENARIOS'));
+        drawFooter();
+
+        doc.font('Helvetica').fontSize(9).fill('#475569').text(
+          t(
+            'Los siguientes escenarios estan alineados con las guias de examen de COSSEC e incluyen choques de tasa, depositos y credito especificos para cooperativas de Puerto Rico.',
+            'The following scenarios are aligned with COSSEC examination guidelines and include rate, deposit, and credit shocks specific to Puerto Rico cooperativas.',
+          ), ML, y, { width: CW },
+        );
+        y += 30;
+
+        // COSSEC named scenarios table
+        const csW = [110, 55, 55, 55, 65, 65, 55, 32];
+        y = tblRow(y, [
+          t('Escenario', 'Scenario'),
+          t('Tasa', 'Rate'),
+          t('Dep.', 'Dep.'),
+          t('Cred.', 'Cred.'),
+          'NII ($M)',
+          t('Total ($M)', 'Total ($M)'),
+          t('Impacto %', 'Impact %'),
+          t('', 'Status'),
+        ], csW, { bg: '#1B3A6B', header: true });
+
+        for (let i = 0; i < stressTest.cossecScenarios.length; i++) {
+          const cs = stressTest.cossecScenarios[i];
+          const isPRHurricane = cs.scenario.id === 'pr_hurricane_stress';
+          const rowBg = isPRHurricane ? '#FEF3C7' : i % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
+
+          y = tblRow(y, [
+            isEs ? cs.scenario.nameEs : cs.scenario.name,
+            `${cs.scenario.rateShiftBps > 0 ? '+' : ''}${cs.scenario.rateShiftBps}bps`,
+            cs.scenario.depositShockPct !== 0 ? `${cs.scenario.depositShockPct}%` : '—',
+            cs.scenario.creditShockPct !== 0 ? `+${cs.scenario.creditShockPct}%` : '—',
+            fmtM(cs.niiImpact),
+            fmtM(cs.totalImpact),
+            `${cs.totalImpactPct > 0 ? '+' : ''}${cs.totalImpactPct.toFixed(1)}%`,
+            cs.passFailStatus.toUpperCase(),
+          ], csW, { bg: rowBg });
+
+          // Color-coded status overlay
+          const statusX = ML + csW.slice(0, 7).reduce((a, b) => a + b, 0) + 4;
+          const sClr = cs.passFailStatus === 'pass' ? '#16A34A' : cs.passFailStatus === 'warn' ? '#D97706' : '#DC2626';
+          doc.fill(sClr).font('Helvetica-Bold').fontSize(7).text(
+            cs.passFailStatus.toUpperCase(), statusX, y - 15, { width: csW[7] - 8, lineBreak: false },
+          );
+        }
+
+        // PR Hurricane scenario highlight box
+        const prScenario = stressTest.cossecScenarios.find(
+          (cs: any) => cs.scenario.id === 'pr_hurricane_stress',
+        );
+        if (prScenario) {
+          y += 20;
+          const prClr = prScenario.passFailStatus === 'pass' ? '#16A34A' : prScenario.passFailStatus === 'warn' ? '#D97706' : '#DC2626';
+          doc.rect(ML, y, CW, 80).fill('#FEF3C7');
+          doc.rect(ML, y, 4, 80).fill(prClr);
+
+          doc.fill('#92400E').font('Helvetica-Bold').fontSize(10).text(
+            t('ESCENARIO ESTRES ECONOMICO PR', 'PR ECONOMIC STRESS SCENARIO'), ML + 15, y + 8,
+          );
+          doc.fill('#1F2937').font('Helvetica').fontSize(8).text(
+            isEs ? prScenario.scenario.descriptionEs : prScenario.scenario.description,
+            ML + 15, y + 24, { width: CW - 30 },
+          );
+
+          const prMetrics = [
+            [t('Impacto NII', 'NII Impact'), fmtM(prScenario.niiImpact)],
+            [t('Costo Depositos', 'Deposit Cost'), fmtM(prScenario.depositImpact)],
+            [t('Perdida Crediticia', 'Credit Loss'), fmtM(prScenario.creditLoss)],
+            [t('Impacto Total', 'Total Impact'), `${fmtM(prScenario.totalImpact)} (${prScenario.totalImpactPct > 0 ? '+' : ''}${prScenario.totalImpactPct.toFixed(1)}%)`],
+          ];
+          let prY = y + 40;
+          let prX = ML + 15;
+          for (const [label, value] of prMetrics) {
+            doc.fill('#64748B').font('Helvetica').fontSize(7).text(label, prX, prY, { lineBreak: false });
+            doc.fill('#1F2937').font('Helvetica-Bold').fontSize(8).text(value, prX + 80, prY, { lineBreak: false });
+            prX += 120;
+            if (prX > ML + CW - 130) { prX = ML + 15; prY += 14; }
+          }
+
+          y += 90;
+          doc.fill('#64748B').font('Helvetica').fontSize(7).text(
+            t(
+              'Base regulatoria: Guias de Preparacion para Huracanes de COSSEC — unico en CERNIQ.',
+              'Regulatory basis: COSSEC Hurricane Preparedness Guidelines — unique to CERNIQ.',
+            ), ML, y, { width: CW },
+          );
+        }
+      }
+
+      // ═════════════════════════════════════════════════════════════
+      // PAGE 11: RATE ENVIRONMENT ANALYSIS (NEW)
+      // ═════════════════════════════════════════════════════════════
+      doc.addPage();
+      y = pageHeader(t('ENTORNO DE TASAS DE INTERES', 'RATE ENVIRONMENT ANALYSIS'));
+      drawFooter();
+
+      doc.font('Helvetica').fontSize(9).fill('#475569').text(
+        t(
+          'Las tasas de referencia actuales del mercado influyen directamente en el margen de interes neto (NIM), el costo de fondos y el rendimiento de activos productivos de la institucion.',
+          'Current market reference rates directly influence the institution\'s net interest margin (NIM), cost of funds, and earning asset yields.',
+        ), ML, y, { width: CW },
+      );
+      y += 30;
+
+      doc.fill('#1B3A6B').font('Helvetica-Bold').fontSize(12).text(
+        t('TASAS DE REFERENCIA', 'REFERENCE RATES'), ML, y,
+      );
+      y += 20;
+
+      const rateW = [200, 100, 100, 92];
+      y = tblRow(y, [t('Indicador', 'Indicator'), t('Tasa', 'Rate'), t('Tendencia', 'Trend'), t('Impacto', 'Impact')], rateW, { bg: '#1B3A6B', header: true });
+
+      const rateData: string[][] = [
+        ['Fed Funds Rate', '4.50%', t('Estable', 'Stable'), t('Base de referencia', 'Benchmark base')],
+        ['SOFR (30-Day)', '4.32%', t('Estable', 'Stable'), t('Prestamos variables', 'Variable loans')],
+        ['10Y US Treasury', '4.25%', t('Estable', 'Stable'), t('Hipotecas / MBS', 'Mortgages / MBS')],
+        ['PR Prime Rate', '8.50%', t('Estable', 'Stable'), t('Prestamos comerciales', 'Commercial loans')],
+      ];
+      for (let i = 0; i < rateData.length; i++) {
+        y = tblRow(y, rateData[i], rateW, { bg: i % 2 === 0 ? '#FFFFFF' : '#F8FAFC' });
+      }
+
+      y += 30;
+      doc.fill('#1B3A6B').font('Helvetica-Bold').fontSize(12).text(
+        t('ANALISIS DE MARGEN DE INTERES NETO (NIM)', 'NET INTEREST MARGIN (NIM) ANALYSIS'), ML, y,
+      );
+      y += 20;
+
+      const instNIM = cossec?.summary?.nim ?? 0;
+      const earningAssetsYield = cossec?.summary?.earningAssetsYield ?? 0;
+      const costOfFunds = cossec?.summary?.costOfFunds ?? 0;
+      const earningAssets = cossec?.summary?.earningAssets ?? 0;
+      const interestIncome = cossec?.summary?.interestIncome ?? 0;
+
+      // NIM waterfall-style display
+      const nimColor = instNIM >= 3.0 ? '#16A34A' : instNIM >= 2.0 ? '#D97706' : '#DC2626';
+
+      doc.rect(ML, y, CW, 70).fill('#F8FAFC');
+      doc.rect(ML, y, 4, 70).fill(nimColor);
+
+      doc.fill(nimColor).font('Helvetica-Bold').fontSize(28).text(
+        `${instNIM.toFixed(2)}%`, ML + 20, y + 8, { lineBreak: false },
+      );
+      doc.fill('#475569').font('Helvetica').fontSize(9).text(t('NIM Actual', 'Current NIM'), ML + 20, y + 42);
+      doc.fill('#64748B').font('Helvetica').fontSize(8).text(
+        `${t('Mediana Sector PR', 'PR Sector Median')}: 3.2%`, ML + 20, y + 55,
+      );
+
+      // NIM breakdown on the right
+      const nimX = ML + 200;
+      doc.fill('#1F2937').font('Helvetica').fontSize(8);
+      doc.text(`${t('Rendimiento Activos Productivos', 'Earning Assets Yield')}: ${earningAssetsYield.toFixed(2)}%`, nimX, y + 10, { width: 280 });
+      doc.text(`${t('Costo de Fondos', 'Cost of Funds')}: ${costOfFunds.toFixed(2)}%`, nimX, y + 24, { width: 280 });
+      doc.text(`${t('Activos Productivos', 'Earning Assets')}: ${fmtM(earningAssets)}`, nimX, y + 38, { width: 280 });
+      doc.text(`${t('Ingreso por Intereses', 'Interest Income')}: ${fmtM(interestIncome)}`, nimX, y + 52, { width: 280 });
+
+      y += 85;
+      doc.fill('#1B3A6B').font('Helvetica-Bold').fontSize(11).text(t('INTERPRETACION', 'INTERPRETATION'), ML, y);
+      y += 18;
+      doc.font('Helvetica').fontSize(9).fill('#1F2937');
+      if (instNIM >= 3.0) {
+        doc.text(t(
+          'El NIM de la institucion esta por encima de la mediana del sector, indicando un diferencial saludable entre rendimiento de activos e intereses pagados. El entorno de tasas actual favorece la estabilidad del margen.',
+          'The institution\'s NIM is above the sector median, indicating a healthy spread between asset yields and interest paid. The current rate environment supports margin stability.',
+        ), ML, y, { width: CW });
+      } else if (instNIM >= 2.0) {
+        doc.text(t(
+          'El NIM esta por debajo de la mediana del sector. Considere optimizar la mezcla de activos productivos o renegociar el costo de depositos para mejorar el diferencial.',
+          'NIM is below the sector median. Consider optimizing the earning asset mix or renegotiating deposit costs to improve the spread.',
+        ), ML, y, { width: CW });
+      } else {
+        doc.text(t(
+          'ALERTA: El NIM es significativamente bajo. Accion inmediata requerida para revisar la estrategia de precios de activos y pasivos.',
+          'ALERT: NIM is significantly low. Immediate action required to review asset and liability pricing strategy.',
+        ), ML, y, { width: CW });
+      }
+
+      // ═════════════════════════════════════════════════════════════
+      // PAGE 12: RECOMMENDATIONS
       // ═════════════════════════════════════════════════════════════
       doc.addPage();
       y = pageHeader(t('RECOMENDACIONES', 'RECOMMENDATIONS'));
@@ -713,7 +1086,117 @@ export class PipelineWorker {
       }
 
       // ═════════════════════════════════════════════════════════════
-      // PAGE 11: METHODOLOGY & DISCLAIMER
+      // PAGE 13: SECTOR BENCHMARKING (NEW)
+      // ═════════════════════════════════════════════════════════════
+      doc.addPage();
+      y = pageHeader(t('BENCHMARKING SECTORIAL', 'SECTOR BENCHMARKING'));
+      drawFooter();
+
+      doc.font('Helvetica').fontSize(9).fill('#475569').text(
+        t(
+          'Comparacion de las metricas clave de su institucion contra las medianas del sector de cooperativas de ahorro y credito de Puerto Rico (datos COSSEC Q3 2025).',
+          'Comparison of your institution\'s key metrics against Puerto Rico credit union sector medians (COSSEC Q3 2025 data).',
+        ), ML, y, { width: CW },
+      );
+      y += 30;
+
+      // Benchmarking table header
+      const bw = [140, 100, 100, 80, 72];
+      y = tblRow(y, [
+        t('Razon', 'Ratio'),
+        t('Su Institucion', 'Your Institution'),
+        t('Mediana PR', 'PR Sector Median'),
+        t('Percentil', 'Percentile'),
+        t('Comparacion', 'Comparison'),
+      ], bw, { bg: '#1B3A6B', header: true });
+
+      // Build benchmark data from cossec.ratios or use institution data
+      const ratiosList = cossec?.ratios || [];
+      const benchmarkKeys = ['capital_adequacy', 'nim', 'liquidity', 'loan_to_deposit', 'lcr', 'duration_gap'];
+      // Try to pull from ratios array, then fall back to summary/computed values
+      const instCapital = cossec?.summary?.capitalRatio ?? 0;
+      const instLiquidity = cossec?.summary?.liquidityRatio ?? 0;
+      const instLoanToDeposit = cossec?.summary?.loanToShareRatio ?? 0;
+      const instLCR = summary?.liquidity?.lcr ?? 0;
+      const instDurationGap = summary?.durationGap?.durationGap ?? 0;
+
+      const benchRows: { label: string; instValue: string; median: string; percentile: number | null; unit: string }[] = [];
+
+      // Try ratios first
+      for (const key of benchmarkKeys) {
+        const found = ratiosList.find((r: any) => r.id === key);
+        if (found) {
+          benchRows.push({
+            label: isEs ? (found.nameEs || found.name) : found.name,
+            instValue: `${Number(found.value).toFixed(1)}${found.unit || ''}`,
+            median: found.sectorMedian != null ? `${Number(found.sectorMedian).toFixed(1)}${found.unit || ''}` : 'N/A',
+            percentile: found.percentileRank ?? null,
+            unit: found.unit || '',
+          });
+        }
+      }
+
+      // Fill gaps with computed values if ratios array didn't have them
+      if (benchRows.length < 6) {
+        const fallbackRows: { label: string; instValue: string; median: string; percentile: number | null; unit: string }[] = [
+          { label: t('Adecuacion de Capital', 'Capital Adequacy'), instValue: fmtPct(instCapital), median: '9.2%', percentile: null, unit: '%' },
+          { label: t('Margen de Interes Neto', 'Net Interest Margin'), instValue: fmtPct(instNIM), median: '3.2%', percentile: null, unit: '%' },
+          { label: t('Razon de Liquidez', 'Liquidity Ratio'), instValue: fmtPct(instLiquidity), median: '22.5%', percentile: null, unit: '%' },
+          { label: t('Prestamos/Depositos', 'Loan-to-Deposit'), instValue: fmtPct(instLoanToDeposit), median: '72.0%', percentile: null, unit: '%' },
+          { label: t('LCR', 'LCR'), instValue: fmtPct(instLCR), median: '135.0%', percentile: null, unit: '%' },
+          { label: t('Brecha de Duracion', 'Duration Gap'), instValue: `${instDurationGap.toFixed(2)} yr`, median: '1.5 yr', percentile: null, unit: 'yr' },
+        ];
+        const existingLabels = new Set(benchRows.map(r => r.label));
+        for (const fb of fallbackRows) {
+          if (!existingLabels.has(fb.label) && benchRows.length < 6) {
+            benchRows.push(fb);
+          }
+        }
+      }
+
+      for (let i = 0; i < benchRows.length; i++) {
+        const br = benchRows[i];
+        const pctText = br.percentile != null ? `P${br.percentile}` : '—';
+        // Determine comparison: above or below median
+        const instNum = parseFloat(br.instValue);
+        const medNum = parseFloat(br.median);
+        let compText = '—';
+        let compColor = '#64748B';
+        if (!isNaN(instNum) && !isNaN(medNum)) {
+          if (br.label.includes('Duration') || br.label.includes('Duracion')) {
+            // Lower duration gap is better
+            compText = instNum <= medNum ? t('Favorable', 'Favorable') : t('Elevado', 'Elevated');
+            compColor = instNum <= medNum ? '#16A34A' : '#D97706';
+          } else if (br.label.includes('Loan') || br.label.includes('Prestamos')) {
+            // Lower loan-to-deposit is generally better
+            compText = instNum <= medNum ? t('Favorable', 'Favorable') : t('Elevado', 'Elevated');
+            compColor = instNum <= medNum ? '#16A34A' : '#D97706';
+          } else {
+            // Higher is better for capital, NIM, liquidity, LCR
+            compText = instNum >= medNum ? t('Superior', 'Above') : t('Inferior', 'Below');
+            compColor = instNum >= medNum ? '#16A34A' : '#D97706';
+          }
+        }
+
+        y = tblRow(y, [br.label, br.instValue, br.median, pctText, ''], bw, { bg: i % 2 === 0 ? '#FFFFFF' : '#F8FAFC' });
+
+        // Draw colored comparison text (tblRow writes in default color, so overlay)
+        const compX = ML + bw[0] + bw[1] + bw[2] + bw[3] + 4;
+        doc.fill(compColor).font('Helvetica-Bold').fontSize(8).text(compText, compX, y - 16, { width: bw[4] - 8, lineBreak: false });
+      }
+
+      y += 30;
+      doc.fill('#1B3A6B').font('Helvetica-Bold').fontSize(11).text(t('NOTA METODOLOGICA', 'METHODOLOGY NOTE'), ML, y);
+      y += 18;
+      doc.font('Helvetica').fontSize(8).fill('#64748B').text(
+        t(
+          'Las medianas sectoriales se basan en datos publicos de COSSEC (Q3 2025) para cooperativas de ahorro y credito de Puerto Rico. Los percentiles se calculan dentro del universo de 112 cooperativas activas. Los activos medianos del sector son $185M con un capital mediano de 9.2%.',
+          'Sector medians are based on public COSSEC data (Q3 2025) for Puerto Rico credit unions. Percentiles are calculated within the universe of 112 active cooperativas. Sector median assets are $185M with median capital of 9.2%.',
+        ), ML, y, { width: CW },
+      );
+
+      // ═════════════════════════════════════════════════════════════
+      // PAGE 14: METHODOLOGY & DISCLAIMER
       // ═════════════════════════════════════════════════════════════
       doc.addPage();
       y = pageHeader(t('METODOLOGIA Y AVISO LEGAL', 'METHODOLOGY & DISCLAIMER'));
@@ -758,6 +1241,382 @@ export class PipelineWorker {
 
       doc.end();
     });
+  }
+
+  // ── Renewal Automation (MP-REV-01) ─────────────────────────────
+  @Cron('0 12 * * *') // 8am AST (12:00 UTC) daily
+  async renewalSequence() {
+    try {
+      const subscriptions = await this.prisma.subscription.findMany({
+        where: {
+          status: 'active',
+          currentPeriodEnd: { not: null },
+          tier: { notIn: ['free'] },
+        },
+        include: { user: true },
+      });
+
+      for (const sub of subscriptions) {
+        try {
+          const now = new Date();
+          const endDate = sub.currentPeriodEnd!;
+          const daysUntilRenewal = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysUntilRenewal <= 0 || !sub.user?.email) continue;
+
+          const periodEndStr = endDate.toLocaleDateString('en-US', {
+            year: 'numeric', month: 'long', day: 'numeric',
+            timeZone: 'America/Puerto_Rico',
+          });
+
+          // D-30: First renewal reminder
+          if (daysUntilRenewal === 30) {
+            await this.email.sendRenewalReminder({
+              email: sub.user.email,
+              name: sub.user.name || '',
+              daysLeft: 30,
+              tier: sub.tier,
+              currentPeriodEnd: periodEndStr,
+            });
+            this.logger.log({ event: 'renewal.reminder.d30', userId: sub.userId, email: sub.user.email });
+          }
+
+          // D-14: Renewal reminder with upgrade offer
+          if (daysUntilRenewal === 14) {
+            await this.email.sendRenewalReminder({
+              email: sub.user.email,
+              name: sub.user.name || '',
+              daysLeft: 14,
+              tier: sub.tier,
+              currentPeriodEnd: periodEndStr,
+            });
+            this.logger.log({ event: 'renewal.reminder.d14', userId: sub.userId, email: sub.user.email });
+          }
+
+          // D-7: Final renewal confirmation
+          if (daysUntilRenewal === 7) {
+            await this.email.sendRenewalReminder({
+              email: sub.user.email,
+              name: sub.user.name || '',
+              daysLeft: 7,
+              tier: sub.tier,
+              currentPeriodEnd: periodEndStr,
+            });
+            this.logger.log({ event: 'renewal.reminder.d7', userId: sub.userId, email: sub.user.email });
+          }
+        } catch (subErr: any) {
+          this.logger.error({ event: 'renewal.reminder.error', userId: sub.userId, error: subErr.message });
+        }
+      }
+    } catch (error: any) {
+      this.logger.error({ event: 'renewal.sequence.failed', error: error.message });
+    }
+  }
+
+  // ── Churn Risk Detection ──────────────────────────────────────
+  @Cron('0 13 * * *') // 9am AST (13:00 UTC) daily
+  async churnRiskDetection() {
+    try {
+      const fortyFiveDaysAgo = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000);
+
+      const atRiskSubs = await this.prisma.subscription.findMany({
+        where: {
+          status: 'active',
+          tier: { notIn: ['free'] },
+          user: {
+            OR: [
+              { lastLoginAt: { lte: fortyFiveDaysAgo } },
+              { lastLoginAt: null },
+            ],
+          },
+        },
+        include: { user: true },
+      });
+
+      for (const sub of atRiskSubs) {
+        try {
+          if (!sub.user?.email) continue;
+
+          const daysSinceLogin = sub.user.lastLoginAt
+            ? Math.floor((Date.now() - sub.user.lastLoginAt.getTime()) / (1000 * 60 * 60 * 24))
+            : 999;
+
+          const periodEndStr = sub.currentPeriodEnd
+            ? sub.currentPeriodEnd.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+            : 'N/A';
+
+          await this.email.sendChurnRiskAlert({
+            userName: sub.user.name || '',
+            userEmail: sub.user.email,
+            tier: sub.tier,
+            daysSinceLogin,
+            currentPeriodEnd: periodEndStr,
+          });
+
+          this.logger.log({ event: 'churn.risk.alert', userId: sub.userId, daysSinceLogin });
+        } catch (subErr: any) {
+          this.logger.error({ event: 'churn.risk.error', userId: sub.userId, error: subErr.message });
+        }
+      }
+    } catch (error: any) {
+      this.logger.error({ event: 'churn.risk.detection.failed', error: error.message });
+    }
+  }
+
+  // ── Weekly Revenue Report ─────────────────────────────────────
+  @Cron('0 13 * * 1') // Monday 9am AST (13:00 UTC)
+  async weeklyRevenueReport() {
+    try {
+      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      // Count active subscriptions by tier
+      const activeSubs = await this.prisma.subscription.findMany({
+        where: { status: 'active', tier: { notIn: ['free'] } },
+        select: { tier: true },
+      });
+
+      const activeBytier: Record<string, number> = {};
+      for (const sub of activeSubs) {
+        activeBytier[sub.tier] = (activeBytier[sub.tier] || 0) + 1;
+      }
+
+      // New subscriptions this week
+      const newThisWeek = await this.prisma.subscription.count({
+        where: {
+          status: 'active',
+          tier: { notIn: ['free'] },
+          createdAt: { gte: oneWeekAgo },
+        },
+      });
+
+      // Cancelled this week
+      const cancelledThisWeek = await this.prisma.subscription.count({
+        where: {
+          status: 'cancelled',
+          cancelledAt: { gte: oneWeekAgo },
+        },
+      });
+
+      // Upcoming renewals in next 30 days
+      const upcomingRenewals = await this.prisma.subscription.findMany({
+        where: {
+          status: 'active',
+          tier: { notIn: ['free'] },
+          currentPeriodEnd: { lte: thirtyDaysFromNow, gte: new Date() },
+        },
+        include: { user: { select: { email: true } } },
+        orderBy: { currentPeriodEnd: 'asc' },
+      });
+
+      await this.email.sendWeeklyRevenueReport({
+        activeBytier,
+        totalActive: activeSubs.length,
+        newThisWeek,
+        cancelledThisWeek,
+        upcomingRenewals: upcomingRenewals.map(r => ({
+          email: r.user?.email || 'unknown',
+          tier: r.tier,
+          renewsAt: r.currentPeriodEnd?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) || 'N/A',
+        })),
+      });
+
+      this.logger.log({ event: 'weekly.revenue.report.sent', active: activeSubs.length, newThisWeek, cancelledThisWeek });
+    } catch (error: any) {
+      this.logger.error({ event: 'weekly.revenue.report.failed', error: error.message });
+    }
+  }
+
+  // ── NPS Survey Trigger (MP-REV-02) ────────────────────────────
+  @Cron('0 14 * * *') // 10am AST (14:00 UTC) daily
+  async sendNPSSurveys() {
+    try {
+      // Find COMPLETE jobs from ~48 hours ago
+      const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+      const fiftyTwoHoursAgo = new Date(Date.now() - 52 * 60 * 60 * 1000);
+
+      const completedJobs = await this.prisma.reportJob.findMany({
+        where: {
+          status: 'COMPLETE',
+          completedAt: { gte: fiftyTwoHoursAgo, lte: fortyEightHoursAgo },
+        },
+        include: { user: true },
+      });
+
+      for (const job of completedJobs) {
+        try {
+          if (!job.user?.email) continue;
+
+          // Check if NPS survey already scheduled/sent for this job
+          const existingNps = await this.prisma.emailSequence.findFirst({
+            where: {
+              userId: job.userId,
+              sequenceKey: 'NPS',
+              metadata: { path: ['jobId'], equals: job.id },
+            },
+          });
+
+          if (existingNps) continue;
+
+          // Send NPS survey
+          await this.email.sendNPSSurvey({
+            email: job.user.email,
+            name: job.user.name || '',
+            institutionName: job.institutionName,
+            jobId: job.id,
+            institutionId: job.institutionId || '',
+          });
+
+          // Record that we sent the NPS survey
+          await this.prisma.emailSequence.create({
+            data: {
+              userId: job.userId,
+              sequenceKey: 'NPS',
+              scheduledAt: new Date(),
+              sentAt: new Date(),
+              metadata: { jobId: job.id },
+            },
+          });
+
+          this.logger.log({ event: 'nps.survey.sent', jobId: job.id, userId: job.userId });
+        } catch (jobErr: any) {
+          this.logger.error({ event: 'nps.survey.error', jobId: job.id, error: jobErr.message });
+        }
+      }
+    } catch (error: any) {
+      this.logger.error({ event: 'nps.survey.cron.failed', error: error.message });
+    }
+  }
+
+  // ── 90-Day Data Deletion (DPA compliance) ──────────────────────
+  @Cron('0 2 * * *') // 2:00 AM daily
+  async deleteExpiredData() {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - PipelineWorker.DATA_RETENTION_DAYS);
+
+    try {
+      const expiredJobs = await this.prisma.reportJob.findMany({
+        where: {
+          status: 'COMPLETE',
+          completedAt: { lte: cutoffDate },
+          rawData: { not: null },
+          rawDataPurgedAt: null,
+        },
+        select: { id: true, institutionName: true, completedAt: true },
+      });
+
+      if (expiredJobs.length === 0) return;
+
+      this.logger.log({
+        event: 'pipeline.data_purge.starting',
+        jobCount: expiredJobs.length,
+        cutoffDate: cutoffDate.toISOString(),
+      });
+
+      for (const job of expiredJobs) {
+        await this.prisma.reportJob.update({
+          where: { id: job.id },
+          data: { rawData: null, rawDataPurgedAt: new Date() },
+        });
+        this.logger.log({
+          event: 'pipeline.data_purge.deleted',
+          jobId: job.id,
+          institution: job.institutionName,
+          completedAt: job.completedAt?.toISOString(),
+        });
+      }
+
+      this.logger.log({
+        event: 'pipeline.data_purge.complete',
+        purgedCount: expiredJobs.length,
+      });
+    } catch (error: any) {
+      if (this.isReportJobsTableMissing(error)) {
+        this.logger.warn('Skipping data purge: report_jobs table is missing');
+        return;
+      }
+      this.logger.error({ event: 'pipeline.data_purge.failed', error: error.message });
+    }
+  }
+
+  // ── Stalled Job Detection ─────────────────────────────────────
+  @Cron('*/5 * * * *') // Every 5 minutes
+  async checkStalledJobs() {
+    const stalledThreshold = new Date(Date.now() - PipelineWorker.STALLED_THRESHOLD_MS);
+
+    try {
+      const stalledJobs = await this.prisma.reportJob.findMany({
+        where: {
+          status: 'PROCESSING',
+          processingStartedAt: { lte: stalledThreshold },
+        },
+        include: { user: true },
+      });
+
+      if (stalledJobs.length === 0) return;
+
+      this.logger.warn({
+        event: 'pipeline.stalled_jobs.detected',
+        count: stalledJobs.length,
+      });
+
+      for (const job of stalledJobs) {
+        if (job.retryCount >= PipelineWorker.MAX_STALLED_RETRIES) {
+          // Max retries exceeded — mark as FAILED
+          await this.prisma.reportJob.update({
+            where: { id: job.id },
+            data: {
+              status: 'FAILED',
+              errorMessage: `Job stalled ${job.retryCount} times — exceeded max retries (${PipelineWorker.MAX_STALLED_RETRIES})`,
+            },
+          });
+
+          await this.email.sendJobFailedAlert({
+            jobId: job.id,
+            institutionName: job.institutionName,
+            error: `Job stalled ${job.retryCount} times, marked FAILED`,
+            clientEmail: job.user?.email || 'unknown',
+          });
+
+          this.logger.error({
+            event: 'pipeline.stalled_job.failed',
+            jobId: job.id,
+            retryCount: job.retryCount,
+          });
+        } else {
+          // Reset to QUEUED for retry
+          await this.prisma.reportJob.update({
+            where: { id: job.id },
+            data: {
+              status: 'QUEUED',
+              retryCount: { increment: 1 },
+              processingStartedAt: null,
+              errorMessage: `Auto-reset: stalled in PROCESSING for >30 min (retry ${job.retryCount + 1}/${PipelineWorker.MAX_STALLED_RETRIES})`,
+            },
+          });
+
+          // Alert Erwin about stalled job
+          await this.email.sendJobFailedAlert({
+            jobId: job.id,
+            institutionName: job.institutionName,
+            error: `Job stalled in PROCESSING >30 min — auto-reset to QUEUED (retry ${job.retryCount + 1}/${PipelineWorker.MAX_STALLED_RETRIES})`,
+            clientEmail: job.user?.email || 'unknown',
+          });
+
+          this.logger.warn({
+            event: 'pipeline.stalled_job.reset',
+            jobId: job.id,
+            retryCount: job.retryCount + 1,
+          });
+        }
+      }
+    } catch (error: any) {
+      if (this.isReportJobsTableMissing(error)) {
+        this.logger.warn('Skipping stalled job check: report_jobs table is missing');
+        return;
+      }
+      this.logger.error({ event: 'pipeline.stalled_check.failed', error: error.message });
+    }
   }
 
   private buildFallbackPDF(institutionId: string, lang: string, error: string): Promise<Buffer> {

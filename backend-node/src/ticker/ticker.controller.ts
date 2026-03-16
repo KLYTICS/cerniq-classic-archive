@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Put, Delete, Param, Query, Body, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Query, Body, HttpException, HttpStatus, UseGuards } from '@nestjs/common';
 import { TickerService } from './ticker.service';
 import { TickerDto, CreateTickerDto, UpdateTickerDto, TickerListQueryDto } from './dto/ticker.dto';
+import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('api/tickers')
+@UseGuards(AuthGuard)
 export class TickerController {
     constructor(private readonly tickerService: TickerService) { }
 

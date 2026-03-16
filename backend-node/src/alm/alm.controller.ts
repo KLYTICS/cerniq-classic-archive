@@ -10,6 +10,8 @@ import { StressTestingService } from './stress-testing/stress-testing.service';
 import { ReportsService } from './reports/reports.service';
 import { WorkspaceOnboardingService } from './workspace-onboarding.service';
 import { CSVIngestionService } from './csv-ingestion.service';
+import { AnalysisRunsService } from './analysis-runs.service';
+import { IngestionLogsService } from './ingestion-logs.service';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   ScenarioRequestDto,
@@ -27,6 +29,8 @@ import type {
 } from './alm.dto';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { BulkBalanceSheetImportDto } from './dto/create-balance-sheet-item.dto';
+import { CreateAnalysisRunDto } from './dto/create-analysis-run.dto';
+import { PaginationQueryDto } from '../common/dto/pagination.dto';
 
 @Controller('api/alm')
 export class AlmController {
@@ -39,6 +43,8 @@ export class AlmController {
     private readonly reportsService: ReportsService,
     private readonly onboarding: WorkspaceOnboardingService,
     private readonly csvIngestion: CSVIngestionService,
+    private readonly analysisRuns: AnalysisRunsService,
+    private readonly ingestionLogs: IngestionLogsService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -54,13 +60,13 @@ export class AlmController {
 
   @Get('institutions')
   @UseGuards(AuthGuard)
-  async listInstitutions(@Req() req: any) {
+  async listInstitutions(@Req() req: any, @Query() pagination: PaginationQueryDto) {
     const workspaceId = req.query?.workspaceId;
     if (workspaceId) {
-      return this.almEnterprise.getInstitutionsByWorkspace(workspaceId);
+      return this.almEnterprise.getInstitutionsByWorkspace(workspaceId, pagination);
     }
     // No workspaceId provided — find all institutions for user's workspaces
-    return this.almEnterprise.getInstitutionsByUser(req.user.userId);
+    return this.almEnterprise.getInstitutionsByUser(req.user.userId, pagination);
   }
 
   @Get('institutions/:institutionId')
@@ -77,6 +83,15 @@ export class AlmController {
   ) {
     this.logger.log(`Importing ${dto.items.length} balance sheet items for institution ${institutionId}`);
     return this.almEnterprise.importBalanceSheetItems(institutionId, dto.items);
+  }
+
+  @Get('institutions/:institutionId/balance-sheet-items')
+  @UseGuards(AuthGuard)
+  async listBalanceSheetItems(
+    @Param('institutionId') institutionId: string,
+    @Query() pagination: PaginationQueryDto,
+  ) {
+    return this.almEnterprise.listBalanceSheetItems(institutionId, pagination);
   }
 
   @Get(':institutionId/summary')
@@ -111,6 +126,45 @@ export class AlmController {
     return this.almEnterprise.calculateLCR(institutionId);
   }
 
+  @Post('analysis/run')
+  @UseGuards(AuthGuard)
+  async createAnalysisRun(
+    @Req() req: any,
+    @Body() dto: CreateAnalysisRunDto,
+  ) {
+    this.logger.log(`Analysis run requested for institution ${dto.institutionId}`);
+    return this.analysisRuns.createRun(req.user.userId, dto);
+  }
+
+  @Get('analysis-runs/:runId')
+  @UseGuards(AuthGuard)
+  async getAnalysisRun(
+    @Req() req: any,
+    @Param('runId') runId: string,
+  ) {
+    return this.analysisRuns.getRun(req.user.userId, runId);
+  }
+
+  @Get('institutions/:institutionId/analysis-runs')
+  @UseGuards(AuthGuard)
+  async listAnalysisRuns(
+    @Req() req: any,
+    @Param('institutionId') institutionId: string,
+    @Query() pagination: PaginationQueryDto,
+  ) {
+    return this.analysisRuns.listRuns(req.user.userId, institutionId, pagination);
+  }
+
+  @Get('institutions/:institutionId/ingestion-logs')
+  @UseGuards(AuthGuard)
+  async listIngestionLogs(
+    @Req() req: any,
+    @Param('institutionId') institutionId: string,
+    @Query() pagination: PaginationQueryDto,
+  ) {
+    return this.ingestionLogs.listInstitutionLogs(req.user.userId, institutionId, pagination);
+  }
+
   @Post('institutions/:institutionId/upload-csv')
   @UseGuards(AuthGuard)
   @UseInterceptors(FileInterceptor('file', {
@@ -123,6 +177,7 @@ export class AlmController {
     },
   }))
   async uploadCSV(
+    @Req() req: any,
     @Param('institutionId') institutionId: string,
     @UploadedFile() file: Express.Multer.File,
     @Query('dryRun') dryRun?: string,
@@ -135,14 +190,33 @@ export class AlmController {
 
     const csvContent = file.buffer.toString('utf-8');
     const result = this.csvIngestion.parseCSV(csvContent);
+    const isDryRun = dryRun === 'true';
 
     if (!result.valid) {
-      return { ...result, imported: false };
+      const log = await this.ingestionLogs.recordLog({
+        userId: req.user.userId,
+        institutionId,
+        source: 'manual_upload',
+        sourceFilename: file.originalname,
+        dryRun: isDryRun,
+        status: 'FAILED',
+        parseResult: result,
+      });
+      return { ...result, imported: false, ingestionLogId: log.id };
     }
 
     // Dry run: validate only, don't import
-    if (dryRun === 'true') {
-      return { ...result, imported: false };
+    if (isDryRun) {
+      const log = await this.ingestionLogs.recordLog({
+        userId: req.user.userId,
+        institutionId,
+        source: 'manual_upload',
+        sourceFilename: file.originalname,
+        dryRun: true,
+        status: 'DRY_RUN',
+        parseResult: result,
+      });
+      return { ...result, imported: false, ingestionLogId: log.id };
     }
 
     // Import validated items
@@ -150,11 +224,21 @@ export class AlmController {
       institutionId,
       result.items,
     );
+    const log = await this.ingestionLogs.recordLog({
+      userId: req.user.userId,
+      institutionId,
+      source: 'manual_upload',
+      sourceFilename: file.originalname,
+      status: 'IMPORTED',
+      parseResult: result,
+      importedCount: importResult.count,
+    });
 
     return {
       ...result,
       imported: true,
       importedCount: importResult.count,
+      ingestionLogId: log.id,
     };
   }
 

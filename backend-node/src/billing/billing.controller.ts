@@ -6,6 +6,7 @@ import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { BillingService } from './billing.service';
 import { CheckoutRequestDto } from './billing.dto';
 import { AuthGuard } from '../auth/auth.guard';
+import { AuditService } from '../audit/audit.service';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -50,13 +51,17 @@ const AUTH_COOKIE_OPTIONS = {
 export class BillingController {
   private readonly logger = new Logger(BillingController.name);
 
-  constructor(private readonly billing: BillingService) {}
+  constructor(
+    private readonly billing: BillingService,
+    private readonly audit: AuditService,
+  ) {}
 
   // ── Checkout ──────────────────────────────────────────
 
   @Post('api/billing/checkout')
-  async createCheckout(@Body() body: CheckoutRequestDto) {
-    return this.billing.createCheckoutSession({
+  @Throttle({ default: { limit: 10, ttl: 3600000 } })
+  async createCheckout(@Body() body: CheckoutRequestDto, @Req() req: any) {
+    const result = await this.billing.createCheckoutSession({
       tier: body.tier,
       customerEmail: body.customerEmail,
       customerName: body.customerName,
@@ -65,6 +70,20 @@ export class BillingController {
       successUrl: body.successUrl,
       cancelUrl: body.cancelUrl,
     });
+
+    this.audit.log({
+      action: 'payment_initiated',
+      resource: 'subscription',
+      metadata: {
+        tier: body.tier,
+        customerEmail: body.customerEmail,
+        institutionName: body.institutionName,
+      },
+      ipAddress: req.ip,
+      userAgent: req.headers?.['user-agent'],
+    });
+
+    return result;
   }
 
   // ── Billing Portal (auth-protected) ───────────────────
@@ -135,8 +154,8 @@ export class BillingController {
   // ── Magic Link Auth ───────────────────────────────────
 
   @Get('auth/magic')
-  @SkipThrottle()
-  async verifyMagicLink(@Query('token') token: string, @Res() res: any) {
+  @Throttle({ default: { limit: 10, ttl: 900000 } })
+  async verifyMagicLink(@Query('token') token: string, @Req() req: any, @Res() res: any) {
     const frontendUrl = resolveFrontendUrl();
     if (!token) {
       return res.redirect(`${frontendUrl}/auth/expired`);
@@ -144,6 +163,14 @@ export class BillingController {
 
     const user = await this.billing.verifyMagicLink(token);
     if (!user) {
+      this.audit.log({
+        action: 'login',
+        resource: 'magic_link',
+        outcome: 'failure',
+        metadata: { reason: 'invalid_or_expired_token' },
+        ipAddress: req.ip,
+        userAgent: req.headers?.['user-agent'],
+      });
       return res.redirect(`${frontendUrl}/auth/expired`);
     }
 
@@ -158,6 +185,15 @@ export class BillingController {
     res.cookie('access_token', accessToken, {
       ...AUTH_COOKIE_OPTIONS,
       maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    this.audit.log({
+      userId: user.id,
+      action: 'login',
+      resource: 'magic_link',
+      outcome: 'success',
+      ipAddress: req.ip,
+      userAgent: req.headers?.['user-agent'],
     });
 
     return res.redirect(`${frontendUrl}/portal`);

@@ -13,6 +13,7 @@ import { analytics, EVENTS } from '@/lib/analytics';
 const PRESETS: Record<string, { name: string; assets: string; assetBucket: string; type: string; members?: string }> = {
   'banco-comunidad': { name: 'Banco Comunidad PR', assets: '$1.2B', assetBucket: '$1B - $5B', type: 'bank' },
   bank: { name: 'Banco Comunidad PR', assets: '$1.2B', assetBucket: '$1B - $5B', type: 'bank' },
+  firstbank: { name: 'FirstBank Puerto Rico', assets: '$12.8B', assetBucket: '$5B+', type: 'bank' },
   credit_union: { name: 'Cooperativa del Pueblo', assets: '$180M', assetBucket: '$100M - $500M', type: 'credit_union', members: '28,000' },
   cooperativa: { name: 'CoopAhorro San Juan', assets: '$250M', assetBucket: '$100M - $500M', type: 'cooperativa', members: '35,000' },
   family_office: { name: 'Caribbean Family Capital', assets: '$45M', assetBucket: 'Under $100M', type: 'family_office' },

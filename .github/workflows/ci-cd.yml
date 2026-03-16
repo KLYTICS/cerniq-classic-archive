@@ -1,4 +1,4 @@
-name: CapexCycleOS CI/CD
+name: CERNIQ CI/CD
 
 on:
   push:
@@ -8,13 +8,11 @@ on:
 
 env:
   NODE_VERSION: '20'
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Backend Node.js Tests
-  backend-node-test:
-    name: Backend Node.js Tests
+  # Backend NestJS — lint, test, build
+  backend-test:
+    name: Backend Tests
     runs-on: ubuntu-latest
 
     services:
@@ -47,36 +45,17 @@ jobs:
         working-directory: backend-node
         run: npx prisma generate
 
-      - name: Validate env vars
-        working-directory: backend-node
-        run: |
-          echo "Checking required env vars are documented..."
-          grep -q "JWT_SECRET" ../.env.example || (echo "JWT_SECRET missing from .env.example" && exit 1)
-          grep -q "DATABASE_URL" ../.env.example || (echo "DATABASE_URL missing from .env.example" && exit 1)
-
       - name: Validate Prisma schema
         working-directory: backend-node
         run: npx prisma validate
 
-      - name: Audit dependencies
+      - name: Lint
         working-directory: backend-node
-        run: npm audit --audit-level=high || true
+        run: npm run lint
 
-      - name: Run linter
+      - name: Unit tests
         working-directory: backend-node
-        run: npm run lint || true
-
-      - name: Run unit tests
-        working-directory: backend-node
-        run: npm run test
-        env:
-          REDIS_URL: redis://localhost:6379
-          JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
-
-      - name: Run e2e tests
-        working-directory: backend-node
-        run: npm run test:e2e || true
+        run: npm run test -- --forceExit
         env:
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
@@ -89,9 +68,9 @@ jobs:
           JWT_SECRET: ci-build-secret-must-be-at-least-32-characters-long
           DATABASE_URL: postgresql://test:test@localhost:5432/test
 
-  # Frontend Tests
+  # Frontend Next.js — lint, build
   frontend-test:
-    name: Frontend Tests
+    name: Frontend Build
     runs-on: ubuntu-latest
 
     steps:
@@ -109,13 +88,9 @@ jobs:
         working-directory: frontend
         run: npm ci --legacy-peer-deps
 
-      - name: Audit dependencies
+      - name: Lint
         working-directory: frontend
-        run: npm audit --audit-level=high || true
-
-      - name: Run linter
-        working-directory: frontend
-        run: npm run lint || true
+        run: npm run lint
 
       - name: Build
         working-directory: frontend
@@ -123,42 +98,11 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3000
 
-  # Rust Backend Tests
-  backend-rust-test:
-    name: Rust Backend Tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            backend/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Run tests
-        working-directory: backend
-        run: cargo test --release || true
-
-      - name: Build
-        working-directory: backend
-        run: cargo build --release
-
-  # Deploy Backend to Railway
+  # Deploy Backend to Railway (main branch only)
   deploy-backend:
-    name: Deploy Backend to Railway
+    name: Deploy Backend
     runs-on: ubuntu-latest
-    needs: [backend-node-test]
+    needs: [backend-test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
 
@@ -175,13 +119,13 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
-  # Frontend deploys are handled by Vercel's GitHub integration
+  # Frontend deploys via Vercel GitHub integration
   deploy-frontend:
-    name: Frontend Deploy Managed by Vercel
+    name: Frontend Deploy (Vercel)
     runs-on: ubuntu-latest
     needs: [frontend-test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Confirm Vercel integration
-        run: echo "Production frontend deployments are triggered by Vercel's GitHub integration."
+        run: echo "Production frontend deployments are triggered by Vercel GitHub integration."

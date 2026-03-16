@@ -4,15 +4,14 @@ import {
   ExecutionContext,
   UnauthorizedException,
   ForbiddenException,
-  SetMetadata,
 } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { hashApiKey, isReadOnlyMethod } from './api-key.util';
 
-export const ROLES_KEY = 'roles';
-export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
+// Re-export for backward compatibility
+export { ROLES_KEY, Roles } from './roles.decorator';
+export { RolesGuard } from './roles.guard';
 
 type AuthenticatedRequestUser = {
   userId: string;
@@ -28,7 +27,7 @@ export class AuthGuard implements CanActivate {
   constructor(
     private jwtService: JwtService,
     private prisma: PrismaService,
-  ) { }
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -36,8 +35,18 @@ export class AuthGuard implements CanActivate {
     let user: AuthenticatedRequestUser | null = null;
 
     if (token) {
-      user = await this.verifySupabaseToken(token);
-      if (!user && this.allowLegacy()) {
+      const claims = this.decodeClaims(token);
+      const preferLegacy = this.shouldPreferLegacyToken(claims);
+
+      if (preferLegacy) {
+        user = this.verifyLegacyToken(token);
+      }
+
+      if (!user) {
+        user = await this.verifySupabaseToken(token);
+      }
+
+      if (!user && (preferLegacy || this.allowLegacy())) {
         user = this.verifyLegacyToken(token);
       }
     } else {
@@ -61,14 +70,35 @@ export class AuthGuard implements CanActivate {
       orgId = orgId || orgHeader || null;
       const orgAllowed = await this.enforceOrgAccess(user.userId, orgId);
       if (!orgAllowed) {
-        throw new ForbiddenException('Org membership or entitlement check failed');
+        throw new ForbiddenException(
+          'Org membership or entitlement check failed',
+        );
+      }
+    }
+
+    // Resolve the user's InstitutionRole from the database for RBAC enforcement.
+    // The JWT may not carry the InstitutionRole, so we fetch it from the DB.
+    let resolvedRole = user.role;
+    if (user.authMethod === 'api_key') {
+      resolvedRole = 'api_key';
+    } else if (user.userId) {
+      try {
+        const dbUser = await this.prisma.user.findUnique({
+          where: { id: user.userId },
+          select: { role: true },
+        });
+        if (dbUser?.role) {
+          resolvedRole = dbUser.role;
+        }
+      } catch {
+        // Fall back to token-based role on DB error
       }
     }
 
     request.user = {
       ...user,
       orgId,
-      role: user.role || (user.authMethod === 'api_key' ? 'api_key' : 'authenticated'),
+      role: resolvedRole || 'authenticated',
     };
     return true;
   }
@@ -104,6 +134,11 @@ export class AuthGuard implements CanActivate {
     return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
   }
 
+  private shouldPreferLegacyToken(claims: Record<string, any>): boolean {
+    const tokenType = claims?.type;
+    return tokenType === 'access' || tokenType === 'refresh';
+  }
+
   private decodeClaims(token: string): Record<string, any> {
     const claims = this.jwtService.decode(token);
     if (!claims || typeof claims !== 'object') {
@@ -128,8 +163,12 @@ export class AuthGuard implements CanActivate {
     }
   }
 
-  private async verifySupabaseToken(token: string): Promise<AuthenticatedRequestUser | null> {
-    const supabaseUrl = (process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
+  private async verifySupabaseToken(
+    token: string,
+  ): Promise<AuthenticatedRequestUser | null> {
+    const supabaseUrl = (process.env.SUPABASE_URL || '')
+      .trim()
+      .replace(/\/$/, '');
     const anonKey =
       (process.env.SUPABASE_ANON_KEY || '').trim() ||
       (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
@@ -156,7 +195,9 @@ export class AuthGuard implements CanActivate {
       return {
         userId: user.id,
         email: user.email || claims.email,
-        role: claims.role || (Array.isArray(claims.roles) ? claims.roles[0] : 'authenticated'),
+        role:
+          claims.role ||
+          (Array.isArray(claims.roles) ? claims.roles[0] : 'authenticated'),
         claims,
         orgId: claims.org_id || claims.tenant_id || null,
         authMethod: 'token',
@@ -166,7 +207,9 @@ export class AuthGuard implements CanActivate {
     }
   }
 
-  private async verifyApiKey(apiKey: string): Promise<AuthenticatedRequestUser | null> {
+  private async verifyApiKey(
+    apiKey: string,
+  ): Promise<AuthenticatedRequestUser | null> {
     const keyHash = hashApiKey(apiKey);
     const key = await this.prisma.apiKey.findUnique({
       where: { keyHash },
@@ -213,9 +256,14 @@ export class AuthGuard implements CanActivate {
     };
   }
 
-  private async enforceOrgAccess(userId: string, orgId: string | null): Promise<boolean> {
-    const requireOrg = ((process.env.KLYTICS_REQUIRE_ORG || '').toLowerCase() === 'true');
-    const requireEntitlement = ((process.env.KLYTICS_REQUIRE_ENTITLEMENT || '').toLowerCase() === 'true');
+  private async enforceOrgAccess(
+    userId: string,
+    orgId: string | null,
+  ): Promise<boolean> {
+    const requireOrg =
+      (process.env.KLYTICS_REQUIRE_ORG || '').toLowerCase() === 'true';
+    const requireEntitlement =
+      (process.env.KLYTICS_REQUIRE_ENTITLEMENT || '').toLowerCase() === 'true';
     if (!requireOrg && !requireEntitlement) {
       return true;
     }
@@ -226,7 +274,9 @@ export class AuthGuard implements CanActivate {
       return true;
     }
 
-    const supabaseUrl = (process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
+    const supabaseUrl = (process.env.SUPABASE_URL || '')
+      .trim()
+      .replace(/\/$/, '');
     const serviceRole = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
     if (!supabaseUrl || !serviceRole) {
       return false;
@@ -272,21 +322,3 @@ export class AuthGuard implements CanActivate {
   }
 }
 
-@Injectable()
-export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) { }
-
-  canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (!requiredRoles) return true;
-
-    const request = context.switchToHttp().getRequest();
-    const user = request.user;
-    if (!user?.role) return false;
-
-    return requiredRoles.includes(user.role);
-  }
-}

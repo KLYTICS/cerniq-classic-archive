@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api';
-import { Landmark, RefreshCw, Copy, Check, Trash2, ExternalLink, Users, Building2, FileText, ClipboardCheck, UserSearch } from 'lucide-react';
+import { Landmark, RefreshCw, Copy, Check, Trash2, ExternalLink, Users, Building2, FileText, ClipboardCheck, UserSearch, Activity } from 'lucide-react';
 
 const ADMIN_KEY_STORAGE = 'capex_admin_key';
 const VERCEL_URL = typeof window !== 'undefined' ? window.location.origin : '';
@@ -237,6 +237,9 @@ export default function AdminPage() {
           </Link>
           <Link href="/admin/checklist" className="flex items-center gap-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
             <ClipboardCheck className="h-4 w-4" /> Pre-Demo Checklist
+          </Link>
+          <Link href="/admin/ops" className="flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
+            <Activity className="h-4 w-4" /> Ops Dashboard
           </Link>
         </div>
 

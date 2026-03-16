@@ -52,6 +52,7 @@ export async function GET(
     // First, try to get live data from the backend
     try {
         const backendUrl = (
+            process.env.NEXT_PUBLIC_NODE_API_URL ||
             process.env.API_URL ||
             process.env.NEXT_PUBLIC_API_URL ||
             ''
@@ -59,11 +60,9 @@ export async function GET(
         if (!backendUrl) {
             throw new Error('Backend URL is not configured');
         }
-        const today = new Date();
-        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
         const response = await fetch(
-            `${backendUrl}/api/market-data/${symbol}?start=${weekAgo.toISOString().split('T')[0]}&end=${today.toISOString().split('T')[0]}`,
+            `${backendUrl}/api/market-data/quote/${symbol}`,
             {
                 cache: 'no-store',
                 signal: AbortSignal.timeout(5000) // 5 second timeout
@@ -72,19 +71,18 @@ export async function GET(
 
         if (response.ok) {
             const data = await response.json();
-            if (data.data && data.data.length > 0) {
-                const latest = data.data[data.data.length - 1];
-                const previous = data.data.length > 1 ? data.data[data.data.length - 2] : latest;
-
-                const change = latest.close - previous.close;
-                const changePercent = (change / previous.close) * 100;
-
+            if (typeof data?.price === 'number') {
                 return NextResponse.json({
-                    ticker: symbol,
-                    name: symbol,
-                    price: latest.close,
-                    change: Number(change.toFixed(2)),
-                    changePercent: Number(changePercent.toFixed(2)),
+                    ticker: data.ticker || symbol,
+                    name: data.name || data.shortName || symbol,
+                    price: data.price,
+                    change: Number((data.change ?? 0).toFixed(2)),
+                    changePercent: Number((data.changePercent ?? 0).toFixed(2)),
+                    high: data.high ?? data.dayHigh ?? data.price,
+                    low: data.low ?? data.dayLow ?? data.price,
+                    volume: data.volume ?? 0,
+                    previousClose: data.previousClose ?? data.price - (data.change ?? 0),
+                    timestamp: data.timestamp ?? new Date().toISOString(),
                 });
             }
         }

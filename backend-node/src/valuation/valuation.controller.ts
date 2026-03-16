@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, HttpException, HttpStatus, UseGuards } from '@nestjs/common';
 import { ValuationService } from './valuation.service';
 import {
     ValuationRequestDto,
@@ -6,8 +6,10 @@ import {
     ScreenerRequestDto,
     ScreenerResultDto,
 } from './dto/valuation.dto';
+import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('api/valuation')
+@UseGuards(AuthGuard)
 export class ValuationController {
     constructor(private readonly valuationService: ValuationService) { }
 

@@ -5,6 +5,8 @@ import { AuthGuard } from './auth/auth.guard';
 import { EmailService } from './email/email.service';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { DemoRequestDto } from './dto/demo-request.dto';
+import { MarketDataService } from './market-data/market-data.service';
+import { MarketStreamManagerService } from './market-data/market-stream-manager.service';
 
 function shouldExposeDetailedHealth(): boolean {
   const raw = (process.env.HEALTH_DETAILS_PUBLIC || '').trim().toLowerCase();
@@ -20,6 +22,8 @@ export class AppController {
     private readonly appService: AppService,
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly marketDataService: MarketDataService,
+    private readonly marketStreamManager: MarketStreamManagerService,
   ) {}
 
   @Post('api/demo-request')
@@ -72,11 +76,13 @@ export class AppController {
     const checks: Record<string, string> = { api: 'up' };
 
     // Check DB
+    let dbConnected = true;
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       checks.database = 'up';
     } catch {
       checks.database = 'down';
+      dbConnected = false;
     }
 
     // Check Redis (best-effort)
@@ -95,13 +101,52 @@ export class AppController {
       checks.cache = 'degraded';
     }
 
-    const allUp = Object.values(checks).every((v) => v === 'up');
+    const marketDataHealth = this.marketDataService.getHealth(this.marketStreamManager.getStreamStatus());
+    checks.marketData = marketDataHealth.status;
+
+    const mem = process.memoryUsage();
+    const memoryPercent = +(mem.heapUsed / mem.heapTotal * 100).toFixed(1);
+
+    // Determine overall status
+    let status: 'ok' | 'degraded' | 'down';
+    if (!dbConnected) {
+      status = 'down';
+    } else if (memoryPercent >= 85) {
+      status = 'degraded';
+    } else {
+      status = 'ok';
+    }
 
     return {
-      status: allUp ? 'healthy' : 'degraded',
-      timestamp: new Date().toISOString(),
+      status,
+      db: dbConnected ? 'connected' : 'error',
+      memoryPercent,
       version: '2.0.0',
+      uptime: Math.round(process.uptime()),
+      timestamp: new Date().toISOString(),
       services: checks,
+    };
+  }
+
+  @Get('ready')
+  @SkipThrottle()
+  async getReady() {
+    let dbReady = false;
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      dbReady = true;
+    } catch {
+      // DB not ready
+    }
+
+    const ready = dbReady;
+
+    return {
+      ready,
+      checks: {
+        database: dbReady ? 'ok' : 'fail',
+      },
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -140,7 +185,13 @@ export class AppController {
       services.cache = { status: 'degraded', latencyMs: Date.now() - redisStart };
     }
 
-    const allUp = Object.values(services).every((s) => s.status === 'up');
+    const marketDataHealth = this.marketDataService.getHealth(this.marketStreamManager.getStreamStatus());
+    services.marketData = {
+      status: marketDataHealth.status,
+      latencyMs: 0,
+    };
+
+    const allUp = Object.values(services).every((s) => s.status === 'up' || s.status === 'healthy');
 
     return {
       status: allUp ? 'healthy' : 'degraded',
@@ -149,6 +200,7 @@ export class AppController {
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       services,
+      marketData: marketDataHealth,
     };
   }
 
@@ -309,6 +361,39 @@ export class AppController {
     this.verifyAdmin(adminKey);
     await this.prisma.prospect.delete({ where: { id } });
     return { message: 'Prospect deleted' };
+  }
+
+  @Get('api/admin/ops')
+  async getAdminOps(@Headers('x-admin-key') adminKey: string) {
+    this.verifyAdmin(adminKey);
+
+    const [
+      recentJobs,
+      activeSubscriptions,
+      totalAnalysisRuns,
+    ] = await Promise.all([
+      this.prisma.reportJob.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          institutionName: true,
+          status: true,
+          createdAt: true,
+          completedAt: true,
+          errorMessage: true,
+          triggeredBy: true,
+        },
+      }),
+      this.prisma.subscription.count({ where: { status: 'active' } }),
+      this.prisma.analysisRun.count(),
+    ]);
+
+    return {
+      recentJobs,
+      activeSubscriptions,
+      totalAnalysisRuns,
+    };
   }
 
   private verifyAdmin(key: string) {

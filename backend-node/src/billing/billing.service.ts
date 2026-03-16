@@ -330,6 +330,12 @@ export class BillingService {
       data: { usedAt: new Date() },
     });
 
+    // Update lastLoginAt timestamp for magic link login
+    await this.prisma.user.update({
+      where: { id: link.user.id },
+      data: { lastLoginAt: new Date() },
+    }).catch(() => { /* best-effort */ });
+
     return link.user;
   }
 

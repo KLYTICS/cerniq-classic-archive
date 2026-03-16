@@ -32,7 +32,7 @@ export default function RiskScoreGauge({ score, size = 200 }: RiskScoreGaugeProp
     <div className="flex flex-col items-center">
       <div style={{ width: size, height: size }} className="relative">
         <ResponsiveContainer width="100%" height="100%">
-          <RadialBarChart
+            <RadialBarChart
             cx="50%"
             cy="50%"
             innerRadius="70%"
@@ -41,10 +41,10 @@ export default function RiskScoreGauge({ score, size = 200 }: RiskScoreGaugeProp
             data={data}
             startAngle={180}
             endAngle={0}
-          >
+            >
             <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
             <RadialBar
-              background={{ fill: 'rgba(255,255,255,0.05)' }}
+              background={{ fill: 'rgba(203, 213, 225, 0.45)' }}
               dataKey="value"
               cornerRadius={6}
               angleAxisId={0}
@@ -52,8 +52,8 @@ export default function RiskScoreGauge({ score, size = 200 }: RiskScoreGaugeProp
           </RadialBarChart>
         </ResponsiveContainer>
         <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ paddingTop: size * 0.08 }}>
-          <span className="text-3xl font-bold text-white">{score}</span>
-          <span className="text-xs text-slate-400 mt-1">/ 100</span>
+          <span className="text-3xl font-bold text-slate-950">{score}</span>
+          <span className="mt-1 text-xs text-slate-500">/ 100</span>
         </div>
       </div>
       <span className="text-sm font-medium mt-1" style={{ color }}>

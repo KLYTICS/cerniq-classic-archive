@@ -1,14 +1,16 @@
 import { Controller, Get, Param, Query, Headers, HttpException, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { MarketDataService } from './market-data.service';
-import { QuoteDto, HistoricalPriceDto, FundamentalsDto, TickerSearchResultDto } from './dto/quote.dto';
+import { QuoteDto, HistoricalPriceDto, FundamentalsDto, InstrumentProfileDto, MarketDataHealthDto, MarketSnapshotDto, NewsArticleDto, StreamStatusDto, TickerSearchResultDto } from './dto/quote.dto';
 
 import { LlmService } from '../llm/llm.service';
+import { MarketStreamManagerService } from './market-stream-manager.service';
 
 @Controller('api/market-data')
 export class MarketDataController {
     constructor(
         private readonly marketDataService: MarketDataService,
-        private readonly llmService: LlmService
+        private readonly llmService: LlmService,
+        private readonly marketStreamManager: MarketStreamManagerService,
     ) { }
 
     /**
@@ -52,7 +54,7 @@ export class MarketDataController {
     @Get('quote/:ticker')
     async getQuote(@Param('ticker') ticker: string): Promise<QuoteDto> {
         try {
-            return await this.marketDataService.getQuote(ticker);
+            return await this.marketDataService.getRealtimeQuote(ticker);
         } catch (error) {
             throw new HttpException(
                 error.message || 'Failed to fetch quote',
@@ -104,13 +106,72 @@ export class MarketDataController {
     }
 
     /**
+     * Get instrument profile for a ticker, including ETF metadata when available
+     * GET /api/market-data/instrument/:ticker
+     */
+    @Get('instrument/:ticker')
+    async getInstrumentProfile(@Param('ticker') ticker: string): Promise<InstrumentProfileDto> {
+        try {
+            return await this.marketDataService.getInstrumentProfile(ticker);
+        } catch (error) {
+            throw new HttpException(
+                error.message || 'Failed to fetch instrument profile',
+                error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+        }
+    }
+
+    /**
+     * Get latest related news for a ticker
+     * GET /api/market-data/news/:ticker?limit=8
+     */
+    @Get('news/:ticker')
+    async getNews(
+        @Param('ticker') ticker: string,
+        @Query('limit') limit?: string,
+    ): Promise<NewsArticleDto[]> {
+        try {
+            const parsedLimit = Number.parseInt(limit || '', 10);
+            return await this.marketDataService.getNews(ticker, Number.isFinite(parsedLimit) ? parsedLimit : 8);
+        } catch (error) {
+            throw new HttpException(
+                error.message || 'Failed to fetch news',
+                error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+        }
+    }
+
+    /**
+     * Get the complete market snapshot used by live surfaces
+     * GET /api/market-data/snapshot/:ticker?newsLimit=8
+     */
+    @Get('snapshot/:ticker')
+    async getMarketSnapshot(
+        @Param('ticker') ticker: string,
+        @Query('newsLimit') newsLimit?: string,
+    ): Promise<MarketSnapshotDto> {
+        try {
+            const parsedLimit = Number.parseInt(newsLimit || '', 10);
+            return await this.marketDataService.getMarketSnapshot(
+                ticker,
+                Number.isFinite(parsedLimit) ? parsedLimit : 8,
+            );
+        } catch (error) {
+            throw new HttpException(
+                error.message || 'Failed to fetch market snapshot',
+                error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+        }
+    }
+
+    /**
      * Search for tickers
      * GET /api/market-data/search?q=apple&assetType=stock
      */
     @Get('search')
     async searchTickers(
         @Query('q') query: string,
-        @Query('assetType') assetType?: 'stock' | 'crypto',
+        @Query('assetType') assetType?: 'stock' | 'etf' | 'crypto' | 'index',
     ): Promise<TickerSearchResultDto[]> {
         if (!query || query.trim().length === 0) {
             throw new HttpException('Query parameter is required', HttpStatus.BAD_REQUEST);
@@ -124,6 +185,24 @@ export class MarketDataController {
                 error.status || HttpStatus.INTERNAL_SERVER_ERROR,
             );
         }
+    }
+
+    /**
+     * Get market-data provider and stream health
+     * GET /api/market-data/health
+     */
+    @Get('health')
+    getMarketDataHealth(): MarketDataHealthDto {
+        return this.marketDataService.getHealth(this.marketStreamManager.getStreamStatus());
+    }
+
+    /**
+     * Get active stream status for debugging and observability
+     * GET /api/market-data/streams
+     */
+    @Get('streams')
+    getActiveStreams(): StreamStatusDto[] {
+        return this.marketStreamManager.getStreamStatus();
     }
 
     /**

@@ -8,7 +8,7 @@ export class LlmService {
 
     constructor() {
         this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY || 'sk-dummy-dev-key',
+            apiKey: process.env.OPENAI_API_KEY || '',
         });
         this.model = 'gpt-4-vision-preview';
     }

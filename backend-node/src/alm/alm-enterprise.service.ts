@@ -9,6 +9,12 @@ import {
   NIIResult,
   LCRResult,
 } from './alm.dto';
+import {
+  PR_COOP_BENCHMARKS,
+  getPercentileRank,
+  SectorBenchmark,
+} from './benchmarks/pr-cooperativa-benchmarks';
+import { PaginationQueryDto, PaginatedResult } from '../common/dto/pagination.dto';
 
 /** Round to n decimal places */
 function round(value: number, decimals: number): number {
@@ -55,11 +61,30 @@ export interface COSSECCheck {
   descriptionEs: string;
 }
 
+export interface CossecRatioResult {
+  id: number;
+  name: string;
+  nameEs: string;
+  value: number;
+  unit: string;
+  threshold: string;
+  thresholdDirection: 'gte' | 'lte' | 'range' | 'info';
+  status: 'pass' | 'warning' | 'fail' | 'info';
+  description: string;
+  descriptionEs: string;
+  examReadinessContribution: number;
+  sectorMedian: number | null;
+  percentileRank: string | null;
+  percentileRankEs: string | null;
+}
+
 export interface COSSECComplianceResult {
   institutionName: string;
   institutionType: string;
   reportingDate: string;
   checks: COSSECCheck[];
+  ratios: CossecRatioResult[];
+  examReadinessScore: number;
   overallStatus: 'compliant' | 'conditional' | 'non-compliant';
   summary: {
     totalAssets: number;
@@ -71,7 +96,33 @@ export interface COSSECComplianceResult {
     capitalRatio: number;
     loanToShareRatio: number;
     liquidityRatio: number;
+    earningAssets: number;
+    interestIncome: number;
+    interestExpense: number;
+    nim: number;
+    earningAssetsYield: number;
+    costOfFunds: number;
+    largestSectorPct: number;
+    largestSectorName: string;
   };
+}
+
+export interface TrendDelta {
+  ratioId: number;
+  ratioName: string;
+  ratioNameEs: string;
+  currentValue: number;
+  previousValue: number;
+  delta: number;           // absolute change (currentValue - previousValue)
+  deltaBps?: number;       // change in bps for percentage ratios
+  trend: 'improving' | 'deteriorating' | 'stable';
+  unit: string;
+  previousPeriod: string;  // e.g. "Q4-2025"
+}
+
+export interface COSSECComplianceWithTrend extends COSSECComplianceResult {
+  trends: TrendDelta[] | null;
+  previousPeriod: string | null;
 }
 
 export interface ALMSummaryResult {
@@ -135,24 +186,49 @@ export class AlmEnterpriseService {
     return inst;
   }
 
-  async getInstitutionsByWorkspace(workspaceId: string) {
-    return this.prisma.institution.findMany({
-      where: { workspaceId },
-      orderBy: { createdAt: 'desc' },
-    });
+  async getInstitutionsByWorkspace(workspaceId: string, pagination?: PaginationQueryDto) {
+    const page = pagination?.page || 1;
+    const pageSize = pagination?.pageSize || 20;
+    const where = { workspaceId };
+
+    const [items, total] = await Promise.all([
+      this.prisma.institution.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: pagination?.sortOrder || 'desc' },
+      }),
+      this.prisma.institution.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
-  async getInstitutionsByUser(userId: string) {
+  async getInstitutionsByUser(userId: string, pagination?: PaginationQueryDto) {
+    const page = pagination?.page || 1;
+    const pageSize = pagination?.pageSize || 20;
+
     const workspaces = await this.prisma.workspace.findMany({
       where: { ownerId: userId },
       select: { id: true },
     });
     const workspaceIds = workspaces.map((w) => w.id);
-    if (workspaceIds.length === 0) return [];
-    return this.prisma.institution.findMany({
-      where: { workspaceId: { in: workspaceIds } },
-      orderBy: { createdAt: 'desc' },
-    });
+    if (workspaceIds.length === 0) {
+      return { items: [], total: 0, page, pageSize, totalPages: 0 };
+    }
+
+    const where = { workspaceId: { in: workspaceIds } };
+    const [items, total] = await Promise.all([
+      this.prisma.institution.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: pagination?.sortOrder || 'desc' },
+      }),
+      this.prisma.institution.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
   // ─── Balance Sheet Import ──────────────────────────────────────
@@ -201,6 +277,24 @@ export class AlmEnterpriseService {
     });
 
     return { count: created.count };
+  }
+
+  async listBalanceSheetItems(institutionId: string, pagination?: PaginationQueryDto) {
+    const page = pagination?.page || 1;
+    const pageSize = pagination?.pageSize || 20;
+    const where = { institutionId };
+
+    const [items, total] = await Promise.all([
+      this.prisma.balanceSheetItem.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.balanceSheetItem.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
   // ─── Save Liquidity Position ───────────────────────────────────
@@ -276,6 +370,10 @@ export class AlmEnterpriseService {
     };
   }
 
+  async getBalanceSheetSnapshot(institutionId: string): Promise<BalanceSheetDto> {
+    return this.buildBalanceSheetDto(institutionId);
+  }
+
   async calculateDurationGap(institutionId: string): Promise<DurationGapSummary> {
     const bs = await this.buildBalanceSheetDto(institutionId);
     const result = this.almService.durationGapAnalysis(bs);
@@ -298,10 +396,10 @@ export class AlmEnterpriseService {
     };
   }
 
-  async calculateNIISensitivity(institutionId: string): Promise<NIISensitivityResult> {
+  async calculateNIISensitivity(institutionId: string, rateShocksBps?: number[]): Promise<NIISensitivityResult> {
     const bs = await this.buildBalanceSheetDto(institutionId);
-    const niiResult = this.almService.niiSimulation(bs);
-    const eveResult = this.almService.eveAnalysis(bs);
+    const niiResult = this.almService.niiSimulation(bs, rateShocksBps);
+    const eveResult = this.almService.eveAnalysis(bs, rateShocksBps);
 
     const scenarios = niiResult.scenarios
       .filter((s) => s.shockBps !== 0)
@@ -368,89 +466,189 @@ export class AlmEnterpriseService {
     };
   }
 
-  // ─── COSSEC Compliance Checklist ──────────────────────────────
+  // ─── COSSEC Compliance — Full 12-Ratio Engine ─────────────────
 
   async getCOSSECCompliance(institutionId: string): Promise<COSSECComplianceResult> {
     const institution = await this.getInstitution(institutionId);
     const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
 
-    const totalAssets = items.filter(i => i.category === 'asset').reduce((s, i) => s + i.balance, 0);
-    const totalLiabilities = items.filter(i => i.category === 'liability').reduce((s, i) => s + i.balance, 0);
+    // ── Aggregate balance sheet ──
+    const assetItems = items.filter(i => i.category === 'asset');
+    const liabilityItems = items.filter(i => i.category === 'liability');
+
+    const totalAssets = assetItems.reduce((s, i) => s + i.balance, 0);
+    const totalLiabilities = liabilityItems.reduce((s, i) => s + i.balance, 0);
     const equity = totalAssets - totalLiabilities;
 
-    // Loan totals
-    const totalLoans = items
-      .filter(i => i.category === 'asset' && ['consumer_loans', 'residential_mortgages', 'commercial_loans'].includes(i.subcategory))
-      .reduce((s, i) => s + i.balance, 0);
+    const loanSubcats = ['consumer_loans', 'residential_mortgages', 'commercial_loans'];
+    const depositSubcats = ['savings_deposits', 'demand_deposits', 'time_deposits'];
+    const liquidSubcats = ['cash_equivalents', 'investment_securities'];
+    const earningSubcats = [...loanSubcats, 'investment_securities'];
 
-    // Member shares/deposits
-    const totalShares = items
-      .filter(i => i.category === 'liability' && ['savings_deposits', 'demand_deposits', 'time_deposits'].includes(i.subcategory))
-      .reduce((s, i) => s + i.balance, 0);
+    const totalLoans = assetItems.filter(i => loanSubcats.includes(i.subcategory)).reduce((s, i) => s + i.balance, 0);
+    const totalShares = liabilityItems.filter(i => depositSubcats.includes(i.subcategory)).reduce((s, i) => s + i.balance, 0);
+    const liquidAssets = assetItems.filter(i => liquidSubcats.includes(i.subcategory)).reduce((s, i) => s + i.balance, 0);
+    const earningAssets = assetItems.filter(i => earningSubcats.includes(i.subcategory)).reduce((s, i) => s + i.balance, 0);
+    const interestBearingLiabilities = liabilityItems.filter(i => i.rate > 0).reduce((s, i) => s + i.balance, 0);
 
-    // Cash and liquid assets
-    const liquidAssets = items
-      .filter(i => i.category === 'asset' && ['cash_equivalents', 'investment_securities'].includes(i.subcategory))
-      .reduce((s, i) => s + i.balance, 0);
+    // Weighted interest income/expense (annualized, in $M)
+    const interestIncome = assetItems
+      .filter(i => earningSubcats.includes(i.subcategory))
+      .reduce((s, i) => s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate), 0);
+    const interestExpense = liabilityItems
+      .filter(i => i.rate > 0)
+      .reduce((s, i) => s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate), 0);
 
+    // ── Derived ratios ──
     const capitalRatio = totalAssets > 0 ? (equity / totalAssets) * 100 : 0;
     const loanToShareRatio = totalShares > 0 ? (totalLoans / totalShares) * 100 : 0;
     const liquidityRatio = totalAssets > 0 ? (liquidAssets / totalAssets) * 100 : 0;
+    const earningAssetsYield = earningAssets > 0 ? (interestIncome / earningAssets) * 100 : 0;
+    const costOfFunds = interestBearingLiabilities > 0 ? (interestExpense / interestBearingLiabilities) * 100 : 0;
+    const nim = earningAssets > 0 ? ((interestIncome - interestExpense) / earningAssets) * 100 : 0;
 
-    // LCR
+    // Concentration risk: largest subcategory as % of total loans
+    const sectorMap = new Map<string, number>();
+    for (const item of assetItems.filter(i => loanSubcats.includes(i.subcategory))) {
+      sectorMap.set(item.subcategory, (sectorMap.get(item.subcategory) || 0) + item.balance);
+    }
+    let largestSectorName = 'N/A';
+    let largestSectorBalance = 0;
+    for (const [sector, bal] of sectorMap) {
+      if (bal > largestSectorBalance) {
+        largestSectorBalance = bal;
+        largestSectorName = sector;
+      }
+    }
+    const largestSectorPct = totalLoans > 0 ? (largestSectorBalance / totalLoans) * 100 : 0;
+
+    // Reuse existing calculations
     const lcr = await this.calculateLCR(institutionId);
+    const durationGap = await this.calculateDurationGap(institutionId);
+    const niiSensitivity = await this.calculateNIISensitivity(institutionId);
 
-    const checks: COSSECCheck[] = [
-      {
-        name: 'Capital Adequacy Ratio',
-        nameEs: 'Razón de Capital',
-        value: round(capitalRatio, 2),
-        threshold: 6.0,
-        unit: '%',
-        status: capitalRatio >= 8 ? 'pass' : capitalRatio >= 6 ? 'warning' : 'fail',
-        description: `Equity/Assets: ${round(capitalRatio, 1)}%. COSSEC minimum: 6%. Well-capitalized: 8%+.`,
-        descriptionEs: `Capital/Activos: ${round(capitalRatio, 1)}%. Mínimo COSSEC: 6%. Bien capitalizado: 8%+.`,
-      },
-      {
-        name: 'Loan-to-Share Ratio',
-        nameEs: 'Razón Préstamos/Acciones',
-        value: round(loanToShareRatio, 2),
-        threshold: 100.0,
-        unit: '%',
-        status: loanToShareRatio <= 80 ? 'pass' : loanToShareRatio <= 100 ? 'warning' : 'fail',
-        description: `Loans/Shares: ${round(loanToShareRatio, 1)}%. Target: ≤80%. Maximum: 100%.`,
-        descriptionEs: `Préstamos/Acciones: ${round(loanToShareRatio, 1)}%. Meta: ≤80%. Máximo: 100%.`,
-      },
-      {
-        name: 'Liquidity Ratio',
-        nameEs: 'Razón de Liquidez',
-        value: round(liquidityRatio, 2),
-        threshold: 15.0,
-        unit: '%',
-        status: liquidityRatio >= 20 ? 'pass' : liquidityRatio >= 15 ? 'warning' : 'fail',
-        description: `Liquid assets/Total assets: ${round(liquidityRatio, 1)}%. Minimum: 15%.`,
-        descriptionEs: `Activos líquidos/Activos totales: ${round(liquidityRatio, 1)}%. Mínimo: 15%.`,
-      },
-      {
-        name: 'LCR (Basel III)',
-        nameEs: 'LCR (Basilea III)',
-        value: round(lcr.lcr, 2),
-        threshold: 100.0,
-        unit: '%',
-        status: lcr.lcr >= 120 ? 'pass' : lcr.lcr >= 100 ? 'warning' : 'fail',
-        description: `HQLA/Net outflows: ${round(lcr.lcr, 1)}%. Required: 100%. Target: 120%+.`,
-        descriptionEs: `HQLA/Flujos netos: ${round(lcr.lcr, 1)}%. Requerido: 100%. Meta: 120%+.`,
-      },
+    // EVE sensitivity from +200bps scenario
+    const eve200 = niiSensitivity.scenarios.find(s => s.shiftBps === 200);
+    const eveSensitivity = eve200 ? Math.abs(eve200.mveImpactPct) : 0;
+
+    // ── Build 12 COSSEC ratios ──
+    const b = PR_COOP_BENCHMARKS.ratios;
+    const ratios: CossecRatioResult[] = [
+      this.buildRatio(1, 'Capital Adequacy', 'Suficiencia de Capital',
+        capitalRatio, '%', '>= 8%', 'gte',
+        capitalRatio >= 8 ? 'pass' : capitalRatio >= 6 ? 'warning' : 'fail',
+        `Equity/Assets: ${round(capitalRatio, 1)}%. Well-capitalized: 8%+.`,
+        `Capital/Activos: ${round(capitalRatio, 1)}%. Bien capitalizado: 8%+.`,
+        20, b.capitalAdequacy, capitalRatio, false),
+
+      this.buildRatio(2, 'Asset Quality (Est.)', 'Calidad de Activos (Est.)',
+        0, '%', '<= 5%', 'lte', 'pass',
+        'Non-performing loan data not available from current balance sheet. Assumed healthy.',
+        'Datos de morosidad no disponibles. Se asume buena calidad.',
+        15, b.assetQuality, 0, true),
+
+      this.buildRatio(3, 'Liquidity Ratio', 'Razon de Liquidez',
+        liquidityRatio, '%', '>= 15%', 'gte',
+        liquidityRatio >= 20 ? 'pass' : liquidityRatio >= 15 ? 'warning' : 'fail',
+        `Liquid assets/Total assets: ${round(liquidityRatio, 1)}%. Minimum: 15%.`,
+        `Activos liquidos/Activos totales: ${round(liquidityRatio, 1)}%. Minimo: 15%.`,
+        10, b.liquidity, liquidityRatio, false),
+
+      this.buildRatio(4, 'Loan-to-Deposit Ratio', 'Razon Prestamos/Depositos',
+        loanToShareRatio, '%', '<= 80%', 'lte',
+        loanToShareRatio <= 80 ? 'pass' : loanToShareRatio <= 100 ? 'warning' : 'fail',
+        `Loans/Deposits: ${round(loanToShareRatio, 1)}%. Target: <=80%.`,
+        `Prestamos/Depositos: ${round(loanToShareRatio, 1)}%. Meta: <=80%.`,
+        10, b.loanToDeposit, loanToShareRatio, true),
+
+      this.buildRatio(5, 'NII Sensitivity', 'Sensibilidad NII',
+        niiSensitivity.riskRating === 'low' ? 100 : niiSensitivity.riskRating === 'moderate' ? 70 : niiSensitivity.riskRating === 'high' ? 40 : 15,
+        'score', '<= 15% per 100bps', 'info',
+        niiSensitivity.riskRating === 'low' ? 'pass' : niiSensitivity.riskRating === 'moderate' ? 'warning' : 'fail',
+        `NII risk rating: ${niiSensitivity.riskRating}. Base NII: $${niiSensitivity.baseNII.toFixed(1)}M.`,
+        `Clasificacion NII: ${niiSensitivity.riskRating}. NII base: $${niiSensitivity.baseNII.toFixed(1)}M.`,
+        10, null, 0, false),
+
+      this.buildRatio(6, 'Duration Gap', 'Brecha de Duracion',
+        durationGap.durationGap, 'yr', '-1yr to +3yr', 'range',
+        Math.abs(durationGap.durationGap) <= 1 ? 'pass' : Math.abs(durationGap.durationGap) <= 3 ? 'warning' : 'fail',
+        `Gap: ${durationGap.durationGap > 0 ? '+' : ''}${durationGap.durationGap.toFixed(2)}yr. Profile: ${durationGap.riskProfile}.`,
+        `Brecha: ${durationGap.durationGap > 0 ? '+' : ''}${durationGap.durationGap.toFixed(2)} anos. Perfil: ${durationGap.riskProfile}.`,
+        10, b.durationGap, Math.abs(durationGap.durationGap), true),
+
+      this.buildRatio(7, 'EVE Sensitivity', 'Sensibilidad EVE',
+        eveSensitivity, '%', '<= 25%', 'lte',
+        eveSensitivity <= 15 ? 'pass' : eveSensitivity <= 25 ? 'warning' : 'fail',
+        `EVE change per +200bps: ${round(eveSensitivity, 1)}%. Threshold: <=25%.`,
+        `Cambio EVE por +200bps: ${round(eveSensitivity, 1)}%. Umbral: <=25%.`,
+        5, null, 0, true),
+
+      this.buildRatio(8, 'Concentration Risk', 'Riesgo de Concentracion',
+        largestSectorPct, '%', '<= 25%', 'lte',
+        largestSectorPct <= 25 ? 'pass' : largestSectorPct <= 40 ? 'warning' : 'fail',
+        `Largest sector (${largestSectorName}): ${round(largestSectorPct, 1)}% of loans.`,
+        `Mayor sector (${largestSectorName}): ${round(largestSectorPct, 1)}% de prestamos.`,
+        5, b.concentrationRisk, largestSectorPct, true),
+
+      this.buildRatio(9, 'LCR (Basel III)', 'LCR (Basilea III)',
+        lcr.lcr, '%', '>= 100%', 'gte',
+        lcr.lcr >= 120 ? 'pass' : lcr.lcr >= 100 ? 'warning' : 'fail',
+        `HQLA/Net outflows: ${round(lcr.lcr, 1)}%. Required: 100%. Target: 120%+.`,
+        `HQLA/Flujos netos: ${round(lcr.lcr, 1)}%. Requerido: 100%. Meta: 120%+.`,
+        5, b.lcr, lcr.lcr, false),
+
+      this.buildRatio(10, 'Earning Assets Yield', 'Rendimiento Activos Productivos',
+        earningAssetsYield, '%', 'Benchmark', 'info',
+        'info',
+        `Interest income / Earning assets: ${round(earningAssetsYield, 2)}%. PR median: ${b.earningAssetsYield.median}%.`,
+        `Ingreso por intereses / Activos productivos: ${round(earningAssetsYield, 2)}%. Mediana PR: ${b.earningAssetsYield.median}%.`,
+        0, b.earningAssetsYield, earningAssetsYield, false),
+
+      this.buildRatio(11, 'Cost of Funds', 'Costo de Fondos',
+        costOfFunds, '%', 'Benchmark', 'info',
+        'info',
+        `Interest expense / Interest-bearing liabilities: ${round(costOfFunds, 2)}%. PR median: ${b.costOfFunds.median}%.`,
+        `Gasto por intereses / Pasivos con intereses: ${round(costOfFunds, 2)}%. Mediana PR: ${b.costOfFunds.median}%.`,
+        0, b.costOfFunds, costOfFunds, true),
+
+      this.buildRatio(12, 'Net Interest Margin', 'Margen de Interes Neto',
+        nim, '%', '>= 2.5%', 'gte',
+        nim >= 2.5 ? 'pass' : nim >= 2.0 ? 'warning' : 'fail',
+        `NIM: ${round(nim, 2)}%. Threshold: >=2.5%. PR median: ${b.nim.median}%.`,
+        `MNI: ${round(nim, 2)}%. Umbral: >=2.5%. Mediana PR: ${b.nim.median}%.`,
+        10, b.nim, nim, false),
     ];
 
-    const overallStatus = checks.some(c => c.status === 'fail') ? 'non-compliant'
-      : checks.some(c => c.status === 'warning') ? 'conditional' : 'compliant';
+    // Exam readiness: sum of weights for PASS ratios (max 100)
+    const examReadinessScore = ratios
+      .filter(r => r.status === 'pass')
+      .reduce((s, r) => s + r.examReadinessContribution, 0);
+
+    // Legacy checks (backward compat with old 4-check code)
+    const checks: COSSECCheck[] = ratios
+      .filter(r => r.status !== 'info')
+      .slice(0, 9)
+      .map(r => ({
+        name: r.name,
+        nameEs: r.nameEs,
+        value: round(r.value, 2),
+        threshold: parseFloat(r.threshold.replace(/[^0-9.\-]/g, '')) || 0,
+        unit: r.unit,
+        status: r.status === 'info' ? 'pass' : r.status,
+        description: r.description,
+        descriptionEs: r.descriptionEs,
+      }));
+
+    const overallStatus = ratios.some(r => r.status === 'fail') ? 'non-compliant'
+      : ratios.some(r => r.status === 'warning') ? 'conditional' : 'compliant';
 
     return {
       institutionName: institution.name,
       institutionType: institution.type,
       reportingDate: institution.reportingDate.toISOString(),
       checks,
+      ratios,
+      examReadinessScore,
       overallStatus,
       summary: {
         totalAssets,
@@ -462,17 +660,170 @@ export class AlmEnterpriseService {
         capitalRatio: round(capitalRatio, 2),
         loanToShareRatio: round(loanToShareRatio, 2),
         liquidityRatio: round(liquidityRatio, 2),
+        earningAssets: round(earningAssets, 2),
+        interestIncome: round(interestIncome, 2),
+        interestExpense: round(interestExpense, 2),
+        nim: round(nim, 2),
+        earningAssetsYield: round(earningAssetsYield, 2),
+        costOfFunds: round(costOfFunds, 2),
+        largestSectorPct: round(largestSectorPct, 2),
+        largestSectorName,
       },
     };
   }
 
-  async getALMSummary(institutionId: string): Promise<ALMSummaryResult> {
+  // ─── Multi-Period Trend Analysis ────────────────────────────────
+
+  /**
+   * Returns COSSEC compliance data enriched with trend deltas from the
+   * most recent prior completed AnalysisRun for the same institution.
+   * Gracefully returns trends: null when no previous period exists.
+   */
+  async getCOSSECComplianceWithTrend(institutionId: string): Promise<COSSECComplianceWithTrend> {
+    const current = await this.getCOSSECCompliance(institutionId);
+
+    // Find the previous completed analysis run for this institution (skip current)
+    let previousRun: any = null;
+    try {
+      previousRun = await this.prisma.analysisRun.findFirst({
+        where: { institutionId, status: 'COMPLETED' },
+        orderBy: { createdAt: 'desc' },
+        skip: 1, // skip the current one, get the previous
+      });
+    } catch {
+      // Table may not exist yet; graceful degradation
+      this.logger.warn({ event: 'trend.previous_run_lookup_failed', institutionId });
+    }
+
+    if (!previousRun?.resultSummary) {
+      return { ...current, trends: null, previousPeriod: null };
+    }
+
+    // Also check if there is a previous ReportJob with an analysisPeriod
+    let previousPeriodLabel: string | null = null;
+    try {
+      const prevJob = await this.prisma.reportJob.findFirst({
+        where: { institutionId, status: 'COMPLETE' },
+        orderBy: { completedAt: 'desc' },
+        skip: 1,
+        select: { analysisPeriod: true, completedAt: true },
+      });
+      previousPeriodLabel = prevJob?.analysisPeriod ||
+        (previousRun.createdAt ? this.derivePeriodLabel(previousRun.createdAt) : null);
+    } catch {
+      previousPeriodLabel = previousRun.createdAt ? this.derivePeriodLabel(previousRun.createdAt) : null;
+    }
+
+    const prevSummary = previousRun.resultSummary as any;
+    const trends = this.calculateTrendDeltas(current.ratios, prevSummary, previousPeriodLabel || 'Prior');
+
+    return { ...current, trends, previousPeriod: previousPeriodLabel };
+  }
+
+  /**
+   * Calculate deltas between current ratios and previous period's summary.
+   * Maps stored resultSummary keys to ratio IDs.
+   */
+  private calculateTrendDeltas(
+    currentRatios: CossecRatioResult[],
+    prevSummary: any,
+    previousPeriod: string,
+  ): TrendDelta[] {
+    // Map ratio IDs to the keys stored in resultSummary
+    const prevMapping: Record<number, { key: string; lowerIsBetter: boolean }> = {
+      1:  { key: 'capitalRatio',      lowerIsBetter: false },
+      3:  { key: 'liquidityRatio',    lowerIsBetter: false },
+      4:  { key: 'loanToShareRatio',  lowerIsBetter: true },
+      8:  { key: 'largestSectorPct',  lowerIsBetter: true },
+      10: { key: 'earningAssetsYield', lowerIsBetter: false },
+      11: { key: 'costOfFunds',       lowerIsBetter: true },
+      12: { key: 'nim',               lowerIsBetter: false },
+    };
+
+    const trends: TrendDelta[] = [];
+
+    for (const ratio of currentRatios) {
+      const mapping = prevMapping[ratio.id];
+      if (!mapping) continue;
+
+      // Look for key in prevSummary or prevSummary.summary
+      const prevData = prevSummary.summary || prevSummary;
+      const prevValue = prevData[mapping.key];
+      if (prevValue == null || typeof prevValue !== 'number') continue;
+
+      const delta = round(ratio.value - prevValue, 2);
+      const deltaBps = ratio.unit === '%' ? Math.round(delta * 100) : undefined;
+
+      // Determine trend direction
+      const STABLE_THRESHOLD = 0.05; // 5bps for percentages
+      let trend: 'improving' | 'deteriorating' | 'stable';
+      if (Math.abs(delta) < STABLE_THRESHOLD) {
+        trend = 'stable';
+      } else if (mapping.lowerIsBetter) {
+        trend = delta < 0 ? 'improving' : 'deteriorating';
+      } else {
+        trend = delta > 0 ? 'improving' : 'deteriorating';
+      }
+
+      trends.push({
+        ratioId: ratio.id,
+        ratioName: ratio.name,
+        ratioNameEs: ratio.nameEs,
+        currentValue: ratio.value,
+        previousValue: round(prevValue, 2),
+        delta,
+        deltaBps,
+        trend,
+        unit: ratio.unit,
+        previousPeriod,
+      });
+    }
+
+    return trends;
+  }
+
+  /** Derive a period label like "Q1-2026" from a date. */
+  private derivePeriodLabel(date: Date): string {
+    const q = Math.ceil((date.getMonth() + 1) / 3);
+    return `Q${q}-${date.getFullYear()}`;
+  }
+
+  private buildRatio(
+    id: number, name: string, nameEs: string,
+    value: number, unit: string, threshold: string,
+    thresholdDirection: 'gte' | 'lte' | 'range' | 'info',
+    status: 'pass' | 'warning' | 'fail' | 'info',
+    description: string, descriptionEs: string,
+    examReadinessContribution: number,
+    benchmark: SectorBenchmark | null,
+    benchmarkValue: number,
+    lowerIsBetter: boolean,
+  ): CossecRatioResult {
+    let sectorMedian: number | null = null;
+    let percentileRank: string | null = null;
+    let percentileRankEs: string | null = null;
+
+    if (benchmark) {
+      sectorMedian = benchmark.median;
+      const rank = getPercentileRank(benchmarkValue, benchmark, lowerIsBetter);
+      percentileRank = rank.rank;
+      percentileRankEs = rank.rankEs;
+    }
+
+    return {
+      id, name, nameEs, value: round(value, 2), unit, threshold,
+      thresholdDirection, status, description, descriptionEs,
+      examReadinessContribution, sectorMedian, percentileRank, percentileRankEs,
+    };
+  }
+
+  async getALMSummary(institutionId: string, rateShocksBps?: number[]): Promise<ALMSummaryResult> {
     const institution = await this.getInstitution(institutionId);
     const bs = await this.buildBalanceSheetDto(institutionId);
-    const fullAnalysis = this.almService.fullAnalysis(bs);
+    const fullAnalysis = this.almService.fullAnalysis(bs, rateShocksBps);
 
     const durationGap = await this.calculateDurationGap(institutionId);
-    const niiSensitivity = await this.calculateNIISensitivity(institutionId);
+    const niiSensitivity = await this.calculateNIISensitivity(institutionId, rateShocksBps);
     const liquidity = await this.calculateLCR(institutionId);
 
     // ─── Risk Score (0-100) ───

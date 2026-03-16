@@ -118,6 +118,12 @@ export class EmailSequenceProcessor {
         await this.email.sendLeadNurturePricing({ email, name });
         break;
 
+      case 'NPS':
+        // NPS survey — handled directly by pipeline worker sendNPSSurveys cron
+        // If it reaches here, it was already sent inline; skip gracefully.
+        this.logger.log({ event: 'sequence.nps.skip', note: 'NPS sent inline by cron' });
+        break;
+
       default:
         this.logger.warn({ event: 'sequence.unknown_key', key: seq.sequenceKey });
     }

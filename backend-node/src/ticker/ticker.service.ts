@@ -10,7 +10,7 @@ export class TickerService {
     constructor() {
         // Initialize Supabase client — only if a real Supabase URL is provided
         const supabaseUrl = process.env.SUPABASE_URL;
-        const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || 'dummy-key';
+        const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || '';
 
         if (supabaseUrl && supabaseUrl.startsWith('http')) {
             try {

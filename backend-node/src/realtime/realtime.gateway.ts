@@ -1,11 +1,12 @@
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
+import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { MarketDataService } from '../market-data/market-data.service';
 import { OptionsService } from '../options/options.service';
 import { PortfolioService } from '../portfolio/portfolio.service';
 import { OptionType } from '../options/dto/options.dto';
 import { isAllowedOrigin } from '../security/origin-allowlist';
+import { MarketStreamManagerService } from '../market-data/market-stream-manager.service';
 
 interface SubscriptionPayload {
     ticker: string;
@@ -38,29 +39,98 @@ interface PortfolioPnLPayload {
     },
     namespace: 'market-data',
 })
-export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit, OnModuleDestroy {
     @WebSocketServer()
     server: Server;
 
     private readonly logger = new Logger(RealtimeGateway.name);
-    private priceIntervals: Map<string, NodeJS.Timeout> = new Map();
     private greeksIntervals: Map<string, NodeJS.Timeout> = new Map();
     private pnlIntervals: Map<string, NodeJS.Timeout> = new Map();
-    private readonly UPDATE_INTERVAL_MS = 2000; // 2 second updates for demo
+    private readonly clientTickerSubscriptions = new Map<string, Set<string>>();
+    private readonly streamCleanupFns: Array<() => void> = [];
+    private readonly UPDATE_INTERVAL_MS = this.parseUpdateInterval(
+        process.env.MARKET_STREAM_INTERVAL_MS,
+        5000,
+    );
 
     constructor(
         private readonly marketDataService: MarketDataService,
+        private readonly marketStreamManager: MarketStreamManagerService,
         private readonly optionsService: OptionsService,
         private readonly portfolioService: PortfolioService,
     ) { }
 
+    onModuleInit() {
+        this.streamCleanupFns.push(
+            this.marketStreamManager.onQuote(({ ticker, quote }) => {
+                this.server.to(`ticker:${ticker}`).emit('price-update', this.buildPriceUpdatePayload(ticker, quote));
+            }),
+            this.marketStreamManager.onInstrument(({ ticker, profile, quote, timestamp }) => {
+                this.server.to(`ticker:${ticker}`).emit('instrument-update', {
+                    ticker,
+                    quote,
+                    profile,
+                    timestamp,
+                });
+            }),
+            this.marketStreamManager.onNews(({ ticker, items, timestamp }) => {
+                this.server.to(`ticker:${ticker}`).emit('news-update', {
+                    ticker,
+                    items,
+                    timestamp,
+                });
+            }),
+        );
+    }
+
+    onModuleDestroy() {
+        this.streamCleanupFns.forEach((cleanup) => cleanup());
+        this.streamCleanupFns.length = 0;
+    }
+
     handleConnection(client: Socket) {
         this.logger.log(`Client connected: ${client.id}`);
+        this.clientTickerSubscriptions.set(client.id, new Set());
     }
 
     handleDisconnect(client: Socket) {
         this.logger.log(`Client disconnected: ${client.id}`);
         this.cleanupClientSubscriptions(client.id);
+    }
+
+    private parseUpdateInterval(rawValue: string | undefined, fallbackMs: number): number {
+        const parsed = Number.parseInt(rawValue || '', 10);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackMs;
+    }
+
+    private getRoomSize(roomName: string): number {
+        return this.server.of('/market-data').adapter.rooms.get(roomName)?.size ?? 0;
+    }
+
+    private buildPriceUpdatePayload(ticker: string, quote: Awaited<ReturnType<MarketDataService['getRealtimeQuote']>>) {
+        return {
+            ticker,
+            assetType: quote.assetType,
+            shortName: quote.shortName,
+            longName: quote.longName,
+            exchange: quote.exchange,
+            currency: quote.currency,
+            marketState: quote.marketState,
+            session: quote.session,
+            freshnessState: quote.freshnessState,
+            provider: quote.provider,
+            quoteTimestamp: quote.quoteTimestamp,
+            serverTimestamp: quote.serverTimestamp,
+            ageMs: quote.ageMs,
+            price: quote.price,
+            change: quote.change,
+            changePercent: quote.changePercent,
+            volume: quote.volume,
+            high: quote.high,
+            low: quote.low,
+            previousClose: quote.previousClose,
+            timestamp: quote.timestamp,
+        };
     }
 
     /**
@@ -71,26 +141,35 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
         @ConnectedSocket() client: Socket,
         @MessageBody() payload: SubscriptionPayload,
     ) {
-        const { ticker } = payload;
+        const ticker = this.marketDataService.normalizeTicker(payload.ticker);
         const roomName = `ticker:${ticker}`;
+        const subscribedTickers = this.clientTickerSubscriptions.get(client.id) || new Set<string>();
 
         this.logger.log(`Client ${client.id} subscribing to ${ticker}`);
         client.join(roomName);
 
-        // Start price stream if not already running
-        if (!this.priceIntervals.has(ticker)) {
-            await this.startPriceStream(ticker);
+        if (!subscribedTickers.has(ticker)) {
+            await this.marketStreamManager.subscribe(ticker);
+            subscribedTickers.add(ticker);
+            this.clientTickerSubscriptions.set(client.id, subscribedTickers);
         }
 
         // Send immediate update
         try {
-            const quote = await this.marketDataService.getQuote(ticker);
-            client.emit('price-update', {
+            const [quote, profile, news] = await Promise.all([
+                this.marketDataService.getRealtimeQuote(ticker),
+                this.marketDataService.getInstrumentProfile(ticker),
+                this.marketDataService.getNews(ticker, 8),
+            ]);
+            client.emit('price-update', this.buildPriceUpdatePayload(ticker, quote));
+            client.emit('instrument-update', {
                 ticker,
-                price: quote.price,
-                change: quote.change,
-                changePercent: quote.changePercent,
-                volume: quote.volume,
+                quote,
+                profile,
+            });
+            client.emit('news-update', {
+                ticker,
+                items: news,
                 timestamp: new Date(),
             });
         } catch (error) {
@@ -109,16 +188,16 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
         @ConnectedSocket() client: Socket,
         @MessageBody() payload: SubscriptionPayload,
     ) {
-        const { ticker } = payload;
+        const ticker = this.marketDataService.normalizeTicker(payload.ticker);
         const roomName = `ticker:${ticker}`;
+        const subscribedTickers = this.clientTickerSubscriptions.get(client.id);
 
         this.logger.log(`Client ${client.id} unsubscribing from ${ticker}`);
         client.leave(roomName);
 
-        // Stop stream if no more clients
-        const room = this.server.of('/market-data').adapter.rooms.get(roomName);
-        if (!room || room.size === 0) {
-            this.stopPriceStream(ticker);
+        if (subscribedTickers?.has(ticker)) {
+            subscribedTickers.delete(ticker);
+            this.marketStreamManager.unsubscribe(ticker);
         }
 
         return { success: true, ticker, message: `Unsubscribed from ${ticker}` };
@@ -197,51 +276,6 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     }
 
     /**
-     * Start streaming price updates for a ticker
-     */
-    private async startPriceStream(ticker: string) {
-        const roomName = `ticker:${ticker}`;
-
-        const interval = setInterval(async () => {
-            try {
-                const quote = await this.marketDataService.getQuote(ticker);
-
-                // Add small random variation for live simulation
-                const variation = (Math.random() - 0.5) * 0.002; // ±0.2%
-                const simulatedPrice = quote.price * (1 + variation);
-                const simulatedChange = quote.change + (simulatedPrice - quote.price);
-                const simulatedChangePercent = (simulatedChange / quote.previousClose) * 100;
-
-                this.server.to(roomName).emit('price-update', {
-                    ticker,
-                    price: Number(simulatedPrice.toFixed(2)),
-                    change: Number(simulatedChange.toFixed(2)),
-                    changePercent: Number(simulatedChangePercent.toFixed(2)),
-                    volume: quote.volume,
-                    timestamp: new Date(),
-                });
-            } catch (error) {
-                this.logger.error(`Error in price stream for ${ticker}:`, error);
-            }
-        }, this.UPDATE_INTERVAL_MS);
-
-        this.priceIntervals.set(ticker, interval);
-        this.logger.log(`Started price stream for ${ticker}`);
-    }
-
-    /**
-     * Stop price stream for a ticker
-     */
-    private stopPriceStream(ticker: string) {
-        const interval = this.priceIntervals.get(ticker);
-        if (interval) {
-            clearInterval(interval);
-            this.priceIntervals.delete(ticker);
-            this.logger.log(`Stopped price stream for ${ticker}`);
-        }
-    }
-
-    /**
      * Start streaming Greeks calculations
      */
     private async startGreeksStream(
@@ -255,13 +289,16 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
         const interval = setInterval(async () => {
             try {
-                const quote = await this.marketDataService.getQuote(ticker);
-                const variation = (Math.random() - 0.5) * 0.002;
-                const simulatedPrice = quote.price * (1 + variation);
+                if (this.getRoomSize(greeksKey) === 0) {
+                    this.stopGreeksStream(greeksKey);
+                    return;
+                }
+
+                const quote = await this.marketDataService.getRealtimeQuote(ticker);
                 const timeToMaturity = this.calculateTimeToMaturity(maturity);
 
                 const greeks = await this.optionsService.calculateGreeks({
-                    underlying: simulatedPrice,
+                    underlying: quote.price,
                     strike,
                     timeToExpiry: timeToMaturity,
                     volatility: 0.25,
@@ -274,9 +311,9 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
                     strike,
                     maturity,
                     optionType,
-                    underlyingPrice: simulatedPrice,
+                    underlyingPrice: quote.price,
                     greeks,
-                    timestamp: new Date(),
+                    timestamp: quote.timestamp,
                 });
             } catch (error) {
                 this.logger.error(`Error in Greeks stream for ${greeksKey}:`, error);
@@ -295,6 +332,11 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
         const interval = setInterval(async () => {
             try {
+                if (this.getRoomSize(pnlKey) === 0) {
+                    this.stopPnLStream(pnlKey);
+                    return;
+                }
+
                 const portfolio = await this.portfolioService.getPortfolio(portfolioId, userId);
 
                 if (!portfolio || !portfolio.positions || portfolio.positions.length === 0) {
@@ -305,12 +347,15 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
                 let totalCost = 0;
 
                 // Calculate P&L for each position
-                for (const position of portfolio.positions) {
-                    const quote = await this.marketDataService.getQuote(position.ticker);
-                    const variation = (Math.random() - 0.5) * 0.002;
-                    const simulatedPrice = quote.price * (1 + variation);
+                const liveQuotes = await Promise.all(
+                    portfolio.positions.map(async (position) => ({
+                        position,
+                        quote: await this.marketDataService.getRealtimeQuote(position.ticker),
+                    })),
+                );
 
-                    const positionValue = position.quantity * simulatedPrice;
+                for (const { position, quote } of liveQuotes) {
+                    const positionValue = position.quantity * quote.price;
                     const positionCost = position.quantity * position.avgCost;
 
                     totalValue += positionValue;
@@ -348,12 +393,46 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
         return diffDays / 365; // Convert to years
     }
 
+    private stopGreeksStream(greeksKey: string) {
+        const interval = this.greeksIntervals.get(greeksKey);
+        if (interval) {
+            clearInterval(interval);
+            this.greeksIntervals.delete(greeksKey);
+            this.logger.log(`Stopped Greeks stream for ${greeksKey}`);
+        }
+    }
+
+    private stopPnLStream(pnlKey: string) {
+        const interval = this.pnlIntervals.get(pnlKey);
+        if (interval) {
+            clearInterval(interval);
+            this.pnlIntervals.delete(pnlKey);
+            this.logger.log(`Stopped P&L stream for ${pnlKey}`);
+        }
+    }
+
     /**
      * Clean up all subscriptions for a disconnected client
      */
     private cleanupClientSubscriptions(clientId: string) {
-        // This is called automatically on disconnect
-        // Cleanup is handled by room management
+        const subscribedTickers = this.clientTickerSubscriptions.get(clientId) || new Set<string>();
+        for (const ticker of subscribedTickers) {
+            this.marketStreamManager.unsubscribe(ticker);
+        }
+        this.clientTickerSubscriptions.delete(clientId);
+
+        for (const greeksKey of [...this.greeksIntervals.keys()]) {
+            if (this.getRoomSize(greeksKey) === 0) {
+                this.stopGreeksStream(greeksKey);
+            }
+        }
+
+        for (const pnlKey of [...this.pnlIntervals.keys()]) {
+            if (this.getRoomSize(pnlKey) === 0) {
+                this.stopPnLStream(pnlKey);
+            }
+        }
+
         this.logger.log(`Cleaned up subscriptions for client ${clientId}`);
     }
 }

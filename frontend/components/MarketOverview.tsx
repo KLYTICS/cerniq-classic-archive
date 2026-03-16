@@ -1,154 +1,216 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api';
+import { useMarketDataSocket } from '@/lib/marketDataSocket';
 import { useMarketDataStore } from '@/lib/store';
 
 interface MarketOverviewData {
-    ticker: string;
-    name: string;
-    price: number;
-    change: number;
-    changePercent: number;
+  ticker: string;
+  name: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  timestamp?: string;
 }
 
 const TRACKED_TICKERS = ['SPY', 'QQQ', 'NVDA', 'AAPL', 'MSFT', 'AMZN'];
+const TICKER_LABELS: Record<string, string> = {
+  SPY: 'S&P 500 ETF',
+  QQQ: 'Nasdaq 100 ETF',
+  NVDA: 'NVIDIA',
+  AAPL: 'Apple',
+  MSFT: 'Microsoft',
+  AMZN: 'Amazon',
+};
 
 export default function MarketOverview() {
-    const [tickers, setTickers] = useState<MarketOverviewData[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const { setQuotes, getQuote, isStale, lastUpdated } = useMarketDataStore();
+  const [tickers, setTickers] = useState<MarketOverviewData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { setQuotes, getQuote, isStale, lastUpdated } = useMarketDataStore();
+  const { isConnected, subscribeTicker } = useMarketDataSocket();
 
-    const fetchData = useCallback(async () => {
-        // Check if all tickers are cached and fresh
-        const allCached = TRACKED_TICKERS.every((t) => !isStale(t));
-        if (allCached) {
-            const cached = TRACKED_TICKERS.map((t) => {
-                const q = getQuote(t)!;
-                return {
-                    ticker: q.ticker,
-                    name: q.name || q.ticker,
-                    price: q.price,
-                    change: q.change,
-                    changePercent: q.changePercent,
-                };
-            });
-            setTickers(cached);
-            setLoading(false);
-            return;
-        }
-
-        try {
-            setError(null);
-            const promises = TRACKED_TICKERS.map(async (ticker) => {
-                try {
-                    const data = await apiClient.getNodeQuote(ticker);
-                    return {
-                        ticker: data.ticker || ticker,
-                        name: data.name || data.shortName || ticker,
-                        price: data.price ?? 0,
-                        change: data.change ?? 0,
-                        changePercent: data.changePercent ?? 0,
-                    };
-                } catch (err) {
-                    console.error(`Failed to fetch ${ticker}:`, err);
-                    // Return cached data if available, else zero
-                    const cached = getQuote(ticker);
-                    if (cached) {
-                        return {
-                            ticker: cached.ticker,
-                            name: cached.name || ticker,
-                            price: cached.price,
-                            change: cached.change,
-                            changePercent: cached.changePercent,
-                        };
-                    }
-                    return { ticker, name: ticker, price: 0, change: 0, changePercent: 0 };
-                }
-            });
-
-            const data = await Promise.all(promises);
-            setTickers(data);
-
-            // Update Zustand cache
-            setQuotes(data.map((d) => ({
-                ticker: d.ticker,
-                price: d.price,
-                change: d.change,
-                changePercent: d.changePercent,
-                name: d.name,
-            })));
-        } catch (err) {
-            console.error('MarketOverview fetch error:', err);
-            setError('Failed to load market data');
-        } finally {
-            setLoading(false);
-        }
-    }, [getQuote, isStale, setQuotes]);
-
-    useEffect(() => {
-        fetchData();
-        const interval = setInterval(fetchData, 60000);
-        return () => clearInterval(interval);
-    }, [fetchData]);
-
-    if (loading) {
-        return (
-            <div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    {TRACKED_TICKERS.map((t) => (
-                        <div key={t} className="bg-white/5 rounded-lg p-4 animate-pulse">
-                            <div className="h-4 bg-white/10 rounded w-12 mb-2" />
-                            <div className="h-6 bg-white/10 rounded w-20 mb-1" />
-                            <div className="h-3 bg-white/10 rounded w-16" />
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
+  const fetchData = useCallback(async () => {
+    const allCached = TRACKED_TICKERS.every((ticker) => !isStale(ticker));
+    if (allCached) {
+      const cached = TRACKED_TICKERS.map((ticker) => {
+        const quote = getQuote(ticker)!;
+        return {
+          ticker: quote.ticker,
+          name: quote.name || quote.ticker,
+          price: quote.price,
+          change: quote.change,
+          changePercent: quote.changePercent,
+        };
+      });
+      setTickers(cached);
+      setLoading(false);
+      return;
     }
 
-    if (error && tickers.length === 0) {
-        return (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center">
-                <p className="text-red-300 text-sm">{error}</p>
-                <button
-                    onClick={() => { setLoading(true); fetchData(); }}
-                    className="mt-2 text-red-400 hover:text-red-300 text-sm underline"
-                >
-                    Retry
-                </button>
-            </div>
-        );
+    try {
+      setError(null);
+      const data = await Promise.all(
+        TRACKED_TICKERS.map(async (ticker) => {
+          try {
+            const quote = await apiClient.getNodeQuote(ticker);
+            return {
+              ticker: quote.ticker || ticker,
+              name: quote.name || quote.shortName || TICKER_LABELS[ticker] || ticker,
+              price: quote.price ?? 0,
+              change: quote.change ?? 0,
+              changePercent: quote.changePercent ?? 0,
+              timestamp: quote.timestamp,
+            };
+          } catch (err) {
+            console.error(`Failed to fetch ${ticker}:`, err);
+            const cached = getQuote(ticker);
+            if (cached) {
+              return {
+                ticker: cached.ticker,
+                name: cached.name || ticker,
+                price: cached.price,
+                change: cached.change,
+                changePercent: cached.changePercent,
+              };
+            }
+            return { ticker, name: ticker, price: 0, change: 0, changePercent: 0 };
+          }
+        })
+      );
+
+      setTickers(data);
+      setQuotes(
+        data.map((quote) => ({
+          ticker: quote.ticker,
+          price: quote.price,
+          change: quote.change,
+          changePercent: quote.changePercent,
+          name: quote.name,
+        }))
+      );
+    } catch (err) {
+      console.error('MarketOverview fetch error:', err);
+      setError('Failed to load market data');
+    } finally {
+      setLoading(false);
+    }
+  }, [getQuote, isStale, setQuotes]);
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 60000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (!isConnected) {
+      return;
     }
 
+    const cleanups = TRACKED_TICKERS.map((ticker) =>
+      subscribeTicker(ticker, (payload) => {
+        setTickers((current) => {
+          const nextMap = new Map(current.map((item) => [item.ticker, item]));
+          nextMap.set(payload.ticker, {
+            ticker: payload.ticker,
+            name: payload.longName || payload.shortName || TICKER_LABELS[payload.ticker] || payload.ticker,
+            price: payload.price,
+            change: payload.change,
+            changePercent: payload.changePercent,
+            timestamp: payload.timestamp?.toString(),
+          });
+          return TRACKED_TICKERS.map((trackedTicker) => nextMap.get(trackedTicker) || {
+            ticker: trackedTicker,
+            name: TICKER_LABELS[trackedTicker] || trackedTicker,
+            price: 0,
+            change: 0,
+            changePercent: 0,
+          });
+        });
+
+        setQuotes([{
+          ticker: payload.ticker,
+          price: payload.price,
+          change: payload.change,
+          changePercent: payload.changePercent,
+          name: payload.longName || payload.shortName || TICKER_LABELS[payload.ticker] || payload.ticker,
+        }]);
+      })
+    ).filter(Boolean) as Array<() => void>;
+
+    return () => {
+      cleanups.forEach((cleanup) => cleanup());
+    };
+  }, [isConnected, setQuotes, subscribeTicker]);
+
+  if (loading) {
     return (
-        <div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                {tickers.map((ticker) => (
-                    <div
-                        key={ticker.ticker}
-                        className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md rounded-lg p-4 border border-white/10 hover:border-amber-500/50 transition"
-                    >
-                        <div className="text-xs text-gray-400 mb-1">{ticker.name}</div>
-                        <div className="text-xl font-bold text-white mb-1">
-                            ${ticker.price.toFixed(2)}
-                        </div>
-                        <div
-                            className={`text-sm font-medium ${ticker.changePercent >= 0 ? 'text-green-400' : 'text-red-400'
-                                }`}
-                        >
-                            {ticker.changePercent >= 0 ? '↑' : '↓'} {Math.abs(ticker.changePercent).toFixed(2)}%
-                        </div>
-                    </div>
-                ))}
-            </div>
-            {lastUpdated && (
-                <p className="text-xs text-gray-500 mt-2 text-right">
-                    Last updated: {new Date(lastUpdated).toLocaleTimeString()}
-                </p>
-            )}
-        </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
+        {TRACKED_TICKERS.map((ticker) => (
+          <div key={ticker} className="animate-pulse rounded-[1.1rem] border border-slate-200 bg-white px-3.5 py-3">
+            <div className="mb-2 h-4 w-12 rounded bg-slate-100" />
+            <div className="mb-1 h-6 w-20 rounded bg-slate-100" />
+            <div className="h-3 w-16 rounded bg-slate-100" />
+          </div>
+        ))}
+      </div>
     );
+  }
+
+  if (error && tickers.length === 0) {
+    return (
+      <div className="rounded-[1.2rem] border border-red-500/30 bg-red-500/10 p-4 text-center">
+        <p className="text-sm text-red-300">{error}</p>
+        <button
+          onClick={() => {
+            setLoading(true);
+            fetchData();
+          }}
+          className="mt-2 text-sm text-red-400 underline transition hover:text-red-300"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
+        {tickers.map((ticker) => (
+          <div
+            key={ticker.ticker}
+            className="rounded-[1.1rem] border border-slate-200 bg-white px-3.5 py-3 transition hover:border-cyan-300/40"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">{ticker.ticker}</div>
+                <div className="mt-1 truncate text-xs text-slate-400">{ticker.name}</div>
+              </div>
+              <div
+                className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
+                  ticker.changePercent >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                }`}
+              >
+                {ticker.changePercent >= 0 ? '+' : '-'}
+                {Math.abs(ticker.changePercent).toFixed(2)}%
+              </div>
+            </div>
+            <div className="mt-4 text-lg font-bold text-slate-950">${ticker.price.toFixed(2)}</div>
+            <div className={`mt-1 text-xs font-medium ${ticker.change >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+              {ticker.change >= 0 ? 'Up' : 'Down'} ${Math.abs(ticker.change).toFixed(2)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {lastUpdated ? (
+        <p className="mt-3 text-right text-[11px] uppercase tracking-[0.22em] text-slate-500">
+          Live source: market-data service • updated {new Date(lastUpdated).toLocaleTimeString()}
+        </p>
+      ) : null}
+    </div>
+  );
 }

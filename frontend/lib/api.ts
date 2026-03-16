@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import { getMarketApiBase } from './marketTransport';
 
 const API_URL = (
   process.env.NEXT_PUBLIC_API_URL || ''
@@ -9,6 +10,7 @@ const NODE_API_URL = (
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const CAPEX_ACCESS_TOKEN_KEY = 'capex_access_token';
+const MARKET_API_BASE = getMarketApiBase();
 
 function getAccessToken(): string {
   if (typeof window === 'undefined') {
@@ -285,13 +287,11 @@ class APIClient {
 
   // Market Data
   async getQuote(ticker: string) {
-    const response = await this.client.get(`/market-data/quote/${ticker}`);
-    return response.data;
+    return this.getNodeQuote(ticker);
   }
 
   async getFundamentals(ticker: string) {
-    const response = await this.client.get(`/market-data/fundamentals/${ticker}`);
-    return response.data;
+    return this.getNodeFundamentals(ticker);
   }
 
   async getVolatilityForecast(ticker: string, horizon: number = 30) {
@@ -322,11 +322,11 @@ class APIClient {
   }
 
   async getHistoricalPrices(ticker: string, startDate?: string, endDate?: string) {
-    const params: any = {};
+    const params: Record<string, string> = {};
     if (startDate) params.start = startDate;
     if (endDate) params.end = endDate;
 
-    const response = await this.client.get(`/market-data/history/${ticker}`, { params });
+    const response = await this.client.get(`${MARKET_API_BASE}/history/${ticker}`, { params });
     return response.data;
   }
 
@@ -605,61 +605,64 @@ class APIClient {
   }
 
   async getNodeQuote(ticker: string) {
-    // Generate pseudo-random live-ish data based on ticker hash and current time
-    const basePrice = this.getBasePrice(ticker);
-    const timeVariability = (new Date().getSeconds() % 60) / 60; // 0 to 1
-    const volatilityMultiplier = basePrice > 1000 ? 50 : (basePrice > 100 ? 5 : 0.5); // scale volatility
-    const priceChange = (Math.random() - 0.45) * volatilityMultiplier * timeVariability; // Slight upward bias
-    const price = basePrice + priceChange;
-    const changePercent = (priceChange / basePrice) * 100;
+    const response = await this.client.get(`${MARKET_API_BASE}/quote/${ticker}`);
+    const data = response.data;
 
-    return Promise.resolve({
-      ticker: ticker.toUpperCase(),
-      price,
-      change: priceChange,
-      changePercent,
-      dayLow: price * 0.98,
-      dayHigh: price * 1.02,
-      volume: Math.floor(basePrice * 10000 * Math.random()),
-    });
+    return {
+      ...data,
+      ticker: data.ticker || ticker.toUpperCase(),
+      name: data.name || data.shortName || data.ticker || ticker.toUpperCase(),
+      dayHigh: data.dayHigh ?? data.high ?? data.price ?? 0,
+      dayLow: data.dayLow ?? data.low ?? data.price ?? 0,
+    };
   }
 
   async getNodeHistory(ticker: string, start?: string, end?: string) {
-    // Return a mocked 6-month history of ~100 data points
-    const basePrice = this.getBasePrice(ticker);
-    const history = [];
-    let currentPrice = basePrice * 0.8; // start lower
-    const now = new Date();
+    const params: Record<string, string> = {};
+    if (start) params.start = start;
+    if (end) params.end = end;
 
-    for (let i = 100; i >= 0; i--) {
-      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-      currentPrice = currentPrice * (1 + (Math.random() - 0.45) * 0.05); // walk
-      history.push({
-        date: date.toISOString().split('T')[0],
-        close: currentPrice,
-        price: currentPrice
-      });
-    }
-
-    return Promise.resolve(history);
+    const response = await this.client.get(`${MARKET_API_BASE}/history/${ticker}`, {
+      params,
+    });
+    return response.data;
   }
 
   async getNodeFundamentals(ticker: string) {
-    const response = await this.client.get(`${NODE_API_URL}/api/market-data/fundamentals/${ticker}`);
+    const response = await this.client.get(`${MARKET_API_BASE}/fundamentals/${ticker}`);
     return response.data;
   }
 
   async searchNodeTickers(query: string, assetType?: string) {
     const params: Record<string, string> = { q: query };
     if (assetType) params.assetType = assetType;
-    const response = await this.client.get(`${NODE_API_URL}/api/market-data/search`, { params });
+    const response = await this.client.get(`${MARKET_API_BASE}/search`, { params });
+    return response.data;
+  }
+
+  async getNodeInstrument(ticker: string) {
+    const response = await this.client.get(`${MARKET_API_BASE}/instrument/${ticker}`);
+    return response.data;
+  }
+
+  async getNodeNews(ticker: string, limit: number = 8) {
+    const response = await this.client.get(`${MARKET_API_BASE}/news/${ticker}`, {
+      params: { limit },
+    });
+    return response.data;
+  }
+
+  async getNodeSnapshot(ticker: string, newsLimit: number = 8) {
+    const response = await this.client.get(`${MARKET_API_BASE}/snapshot/${ticker}`, {
+      params: { newsLimit },
+    });
     return response.data;
   }
 
   async getNodeInsights(ticker?: string) {
     const params: Record<string, string> = {};
     if (ticker) params.ticker = ticker;
-    const response = await this.client.get(`${NODE_API_URL}/api/market-data/insights`, { params });
+    const response = await this.client.get(`${MARKET_API_BASE}/insights`, { params });
     return response.data;
   }
 

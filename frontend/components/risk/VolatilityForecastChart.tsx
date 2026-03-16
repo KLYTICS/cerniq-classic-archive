@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from 'recharts';
+import { Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from 'recharts';
 import { apiClient } from '@/lib/api';
 
 interface VolatilityForecast {
@@ -43,8 +43,8 @@ export function VolatilityForecastChart({ ticker, horizon = 30 }: VolatilityFore
                 }
                 if (!result) throw new Error('Failed to fetch volatility forecast');
                 setData(result);
-            } catch (err: any) {
-                setError(err.message || 'Failed to fetch data');
+            } catch (err: unknown) {
+                setError(err instanceof Error ? err.message : 'Failed to fetch data');
             } finally {
                 setLoading(false);
             }
@@ -55,10 +55,10 @@ export function VolatilityForecastChart({ ticker, horizon = 30 }: VolatilityFore
 
     if (loading) {
         return (
-            <div className="p-6 bg-slate-900 rounded-xl border border-slate-700">
+            <div className="cerniq-panel p-6">
                 <div className="animate-pulse space-y-4">
-                    <div className="h-6 bg-slate-700 rounded w-1/3"></div>
-                    <div className="h-64 bg-slate-700 rounded"></div>
+                    <div className="h-6 w-1/3 rounded bg-slate-100"></div>
+                    <div className="h-64 rounded bg-slate-100"></div>
                 </div>
             </div>
         );
@@ -66,8 +66,8 @@ export function VolatilityForecastChart({ ticker, horizon = 30 }: VolatilityFore
 
     if (error) {
         return (
-            <div className="p-6 bg-red-900/20 rounded-xl border border-red-700">
-                <p className="text-red-400">Error: {error}</p>
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-6">
+                <p className="text-rose-700">Error: {error}</p>
             </div>
         );
     }
@@ -85,7 +85,7 @@ export function VolatilityForecastChart({ ticker, horizon = 30 }: VolatilityFore
 
     return (
         <motion.div
-            className="p-6 bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl border border-slate-700 shadow-lg"
+            className="cerniq-panel p-6 shadow-lg"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -94,12 +94,12 @@ export function VolatilityForecastChart({ ticker, horizon = 30 }: VolatilityFore
             <div className="mb-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h3 className="text-xl font-bold text-white mb-1">Volatility Forecast: {ticker}</h3>
-                        <p className="text-sm text-slate-400">{data.model} - {horizon}-day forecast</p>
+                        <h3 className="text-xl font-bold text-slate-950 mb-1">Volatility Forecast: {ticker}</h3>
+                        <p className="text-sm text-slate-500">{data.model} - {horizon}-day forecast</p>
                     </div>
                     <div className="text-right">
-                        <div className="text-xs text-slate-400">Current Vol</div>
-                        <div className="text-2xl font-bold text-purple-400">
+                        <div className="text-xs text-slate-500">Current Vol</div>
+                        <div className="text-2xl font-bold text-cyan-700">
                             {(data.currentVolatility * 100).toFixed(2)}%
                         </div>
                     </div>
@@ -112,30 +112,31 @@ export function VolatilityForecastChart({ ticker, horizon = 30 }: VolatilityFore
                     <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                         <defs>
                             <linearGradient id="colorVol" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                                <stop offset="5%" stopColor="#0891b2" stopOpacity={0.25} />
+                                <stop offset="95%" stopColor="#0891b2" stopOpacity={0} />
                             </linearGradient>
                             <linearGradient id="colorCI" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
-                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                <stop offset="5%" stopColor="#7dd3fc" stopOpacity={0.18} />
+                                <stop offset="95%" stopColor="#7dd3fc" stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                        <XAxis dataKey="day" stroke="#94a3b8" label={{ value: 'Days Ahead', position: 'insideBottom', offset: -5, fill: '#94a3b8' }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
+                        <XAxis dataKey="day" stroke="#64748b" label={{ value: 'Days Ahead', position: 'insideBottom', offset: -5, fill: '#64748b' }} />
                         <YAxis
-                            stroke="#94a3b8"
+                            stroke="#64748b"
                             tickFormatter={(value) => `${(value * 100).toFixed(1)}%`}
-                            label={{ value: 'Volatility', angle: -90, position: 'insideLeft', fill: '#94a3b8' }}
+                            label={{ value: 'Volatility', angle: -90, position: 'insideLeft', fill: '#64748b' }}
                         />
                         <Tooltip
                             contentStyle={{
-                                backgroundColor: '#1e293b',
-                                border: '1px solid #475569',
+                                backgroundColor: '#ffffff',
+                                border: '1px solid #cbd5e1',
                                 borderRadius: '8px',
                             }}
-                            labelStyle={{ color: '#f1f5f9' }}
-                            formatter={(value: any, name: string | undefined) => {
-                                const formatted = `${(value * 100).toFixed(2)}%`;
+                            labelStyle={{ color: '#0f172a' }}
+                            formatter={(value: number | string, name: string | undefined) => {
+                                const numericValue = Number(value);
+                                const formatted = `${(numericValue * 100).toFixed(2)}%`;
                                 if (name === 'volatility') return [formatted, 'Forecast'];
                                 if (name === 'lower95') return [formatted, '95% Lower Bound'];
                                 if (name === 'upper95') return [formatted, '95% Upper Bound'];
@@ -157,7 +158,7 @@ export function VolatilityForecastChart({ ticker, horizon = 30 }: VolatilityFore
                             type="monotone"
                             dataKey="lower95"
                             stroke="none"
-                            fill="#1e293b"
+                            fill="#ffffff"
                             fillOpacity={1}
                         />
 
@@ -165,15 +166,15 @@ export function VolatilityForecastChart({ ticker, horizon = 30 }: VolatilityFore
                         <Line
                             type="monotone"
                             dataKey="volatility"
-                            stroke="#a855f7"
+                            stroke="#0891b2"
                             strokeWidth={3}
-                            dot={{ fill: '#a855f7', r: 4 }}
+                            dot={{ fill: '#0891b2', r: 4 }}
                             name="Forecast"
                         />
                         <Line
                             type="monotone"
                             dataKey="lower95"
-                            stroke="#3b82f6"
+                            stroke="#38bdf8"
                             strokeWidth={1}
                             strokeDasharray="5 5"
                             dot={false}
@@ -182,7 +183,7 @@ export function VolatilityForecastChart({ ticker, horizon = 30 }: VolatilityFore
                         <Line
                             type="monotone"
                             dataKey="upper95"
-                            stroke="#3b82f6"
+                            stroke="#38bdf8"
                             strokeWidth={1}
                             strokeDasharray="5 5"
                             dot={false}
@@ -194,33 +195,33 @@ export function VolatilityForecastChart({ ticker, horizon = 30 }: VolatilityFore
 
             {/* Forecast Statistics */}
             <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                    <div className="text-xs text-slate-400 mb-1">Avg Forecast</div>
-                    <div className="text-xl font-bold text-purple-400">{(avgForecast * 100).toFixed(2)}%</div>
+                <div className="rounded-lg border border-slate-200 bg-white/86 p-4">
+                    <div className="mb-1 text-xs text-slate-500">Avg Forecast</div>
+                    <div className="text-xl font-bold text-cyan-700">{(avgForecast * 100).toFixed(2)}%</div>
                 </div>
 
-                <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                    <div className="text-xs text-slate-400 mb-1">Trend</div>
-                    <div className={`text-xl font-bold ${trend === 'increasing' ? 'text-red-400' : 'text-green-400'}`}>
+                <div className="rounded-lg border border-slate-200 bg-white/86 p-4">
+                    <div className="mb-1 text-xs text-slate-500">Trend</div>
+                    <div className={`text-xl font-bold ${trend === 'increasing' ? 'text-rose-700' : 'text-emerald-700'}`}>
                         {trend === 'increasing' ? '↑' : '↓'} {Math.abs(((avgForecast - data.currentVolatility) / data.currentVolatility) * 100).toFixed(1)}%
                     </div>
                 </div>
 
-                <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                    <div className="text-xs text-slate-400 mb-1">Day {horizon} Forecast</div>
-                    <div className="text-xl font-bold text-white">
+                <div className="rounded-lg border border-slate-200 bg-white/86 p-4">
+                    <div className="mb-1 text-xs text-slate-500">Day {horizon} Forecast</div>
+                    <div className="text-xl font-bold text-slate-950">
                         {(data.forecast[data.forecast.length - 1].volatility * 100).toFixed(2)}%
                     </div>
                 </div>
             </div>
 
             {/* Model Info */}
-            <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+            <div className="rounded-lg border border-cyan-200 bg-cyan-50/80 p-4">
                 <div className="flex items-start gap-3">
-                    <div className="text-purple-400 text-xl">📈</div>
+                    <div className="text-cyan-700 text-xl">📈</div>
                     <div>
-                        <h5 className="text-sm font-semibold text-purple-400 mb-1">GARCH(1,1) Model</h5>
-                        <p className="text-xs text-slate-300">
+                        <h5 className="mb-1 text-sm font-semibold text-cyan-700">GARCH(1,1) Model</h5>
+                        <p className="text-xs text-slate-700">
                             Forecasts volatility using historical variance dynamics. The shaded area shows the 95% confidence interval.
                             {trend === 'increasing' && ' Rising volatility suggests increasing market uncertainty.'}
                             {trend === 'decreasing' && ' Decreasing volatility suggests calmer market conditions ahead.'}

@@ -1,8 +1,10 @@
-import { Controller, Post, Get, Body, Query, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, HttpException, HttpStatus, UseGuards } from '@nestjs/common';
 import { ExecutionService } from './execution.service';
 import { BacktestService } from './backtest.service';
+import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('api/execution')
+@UseGuards(AuthGuard)
 export class ExecutionController {
     constructor(
         private readonly executionService: ExecutionService,

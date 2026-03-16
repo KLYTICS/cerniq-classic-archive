@@ -65,7 +65,7 @@ describe('OrganizationsService', () => {
                 { id: 'org-2', name: 'Org 2' },
             ]);
 
-            const result = await service.findAllForUser('user-1');
+            const result = await service.findAll('user-1');
 
             expect(result).toHaveLength(2);
         });
@@ -100,15 +100,15 @@ describe('OrganizationsService', () => {
     });
 
     describe('removeMember', () => {
-        it('should not allow removing the last admin', async () => {
+        it('should not allow removing the last admin (self-removal)', async () => {
+            // requester is admin and is removing themselves
             prisma.organizationMember.findUnique
-                .mockResolvedValueOnce({ id: '1', role: 'ADMIN' })  // requester
-                .mockResolvedValueOnce({ id: '2', role: 'ADMIN' }); // target
+                .mockResolvedValueOnce({ id: '1', role: 'ADMIN', userId: 'admin-user' });
             prisma.organizationMember.count.mockResolvedValue(1); // only 1 admin
 
             await expect(
                 service.removeMember('org-1', 'admin-user', 'admin-user'),
-            ).rejects.toThrow();
+            ).rejects.toThrow('Cannot remove the last admin');
         });
     });
 });

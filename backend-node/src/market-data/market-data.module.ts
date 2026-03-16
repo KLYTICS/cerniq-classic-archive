@@ -6,11 +6,20 @@ import { TechnicalIndicatorsService } from './technical-indicators.service';
 import { YahooFinanceProvider } from './providers/yahoo-finance.provider';
 import { CoinGeckoProvider } from './providers/coingecko.provider';
 import { LlmModule } from '../llm/llm.module';
+import { DataQualityService } from '../common/data-quality.service';
+import { MarketStreamManagerService } from './market-stream-manager.service';
 
 @Module({
     imports: [LlmModule],
     controllers: [MarketDataController, ChartsController],
-    providers: [MarketDataService, TechnicalIndicatorsService, YahooFinanceProvider, CoinGeckoProvider],
-    exports: [MarketDataService, TechnicalIndicatorsService],
+    providers: [
+        MarketDataService,
+        TechnicalIndicatorsService,
+        YahooFinanceProvider,
+        CoinGeckoProvider,
+        DataQualityService,
+        MarketStreamManagerService,
+    ],
+    exports: [MarketDataService, TechnicalIndicatorsService, MarketStreamManagerService],
 })
 export class MarketDataModule { }

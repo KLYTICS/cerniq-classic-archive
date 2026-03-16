@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma.module';
+import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
 import { MarketDataModule } from './market-data/market-data.module';
 import { TickerModule } from './ticker/ticker.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
@@ -26,12 +27,17 @@ import { LeadsModule } from './leads/leads.module';
 import { BillingModule } from './billing/billing.module';
 import { PipelineModule } from './pipeline/pipeline.module';
 import { PortalModule } from './portal/portal.module';
+import { FeedbackModule } from './feedback/feedback.module';
+import { DataCryptoModule } from './crypto/data-crypto.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
     // Rate limiting — 100 requests per minute globally
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     PrismaModule,
+    // Application-level encryption (AES-256-GCM)
+    DataCryptoModule,
     CacheModule,
     MarketDataModule,
     TickerModule,
@@ -62,6 +68,10 @@ import { PortalModule } from './portal/portal.module';
     PipelineModule,
     // Client portal API
     PortalModule,
+    // Audit trail (COSSEC compliance)
+    AuditModule,
+    // NPS feedback & surveys
+    FeedbackModule,
   ],
   controllers: [AppController],
   providers: [
@@ -69,6 +79,10 @@ import { PortalModule } from './portal/portal.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditLogInterceptor,
     },
   ],
 })

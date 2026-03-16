@@ -44,7 +44,7 @@ export default function TickerSearch({ onSearch, isLoading }: TickerSearchProps)
         <div className="relative">
             <div className="flex gap-3">
                 <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                     <input
                         type="text"
                         value={ticker}
@@ -55,14 +55,14 @@ export default function TickerSearch({ onSearch, isLoading }: TickerSearchProps)
                         onFocus={() => setShowSuggestions(true)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                         placeholder="Enter ticker symbol (e.g., LRCX, AMAT, KLAC)"
-                        className="w-full pl-12 pr-4 py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition"
+                        className="w-full rounded-[1.2rem] border border-slate-200 bg-white py-4 pr-4 pl-12 text-slate-950 placeholder:text-slate-400 transition focus:border-cyan-300 focus:outline-none focus:ring-4 focus:ring-cyan-100"
                         disabled={isLoading}
                     />
                 </div>
                 <button
                     onClick={handleSearch}
                     disabled={isLoading || !ticker.trim()}
-                    className="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition flex items-center gap-2 shadow-lg hover:shadow-purple-500/50"
+                    className="cerniq-button-primary px-8 py-4 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {isLoading ? (
                         <>
@@ -80,18 +80,18 @@ export default function TickerSearch({ onSearch, isLoading }: TickerSearchProps)
 
             {/* Suggestions Dropdown */}
             {showSuggestions && ticker && filteredTickers.length > 0 && !isLoading && (
-                <div className="absolute z-10 w-full mt-2 bg-slate-800/95 backdrop-blur-md border border-white/20 rounded-xl overflow-hidden shadow-2xl">
+                <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white/98 shadow-xl shadow-slate-200/70">
                     {filteredTickers.map((t) => (
                         <button
                             key={t.symbol}
                             onClick={() => handleSelect(t.symbol)}
-                            className="w-full px-4 py-3 hover:bg-purple-600/20 transition text-left flex items-center justify-between group"
+                            className="group flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-cyan-50"
                         >
                             <div>
-                                <div className="text-white font-semibold">{t.symbol}</div>
-                                <div className="text-gray-400 text-sm">{t.name}</div>
+                                <div className="font-semibold text-slate-950">{t.symbol}</div>
+                                <div className="text-sm text-slate-500">{t.name}</div>
                             </div>
-                            <TrendingUp className="w-4 h-4 text-gray-400 group-hover:text-purple-400 transition" />
+                            <TrendingUp className="h-4 w-4 text-slate-400 transition group-hover:text-cyan-700" />
                         </button>
                     ))}
                 </div>
