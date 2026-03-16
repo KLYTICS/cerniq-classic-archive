@@ -70,14 +70,14 @@ export default function ProgressTracker({ currentStep, completedSteps }: Progres
                         : 'text-slate-400'
                   }`}
                 >
-                  {step.labelEs}
+                  {step.labelEn}
                 </p>
                 <p
                   className={`text-[10px] leading-tight ${
                     isFuture ? 'text-slate-300' : 'text-slate-500'
                   }`}
                 >
-                  {step.labelEn}
+                  {step.labelEs}
                 </p>
               </div>
             </div>

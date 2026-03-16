@@ -1,0 +1,32 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e6]: C
+      - paragraph [ref=e7]: CERNIQ
+    - generic [ref=e8]:
+      - heading "Set up your institution" [level=2] [ref=e9]
+      - paragraph [ref=e10]: Takes about 10 seconds
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - generic [ref=e13]: Institution Name
+          - textbox [ref=e14]: CoopAhorro San Juan
+        - generic [ref=e15]:
+          - generic [ref=e16]:
+            - generic [ref=e17]: Asset Size
+            - combobox [ref=e18]:
+              - option "Under $100M"
+              - option "$100M - $500M" [selected]
+              - option "$500M - $1B"
+              - option "$1B - $5B"
+              - option "$5B+"
+          - generic [ref=e19]:
+            - generic [ref=e20]: Type
+            - combobox [ref=e21]:
+              - option "Community Bank"
+              - option "Credit Union"
+              - option "Cooperativa PR" [selected]
+              - option "Family Office"
+      - button "Continue" [ref=e22]:
+        - text: Continue
+        - img [ref=e23]
+  - alert [ref=e25]

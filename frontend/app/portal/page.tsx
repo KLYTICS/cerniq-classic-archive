@@ -12,6 +12,8 @@ import { SkeletonLoader, EmptyState, ErrorBanner } from '@/components/ui/cerniq'
 import { useFeature } from '@/lib/features';
 import type { SubscriptionTier } from '@/lib/features';
 import ProgressTracker from '@/components/portal/ProgressTracker';
+import WorkspaceCommandCenter from '@/components/portal/WorkspaceCommandCenter';
+import { rememberPortalUser } from '@/lib/subscription';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
 
@@ -77,7 +79,7 @@ function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
 
   // Mark this user as a portal/billing user so they skip retail onboarding
   if (isWelcome && typeof window !== 'undefined') {
-    localStorage.setItem('cerniq_portal_user', 'true');
+    rememberPortalUser();
   }
 
   if (!isWelcome) return null;
@@ -94,18 +96,18 @@ function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
       <div className="relative z-10">
         <div className="flex items-center gap-2 mb-4">
           <CheckCircle className="h-6 w-6 text-[#18C87A]" />
-          <span className="text-sm font-medium text-[#18C87A]">Pago confirmado / Payment confirmed</span>
+          <span className="text-sm font-medium text-[#18C87A]">Payment confirmed / Pago confirmado</span>
         </div>
 
         <h1 className="font-display text-2xl sm:text-4xl font-bold text-white leading-tight">
-          Bienvenido a CERNIQ{institutionName ? `, ${institutionName}` : ''}!
+          Welcome to CERNIQ{institutionName ? `, ${institutionName}` : ''}!
         </h1>
         <p className="mt-1 text-lg sm:text-xl text-white/70">
-          Welcome to CERNIQ{institutionName ? `, ${institutionName}` : ''}!
+          Bienvenido a CERNIQ{institutionName ? `, ${institutionName}` : ''}!
         </p>
 
         <p className="mt-4 text-sm sm:text-base text-white/60 max-w-xl">
-          Su analisis ALM comienza aqui. / Your ALM analysis starts here.
+          Your ALM analysis starts here. / Su analisis ALM comienza aqui.
         </p>
 
         <div className="mt-6">
@@ -115,7 +117,7 @@ function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
               className="inline-flex items-center gap-2 rounded-xl bg-[#E8A020] px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[#d19218] transition-colors"
             >
               <Upload className="h-4 w-4" />
-              Cargar datos / Upload data
+              Upload data / Cargar datos
               <ArrowRight className="h-4 w-4" />
             </Link>
           ) : (
@@ -123,7 +125,7 @@ function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
               href="/portal/submit"
               className="inline-flex items-center gap-2 rounded-xl bg-[#E8A020] px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[#d19218] transition-colors"
             >
-              Configurar institucion / Set up institution
+              Set up institution / Configurar institucion
               <ArrowRight className="h-4 w-4" />
             </Link>
           )}
@@ -158,19 +160,19 @@ function ProcessingState({ job }: { job: ReportJob }) {
       </div>
 
       <h2 className="text-lg font-semibold text-slate-900">
-        Procesando su analisis ALM...
+        Processing your ALM analysis...
       </h2>
       <p className="text-sm text-slate-500 mt-1">
-        Processing your ALM analysis...
+        Procesando su analisis ALM...
       </p>
 
       {/* Rotating status message */}
       <div className="mt-5 min-h-[3rem]">
         <p className="text-sm font-medium text-[#1ABFFF] animate-pulse">
-          {msg.es}
+          {msg.en}
         </p>
         <p className="text-xs text-slate-400 mt-0.5">
-          {msg.en}
+          {msg.es}
         </p>
       </div>
 
@@ -189,11 +191,11 @@ function ProcessingState({ job }: { job: ReportJob }) {
 
       <div className="mt-6 rounded-xl bg-slate-50 border border-slate-100 p-4 max-w-sm mx-auto">
         <p className="text-xs text-slate-500">
-          <strong className="text-slate-700">Tiempo estimado / Estimated time:</strong>{' '}
+          <strong className="text-slate-700">Estimated time / Tiempo estimado:</strong>{' '}
           30-60 minutos
         </p>
         <p className="text-[10px] text-slate-400 mt-1">
-          Le enviaremos un email cuando este listo. / We will email you when it is ready.
+          We will email you when it is ready. / Le enviaremos un email cuando este listo.
         </p>
       </div>
     </div>
@@ -210,16 +212,16 @@ function ReportReadyState({ job }: { job: ReportJob }) {
         </div>
         <div className="flex-1">
           <h2 className="text-xl font-semibold text-slate-900">
-            Su Informe ALM esta listo
+            Your ALM Report is Ready
           </h2>
           <p className="text-sm text-slate-500 mt-0.5">
-            Your ALM Report is Ready
+            Su Informe ALM esta listo
           </p>
           <p className="mt-3 text-sm text-slate-600">
-            El informe para <strong>{job.institutionName}</strong> ha sido generado exitosamente.
+            The report for <strong>{job.institutionName}</strong> has been generated successfully.
             <br />
             <span className="text-slate-400">
-              The report for <strong>{job.institutionName}</strong> has been generated successfully.
+              El informe para <strong>{job.institutionName}</strong> ha sido generado exitosamente.
             </span>
           </p>
 
@@ -229,14 +231,14 @@ function ReportReadyState({ job }: { job: ReportJob }) {
               className="inline-flex items-center gap-2 rounded-xl bg-[#E8A020] px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[#d19218] transition-colors"
             >
               <Eye className="h-4 w-4" />
-              Ver informe / View Report
+              View report / Ver informe
             </Link>
             <a
               href={`${NODE_API_URL}/api/portal/jobs/${job.id}/download`}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <Download className="h-4 w-4" />
-              Descargar PDF / Download PDF
+              Download PDF / Descargar PDF
             </a>
           </div>
 
@@ -246,10 +248,10 @@ function ReportReadyState({ job }: { job: ReportJob }) {
               <Calendar className="h-5 w-5 text-[#1ABFFF] mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm font-medium text-slate-700">
-                  Quiere revisar el informe juntos?
+                  Want to review the report together?
                 </p>
                 <p className="text-xs text-slate-400">
-                  Want to review the report together?
+                  Quiere revisar el informe juntos?
                 </p>
                 <a
                   href="https://calendly.com/erwin-klytics/30min"
@@ -257,7 +259,7 @@ function ReportReadyState({ job }: { job: ReportJob }) {
                   rel="noopener noreferrer"
                   className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-[#1ABFFF] hover:underline"
                 >
-                  Agende 30 min con Erwin / Schedule 30 min with Erwin
+                  Schedule 30 min with Erwin / Agende 30 min con Erwin
                   <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
@@ -278,31 +280,31 @@ function StatusBadge({ status }: { status: string }) {
     case 'COMPLETE':
       bg = 'bg-[#18C87A]/10';
       text = 'text-[#18C87A]';
-      label = 'Completado / Complete';
+      label = 'Complete / Completado';
       break;
     case 'PROCESSING':
     case 'GENERATING_PDF':
     case 'UPLOADING':
       bg = 'bg-[#1ABFFF]/10';
       text = 'text-[#1ABFFF]';
-      label = 'Procesando / Processing';
+      label = 'Processing / Procesando';
       break;
     case 'QUEUED':
     case 'VALIDATING':
       bg = 'bg-[#E8A020]/10';
       text = 'text-[#E8A020]';
-      label = 'En cola / Queued';
+      label = 'Queued / En cola';
       break;
     case 'AWAITING_DATA':
       bg = 'bg-slate-100';
       text = 'text-slate-500';
-      label = 'Esperando datos / Awaiting data';
+      label = 'Awaiting data / Esperando datos';
       break;
     case 'FAILED':
     case 'VALIDATION_FAILED':
       bg = 'bg-rose-50';
       text = 'text-rose-600';
-      label = 'Error / Failed';
+      label = 'Failed / Error';
       break;
     default:
       bg = 'bg-slate-100';
@@ -343,7 +345,13 @@ export default function PortalHome() {
   }, []);
 
   useEffect(() => {
-    loadJobs();
+    const timer = window.setTimeout(() => {
+      loadJobs();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [loadJobs]);
 
   const latestJob = jobs[0];
@@ -356,32 +364,6 @@ export default function PortalHome() {
 
   return (
     <div className="space-y-6">
-      {/* Hero shell */}
-      <section className="cerniq-shell p-6 sm:p-8">
-        <div className="cerniq-data-wave" />
-        <div className="relative z-10">
-          <span className="cerniq-kicker mb-5">Portal del cliente / Client portal</span>
-          <h1 className="font-display text-3xl text-slate-950 sm:text-5xl">
-            Bienvenido{user?.name ? `, ${user.name}` : ''}
-          </h1>
-          <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
-            Gestione sus informes, cargue datos de balance y revise los entregables CERNIQ.
-            <br className="hidden sm:block" />
-            <span className="text-slate-400">
-              Manage reports, upload balance-sheet data, and review CERNIQ deliverables.
-            </span>
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <span className="cerniq-mini-stat">
-              <strong>{subscription?.tier || 'Free'}</strong> plan
-            </span>
-            <span className="cerniq-mini-stat">
-              <strong>{completedJobs.length}</strong> informes / reports
-            </span>
-          </div>
-        </div>
-      </section>
-
       <h1 className="sr-only">
         Welcome back{user?.name ? `, ${user.name}` : ''}
       </h1>
@@ -391,10 +373,16 @@ export default function PortalHome() {
         <WelcomeBanner latestJob={latestJob} />
       </Suspense>
 
+      <WorkspaceCommandCenter
+        userName={user?.name}
+        tier={tier}
+        jobs={jobs.map((job) => ({ id: job.id, status: job.status }))}
+      />
+
       {/* Progress Tracker */}
       <div className="cerniq-panel p-6">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-          Progreso / Progress
+          Progress / Progreso
         </h2>
         <ProgressTracker currentStep={currentStep} completedSteps={completed} />
       </div>
@@ -413,20 +401,20 @@ export default function PortalHome() {
       {!isProcessing && !isComplete && (
         <div className="cerniq-panel p-6">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">
-            Siguiente paso / Next Step
+            Next step / Siguiente paso
           </h2>
 
           {!latestJob && (
             <div>
               <p className="mb-4 text-slate-700">
-                Comience enviando sus datos de balance. / Get started by submitting your balance sheet data.
+                Get started by submitting your balance sheet data. / Comience enviando sus datos de balance.
               </p>
               <div className="flex gap-3">
                 <Link
                   href="/portal/submit"
                   className="cerniq-button-primary px-4 py-2.5 text-sm"
                 >
-                  <Upload className="h-4 w-4" /> Cargar datos / Upload Data
+                  <Upload className="h-4 w-4" /> Upload data / Cargar datos
                 </Link>
               </div>
             </div>
@@ -435,10 +423,10 @@ export default function PortalHome() {
           {latestJob?.status === 'AWAITING_DATA' && (
             <div>
               <p className="mb-4 text-slate-700">
-                Envie su balance para generar el informe de <strong>{latestJob.institutionName}</strong>.
+                Submit your balance sheet to generate the report for <strong>{latestJob.institutionName}</strong>.
                 <br />
                 <span className="text-slate-400 text-sm">
-                  Submit your balance sheet to generate the report for <strong>{latestJob.institutionName}</strong>.
+                  Envie su balance para generar el informe de <strong>{latestJob.institutionName}</strong>.
                 </span>
               </p>
               <div className="flex flex-wrap gap-3">
@@ -446,13 +434,13 @@ export default function PortalHome() {
                   href={`${NODE_API_URL}/api/alm/templates/cooperativa`}
                   className="cerniq-button-secondary px-4 py-2.5 text-sm"
                 >
-                  <Download className="h-4 w-4" /> Descargar plantilla / Download Template
+                  <Download className="h-4 w-4" /> Download template / Descargar plantilla
                 </a>
                 <Link
                   href="/portal/submit"
                   className="cerniq-button-primary px-4 py-2.5 text-sm"
                 >
-                  <Upload className="h-4 w-4" /> Cargar datos / Upload Data
+                  <Upload className="h-4 w-4" /> Upload data / Cargar datos
                 </Link>
               </div>
             </div>
@@ -461,10 +449,10 @@ export default function PortalHome() {
           {latestJob?.status === 'FAILED' && (
             <div>
               <p className="mb-4 text-rose-700">
-                Hubo un problema generando su informe. Nuestro equipo ha sido notificado.
+                There was an issue generating your report. Our team has been notified.
                 <br />
                 <span className="text-rose-400 text-sm">
-                  There was an issue generating your report. Our team has been notified.
+                  Hubo un problema generando su informe. Nuestro equipo ha sido notificado.
                 </span>
               </p>
             </div>
@@ -480,12 +468,12 @@ export default function PortalHome() {
               <Lock className="mx-auto mb-3 h-8 w-8 text-[#E8A020]" />
               <p className="mb-2 text-sm font-medium text-slate-950">{trendFeature.upgradePrompt}</p>
               <Link href="/portal/billing" className="text-xs text-[#E8A020] hover:underline">
-                Mejorar plan / Upgrade plan <ArrowRight className="inline h-3 w-3" />
+                Upgrade plan / Mejorar plan <ArrowRight className="inline h-3 w-3" />
               </Link>
             </div>
           </div>
           <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Tendencias trimestrales / Quarterly Trends
+            Quarterly trends / Tendencias trimestrales
           </h2>
           <div className="h-48 rounded-lg bg-slate-100" />
         </div>
@@ -505,7 +493,7 @@ export default function PortalHome() {
       <div className="cerniq-table-shell overflow-hidden">
         <div className="border-b border-slate-200/80 px-6 py-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Historial de informes / Report History
+            Report history / Historial de informes
           </h2>
         </div>
         {loading ? (
@@ -533,16 +521,16 @@ export default function PortalHome() {
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/60">
                   <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Institucion / Institution
+                    Institution / Institucion
                   </th>
                   <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Estado / Status
+                    Status / Estado
                   </th>
                   <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Fecha / Date
+                    Date / Fecha
                   </th>
                   <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Acciones / Actions
+                    Actions / Acciones
                   </th>
                 </tr>
               </thead>
@@ -567,7 +555,7 @@ export default function PortalHome() {
                           className="inline-flex items-center gap-1 text-xs font-medium text-[#1ABFFF] hover:underline"
                         >
                           <Eye className="h-3 w-3" />
-                          Ver / View
+                          View / Ver
                         </Link>
                       ) : job.status === 'AWAITING_DATA' || job.status === 'VALIDATION_FAILED' ? (
                         <Link
@@ -575,7 +563,7 @@ export default function PortalHome() {
                           className="inline-flex items-center gap-1 text-xs font-medium text-[#E8A020] hover:underline"
                         >
                           <Upload className="h-3 w-3" />
-                          Cargar / Upload
+                          Upload / Cargar
                         </Link>
                       ) : (
                         <span className="text-xs text-slate-400">--</span>

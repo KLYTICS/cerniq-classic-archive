@@ -6,18 +6,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import { BarChart3, Upload, CreditCard, Settings, LogOut, HelpCircle } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { CerniqLockup } from '@/components/brand/CerniqLogo';
+import PortalPaywall from '@/components/portal/PortalPaywall';
+import { requiresPortalPaywall, type PortalSubscription } from '@/lib/subscription';
 
 interface PortalUser {
   id: string;
   email: string;
   name?: string;
-}
-
-interface PortalSubscription {
-  tier: string;
-  status: string;
-  currentPeriodEnd?: string;
-  reportsUsed?: number;
 }
 
 interface PortalContextType {
@@ -100,6 +95,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     );
   }
 
+  const showPortalPaywall = Boolean(user && requiresPortalPaywall(subscription));
+
   return (
     <PortalContext.Provider value={{ user, subscription, loading }}>
       <ErrorBoundary context="portal">
@@ -166,7 +163,15 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
           <main className="flex-1 overflow-auto">
             <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-              <div className="mx-auto max-w-6xl">{children}</div>
+              <div className="mx-auto max-w-6xl">
+                {showPortalPaywall && user ? (
+                  <PortalPaywall
+                    path={pathname}
+                    subscription={subscription}
+                    user={{ email: user.email, name: user.name }}
+                  />
+                ) : children}
+              </div>
             </div>
           </main>
         </div>

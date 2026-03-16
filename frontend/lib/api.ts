@@ -207,6 +207,16 @@ class APIClient {
     return response.data;
   }
 
+  async getPortalSettings() {
+    const response = await this.client.get(`${NODE_API_URL}/api/portal/settings`);
+    return response.data;
+  }
+
+  async invitePortalUser(data: { email: string; role: 'OWNER' | 'ANALYST' | 'VIEWER'; name?: string }) {
+    const response = await this.client.post(`${NODE_API_URL}/api/portal/invite`, data);
+    return response.data;
+  }
+
   // Demo Request (landing page) — submits to both legacy endpoint and lead pipeline
   async submitDemoRequest(data: {
     email: string;
@@ -437,7 +447,12 @@ class APIClient {
   }
 
   async createWorkspace(userId: string, data: { name: string; company_name?: string }) {
-    return { id: `workspace-${Date.now()}`, name: data.name, company_name: data.company_name, status: 'active' };
+    const response = await this.client.post(`${NODE_API_URL}/api/workspaces`, {
+      name: data.name,
+      company_name: data.company_name,
+      userId,
+    });
+    return response.data;
   }
 
   // File Upload & Analysis
@@ -998,11 +1013,13 @@ class APIClient {
   // --- Workspaces (ALM) ---
 
   async getMyWorkspaces() {
-    return [{ id: 'demo-workspace-id', name: 'Demo Workspace' }];
+    const response = await this.client.get(`${NODE_API_URL}/api/workspaces`);
+    return response.data;
   }
 
   async createMyWorkspace(name: string) {
-    return { id: 'demo-workspace-id', name };
+    const response = await this.client.post(`${NODE_API_URL}/api/workspaces`, { name });
+    return response.data;
   }
 
   // Prospect CRM

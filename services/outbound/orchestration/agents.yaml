@@ -1,0 +1,139 @@
+# CERNIQ Outbound Engine — Multi-Agent Orchestration Contracts
+#
+# Defines the agent departments, their responsibilities,
+# handoff sequences, and master prompts.
+
+departments:
+  lead_research:
+    name: Lead Research
+    agent: lead_research_agent.py
+    responsibility: Generate and manage cooperativa lead lists from seed data and external sources
+    inputs:
+      - seed CSV
+      - region filter
+      - asset threshold
+    outputs:
+      - raw lead list
+    handoff_to: enrichment
+
+  enrichment:
+    name: Lead Enrichment
+    agent: enrichment_agent.py
+    responsibility: Add contact details (email, phone, LinkedIn) and score leads
+    inputs:
+      - raw lead list
+    outputs:
+      - enriched lead list with scores
+    handoff_to: messaging
+    integrations:
+      - Hunter.io (email discovery)
+      - Apollo.io (people search)
+      - Clearbit (company data)
+
+  messaging:
+    name: Message Generation
+    agent: messaging_agent.py
+    responsibility: Generate bilingual personalized outreach messages
+    inputs:
+      - enriched lead
+      - language preference
+      - sequence number (cold / followup_1 / followup_2)
+    outputs:
+      - email subject
+      - email body
+      - message type
+    handoff_to: outreach
+
+  outreach:
+    name: Email Dispatch
+    agent: outreach_agent.py
+    responsibility: Send emails via SMTP or API providers with rate limiting
+    inputs:
+      - recipient email
+      - subject
+      - body
+    outputs:
+      - send status (success / failure)
+      - outreach log entry
+    handoff_to: crm
+
+  followup:
+    name: Follow-Up Automation
+    agent: followup_agent.py
+    responsibility: Identify leads due for follow-up and trigger the messaging → outreach chain
+    inputs:
+      - lead list
+      - outreach log
+    outputs:
+      - list of due follow-ups
+    handoff_to: messaging
+    schedule: daily at 10:00 AM AST
+
+  crm:
+    name: CRM Pipeline
+    agent: crm_agent.py
+    responsibility: Track pipeline stages, update lead status, generate metrics
+    inputs:
+      - lead updates
+      - stage transitions
+    outputs:
+      - pipeline metrics
+      - stage counts
+      - conversion rate
+
+# Handoff sequence for daily outreach
+pipelines:
+  daily_outreach:
+    schedule: "09:00 AST"
+    sequence:
+      - lead_research
+      - enrichment
+      - messaging
+      - outreach
+      - crm
+    config:
+      dry_run: true
+      max_emails: 50
+      language: es
+
+  followup_check:
+    schedule: "10:00 AST"
+    sequence:
+      - followup
+      - messaging
+      - outreach
+      - crm
+    config:
+      dry_run: true
+
+  weekly_report:
+    schedule: "Monday 08:00 AST"
+    sequence:
+      - crm
+    config:
+      report_type: weekly_summary
+      recipients:
+        - erwin@cerniq.com
+
+# Master prompt for agent alignment
+master_prompt: |
+  You are part of the CERNIQ outbound sales engine.
+
+  Your sole objective is to help CERNIQ acquire cooperativa and credit union
+  customers for the bilingual ALM reporting product.
+
+  The value proposition is simple:
+  Upload balance sheet → generate bilingual ALM report.
+
+  Every action you take should move a lead closer to booking a demo
+  or receiving a sample report.
+
+  Do not deviate from the ALM reporting message.
+  Do not sell features that do not exist.
+  Do not promise capabilities beyond the current product.
+
+  Focus on:
+  - CFOs and finance directors at PR cooperativas
+  - The pain of manual ALM spreadsheets
+  - The speed of automated, bilingual reporting
+  - The credibility of professional, board-ready output

@@ -1,0 +1,37 @@
+CERNIQ — Follow-Up Email (Day 3)
+
+=== SPANISH ===
+
+Asunto: Re: Informe ALM para {institution}
+
+Estimado/a {contact_role},
+
+Le escribo como seguimiento a mi correo anterior.
+
+CERNIQ ayuda a instituciones como {institution} a pasar de datos crudos de balance general a un informe ALM listo para la junta directiva, a través de un simple flujo de carga.
+
+El informe incluye análisis de brecha de duración, sensibilidad NII, y pruebas de estrés — todo en español e inglés.
+
+¿Tiene 15 minutos esta semana para que le muestre cómo funciona?
+
+Saludos cordiales,
+Erwin Kiess
+CERNIQ
+
+=== ENGLISH ===
+
+Subject: Re: ALM Report for {institution}
+
+Dear {contact_role},
+
+Just following up on my previous email.
+
+CERNIQ helps institutions like {institution} move from raw balance sheet data to a board-ready ALM report through a simple upload workflow.
+
+The report includes duration gap analysis, NII sensitivity, and stress testing — all in English and Spanish.
+
+Do you have 15 minutes this week for a quick walkthrough?
+
+Best regards,
+Erwin Kiess
+CERNIQ

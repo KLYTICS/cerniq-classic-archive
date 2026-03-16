@@ -1,0 +1,130 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e6]: C
+        - generic [ref=e7]: CapexCycleOS
+      - generic [ref=e8]:
+        - button "Login" [ref=e9]
+        - button "Request Demo" [ref=e10]
+    - generic [ref=e11]:
+      - generic [ref=e12]: For Banks, Credit Unions & Family Offices
+      - heading "Enterprise Risk Intelligence in Minutes, Not Months" [level=1] [ref=e16]:
+        - text: Enterprise Risk Intelligence
+        - text: in Minutes, Not Months
+      - paragraph [ref=e17]: CapexCycleOS gives mid-market financial institutions the ALM analytics, stress testing, and regulatory compliance tools that used to require a $500K consulting engagement.
+      - generic [ref=e18]:
+        - button "See It Live" [ref=e19]
+        - button "Start Free Trial" [ref=e20]
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]: Basel III
+        - generic [ref=e25]: LCR & NSFR Compliant
+      - generic [ref=e26]:
+        - generic [ref=e27]: 1,000
+        - generic [ref=e28]: Monte Carlo Paths
+      - generic [ref=e29]:
+        - generic [ref=e30]: < 2 sec
+        - generic [ref=e31]: Stress Test Runtime
+      - generic [ref=e32]:
+        - generic [ref=e33]: PDF
+        - generic [ref=e34]: Board-Ready Reports
+    - generic [ref=e35]:
+      - heading "Everything Your Risk Team Needs" [level=2] [ref=e36]
+      - paragraph [ref=e37]: From balance sheet ingestion to board-ready reports — one platform.
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - img [ref=e40]
+          - heading "Interest Rate Risk" [level=3] [ref=e43]
+          - paragraph [ref=e44]: NII and MVE sensitivity across parallel and twist scenarios. Duration gap analysis with asset/liability breakdown.
+        - generic [ref=e45]:
+          - img [ref=e46]
+          - heading "Liquidity & LCR" [level=3] [ref=e48]
+          - paragraph [ref=e49]: Basel III LCR/NSFR with HQLA decomposition, cash flow waterfall, and regulatory buffer tracking.
+        - generic [ref=e50]:
+          - img [ref=e51]
+          - heading "Monte Carlo Stress Tests" [level=3] [ref=e53]
+          - paragraph [ref=e54]: Vasicek interest rate model with 1,000 paths. Regulatory scenarios (rapid rise, inversion, shock down).
+        - generic [ref=e55]:
+          - img [ref=e56]
+          - heading "Balance Sheet Analytics" [level=3] [ref=e58]
+          - paragraph [ref=e59]: Inline editing, CSV upload, duration heatmap. Real-time repricing gap and maturity distribution.
+        - generic [ref=e60]:
+          - img [ref=e61]
+          - heading "Multi-Institution" [level=3] [ref=e63]
+          - paragraph [ref=e64]: Manage multiple institutions from a single workspace. Compare risk metrics across your portfolio.
+        - generic [ref=e65]:
+          - img [ref=e66]
+          - heading "Board-Ready PDF Reports" [level=3] [ref=e68]
+          - paragraph [ref=e69]: One-click PDF export with executive summary, risk metrics, stress results, and recommendations.
+    - generic [ref=e71]:
+      - heading "Built For" [level=2] [ref=e72]
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - heading "Community Banks" [level=3] [ref=e75]
+          - paragraph [ref=e76]: Full IRRBB compliance without the Big 4 price tag. Duration gap, NII sensitivity, and stress testing.
+          - text: $500M - $5B assets
+        - generic [ref=e77]:
+          - heading "Credit Unions" [level=3] [ref=e78]
+          - paragraph [ref=e79]: Meet NCUA requirements with automated ALM reporting. NEV analysis, concentration risk, and LCR.
+          - text: $100M - $1B assets
+        - generic [ref=e80]:
+          - heading "Family Offices" [level=3] [ref=e81]
+          - paragraph [ref=e82]: Portfolio-level interest rate and liquidity risk. Monte Carlo stress testing across multi-asset allocations.
+          - text: $25M - $500M AUM
+    - generic [ref=e83]:
+      - heading "Up and Running in 3 Steps" [level=2] [ref=e84]
+      - generic [ref=e85]:
+        - generic [ref=e86]:
+          - generic [ref=e87]: "1"
+          - heading "Import Balance Sheet" [level=3] [ref=e88]
+          - paragraph [ref=e89]: Upload a CSV or enter positions manually. We auto-calculate durations, repricing schedules, and rate sensitivity.
+        - generic [ref=e90]:
+          - generic [ref=e91]: "2"
+          - heading "Run Risk Analysis" [level=3] [ref=e92]
+          - paragraph [ref=e93]: Instant duration gap, NII sensitivity (8 scenarios), LCR compliance, and Monte Carlo stress tests.
+        - generic [ref=e94]:
+          - generic [ref=e95]: "3"
+          - heading "Download Reports" [level=3] [ref=e96]
+          - paragraph [ref=e97]: Generate branded PDF reports for your board, auditors, or regulators. One click.
+    - generic [ref=e100]:
+      - heading "Request a Demo" [level=2] [ref=e101]
+      - paragraph [ref=e102]: See how CapexCycleOS can streamline your institution's risk management.
+      - generic [ref=e103]:
+        - generic [ref=e104]:
+          - generic [ref=e105]:
+            - generic [ref=e106]: Name
+            - textbox "Jane Smith" [ref=e107]
+          - generic [ref=e108]:
+            - generic [ref=e109]: Work Email *
+            - textbox "jane@institution.com" [ref=e110]
+        - generic [ref=e111]:
+          - generic [ref=e112]: Institution Name
+          - textbox "First National Bank" [ref=e113]
+        - generic [ref=e114]:
+          - generic [ref=e115]:
+            - generic [ref=e116]: Institution Type
+            - combobox [ref=e117]:
+              - option "Select Type" [selected]
+              - option "Community Bank"
+              - option "Credit Union"
+              - option "Family Office"
+              - option "Other"
+          - generic [ref=e118]:
+            - generic [ref=e119]: Total Assets
+            - combobox [ref=e120]:
+              - option "Select Range" [selected]
+              - option "< $100M"
+              - option "$100M - $500M"
+              - option "$500M - $1B"
+              - option "$1B - $5B"
+              - option "$5B+"
+        - button "Request Demo" [ref=e121]
+    - contentinfo [ref=e122]:
+      - generic [ref=e123]:
+        - generic [ref=e124]:
+          - generic [ref=e126]: C
+          - generic [ref=e127]: CapexCycleOS
+          - generic [ref=e128]: by KLYTICS
+        - generic [ref=e129]: © 2026 KLYTICS. All rights reserved.
+  - alert [ref=e130]

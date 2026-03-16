@@ -1,0 +1,213 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e6]: C
+        - generic [ref=e7]: CERNIQ
+      - generic [ref=e8]:
+        - button "Pricing" [ref=e9]
+        - button "Login" [ref=e10]
+        - button "Request Demo" [ref=e11]
+    - generic [ref=e12]:
+      - generic [ref=e13]: For Banks, Credit Unions, Cooperativas & Family Offices
+      - heading "Enterprise Risk Intelligence in Minutes, Not Months" [level=1] [ref=e17]:
+        - text: Enterprise Risk Intelligence
+        - text: in Minutes, Not Months
+      - paragraph [ref=e18]: CERNIQ gives mid-market financial institutions the ALM analytics, stress testing, and regulatory compliance tools that used to require a $500K consulting engagement.
+      - generic [ref=e19]:
+        - button "See It Live" [ref=e20]
+        - button "Start Free Trial" [ref=e21]
+    - generic [ref=e23]:
+      - generic [ref=e24]:
+        - generic [ref=e25]: Basel III
+        - generic [ref=e26]: LCR & NSFR Compliant
+      - generic [ref=e27]:
+        - generic [ref=e28]: 1,000
+        - generic [ref=e29]: Monte Carlo Paths
+      - generic [ref=e30]:
+        - generic [ref=e31]: < 2 sec
+        - generic [ref=e32]: Stress Test Runtime
+      - generic [ref=e33]:
+        - generic [ref=e34]: PDF
+        - generic [ref=e35]: Board-Ready Reports
+    - generic [ref=e36]:
+      - heading "Everything Your Risk Team Needs" [level=2] [ref=e37]
+      - paragraph [ref=e38]: From balance sheet ingestion to board-ready reports — one platform.
+      - generic [ref=e39]:
+        - generic [ref=e40]:
+          - img [ref=e41]
+          - heading "Interest Rate Risk" [level=3] [ref=e44]
+          - paragraph [ref=e45]: NII and MVE sensitivity across parallel and twist scenarios. Duration gap analysis with asset/liability breakdown.
+        - generic [ref=e46]:
+          - img [ref=e47]
+          - heading "Liquidity & LCR" [level=3] [ref=e49]
+          - paragraph [ref=e50]: Basel III LCR/NSFR with HQLA decomposition, cash flow waterfall, and regulatory buffer tracking.
+        - generic [ref=e51]:
+          - img [ref=e52]
+          - heading "Monte Carlo Stress Tests" [level=3] [ref=e54]
+          - paragraph [ref=e55]: Vasicek interest rate model with 1,000 paths. Regulatory scenarios (rapid rise, inversion, shock down).
+        - generic [ref=e56]:
+          - img [ref=e57]
+          - heading "Balance Sheet Analytics" [level=3] [ref=e59]
+          - paragraph [ref=e60]: Inline editing, CSV upload, duration heatmap. Real-time repricing gap and maturity distribution.
+        - generic [ref=e61]:
+          - img [ref=e62]
+          - heading "Multi-Institution" [level=3] [ref=e64]
+          - paragraph [ref=e65]: Manage multiple institutions from a single workspace. Compare risk metrics across your portfolio.
+        - generic [ref=e66]:
+          - img [ref=e67]
+          - heading "Board-Ready PDF Reports" [level=3] [ref=e69]
+          - paragraph [ref=e70]: One-click PDF export with executive summary, risk metrics, stress results, and recommendations.
+    - generic [ref=e72]:
+      - heading "Built For" [level=2] [ref=e73]
+      - generic [ref=e74]:
+        - generic [ref=e75]:
+          - heading "Community Banks" [level=3] [ref=e76]
+          - paragraph [ref=e77]: Full IRRBB compliance without the Big 4 price tag. Duration gap, NII sensitivity, and stress testing.
+          - text: $500M - $5B assets
+        - generic [ref=e78]:
+          - heading "Credit Unions" [level=3] [ref=e79]
+          - paragraph [ref=e80]: Meet NCUA requirements with automated ALM reporting. NEV analysis, concentration risk, and LCR.
+          - text: $100M - $1B assets
+        - generic [ref=e81]:
+          - heading "Cooperativas PR" [level=3] [ref=e82]
+          - paragraph [ref=e83]: Cumplimiento COSSEC con reportes bilingues. Ratio de capital, liquidez, y pruebas de estres automatizadas.
+          - text: $50M - $500M activos
+        - generic [ref=e84]:
+          - heading "Family Offices" [level=3] [ref=e85]
+          - paragraph [ref=e86]: Portfolio-level interest rate and liquidity risk. Monte Carlo stress testing across multi-asset allocations.
+          - text: $25M - $500M AUM
+    - generic [ref=e87]:
+      - heading "Up and Running in 3 Steps" [level=2] [ref=e88]
+      - generic [ref=e89]:
+        - generic [ref=e90]:
+          - generic [ref=e91]: "1"
+          - heading "Import Balance Sheet" [level=3] [ref=e92]
+          - paragraph [ref=e93]: Upload a CSV or enter positions manually. We auto-calculate durations, repricing schedules, and rate sensitivity.
+        - generic [ref=e94]:
+          - generic [ref=e95]: "2"
+          - heading "Run Risk Analysis" [level=3] [ref=e96]
+          - paragraph [ref=e97]: Instant duration gap, NII sensitivity (8 scenarios), LCR compliance, and Monte Carlo stress tests.
+        - generic [ref=e98]:
+          - generic [ref=e99]: "3"
+          - heading "Download Reports" [level=3] [ref=e100]
+          - paragraph [ref=e101]: Generate branded PDF reports for your board, auditors, or regulators. One click.
+    - generic [ref=e103]:
+      - heading "Simple, Transparent Pricing" [level=2] [ref=e104]
+      - paragraph [ref=e105]: From a single report to full-service risk management. Pick what fits.
+      - generic [ref=e106]:
+        - generic [ref=e107]:
+          - heading "ALM Report" [level=3] [ref=e108]
+          - paragraph [ref=e109]: One-time engagement
+          - generic [ref=e110]: $750/ report
+          - list [ref=e111]:
+            - listitem [ref=e112]:
+              - img [ref=e113]
+              - text: Full balance sheet analysis
+            - listitem [ref=e115]:
+              - img [ref=e116]
+              - text: NII & EVE sensitivity
+            - listitem [ref=e118]:
+              - img [ref=e119]
+              - text: Monte Carlo stress test
+            - listitem [ref=e121]:
+              - img [ref=e122]
+              - text: COSSEC / NCUA compliance
+            - listitem [ref=e124]:
+              - img [ref=e125]
+              - text: Bilingual PDF (EN/ES)
+            - listitem [ref=e127]:
+              - img [ref=e128]
+              - text: Board-ready formatting
+          - button "Get Started — $750" [ref=e130]
+        - generic [ref=e131]:
+          - generic [ref=e132]: MOST POPULAR
+          - heading "Platform" [level=3] [ref=e133]
+          - paragraph [ref=e134]: Self-serve SaaS access
+          - generic [ref=e135]: $299/ month
+          - list [ref=e136]:
+            - listitem [ref=e137]:
+              - img [ref=e138]
+              - text: Everything in ALM Report
+            - listitem [ref=e140]:
+              - img [ref=e141]
+              - text: Unlimited reports
+            - listitem [ref=e143]:
+              - img [ref=e144]
+              - text: Real-time dashboard
+            - listitem [ref=e146]:
+              - img [ref=e147]
+              - text: CSV & API data ingestion
+            - listitem [ref=e149]:
+              - img [ref=e150]
+              - text: Multi-institution support
+            - listitem [ref=e152]:
+              - img [ref=e153]
+              - text: Monthly compliance snapshots
+          - button "Start — $299/mo" [ref=e155]
+        - generic [ref=e156]:
+          - heading "Partner" [level=3] [ref=e157]
+          - paragraph [ref=e158]: White-label for consultants
+          - generic [ref=e159]: $499/ month
+          - list [ref=e160]:
+            - listitem [ref=e161]:
+              - img [ref=e162]
+              - text: Everything in Platform
+            - listitem [ref=e164]:
+              - img [ref=e165]
+              - text: White-label PDF branding
+            - listitem [ref=e167]:
+              - img [ref=e168]
+              - text: Client workspace management
+            - listitem [ref=e170]:
+              - img [ref=e171]
+              - text: Bulk CSV pipeline
+            - listitem [ref=e173]:
+              - img [ref=e174]
+              - text: API access & webhooks
+            - listitem [ref=e176]:
+              - img [ref=e177]
+              - text: Priority support
+          - button "Start — $499/mo" [ref=e179]
+    - generic [ref=e182]:
+      - heading "Request a Demo" [level=2] [ref=e183]
+      - paragraph [ref=e184]: See how CERNIQ can streamline your institution's risk management.
+      - generic [ref=e185]:
+        - generic [ref=e186]:
+          - generic [ref=e187]:
+            - generic [ref=e188]: Name
+            - textbox "Jane Smith" [ref=e189]
+          - generic [ref=e190]:
+            - generic [ref=e191]: Work Email *
+            - textbox "jane@institution.com" [ref=e192]
+        - generic [ref=e193]:
+          - generic [ref=e194]: Institution Name
+          - textbox "First National Bank" [ref=e195]
+        - generic [ref=e196]:
+          - generic [ref=e197]:
+            - generic [ref=e198]: Institution Type
+            - combobox [ref=e199]:
+              - option "Select Type" [selected]
+              - option "Community Bank"
+              - option "Credit Union"
+              - option "Cooperativa (PR)"
+              - option "Family Office"
+              - option "Other"
+          - generic [ref=e200]:
+            - generic [ref=e201]: Total Assets
+            - combobox [ref=e202]:
+              - option "Select Range" [selected]
+              - option "< $100M"
+              - option "$100M - $500M"
+              - option "$500M - $1B"
+              - option "$1B - $5B"
+              - option "$5B+"
+        - button "Request Demo" [ref=e203]
+    - contentinfo [ref=e204]:
+      - generic [ref=e205]:
+        - generic [ref=e206]:
+          - generic [ref=e208]: C
+          - generic [ref=e209]: CERNIQ
+          - generic [ref=e210]: by KLYTICS
+        - generic [ref=e211]: © 2026 KLYTICS. All rights reserved.
+  - alert [ref=e212]

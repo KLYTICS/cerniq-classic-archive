@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
+import { getCurrentSubscription } from '@/lib/billing';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
 import { useAuthStore } from '@/lib/store';
 import { useTranslation } from '@/lib/i18n';
+import { hasPaidPortalAccess, isRememberedPortalUser, rememberPortalUser } from '@/lib/subscription';
 import { ArrowRight } from 'lucide-react';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
@@ -43,6 +45,35 @@ function getAuthErrorMessage(error: unknown) {
   }
 
   return 'Authentication failed';
+}
+
+async function resolvePostLoginDestination({
+  returnUrl,
+  userId,
+}: {
+  returnUrl: string | null;
+  userId: string;
+}) {
+  if (returnUrl) {
+    return returnUrl;
+  }
+
+  if (isRememberedPortalUser()) {
+    return '/portal';
+  }
+
+  try {
+    const subscription = await getCurrentSubscription();
+    if (hasPaidPortalAccess(subscription)) {
+      rememberPortalUser();
+      return '/portal';
+    }
+  } catch {
+    // Fall back to the retail app flow when billing lookup is unavailable.
+  }
+
+  const onboardingComplete = localStorage.getItem(`capex_onboarding_${userId}`) === 'true';
+  return onboardingComplete ? '/dashboard' : '/onboarding';
 }
 
 function LanguageToggle() {
@@ -91,6 +122,8 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTranslation();
+  const returnUrl = searchParams.get('returnUrl');
+  const currentUserId = user?.id;
 
   useEffect(() => {
     const mode = searchParams.get('mode');
@@ -98,10 +131,19 @@ function LoginContent() {
       setIsLogin(false);
     }
 
-    if (initialized && isAuthenticated) {
-      router.push('/dashboard');
+    if (!loading && initialized && isAuthenticated && currentUserId) {
+      let cancelled = false;
+      (async () => {
+        const destination = await resolvePostLoginDestination({ returnUrl, userId: currentUserId });
+        if (!cancelled) {
+          router.push(destination);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
     }
-  }, [searchParams, router, initialized, isAuthenticated]);
+  }, [searchParams, router, initialized, isAuthenticated, loading, returnUrl, currentUserId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,13 +167,8 @@ function LoginContent() {
         method: 'email',
       });
 
-      const returnUrl = searchParams.get('returnUrl');
-      if (returnUrl) {
-        router.push(returnUrl);
-      } else {
-        const onboardingComplete = localStorage.getItem(`capex_onboarding_${user.id}`) === 'true';
-        router.push(onboardingComplete ? '/dashboard' : '/onboarding');
-      }
+      const destination = await resolvePostLoginDestination({ returnUrl, userId: user.id });
+      router.push(destination);
     } catch (err: unknown) {
       setError(getAuthErrorMessage(err));
     } finally {
@@ -160,19 +197,19 @@ function LoginContent() {
           <ul className="mx-auto max-w-sm space-y-2 text-sm text-slate-400">
             <li className="flex items-center gap-2">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400" />
-              Analisis ALM completo / Complete ALM analysis
+              Complete ALM analysis / Analisis ALM completo
             </li>
             <li className="flex items-center gap-2">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400" />
-              12 ratios COSSEC / 12 COSSEC ratios
+              12 COSSEC ratios / 12 ratios COSSEC
             </li>
             <li className="flex items-center gap-2">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400" />
-              Informes bilingues / Bilingual reports
+              Bilingual reports / Informes bilingues
             </li>
             <li className="flex items-center gap-2">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400" />
-              Cifrado AES-256 / AES-256 encryption
+              AES-256 encryption / Cifrado AES-256
             </li>
           </ul>
         </div>

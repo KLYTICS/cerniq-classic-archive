@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
+import { getCurrentSubscription } from '@/lib/billing';
+import { hasPaidPortalAccess, isRememberedPortalUser, rememberPortalUser } from '@/lib/subscription';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -24,6 +26,28 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const getSubmitErrorMessage = (submitError: unknown) => {
+    if (
+      typeof submitError === 'object' &&
+      submitError !== null &&
+      'response' in submitError &&
+      typeof (submitError as { response?: { data?: { error?: unknown } } }).response?.data?.error === 'string'
+    ) {
+      return (submitError as { response?: { data?: { error: string } } }).response?.data?.error || 'Onboarding failed. Please retry.';
+    }
+
+    if (
+      typeof submitError === 'object' &&
+      submitError !== null &&
+      'message' in submitError &&
+      typeof (submitError as { message?: unknown }).message === 'string'
+    ) {
+      return (submitError as { message: string }).message;
+    }
+
+    return 'Onboarding failed. Please retry.';
+  };
+
   useEffect(() => {
     if (!initialized) return;
     if (!isAuthenticated) {
@@ -36,13 +60,31 @@ export default function OnboardingPage() {
     }
     // ALM/billing subscription buyers should go to /portal, not onboarding
     // Check if user arrived via magic link (portal flow) or has a subscription indicator
-    const portalUser = typeof window !== 'undefined' &&
-      (localStorage.getItem('cerniq_portal_user') === 'true' ||
-       new URLSearchParams(window.location.search).get('welcome') === '1');
-    if (portalUser) {
-      router.replace('/portal');
-      return;
-    }
+    let cancelled = false;
+    const redirectPortalUsers = async () => {
+      const portalUser = typeof window !== 'undefined' &&
+        (isRememberedPortalUser() ||
+         new URLSearchParams(window.location.search).get('welcome') === '1');
+      if (portalUser) {
+        router.replace('/portal');
+        return;
+      }
+
+      try {
+        const subscription = await getCurrentSubscription();
+        if (!cancelled && hasPaidPortalAccess(subscription)) {
+          rememberPortalUser();
+          router.replace('/portal');
+        }
+      } catch {
+        // If billing can't be loaded we keep the standard onboarding path.
+      }
+    };
+
+    redirectPortalUsers();
+    return () => {
+      cancelled = true;
+    };
   }, [initialized, isAuthenticated, onboardingComplete, router]);
 
   const handleSubmit = async (event: FormEvent) => {
@@ -107,8 +149,8 @@ export default function OnboardingPage() {
       setOnboardingComplete(true);
       analytics.track(EVENTS.ONBOARDING_COMPLETED, { role, primaryGoal, riskPreference });
       router.push('/dashboard');
-    } catch (submitError: any) {
-      setError(submitError?.response?.data?.error || submitError?.message || 'Onboarding failed. Please retry.');
+    } catch (submitError: unknown) {
+      setError(getSubmitErrorMessage(submitError));
     } finally {
       setSaving(false);
     }

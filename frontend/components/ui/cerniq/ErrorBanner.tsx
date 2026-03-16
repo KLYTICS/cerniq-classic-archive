@@ -21,12 +21,10 @@ export function ErrorBanner({ error, titleEs, onRetry, onDismiss }: ErrorBannerP
 
         {/* Content */}
         <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-red-800">{error}</p>
           {titleEs && (
-            <p className="text-sm font-semibold text-red-800">{titleEs}</p>
+            <p className="mt-0.5 text-xs text-red-600">{titleEs}</p>
           )}
-          <p className={`${titleEs ? 'mt-0.5 text-xs text-red-600' : 'text-sm font-semibold text-red-800'}`}>
-            {error}
-          </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
             {onRetry && (
@@ -34,14 +32,14 @@ export function ErrorBanner({ error, titleEs, onRetry, onDismiss }: ErrorBannerP
                 onClick={onRetry}
                 className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
               >
-                Intente de nuevo / Try again
+                Try again / Intente de nuevo
               </button>
             )}
             <a
               href="mailto:hello@cerniq.io"
               className="text-xs font-medium text-red-500 underline hover:text-red-700"
             >
-              Contacte soporte / Contact support: hello@cerniq.io
+              Contact support / Contacte soporte: hello@cerniq.io
             </a>
           </div>
         </div>

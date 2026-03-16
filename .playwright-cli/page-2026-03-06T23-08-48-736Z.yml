@@ -1,0 +1,30 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - button "EN" [ref=e5]
+      - button "ES" [ref=e6]
+    - link "C CapexCycleOS" [ref=e8] [cursor=pointer]:
+      - /url: /
+      - generic [ref=e10]: C
+      - generic [ref=e11]: CapexCycleOS
+    - paragraph [ref=e12]: Create your account
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]: Email
+        - textbox "name@institution.com" [ref=e16]
+      - generic [ref=e17]:
+        - generic [ref=e18]: Password
+        - textbox "••••••••" [ref=e19]
+      - button "Sign Up" [ref=e38]
+    - generic [ref=e25]: Or continue with
+    - generic [ref=e26]:
+      - link "Google" [ref=e27] [cursor=pointer]:
+        - /url: https://capexcycleos-api.fly.dev/api/auth/google
+        - img [ref=e28]
+        - text: Google
+      - link "GitHub" [ref=e33] [cursor=pointer]:
+        - /url: https://capexcycleos-api.fly.dev/api/auth/github
+        - img [ref=e34]
+        - text: GitHub
+    - button "Already have an account? Sign in" [active] [ref=e39]
+  - alert [ref=e37]

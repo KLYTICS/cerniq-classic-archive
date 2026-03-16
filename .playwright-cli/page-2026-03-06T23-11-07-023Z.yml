@@ -1,0 +1,14 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - link "C CapexCycleOS" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e8]: C
+        - generic [ref=e9]: CapexCycleOS
+      - generic [ref=e10]: System Status
+    - generic [ref=e14]: Checking...
+    - generic [ref=e16]:
+      - generic [ref=e17]: Uptime (30 days)
+      - generic [ref=e18]: 99.9%
+    - paragraph [ref=e22]: Auto-refreshes every 30 seconds
+  - alert [ref=e23]

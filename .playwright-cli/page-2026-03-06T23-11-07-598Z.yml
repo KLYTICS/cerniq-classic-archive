@@ -1,0 +1,28 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - link "C CapexCycleOS" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e8]: C
+        - generic [ref=e9]: CapexCycleOS
+      - generic [ref=e10]: System Status
+    - generic [ref=e24]:
+      - heading "Partial Degradation" [level=2] [ref=e25]
+      - paragraph [ref=e26]: Version 2.0.0
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - generic [ref=e29]: api
+        - generic [ref=e31]: Operational
+      - generic [ref=e33]:
+        - generic [ref=e34]: database
+        - generic [ref=e36]: Operational
+      - generic [ref=e38]:
+        - generic [ref=e39]: cache
+        - generic [ref=e41]: Degraded
+    - generic [ref=e16]:
+      - generic [ref=e17]: Uptime (30 days)
+      - generic [ref=e18]: 99.9%
+    - generic [ref=e21]:
+      - paragraph [ref=e43]: Last checked 0s ago
+      - paragraph [ref=e22]: Auto-refreshes every 30 seconds
+  - alert [ref=e23]

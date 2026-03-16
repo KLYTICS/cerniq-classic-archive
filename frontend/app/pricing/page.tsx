@@ -2,11 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, ShieldCheck, Building2, ChevronRight, HelpCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronRight, HelpCircle } from 'lucide-react';
+import { createCheckoutSession } from '@/lib/billing';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
-
-const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-const SITE_URL = 'https://cerniq.io';
 
 const TIERS = [
   {
@@ -115,22 +113,14 @@ export default function PricingPage() {
   async function handleCheckout(tier: string) {
     setLoadingTier(tier);
     try {
-      const response = await fetch(`${NODE_API_URL}/api/billing/checkout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tier,
-          successUrl: `${SITE_URL}/portal?welcome=1`,
-          cancelUrl: `${SITE_URL}/pricing`,
-        }),
+      const checkoutUrl = await createCheckoutSession({
+        tier: tier as 'one_time' | 'monthly' | 'annual' | 'partner',
+        successUrl: '/portal?welcome=1',
+        cancelUrl: '/pricing',
       });
-
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      }
+      window.location.href = checkoutUrl;
     } catch {
-      window.location.href = `${SITE_URL}/#pricing`;
+      window.location.href = '/pricing';
     } finally {
       setLoadingTier(null);
     }
@@ -146,7 +136,7 @@ export default function PricingPage() {
           <CerniqMark size="sm" />
           <div>
             <div className="font-display text-sm uppercase tracking-[0.4em] text-slate-950">Cerniq</div>
-            <div className="text-[10px] uppercase tracking-[0.36em] text-cyan-700/60">Precios / Pricing</div>
+            <div className="text-[10px] uppercase tracking-[0.36em] text-cyan-700/60">Pricing / Precios</div>
           </div>
         </div>
 
@@ -156,16 +146,16 @@ export default function PricingPage() {
             <div className="cerniq-panel p-6 sm:p-8 lg:p-10">
               <div className="cerniq-data-wave opacity-55" />
               <div className="relative z-10 mx-auto max-w-4xl">
-                <span className="cerniq-kicker mb-8 w-fit">Precios / Pricing</span>
+                <span className="cerniq-kicker mb-8 w-fit">Pricing / Precios</span>
                 <h1 className="font-display text-3xl leading-tight text-slate-950 sm:text-5xl">
-                  Planes y Precios
+                  Plans &amp; Pricing
                 </h1>
-                <p className="mt-1 text-lg text-slate-500">Plans &amp; Pricing</p>
+                <p className="mt-1 text-lg text-slate-500">Planes y Precios</p>
                 <p className="mt-5 max-w-3xl text-base leading-8 text-slate-700">
-                  Comience con un informe piloto. Escale cuando este listo.
+                  Start with a pilot report. Scale when ready.
                 </p>
                 <p className="mt-1 max-w-3xl text-sm leading-7 text-slate-500">
-                  Start with a pilot report. Scale when ready.
+                  Comience con un informe piloto. Escale cuando este listo.
                 </p>
 
                 <div className="mt-8 flex flex-wrap gap-3">
@@ -192,21 +182,21 @@ export default function PricingPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-display text-2xl text-slate-950">{tier.nameEs}</p>
-                    <p className="mt-1 text-xs text-slate-400">{tier.nameEn}</p>
+                    <p className="font-display text-2xl text-slate-950">{tier.nameEn}</p>
+                    <p className="mt-1 text-xs text-slate-400">{tier.nameEs}</p>
                   </div>
                   {tier.featured ? (
                     <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] uppercase tracking-[0.26em] text-cyan-700">
-                      Recomendado / Recommended
+                      Recommended / Recomendado
                     </span>
                   ) : null}
                 </div>
 
                 <div className="mt-8">
                   <span className="font-display text-5xl text-slate-950">{tier.price}</span>
-                  <span className="ml-2 text-sm uppercase tracking-[0.24em] text-slate-500">{tier.cadenceEs}</span>
+                  <span className="ml-2 text-sm uppercase tracking-[0.24em] text-slate-500">{tier.cadenceEn}</span>
                   {tier.cadenceEn !== tier.cadenceEs && (
-                    <span className="ml-1 text-xs text-slate-400">/ {tier.cadenceEn}</span>
+                    <span className="ml-1 text-xs text-slate-400">/ {tier.cadenceEs}</span>
                   )}
                 </div>
 
@@ -224,7 +214,7 @@ export default function PricingPage() {
                     href="mailto:erwin@cerniq.io?subject=Acceso%20Partner%20/%20Partner%20Access"
                     className="mt-8 w-full cerniq-button-secondary text-center"
                   >
-                    {tier.ctaEs} / {tier.ctaEn}
+                    {tier.ctaEn} / {tier.ctaEs}
                   </a>
                 ) : (
                   <button
@@ -243,18 +233,18 @@ export default function PricingPage() {
           <section className="cerniq-panel cerniq-card-hover p-6 sm:p-8 lg:p-10">
             <div className="mx-auto max-w-4xl space-y-6">
               <div>
-                <p className="cerniq-section-label">Comparacion de costos / Cost comparison</p>
+                <p className="cerniq-section-label">Cost comparison / Comparacion de costos</p>
                 <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
-                  Su institucion gasta entre $13,900 y $33,000 al ano en analisis ALM con consultores
+                  Your institution spends between $13,900 and $33,000/year on ALM analysis with consultants
                 </h2>
                 <p className="mt-2 text-sm text-slate-500">
-                  Your institution spends between $13,900 and $33,000/year on ALM analysis with consultants
+                  Su institucion gasta entre $13,900 y $33,000 al ano en analisis ALM con consultores
                 </p>
                 <p className="mt-4 text-base leading-8 text-slate-700">
-                  CERNIQ desde $2,400/ano. Mismos ratios, misma precision, fraccion del costo.
+                  CERNIQ from $2,400/year. Same ratios, same accuracy, fraction of the cost.
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
-                  CERNIQ from $2,400/year. Same ratios, same accuracy, fraction of the cost.
+                  CERNIQ desde $2,400/ano. Mismos ratios, misma precision, fraccion del costo.
                 </p>
               </div>
 
@@ -271,8 +261,8 @@ export default function PricingPage() {
                     {costComparison.map((row) => (
                       <tr key={row.item} className="border-b border-slate-100">
                         <td className="py-3 pr-4">
-                          <span className="font-medium text-slate-700">{row.item}</span>
-                          <span className="block text-xs text-slate-400">{row.itemEn}</span>
+                          <span className="font-medium text-slate-700">{row.itemEn}</span>
+                          <span className="block text-xs text-slate-400">{row.item}</span>
                         </td>
                         <td className="py-3 pr-4 text-slate-500">{row.consultant}</td>
                         <td className="py-3 font-semibold text-cyan-700">{row.cerniq}</td>
@@ -294,7 +284,7 @@ export default function PricingPage() {
             <div className="mx-auto max-w-4xl space-y-6">
               <div className="flex items-center gap-3">
                 <HelpCircle className="h-5 w-5 text-cyan-700" />
-                <p className="cerniq-section-label">Preguntas frecuentes / FAQ</p>
+                <p className="cerniq-section-label">FAQ / Preguntas frecuentes</p>
               </div>
 
               <div className="space-y-3">
@@ -303,15 +293,15 @@ export default function PricingPage() {
                     <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950 sm:text-base [&::-webkit-details-marker]:hidden">
                       <div className="flex items-center justify-between gap-4">
                         <div>
-                          <span>{item.questionEs}</span>
-                          <span className="ml-2 text-xs font-normal text-slate-400">/ {item.questionEn}</span>
+                          <span>{item.questionEn}</span>
+                          <span className="ml-2 text-xs font-normal text-slate-400">/ {item.questionEs}</span>
                         </div>
                         <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
                       </div>
                     </summary>
                     <div className="border-t border-slate-100 px-5 py-4">
-                      <p className="text-sm leading-7 text-slate-700">{item.answerEs}</p>
-                      <p className="mt-2 text-xs leading-6 text-slate-400">{item.answerEn}</p>
+                      <p className="text-sm leading-7 text-slate-700">{item.answerEn}</p>
+                      <p className="mt-2 text-xs leading-6 text-slate-400">{item.answerEs}</p>
                     </div>
                   </details>
                 ))}
@@ -326,9 +316,9 @@ export default function PricingPage() {
               <div className="max-w-3xl">
                 <p className="cerniq-section-label">CERNIQ</p>
                 <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
-                  Informes ALM bilingues. Listos para COSSEC. En 24 horas.
+                  Bilingual ALM reports. COSSEC-ready. In 24 hours.
                 </h2>
-                <p className="mt-2 text-sm text-slate-500">Bilingual ALM reports. COSSEC-ready. In 24 hours.</p>
+                <p className="mt-2 text-sm text-slate-500">Informes ALM bilingues. Listos para COSSEC. En 24 horas.</p>
               </div>
 
               <div className="flex flex-wrap gap-3">
@@ -340,7 +330,7 @@ export default function PricingPage() {
                   {loadingTier === 'one_time' ? 'Procesando...' : 'Comenzar — $750'}
                 </button>
                 <Link href="/" className="cerniq-button-secondary">
-                  Volver al inicio / Back to home
+                  Back to home / Volver al inicio
                 </Link>
               </div>
             </div>

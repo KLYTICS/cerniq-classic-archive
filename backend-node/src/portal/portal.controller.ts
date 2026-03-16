@@ -1,7 +1,7 @@
 import {
   Controller, Get, Post, Param, Body, Req, Logger,
   UseGuards, UseInterceptors, UploadedFile,
-  BadRequestException, NotFoundException,
+  BadRequestException, ForbiddenException, NotFoundException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
@@ -52,6 +52,8 @@ export class PortalController {
   @Roles('OWNER', 'ANALYST', 'VIEWER')
   async listJobs(@Req() req: any) {
     const userId = req.user.userId;
+    await this.requirePaidPortalAccess(userId);
+
     return this.prisma.reportJob.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -76,6 +78,8 @@ export class PortalController {
   @Get('jobs/:jobId')
   @Roles('OWNER', 'ANALYST', 'VIEWER')
   async getJob(@Req() req: any, @Param('jobId') jobId: string) {
+    await this.requirePaidPortalAccess(req.user.userId);
+
     const job = await this.prisma.reportJob.findFirst({
       where: { id: jobId, userId: req.user.userId },
     });
@@ -100,6 +104,7 @@ export class PortalController {
   @Get('jobs/:jobId/ingestion-logs')
   @Roles('OWNER', 'ANALYST', 'VIEWER')
   async getJobIngestionLogs(@Req() req: any, @Param('jobId') jobId: string) {
+    await this.requirePaidPortalAccess(req.user.userId);
     return this.ingestionLogs.listJobLogs(req.user.userId, jobId);
   }
 
@@ -124,6 +129,7 @@ export class PortalController {
     @Body() body: { institutionName?: string; analysisPeriod?: string },
   ) {
     const userId = req.user.userId;
+    await this.requirePaidPortalAccess(userId);
 
     // Verify job belongs to user and is awaiting data
     const job = await this.prisma.reportJob.findFirst({
@@ -269,6 +275,7 @@ export class PortalController {
   @Roles('OWNER')
   async inviteUser(@Req() req: any, @Body() dto: InviteDto) {
     const ownerId = req.user.userId;
+    await this.requirePaidPortalAccess(ownerId);
 
     // Look up the inviting user to find their workspace
     const owner = await this.prisma.user.findUnique({
@@ -357,37 +364,110 @@ export class PortalController {
   @Roles('OWNER')
   async getSettings(@Req() req: any) {
     const userId = req.user.userId;
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
-      },
-    });
+    await this.requirePaidPortalAccess(userId);
+
+    const [user, subscription, workspaces, totalReports, completedReports, inProgressReports, awaitingDataReports, activeApiKeys] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          createdAt: true,
+          lastLoginAt: true,
+        },
+      }),
+      this.prisma.subscription.findUnique({
+        where: { userId },
+        select: {
+          tier: true,
+          status: true,
+          currentPeriodEnd: true,
+          reportsUsed: true,
+        },
+      }),
+      this.prisma.workspace.findMany({
+        where: { ownerId: userId },
+        select: {
+          id: true,
+          name: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.reportJob.count({
+        where: { userId },
+      }),
+      this.prisma.reportJob.count({
+        where: { userId, status: 'COMPLETE' },
+      }),
+      this.prisma.reportJob.count({
+        where: {
+          userId,
+          status: {
+            in: ['QUEUED', 'PROCESSING', 'GENERATING_PDF', 'UPLOADING', 'VALIDATING'],
+          },
+        },
+      }),
+      this.prisma.reportJob.count({
+        where: {
+          userId,
+          status: {
+            in: ['AWAITING_DATA', 'VALIDATION_FAILED'],
+          },
+        },
+      }),
+      this.prisma.apiKey.count({
+        where: {
+          userId,
+          revokedAt: null,
+        },
+      }),
+    ]);
+
     if (!user) throw new NotFoundException('User not found');
 
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { userId },
-      select: {
-        tier: true,
-        status: true,
-        currentPeriodEnd: true,
-      },
-    });
+    const workspaceIds = workspaces.map((workspace) => workspace.id);
+    const institutions = workspaceIds.length > 0
+      ? await this.prisma.institution.findMany({
+        where: {
+          workspaceId: {
+            in: workspaceIds,
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          totalAssets: true,
+          preferredLanguage: true,
+          updatedAt: true,
+          workspaceId: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+      })
+      : [];
 
-    // List team members (users who share workspaces owned by this user)
-    const workspaces = await this.prisma.workspace.findMany({
-      where: { ownerId: userId },
-      select: { id: true },
-    });
+    const totalInstitutionAssets = institutions.reduce((sum, institution) => sum + institution.totalAssets, 0);
 
     return {
       user,
       subscription: subscription || { tier: 'free', status: 'active' },
       workspaceCount: workspaces.length,
+      workspaces,
+      reportMetrics: {
+        total: totalReports,
+        completed: completedReports,
+        inProgress: inProgressReports,
+        awaitingData: awaitingDataReports,
+      },
+      institutionMetrics: {
+        total: institutions.length,
+        totalAssets: totalInstitutionAssets,
+      },
+      institutions: institutions.slice(0, 6),
+      apiKeyCount: activeApiKeys,
     };
   }
 
@@ -398,5 +478,18 @@ export class PortalController {
       .slice(0, 5)
       .map((error) => `row ${error.row} ${error.field}: ${error.message}`)
       .join(' | ');
+  }
+
+  private async requirePaidPortalAccess(userId: string) {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { userId },
+      select: {
+        tier: true,
+      },
+    });
+
+    if (!subscription || subscription.tier === 'free') {
+      throw new ForbiddenException('A paid CERNIQ plan is required to access the client portal.');
+    }
   }
 }

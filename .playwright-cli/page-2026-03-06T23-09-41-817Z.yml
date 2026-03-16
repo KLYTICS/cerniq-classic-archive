@@ -1,0 +1,38 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e37]
+  - generic [ref=e41]:
+    - heading "Welcome to CapexCycleOS" [level=1] [ref=e42]
+    - paragraph [ref=e43]: Configure your workspace to unlock portfolio analytics, Monte Carlo, VaR/CVaR, and execution workflows.
+    - generic [ref=e44]:
+      - generic [ref=e45]:
+        - generic [ref=e46]: Firm / Team Name
+        - textbox "Aperture Capital" [ref=e47]
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - generic [ref=e50]: Role
+          - combobox [ref=e51]:
+            - option "Portfolio Manager" [selected]
+            - option "Risk Lead"
+            - option "CIO"
+            - option "Quant Analyst"
+            - option "Treasury / ALM"
+        - generic [ref=e52]:
+          - generic [ref=e53]: Risk Preference
+          - combobox [ref=e54]:
+            - option "Conservative"
+            - option "Balanced" [selected]
+            - option "Aggressive"
+      - generic [ref=e55]:
+        - generic [ref=e56]: Primary Goal
+        - combobox [ref=e57]:
+          - option "Risk Analytics (VaR/CVaR + Stress)" [selected]
+          - option "Monte Carlo Scenario Planning"
+          - option "Cyclical Valuation Intelligence"
+          - option "SpendCheck Audit Automation"
+          - option "ALM and Treasury Management"
+      - generic [ref=e58]:
+        - checkbox "Seed a starter portfolio for immediate VaR/CVaR and Monte Carlo analysis" [checked] [ref=e59]
+        - text: Seed a starter portfolio for immediate VaR/CVaR and Monte Carlo analysis
+      - generic [ref=e60]:
+        - button "Complete Setup" [ref=e61]
+        - button "Skip" [ref=e62]

@@ -3,7 +3,10 @@
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { apiClient } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
-import { Shield, TrendingUp, Droplets, Download, CheckCircle, Building2 } from 'lucide-react';
+import { Download } from 'lucide-react';
+
+type DemoInstitution = { id: string };
+type NIIScenario = { shiftBps: number; niImpact: number };
 
 function EmbedContent() {
   const searchParams = useSearchParams();
@@ -51,8 +54,8 @@ function EmbedContent() {
           workspaceId = (await apiClient.createMyWorkspace('Embed Demo')).id;
         }
 
-        let institutions: any[] = [];
-        try { institutions = await apiClient.getInstitutions(); } catch {}
+        let institutions: DemoInstitution[] = [];
+        try { institutions = (await apiClient.getInstitutions()) as DemoInstitution[]; } catch {}
 
         let institutionId: string;
         if (institutions.length > 0) {
@@ -74,7 +77,8 @@ function EmbedContent() {
           durationGap = summary.durationGap?.durationGap || 1.8;
           capitalRatio = summary.capitalRatio || 10.0;
           cossecPassed = summary.cossecPassed ?? 4;
-          const s200 = summary.niiSensitivity?.scenarios?.find((s: any) => s.shiftBps === 200);
+          const scenarios = summary.niiSensitivity?.scenarios as NIIScenario[] | undefined;
+          const s200 = scenarios?.find((scenario) => scenario.shiftBps === 200);
           if (s200) niiImpact = `${s200.niImpact >= 0 ? '+' : '-'}$${Math.abs(s200.niImpact).toFixed(1)}M`;
         } catch {}
 
@@ -172,21 +176,21 @@ function EmbedContent() {
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={async () => {
-            try { await apiClient.downloadALMReport(results.institutionId, 'es'); }
-            catch { window.open(apiClient.getALMReportUrl(results.institutionId, 'es'), '_blank'); }
-          }}
-          className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-lg transition text-sm"
-        >
-          <Download className="h-4 w-4" /> Informe PDF (ES)
-        </button>
-        <button
-          onClick={async () => {
             try { await apiClient.downloadALMReport(results.institutionId, 'en'); }
             catch { window.open(apiClient.getALMReportUrl(results.institutionId, 'en'), '_blank'); }
           }}
-          className="flex items-center justify-center gap-2 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-white font-semibold py-3 rounded-lg transition text-sm"
+          className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-lg transition text-sm"
         >
           <Download className="h-4 w-4" /> Report PDF (EN)
+        </button>
+        <button
+          onClick={async () => {
+            try { await apiClient.downloadALMReport(results.institutionId, 'es'); }
+            catch { window.open(apiClient.getALMReportUrl(results.institutionId, 'es'), '_blank'); }
+          }}
+          className="flex items-center justify-center gap-2 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-white font-semibold py-3 rounded-lg transition text-sm"
+        >
+          <Download className="h-4 w-4" /> Informe PDF (ES)
         </button>
       </div>
 

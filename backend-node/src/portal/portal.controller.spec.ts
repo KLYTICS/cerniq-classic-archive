@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PortalController } from './portal.controller';
 import { PrismaService } from '../prisma.service';
 import { AlmEnterpriseService } from '../alm/alm-enterprise.service';
@@ -39,12 +39,19 @@ describe('PortalController', () => {
         findMany: jest.fn(),
         findFirst: jest.fn(),
         update: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
       },
       user: {
         findUnique: jest.fn(),
         create: jest.fn(),
       },
       subscription: { findUnique: jest.fn() },
+      institution: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      apiKey: {
+        count: jest.fn().mockResolvedValue(0),
+      },
       workspace: {
         findMany: jest.fn(),
         create: jest.fn(),
@@ -82,6 +89,11 @@ describe('PortalController', () => {
     audit = {
       log: jest.fn(),
     };
+
+    prisma.subscription.findUnique.mockResolvedValue({
+      tier: 'monthly',
+      status: 'active',
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PortalController],
@@ -124,6 +136,13 @@ describe('PortalController', () => {
           orderBy: { createdAt: 'desc' },
         }),
       );
+    });
+
+    it('should block free accounts from listing jobs', async () => {
+      prisma.subscription.findUnique.mockResolvedValueOnce(null);
+
+      await expect(controller.listJobs(mockReq())).rejects.toThrow(ForbiddenException);
+      expect(prisma.reportJob.findMany).not.toHaveBeenCalled();
     });
   });
 
@@ -296,6 +315,16 @@ describe('PortalController', () => {
         controller.submitData(mockReq(), 'j1', undefined as any, {}),
       ).rejects.toThrow('No CSV file provided');
     });
+
+    it('should block free accounts from submitting data', async () => {
+      prisma.subscription.findUnique.mockResolvedValueOnce({ tier: 'free', status: 'active' });
+
+      await expect(
+        controller.submitData(mockReq(), 'j1', mockFile, {}),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(prisma.reportJob.findFirst).not.toHaveBeenCalled();
+    });
   });
 
   // ── inviteUser ─────────────────────────────────
@@ -367,19 +396,52 @@ describe('PortalController', () => {
         name: 'Maria',
         role: 'OWNER',
         createdAt: new Date(),
+        lastLoginAt: new Date('2026-03-15'),
       });
       prisma.subscription.findUnique.mockResolvedValue({
         tier: 'annual',
         status: 'active',
         currentPeriodEnd: new Date('2027-01-01'),
+        reportsUsed: 4,
       });
-      prisma.workspace.findMany.mockResolvedValue([{ id: 'ws-1' }, { id: 'ws-2' }]);
+      prisma.workspace.findMany.mockResolvedValue([
+        { id: 'ws-1', name: 'Primary Workspace', createdAt: new Date('2026-01-01') },
+        { id: 'ws-2', name: 'Secondary Workspace', createdAt: new Date('2026-02-01') },
+      ]);
+      prisma.reportJob.count
+        .mockResolvedValueOnce(9)
+        .mockResolvedValueOnce(5)
+        .mockResolvedValueOnce(2)
+        .mockResolvedValueOnce(1);
+      prisma.institution.findMany.mockResolvedValue([
+        {
+          id: 'inst-1',
+          name: 'Coop Uno',
+          type: 'cooperativa',
+          totalAssets: 125,
+          preferredLanguage: 'es',
+          updatedAt: new Date('2026-03-10'),
+          workspaceId: 'ws-1',
+        },
+      ]);
+      prisma.apiKey.count.mockResolvedValue(3);
 
       const result = await controller.getSettings(mockReq());
 
       expect(result.user.email).toBe('cfo@coop.pr');
       expect(result.subscription.tier).toBe('annual');
       expect(result.workspaceCount).toBe(2);
+      expect(result.reportMetrics).toEqual({
+        total: 9,
+        completed: 5,
+        inProgress: 2,
+        awaitingData: 1,
+      });
+      expect(result.institutionMetrics).toEqual({
+        total: 1,
+        totalAssets: 125,
+      });
+      expect(result.apiKeyCount).toBe(3);
     });
 
     it('should return free tier when no subscription exists', async () => {
@@ -389,13 +451,22 @@ describe('PortalController', () => {
         name: 'Free User',
         role: 'VIEWER',
         createdAt: new Date(),
+        lastLoginAt: null,
       });
-      prisma.subscription.findUnique.mockResolvedValue(null);
+      prisma.subscription.findUnique
+        .mockResolvedValueOnce({ tier: 'monthly', status: 'active' })
+        .mockResolvedValueOnce(null);
       prisma.workspace.findMany.mockResolvedValue([]);
 
       const result = await controller.getSettings(mockReq());
 
       expect(result.subscription).toEqual({ tier: 'free', status: 'active' });
+    });
+
+    it('should block free tier users from settings', async () => {
+      prisma.subscription.findUnique.mockResolvedValueOnce(null);
+
+      await expect(controller.getSettings(mockReq())).rejects.toThrow(ForbiddenException);
     });
 
     it('should throw when user not found', async () => {

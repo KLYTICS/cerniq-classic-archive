@@ -1,0 +1,30 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - button "EN" [ref=e6]
+      - button "ES" [ref=e7]
+    - link "C CapexCycleOS" [ref=e9] [cursor=pointer]:
+      - /url: /
+      - generic [ref=e11]: C
+      - generic [ref=e12]: CapexCycleOS
+    - paragraph [ref=e13]: Sign in to your account
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]: Email
+        - textbox "name@institution.com" [ref=e17]
+      - generic [ref=e18]:
+        - generic [ref=e19]: Password
+        - textbox "••••••••" [ref=e20]
+      - button "Sign In" [ref=e21]
+    - generic [ref=e26]: Or continue with
+    - generic [ref=e27]:
+      - link "Google" [ref=e28] [cursor=pointer]:
+        - /url: http://localhost:3000/api/auth/google
+        - img [ref=e29]
+        - text: Google
+      - link "GitHub" [ref=e34] [cursor=pointer]:
+        - /url: http://localhost:3000/api/auth/github
+        - img [ref=e35]
+        - text: GitHub
+    - button "Don't have an account? Sign up" [ref=e37]

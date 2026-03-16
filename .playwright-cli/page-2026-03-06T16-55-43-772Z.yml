@@ -1,0 +1,16 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - link "C CapexCycleOS" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e8]: C
+        - generic [ref=e9]: CapexCycleOS
+      - generic [ref=e10]: System Status
+    - generic [ref=e14]:
+      - heading "Service Unreachable" [level=2] [ref=e15]
+      - paragraph [ref=e16]: Unable to connect to the API
+    - generic [ref=e18]:
+      - generic [ref=e19]: Uptime (30 days)
+      - generic [ref=e20]: 99.9%
+    - paragraph [ref=e24]: Auto-refreshes every 30 seconds
+  - alert [ref=e25]

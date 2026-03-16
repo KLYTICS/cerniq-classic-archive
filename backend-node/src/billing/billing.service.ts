@@ -57,8 +57,8 @@ export class BillingService {
         customerName: params.customerName || '',
         tier: params.tier,
       },
-      success_url: `${process.env.FRONTEND_URL}${params.successUrl}`,
-      cancel_url: `${process.env.FRONTEND_URL}${params.cancelUrl}`,
+      success_url: this.resolveFrontendUrl(params.successUrl),
+      cancel_url: this.resolveFrontendUrl(params.cancelUrl),
       allow_promotion_codes: true,
       billing_address_collection: 'required',
       locale: 'auto',
@@ -391,6 +391,21 @@ export class BillingService {
     const d = new Date(date);
     d.setMonth(d.getMonth() + months);
     return d;
+  }
+
+  private resolveFrontendUrl(pathOrUrl: string): string {
+    const baseUrl = (process.env.FRONTEND_URL || 'https://cerniq.io').trim().replace(/\/+$/, '');
+    const trimmed = (pathOrUrl || '').trim();
+
+    if (!trimmed) {
+      return baseUrl;
+    }
+
+    if (/^https?:\/\//i.test(trimmed)) {
+      return trimmed;
+    }
+
+    return `${baseUrl}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`;
   }
 
   private resolveSubscriptionStatus(

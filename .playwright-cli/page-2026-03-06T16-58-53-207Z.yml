@@ -1,0 +1,6 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - heading "Admin Access" [level=1] [ref=e4]
+    - textbox "Enter admin password" [active] [ref=e5]
+    - button "Enter" [ref=e6]
+  - alert [ref=e7]

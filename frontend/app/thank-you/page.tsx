@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useState, Suspense } from 'react';
 
@@ -67,12 +68,12 @@ function ThankYouContent() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-slate-800">
-            Gracias por su respuesta
+            Thank you for your feedback
           </h1>
-          <p className="text-slate-500 mt-1">Thank you for your feedback</p>
+          <p className="text-slate-500 mt-1">Gracias por su respuesta</p>
           {score !== null && (
             <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-full">
-              <span className="text-sm text-slate-600">Su puntuacion / Your score:</span>
+              <span className="text-sm text-slate-600">Your score / Su puntuacion:</span>
               <span className={`text-lg font-bold ${
                 isPromoter ? 'text-green-600' : isDetractor ? 'text-red-600' : 'text-amber-600'
               }`}>
@@ -129,8 +130,8 @@ function ThankYouContent() {
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder={isPromoter
-                ? 'Comparta su experiencia... / Share your experience...'
-                : 'Como podemos mejorar? / How can we improve?'
+                ? 'Share your experience... / Comparta su experiencia...'
+                : 'How can we improve? / Como podemos mejorar?'
               }
               rows={4}
               className="w-full border border-slate-300 rounded-lg p-3 text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#1B3A6B] focus:border-transparent resize-none"
@@ -144,7 +145,7 @@ function ThankYouContent() {
                 className="w-4 h-4 rounded border-slate-300 text-[#1B3A6B] focus:ring-[#1B3A6B]"
               />
               <span className="text-sm text-slate-600">
-                Pueden contactarme para discutir mis comentarios / You may contact me to discuss my feedback
+                You may contact me to discuss my feedback / Pueden contactarme para discutir mis comentarios
               </span>
             </label>
 
@@ -153,7 +154,7 @@ function ThankYouContent() {
               disabled={!comment.trim() || submitting}
               className="mt-4 w-full py-3 px-4 bg-[#1B3A6B] text-white font-semibold rounded-lg hover:bg-[#15305A] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {submitting ? 'Enviando...' : 'Enviar comentario / Submit feedback'}
+              {submitting ? 'Submitting...' : 'Submit feedback / Enviar comentario'}
             </button>
           </div>
         )}
@@ -166,19 +167,19 @@ function ThankYouContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <p className="text-slate-700 font-medium">Comentario recibido / Comment received</p>
-            <p className="text-slate-500 text-sm mt-1">Gracias por tomarse el tiempo. / Thank you for taking the time.</p>
+            <p className="text-slate-700 font-medium">Comment received / Comentario recibido</p>
+            <p className="text-slate-500 text-sm mt-1">Thank you for taking the time. / Gracias por tomarse el tiempo.</p>
           </div>
         )}
 
         {/* Footer */}
         <div className="mt-8 pt-4 border-t border-slate-100 text-center">
-          <a
+          <Link
             href="/"
             className="text-sm text-[#1B3A6B] hover:underline font-medium"
           >
-            Volver a CERNIQ / Return to CERNIQ
-          </a>
+            Return to CERNIQ / Volver a CERNIQ
+          </Link>
         </div>
       </div>
     </div>

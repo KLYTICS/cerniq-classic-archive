@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { Upload, Download, FileText, CheckCircle, AlertTriangle, ArrowRight, HelpCircle, ChevronDown, ChevronUp, ClipboardList } from 'lucide-react';
+import { Upload, Download, FileText, CheckCircle, ArrowRight, HelpCircle, ChevronDown, ChevronUp, ClipboardList } from 'lucide-react';
 import { SkeletonLoader, EmptyState, ErrorBanner } from '@/components/ui/cerniq';
 import { analytics, EVENTS } from '@/lib/analytics';
 import ProgressTracker from '@/components/portal/ProgressTracker';
@@ -32,15 +32,15 @@ function FAQItem({ questionEs, questionEn, answerEs, answerEn }: {
       >
         <HelpCircle className="h-4 w-4 text-[#1ABFFF] mt-0.5 shrink-0" />
         <div className="flex-1">
-          <p className="text-sm font-medium text-slate-700">{questionEs}</p>
-          <p className="text-xs text-slate-400">{questionEn}</p>
+          <p className="text-sm font-medium text-slate-700">{questionEn}</p>
+          <p className="text-xs text-slate-400">{questionEs}</p>
         </div>
         {open ? <ChevronUp className="h-4 w-4 text-slate-400 mt-0.5" /> : <ChevronDown className="h-4 w-4 text-slate-400 mt-0.5" />}
       </button>
       {open && (
         <div className="pb-3 pl-6 text-sm text-slate-600">
-          <p>{answerEs}</p>
-          <p className="text-xs text-slate-400 mt-1">{answerEn}</p>
+          <p>{answerEn}</p>
+          <p className="text-xs text-slate-400 mt-1">{answerEs}</p>
         </div>
       )}
     </div>
@@ -74,7 +74,7 @@ function CSVPreview({ file }: { file: File }) {
     <div className="mt-4 rounded-xl border border-slate-200 overflow-hidden">
       <div className="px-4 py-2 bg-slate-50 border-b border-slate-200">
         <p className="text-xs font-medium text-slate-500">
-          Vista previa (primeras 5 filas) / Preview (first 5 rows)
+          Preview (first 5 rows) / Vista previa (primeras 5 filas)
         </p>
       </div>
       <div className="overflow-x-auto">
@@ -103,7 +103,7 @@ function CSVPreview({ file }: { file: File }) {
       </div>
       {rows.length === 5 && (
         <div className="px-4 py-1.5 bg-slate-50 border-t border-slate-200 text-[10px] text-slate-400">
-          ... y mas filas / ... and more rows
+          ... and more rows / ... y mas filas
         </div>
       )}
     </div>
@@ -165,13 +165,13 @@ export default function PortalSubmit() {
   /* ---------- file validation ---------- */
   const validateFile = (f: File): string | null => {
     if (!f.name.endsWith('.csv')) {
-      return 'Solo archivos CSV son aceptados. / Only CSV files are accepted.';
+      return 'Only CSV files are accepted. / Solo archivos CSV son aceptados.';
     }
     if (f.size > 2 * 1024 * 1024) {
-      return 'El archivo excede 2MB. / File exceeds 2MB limit.';
+      return 'File exceeds 2MB limit. / El archivo excede 2MB.';
     }
     if (f.size === 0) {
-      return 'El archivo esta vacio. / File is empty.';
+      return 'File is empty. / El archivo esta vacio.';
     }
     return null;
   };
@@ -223,7 +223,7 @@ export default function PortalSubmit() {
       setResult({
         valid: false,
         status: 'ERROR',
-        errors: ['Error de conexion. Intente de nuevo. / Network error. Please try again.'],
+        errors: ['Network error. Please try again. / Error de conexion. Intente de nuevo.'],
       });
     } finally {
       setUploading(false);
@@ -249,11 +249,11 @@ export default function PortalSubmit() {
       <section className="cerniq-shell p-6 sm:p-8">
         <div className="cerniq-data-wave" />
         <div className="relative z-10">
-          <span className="cerniq-kicker mb-5">Enviar datos / Submit data</span>
+          <span className="cerniq-kicker mb-5">Submit data / Enviar datos</span>
           <h1 className="font-display text-3xl text-slate-950 sm:text-5xl">
-            Cargue sus datos de balance
+            Upload your balance-sheet data
           </h1>
-          <p className="mt-2 text-sm text-slate-400">Upload your balance-sheet data for report generation.</p>
+          <p className="mt-2 text-sm text-slate-400">Cargue sus datos de balance para generar su informe.</p>
         </div>
       </section>
 
@@ -272,20 +272,20 @@ export default function PortalSubmit() {
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1B3A6B] text-sm font-bold text-white">1</div>
               <div className="flex-1">
                 <h2 className="mb-1 text-sm font-semibold text-slate-900">
-                  Descargar plantilla CSV / Download CSV Template
+                  Download CSV template / Descargar plantilla CSV
                 </h2>
                 <p className="mb-3 text-sm text-slate-500">
-                  Complete sus datos de balance usando nuestra plantilla. Incluye columnas para tipo de activo/pasivo, monto, tasa y vencimiento.
+                  Fill in your balance sheet data using our template. Includes columns for asset/liability type, amount, rate, and maturity.
                   <br />
                   <span className="text-slate-400">
-                    Fill in your balance sheet data using our template. Includes columns for asset/liability type, amount, rate, and maturity.
+                    Complete sus datos de balance usando nuestra plantilla. Incluye columnas para tipo de activo/pasivo, monto, tasa y vencimiento.
                   </span>
                 </p>
                 <a
                   href={`${NODE_API_URL}/api/alm/templates/cooperativa`}
                   className="cerniq-button-secondary px-4 py-2 text-sm"
                 >
-                  <Download className="h-4 w-4" /> Descargar plantilla / Download Template
+                  <Download className="h-4 w-4" /> Download template / Descargar plantilla
                 </a>
               </div>
             </div>
@@ -297,7 +297,7 @@ export default function PortalSubmit() {
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1B3A6B] text-sm font-bold text-white">2</div>
               <div className="flex-1">
                 <h2 className="mb-1 text-sm font-semibold text-slate-900">
-                  Seleccionar informe / Select Report
+                  Select report / Seleccionar informe
                 </h2>
                 {fetchError ? (
                   <ErrorBanner
@@ -336,11 +336,11 @@ export default function PortalSubmit() {
                         <span className="font-medium">{job.institutionName}</span>
                         {job.status === 'VALIDATION_FAILED' && (
                           <span className="ml-2 text-xs text-rose-600">
-                            Validacion fallida — reintentar / Validation failed — retry
+                            Validation failed - retry / Validacion fallida - reintentar
                           </span>
                         )}
                         <span className="mt-0.5 block text-xs text-slate-400">
-                          Creado / Created {new Date(job.createdAt).toLocaleDateString()}
+                          Created / Creado {new Date(job.createdAt).toLocaleDateString()}
                         </span>
                       </button>
                     ))}
@@ -356,12 +356,12 @@ export default function PortalSubmit() {
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1B3A6B] text-sm font-bold text-white">3</div>
               <div className="flex-1">
                 <h2 className="mb-1 text-sm font-semibold text-slate-900">
-                  Periodo de analisis / Analysis Period
+                  Analysis period / Periodo de analisis
                 </h2>
                 <p className="mb-3 text-sm text-slate-500">
-                  Seleccione el periodo que corresponde a estos datos. Esto permite comparar tendencias entre periodos.
+                  Select the period for this data. This enables trend comparison across periods.
                   <br />
-                  <span className="text-slate-400">Select the period for this data. This enables trend comparison across periods.</span>
+                  <span className="text-slate-400">Seleccione el periodo que corresponde a estos datos. Esto permite comparar tendencias entre periodos.</span>
                 </p>
                 <select
                   value={analysisPeriod}
@@ -382,12 +382,12 @@ export default function PortalSubmit() {
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1B3A6B] text-sm font-bold text-white">4</div>
               <div className="flex-1">
                 <h2 className="mb-1 text-sm font-semibold text-slate-900">
-                  Cargar sus datos / Upload Your Data
+                  Upload your data / Cargar sus datos
                 </h2>
                 <p className="mb-3 text-sm text-slate-500">
-                  Cargue el archivo CSV completado. Tamano maximo: 2MB.
+                  Upload the completed CSV file. Max file size: 2MB.
                   <br />
-                  <span className="text-slate-400">Upload the completed CSV file. Max file size: 2MB.</span>
+                  <span className="text-slate-400">Cargue el archivo CSV completado. Tamano maximo: 2MB.</span>
                 </p>
 
                 <input
@@ -425,7 +425,7 @@ export default function PortalSubmit() {
                         onClick={(e) => { e.stopPropagation(); setFile(null); setResult(null); }}
                         className="ml-3 text-xs text-slate-400 hover:text-rose-500 underline"
                       >
-                        Cambiar / Change
+                        Change / Cambiar
                       </button>
                     </div>
                   ) : (
@@ -453,15 +453,15 @@ export default function PortalSubmit() {
                           <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#18C87A]" />
                           <div>
                             <p className="text-sm font-medium text-[#18C87A]">
-                              Datos enviados exitosamente / Data submitted successfully
+                              Data submitted successfully / Datos enviados exitosamente
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
-                              {result.itemsImported} elementos importados. Su informe esta en cola para procesamiento.
-                              <br />
                               {result.itemsImported} items imported. Your report is now queued for processing.
+                              <br />
+                              {result.itemsImported} elementos importados. Su informe esta en cola para procesamiento.
                             </p>
                             <Link href="/portal" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-[#1ABFFF] hover:underline">
-                              Volver al portal / Back to portal <ArrowRight className="h-3 w-3" />
+                              Back to portal / Volver al portal <ArrowRight className="h-3 w-3" />
                             </Link>
                           </div>
                         </div>
@@ -496,12 +496,12 @@ export default function PortalSubmit() {
                   {uploading ? (
                     <>
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                      Cargando y validando... / Uploading & Validating...
+                      Uploading & Validating... / Cargando y validando...
                     </>
                   ) : (
                     <>
                       <Upload className="h-4 w-4" />
-                      Enviar datos / Submit Data
+                      Submit data / Enviar datos
                     </>
                   )}
                 </button>
@@ -516,7 +516,7 @@ export default function PortalSubmit() {
             <div className="flex items-center gap-2 mb-4">
               <HelpCircle className="h-5 w-5 text-[#1ABFFF]" />
               <h3 className="text-sm font-semibold text-slate-900">
-                Necesita ayuda? / Need help?
+                Need help? / Necesita ayuda?
               </h3>
             </div>
 
@@ -543,13 +543,13 @@ export default function PortalSubmit() {
 
             <div className="mt-4 pt-4 border-t border-slate-100">
               <p className="text-xs text-slate-500">
-                Problemas? / Issues?
+                Issues? / Problemas?
               </p>
               <a
                 href="mailto:erwin@klytics.io"
                 className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-[#1ABFFF] hover:underline"
               >
-                Contactar soporte / Contact support
+                Contact support / Contactar soporte
               </a>
             </div>
           </div>

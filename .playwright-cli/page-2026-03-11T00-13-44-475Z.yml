@@ -1,0 +1,55 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - img [ref=e6]
+          - generic [ref=e8]: Sales Mode
+        - generic [ref=e9]:
+          - img [ref=e10]
+          - generic [ref=e13]: 0:00
+      - generic [ref=e14]: "Phase: seed"
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - paragraph [ref=e17]: Balance sheet was loaded from public regulatory filings
+          - paragraph [ref=e18]: “How often does your team update balance sheet positions?”
+          - button "Flag for follow-up" [ref=e19]:
+            - img [ref=e20]
+            - text: Flag for follow-up
+        - generic [ref=e22]:
+          - paragraph [ref=e23]: All 10 asset and liability line items are mapped automatically
+          - paragraph [ref=e24]: “Do you currently use a spreadsheet or vendor software for this?”
+          - button "Flag for follow-up" [ref=e25]:
+            - img [ref=e26]
+            - text: Flag for follow-up
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e31]: C
+        - paragraph [ref=e32]: CERNIQ
+      - generic [ref=e33]:
+        - heading "Set up your institution" [level=2] [ref=e34]
+        - paragraph [ref=e35]: Takes about 10 seconds
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e38]: Institution Name
+            - textbox [ref=e39]: CoopAhorro San Juan
+          - generic [ref=e40]:
+            - generic [ref=e41]:
+              - generic [ref=e42]: Asset Size
+              - combobox [ref=e43]:
+                - option "Under $100M"
+                - option "$100M - $500M" [selected]
+                - option "$500M - $1B"
+                - option "$1B - $5B"
+                - option "$5B+"
+            - generic [ref=e44]:
+              - generic [ref=e45]: Type
+              - combobox [ref=e46]:
+                - option "Community Bank"
+                - option "Credit Union"
+                - option "Cooperativa PR" [selected]
+                - option "Family Office"
+        - button "Continue" [ref=e47]:
+          - text: Continue
+          - img [ref=e48]
+  - alert [ref=e50]

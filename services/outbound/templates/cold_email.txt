@@ -1,0 +1,47 @@
+CERNIQ — Cold Outreach Email
+
+=== SPANISH ===
+
+Asunto: Informe ALM gratuito para {institution}
+
+Estimado/a {contact_role},
+
+¿Sus informes ALM para el comité se construyen manualmente o a través de un sistema?
+
+En CERNIQ hemos desarrollado un flujo de trabajo que convierte la carga de un balance general en un informe ALM bilingüe en minutos — diseñado específicamente para cooperativas como {institution}.
+
+Su institución puede beneficiarse de:
+
+• Análisis de brecha de duración y sensibilidad NII
+• Cumplimiento LCR/NSFR bajo Basilea III
+• Prueba de estrés Monte Carlo con 1,000 escenarios
+• Comparación con la mediana del sector
+
+¿Le gustaría recibir un informe de muestra personalizado? Responda a este correo o programe una demostración de 15 minutos.
+
+Saludos cordiales,
+Erwin Kiess
+CERNIQ — San Juan, PR
+
+=== ENGLISH ===
+
+Subject: Free ALM Report for {institution}
+
+Dear {contact_role},
+
+Quick question — are your ALM committee reports currently built manually or through a system?
+
+We've built a workflow at CERNIQ that converts a balance sheet upload into a bilingual ALM report in minutes — designed specifically for institutions like {institution}.
+
+Your institution could benefit from:
+
+• Duration gap and NII sensitivity analysis
+• LCR/NSFR compliance under Basel III
+• Monte Carlo stress test with 1,000 scenarios
+• Sector median benchmarking
+
+Would you like to receive a personalized sample report? Reply to this email or schedule a 15-minute demo.
+
+Best regards,
+Erwin Kiess
+CERNIQ — San Juan, PR

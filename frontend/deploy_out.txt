@@ -1,0 +1,7 @@
+Vercel CLI 50.9.6
+Retrieving project…
+Deploying ekiess-projects/capexcycle
+Uploading [--------------------] (0.0B/16.7MB)
+Uploading [=====---------------] (4.2MB/16.7MB)
+Uploading [==========----------] (8.4MB/16.7MB)
+Uploading [===============-----] (12.6MB/16.7MB)

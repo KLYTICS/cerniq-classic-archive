@@ -189,6 +189,21 @@ describe('BillingService', () => {
       expect(callArgs.cancel_url).toBe('https://cerniq.io/billing/cancel');
     });
 
+    it('should keep absolute success and cancel URLs unchanged', async () => {
+      const stripeMock = (service as any).stripe;
+      stripeMock.checkout.sessions.create.mockResolvedValue({ url: '', id: 'cs_abs' });
+
+      await service.createCheckoutSession({
+        tier: 'monthly',
+        successUrl: 'https://preview.cerniq.io/portal?welcome=1',
+        cancelUrl: 'https://preview.cerniq.io/pricing',
+      });
+
+      const callArgs = stripeMock.checkout.sessions.create.mock.calls[0][0];
+      expect(callArgs.success_url).toBe('https://preview.cerniq.io/portal?welcome=1');
+      expect(callArgs.cancel_url).toBe('https://preview.cerniq.io/pricing');
+    });
+
     it('should pass metadata including leadId and institutionName', async () => {
       const stripeMock = (service as any).stripe;
       stripeMock.checkout.sessions.create.mockResolvedValue({ url: '', id: 'cs_y' });

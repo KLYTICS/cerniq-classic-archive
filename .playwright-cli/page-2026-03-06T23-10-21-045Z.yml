@@ -1,0 +1,14 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e6]: C
+      - paragraph [ref=e7]: CapexCycleOS
+    - generic [ref=e26]:
+      - heading "Creating your ALM profile" [level=2] [ref=e27]
+      - paragraph [ref=e28]: CoopAhorro San Juan
+      - generic [ref=e30]:
+        - generic [ref=e33]: Loading balance sheet positions
+        - generic [ref=e36]: Running NII sensitivity scenarios
+        - generic [ref=e39]: Calculating Basel III compliance
+        - generic [ref=e42]: Generating risk assessment
+  - alert [ref=e25]

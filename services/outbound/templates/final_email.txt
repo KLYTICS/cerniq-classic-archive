@@ -1,0 +1,35 @@
+CERNIQ — Final Email (Day 7)
+
+=== SPANISH ===
+
+Asunto: Última nota — informe ALM para {institution}
+
+Estimado/a {contact_role},
+
+Esta es mi última nota. Entiendo que está ocupado/a.
+
+Si en el futuro necesita una herramienta para generar informes ALM de forma más rápida y confiable, CERNIQ está diseñado exactamente para eso.
+
+Le dejo mi enlace para agendar una llamada cuando sea conveniente:
+https://calendly.com/cerniq/demo
+
+Saludos,
+Erwin Kiess
+CERNIQ
+
+=== ENGLISH ===
+
+Subject: Last note — ALM report for {institution}
+
+Dear {contact_role},
+
+This is my last note. I understand you're busy.
+
+If you ever need a faster, more reliable way to generate ALM reports, CERNIQ is built for exactly that.
+
+Here's my scheduling link whenever it's convenient:
+https://calendly.com/cerniq/demo
+
+Best,
+Erwin Kiess
+CERNIQ

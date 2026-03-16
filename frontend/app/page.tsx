@@ -2,26 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, CheckCircle2, ChevronRight, FileText, PlayCircle, ShieldCheck, Upload, Languages, Building2, Clock } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronRight, FileText, PlayCircle, ShieldCheck, Upload, Languages, Clock } from 'lucide-react';
 import { apiClient } from '@/lib/api';
+import { createCheckoutSession, type CheckoutTier } from '@/lib/billing';
 import { CerniqMark, CerniqLockup } from '@/components/brand/CerniqLogo';
 
-const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-const SITE_URL = 'https://cerniq.io';
 const DEMO_VIDEO_URL = (process.env.NEXT_PUBLIC_CERNIQ_DEMO_VIDEO_URL || '').trim();
-const SAMPLE_REPORT_URL = (process.env.NEXT_PUBLIC_CERNIQ_SAMPLE_REPORT_URL || '').trim();
 
 const institutionOptions = [
-  { value: '', label: 'Tipo de institucion / Institution type' },
+  { value: '', label: 'Institution type / Tipo de institucion' },
   { value: 'cooperativa', label: 'Cooperativa' },
   { value: 'credit_union', label: 'Credit union' },
-  { value: 'cpa_consultant', label: 'CPA / firma consultora' },
+  { value: 'cpa_consultant', label: 'CPA / consulting firm' },
   { value: 'community_bank', label: 'Community bank' },
-  { value: 'other', label: 'Otro / Other' },
+  { value: 'other', label: 'Other / Otro' },
 ];
 
 const assetRanges = [
-  { value: '', label: 'Rango de activos / Asset range' },
+  { value: '', label: 'Asset range / Rango de activos' },
   { value: '< $100M', label: '< $100M' },
   { value: '$100M - $500M', label: '$100M - $500M' },
   { value: '$500M - $1B', label: '$500M - $1B' },
@@ -227,7 +225,7 @@ export default function LandingPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutTier, setCheckoutTier] = useState<CheckoutTier | null>(null);
   const [urgencyIndex, setUrgencyIndex] = useState(0);
   const [urgencyFade, setUrgencyFade] = useState(true);
   const router = useRouter();
@@ -257,7 +255,7 @@ export default function LandingPage() {
       return (error as { response?: { data?: { message?: string } } }).response?.data?.message;
     }
 
-    return 'No se pudo enviar. Intente de nuevo. / Failed to submit. Please try again.';
+    return 'Failed to submit. Please try again. / No se pudo enviar. Intente de nuevo.';
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -281,27 +279,30 @@ export default function LandingPage() {
     }
   };
 
-  async function handleCheckout(tier: string) {
-    setCheckoutLoading(true);
-    try {
-      const response = await fetch(`${NODE_API_URL}/api/billing/checkout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tier,
-          successUrl: `${SITE_URL}/portal?welcome=1`,
-          cancelUrl: `${SITE_URL}/pricing`,
-        }),
-      });
+  const getPricingCtaLabel = (tier: CheckoutTier) => {
+    switch (tier) {
+      case 'monthly':
+        return 'Suscribirse ahora';
+      case 'annual':
+        return 'Comprar anual';
+      default:
+        return 'Comprar ahora';
+    }
+  };
 
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      }
+  async function handleCheckout(tier: CheckoutTier) {
+    setCheckoutTier(tier);
+    try {
+      const checkoutUrl = await createCheckoutSession({
+        tier,
+        successUrl: '/portal?welcome=1',
+        cancelUrl: '/pricing',
+      });
+      window.location.href = checkoutUrl;
     } catch {
-      window.location.href = `${SITE_URL}/#pricing`;
+      window.location.href = '/#pricing';
     } finally {
-      setCheckoutLoading(false);
+      setCheckoutTier(null);
     }
   }
 
@@ -346,27 +347,27 @@ export default function LandingPage() {
           </div>
         </nav>
 
-        <main className="space-y-6 pb-20">
+        <main className="space-y-4 pb-16">
           {/* ── HERO ── */}
-          <section className="cerniq-shell p-4 sm:p-6 lg:p-8">
-            <div className="cerniq-panel min-h-[420px] p-6 sm:p-8 lg:p-10">
+          <section className="cerniq-shell p-3 sm:p-4 lg:p-6">
+            <div className="cerniq-panel min-h-[320px] p-5 sm:p-6 lg:p-8">
               <div className="cerniq-data-wave opacity-55" />
               <div className="relative z-10 mx-auto flex max-w-4xl flex-col">
-                <span className="cerniq-kicker mb-8 w-fit">Informes ALM para cooperativas y credit unions</span>
+                <span className="cerniq-kicker mb-4 w-fit">Informes ALM para cooperativas y credit unions</span>
                 <CerniqLockup tagline="Bilingual ALM Reporting" />
-                <div className="mt-8 space-y-5">
-                  <h1 className="font-display text-3xl leading-tight text-slate-950 sm:text-5xl">
+                <div className="mt-5 space-y-3">
+                  <h1 className="font-display text-2xl leading-tight text-slate-950 sm:text-4xl">
                     Informes ALM bilingues para cooperativas y credit unions de Puerto Rico
                   </h1>
-                  <p className="max-w-3xl text-base leading-8 text-slate-700">
+                  <p className="max-w-3xl text-sm leading-7 text-slate-700">
                     Cargue su hoja de balance. Genere su informe COSSEC-compliant en horas, no semanas.
                   </p>
-                  <p className="max-w-3xl text-sm leading-7 text-slate-500">
+                  <p className="max-w-3xl text-xs leading-6 text-slate-500">
                     Upload your balance sheet. Generate your COSSEC-compliant report in hours, not weeks.
                   </p>
 
                   {/* Urgency hook rotator */}
-                  <div className="h-8 flex items-center">
+                  <div className="h-6 flex items-center">
                     <p
                       className={`text-sm font-semibold text-amber-600 transition-opacity duration-400 ${urgencyFade ? 'opacity-100' : 'opacity-0'}`}
                     >
@@ -375,7 +376,7 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                   <button
                     onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
                     className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5"
@@ -385,10 +386,10 @@ export default function LandingPage() {
                   </button>
                   <button
                     onClick={() => handleCheckout('one_time')}
-                    disabled={checkoutLoading}
+                    disabled={checkoutTier === 'one_time'}
                     className="cerniq-button-secondary disabled:opacity-60"
                   >
-                    {checkoutLoading ? 'Procesando...' : 'Comenzar — $750'}
+                    {checkoutTier === 'one_time' ? 'Procesando...' : 'Comenzar — $750'}
                   </button>
                 </div>
               </div>
@@ -396,7 +397,7 @@ export default function LandingPage() {
           </section>
 
           {/* ── SOCIAL PROOF BAR ── */}
-          <section className="cerniq-panel py-5 px-6 sm:px-8">
+          <section className="cerniq-panel py-3 px-6 sm:px-8">
             <div className="mx-auto flex max-w-4xl flex-col items-center gap-3 text-center sm:flex-row sm:justify-center sm:gap-8">
               <span className="text-sm font-semibold text-slate-700">3 cooperativas en piloto</span>
               <span className="hidden h-4 w-px bg-slate-300 sm:block" />
@@ -408,21 +409,21 @@ export default function LandingPage() {
           </section>
 
           {/* ── PAIN / COST SECTION ── */}
-          <section className="cerniq-panel cerniq-card-hover p-6 sm:p-8 lg:p-10">
-            <div className="mx-auto max-w-4xl space-y-6">
+          <section className="cerniq-panel cerniq-card-hover p-4 sm:p-6 lg:p-8">
+            <div className="mx-auto max-w-4xl space-y-4">
               <div>
-                <p className="cerniq-section-label">Comparacion de costos / Cost comparison</p>
-                <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
-                  ¿Cuanto gasta su institucion en analisis ALM?
+                <p className="cerniq-section-label">Cost comparison / Comparacion de costos</p>
+                <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
+                  How much does your institution spend on ALM analysis?
                 </h2>
-                <p className="mt-2 text-sm text-slate-500">How much does your institution spend on ALM analysis?</p>
+                <p className="mt-2 text-sm text-slate-500">¿Cuanto gasta su institucion en analisis ALM?</p>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200">
-                      <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500" />
+                      <th className="py-2 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500" />
                       <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500">Consultor tradicional</th>
                       <th className="py-3 text-xs font-semibold uppercase tracking-wider text-cyan-700">CERNIQ</th>
                     </tr>
@@ -430,9 +431,9 @@ export default function LandingPage() {
                   <tbody>
                     {costComparison.map((row) => (
                       <tr key={row.item} className="border-b border-slate-100">
-                        <td className="py-3 pr-4">
-                          <span className="font-medium text-slate-700">{row.item}</span>
-                          <span className="block text-xs text-slate-400">{row.itemEn}</span>
+                        <td className="py-2 pr-4">
+                          <span className="font-medium text-slate-700">{row.itemEn}</span>
+                          <span className="block text-xs text-slate-400">{row.item}</span>
                         </td>
                         <td className="py-3 pr-4 text-slate-500">{row.consultant}</td>
                         <td className="py-3 font-semibold text-cyan-700">{row.cerniq}</td>
@@ -442,7 +443,7 @@ export default function LandingPage() {
                 </table>
               </div>
 
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 text-center">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 text-center">
                 <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-700">AHORRO ESTIMADO: 83-93%</p>
                 <p className="mt-1 text-xs text-emerald-600">Estimated savings: 83-93%</p>
               </div>
@@ -450,42 +451,42 @@ export default function LandingPage() {
           </section>
 
           {/* ── THREE FEATURES ── */}
-          <section className="grid gap-6 sm:grid-cols-3">
+          <section className="grid gap-4 sm:grid-cols-3">
             {features.map((feat) => (
-              <div key={feat.titleEs} className="cerniq-panel cerniq-card-hover p-6">
+              <div key={feat.titleEs} className="cerniq-panel cerniq-card-hover p-4">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
                   <feat.icon className="h-5 w-5 text-cyan-700" />
                 </div>
-                <p className="mt-4 font-display text-xl text-slate-950">{feat.titleEs}</p>
-                <p className="mt-1 text-xs text-slate-400">{feat.titleEn}</p>
-                <p className="mt-3 text-sm leading-7 text-slate-700">{feat.copyEs}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-400">{feat.copyEn}</p>
+                <p className="mt-3 font-display text-lg text-slate-950">{feat.titleEn}</p>
+                <p className="mt-0.5 text-xs text-slate-400">{feat.titleEs}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-700">{feat.copyEn}</p>
+                <p className="mt-0.5 text-xs leading-5 text-slate-400">{feat.copyEs}</p>
               </div>
             ))}
           </section>
 
           {/* ── HOW IT WORKS ── */}
-          <section className="cerniq-panel cerniq-card-hover p-6 sm:p-8 lg:p-10">
+          <section className="cerniq-panel cerniq-card-hover p-4 sm:p-6 lg:p-8">
             <div className="mx-auto max-w-4xl">
               <div>
-                <p className="cerniq-section-label">Como funciona / How it works</p>
-                <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
+                <p className="cerniq-section-label">How it works / Como funciona</p>
+                <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
                   De carga a informe terminado en 3 pasos
                 </h2>
                 <p className="mt-2 text-sm text-slate-500">From upload to finished report in 3 steps</p>
               </div>
 
-              <div className="mt-8 grid gap-4 sm:grid-cols-3">
+              <div className="mt-5 grid gap-4 sm:grid-cols-3">
                 {workflow.map((step, index) => (
-                  <div key={step.titleEs} className="rounded-2xl border border-slate-200 bg-white/86 p-5 text-center">
+                  <div key={step.titleEs} className="rounded-2xl border border-slate-200 bg-white/86 p-4 text-center">
                     <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
                       <step.icon className="h-5 w-5 text-cyan-700" />
                     </div>
-                    <p className="mt-3 text-xs font-bold uppercase tracking-[0.24em] text-slate-400">Paso {index + 1}</p>
-                    <h3 className="mt-2 font-display text-xl text-slate-950">{step.titleEs}</h3>
-                    <p className="mt-1 text-xs text-slate-400">{step.titleEn}</p>
-                    <p className="mt-3 text-sm leading-7 text-slate-600">{step.copyEs}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-400">{step.copyEn}</p>
+                    <p className="mt-2 text-xs font-bold uppercase tracking-[0.24em] text-slate-400">Paso {index + 1}</p>
+                    <h3 className="mt-1 font-display text-lg text-slate-950">{step.titleEn}</h3>
+                    <p className="mt-0.5 text-xs text-slate-400">{step.titleEs}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{step.copyEn}</p>
+                    <p className="mt-0.5 text-xs leading-5 text-slate-400">{step.copyEs}</p>
                   </div>
                 ))}
               </div>
@@ -493,11 +494,11 @@ export default function LandingPage() {
           </section>
 
           {/* ── WALKTHROUGH VIDEO ── */}
-          <section className="cerniq-panel cerniq-card-hover p-6 sm:p-8 lg:p-10">
-            <div className="mx-auto max-w-4xl space-y-6">
-              <div>
-                <p className="cerniq-section-label">Demostracion / Walkthrough</p>
-                <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
+          <section className="cerniq-panel cerniq-card-hover p-4 sm:p-6 lg:p-8">
+            <div className="mx-auto space-y-4">
+              <div className="max-w-4xl">
+                <p className="cerniq-section-label">Walkthrough / Demostracion</p>
+                <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
                   Vea el flujo de carga a informe en accion
                 </h2>
                 <p className="mt-2 text-sm text-slate-500">See the upload-to-report workflow in action</p>
@@ -505,7 +506,7 @@ export default function LandingPage() {
 
               <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white">
                 {hasVideo ? (
-                  <div className="aspect-video w-full bg-slate-100">
+                  <div className="w-full bg-slate-100" style={{ aspectRatio: '16/9' }}>
                     {isDirectVideoFile(DEMO_VIDEO_URL) ? (
                       <video className="h-full w-full" controls preload="metadata" playsInline src={DEMO_VIDEO_URL} />
                     ) : isHtmlPage(DEMO_VIDEO_URL) ? (
@@ -545,11 +546,11 @@ export default function LandingPage() {
           </section>
 
           {/* ── PRICING ── */}
-          <section id="pricing" className="cerniq-shell p-4 sm:p-6 lg:p-8">
+          <section id="pricing" className="cerniq-shell p-3 sm:p-4 lg:p-6">
             <div className="mx-auto max-w-4xl">
-              <div className="mb-8">
-                <p className="cerniq-section-label">Precios / Pricing</p>
-                <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
+              <div className="mb-5">
+                <p className="cerniq-section-label">Pricing / Precios</p>
+                <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
                   Comience con un piloto o elija acceso recurrente
                 </h2>
                 <p className="mt-2 text-sm text-slate-500">Start with a pilot or choose recurring access</p>
@@ -559,7 +560,7 @@ export default function LandingPage() {
                 {pricingTiers.map((tier) => (
                   <div
                     key={tier.id}
-                    className={`cerniq-panel cerniq-card-hover flex flex-col p-6 ${tier.featured ? 'border-cyan-300/25 shadow-[0_20px_60px_rgba(34,211,238,0.12)]' : ''}`}
+                    className={`cerniq-panel cerniq-card-hover flex flex-col p-5 ${tier.featured ? 'border-cyan-300/25 shadow-[0_20px_60px_rgba(34,211,238,0.12)]' : ''}`}
                   >
                     {tier.featured && (
                       <span className="mb-3 w-fit rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] uppercase tracking-[0.26em] text-cyan-700">
@@ -587,11 +588,11 @@ export default function LandingPage() {
                     </div>
 
                     <button
-                      onClick={() => tier.id === 'one_time' ? handleCheckout('one_time') : document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
-                      disabled={checkoutLoading && tier.id === 'one_time'}
+                      onClick={() => handleCheckout(tier.id as CheckoutTier)}
+                      disabled={checkoutTier === tier.id}
                       className={`mt-6 w-full ${tier.featured ? 'cerniq-button-primary' : 'cerniq-button-secondary'} disabled:opacity-60`}
                     >
-                      {tier.id === 'one_time' ? (checkoutLoading ? 'Procesando...' : 'Comprar ahora') : 'Solicitar demo'}
+                      {checkoutTier === tier.id ? 'Procesando...' : getPricingCtaLabel(tier.id as CheckoutTier)}
                     </button>
                   </div>
                 ))}
@@ -603,7 +604,7 @@ export default function LandingPage() {
           <section id="faq" className="cerniq-panel cerniq-card-hover p-6 sm:p-8 lg:p-10">
             <div className="mx-auto max-w-4xl space-y-6">
               <div>
-                <p className="cerniq-section-label">Preguntas frecuentes / FAQ</p>
+                <p className="cerniq-section-label">FAQ / Preguntas frecuentes</p>
                 <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
                   Respuestas a preguntas comunes
                 </h2>
@@ -616,15 +617,15 @@ export default function LandingPage() {
                     <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950 sm:text-base [&::-webkit-details-marker]:hidden">
                       <div className="flex items-center justify-between gap-4">
                         <div>
-                          <span>{item.questionEs}</span>
-                          <span className="ml-2 text-xs font-normal text-slate-400">/ {item.questionEn}</span>
+                          <span>{item.questionEn}</span>
+                          <span className="ml-2 text-xs font-normal text-slate-400">/ {item.questionEs}</span>
                         </div>
                         <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
                       </div>
                     </summary>
                     <div className="border-t border-slate-100 px-5 py-4">
-                      <p className="text-sm leading-7 text-slate-700">{item.answerEs}</p>
-                      <p className="mt-2 text-xs leading-6 text-slate-400">{item.answerEn}</p>
+                      <p className="text-sm leading-7 text-slate-700">{item.answerEn}</p>
+                      <p className="mt-2 text-xs leading-6 text-slate-400">{item.answerEs}</p>
                     </div>
                   </details>
                 ))}
@@ -634,9 +635,9 @@ export default function LandingPage() {
 
           {/* ── DEMO FORM ── */}
           <section id="demo" className="cerniq-panel cerniq-card-hover p-6 sm:p-8">
-            <p className="cerniq-section-label">Solicitar demo / Request demo</p>
-            <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">Conecte su institucion al flujo de trabajo</h2>
-            <p className="mt-1 text-sm text-slate-500">Bring your institution into the workflow</p>
+            <p className="cerniq-section-label">Request demo / Solicitar demo</p>
+            <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">Bring your institution into the workflow</h2>
+            <p className="mt-1 text-sm text-slate-500">Conecte su institucion al flujo de trabajo</p>
             <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
               Diganos quien es y programaremos una demostracion enfocada en la carga ALM, el informe bilingue y el camino de piloto para su institucion.
             </p>
@@ -648,7 +649,7 @@ export default function LandingPage() {
               {submitted ? (
                 <div className="rounded-[1.5rem] border border-emerald-300 bg-emerald-50 p-6 text-emerald-800">
                   <CheckCircle2 className="h-9 w-9 text-emerald-500" />
-                  <h3 className="mt-4 font-display text-2xl">Solicitud recibida / Request received</h3>
+                  <h3 className="mt-4 font-display text-2xl">Request received / Solicitud recibida</h3>
                   <p className="mt-3 text-sm leading-7 text-emerald-700">
                     Le daremos seguimiento en 24 horas para programar su demostracion CERNIQ ALM.
                   </p>
@@ -664,23 +665,23 @@ export default function LandingPage() {
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Nombre / Name</label>
+                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Name / Nombre</label>
                       <input type="text" placeholder="Maria Rodriguez" className="cerniq-input" value={name} onChange={(event) => setName(event.target.value)} />
                     </div>
                     <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Correo institucional / Work email</label>
+                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Work email / Correo institucional</label>
                       <input type="email" required placeholder="maria@cooperativa.com" className="cerniq-input" value={email} onChange={(event) => setEmail(event.target.value)} />
                     </div>
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Nombre de institucion / Institution name</label>
+                    <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Institution name / Nombre de institucion</label>
                     <input type="text" placeholder="Cooperativa de Ahorro y Credito" className="cerniq-input" value={institutionName} onChange={(event) => setInstitutionName(event.target.value)} />
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Tipo de institucion / Institution type</label>
+                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Institution type / Tipo de institucion</label>
                       <select className="cerniq-input" value={institutionType} onChange={(event) => setInstitutionType(event.target.value)}>
                         {institutionOptions.map((option) => (
                           <option key={option.value || 'default'} value={option.value} className="bg-white">
@@ -690,7 +691,7 @@ export default function LandingPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Rango de activos / Asset range</label>
+                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Asset range / Rango de activos</label>
                       <select className="cerniq-input" value={totalAssets} onChange={(event) => setTotalAssets(event.target.value)}>
                         {assetRanges.map((option) => (
                           <option key={option.value || 'default'} value={option.value} className="bg-white">
@@ -702,7 +703,7 @@ export default function LandingPage() {
                   </div>
 
                   <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5 disabled:opacity-60">
-                    {loading ? 'Enviando... / Submitting...' : 'Solicitar analisis gratuito / Request free analysis'}
+                    {loading ? 'Submitting... / Enviando...' : 'Request free analysis / Solicitar analisis gratuito'}
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </form>
@@ -717,9 +718,9 @@ export default function LandingPage() {
               <div className="max-w-3xl">
                 <p className="cerniq-section-label">CERNIQ</p>
                 <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
-                  Informes ALM bilingues. Listos para COSSEC. En 24 horas.
+                  Bilingual ALM reports. COSSEC-ready. In 24 hours.
                 </h2>
-                <p className="mt-2 text-sm text-slate-500">Bilingual ALM reports. COSSEC-ready. In 24 hours.</p>
+                <p className="mt-2 text-sm text-slate-500">Informes ALM bilingues. Listos para COSSEC. En 24 horas.</p>
                 <p className="mt-5 max-w-2xl text-sm leading-8 text-slate-600 sm:text-base">
                   CERNIQ es software de informes ALM bilingues para cooperativas y credit unions. Un flujo enfocado, una entrega clara, un producto que su institucion entiende de inmediato.
                 </p>
@@ -729,8 +730,8 @@ export default function LandingPage() {
                 <button onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })} className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5">
                   Solicitar Demo
                 </button>
-                <button onClick={() => handleCheckout('one_time')} disabled={checkoutLoading} className="cerniq-button-secondary disabled:opacity-60">
-                  {checkoutLoading ? 'Procesando...' : 'Comenzar — $750'}
+                <button onClick={() => handleCheckout('one_time')} disabled={checkoutTier === 'one_time'} className="cerniq-button-secondary disabled:opacity-60">
+                  {checkoutTier === 'one_time' ? 'Procesando...' : 'Comenzar — $750'}
                 </button>
               </div>
             </div>
