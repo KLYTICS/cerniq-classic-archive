@@ -15,16 +15,16 @@ const displayFont = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "CERNIQ — ALM Reports for Cooperativas and Credit Unions",
-  description: "Bilingual ALM reporting software for cooperativas and credit unions with secure balance-sheet upload, compliance-ready workflow, and board-ready PDF output.",
-  keywords: "ALM reports, cooperativas, credit unions, bilingual reporting, balance sheet upload, CERNIQ",
+  title: "CERNIQ — Analisis ALM & Cumplimiento COSSEC | Cooperativas de Puerto Rico",
+  description: "Informes ALM bilingues, cumplimiento COSSEC, e inteligencia AP para cooperativas y credit unions de Puerto Rico.",
+  keywords: "ALM reports, cooperativas, credit unions, COSSEC compliance, bilingual reporting, balance sheet upload, CERNIQ",
   metadataBase: new URL("https://cerniq.io"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "CERNIQ — ALM Reports for Cooperativas and Credit Unions",
-    description: "Upload your balance sheet and generate a bilingual, compliance-ready ALM report through CERNIQ.",
+    title: "CERNIQ — Analisis ALM & Cumplimiento COSSEC | Cooperativas de Puerto Rico",
+    description: "Informes ALM bilingues, cumplimiento COSSEC, e inteligencia AP para cooperativas y credit unions de Puerto Rico.",
     url: "https://cerniq.io",
     siteName: "CERNIQ",
     locale: "es_PR",

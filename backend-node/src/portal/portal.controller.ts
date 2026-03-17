@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Param, Body, Req, Logger,
+  Controller, Get, Post, Param, Body, Req, Res, Logger, Query,
   UseGuards, UseInterceptors, UploadedFile,
   BadRequestException, ForbiddenException, NotFoundException,
 } from '@nestjs/common';
@@ -15,6 +15,7 @@ import { IngestionLogsService } from '../alm/ingestion-logs.service';
 import { DataCryptoService } from '../crypto/data-crypto.service';
 import { BillingService } from '../billing/billing.service';
 import { AuditService } from '../audit/audit.service';
+import { AlcoPackService } from '../pipeline/alco-pack.service';
 import { IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
 
 class InviteDto {
@@ -43,6 +44,7 @@ export class PortalController {
     private readonly dataCrypto: DataCryptoService,
     private readonly billing: BillingService,
     private readonly audit: AuditService,
+    private readonly alcoPackService: AlcoPackService,
   ) {}
 
   // ── List User's Report Jobs ─────────────────────────
@@ -106,6 +108,60 @@ export class PortalController {
   async getJobIngestionLogs(@Req() req: any, @Param('jobId') jobId: string) {
     await this.requirePaidPortalAccess(req.user.userId);
     return this.ingestionLogs.listJobLogs(req.user.userId, jobId);
+  }
+
+  // ── ALCO Meeting Pack (8-page board-ready PDF) ──────
+  // All roles can generate ALCO packs for completed jobs
+
+  @Post('jobs/:jobId/alco-pack')
+  @Roles('OWNER', 'ANALYST', 'VIEWER')
+  async generateAlcoPack(
+    @Req() req: any,
+    @Res() res: any,
+    @Param('jobId') jobId: string,
+    @Query('lang') lang?: string,
+  ) {
+    const userId = req.user.userId;
+    await this.requirePaidPortalAccess(userId);
+
+    // Verify job belongs to user and is COMPLETE
+    const job = await this.prisma.reportJob.findFirst({
+      where: { id: jobId, userId },
+    });
+    if (!job) throw new NotFoundException('Job not found');
+    if (job.status !== 'COMPLETE') {
+      throw new BadRequestException(
+        `ALCO pack can only be generated for completed reports (current: ${job.status})`,
+      );
+    }
+    if (!job.institutionId) {
+      throw new BadRequestException('No institution linked to this job');
+    }
+
+    const language = lang === 'en' ? 'en' : 'es'; // default Spanish for cooperativas
+    const pdfBuffer = await this.alcoPackService.buildALCOPack(job.institutionId, language);
+
+    const safeInstName = (job.institutionName || 'institution').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `ALCO_Pack_${safeInstName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+    this.audit.log({
+      userId,
+      institutionId: job.institutionId,
+      action: 'alco_pack_download',
+      resource: 'report_job',
+      resourceId: jobId,
+      ipAddress: req.ip,
+      userAgent: req.headers?.['user-agent'],
+    });
+
+    this.logger.log({ event: 'portal.alco_pack.generated', jobId, userId, language });
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': pdfBuffer.length.toString(),
+    });
+    res.end(pdfBuffer);
   }
 
   // ── Submit Data for a Job ───────────────────────────

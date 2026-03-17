@@ -92,7 +92,7 @@ export default function MarketOverview() {
       );
     } catch (err) {
       console.error('MarketOverview fetch error:', err);
-      setError('Failed to load market data');
+      setError('Failed to load rate data');
     } finally {
       setLoading(false);
     }

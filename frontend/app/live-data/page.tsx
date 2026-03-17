@@ -332,7 +332,7 @@ export default function LiveDataPage() {
 
   return (
     <PlatformPage
-      kicker="Live market data"
+      kicker="Entorno de tasas en vivo"
       title="Monitor quotes, highs, lows, and alerts from the same CERNIQ market surface."
       description="This view keeps live data readable: a watchlist table for real prices, a compact ticker tape for quick scanning, and alerts on the right for names that matter."
       meta={

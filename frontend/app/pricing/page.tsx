@@ -9,8 +9,8 @@ import { CerniqMark } from '@/components/brand/CerniqLogo';
 const TIERS = [
   {
     id: 'one_time',
-    nameEs: 'Informe Piloto',
-    nameEn: 'Pilot Report',
+    nameEs: 'Informe ALM',
+    nameEn: 'ALM Report',
     price: '$750',
     cadenceEs: 'unico',
     cadenceEn: 'one-time',
@@ -25,8 +25,8 @@ const TIERS = [
   },
   {
     id: 'monthly',
-    nameEs: 'Plataforma Recurrente',
-    nameEn: 'Recurring Platform',
+    nameEs: 'Plataforma ALM Mensual',
+    nameEn: 'Monthly ALM Platform',
     price: '$299',
     cadenceEs: '/mes',
     cadenceEn: '/month',
@@ -42,8 +42,8 @@ const TIERS = [
   },
   {
     id: 'partner',
-    nameEs: 'Acceso Partner',
-    nameEn: 'Partner Access',
+    nameEs: 'Partner CPA',
+    nameEn: 'Partner CPA',
     price: '$499',
     cadenceEs: '/mes',
     cadenceEn: '/month',

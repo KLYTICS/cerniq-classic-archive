@@ -47,7 +47,7 @@ export default function MarketTicker({ tickers }: MarketTickerProps) {
         return (
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    🔄 Connecting to market data stream...
+                    🔄 Connecting to rate data stream...
                 </p>
             </div>
         );
@@ -57,7 +57,7 @@ export default function MarketTicker({ tickers }: MarketTickerProps) {
         return (
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                    📡 Loading market data...
+                    📡 Loading rate data...
                 </p>
             </div>
         );
@@ -67,7 +67,7 @@ export default function MarketTicker({ tickers }: MarketTickerProps) {
         <div className="space-y-2">
             <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    Live Market Data
+                    Live Rate Data
                 </h3>
                 <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>

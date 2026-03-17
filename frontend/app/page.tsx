@@ -111,8 +111,8 @@ const costComparison = [
 const pricingTiers = [
   {
     id: 'one_time',
-    nameEs: 'Informe Piloto',
-    nameEn: 'Pilot Report',
+    nameEs: 'Informe ALM',
+    nameEn: 'ALM Report',
     price: '$750',
     cadenceEs: 'unico',
     cadenceEn: 'one-time',
@@ -123,8 +123,8 @@ const pricingTiers = [
   },
   {
     id: 'monthly',
-    nameEs: 'Plataforma Recurrente',
-    nameEn: 'Recurring Platform',
+    nameEs: 'Plataforma ALM Mensual',
+    nameEn: 'Monthly ALM Platform',
     price: '$299',
     cadenceEs: '/mes',
     cadenceEn: '/month',
@@ -135,8 +135,8 @@ const pricingTiers = [
   },
   {
     id: 'annual',
-    nameEs: 'Plan Anual',
-    nameEn: 'Annual Plan',
+    nameEs: 'Plataforma ALM Anual',
+    nameEn: 'Annual ALM Platform',
     price: '$2,400',
     cadenceEs: '/ano',
     cadenceEn: '/year',

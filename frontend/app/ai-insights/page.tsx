@@ -351,7 +351,7 @@ export default function AIInsightsPage() {
                             {' '}Data derived from SPY, VIX, GLD, and TLT real-time quotes.
                         </p>
                     ) : (
-                        <p className="text-gray-500">Waiting for market data...</p>
+                        <p className="text-gray-500">Waiting for rate data...</p>
                     )}
                 </div>
             </div>

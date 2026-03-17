@@ -102,6 +102,7 @@ const MODULE_CARDS = [
     href: '/risk-analytics',
     icon: TrendingUp,
     accent: 'Riesgo',
+    badge: 'Beta',
   },
   {
     title: 'SpendCheck',
@@ -113,13 +114,13 @@ const MODULE_CARDS = [
     accent: 'Gastos',
   },
   {
-    title: 'Market Data',
-    titleEs: 'Datos de Mercado',
-    description: 'Live quotes, research views, and screening.',
-    descEs: 'Cotizaciones en vivo, investigacion y screening.',
+    title: 'Rate Environment',
+    titleEs: 'Entorno de Tasas',
+    description: 'Reference rates, yield curves, and rate impact.',
+    descEs: 'Tasas de referencia, curvas de rendimiento e impacto de tasas.',
     href: '/live-data',
     icon: LineChart,
-    accent: 'Mercado',
+    accent: 'Tasas',
   },
 ];
 
@@ -240,7 +241,7 @@ export default function DashboardPage() {
                 Cerniq
               </div>
               <span className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                Risk Intelligence
+                Inteligencia de Riesgo Institucional
               </span>
             </div>
 
@@ -467,9 +468,16 @@ export default function DashboardPage() {
                 className="group rounded-2xl border-l-4 border-l-[#1B3A6B] border-t border-r border-b border-t-slate-200 border-r-slate-200 border-b-slate-200 bg-white px-4 py-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_18px_38px_rgba(27,58,107,0.10)]"
               >
                 <div className="mb-3 flex items-start justify-between gap-3">
-                  <span className="rounded-full border border-[#1ABFFF]/30 bg-[#1ABFFF]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#1B3A6B]">
-                    {card.accent}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full border border-[#1ABFFF]/30 bg-[#1ABFFF]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#1B3A6B]">
+                      {card.accent}
+                    </span>
+                    {'badge' in card && card.badge && (
+                      <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                        {card.badge}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 transition group-hover:border-[#1ABFFF]/40 group-hover:bg-[#1ABFFF]/10">
                     <card.icon className="h-4 w-4 text-[#1ABFFF]" />
                   </div>

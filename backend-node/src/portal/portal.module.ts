@@ -4,6 +4,7 @@ import { PortalController } from './portal.controller';
 import { AlmModule } from '../alm/alm.module';
 import { EmailModule } from '../email/email.module';
 import { BillingModule } from '../billing/billing.module';
+import { PipelineModule } from '../pipeline/pipeline.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { BillingModule } from '../billing/billing.module';
     AlmModule,
     EmailModule,
     BillingModule,
+    PipelineModule,
   ],
   controllers: [PortalController],
 })

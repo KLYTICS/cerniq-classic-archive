@@ -169,7 +169,7 @@ export default function OnboardingPage() {
       <div className="max-w-2xl mx-auto bg-slate-900/70 border border-cyan-500/20 rounded-2xl p-8">
         <h1 className="text-3xl font-bold mb-2">Welcome to CERNIQ</h1>
         <p className="text-slate-300 mb-8">
-          Configure your workspace to unlock portfolio analytics, Monte Carlo, VaR/CVaR, and execution workflows.
+          Configure your workspace to unlock analisis ALM, Monte Carlo, VaR/CVaR, and cumplimiento COSSEC.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">

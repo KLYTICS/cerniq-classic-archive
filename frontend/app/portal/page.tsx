@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { usePortal } from './layout';
 import {
   FileText, Upload, Download, Eye, ArrowRight, Lock, CheckCircle,
-  Calendar, ExternalLink,
+  Calendar, ExternalLink, Briefcase,
 } from 'lucide-react';
 import { SkeletonLoader, EmptyState, ErrorBanner } from '@/components/ui/cerniq';
 import { useFeature } from '@/lib/features';
@@ -202,6 +202,62 @@ function ProcessingState({ job }: { job: ReportJob }) {
   );
 }
 
+/* ---------- ALCO Pack Button ---------- */
+function AlcoPackButton({ jobId, compact }: { jobId: string; compact?: boolean }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleDownload = async () => {
+    setLoading(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('capex_access_token') : null;
+      const res = await fetch(`${NODE_API_URL}/api/portal/jobs/${jobId}/alco-pack?lang=es`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        throw new Error('Failed to generate ALCO pack');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = res.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] || `ALCO_Pack_${jobId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // Silently handle — user can retry
+    }
+    setLoading(false);
+  };
+
+  if (compact) {
+    return (
+      <button
+        onClick={handleDownload}
+        disabled={loading}
+        className="inline-flex items-center gap-1 text-xs font-medium text-[#1B3A6B] hover:underline disabled:opacity-50"
+      >
+        <Briefcase className="h-3 w-3" />
+        {loading ? '...' : 'ALCO'}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={handleDownload}
+      disabled={loading}
+      className="inline-flex items-center gap-2 rounded-xl border border-[#1B3A6B]/20 bg-[#1B3A6B]/5 px-6 py-3 text-sm font-medium text-[#1B3A6B] hover:bg-[#1B3A6B]/10 transition-colors disabled:opacity-50"
+    >
+      <Briefcase className="h-4 w-4" />
+      {loading ? 'Generating...' : 'ALCO Pack'}
+    </button>
+  );
+}
+
 /* ---------- Report Ready State ---------- */
 function ReportReadyState({ job }: { job: ReportJob }) {
   return (
@@ -240,6 +296,7 @@ function ReportReadyState({ job }: { job: ReportJob }) {
               <Download className="h-4 w-4" />
               Download PDF / Descargar PDF
             </a>
+            <AlcoPackButton jobId={job.id} />
           </div>
 
           {/* Schedule review */}
@@ -550,13 +607,16 @@ export default function PortalHome() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       {job.status === 'COMPLETE' ? (
-                        <Link
-                          href={`/portal/reports/${job.id}`}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-[#1ABFFF] hover:underline"
-                        >
-                          <Eye className="h-3 w-3" />
-                          View / Ver
-                        </Link>
+                        <div className="flex items-center justify-end gap-3">
+                          <Link
+                            href={`/portal/reports/${job.id}`}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-[#1ABFFF] hover:underline"
+                          >
+                            <Eye className="h-3 w-3" />
+                            View / Ver
+                          </Link>
+                          <AlcoPackButton jobId={job.id} compact />
+                        </div>
                       ) : job.status === 'AWAITING_DATA' || job.status === 'VALIDATION_FAILED' ? (
                         <Link
                           href="/portal/submit"

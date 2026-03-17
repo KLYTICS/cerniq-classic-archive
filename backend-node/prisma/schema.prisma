@@ -144,6 +144,10 @@ model Expense {
   aiExtracted    Boolean       @default(false) @map("ai_extracted")
   aiConfidence   Float?        @map("ai_confidence")
   aiData         Json?         @map("ai_data")
+  invoiceHash    String?       @map("invoice_hash")
+  anomalyFlags   String[]      @default([]) @map("anomaly_flags")
+  riskScore      Int           @default(0) @map("risk_score")
+  reviewStatus   String        @default("PENDING") @map("review_status")
   approvedBy     String?       @map("approved_by") @db.Uuid
   approvedAt     DateTime?     @map("approved_at")
   createdAt      DateTime      @default(now()) @map("created_at")
@@ -155,6 +159,7 @@ model Expense {
   @@index([organizationId])
   @@index([userId])
   @@index([status])
+  @@index([invoiceHash])
   @@map("expenses")
 }
 

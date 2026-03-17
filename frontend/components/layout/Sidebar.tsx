@@ -109,9 +109,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           </div>
 
           <div className="rounded-[1.2rem] border border-cyan-200/70 bg-gradient-to-br from-cyan-50 via-white to-sky-50 px-3.5 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-800/80">CERNIQ platform</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-800/80">CERNIQ ALM</p>
             <p className="mt-2 text-xs leading-5 text-slate-600">
-              Open a module, move fast, and keep the full workflow in one place.
+              Analisis ALM, cumplimiento COSSEC e informes bilingues para cooperativas.
             </p>
           </div>
         </div>

@@ -11,12 +11,21 @@ import {
     UseGuards,
 } from '@nestjs/common';
 import { ExpensesService } from './expenses.service';
+import { AnomalyDetectionService } from './anomaly-detection.service';
 import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('api/expenses')
 @UseGuards(AuthGuard)
 export class ExpensesController {
-    constructor(private readonly expensesService: ExpensesService) { }
+    constructor(
+        private readonly expensesService: ExpensesService,
+        private readonly anomalyDetectionService: AnomalyDetectionService,
+    ) { }
+
+    @Post(':orgId/analyze')
+    analyzeOrganization(@Param('orgId') orgId: string) {
+        return this.anomalyDetectionService.analyzeOrganization(orgId);
+    }
 
     @Post('process-receipt')
     processReceipt(@Body() dto: any, @Req() req: any) {

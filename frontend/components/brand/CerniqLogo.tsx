@@ -35,7 +35,7 @@ export function CerniqMark({ className = '', size = 'md' }: CerniqMarkProps) {
 export function CerniqLockup({
   className = '',
   compact = false,
-  tagline = 'Intelligence Engineered',
+  tagline = 'Inteligencia de Riesgo Institucional',
 }: CerniqLockupProps) {
   return (
     <div
