@@ -1113,6 +1113,35 @@ class APIClient {
     return response.data;
   }
 
+  async uploadExpenseCSV(orgId: string, file: File): Promise<{
+    ingested: number;
+    orgId: string;
+    errors: any[];
+    warnings: string[];
+    summary: {
+      totalRows: number;
+      validRows: number;
+      errorRows: number;
+      totalAmount: number;
+      uniqueVendors: number;
+      dateRange: { from: string; to: string } | null;
+    };
+    analysisTriggered: boolean;
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.client.post(
+      `${NODE_API_URL}/api/expenses/${orgId}/upload`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return response.data;
+  }
+
+  getExpenseTemplateUrl(): string {
+    return `${NODE_API_URL}/api/expenses/template`;
+  }
+
   async downloadAPReport(orgId: string, lang: string = 'en', institutionId?: string): Promise<void> {
     const params = new URLSearchParams({ lang });
     if (institutionId) params.set('institutionId', institutionId);

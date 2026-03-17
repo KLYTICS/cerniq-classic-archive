@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   Building2,
@@ -17,6 +17,7 @@ import {
   Info,
   CheckCircle2,
   Eye,
+  Upload,
 } from 'lucide-react';
 import PlatformPage from '@/components/layout/PlatformPage';
 import { SkeletonLoader } from '@/components/ui/cerniq';
@@ -263,6 +264,21 @@ export default function SpendCheckPage() {
   // Anomaly detail drawer
   const [selectedFinding, setSelectedFinding] = useState<APFinding | null>(null);
 
+  // Upload modal state
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadDragging, setUploadDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<{
+    ingested: number;
+    errors: any[];
+    warnings: string[];
+    summary: any;
+    analysisTriggered: boolean;
+  } | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     void loadWorkspaces();
   }, []);
@@ -338,6 +354,54 @@ export default function SpendCheckPage() {
     }
   }
 
+  async function handleUploadCSV() {
+    if (!uploadFile) return;
+    setUploading(true);
+    setUploadError(null);
+    setUploadResult(null);
+    try {
+      // Use selectedWorkspace ID or 'auto' to let backend resolve/create org
+      const orgId = selectedWorkspace?.id || 'auto';
+      const result = await apiClient.uploadExpenseCSV(orgId, uploadFile);
+      setUploadResult(result);
+
+      if (result.ingested > 0) {
+        // Reload analysis data after successful upload
+        const resolvedOrgId = result.orgId || orgId;
+        await loadAnalysis(resolvedOrgId);
+      }
+    } catch (err: any) {
+      console.error('CSV upload failed:', err);
+      setUploadError(
+        err?.response?.data?.message ||
+        t('Failed to upload CSV. Please check the file format and try again.',
+          'Error al subir el CSV. Verifique el formato y vuelva a intentar.'),
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function resetUploadModal() {
+    setShowUploadModal(false);
+    setUploadFile(null);
+    setUploadResult(null);
+    setUploadError(null);
+    setUploading(false);
+  }
+
+  function handleUploadDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setUploadDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.match(/\.csv$/i)) {
+      setUploadFile(file);
+      setUploadError(null);
+    } else {
+      setUploadError(t('Only .csv files are accepted', 'Solo se aceptan archivos .csv'));
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f7fbff]">
@@ -395,6 +459,13 @@ export default function SpendCheckPage() {
                 <Building2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               </div>
             ) : null}
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-cyan-300 bg-white px-5 py-3 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-50"
+            >
+              <Upload className="h-4 w-4" />
+              {t('Upload AP Data', 'Subir Datos AP')}
+            </button>
             <button onClick={() => setShowCreateModal(true)} className="cerniq-button-primary px-5 py-3 text-sm">
               <Plus className="h-4 w-4" />
               {t('New workspace', 'Nuevo espacio')}
@@ -475,13 +546,9 @@ export default function SpendCheckPage() {
                   'Suba exportaciones AP para comenzar el analisis de gastos y deteccion de anomalias.',
                 )}
                 descriptionEs="Suba exportaciones AP para comenzar el analisis de gastos y deteccion de anomalias."
-                actionLabel={t('Upload files', 'Subir archivos')}
-                actionLabelEs="Subir archivos"
-                onAction={() => {
-                  if (selectedWorkspace) {
-                    window.location.href = `/spendcheck/upload?workspace=${selectedWorkspace.id}`;
-                  }
-                }}
+                actionLabel={t('Upload CSV', 'Subir CSV')}
+                actionLabelEs="Subir CSV"
+                onAction={() => setShowUploadModal(true)}
               />
             )}
           </div>
@@ -523,6 +590,221 @@ export default function SpendCheckPage() {
                 {t('Create', 'Crear')}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CSV Upload Modal ── */}
+      {showUploadModal && (
+        <div className="cerniq-modal-backdrop">
+          <div className="cerniq-modal max-w-lg">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-2xl text-slate-950">
+                {t('Upload AP Data', 'Subir Datos AP')}
+              </h2>
+              <button
+                onClick={resetUploadModal}
+                className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              {t(
+                'Upload a CSV file with your AP invoice data. CERNIQ will parse, validate, and automatically run anomaly detection.',
+                'Suba un archivo CSV con sus datos de facturas AP. CERNIQ lo procesara, validara y ejecutara deteccion de anomalias automaticamente.',
+              )}
+            </p>
+
+            {/* Template download */}
+            <div className="mt-4 flex items-center gap-3 rounded-xl border border-cyan-200 bg-cyan-50/60 px-4 py-3">
+              <FileSpreadsheet className="h-5 w-5 shrink-0 text-cyan-700" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-cyan-900">
+                  {t('Download CSV Template', 'Descargar Plantilla CSV')}
+                </p>
+                <p className="text-xs text-cyan-700">
+                  {t(
+                    'Columns: date, invoice_number, vendor, description, amount, currency, category, status',
+                    'Columnas: fecha, numero_factura, proveedor, descripcion, monto, moneda, categoria, estado',
+                  )}
+                </p>
+              </div>
+              <a
+                href="/templates/cerniq-spendcheck-template.csv"
+                download
+                className="shrink-0 rounded-full border border-cyan-300 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
+              >
+                <Download className="mr-1 inline h-3 w-3" />
+                CSV
+              </a>
+            </div>
+
+            {/* Upload result: success */}
+            {uploadResult && uploadResult.ingested > 0 ? (
+              <div className="mt-6 space-y-4">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-5 py-6 text-center">
+                  <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
+                  <h3 className="mt-3 font-display text-xl font-bold text-emerald-800">
+                    {t('Upload Successful', 'Subida Exitosa')}
+                  </h3>
+                  <p className="mt-2 text-sm text-emerald-700">
+                    {uploadResult.ingested} {t('expenses ingested', 'gastos importados')}
+                    {uploadResult.summary?.totalAmount
+                      ? ` | ${fmt(uploadResult.summary.totalAmount)} ${t('total', 'total')}`
+                      : ''}
+                    {uploadResult.summary?.uniqueVendors
+                      ? ` | ${uploadResult.summary.uniqueVendors} ${t('vendors', 'proveedores')}`
+                      : ''}
+                  </p>
+                  {uploadResult.analysisTriggered && (
+                    <p className="mt-1 text-xs text-emerald-600">
+                      {t('Anomaly detection completed.', 'Deteccion de anomalias completada.')}
+                    </p>
+                  )}
+                </div>
+
+                {uploadResult.warnings.length > 0 && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">
+                      {t('Warnings', 'Advertencias')} ({uploadResult.warnings.length})
+                    </p>
+                    <ul className="mt-2 space-y-1">
+                      {uploadResult.warnings.slice(0, 5).map((w, i) => (
+                        <li key={i} className="text-xs text-amber-800">{w}</li>
+                      ))}
+                      {uploadResult.warnings.length > 5 && (
+                        <li className="text-xs text-amber-600">
+                          +{uploadResult.warnings.length - 5} {t('more', 'mas')}...
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      resetUploadModal();
+                      setActiveTab('overview');
+                    }}
+                    className="cerniq-button-primary px-5 py-3 text-sm"
+                  >
+                    {t('View Dashboard', 'Ver Dashboard')}
+                  </button>
+                </div>
+              </div>
+            ) : uploadResult && uploadResult.errors.length > 0 ? (
+              /* Upload result: validation errors */
+              <div className="mt-6 space-y-4">
+                <div className="rounded-xl border border-red-200 bg-red-50/60 px-5 py-4">
+                  <p className="text-sm font-semibold text-red-800">
+                    {t('Validation failed', 'Validacion fallida')} -- {uploadResult.errors.length} {t('errors', 'errores')}
+                  </p>
+                  <ul className="mt-2 max-h-40 overflow-y-auto space-y-1">
+                    {uploadResult.errors.map((err, i) => (
+                      <li key={i} className="text-xs text-red-700">
+                        {err.row > 0 ? `Row ${err.row}: ` : ''}{err.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      setUploadResult(null);
+                      setUploadFile(null);
+                    }}
+                    className="cerniq-button-secondary px-5 py-3 text-sm"
+                  >
+                    {t('Try Again', 'Reintentar')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* File picker / drag-drop */
+              <div className="mt-6 space-y-4">
+                {uploadError && (
+                  <div className="rounded-xl border border-red-200 bg-red-50/60 px-4 py-3 text-sm text-red-700">
+                    {uploadError}
+                  </div>
+                )}
+
+                {!uploadFile ? (
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setUploadDragging(true); }}
+                    onDragLeave={() => setUploadDragging(false)}
+                    onDrop={handleUploadDrop}
+                    onClick={() => uploadInputRef.current?.click()}
+                    className={`cursor-pointer rounded-2xl border-2 border-dashed p-10 text-center transition ${
+                      uploadDragging
+                        ? 'border-cyan-400 bg-cyan-50'
+                        : 'border-slate-200 bg-white/80 hover:border-cyan-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <input
+                      ref={uploadInputRef}
+                      type="file"
+                      accept=".csv"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) { setUploadFile(f); setUploadError(null); }
+                      }}
+                    />
+                    <Upload className="mx-auto h-10 w-10 text-slate-400" />
+                    <p className="mt-3 text-sm font-semibold text-slate-800">
+                      {uploadDragging
+                        ? t('Drop CSV here', 'Suelte el CSV aqui')
+                        : t('Drag & drop your AP CSV export', 'Arrastre y suelte su exportacion CSV de AP')}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {t('or click to browse (max 10MB)', 'o haga clic para buscar (max 10MB)')}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      <FileSpreadsheet className="h-8 w-8 text-cyan-600" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900">{uploadFile.name}</p>
+                        <p className="text-xs text-slate-500">{(uploadFile.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                      <button
+                        onClick={() => { setUploadFile(null); setUploadError(null); }}
+                        className="shrink-0 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3">
+                  <button onClick={resetUploadModal} className="cerniq-button-secondary px-5 py-3 text-sm">
+                    {t('Cancel', 'Cancelar')}
+                  </button>
+                  <button
+                    onClick={handleUploadCSV}
+                    disabled={!uploadFile || uploading}
+                    className="cerniq-button-primary px-5 py-3 text-sm disabled:opacity-60"
+                  >
+                    {uploading ? (
+                      <span className="flex items-center gap-2">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        {t('Processing...', 'Procesando...')}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Upload className="h-4 w-4" />
+                        {t('Upload & Analyze', 'Subir y Analizar')}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
