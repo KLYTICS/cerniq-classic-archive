@@ -57,6 +57,42 @@ export interface ManagedApiKey {
   expiresAt?: string | null;
 }
 
+// SpendCheck AP Analysis types
+export interface APFinding {
+  id: string;
+  type: string;
+  vendor: string;
+  explanation: string;
+  explanationEs?: string;
+  estimatedRecovery: number;
+  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  invoiceIds?: string[];
+  recommendedActions?: string[];
+  status?: 'open' | 'reviewed' | 'dismissed';
+}
+
+export interface APVendorStat {
+  name: string;
+  quarterlySpend: number;
+  percentOfTotal: number;
+  invoiceCount: number;
+  avgInvoice: number;
+  riskLevel: 'low' | 'medium' | 'high';
+}
+
+export interface APAnalysisResult {
+  healthScore: number;
+  totalSpendAnalyzed: number;
+  totalFindings: number;
+  potentialRecovery: number;
+  recoveredAmount: number;
+  findings: APFinding[];
+  vendorStats: APVendorStat[];
+  severityBreakdown: { high: number; medium: number; low: number };
+  topVendor: { name: string; percentOfTotal: number };
+  apRiskScore: number;
+}
+
 class APIClient {
   private client: AxiosInstance;
 
@@ -1019,6 +1055,13 @@ class APIClient {
 
   async createMyWorkspace(name: string) {
     const response = await this.client.post(`${NODE_API_URL}/api/workspaces`, { name });
+    return response.data;
+  }
+
+  // --- Expense / SpendCheck Analysis (POST /api/expenses/:orgId/analyze) ---
+
+  async analyzeExpenses(orgId: string): Promise<APAnalysisResult> {
+    const response = await this.client.post(`${NODE_API_URL}/api/expenses/${orgId}/analyze`);
     return response.data;
   }
 

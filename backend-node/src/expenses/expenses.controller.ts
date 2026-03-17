@@ -12,7 +12,9 @@ import {
 } from '@nestjs/common';
 import { ExpensesService } from './expenses.service';
 import { AnomalyDetectionService } from './anomaly-detection.service';
+import { VendorIntelligenceService } from './vendor-intelligence/vendor-intelligence.service';
 import { AuthGuard } from '../auth/auth.guard';
+import { PrismaService } from '../prisma.service';
 
 @Controller('api/expenses')
 @UseGuards(AuthGuard)
@@ -20,6 +22,8 @@ export class ExpensesController {
     constructor(
         private readonly expensesService: ExpensesService,
         private readonly anomalyDetectionService: AnomalyDetectionService,
+        private readonly vendorIntelligenceService: VendorIntelligenceService,
+        private readonly prisma: PrismaService,
     ) { }
 
     @Post(':orgId/analyze')
@@ -83,5 +87,33 @@ export class ExpensesController {
     remove(@Param('id') id: string, @Req() req: any) {
         const organizationId = req.headers['x-organization-id'] || 'default-org';
         return this.expensesService.remove(id, organizationId, req.user.userId);
+    }
+
+    @Get(':orgId/vendor-report')
+    async getVendorReport(@Param('orgId') orgId: string) {
+        const rawExpenses = await this.prisma.expense.findMany({
+            where: { organizationId: orgId },
+            select: {
+                merchantName: true,
+                amount: true,
+                transactionDate: true,
+            },
+        });
+
+        const expenses = rawExpenses.map((e) => ({
+            merchantName: e.merchantName,
+            amount: Number(e.amount),
+            transactionDate: new Date(e.transactionDate),
+        }));
+
+        return this.vendorIntelligenceService.generateVendorReport(expenses);
+    }
+
+    @Get(':orgId/liquidity-impact')
+    async getLiquidityImpact(
+        @Param('orgId') orgId: string,
+        @Query('institutionId') institutionId: string,
+    ) {
+        return this.anomalyDetectionService.calculateApLcrImpact(orgId, institutionId);
     }
 }

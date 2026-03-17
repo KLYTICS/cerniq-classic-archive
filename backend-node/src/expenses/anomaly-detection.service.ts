@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { AlmEnterpriseService } from '../alm/alm-enterprise.service';
+import { VendorIntelligenceService, VendorReport } from './vendor-intelligence/vendor-intelligence.service';
 import { createHash, randomUUID } from 'crypto';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -33,6 +35,19 @@ export interface APAnalysisResult {
   duplicatesFound: number;
   estimatedTotalRecovery: number;
   analysisDate: Date;
+  vendorReport: VendorReport[];
+}
+
+export interface ApLcrImpact {
+  currentLcr: number;
+  projectedLcr: number;
+  hqla: number;
+  currentNetOutflows: number;
+  apProjected30Day: number;
+  delta: number;
+  alertLevel: 'SAFE' | 'ADEQUATE' | 'WATCH' | 'CRITICAL';
+  quarterlyAPTotal: number;
+  vsLastQuarter: number;
 }
 
 // Internal normalized expense used by detectors
@@ -54,7 +69,11 @@ interface NormalizedExpense {
 export class AnomalyDetectionService {
   private readonly logger = new Logger(AnomalyDetectionService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private almEnterprise: AlmEnterpriseService,
+    private vendorIntelligence: VendorIntelligenceService,
+  ) {}
 
   // ── Public entry point ────────────────────────────────────────────────
 
@@ -137,6 +156,15 @@ export class AnomalyDetectionService {
 
     const healthScore = this.calculateHealthScore(findings, expenses, vendorMap, totalSpend);
 
+    // Generate vendor intelligence report
+    const vendorReport = this.vendorIntelligence.generateVendorReport(
+      expenses.map((e) => ({
+        merchantName: e.merchantName,
+        amount: e.amount,
+        transactionDate: e.transactionDate,
+      })),
+    );
+
     // Persist invoice hashes and anomaly flags back to DB (best-effort)
     try {
       await this.persistFlags(expenses, findings);
@@ -154,6 +182,7 @@ export class AnomalyDetectionService {
       duplicatesFound,
       estimatedTotalRecovery: Math.round(estimatedTotalRecovery * 100) / 100,
       analysisDate: new Date(),
+      vendorReport,
     };
   }
 
@@ -578,6 +607,90 @@ export class AnomalyDetectionService {
     else unresolvedPts = 0;
 
     return Math.min(100, Math.max(0, dupePts + anomalyPts + concentrationPts + unresolvedPts));
+  }
+
+  // ── AP-to-LCR Cash Flow Bridge ──────────────────────────────
+
+  async calculateApLcrImpact(orgId: string, institutionId: string): Promise<ApLcrImpact> {
+    const now = new Date();
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const oneEightyDaysAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+
+    // 1. Sum last 90 days of expenses
+    const recentExpenses = await this.prisma.expense.findMany({
+      where: {
+        organizationId: orgId,
+        transactionDate: { gte: ninetyDaysAgo },
+      },
+      select: { amount: true },
+    });
+
+    const quarterlyAPTotal = recentExpenses.reduce((s, e) => s + Number(e.amount), 0);
+
+    // 2. Project 30-day outflow from AP
+    const apProjected30Day = (quarterlyAPTotal / 90) * 30;
+
+    // 3. Fetch prior quarter for comparison (days 90-180 ago)
+    const priorExpenses = await this.prisma.expense.findMany({
+      where: {
+        organizationId: orgId,
+        transactionDate: { gte: oneEightyDaysAgo, lt: ninetyDaysAgo },
+      },
+      select: { amount: true },
+    });
+
+    const priorQuarterlyTotal = priorExpenses.reduce((s, e) => s + Number(e.amount), 0);
+    const vsLastQuarter = priorQuarterlyTotal > 0
+      ? Math.round(((quarterlyAPTotal - priorQuarterlyTotal) / priorQuarterlyTotal) * 10000) / 100
+      : 0;
+
+    // 4. Fetch current LCR from ALM engine
+    let currentLcr = 0;
+    let hqla = 0;
+    let currentNetOutflows = 0;
+
+    try {
+      const lcrResult = await this.almEnterprise.calculateLCR(institutionId);
+      currentLcr = lcrResult.lcr;
+      hqla = lcrResult.hqla;
+      currentNetOutflows = lcrResult.netOutflows;
+    } catch (err) {
+      this.logger.warn(`LCR lookup failed for institution ${institutionId}: ${err}`);
+    }
+
+    // 5. Calculate projected LCR = hqla / (netOutflows + projectedAP)
+    // Note: hqla and netOutflows from ALM are in millions; apProjected30Day is in dollars
+    const apProjected30DayMillions = apProjected30Day / 1_000_000;
+    const adjustedNetOutflows = currentNetOutflows + apProjected30DayMillions;
+    const projectedLcr = adjustedNetOutflows > 0
+      ? Math.round((hqla / adjustedNetOutflows) * 10000) / 100
+      : currentLcr;
+
+    const delta = Math.round((projectedLcr - currentLcr) * 100) / 100;
+
+    // 6. Determine alert level based on projected LCR
+    let alertLevel: ApLcrImpact['alertLevel'];
+    if (projectedLcr >= 120) {
+      alertLevel = 'SAFE';
+    } else if (projectedLcr >= 100) {
+      alertLevel = 'ADEQUATE';
+    } else if (projectedLcr >= 85) {
+      alertLevel = 'WATCH';
+    } else {
+      alertLevel = 'CRITICAL';
+    }
+
+    return {
+      currentLcr,
+      projectedLcr,
+      hqla,
+      currentNetOutflows,
+      apProjected30Day: Math.round(apProjected30Day * 100) / 100,
+      delta,
+      alertLevel,
+      quarterlyAPTotal: Math.round(quarterlyAPTotal * 100) / 100,
+      vsLastQuarter,
+    };
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────
