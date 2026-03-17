@@ -110,6 +110,13 @@ export class AlmController {
     return this.almEnterprise.getCOSSECCompliance(institutionId);
   }
 
+  @Get(':institutionId/regulatory-compliance')
+  @UseGuards(AuthGuard)
+  async getRegulatoryCompliance(@Param('institutionId') institutionId: string) {
+    this.logger.log(`Regulatory compliance check for institution ${institutionId}`);
+    return this.almEnterprise.getRegulatoryCompliance(institutionId);
+  }
+
   @Get(':institutionId/duration-gap')
   @UseGuards(AuthGuard)
   async getDurationGap(@Param('institutionId') institutionId: string) {

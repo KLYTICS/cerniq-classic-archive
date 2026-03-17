@@ -30,6 +30,7 @@ import { PortalModule } from './portal/portal.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { DataCryptoModule } from './crypto/data-crypto.module';
 import { AuditModule } from './audit/audit.module';
+import { ApiV1Module } from './api-v1/api-v1.module';
 
 @Module({
   imports: [
@@ -72,6 +73,8 @@ import { AuditModule } from './audit/audit.module';
     AuditModule,
     // NPS feedback & surveys
     FeedbackModule,
+    // Public API v1 (Swagger-documented, API key auth)
+    ApiV1Module,
   ],
   controllers: [AppController],
   providers: [

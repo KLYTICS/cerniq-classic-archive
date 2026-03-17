@@ -185,7 +185,17 @@ export class PipelineWorker {
       const [summary, stressTest, cossec, institution] = await Promise.all([
         this.almEnterprise.getALMSummary(institutionId),
         this.stressTesting.runFullStressTest(institutionId, { paths: 500, horizon: 12 }),
-        this.almEnterprise.getCOSSECComplianceWithTrend(institutionId),
+        this.almEnterprise.getRegulatoryCompliance(institutionId).then(
+          async (result) => {
+            // Enrich with trend data via getCOSSECComplianceWithTrend for COSSEC
+            // For NCUA, trends are not yet available so return as-is
+            const inst = await this.almEnterprise.getInstitution(institutionId);
+            if (inst.primaryRegulator === 'COSSEC' || !inst.primaryRegulator) {
+              return this.almEnterprise.getCOSSECComplianceWithTrend(institutionId);
+            }
+            return { ...result, trends: null, previousPeriod: null };
+          },
+        ),
         this.almEnterprise.getInstitution(institutionId),
       ]);
 
@@ -279,7 +289,8 @@ export class PipelineWorker {
       doc.rect(PW - MR - 170, 310, 170, 70).fill('#F8FAFC');
       doc.rect(PW - MR - 170, 310, 4, 70).fill(readinessColor);
       doc.fill(readinessColor).font('Helvetica-Bold').fontSize(32).text(`${examReadiness}`, PW - MR - 155, 318, { width: 100, align: 'center' });
-      doc.fill('#64748B').font('Helvetica').fontSize(8).text(t('COSSEC Readiness', 'COSSEC Readiness'), PW - MR - 155, 355, { width: 100, align: 'center' });
+      const regLabel = institution?.primaryRegulator === 'NCUA' ? 'NCUA Readiness' : t('COSSEC Readiness', 'COSSEC Readiness');
+      doc.fill('#64748B').font('Helvetica').fontSize(8).text(regLabel, PW - MR - 155, 355, { width: 100, align: 'center' });
       doc.fill('#94A3B8').font('Helvetica').fontSize(7).text('/100', PW - MR - 60, 340, { lineBreak: false });
 
       doc.rect(ML, 680, CW, 36).fill('#FEF3C7');
@@ -303,7 +314,9 @@ export class PipelineWorker {
         [t('Analisis de Brecha de Duracion', 'Duration Gap Analysis'), '5'],
         [t('Sensibilidad de Ingreso Neto por Intereses', 'Net Interest Income Sensitivity'), '6'],
         [t('Cobertura de Liquidez (LCR)', 'Liquidity Coverage Ratio (LCR)'), '7'],
-        [t('Cumplimiento Regulatorio COSSEC (12 Razones)', 'COSSEC Regulatory Compliance (12 Ratios)'), '8'],
+        [institution?.primaryRegulator === 'NCUA'
+          ? t('Analisis CAMEL de NCUA (7 Razones)', 'NCUA CAMEL Analysis (7 Ratios)')
+          : t('Cumplimiento Regulatorio COSSEC (12 Razones)', 'COSSEC Regulatory Compliance (12 Ratios)'), '8'],
         [t('Riesgo de Concentracion', 'Concentration Risk Analysis'), '9'],
         [t('Resultados de Pruebas de Estres', 'Stress Test Results'), '10'],
         [t('Entorno de Tasas de Interes', 'Rate Environment Analysis'), '11'],
@@ -339,7 +352,8 @@ export class PipelineWorker {
       doc.rect(ML + 140, y, 130, 80).fill('#F8FAFC');
       doc.rect(ML + 140, y, 4, 80).fill(examClr);
       doc.fill(examClr).font('Helvetica-Bold').fontSize(28).text(`${examScore}`, ML + 155, y + 12, { width: 100, align: 'center' });
-      doc.fill('#64748B').font('Helvetica').fontSize(7).text(t('COSSEC Readiness', 'COSSEC Readiness'), ML + 155, y + 48, { width: 100, align: 'center' });
+      const examLabel = institution?.primaryRegulator === 'NCUA' ? 'NCUA Readiness' : t('COSSEC Readiness', 'COSSEC Readiness');
+      doc.fill('#64748B').font('Helvetica').fontSize(7).text(examLabel, ML + 155, y + 48, { width: 100, align: 'center' });
       doc.fill('#94A3B8').fontSize(7).text('/100', ML + 155, y + 60, { width: 100, align: 'center' });
 
       const mX = ML + 290;
@@ -347,7 +361,7 @@ export class PipelineWorker {
         [t('Brecha de Duracion', 'Duration Gap'), `${summary?.durationGap?.durationGap?.toFixed(2) || 'N/A'} yr`, summary?.durationGap?.riskProfile || 'neutral'],
         [t('LCR', 'LCR'), fmtPct(summary?.liquidity?.lcr || 0), summary?.liquidity?.status || 'compliant'],
         [t('NII Base', 'Base NII'), fmtM(summary?.niiSensitivity?.baseNII || 0), summary?.niiSensitivity?.riskRating || 'low'],
-        [t('COSSEC', 'COSSEC'), cossec?.overallStatus === 'compliant' ? t('Cumple', 'Compliant') : cossec?.overallStatus === 'conditional' ? t('Condicional', 'Conditional') : t('No Cumple', 'Non-compliant'), cossec?.overallStatus || 'compliant'],
+        [institution?.primaryRegulator === 'NCUA' ? 'NCUA' : t('COSSEC', 'COSSEC'), cossec?.overallStatus === 'compliant' ? t('Cumple', 'Compliant') : cossec?.overallStatus === 'conditional' ? t('Condicional', 'Conditional') : t('No Cumple', 'Non-compliant'), cossec?.overallStatus || 'compliant'],
       ];
       let my = y;
       for (const [label, value, status] of keyMetrics) {
@@ -605,10 +619,13 @@ export class PipelineWorker {
       }
 
       // ═════════════════════════════════════════════════════════════
-      // PAGE 8: COSSEC COMPLIANCE (12-Ratio Grid)
+      // PAGE 8: REGULATORY COMPLIANCE (Framework-aware: COSSEC 12-Ratio or NCUA CAMEL 7-Ratio)
       // ═════════════════════════════════════════════════════════════
       doc.addPage();
-      y = pageHeader(t('CUMPLIMIENTO REGULATORIO COSSEC (12 RAZONES)', 'COSSEC REGULATORY COMPLIANCE (12 RATIOS)'));
+      const complianceHeader = institution?.primaryRegulator === 'NCUA'
+        ? t('ANALISIS CAMEL DE NCUA (7 RAZONES)', 'NCUA CAMEL ANALYSIS (7 RATIOS)')
+        : t('CUMPLIMIENTO REGULATORIO COSSEC (12 RAZONES)', 'COSSEC REGULATORY COMPLIANCE (12 RATIOS)');
+      y = pageHeader(complianceHeader);
       drawFooter();
 
       if (cossec) {
@@ -702,11 +719,14 @@ export class PipelineWorker {
         const totalRows = Math.min(Math.ceil(ratios.length / 2), 6);
         y += totalRows * (cellH + 6) + 10;
 
-        // COSSEC Exam Readiness bar at bottom
+        // Exam Readiness bar at bottom (framework-aware label)
         const examReady = cossec.examReadinessScore ?? 0;
         const erClr = examReady >= 80 ? '#16A34A' : examReady >= 50 ? '#D97706' : '#DC2626';
+        const examBarLabel = institution?.primaryRegulator === 'NCUA'
+          ? t('NCUA Exam Readiness / Preparacion para Examen', 'NCUA Exam Readiness')
+          : t('COSSEC Exam Readiness / Preparacion para Examen', 'COSSEC Exam Readiness');
         doc.fill('#1B3A6B').font('Helvetica-Bold').fontSize(10).text(
-          t('COSSEC Exam Readiness / Preparacion para Examen', 'COSSEC Exam Readiness'), ML, y,
+          examBarLabel, ML, y,
         );
         y += 16;
         // Background bar

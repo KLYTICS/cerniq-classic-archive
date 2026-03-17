@@ -328,6 +328,16 @@ export default function SpendCheckPage() {
     URL.revokeObjectURL(url);
   }
 
+  async function downloadAPReportPDF() {
+    if (!selectedWorkspace) return;
+    try {
+      await apiClient.downloadAPReport(selectedWorkspace.id, lang);
+    } catch (err) {
+      console.error('Failed to download AP report PDF:', err);
+      throw err;
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f7fbff]">
@@ -450,7 +460,7 @@ export default function SpendCheckPage() {
                 {activeTab === 'vendors' && <VendorsTab analysis={analysis} lang={lang} t={t} />}
                 {activeTab === 'liquidity' && <LiquidityTab lang={lang} t={t} />}
                 {activeTab === 'report' && (
-                  <ReportTab analysis={analysis} lang={lang} t={t} workspaceName={selectedWorkspace?.name || ''} onDownload={downloadAnalysisJSON} />
+                  <ReportTab analysis={analysis} lang={lang} t={t} workspaceName={selectedWorkspace?.name || ''} onDownloadJSON={downloadAnalysisJSON} onDownloadPDF={downloadAPReportPDF} />
                 )}
               </>
             )}
@@ -832,14 +842,31 @@ function ReportTab({
   lang,
   t,
   workspaceName,
-  onDownload,
+  onDownloadJSON,
+  onDownloadPDF,
 }: {
   analysis: APAnalysisResult;
   lang: Lang;
   t: (en: string, es: string) => string;
   workspaceName: string;
-  onDownload: () => void;
+  onDownloadJSON: () => void;
+  onDownloadPDF: () => Promise<void>;
 }) {
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  async function handleDownloadPDF() {
+    setPdfLoading(true);
+    setPdfError(null);
+    try {
+      await onDownloadPDF();
+    } catch {
+      setPdfError(t('Failed to generate PDF. Please try again.', 'Error al generar PDF. Intente de nuevo.'));
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
@@ -847,12 +874,12 @@ function ReportTab({
           <Download className="h-7 w-7 text-cyan-700" />
         </div>
         <h3 className="font-display text-xl font-bold text-[#1B3A6B]">
-          {t('Generate AP Report', 'Generar Informe AP')}
+          {t('AP Intelligence Report', 'Informe de Inteligencia AP')}
         </h3>
         <p className="mt-3 text-sm leading-relaxed text-slate-600">
           {t(
-            'Download a comprehensive report of your SpendCheck analysis, including findings, vendor statistics, and recovery recommendations.',
-            'Descargue un informe completo de su analisis SpendCheck, incluyendo hallazgos, estadisticas de proveedores, y recomendaciones de recuperacion.',
+            'Generate a 6-page bilingual PDF report with anomaly analysis, vendor intelligence, cash flow impact, and actionable recommendations.',
+            'Genere un informe PDF bilingue de 6 paginas con analisis de anomalias, inteligencia de proveedores, impacto en flujo de efectivo, y recomendaciones accionables.',
           )}
         </p>
 
@@ -866,17 +893,39 @@ function ReportTab({
           <SummaryRow label={t('Vendors', 'Proveedores')} value={String(analysis.vendorStats.length)} />
         </div>
 
+        {/* PDF download button */}
         <button
-          onClick={onDownload}
-          className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#E8A020] px-8 py-3 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#d4911c] hover:shadow-lg"
+          onClick={handleDownloadPDF}
+          disabled={pdfLoading}
+          className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#1B3A6B] px-8 py-3 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#153058] hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
         >
-          <Download className="h-4 w-4" />
-          {t('Download JSON', 'Descargar JSON')}
+          {pdfLoading ? (
+            <>
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              {t('Generating PDF...', 'Generando PDF...')}
+            </>
+          ) : (
+            <>
+              <Download className="h-4 w-4" />
+              {t('Generate AP Report (PDF)', 'Generar Informe AP (PDF)')}
+            </>
+          )}
         </button>
 
-        <p className="mt-4 text-xs text-slate-400">
-          {t('PDF generation coming soon', 'La generacion de PDF estara disponible pronto')}
-        </p>
+        {pdfError && (
+          <p className="mt-3 text-xs text-red-500">{pdfError}</p>
+        )}
+
+        {/* JSON fallback */}
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <button
+            onClick={onDownloadJSON}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 transition hover:text-slate-600"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {t('Download raw JSON', 'Descargar JSON crudo')}
+          </button>
+        </div>
       </div>
     </div>
   );

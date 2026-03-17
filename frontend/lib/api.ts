@@ -824,6 +824,7 @@ class APIClient {
     reportingDate: string;
     workspaceId: string;
     currency?: string;
+    primaryRegulator?: string;
   }) {
     const response = await this.client.post(`${NODE_API_URL}/api/alm/institutions`, data);
     return response.data;
@@ -1110,6 +1111,26 @@ class APIClient {
   async analyzeExpenses(orgId: string): Promise<APAnalysisResult> {
     const response = await this.client.post(`${NODE_API_URL}/api/expenses/${orgId}/analyze`);
     return response.data;
+  }
+
+  async downloadAPReport(orgId: string, lang: string = 'en', institutionId?: string): Promise<void> {
+    const params = new URLSearchParams({ lang });
+    if (institutionId) params.set('institutionId', institutionId);
+    const response = await this.client.post(
+      `${NODE_API_URL}/api/expenses/${orgId}/report?${params.toString()}`,
+      {},
+      { responseType: 'blob' },
+    );
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.download = `ap-intelligence-report-${dateStr}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   // Prospect CRM

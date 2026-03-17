@@ -44,7 +44,9 @@ const T: Record<string, Record<Lang, string>> = {
   stressTesting: { en: 'STRESS TESTING', es: 'PRUEBAS DE ESTRÉS' },
   stressSubtitle: { en: 'Monte Carlo simulation and regulatory scenarios', es: 'Simulación Monte Carlo y escenarios regulatorios' },
   cossecCompliance: { en: 'COSSEC COMPLIANCE', es: 'CUMPLIMIENTO COSSEC' },
+  ncuaCompliance: { en: 'NCUA CAMEL ANALYSIS', es: 'ANALISIS CAMEL NCUA' },
   cossecSubtitle: { en: 'Regulatory checklist and capital adequacy', es: 'Lista regulatoria y suficiencia de capital' },
+  ncuaSubtitle: { en: 'CAMEL framework ratios and capital adequacy', es: 'Razones del marco CAMEL y suficiencia de capital' },
   recommendations: { en: 'RECOMMENDATIONS', es: 'RECOMENDACIONES' },
   recSubtitle: { en: 'Actionable risk mitigation strategies', es: 'Estrategias de mitigación de riesgo' },
   totalAssets: { en: 'Total Assets', es: 'Total Activos' },
@@ -91,7 +93,7 @@ export class ReportsService {
     const [summary, stressTest, cossec, institution] = await Promise.all([
       this.almEnterprise.getALMSummary(institutionId),
       this.stressTesting.runFullStressTest(institutionId, { paths: 500, horizon: 12 }),
-      this.almEnterprise.getCOSSECCompliance(institutionId),
+      this.almEnterprise.getRegulatoryCompliance(institutionId),
       this.almEnterprise.getInstitution(institutionId),
     ]);
 
@@ -139,10 +141,10 @@ export class ReportsService {
         doc.addPage();
         this.renderStressTesting(doc, stressTest, summary);
 
-        // ─── SECTION 6: COSSEC COMPLIANCE ──────────────
-        if (cossec && institution.type === 'cooperativa') {
+        // ─── SECTION 6: REGULATORY COMPLIANCE ─────────
+        if (cossec && (institution.type === 'cooperativa' || institution.type === 'credit_union')) {
           doc.addPage();
-          this.renderCOSSECCompliance(doc, cossec, summary);
+          this.renderRegulatoryCompliance(doc, cossec, summary, institution.primaryRegulator);
         }
 
         // ─── SECTION 7: RECOMMENDATIONS ────────────────
@@ -662,12 +664,16 @@ export class ReportsService {
 
   // ─── COSSEC Compliance ─────────────────────────────────────
 
-  private renderCOSSECCompliance(
+  private renderRegulatoryCompliance(
     doc: typeof PDFDocument,
     cossec: any,
     summary: { institution: { name: string } },
+    primaryRegulator?: string,
   ) {
-    this.renderSectionHeader(doc, '6', t('cossecCompliance', this.lang), t('cossecSubtitle', this.lang));
+    const isNcua = primaryRegulator === 'NCUA';
+    const titleKey = isNcua ? 'ncuaCompliance' : 'cossecCompliance';
+    const subtitleKey = isNcua ? 'ncuaSubtitle' : 'cossecSubtitle';
+    this.renderSectionHeader(doc, '6', t(titleKey, this.lang), t(subtitleKey, this.lang));
 
     // Overall status
     const statusColor = cossec.overallStatus === 'compliant' ? COLORS.green
@@ -730,7 +736,7 @@ export class ReportsService {
       riskScore: number;
     },
   ) {
-    const recNum = summary.institution?.type === 'cooperativa' ? '7' : '6';
+    const recNum = (summary.institution?.type === 'cooperativa' || summary.institution?.type === 'credit_union') ? '7' : '6';
     this.renderSectionHeader(doc, recNum, t('recommendations', this.lang), t('recSubtitle', this.lang));
 
     doc.fontSize(10).fillColor(COLORS.body);

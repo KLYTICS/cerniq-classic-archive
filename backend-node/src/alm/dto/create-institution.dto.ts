@@ -21,4 +21,9 @@ export class CreateInstitutionDto {
 
   @IsString()
   workspaceId: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['COSSEC', 'NCUA'])
+  primaryRegulator?: string;
 }

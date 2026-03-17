@@ -7,11 +7,13 @@ import {
     Param,
     Delete,
     Req,
+    Res,
     Query,
     UseGuards,
 } from '@nestjs/common';
 import { ExpensesService } from './expenses.service';
 import { AnomalyDetectionService } from './anomaly-detection.service';
+import { ApReportService } from './ap-report.service';
 import { VendorIntelligenceService } from './vendor-intelligence/vendor-intelligence.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { PrismaService } from '../prisma.service';
@@ -22,6 +24,7 @@ export class ExpensesController {
     constructor(
         private readonly expensesService: ExpensesService,
         private readonly anomalyDetectionService: AnomalyDetectionService,
+        private readonly apReportService: ApReportService,
         private readonly vendorIntelligenceService: VendorIntelligenceService,
         private readonly prisma: PrismaService,
     ) { }
@@ -29,6 +32,30 @@ export class ExpensesController {
     @Post(':orgId/analyze')
     analyzeOrganization(@Param('orgId') orgId: string) {
         return this.anomalyDetectionService.analyzeOrganization(orgId);
+    }
+
+    @Post(':orgId/report')
+    async generateAPReport(
+        @Param('orgId') orgId: string,
+        @Query('lang') lang: string,
+        @Query('institutionId') institutionId: string,
+        @Res() res: any,
+    ) {
+        const language = lang === 'es' ? 'es' : 'en';
+        const buffer = await this.apReportService.generateAPReport(
+            orgId,
+            institutionId || null,
+            language,
+        );
+        const dateStr = new Date().toISOString().split('T')[0];
+        const filename = `ap-intelligence-report-${dateStr}.pdf`;
+
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="${filename}"`,
+            'Content-Length': buffer.length,
+        });
+        res.end(buffer);
     }
 
     @Post('process-receipt')

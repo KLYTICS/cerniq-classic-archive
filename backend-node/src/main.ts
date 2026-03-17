@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const cookieParser = require('cookie-parser');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -90,6 +91,43 @@ async function bootstrap() {
 
   // --- Graceful shutdown (drain connections on SIGTERM) ---
   app.enableShutdownHooks();
+
+  // --- Swagger / OpenAPI ---
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('CERNIQ API')
+    .setDescription(
+      'Institutional ALM Intelligence API for credit unions, cooperativas, and community banks.\n\n' +
+      '## Authentication\n' +
+      'All authenticated endpoints require an API key passed via the `Authorization` header:\n' +
+      '```\nAuthorization: Bearer ck_live_...\n```\n\n' +
+      '## Rate Limits\n' +
+      '- **Standard tier:** 100 requests/hour per API key\n' +
+      '- **Partner tier:** 1,000 requests/hour per API key\n\n' +
+      '## Response Envelope\n' +
+      'All responses are wrapped in: `{ "success": true, "data": ... }`',
+    )
+    .setVersion('1.0')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', description: 'API Key (ck_live_...)' },
+      'BearerAuth',
+    )
+    .addTag('ALM Analysis', 'Balance sheet analysis and regulatory compliance')
+    .addTag('Benchmarks', 'Sector benchmarks and comparison data')
+    .addTag('Reference Data', 'Supported frameworks and configuration')
+    .addTag('System', 'Health checks and diagnostics')
+    .build();
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/v1/docs', app, swaggerDocument, {
+    customSiteTitle: 'CERNIQ API Documentation',
+    customCss: `.topbar-wrapper img { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><text x="0" y="15" font-size="16" font-family="system-ui" font-weight="bold" fill="%231B3A6B">CERNIQ</text></svg>'); }`,
+    swaggerOptions: {
+      persistAuthorization: true,
+      docExpansion: 'list',
+      filter: true,
+      showRequestDuration: true,
+    },
+  });
+  console.log('Swagger UI available at /api/v1/docs');
 
   // --- Start server ---
   const port = process.env.PORT || process.env.BACKEND_PORT || 3000;

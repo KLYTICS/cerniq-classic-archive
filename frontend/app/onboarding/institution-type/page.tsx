@@ -57,14 +57,35 @@ const options: TypeOption[] = [
   },
 ];
 
+type PrimaryRegulator = 'COSSEC' | 'NCUA';
+
+const regulatorOptions: Array<{ value: PrimaryRegulator; label: string; description: string }> = [
+  {
+    value: 'COSSEC',
+    label: 'COSSEC (Puerto Rico Cooperativas)',
+    description: '12-ratio framework for PR cooperativas de ahorro y credito.',
+  },
+  {
+    value: 'NCUA',
+    label: 'NCUA (US Credit Unions)',
+    description: 'CAMEL framework for federally insured US credit unions.',
+  },
+];
+
 export default function InstitutionTypePage() {
   const router = useRouter();
   const [selected, setSelected] = useState<InstitutionType | null>(null);
+  const [regulator, setRegulator] = useState<PrimaryRegulator>('COSSEC');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const showRegulatorPicker = selected === 'credit_union' || selected === 'cooperativa';
+
   const handleSelect = async (type: InstitutionType) => {
     setSelected(type);
+    // Auto-set default regulator based on type
+    if (type === 'cooperativa') setRegulator('COSSEC');
+    else if (type === 'credit_union') setRegulator('NCUA');
     analytics.track(EVENTS.INSTITUTION_TYPE_SELECTED, { type });
   };
 
@@ -125,6 +146,29 @@ export default function InstitutionTypePage() {
             </button>
           ))}
         </div>
+
+        {/* Regulatory Framework Selector (visible for credit_union & cooperativa) */}
+        {showRegulatorPicker && (
+          <div className="mb-8 max-w-2xl mx-auto">
+            <h2 className="text-lg font-semibold text-white mb-3 text-center">Regulatory Framework</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {regulatorOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setRegulator(opt.value)}
+                  className={`text-left rounded-xl border-2 p-4 transition ${
+                    regulator === opt.value
+                      ? 'border-amber-400 bg-amber-500/10 ring-2 ring-amber-400/30'
+                      : 'border-slate-600 hover:border-slate-500 bg-slate-800/50'
+                  }`}
+                >
+                  <h3 className="text-sm font-bold text-white mb-1">{opt.label}</h3>
+                  <p className="text-xs text-slate-400">{opt.description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-300 text-sm mb-4">
