@@ -1,6 +1,7 @@
 'use client';
 
 import { Check } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
 
 interface ProgressTrackerProps {
   currentStep: number; // 1-5
@@ -8,14 +9,16 @@ interface ProgressTrackerProps {
 }
 
 const STEPS = [
-  { id: 1, labelEs: 'Cuenta activa', labelEn: 'Account active' },
-  { id: 2, labelEs: 'Institucion', labelEn: 'Institution' },
-  { id: 3, labelEs: 'Datos', labelEn: 'Data' },
-  { id: 4, labelEs: 'Procesando', labelEn: 'Processing' },
-  { id: 5, labelEs: 'Informe listo', labelEn: 'Report ready' },
+  { id: 1, labelEn: 'Account Active', labelEs: 'Cuenta Activa' },
+  { id: 2, labelEn: 'Institution', labelEs: 'Institucion' },
+  { id: 3, labelEn: 'Data', labelEs: 'Datos' },
+  { id: 4, labelEn: 'Processing', labelEs: 'Procesando' },
+  { id: 5, labelEn: 'Report Ready', labelEs: 'Informe Listo' },
 ];
 
 export default function ProgressTracker({ currentStep, completedSteps }: ProgressTrackerProps) {
+  const { locale } = useTranslation();
+
   return (
     <div className="w-full py-4">
       <div className="flex items-center justify-between relative">
@@ -32,7 +35,6 @@ export default function ProgressTracker({ currentStep, completedSteps }: Progres
         {STEPS.map((step) => {
           const isCompleted = completedSteps.includes(step.id);
           const isCurrent = step.id === currentStep;
-          const isFuture = !isCompleted && !isCurrent;
 
           return (
             <div
@@ -70,14 +72,7 @@ export default function ProgressTracker({ currentStep, completedSteps }: Progres
                         : 'text-slate-400'
                   }`}
                 >
-                  {step.labelEn}
-                </p>
-                <p
-                  className={`text-[10px] leading-tight ${
-                    isFuture ? 'text-slate-300' : 'text-slate-500'
-                  }`}
-                >
-                  {step.labelEs}
+                  {locale === 'en' ? step.labelEn : step.labelEs}
                 </p>
               </div>
             </div>

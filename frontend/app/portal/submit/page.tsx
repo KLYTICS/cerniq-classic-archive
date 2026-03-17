@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Upload, Download, FileText, CheckCircle, ArrowRight, HelpCircle, ChevronDown, ChevronUp, ClipboardList } from 'lucide-react';
 import { SkeletonLoader, EmptyState, ErrorBanner } from '@/components/ui/cerniq';
 import { analytics, EVENTS } from '@/lib/analytics';
+import { useTranslation } from '@/lib/i18n';
 import ProgressTracker from '@/components/portal/ProgressTracker';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
@@ -17,13 +18,16 @@ interface ReportJob {
 }
 
 /* ---------- FAQ Item ---------- */
-function FAQItem({ questionEs, questionEn, answerEs, answerEn }: {
-  questionEs: string;
+function FAQItem({ questionEn, questionEs, answerEn, answerEs }: {
   questionEn: string;
-  answerEs: string;
+  questionEs: string;
   answerEn: string;
+  answerEs: string;
 }) {
   const [open, setOpen] = useState(false);
+  const { locale } = useTranslation();
+  const t = (en: string, es: string) => locale === 'en' ? en : es;
+
   return (
     <div className="border-b border-slate-100 last:border-b-0">
       <button
@@ -32,15 +36,13 @@ function FAQItem({ questionEs, questionEn, answerEs, answerEn }: {
       >
         <HelpCircle className="h-4 w-4 text-[#1ABFFF] mt-0.5 shrink-0" />
         <div className="flex-1">
-          <p className="text-sm font-medium text-slate-700">{questionEn}</p>
-          <p className="text-xs text-slate-400">{questionEs}</p>
+          <p className="text-sm font-medium text-slate-700">{t(questionEn, questionEs)}</p>
         </div>
         {open ? <ChevronUp className="h-4 w-4 text-slate-400 mt-0.5" /> : <ChevronDown className="h-4 w-4 text-slate-400 mt-0.5" />}
       </button>
       {open && (
         <div className="pb-3 pl-6 text-sm text-slate-600">
-          <p>{answerEn}</p>
-          <p className="text-xs text-slate-400 mt-1">{answerEs}</p>
+          <p>{t(answerEn, answerEs)}</p>
         </div>
       )}
     </div>
@@ -51,6 +53,8 @@ function FAQItem({ questionEs, questionEn, answerEs, answerEn }: {
 function CSVPreview({ file }: { file: File }) {
   const [rows, setRows] = useState<string[][]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
+  const { locale } = useTranslation();
+  const t = (en: string, es: string) => locale === 'en' ? en : es;
 
   useEffect(() => {
     const reader = new FileReader();
@@ -74,7 +78,7 @@ function CSVPreview({ file }: { file: File }) {
     <div className="mt-4 rounded-xl border border-slate-200 overflow-hidden">
       <div className="px-4 py-2 bg-slate-50 border-b border-slate-200">
         <p className="text-xs font-medium text-slate-500">
-          Preview (first 5 rows) / Vista previa (primeras 5 filas)
+          {t('Preview (first 5 rows)', 'Vista previa (primeras 5 filas)')}
         </p>
       </div>
       <div className="overflow-x-auto">
@@ -103,7 +107,7 @@ function CSVPreview({ file }: { file: File }) {
       </div>
       {rows.length === 5 && (
         <div className="px-4 py-1.5 bg-slate-50 border-t border-slate-200 text-[10px] text-slate-400">
-          ... and more rows / ... y mas filas
+          {t('... and more rows', '... y mas filas')}
         </div>
       )}
     </div>
@@ -128,6 +132,9 @@ const PERIOD_OPTIONS = (() => {
 
 /* ---------- Main Submit Page ---------- */
 export default function PortalSubmit() {
+  const { locale } = useTranslation();
+  const t = (en: string, es: string) => locale === 'en' ? en : es;
+
   const [jobs, setJobs] = useState<ReportJob[]>([]);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -150,13 +157,13 @@ export default function PortalSubmit() {
         setJobs(awaitingJobs);
         if (awaitingJobs.length === 1) setSelectedJob(awaitingJobs[0].id);
       } else {
-        setFetchError('No se pudo cargar los trabajos. Intente de nuevo.');
+        setFetchError(t('Could not load jobs. Please try again.', 'No se pudo cargar los trabajos. Intente de nuevo.'));
       }
     } catch {
-      setFetchError('Error de conexion. Verifique su internet e intente de nuevo.');
+      setFetchError(t('Connection error. Check your internet and try again.', 'Error de conexion. Verifique su internet e intente de nuevo.'));
     }
     setLoading(false);
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     loadJobs();
@@ -165,13 +172,13 @@ export default function PortalSubmit() {
   /* ---------- file validation ---------- */
   const validateFile = (f: File): string | null => {
     if (!f.name.endsWith('.csv')) {
-      return 'Only CSV files are accepted. / Solo archivos CSV son aceptados.';
+      return t('Only CSV files are accepted.', 'Solo archivos CSV son aceptados.');
     }
     if (f.size > 2 * 1024 * 1024) {
-      return 'File exceeds 2MB limit. / El archivo excede 2MB.';
+      return t('File exceeds 2MB limit.', 'El archivo excede 2MB.');
     }
     if (f.size === 0) {
-      return 'File is empty. / El archivo esta vacio.';
+      return t('File is empty.', 'El archivo esta vacio.');
     }
     return null;
   };
@@ -223,7 +230,7 @@ export default function PortalSubmit() {
       setResult({
         valid: false,
         status: 'ERROR',
-        errors: ['Network error. Please try again. / Error de conexion. Intente de nuevo.'],
+        errors: [t('Network error. Please try again.', 'Error de conexion. Intente de nuevo.')],
       });
     } finally {
       setUploading(false);
@@ -249,11 +256,16 @@ export default function PortalSubmit() {
       <section className="cerniq-shell p-6 sm:p-8">
         <div className="cerniq-data-wave" />
         <div className="relative z-10">
-          <span className="cerniq-kicker mb-5">Submit data / Enviar datos</span>
+          <span className="cerniq-kicker mb-5">{t('Submit Data', 'Enviar Datos')}</span>
           <h1 className="font-display text-3xl text-slate-950 sm:text-5xl">
-            Upload your balance-sheet data
+            {t('Upload Your Balance-Sheet Data', 'Cargue Sus Datos de Balance')}
           </h1>
-          <p className="mt-2 text-sm text-slate-400">Cargue sus datos de balance para generar su informe.</p>
+          <p className="mt-2 text-sm text-slate-400">
+            {t(
+              'Upload your balance sheet data to generate your report.',
+              'Cargue sus datos de balance para generar su informe.',
+            )}
+          </p>
         </div>
       </section>
 
@@ -272,20 +284,19 @@ export default function PortalSubmit() {
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1B3A6B] text-sm font-bold text-white">1</div>
               <div className="flex-1">
                 <h2 className="mb-1 text-sm font-semibold text-slate-900">
-                  Download CSV template / Descargar plantilla CSV
+                  {t('Download Template', 'Descargar Plantilla')}
                 </h2>
                 <p className="mb-3 text-sm text-slate-500">
-                  Fill in your balance sheet data using our template. Includes columns for asset/liability type, amount, rate, and maturity.
-                  <br />
-                  <span className="text-slate-400">
-                    Complete sus datos de balance usando nuestra plantilla. Incluye columnas para tipo de activo/pasivo, monto, tasa y vencimiento.
-                  </span>
+                  {t(
+                    'Fill in your balance sheet data using our template. Includes columns for asset/liability type, amount, rate, and maturity.',
+                    'Complete sus datos de balance usando nuestra plantilla. Incluye columnas para tipo de activo/pasivo, monto, tasa y vencimiento.',
+                  )}
                 </p>
                 <a
                   href={`${NODE_API_URL}/api/alm/templates/cooperativa`}
                   className="cerniq-button-secondary px-4 py-2 text-sm"
                 >
-                  <Download className="h-4 w-4" /> Download template / Descargar plantilla
+                  <Download className="h-4 w-4" /> {t('Download template', 'Descargar plantilla')}
                 </a>
               </div>
             </div>
@@ -297,12 +308,12 @@ export default function PortalSubmit() {
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1B3A6B] text-sm font-bold text-white">2</div>
               <div className="flex-1">
                 <h2 className="mb-1 text-sm font-semibold text-slate-900">
-                  Select report / Seleccionar informe
+                  {t('Select Report', 'Seleccionar Informe')}
                 </h2>
                 {fetchError ? (
                   <ErrorBanner
-                    titleEs={fetchError}
-                    error="Could not load pending jobs. Please try again."
+                    titleEs={locale === 'es' ? fetchError : undefined}
+                    error={fetchError}
                     onRetry={loadJobs}
                     onDismiss={() => setFetchError(null)}
                   />
@@ -311,12 +322,12 @@ export default function PortalSubmit() {
                 ) : jobs.length === 0 ? (
                   <EmptyState
                     icon={ClipboardList}
-                    titleEs="No hay trabajos pendientes"
-                    title="No pending jobs"
-                    descriptionEs="No hay informes esperando datos. Todos sus informes estan en progreso o completos."
-                    description="No reports awaiting data. All your reports are either in progress or complete."
-                    actionLabelEs="Ver sus informes"
-                    actionLabel="View your reports"
+                    title={t('No pending jobs', 'No hay trabajos pendientes')}
+                    description={t(
+                      'No reports awaiting data. All your reports are either in progress or complete.',
+                      'No hay informes esperando datos. Todos sus informes estan en progreso o completos.',
+                    )}
+                    actionLabel={t('View your reports', 'Ver sus informes')}
                     onAction={() => {
                       if (typeof window !== 'undefined') window.location.href = '/portal';
                     }}
@@ -336,11 +347,11 @@ export default function PortalSubmit() {
                         <span className="font-medium">{job.institutionName}</span>
                         {job.status === 'VALIDATION_FAILED' && (
                           <span className="ml-2 text-xs text-rose-600">
-                            Validation failed - retry / Validacion fallida - reintentar
+                            {t('Validation failed - retry', 'Validacion fallida - reintentar')}
                           </span>
                         )}
                         <span className="mt-0.5 block text-xs text-slate-400">
-                          Created / Creado {new Date(job.createdAt).toLocaleDateString()}
+                          {t('Created', 'Creado')} {new Date(job.createdAt).toLocaleDateString()}
                         </span>
                       </button>
                     ))}
@@ -356,12 +367,13 @@ export default function PortalSubmit() {
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1B3A6B] text-sm font-bold text-white">3</div>
               <div className="flex-1">
                 <h2 className="mb-1 text-sm font-semibold text-slate-900">
-                  Analysis period / Periodo de analisis
+                  {t('Select Period', 'Seleccionar Periodo')}
                 </h2>
                 <p className="mb-3 text-sm text-slate-500">
-                  Select the period for this data. This enables trend comparison across periods.
-                  <br />
-                  <span className="text-slate-400">Seleccione el periodo que corresponde a estos datos. Esto permite comparar tendencias entre periodos.</span>
+                  {t(
+                    'Select the period for this data. This enables trend comparison across periods.',
+                    'Seleccione el periodo que corresponde a estos datos. Esto permite comparar tendencias entre periodos.',
+                  )}
                 </p>
                 <select
                   value={analysisPeriod}
@@ -382,12 +394,13 @@ export default function PortalSubmit() {
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1B3A6B] text-sm font-bold text-white">4</div>
               <div className="flex-1">
                 <h2 className="mb-1 text-sm font-semibold text-slate-900">
-                  Upload your data / Cargar sus datos
+                  {t('Upload Your Data', 'Cargar Sus Datos')}
                 </h2>
                 <p className="mb-3 text-sm text-slate-500">
-                  Upload the completed CSV file. Max file size: 2MB.
-                  <br />
-                  <span className="text-slate-400">Cargue el archivo CSV completado. Tamano maximo: 2MB.</span>
+                  {t(
+                    'Upload the completed CSV file. Max file size: 2MB.',
+                    'Cargue el archivo CSV completado. Tamano maximo: 2MB.',
+                  )}
                 </p>
 
                 <input
@@ -425,17 +438,17 @@ export default function PortalSubmit() {
                         onClick={(e) => { e.stopPropagation(); setFile(null); setResult(null); }}
                         className="ml-3 text-xs text-slate-400 hover:text-rose-500 underline"
                       >
-                        Change / Cambiar
+                        {t('Change', 'Cambiar')}
                       </button>
                     </div>
                   ) : (
                     <div>
                       <Upload className="mx-auto mb-3 h-10 w-10 text-[#1B3A6B]/20" />
                       <p className="text-sm font-medium text-slate-600">
-                        Arrastre su archivo CSV aqui o haga clic para seleccionar
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        Drag your CSV file here or click to select
+                        {t(
+                          'Drag and drop your CSV file here or click to select',
+                          'Arrastre su archivo CSV aqui o haga clic para seleccionar',
+                        )}
                       </p>
                     </div>
                   )}
@@ -453,15 +466,16 @@ export default function PortalSubmit() {
                           <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#18C87A]" />
                           <div>
                             <p className="text-sm font-medium text-[#18C87A]">
-                              Data submitted successfully / Datos enviados exitosamente
+                              {t('Data submitted successfully', 'Datos enviados exitosamente')}
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
-                              {result.itemsImported} items imported. Your report is now queued for processing.
-                              <br />
-                              {result.itemsImported} elementos importados. Su informe esta en cola para procesamiento.
+                              {t(
+                                `${result.itemsImported} items imported. Your report is now queued for processing.`,
+                                `${result.itemsImported} elementos importados. Su informe esta en cola para procesamiento.`,
+                              )}
                             </p>
                             <Link href="/portal" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-[#1ABFFF] hover:underline">
-                              Back to portal / Volver al portal <ArrowRight className="h-3 w-3" />
+                              {t('Back to portal', 'Volver al portal')} <ArrowRight className="h-3 w-3" />
                             </Link>
                           </div>
                         </div>
@@ -469,8 +483,8 @@ export default function PortalSubmit() {
                     ) : result.status === 'ERROR' ? (
                       <div className="mt-4">
                         <ErrorBanner
-                          titleEs="Error de conexion. Intente de nuevo."
-                          error="Network error. Please try again."
+                          titleEs={locale === 'es' ? t('Connection error. Try again.', 'Error de conexion. Intente de nuevo.') : undefined}
+                          error={t('Network error. Please try again.', 'Error de conexion. Intente de nuevo.')}
                           onRetry={handleUpload}
                           onDismiss={() => setResult(null)}
                         />
@@ -478,8 +492,11 @@ export default function PortalSubmit() {
                     ) : (
                       <div className="mt-4">
                         <ErrorBanner
-                          titleEs={`Validacion fallida${result.errors?.length ? `: ${result.errors.join('; ')}` : ''}`}
-                          error={`Validation failed${result.errors?.length ? `: ${result.errors.join('; ')}` : ''}`}
+                          titleEs={locale === 'es' ? `Validacion fallida${result.errors?.length ? `: ${result.errors.join('; ')}` : ''}` : undefined}
+                          error={t(
+                            `Validation failed${result.errors?.length ? `: ${result.errors.join('; ')}` : ''}`,
+                            `Validacion fallida${result.errors?.length ? `: ${result.errors.join('; ')}` : ''}`,
+                          )}
                           onRetry={() => { setResult(null); setFile(null); }}
                           onDismiss={() => setResult(null)}
                         />
@@ -496,12 +513,12 @@ export default function PortalSubmit() {
                   {uploading ? (
                     <>
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                      Uploading & Validating... / Cargando y validando...
+                      {t('Uploading & Validating...', 'Cargando y validando...')}
                     </>
                   ) : (
                     <>
                       <Upload className="h-4 w-4" />
-                      Submit data / Enviar datos
+                      {t('Submit Data', 'Enviar Datos')}
                     </>
                   )}
                 </button>
@@ -516,40 +533,40 @@ export default function PortalSubmit() {
             <div className="flex items-center gap-2 mb-4">
               <HelpCircle className="h-5 w-5 text-[#1ABFFF]" />
               <h3 className="text-sm font-semibold text-slate-900">
-                Need help? / Necesita ayuda?
+                {t('Need help?', 'Necesita ayuda?')}
               </h3>
             </div>
 
             <FAQItem
-              questionEs="Que formato debe tener el archivo CSV?"
               questionEn="What format should the CSV file be?"
-              answerEs="El archivo debe ser CSV (separado por comas) con las columnas: tipo, descripcion, monto, tasa, vencimiento. Use la plantilla proporcionada como guia."
+              questionEs="Que formato debe tener el archivo CSV?"
               answerEn="The file must be CSV (comma-separated) with columns: type, description, amount, rate, maturity. Use the provided template as a guide."
+              answerEs="El archivo debe ser CSV (separado por comas) con las columnas: tipo, descripcion, monto, tasa, vencimiento. Use la plantilla proporcionada como guia."
             />
 
             <FAQItem
-              questionEs="Que datos necesito incluir?"
               questionEn="What data do I need to include?"
-              answerEs="Incluya todos los activos y pasivos del balance general con sus tasas de interes y fechas de vencimiento. Minimo: depositos, prestamos, inversiones."
+              questionEs="Que datos necesito incluir?"
               answerEn="Include all balance sheet assets and liabilities with their interest rates and maturity dates. Minimum: deposits, loans, investments."
+              answerEs="Incluya todos los activos y pasivos del balance general con sus tasas de interes y fechas de vencimiento. Minimo: depositos, prestamos, inversiones."
             />
 
             <FAQItem
-              questionEs="Cuanto tiempo tarda el analisis?"
               questionEn="How long does the analysis take?"
-              answerEs="El procesamiento tipico toma 30-60 minutos. Le enviaremos un email cuando su informe este listo para descargar."
+              questionEs="Cuanto tiempo tarda el analisis?"
               answerEn="Typical processing takes 30-60 minutes. We will email you when your report is ready to download."
+              answerEs="El procesamiento tipico toma 30-60 minutos. Le enviaremos un email cuando su informe este listo para descargar."
             />
 
             <div className="mt-4 pt-4 border-t border-slate-100">
               <p className="text-xs text-slate-500">
-                Issues? / Problemas?
+                {t('Issues?', 'Problemas?')}
               </p>
               <a
                 href="mailto:erwin@klytics.io"
                 className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-[#1ABFFF] hover:underline"
               >
-                Contact support / Contactar soporte
+                {t('Contact support', 'Contactar soporte')}
               </a>
             </div>
           </div>

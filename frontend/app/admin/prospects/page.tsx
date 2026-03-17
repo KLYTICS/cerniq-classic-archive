@@ -30,18 +30,19 @@ interface Prospect {
 
 type SortKey = 'urgency' | 'stale' | 'assets';
 type ViewMode = 'table' | 'kanban';
+type Lang = 'en' | 'es';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
 const STAGES: { value: Prospect['stage']; label: string; color: string; bg: string; border: string }[] = [
-  { value: 'OUTBOUND',       label: 'Outbound',       color: 'text-slate-300',   bg: 'bg-slate-500/20',   border: 'border-slate-500/30' },
-  { value: 'ENGAGED',        label: 'Engaged',        color: 'text-[#1ABFFF]',  bg: 'bg-[#1ABFFF]/15',  border: 'border-[#1ABFFF]/30' },
-  { value: 'DEMO_SCHEDULED', label: 'Demo Scheduled', color: 'text-[#E8A020]',  bg: 'bg-[#E8A020]/15',  border: 'border-[#E8A020]/30' },
-  { value: 'PROPOSAL',       label: 'Proposal',       color: 'text-[#1ABFFF]',  bg: 'bg-[#1ABFFF]/20',  border: 'border-[#1ABFFF]/40' },
-  { value: 'CLOSED_WON',     label: 'Closed Won',     color: 'text-[#18C87A]',  bg: 'bg-[#18C87A]/15',  border: 'border-[#18C87A]/30' },
-  { value: 'CHURNED',        label: 'Churned',        color: 'text-red-400',     bg: 'bg-red-500/15',     border: 'border-red-500/30' },
+  { value: 'OUTBOUND',       label: 'OUTBOUND',       color: 'text-slate-300',   bg: 'bg-slate-500/20',   border: 'border-slate-500/30' },
+  { value: 'ENGAGED',        label: 'ENGAGED',        color: 'text-[#1ABFFF]',  bg: 'bg-[#1ABFFF]/15',  border: 'border-[#1ABFFF]/30' },
+  { value: 'DEMO_SCHEDULED', label: 'DEMO_SCHEDULED', color: 'text-[#E8A020]',  bg: 'bg-[#E8A020]/15',  border: 'border-[#E8A020]/30' },
+  { value: 'PROPOSAL',       label: 'PROPOSAL',       color: 'text-[#1ABFFF]',  bg: 'bg-[#1ABFFF]/20',  border: 'border-[#1ABFFF]/40' },
+  { value: 'CLOSED_WON',     label: 'CLOSED_WON',     color: 'text-[#18C87A]',  bg: 'bg-[#18C87A]/15',  border: 'border-[#18C87A]/30' },
+  { value: 'CHURNED',        label: 'CHURNED',        color: 'text-red-400',     bg: 'bg-red-500/15',     border: 'border-red-500/30' },
 ];
 
 const STAGE_MAP = Object.fromEntries(STAGES.map((s) => [s.value, s]));
@@ -99,6 +100,9 @@ function SkeletonCard() {
 /* ------------------------------------------------------------------ */
 
 export default function ProspectsDashboard() {
+  const [lang, setLang] = useState<Lang>('en');
+  const t = (en: string, es: string) => lang === 'en' ? en : es;
+
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,11 +125,11 @@ export default function ProspectsDashboard() {
       const data = await apiClient.getProspects();
       setProspects(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      setError(err?.response?.status === 401 ? 'Invalid admin key' : 'Failed to load prospects');
+      setError(err?.response?.status === 401 ? t('Invalid admin key', 'Clave de administrador invalida') : t('Failed to load prospects', 'No se pudo cargar los prospectos'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     fetchProspects();
@@ -180,27 +184,35 @@ export default function ProspectsDashboard() {
             </Link>
             <div>
               <h1 className="text-xl font-bold flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-[#1ABFFF]" /> Institutional Sales Dashboard
+                <Building2 className="h-5 w-5 text-[#1ABFFF]" /> {t('Institutional Sales Dashboard', 'Panel de Ventas Institucional')}
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                CERNIQ CRM &mdash; {prospects.length} prospect{prospects.length !== 1 ? 's' : ''} in pipeline
+                CERNIQ CRM &mdash; {prospects.length} {t('prospect', 'prospecto')}{prospects.length !== 1 ? 's' : ''} {t('in pipeline', 'en pipeline')}
               </p>
             </div>
           </div>
-          <button
-            onClick={fetchProspects}
-            disabled={loading}
-            className="flex items-center gap-1.5 self-start bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs transition"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setLang(lang === 'en' ? 'es' : 'en')}
+              className="flex items-center bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs transition font-semibold uppercase tracking-wider"
+            >
+              {lang === 'en' ? 'ES' : 'EN'}
+            </button>
+            <button
+              onClick={fetchProspects}
+              disabled={loading}
+              className="flex items-center gap-1.5 self-start bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs transition"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> {t('Refresh', 'Actualizar')}
+            </button>
+          </div>
         </div>
 
         {/* ---- Error banner ---- */}
         {error && (
           <div className="mb-6">
             <ErrorBanner
-              titleEs={error === 'Invalid admin key' ? 'Clave de administrador invalida' : 'No se pudo cargar los prospectos'}
+              titleEs={t('Failed to load prospects', 'No se pudo cargar los prospectos')}
               error={error}
               onRetry={fetchProspects}
               onDismiss={() => setError(null)}
@@ -212,10 +224,10 @@ export default function ProspectsDashboard() {
         {/*  1. PIPELINE STATS BAR                                           */}
         {/* ================================================================ */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
-          {/* Prospectos Activos */}
+          {/* Active Prospects */}
           <div className="bg-slate-900/60 border border-white/[0.08] rounded-xl p-4 sm:p-5">
             <div className="flex items-center gap-2 text-slate-400 text-[11px] uppercase tracking-wider font-medium mb-2">
-              <Users className="h-3.5 w-3.5 text-[#1ABFFF]" /> Prospectos Activos
+              <Users className="h-3.5 w-3.5 text-[#1ABFFF]" /> {t('Active Prospects', 'Prospectos Activos')}
             </div>
             {loading ? (
               <div className="h-8 w-16 bg-white/[0.06] rounded animate-pulse" />
@@ -224,10 +236,10 @@ export default function ProspectsDashboard() {
             )}
           </div>
 
-          {/* Urgencia Media */}
+          {/* Avg Urgency */}
           <div className="bg-slate-900/60 border border-white/[0.08] rounded-xl p-4 sm:p-5">
             <div className="flex items-center gap-2 text-slate-400 text-[11px] uppercase tracking-wider font-medium mb-2">
-              <Flame className="h-3.5 w-3.5 text-[#E8A020]" /> Urgencia Media
+              <Flame className="h-3.5 w-3.5 text-[#E8A020]" /> {t('Avg Urgency', 'Urgencia Media')}
             </div>
             {loading ? (
               <div className="h-8 w-16 bg-white/[0.06] rounded animate-pulse" />
@@ -236,10 +248,10 @@ export default function ProspectsDashboard() {
             )}
           </div>
 
-          {/* Esta Semana */}
+          {/* This Week */}
           <div className="bg-slate-900/60 border border-white/[0.08] rounded-xl p-4 sm:p-5">
             <div className="flex items-center gap-2 text-slate-400 text-[11px] uppercase tracking-wider font-medium mb-2">
-              <CalendarClock className="h-3.5 w-3.5 text-[#18C87A]" /> Esta Semana
+              <CalendarClock className="h-3.5 w-3.5 text-[#18C87A]" /> {t('This Week', 'Esta Semana')}
             </div>
             {loading ? (
               <div className="h-8 w-16 bg-white/[0.06] rounded animate-pulse" />
@@ -248,10 +260,10 @@ export default function ProspectsDashboard() {
             )}
           </div>
 
-          {/* Demos Pendientes */}
+          {/* Pending Demos */}
           <div className="bg-slate-900/60 border border-white/[0.08] rounded-xl p-4 sm:p-5">
             <div className="flex items-center gap-2 text-slate-400 text-[11px] uppercase tracking-wider font-medium mb-2">
-              <LayoutGrid className="h-3.5 w-3.5 text-[#1ABFFF]" /> Demos Pendientes
+              <LayoutGrid className="h-3.5 w-3.5 text-[#1ABFFF]" /> {t('Pending Demos', 'Demos Pendientes')}
             </div>
             {loading ? (
               <div className="h-8 w-16 bg-white/[0.06] rounded animate-pulse" />
@@ -286,7 +298,7 @@ export default function ProspectsDashboard() {
                 onChange={(e) => setStageFilter(e.target.value)}
                 className="appearance-none bg-white/[0.04] border border-white/[0.08] rounded-lg pl-3 pr-7 py-1.5 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-[#1ABFFF]/50 cursor-pointer"
               >
-                <option value="">All Stages</option>
+                <option value="">{t('All Stages', 'Todas las Etapas')}</option>
                 {STAGES.map((s) => (
                   <option key={s.value} value={s.value} className="bg-slate-900">{s.label}</option>
                 ))}
@@ -301,9 +313,9 @@ export default function ProspectsDashboard() {
                 onChange={(e) => setSortKey(e.target.value as SortKey)}
                 className="appearance-none bg-white/[0.04] border border-white/[0.08] rounded-lg pl-3 pr-7 py-1.5 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-[#1ABFFF]/50 cursor-pointer"
               >
-                <option value="urgency" className="bg-slate-900">Sort: Urgency</option>
-                <option value="stale" className="bg-slate-900">Sort: Days Stale</option>
-                <option value="assets" className="bg-slate-900">Sort: Assets</option>
+                <option value="urgency" className="bg-slate-900">{t('Sort: Urgency', 'Orden: Urgencia')}</option>
+                <option value="stale" className="bg-slate-900">{t('Sort: Days Stale', 'Orden: Dias Inactivo')}</option>
+                <option value="assets" className="bg-slate-900">{t('Sort: Assets', 'Orden: Activos')}</option>
               </select>
               <ArrowUpDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-500 pointer-events-none" />
             </div>
@@ -339,12 +351,12 @@ export default function ProspectsDashboard() {
               <table className="w-full text-sm min-w-[800px]">
                 <thead>
                   <tr className="border-b border-white/[0.08] text-left">
-                    <th className="px-4 py-3 text-[11px] uppercase tracking-wider text-slate-500 font-medium">Institution</th>
-                    <th className="px-4 py-3 text-[11px] uppercase tracking-wider text-slate-500 font-medium">Assets</th>
-                    <th className="px-4 py-3 text-[11px] uppercase tracking-wider text-slate-500 font-medium">Stage</th>
-                    <th className="px-4 py-3 text-[11px] uppercase tracking-wider text-slate-500 font-medium">Urgency</th>
-                    <th className="px-4 py-3 text-[11px] uppercase tracking-wider text-slate-500 font-medium">Days Since Contact</th>
-                    <th className="px-4 py-3 text-[11px] uppercase tracking-wider text-slate-500 font-medium">Actions</th>
+                    <th className="px-4 py-3 text-[11px] uppercase tracking-wider text-slate-500 font-medium">{t('Institution', 'Institucion')}</th>
+                    <th className="px-4 py-3 text-[11px] uppercase tracking-wider text-slate-500 font-medium">{t('Assets', 'Activos')}</th>
+                    <th className="px-4 py-3 text-[11px] uppercase tracking-wider text-slate-500 font-medium">{t('Stage', 'Etapa')}</th>
+                    <th className="px-4 py-3 text-[11px] uppercase tracking-wider text-slate-500 font-medium">{t('Urgency Score', 'Puntuacion Urgencia')}</th>
+                    <th className="px-4 py-3 text-[11px] uppercase tracking-wider text-slate-500 font-medium">{t('Days Since Contact', 'Dias Sin Contacto')}</th>
+                    <th className="px-4 py-3 text-[11px] uppercase tracking-wider text-slate-500 font-medium">{t('Actions', 'Acciones')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -361,12 +373,12 @@ export default function ProspectsDashboard() {
                       <td colSpan={6} className="px-4 py-8">
                         <EmptyState
                           icon={Users}
-                          titleEs="No hay prospectos"
-                          title="No prospects match the current filters"
-                          descriptionEs="Ajuste sus filtros o recargue para ver prospectos disponibles."
-                          description="Adjust your filters or refresh to see available prospects."
-                          actionLabelEs="Limpiar filtros"
-                          actionLabel="Clear filters"
+                          titleEs={t('No prospects match the current filters', 'No hay prospectos')}
+                          title={t('No prospects match the current filters', 'No hay prospectos')}
+                          descriptionEs={t('Adjust your filters or refresh to see available prospects.', 'Ajuste sus filtros o recargue para ver prospectos disponibles.')}
+                          description={t('Adjust your filters or refresh to see available prospects.', 'Ajuste sus filtros o recargue para ver prospectos disponibles.')}
+                          actionLabelEs={t('Clear filters', 'Limpiar filtros')}
+                          actionLabel={t('Clear filters', 'Limpiar filtros')}
                           onAction={() => { setScoreFilter(false); setStageFilter(''); }}
                         />
                       </td>
@@ -419,10 +431,10 @@ export default function ProspectsDashboard() {
                           <td className="px-4 py-3">
                             {days !== null ? (
                               <span className={`text-sm tabular-nums ${days > 14 ? 'text-red-400 font-semibold' : days > 7 ? 'text-[#E8A020]' : 'text-slate-400'}`}>
-                                {days}d ago
+                                {days}d {t('ago', 'hace')}
                               </span>
                             ) : (
-                              <span className="text-xs text-slate-600">Never</span>
+                              <span className="text-xs text-slate-600">{t('Never', 'Nunca')}</span>
                             )}
                           </td>
 
@@ -432,7 +444,7 @@ export default function ProspectsDashboard() {
                               onClick={() => setOutreachProspect(p)}
                               className="flex items-center gap-1.5 text-xs bg-[#1B3A6B]/60 hover:bg-[#1B3A6B] border border-[#1ABFFF]/20 hover:border-[#1ABFFF]/40 text-[#1ABFFF] px-3 py-1.5 rounded-lg transition font-medium"
                             >
-                              <Eye className="h-3 w-3" /> Ver Outreach
+                              <Eye className="h-3 w-3" /> {t('View Outreach', 'Ver Outreach')}
                             </button>
                           </td>
                         </tr>
@@ -470,7 +482,7 @@ export default function ProspectsDashboard() {
                       ) : cards.length === 0 ? (
                         <div className="text-center py-6 text-[11px] text-slate-600">
                           <Users className="mx-auto h-5 w-5 text-slate-700 mb-1" />
-                          <span>Sin prospectos / No prospects</span>
+                          <span>{t('No prospects', 'Sin prospectos')}</span>
                         </div>
                       ) : (
                         cards.map((p) => {
@@ -491,10 +503,10 @@ export default function ProspectsDashboard() {
                               <div className="text-[11px] text-slate-600">
                                 {days !== null ? (
                                   <span className={days > 14 ? 'text-red-400' : days > 7 ? 'text-[#E8A020]' : ''}>
-                                    Contacted {days}d ago
+                                    {t('Contacted', 'Contactado')} {days}d {t('ago', 'hace')}
                                   </span>
                                 ) : (
-                                  'Never contacted'
+                                  t('Never contacted', 'Nunca contactado')
                                 )}
                               </div>
                             </button>
@@ -548,11 +560,11 @@ export default function ProspectsDashboard() {
                   );
                 })()}
                 <span className={`text-xs font-bold ${urgencyTextColor(outreachProspect.urgencyScore)}`}>
-                  Urgency: {outreachProspect.urgencyScore}/100
+                  {t('Urgency', 'Urgencia')}: {outreachProspect.urgencyScore}/100
                 </span>
                 {outreachProspect.examDate && (
                   <span className="text-xs text-slate-500">
-                    Exam: {new Date(outreachProspect.examDate).toLocaleDateString()}
+                    {t('Exam', 'Examen')}: {new Date(outreachProspect.examDate).toLocaleDateString()}
                   </span>
                 )}
               </div>
@@ -560,16 +572,16 @@ export default function ProspectsDashboard() {
               {/* Known Pain */}
               {outreachProspect.knownPain && (
                 <div className="px-5 pt-3">
-                  <p className="text-[11px] uppercase tracking-wider text-slate-500 font-medium mb-1">Known Pain</p>
+                  <p className="text-[11px] uppercase tracking-wider text-slate-500 font-medium mb-1">{t('Known Pain', 'Necesidad Identificada')}</p>
                   <p className="text-sm text-slate-300 leading-relaxed">{outreachProspect.knownPain}</p>
                 </div>
               )}
 
               {/* Outreach Draft */}
               <div className="px-5 pt-4 pb-5 flex-1 overflow-y-auto">
-                <p className="text-[11px] uppercase tracking-wider text-slate-500 font-medium mb-2">Outreach Draft</p>
+                <p className="text-[11px] uppercase tracking-wider text-slate-500 font-medium mb-2">{t('Outreach Draft', 'Borrador de Contacto')}</p>
                 <div className="bg-slate-800/60 border border-white/[0.06] rounded-xl p-4 text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
-                  {outreachProspect.outreachDraft || 'No outreach draft available.'}
+                  {outreachProspect.outreachDraft || t('No outreach draft available.', 'No hay borrador de contacto disponible.')}
                 </div>
               </div>
 
@@ -577,8 +589,8 @@ export default function ProspectsDashboard() {
               <div className="border-t border-white/[0.08] px-5 py-4 flex items-center justify-between">
                 <div className="text-[11px] text-slate-600">
                   {outreachProspect.outreachSentAt
-                    ? `Last sent: ${new Date(outreachProspect.outreachSentAt).toLocaleDateString()}`
-                    : 'Never sent'}
+                    ? `${t('Last sent', 'Ultimo envio')}: ${new Date(outreachProspect.outreachSentAt).toLocaleDateString()}`
+                    : t('Never sent', 'Nunca enviado')}
                 </div>
                 <button
                   onClick={() => copyOutreach(outreachProspect.outreachDraft || '')}
@@ -590,7 +602,7 @@ export default function ProspectsDashboard() {
                   } disabled:opacity-40 disabled:cursor-not-allowed`}
                 >
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  {copied ? 'Copiado' : 'Copiar al portapapeles'}
+                  {copied ? t('Copied', 'Copiado') : t('Copy to clipboard', 'Copiar al portapapeles')}
                 </button>
               </div>
             </div>

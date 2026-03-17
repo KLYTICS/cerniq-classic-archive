@@ -9,17 +9,26 @@ import { CerniqMark, CerniqLockup } from '@/components/brand/CerniqLogo';
 
 const DEMO_VIDEO_URL = (process.env.NEXT_PUBLIC_CERNIQ_DEMO_VIDEO_URL || '').trim();
 
-const institutionOptions = [
-  { value: '', label: 'Institution type / Tipo de institucion' },
+const institutionOptionsEN = [
+  { value: '', label: 'Institution type' },
   { value: 'cooperativa', label: 'Cooperativa' },
-  { value: 'credit_union', label: 'Credit union' },
-  { value: 'cpa_consultant', label: 'CPA / consulting firm' },
-  { value: 'community_bank', label: 'Community bank' },
-  { value: 'other', label: 'Other / Otro' },
+  { value: 'credit_union', label: 'Credit Union' },
+  { value: 'cpa_consultant', label: 'CPA / Consulting Firm' },
+  { value: 'community_bank', label: 'Community Bank' },
+  { value: 'other', label: 'Other' },
 ];
 
-const assetRanges = [
-  { value: '', label: 'Asset range / Rango de activos' },
+const institutionOptionsES = [
+  { value: '', label: 'Tipo de institucion' },
+  { value: 'cooperativa', label: 'Cooperativa' },
+  { value: 'credit_union', label: 'Credit Union' },
+  { value: 'cpa_consultant', label: 'CPA / Consultora' },
+  { value: 'community_bank', label: 'Banco comunitario' },
+  { value: 'other', label: 'Otro' },
+];
+
+const assetRangesEN = [
+  { value: '', label: 'Asset range' },
   { value: '< $100M', label: '< $100M' },
   { value: '$100M - $500M', label: '$100M - $500M' },
   { value: '$500M - $1B', label: '$500M - $1B' },
@@ -27,156 +36,70 @@ const assetRanges = [
   { value: '$5B+', label: '$5B+' },
 ];
 
-const urgencyHooks = [
-  'La proxima temporada de examenes COSSEC se acerca.',
+const assetRangesES = [
+  { value: '', label: 'Rango de activos' },
+  { value: '< $100M', label: '< $100M' },
+  { value: '$100M - $500M', label: '$100M - $500M' },
+  { value: '$500M - $1B', label: '$500M - $1B' },
+  { value: '$1B - $5B', label: '$1B - $5B' },
+  { value: '$5B+', label: '$5B+' },
+];
+
+const urgencyHooksEN = [
+  'COSSEC exam season is approaching. Is your institution ready?',
+  'The Fed moved rates. Do you know the impact on your NIM?',
+  'Prepare your next ALCO meeting in 24 hours, not 3 weeks.',
+];
+
+const urgencyHooksES = [
+  'La temporada de examenes COSSEC se acerca. ¿Esta lista su institucion?',
   'La Fed movio tasas. ¿Sabe el impacto en su NIM?',
-  'Prepare su proximo ALCO en 24 horas.',
+  'Prepare su proximo ALCO en 24 horas, no 3 semanas.',
 ];
 
-const features = [
+const costComparisonEN = [
   {
-    icon: ShieldCheck,
-    titleEs: 'Cumplimiento COSSEC',
-    titleEn: 'COSSEC Compliance',
-    copyEs: '12 ratios calculados automaticamente desde su hoja de balance.',
-    copyEn: '12 ratios calculated automatically from your balance sheet.',
+    item: 'Quarterly ALM report',
+    consultant: '$8,000 - $12,000',
+    cerniq: '$750',
   },
   {
-    icon: Languages,
-    titleEs: 'Bilingue por diseno',
-    titleEn: 'Bilingual by design',
-    copyEs: 'Espanol e ingles en el mismo informe, listo para junta y regulador.',
-    copyEn: 'Spanish and English in the same report, ready for board and regulator.',
+    item: 'Annual access (4 reports)',
+    consultant: '$32,000 - $48,000',
+    cerniq: '$2,400',
   },
   {
-    icon: Clock,
-    titleEs: 'Entrega en 24 horas',
-    titleEn: '24-hour delivery',
-    copyEs: 'Listo antes de su proximo comite ALCO.',
-    copyEn: 'Ready before your next ALCO committee.',
-  },
-];
-
-const workflow = [
-  {
-    titleEs: 'Cargue su CSV',
-    titleEn: 'Upload your CSV',
-    copyEs: 'Suba la hoja de balance de su institucion a traves de un flujo seguro.',
-    copyEn: 'Upload your institution balance sheet through a secure workflow.',
-    icon: Upload,
+    item: 'Delivery time',
+    consultant: '3-6 weeks',
+    cerniq: '24 hours',
   },
   {
-    titleEs: 'CERNIQ analiza',
-    titleEn: 'CERNIQ analyzes',
-    copyEs: 'La plataforma valida el archivo, aplica el motor ALM y prepara el borrador.',
-    copyEn: 'The platform validates the file, applies the ALM engine, and prepares the draft.',
-    icon: ShieldCheck,
-  },
-  {
-    titleEs: 'Reciba su PDF bilingue',
-    titleEn: 'Receive your bilingual PDF',
-    copyEs: 'Un informe profesional en espanol e ingles para gerencia, comite o regulador.',
-    copyEn: 'A professional report in Spanish and English for management, committee, or regulator.',
-    icon: FileText,
+    item: 'Bilingual included',
+    consultant: 'Extra charge',
+    cerniq: 'Included',
   },
 ];
 
-const costComparison = [
+const costComparisonES = [
   {
     item: 'Informe ALM trimestral',
-    itemEn: 'Quarterly ALM report',
     consultant: '$8,000 - $12,000',
     cerniq: '$750',
   },
   {
     item: 'Acceso anual (4 informes)',
-    itemEn: 'Annual access (4 reports)',
     consultant: '$32,000 - $48,000',
     cerniq: '$2,400',
   },
   {
     item: 'Tiempo de entrega',
-    itemEn: 'Delivery time',
     consultant: '3-6 semanas',
     cerniq: '24 horas',
   },
   {
     item: 'Bilingue incluido',
-    itemEn: 'Bilingual included',
     consultant: 'Cargo adicional',
     cerniq: 'Incluido',
-  },
-];
-
-const pricingTiers = [
-  {
-    id: 'one_time',
-    nameEs: 'Informe ALM',
-    nameEn: 'ALM Report',
-    price: '$750',
-    cadenceEs: 'unico',
-    cadenceEn: 'one-time',
-    descEs: 'Un informe ALM bilingue para validar el proceso con su institucion.',
-    descEn: 'One bilingual ALM report to validate the process with your institution.',
-    bullets: ['1 informe ALM bilingue', 'Revision de datos y setup', 'PDF listo para junta'],
-    featured: false,
-  },
-  {
-    id: 'monthly',
-    nameEs: 'Plataforma ALM Mensual',
-    nameEn: 'Monthly ALM Platform',
-    price: '$299',
-    cadenceEs: '/mes',
-    cadenceEn: '/month',
-    descEs: 'Acceso continuo al flujo de carga, analisis y entrega de informes.',
-    descEn: 'Ongoing access to the upload, analysis, and report delivery workflow.',
-    bullets: ['Informes recurrentes', 'Portal de acceso', 'Entrega bilingue PDF'],
-    featured: true,
-  },
-  {
-    id: 'annual',
-    nameEs: 'Plataforma ALM Anual',
-    nameEn: 'Annual ALM Platform',
-    price: '$2,400',
-    cadenceEs: '/ano',
-    cadenceEn: '/year',
-    descEs: 'Ahorre $1,188 vs. plan mensual. Ideal para planificacion presupuestaria.',
-    descEn: 'Save $1,188 vs. monthly plan. Ideal for budget planning.',
-    bullets: ['4+ informes anuales', 'Precio fijo predecible', 'Soporte prioritario'],
-    featured: false,
-  },
-];
-
-const faqItems = [
-  {
-    questionEs: '¿Que datos necesito para generar un informe?',
-    questionEn: 'What data do I need to generate a report?',
-    answerEs: 'Solo necesita su hoja de balance en formato CSV. CERNIQ valida el archivo, identifica las categorias y ejecuta los calculos ALM automaticamente.',
-    answerEn: 'You only need your balance sheet in CSV format. CERNIQ validates the file, identifies categories, and runs ALM calculations automatically.',
-  },
-  {
-    questionEs: '¿El informe cumple con los requisitos de COSSEC?',
-    questionEn: 'Does the report meet COSSEC requirements?',
-    answerEs: 'Si. El informe incluye los 12 ratios clave que COSSEC evalua, incluyendo gap de duracion, sensibilidad NII, cobertura de liquidez y escenarios de estres.',
-    answerEn: 'Yes. The report includes the 12 key ratios COSSEC evaluates, including duration gap, NII sensitivity, liquidity coverage, and stress scenarios.',
-  },
-  {
-    questionEs: '¿Cuanto tiempo toma recibir el informe?',
-    questionEn: 'How long does it take to receive the report?',
-    answerEs: 'El informe se entrega en 24 horas o menos desde que carga su archivo. Los consultores tradicionales toman de 3 a 6 semanas.',
-    answerEn: 'The report is delivered within 24 hours of uploading your file. Traditional consultants take 3 to 6 weeks.',
-  },
-  {
-    questionEs: '¿Mis datos estan seguros?',
-    questionEn: 'Is my data secure?',
-    answerEs: 'Si. Los archivos se transmiten con encriptacion TLS, se procesan en servidores aislados y no se comparten con terceros. Los datos se eliminan despues de generar el informe.',
-    answerEn: 'Yes. Files are transmitted with TLS encryption, processed on isolated servers, and not shared with third parties. Data is deleted after report generation.',
-  },
-  {
-    questionEs: '¿Pueden generar informes para multiples instituciones?',
-    questionEn: 'Can you generate reports for multiple institutions?',
-    answerEs: 'Si. Nuestro plan anual y acceso de socios estan disenados para firmas CPA y consultoras que sirven a multiples cooperativas o credit unions.',
-    answerEn: 'Yes. Our annual plan and partner access are designed for CPA firms and consultancies serving multiple cooperativas or credit unions.',
   },
 ];
 
@@ -228,9 +151,17 @@ export default function LandingPage() {
   const [checkoutTier, setCheckoutTier] = useState<CheckoutTier | null>(null);
   const [urgencyIndex, setUrgencyIndex] = useState(0);
   const [urgencyFade, setUrgencyFade] = useState(true);
+  const [lang, setLang] = useState<'en' | 'es'>('en');
   const router = useRouter();
   const embedUrl = getVideoEmbedUrl(DEMO_VIDEO_URL);
   const hasVideo = Boolean(DEMO_VIDEO_URL);
+
+  const t = (en: string, es: string) => lang === 'en' ? en : es;
+
+  const urgencyHooks = lang === 'en' ? urgencyHooksEN : urgencyHooksES;
+  const costComparison = lang === 'en' ? costComparisonEN : costComparisonES;
+  const institutionOptions = lang === 'en' ? institutionOptionsEN : institutionOptionsES;
+  const assetRanges = lang === 'en' ? assetRangesEN : assetRangesES;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -241,7 +172,7 @@ export default function LandingPage() {
       }, 400);
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [urgencyHooks.length]);
 
   const getSubmitErrorMessage = (error: unknown) => {
     if (
@@ -255,7 +186,7 @@ export default function LandingPage() {
       return (error as { response?: { data?: { message?: string } } }).response?.data?.message;
     }
 
-    return 'Failed to submit. Please try again. / No se pudo enviar. Intente de nuevo.';
+    return t('Failed to submit. Please try again.', 'No se pudo enviar. Intente de nuevo.');
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -279,17 +210,6 @@ export default function LandingPage() {
     }
   };
 
-  const getPricingCtaLabel = (tier: CheckoutTier) => {
-    switch (tier) {
-      case 'monthly':
-        return 'Suscribirse ahora';
-      case 'annual':
-        return 'Comprar anual';
-      default:
-        return 'Comprar ahora';
-    }
-  };
-
   async function handleCheckout(tier: CheckoutTier) {
     setCheckoutTier(tier);
     try {
@@ -309,22 +229,37 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen overflow-x-clip text-slate-950">
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-        {/* ── NAV ── */}
+        {/* -- NAV -- */}
         <nav className="mb-6 flex items-center justify-between gap-4 rounded-full border border-slate-200/80 bg-white/80 px-4 py-3 backdrop-blur-xl sm:px-6">
           <button onClick={() => router.push('/')} className="flex items-center gap-3 text-left" aria-label="CERNIQ home">
             <CerniqMark size="sm" />
             <div>
               <div className="font-display text-sm uppercase tracking-[0.4em] text-slate-950">Cerniq</div>
-              <div className="text-[10px] uppercase tracking-[0.36em] text-cyan-700/60">ALM Reporting</div>
+              <div className="text-[10px] uppercase tracking-[0.36em] text-cyan-700/60">ALM Intelligence</div>
             </div>
           </button>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Language toggle */}
+            <div className="flex items-center rounded-full border border-slate-200 text-xs">
+              <button
+                onClick={() => setLang('en')}
+                className={`rounded-l-full px-2.5 py-1.5 font-semibold transition ${lang === 'en' ? 'bg-cyan-700 text-white' : 'text-slate-500 hover:text-slate-950'}`}
+              >
+                EN
+              </button>
+              <button
+                onClick={() => setLang('es')}
+                className={`rounded-r-full px-2.5 py-1.5 font-semibold transition ${lang === 'es' ? 'bg-cyan-700 text-white' : 'text-slate-500 hover:text-slate-950'}`}
+              >
+                ES
+              </button>
+            </div>
             <button
               onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
               className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:border-cyan-300/50 hover:text-slate-950 sm:inline-flex"
             >
-              Precios
+              {t('Pricing', 'Precios')}
             </button>
             <button
               onClick={() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' })}
@@ -342,28 +277,33 @@ export default function LandingPage() {
               onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
               className="cerniq-button-primary"
             >
-              Solicitar Demo
+              {t('Request Demo', 'Solicitar Demo')}
             </button>
           </div>
         </nav>
 
         <main className="space-y-4 pb-16">
-          {/* ── HERO ── */}
+          {/* -- HERO -- */}
           <section className="cerniq-shell p-3 sm:p-4 lg:p-6">
             <div className="cerniq-panel min-h-[320px] p-5 sm:p-6 lg:p-8">
               <div className="cerniq-data-wave opacity-55" />
               <div className="relative z-10 mx-auto flex max-w-4xl flex-col">
-                <span className="cerniq-kicker mb-4 w-fit">Informes ALM para cooperativas y credit unions</span>
-                <CerniqLockup tagline="Bilingual ALM Reporting" />
+                <span className="cerniq-kicker mb-4 w-fit">
+                  {t('ALM Intelligence for Credit Unions & Community Banks', 'Inteligencia ALM para cooperativas, credit unions y bancos comunitarios')}
+                </span>
+                <CerniqLockup tagline={t('Institutional ALM Intelligence', 'Inteligencia ALM Institucional')} />
                 <div className="mt-5 space-y-3">
                   <h1 className="font-display text-2xl leading-tight text-slate-950 sm:text-4xl">
-                    Informes ALM bilingues para cooperativas y credit unions de Puerto Rico
+                    {t(
+                      'Institutional ALM Intelligence for Credit Unions & Cooperativas',
+                      'Inteligencia ALM institucional para cooperativas y credit unions'
+                    )}
                   </h1>
                   <p className="max-w-3xl text-sm leading-7 text-slate-700">
-                    Cargue su hoja de balance. Genere su informe COSSEC-compliant en horas, no semanas.
-                  </p>
-                  <p className="max-w-3xl text-xs leading-6 text-slate-500">
-                    Upload your balance sheet. Generate your COSSEC-compliant report in hours, not weeks.
+                    {t(
+                      'Upload your balance sheet. Get a 14-page compliance-ready ALM report with 12 regulatory ratios, Monte Carlo stress testing, and sector benchmarking — in hours, not weeks.',
+                      'Cargue su hoja de balance. Reciba un informe ALM de 14 paginas con 12 ratios regulatorios, pruebas de estres Monte Carlo y benchmarking sectorial — en horas, no semanas.'
+                    )}
                   </p>
 
                   {/* Urgency hook rotator */}
@@ -381,7 +321,7 @@ export default function LandingPage() {
                     onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
                     className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5"
                   >
-                    Solicitar analisis gratuito
+                    {t('Request Free Analysis', 'Solicitar analisis gratuito')}
                     <ArrowRight className="h-4 w-4" />
                   </button>
                   <button
@@ -389,34 +329,41 @@ export default function LandingPage() {
                     disabled={checkoutTier === 'one_time'}
                     className="cerniq-button-secondary disabled:opacity-60"
                   >
-                    {checkoutTier === 'one_time' ? 'Procesando...' : 'Comenzar — $750'}
+                    {checkoutTier === 'one_time' ? t('Processing...', 'Procesando...') : t('Start — $750', 'Comenzar — $750')}
                   </button>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* ── SOCIAL PROOF BAR ── */}
+          {/* -- SOCIAL PROOF BAR -- */}
           <section className="cerniq-panel py-3 px-6 sm:px-8">
             <div className="mx-auto flex max-w-4xl flex-col items-center gap-3 text-center sm:flex-row sm:justify-center sm:gap-8">
-              <span className="text-sm font-semibold text-slate-700">3 cooperativas en piloto</span>
+              <span className="text-sm font-semibold text-slate-700">
+                {t('3 institutions in pilot', '3 instituciones en piloto')}
+              </span>
               <span className="hidden h-4 w-px bg-slate-300 sm:block" />
-              <span className="text-sm font-semibold text-slate-700">Activos analizados: $1.1B+</span>
+              <span className="text-sm font-semibold text-slate-700">
+                {t('$1.1B+ assets analyzed', '$1.1B+ en activos analizados')}
+              </span>
               <span className="hidden h-4 w-px bg-slate-300 sm:block" />
-              <span className="text-sm font-semibold text-slate-700">Informes entregados: 12+</span>
+              <span className="text-sm font-semibold text-slate-700">
+                {t('12+ reports delivered', '12+ informes entregados')}
+              </span>
             </div>
-            <p className="mt-2 text-center text-xs text-slate-400">3 cooperativas in pilot -- Assets analyzed: $1.1B+ -- Reports delivered: 12+</p>
           </section>
 
-          {/* ── PAIN / COST SECTION ── */}
+          {/* -- PAIN / COST SECTION -- */}
           <section className="cerniq-panel cerniq-card-hover p-4 sm:p-6 lg:p-8">
             <div className="mx-auto max-w-4xl space-y-4">
               <div>
-                <p className="cerniq-section-label">Cost comparison / Comparacion de costos</p>
+                <p className="cerniq-section-label">{t('Cost Comparison', 'Comparacion de costos')}</p>
                 <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
-                  How much does your institution spend on ALM analysis?
+                  {t(
+                    'How much does your institution spend on ALM analysis?',
+                    '¿Cuanto gasta su institucion en analisis ALM?'
+                  )}
                 </h2>
-                <p className="mt-2 text-sm text-slate-500">¿Cuanto gasta su institucion en analisis ALM?</p>
               </div>
 
               <div className="overflow-x-auto">
@@ -424,17 +371,16 @@ export default function LandingPage() {
                   <thead>
                     <tr className="border-b border-slate-200">
                       <th className="py-2 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500" />
-                      <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500">Consultor tradicional</th>
+                      <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        {t('Traditional Consultant', 'Consultor tradicional')}
+                      </th>
                       <th className="py-3 text-xs font-semibold uppercase tracking-wider text-cyan-700">CERNIQ</th>
                     </tr>
                   </thead>
                   <tbody>
                     {costComparison.map((row) => (
                       <tr key={row.item} className="border-b border-slate-100">
-                        <td className="py-2 pr-4">
-                          <span className="font-medium text-slate-700">{row.itemEn}</span>
-                          <span className="block text-xs text-slate-400">{row.item}</span>
-                        </td>
+                        <td className="py-2 pr-4 font-medium text-slate-700">{row.item}</td>
                         <td className="py-3 pr-4 text-slate-500">{row.consultant}</td>
                         <td className="py-3 font-semibold text-cyan-700">{row.cerniq}</td>
                       </tr>
@@ -444,64 +390,133 @@ export default function LandingPage() {
               </div>
 
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 text-center">
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-700">AHORRO ESTIMADO: 83-93%</p>
-                <p className="mt-1 text-xs text-emerald-600">Estimated savings: 83-93%</p>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-700">
+                  {t('ESTIMATED SAVINGS: 83-93%', 'AHORRO ESTIMADO: 83-93%')}
+                </p>
               </div>
             </div>
           </section>
 
-          {/* ── THREE FEATURES ── */}
+          {/* -- THREE FEATURES -- */}
           <section className="grid gap-4 sm:grid-cols-3">
-            {features.map((feat) => (
-              <div key={feat.titleEs} className="cerniq-panel cerniq-card-hover p-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
-                  <feat.icon className="h-5 w-5 text-cyan-700" />
-                </div>
-                <p className="mt-3 font-display text-lg text-slate-950">{feat.titleEn}</p>
-                <p className="mt-0.5 text-xs text-slate-400">{feat.titleEs}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-700">{feat.copyEn}</p>
-                <p className="mt-0.5 text-xs leading-5 text-slate-400">{feat.copyEs}</p>
+            {/* Regulatory Compliance */}
+            <div className="cerniq-panel cerniq-card-hover p-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
+                <ShieldCheck className="h-5 w-5 text-cyan-700" />
               </div>
-            ))}
+              <p className="mt-3 font-display text-lg text-slate-950">
+                {t('Regulatory Compliance', 'Cumplimiento regulatorio')}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                {t(
+                  '12 COSSEC/NCUA ratios calculated automatically from your balance sheet.',
+                  '12 ratios COSSEC/NCUA calculados automaticamente desde su hoja de balance.'
+                )}
+              </p>
+            </div>
+            {/* Bilingual by Design */}
+            <div className="cerniq-panel cerniq-card-hover p-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
+                <Languages className="h-5 w-5 text-cyan-700" />
+              </div>
+              <p className="mt-3 font-display text-lg text-slate-950">
+                {t('Bilingual by Design', 'Bilingue por diseno')}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                {t(
+                  'English and Spanish in the same report, board-ready for any audience.',
+                  'Espanol e ingles en el mismo informe, listo para junta y regulador.'
+                )}
+              </p>
+            </div>
+            {/* 24-Hour Delivery */}
+            <div className="cerniq-panel cerniq-card-hover p-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
+                <Clock className="h-5 w-5 text-cyan-700" />
+              </div>
+              <p className="mt-3 font-display text-lg text-slate-950">
+                {t('24-Hour Delivery', 'Entrega en 24 horas')}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                {t(
+                  'Complete ALM analysis ready before your next ALCO meeting.',
+                  'Analisis ALM completo listo antes de su proximo comite ALCO.'
+                )}
+              </p>
+            </div>
           </section>
 
-          {/* ── HOW IT WORKS ── */}
+          {/* -- HOW IT WORKS -- */}
           <section className="cerniq-panel cerniq-card-hover p-4 sm:p-6 lg:p-8">
             <div className="mx-auto max-w-4xl">
               <div>
-                <p className="cerniq-section-label">How it works / Como funciona</p>
+                <p className="cerniq-section-label">{t('How It Works', 'Como funciona')}</p>
                 <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
-                  De carga a informe terminado en 3 pasos
+                  {t(
+                    'Upload CSV. CERNIQ Analyzes. Receive Bilingual PDF.',
+                    'Cargue CSV. CERNIQ analiza. Reciba PDF bilingue.'
+                  )}
                 </h2>
-                <p className="mt-2 text-sm text-slate-500">From upload to finished report in 3 steps</p>
               </div>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                {workflow.map((step, index) => (
-                  <div key={step.titleEs} className="rounded-2xl border border-slate-200 bg-white/86 p-4 text-center">
-                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
-                      <step.icon className="h-5 w-5 text-cyan-700" />
-                    </div>
-                    <p className="mt-2 text-xs font-bold uppercase tracking-[0.24em] text-slate-400">Paso {index + 1}</p>
-                    <h3 className="mt-1 font-display text-lg text-slate-950">{step.titleEn}</h3>
-                    <p className="mt-0.5 text-xs text-slate-400">{step.titleEs}</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{step.copyEn}</p>
-                    <p className="mt-0.5 text-xs leading-5 text-slate-400">{step.copyEs}</p>
+                {/* Step 1 */}
+                <div className="rounded-2xl border border-slate-200 bg-white/86 p-4 text-center">
+                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
+                    <Upload className="h-5 w-5 text-cyan-700" />
                   </div>
-                ))}
+                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.24em] text-slate-400">{t('Step 1', 'Paso 1')}</p>
+                  <h3 className="mt-1 font-display text-lg text-slate-950">{t('Upload Your CSV', 'Cargue su CSV')}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {t(
+                      'Upload your institution balance sheet through a secure workflow.',
+                      'Suba la hoja de balance de su institucion a traves de un flujo seguro.'
+                    )}
+                  </p>
+                </div>
+                {/* Step 2 */}
+                <div className="rounded-2xl border border-slate-200 bg-white/86 p-4 text-center">
+                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
+                    <ShieldCheck className="h-5 w-5 text-cyan-700" />
+                  </div>
+                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.24em] text-slate-400">{t('Step 2', 'Paso 2')}</p>
+                  <h3 className="mt-1 font-display text-lg text-slate-950">{t('CERNIQ Analyzes', 'CERNIQ analiza')}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {t(
+                      'The platform validates the file, applies the ALM engine, and prepares the draft.',
+                      'La plataforma valida el archivo, aplica el motor ALM y prepara el borrador.'
+                    )}
+                  </p>
+                </div>
+                {/* Step 3 */}
+                <div className="rounded-2xl border border-slate-200 bg-white/86 p-4 text-center">
+                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
+                    <FileText className="h-5 w-5 text-cyan-700" />
+                  </div>
+                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.24em] text-slate-400">{t('Step 3', 'Paso 3')}</p>
+                  <h3 className="mt-1 font-display text-lg text-slate-950">{t('Receive Your Bilingual PDF', 'Reciba su PDF bilingue')}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {t(
+                      'A professional report in English and Spanish for management, committee, or regulator.',
+                      'Un informe profesional en espanol e ingles para gerencia, comite o regulador.'
+                    )}
+                  </p>
+                </div>
               </div>
             </div>
           </section>
 
-          {/* ── WALKTHROUGH VIDEO ── */}
+          {/* -- WALKTHROUGH VIDEO -- */}
           <section className="cerniq-panel cerniq-card-hover p-4 sm:p-6 lg:p-8">
             <div className="mx-auto space-y-4">
               <div className="max-w-4xl">
-                <p className="cerniq-section-label">Walkthrough / Demostracion</p>
+                <p className="cerniq-section-label">{t('Walkthrough', 'Demostracion')}</p>
                 <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
-                  Vea el flujo de carga a informe en accion
+                  {t(
+                    'See the upload-to-report workflow in action',
+                    'Vea el flujo de carga a informe en accion'
+                  )}
                 </h2>
-                <p className="mt-2 text-sm text-slate-500">See the upload-to-report workflow in action</p>
               </div>
 
               <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white">
@@ -534,8 +549,9 @@ export default function LandingPage() {
                     <div className="rounded-full border border-cyan-200 bg-cyan-50 p-4">
                       <PlayCircle className="h-9 w-9 text-cyan-700" />
                     </div>
-                    <p className="font-display text-2xl text-slate-950">Video de demostracion ALM proximamente</p>
-                    <p className="text-sm text-slate-500">ALM walkthrough video coming soon</p>
+                    <p className="font-display text-2xl text-slate-950">
+                      {t('ALM walkthrough video coming soon', 'Video de demostracion ALM proximamente')}
+                    </p>
                     <p className="max-w-2xl text-base leading-7 text-slate-600">
                       Add <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-sm">NEXT_PUBLIC_CERNIQ_DEMO_VIDEO_URL</code> once the upload-to-report walkthrough is ready.
                     </p>
@@ -545,116 +561,278 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* ── PRICING ── */}
+          {/* -- PRICING -- */}
           <section id="pricing" className="cerniq-shell p-3 sm:p-4 lg:p-6">
             <div className="mx-auto max-w-4xl">
               <div className="mb-5">
-                <p className="cerniq-section-label">Pricing / Precios</p>
+                <p className="cerniq-section-label">{t('Pricing', 'Precios')}</p>
                 <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
-                  Comience con un piloto o elija acceso recurrente
+                  {t(
+                    'Start with a pilot report. Scale when ready.',
+                    'Comience con un informe piloto. Escale cuando este listo.'
+                  )}
                 </h2>
-                <p className="mt-2 text-sm text-slate-500">Start with a pilot or choose recurring access</p>
               </div>
 
               <div className="grid gap-5 sm:grid-cols-3">
-                {pricingTiers.map((tier) => (
-                  <div
-                    key={tier.id}
-                    className={`cerniq-panel cerniq-card-hover flex flex-col p-5 ${tier.featured ? 'border-cyan-300/25 shadow-[0_20px_60px_rgba(34,211,238,0.12)]' : ''}`}
-                  >
-                    {tier.featured && (
-                      <span className="mb-3 w-fit rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] uppercase tracking-[0.26em] text-cyan-700">
-                        Recomendado
-                      </span>
-                    )}
-                    <p className="font-display text-xl text-slate-950">{tier.nameEs}</p>
-                    <p className="text-xs text-slate-400">{tier.nameEn}</p>
-
-                    <div className="mt-4">
-                      <span className="font-display text-4xl text-slate-950">{tier.price}</span>
-                      <span className="ml-1 text-sm text-slate-500">{tier.cadenceEs}</span>
-                    </div>
-
-                    <p className="mt-3 text-sm leading-6 text-slate-600">{tier.descEs}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-400">{tier.descEn}</p>
-
-                    <div className="mt-5 flex-1 space-y-3">
-                      {tier.bullets.map((bullet) => (
-                        <div key={bullet} className="flex items-center gap-2 text-sm text-slate-700">
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
-                          {bullet}
-                        </div>
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={() => handleCheckout(tier.id as CheckoutTier)}
-                      disabled={checkoutTier === tier.id}
-                      className={`mt-6 w-full ${tier.featured ? 'cerniq-button-primary' : 'cerniq-button-secondary'} disabled:opacity-60`}
-                    >
-                      {checkoutTier === tier.id ? 'Procesando...' : getPricingCtaLabel(tier.id as CheckoutTier)}
-                    </button>
+                {/* ALM Report - $750 */}
+                <div className="cerniq-panel cerniq-card-hover flex flex-col p-5">
+                  <p className="font-display text-xl text-slate-950">{t('ALM Report', 'Informe ALM')}</p>
+                  <div className="mt-4">
+                    <span className="font-display text-4xl text-slate-950">$750</span>
+                    <span className="ml-1 text-sm text-slate-500">{t('one-time', 'unico')}</span>
                   </div>
-                ))}
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {t(
+                      'One bilingual ALM report to validate the process with your institution.',
+                      'Un informe ALM bilingue para validar el proceso con su institucion.'
+                    )}
+                  </p>
+                  <div className="mt-5 flex-1 space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
+                      {t('1 bilingual ALM report', '1 informe ALM bilingue')}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
+                      {t('Data review & guided setup', 'Revision de datos y setup guiado')}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
+                      {t('Board-ready PDF', 'PDF listo para junta')}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleCheckout('one_time')}
+                    disabled={checkoutTier === 'one_time'}
+                    className="mt-6 w-full cerniq-button-secondary disabled:opacity-60"
+                  >
+                    {checkoutTier === 'one_time' ? t('Processing...', 'Procesando...') : t('Start — $750', 'Comenzar — $750')}
+                  </button>
+                </div>
+
+                {/* Monthly ALM Platform - $299/mo */}
+                <div className="cerniq-panel cerniq-card-hover flex flex-col p-5 border-cyan-300/25 shadow-[0_20px_60px_rgba(34,211,238,0.12)]">
+                  <span className="mb-3 w-fit rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] uppercase tracking-[0.26em] text-cyan-700">
+                    {t('Recommended', 'Recomendado')}
+                  </span>
+                  <p className="font-display text-xl text-slate-950">{t('Monthly ALM Platform', 'Plataforma ALM Mensual')}</p>
+                  <div className="mt-4">
+                    <span className="font-display text-4xl text-slate-950">$299</span>
+                    <span className="ml-1 text-sm text-slate-500">{t('/month', '/mes')}</span>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {t(
+                      'Ongoing access to the upload, analysis, and report delivery workflow.',
+                      'Acceso continuo al flujo de carga, analisis y entrega de informes.'
+                    )}
+                  </p>
+                  <div className="mt-5 flex-1 space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
+                      {t('Recurring reports', 'Informes recurrentes')}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
+                      {t('Portal access', 'Acceso al portal')}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
+                      {t('Bilingual PDF delivery', 'Entrega bilingue PDF')}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleCheckout('monthly')}
+                    disabled={checkoutTier === 'monthly'}
+                    className="mt-6 w-full cerniq-button-primary disabled:opacity-60"
+                  >
+                    {checkoutTier === 'monthly' ? t('Processing...', 'Procesando...') : t('Subscribe — $299/mo', 'Suscribirse — $299/mes')}
+                  </button>
+                </div>
+
+                {/* Annual ALM Platform - $2,400/yr */}
+                <div className="cerniq-panel cerniq-card-hover flex flex-col p-5">
+                  <p className="font-display text-xl text-slate-950">{t('Annual ALM Platform', 'Plataforma ALM Anual')}</p>
+                  <div className="mt-4">
+                    <span className="font-display text-4xl text-slate-950">$2,400</span>
+                    <span className="ml-1 text-sm text-slate-500">{t('/year', '/ano')}</span>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {t(
+                      'Save $1,188 vs. monthly plan. Ideal for budget planning.',
+                      'Ahorre $1,188 vs. plan mensual. Ideal para planificacion presupuestaria.'
+                    )}
+                  </p>
+                  <div className="mt-5 flex-1 space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
+                      {t('4+ annual reports', '4+ informes anuales')}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
+                      {t('Predictable fixed price', 'Precio fijo predecible')}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
+                      {t('Priority support', 'Soporte prioritario')}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleCheckout('annual')}
+                    disabled={checkoutTier === 'annual'}
+                    className="mt-6 w-full cerniq-button-secondary disabled:opacity-60"
+                  >
+                    {checkoutTier === 'annual' ? t('Processing...', 'Procesando...') : t('Buy Annual — $2,400', 'Comprar anual — $2,400')}
+                  </button>
+                </div>
               </div>
             </div>
           </section>
 
-          {/* ── FAQ ── */}
+          {/* -- FAQ -- */}
           <section id="faq" className="cerniq-panel cerniq-card-hover p-6 sm:p-8 lg:p-10">
             <div className="mx-auto max-w-4xl space-y-6">
               <div>
-                <p className="cerniq-section-label">FAQ / Preguntas frecuentes</p>
+                <p className="cerniq-section-label">FAQ</p>
                 <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
-                  Respuestas a preguntas comunes
+                  {t('Frequently Asked Questions', 'Preguntas frecuentes')}
                 </h2>
-                <p className="mt-2 text-sm text-slate-500">Answers to common questions</p>
               </div>
 
               <div className="space-y-3">
-                {faqItems.map((item) => (
-                  <details key={item.questionEs} className="group rounded-2xl border border-slate-200 bg-white/86">
-                    <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950 sm:text-base [&::-webkit-details-marker]:hidden">
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <span>{item.questionEn}</span>
-                          <span className="ml-2 text-xs font-normal text-slate-400">/ {item.questionEs}</span>
-                        </div>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
-                      </div>
-                    </summary>
-                    <div className="border-t border-slate-100 px-5 py-4">
-                      <p className="text-sm leading-7 text-slate-700">{item.answerEn}</p>
-                      <p className="mt-2 text-xs leading-6 text-slate-400">{item.answerEs}</p>
+                {/* FAQ 1 */}
+                <details className="group rounded-2xl border border-slate-200 bg-white/86">
+                  <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950 sm:text-base [&::-webkit-details-marker]:hidden">
+                    <div className="flex items-center justify-between gap-4">
+                      <span>{t(
+                        'What data do I need to generate a report?',
+                        '¿Que datos necesito para generar un informe?'
+                      )}</span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
                     </div>
-                  </details>
-                ))}
+                  </summary>
+                  <div className="border-t border-slate-100 px-5 py-4">
+                    <p className="text-sm leading-7 text-slate-700">
+                      {t(
+                        'You only need your balance sheet in CSV format. CERNIQ validates the file, identifies categories, and runs ALM calculations automatically. No proprietary templates required.',
+                        'Solo necesita su hoja de balance en formato CSV. CERNIQ valida el archivo, identifica las categorias y ejecuta los calculos ALM automaticamente. No se requieren plantillas propietarias.'
+                      )}
+                    </p>
+                  </div>
+                </details>
+
+                {/* FAQ 2 */}
+                <details className="group rounded-2xl border border-slate-200 bg-white/86">
+                  <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950 sm:text-base [&::-webkit-details-marker]:hidden">
+                    <div className="flex items-center justify-between gap-4">
+                      <span>{t(
+                        'Does the report meet regulatory requirements?',
+                        '¿El informe cumple con los requisitos regulatorios?'
+                      )}</span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
+                    </div>
+                  </summary>
+                  <div className="border-t border-slate-100 px-5 py-4">
+                    <p className="text-sm leading-7 text-slate-700">
+                      {t(
+                        'Yes. The report includes 12 key ratios evaluated by COSSEC and NCUA, including duration gap, NII sensitivity, liquidity coverage, and stress scenarios. Designed for regulatory compliance across jurisdictions.',
+                        'Si. El informe incluye los 12 ratios clave que COSSEC y NCUA evaluan, incluyendo gap de duracion, sensibilidad NII, cobertura de liquidez y escenarios de estres. Disenado para cumplimiento regulatorio en multiples jurisdicciones.'
+                      )}
+                    </p>
+                  </div>
+                </details>
+
+                {/* FAQ 3 */}
+                <details className="group rounded-2xl border border-slate-200 bg-white/86">
+                  <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950 sm:text-base [&::-webkit-details-marker]:hidden">
+                    <div className="flex items-center justify-between gap-4">
+                      <span>{t(
+                        'How long does it take to receive the report?',
+                        '¿Cuanto tiempo toma recibir el informe?'
+                      )}</span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
+                    </div>
+                  </summary>
+                  <div className="border-t border-slate-100 px-5 py-4">
+                    <p className="text-sm leading-7 text-slate-700">
+                      {t(
+                        'The report is delivered within 24 hours of uploading your file. Traditional consultants take 3 to 6 weeks and charge $8,000-$12,000 per engagement.',
+                        'El informe se entrega en 24 horas desde que carga su archivo. Los consultores tradicionales toman de 3 a 6 semanas y cobran $8,000-$12,000 por compromiso.'
+                      )}
+                    </p>
+                  </div>
+                </details>
+
+                {/* FAQ 4 */}
+                <details className="group rounded-2xl border border-slate-200 bg-white/86">
+                  <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950 sm:text-base [&::-webkit-details-marker]:hidden">
+                    <div className="flex items-center justify-between gap-4">
+                      <span>{t(
+                        'Is my data secure?',
+                        '¿Mis datos estan seguros?'
+                      )}</span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
+                    </div>
+                  </summary>
+                  <div className="border-t border-slate-100 px-5 py-4">
+                    <p className="text-sm leading-7 text-slate-700">
+                      {t(
+                        'Yes. Files are transmitted with TLS encryption, processed on isolated servers, and not shared with third parties. Data is deleted after report generation.',
+                        'Si. Los archivos se transmiten con encriptacion TLS, se procesan en servidores aislados y no se comparten con terceros. Los datos se eliminan despues de generar el informe.'
+                      )}
+                    </p>
+                  </div>
+                </details>
+
+                {/* FAQ 5 */}
+                <details className="group rounded-2xl border border-slate-200 bg-white/86">
+                  <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950 sm:text-base [&::-webkit-details-marker]:hidden">
+                    <div className="flex items-center justify-between gap-4">
+                      <span>{t(
+                        'Can you generate reports for multiple institutions?',
+                        '¿Pueden generar informes para multiples instituciones?'
+                      )}</span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
+                    </div>
+                  </summary>
+                  <div className="border-t border-slate-100 px-5 py-4">
+                    <p className="text-sm leading-7 text-slate-700">
+                      {t(
+                        'Yes. Our annual plan and partner access are designed for CPA firms and consultancies serving multiple credit unions, cooperativas, or community banks.',
+                        'Si. Nuestro plan anual y acceso de socios estan disenados para firmas CPA y consultoras que sirven a multiples credit unions, cooperativas o bancos comunitarios.'
+                      )}
+                    </p>
+                  </div>
+                </details>
               </div>
             </div>
           </section>
 
-          {/* ── DEMO FORM ── */}
+          {/* -- DEMO FORM -- */}
           <section id="demo" className="cerniq-panel cerniq-card-hover p-6 sm:p-8">
-            <p className="cerniq-section-label">Request demo / Solicitar demo</p>
-            <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">Bring your institution into the workflow</h2>
-            <p className="mt-1 text-sm text-slate-500">Conecte su institucion al flujo de trabajo</p>
+            <p className="cerniq-section-label">{t('Request Demo', 'Solicitar demo')}</p>
+            <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
+              {t('Bring your institution into the workflow', 'Conecte su institucion al flujo de trabajo')}
+            </h2>
             <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
-              Diganos quien es y programaremos una demostracion enfocada en la carga ALM, el informe bilingue y el camino de piloto para su institucion.
-            </p>
-            <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-400">
-              Tell us who you are and we&apos;ll schedule a focused walkthrough around the ALM upload, bilingual report output, and pilot path for your institution.
+              {t(
+                'Tell us who you are and we\'ll schedule a focused walkthrough around the ALM upload, bilingual report output, and pilot path for your institution.',
+                'Diganos quien es y programaremos una demostracion enfocada en la carga ALM, el informe bilingue y el camino de piloto para su institucion.'
+              )}
             </p>
 
             <div className="mt-8">
               {submitted ? (
                 <div className="rounded-[1.5rem] border border-emerald-300 bg-emerald-50 p-6 text-emerald-800">
                   <CheckCircle2 className="h-9 w-9 text-emerald-500" />
-                  <h3 className="mt-4 font-display text-2xl">Request received / Solicitud recibida</h3>
+                  <h3 className="mt-4 font-display text-2xl">
+                    {t('Request received', 'Solicitud recibida')}
+                  </h3>
                   <p className="mt-3 text-sm leading-7 text-emerald-700">
-                    Le daremos seguimiento en 24 horas para programar su demostracion CERNIQ ALM.
-                  </p>
-                  <p className="mt-1 text-xs text-emerald-600">
-                    We&apos;ll follow up within 24 hours to schedule your CERNIQ ALM walkthrough.
+                    {t(
+                      'We\'ll follow up within 24 hours to schedule your CERNIQ ALM walkthrough.',
+                      'Le daremos seguimiento en 24 horas para programar su demostracion CERNIQ ALM.'
+                    )}
                   </p>
                 </div>
               ) : (
@@ -665,23 +843,31 @@ export default function LandingPage() {
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Name / Nombre</label>
+                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">
+                        {t('Name', 'Nombre')}
+                      </label>
                       <input type="text" placeholder="Maria Rodriguez" className="cerniq-input" value={name} onChange={(event) => setName(event.target.value)} />
                     </div>
                     <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Work email / Correo institucional</label>
-                      <input type="email" required placeholder="maria@cooperativa.com" className="cerniq-input" value={email} onChange={(event) => setEmail(event.target.value)} />
+                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">
+                        {t('Work Email', 'Correo institucional')}
+                      </label>
+                      <input type="email" required placeholder="maria@institution.com" className="cerniq-input" value={email} onChange={(event) => setEmail(event.target.value)} />
                     </div>
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Institution name / Nombre de institucion</label>
-                    <input type="text" placeholder="Cooperativa de Ahorro y Credito" className="cerniq-input" value={institutionName} onChange={(event) => setInstitutionName(event.target.value)} />
+                    <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">
+                      {t('Institution Name', 'Nombre de institucion')}
+                    </label>
+                    <input type="text" placeholder={t('Your institution name', 'Nombre de su institucion')} className="cerniq-input" value={institutionName} onChange={(event) => setInstitutionName(event.target.value)} />
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Institution type / Tipo de institucion</label>
+                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">
+                        {t('Type', 'Tipo')}
+                      </label>
                       <select className="cerniq-input" value={institutionType} onChange={(event) => setInstitutionType(event.target.value)}>
                         {institutionOptions.map((option) => (
                           <option key={option.value || 'default'} value={option.value} className="bg-white">
@@ -691,7 +877,9 @@ export default function LandingPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">Asset range / Rango de activos</label>
+                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">
+                        {t('Asset Range', 'Rango de activos')}
+                      </label>
                       <select className="cerniq-input" value={totalAssets} onChange={(event) => setTotalAssets(event.target.value)}>
                         {assetRanges.map((option) => (
                           <option key={option.value || 'default'} value={option.value} className="bg-white">
@@ -703,7 +891,7 @@ export default function LandingPage() {
                   </div>
 
                   <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5 disabled:opacity-60">
-                    {loading ? 'Submitting... / Enviando...' : 'Request free analysis / Solicitar analisis gratuito'}
+                    {loading ? t('Submitting...', 'Enviando...') : t('Request Free Analysis', 'Solicitar analisis gratuito')}
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </form>
@@ -711,27 +899,32 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* ── BOTTOM CTA ── */}
+          {/* -- BOTTOM CTA -- */}
           <section className="cerniq-panel cerniq-card-hover overflow-hidden px-6 py-8 sm:px-8 lg:px-10">
             <div className="cerniq-data-wave opacity-90" />
             <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
                 <p className="cerniq-section-label">CERNIQ</p>
                 <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
-                  Bilingual ALM reports. COSSEC-ready. In 24 hours.
+                  {t(
+                    'Compliance-ready ALM reports. Bilingual. In 24 hours.',
+                    'Informes ALM listos para cumplimiento. Bilingues. En 24 horas.'
+                  )}
                 </h2>
-                <p className="mt-2 text-sm text-slate-500">Informes ALM bilingues. Listos para COSSEC. En 24 horas.</p>
                 <p className="mt-5 max-w-2xl text-sm leading-8 text-slate-600 sm:text-base">
-                  CERNIQ es software de informes ALM bilingues para cooperativas y credit unions. Un flujo enfocado, una entrega clara, un producto que su institucion entiende de inmediato.
+                  {t(
+                    'CERNIQ is institutional ALM intelligence for credit unions, cooperativas, and community banks. One focused workflow, one clear deliverable, one product your institution understands immediately.',
+                    'CERNIQ es inteligencia ALM institucional para cooperativas, credit unions y bancos comunitarios. Un flujo enfocado, una entrega clara, un producto que su institucion entiende de inmediato.'
+                  )}
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-3">
                 <button onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })} className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5">
-                  Solicitar Demo
+                  {t('Request Demo', 'Solicitar Demo')}
                 </button>
                 <button onClick={() => handleCheckout('one_time')} disabled={checkoutTier === 'one_time'} className="cerniq-button-secondary disabled:opacity-60">
-                  {checkoutTier === 'one_time' ? 'Procesando...' : 'Comenzar — $750'}
+                  {checkoutTier === 'one_time' ? t('Processing...', 'Procesando...') : t('Start — $750', 'Comenzar — $750')}
                 </button>
               </div>
             </div>

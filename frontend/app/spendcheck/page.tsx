@@ -25,6 +25,9 @@ import { ErrorBanner } from '@/components/ui/cerniq';
 import { spendcheckApi, Workspace } from '@/lib/spendcheck-api';
 import { apiClient, APAnalysisResult, APFinding, APVendorStat } from '@/lib/api';
 
+// ─── Language toggle ───
+type Lang = 'en' | 'es';
+
 // ─── Tab definitions ───
 type TabKey = 'overview' | 'anomalies' | 'vendors' | 'liquidity' | 'report';
 
@@ -92,21 +95,23 @@ function findingTypeIcon(type: string): string {
   return icons[type] || '📋';
 }
 
-function findingTypeLabel(type: string): string {
-  const names: Record<string, string> = {
-    duplicate_payment: 'Pago Duplicado / Duplicate Payment',
-    duplicate_invoice: 'Factura Duplicada / Duplicate Invoice',
-    subscription_drift: 'Deriva de Suscripcion / Subscription Drift',
-    spend_spike: 'Pico de Gasto / Spend Spike',
-    zombie_subscription: 'Suscripcion Inactiva / Zombie Subscription',
-    new_vendor_risk: 'Riesgo Nuevo Proveedor / New Vendor Risk',
-    vendor_duplicate: 'Proveedor Duplicado / Vendor Duplicate',
-    vendor_anomaly: 'Anomalia de Proveedor / Vendor Anomaly',
-    data_quality: 'Calidad de Datos / Data Quality',
-    price_variance: 'Variacion de Precio / Price Variance',
-    overcharge: 'Cobro Excesivo / Overcharge',
+function findingTypeLabelFn(type: string, lang: Lang): string {
+  const names: Record<string, { en: string; es: string }> = {
+    duplicate_payment: { en: 'Duplicate Invoice', es: 'Pago Duplicado' },
+    duplicate_invoice: { en: 'Duplicate Invoice', es: 'Factura Duplicada' },
+    subscription_drift: { en: 'Amount Anomaly', es: 'Deriva de Suscripcion' },
+    spend_spike: { en: 'Amount Anomaly', es: 'Pico de Gasto' },
+    zombie_subscription: { en: 'Dormant Vendor', es: 'Suscripcion Inactiva' },
+    new_vendor_risk: { en: 'Unauthorized Category', es: 'Riesgo Nuevo Proveedor' },
+    vendor_duplicate: { en: 'Split Billing', es: 'Proveedor Duplicado' },
+    vendor_anomaly: { en: 'Vendor Concentration', es: 'Anomalia de Proveedor' },
+    data_quality: { en: 'Frequency Anomaly', es: 'Calidad de Datos' },
+    price_variance: { en: 'Amount Anomaly', es: 'Variacion de Precio' },
+    overcharge: { en: 'Amount Anomaly', es: 'Cobro Excesivo' },
   };
-  return names[type] || type.replace(/_/g, ' ');
+  const entry = names[type];
+  if (!entry) return type.replace(/_/g, ' ');
+  return lang === 'en' ? entry.en : entry.es;
 }
 
 // ─── Demo fallback data ───
@@ -237,6 +242,9 @@ function getDemoAnalysis(): APAnalysisResult {
 // ─────────────────────────────────────────────────────────
 
 export default function SpendCheckPage() {
+  const [lang, setLang] = useState<Lang>('en');
+  const t = (en: string, es: string) => lang === 'en' ? en : es;
+
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
@@ -332,8 +340,11 @@ export default function SpendCheckPage() {
     <>
       <PlatformPage
         kicker="SpendCheck"
-        title="Inteligencia de Cuentas por Pagar / AP Intelligence Dashboard"
-        description="Deteccion de fugas, analisis de proveedores y flujo de recuperacion en tiempo real."
+        title={t('AP Intelligence Dashboard', 'Inteligencia de Cuentas por Pagar')}
+        description={t(
+          'Leak detection, vendor analytics, and real-time recovery workflow.',
+          'Deteccion de fugas, analisis de proveedores y flujo de recuperacion en tiempo real.',
+        )}
         meta={
           <>
             <span className="cerniq-mini-stat">
@@ -344,6 +355,13 @@ export default function SpendCheckPage() {
                 <strong>{selectedWorkspace.name}</strong>
               </span>
             ) : null}
+            {/* Language toggle */}
+            <button
+              onClick={() => setLang(lang === 'en' ? 'es' : 'en')}
+              className="ml-2 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 transition hover:border-cyan-300 hover:text-cyan-700"
+            >
+              {lang === 'en' ? 'ES' : 'EN'}
+            </button>
           </>
         }
         actions={
@@ -369,7 +387,7 @@ export default function SpendCheckPage() {
             ) : null}
             <button onClick={() => setShowCreateModal(true)} className="cerniq-button-primary px-5 py-3 text-sm">
               <Plus className="h-4 w-4" />
-              New workspace
+              {t('New workspace', 'Nuevo espacio')}
             </button>
           </>
         }
@@ -377,11 +395,14 @@ export default function SpendCheckPage() {
         {workspaces.length === 0 ? (
           <EmptyState
             icon={Receipt}
-            title="Welcome to SpendCheck"
+            title={t('Welcome to SpendCheck', 'Bienvenido a SpendCheck')}
             titleEs="Bienvenido a SpendCheck"
-            description="Create a workspace to upload AP exports, detect spend leaks, and turn recovery opportunities into an operating workflow."
+            description={t(
+              'Create a workspace to upload AP exports, detect spend leaks, and turn recovery opportunities into an operating workflow.',
+              'Cree un espacio de trabajo para subir exportaciones AP, detectar fugas de gasto y convertir oportunidades de recuperacion en un flujo operativo.',
+            )}
             descriptionEs="Cree un espacio de trabajo para subir exportaciones AP, detectar fugas de gasto y convertir oportunidades de recuperacion en un flujo operativo."
-            actionLabel="Create your first workspace"
+            actionLabel={t('Create your first workspace', 'Cree su primer espacio')}
             actionLabelEs="Cree su primer espacio"
             onAction={() => setShowCreateModal(true)}
           />
@@ -399,7 +420,7 @@ export default function SpendCheckPage() {
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  {tab.labelEs} / {tab.labelEn}
+                  {lang === 'en' ? tab.labelEn : tab.labelEs}
                 </button>
               ))}
             </nav>
@@ -408,7 +429,7 @@ export default function SpendCheckPage() {
             {analysisError && (
               <ErrorBanner
                 error={analysisError}
-                titleEs="Error al cargar el analisis"
+                titleEs={t('Failed to load analysis', 'Error al cargar el analisis')}
                 onRetry={() => selectedWorkspace && loadAnalysis(selectedWorkspace.id)}
                 onDismiss={() => setAnalysisError(null)}
               />
@@ -421,15 +442,15 @@ export default function SpendCheckPage() {
             {!analysisLoading && analysis && (
               <>
                 {activeTab === 'overview' && (
-                  <OverviewTab analysis={analysis} onViewAll={() => setActiveTab('anomalies')} onSelectFinding={setSelectedFinding} />
+                  <OverviewTab analysis={analysis} lang={lang} t={t} onViewAll={() => setActiveTab('anomalies')} onSelectFinding={setSelectedFinding} />
                 )}
                 {activeTab === 'anomalies' && (
-                  <AnomaliesTab analysis={analysis} onSelectFinding={setSelectedFinding} />
+                  <AnomaliesTab analysis={analysis} lang={lang} t={t} onSelectFinding={setSelectedFinding} />
                 )}
-                {activeTab === 'vendors' && <VendorsTab analysis={analysis} />}
-                {activeTab === 'liquidity' && <LiquidityTab />}
+                {activeTab === 'vendors' && <VendorsTab analysis={analysis} lang={lang} t={t} />}
+                {activeTab === 'liquidity' && <LiquidityTab lang={lang} t={t} />}
                 {activeTab === 'report' && (
-                  <ReportTab analysis={analysis} workspaceName={selectedWorkspace?.name || ''} onDownload={downloadAnalysisJSON} />
+                  <ReportTab analysis={analysis} lang={lang} t={t} workspaceName={selectedWorkspace?.name || ''} onDownload={downloadAnalysisJSON} />
                 )}
               </>
             )}
@@ -437,11 +458,14 @@ export default function SpendCheckPage() {
             {!analysisLoading && !analysis && !analysisError && (
               <EmptyState
                 icon={FileSpreadsheet}
-                title="No expense data yet"
+                title={t('No expense data yet', 'Sin datos de gastos aun')}
                 titleEs="Sin datos de gastos aun"
-                description="Upload AP exports to begin spend analysis and anomaly detection."
+                description={t(
+                  'Upload AP exports to begin spend analysis and anomaly detection.',
+                  'Suba exportaciones AP para comenzar el analisis de gastos y deteccion de anomalias.',
+                )}
                 descriptionEs="Suba exportaciones AP para comenzar el analisis de gastos y deteccion de anomalias."
-                actionLabel="Upload files"
+                actionLabel={t('Upload files', 'Subir archivos')}
                 actionLabelEs="Subir archivos"
                 onAction={() => {
                   if (selectedWorkspace) {
@@ -458,32 +482,35 @@ export default function SpendCheckPage() {
       {showCreateModal && (
         <div className="cerniq-modal-backdrop">
           <div className="cerniq-modal">
-            <h2 className="font-display text-2xl text-slate-950">Create SpendCheck workspace</h2>
+            <h2 className="font-display text-2xl text-slate-950">{t('Create SpendCheck workspace', 'Crear espacio SpendCheck')}</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Start a new AP review workspace for a client, fund, or internal team.
+              {t(
+                'Start a new AP review workspace for a client, fund, or internal team.',
+                'Inicie un nuevo espacio de revision AP para un cliente, fondo o equipo interno.',
+              )}
             </p>
             <div className="mt-6 space-y-4">
               <input
                 type="text"
                 value={newWorkspaceName}
                 onChange={(event) => setNewWorkspaceName(event.target.value)}
-                placeholder="Workspace name"
+                placeholder={t('Workspace name', 'Nombre del espacio')}
                 className="cerniq-field"
               />
               <input
                 type="text"
                 value={newCompanyName}
                 onChange={(event) => setNewCompanyName(event.target.value)}
-                placeholder="Company name (optional)"
+                placeholder={t('Company name (optional)', 'Nombre de empresa (opcional)')}
                 className="cerniq-field"
               />
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setShowCreateModal(false)} className="cerniq-button-secondary px-5 py-3 text-sm">
-                Cancel
+                {t('Cancel', 'Cancelar')}
               </button>
               <button onClick={createWorkspace} disabled={!newWorkspaceName.trim()} className="cerniq-button-primary px-5 py-3 text-sm disabled:opacity-60">
-                Create
+                {t('Create', 'Crear')}
               </button>
             </div>
           </div>
@@ -492,7 +519,7 @@ export default function SpendCheckPage() {
 
       {/* ── Finding Detail Drawer ── */}
       {selectedFinding && (
-        <FindingDrawer finding={selectedFinding} onClose={() => setSelectedFinding(null)} />
+        <FindingDrawer finding={selectedFinding} lang={lang} t={t} onClose={() => setSelectedFinding(null)} />
       )}
     </>
   );
@@ -504,10 +531,14 @@ export default function SpendCheckPage() {
 
 function OverviewTab({
   analysis,
+  lang,
+  t,
   onViewAll,
   onSelectFinding,
 }: {
   analysis: APAnalysisResult;
+  lang: Lang;
+  t: (en: string, es: string) => string;
   onViewAll: () => void;
   onSelectFinding: (f: APFinding) => void;
 }) {
@@ -523,42 +554,42 @@ function OverviewTab({
         <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6">
           <APHealthGauge score={analysis.healthScore} />
           <p className="mt-4 text-sm font-semibold uppercase tracking-wider text-slate-500">
-            Salud AP / AP Health
+            {t('AP Health', 'Salud AP')}
           </p>
         </div>
 
         {/* 6 Metric Cards */}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <MetricCard
-            label="Gasto Total Analizado / Spend Analyzed"
+            label={t('Spend Analyzed', 'Gasto Total Analizado')}
             value={fmt(analysis.totalSpendAnalyzed)}
             icon={<FileSpreadsheet className="h-5 w-5 text-cyan-600" />}
           />
           <MetricCard
-            label="Hallazgos Activos / Active Findings"
+            label={t('Active Findings', 'Hallazgos Activos')}
             value={String(analysis.totalFindings)}
             sub={`H:${analysis.severityBreakdown.high} M:${analysis.severityBreakdown.medium} L:${analysis.severityBreakdown.low}`}
             icon={<Search className="h-5 w-5 text-amber-500" />}
           />
           <MetricCard
-            label="Recuperacion Potencial / Potential Recovery"
+            label={t('Potential Recovery', 'Recuperacion Potencial')}
             value={fmt(analysis.potentialRecovery)}
             valueColor="text-emerald-700"
             icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
           />
           <MetricCard
-            label="Recuperado / Recovered"
+            label={t('Recovered', 'Recuperado')}
             value={fmt(analysis.recoveredAmount)}
             icon={<CheckCircle2 className="h-5 w-5 text-cyan-700" />}
           />
           <MetricCard
-            label="Proveedor Principal / Top Vendor"
+            label={t('Top Vendor', 'Proveedor Principal')}
             value={analysis.topVendor.name}
-            sub={fmtPct(analysis.topVendor.percentOfTotal) + ' del total'}
+            sub={fmtPct(analysis.topVendor.percentOfTotal) + t(' of total', ' del total')}
             icon={<Building2 className="h-5 w-5 text-slate-600" />}
           />
           <MetricCard
-            label="Indice AP / AP Risk Score"
+            label={t('AP Risk Score', 'Indice AP')}
             value={String(analysis.apRiskScore)}
             valueColor={analysis.apRiskScore >= 80 ? 'text-emerald-700' : analysis.apRiskScore >= 50 ? 'text-amber-600' : 'text-red-600'}
             icon={<Shield className="h-5 w-5 text-indigo-600" />}
@@ -570,14 +601,14 @@ function OverviewTab({
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Hallazgos Prioritarios / Priority Findings</p>
-            <h2 className="mt-1 font-display text-xl text-slate-950">Top 3 by estimated recovery</h2>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('Priority Findings', 'Hallazgos Prioritarios')}</p>
+            <h2 className="mt-1 font-display text-xl text-slate-950">{t('Top 3 by estimated recovery', 'Top 3 por recuperacion estimada')}</h2>
           </div>
           <button
             onClick={onViewAll}
             className="flex items-center gap-1 text-sm font-semibold text-[#1ABFFF] hover:underline"
           >
-            Ver todos / View all <ChevronRight className="h-4 w-4" />
+            {t('View all', 'Ver todos')} <ChevronRight className="h-4 w-4" />
           </button>
         </div>
 
@@ -593,11 +624,11 @@ function OverviewTab({
               </span>
               <span className="mr-1 text-lg">{findingTypeIcon(finding.type)}</span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-slate-900">{findingTypeLabel(finding.type)}</p>
+                <p className="text-sm font-semibold text-slate-900">{findingTypeLabelFn(finding.type, lang)}</p>
                 <p className="truncate text-xs text-slate-500">
                   <span className="font-semibold">{finding.vendor}</span>
                   {' — '}
-                  {finding.explanation.slice(0, 80)}...
+                  {(lang === 'en' ? finding.explanation : (finding.explanationEs || finding.explanation)).slice(0, 80)}...
                 </p>
               </div>
               <div className="shrink-0 text-right">
@@ -620,9 +651,13 @@ function OverviewTab({
 
 function AnomaliesTab({
   analysis,
+  lang,
+  t,
   onSelectFinding,
 }: {
   analysis: APAnalysisResult;
+  lang: Lang;
+  t: (en: string, es: string) => string;
   onSelectFinding: (f: APFinding) => void;
 }) {
   const sortedFindings = [...analysis.findings].sort((a, b) => {
@@ -639,15 +674,15 @@ function AnomaliesTab({
       {/* Stats bar */}
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Hallazgos / Total Findings</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('Total Findings', 'Total Hallazgos')}</p>
           <p className="mt-1 text-2xl font-bold text-slate-950">{analysis.totalFindings}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Alta Prioridad / High Priority</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('High Priority', 'Alta Prioridad')}</p>
           <p className="mt-1 text-2xl font-bold text-amber-600">{highCount}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Recuperacion Potencial / Potential Recovery</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('Potential Recovery', 'Recuperacion Potencial')}</p>
           <p className="mt-1 text-2xl font-bold text-emerald-700">{fmt(analysis.potentialRecovery)}</p>
         </div>
       </div>
@@ -662,11 +697,11 @@ function AnomaliesTab({
           >
             <span className="text-xl">{findingTypeIcon(finding.type)}</span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-slate-900">{findingTypeLabel(finding.type)}</p>
+              <p className="text-sm font-semibold text-slate-900">{findingTypeLabelFn(finding.type, lang)}</p>
               <p className="text-xs text-slate-500">
                 <span className="font-bold text-slate-700">{finding.vendor}</span>
                 {' — '}
-                {finding.explanation.slice(0, 100)}
+                {(lang === 'en' ? finding.explanation : (finding.explanationEs || finding.explanation)).slice(0, 100)}
               </p>
             </div>
             <div className="shrink-0 text-right">
@@ -689,7 +724,7 @@ function AnomaliesTab({
 // Tab 3: Vendor Intelligence
 // ─────────────────────────────────────────────────────────
 
-function VendorsTab({ analysis }: { analysis: APAnalysisResult }) {
+function VendorsTab({ analysis, lang, t }: { analysis: APAnalysisResult; lang: Lang; t: (en: string, es: string) => string }) {
   const sorted = [...analysis.vendorStats].sort((a, b) => b.percentOfTotal - a.percentOfTotal);
 
   return (
@@ -698,12 +733,12 @@ function VendorsTab({ analysis }: { analysis: APAnalysisResult }) {
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/60">
-              <th className="px-5 py-3 text-left font-semibold text-slate-600">Proveedor / Vendor</th>
-              <th className="px-5 py-3 text-right font-semibold text-slate-600">Gasto Trimestral / Quarterly Spend</th>
-              <th className="px-5 py-3 text-right font-semibold text-slate-600">% del Total / % of Total</th>
-              <th className="px-5 py-3 text-right font-semibold text-slate-600">Facturas / Invoices</th>
-              <th className="px-5 py-3 text-right font-semibold text-slate-600">Promedio / Avg Invoice</th>
-              <th className="px-5 py-3 text-center font-semibold text-slate-600">Riesgo / Risk</th>
+              <th className="px-5 py-3 text-left font-semibold text-slate-600">{t('Vendor', 'Proveedor')}</th>
+              <th className="px-5 py-3 text-right font-semibold text-slate-600">{t('Quarterly Spend', 'Gasto Trimestral')}</th>
+              <th className="px-5 py-3 text-right font-semibold text-slate-600">{t('% of Total', '% del Total')}</th>
+              <th className="px-5 py-3 text-right font-semibold text-slate-600">{t('Invoices', 'Facturas')}</th>
+              <th className="px-5 py-3 text-right font-semibold text-slate-600">{t('Avg Invoice', 'Promedio')}</th>
+              <th className="px-5 py-3 text-center font-semibold text-slate-600">{t('Risk', 'Riesgo')}</th>
             </tr>
           </thead>
           <tbody>
@@ -745,7 +780,7 @@ function VendorsTab({ analysis }: { analysis: APAnalysisResult }) {
 // Tab 4: Liquidity
 // ─────────────────────────────────────────────────────────
 
-function LiquidityTab() {
+function LiquidityTab({ lang, t }: { lang: Lang; t: (en: string, es: string) => string }) {
   // For now: show info card since ALM integration is optional
   return (
     <div className="mx-auto max-w-2xl">
@@ -754,23 +789,21 @@ function LiquidityTab() {
           <Info className="h-7 w-7 text-blue-600" />
         </div>
         <h3 className="font-display text-xl font-bold text-[#1B3A6B]">
-          Impacto AP en Liquidez / AP Liquidity Impact
+          {t('AP Liquidity Impact', 'Impacto AP en Liquidez')}
         </h3>
         <p className="mt-3 text-sm leading-relaxed text-slate-600">
-          Conecte su analisis ALM para ver el impacto de cuentas por pagar en su posicion de liquidez,
-          incluyendo LCR actual, LCR proyectado con AP, y el delta resultante.
-        </p>
-        <p className="mt-2 text-sm leading-relaxed text-slate-500">
-          Connect your ALM analysis to view the impact of accounts payable on your liquidity position,
-          including current LCR, projected LCR with AP, and the resulting delta.
+          {t(
+            'Connect your ALM analysis to view the impact of accounts payable on your liquidity position, including current LCR, projected LCR with AP, and the resulting delta.',
+            'Conecte su analisis ALM para ver el impacto de cuentas por pagar en su posicion de liquidez, incluyendo LCR actual, LCR proyectado con AP, y el delta resultante.',
+          )}
         </p>
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">LCR Actual / Current LCR</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('Current LCR', 'LCR Actual')}</p>
             <p className="mt-2 text-2xl font-bold text-slate-300">--</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">LCR Proyectado / Projected LCR</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('Projected LCR', 'LCR Proyectado')}</p>
             <p className="mt-2 text-2xl font-bold text-slate-300">--</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -782,7 +815,7 @@ function LiquidityTab() {
           href="/alm"
           className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#1B3A6B] px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-lg"
         >
-          Ir a ALM / Go to ALM
+          {t('Go to ALM', 'Ir a ALM')}
           <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
@@ -796,10 +829,14 @@ function LiquidityTab() {
 
 function ReportTab({
   analysis,
+  lang,
+  t,
   workspaceName,
   onDownload,
 }: {
   analysis: APAnalysisResult;
+  lang: Lang;
+  t: (en: string, es: string) => string;
   workspaceName: string;
   onDownload: () => void;
 }) {
@@ -810,25 +847,23 @@ function ReportTab({
           <Download className="h-7 w-7 text-cyan-700" />
         </div>
         <h3 className="font-display text-xl font-bold text-[#1B3A6B]">
-          Generar Informe AP / Generate AP Report
+          {t('Generate AP Report', 'Generar Informe AP')}
         </h3>
         <p className="mt-3 text-sm leading-relaxed text-slate-600">
-          Descargue un informe completo de su analisis SpendCheck, incluyendo hallazgos, estadisticas de proveedores,
-          y recomendaciones de recuperacion.
-        </p>
-        <p className="mt-2 text-sm leading-relaxed text-slate-500">
-          Download a comprehensive report of your SpendCheck analysis, including findings, vendor statistics,
-          and recovery recommendations.
+          {t(
+            'Download a comprehensive report of your SpendCheck analysis, including findings, vendor statistics, and recovery recommendations.',
+            'Descargue un informe completo de su analisis SpendCheck, incluyendo hallazgos, estadisticas de proveedores, y recomendaciones de recuperacion.',
+          )}
         </p>
 
         {/* Report summary */}
         <div className="mx-auto mt-6 max-w-sm space-y-2 text-left">
           <SummaryRow label="Workspace" value={workspaceName} />
-          <SummaryRow label="Salud AP / AP Health" value={`${analysis.healthScore}/100`} />
-          <SummaryRow label="Total analizado / Spend analyzed" value={fmt(analysis.totalSpendAnalyzed)} />
-          <SummaryRow label="Hallazgos / Findings" value={String(analysis.totalFindings)} />
-          <SummaryRow label="Recuperacion / Recovery" value={fmt(analysis.potentialRecovery)} />
-          <SummaryRow label="Proveedores / Vendors" value={String(analysis.vendorStats.length)} />
+          <SummaryRow label={t('AP Health', 'Salud AP')} value={`${analysis.healthScore}/100`} />
+          <SummaryRow label={t('Spend Analyzed', 'Gasto Analizado')} value={fmt(analysis.totalSpendAnalyzed)} />
+          <SummaryRow label={t('Findings', 'Hallazgos')} value={String(analysis.totalFindings)} />
+          <SummaryRow label={t('Recovery', 'Recuperacion')} value={fmt(analysis.potentialRecovery)} />
+          <SummaryRow label={t('Vendors', 'Proveedores')} value={String(analysis.vendorStats.length)} />
         </div>
 
         <button
@@ -836,11 +871,11 @@ function ReportTab({
           className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#E8A020] px-8 py-3 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#d4911c] hover:shadow-lg"
         >
           <Download className="h-4 w-4" />
-          Descargar JSON / Download JSON
+          {t('Download JSON', 'Descargar JSON')}
         </button>
 
         <p className="mt-4 text-xs text-slate-400">
-          La generacion de PDF estara disponible pronto / PDF generation coming soon
+          {t('PDF generation coming soon', 'La generacion de PDF estara disponible pronto')}
         </p>
       </div>
     </div>
@@ -914,7 +949,7 @@ function MetricCard({
 // Finding Detail Drawer
 // ─────────────────────────────────────────────────────────
 
-function FindingDrawer({ finding, onClose }: { finding: APFinding; onClose: () => void }) {
+function FindingDrawer({ finding, lang, t, onClose }: { finding: APFinding; lang: Lang; t: (en: string, es: string) => string; onClose: () => void }) {
   const [reviewed, setReviewed] = useState(finding.status === 'reviewed');
 
   return (
@@ -941,17 +976,22 @@ function FindingDrawer({ finding, onClose }: { finding: APFinding; onClose: () =
             <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase ${severityColor(finding.severity)}`}>
               {finding.severity}
             </span>
-            <span className="text-sm text-slate-500">{findingTypeLabel(finding.type)}</span>
+            <span className="text-sm text-slate-500">{findingTypeLabelFn(finding.type, lang)}</span>
           </div>
 
-          {/* Explanation (bilingual) */}
+          {/* Explanation */}
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Explicacion / Explanation
+              {t('Explanation', 'Explicacion')}
             </h4>
-            <p className="mt-2 text-sm leading-relaxed text-slate-700">{finding.explanation}</p>
-            {finding.explanationEs && (
+            <p className="mt-2 text-sm leading-relaxed text-slate-700">
+              {lang === 'en' ? finding.explanation : (finding.explanationEs || finding.explanation)}
+            </p>
+            {lang === 'en' && finding.explanationEs && (
               <p className="mt-2 text-sm leading-relaxed text-slate-500 italic">{finding.explanationEs}</p>
+            )}
+            {lang === 'es' && (
+              <p className="mt-2 text-sm leading-relaxed text-slate-500 italic">{finding.explanation}</p>
             )}
           </div>
 
@@ -959,7 +999,7 @@ function FindingDrawer({ finding, onClose }: { finding: APFinding; onClose: () =
           {finding.estimatedRecovery > 0 && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-5 py-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
-                Recuperacion Estimada / Estimated Recovery
+                {t('Estimated Recovery', 'Recuperacion Estimada')}
               </p>
               <p className="mt-1 text-2xl font-bold text-emerald-700">{fmt(finding.estimatedRecovery)}</p>
             </div>
@@ -969,7 +1009,7 @@ function FindingDrawer({ finding, onClose }: { finding: APFinding; onClose: () =
           {finding.invoiceIds && finding.invoiceIds.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Facturas Afectadas / Affected Invoices
+                {t('Affected Invoices', 'Facturas Afectadas')}
               </h4>
               <div className="mt-2 flex flex-wrap gap-2">
                 {finding.invoiceIds.map((inv) => (
@@ -985,7 +1025,7 @@ function FindingDrawer({ finding, onClose }: { finding: APFinding; onClose: () =
           {finding.recommendedActions && finding.recommendedActions.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Acciones Recomendadas / Recommended Actions
+                {t('Recommended Actions', 'Acciones Recomendadas')}
               </h4>
               <ul className="mt-2 space-y-2">
                 {finding.recommendedActions.map((action, idx) => (
@@ -1012,10 +1052,10 @@ function FindingDrawer({ finding, onClose }: { finding: APFinding; onClose: () =
           >
             {reviewed ? (
               <span className="flex items-center justify-center gap-2">
-                <CheckCircle2 className="h-4 w-4" /> Revisado / Reviewed
+                <CheckCircle2 className="h-4 w-4" /> {t('Reviewed', 'Revisado')}
               </span>
             ) : (
-              'Marcar Revisado / Mark Reviewed'
+              t('Mark Reviewed', 'Marcar Revisado')
             )}
           </button>
         </div>

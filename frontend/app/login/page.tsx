@@ -118,7 +118,7 @@ function LoginContent() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { initialized, isAuthenticated, setUser } = useAuthStore();
+  const { initialized, isAuthenticated, user, setUser } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTranslation();
@@ -184,7 +184,7 @@ function LoginContent() {
             <CerniqMark size="sm" />
             <div>
               <div className="font-display text-3xl uppercase tracking-[0.08em] text-white">Cerniq</div>
-              <div className="text-xs uppercase tracking-[0.34em] text-cyan-200/70">Plataforma de Inteligencia de Riesgo</div>
+              <div className="text-xs uppercase tracking-[0.34em] text-cyan-200/70">{t('login.tagline')}</div>
             </div>
           </Link>
           <LanguageToggle />
@@ -197,19 +197,19 @@ function LoginContent() {
           <ul className="mx-auto max-w-sm space-y-2 text-sm text-slate-400">
             <li className="flex items-center gap-2">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400" />
-              Complete ALM analysis / Analisis ALM completo
+              {t('login.featureALM')}
             </li>
             <li className="flex items-center gap-2">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400" />
-              12 COSSEC ratios / 12 ratios COSSEC
+              {t('login.featureRatios')}
             </li>
             <li className="flex items-center gap-2">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400" />
-              Bilingual reports / Informes bilingues
+              {t('login.featureReports')}
             </li>
             <li className="flex items-center gap-2">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400" />
-              AES-256 encryption / Cifrado AES-256
+              {t('login.featureEncryption')}
             </li>
           </ul>
         </div>

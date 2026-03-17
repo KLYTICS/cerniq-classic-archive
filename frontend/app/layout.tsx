@@ -15,19 +15,19 @@ const displayFont = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "CERNIQ — Analisis ALM & Cumplimiento COSSEC | Cooperativas de Puerto Rico",
-  description: "Informes ALM bilingues, cumplimiento COSSEC, e inteligencia AP para cooperativas y credit unions de Puerto Rico.",
+  title: "CERNIQ — Institutional ALM Intelligence | Credit Unions & Cooperativas",
+  description: "ALM analysis, regulatory compliance, and AP intelligence for credit unions, cooperativas, and community banks.",
   keywords: "ALM reports, cooperativas, credit unions, COSSEC compliance, bilingual reporting, balance sheet upload, CERNIQ",
   metadataBase: new URL("https://cerniq.io"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "CERNIQ — Analisis ALM & Cumplimiento COSSEC | Cooperativas de Puerto Rico",
-    description: "Informes ALM bilingues, cumplimiento COSSEC, e inteligencia AP para cooperativas y credit unions de Puerto Rico.",
+    title: "CERNIQ — Institutional ALM Intelligence | Credit Unions & Cooperativas",
+    description: "ALM analysis, regulatory compliance, and AP intelligence for credit unions, cooperativas, and community banks.",
     url: "https://cerniq.io",
     siteName: "CERNIQ",
-    locale: "es_PR",
+    locale: "en_US",
   },
   icons: {
     icon: "/favicon.svg",

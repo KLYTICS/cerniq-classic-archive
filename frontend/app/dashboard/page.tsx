@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
+import { useTranslation } from '@/lib/i18n';
 import {
   AlertTriangle,
   ArrowRight,
@@ -23,14 +24,7 @@ import {
 } from 'lucide-react';
 import { SkeletonLoader, EmptyState, ErrorBanner } from '@/components/ui/cerniq';
 
-/* ─── Helpers ─── */
-
-function getGreeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Buenos dias';
-  if (h < 18) return 'Buenas tardes';
-  return 'Buenas noches';
-}
+/* --- Helpers --- */
 
 function statusColor(status: 'green' | 'amber' | 'red'): string {
   switch (status) {
@@ -49,95 +43,101 @@ function scoreColor(score: number): string {
   return '#ef4444';
 }
 
-/* ─── Static Data ─── */
+/* --- Static Data --- */
 
 const RATE_ENVIRONMENT = [
-  { label: 'Fed Funds Rate', value: '4.50%', impact: 'Base rate for loan pricing' },
-  { label: 'SOFR', value: '4.32%', impact: 'Variable rate benchmark' },
-  { label: '10Y Treasury', value: '4.25%', impact: 'Mortgage/bond yield driver' },
-  { label: 'PR Prime', value: '8.50%', impact: 'Local commercial lending' },
+  { label: 'Fed Funds Rate', value: '4.50%', impactEn: 'Base rate for loan pricing', impactEs: 'Tasa base para precios de prestamos' },
+  { label: 'SOFR', value: '4.32%', impactEn: 'Variable rate benchmark', impactEs: 'Referencia de tasa variable' },
+  { label: '10Y Treasury', value: '4.25%', impactEn: 'Mortgage/bond yield driver', impactEs: 'Impulsor de rendimiento hipotecario/bonos' },
+  { label: 'PR Prime', value: '8.50%', impactEn: 'Local commercial lending', impactEs: 'Prestamos comerciales locales' },
 ];
 
 const ALM_STATUS_ROWS: {
-  label: string;
   labelEn: string;
+  labelEs: string;
   value: string;
   status: 'green' | 'amber' | 'red';
 }[] = [
-  { label: 'LCR', labelEn: 'Liquidity Coverage', value: '115.5%', status: 'green' },
-  { label: 'Adecuacion de Capital', labelEn: 'Capital Adequacy', value: '12.8%', status: 'green' },
-  { label: 'Prestamos/Depositos', labelEn: 'Loan-to-Deposit', value: '82.4%', status: 'amber' },
-  { label: 'NIM', labelEn: 'Net Interest Margin', value: '3.15%', status: 'green' },
+  { labelEn: 'Liquidity Coverage', labelEs: 'LCR', value: '115.5%', status: 'green' },
+  { labelEn: 'Capital Adequacy', labelEs: 'Adecuacion de Capital', value: '12.8%', status: 'green' },
+  { labelEn: 'Loan-to-Deposit', labelEs: 'Prestamos/Depositos', value: '82.4%', status: 'amber' },
+  { labelEn: 'Net Interest Margin', labelEs: 'NIM', value: '3.15%', status: 'green' },
 ];
 
 const MODULE_CARDS = [
   {
-    title: 'ALM Intelligence',
+    titleEn: 'ALM Intelligence',
     titleEs: 'Inteligencia ALM',
-    description: 'Duration gap, NII sensitivity, balance sheet analysis.',
+    descEn: 'Duration gap, NII sensitivity, balance sheet analysis.',
     descEs: 'Brecha de duracion, sensibilidad NII, analisis de balance.',
     href: '/alm',
     icon: Landmark,
-    accent: 'ALM',
+    accentEn: 'ALM',
+    accentEs: 'ALM',
   },
   {
-    title: 'COSSEC Compliance',
+    titleEn: 'COSSEC Compliance',
     titleEs: 'Cumplimiento COSSEC',
-    description: 'Regulatory readiness, exam prep, and benchmarks.',
+    descEn: 'Regulatory readiness, exam prep, and benchmarks.',
     descEs: 'Preparacion regulatoria, examenes y benchmarks.',
     href: '/alm',
     icon: Shield,
-    accent: 'Regulatorio',
+    accentEn: 'Regulatory',
+    accentEs: 'Regulatorio',
   },
   {
-    title: 'Stress Testing',
+    titleEn: 'Stress Testing',
     titleEs: 'Pruebas de Estres',
-    description: 'Monte Carlo, rate shocks, and scenario analysis.',
+    descEn: 'Monte Carlo, rate shocks, and scenario analysis.',
     descEs: 'Monte Carlo, choques de tasas y escenarios.',
     href: '/alm',
     icon: BarChart3,
-    accent: 'Estres',
+    accentEn: 'Stress',
+    accentEs: 'Estres',
   },
   {
-    title: 'Portfolio Risk',
+    titleEn: 'Portfolio Risk',
     titleEs: 'Riesgo de Portafolio',
-    description: 'VaR, scenarios, volatility, and exposure.',
+    descEn: 'VaR, scenarios, volatility, and exposure.',
     descEs: 'VaR, escenarios, volatilidad y exposicion.',
     href: '/risk-analytics',
     icon: TrendingUp,
-    accent: 'Riesgo',
+    accentEn: 'Risk',
+    accentEs: 'Riesgo',
     badge: 'Beta',
   },
   {
-    title: 'SpendCheck',
-    titleEs: 'Control de Gastos',
-    description: 'Receipt parsing, AP controls, and recovery.',
+    titleEn: 'SpendCheck',
+    titleEs: 'SpendCheck',
+    descEn: 'Receipt parsing, AP controls, and recovery.',
     descEs: 'Analisis de recibos, controles AP y recuperacion.',
     href: '/spendcheck',
     icon: CreditCard,
-    accent: 'Gastos',
+    accentEn: 'Spend',
+    accentEs: 'Gastos',
   },
   {
-    title: 'Rate Environment',
+    titleEn: 'Rate Environment',
     titleEs: 'Entorno de Tasas',
-    description: 'Reference rates, yield curves, and rate impact.',
+    descEn: 'Reference rates, yield curves, and rate impact.',
     descEs: 'Tasas de referencia, curvas de rendimiento e impacto de tasas.',
     href: '/live-data',
     icon: LineChart,
-    accent: 'Tasas',
+    accentEn: 'Rates',
+    accentEs: 'Tasas',
   },
 ];
 
-/* ─── Compliance Calendar Types + Helpers ─── */
+/* --- Compliance Calendar Types + Helpers --- */
 
 interface CalendarDeadline {
   id: string;
-  title: string;
+  titleEn: string;
   titleEs: string;
   deadlineDate: string;
   category: 'exam' | 'report' | 'meeting' | 'tax' | 'internal';
   urgency: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'OVERDUE';
-  description: string;
+  descriptionEn: string;
   descriptionEs: string;
   relatedModule: string;
 }
@@ -194,12 +194,12 @@ function generateDemoDeadlines(): CalendarDeadline[] {
   // Next ALCO meeting in ~12 days
   deadlines.push({
     id: 'alco-meeting-1',
-    title: 'ALCO Meeting',
+    titleEn: 'ALCO Meeting',
     titleEs: 'Reunion ALCO',
     deadlineDate: addDays(now, 12),
     category: 'meeting',
     urgency: 'CRITICAL',
-    description: 'Monthly ALCO committee meeting',
+    descriptionEn: 'Monthly ALCO committee meeting',
     descriptionEs: 'Reunion mensual del comite ALCO',
     relatedModule: '/alm',
   });
@@ -207,12 +207,12 @@ function generateDemoDeadlines(): CalendarDeadline[] {
   // COSSEC exam in ~65 days
   deadlines.push({
     id: 'cossec-exam',
-    title: 'COSSEC Examination',
+    titleEn: 'COSSEC Examination',
     titleEs: 'Examen COSSEC',
     deadlineDate: addDays(now, 65),
     category: 'exam',
     urgency: 'MEDIUM',
-    description: 'Annual COSSEC regulatory examination',
+    descriptionEn: 'Annual COSSEC regulatory examination',
     descriptionEs: 'Examen regulatorio anual de COSSEC',
     relatedModule: '/alm',
   });
@@ -225,12 +225,12 @@ function generateDemoDeadlines(): CalendarDeadline[] {
       const days = Math.floor((d.getTime() - now.getTime()) / 86_400_000);
       deadlines.push({
         id: `cossec-report-${qd.quarter}-${yr}`,
-        title: `COSSEC ${qd.quarter} ${yr} Report`,
+        titleEn: `COSSEC ${qd.quarter} ${yr} Report`,
         titleEs: `Informe COSSEC ${qd.quarter} ${yr}`,
         deadlineDate: d.toISOString(),
         category: 'report',
         urgency: days <= 14 ? 'CRITICAL' : days <= 30 ? 'HIGH' : days <= 90 ? 'MEDIUM' : 'LOW',
-        description: `Quarterly COSSEC regulatory report`,
+        descriptionEn: `Quarterly COSSEC regulatory report`,
         descriptionEs: `Informe regulatorio trimestral COSSEC`,
         relatedModule: '/alm',
       });
@@ -241,12 +241,12 @@ function generateDemoDeadlines(): CalendarDeadline[] {
   // Next ALCO #2 in ~42 days
   deadlines.push({
     id: 'alco-meeting-2',
-    title: 'ALCO Meeting #2',
+    titleEn: 'ALCO Meeting #2',
     titleEs: 'Reunion ALCO #2',
     deadlineDate: addDays(now, 42),
     category: 'meeting',
     urgency: 'MEDIUM',
-    description: 'Monthly ALCO committee meeting',
+    descriptionEn: 'Monthly ALCO committee meeting',
     descriptionEs: 'Reunion mensual del comite ALCO',
     relatedModule: '/alm',
   });
@@ -254,12 +254,12 @@ function generateDemoDeadlines(): CalendarDeadline[] {
   // Fiscal year-end report in ~120 days
   deadlines.push({
     id: 'fiscal-year-end',
-    title: 'Fiscal Year-End Report',
+    titleEn: 'Fiscal Year-End Report',
     titleEs: 'Informe de Cierre Fiscal',
     deadlineDate: addDays(now, 120),
     category: 'report',
     urgency: 'LOW',
-    description: 'Annual fiscal year-end regulatory filing',
+    descriptionEn: 'Annual fiscal year-end regulatory filing',
     descriptionEs: 'Informe regulatorio de cierre fiscal anual',
     relatedModule: '/alm',
   });
@@ -267,12 +267,12 @@ function generateDemoDeadlines(): CalendarDeadline[] {
   // Internal audit in ~25 days
   deadlines.push({
     id: 'internal-audit',
-    title: 'Internal Audit Review',
+    titleEn: 'Internal Audit Review',
     titleEs: 'Revision de Auditoria Interna',
     deadlineDate: addDays(now, 25),
     category: 'internal',
     urgency: 'HIGH',
-    description: 'Quarterly internal audit compliance review',
+    descriptionEn: 'Quarterly internal audit compliance review',
     descriptionEs: 'Revision trimestral de cumplimiento de auditoria interna',
     relatedModule: '/alm',
   });
@@ -282,7 +282,7 @@ function generateDemoDeadlines(): CalendarDeadline[] {
   );
 }
 
-/* ─── COSSEC Readiness Gauge (CSS-only) ─── */
+/* --- COSSEC Readiness Gauge (CSS-only) --- */
 
 function COSSECGauge({ score }: { score: number }) {
   const color = scoreColor(score);
@@ -328,13 +328,61 @@ function COSSECGauge({ score }: { score: number }) {
   );
 }
 
-/* ─── Main Page ─── */
+/* --- Language Toggle --- */
+
+function DashboardLangToggle() {
+  const { locale, setLocale } = useTranslation();
+
+  return (
+    <div className="flex items-center gap-0.5 rounded-full border border-slate-200 bg-white/80 p-0.5">
+      <button
+        onClick={() => setLocale('en')}
+        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+          locale === 'en'
+            ? 'bg-[#1B3A6B] text-white'
+            : 'text-slate-500 hover:text-slate-900'
+        }`}
+      >
+        EN
+      </button>
+      <button
+        onClick={() => setLocale('es')}
+        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+          locale === 'es'
+            ? 'bg-[#1B3A6B] text-white'
+            : 'text-slate-500 hover:text-slate-900'
+        }`}
+      >
+        ES
+      </button>
+    </div>
+  );
+}
+
+/* --- Main Page --- */
 
 export default function DashboardPage() {
   const { initialized, isAuthenticated, onboardingComplete, user, logout } = useAuthStore();
   const router = useRouter();
+  const { locale } = useTranslation();
 
-  // Mock COSSEC score — will be replaced with real API data when available
+  // Inline bilingual helper driven by the global locale
+  const t = (en: string, es: string) => locale === 'en' ? en : es;
+
+  // Greeting based on time of day
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (locale === 'en') {
+      if (h < 12) return 'Good morning';
+      if (h < 18) return 'Good afternoon';
+      return 'Good evening';
+    }
+    if (h < 12) return 'Buenos dias';
+    if (h < 18) return 'Buenas tardes';
+    return 'Buenas noches';
+  }, [locale]);
+
+  // Mock COSSEC score -- will be replaced with real API data when available
   const cossecScore = 72;
   const lastAnalysisDate: string | null = null; // null = no analysis yet
 
@@ -342,7 +390,6 @@ export default function DashboardPage() {
   const [calendarDeadlines, setCalendarDeadlines] = useState<CalendarDeadline[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(true);
 
-  const greeting = useMemo(() => getGreeting(), []);
   const displayName = user?.name || user?.email?.split('@')[0] || '';
 
   // Derive exam countdown from calendar deadlines
@@ -379,7 +426,7 @@ export default function DashboardPage() {
           return;
         }
       } catch {
-        // API not available — use demo data
+        // API not available -- use demo data
       }
       if (!cancelled) {
         setCalendarDeadlines(generateDemoDeadlines());
@@ -429,7 +476,7 @@ export default function DashboardPage() {
     <div className="min-h-screen overflow-x-clip px-4 py-4 text-slate-950 sm:px-5 lg:px-6">
       <div className="mx-auto max-w-7xl space-y-4">
 
-        {/* ── Top Nav ── */}
+        {/* -- Top Nav -- */}
         <nav className="cerniq-panel px-4 py-3 sm:px-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3">
@@ -437,11 +484,12 @@ export default function DashboardPage() {
                 Cerniq
               </div>
               <span className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                Inteligencia de Riesgo Institucional
+                {t('Institutional Risk Intelligence', 'Inteligencia de Riesgo Institucional')}
               </span>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              <DashboardLangToggle />
               <span className="rounded-full border border-slate-200 bg-white/85 px-4 py-2 text-sm text-slate-600">
                 {user?.email}
               </span>
@@ -449,7 +497,7 @@ export default function DashboardPage() {
                 onClick={() => router.push('/live-data')}
                 className="cerniq-button-secondary px-4 py-2 text-sm"
               >
-                Live Data
+                {t('Live Data', 'Datos en Vivo')}
               </button>
               <button
                 onClick={async () => {
@@ -459,13 +507,13 @@ export default function DashboardPage() {
                 className="flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 transition hover:border-red-300"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                Salir
+                {t('Logout', 'Salir')}
               </button>
             </div>
           </div>
         </nav>
 
-        {/* ── Exam Countdown Banner ── */}
+        {/* -- Exam Countdown Banner -- */}
         {daysToExam !== null && daysToExam <= 90 && daysToExam >= 0 && (
           <div
             className="flex flex-col gap-2 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
@@ -476,10 +524,19 @@ export default function DashboardPage() {
               </div>
               <div>
                 <p className="text-sm font-semibold text-amber-900">
-                  Examen COSSEC en {daysToExam} dias / COSSEC Exam in {daysToExam} days
+                  {t(
+                    `COSSEC Exam in ${daysToExam} days`,
+                    `Examen COSSEC en ${daysToExam} dias`,
+                  )}
                 </p>
                 <p className="text-xs text-amber-700">
-                  Preparacion: {cossecScore}/100 &mdash; {cossecScore >= 80 ? 'Bien preparado' : cossecScore >= 50 ? 'Atencion requerida' : 'Accion inmediata'}
+                  {t('Readiness', 'Preparacion')}: {cossecScore}/100 &mdash; {
+                    cossecScore >= 80
+                      ? t('Well prepared', 'Bien preparado')
+                      : cossecScore >= 50
+                        ? t('Attention required', 'Atencion requerida')
+                        : t('Immediate action needed', 'Accion inmediata')
+                  }
                 </p>
               </div>
             </div>
@@ -487,13 +544,13 @@ export default function DashboardPage() {
               onClick={() => router.push('/alm')}
               className="flex items-center gap-2 rounded-full bg-[#E8A020] px-5 py-2 text-sm font-bold text-white shadow transition hover:-translate-y-0.5 hover:bg-[#d4911c]"
             >
-              Preparar examen
+              {t('Prepare for exam', 'Preparar examen')}
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         )}
 
-        {/* ── Hero Section ── */}
+        {/* -- Hero Section -- */}
         <section className="grid gap-4 lg:grid-cols-[1fr_380px]">
 
           {/* Left: Welcome + Quick Stats */}
@@ -505,17 +562,15 @@ export default function DashboardPage() {
                   {greeting}
                 </p>
                 <h1 className="font-display mt-1 text-2xl text-slate-950 sm:text-3xl">
-                  {displayName ? `${displayName}` : 'Panel de Control'}
+                  {displayName ? `${displayName}` : t('Dashboard', 'Panel de Control')}
                 </h1>
                 <p className="mt-2 text-sm text-slate-500">
                   {lastAnalysisDate
-                    ? `Ultimo analisis: ${lastAnalysisDate}`
-                    : 'No hay analisis disponible — cargue su balance para comenzar.'}
-                  <span className="ml-1 text-xs text-slate-400">
-                    {lastAnalysisDate
-                      ? '(Last analysis)'
-                      : '(No analysis available — upload your balance sheet to start)'}
-                  </span>
+                    ? `${t('Last analysis', 'Ultimo analisis')}: ${lastAnalysisDate}`
+                    : t(
+                        'No analysis available -- upload your balance sheet to start.',
+                        'No hay analisis disponible -- cargue su balance para comenzar.',
+                      )}
                 </p>
 
                 {/* Quick Stats Row */}
@@ -523,11 +578,10 @@ export default function DashboardPage() {
                   {/* Duration Gap */}
                   <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                     <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                      Brecha de Duracion
+                      {t('Duration Gap', 'Brecha de Duracion')}
                     </p>
-                    <p className="text-xs text-slate-400">(Duration Gap)</p>
                     <p className="mt-2 font-display text-2xl font-bold text-[#1B3A6B]">
-                      2.1 <span className="text-sm font-normal text-slate-500">anos</span>
+                      2.1 <span className="text-sm font-normal text-slate-500">{t('years', 'anos')}</span>
                     </p>
                     <span className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-[#E8A020]">
                       Asset-sensitive
@@ -537,9 +591,8 @@ export default function DashboardPage() {
                   {/* COSSEC Readiness (compact) */}
                   <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                     <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                      Preparacion COSSEC
+                      {t('COSSEC Readiness', 'Preparacion COSSEC')}
                     </p>
-                    <p className="text-xs text-slate-400">(COSSEC Readiness)</p>
                     <p className="mt-2 font-display text-2xl font-bold" style={{ color: scoreColor(cossecScore) }}>
                       {cossecScore}<span className="text-sm font-normal text-slate-500">/100</span>
                     </p>
@@ -550,21 +603,24 @@ export default function DashboardPage() {
                         backgroundColor: cossecScore >= 80 ? '#ecfdf5' : cossecScore >= 50 ? '#fffbeb' : '#fef2f2',
                       }}
                     >
-                      {cossecScore >= 80 ? 'Fuerte' : cossecScore >= 50 ? 'Moderado' : 'En riesgo'}
+                      {cossecScore >= 80
+                        ? t('Strong', 'Fuerte')
+                        : cossecScore >= 50
+                          ? t('Moderate', 'Moderado')
+                          : t('At risk', 'En riesgo')}
                     </span>
                   </div>
 
                   {/* NII Risk Rating */}
                   <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                     <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                      Riesgo NII
+                      {t('NII Risk Rating', 'Clasificacion NII')}
                     </p>
-                    <p className="text-xs text-slate-400">(NII Risk Rating)</p>
                     <p className="mt-2 font-display text-2xl font-bold text-[#E8A020]">
-                      Moderado
+                      {t('Moderate', 'Moderado')}
                     </p>
                     <span className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-[#E8A020]">
-                      +/-12.5% sensibilidad
+                      +/-12.5% {t('sensitivity', 'sensibilidad')}
                     </span>
                   </div>
                 </div>
@@ -574,33 +630,29 @@ export default function DashboardPage() {
             {/* ALM Status Panel */}
             <div className="cerniq-panel p-5">
               <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="cerniq-section-label">Estado ALM</p>
-                  <p className="mt-0.5 text-xs text-slate-400">(ALM Status)</p>
-                </div>
+                <p className="cerniq-section-label">{t('ALM Status', 'Estado ALM')}</p>
                 <Building2 className="h-5 w-5 text-[#1ABFFF]" />
               </div>
               <div className="space-y-0">
                 {ALM_STATUS_ROWS.map((row, i) => (
                   <div
-                    key={row.label}
+                    key={row.labelEn}
                     className={`flex items-center justify-between py-3 ${
                       i > 0 ? 'border-t border-slate-100' : ''
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <span className={`h-2.5 w-2.5 flex-none rounded-full ${statusColor(row.status)}`} />
-                      <div>
-                        <span className="text-sm font-medium text-slate-700">{row.label}</span>
-                        <span className="ml-2 text-xs text-slate-400">({row.labelEn})</span>
-                      </div>
+                      <span className="text-sm font-medium text-slate-700">
+                        {t(row.labelEn, row.labelEs)}
+                      </span>
                     </div>
                     <span className="font-display text-sm font-bold text-slate-900">{row.value}</span>
                   </div>
                 ))}
               </div>
               <p className="mt-3 text-right text-[10px] text-slate-400">
-                Datos de demostracion — cargue balance para datos reales
+                {t('Demo data -- upload balance sheet for real data', 'Datos de demostracion -- cargue balance para datos reales')}
               </p>
             </div>
           </div>
@@ -610,34 +662,21 @@ export default function DashboardPage() {
             {/* COSSEC Readiness Gauge */}
             <div className="cerniq-panel p-5">
               <div className="mb-4 text-center">
-                <p className="cerniq-section-label">Preparacion COSSEC</p>
-                <p className="mt-0.5 text-xs text-slate-400">(COSSEC Readiness Score)</p>
+                <p className="cerniq-section-label">{t('COSSEC Readiness', 'Preparacion COSSEC')}</p>
               </div>
               <COSSECGauge score={cossecScore} />
               <div className="mt-4 text-center">
                 <p className="text-sm font-medium text-slate-700">
                   {cossecScore >= 80
-                    ? 'Institucion bien preparada'
+                    ? t('Institution well prepared', 'Institucion bien preparada')
                     : cossecScore >= 50
-                      ? 'Atencion requerida en algunas areas'
-                      : 'Accion inmediata requerida'}
-                </p>
-                <p className="mt-1 text-xs text-slate-400">
-                  {cossecScore >= 80
-                    ? '(Institution well prepared)'
-                    : cossecScore >= 50
-                      ? '(Attention required in some areas)'
-                      : '(Immediate action required)'}
+                      ? t('Attention required in some areas', 'Atencion requerida en algunas areas')
+                      : t('Immediate action required', 'Accion inmediata requerida')}
                 </p>
                 <p className="mt-3 text-sm text-slate-600">
                   {daysToExam !== null
-                    ? `Proximo examen: ${daysToExam} dias`
-                    : 'Fecha de examen: por determinar'}
-                </p>
-                <p className="text-xs text-slate-400">
-                  {daysToExam !== null
-                    ? `(Next exam: ${daysToExam} days)`
-                    : '(Exam date: to be determined)'}
+                    ? t(`Next exam: ${daysToExam} days`, `Proximo examen: ${daysToExam} dias`)
+                    : t('Exam date: to be determined', 'Fecha de examen: por determinar')}
                 </p>
               </div>
             </div>
@@ -645,10 +684,7 @@ export default function DashboardPage() {
             {/* Rate Environment */}
             <div className="cerniq-panel p-5">
               <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="cerniq-section-label">Entorno de Tasas</p>
-                  <p className="mt-0.5 text-xs text-slate-400">(Rate Environment)</p>
-                </div>
+                <p className="cerniq-section-label">{t('Rate Environment', 'Entorno de Tasas')}</p>
                 <TrendingUp className="h-5 w-5 text-[#1ABFFF]" />
               </div>
               <div className="space-y-0">
@@ -661,40 +697,39 @@ export default function DashboardPage() {
                   >
                     <div>
                       <p className="text-sm font-medium text-slate-700">{rate.label}</p>
-                      <p className="text-[11px] text-slate-400">{rate.impact}</p>
+                      <p className="text-[11px] text-slate-400">{t(rate.impactEn, rate.impactEs)}</p>
                     </div>
                     <span className="font-display text-sm font-bold text-[#1B3A6B]">{rate.value}</span>
                   </div>
                 ))}
               </div>
               <p className="mt-3 text-right text-[10px] text-slate-400">
-                Tasas de referencia — actualizadas periodicamente
+                {t('Reference rates -- updated periodically', 'Tasas de referencia -- actualizadas periodicamente')}
               </p>
             </div>
           </div>
         </section>
 
-        {/* ── Module Cards Grid ── */}
+        {/* -- Module Cards Grid -- */}
         <section className="cerniq-panel p-5 sm:p-6">
           <div className="mb-5">
-            <p className="cerniq-section-label">Modulos</p>
+            <p className="cerniq-section-label">{t('Modules', 'Modulos')}</p>
             <h2 className="mt-2 font-display text-2xl text-slate-950">
-              Herramientas Disponibles
+              {t('Available Tools', 'Herramientas Disponibles')}
             </h2>
-            <p className="mt-1 text-xs text-slate-400">(Available Tools)</p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {MODULE_CARDS.map((card) => (
               <button
-                key={card.href + card.title}
+                key={card.href + card.titleEn}
                 onClick={() => router.push(card.href)}
                 className="group rounded-2xl border-l-4 border-l-[#1B3A6B] border-t border-r border-b border-t-slate-200 border-r-slate-200 border-b-slate-200 bg-white px-4 py-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_18px_38px_rgba(27,58,107,0.10)]"
               >
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <span className="rounded-full border border-[#1ABFFF]/30 bg-[#1ABFFF]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#1B3A6B]">
-                      {card.accent}
+                      {t(card.accentEn, card.accentEs)}
                     </span>
                     {'badge' in card && card.badge && (
                       <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-700">
@@ -706,11 +741,10 @@ export default function DashboardPage() {
                     <card.icon className="h-4 w-4 text-[#1ABFFF]" />
                   </div>
                 </div>
-                <h3 className="font-display text-lg text-slate-950">{card.titleEs}</h3>
-                <p className="text-xs text-slate-400">({card.title})</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{card.descEs}</p>
+                <h3 className="font-display text-lg text-slate-950">{t(card.titleEn, card.titleEs)}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{t(card.descEn, card.descEs)}</p>
                 <div className="mt-3 flex items-center gap-2 text-sm font-medium text-[#1ABFFF]">
-                  Abrir modulo
+                  {t('Open module', 'Abrir modulo')}
                   <ArrowRight className="h-4 w-4" />
                 </div>
               </button>
@@ -718,13 +752,10 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* ── Regulatory Calendar ── */}
+        {/* -- Regulatory Calendar -- */}
         <section className="cerniq-panel p-5 sm:p-6">
           <div className="mb-5 flex items-center justify-between">
-            <div>
-              <p className="cerniq-section-label">Calendario Regulatorio</p>
-              <p className="mt-0.5 text-xs text-slate-400">(Regulatory Calendar)</p>
-            </div>
+            <p className="cerniq-section-label">{t('Regulatory Calendar', 'Calendario Regulatorio')}</p>
             <Calendar className="h-5 w-5 text-[#1ABFFF]" />
           </div>
 
@@ -732,7 +763,7 @@ export default function DashboardPage() {
             <SkeletonLoader variant="text" count={4} />
           ) : calendarDeadlines.length === 0 ? (
             <p className="py-6 text-center text-sm text-slate-400">
-              No hay fechas limite proximas / No upcoming deadlines
+              {t('No upcoming deadlines', 'No hay fechas limite proximas')}
             </p>
           ) : (
             <div className="space-y-0">
@@ -740,9 +771,9 @@ export default function DashboardPage() {
                 const days = daysUntil(deadline.deadlineDate);
                 const daysLabel =
                   days < 0
-                    ? `Vencido (${Math.abs(days)}d)`
+                    ? t(`Overdue (${Math.abs(days)}d)`, `Vencido (${Math.abs(days)}d)`)
                     : days === 0
-                      ? 'Hoy'
+                      ? t('Today', 'Hoy')
                       : `${days}d`;
                 return (
                   <button
@@ -758,14 +789,9 @@ export default function DashboardPage() {
                           deadline.urgency,
                         )}`}
                       />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-700 truncate">
-                          {deadline.titleEs}
-                        </p>
-                        <p className="text-xs text-slate-400 truncate">
-                          ({deadline.title})
-                        </p>
-                      </div>
+                      <p className="text-sm font-medium text-slate-700 truncate">
+                        {t(deadline.titleEn, deadline.titleEs)}
+                      </p>
                     </div>
                     <div className="flex flex-none items-center gap-3 pl-3">
                       <div className="text-right">
@@ -794,31 +820,30 @@ export default function DashboardPage() {
           )}
 
           <p className="mt-3 text-right text-[10px] text-slate-400">
-            Datos de demostracion — conecte su institucion para datos reales
+            {t('Demo data -- connect your institution for real data', 'Datos de demostracion -- conecte su institucion para datos reales')}
           </p>
         </section>
 
-        {/* ── Empty State: No analysis available ── */}
+        {/* -- Empty State: No analysis available -- */}
         {!lastAnalysisDate && (
           <section>
             <EmptyState
               icon={BarChart3}
-              titleEs="No hay analisis disponible"
-              title="No analysis available"
-              descriptionEs="Cargue su hoja de balance para comenzar su primer analisis ALM. Nuestro equipo generara su informe en menos de 24 horas."
-              description="Upload your balance sheet to start your first ALM analysis. Our team will generate your report in less than 24 hours."
-              actionLabelEs="Cargar balance"
-              actionLabel="Upload balance sheet"
+              title={t('No analysis available', 'No hay analisis disponible')}
+              description={t(
+                'Upload your balance sheet to start your first ALM analysis. Our team will generate your report in less than 24 hours.',
+                'Cargue su hoja de balance para comenzar su primer analisis ALM. Nuestro equipo generara su informe en menos de 24 horas.',
+              )}
+              actionLabel={t('Upload balance sheet', 'Cargar balance')}
               onAction={() => router.push('/portal/submit')}
             />
           </section>
         )}
 
-        {/* ── Quick Actions Bar ── */}
+        {/* -- Quick Actions Bar -- */}
         <section className="cerniq-panel p-5 sm:p-6">
           <div className="mb-4">
-            <p className="cerniq-section-label">Acciones Rapidas</p>
-            <p className="mt-0.5 text-xs text-slate-400">(Quick Actions)</p>
+            <p className="cerniq-section-label">{t('Quick Actions', 'Acciones Rapidas')}</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <button
@@ -826,26 +851,23 @@ export default function DashboardPage() {
               className="flex items-center justify-center gap-2 rounded-full bg-[#E8A020] px-6 py-3 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#d4911c] hover:shadow-lg"
             >
               <FileText className="h-4 w-4" />
-              Generar Informe ALM
+              {t('Generate ALM Report', 'Generar Informe ALM')}
             </button>
             <button
               onClick={() => router.push('/portal/submit')}
               className="flex items-center justify-center gap-2 rounded-full bg-[#E8A020] px-6 py-3 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#d4911c] hover:shadow-lg"
             >
               <Upload className="h-4 w-4" />
-              Actualizar Balance Sheet
+              {t('Update Balance Sheet', 'Actualizar Balance Sheet')}
             </button>
             <button
               onClick={() => router.push('/portal/submit')}
               className="flex items-center justify-center gap-2 rounded-full bg-[#E8A020] px-6 py-3 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#d4911c] hover:shadow-lg"
             >
               <Users className="h-4 w-4" />
-              Preparar ALCO
+              {t('Prepare ALCO', 'Preparar ALCO')}
             </button>
           </div>
-          <p className="mt-3 text-xs text-slate-400">
-            (Generate ALM Report &bull; Update Balance Sheet &bull; Prepare ALCO Meeting)
-          </p>
         </section>
 
       </div>

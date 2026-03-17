@@ -31,6 +31,11 @@ export interface TranslationKeys {
     orContinueWith: string;
     noAccount: string;
     hasAccount: string;
+    tagline: string;
+    featureALM: string;
+    featureRatios: string;
+    featureReports: string;
+    featureEncryption: string;
   };
   demo: {
     setupInstitution: string;
@@ -142,6 +147,7 @@ export interface TranslationKeys {
     scenarioBuilder: string;
     profile: string;
     apiKeys: string;
+    description: string;
   };
   stressTest: {
     title: string;

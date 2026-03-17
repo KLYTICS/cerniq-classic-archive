@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { usePortal } from './layout';
+import { useTranslation } from '@/lib/i18n';
 import {
   FileText, Upload, Download, Eye, ArrowRight, Lock, CheckCircle,
   Calendar, ExternalLink, Briefcase,
@@ -53,22 +54,29 @@ function completedStepsForStatus(status: string | undefined): number[] {
 }
 
 /* ---------- rotating processing messages ---------- */
-const PROCESSING_MESSAGES = [
-  { es: 'Validando datos...', en: 'Validating data...' },
-  { es: 'Calculando brechas de duracion...', en: 'Calculating duration gaps...' },
-  { es: 'Ejecutando simulaciones Monte Carlo...', en: 'Running Monte Carlo simulations...' },
-  { es: 'Generando informe PDF...', en: 'Generating PDF report...' },
+const PROCESSING_MESSAGES_EN = [
+  'Validating data...',
+  'Calculating duration gaps...',
+  'Running Monte Carlo simulations...',
+  'Generating PDF report...',
+];
+
+const PROCESSING_MESSAGES_ES = [
+  'Validando datos...',
+  'Calculando brechas de duracion...',
+  'Ejecutando simulaciones Monte Carlo...',
+  'Generando informe PDF...',
 ];
 
 function useRotatingMessage(interval = 3500) {
   const [index, setIndex] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % PROCESSING_MESSAGES.length);
+      setIndex((prev) => (prev + 1) % PROCESSING_MESSAGES_EN.length);
     }, interval);
     return () => clearInterval(timer);
   }, [interval]);
-  return PROCESSING_MESSAGES[index];
+  return { en: PROCESSING_MESSAGES_EN[index], es: PROCESSING_MESSAGES_ES[index] };
 }
 
 /* ---------- Welcome Banner (shown when ?welcome=1) ---------- */
@@ -76,6 +84,8 @@ function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
   const searchParams = useSearchParams();
   const isWelcome = searchParams.get('welcome') === '1';
   const { user } = usePortal();
+  const { locale } = useTranslation();
+  const t = (en: string, es: string) => locale === 'en' ? en : es;
 
   // Mark this user as a portal/billing user so they skip retail onboarding
   if (isWelcome && typeof window !== 'undefined') {
@@ -96,18 +106,23 @@ function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
       <div className="relative z-10">
         <div className="flex items-center gap-2 mb-4">
           <CheckCircle className="h-6 w-6 text-[#18C87A]" />
-          <span className="text-sm font-medium text-[#18C87A]">Payment confirmed / Pago confirmado</span>
+          <span className="text-sm font-medium text-[#18C87A]">
+            {t('Payment confirmed', 'Pago confirmado')}
+          </span>
         </div>
 
         <h1 className="font-display text-2xl sm:text-4xl font-bold text-white leading-tight">
-          Welcome to CERNIQ{institutionName ? `, ${institutionName}` : ''}!
+          {t(
+            `Welcome to CERNIQ${institutionName ? `, ${institutionName}` : ''}!`,
+            `Bienvenido a CERNIQ${institutionName ? `, ${institutionName}` : ''}!`,
+          )}
         </h1>
-        <p className="mt-1 text-lg sm:text-xl text-white/70">
-          Bienvenido a CERNIQ{institutionName ? `, ${institutionName}` : ''}!
-        </p>
 
         <p className="mt-4 text-sm sm:text-base text-white/60 max-w-xl">
-          Your ALM analysis starts here. / Su analisis ALM comienza aqui.
+          {t(
+            'Your ALM analysis starts here.',
+            'Su analisis ALM comienza aqui.',
+          )}
         </p>
 
         <div className="mt-6">
@@ -117,7 +132,7 @@ function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
               className="inline-flex items-center gap-2 rounded-xl bg-[#E8A020] px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[#d19218] transition-colors"
             >
               <Upload className="h-4 w-4" />
-              Upload data / Cargar datos
+              {t('Upload data', 'Cargar datos')}
               <ArrowRight className="h-4 w-4" />
             </Link>
           ) : (
@@ -125,7 +140,7 @@ function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
               href="/portal/submit"
               className="inline-flex items-center gap-2 rounded-xl bg-[#E8A020] px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[#d19218] transition-colors"
             >
-              Set up institution / Configurar institucion
+              {t('Set up institution', 'Configurar institucion')}
               <ArrowRight className="h-4 w-4" />
             </Link>
           )}
@@ -138,6 +153,8 @@ function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
 /* ---------- Processing State ---------- */
 function ProcessingState({ job }: { job: ReportJob }) {
   const msg = useRotatingMessage();
+  const { locale } = useTranslation();
+  const t = (en: string, es: string) => locale === 'en' ? en : es;
 
   const progressPercent =
     job.status === 'VALIDATING' ? 20
@@ -160,19 +177,13 @@ function ProcessingState({ job }: { job: ReportJob }) {
       </div>
 
       <h2 className="text-lg font-semibold text-slate-900">
-        Processing your ALM analysis...
+        {t('Processing your ALM analysis...', 'Procesando su analisis ALM...')}
       </h2>
-      <p className="text-sm text-slate-500 mt-1">
-        Procesando su analisis ALM...
-      </p>
 
       {/* Rotating status message */}
       <div className="mt-5 min-h-[3rem]">
         <p className="text-sm font-medium text-[#1ABFFF] animate-pulse">
-          {msg.en}
-        </p>
-        <p className="text-xs text-slate-400 mt-0.5">
-          {msg.es}
+          {t(msg.en, msg.es)}
         </p>
       </div>
 
@@ -191,11 +202,11 @@ function ProcessingState({ job }: { job: ReportJob }) {
 
       <div className="mt-6 rounded-xl bg-slate-50 border border-slate-100 p-4 max-w-sm mx-auto">
         <p className="text-xs text-slate-500">
-          <strong className="text-slate-700">Estimated time / Tiempo estimado:</strong>{' '}
-          30-60 minutos
+          <strong className="text-slate-700">{t('Estimated time', 'Tiempo estimado')}:</strong>{' '}
+          {t('30-60 minutes', '30-60 minutos')}
         </p>
         <p className="text-[10px] text-slate-400 mt-1">
-          We will email you when it is ready. / Le enviaremos un email cuando este listo.
+          {t('We will email you when it is ready.', 'Le enviaremos un email cuando este listo.')}
         </p>
       </div>
     </div>
@@ -228,7 +239,7 @@ function AlcoPackButton({ jobId, compact }: { jobId: string; compact?: boolean }
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {
-      // Silently handle — user can retry
+      // Silently handle -- user can retry
     }
     setLoading(false);
   };
@@ -260,6 +271,9 @@ function AlcoPackButton({ jobId, compact }: { jobId: string; compact?: boolean }
 
 /* ---------- Report Ready State ---------- */
 function ReportReadyState({ job }: { job: ReportJob }) {
+  const { locale } = useTranslation();
+  const t = (en: string, es: string) => locale === 'en' ? en : es;
+
   return (
     <div className="rounded-2xl border-t-4 border-t-[#18C87A] bg-white shadow-sm border border-slate-200/80 p-8">
       <div className="flex items-start gap-4">
@@ -268,17 +282,13 @@ function ReportReadyState({ job }: { job: ReportJob }) {
         </div>
         <div className="flex-1">
           <h2 className="text-xl font-semibold text-slate-900">
-            Your ALM Report is Ready
+            {t('Your ALM Report is Ready', 'Su Informe ALM esta Listo')}
           </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Su Informe ALM esta listo
-          </p>
           <p className="mt-3 text-sm text-slate-600">
-            The report for <strong>{job.institutionName}</strong> has been generated successfully.
-            <br />
-            <span className="text-slate-400">
-              El informe para <strong>{job.institutionName}</strong> ha sido generado exitosamente.
-            </span>
+            {t(
+              `The report for ${job.institutionName} has been generated successfully.`,
+              `El informe para ${job.institutionName} ha sido generado exitosamente.`,
+            )}
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -287,14 +297,14 @@ function ReportReadyState({ job }: { job: ReportJob }) {
               className="inline-flex items-center gap-2 rounded-xl bg-[#E8A020] px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[#d19218] transition-colors"
             >
               <Eye className="h-4 w-4" />
-              View report / Ver informe
+              {t('View report', 'Ver informe')}
             </Link>
             <a
               href={`${NODE_API_URL}/api/portal/jobs/${job.id}/download`}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <Download className="h-4 w-4" />
-              Download PDF / Descargar PDF
+              {t('Download PDF', 'Descargar PDF')}
             </a>
             <AlcoPackButton jobId={job.id} />
           </div>
@@ -305,10 +315,7 @@ function ReportReadyState({ job }: { job: ReportJob }) {
               <Calendar className="h-5 w-5 text-[#1ABFFF] mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm font-medium text-slate-700">
-                  Want to review the report together?
-                </p>
-                <p className="text-xs text-slate-400">
-                  Quiere revisar el informe juntos?
+                  {t('Want to review the report together?', 'Quiere revisar el informe juntos?')}
                 </p>
                 <a
                   href="https://calendly.com/erwin-klytics/30min"
@@ -316,7 +323,7 @@ function ReportReadyState({ job }: { job: ReportJob }) {
                   rel="noopener noreferrer"
                   className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-[#1ABFFF] hover:underline"
                 >
-                  Schedule 30 min with Erwin / Agende 30 min con Erwin
+                  {t('Schedule 30 min with Erwin', 'Agende 30 min con Erwin')}
                   <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
@@ -330,6 +337,9 @@ function ReportReadyState({ job }: { job: ReportJob }) {
 
 /* ---------- Status Badge ---------- */
 function StatusBadge({ status }: { status: string }) {
+  const { locale } = useTranslation();
+  const t = (en: string, es: string) => locale === 'en' ? en : es;
+
   let bg: string;
   let text: string;
   let label: string;
@@ -337,31 +347,31 @@ function StatusBadge({ status }: { status: string }) {
     case 'COMPLETE':
       bg = 'bg-[#18C87A]/10';
       text = 'text-[#18C87A]';
-      label = 'Complete / Completado';
+      label = t('Complete', 'Completado');
       break;
     case 'PROCESSING':
     case 'GENERATING_PDF':
     case 'UPLOADING':
       bg = 'bg-[#1ABFFF]/10';
       text = 'text-[#1ABFFF]';
-      label = 'Processing / Procesando';
+      label = t('Processing', 'Procesando');
       break;
     case 'QUEUED':
     case 'VALIDATING':
       bg = 'bg-[#E8A020]/10';
       text = 'text-[#E8A020]';
-      label = 'Queued / En cola';
+      label = t('Queued', 'En cola');
       break;
     case 'AWAITING_DATA':
       bg = 'bg-slate-100';
       text = 'text-slate-500';
-      label = 'Awaiting data / Esperando datos';
+      label = t('Awaiting data', 'Esperando datos');
       break;
     case 'FAILED':
     case 'VALIDATION_FAILED':
       bg = 'bg-rose-50';
       text = 'text-rose-600';
-      label = 'Failed / Error';
+      label = t('Failed', 'Error');
       break;
     default:
       bg = 'bg-slate-100';
@@ -378,6 +388,9 @@ function StatusBadge({ status }: { status: string }) {
 /* ---------- Main Page ---------- */
 export default function PortalHome() {
   const { user, subscription } = usePortal();
+  const { locale } = useTranslation();
+  const t = (en: string, es: string) => locale === 'en' ? en : es;
+
   const [jobs, setJobs] = useState<ReportJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -393,13 +406,13 @@ export default function PortalHome() {
       if (res.ok) {
         setJobs(await res.json());
       } else {
-        setFetchError('No se pudo cargar los informes. Intente de nuevo.');
+        setFetchError(t('Could not load reports. Please try again.', 'No se pudo cargar los informes. Intente de nuevo.'));
       }
     } catch {
-      setFetchError('Error de conexion. Verifique su internet e intente de nuevo.');
+      setFetchError(t('Connection error. Check your internet and try again.', 'Error de conexion. Verifique su internet e intente de nuevo.'));
     }
     setLoading(false);
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -422,7 +435,10 @@ export default function PortalHome() {
   return (
     <div className="space-y-6">
       <h1 className="sr-only">
-        Welcome back{user?.name ? `, ${user.name}` : ''}
+        {t(
+          `Welcome back${user?.name ? `, ${user.name}` : ''}`,
+          `Bienvenido${user?.name ? `, ${user.name}` : ''}`,
+        )}
       </h1>
 
       {/* Welcome banner (only when ?welcome=1) */}
@@ -439,39 +455,42 @@ export default function PortalHome() {
       {/* Progress Tracker */}
       <div className="cerniq-panel p-6">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-          Progress / Progreso
+          {t('Progress', 'Progreso')}
         </h2>
         <ProgressTracker currentStep={currentStep} completedSteps={completed} />
       </div>
 
-      {/* Processing State — immersive spinner */}
+      {/* Processing State -- immersive spinner */}
       {isProcessing && latestJob && (
         <ProcessingState job={latestJob} />
       )}
 
-      {/* Report Ready State — celebration card */}
+      {/* Report Ready State -- celebration card */}
       {isComplete && latestJob && (
         <ReportReadyState job={latestJob} />
       )}
 
-      {/* Next Step — only show for non-processing, non-complete states */}
+      {/* Next Step -- only show for non-processing, non-complete states */}
       {!isProcessing && !isComplete && (
         <div className="cerniq-panel p-6">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">
-            Next step / Siguiente paso
+            {t('Next step', 'Siguiente paso')}
           </h2>
 
           {!latestJob && (
             <div>
               <p className="mb-4 text-slate-700">
-                Get started by submitting your balance sheet data. / Comience enviando sus datos de balance.
+                {t(
+                  'Get started by submitting your balance sheet data.',
+                  'Comience enviando sus datos de balance.',
+                )}
               </p>
               <div className="flex gap-3">
                 <Link
                   href="/portal/submit"
                   className="cerniq-button-primary px-4 py-2.5 text-sm"
                 >
-                  <Upload className="h-4 w-4" /> Upload data / Cargar datos
+                  <Upload className="h-4 w-4" /> {t('Upload data', 'Cargar datos')}
                 </Link>
               </div>
             </div>
@@ -480,24 +499,23 @@ export default function PortalHome() {
           {latestJob?.status === 'AWAITING_DATA' && (
             <div>
               <p className="mb-4 text-slate-700">
-                Submit your balance sheet to generate the report for <strong>{latestJob.institutionName}</strong>.
-                <br />
-                <span className="text-slate-400 text-sm">
-                  Envie su balance para generar el informe de <strong>{latestJob.institutionName}</strong>.
-                </span>
+                {t(
+                  `Submit your balance sheet to generate the report for ${latestJob.institutionName}.`,
+                  `Envie su balance para generar el informe de ${latestJob.institutionName}.`,
+                )}
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
                   href={`${NODE_API_URL}/api/alm/templates/cooperativa`}
                   className="cerniq-button-secondary px-4 py-2.5 text-sm"
                 >
-                  <Download className="h-4 w-4" /> Download template / Descargar plantilla
+                  <Download className="h-4 w-4" /> {t('Download template', 'Descargar plantilla')}
                 </a>
                 <Link
                   href="/portal/submit"
                   className="cerniq-button-primary px-4 py-2.5 text-sm"
                 >
-                  <Upload className="h-4 w-4" /> Upload data / Cargar datos
+                  <Upload className="h-4 w-4" /> {t('Upload data', 'Cargar datos')}
                 </Link>
               </div>
             </div>
@@ -506,11 +524,10 @@ export default function PortalHome() {
           {latestJob?.status === 'FAILED' && (
             <div>
               <p className="mb-4 text-rose-700">
-                There was an issue generating your report. Our team has been notified.
-                <br />
-                <span className="text-rose-400 text-sm">
-                  Hubo un problema generando su informe. Nuestro equipo ha sido notificado.
-                </span>
+                {t(
+                  'There was an issue generating your report. Our team has been notified.',
+                  'Hubo un problema generando su informe. Nuestro equipo ha sido notificado.',
+                )}
               </p>
             </div>
           )}
@@ -525,12 +542,12 @@ export default function PortalHome() {
               <Lock className="mx-auto mb-3 h-8 w-8 text-[#E8A020]" />
               <p className="mb-2 text-sm font-medium text-slate-950">{trendFeature.upgradePrompt}</p>
               <Link href="/portal/billing" className="text-xs text-[#E8A020] hover:underline">
-                Upgrade plan / Mejorar plan <ArrowRight className="inline h-3 w-3" />
+                {t('Upgrade plan', 'Mejorar plan')} <ArrowRight className="inline h-3 w-3" />
               </Link>
             </div>
           </div>
           <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Quarterly trends / Tendencias trimestrales
+            {t('Quarterly trends', 'Tendencias trimestrales')}
           </h2>
           <div className="h-48 rounded-lg bg-slate-100" />
         </div>
@@ -539,8 +556,8 @@ export default function PortalHome() {
       {/* Error Banner */}
       {fetchError && (
         <ErrorBanner
-          titleEs={fetchError}
-          error="Could not load reports. Please try again."
+          titleEs={locale === 'es' ? fetchError : undefined}
+          error={fetchError}
           onRetry={loadJobs}
           onDismiss={() => setFetchError(null)}
         />
@@ -550,7 +567,7 @@ export default function PortalHome() {
       <div className="cerniq-table-shell overflow-hidden">
         <div className="border-b border-slate-200/80 px-6 py-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Report history / Historial de informes
+            {t('Report history', 'Historial de informes')}
           </h2>
         </div>
         {loading ? (
@@ -561,12 +578,12 @@ export default function PortalHome() {
           <div className="p-6">
             <EmptyState
               icon={FileText}
-              titleEs="No hay informes todavia"
-              title="No reports yet"
-              descriptionEs="Envie sus datos de balance para generar su primer informe ALM."
-              description="Submit your balance sheet data to generate your first ALM report."
-              actionLabelEs="Cargar datos"
-              actionLabel="Upload data"
+              title={t('No reports yet', 'No hay informes todavia')}
+              description={t(
+                'Submit your balance sheet data to generate your first ALM report.',
+                'Envie sus datos de balance para generar su primer informe ALM.',
+              )}
+              actionLabel={t('Upload data', 'Cargar datos')}
               onAction={() => {
                 if (typeof window !== 'undefined') window.location.href = '/portal/submit';
               }}
@@ -578,16 +595,16 @@ export default function PortalHome() {
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/60">
                   <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Institution / Institucion
+                    {t('Institution', 'Institucion')}
                   </th>
                   <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Status / Estado
+                    {t('Status', 'Estado')}
                   </th>
                   <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Date / Fecha
+                    {t('Date', 'Fecha')}
                   </th>
                   <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Actions / Acciones
+                    {t('Actions', 'Acciones')}
                   </th>
                 </tr>
               </thead>
@@ -613,7 +630,7 @@ export default function PortalHome() {
                             className="inline-flex items-center gap-1 text-xs font-medium text-[#1ABFFF] hover:underline"
                           >
                             <Eye className="h-3 w-3" />
-                            View / Ver
+                            {t('View', 'Ver')}
                           </Link>
                           <AlcoPackButton jobId={job.id} compact />
                         </div>
@@ -623,7 +640,7 @@ export default function PortalHome() {
                           className="inline-flex items-center gap-1 text-xs font-medium text-[#E8A020] hover:underline"
                         >
                           <Upload className="h-3 w-3" />
-                          Upload / Cargar
+                          {t('Upload', 'Cargar')}
                         </Link>
                       ) : (
                         <span className="text-xs text-slate-400">--</span>
