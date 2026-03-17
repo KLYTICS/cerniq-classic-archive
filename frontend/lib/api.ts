@@ -1010,6 +1010,38 @@ class APIClient {
     });
   }
 
+  // --- Custom Stress Scenario Builder ---
+
+  async runCustomStressTest(institutionId: string, params: {
+    rateShockBps: number;
+    depositRunoffPct: number;
+    defaultRateIncreasePct: number;
+    energyCostShockPct: number;
+  }) {
+    const response = await this.client.post(
+      `${NODE_API_URL}/api/alm/${institutionId}/stress/custom`,
+      params,
+    );
+    return response.data;
+  }
+
+  // --- Compliance Calendar ---
+
+  async getComplianceCalendar(institutionId: string): Promise<{
+    id: string;
+    title: string;
+    titleEs: string;
+    deadlineDate: string;
+    category: 'exam' | 'report' | 'meeting' | 'tax' | 'internal';
+    urgency: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'OVERDUE';
+    description: string;
+    descriptionEs: string;
+    relatedModule: string;
+  }[]> {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/calendar`);
+    return response.data;
+  }
+
   getALMReportUrl(institutionId: string, lang: string = 'en'): string {
     return `${NODE_API_URL}/api/alm/${institutionId}/report?lang=${lang}`;
   }
@@ -1044,6 +1076,21 @@ class APIClient {
         currency: 'USD',
       }
     });
+  }
+
+  // --- AI Advisor ---
+
+  async askAdvisor(
+    institutionId: string,
+    message: string,
+    conversationHistory: Array<{ role: string; content: string }> = [],
+    language: string = 'es',
+  ): Promise<{ response: string; tokensUsed: number }> {
+    const response = await this.client.post(
+      `${NODE_API_URL}/api/alm/${institutionId}/advisor`,
+      { message, conversationHistory, language },
+    );
+    return response.data;
   }
 
   // --- Workspaces (ALM) ---

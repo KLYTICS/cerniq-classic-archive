@@ -16,9 +16,14 @@ import {
   ArrowDownRight,
   Building2,
   Download,
+  Sparkles,
+  SlidersHorizontal,
+  X,
+  MessageCircle,
 } from 'lucide-react';
 import RiskScoreGauge from '@/components/alm/RiskScoreGauge';
 import RiskBadge from '@/components/alm/RiskBadge';
+import AIAdvisorChat from '@/components/alm/AIAdvisorChat';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
 import { usePDFExport } from '@/hooks/usePDFExport';
@@ -143,6 +148,7 @@ export default function ALMOverviewPage() {
   const [summary, setSummary] = useState<ALMSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [advisorOpen, setAdvisorOpen] = useState(false);
 
   const fetchSummary = useCallback(async (institutionId: string) => {
     setLoading(true);
@@ -211,7 +217,11 @@ export default function ALMOverviewPage() {
     { href: '/alm/liquidity', icon: Shield, title: t('alm.liquidity'), desc: t('alm.liquidityDesc'), accent: 'from-emerald-50 to-white border-emerald-100 hover:border-emerald-200', iconColor: 'text-emerald-700' },
     { href: '/alm/balance-sheet', icon: DollarSign, title: t('alm.balanceSheet'), desc: t('alm.balanceSheetDesc'), accent: 'from-cyan-50 to-white border-cyan-100 hover:border-cyan-200', iconColor: 'text-cyan-700' },
     { href: '/alm/stress-test', icon: Zap, title: t('alm.stressTesting'), desc: t('alm.stressTestingDesc'), accent: 'from-amber-50 to-white border-amber-100 hover:border-amber-200', iconColor: 'text-amber-700' },
+    { href: '/alm/scenario-builder', icon: SlidersHorizontal, title: t('sidebar.scenarioBuilder'), desc: 'Custom shock designer', accent: 'from-orange-50 to-white border-orange-100 hover:border-orange-200', iconColor: 'text-orange-700' },
   ];
+
+  const advisorTitle = locale === 'es' ? 'Asesor IA' : 'AI Advisor';
+  const advisorDesc = locale === 'es' ? 'Pregunta sobre riesgo' : 'Ask about risk';
 
   const fallbackRecs = ta('alm.fallbackRecs');
 
@@ -376,7 +386,7 @@ export default function ALMOverviewPage() {
 
           {/* Quick Navigation */}
           <SectionHeader title={t('alm.analysisModules')} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {navCards.map((item) => (
               <Link
                 key={item.href}
@@ -397,6 +407,24 @@ export default function ALMOverviewPage() {
                 </div>
               </Link>
             ))}
+            {/* AI Advisor card */}
+            <button
+              onClick={() => setAdvisorOpen(true)}
+              className="group rounded-xl border bg-gradient-to-br from-amber-50 via-white to-[#1B3A6B]/5 border-amber-200 hover:border-amber-300 p-4 transition-all text-left"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-200 bg-gradient-to-br from-amber-100 to-amber-50">
+                    <Sparkles className="h-4 w-4 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-950">{advisorTitle}</p>
+                    <p className="text-[11px] text-slate-500">{advisorDesc}</p>
+                  </div>
+                </div>
+                <MessageCircle className="h-4 w-4 text-amber-400 transition group-hover:text-amber-600" />
+              </div>
+            </button>
           </div>
 
           {/* Recommendations */}
@@ -461,8 +489,44 @@ export default function ALMOverviewPage() {
               {isExporting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               {isExporting ? t('common.processing') : t('alm.downloadPdf')}
             </button>
+            <button
+              onClick={() => setAdvisorOpen(true)}
+              className="flex items-center gap-2 rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-white px-4 py-2.5 text-sm font-medium text-amber-700 transition hover:border-amber-300 hover:shadow-sm"
+            >
+              <Sparkles className="h-4 w-4" />
+              {locale === 'es' ? 'Consultar Asesor IA' : 'Ask AI Advisor'}
+            </button>
           </div>
         </>
+      )}
+
+      {/* ── AI Advisor Slide-Over Panel ── */}
+      {advisorOpen && selectedId && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm transition-opacity"
+            onClick={() => setAdvisorOpen(false)}
+          />
+          {/* Panel */}
+          <div className="fixed right-0 top-0 z-50 flex h-full w-full max-w-lg flex-col shadow-2xl animate-in slide-in-from-right duration-300">
+            <AIAdvisorChat
+              institutionId={selectedId}
+              onClose={() => setAdvisorOpen(false)}
+            />
+          </div>
+        </>
+      )}
+
+      {/* ── Floating AI Advisor Button (visible when panel is closed) ── */}
+      {!advisorOpen && selectedId && summary && (
+        <button
+          onClick={() => setAdvisorOpen(true)}
+          className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1B3A6B] to-[#234B82] text-white shadow-lg shadow-[#1B3A6B]/25 transition hover:scale-105 hover:shadow-xl"
+          title={locale === 'es' ? 'Asesor IA de Riesgo' : 'AI Risk Advisor'}
+        >
+          <Sparkles className="h-6 w-6 text-amber-300" />
+        </button>
       )}
     </div>
   );

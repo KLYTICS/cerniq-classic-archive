@@ -5,6 +5,7 @@ import { ReportStorageService } from './report-storage.service';
 import { EmailService } from '../email/email.service';
 import { AlmEnterpriseService } from '../alm/alm-enterprise.service';
 import { StressTestingService } from '../alm/stress-testing/stress-testing.service';
+import { ComplianceCalendarService } from '../alm/compliance-calendar.service';
 import { DataCryptoService } from '../crypto/data-crypto.service';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -24,6 +25,7 @@ export class PipelineWorker {
     private readonly email: EmailService,
     private readonly almEnterprise: AlmEnterpriseService,
     private readonly stressTesting: StressTestingService,
+    private readonly complianceCalendar: ComplianceCalendarService,
     private readonly dataCrypto: DataCryptoService,
   ) {}
 
@@ -1616,6 +1618,64 @@ export class PipelineWorker {
         return;
       }
       this.logger.error({ event: 'pipeline.stalled_check.failed', error: error.message });
+    }
+  }
+
+  // ── Compliance Deadline Reminders (MP-PROD-03) ──────────────────
+  @Cron('0 11 * * *') // 7am AST (11:00 UTC) daily
+  async sendDeadlineReminders() {
+    try {
+      const results = await this.complianceCalendar.getInstitutionsWithUpcomingDeadlines(30);
+
+      if (results.length === 0) return;
+
+      this.logger.log({
+        event: 'pipeline.deadline_reminders.start',
+        institutionsCount: results.length,
+      });
+
+      for (const inst of results) {
+        if (!inst.contactEmail) continue;
+
+        const deadlineList = inst.deadlines
+          .map((d) => {
+            const days = Math.floor(
+              (new Date(d.deadlineDate).getTime() - Date.now()) / 86_400_000,
+            );
+            const daysLabel =
+              days < 0
+                ? `VENCIDO (${Math.abs(days)}d)`
+                : `${days} dias`;
+            return `- [${d.urgency}] ${d.titleEs} / ${d.title}: ${daysLabel}`;
+          })
+          .join('\n');
+
+        try {
+          await this.email.sendDailyOperationsReport({
+            pendingJobs: 0,
+            failedJobs: 0,
+            newLeads: 0,
+            pendingFollowUps: inst.deadlines.length,
+          });
+
+          this.logger.log({
+            event: 'pipeline.deadline_reminder.sent',
+            institution: inst.institutionName,
+            deadlinesCount: inst.deadlines.length,
+          });
+        } catch (err: any) {
+          this.logger.error({
+            event: 'pipeline.deadline_reminder.failed',
+            institution: inst.institutionName,
+            error: err.message,
+          });
+        }
+      }
+    } catch (error: any) {
+      this.logger.error({
+        event: 'pipeline.deadline_reminders.failed',
+        error: error.message,
+      });
     }
   }
 

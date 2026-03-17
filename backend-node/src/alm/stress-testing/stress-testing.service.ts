@@ -16,6 +16,30 @@ function round(value: number, decimals: number): number {
   return Math.round(value * factor) / factor;
 }
 
+// ─── Custom Scenario Interfaces ───────────────────────────────
+
+export interface CustomScenarioParams {
+  rateShockBps: number;              // -300 to +300
+  depositRunoffPct: number;          // 0 to 30
+  defaultRateIncreasePct: number;    // 0 to 15
+  energyCostShockPct: number;        // 0 to 50
+}
+
+export interface CustomScenarioResult {
+  nimImpactBps: number;
+  nimBefore: number;
+  nimAfter: number;
+  lcrBefore: number;
+  lcrAfter: number;
+  capitalBefore: number;
+  capitalAfter: number;
+  examReadinessBefore: number;
+  examReadinessAfter: number;
+  verdict: 'RESILIENT' | 'ADEQUATE' | 'VULNERABLE' | 'CRITICAL';
+  narrative: string;
+  narrativeEs: string;
+}
+
 // ─── Result Interfaces ────────────────────────────────────────
 
 export interface MonteCarloParams {
@@ -516,6 +540,191 @@ export class StressTestingService {
       lcrImpact,
       capitalImpact,
       passFailStatus: this.assessPassFail(niImpact, baseNII, lcrImpact),
+    };
+  }
+
+  // ─── Custom Scenario Builder ──────────────────────────────────
+
+  async runCustomScenario(
+    institutionId: string,
+    params: CustomScenarioParams,
+  ): Promise<CustomScenarioResult> {
+    this.logger.log(
+      `Custom scenario: rate=${params.rateShockBps}bps, deposits=${params.depositRunoffPct}%, defaults=${params.defaultRateIncreasePct}%, energy=${params.energyCostShockPct}%`,
+    );
+
+    // Clamp parameters to valid ranges
+    const rateShockBps = Math.max(-300, Math.min(300, params.rateShockBps));
+    const depositRunoffPct = Math.max(0, Math.min(30, params.depositRunoffPct));
+    const defaultRateIncreasePct = Math.max(0, Math.min(15, params.defaultRateIncreasePct));
+    const energyCostShockPct = Math.max(0, Math.min(50, params.energyCostShockPct));
+
+    // Fetch institution data via ALM enterprise service
+    let niiSensitivity: any;
+    let liquidity: any;
+    let cossec: any;
+    try {
+      [niiSensitivity, liquidity, cossec] = await Promise.all([
+        this.almEnterprise.calculateNIISensitivity(institutionId),
+        this.almEnterprise.calculateLCR(institutionId),
+        this.almEnterprise.getCOSSECCompliance(institutionId),
+      ]);
+    } catch (err) {
+      this.logger.warn(`Custom scenario: could not load institution data — returning empty result`);
+      return this.emptyCustomScenarioResult();
+    }
+
+    const baseNII = niiSensitivity.baseNII; // in $M
+    const baseLCR = liquidity.lcr;
+    const summary = cossec?.summary;
+    const totalAssets = summary?.totalAssets ?? 0;
+    const totalLoans = summary?.totalLoans ?? 0;
+    const totalShares = summary?.totalShares ?? 0;
+    const capitalRatioBefore = summary?.capitalRatio ?? 0;
+    const nimBefore = summary?.nim ?? 0;
+    const examReadinessBefore = cossec?.examReadinessScore ?? 0;
+
+    // ── 1. Rate Shock → NIM / NII Impact ──
+    // Find closest NII sensitivity scenario and interpolate
+    const closestScenario = niiSensitivity.scenarios.reduce(
+      (prev: any, curr: any) =>
+        Math.abs(curr.shiftBps - rateShockBps) < Math.abs(prev.shiftBps - rateShockBps)
+          ? curr
+          : prev,
+    );
+    const scaleFactor =
+      closestScenario.shiftBps !== 0 ? rateShockBps / closestScenario.shiftBps : 1;
+    const niiImpact = closestScenario.niImpact * scaleFactor; // in $M
+    const niiImpactPct = baseNII !== 0 ? (niiImpact / baseNII) * 100 : 0;
+
+    // NIM change: approximate as proportional to NII change
+    const nimImpactBps = round(niiImpactPct * 3, 0); // ~3bps per 1% NII change
+    const nimAfter = round(Math.max(0, nimBefore + nimImpactBps / 100), 2);
+
+    // ── 2. Deposit Runoff → LCR Impact ──
+    // Deposit outflow reduces HQLA and increases net outflows
+    const depositOutflow = totalShares * (depositRunoffPct / 100);
+    // Replacement funding at higher marginal rates increases costs
+    const depositFundingCost = depositOutflow * 0.015; // 150bps marginal cost
+    // LCR drops proportionally to deposit outflow vs HQLA
+    const hqla = liquidity.hqla || 0;
+    const lcrReduction = hqla > 0
+      ? (depositOutflow / Math.max(hqla, 1)) * 100 * 0.5 // 50% pass-through to LCR
+      : depositRunoffPct * 2;
+    const lcrAfter = round(Math.max(0, baseLCR - lcrReduction), 1);
+
+    // ── 3. Loan Default Increase → Capital Impact ──
+    // Additional credit losses from increased defaults
+    const additionalCreditLoss = totalLoans * (defaultRateIncreasePct / 100);
+    // Capital ratio impact: loss / total assets (% points)
+    const capitalImpactPct = totalAssets > 0
+      ? (additionalCreditLoss / totalAssets) * 100
+      : 0;
+    const capitalAfter = round(Math.max(0, capitalRatioBefore - capitalImpactPct), 2);
+
+    // ── 4. Energy Cost Shock → Operating Expense Stress ──
+    // Energy costs typically 2-5% of operating expenses for PR institutions
+    // Assume operating expenses ~40% of NII, energy ~3% of opex
+    const baseOpex = baseNII * 0.4;
+    const energyBaseCost = baseOpex * 0.03;
+    const energyIncrease = energyBaseCost * (energyCostShockPct / 100);
+    // Reduces effective NII
+    const effectiveNIIImpact = niiImpact - depositFundingCost - energyIncrease;
+
+    // ── 5. Combined Exam Readiness Score ──
+    let examDeductions = 0;
+    // NIM degradation
+    if (nimAfter < nimBefore) {
+      const nimDropPct = ((nimBefore - nimAfter) / Math.max(nimBefore, 0.01)) * 100;
+      if (nimDropPct > 20) examDeductions += 15;
+      else if (nimDropPct > 10) examDeductions += 10;
+      else if (nimDropPct > 5) examDeductions += 5;
+    }
+    // LCR breach
+    if (lcrAfter < 100) examDeductions += 15;
+    else if (lcrAfter < 110) examDeductions += 8;
+    // Capital below well-capitalized
+    if (capitalAfter < 6) examDeductions += 20;
+    else if (capitalAfter < 8) examDeductions += 10;
+    // High defaults
+    if (defaultRateIncreasePct > 8) examDeductions += 10;
+    else if (defaultRateIncreasePct > 3) examDeductions += 5;
+
+    const examReadinessAfter = Math.max(0, examReadinessBefore - examDeductions);
+
+    // ── 6. Verdict ──
+    let verdict: CustomScenarioResult['verdict'];
+    if (capitalAfter >= 8 && lcrAfter >= 100 && examReadinessAfter >= 70) {
+      verdict = 'RESILIENT';
+    } else if (capitalAfter >= 6 && lcrAfter >= 90 && examReadinessAfter >= 50) {
+      verdict = 'ADEQUATE';
+    } else if (capitalAfter >= 4 && lcrAfter >= 80) {
+      verdict = 'VULNERABLE';
+    } else {
+      verdict = 'CRITICAL';
+    }
+
+    // ── 7. Bilingual Narrative ──
+    const narrative = this.buildCustomNarrative(
+      rateShockBps, depositRunoffPct, defaultRateIncreasePct, energyCostShockPct,
+      nimBefore, nimAfter, baseLCR, lcrAfter, capitalRatioBefore, capitalAfter, verdict, 'en',
+    );
+    const narrativeEs = this.buildCustomNarrative(
+      rateShockBps, depositRunoffPct, defaultRateIncreasePct, energyCostShockPct,
+      nimBefore, nimAfter, baseLCR, lcrAfter, capitalRatioBefore, capitalAfter, verdict, 'es',
+    );
+
+    return {
+      nimImpactBps: round(nimImpactBps, 0),
+      nimBefore: round(nimBefore, 2),
+      nimAfter,
+      lcrBefore: round(baseLCR, 1),
+      lcrAfter,
+      capitalBefore: round(capitalRatioBefore, 2),
+      capitalAfter,
+      examReadinessBefore,
+      examReadinessAfter,
+      verdict,
+      narrative,
+      narrativeEs,
+    };
+  }
+
+  private buildCustomNarrative(
+    rateShockBps: number, depositRunoffPct: number,
+    defaultRateIncreasePct: number, energyCostShockPct: number,
+    nimBefore: number, nimAfter: number,
+    lcrBefore: number, lcrAfter: number,
+    capitalBefore: number, capitalAfter: number,
+    verdict: string, lang: 'en' | 'es',
+  ): string {
+    if (lang === 'es') {
+      const shocks: string[] = [];
+      if (rateShockBps !== 0) shocks.push(`choque de tasas de ${rateShockBps > 0 ? '+' : ''}${rateShockBps}bps`);
+      if (depositRunoffPct > 0) shocks.push(`fuga de depositos del ${depositRunoffPct}%`);
+      if (defaultRateIncreasePct > 0) shocks.push(`aumento de morosidad del ${defaultRateIncreasePct}%`);
+      if (energyCostShockPct > 0) shocks.push(`aumento de costos energeticos del ${energyCostShockPct}%`);
+      const shockStr = shocks.length > 0 ? shocks.join(', ') : 'sin choques aplicados';
+      return `Bajo este escenario (${shockStr}), el NIM se mueve de ${nimBefore.toFixed(2)}% a ${nimAfter.toFixed(2)}%, el LCR cambia de ${lcrBefore.toFixed(1)}% a ${lcrAfter.toFixed(1)}%, y el ratio de capital se ajusta de ${capitalBefore.toFixed(2)}% a ${capitalAfter.toFixed(2)}%. Veredicto: ${verdict}.`;
+    }
+    const shocks: string[] = [];
+    if (rateShockBps !== 0) shocks.push(`${rateShockBps > 0 ? '+' : ''}${rateShockBps}bps rate shock`);
+    if (depositRunoffPct > 0) shocks.push(`${depositRunoffPct}% deposit runoff`);
+    if (defaultRateIncreasePct > 0) shocks.push(`${defaultRateIncreasePct}% default rate increase`);
+    if (energyCostShockPct > 0) shocks.push(`${energyCostShockPct}% energy cost shock`);
+    const shockStr = shocks.length > 0 ? shocks.join(', ') : 'no shocks applied';
+    return `Under this scenario (${shockStr}), NIM moves from ${nimBefore.toFixed(2)}% to ${nimAfter.toFixed(2)}%, LCR changes from ${lcrBefore.toFixed(1)}% to ${lcrAfter.toFixed(1)}%, and capital ratio adjusts from ${capitalBefore.toFixed(2)}% to ${capitalAfter.toFixed(2)}%. Verdict: ${verdict}.`;
+  }
+
+  private emptyCustomScenarioResult(): CustomScenarioResult {
+    return {
+      nimImpactBps: 0, nimBefore: 0, nimAfter: 0,
+      lcrBefore: 0, lcrAfter: 0,
+      capitalBefore: 0, capitalAfter: 0,
+      examReadinessBefore: 0, examReadinessAfter: 0,
+      verdict: 'CRITICAL',
+      narrative: 'No balance sheet data available. Upload your balance sheet to use the scenario builder.',
+      narrativeEs: 'No hay datos de balance disponibles. Cargue su balance para usar el constructor de escenarios.',
     };
   }
 

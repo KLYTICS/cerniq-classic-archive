@@ -1,12 +1,16 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
+import { apiClient } from '@/lib/api';
 import {
+  AlertTriangle,
   ArrowRight,
   BarChart3,
   Building2,
+  Calendar,
+  Clock,
   CreditCard,
   FileText,
   Landmark,
@@ -124,6 +128,160 @@ const MODULE_CARDS = [
   },
 ];
 
+/* ─── Compliance Calendar Types + Helpers ─── */
+
+interface CalendarDeadline {
+  id: string;
+  title: string;
+  titleEs: string;
+  deadlineDate: string;
+  category: 'exam' | 'report' | 'meeting' | 'tax' | 'internal';
+  urgency: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'OVERDUE';
+  description: string;
+  descriptionEs: string;
+  relatedModule: string;
+}
+
+function urgencyDotColor(urgency: string): string {
+  switch (urgency) {
+    case 'OVERDUE':
+    case 'CRITICAL':
+      return 'bg-red-500';
+    case 'HIGH':
+      return 'bg-[#E8A020]';
+    case 'MEDIUM':
+      return 'bg-[#1ABFFF]';
+    default:
+      return 'bg-slate-400';
+  }
+}
+
+function urgencyRowBg(urgency: string): string {
+  if (urgency === 'CRITICAL' || urgency === 'OVERDUE') return 'bg-red-50/60';
+  return '';
+}
+
+function daysUntil(dateStr: string): number {
+  return Math.floor(
+    (new Date(dateStr).getTime() - Date.now()) / 86_400_000,
+  );
+}
+
+function formatDeadlineDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/** Generate demo calendar deadlines relative to today */
+function generateDemoDeadlines(): CalendarDeadline[] {
+  const now = new Date();
+  const addDays = (d: Date, days: number) => {
+    const r = new Date(d);
+    r.setDate(r.getDate() + days);
+    return r.toISOString();
+  };
+
+  // Quarterly COSSEC report deadlines
+  const quarterlyDeadlines = [
+    { month: 0, day: 15, quarter: 'Q4' },
+    { month: 3, day: 15, quarter: 'Q1' },
+    { month: 6, day: 15, quarter: 'Q2' },
+    { month: 9, day: 15, quarter: 'Q3' },
+  ];
+
+  const deadlines: CalendarDeadline[] = [];
+
+  // Next ALCO meeting in ~12 days
+  deadlines.push({
+    id: 'alco-meeting-1',
+    title: 'ALCO Meeting',
+    titleEs: 'Reunion ALCO',
+    deadlineDate: addDays(now, 12),
+    category: 'meeting',
+    urgency: 'CRITICAL',
+    description: 'Monthly ALCO committee meeting',
+    descriptionEs: 'Reunion mensual del comite ALCO',
+    relatedModule: '/alm',
+  });
+
+  // COSSEC exam in ~65 days
+  deadlines.push({
+    id: 'cossec-exam',
+    title: 'COSSEC Examination',
+    titleEs: 'Examen COSSEC',
+    deadlineDate: addDays(now, 65),
+    category: 'exam',
+    urgency: 'MEDIUM',
+    description: 'Annual COSSEC regulatory examination',
+    descriptionEs: 'Examen regulatorio anual de COSSEC',
+    relatedModule: '/alm',
+  });
+
+  // Next quarterly report
+  const yr = now.getFullYear();
+  for (const qd of quarterlyDeadlines) {
+    const d = new Date(yr, qd.month, qd.day);
+    if (d > now) {
+      const days = Math.floor((d.getTime() - now.getTime()) / 86_400_000);
+      deadlines.push({
+        id: `cossec-report-${qd.quarter}-${yr}`,
+        title: `COSSEC ${qd.quarter} ${yr} Report`,
+        titleEs: `Informe COSSEC ${qd.quarter} ${yr}`,
+        deadlineDate: d.toISOString(),
+        category: 'report',
+        urgency: days <= 14 ? 'CRITICAL' : days <= 30 ? 'HIGH' : days <= 90 ? 'MEDIUM' : 'LOW',
+        description: `Quarterly COSSEC regulatory report`,
+        descriptionEs: `Informe regulatorio trimestral COSSEC`,
+        relatedModule: '/alm',
+      });
+      break; // Only next one
+    }
+  }
+
+  // Next ALCO #2 in ~42 days
+  deadlines.push({
+    id: 'alco-meeting-2',
+    title: 'ALCO Meeting #2',
+    titleEs: 'Reunion ALCO #2',
+    deadlineDate: addDays(now, 42),
+    category: 'meeting',
+    urgency: 'MEDIUM',
+    description: 'Monthly ALCO committee meeting',
+    descriptionEs: 'Reunion mensual del comite ALCO',
+    relatedModule: '/alm',
+  });
+
+  // Fiscal year-end report in ~120 days
+  deadlines.push({
+    id: 'fiscal-year-end',
+    title: 'Fiscal Year-End Report',
+    titleEs: 'Informe de Cierre Fiscal',
+    deadlineDate: addDays(now, 120),
+    category: 'report',
+    urgency: 'LOW',
+    description: 'Annual fiscal year-end regulatory filing',
+    descriptionEs: 'Informe regulatorio de cierre fiscal anual',
+    relatedModule: '/alm',
+  });
+
+  // Internal audit in ~25 days
+  deadlines.push({
+    id: 'internal-audit',
+    title: 'Internal Audit Review',
+    titleEs: 'Revision de Auditoria Interna',
+    deadlineDate: addDays(now, 25),
+    category: 'internal',
+    urgency: 'HIGH',
+    description: 'Quarterly internal audit compliance review',
+    descriptionEs: 'Revision trimestral de cumplimiento de auditoria interna',
+    relatedModule: '/alm',
+  });
+
+  return deadlines.sort(
+    (a, b) => new Date(a.deadlineDate).getTime() - new Date(b.deadlineDate).getTime(),
+  );
+}
+
 /* ─── COSSEC Readiness Gauge (CSS-only) ─── */
 
 function COSSECGauge({ score }: { score: number }) {
@@ -179,10 +337,21 @@ export default function DashboardPage() {
   // Mock COSSEC score — will be replaced with real API data when available
   const cossecScore = 72;
   const lastAnalysisDate: string | null = null; // null = no analysis yet
-  const daysToExam: number | null = null; // null = unknown
+
+  // Compliance Calendar state
+  const [calendarDeadlines, setCalendarDeadlines] = useState<CalendarDeadline[]>([]);
+  const [calendarLoading, setCalendarLoading] = useState(true);
 
   const greeting = useMemo(() => getGreeting(), []);
   const displayName = user?.name || user?.email?.split('@')[0] || '';
+
+  // Derive exam countdown from calendar deadlines
+  const examDeadline = calendarDeadlines.find(
+    (d) => d.category === 'exam',
+  );
+  const daysToExam = examDeadline
+    ? daysUntil(examDeadline.deadlineDate)
+    : null;
 
   useEffect(() => {
     if (!initialized) return;
@@ -194,6 +363,33 @@ export default function DashboardPage() {
       router.push('/onboarding');
     }
   }, [initialized, isAuthenticated, onboardingComplete, router]);
+
+  // Load compliance calendar deadlines
+  useEffect(() => {
+    if (!initialized || !isAuthenticated) return;
+    let cancelled = false;
+
+    async function loadCalendar() {
+      try {
+        // Try real API first (demo-bank-id as fallback for demo mode)
+        const data = await apiClient.getComplianceCalendar('demo-bank-id');
+        if (!cancelled && data && data.length > 0) {
+          setCalendarDeadlines(data);
+          setCalendarLoading(false);
+          return;
+        }
+      } catch {
+        // API not available — use demo data
+      }
+      if (!cancelled) {
+        setCalendarDeadlines(generateDemoDeadlines());
+        setCalendarLoading(false);
+      }
+    }
+
+    loadCalendar();
+    return () => { cancelled = true; };
+  }, [initialized, isAuthenticated]);
 
   if (!initialized) {
     return (
@@ -268,6 +464,34 @@ export default function DashboardPage() {
             </div>
           </div>
         </nav>
+
+        {/* ── Exam Countdown Banner ── */}
+        {daysToExam !== null && daysToExam <= 90 && daysToExam >= 0 && (
+          <div
+            className="flex flex-col gap-2 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-amber-100">
+                <AlertTriangle className="h-5 w-5 text-[#E8A020]" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-amber-900">
+                  Examen COSSEC en {daysToExam} dias / COSSEC Exam in {daysToExam} days
+                </p>
+                <p className="text-xs text-amber-700">
+                  Preparacion: {cossecScore}/100 &mdash; {cossecScore >= 80 ? 'Bien preparado' : cossecScore >= 50 ? 'Atencion requerida' : 'Accion inmediata'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/alm')}
+              className="flex items-center gap-2 rounded-full bg-[#E8A020] px-5 py-2 text-sm font-bold text-white shadow transition hover:-translate-y-0.5 hover:bg-[#d4911c]"
+            >
+              Preparar examen
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {/* ── Hero Section ── */}
         <section className="grid gap-4 lg:grid-cols-[1fr_380px]">
@@ -492,6 +716,86 @@ export default function DashboardPage() {
               </button>
             ))}
           </div>
+        </section>
+
+        {/* ── Regulatory Calendar ── */}
+        <section className="cerniq-panel p-5 sm:p-6">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <p className="cerniq-section-label">Calendario Regulatorio</p>
+              <p className="mt-0.5 text-xs text-slate-400">(Regulatory Calendar)</p>
+            </div>
+            <Calendar className="h-5 w-5 text-[#1ABFFF]" />
+          </div>
+
+          {calendarLoading ? (
+            <SkeletonLoader variant="text" count={4} />
+          ) : calendarDeadlines.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">
+              No hay fechas limite proximas / No upcoming deadlines
+            </p>
+          ) : (
+            <div className="space-y-0">
+              {calendarDeadlines.slice(0, 6).map((deadline, i) => {
+                const days = daysUntil(deadline.deadlineDate);
+                const daysLabel =
+                  days < 0
+                    ? `Vencido (${Math.abs(days)}d)`
+                    : days === 0
+                      ? 'Hoy'
+                      : `${days}d`;
+                return (
+                  <button
+                    key={deadline.id}
+                    onClick={() => router.push(deadline.relatedModule)}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-3 text-left transition hover:bg-slate-50 ${
+                      i > 0 ? 'border-t border-slate-100' : ''
+                    } ${urgencyRowBg(deadline.urgency)}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`h-2.5 w-2.5 flex-none rounded-full ${urgencyDotColor(
+                          deadline.urgency,
+                        )}`}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-700 truncate">
+                          {deadline.titleEs}
+                        </p>
+                        <p className="text-xs text-slate-400 truncate">
+                          ({deadline.title})
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-none items-center gap-3 pl-3">
+                      <div className="text-right">
+                        <p className="text-xs text-slate-500">
+                          {formatDeadlineDate(deadline.deadlineDate)}
+                        </p>
+                        <p
+                          className={`text-xs font-semibold ${
+                            deadline.urgency === 'CRITICAL' || deadline.urgency === 'OVERDUE'
+                              ? 'text-red-600'
+                              : deadline.urgency === 'HIGH'
+                                ? 'text-amber-600'
+                                : 'text-slate-500'
+                          }`}
+                        >
+                          <Clock className="mr-1 inline-block h-3 w-3" />
+                          {daysLabel}
+                        </p>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 text-slate-300" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <p className="mt-3 text-right text-[10px] text-slate-400">
+            Datos de demostracion — conecte su institucion para datos reales
+          </p>
         </section>
 
         {/* ── Empty State: No analysis available ── */}

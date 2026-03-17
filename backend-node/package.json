@@ -21,10 +21,11 @@
     "prisma:deploy": "prisma migrate deploy && prisma generate"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.79.0",
     "@aws-sdk/client-s3": "^3.987.0",
     "@aws-sdk/s3-request-presigner": "^3.987.0",
-    "@nestjs/common": "^11.0.1",
     "@nestjs/cli": "^11.0.16",
+    "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.2",

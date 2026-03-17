@@ -3,7 +3,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
-import { RefreshCw, Zap, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import Link from 'next/link';
+import { RefreshCw, Zap, AlertTriangle, CheckCircle, XCircle, SlidersHorizontal } from 'lucide-react';
 import RiskBadge from '@/components/alm/RiskBadge';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
@@ -379,6 +380,21 @@ export default function StressTestPage() {
           </div>
         </>
       )}
+
+      {/* Link to Scenario Builder */}
+      <Link
+        href={`/alm/scenario-builder?id=${selectedId}`}
+        className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 transition hover:border-amber-300 hover:bg-amber-100/60"
+      >
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-200 bg-white">
+          <SlidersHorizontal className="h-4 w-4 text-amber-700" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-slate-950">Constructor de Escenarios / Scenario Builder</p>
+          <p className="text-[11px] text-slate-500">Design custom stress scenarios with PR-specific presets</p>
+        </div>
+        <span className="text-xs text-amber-700 font-medium">Open &rarr;</span>
+      </Link>
     </div>
   );
 }

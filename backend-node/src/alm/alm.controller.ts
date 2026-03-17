@@ -12,6 +12,7 @@ import { WorkspaceOnboardingService } from './workspace-onboarding.service';
 import { CSVIngestionService } from './csv-ingestion.service';
 import { AnalysisRunsService } from './analysis-runs.service';
 import { IngestionLogsService } from './ingestion-logs.service';
+import { ComplianceCalendarService } from './compliance-calendar.service';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   ScenarioRequestDto,
@@ -45,6 +46,7 @@ export class AlmController {
     private readonly csvIngestion: CSVIngestionService,
     private readonly analysisRuns: AnalysisRunsService,
     private readonly ingestionLogs: IngestionLogsService,
+    private readonly complianceCalendar: ComplianceCalendarService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -165,6 +167,13 @@ export class AlmController {
     return this.ingestionLogs.listInstitutionLogs(req.user.userId, institutionId, pagination);
   }
 
+  @Get(':institutionId/calendar')
+  @UseGuards(AuthGuard)
+  async getComplianceCalendar(@Param('institutionId') institutionId: string) {
+    this.logger.log(`Compliance calendar requested for institution ${institutionId}`);
+    return this.complianceCalendar.getUpcomingDeadlines(institutionId);
+  }
+
   @Post('institutions/:institutionId/upload-csv')
   @UseGuards(AuthGuard)
   @UseInterceptors(FileInterceptor('file', {
@@ -277,6 +286,21 @@ export class AlmController {
   ) {
     this.logger.log(`Stress test requested for institution ${institutionId}`);
     return this.stressTesting.runFullStressTest(institutionId, params);
+  }
+
+  @Post(':institutionId/stress/custom')
+  @UseGuards(AuthGuard)
+  async runCustomStressScenario(
+    @Param('institutionId') institutionId: string,
+    @Body() params: {
+      rateShockBps: number;
+      depositRunoffPct: number;
+      defaultRateIncreasePct: number;
+      energyCostShockPct: number;
+    },
+  ) {
+    this.logger.log(`Custom stress scenario for institution ${institutionId}: rate=${params.rateShockBps}bps`);
+    return this.stressTesting.runCustomScenario(institutionId, params);
   }
 
   @Get(':institutionId/report')

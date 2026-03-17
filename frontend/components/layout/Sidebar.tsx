@@ -19,6 +19,7 @@ import {
   Landmark,
   LogOut,
   Shield,
+  SlidersHorizontal,
   TrendingUp,
   User,
   X,
@@ -51,6 +52,7 @@ const almNav: NavItem[] = [
       { href: '/alm/liquidity', icon: Shield, labelKey: 'sidebar.liquidity' },
       { href: '/alm/balance-sheet', icon: DollarSign, labelKey: 'sidebar.balanceSheet' },
       { href: '/alm/stress-test', icon: AlertOctagon, labelKey: 'sidebar.stressTesting' },
+      { href: '/alm/scenario-builder', icon: SlidersHorizontal, labelKey: 'sidebar.scenarioBuilder' },
     ],
   },
 ];
