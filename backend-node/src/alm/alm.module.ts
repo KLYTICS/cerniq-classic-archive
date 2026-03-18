@@ -10,6 +10,7 @@ import { CSVIngestionService } from './csv-ingestion.service';
 import { AnalysisRunsService } from './analysis-runs.service';
 import { IngestionLogsService } from './ingestion-logs.service';
 import { ComplianceCalendarService } from './compliance-calendar.service';
+import { DurationService } from './duration.service';
 import { AlmController } from './alm.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
 import { AuthGuard } from '../auth/auth.guard';
@@ -33,8 +34,9 @@ import { AuthGuard } from '../auth/auth.guard';
     AnalysisRunsService,
     IngestionLogsService,
     ComplianceCalendarService,
+    DurationService,
     AuthGuard,
   ],
-  exports: [AlmService, AlmEnterpriseService, AlmAdvisorService, StressTestingService, WorkspaceOnboardingService, CSVIngestionService, AnalysisRunsService, IngestionLogsService, ComplianceCalendarService],
+  exports: [AlmService, AlmEnterpriseService, AlmAdvisorService, StressTestingService, WorkspaceOnboardingService, CSVIngestionService, AnalysisRunsService, IngestionLogsService, ComplianceCalendarService, DurationService],
 })
 export class AlmModule {}

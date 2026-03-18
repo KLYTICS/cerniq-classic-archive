@@ -1,637 +1,1102 @@
 'use client';
 
-import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
-import { apiClient } from '@/lib/api';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import {
-  Building2, CheckCircle, ChevronRight, Shield, TrendingUp,
-  Droplets, Download, Clock, MessageSquare, Flag, ArrowRight,
+  ArrowRight,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  FileText,
+  Shield,
+  TrendingUp,
+  MessageSquare,
+  Send,
+  ChevronRight,
+  Sparkles,
+  Receipt,
+  Eye,
+  Building2,
+  BarChart3,
+  Search,
 } from 'lucide-react';
-import { useTranslation } from '@/lib/i18n';
-import { analytics, EVENTS } from '@/lib/analytics';
+import { CerniqMark } from '@/components/brand/CerniqLogo';
 
-const PRESETS: Record<string, { name: string; assets: string; assetBucket: string; type: string; members?: string }> = {
-  'banco-comunidad': { name: 'Banco Comunidad PR', assets: '$1.2B', assetBucket: '$1B - $5B', type: 'bank' },
-  bank: { name: 'Banco Comunidad PR', assets: '$1.2B', assetBucket: '$1B - $5B', type: 'bank' },
-  firstbank: { name: 'FirstBank Puerto Rico', assets: '$12.8B', assetBucket: '$5B+', type: 'bank' },
-  credit_union: { name: 'Cooperativa del Pueblo', assets: '$180M', assetBucket: '$100M - $500M', type: 'credit_union', members: '28,000' },
-  cooperativa: { name: 'CoopAhorro San Juan', assets: '$250M', assetBucket: '$100M - $500M', type: 'cooperativa', members: '35,000' },
-  family_office: { name: 'Caribbean Family Capital', assets: '$45M', assetBucket: 'Under $100M', type: 'family_office' },
+// ──────────────────────────────────────────────
+// Language helper
+// ──────────────────────────────────────────────
+type Lang = 'en' | 'es';
+
+// ──────────────────────────────────────────────
+// Step definitions
+// ──────────────────────────────────────────────
+const STEPS = [
+  { id: 1, labelEn: 'COSSEC Score', labelEs: 'Puntaje COSSEC' },
+  { id: 2, labelEn: 'ALM Report', labelEs: 'Informe ALM' },
+  { id: 3, labelEn: 'SpendCheck', labelEs: 'SpendCheck' },
+  { id: 4, labelEn: 'AI Advisor', labelEs: 'Asesor IA' },
+  { id: 5, labelEn: 'Get Started', labelEs: 'Comenzar' },
+];
+
+// ──────────────────────────────────────────────
+// Demo institution data
+// ──────────────────────────────────────────────
+const DEMO_INSTITUTION = {
+  name: 'Demo Cooperativa',
+  assets: '$350M',
+  members: '42,000',
+  location: 'San Juan, PR',
+  overallScore: 78,
 };
 
-// Sales companion talking points per calculation phase
-const SALES_TALKING_POINTS: Record<string, { point: string; question: string }[]> = {
-  seed: [
-    { point: 'Balance sheet was loaded from public regulatory filings', question: 'How often does your team update balance sheet positions?' },
-    { point: 'All 10 asset and liability line items are mapped automatically', question: 'Do you currently use a spreadsheet or vendor software for this?' },
-  ],
-  calc: [
-    { point: 'NII sensitivity runs 8 rate scenarios simultaneously', question: 'What rate scenarios does COSSEC require in your exams?' },
-    { point: 'Duration gap shows your net interest rate exposure', question: 'When was your last ALCO committee meeting?' },
-  ],
-  results: [
-    { point: 'COSSEC compliance checks run against all 4 regulatory ratios', question: 'When is your next COSSEC examination?' },
-    { point: 'The risk score combines rate risk, liquidity, and capital adequacy', question: 'What keeps you up at night about your risk position?' },
-  ],
-  report: [
-    { point: 'PDF is bilingual — board members can read EN or ES version', question: 'Does your board prefer English or Spanish reports?' },
-    { point: 'This exact report format is what we deliver for $750', question: 'Would this be useful for your upcoming board presentation?' },
-  ],
+// ──────────────────────────────────────────────
+// COSSEC 12-ratio traffic light data
+// ──────────────────────────────────────────────
+type RatioStatus = 'PASS' | 'WARNING' | 'FAIL';
+
+interface CossecRatio {
+  id: string;
+  nameEn: string;
+  nameEs: string;
+  value: string;
+  thresholdEn: string;
+  thresholdEs: string;
+  status: RatioStatus;
+}
+
+const COSSEC_RATIOS: CossecRatio[] = [
+  { id: 'R1', nameEn: 'Net Worth / Total Assets', nameEs: 'Capital neto / Activos totales', value: '10.2%', thresholdEn: '>= 7%', thresholdEs: '>= 7%', status: 'PASS' },
+  { id: 'R2', nameEn: 'Delinquency Ratio', nameEs: 'Tasa de morosidad', value: '2.8%', thresholdEn: '<= 5%', thresholdEs: '<= 5%', status: 'PASS' },
+  { id: 'R3', nameEn: 'Net Income / Avg Assets (ROA)', nameEs: 'Ingreso neto / Activos promedio (ROA)', value: '0.62%', thresholdEn: '>= 0.5%', thresholdEs: '>= 0.5%', status: 'PASS' },
+  { id: 'R4', nameEn: 'Operating Expense Ratio', nameEs: 'Ratio gastos operativos', value: '3.9%', thresholdEn: '<= 5%', thresholdEs: '<= 5%', status: 'PASS' },
+  { id: 'R5', nameEn: 'Liquidity Coverage Ratio (LCR)', nameEs: 'Ratio de cobertura de liquidez (LCR)', value: '115.3%', thresholdEn: '>= 100%', thresholdEs: '>= 100%', status: 'PASS' },
+  { id: 'R6', nameEn: 'Loan-to-Share Ratio', nameEs: 'Prestamos / Depositos', value: '78.4%', thresholdEn: '<= 85%', thresholdEs: '<= 85%', status: 'PASS' },
+  { id: 'R7', nameEn: 'Allowance / Delinquent Loans', nameEs: 'Reserva / Prestamos morosos', value: '112.0%', thresholdEn: '>= 100%', thresholdEs: '>= 100%', status: 'PASS' },
+  { id: 'R8', nameEn: 'Net Interest Margin (NIM)', nameEs: 'Margen de interes neto (NIM)', value: '3.1%', thresholdEn: '>= 2.5%', thresholdEs: '>= 2.5%', status: 'PASS' },
+  { id: 'R9', nameEn: 'Asset Growth Rate', nameEs: 'Tasa de crecimiento de activos', value: '6.8%', thresholdEn: '3-10%', thresholdEs: '3-10%', status: 'PASS' },
+  { id: 'R10', nameEn: 'Duration Gap (years)', nameEs: 'Brecha de duracion (anos)', value: '+2.3 yr', thresholdEn: '<= 2.0 yr', thresholdEs: '<= 2.0 anos', status: 'WARNING' },
+  { id: 'R11', nameEn: 'Concentration Risk (Top 10 Borrowers)', nameEs: 'Riesgo de concentracion (Top 10 prestatarios)', value: '18.7%', thresholdEn: '<= 15%', thresholdEs: '<= 15%', status: 'WARNING' },
+  { id: 'R12', nameEn: 'EVE Sensitivity (+200bps)', nameEs: 'Sensibilidad EVE (+200pbs)', value: '-$4.2M', thresholdEn: '<= -$2M', thresholdEs: '<= -$2M', status: 'FAIL' },
+];
+
+// ──────────────────────────────────────────────
+// ALM Report pages (preview metadata)
+// ──────────────────────────────────────────────
+const ALM_REPORT_PAGES = [
+  { pageEn: 'Cover Page', pageEs: 'Portada', descEn: 'Demo Cooperativa - Q1 2026 ALM Report', descEs: 'Demo Cooperativa - Informe ALM Q1 2026' },
+  { pageEn: 'Executive Summary', pageEs: 'Resumen ejecutivo', descEn: 'Overall risk score: 78/100. Two warnings, one critical finding.', descEs: 'Puntaje de riesgo general: 78/100. Dos alertas, un hallazgo critico.' },
+  { pageEn: 'COSSEC Ratio Grid', pageEs: 'Cuadricula de ratios COSSEC', descEn: '12 regulatory ratios with traffic light indicators', descEs: '12 ratios regulatorios con indicadores semaforo' },
+  { pageEn: 'Balance Sheet Summary', pageEs: 'Resumen hoja de balance', descEn: 'Assets: $350M, Liabilities: $314M, Net Worth: $36M', descEs: 'Activos: $350M, Pasivos: $314M, Capital: $36M' },
+  { pageEn: 'NII Sensitivity Analysis', pageEs: 'Analisis de sensibilidad NII', descEn: '8 rate shock scenarios from -300bps to +400bps', descEs: '8 escenarios de choque de tasas de -300pbs a +400pbs' },
+  { pageEn: 'Duration Gap Analysis', pageEs: 'Analisis de brecha de duracion', descEn: 'Asset duration: 4.2yr, Liability duration: 1.9yr, Gap: +2.3yr', descEs: 'Duracion activos: 4.2a, Duracion pasivos: 1.9a, Brecha: +2.3a' },
+  { pageEn: 'EVE Sensitivity', pageEs: 'Sensibilidad EVE', descEn: 'Economic Value of Equity under 6 rate scenarios', descEs: 'Valor economico del patrimonio bajo 6 escenarios de tasas' },
+  { pageEn: 'Liquidity Coverage', pageEs: 'Cobertura de liquidez', descEn: 'LCR: 115.3%, HQLA: $42M, Net Outflows: $36.4M', descEs: 'LCR: 115.3%, HQLA: $42M, Flujos netos: $36.4M' },
+  { pageEn: 'Monte Carlo Stress Test', pageEs: 'Prueba de estres Monte Carlo', descEn: '10,000 scenarios - 95th percentile loss: $8.1M', descEs: '10,000 escenarios - Perdida percentil 95: $8.1M' },
+  { pageEn: 'Concentration Risk', pageEs: 'Riesgo de concentracion', descEn: 'Top 10 borrower exposure: 18.7% of total loans', descEs: 'Exposicion 10 principales prestatarios: 18.7% de prestamos totales' },
+  { pageEn: 'Peer Benchmarking', pageEs: 'Benchmarking sectorial', descEn: 'Compared against 47 PR cooperativas (COSSEC Q3 2025)', descEs: 'Comparado contra 47 cooperativas PR (COSSEC Q3 2025)' },
+  { pageEn: 'Recommendations', pageEs: 'Recomendaciones', descEn: '5 actionable items: reduce duration gap, diversify concentration, etc.', descEs: '5 acciones: reducir brecha duracion, diversificar concentracion, etc.' },
+  { pageEn: 'Appendix A: Methodology', pageEs: 'Apendice A: Metodologia', descEn: 'Calculation methodology & data sources', descEs: 'Metodologia de calculo y fuentes de datos' },
+  { pageEn: 'Appendix B: Glossary', pageEs: 'Apendice B: Glosario', descEn: 'Terms and definitions in EN/ES', descEs: 'Terminos y definiciones en EN/ES' },
+];
+
+// ──────────────────────────────────────────────
+// SpendCheck demo data
+// ──────────────────────────────────────────────
+type FindingSeverity = 'HIGH' | 'MEDIUM' | 'LOW';
+type SpendcheckTab = 'overview' | 'anomalies' | 'vendors' | 'liquidity' | 'report';
+
+interface SpendFinding {
+  id: string;
+  titleEn: string;
+  titleEs: string;
+  severity: FindingSeverity;
+  descEn: string;
+  descEs: string;
+  amountImpact: string;
+}
+
+const SPEND_FINDINGS: SpendFinding[] = [
+  { id: 'F1', titleEn: 'Duplicate Invoice Detected', titleEs: 'Factura duplicada detectada', severity: 'HIGH', descEn: 'Invoice #4782 from TechServe PR matches #4781 - same amount ($12,450), same vendor, 2 days apart.', descEs: 'Factura #4782 de TechServe PR coincide con #4781 - mismo monto ($12,450), mismo proveedor, 2 dias de diferencia.', amountImpact: '$12,450' },
+  { id: 'F2', titleEn: 'Amount Anomaly - 3x Average', titleEs: 'Anomalia de monto - 3x promedio', severity: 'HIGH', descEn: 'Payment to Caribbean Office Supplies ($38,200) is 3.2x the rolling 12-month average ($11,937).', descEs: 'Pago a Caribbean Office Supplies ($38,200) es 3.2x el promedio movil de 12 meses ($11,937).', amountImpact: '$26,263' },
+  { id: 'F3', titleEn: 'Vendor Concentration Risk', titleEs: 'Riesgo de concentracion de proveedores', severity: 'HIGH', descEn: 'Top 3 vendors represent 47% of total AP spend. Industry benchmark: <30%.', descEs: 'Los 3 principales proveedores representan el 47% del gasto total de AP. Referencia del sector: <30%.', amountImpact: '$1.2M exposure' },
+  { id: 'F4', titleEn: 'Late Payment Pattern', titleEs: 'Patron de pagos tardios', severity: 'MEDIUM', descEn: '14 invoices paid beyond net-30 terms in Q4. Estimated late fees: $2,800.', descEs: '14 facturas pagadas fuera del plazo net-30 en Q4. Cargos estimados por mora: $2,800.', amountImpact: '$2,800' },
+  { id: 'F5', titleEn: 'Unused Early-Pay Discounts', titleEs: 'Descuentos por pronto pago no utilizados', severity: 'MEDIUM', descEn: '8 vendors offer 2/10 net-30 discounts. Estimated missed savings: $4,150/quarter.', descEs: '8 proveedores ofrecen descuento 2/10 net-30. Ahorro estimado perdido: $4,150/trimestre.', amountImpact: '$4,150' },
+  { id: 'F6', titleEn: 'Round-Number Payment', titleEs: 'Pago en numero redondo', severity: 'LOW', descEn: 'Payment of exactly $10,000 to Servicios Generales PR with no matching invoice.', descEs: 'Pago de exactamente $10,000 a Servicios Generales PR sin factura correspondiente.', amountImpact: '$10,000' },
+];
+
+const SPEND_VENDORS = [
+  { name: 'TechServe PR', spend: '$284,000', pctEn: '19.2%', invoices: 48, riskEn: 'Duplicate detected', riskEs: 'Duplicado detectado' },
+  { name: 'Caribbean Office Supplies', spend: '$198,400', pctEn: '13.4%', invoices: 36, riskEn: 'Amount anomaly', riskEs: 'Anomalia de monto' },
+  { name: 'Seguridad Integral LLC', spend: '$212,000', pctEn: '14.3%', invoices: 24, riskEn: 'Concentration', riskEs: 'Concentracion' },
+  { name: 'NetPR Solutions', spend: '$96,200', pctEn: '6.5%', invoices: 18, riskEn: 'None', riskEs: 'Ninguno' },
+  { name: 'Limpieza Total Corp', spend: '$78,600', pctEn: '5.3%', invoices: 12, riskEn: 'None', riskEs: 'Ninguno' },
+];
+
+// ──────────────────────────────────────────────
+// AI Advisor pre-loaded conversation
+// ──────────────────────────────────────────────
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  textEn: string;
+  textEs: string;
+}
+
+const DEMO_CONVERSATION: ChatMessage[] = [
+  {
+    role: 'user',
+    textEn: 'What happens if rates rise 100 basis points?',
+    textEs: 'Que pasa si las tasas suben 100 puntos base?',
+  },
+  {
+    role: 'assistant',
+    textEn: 'Based on your duration gap of +2.3 years and $112M in fixed-rate assets, a +100bps shock would increase your NII by approximately $280K over 12 months. However, your EVE would decrease by approximately $2.1M. Your LCR of 115% provides adequate buffer. Recommendation: monitor CD repricing in the next 90 days.',
+    textEs: 'Basado en su brecha de duracion de +2.3 anos y $112M en activos de tasa fija, un choque de +100pbs aumentaria su NII en aproximadamente $280K en 12 meses. Sin embargo, su EVE disminuiria en aproximadamente $2.1M. Su LCR del 115% proporciona un margen adecuado. Recomendacion: monitorear la repreciacion de CDs en los proximos 90 dias.',
+  },
+];
+
+const CANNED_RESPONSES: { patternEn: string; responseEn: string; responseEs: string }[] = [
+  {
+    patternEn: 'liquidity',
+    responseEn: 'Your current LCR stands at 115.3%, which exceeds the 100% minimum. Your HQLA buffer of $42M against $36.4M net outflows gives you approximately 42 days of coverage. However, I recommend increasing your liquid asset buffer by $5-8M given the concentration risk in your top 3 depositors (32% of total deposits).',
+    responseEs: 'Su LCR actual es del 115.3%, que excede el minimo del 100%. Su reserva HQLA de $42M contra $36.4M de flujos netos le da aproximadamente 42 dias de cobertura. Sin embargo, recomiendo aumentar su reserva de activos liquidos en $5-8M dada la concentracion de riesgo en sus 3 principales depositantes (32% del total de depositos).',
+  },
+  {
+    patternEn: 'capital',
+    responseEn: 'Your net worth ratio is 10.2% ($35.7M / $350M), well above the COSSEC minimum of 7%. You have $11.2M in excess capital above the minimum threshold. This positions your institution well for organic growth of up to 8-10% annually without requiring additional capital.',
+    responseEs: 'Su ratio de capital neto es 10.2% ($35.7M / $350M), muy por encima del minimo de COSSEC del 7%. Tiene $11.2M en exceso de capital sobre el umbral minimo. Esto posiciona a su institucion bien para un crecimiento organico de hasta 8-10% anual sin requerir capital adicional.',
+  },
+  {
+    patternEn: 'stress',
+    responseEn: 'Under the Monte Carlo stress test (10,000 scenarios), the 95th percentile loss is $8.1M, which would reduce your net worth ratio from 10.2% to 7.9% - still above the 7% minimum. The worst-case scenario (99th percentile) shows a loss of $12.4M, which would breach the minimum. I recommend building an additional $4M capital buffer over the next 12 months.',
+    responseEs: 'Bajo la prueba de estres Monte Carlo (10,000 escenarios), la perdida del percentil 95 es $8.1M, lo que reduciria su ratio de capital neto de 10.2% a 7.9% - aun por encima del minimo del 7%. El peor escenario (percentil 99) muestra una perdida de $12.4M, que violaria el minimo. Recomiendo construir un buffer adicional de $4M de capital en los proximos 12 meses.',
+  },
+];
+
+const DEFAULT_CANNED_RESPONSE = {
+  responseEn: 'Based on Demo Cooperativa\'s current risk profile (score: 78/100), your institution is in a moderate risk position. Key areas to watch: (1) Duration gap of +2.3 years suggests asset-liability mismatch that should be addressed through shorter-duration asset allocation. (2) EVE sensitivity of -$4.2M at +200bps indicates vulnerability to rising rates. (3) Your strong capital position (10.2%) provides a buffer, but I recommend proactive duration management. Would you like me to elaborate on any specific metric?',
+  responseEs: 'Basado en el perfil de riesgo actual de Demo Cooperativa (puntaje: 78/100), su institucion se encuentra en una posicion de riesgo moderado. Areas clave a monitorear: (1) La brecha de duracion de +2.3 anos sugiere un desajuste activo-pasivo que debe abordarse mediante una asignacion de activos de menor duracion. (2) La sensibilidad EVE de -$4.2M a +200pbs indica vulnerabilidad a tasas en alza. (3) Su solida posicion de capital (10.2%) proporciona un buffer, pero recomiendo gestion proactiva de duracion. Desea que profundice en alguna metrica especifica?',
 };
 
-function DemoContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { t, ta, locale } = useTranslation();
+// ──────────────────────────────────────────────
+// Fire-and-forget analytics tracker
+// ──────────────────────────────────────────────
+function trackDemoStep(step: number) {
+  try {
+    fetch('/api/demo/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step, timestamp: new Date().toISOString() }),
+    }).catch(() => {});
+  } catch {
+    // fire-and-forget
+  }
+}
 
-  const preset = searchParams.get('preset') || searchParams.get('type') || 'bank';
-  const isSalesMode = searchParams.get('mode') === 'sales';
-  const defaults = PRESETS[preset] || PRESETS.bank;
-
-  const [step, setStep] = useState(1);
-  const [error, setError] = useState<string | null>(null);
-  const [instName, setInstName] = useState(defaults.name);
-  const [instType, setInstType] = useState(defaults.type);
-  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-  const [progressPct, setProgressPct] = useState(0);
-  const [salesPhase, setSalesPhase] = useState<string>('seed');
-  const [flaggedPoints, setFlaggedPoints] = useState<string[]>([]);
-  const [results, setResults] = useState<{
-    riskScore: number;
-    lcr: number;
-    durationGap: number;
-    niiImpact: string;
-    capitalRatio: number;
-    cossecPassed: number;
-    institutionId: string;
-    itemCount: number;
-  } | null>(null);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const [demoStartTime] = useState(Date.now());
-
-  const runningRef = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const progressSteps = ta('demo.progressSteps');
-
-  // Timer for sales mode
-  useEffect(() => {
-    if (isSalesMode && step >= 2) {
-      timerRef.current = setInterval(() => {
-        setElapsedMs(Date.now() - demoStartTime);
-      }, 100);
-    }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isSalesMode, step, demoStartTime]);
-
-  // Auto-start if ?type= is set and matches a preset
-  useEffect(() => {
-    const autoType = searchParams.get('type');
-    if (autoType && PRESETS[autoType] && !runningRef.current) {
-      const p = PRESETS[autoType];
-      setInstName(p.name);
-      setInstType(p.type);
-      // Small delay so the UI renders before auto-starting
-      const timer = setTimeout(() => startSetup(), 300);
-      return () => clearTimeout(timer);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const startSetup = useCallback(async () => {
-    if (runningRef.current) return;
-    runningRef.current = true;
-    setStep(2);
-    setCompletedSteps([]);
-    setProgressPct(0);
-    setError(null);
-
-    const startTime = Date.now();
-    analytics.track(EVENTS.DEMO_STARTED, { institutionType: instType, institutionName: instName });
-
-    try {
-      // Auto-register with generated credentials
-      const ts = Date.now();
-      const email = `demo-${ts}@cerniq.demo`;
-      const password = `Demo${ts}X`;
-
-      let loggedIn = false;
-      try {
-        await apiClient.getCurrentUser();
-        loggedIn = true;
-      } catch { /* Not logged in */ }
-
-      if (!loggedIn) {
-        try { await apiClient.register(email, password); }
-        catch { try { await apiClient.login(email, password); } catch { /* fallback */ } }
-      }
-
-      // Step 0 — Account ready
-      setCompletedSteps([0]);
-      setProgressPct(20);
-      setSalesPhase('seed');
-
-      // Get or create workspace
-      let workspaceId: string;
-      try {
-        const workspaces = await apiClient.getMyWorkspaces();
-        workspaceId = (Array.isArray(workspaces) && workspaces.length > 0)
-          ? workspaces[0].id
-          : (await apiClient.createMyWorkspace('Demo Workspace')).id;
-      } catch {
-        workspaceId = (await apiClient.createMyWorkspace('Demo Workspace')).id;
-      }
-
-      // Check existing institutions
-      let institutions: any[] = [];
-      try { institutions = await apiClient.getInstitutions(); } catch { /* */ }
-
-      setCompletedSteps([0, 1]);
-      setProgressPct(40);
-
-      let institutionId: string;
-      let itemCount = 10;
-      if (institutions.length > 0) {
-        institutionId = institutions[0].id;
-      } else {
-        const result = await apiClient.seedDemoInstitution(
-          workspaceId,
-          instType as 'bank' | 'credit_union' | 'family_office' | 'cooperativa',
-        );
-        institutionId = result?.institutionId || result?.institution?.id;
-        itemCount = result?.institution?.balanceSheetItems?.length || 10;
-      }
-
-      const seedMs = Date.now() - startTime;
-      analytics.track(EVENTS.DEMO_SEED_COMPLETE, { msElapsed: seedMs, itemCount });
-      setSalesPhase('calc');
-
-      // Step 2 — Running calculations
-      setCompletedSteps([0, 1, 2]);
-      setProgressPct(60);
-
-      // Fetch summary (all calculations happen server-side)
-      let riskScore = 72, lcr = 117.9, durationGap = 1.8, niiImpact = '-$1.2M';
-      let capitalRatio = 10.0, cossecPassed = 4;
-      try {
-        const summary = await apiClient.getALMSummary(institutionId);
-        riskScore = summary.riskScore || 72;
-        lcr = summary.liquidity?.lcr || 117.9;
-        durationGap = summary.durationGap?.durationGap || 1.8;
-        capitalRatio = summary.capitalRatio || 10.0;
-        cossecPassed = summary.cossecPassed ?? 4;
-        const scenario200 = summary.niiSensitivity?.scenarios?.find((s: any) => s.shiftBps === 200);
-        if (scenario200) {
-          niiImpact = `${scenario200.niImpact >= 0 ? '+' : '-'}$${Math.abs(scenario200.niImpact).toFixed(1)}M`;
-        }
-      } catch { /* use defaults */ }
-
-      setCompletedSteps([0, 1, 2, 3]);
-      setProgressPct(100);
-      setSalesPhase('results');
-
-      const calcMs = Date.now() - startTime;
-      analytics.track(EVENTS.DEMO_CALC_COMPLETE, {
-        msElapsed: calcMs, riskScore,
-        flagsTriggered: [
-          durationGap > 2 && 'high_duration_gap',
-          lcr < 100 && 'lcr_breach',
-          capitalRatio < 6 && 'capital_deficiency',
-        ].filter(Boolean),
-      });
-
-      // Brief pause for animation
-      await new Promise((r) => setTimeout(r, 500));
-
-      setResults({ riskScore, lcr, durationGap, niiImpact, capitalRatio, cossecPassed, institutionId, itemCount });
-      setStep(3);
-
-      // Auto-advance to step 4 (report ready) after 2s
-      setTimeout(() => {
-        setStep(4);
-        setSalesPhase('report');
-        const totalMs = Date.now() - startTime;
-        analytics.track(EVENTS.DEMO_COMPLETED, {
-          totalMs, convertedToLeadForm: false,
-        });
-      }, 2500);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Setup failed. Please try again.');
-      runningRef.current = false;
-    }
-  }, [instType, instName]);
-
-  const handleDownloadPDF = async (lang: 'en' | 'es') => {
-    if (!results) return;
-    analytics.track(EVENTS.DEMO_PDF_DOWNLOADED, {
-      language: lang, msSinceDemoStart: Date.now() - demoStartTime,
-    });
-    try {
-      await apiClient.downloadALMReport(results.institutionId, lang);
-    } catch {
-      // Fallback: open report URL in new tab
-      window.open(apiClient.getALMReportUrl(results.institutionId, lang), '_blank');
-    }
-  };
-
-  const handleLeadFormClick = (source: string) => {
-    analytics.track(EVENTS.DEMO_LEAD_FORM_OPENED, { source });
-    router.push('/#demo');
-  };
-
-  const formatTimer = (ms: number) => {
-    const s = Math.floor(ms / 1000);
-    const m = Math.floor(s / 60);
-    return `${m}:${String(s % 60).padStart(2, '0')}`;
-  };
-
-  // ── Error state ──
-  if (error) {
+// ──────────────────────────────────────────────
+// Status badge component
+// ──────────────────────────────────────────────
+function StatusBadge({ status, lang }: { status: RatioStatus; lang: Lang }) {
+  if (status === 'PASS') {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-center px-6">
-        <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center mb-6">
-          <span className="text-red-400 font-bold text-xl">!</span>
-        </div>
-        <h2 className="text-white text-xl font-bold mb-2">{t('demo.setupFailed')}</h2>
-        <p className="text-slate-400 text-sm mb-6 max-w-md">{error}</p>
-        <button
-          onClick={() => { setError(null); setStep(1); runningRef.current = false; }}
-          className="bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-6 py-2.5 rounded-lg transition"
-        >
-          {t('common.tryAgain')}
-        </button>
-      </div>
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        {lang === 'en' ? 'PASS' : 'APROBADO'}
+      </span>
     );
   }
-
-  // ── Sales companion sidebar ──
-  const SalesCompanion = () => {
-    if (!isSalesMode) return null;
-    const points = SALES_TALKING_POINTS[salesPhase] || [];
+  if (status === 'WARNING') {
     return (
-      <div className="fixed right-0 top-0 w-80 h-full bg-slate-900/95 border-l border-amber-500/20 p-4 overflow-y-auto z-50">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-amber-400" />
-            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">{t('demo.salesMode')}</span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-slate-800 px-2 py-1 rounded-md">
-            <Clock className="h-3 w-3 text-slate-400" />
-            <span className="text-xs text-slate-300 font-mono tabular-nums">{formatTimer(elapsedMs)}</span>
-          </div>
-        </div>
-
-        <div className="text-[10px] text-slate-600 uppercase tracking-widest mb-3">
-          Phase: {salesPhase}
-        </div>
-
-        <div className="space-y-3">
-          {points.map((tp, i) => (
-            <div key={i} className="bg-slate-800/60 border border-white/[0.06] rounded-lg p-3">
-              <p className="text-xs text-slate-300 mb-2">{tp.point}</p>
-              <p className="text-xs text-amber-400/80 italic mb-2">&ldquo;{tp.question}&rdquo;</p>
-              <button
-                onClick={() => setFlaggedPoints(p => [...p, tp.question])}
-                className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-amber-400 transition"
-              >
-                <Flag className="h-3 w-3" /> Flag for follow-up
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {flaggedPoints.length > 0 && (
-          <div className="mt-6 border-t border-white/[0.06] pt-4">
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Flagged ({flaggedPoints.length})</p>
-            {flaggedPoints.map((f, i) => (
-              <p key={i} className="text-xs text-amber-300/70 mb-1">- {f}</p>
-            ))}
-          </div>
-        )}
-      </div>
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+        <AlertTriangle className="h-3.5 w-3.5" />
+        {lang === 'en' ? 'WARNING' : 'ALERTA'}
+      </span>
     );
-  };
-
-  // ── Metrics overlay strip ──
-  const MetricsStrip = () => {
-    if (!results) return null;
-    const presetData = PRESETS[instType] || defaults;
-    return (
-      <div className="bg-slate-800/60 border border-white/[0.08] rounded-xl p-4 mb-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-3.5 w-3.5 text-slate-500" />
-            <div>
-              <p className="font-semibold text-white">{instName}</p>
-              <p className="text-slate-500">{presetData.assets} Assets{presetData.members ? ` · ${presetData.members} Members` : ''}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm">
-              {results.riskScore >= 80 ? '🟢' : results.riskScore >= 60 ? '🟡' : '🔴'}
-            </span>
-            <div>
-              <p className="text-slate-400">{t('demo.riskScore')}</p>
-              <p className="font-bold text-white">{results.riskScore}/100</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Shield className="h-3.5 w-3.5 text-emerald-400" />
-            <div>
-              <p className="text-slate-400">{t('demo.capital')}</p>
-              <p className="font-bold text-white">{results.capitalRatio.toFixed(1)}% <CheckCircle className="inline h-3 w-3 text-emerald-400" /></p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Shield className="h-3.5 w-3.5 text-emerald-400" />
-            <div>
-              <p className="text-slate-400">LCR</p>
-              <p className="font-bold text-white">{results.lcr.toFixed(1)}% <CheckCircle className="inline h-3 w-3 text-emerald-400" /></p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Droplets className="h-3.5 w-3.5 text-amber-400" />
-            <div>
-              <p className="text-slate-400">{t('demo.niiLabel')} (+200bps)</p>
-              <p className="font-bold text-white">{results.niiImpact}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-3.5 w-3.5 text-cyan-400" />
-            <div>
-              <p className="text-slate-400">{t('alm.durationGap')}</p>
-              <p className="font-bold text-white">{results.durationGap > 0 ? '+' : ''}{results.durationGap}yr {results.durationGap > 2 ? '⚠' : ''}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ── Social proof footer ──
-  const SocialProof = () => {
-    if (!results) return null;
-    const elapsed = ((Date.now() - demoStartTime) / 1000).toFixed(1);
-    const dateStr = new Date().toLocaleDateString(locale === 'es' ? 'es-PR' : 'en-US', {
-      year: 'numeric', month: 'long', day: 'numeric',
-    });
-    return (
-      <div className="text-center mt-4">
-        <p className="text-[11px] text-slate-600">
-          {locale === 'es'
-            ? `Generado en ${elapsed}s · ${dateStr} · ${t('demo.cossecCompliance')}: ${results.cossecPassed}/4`
-            : `Generated in ${elapsed}s · ${dateStr} · ${t('demo.cossecCompliance')}: ${results.cossecPassed}/4 ratios passed`
-          }
-        </p>
-      </div>
-    );
-  };
-
+  }
   return (
-    <div className={`min-h-screen bg-slate-950 flex items-center justify-center px-4 ${isSalesMode ? 'pr-84' : ''}`}>
-      <SalesCompanion />
-
-      <div className="w-full max-w-md">
-        {/* Brand */}
-        <div className="text-center mb-8">
-          <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <span className="text-slate-900 font-bold text-lg">C</span>
-          </div>
-          <p className="text-[11px] text-slate-600 uppercase tracking-widest">CERNIQ</p>
-        </div>
-
-        {/* Step 1: Institution Select */}
-        {step === 1 && (
-          <div className="bg-slate-900/60 border border-white/[0.08] rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-white mb-1">{t('demo.setupInstitution')}</h2>
-            <p className="text-xs text-slate-500 mb-6">{t('demo.takesAbout')}</p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">{t('demo.institutionName')}</label>
-                <input
-                  type="text"
-                  value={instName}
-                  onChange={(e) => setInstName(e.target.value)}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">{t('demo.assetSize')}</label>
-                  <select
-                    defaultValue={defaults.assetBucket}
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition appearance-none"
-                  >
-                    <option className="bg-slate-800">Under $100M</option>
-                    <option className="bg-slate-800">$100M - $500M</option>
-                    <option className="bg-slate-800">$500M - $1B</option>
-                    <option className="bg-slate-800">$1B - $5B</option>
-                    <option className="bg-slate-800">$5B+</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">{t('demo.type')}</label>
-                  <select
-                    value={instType}
-                    onChange={(e) => {
-                      setInstType(e.target.value);
-                      const p = PRESETS[e.target.value];
-                      if (p) setInstName(p.name);
-                    }}
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition appearance-none"
-                  >
-                    <option value="bank" className="bg-slate-800">{t('demo.communityBank')}</option>
-                    <option value="credit_union" className="bg-slate-800">{t('demo.creditUnion')}</option>
-                    <option value="cooperativa" className="bg-slate-800">Cooperativa PR</option>
-                    <option value="family_office" className="bg-slate-800">{t('demo.familyOffice')}</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={startSetup}
-              className="w-full mt-6 flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-lg transition text-sm"
-            >
-              {t('common.continue')} <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-
-        {/* Step 2: Animated Progress */}
-        {step === 2 && (
-          <div className="bg-slate-900/60 border border-white/[0.08] rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-white mb-1">{t('demo.creatingProfile')}</h2>
-            <p className="text-xs text-slate-500 mb-6">{instName}</p>
-
-            <div className="h-1.5 bg-white/[0.04] rounded-full overflow-hidden mb-6">
-              <div
-                className="h-full bg-amber-500 rounded-full transition-all duration-700 ease-out"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-
-            <div className="space-y-3">
-              {progressSteps.map((text, i) => {
-                const done = completedSteps.includes(i);
-                const current = !done && completedSteps.length === i;
-                return (
-                  <div
-                    key={i}
-                    className={`flex items-center gap-3 transition-all duration-300 ${
-                      done ? 'opacity-100' : current ? 'opacity-70' : 'opacity-20'
-                    }`}
-                  >
-                    {done ? (
-                      <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />
-                    ) : current ? (
-                      <div className="w-4 h-4 border-2 border-amber-500/40 border-t-amber-500 rounded-full animate-spin shrink-0" />
-                    ) : (
-                      <div className="w-4 h-4 rounded-full border border-white/[0.08] shrink-0" />
-                    )}
-                    <span className={`text-sm ${done ? 'text-slate-300' : 'text-slate-500'}`}>
-                      {text}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Results Preview (brief — auto-transitions to step 4) */}
-        {step === 3 && results && (
-          <div className="bg-slate-900/60 border border-white/[0.08] rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <CheckCircle className="h-5 w-5 text-emerald-400" />
-              <h2 className="text-lg font-bold text-white">{t('demo.dashboardReady')}</h2>
-            </div>
-            <MetricsStrip />
-            <div className="flex items-center justify-center">
-              <div className="w-4 h-4 border-2 border-amber-500/40 border-t-amber-500 rounded-full animate-spin" />
-              <span className="text-xs text-slate-500 ml-2">{t('demo.preparingReport')}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Report Ready + Full Results */}
-        {step === 4 && results && (
-          <div className="space-y-4">
-            {/* Metrics overlay */}
-            <MetricsStrip />
-
-            {/* Risk Score Badge */}
-            <div className="bg-slate-900/60 border border-white/[0.08] rounded-2xl p-6">
-              <div className="flex items-center justify-center mb-6">
-                <div className="relative">
-                  <div className="w-24 h-24 rounded-full border-4 border-amber-500/30 flex items-center justify-center">
-                    <div className="text-center">
-                      <span className="text-3xl font-bold text-white tabular-nums">{results.riskScore}</span>
-                      <span className="text-xs text-slate-500 block -mt-0.5">/100</span>
-                    </div>
-                  </div>
-                  <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full whitespace-nowrap">
-                    {t('common.moderate')}
-                  </span>
-                </div>
-              </div>
-
-              {/* Key metrics grid */}
-              <div className="grid grid-cols-3 gap-px bg-white/[0.03] rounded-xl overflow-hidden border border-white/[0.06] mb-6">
-                <div className="bg-slate-900/80 p-3 text-center">
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <Shield className="h-3 w-3 text-emerald-400" />
-                    <span className="text-[10px] text-slate-500 uppercase">{t('alm.lcr')}</span>
-                  </div>
-                  <span className="text-lg font-bold text-emerald-400 tabular-nums">{results.lcr.toFixed(1)}%</span>
-                  <CheckCircle className="h-3 w-3 text-emerald-400 mx-auto mt-0.5" />
-                </div>
-                <div className="bg-slate-900/80 p-3 text-center">
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <TrendingUp className="h-3 w-3 text-cyan-400" />
-                    <span className="text-[10px] text-slate-500 uppercase">{t('alm.gap')}</span>
-                  </div>
-                  <span className="text-lg font-bold text-white tabular-nums">+{results.durationGap}yr</span>
-                  <span className="text-[10px] text-slate-500 block mt-0.5">{t('common.neutral')}</span>
-                </div>
-                <div className="bg-slate-900/80 p-3 text-center">
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <Droplets className="h-3 w-3 text-amber-400" />
-                    <span className="text-[10px] text-slate-500 uppercase">NII</span>
-                  </div>
-                  <span className="text-lg font-bold text-amber-400 tabular-nums">{results.niiImpact}</span>
-                  <span className="text-[10px] text-slate-500 block mt-0.5">at +200bps</span>
-                </div>
-              </div>
-
-              {/* Report ready banner */}
-              <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl p-4 mb-4">
-                <p className="text-sm font-bold text-amber-300 mb-1">
-                  {locale === 'es' ? 'Tu informe ALM est\u00e1 listo' : 'Your ALM Report is Ready'}
-                </p>
-                <p className="text-xs text-slate-400">
-                  {locale === 'es'
-                    ? 'Descarga el informe completo en formato PDF.'
-                    : 'Download the full board-ready PDF report.'}
-                </p>
-              </div>
-
-              {/* PDF download buttons */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <button
-                  onClick={() => handleDownloadPDF('es')}
-                  className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-lg transition text-sm"
-                >
-                  <Download className="h-4 w-4" /> PDF (ES)
-                </button>
-                <button
-                  onClick={() => handleDownloadPDF('en')}
-                  className="flex items-center justify-center gap-2 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-white font-semibold py-3 rounded-lg transition text-sm"
-                >
-                  <Download className="h-4 w-4" /> PDF (EN)
-                </button>
-              </div>
-
-              {/* Open dashboard */}
-              <button
-                onClick={() => router.push(`/alm?id=${results.institutionId}`)}
-                className="w-full flex items-center justify-center gap-2 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-slate-300 hover:text-white py-3 rounded-lg transition text-sm mb-3"
-              >
-                <Building2 className="h-4 w-4" />
-                {t('demo.openDashboard')}
-                <ChevronRight className="h-4 w-4" />
-              </button>
-
-              {/* Lead form CTA */}
-              <button
-                onClick={() => handleLeadFormClick('demo_banner')}
-                className="w-full flex items-center justify-center gap-2 text-amber-400 hover:text-amber-300 text-xs transition py-2"
-              >
-                {locale === 'es'
-                  ? 'Solicita este an\u00e1lisis para tu instituci\u00f3n'
-                  : 'Request this analysis for your institution'}
-                <ArrowRight className="h-3 w-3" />
-              </button>
-            </div>
-
-            <SocialProof />
-          </div>
-        )}
-      </div>
-    </div>
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
+      <XCircle className="h-3.5 w-3.5" />
+      {lang === 'en' ? 'FAIL' : 'FALLO'}
+    </span>
   );
 }
 
-export default function DemoPage() {
+// ──────────────────────────────────────────────
+// Severity badge for SpendCheck
+// ──────────────────────────────────────────────
+function SeverityBadge({ severity }: { severity: FindingSeverity }) {
+  const cls = severity === 'HIGH'
+    ? 'border-red-200 bg-red-50 text-red-700'
+    : severity === 'MEDIUM'
+      ? 'border-amber-200 bg-amber-50 text-amber-700'
+      : 'border-slate-200 bg-slate-50 text-slate-600';
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-amber-500" />
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${cls}`}>
+      {severity}
+    </span>
+  );
+}
+
+// ──────────────────────────────────────────────
+// Main component
+// ──────────────────────────────────────────────
+export default function DemoPage() {
+  const [lang, setLang] = useState<Lang>('en');
+  const [step, setStep] = useState(1);
+  const [spendTab, setSpendTab] = useState<SpendcheckTab>('overview');
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(DEMO_CONVERSATION);
+  const [isTyping, setIsTyping] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const t = (en: string, es: string) => (lang === 'en' ? en : es);
+
+  // Track step views
+  useEffect(() => {
+    trackDemoStep(step);
+  }, [step]);
+
+  // Scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, isTyping]);
+
+  // Scroll content to top on step change
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
+
+  function goToStep(s: number) {
+    setStep(s);
+  }
+
+  function handleChatSend() {
+    if (!chatInput.trim() || isTyping) return;
+    const userText = chatInput.trim();
+    setChatInput('');
+
+    const userMsg: ChatMessage = { role: 'user', textEn: userText, textEs: userText };
+    setChatMessages((prev) => [...prev, userMsg]);
+    setIsTyping(true);
+
+    // Find a matching canned response
+    const lowerInput = userText.toLowerCase();
+    const match = CANNED_RESPONSES.find((r) => lowerInput.includes(r.patternEn));
+
+    setTimeout(() => {
+      const aiMsg: ChatMessage = {
+        role: 'assistant',
+        textEn: match ? match.responseEn : DEFAULT_CANNED_RESPONSE.responseEn,
+        textEs: match ? match.responseEs : DEFAULT_CANNED_RESPONSE.responseEs,
+      };
+      setChatMessages((prev) => [...prev, aiMsg]);
+      setIsTyping(false);
+    }, 1200);
+  }
+
+  // ── Computed ──
+  const passCount = COSSEC_RATIOS.filter((r) => r.status === 'PASS').length;
+  const warnCount = COSSEC_RATIOS.filter((r) => r.status === 'WARNING').length;
+  const failCount = COSSEC_RATIOS.filter((r) => r.status === 'FAIL').length;
+  const highFindings = SPEND_FINDINGS.filter((f) => f.severity === 'HIGH').length;
+
+  return (
+    <div className="min-h-screen text-slate-950">
+      {/* ── AMBER BANNER ── */}
+      <div className="bg-amber-500 px-4 py-2.5 text-center text-sm font-semibold text-white">
+        <span className="mr-2">
+          {t('Demo Mode -- Sample data for Demo Cooperativa ($350M assets).', 'Modo Demo -- Datos de ejemplo para Demo Cooperativa ($350M activos).')}
+        </span>
+        <Link
+          href="/pricing"
+          className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-0.5 text-xs font-bold text-white transition hover:bg-white/30"
+        >
+          {t('Sign up for your free analysis', 'Registrese para su analisis gratuito')}
+          <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+
+      {/* ── TOP NAV ── */}
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
+        <div className="flex items-center justify-between gap-3 rounded-full border border-slate-200/80 bg-white/80 px-4 py-2.5 backdrop-blur-xl sm:px-6">
+          <Link href="/" className="flex items-center gap-3">
+            <CerniqMark size="sm" />
+            <div>
+              <div className="font-display text-sm uppercase tracking-[0.4em] text-slate-950">Cerniq</div>
+              <div className="text-[10px] uppercase tracking-[0.36em] text-cyan-700/60">
+                {t('Interactive Demo', 'Demo Interactivo')}
+              </div>
+            </div>
+          </Link>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-full border border-slate-200 text-xs">
+              <button
+                onClick={() => setLang('en')}
+                className={`rounded-l-full px-2.5 py-1.5 font-semibold transition ${lang === 'en' ? 'bg-cyan-700 text-white' : 'text-slate-500 hover:text-slate-950'}`}
+              >
+                EN
+              </button>
+              <button
+                onClick={() => setLang('es')}
+                className={`rounded-r-full px-2.5 py-1.5 font-semibold transition ${lang === 'es' ? 'bg-cyan-700 text-white' : 'text-slate-500 hover:text-slate-950'}`}
+              >
+                ES
+              </button>
+            </div>
+            <Link
+              href="/pricing"
+              className="hidden rounded-full bg-amber-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600 sm:inline-flex"
+            >
+              {t('Get Started', 'Comenzar')}
+            </Link>
+          </div>
         </div>
-      }
-    >
-      <DemoContent />
-    </Suspense>
+      </div>
+
+      {/* ── MAIN LAYOUT ── */}
+      <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6">
+        <div className="flex flex-col gap-6 lg:flex-row">
+          {/* ── LEFT: Progress indicator ── */}
+          <div className="lg:w-64 lg:shrink-0">
+            <div className="sticky top-4">
+              <div className="cerniq-panel p-4">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">
+                  {t('GUIDED TOUR', 'RECORRIDO GUIADO')}
+                </p>
+                <p className="mb-4 text-xs text-slate-500">
+                  {t('Step', 'Paso')} {step} {t('of', 'de')} 5
+                </p>
+
+                {/* Progress bar */}
+                <div className="cerniq-progress-track mb-5">
+                  <div className="cerniq-progress-bar" style={{ width: `${(step / 5) * 100}%` }} />
+                </div>
+
+                {/* Step list */}
+                <div className="space-y-1">
+                  {STEPS.map((s) => {
+                    const isActive = s.id === step;
+                    const isDone = s.id < step;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => goToStep(s.id)}
+                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                          isActive
+                            ? 'border border-cyan-300/60 bg-cyan-50 font-semibold text-slate-950'
+                            : isDone
+                              ? 'text-slate-600 hover:bg-slate-50'
+                              : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+                        }`}
+                      >
+                        <span
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                            isActive
+                              ? 'bg-cyan-700 text-white'
+                              : isDone
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-slate-100 text-slate-400'
+                          }`}
+                        >
+                          {isDone ? <CheckCircle2 className="h-3.5 w-3.5" /> : s.id}
+                        </span>
+                        <span>{lang === 'en' ? s.labelEn : s.labelEs}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Institution info */}
+                <div className="mt-5 rounded-xl border border-slate-200/60 bg-slate-50/60 p-3">
+                  <div className="flex items-center gap-2 text-xs">
+                    <Building2 className="h-3.5 w-3.5 text-cyan-700" />
+                    <span className="font-semibold text-slate-700">{DEMO_INSTITUTION.name}</span>
+                  </div>
+                  <div className="mt-1 space-y-0.5 text-[11px] text-slate-500">
+                    <p>{t('Assets', 'Activos')}: {DEMO_INSTITUTION.assets}</p>
+                    <p>{t('Members', 'Socios')}: {DEMO_INSTITUTION.members}</p>
+                    <p>{DEMO_INSTITUTION.location}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── RIGHT: Content area ── */}
+          <div ref={contentRef} className="min-w-0 flex-1">
+            {/* ══════════════════════════════════════════════ */}
+            {/* STEP 1: COSSEC Score                          */}
+            {/* ══════════════════════════════════════════════ */}
+            {step === 1 && (
+              <div className="space-y-4">
+                <div className="cerniq-panel p-5 sm:p-6">
+                  <div className="cerniq-data-wave opacity-40" />
+                  <div className="relative z-10">
+                    <span className="cerniq-kicker mb-4 inline-flex">{t('COSSEC Compliance Score', 'Puntaje de Cumplimiento COSSEC')}</span>
+                    <h2 className="font-display text-2xl text-slate-950 sm:text-3xl">
+                      {t('12-Ratio Regulatory Traffic Light', 'Semaforo Regulatorio de 12 Ratios')}
+                    </h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
+                      {t(
+                        'Every CERNIQ report calculates all 12 COSSEC/NCUA regulatory ratios and flags them as PASS, WARNING, or FAIL against regulatory thresholds.',
+                        'Cada informe CERNIQ calcula los 12 ratios regulatorios COSSEC/NCUA y los marca como APROBADO, ALERTA o FALLO contra los umbrales regulatorios.'
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Score ring */}
+                <div className="cerniq-panel p-5 sm:p-6">
+                  <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
+                    {/* Score display */}
+                    <div className="flex flex-col items-center">
+                      <div className="relative flex h-32 w-32 items-center justify-center rounded-full border-4 border-cyan-200/50 bg-gradient-to-br from-cyan-50 to-white">
+                        <div className="text-center">
+                          <span className="font-display text-4xl font-bold text-slate-950">{DEMO_INSTITUTION.overallScore}</span>
+                          <span className="block text-xs text-slate-500">/100</span>
+                        </div>
+                      </div>
+                      <span className="mt-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
+                        {t('MODERATE', 'MODERADO')}
+                      </span>
+                    </div>
+
+                    {/* Summary badges */}
+                    <div className="flex flex-1 flex-wrap gap-3">
+                      <div className="flex-1 rounded-xl border border-emerald-200/60 bg-emerald-50/50 p-3 text-center">
+                        <p className="text-2xl font-bold text-emerald-700">{passCount}</p>
+                        <p className="text-xs font-semibold text-emerald-600">{t('PASS', 'APROBADO')}</p>
+                      </div>
+                      <div className="flex-1 rounded-xl border border-amber-200/60 bg-amber-50/50 p-3 text-center">
+                        <p className="text-2xl font-bold text-amber-700">{warnCount}</p>
+                        <p className="text-xs font-semibold text-amber-600">{t('WARNING', 'ALERTA')}</p>
+                      </div>
+                      <div className="flex-1 rounded-xl border border-red-200/60 bg-red-50/50 p-3 text-center">
+                        <p className="text-2xl font-bold text-red-700">{failCount}</p>
+                        <p className="text-xs font-semibold text-red-600">{t('FAIL', 'FALLO')}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ratio grid */}
+                <div className="cerniq-table-shell">
+                  <table className="cerniq-table">
+                    <thead>
+                      <tr>
+                        <th className="w-12">#</th>
+                        <th>{t('Ratio', 'Ratio')}</th>
+                        <th className="hidden sm:table-cell">{t('Value', 'Valor')}</th>
+                        <th className="hidden md:table-cell">{t('Threshold', 'Umbral')}</th>
+                        <th className="text-right">{t('Status', 'Estado')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {COSSEC_RATIOS.map((ratio) => (
+                        <tr key={ratio.id}>
+                          <td className="text-xs font-bold text-slate-400">{ratio.id}</td>
+                          <td>
+                            <div className="text-sm font-medium text-slate-800">
+                              {lang === 'en' ? ratio.nameEn : ratio.nameEs}
+                            </div>
+                            <div className="text-xs text-slate-500 sm:hidden">{ratio.value}</div>
+                          </td>
+                          <td className="hidden text-sm font-semibold tabular-nums text-slate-700 sm:table-cell">{ratio.value}</td>
+                          <td className="hidden text-xs text-slate-500 md:table-cell">
+                            {lang === 'en' ? ratio.thresholdEn : ratio.thresholdEs}
+                          </td>
+                          <td className="text-right">
+                            <StatusBadge status={ratio.status} lang={lang} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Next step */}
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => goToStep(2)}
+                    className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
+                  >
+                    {t('Next: ALM Report Preview', 'Siguiente: Vista previa del informe ALM')}
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ══════════════════════════════════════════════ */}
+            {/* STEP 2: ALM Report Preview                    */}
+            {/* ══════════════════════════════════════════════ */}
+            {step === 2 && (
+              <div className="space-y-4">
+                <div className="cerniq-panel p-5 sm:p-6">
+                  <div className="cerniq-data-wave opacity-40" />
+                  <div className="relative z-10">
+                    <span className="cerniq-kicker mb-4 inline-flex">{t('ALM Report', 'Informe ALM')}</span>
+                    <h2 className="font-display text-2xl text-slate-950 sm:text-3xl">
+                      {t('14-Page Board-Ready PDF', 'PDF de 14 Paginas Listo para Junta')}
+                    </h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
+                      {t(
+                        'Every analysis generates a comprehensive bilingual ALM report. Below is the table of contents for Demo Cooperativa\'s Q1 2026 report.',
+                        'Cada analisis genera un informe ALM bilingue completo. A continuacion se muestra el indice del informe Q1 2026 de Demo Cooperativa.'
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Report page list */}
+                <div className="cerniq-panel overflow-hidden">
+                  <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-900 to-slate-800 px-5 py-6 text-white sm:px-6">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                        <FileText className="h-7 w-7 text-cyan-300" />
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold">{DEMO_INSTITUTION.name}</p>
+                        <p className="text-sm text-slate-300">
+                          {t('ALM Intelligence Report - Q1 2026', 'Informe de Inteligencia ALM - Q1 2026')}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">14 {t('pages', 'paginas')} | EN/ES | {t('Board-ready', 'Listo para junta')}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    {ALM_REPORT_PAGES.map((page, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-4 px-5 py-3.5 transition hover:bg-cyan-50/30 sm:px-6"
+                      >
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-500">
+                          {idx + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-slate-800">
+                            {lang === 'en' ? page.pageEn : page.pageEs}
+                          </p>
+                          <p className="mt-0.5 truncate text-xs text-slate-500">
+                            {lang === 'en' ? page.descEn : page.descEs}
+                          </p>
+                        </div>
+                        <Eye className="h-4 w-4 shrink-0 text-slate-300" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Key metrics preview */}
+                <div className="grid gap-4 sm:grid-cols-4">
+                  {[
+                    { labelEn: 'Risk Score', labelEs: 'Puntaje', value: '78/100', color: 'text-amber-600' },
+                    { labelEn: 'Duration Gap', labelEs: 'Brecha', value: '+2.3yr', color: 'text-amber-600' },
+                    { labelEn: 'LCR', labelEs: 'LCR', value: '115.3%', color: 'text-emerald-600' },
+                    { labelEn: 'Capital', labelEs: 'Capital', value: '10.2%', color: 'text-emerald-600' },
+                  ].map((m) => (
+                    <div key={m.labelEn} className="cerniq-stat-card text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                        {lang === 'en' ? m.labelEn : m.labelEs}
+                      </p>
+                      <p className={`mt-1 font-display text-2xl font-bold ${m.color}`}>{m.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Nav buttons */}
+                <div className="flex justify-between">
+                  <button
+                    onClick={() => goToStep(1)}
+                    className="cerniq-button-secondary text-sm"
+                  >
+                    {t('Back', 'Atras')}
+                  </button>
+                  <button
+                    onClick={() => goToStep(3)}
+                    className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
+                  >
+                    {t('Next: SpendCheck', 'Siguiente: SpendCheck')}
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ══════════════════════════════════════════════ */}
+            {/* STEP 3: SpendCheck                            */}
+            {/* ══════════════════════════════════════════════ */}
+            {step === 3 && (
+              <div className="space-y-4">
+                <div className="cerniq-panel p-5 sm:p-6">
+                  <div className="cerniq-data-wave opacity-40" />
+                  <div className="relative z-10">
+                    <span className="cerniq-kicker mb-4 inline-flex">SpendCheck</span>
+                    <h2 className="font-display text-2xl text-slate-950 sm:text-3xl">
+                      {t('AP Intelligence & Anomaly Detection', 'Inteligencia de Cuentas por Pagar y Deteccion de Anomalias')}
+                    </h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
+                      {t(
+                        'SpendCheck analyzes your accounts payable data to identify duplicate invoices, amount anomalies, vendor concentration risks, and missed discounts.',
+                        'SpendCheck analiza sus datos de cuentas por pagar para identificar facturas duplicadas, anomalias de montos, riesgos de concentracion de proveedores y descuentos perdidos.'
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* AP Health Score */}
+                <div className="cerniq-panel p-5 sm:p-6">
+                  <div className="flex flex-col items-center gap-5 sm:flex-row">
+                    <div className="flex flex-col items-center">
+                      <div className="relative flex h-28 w-28 items-center justify-center rounded-full border-4 border-amber-200/50 bg-gradient-to-br from-amber-50 to-white">
+                        <div className="text-center">
+                          <span className="font-display text-3xl font-bold text-slate-950">72</span>
+                          <span className="block text-xs text-slate-500">/100</span>
+                        </div>
+                      </div>
+                      <span className="mt-2 text-xs font-bold uppercase tracking-wider text-amber-600">
+                        {t('AP Health Score', 'Puntaje Salud AP')}
+                      </span>
+                    </div>
+
+                    <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
+                      <div className="rounded-xl border border-slate-200/60 p-3 text-center">
+                        <p className="text-xl font-bold text-red-600">{highFindings}</p>
+                        <p className="text-[10px] font-semibold uppercase text-slate-500">{t('High Risk', 'Alto Riesgo')}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200/60 p-3 text-center">
+                        <p className="text-xl font-bold text-amber-600">2</p>
+                        <p className="text-[10px] font-semibold uppercase text-slate-500">{t('Medium', 'Medio')}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200/60 p-3 text-center">
+                        <p className="text-xl font-bold text-slate-500">1</p>
+                        <p className="text-[10px] font-semibold uppercase text-slate-500">{t('Low', 'Bajo')}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200/60 p-3 text-center">
+                        <p className="text-xl font-bold text-cyan-700">$1.48M</p>
+                        <p className="text-[10px] font-semibold uppercase text-slate-500">{t('Total Exposure', 'Exposicion Total')}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200/60 bg-white/80 p-1">
+                  {([
+                    { key: 'overview' as SpendcheckTab, en: 'Overview', es: 'Resumen' },
+                    { key: 'anomalies' as SpendcheckTab, en: 'Anomalies', es: 'Anomalias' },
+                    { key: 'vendors' as SpendcheckTab, en: 'Vendors', es: 'Proveedores' },
+                    { key: 'liquidity' as SpendcheckTab, en: 'Liquidity', es: 'Liquidez' },
+                    { key: 'report' as SpendcheckTab, en: 'Report', es: 'Informe' },
+                  ]).map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setSpendTab(tab.key)}
+                      className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                        spendTab === tab.key
+                          ? 'bg-cyan-700 text-white'
+                          : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
+                    >
+                      {lang === 'en' ? tab.en : tab.es}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Tab: Overview */}
+                {spendTab === 'overview' && (
+                  <div className="cerniq-panel p-5 sm:p-6">
+                    <h3 className="mb-4 font-display text-lg text-slate-950">{t('Key Findings', 'Hallazgos Clave')}</h3>
+                    <div className="space-y-3">
+                      {SPEND_FINDINGS.map((f) => (
+                        <div
+                          key={f.id}
+                          className="flex flex-col gap-2 rounded-xl border border-slate-200/60 p-4 transition hover:border-cyan-200/40 sm:flex-row sm:items-start sm:gap-4"
+                        >
+                          <SeverityBadge severity={f.severity} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-slate-800">
+                              {lang === 'en' ? f.titleEn : f.titleEs}
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">
+                              {lang === 'en' ? f.descEn : f.descEs}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-sm font-bold tabular-nums text-slate-700">{f.amountImpact}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab: Anomalies */}
+                {spendTab === 'anomalies' && (
+                  <div className="cerniq-panel p-5 sm:p-6">
+                    <h3 className="mb-4 font-display text-lg text-slate-950">{t('Detected Anomalies', 'Anomalias Detectadas')}</h3>
+                    <div className="space-y-3">
+                      {SPEND_FINDINGS.filter((f) => f.severity === 'HIGH' || f.severity === 'MEDIUM').map((f) => (
+                        <div key={f.id} className="rounded-xl border border-slate-200/60 p-4">
+                          <div className="mb-2 flex items-center gap-2">
+                            <SeverityBadge severity={f.severity} />
+                            <span className="text-sm font-semibold text-slate-800">
+                              {lang === 'en' ? f.titleEn : f.titleEs}
+                            </span>
+                          </div>
+                          <p className="text-xs leading-5 text-slate-500">
+                            {lang === 'en' ? f.descEn : f.descEs}
+                          </p>
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-xs text-slate-400">{t('Impact', 'Impacto')}:</span>
+                            <span className="text-sm font-bold text-red-600">{f.amountImpact}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab: Vendors */}
+                {spendTab === 'vendors' && (
+                  <div className="cerniq-table-shell">
+                    <table className="cerniq-table">
+                      <thead>
+                        <tr>
+                          <th>{t('Vendor', 'Proveedor')}</th>
+                          <th>{t('Spend', 'Gasto')}</th>
+                          <th className="hidden sm:table-cell">% {t('of Total', 'del Total')}</th>
+                          <th className="hidden sm:table-cell">{t('Invoices', 'Facturas')}</th>
+                          <th>{t('Risk Flag', 'Alerta')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {SPEND_VENDORS.map((v) => (
+                          <tr key={v.name}>
+                            <td className="text-sm font-medium text-slate-800">{v.name}</td>
+                            <td className="text-sm font-semibold tabular-nums text-slate-700">{v.spend}</td>
+                            <td className="hidden text-sm text-slate-500 sm:table-cell">{v.pctEn}</td>
+                            <td className="hidden text-sm text-slate-500 sm:table-cell">{v.invoices}</td>
+                            <td>
+                              <span className={`text-xs font-medium ${v.riskEn === 'None' ? 'text-slate-400' : 'text-red-600'}`}>
+                                {lang === 'en' ? v.riskEn : v.riskEs}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Tab: Liquidity */}
+                {spendTab === 'liquidity' && (
+                  <div className="cerniq-panel p-5 sm:p-6">
+                    <h3 className="mb-4 font-display text-lg text-slate-950">{t('AP Liquidity Impact', 'Impacto de Liquidez AP')}</h3>
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <div className="rounded-xl border border-slate-200/60 p-4 text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          {t('Total AP Outstanding', 'Total AP Pendiente')}
+                        </p>
+                        <p className="mt-1 font-display text-2xl font-bold text-slate-800">$1.48M</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200/60 p-4 text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          {t('Avg Days to Pay', 'Dias Promedio Pago')}
+                        </p>
+                        <p className="mt-1 font-display text-2xl font-bold text-amber-600">34.2</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200/60 p-4 text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          {t('Missed Discounts (YTD)', 'Descuentos Perdidos (YTD)')}
+                        </p>
+                        <p className="mt-1 font-display text-2xl font-bold text-red-600">$16,600</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 rounded-xl border border-cyan-200/40 bg-cyan-50/50 p-4">
+                      <p className="text-xs font-semibold text-cyan-800">
+                        {t(
+                          'Recommendation: Implement 2/10 net-30 discount capture for top 8 vendors to recover ~$16,600 annually.',
+                          'Recomendacion: Implementar captura de descuento 2/10 net-30 para los 8 principales proveedores y recuperar ~$16,600 anualmente.'
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab: Report */}
+                {spendTab === 'report' && (
+                  <div className="cerniq-panel p-5 sm:p-6">
+                    <h3 className="mb-4 font-display text-lg text-slate-950">{t('SpendCheck Report Summary', 'Resumen de Informe SpendCheck')}</h3>
+                    <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5">
+                      <div className="space-y-3 text-sm text-slate-700">
+                        <p className="font-semibold">{DEMO_INSTITUTION.name} - SpendCheck {t('Analysis', 'Analisis')} Q1 2026</p>
+                        <div className="h-px bg-slate-200" />
+                        <p>{t('Total invoices analyzed', 'Total de facturas analizadas')}: <strong>138</strong></p>
+                        <p>{t('Total vendors', 'Total de proveedores')}: <strong>24</strong></p>
+                        <p>{t('Findings', 'Hallazgos')}: <strong className="text-red-600">3 {t('HIGH', 'ALTO')}</strong>, <strong className="text-amber-600">2 {t('MEDIUM', 'MEDIO')}</strong>, <strong className="text-slate-500">1 {t('LOW', 'BAJO')}</strong></p>
+                        <p>{t('Potential savings identified', 'Ahorros potenciales identificados')}: <strong className="text-emerald-700">$55,663</strong></p>
+                        <p>AP {t('Health Score', 'Puntaje de Salud')}: <strong className="text-amber-600">72/100</strong></p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Nav buttons */}
+                <div className="flex justify-between">
+                  <button onClick={() => goToStep(2)} className="cerniq-button-secondary text-sm">
+                    {t('Back', 'Atras')}
+                  </button>
+                  <button
+                    onClick={() => goToStep(4)}
+                    className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
+                  >
+                    {t('Next: AI Advisor', 'Siguiente: Asesor IA')}
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ══════════════════════════════════════════════ */}
+            {/* STEP 4: AI Advisor                            */}
+            {/* ══════════════════════════════════════════════ */}
+            {step === 4 && (
+              <div className="space-y-4">
+                <div className="cerniq-panel p-5 sm:p-6">
+                  <div className="cerniq-data-wave opacity-40" />
+                  <div className="relative z-10">
+                    <span className="cerniq-kicker mb-4 inline-flex">{t('AI Advisor', 'Asesor IA')}</span>
+                    <h2 className="font-display text-2xl text-slate-950 sm:text-3xl">
+                      {t('Ask Questions About Your Risk Profile', 'Haga Preguntas Sobre Su Perfil de Riesgo')}
+                    </h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
+                      {t(
+                        'CERNIQ\'s AI Advisor answers questions about your institution\'s risk metrics, regulatory compliance, and scenario analysis.',
+                        'El Asesor IA de CERNIQ responde preguntas sobre las metricas de riesgo de su institucion, cumplimiento regulatorio y analisis de escenarios.'
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Chat window */}
+                <div className="cerniq-panel flex flex-col" style={{ height: '480px' }}>
+                  {/* Messages */}
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+                    <div className="space-y-4">
+                      {chatMessages.map((msg, idx) => (
+                        <div
+                          key={idx}
+                          className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          {msg.role === 'assistant' && (
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50">
+                              <Sparkles className="h-4 w-4 text-cyan-700" />
+                            </div>
+                          )}
+                          <div
+                            className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-6 ${
+                              msg.role === 'user'
+                                ? 'bg-cyan-700 text-white'
+                                : 'border border-slate-200/60 bg-white text-slate-700'
+                            }`}
+                          >
+                            {lang === 'en' ? msg.textEn : msg.textEs}
+                          </div>
+                          {msg.role === 'user' && (
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-100">
+                              <MessageSquare className="h-4 w-4 text-slate-500" />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {isTyping && (
+                        <div className="flex gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50">
+                            <Sparkles className="h-4 w-4 text-cyan-700" />
+                          </div>
+                          <div className="rounded-2xl border border-slate-200/60 bg-white px-4 py-3">
+                            <div className="flex gap-1">
+                              <span className="h-2 w-2 animate-bounce rounded-full bg-slate-300" style={{ animationDelay: '0ms' }} />
+                              <span className="h-2 w-2 animate-bounce rounded-full bg-slate-300" style={{ animationDelay: '150ms' }} />
+                              <span className="h-2 w-2 animate-bounce rounded-full bg-slate-300" style={{ animationDelay: '300ms' }} />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div ref={chatEndRef} />
+                    </div>
+                  </div>
+
+                  {/* Suggested prompts */}
+                  <div className="border-t border-slate-200/60 bg-slate-50/40 px-4 py-2">
+                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      {t('Try asking', 'Pruebe preguntar')}:
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { en: 'What about our liquidity?', es: 'Que hay de nuestra liquidez?' },
+                        { en: 'Explain the capital position', es: 'Explique la posicion de capital' },
+                        { en: 'Run a stress test scenario', es: 'Ejecute un escenario de estres' },
+                      ].map((q) => (
+                        <button
+                          key={q.en}
+                          onClick={() => {
+                            setChatInput(lang === 'en' ? q.en : q.es);
+                          }}
+                          className="rounded-full border border-slate-200/60 bg-white px-2.5 py-1 text-[11px] text-slate-500 transition hover:border-cyan-200 hover:text-cyan-700"
+                        >
+                          {lang === 'en' ? q.en : q.es}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Input */}
+                  <div className="border-t border-slate-200/60 p-3">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleChatSend();
+                        }}
+                        placeholder={t('Ask about Demo Cooperativa\'s risk profile...', 'Pregunte sobre el perfil de riesgo de Demo Cooperativa...')}
+                        className="cerniq-field flex-1 text-sm"
+                      />
+                      <button
+                        onClick={handleChatSend}
+                        disabled={!chatInput.trim() || isTyping}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-700 text-white transition hover:bg-cyan-600 disabled:opacity-40"
+                      >
+                        <Send className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="mt-1.5 text-center text-[10px] text-slate-400">
+                      {t('Demo mode: responses are pre-loaded samples.', 'Modo demo: las respuestas son muestras pre-cargadas.')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Nav buttons */}
+                <div className="flex justify-between">
+                  <button onClick={() => goToStep(3)} className="cerniq-button-secondary text-sm">
+                    {t('Back', 'Atras')}
+                  </button>
+                  <button
+                    onClick={() => goToStep(5)}
+                    className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
+                  >
+                    {t('Next: Get Started', 'Siguiente: Comenzar')}
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ══════════════════════════════════════════════ */}
+            {/* STEP 5: Get Started                           */}
+            {/* ══════════════════════════════════════════════ */}
+            {step === 5 && (
+              <div className="space-y-4">
+                <div className="cerniq-shell p-5 sm:p-6 lg:p-8">
+                  <div className="cerniq-panel p-6 sm:p-8">
+                    <div className="cerniq-data-wave opacity-50" />
+                    <div className="relative z-10 mx-auto max-w-2xl text-center">
+                      <CerniqMark size="lg" className="mx-auto mb-6" />
+                      <h2 className="font-display text-3xl text-slate-950 sm:text-4xl">
+                        {t(
+                          'Ready to use CERNIQ with your institution\'s real data?',
+                          'Listo para usar CERNIQ con los datos reales de su institucion?'
+                        )}
+                      </h2>
+                      <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-slate-600">
+                        {t(
+                          'Upload your balance sheet and receive a comprehensive 14-page bilingual ALM report with all 12 COSSEC ratios in 24 hours.',
+                          'Cargue su hoja de balance y reciba un informe ALM bilingue de 14 paginas con los 12 ratios COSSEC en 24 horas.'
+                        )}
+                      </p>
+
+                      <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                        <Link
+                          href="/pricing"
+                          className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-8 py-3.5 text-sm font-bold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5"
+                        >
+                          {t('Get Your First Analysis -- $750', 'Obtenga Su Primer Analisis -- $750')}
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
+                        <Link
+                          href="/#demo"
+                          className="cerniq-button-secondary"
+                        >
+                          {t('Request a Demo', 'Solicitar una Demo')}
+                        </Link>
+                      </div>
+
+                      {/* What you saw recap */}
+                      <div className="mx-auto mt-10 max-w-lg">
+                        <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">
+                          {t('WHAT YOU EXPLORED TODAY', 'LO QUE EXPLORO HOY')}
+                        </p>
+                        <div className="grid grid-cols-2 gap-3 text-left">
+                          <div className="rounded-xl border border-slate-200/60 p-3">
+                            <Shield className="mb-2 h-5 w-5 text-cyan-700" />
+                            <p className="text-xs font-semibold text-slate-800">{t('12 COSSEC Ratios', '12 Ratios COSSEC')}</p>
+                            <p className="text-[11px] text-slate-500">{t('Traffic light compliance grid', 'Cuadricula de cumplimiento semaforo')}</p>
+                          </div>
+                          <div className="rounded-xl border border-slate-200/60 p-3">
+                            <FileText className="mb-2 h-5 w-5 text-cyan-700" />
+                            <p className="text-xs font-semibold text-slate-800">{t('14-Page ALM Report', 'Informe ALM de 14 paginas')}</p>
+                            <p className="text-[11px] text-slate-500">{t('Board-ready bilingual PDF', 'PDF bilingue listo para junta')}</p>
+                          </div>
+                          <div className="rounded-xl border border-slate-200/60 p-3">
+                            <Receipt className="mb-2 h-5 w-5 text-cyan-700" />
+                            <p className="text-xs font-semibold text-slate-800">SpendCheck</p>
+                            <p className="text-[11px] text-slate-500">{t('AP anomaly detection', 'Deteccion de anomalias AP')}</p>
+                          </div>
+                          <div className="rounded-xl border border-slate-200/60 p-3">
+                            <Sparkles className="mb-2 h-5 w-5 text-cyan-700" />
+                            <p className="text-xs font-semibold text-slate-800">{t('AI Advisor', 'Asesor IA')}</p>
+                            <p className="text-[11px] text-slate-500">{t('Risk scenario analysis', 'Analisis de escenarios de riesgo')}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cost comparison */}
+                      <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5">
+                        <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-700">
+                          {t(
+                            'CERNIQ: $750 per report vs. Traditional consultant: $8,000-$12,000',
+                            'CERNIQ: $750 por informe vs. Consultor tradicional: $8,000-$12,000'
+                          )}
+                        </p>
+                        <p className="mt-1 text-xs text-emerald-600">
+                          {t('Save 83-93% on ALM analysis', 'Ahorre 83-93% en analisis ALM')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Back button */}
+                <div className="flex justify-start">
+                  <button onClick={() => goToStep(4)} className="cerniq-button-secondary text-sm">
+                    {t('Back', 'Atras')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── FOOTER ── */}
+      <div className="border-t border-slate-200/60 bg-white/60 py-4 text-center text-xs text-slate-400">
+        CERNIQ &middot; KLYTICS LLC &middot; San Juan, PR &middot; {new Date().getFullYear()}
+      </div>
+    </div>
   );
 }

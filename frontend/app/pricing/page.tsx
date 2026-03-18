@@ -156,6 +156,14 @@ export default function PricingPage() {
             </div>
           </div>
 
+          <div className="flex items-center gap-2">
+          <Link
+            href="/demo"
+            className="hidden rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 sm:inline-flex"
+          >
+            {t('Try Demo', 'Ver Demo')}
+          </Link>
+
           {/* Language toggle */}
           <div className="flex items-center rounded-full border border-slate-200 text-xs">
             <button
@@ -170,6 +178,7 @@ export default function PricingPage() {
             >
               ES
             </button>
+          </div>
           </div>
         </div>
 

@@ -7,6 +7,7 @@ import { AlmEnterpriseService } from '../alm/alm-enterprise.service';
 import { StressTestingService } from '../alm/stress-testing/stress-testing.service';
 import { ComplianceCalendarService } from '../alm/compliance-calendar.service';
 import { DataCryptoService } from '../crypto/data-crypto.service';
+import { PipelineGateway } from '../realtime/pipeline.gateway';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
@@ -27,6 +28,7 @@ export class PipelineWorker {
     private readonly stressTesting: StressTestingService,
     private readonly complianceCalendar: ComplianceCalendarService,
     private readonly dataCrypto: DataCryptoService,
+    private readonly pipelineGateway: PipelineGateway,
   ) {}
 
   @Cron('*/2 * * * *') // Every 2 minutes
@@ -51,14 +53,31 @@ export class PipelineWorker {
     this.logger.log({ event: 'pipeline.job.starting', jobId: job.id, institution: job.institutionName });
 
     try {
-      // Step 1: Transition to PROCESSING
+      // Step 1: Transition to PROCESSING — validate data
       await this.transitionJob(job.id, 'PROCESSING');
+      this.pipelineGateway.emitProgress(job.id, {
+        step: 'VALIDATING',
+        stepNumber: 1,
+        totalSteps: 7,
+        percentComplete: 5,
+        message: 'Validating balance sheet data...',
+        messageEs: 'Validando datos del balance...',
+      });
 
       // Step 2: Load institution data
       const institution = await this.loadInstitutionData(job.userId, job.institutionId);
       if (!institution) {
         throw new Error(`No institution data found for job ${job.id}`);
       }
+
+      this.pipelineGateway.emitProgress(job.id, {
+        step: 'COSSEC_CALC',
+        stepNumber: 2,
+        totalSteps: 7,
+        percentComplete: 20,
+        message: 'Calculating 12 COSSEC ratios...',
+        messageEs: 'Calculando 12 ratios COSSEC...',
+      });
 
       // Step 3: Run ALM calculations via enterprise service (with trend data)
       await this.transitionJob(job.id, 'GENERATING_PDF');
@@ -68,12 +87,46 @@ export class PipelineWorker {
         this.almEnterprise.getCOSSECComplianceWithTrend(institution.id),
       ]);
 
+      this.pipelineGateway.emitProgress(job.id, {
+        step: 'MONTE_CARLO',
+        stepNumber: 3,
+        totalSteps: 7,
+        percentComplete: 45,
+        message: 'Running Monte Carlo simulation (1,000 paths)...',
+        messageEs: 'Ejecutando simulacion Monte Carlo (1,000 trayectorias)...',
+      });
+
+      this.pipelineGateway.emitProgress(job.id, {
+        step: 'STRESS_TEST',
+        stepNumber: 4,
+        totalSteps: 7,
+        percentComplete: 60,
+        message: 'Running regulatory stress scenarios...',
+        messageEs: 'Ejecutando escenarios de estres regulatorio...',
+      });
+
       // Step 4: Generate PDFs (both languages) using the ALM report service
+      this.pipelineGateway.emitProgress(job.id, {
+        step: 'PDF_GENERATION',
+        stepNumber: 5,
+        totalSteps: 7,
+        percentComplete: 80,
+        message: 'Generating 14-page bilingual PDF...',
+        messageEs: 'Generando PDF bilingue de 14 paginas...',
+      });
       const pdfEs = await this.generateReport(institution.id, 'es');
       const pdfEn = await this.generateReport(institution.id, 'en');
 
       // Step 5: Upload to storage
       await this.transitionJob(job.id, 'UPLOADING');
+      this.pipelineGateway.emitProgress(job.id, {
+        step: 'UPLOADING',
+        stepNumber: 6,
+        totalSteps: 7,
+        percentComplete: 95,
+        message: 'Uploading report to secure storage...',
+        messageEs: 'Subiendo informe a almacenamiento seguro...',
+      });
       const keyEs = `reports/${job.id}/report_es.pdf`;
       const keyEn = `reports/${job.id}/report_en.pdf`;
       await Promise.all([
@@ -96,6 +149,12 @@ export class PipelineWorker {
           reportUrlEn: urlEn || keyEn,
           completedAt: new Date(),
         },
+      });
+
+      // Emit WebSocket completion event
+      this.pipelineGateway.emitComplete(job.id, {
+        reportUrl: urlEs || keyEs,
+        reportUrlEn: urlEn || keyEn,
       });
 
       // Increment reports used
@@ -132,6 +191,9 @@ export class PipelineWorker {
           errorMessage: error.message || 'Unknown error',
         },
       });
+
+      // Emit WebSocket error event
+      this.pipelineGateway.emitError(job.id, error.message || 'Unknown error');
 
       // Alert Erwin
       await this.email.sendJobFailedAlert({
@@ -311,7 +373,7 @@ export class PipelineWorker {
       const tocItems = [
         [t('Resumen Ejecutivo', 'Executive Summary'), '3'],
         [t('Panorama del Balance General', 'Balance Sheet Overview'), '4'],
-        [t('Analisis de Brecha de Duracion', 'Duration Gap Analysis'), '5'],
+        [t('Duracion, Convexidad y Sensibilidad EVE', 'Duration, Convexity & EVE Sensitivity'), '5'],
         [t('Sensibilidad de Ingreso Neto por Intereses', 'Net Interest Income Sensitivity'), '6'],
         [t('Cobertura de Liquidez (LCR)', 'Liquidity Coverage Ratio (LCR)'), '7'],
         [institution?.primaryRegulator === 'NCUA'
@@ -448,22 +510,23 @@ export class PipelineWorker {
       }
 
       // ═════════════════════════════════════════════════════════════
-      // PAGE 5: DURATION GAP ANALYSIS
+      // PAGE 5: DURATION, CONVEXITY & EVE SENSITIVITY ANALYSIS
       // ═════════════════════════════════════════════════════════════
       doc.addPage();
-      y = pageHeader(t('ANALISIS DE BRECHA DE DURACION', 'DURATION GAP ANALYSIS'));
+      y = pageHeader(t('DURACION, CONVEXIDAD Y SENSIBILIDAD EVE', 'DURATION, CONVEXITY & EVE SENSITIVITY'));
       drawFooter();
 
       if (summary?.durationGap) {
         const dg = summary.durationGap;
         doc.font('Helvetica').fontSize(9).fill('#475569').text(
           t(
-            'La brecha de duracion mide la diferencia entre la duracion promedio ponderada de activos y pasivos. Una brecha positiva indica sensibilidad a activos (perdida de valor cuando las tasas suben).',
-            'Duration gap measures the difference between the weighted average duration of assets and liabilities. A positive gap indicates asset sensitivity (value loss when rates rise).',
+            'Duracion modificada y convexidad miden la sensibilidad del valor economico a cambios en tasas. La convexidad captura efectos de segundo orden que son materiales en choques grandes (>100bps).',
+            'Modified duration and convexity measure economic value sensitivity to rate changes. Convexity captures second-order effects that become material for large shocks (>100bps).',
           ), ML, y, { width: CW },
         );
-        y += 45;
+        y += 38;
 
+        // ── Duration bars ──
         const maxDur = Math.max(dg.assetDuration || 1, dg.liabilityDuration || 1, 1);
         const barMax = 300;
 
@@ -479,8 +542,9 @@ export class PipelineWorker {
         y += 15;
         const liabBarW = Math.max(10, (dg.liabilityDuration / maxDur) * barMax);
         doc.rect(ML, y, liabBarW, 16).fill('#E8A020');
-        y += 35;
+        y += 30;
 
+        // ── Duration Gap + Convexity card ──
         const gapColor = Math.abs(dg.durationGap) < 1 ? '#16A34A' : Math.abs(dg.durationGap) < 2.5 ? '#D97706' : '#DC2626';
         doc.rect(ML, y, CW, 60).fill('#F8FAFC');
         doc.rect(ML, y, 4, 60).fill(gapColor);
@@ -496,7 +560,83 @@ export class PipelineWorker {
         doc.rect(ML + 280, y + 15, 160, 28).fill(profileColor);
         doc.fill('#FFFFFF').font('Helvetica-Bold').fontSize(10).text(profileText, ML + 290, y + 22, { width: 140, align: 'center' });
 
-        y += 80;
+        y += 75;
+
+        // ── Convexity metrics table (MP-QUANT-02) ──
+        const hasConvexity = dg.assetConvexity != null && dg.liabilityConvexity != null;
+        const dc = summary.durationConvexity;
+        doc.fill('#1B3A6B').font('Helvetica-Bold').fontSize(11).text(
+          t('METRICAS DE DURACION Y CONVEXIDAD', 'DURATION & CONVEXITY METRICS'), ML, y,
+        );
+        y += 18;
+
+        const dcw = [180, 110, 110, 92];
+        y = tblRow(y, [
+          t('Metrica', 'Metric'),
+          t('Activos', 'Assets'),
+          t('Pasivos', 'Liabilities'),
+          t('Brecha/Neto', 'Gap/Net'),
+        ], dcw, { bg: '#1B3A6B', header: true });
+
+        const assetMD = dg.assetDuration?.toFixed(2) || 'N/A';
+        const liabMD = dg.liabilityDuration?.toFixed(2) || 'N/A';
+        const gapMD = dg.durationGap?.toFixed(2) || 'N/A';
+        y = tblRow(y, [
+          t('Duracion Modificada (yr)', 'Modified Duration (yr)'),
+          assetMD, liabMD, gapMD,
+        ], dcw, { bg: '#FFFFFF' });
+
+        const assetCx = hasConvexity ? (dg.assetConvexity as number).toFixed(2) : (dc?.assetConvexity?.toFixed(2) || 'N/A');
+        const liabCx = hasConvexity ? (dg.liabilityConvexity as number).toFixed(2) : (dc?.liabilityConvexity?.toFixed(2) || 'N/A');
+        const netCx = hasConvexity
+          ? ((dg.assetConvexity as number) - (dg.liabilityConvexity as number)).toFixed(2)
+          : (dc ? (dc.assetConvexity - dc.liabilityConvexity).toFixed(2) : 'N/A');
+        y = tblRow(y, [
+          t('Convexidad', 'Convexity'),
+          assetCx, liabCx, netCx,
+        ], dcw, { bg: '#F8FAFC' });
+
+        const lagap = dg.leverageAdjustedDurationGap != null
+          ? dg.leverageAdjustedDurationGap.toFixed(2)
+          : (dc?.leverageAdjustedDurationGap?.toFixed(2) || gapMD);
+        y = tblRow(y, [
+          t('Brecha Ajust. Apalancamiento (yr)', 'Leverage-Adj. Gap (yr)'),
+          '', '', lagap,
+        ], dcw, { bg: '#FFFFFF' });
+
+        y += 20;
+
+        // ── EVE Sensitivity table (convexity-adjusted) ──
+        const evePts = summary.eveSensitivity;
+        if (evePts && evePts.length > 0) {
+          doc.fill('#1B3A6B').font('Helvetica-Bold').fontSize(11).text(
+            t('SENSIBILIDAD EVE (AJUSTADA POR CONVEXIDAD)', 'EVE SENSITIVITY (CONVEXITY-ADJUSTED)'), ML, y,
+          );
+          y += 18;
+
+          const ew = [80, 90, 100, 110, 110];
+          y = tblRow(y, [
+            t('Choque', 'Shock'),
+            t('Activos ($M)', 'Assets ($M)'),
+            t('Pasivos ($M)', 'Liabilities ($M)'),
+            t('Cambio EVE ($M)', 'EVE Change ($M)'),
+            t('Cambio EVE %', 'EVE Change %'),
+          ], ew, { bg: '#1B3A6B', header: true });
+
+          for (let i = 0; i < evePts.length; i++) {
+            const ep = evePts[i];
+            const shockLabel = ep.shockBps > 0 ? `+${ep.shockBps}` : `${ep.shockBps}`;
+            y = tblRow(y, [
+              `${shockLabel} bps`,
+              ep.assetValueChange.toFixed(2),
+              ep.liabilityValueChange.toFixed(2),
+              ep.eveChange.toFixed(2),
+              `${ep.eveChangePct.toFixed(1)}%`,
+            ], ew, { bg: i % 2 === 0 ? '#FFFFFF' : '#F8FAFC' });
+          }
+        }
+
+        y += 20;
         doc.fill('#1B3A6B').font('Helvetica-Bold').fontSize(11).text(t('INTERPRETACION', 'INTERPRETATION'), ML, y);
         y += 18;
         doc.font('Helvetica').fontSize(9).fill('#1F2937');
@@ -1228,6 +1368,8 @@ export class PipelineWorker {
       y += 20;
       const methodItems = [
         t('Duracion: Duracion modificada de Macaulay usando rendimientos de mercado actuales.', 'Duration: Modified Macaulay duration using current market yields.'),
+        t('Convexidad: Derivada de segundo orden del precio respecto al rendimiento. Captura la no linealidad en choques grandes de tasas.', 'Convexity: Second derivative of price with respect to yield. Captures non-linearity for large rate shocks.'),
+        t('EVE: Sensibilidad del valor economico del capital usando expansion de Taylor de segundo orden (duracion + convexidad).', 'EVE: Economic value of equity sensitivity using second-order Taylor expansion (duration + convexity adjustment).'),
         t('NII: Simulacion de ingreso neto por intereses bajo multiples escenarios de tasas (+/- 100, 200, 300 bps).', 'NII: Net interest income simulation under multiple rate scenarios (+/- 100, 200, 300 bps).'),
         t('LCR: Activos liquidos de alta calidad / Flujos netos de salida a 30 dias (Basilea III).', 'LCR: High-quality liquid assets / Net 30-day cash outflows (Basel III).'),
         t('Monte Carlo: Modelo Vasicek con reversion a la media, 500 trayectorias, horizonte de 12 meses.', 'Monte Carlo: Vasicek model with mean reversion, 500 paths, 12-month horizon.'),

@@ -7,9 +7,10 @@ import { ReportStorageService } from './report-storage.service';
 import { AlcoPackService } from './alco-pack.service';
 import { EmailModule } from '../email/email.module';
 import { AlmModule } from '../alm/alm.module';
+import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), EmailModule, AlmModule],
+  imports: [ScheduleModule.forRoot(), EmailModule, AlmModule, RealtimeModule],
   controllers: [PipelineController],
   providers: [PipelineWorker, PipelineHealthMonitor, ReportStorageService, AlcoPackService],
   exports: [PipelineWorker, ReportStorageService, AlcoPackService],

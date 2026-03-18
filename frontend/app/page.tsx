@@ -256,6 +256,12 @@ export default function LandingPage() {
               </button>
             </div>
             <button
+              onClick={() => router.push('/demo')}
+              className="hidden rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 sm:inline-flex"
+            >
+              {t('Try Demo', 'Ver Demo')}
+            </button>
+            <button
               onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
               className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:border-cyan-300/50 hover:text-slate-950 sm:inline-flex"
             >

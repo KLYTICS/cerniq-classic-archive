@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { AlmService } from './alm.service';
+import { DurationService, PortfolioDurationMetrics, EVESensitivityPoint } from './duration.service';
 import {
   BalanceSheetDto,
   InstrumentDto,
@@ -28,6 +29,10 @@ export interface DurationGapSummary {
   liabilityDuration: number;
   durationGap: number;
   riskProfile: 'asset-sensitive' | 'liability-sensitive' | 'neutral';
+  /** Modified duration + convexity analytics (added by DurationService) */
+  assetConvexity?: number;
+  liabilityConvexity?: number;
+  leverageAdjustedDurationGap?: number;
 }
 
 export interface NIISensitivityResult {
@@ -142,6 +147,10 @@ export interface ALMSummaryResult {
   recommendations: string[];
   riskScore: number;
   fullAnalysis: FullAnalysisResult;
+  /** Duration/convexity analytics from DurationService (MP-QUANT-02) */
+  durationConvexity?: PortfolioDurationMetrics | null;
+  /** EVE sensitivity with convexity adjustment across rate shocks */
+  eveSensitivity?: EVESensitivityPoint[] | null;
 }
 
 @Injectable()
@@ -151,6 +160,7 @@ export class AlmEnterpriseService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly almService: AlmService,
+    private readonly durationService: DurationService,
   ) {}
 
   // ─── Institution CRUD ──────────────────────────────────────────
@@ -378,6 +388,36 @@ export class AlmEnterpriseService {
   }
 
   async calculateDurationGap(institutionId: string): Promise<DurationGapSummary> {
+    // Try the new DurationService (proper modified duration + convexity) first
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId },
+    });
+
+    if (items.length > 0) {
+      const portfolio = this.durationService.calculatePortfolioMetrics(items as any);
+
+      const gap = portfolio.leverageAdjustedDurationGap;
+      let riskProfile: 'asset-sensitive' | 'liability-sensitive' | 'neutral';
+      if (Math.abs(gap) < 0.5) {
+        riskProfile = 'neutral';
+      } else if (gap > 0) {
+        riskProfile = 'asset-sensitive';
+      } else {
+        riskProfile = 'liability-sensitive';
+      }
+
+      return {
+        assetDuration: round(portfolio.assetDuration, 2),
+        liabilityDuration: round(portfolio.liabilityDuration, 2),
+        durationGap: round(gap, 2),
+        riskProfile,
+        assetConvexity: round(portfolio.assetConvexity, 4),
+        liabilityConvexity: round(portfolio.liabilityConvexity, 4),
+        leverageAdjustedDurationGap: round(portfolio.leverageAdjustedDurationGap, 4),
+      };
+    }
+
+    // Fallback to original AlmService for backward compatibility
     const bs = await this.buildBalanceSheetDto(institutionId);
     const result = this.almService.durationGapAnalysis(bs);
 
@@ -530,9 +570,27 @@ export class AlmEnterpriseService {
     const durationGap = await this.calculateDurationGap(institutionId);
     const niiSensitivity = await this.calculateNIISensitivity(institutionId);
 
-    // EVE sensitivity from +200bps scenario
-    const eve200 = niiSensitivity.scenarios.find(s => s.shiftBps === 200);
-    const eveSensitivity = eve200 ? Math.abs(eve200.mveImpactPct) : 0;
+    // EVE sensitivity from +200bps — prefer convexity-adjusted DurationService
+    let eveSensitivity = 0;
+    try {
+      if (items.length > 0) {
+        const evePoints = this.durationService.calculateEVESensitivity(
+          durationGap.assetDuration, durationGap.assetConvexity || 0, totalAssets,
+          durationGap.liabilityDuration, durationGap.liabilityConvexity || 0, totalLiabilities,
+          [200],
+        );
+        const eve200Point = evePoints.find(p => p.shockBps === 200);
+        if (eve200Point) {
+          eveSensitivity = Math.abs(eve200Point.eveChangePct);
+        }
+      }
+    } catch {
+      // Fallback to old NII-based EVE estimate
+    }
+    if (eveSensitivity === 0) {
+      const eve200 = niiSensitivity.scenarios.find(s => s.shiftBps === 200);
+      eveSensitivity = eve200 ? Math.abs(eve200.mveImpactPct) : 0;
+    }
 
     // ── Build 12 COSSEC ratios ──
     const b = PR_COOP_BENCHMARKS.ratios;
@@ -1072,6 +1130,25 @@ export class AlmEnterpriseService {
     const niiSensitivity = await this.calculateNIISensitivity(institutionId, rateShocksBps);
     const liquidity = await this.calculateLCR(institutionId);
 
+    // ─── Duration/Convexity Analytics (MP-QUANT-02) ───
+    let durationConvexity: PortfolioDurationMetrics | null = null;
+    let eveSensitivity: EVESensitivityPoint[] | null = null;
+    try {
+      const items = await this.prisma.balanceSheetItem.findMany({
+        where: { institutionId },
+      });
+      if (items.length > 0) {
+        const analysis = this.durationService.fullDurationAnalysis(
+          items as any,
+          rateShocksBps || [-200, -100, 100, 200, 300],
+        );
+        durationConvexity = analysis.portfolio;
+        eveSensitivity = analysis.eveSensitivity;
+      }
+    } catch (err) {
+      this.logger.warn({ event: 'duration_convexity_error', institutionId, error: (err as Error).message });
+    }
+
     // ─── Risk Score (0-100) ───
     // Duration gap: 40% weight, NII sensitivity: 35%, LCR: 25%
     const durationGapScore = this.scoreDurationGap(durationGap.durationGap);
@@ -1108,6 +1185,8 @@ export class AlmEnterpriseService {
       recommendations,
       riskScore,
       fullAnalysis,
+      durationConvexity,
+      eveSensitivity,
     };
   }
 

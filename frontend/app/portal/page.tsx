@@ -14,6 +14,7 @@ import { useFeature } from '@/lib/features';
 import type { SubscriptionTier } from '@/lib/features';
 import ProgressTracker from '@/components/portal/ProgressTracker';
 import WorkspaceCommandCenter from '@/components/portal/WorkspaceCommandCenter';
+import ReportProgressWS from '@/components/portal/ReportProgressWS';
 import { rememberPortalUser } from '@/lib/subscription';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
@@ -460,9 +461,14 @@ export default function PortalHome() {
         <ProgressTracker currentStep={currentStep} completedSteps={completed} />
       </div>
 
-      {/* Processing State -- immersive spinner */}
+      {/* Processing State -- real-time WebSocket progress */}
       {isProcessing && latestJob && (
-        <ProcessingState job={latestJob} />
+        <ReportProgressWS
+          jobId={latestJob.id}
+          institutionName={latestJob.institutionName}
+          initialStatus={latestJob.status}
+          onComplete={loadJobs}
+        />
       )}
 
       {/* Report Ready State -- celebration card */}
