@@ -65,6 +65,13 @@ const almNav: NavItem[] = [
       { href: '/alm/forward-sim', icon: TrendingUp, labelKey: 'sidebar.forwardSim' },
       { href: '/alm/peer-analytics', icon: Activity, labelKey: 'sidebar.peerAnalytics' },
       { href: '/alm/monte-carlo', icon: Activity, labelKey: 'sidebar.monteCarlo' },
+      { href: '/alm/oas', icon: Landmark, labelKey: 'sidebar.oas' },
+      { href: '/alm/credit-risk', icon: Shield, labelKey: 'sidebar.creditRisk' },
+      { href: '/alm/var', icon: AlertOctagon, labelKey: 'sidebar.var' },
+      { href: '/alm/capital-optimizer', icon: Zap, labelKey: 'sidebar.capitalOptimizer' },
+      { href: '/alm/ews', icon: Activity, labelKey: 'sidebar.ews' },
+      { href: '/alm/sofr-exposure', icon: TrendingUp, labelKey: 'sidebar.sofrExposure' },
+      { href: '/alm/exam-prep', icon: Shield, labelKey: 'sidebar.examPrep' },
     ],
   },
 ];

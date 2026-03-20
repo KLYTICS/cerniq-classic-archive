@@ -41,6 +41,9 @@ import { AssetEWSService } from './asset-ews.service';
 import { PrepaymentEngineService } from './prepayment-engine.service';
 import { SOFRMonitorService } from './sofr-monitor.service';
 import { TreasuryRatesService } from './treasury-rates.service';
+// Phase VI services
+import { CAMELScorerService } from './exam-prep/camel-scorer.service';
+import { ExamPrepService } from './exam-prep/exam-prep.service';
 // Controllers
 import { AlmController } from './alm.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
@@ -73,6 +76,8 @@ import { AuthGuard } from '../auth/auth.guard';
     OASCalculatorService, CreditRiskQuantService, PortfolioVaRService,
     CapitalOptimizerService, AssetEWSService, PrepaymentEngineService,
     SOFRMonitorService, TreasuryRatesService,
+    // Phase VI
+    CAMELScorerService, ExamPrepService,
     // Guards
     AuthGuard,
   ],
@@ -90,6 +95,7 @@ import { AuthGuard } from '../auth/auth.guard';
     OASCalculatorService, CreditRiskQuantService, PortfolioVaRService,
     CapitalOptimizerService, AssetEWSService, PrepaymentEngineService,
     SOFRMonitorService, TreasuryRatesService,
+    CAMELScorerService, ExamPrepService,
   ],
 })
 export class AlmModule {}

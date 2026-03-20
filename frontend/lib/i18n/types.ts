@@ -157,6 +157,13 @@ export interface TranslationKeys {
     rateShockV2: string;
     forwardSim: string;
     monteCarlo: string;
+    oas: string;
+    creditRisk: string;
+    var: string;
+    capitalOptimizer: string;
+    ews: string;
+    sofrExposure: string;
+    examPrep: string;
     profile: string;
     apiKeys: string;
     description: string;

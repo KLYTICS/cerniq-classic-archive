@@ -40,6 +40,7 @@ import { AssetEWSService } from './asset-ews.service';
 import { PrepaymentEngineService } from './prepayment-engine.service';
 import { SOFRMonitorService } from './sofr-monitor.service';
 import { TreasuryRatesService } from './treasury-rates.service';
+import { ExamPrepService } from './exam-prep/exam-prep.service';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   ScenarioRequestDto,
@@ -105,6 +106,7 @@ export class AlmController {
     private readonly prepaymentEngine: PrepaymentEngineService,
     private readonly sofrMonitor: SOFRMonitorService,
     private readonly treasuryRates: TreasuryRatesService,
+    private readonly examPrep: ExamPrepService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -845,6 +847,15 @@ export class AlmController {
   @UseGuards(AuthGuard)
   async getTreasuryCurve() {
     return this.treasuryRates.getYieldCurvePoints();
+  }
+
+  // ─── Phase VI: COSSEC Exam Prep (MP-027) ───────────────────────
+
+  @Get(':institutionId/exam-prep')
+  @UseGuards(AuthGuard)
+  async getExamPrep(@Param('institutionId') institutionId: string) {
+    this.logger.log(`COSSEC exam prep for ${institutionId}`);
+    return this.examPrep.getExamPrep(institutionId);
   }
 
   // ─── Sample Report Factory ──────────────────────────────────────
