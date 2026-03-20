@@ -219,6 +219,17 @@ model Institution {
   liquidityPositions    LiquidityPosition[]
   analysisRuns          AnalysisRun[]
   ingestionLogs         IngestionLog[]
+  savedScenarios        SavedScenario[]
+  yieldCurves           YieldCurve[]
+  loanSegments          LoanSegment[]
+  depositTiers          DepositTier[]
+  concentrationLimits   ConcentrationLimit[]
+  loanCohorts           LoanCohort[]
+  ceclVintageAllowances CeclVintageAllowance[]
+  irrPolicyLimits       IRRPolicyLimit[]
+  policyBreachLogs      PolicyBreachLog[]
+  columnMappingMemories ColumnMappingMemory[]
+  boardReports          BoardReport[]
 
   @@index([workspaceId])
   @@map("institutions")
@@ -236,6 +247,7 @@ model BalanceSheetItem {
   repriceDate   DateTime? @map("reprice_date")
   maturityDate  DateTime? @map("maturity_date")
   rateType      String    @map("rate_type") // fixed | variable | hybrid
+  depositBeta   Float?    @map("deposit_beta") // pass-through rate (0.0-1.0) for deposit beta calibration
   createdAt     DateTime  @default(now()) @map("created_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
@@ -276,6 +288,197 @@ model LiquidityPosition {
 
   @@index([institutionId])
   @@map("liquidity_positions")
+}
+
+// ===== Quant Powerhouse Models =====
+
+model SavedScenario {
+  id              String   @id @default(cuid())
+  institutionId   String   @map("institution_id")
+  createdBy       String   @map("created_by") // userId
+  name            String
+  description     String?
+  scenarioType    String   @map("scenario_type") // custom | parallel | steepening | flattening | pr_specific | hurricane | recession
+  parameters      Json     // ScenarioParams: rateShockBps, depositRunoffPct, etc.
+  results         Json?    // ScenarioResult: nimImpact, lcrBefore/After, verdict, etc.
+  tags            String[] @default([])
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, createdAt])
+  @@index([createdBy])
+  @@map("saved_scenarios")
+}
+
+model YieldCurve {
+  id              String   @id @default(cuid())
+  institutionId   String   @map("institution_id")
+  name            String
+  asOfDate        DateTime @map("as_of_date")
+  tenors          Json     // Array of { tenor: number, rate: number } e.g., [{ tenor: 0.25, rate: 0.045 }, ...]
+  source          String   @default("manual") // manual | fed_h15 | interpolated
+  isBase          Boolean  @default(false) @map("is_base") // marks the institution's current base curve
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, asOfDate])
+  @@map("yield_curves")
+}
+
+model LoanSegment {
+  id                  String   @id @default(cuid())
+  institutionId       String   @map("institution_id")
+  segmentName         String   @map("segment_name") // e.g., "Auto Loans", "Commercial RE", "Consumer Unsecured"
+  balance             Float    // outstanding balance in millions
+  weightedAvgRate     Float    @map("weighted_avg_rate") // decimal (0.065 = 6.5%)
+  weightedAvgMaturity Float    @map("weighted_avg_maturity") // years
+  historicalLossRate  Float    @map("historical_loss_rate") // annualized (0.012 = 1.2%)
+  lgd                 Float    @default(0.5) // loss given default (0.0-1.0)
+  qualitativeAdj      Float    @default(0) @map("qualitative_adj") // +/- adjustment to loss rate
+  asOfDate            DateTime @map("as_of_date")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, asOfDate])
+  @@map("loan_segments")
+}
+
+model DepositTier {
+  id              String   @id @default(cuid())
+  institutionId   String   @map("institution_id")
+  tierName        String   @map("tier_name") // insured_core | uninsured | brokered | large_single
+  balance         Float    // in millions
+  insuredPct      Float    @map("insured_pct") // 0.0-1.0
+  flightRate      Float    @map("flight_rate") // monthly runoff rate under stress (0.0-1.0)
+  avgRate         Float    @map("avg_rate") // current cost as decimal
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@map("deposit_tiers")
+}
+
+model ConcentrationLimit {
+  id              String   @id @default(cuid())
+  institutionId   String   @map("institution_id")
+  limitType       String   @map("limit_type") // sector | single_name | geography | product
+  limitName       String   @map("limit_name") // e.g., "Commercial RE", "Top 10 Borrowers"
+  maxPct          Float    @map("max_pct") // policy limit as decimal (0.25 = 25%)
+  currentPct      Float    @map("current_pct") // actual exposure as decimal
+  currentBalance  Float?   @map("current_balance") // actual $ exposure in millions
+  status          String   @default("compliant") // compliant | warning | breach
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@map("concentration_limits")
+}
+
+// ===== Phase IV: ALM Intelligence Expansion Models =====
+
+model LoanCohort {
+  id              String   @id @default(cuid())
+  institutionId   String   @map("institution_id")
+  loanType        String   @map("loan_type") // residential_mortgage | auto | consumer | commercial
+  originationQtr  String   @map("origination_qtr") // "2022Q3"
+  originalBalance Float    @map("original_balance")
+  currentBalance  Float    @map("current_balance")
+  defaults        Float    // cumulative defaults to date
+  ageMonths       Int      @map("age_months")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@map("loan_cohorts")
+}
+
+model CeclVintageAllowance {
+  id                String   @id @default(cuid())
+  institutionId     String   @map("institution_id")
+  runAt             DateTime @default(now()) @map("run_at")
+  methodology       String   // "vintage" | "warm" | "pdlgd"
+  baseAllowance     Float    @map("base_allowance")
+  adverseAllowance  Float    @map("adverse_allowance")
+  severeAllowance   Float    @map("severe_allowance")
+  segmentBreakdown  Json     @map("segment_breakdown")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@map("cecl_vintage_allowances")
+}
+
+model IRRPolicyLimit {
+  id             String   @id @default(cuid())
+  institutionId  String   @map("institution_id")
+  limitType      String   @map("limit_type") // EVE_PCT | NII_AT_RISK | DURATION_GAP | REPRICING_GAP
+  scenario       String   // "+200bps" | "-100bps" | "base"
+  watchPct       Float    @map("watch_pct") // e.g. 15.0
+  warningPct     Float    @map("warning_pct") // e.g. 18.0
+  breachPct      Float    @map("breach_pct") // e.g. 20.0
+  regulatoryRef  String   @map("regulatory_ref") // "OCIF CC-2022-03 §IV.B"
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@map("irr_policy_limits")
+}
+
+model PolicyBreachLog {
+  id             String    @id @default(cuid())
+  institutionId  String    @map("institution_id")
+  limitType      String    @map("limit_type")
+  breachLevel    String    @map("breach_level") // WATCH | WARNING | BREACH
+  actualValue    Float     @map("actual_value")
+  limitValue     Float     @map("limit_value")
+  detectedAt     DateTime  @default(now()) @map("detected_at")
+  resolvedAt     DateTime? @map("resolved_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, detectedAt])
+  @@map("policy_breach_logs")
+}
+
+model ColumnMappingMemory {
+  id             String   @id @default(cuid())
+  institutionId  String   @map("institution_id")
+  csvColumnName  String   @map("csv_column_name")
+  cerniqField    String   @map("cerniq_field")
+  confirmedAt    DateTime @default(now()) @map("confirmed_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, csvColumnName])
+  @@map("column_mapping_memories")
+}
+
+model BoardReport {
+  id             String   @id @default(cuid())
+  institutionId  String   @map("institution_id")
+  reportMonth    String   @map("report_month") // "2025-06"
+  generatedAt    DateTime @default(now()) @map("generated_at")
+  pdfUrl         String?  @map("pdf_url")
+  emailsSent     Int      @default(0) @map("emails_sent")
+  camelComposite Float?   @map("camel_composite")
+  nimSnapshot    Float?   @map("nim_snapshot")
+  lcrSnapshot    Float?   @map("lcr_snapshot")
+  topRiskAlert   String?  @map("top_risk_alert")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@map("board_reports")
 }
 
 model Upload {

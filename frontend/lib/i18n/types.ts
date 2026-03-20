@@ -145,6 +145,18 @@ export interface TranslationKeys {
     balanceSheet: string;
     stressTesting: string;
     scenarioBuilder: string;
+    yieldCurve: string;
+    ftp: string;
+    cecl: string;
+    concentration: string;
+    aiAdvisor: string;
+    repricingGap: string;
+    peerAnalytics: string;
+    stressPack: string;
+    irrPolicy: string;
+    rateShockV2: string;
+    forwardSim: string;
+    monteCarlo: string;
     profile: string;
     apiKeys: string;
     description: string;

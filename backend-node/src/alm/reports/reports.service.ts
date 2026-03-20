@@ -86,8 +86,8 @@ export class ReportsService {
     private readonly stressTesting: StressTestingService,
   ) {}
 
-  async generateALMReport(institutionId: string, language?: string): Promise<Buffer> {
-    this.logger.log(`Generating ALM report for institution ${institutionId} (lang=${language || 'en'})`);
+  async generateALMReport(institutionId: string, language?: string, opts?: { watermark?: string }): Promise<Buffer> {
+    this.logger.log(`Generating ALM report for institution ${institutionId} (lang=${language || 'en'}${opts?.watermark ? ', SAMPLE' : ''})`);
     this.lang = language === 'es' ? 'es' : 'en';
 
     const [summary, stressTest, cossec, institution] = await Promise.all([

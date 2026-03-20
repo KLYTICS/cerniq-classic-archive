@@ -11,8 +11,40 @@ import { AnalysisRunsService } from './analysis-runs.service';
 import { IngestionLogsService } from './ingestion-logs.service';
 import { ComplianceCalendarService } from './compliance-calendar.service';
 import { DurationService } from './duration.service';
+// Phase I-III services
+import { ScenarioPersistenceService } from './scenarios/scenario-persistence.service';
+import { YieldCurveService } from './yield-curve.service';
+import { CECLService } from './cecl.service';
+import { FTPService } from './ftp.service';
+import { DepositBetaService } from './deposit-beta.service';
+import { LiquidityAdvancedService } from './liquidity-advanced.service';
+import { ConcentrationService } from './concentration.service';
+import { NCUADataPullService } from './data-pull/ncua-data-pull.service';
+import { SampleReportFactoryService } from './sample-report-factory.service';
+// Phase IV services
+import { AlmAdvisorV2Service } from './alm-advisor-v2.service';
+import { LiquidityStressPackService } from './liquidity-stress-pack.service';
+import { IRRPolicyService } from './irr-policy.service';
+import { DepositBetaLibraryService } from './deposit-beta-library.service';
+import { RepricingGapService } from './repricing-gap.service';
+import { FTPAttributionService } from './ftp-attribution.service';
+import { ForwardSimulationService } from './forward-simulation.service';
+import { PeerAnalyticsService } from './peer-analytics.service';
+import { CECLVintageService } from './cecl-vintage.service';
+import { MonteCarloService } from './monte-carlo.service';
+// Phase V services
+import { OASCalculatorService } from './oas-calculator.service';
+import { CreditRiskQuantService } from './credit-risk-quant.service';
+import { PortfolioVaRService } from './portfolio-var.service';
+import { CapitalOptimizerService } from './capital-optimizer.service';
+import { AssetEWSService } from './asset-ews.service';
+import { PrepaymentEngineService } from './prepayment-engine.service';
+import { SOFRMonitorService } from './sofr-monitor.service';
+import { TreasuryRatesService } from './treasury-rates.service';
+// Controllers
 import { AlmController } from './alm.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
+import { AlmAdvisorV2Controller } from './alm-advisor-v2.controller';
 import { AuthGuard } from '../auth/auth.guard';
 
 @Module({
@@ -22,21 +54,42 @@ import { AuthGuard } from '../auth/auth.guard';
       signOptions: { expiresIn: '24h' },
     }),
   ],
-  controllers: [AlmController, AlmAdvisorController],
+  controllers: [AlmController, AlmAdvisorController, AlmAdvisorV2Controller],
   providers: [
-    AlmService,
-    AlmEnterpriseService,
-    AlmAdvisorService,
-    StressTestingService,
-    ReportsService,
-    WorkspaceOnboardingService,
-    CSVIngestionService,
-    AnalysisRunsService,
-    IngestionLogsService,
-    ComplianceCalendarService,
-    DurationService,
+    // Core
+    AlmService, AlmEnterpriseService, AlmAdvisorService, StressTestingService,
+    ReportsService, WorkspaceOnboardingService, CSVIngestionService,
+    AnalysisRunsService, IngestionLogsService, ComplianceCalendarService, DurationService,
+    // Phase I-III
+    ScenarioPersistenceService, YieldCurveService, CECLService, FTPService,
+    DepositBetaService, LiquidityAdvancedService, ConcentrationService,
+    NCUADataPullService, SampleReportFactoryService,
+    // Phase IV
+    AlmAdvisorV2Service, LiquidityStressPackService, IRRPolicyService,
+    DepositBetaLibraryService, RepricingGapService, FTPAttributionService,
+    ForwardSimulationService, PeerAnalyticsService,
+    CECLVintageService, MonteCarloService,
+    // Phase V
+    OASCalculatorService, CreditRiskQuantService, PortfolioVaRService,
+    CapitalOptimizerService, AssetEWSService, PrepaymentEngineService,
+    SOFRMonitorService, TreasuryRatesService,
+    // Guards
     AuthGuard,
   ],
-  exports: [AlmService, AlmEnterpriseService, AlmAdvisorService, StressTestingService, WorkspaceOnboardingService, CSVIngestionService, AnalysisRunsService, IngestionLogsService, ComplianceCalendarService, DurationService],
+  exports: [
+    AlmService, AlmEnterpriseService, AlmAdvisorService, StressTestingService,
+    WorkspaceOnboardingService, CSVIngestionService, AnalysisRunsService,
+    IngestionLogsService, ComplianceCalendarService, DurationService,
+    ScenarioPersistenceService, YieldCurveService, CECLService, FTPService,
+    DepositBetaService, LiquidityAdvancedService, ConcentrationService,
+    NCUADataPullService, SampleReportFactoryService,
+    AlmAdvisorV2Service, LiquidityStressPackService, IRRPolicyService,
+    DepositBetaLibraryService, RepricingGapService, FTPAttributionService,
+    ForwardSimulationService, PeerAnalyticsService,
+    CECLVintageService, MonteCarloService,
+    OASCalculatorService, CreditRiskQuantService, PortfolioVaRService,
+    CapitalOptimizerService, AssetEWSService, PrepaymentEngineService,
+    SOFRMonitorService, TreasuryRatesService,
+  ],
 })
 export class AlmModule {}

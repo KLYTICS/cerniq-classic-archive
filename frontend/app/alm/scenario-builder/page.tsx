@@ -18,6 +18,7 @@ import {
   Upload,
   ChevronRight,
   BookmarkCheck,
+  BarChart3,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -46,8 +47,10 @@ interface ScenarioResult {
 }
 
 interface SavedScenario {
+  id: string;
   name: string;
   params: ScenarioParams;
+  scenarioType: string;
   savedAt: string;
 }
 
@@ -213,13 +216,29 @@ export default function ScenarioBuilderPage() {
   const [saved, setSaved] = useState(false);
   const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>([]);
 
-  // Load saved scenarios from localStorage
+  // Load saved scenarios from API (falls back to localStorage for migration)
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('cerniq_saved_scenarios');
-      if (stored) setSavedScenarios(JSON.parse(stored));
-    } catch { /* ignore */ }
-  }, []);
+    if (!selectedId) return;
+    (async () => {
+      try {
+        const data = await apiClient.listScenarios(selectedId);
+        if (data.items?.length > 0) {
+          setSavedScenarios(data.items.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            params: s.parameters as ScenarioParams,
+            scenarioType: s.scenarioType,
+            savedAt: s.createdAt,
+          })));
+          return;
+        }
+      } catch { /* API unavailable, fall back */ }
+      try {
+        const stored = localStorage.getItem('cerniq_saved_scenarios');
+        if (stored) setSavedScenarios(JSON.parse(stored).map((s: any) => ({ ...s, id: `local-${Date.now()}` })));
+      } catch { /* ignore */ }
+    })();
+  }, [selectedId]);
 
   const updateParam = useCallback((key: keyof ScenarioParams, value: number) => {
     setParams((prev) => ({ ...prev, [key]: value }));
@@ -259,21 +278,44 @@ export default function ScenarioBuilderPage() {
     }
   }, [selectedId, params]);
 
-  const saveScenario = useCallback(() => {
-    const scenario: SavedScenario = {
-      name: `Scenario ${new Date().toLocaleString(locale === 'es' ? 'es-PR' : 'en-US', {
-        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-      })}`,
-      params: { ...params },
-      savedAt: new Date().toISOString(),
-    };
-    const updated = [scenario, ...savedScenarios].slice(0, 10);
-    setSavedScenarios(updated);
-    setSaved(true);
+  const saveScenario = useCallback(async () => {
+    if (!selectedId) return;
+    const name = `Scenario ${new Date().toLocaleString(locale === 'es' ? 'es-PR' : 'en-US', {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    })}`;
     try {
-      localStorage.setItem('cerniq_saved_scenarios', JSON.stringify(updated));
-    } catch { /* ignore */ }
-  }, [params, savedScenarios, locale]);
+      const saved_scenario = await apiClient.saveScenario({
+        institutionId: selectedId,
+        name,
+        scenarioType: 'custom',
+        parameters: params as any,
+        results: result as any ?? undefined,
+        tags: [],
+      });
+      const entry: SavedScenario = {
+        id: saved_scenario.id,
+        name: saved_scenario.name,
+        params: { ...params },
+        scenarioType: 'custom',
+        savedAt: saved_scenario.createdAt,
+      };
+      setSavedScenarios((prev) => [entry, ...prev].slice(0, 20));
+      setSaved(true);
+    } catch {
+      // Fallback to localStorage
+      const entry: SavedScenario = {
+        id: `local-${Date.now()}`,
+        name,
+        params: { ...params },
+        scenarioType: 'custom',
+        savedAt: new Date().toISOString(),
+      };
+      const updated = [entry, ...savedScenarios].slice(0, 10);
+      setSavedScenarios(updated);
+      setSaved(true);
+      try { localStorage.setItem('cerniq_saved_scenarios', JSON.stringify(updated)); } catch { /* */ }
+    }
+  }, [selectedId, params, result, savedScenarios, locale]);
 
   // No institution selected
   if (!selectedId) {
@@ -352,9 +394,9 @@ export default function ScenarioBuilderPage() {
                 <ChevronRight className="h-3 w-3" />
               </button>
               <div className="absolute left-0 top-full mt-1 z-10 hidden group-hover:block w-64 rounded-xl border border-slate-200 bg-white shadow-lg">
-                {savedScenarios.map((s, i) => (
+                {savedScenarios.map((s) => (
                   <button
-                    key={i}
+                    key={s.id}
                     onClick={() => applyPreset(s.params)}
                     className="w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 first:rounded-t-xl last:rounded-b-xl"
                   >
@@ -366,6 +408,17 @@ export default function ScenarioBuilderPage() {
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Compare link */}
+          {savedScenarios.length >= 2 && (
+            <Link
+              href="/alm/scenario-compare"
+              className="flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2.5 text-xs font-medium text-cyan-700 transition hover:bg-cyan-100"
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+              {locale === 'es' ? 'Comparar Escenarios' : 'Compare Scenarios'}
+            </Link>
           )}
         </div>
       </div>

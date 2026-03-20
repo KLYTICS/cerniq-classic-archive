@@ -1188,6 +1188,274 @@ class APIClient {
     const response = await this.client.post(`${NODE_API_URL}/api/admin/seed-prospects`, {}, { headers: this.adminHeaders() });
     return response.data;
   }
+
+  // --- Scenario Persistence ---
+
+  async saveScenario(data: {
+    institutionId: string;
+    name: string;
+    description?: string;
+    scenarioType: string;
+    parameters: Record<string, unknown>;
+    results?: Record<string, unknown>;
+    tags?: string[];
+  }) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/scenarios/save`, data);
+    return response.data;
+  }
+
+  async listScenarios(institutionId: string, opts?: { page?: number; tag?: string }) {
+    const params = new URLSearchParams();
+    if (opts?.page) params.set('page', String(opts.page));
+    if (opts?.tag) params.set('tag', opts.tag);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/scenarios${qs}`);
+    return response.data;
+  }
+
+  async getScenario(scenarioId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/scenarios/${scenarioId}`);
+    return response.data;
+  }
+
+  async compareScenarios(scenarioIds: string[]) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/scenarios/compare`, { scenarioIds });
+    return response.data;
+  }
+
+  async duplicateScenario(scenarioId: string, name?: string) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/scenarios/${scenarioId}/duplicate`, { name });
+    return response.data;
+  }
+
+  async deleteScenario(scenarioId: string) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/scenarios/${scenarioId}/delete`);
+    return response.data;
+  }
+
+  // --- Yield Curve ---
+
+  async getYieldCurveAnalysis(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/yield-curve-analysis`);
+    return response.data;
+  }
+
+  async applyYieldCurveShocks(data: { curveId?: string; shockType: string; customShocks?: Record<string, number> }) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/yield-curve/shocks`, data);
+    return response.data;
+  }
+
+  async saveCustomYieldCurve(data: {
+    institutionId: string;
+    name: string;
+    tenors: Array<{ tenor: number; rate: number }>;
+    source?: string;
+  }) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/yield-curve/custom`, data);
+    return response.data;
+  }
+
+  // --- CECL ---
+
+  async getCECLAnalysis(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/cecl`);
+    return response.data;
+  }
+
+  async importLoanSegments(institutionId: string, segments: any[]) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/${institutionId}/cecl/segments`, { segments });
+    return response.data;
+  }
+
+  async getCECLForecast(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/cecl/forecast`);
+    return response.data;
+  }
+
+  async runWARMCalculation(data: {
+    segments: Array<{ segmentName: string; balance: number; weightedAvgMaturity: number; historicalLossRate: number; qualitativeAdj?: number }>;
+    macroScenario?: string;
+  }) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/cecl/warm`, data);
+    return response.data;
+  }
+
+  // --- FTP ---
+
+  async getFTPAnalysis(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/ftp`);
+    return response.data;
+  }
+
+  async getFTPSegments(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/ftp/segments`);
+    return response.data;
+  }
+
+  async runCustomFTP(institutionId: string, data: { curveId?: string; spreadAdjBps?: number }) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/${institutionId}/ftp/custom`, data);
+    return response.data;
+  }
+
+  // --- Advanced Liquidity ---
+
+  async getAdvancedLiquidity(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/liquidity-advanced`);
+    return response.data;
+  }
+
+  // --- Concentration ---
+
+  async getConcentrationAnalysis(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/concentration`);
+    return response.data;
+  }
+
+  // --- NCUA Auto-Pull ---
+
+  async pullNCUAData(charterNumber: string) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/ncua/pull`, { charterNumber });
+    return response.data;
+  }
+
+  // --- Phase IV: AI Advisor v2 ---
+
+  async getAdvisorNarrative(institutionId: string, lang: string = 'en') {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/advisor/narrative?lang=${lang}`);
+    return response.data;
+  }
+
+  async getHealthScore(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/advisor/health-score`);
+    return response.data;
+  }
+
+  // --- Phase IV: COSSEC Stress Pack ---
+
+  async getStressPack(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/stress-pack`);
+    return response.data;
+  }
+
+  // --- Phase IV: IRR Policy Engine ---
+
+  async getIRRPolicyDashboard(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/irr-policy`);
+    return response.data;
+  }
+
+  async getIRRPolicyLimits(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/irr-policy/limits`);
+    return response.data;
+  }
+
+  async saveIRRPolicyLimits(institutionId: string, limits: any[]) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/${institutionId}/irr-policy/limits`, { limits });
+    return response.data;
+  }
+
+  // --- Phase IV: Deposit Beta Benchmark ---
+
+  async getDepositBetaBenchmark(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/deposit-beta/benchmark`);
+    return response.data;
+  }
+
+  // --- Phase IV: Repricing Gap ---
+
+  async getRepricingGap(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/repricing-gap`);
+    return response.data;
+  }
+
+  // --- Phase IV: FTP Attribution ---
+
+  async getFTPAttribution(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/ftp/attribution`);
+    return response.data;
+  }
+
+  // --- Phase IV: Forward Simulation ---
+
+  async runForwardSimulation(institutionId: string, config?: {
+    horizon?: number;
+    growthAssumptions?: Record<string, number>;
+    ratePaths?: string[];
+  }) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/${institutionId}/forward-simulation`, config ?? {});
+    return response.data;
+  }
+
+  // --- Phase IV: Peer Analytics ---
+
+  async getPeerAnalytics(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/peer-analytics`);
+    return response.data;
+  }
+
+  // --- Phase V: OAS ---
+
+  async getOASPortfolio(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/oas`);
+    return response.data;
+  }
+
+  // --- Phase V: Credit Risk Quant ---
+
+  async getCreditRisk(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/credit-risk`);
+    return response.data;
+  }
+
+  // --- Phase V: VaR ---
+
+  async getVaRSuite(institutionId: string, confidence: 95 | 99 = 95, horizon: 1 | 10 = 1) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/var?confidence=${confidence}&horizon=${horizon}`);
+    return response.data;
+  }
+
+  // --- Phase V: Capital Optimizer ---
+
+  async optimizeCapital(institutionId: string, aggressiveness: 'conservative' | 'moderate' | 'aggressive' = 'moderate') {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/${institutionId}/optimize`, { aggressiveness });
+    return response.data;
+  }
+
+  // --- Phase V: Asset EWS ---
+
+  async getAssetEWS(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/ews`);
+    return response.data;
+  }
+
+  // --- Phase V: SOFR Exposure ---
+
+  async getSOFRExposure(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/sofr-exposure`);
+    return response.data;
+  }
+
+  // --- Phase V: Treasury Rates ---
+
+  async getTreasuryRates() {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/treasury/rates`);
+    return response.data;
+  }
+
+  // --- Sample Report Factory ---
+
+  async generateSampleReport(charterNumber: string) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/sample-report`, { charterNumber }, { responseType: 'blob' });
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sample-alm-report-${charterNumber}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 }
 
 export const apiClient = new APIClient();
