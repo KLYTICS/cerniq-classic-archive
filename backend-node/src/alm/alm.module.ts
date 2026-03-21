@@ -52,6 +52,12 @@ import { NetworkIntelligenceService } from './network-intelligence.service';
 import { WebhookService } from './webhook.service';
 import { UsageMeteringService } from './usage-metering.service';
 import { DataPrivacyService } from './data-privacy.service';
+// Gap-closing services
+import { CsvIngestV2Service } from './csv-ingest-v2.service';
+import { NIMOptimizerService } from './nim-optimizer.service';
+import { KeyRateDurationService } from './key-rate-duration.service';
+import { LiquidityTransferPricingService } from './liquidity-transfer-pricing.service';
+import { USVIExpansionService } from './usvi-expansion.service';
 // Controllers
 import { AlmController } from './alm.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
@@ -88,6 +94,8 @@ import { AuthGuard } from '../auth/auth.guard';
     CAMELScorerService, ExamPrepService,
     BoardReportService, ChatAnalystService, NCUA5300Service, ProspectIntelligenceService,
     NetworkIntelligenceService, WebhookService, UsageMeteringService, DataPrivacyService,
+    CsvIngestV2Service, NIMOptimizerService, KeyRateDurationService,
+    LiquidityTransferPricingService, USVIExpansionService,
     // Guards
     AuthGuard,
   ],
@@ -108,6 +116,8 @@ import { AuthGuard } from '../auth/auth.guard';
     CAMELScorerService, ExamPrepService,
     BoardReportService, ChatAnalystService, NCUA5300Service, ProspectIntelligenceService,
     NetworkIntelligenceService, WebhookService, UsageMeteringService, DataPrivacyService,
+    CsvIngestV2Service, NIMOptimizerService, KeyRateDurationService,
+    LiquidityTransferPricingService, USVIExpansionService,
   ],
 })
 export class AlmModule {}

@@ -49,6 +49,11 @@ import { NetworkIntelligenceService } from './network-intelligence.service';
 import { WebhookService } from './webhook.service';
 import { UsageMeteringService } from './usage-metering.service';
 import { DataPrivacyService } from './data-privacy.service';
+import { CsvIngestV2Service } from './csv-ingest-v2.service';
+import { NIMOptimizerService } from './nim-optimizer.service';
+import { KeyRateDurationService } from './key-rate-duration.service';
+import { LiquidityTransferPricingService } from './liquidity-transfer-pricing.service';
+import { USVIExpansionService } from './usvi-expansion.service';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   ScenarioRequestDto,
@@ -123,6 +128,11 @@ export class AlmController {
     private readonly webhooks: WebhookService,
     private readonly usageMetering: UsageMeteringService,
     private readonly dataPrivacy: DataPrivacyService,
+    private readonly csvIngestV2: CsvIngestV2Service,
+    private readonly nimOptimizer: NIMOptimizerService,
+    private readonly keyRateDuration: KeyRateDurationService,
+    private readonly ltp: LiquidityTransferPricingService,
+    private readonly usviExpansion: USVIExpansionService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -991,6 +1001,58 @@ export class AlmController {
   @UseGuards(AuthGuard)
   async generateSAR(@Req() req: any) {
     return this.dataPrivacy.generateSAR(req.user.userId);
+  }
+
+  // ─── MP-006: Smart CSV Ingest v2 ────────────────────────────────
+
+  @Post(':institutionId/ingest/smart/analyze')
+  @UseGuards(AuthGuard)
+  async analyzeCSV(
+    @Param('institutionId') institutionId: string,
+    @Body() body: { csvContent: string },
+  ) {
+    return this.csvIngestV2.analyzeCSV(institutionId, body.csvContent);
+  }
+
+  @Post(':institutionId/ingest/smart/commit')
+  @UseGuards(AuthGuard)
+  async commitSmartIngest(
+    @Param('institutionId') institutionId: string,
+    @Body() body: { csvContent: string; mappings: Record<string, string>; saveMappings?: boolean },
+  ) {
+    return this.csvIngestV2.commitIngestion(institutionId, body.csvContent, body.mappings, body.saveMappings);
+  }
+
+  // ─── MP-020: NIM Optimizer ─────────────────────────────────────
+
+  @Get(':institutionId/nim-optimizer')
+  @UseGuards(AuthGuard)
+  async getNIMOptimizer(@Param('institutionId') institutionId: string) {
+    return this.nimOptimizer.optimize(institutionId);
+  }
+
+  // ─── MP-021: Key-Rate Durations ────────────────────────────────
+
+  @Get(':institutionId/key-rate-durations')
+  @UseGuards(AuthGuard)
+  async getKeyRateDurations(@Param('institutionId') institutionId: string) {
+    return this.keyRateDuration.analyzePortfolio(institutionId);
+  }
+
+  // ─── MP-023: Liquidity Transfer Pricing ────────────────────────
+
+  @Get(':institutionId/ltp')
+  @UseGuards(AuthGuard)
+  async getLTP(@Param('institutionId') institutionId: string) {
+    return this.ltp.computeLTP(institutionId);
+  }
+
+  // ─── MP-033: USVI Expansion ────────────────────────────────────
+
+  @Get('usvi/framework')
+  @UseGuards(AuthGuard)
+  async getUSVIFramework() {
+    return this.usviExpansion.getUSVIFramework();
   }
 
   // ─── Sample Report Factory ──────────────────────────────────────
