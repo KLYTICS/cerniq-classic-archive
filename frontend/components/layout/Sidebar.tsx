@@ -77,6 +77,9 @@ const almNav: NavItem[] = [
       { href: '/alm/conc-var', icon: Shield, labelKey: 'sidebar.concVar' },
       { href: '/alm/camel-forecast', icon: TrendingUp, labelKey: 'sidebar.camelForecast' },
       { href: '/alm/alerts', icon: Activity, labelKey: 'sidebar.alerts' },
+      { href: '/alm/climate-risk', icon: AlertOctagon, labelKey: 'sidebar.climateRisk' },
+      { href: '/alm/nim-attribution', icon: DollarSign, labelKey: 'sidebar.nimAttribution' },
+      { href: '/alm/macro-regime', icon: Activity, labelKey: 'sidebar.macroRegime' },
     ],
   },
 ];

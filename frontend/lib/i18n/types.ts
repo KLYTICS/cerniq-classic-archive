@@ -169,6 +169,9 @@ export interface TranslationKeys {
     concVar: string;
     camelForecast: string;
     alerts: string;
+    climateRisk: string;
+    nimAttribution: string;
+    macroRegime: string;
     profile: string;
     apiKeys: string;
     description: string;

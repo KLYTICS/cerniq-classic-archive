@@ -73,6 +73,13 @@ import { OptionalitySuiteService } from './optionality-suite.service';
 import { CreditConcentrationVaRService } from './credit-conc-var.service';
 import { DemoWorkspaceService } from './demo-workspace.service';
 import { OnboardingOrchestratorService } from './onboarding-orchestrator.service';
+// V8+V9 high-impact
+import { ClimateRiskService } from './climate-risk.service';
+import { NIMAttributionService } from './nim-attribution.service';
+import { BehavioralDurationService } from './behavioral-duration.service';
+import { AICostControllerService } from '../ai/cost-controller.service';
+import { ReferralService } from '../growth/referral.service';
+import { HMMRegimeService } from './hmm-regime.service';
 // Controllers
 import { AlmController } from './alm.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
@@ -116,6 +123,8 @@ import { AuthGuard } from '../auth/auth.guard';
     CamelForecasterService, NLIngestService, PeerSynthesisService,
     StressV2Service, RobustOptimizerService, OptionalitySuiteService, CreditConcentrationVaRService,
     DemoWorkspaceService, OnboardingOrchestratorService,
+    ClimateRiskService, NIMAttributionService, BehavioralDurationService,
+    AICostControllerService, ReferralService, HMMRegimeService,
     // Guards
     AuthGuard,
   ],
@@ -142,6 +151,8 @@ import { AuthGuard } from '../auth/auth.guard';
     CamelForecasterService, NLIngestService, PeerSynthesisService,
     StressV2Service, RobustOptimizerService, OptionalitySuiteService, CreditConcentrationVaRService,
     DemoWorkspaceService, OnboardingOrchestratorService,
+    ClimateRiskService, NIMAttributionService, BehavioralDurationService,
+    AICostControllerService, ReferralService, HMMRegimeService,
   ],
 })
 export class AlmModule {}

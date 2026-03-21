@@ -66,6 +66,11 @@ import { OptionalitySuiteService } from './optionality-suite.service';
 import { CreditConcentrationVaRService } from './credit-conc-var.service';
 import { DemoWorkspaceService } from './demo-workspace.service';
 import { OnboardingOrchestratorService } from './onboarding-orchestrator.service';
+import { ClimateRiskService } from './climate-risk.service';
+import { NIMAttributionService } from './nim-attribution.service';
+import { BehavioralDurationService } from './behavioral-duration.service';
+import { ReferralService } from '../growth/referral.service';
+import { HMMRegimeService } from './hmm-regime.service';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   ScenarioRequestDto,
@@ -158,6 +163,11 @@ export class AlmController {
     private readonly creditConcVaR: CreditConcentrationVaRService,
     private readonly demoWorkspace: DemoWorkspaceService,
     private readonly onboarding: OnboardingOrchestratorService,
+    private readonly climateRisk: ClimateRiskService,
+    private readonly nimAttribution: NIMAttributionService,
+    private readonly behavioralDuration: BehavioralDurationService,
+    private readonly referralSvc: ReferralService,
+    private readonly hmmRegime: HMMRegimeService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -1213,6 +1223,55 @@ export class AlmController {
   @UseGuards(AuthGuard)
   async getAllOnboardingStatuses() {
     return this.onboarding.getAllOnboardingStatuses();
+  }
+
+  // ─── V8: Climate Risk (MP-307) ──────────────────────────────────
+
+  @Get(':institutionId/climate-risk')
+  @UseGuards(AuthGuard)
+  async getClimateRisk(@Param('institutionId') institutionId: string) {
+    return this.climateRisk.computeClimateRisk(institutionId);
+  }
+
+  // ─── V8: NIM Attribution (MP-308) ─────────────────────────────
+
+  @Get(':institutionId/nim-attribution')
+  @UseGuards(AuthGuard)
+  async getNIMAttribution(@Param('institutionId') institutionId: string) {
+    return this.nimAttribution.computeAttribution(institutionId);
+  }
+
+  // ─── V8: Behavioral Duration (MP-309) ─────────────────────────
+
+  @Get(':institutionId/behavioral-duration')
+  @UseGuards(AuthGuard)
+  async getBehavioralDuration(@Param('institutionId') institutionId: string) {
+    return this.behavioralDuration.computeBehavioralDurations(institutionId);
+  }
+
+  // ─── V8: Referral Engine (MP-320) ─────────────────────────────
+
+  @Post(':institutionId/referral/generate')
+  @UseGuards(AuthGuard)
+  async generateReferralCode(@Param('institutionId') institutionId: string) {
+    return this.referralSvc.generateCode(institutionId);
+  }
+
+  @Get('referral/validate/:code')
+  @UseGuards(AuthGuard)
+  async validateReferralCode(@Param('code') code: string) {
+    return this.referralSvc.validateCode(code);
+  }
+
+  // ─── V9: HMM Macro Regime (MP-431) ───────────────────────────
+
+  @Get('market/macro-regime')
+  @UseGuards(AuthGuard)
+  async getMacroRegime() {
+    // Generate observations from recent rate data (demo: synthetic)
+    const weeklyRates = Array.from({ length: 26 }, (_, i) => 0.0475 + Math.sin(i * 0.3) * 0.005);
+    const observations = this.hmmRegime.generateObservationsFromRates(weeklyRates);
+    return this.hmmRegime.detectRegime(observations);
   }
 
   // ─── MP-034: Reseller Portal ────────────────────────────────────
