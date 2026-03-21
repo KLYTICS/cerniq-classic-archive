@@ -41,6 +41,10 @@ import { PrepaymentEngineService } from './prepayment-engine.service';
 import { SOFRMonitorService } from './sofr-monitor.service';
 import { TreasuryRatesService } from './treasury-rates.service';
 import { ExamPrepService } from './exam-prep/exam-prep.service';
+import { BoardReportService } from './board-report.service';
+import { ChatAnalystService } from './chat-analyst.service';
+import { NCUA5300Service } from './ncua-5300.service';
+import { ProspectIntelligenceService } from './prospect-intelligence.service';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   ScenarioRequestDto,
@@ -107,6 +111,10 @@ export class AlmController {
     private readonly sofrMonitor: SOFRMonitorService,
     private readonly treasuryRates: TreasuryRatesService,
     private readonly examPrep: ExamPrepService,
+    private readonly boardReport: BoardReportService,
+    private readonly chatAnalyst: ChatAnalystService,
+    private readonly ncua5300: NCUA5300Service,
+    private readonly prospectIntel: ProspectIntelligenceService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -856,6 +864,58 @@ export class AlmController {
   async getExamPrep(@Param('institutionId') institutionId: string) {
     this.logger.log(`COSSEC exam prep for ${institutionId}`);
     return this.examPrep.getExamPrep(institutionId);
+  }
+
+  // ─── Phase VI: Board Report (MP-030) ────────────────────────────
+
+  @Get(':institutionId/board-report')
+  @UseGuards(AuthGuard)
+  async getBoardReport(@Param('institutionId') institutionId: string) {
+    this.logger.log(`Board report for ${institutionId}`);
+    return this.boardReport.generateBoardReportData(institutionId);
+  }
+
+  // ─── Phase VI: Chat Analyst (MP-031) ──────────────────────────
+
+  @Post(':institutionId/analyst/chat')
+  @UseGuards(AuthGuard)
+  async chatWithAnalyst(
+    @Param('institutionId') institutionId: string,
+    @Body() body: { message: string; sessionId: string; lang?: string },
+  ) {
+    return this.chatAnalyst.processMessage(institutionId, body.sessionId, body.message, body.lang);
+  }
+
+  @Get('analyst/tools')
+  @UseGuards(AuthGuard)
+  async getAnalystTools() {
+    return this.chatAnalyst.getAvailableTools();
+  }
+
+  // ─── Phase VI: NCUA 5300 (MP-029) ─────────────────────────────
+
+  @Get(':institutionId/form-5300')
+  @UseGuards(AuthGuard)
+  async getForm5300(
+    @Param('institutionId') institutionId: string,
+    @Query('quarter') quarter?: string,
+  ) {
+    this.logger.log(`NCUA 5300 for ${institutionId} (${quarter ?? 'current'})`);
+    return this.ncua5300.generateForm5300(institutionId, quarter);
+  }
+
+  // ─── Phase VI: Prospect Intelligence (MP-032) ─────────────────
+
+  @Post('prospects/analyze')
+  @UseGuards(AuthGuard)
+  async analyzeProspect(@Body() body: { charterNumber: string }) {
+    return this.prospectIntel.analyzeProspect(body.charterNumber);
+  }
+
+  @Post('prospects/analyze-all')
+  @UseGuards(AuthGuard)
+  async analyzeAllProspects() {
+    return this.prospectIntel.analyzeAllProspects();
   }
 
   // ─── Sample Report Factory ──────────────────────────────────────

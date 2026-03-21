@@ -44,6 +44,10 @@ import { TreasuryRatesService } from './treasury-rates.service';
 // Phase VI services
 import { CAMELScorerService } from './exam-prep/camel-scorer.service';
 import { ExamPrepService } from './exam-prep/exam-prep.service';
+import { BoardReportService } from './board-report.service';
+import { ChatAnalystService } from './chat-analyst.service';
+import { NCUA5300Service } from './ncua-5300.service';
+import { ProspectIntelligenceService } from './prospect-intelligence.service';
 // Controllers
 import { AlmController } from './alm.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
@@ -78,6 +82,7 @@ import { AuthGuard } from '../auth/auth.guard';
     SOFRMonitorService, TreasuryRatesService,
     // Phase VI
     CAMELScorerService, ExamPrepService,
+    BoardReportService, ChatAnalystService, NCUA5300Service, ProspectIntelligenceService,
     // Guards
     AuthGuard,
   ],
@@ -96,6 +101,7 @@ import { AuthGuard } from '../auth/auth.guard';
     CapitalOptimizerService, AssetEWSService, PrepaymentEngineService,
     SOFRMonitorService, TreasuryRatesService,
     CAMELScorerService, ExamPrepService,
+    BoardReportService, ChatAnalystService, NCUA5300Service, ProspectIntelligenceService,
   ],
 })
 export class AlmModule {}
