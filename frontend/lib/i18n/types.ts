@@ -164,6 +164,11 @@ export interface TranslationKeys {
     ews: string;
     sofrExposure: string;
     examPrep: string;
+    stressV2: string;
+    optionality: string;
+    concVar: string;
+    camelForecast: string;
+    alerts: string;
     profile: string;
     apiKeys: string;
     description: string;

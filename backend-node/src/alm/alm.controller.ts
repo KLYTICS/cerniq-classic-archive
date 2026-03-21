@@ -55,6 +55,17 @@ import { KeyRateDurationService } from './key-rate-duration.service';
 import { LiquidityTransferPricingService } from './liquidity-transfer-pricing.service';
 import { USVIExpansionService } from './usvi-expansion.service';
 import { ResellerService } from './reseller.service';
+import { RegulatoryAlertService } from '../ai/regulatory/regulatory-alert.service';
+import { AlertDeliveryService } from '../ai/regulatory/alert-delivery.service';
+import { CamelForecasterService } from '../ai/camel/camel-forecaster.service';
+import { NLIngestService } from '../ai/ingest/nl-ingest.service';
+import { PeerSynthesisService } from '../ai/peer/peer-synthesis.service';
+import { StressV2Service } from './stress-v2.service';
+import { RobustOptimizerService } from './robust-optimizer.service';
+import { OptionalitySuiteService } from './optionality-suite.service';
+import { CreditConcentrationVaRService } from './credit-conc-var.service';
+import { DemoWorkspaceService } from './demo-workspace.service';
+import { OnboardingOrchestratorService } from './onboarding-orchestrator.service';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   ScenarioRequestDto,
@@ -135,6 +146,18 @@ export class AlmController {
     private readonly ltp: LiquidityTransferPricingService,
     private readonly usviExpansion: USVIExpansionService,
     private readonly reseller: ResellerService,
+    // V6+V7
+    private readonly regAlert: RegulatoryAlertService,
+    private readonly alertDelivery: AlertDeliveryService,
+    private readonly camelForecaster: CamelForecasterService,
+    private readonly nlIngest: NLIngestService,
+    private readonly peerSynthesis: PeerSynthesisService,
+    private readonly stressV2: StressV2Service,
+    private readonly robustOptimizer: RobustOptimizerService,
+    private readonly optionalitySuite: OptionalitySuiteService,
+    private readonly creditConcVaR: CreditConcentrationVaRService,
+    private readonly demoWorkspace: DemoWorkspaceService,
+    private readonly onboarding: OnboardingOrchestratorService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -1055,6 +1078,141 @@ export class AlmController {
   @UseGuards(AuthGuard)
   async getUSVIFramework() {
     return this.usviExpansion.getUSVIFramework();
+  }
+
+  // ─── V6+V7: Regulatory Alerts (MP-200) ─────────────────────────
+
+  @Get(':institutionId/alerts')
+  @UseGuards(AuthGuard)
+  async getAlerts(@Param('institutionId') institutionId: string, @Query('unreadOnly') unread?: string) {
+    return this.alertDelivery.getInstitutionAlerts(institutionId, unread === 'true');
+  }
+
+  @Post(':institutionId/alerts/:alertId/read')
+  @UseGuards(AuthGuard)
+  async markAlertRead(@Param('alertId') alertId: string) {
+    return this.alertDelivery.markRead(alertId);
+  }
+
+  @Post(':institutionId/alerts/:alertId/dismiss')
+  @UseGuards(AuthGuard)
+  async dismissAlert(@Param('alertId') alertId: string) {
+    return this.alertDelivery.dismiss(alertId);
+  }
+
+  @Get('regulatory/publications')
+  @UseGuards(AuthGuard)
+  async getPublications() {
+    return this.regAlert.getRecentPublications();
+  }
+
+  @Post('regulatory/scan-now')
+  @UseGuards(AuthGuard)
+  async triggerRegScan() {
+    return this.regAlert.runFullPipeline();
+  }
+
+  // ─── V6+V7: CAMEL Forecaster (MP-201) ────────────────────────
+
+  @Get(':institutionId/camel-forecast')
+  @UseGuards(AuthGuard)
+  async getCamelForecast(@Param('institutionId') institutionId: string) {
+    return this.camelForecaster.forecastForInstitution(institutionId);
+  }
+
+  // ─── V6+V7: NL Document Ingest (MP-202) ──────────────────────
+
+  @Post(':institutionId/ingest/nl')
+  @UseGuards(AuthGuard)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  async nlDocumentIngest(
+    @Param('institutionId') institutionId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('No file provided');
+    return this.nlIngest.ingestDocument(institutionId, file.originalname, file.buffer, file.mimetype);
+  }
+
+  // ─── V6+V7: Peer Synthesis (MP-203) ──────────────────────────
+
+  @Get('peer-synthesis/latest')
+  @UseGuards(AuthGuard)
+  async getPeerSynthesis() {
+    return this.peerSynthesis.getLatestReport();
+  }
+
+  // ─── V6+V7: DFAST Stress v2 (MP-204) ─────────────────────────
+
+  @Get('stress-v2/presets')
+  @UseGuards(AuthGuard)
+  async getStressV2Presets() {
+    return this.stressV2.getPresetScenarios();
+  }
+
+  @Post(':institutionId/stress-v2/run')
+  @UseGuards(AuthGuard)
+  async runStressV2(
+    @Param('institutionId') institutionId: string,
+    @Body() body: { scenarioId?: string },
+  ) {
+    const presets = this.stressV2.getPresetScenarios();
+    const scenario = body.scenarioId ? presets.find(p => p.id === body.scenarioId) ?? presets[0] : presets[0];
+    return this.stressV2.runStressTest(institutionId, scenario);
+  }
+
+  @Post(':institutionId/stress-v2/run-all')
+  @UseGuards(AuthGuard)
+  async runAllStressV2(@Param('institutionId') institutionId: string) {
+    return this.stressV2.runAllPresets(institutionId);
+  }
+
+  // ─── V6+V7: Robust Optimizer (MP-205) ────────────────────────
+
+  @Post(':institutionId/robust-optimize')
+  @UseGuards(AuthGuard)
+  async robustOptimize(
+    @Param('institutionId') institutionId: string,
+    @Body() body: { aggressiveness?: 'conservative' | 'moderate' | 'aggressive' },
+  ) {
+    return this.robustOptimizer.optimize(institutionId, body.aggressiveness);
+  }
+
+  // ─── V6+V7: Optionality Suite (MP-206) ───────────────────────
+
+  @Get(':institutionId/optionality')
+  @UseGuards(AuthGuard)
+  async getOptionality(@Param('institutionId') institutionId: string) {
+    return this.optionalitySuite.analyzePortfolio(institutionId);
+  }
+
+  // ─── V6+V7: Credit Concentration VaR (MP-207) ────────────────
+
+  @Get(':institutionId/concentration-var')
+  @UseGuards(AuthGuard)
+  async getConcVaR(@Param('institutionId') institutionId: string) {
+    return this.creditConcVaR.compute(institutionId);
+  }
+
+  // ─── V6+V7: Demo Workspace (MP-217) ──────────────────────────
+
+  @Post('demo/build')
+  @UseGuards(AuthGuard)
+  async buildDemoWorkspace(@Body() body: { charterNumber: string; demoLabel: string }) {
+    return this.demoWorkspace.buildWorkspace(body.charterNumber, body.demoLabel);
+  }
+
+  // ─── V6+V7: Onboarding (MP-222) ──────────────────────────────
+
+  @Get(':institutionId/onboarding')
+  @UseGuards(AuthGuard)
+  async getOnboardingStatus(@Param('institutionId') institutionId: string) {
+    return this.onboarding.getOnboardingStatus(institutionId);
+  }
+
+  @Get('admin/onboarding-statuses')
+  @UseGuards(AuthGuard)
+  async getAllOnboardingStatuses() {
+    return this.onboarding.getAllOnboardingStatuses();
   }
 
   // ─── MP-034: Reseller Portal ────────────────────────────────────

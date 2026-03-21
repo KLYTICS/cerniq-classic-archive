@@ -1442,6 +1442,75 @@ class APIClient {
     return response.data;
   }
 
+  // --- V6+V7: Regulatory Alerts ---
+
+  async getAlerts(institutionId: string, unreadOnly = false) {
+    const qs = unreadOnly ? '?unreadOnly=true' : '';
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/alerts${qs}`);
+    return response.data;
+  }
+
+  // --- V6+V7: CAMEL Forecast ---
+
+  async getCamelForecast(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/camel-forecast`);
+    return response.data;
+  }
+
+  // --- V6+V7: Peer Synthesis ---
+
+  async getPeerSynthesis() {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/peer-synthesis/latest`);
+    return response.data;
+  }
+
+  // --- V6+V7: DFAST Stress v2 ---
+
+  async runStressV2(institutionId: string, scenarioId?: string) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/${institutionId}/stress-v2/run`, { scenarioId });
+    return response.data;
+  }
+
+  async runAllStressV2(institutionId: string) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/${institutionId}/stress-v2/run-all`);
+    return response.data;
+  }
+
+  // --- V6+V7: Robust Optimizer ---
+
+  async robustOptimize(institutionId: string, aggressiveness?: string) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/${institutionId}/robust-optimize`, { aggressiveness });
+    return response.data;
+  }
+
+  // --- V6+V7: Optionality Suite ---
+
+  async getOptionality(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/optionality`);
+    return response.data;
+  }
+
+  // --- V6+V7: Credit Concentration VaR ---
+
+  async getConcentrationVaR(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/concentration-var`);
+    return response.data;
+  }
+
+  // --- V6+V7: Demo Workspace ---
+
+  async buildDemoWorkspace(charterNumber: string, demoLabel: string) {
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/demo/build`, { charterNumber, demoLabel });
+    return response.data;
+  }
+
+  // --- V6+V7: Onboarding ---
+
+  async getOnboardingStatus(institutionId: string) {
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/onboarding`);
+    return response.data;
+  }
+
   // --- Sample Report Factory ---
 
   async generateSampleReport(charterNumber: string) {

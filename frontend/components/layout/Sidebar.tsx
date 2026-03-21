@@ -72,6 +72,11 @@ const almNav: NavItem[] = [
       { href: '/alm/ews', icon: Activity, labelKey: 'sidebar.ews' },
       { href: '/alm/sofr-exposure', icon: TrendingUp, labelKey: 'sidebar.sofrExposure' },
       { href: '/alm/exam-prep', icon: Shield, labelKey: 'sidebar.examPrep' },
+      { href: '/alm/stress-v2', icon: AlertOctagon, labelKey: 'sidebar.stressV2' },
+      { href: '/alm/optionality', icon: Landmark, labelKey: 'sidebar.optionality' },
+      { href: '/alm/conc-var', icon: Shield, labelKey: 'sidebar.concVar' },
+      { href: '/alm/camel-forecast', icon: TrendingUp, labelKey: 'sidebar.camelForecast' },
+      { href: '/alm/alerts', icon: Activity, labelKey: 'sidebar.alerts' },
     ],
   },
 ];

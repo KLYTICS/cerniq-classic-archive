@@ -59,6 +59,20 @@ import { KeyRateDurationService } from './key-rate-duration.service';
 import { LiquidityTransferPricingService } from './liquidity-transfer-pricing.service';
 import { USVIExpansionService } from './usvi-expansion.service';
 import { ResellerService } from './reseller.service';
+// V6+V7 next-wave services
+import { RegulatoryAlertService } from '../ai/regulatory/regulatory-alert.service';
+import { RegulatoryScraperService } from '../ai/regulatory/regulatory-scraper.service';
+import { ImpactExtractorService } from '../ai/regulatory/impact-extractor.service';
+import { AlertDeliveryService } from '../ai/regulatory/alert-delivery.service';
+import { CamelForecasterService } from '../ai/camel/camel-forecaster.service';
+import { NLIngestService } from '../ai/ingest/nl-ingest.service';
+import { PeerSynthesisService } from '../ai/peer/peer-synthesis.service';
+import { StressV2Service } from './stress-v2.service';
+import { RobustOptimizerService } from './robust-optimizer.service';
+import { OptionalitySuiteService } from './optionality-suite.service';
+import { CreditConcentrationVaRService } from './credit-conc-var.service';
+import { DemoWorkspaceService } from './demo-workspace.service';
+import { OnboardingOrchestratorService } from './onboarding-orchestrator.service';
 // Controllers
 import { AlmController } from './alm.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
@@ -97,6 +111,11 @@ import { AuthGuard } from '../auth/auth.guard';
     NetworkIntelligenceService, WebhookService, UsageMeteringService, DataPrivacyService,
     CsvIngestV2Service, NIMOptimizerService, KeyRateDurationService,
     LiquidityTransferPricingService, USVIExpansionService, ResellerService,
+    // V6+V7 next-wave
+    RegulatoryAlertService, RegulatoryScraperService, ImpactExtractorService, AlertDeliveryService,
+    CamelForecasterService, NLIngestService, PeerSynthesisService,
+    StressV2Service, RobustOptimizerService, OptionalitySuiteService, CreditConcentrationVaRService,
+    DemoWorkspaceService, OnboardingOrchestratorService,
     // Guards
     AuthGuard,
   ],
@@ -119,6 +138,10 @@ import { AuthGuard } from '../auth/auth.guard';
     NetworkIntelligenceService, WebhookService, UsageMeteringService, DataPrivacyService,
     CsvIngestV2Service, NIMOptimizerService, KeyRateDurationService,
     LiquidityTransferPricingService, USVIExpansionService, ResellerService,
+    RegulatoryAlertService, RegulatoryScraperService, ImpactExtractorService, AlertDeliveryService,
+    CamelForecasterService, NLIngestService, PeerSynthesisService,
+    StressV2Service, RobustOptimizerService, OptionalitySuiteService, CreditConcentrationVaRService,
+    DemoWorkspaceService, OnboardingOrchestratorService,
   ],
 })
 export class AlmModule {}
