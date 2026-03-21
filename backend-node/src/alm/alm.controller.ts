@@ -54,6 +54,7 @@ import { NIMOptimizerService } from './nim-optimizer.service';
 import { KeyRateDurationService } from './key-rate-duration.service';
 import { LiquidityTransferPricingService } from './liquidity-transfer-pricing.service';
 import { USVIExpansionService } from './usvi-expansion.service';
+import { ResellerService } from './reseller.service';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   ScenarioRequestDto,
@@ -133,6 +134,7 @@ export class AlmController {
     private readonly keyRateDuration: KeyRateDurationService,
     private readonly ltp: LiquidityTransferPricingService,
     private readonly usviExpansion: USVIExpansionService,
+    private readonly reseller: ResellerService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -1053,6 +1055,26 @@ export class AlmController {
   @UseGuards(AuthGuard)
   async getUSVIFramework() {
     return this.usviExpansion.getUSVIFramework();
+  }
+
+  // ─── MP-034: Reseller Portal ────────────────────────────────────
+
+  @Post('resellers')
+  @UseGuards(AuthGuard)
+  async createReseller(@Body() body: { name: string; slug: string; logoUrl?: string; revenueSharePct: number; domain?: string }) {
+    return this.reseller.createReseller(body);
+  }
+
+  @Get('resellers')
+  @UseGuards(AuthGuard)
+  async listResellers() {
+    return this.reseller.listResellers();
+  }
+
+  @Get('resellers/:id')
+  @UseGuards(AuthGuard)
+  async getReseller(@Param('id') id: string) {
+    return this.reseller.getReseller(id);
   }
 
   // ─── Sample Report Factory ──────────────────────────────────────

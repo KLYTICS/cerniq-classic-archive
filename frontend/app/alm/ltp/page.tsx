@@ -1,0 +1,114 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useALM } from '@/components/alm/ALMProvider';
+import { useTranslation } from '@/lib/i18n';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
+import { Banknote, AlertTriangle } from 'lucide-react';
+
+export default function LTPPage() {
+  const { selectedId } = useALM();
+  const { locale } = useTranslation();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    (async () => {
+      setLoading(true);
+      try {
+        const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+        const res = await fetch(`${NODE_API_URL}/api/alm/${selectedId}/ltp`);
+        if (res.ok) setData(await res.json());
+        else setData(getDemoData());
+      } catch { setData(getDemoData()); }
+      finally { setLoading(false); }
+    })();
+  }, [selectedId]);
+
+  if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
+  if (loading || !data) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
+
+  const chartData = data.segments.map((s: any) => ({ name: s.segment, charge: s.liquidityCharge }));
+
+  return (
+    <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50">
+          <Banknote className="h-4 w-4 text-blue-700" />
+        </div>
+        <div>
+          <h1 className="text-lg font-bold text-slate-950">{locale === 'es' ? 'Precios de Transferencia de Liquidez (LTP)' : 'Liquidity Transfer Pricing (LTP)'}</h1>
+          <p className="text-xs text-slate-500">{locale === 'es' ? 'Curva de fondeo interno, prima de liquidez por segmento' : 'Internal funding curve, liquidity premium by segment'}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3"><p className="text-[10px] font-medium uppercase text-rose-500">{locale === 'es' ? 'Cargo Total' : 'Total Charge'}</p><p className="text-xl font-bold tabular-nums text-rose-700">${data.totalLiquidityCharge}M</p></div>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3"><p className="text-[10px] font-medium uppercase text-emerald-500">{locale === 'es' ? 'Crédito Total' : 'Total Credit'}</p><p className="text-xl font-bold tabular-nums text-emerald-700">${data.totalLiquidityCredit}M</p></div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[10px] font-medium uppercase text-slate-400">{locale === 'es' ? 'Transferencia Neta' : 'Net Transfer'}</p><p className="text-xl font-bold tabular-nums text-slate-950">${data.netLTPTransfer}M</p></div>
+      </div>
+
+      {/* Internal Funding Curve */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">{locale === 'es' ? 'Curva de Fondeo Interno' : 'Internal Funding Curve'}</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead><tr className="border-b border-slate-100">{[locale === 'es' ? 'Segmento' : 'Bucket', locale === 'es' ? 'Costo Fondeo' : 'Funding Cost', locale === 'es' ? 'Tasa Libre' : 'Risk-Free', locale === 'es' ? 'Prima Liquidez' : 'Liq. Premium'].map(h => <th key={h} className="px-3 py-1.5 text-left text-[10px] text-slate-500">{h}</th>)}</tr></thead>
+            <tbody>{data.internalFundingCurve.map((b: any) => (
+              <tr key={b.bucket} className="border-b border-slate-50"><td className="px-3 py-1.5 font-medium">{b.bucket}</td><td className="px-3 py-1.5 tabular-nums">{(b.fundingCost * 100).toFixed(2)}%</td><td className="px-3 py-1.5 tabular-nums">{(b.riskFreeRate * 100).toFixed(2)}%</td><td className="px-3 py-1.5 tabular-nums font-medium text-blue-700">{(b.liquidityPremium * 10000).toFixed(0)} bps</td></tr>
+            ))}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-4">{locale === 'es' ? 'Cargo/Crédito por Segmento' : 'Charge/Credit by Segment'}</p>
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+            <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={50} />
+            <YAxis tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
+            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} />
+            <ReferenceLine y={0} stroke="#94a3b8" />
+            <Bar dataKey="charge" radius={[4, 4, 0, 0]}>{chartData.map((e: any, i: number) => <Cell key={i} fill={e.charge >= 0 ? '#ef4444' : '#10b981'} />)}</Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-4">
+          <p className="text-[10px] font-semibold uppercase text-rose-600 mb-2">{locale === 'es' ? 'Mayores Consumidores de Liquidez' : 'Top Liquidity Consumers'}</p>
+          {data.topConsumers.map((c: string) => <p key={c} className="text-xs text-rose-800 capitalize">• {c}</p>)}
+        </div>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+          <p className="text-[10px] font-semibold uppercase text-emerald-600 mb-2">{locale === 'es' ? 'Mayores Proveedores de Liquidez' : 'Top Liquidity Providers'}</p>
+          {data.topProviders.map((p: string) => <p key={p} className="text-xs text-emerald-800 capitalize">• {p}</p>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getDemoData() {
+  return {
+    segments: [
+      { segment: 'commercial re', category: 'asset', balance: 120, matchedBucket: '5-10Y', liquidityPremium: 60, liquidityCharge: 0.72, beforeLTP_NIM: 5.80, afterLTP_NIM: 5.20, isLiquidityConsumer: true },
+      { segment: 'residential mortgage', category: 'asset', balance: 95, matchedBucket: '5-10Y', liquidityPremium: 60, liquidityCharge: 0.57, beforeLTP_NIM: 5.50, afterLTP_NIM: 4.90, isLiquidityConsumer: true },
+      { segment: 'consumer loans', category: 'asset', balance: 85, matchedBucket: '1-3Y', liquidityPremium: 40, liquidityCharge: 0.34, beforeLTP_NIM: 7.20, afterLTP_NIM: 6.80, isLiquidityConsumer: true },
+      { segment: 'demand deposits', category: 'liability', balance: 180, matchedBucket: '0-3M', liquidityPremium: 20, liquidityCharge: -0.36, beforeLTP_NIM: 0.50, afterLTP_NIM: 0.70, isLiquidityConsumer: false },
+      { segment: 'time deposits', category: 'liability', balance: 75, matchedBucket: '1-3Y', liquidityPremium: 40, liquidityCharge: -0.30, beforeLTP_NIM: 4.00, afterLTP_NIM: 4.40, isLiquidityConsumer: false },
+    ],
+    internalFundingCurve: [
+      { bucket: '0-3M', fundingCost: 0.050, riskFreeRate: 0.048, liquidityPremium: 0.002 },
+      { bucket: '3-12M', fundingCost: 0.047, riskFreeRate: 0.044, liquidityPremium: 0.003 },
+      { bucket: '1-3Y', fundingCost: 0.045, riskFreeRate: 0.041, liquidityPremium: 0.004 },
+      { bucket: '3-5Y', fundingCost: 0.046, riskFreeRate: 0.0405, liquidityPremium: 0.0055 },
+      { bucket: '5-10Y', fundingCost: 0.048, riskFreeRate: 0.042, liquidityPremium: 0.006 },
+      { bucket: '>10Y', fundingCost: 0.052, riskFreeRate: 0.046, liquidityPremium: 0.006 },
+    ],
+    totalLiquidityCharge: 2.05, totalLiquidityCredit: 1.38, netLTPTransfer: 0.67,
+    topConsumers: ['commercial re', 'residential mortgage', 'consumer loans'],
+    topProviders: ['demand deposits', 'time deposits'],
+  };
+}

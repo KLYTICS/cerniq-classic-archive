@@ -58,6 +58,7 @@ import { NIMOptimizerService } from './nim-optimizer.service';
 import { KeyRateDurationService } from './key-rate-duration.service';
 import { LiquidityTransferPricingService } from './liquidity-transfer-pricing.service';
 import { USVIExpansionService } from './usvi-expansion.service';
+import { ResellerService } from './reseller.service';
 // Controllers
 import { AlmController } from './alm.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
@@ -95,7 +96,7 @@ import { AuthGuard } from '../auth/auth.guard';
     BoardReportService, ChatAnalystService, NCUA5300Service, ProspectIntelligenceService,
     NetworkIntelligenceService, WebhookService, UsageMeteringService, DataPrivacyService,
     CsvIngestV2Service, NIMOptimizerService, KeyRateDurationService,
-    LiquidityTransferPricingService, USVIExpansionService,
+    LiquidityTransferPricingService, USVIExpansionService, ResellerService,
     // Guards
     AuthGuard,
   ],
@@ -117,7 +118,7 @@ import { AuthGuard } from '../auth/auth.guard';
     BoardReportService, ChatAnalystService, NCUA5300Service, ProspectIntelligenceService,
     NetworkIntelligenceService, WebhookService, UsageMeteringService, DataPrivacyService,
     CsvIngestV2Service, NIMOptimizerService, KeyRateDurationService,
-    LiquidityTransferPricingService, USVIExpansionService,
+    LiquidityTransferPricingService, USVIExpansionService, ResellerService,
   ],
 })
 export class AlmModule {}
