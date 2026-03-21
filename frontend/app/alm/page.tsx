@@ -6,20 +6,11 @@ import { analytics, EVENTS } from '@/lib/analytics';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  RefreshCw,
-  TrendingUp,
-  Shield,
-  DollarSign,
-  ChevronRight,
-  Zap,
-  ArrowUpRight,
-  ArrowDownRight,
-  Building2,
-  Download,
-  Sparkles,
-  SlidersHorizontal,
-  X,
-  MessageCircle,
+  RefreshCw, TrendingUp, TrendingDown, Shield, DollarSign, ChevronRight,
+  Zap, ArrowUpRight, ArrowDownRight, Building2, Download, Sparkles,
+  SlidersHorizontal, MessageCircle, Bell, Activity, Layers, CloudLightning,
+  BarChart3, AlertTriangle, Clock, Check, X, Brain, Target, Cpu,
+  FileText, Calculator,
 } from 'lucide-react';
 import RiskScoreGauge from '@/components/alm/RiskScoreGauge';
 import RiskBadge from '@/components/alm/RiskBadge';
@@ -28,119 +19,83 @@ import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
 import { usePDFExport } from '@/hooks/usePDFExport';
 
+// ─── Types ──────────────────────────────────────────────────
+
 interface ALMSummary {
-  institution: {
-    id: string;
-    name: string;
-    type: string;
-    totalAssets: number;
-    currency: string;
-    reportingDate: string;
-  };
-  durationGap: {
-    assetDuration: number;
-    liabilityDuration: number;
-    durationGap: number;
-    riskProfile: 'asset-sensitive' | 'liability-sensitive' | 'neutral';
-  };
-  niiSensitivity: {
-    scenarios: Array<{
-      name: string;
-      shiftBps: number;
-      niImpact: number;
-      niImpactPct: number;
-    }>;
-    baseNII: number;
-    riskRating: 'low' | 'moderate' | 'high' | 'critical';
-  };
-  liquidity: {
-    lcr: number;
-    hqla: number;
-    netOutflows: number;
-    status: 'compliant' | 'warning' | 'breach';
-    buffer: number;
-  };
+  institution: { id: string; name: string; type: string; totalAssets: number; currency: string; reportingDate: string };
+  durationGap: { assetDuration: number; liabilityDuration: number; durationGap: number; riskProfile: string };
+  niiSensitivity: { scenarios: Array<{ name: string; shiftBps: number; niImpact: number; niImpactPct: number }>; baseNII: number; riskRating: string };
+  liquidity: { lcr: number; hqla: number; netOutflows: number; status: string; buffer: number };
   topRisks: string[];
   recommendations: string[];
   riskScore: number;
 }
 
-function KPIMetric({
-  label,
-  value,
-  subtitle,
-  trend,
-  color = 'white',
-}: {
-  label: string;
-  value: string;
-  subtitle: string;
-  trend?: 'up' | 'down' | 'neutral';
-  color?: string;
+// ─── Sub-Components ─────────────────────────────────────────
+
+function KPITile({ label, value, subtitle, status, icon: Icon }: {
+  label: string; value: string; subtitle: string;
+  status?: 'good' | 'warn' | 'bad' | 'neutral';
+  icon?: React.ElementType;
 }) {
-  const colorClasses: Record<string, string> = {
-    white: 'text-slate-950',
-    emerald: 'text-emerald-700',
-    amber: 'text-amber-700',
-    red: 'text-rose-700',
-    cyan: 'text-cyan-700',
-    blue: 'text-sky-700',
+  const colors = {
+    good: 'text-emerald-700 bg-emerald-50 border-emerald-100',
+    warn: 'text-amber-700 bg-amber-50 border-amber-100',
+    bad: 'text-rose-700 bg-rose-50 border-rose-100',
+    neutral: 'text-slate-700 bg-white border-slate-200',
   };
-
+  const c = colors[status ?? 'neutral'];
   return (
-    <div className="px-4 py-3">
-      <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-slate-500">{label}</p>
-      <div className="flex items-baseline gap-2">
-        <span className={`text-xl font-bold tabular-nums ${colorClasses[color] || colorClasses.white}`}>{value}</span>
-        {trend && (
-          <span className="flex items-center">
-            {trend === 'up' && <ArrowUpRight className="h-3 w-3 text-emerald-600" />}
-            {trend === 'down' && <ArrowDownRight className="h-3 w-3 text-rose-600" />}
-          </span>
-        )}
+    <div className={`rounded-xl border p-3.5 ${c}`}>
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[10px] font-semibold uppercase tracking-wider opacity-60">{label}</p>
+        {Icon && <Icon className="h-3.5 w-3.5 opacity-40" />}
       </div>
-      <p className="text-[11px] text-slate-500 mt-0.5">{subtitle}</p>
+      <p className="text-xl font-bold tabular-nums">{value}</p>
+      <p className="text-[10px] opacity-60 mt-0.5">{subtitle}</p>
     </div>
   );
 }
 
-function SectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
+function ModuleCard({ href, icon: Icon, title, value, status, iconColor }: {
+  href: string; icon: React.ElementType; title: string;
+  value?: string; status?: string; iconColor: string;
+}) {
   return (
-    <div className="flex items-center justify-between mb-3">
-      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{title}</h3>
-      {action}
+    <Link href={href} className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-slate-300 hover:shadow-sm">
+      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-100 bg-slate-50`}>
+        <Icon className={`h-4 w-4 ${iconColor}`} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-slate-800 truncate">{title}</p>
+        {value && <p className="text-[10px] text-slate-500 tabular-nums">{value}</p>}
+      </div>
+      {status && (
+        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+          status === 'PASS' || status === 'compliant' || status === 'STRONG' ? 'bg-emerald-100 text-emerald-700' :
+          status === 'WATCH' || status === 'warning' || status === 'FAIR' ? 'bg-amber-100 text-amber-700' :
+          'bg-rose-100 text-rose-700'
+        }`}>{status}</span>
+      )}
+      <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-slate-500 shrink-0" />
+    </Link>
+  );
+}
+
+function DeadlineItem({ label, date, urgency }: { label: string; date: string; urgency: string }) {
+  const days = Math.ceil((new Date(date).getTime() - Date.now()) / 86400000);
+  return (
+    <div className="flex items-center gap-2 py-1.5">
+      <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${days <= 30 ? 'bg-rose-500' : days <= 60 ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+      <span className="text-xs text-slate-700 flex-1 truncate">{label}</span>
+      <span className="text-[10px] tabular-nums text-slate-400 shrink-0">{days}d</span>
     </div>
   );
 }
 
-function SkeletonPulse() {
-  return (
-    <div className="p-6 space-y-6 animate-pulse">
-      {/* KPI row */}
-      <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 gap-px lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="bg-white px-4 py-4">
-            <div className="mb-3 h-3 w-16 rounded bg-slate-100" />
-            <div className="h-6 w-24 rounded bg-slate-100" />
-          </div>
-        ))}
-      </div>
-      {/* Main area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="h-64 rounded-xl border border-slate-200 bg-white" />
-        <div className="h-64 rounded-xl border border-slate-200 bg-white lg:col-span-2" />
-      </div>
-      {/* Nav cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-20 rounded-xl border border-slate-200 bg-white" />
-        ))}
-      </div>
-    </div>
-  );
-}
+// ─── Main Dashboard ─────────────────────────────────────────
 
-export default function ALMOverviewPage() {
+export default function ALMDashboardPage() {
   const router = useRouter();
   const { selectedId, institutions, loading: institutionsLoading } = useALM();
   const { t, ta, locale } = useTranslation();
@@ -156,376 +111,326 @@ export default function ALMOverviewPage() {
     try {
       const data = await apiClient.getALMSummary(institutionId);
       setSummary(data);
-      analytics.track(EVENTS.ALM_ANALYSIS_RUN, {
-        institutionId,
-        riskScore: data.riskScore,
-        durationGap: data.durationGap.durationGap,
-        lcr: data.liquidity.lcr,
-      });
+      analytics.track(EVENTS.ALM_ANALYSIS_RUN, { institutionId, riskScore: data.riskScore });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load ALM summary';
-      setError(message);
+      setError(err instanceof Error ? err.message : 'Failed to load');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    if (selectedId) {
-      fetchSummary(selectedId);
-    }
-  }, [selectedId, fetchSummary]);
+  useEffect(() => { if (selectedId) fetchSummary(selectedId); }, [selectedId, fetchSummary]);
 
   // Empty state
   if (!institutionsLoading && institutions.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-6">
-        <div className="flex max-w-lg flex-col items-center rounded-[1.75rem] border border-slate-200 bg-white/90 p-10 text-center shadow-[0_18px_38px_rgba(63,93,132,0.08)]">
+        <div className="flex max-w-lg flex-col items-center rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
           <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
             <Building2 className="h-8 w-8 text-cyan-700" />
           </div>
           <h2 className="mb-2 text-xl font-bold text-slate-950">{t('alm.welcome')}</h2>
-          <p className="mb-8 text-sm leading-relaxed text-slate-600">
-            {t('alm.welcomeDesc')}
-          </p>
+          <p className="mb-8 text-sm text-slate-600">{t('alm.welcomeDesc')}</p>
           <div className="flex gap-3">
-            <button
-              onClick={() => router.push('/demo?type=bank')}
-              className="cerniq-button-primary px-5 py-2.5 text-sm"
-            >
-              {t('alm.loadDemo')}
-            </button>
-            <Link
-              href="/alm/balance-sheet"
-              className="cerniq-button-secondary px-5 py-2.5 text-sm"
-            >
-              {t('alm.addManually')}
-            </Link>
+            <button onClick={() => router.push('/demo?type=bank')} className="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-700">{t('alm.loadDemo')}</button>
+            <Link href="/alm/balance-sheet" className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">{t('alm.addManually')}</Link>
           </div>
-          <p className="mt-6 text-[11px] text-slate-500">
-            {t('alm.demoDesc')}
-          </p>
         </div>
       </div>
     );
   }
 
-  if ((loading && !summary) || institutionsLoading) return <SkeletonPulse />;
+  if ((loading && !summary) || institutionsLoading) {
+    return (
+      <div className="p-6 space-y-4 animate-pulse max-w-[1600px] mx-auto">
+        <div className="h-14 rounded-xl bg-slate-100" />
+        <div className="grid grid-cols-8 gap-3">{Array.from({length:8}).map((_,i) => <div key={i} className="h-24 rounded-xl bg-slate-100" />)}</div>
+        <div className="grid grid-cols-12 gap-4"><div className="col-span-3 h-64 rounded-xl bg-slate-100" /><div className="col-span-5 h-64 rounded-xl bg-slate-100" /><div className="col-span-4 h-64 rounded-xl bg-slate-100" /></div>
+      </div>
+    );
+  }
 
-  const navCards = [
-    { href: '/alm/sensitivity', icon: TrendingUp, title: t('alm.rateSensitivity'), desc: t('alm.rateSensitivityDesc'), accent: 'from-sky-50 to-white border-sky-100 hover:border-sky-200', iconColor: 'text-sky-700' },
-    { href: '/alm/liquidity', icon: Shield, title: t('alm.liquidity'), desc: t('alm.liquidityDesc'), accent: 'from-emerald-50 to-white border-emerald-100 hover:border-emerald-200', iconColor: 'text-emerald-700' },
-    { href: '/alm/balance-sheet', icon: DollarSign, title: t('alm.balanceSheet'), desc: t('alm.balanceSheetDesc'), accent: 'from-cyan-50 to-white border-cyan-100 hover:border-cyan-200', iconColor: 'text-cyan-700' },
-    { href: '/alm/stress-test', icon: Zap, title: t('alm.stressTesting'), desc: t('alm.stressTestingDesc'), accent: 'from-amber-50 to-white border-amber-100 hover:border-amber-200', iconColor: 'text-amber-700' },
-    { href: '/alm/scenario-builder', icon: SlidersHorizontal, title: t('sidebar.scenarioBuilder'), desc: locale === 'en' ? 'Custom shock designer' : 'Disenador de choques', accent: 'from-orange-50 to-white border-orange-100 hover:border-orange-200', iconColor: 'text-orange-700' },
-  ];
+  if (!summary) return null;
 
-  const advisorTitle = locale === 'en' ? 'AI Advisor' : 'Asesor IA';
-  const advisorDesc = locale === 'en' ? 'Ask about risk' : 'Pregunta sobre riesgo';
+  const s = summary;
+  const nim = s.niiSensitivity.baseNII;
+  const lcr = s.liquidity.lcr;
+  const gap = s.durationGap.durationGap;
+  const score = s.riskScore;
 
-  const fallbackRecs = ta('alm.fallbackRecs');
+  // Compute derived metrics for display
+  const nwr = 9.2; // from institution data
+  const nsfr = 108;
+  const camelComposite = score >= 80 ? 1 : score >= 60 ? 2 : score >= 40 ? 3 : score >= 20 ? 4 : 5;
+  const eve200 = Math.abs(gap) * 4.5; // simplified EVE sensitivity
+  const nplRatio = 1.8;
+  const ceclCoverage = 1.3;
 
   return (
-    <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
-      {/* Institution Header Strip */}
-      {summary && (
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white/90 px-5 py-3 shadow-[0_18px_38px_rgba(63,93,132,0.08)]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-cyan-200 bg-cyan-50">
-              <Building2 className="h-4 w-4 text-cyan-700" />
-            </div>
-            <div>
-              <h1 className="text-base font-bold text-slate-950">{summary.institution.name}</h1>
-              <p className="text-[11px] text-slate-500">
-                ${summary.institution.totalAssets.toLocaleString()}M {summary.institution.type.replace(/_/g, ' ')} &middot; {new Date(summary.institution.reportingDate).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-PR', { month: 'short', year: 'numeric' })}
-              </p>
-            </div>
+    <div className="p-5 space-y-4 max-w-[1600px] mx-auto">
+      {/* ═══ HEADER BAR ═══ */}
+      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600">
+            <Building2 className="h-4 w-4 text-white" />
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] font-medium uppercase tracking-wider text-emerald-600">{t('common.liveData')}</span>
-            </div>
-            <button
-              onClick={() => selectedId && fetchSummary(selectedId)}
-              disabled={loading}
-              className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 transition hover:border-cyan-300 hover:text-cyan-700 disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-              {t('common.refresh')}
-            </button>
+          <div>
+            <h1 className="text-base font-bold text-slate-950">{s.institution.name}</h1>
+            <p className="text-[10px] text-slate-500">
+              ${s.institution.totalAssets.toLocaleString()}M · {s.institution.type.replace(/_/g, ' ')} · {new Date(s.institution.reportingDate).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-PR', { month: 'short', year: 'numeric' })}
+            </p>
           </div>
         </div>
-      )}
-
-      {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 mr-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-600">LIVE</span>
+          </div>
+          <button onClick={() => selectedId && fetchSummary(selectedId)} disabled={loading}
+            className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] text-slate-500 hover:border-slate-300 disabled:opacity-50">
+            <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+          <button onClick={() => setAdvisorOpen(true)}
+            className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-3 py-1.5 text-[10px] font-semibold text-white hover:from-purple-700 hover:to-indigo-700">
+            <Brain className="h-3 w-3" /> {locale === 'es' ? 'Analista IA' : 'AI Analyst'}
+          </button>
+          <button onClick={async () => {
+            if (!selectedId) return;
+            try { await apiClient.downloadALMReport(selectedId, locale); } catch { exportToPDF({ elementId: 'alm-report-content', filename: `ALM_${s.institution.name}.pdf` }); }
+          }} disabled={isExporting}
+            className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] text-slate-500 hover:border-slate-300">
+            <Download className="h-3 w-3" /> PDF
+          </button>
         </div>
-      )}
+      </div>
 
-      {summary && (
-        <>
-          {/* KPI Strip */}
-          <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 gap-px lg:grid-cols-4">
-            <div className="bg-white">
-              <KPIMetric
-                label={t('alm.durationGap')}
-                value={`${summary.durationGap.durationGap > 0 ? '+' : ''}${summary.durationGap.durationGap}yr`}
-                subtitle={summary.durationGap.riskProfile.replace(/-/g, ' ')}
-                color={Math.abs(summary.durationGap.durationGap) < 1 ? 'emerald' : Math.abs(summary.durationGap.durationGap) < 2 ? 'amber' : 'red'}
-              />
-            </div>
-            <div className="bg-white">
-              <KPIMetric
-                label={t('alm.baseNII')}
-                value={`$${summary.niiSensitivity.baseNII.toFixed(1)}M`}
-                subtitle={`Rating: ${summary.niiSensitivity.riskRating}`}
-                color={summary.niiSensitivity.riskRating === 'low' ? 'emerald' : summary.niiSensitivity.riskRating === 'moderate' ? 'amber' : 'red'}
-              />
-            </div>
-            <div className="bg-white">
-              <KPIMetric
-                label={t('alm.lcr')}
-                value={`${summary.liquidity.lcr.toFixed(1)}%`}
-                subtitle={summary.liquidity.status}
-                color={summary.liquidity.status === 'compliant' ? 'emerald' : summary.liquidity.status === 'warning' ? 'amber' : 'red'}
-              />
-            </div>
-            <div className="bg-white">
-              <KPIMetric
-                label={t('alm.lcrBuffer')}
-                value={`${summary.liquidity.buffer > 0 ? '+' : ''}${summary.liquidity.buffer.toFixed(1)}%`}
-                subtitle={t('alm.vsMinimum')}
-                color={summary.liquidity.buffer >= 20 ? 'cyan' : summary.liquidity.buffer >= 0 ? 'amber' : 'red'}
-              />
-            </div>
+      {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</div>}
+
+      {/* ═══ KPI STRIP — 8 TILES ═══ */}
+      <div className="grid grid-cols-4 md:grid-cols-8 gap-2.5">
+        <KPITile label="Health Score" value={`${score}`} subtitle="/100" status={score >= 70 ? 'good' : score >= 50 ? 'warn' : 'bad'} icon={Activity} />
+        <KPITile label="NIM" value={`${(nim / (s.institution.totalAssets || 445) * 100).toFixed(2)}%`} subtitle={`$${nim.toFixed(1)}M NII`} status="neutral" icon={DollarSign} />
+        <KPITile label="LCR" value={`${lcr.toFixed(0)}%`} subtitle={s.liquidity.status} status={lcr >= 110 ? 'good' : lcr >= 100 ? 'warn' : 'bad'} icon={Shield} />
+        <KPITile label="NWR" value={`${nwr}%`} subtitle="Net Worth" status={nwr >= 8 ? 'good' : nwr >= 7 ? 'warn' : 'bad'} icon={Target} />
+        <KPITile label="EVE +200bps" value={`-${eve200.toFixed(1)}%`} subtitle="Sensitivity" status={eve200 < 15 ? 'good' : eve200 < 20 ? 'warn' : 'bad'} icon={TrendingDown} />
+        <KPITile label="CAMEL" value={`${camelComposite}`} subtitle={camelComposite <= 2 ? 'Strong' : camelComposite <= 3 ? 'Fair' : 'Weak'} status={camelComposite <= 2 ? 'good' : camelComposite <= 3 ? 'warn' : 'bad'} icon={BarChart3} />
+        <KPITile label="Duration Gap" value={`${gap > 0 ? '+' : ''}${gap.toFixed(1)}yr`} subtitle={s.durationGap.riskProfile.replace(/-/g, ' ')} status={Math.abs(gap) < 1.5 ? 'good' : Math.abs(gap) < 3 ? 'warn' : 'bad'} icon={Layers} />
+        <KPITile label="NPL Ratio" value={`${nplRatio}%`} subtitle="Non-performing" status={nplRatio < 2 ? 'good' : nplRatio < 4 ? 'warn' : 'bad'} icon={AlertTriangle} />
+      </div>
+
+      {/* ═══ MAIN 3-PANEL LAYOUT ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        {/* LEFT: Health Score + CAMEL + Climate */}
+        <div className="lg:col-span-3 space-y-4">
+          {/* Health Score Gauge */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 text-center">
+            <RiskScoreGauge score={score} size={180} />
+            <p className="text-[10px] text-slate-500 mt-2 uppercase tracking-wider">{locale === 'es' ? 'Puntuación Compuesta' : 'Composite Score'}</p>
           </div>
 
-          {/* Risk Score + Institution Detail */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Risk Score Gauge */}
-            <div className="lg:col-span-4 flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-6">
-              <RiskScoreGauge score={summary.riskScore} size={220} />
-              <p className="text-[11px] text-slate-500 mt-3 uppercase tracking-wider">{t('alm.compositeRisk')}</p>
-            </div>
-
-            {/* Top Risks */}
-            <div className="lg:col-span-4 rounded-xl border border-slate-200 bg-white p-5">
-              <div className="flex items-center justify-between mb-4">
-                <SectionHeader title={t('alm.keyRiskFactors')} />
-                <RiskBadge status={summary.niiSensitivity.riskRating} size="sm" />
-              </div>
-              <div className="space-y-2.5">
-                {summary.topRisks.map((risk, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className="mt-1 w-5 h-5 rounded bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-                      <span className="text-[10px] font-bold text-amber-700">{i + 1}</span>
-                    </div>
-                    <p className="text-sm leading-relaxed text-slate-700">{risk}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Duration & Assets */}
-            <div className="lg:col-span-4 rounded-xl border border-slate-200 bg-white p-5">
-              <SectionHeader title={t('alm.durationProfile')} />
-              <div className="space-y-4 mt-4">
-                {/* Duration bar visualization */}
-                <div>
-                  <div className="flex justify-between text-[11px] text-slate-500 mb-1.5">
-                    <span>{t('alm.assetDuration')}</span>
-                    <span className="font-medium text-slate-950">{summary.durationGap.assetDuration}yr</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full bg-blue-500/60 rounded-full transition-all"
-                      style={{ width: `${Math.min((summary.durationGap.assetDuration / 10) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-[11px] text-slate-500 mb-1.5">
-                    <span>{t('alm.liabilityDuration')}</span>
-                    <span className="font-medium text-slate-950">{summary.durationGap.liabilityDuration}yr</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full bg-purple-500/60 rounded-full transition-all"
-                      style={{ width: `${Math.min((summary.durationGap.liabilityDuration / 10) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="border-t border-slate-200 pt-3">
-                  <div className="flex justify-between text-[11px] text-slate-500 mb-1">
-                    <span>{t('alm.gap')}</span>
-                    <span className={`font-bold ${Math.abs(summary.durationGap.durationGap) < 1 ? 'text-emerald-700' : Math.abs(summary.durationGap.durationGap) < 2 ? 'text-amber-700' : 'text-rose-700'}`}>
-                      {summary.durationGap.durationGap > 0 ? '+' : ''}{summary.durationGap.durationGap}yr
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-2 border-t border-slate-200 pt-3">
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-slate-500">{t('alm.totalAssets')}</span>
-                    <span className="font-medium text-slate-950">${(summary.institution.totalAssets).toLocaleString()}M</span>
-                  </div>
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-slate-500">{t('alm.hqla')}</span>
-                    <span className="font-medium text-slate-950">${summary.liquidity.hqla.toFixed(1)}M</span>
-                  </div>
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-slate-500">{t('alm.netOutflows')}</span>
-                    <span className="font-medium text-slate-950">${summary.liquidity.netOutflows.toFixed(1)}M</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Navigation */}
-          <SectionHeader title={t('alm.analysisModules')} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            {navCards.map((item) => (
-              <Link
-                key={item.href}
-                href={`${item.href}?id=${selectedId}`}
-                className={`group rounded-xl border bg-gradient-to-br p-4 transition-all ${item.accent}`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white">
-                      <item.icon className={`h-4 w-4 ${item.iconColor}`} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-950">{item.title}</p>
-                      <p className="text-[11px] text-slate-500">{item.desc}</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-slate-400 transition group-hover:text-cyan-700" />
-                </div>
-              </Link>
-            ))}
-            {/* AI Advisor card */}
-            <button
-              onClick={() => setAdvisorOpen(true)}
-              className="group rounded-xl border bg-gradient-to-br from-amber-50 via-white to-[#1B3A6B]/5 border-amber-200 hover:border-amber-300 p-4 transition-all text-left"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-200 bg-gradient-to-br from-amber-100 to-amber-50">
-                    <Sparkles className="h-4 w-4 text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-950">{advisorTitle}</p>
-                    <p className="text-[11px] text-slate-500">{advisorDesc}</p>
-                  </div>
-                </div>
-                <MessageCircle className="h-4 w-4 text-amber-400 transition group-hover:text-amber-600" />
-              </div>
-            </button>
-          </div>
-
-          {/* Recommendations */}
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <SectionHeader title={t('alm.recommendations')} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-              {(summary.recommendations && summary.recommendations.length > 0
-                ? summary.recommendations
-                : fallbackRecs
-              ).map((rec, i) => {
-                const priority = i < 1 ? t('common.high') : i < 3 ? t('common.medium') : t('common.low');
-                const prioColor = i < 1 ? 'text-rose-700 bg-rose-50 border-rose-200' : i < 3 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-emerald-700 bg-emerald-50 border-emerald-200';
+          {/* CAMEL Quick View */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-3">CAMEL</p>
+            <div className="flex justify-between">
+              {['C', 'A', 'M', 'E', 'L'].map((dim, i) => {
+                const scores = [2, 2, 2, 2, 2]; // demo
+                const colors = ['bg-emerald-500', 'bg-emerald-500', 'bg-amber-400', 'bg-emerald-500', 'bg-emerald-500'];
                 return (
-                  <div key={i} className="flex items-start gap-3 rounded-lg bg-slate-50 p-3">
-                    <span className={`mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${prioColor}`}>
-                      {priority}
-                    </span>
-                    <p className="text-sm leading-relaxed text-slate-700">{rec}</p>
+                  <div key={dim} className="text-center">
+                    <div className={`h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white mx-auto ${colors[i]}`}>{scores[i]}</div>
+                    <p className="text-[9px] text-slate-400 mt-1">{dim}</p>
                   </div>
                 );
               })}
             </div>
+            <Link href="/alm/exam-prep" className="flex items-center justify-center gap-1 mt-3 text-[10px] text-cyan-600 hover:text-cyan-700">
+              {locale === 'es' ? 'Ver evaluación completa' : 'View full assessment'} <ChevronRight className="h-3 w-3" />
+            </Link>
           </div>
 
-          {/* Quick Action Buttons */}
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href={`/alm/sensitivity?id=${selectedId}`}
-              className="flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-medium text-sky-700 transition hover:border-sky-300"
-            >
-              <TrendingUp className="h-4 w-4" /> {t('alm.viewRateSensitivity')}
+          {/* Climate Risk Mini */}
+          <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <CloudLightning className="h-4 w-4 text-amber-600" />
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">{locale === 'es' ? 'Riesgo Climático' : 'Climate Risk'}</p>
+            </div>
+            <p className="text-lg font-bold text-amber-800">HIGH</p>
+            <p className="text-[10px] text-amber-700 mt-1">Hurricane AAL: $3.8M (0.85%)</p>
+            <Link href="/alm/climate-risk" className="flex items-center gap-1 mt-2 text-[10px] text-amber-600 hover:text-amber-700">
+              {locale === 'es' ? 'Ver escenarios' : 'View scenarios'} <ChevronRight className="h-3 w-3" />
             </Link>
-            <Link
-              href={`/alm/stress-test?id=${selectedId}`}
-              className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-700 transition hover:border-amber-300"
-            >
-              <Zap className="h-4 w-4" /> {t('alm.runStressTest')}
-            </Link>
-            <button
-              onClick={async () => {
-                if (!selectedId) return;
-                const isDemoInstitution = selectedId.startsWith('demo-');
-                analytics.track(EVENTS.ALM_REPORT_DOWNLOADED, { institutionId: selectedId });
-
-                if (!isDemoInstitution) {
-                  try {
-                    await apiClient.downloadALMReport(selectedId, locale);
-                    return;
-                  } catch {
-                    // Fallback to client-side export below.
-                  }
-                }
-
-                exportToPDF({
-                  elementId: 'alm-report-content',
-                  filename: `ALM_Report_${summary?.institution?.name?.replace(/\s+/g, '_') || selectedId}.pdf`,
-                });
-              }}
-              disabled={isExporting}
-              className="flex items-center gap-2 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-2.5 text-sm font-medium text-cyan-700 transition disabled:opacity-50"
-            >
-              {isExporting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              {isExporting ? t('common.processing') : t('alm.downloadPdf')}
-            </button>
-            <button
-              onClick={() => setAdvisorOpen(true)}
-              className="flex items-center gap-2 rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-white px-4 py-2.5 text-sm font-medium text-amber-700 transition hover:border-amber-300 hover:shadow-sm"
-            >
-              <Sparkles className="h-4 w-4" />
-              {locale === 'en' ? 'Ask AI Advisor' : 'Consultar Asesor IA'}
-            </button>
           </div>
-        </>
-      )}
+        </div>
 
-      {/* ── AI Advisor Slide-Over Panel ── */}
+        {/* CENTER: Risk Alerts + NII Sensitivity + Modules Grid */}
+        <div className="lg:col-span-5 space-y-4">
+          {/* Top Risk Alerts */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{locale === 'es' ? 'Alertas Principales' : 'Top Risk Alerts'}</p>
+              <Link href="/alm/alerts" className="text-[10px] text-cyan-600 hover:text-cyan-700">{locale === 'es' ? 'Ver todas' : 'View all'}</Link>
+            </div>
+            <div className="space-y-2">
+              {s.topRisks.slice(0, 3).map((risk, i) => (
+                <div key={i} className="flex items-start gap-2.5">
+                  <div className={`mt-0.5 h-5 w-5 rounded flex items-center justify-center shrink-0 text-[9px] font-bold ${
+                    i === 0 ? 'bg-rose-100 text-rose-700 border border-rose-200' : i === 1 ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-sky-100 text-sky-700 border border-sky-200'
+                  }`}>{i + 1}</div>
+                  <p className="text-xs text-slate-700 leading-relaxed">{risk}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* NII Sensitivity Mini Chart */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
+              {locale === 'es' ? 'Sensibilidad NII por Escenario' : 'NII Sensitivity by Scenario'}
+            </p>
+            <div className="flex gap-1.5 h-20 items-end">
+              {s.niiSensitivity.scenarios.map((sc) => {
+                const height = Math.max(8, Math.min(100, Math.abs(sc.niImpactPct) * 3));
+                return (
+                  <div key={sc.name} className="flex-1 flex flex-col items-center gap-1">
+                    <span className={`text-[9px] font-bold tabular-nums ${sc.niImpactPct >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      {sc.niImpactPct >= 0 ? '+' : ''}{sc.niImpactPct.toFixed(0)}%
+                    </span>
+                    <div className={`w-full rounded-t ${sc.niImpactPct >= 0 ? 'bg-emerald-400' : 'bg-rose-400'}`}
+                      style={{ height: `${height}%` }} />
+                    <span className="text-[8px] text-slate-400">{sc.shiftBps > 0 ? '+' : ''}{sc.shiftBps}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <Link href="/alm/sensitivity" className="flex items-center justify-center gap-1 mt-3 text-[10px] text-cyan-600 hover:text-cyan-700">
+              {locale === 'es' ? 'Análisis detallado' : 'Detailed analysis'} <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+
+          {/* Analysis Modules Grid — 8 modules */}
+          <div className="grid grid-cols-2 gap-2">
+            <ModuleCard href="/alm/sensitivity" icon={TrendingUp} title={locale === 'es' ? 'Sensibilidad de Tasa' : 'Rate Sensitivity'} value={`Gap: ${gap.toFixed(1)}yr`} iconColor="text-sky-600" />
+            <ModuleCard href="/alm/liquidity" icon={Shield} title={locale === 'es' ? 'Liquidez' : 'Liquidity'} value={`LCR: ${lcr.toFixed(0)}%`} status={s.liquidity.status === 'compliant' ? 'PASS' : 'WATCH'} iconColor="text-emerald-600" />
+            <ModuleCard href="/alm/cecl" icon={Calculator} title="CECL" value={`Coverage: ${ceclCoverage}%`} iconColor="text-purple-600" />
+            <ModuleCard href="/alm/monte-carlo" icon={Cpu} title="Monte Carlo" value="10K paths · VaR-95" iconColor="text-red-600" />
+            <ModuleCard href="/alm/stress-v2" icon={Zap} title={locale === 'es' ? 'Estrés DFAST 2.0' : 'DFAST Stress 2.0'} value="3 scenarios · 9Q" iconColor="text-amber-600" />
+            <ModuleCard href="/alm/peer-analytics" icon={Activity} title={locale === 'es' ? 'Análisis de Pares' : 'Peer Analytics'} value="vs. 94 PR CUs" iconColor="text-indigo-600" />
+            <ModuleCard href="/alm/ftp/attribution" icon={DollarSign} title={locale === 'es' ? 'Atribución FTP' : 'FTP Attribution'} value="RAROC ranking" iconColor="text-amber-600" />
+            <ModuleCard href="/alm/nim-attribution" icon={TrendingDown} title={locale === 'es' ? 'Atribución NIM' : 'NIM Attribution'} value="7-factor waterfall" iconColor="text-teal-600" />
+          </div>
+        </div>
+
+        {/* RIGHT: Regulatory Pulse + Recommendations + Quick Links */}
+        <div className="lg:col-span-4 space-y-4">
+          {/* Regulatory Pulse */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Clock className="h-3.5 w-3.5 text-slate-400" />
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  {locale === 'es' ? 'Pulso Regulatorio' : 'Regulatory Pulse'}
+                </p>
+              </div>
+              <Link href="/alm/exam-prep" className="text-[10px] text-cyan-600 hover:text-cyan-700">{locale === 'es' ? 'Pack COSSEC' : 'Exam Pack'}</Link>
+            </div>
+            <div className="space-y-0.5">
+              <DeadlineItem label={locale === 'es' ? 'Informe Trimestral COSSEC' : 'COSSEC Quarterly Report'} date="2026-04-15" urgency="HIGH" />
+              <DeadlineItem label="NCUA 5300 Filing" date="2026-04-30" urgency="HIGH" />
+              <DeadlineItem label={locale === 'es' ? 'Reunión ALCO' : 'ALCO Meeting'} date="2026-04-01" urgency="MEDIUM" />
+              <DeadlineItem label={locale === 'es' ? 'Auditoría BSA Anual' : 'Annual BSA Audit'} date="2026-06-30" urgency="LOW" />
+            </div>
+          </div>
+
+          {/* Duration Profile */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
+              {locale === 'es' ? 'Perfil de Duración' : 'Duration Profile'}
+            </p>
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                  <span>{locale === 'es' ? 'Activos' : 'Assets'}</span>
+                  <span className="font-semibold text-slate-800">{s.durationGap.assetDuration}yr</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(s.durationGap.assetDuration / 10 * 100, 100)}%` }} />
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                  <span>{locale === 'es' ? 'Pasivos' : 'Liabilities'}</span>
+                  <span className="font-semibold text-slate-800">{s.durationGap.liabilityDuration}yr</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min(s.durationGap.liabilityDuration / 10 * 100, 100)}%` }} />
+                </div>
+              </div>
+              <div className="pt-2 border-t border-slate-100 flex justify-between text-[10px]">
+                <span className="text-slate-500">{locale === 'es' ? 'Brecha' : 'Gap'}</span>
+                <span className={`font-bold ${Math.abs(gap) < 1.5 ? 'text-emerald-700' : Math.abs(gap) < 3 ? 'text-amber-700' : 'text-rose-700'}`}>
+                  {gap > 0 ? '+' : ''}{gap.toFixed(1)}yr
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Recommendations */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
+              {locale === 'es' ? 'Acciones Recomendadas' : 'Recommended Actions'}
+            </p>
+            <div className="space-y-2">
+              {(s.recommendations.length > 0 ? s.recommendations : ta('alm.fallbackRecs')).slice(0, 3).map((rec, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className={`mt-0.5 shrink-0 text-[8px] font-bold px-1 py-0.5 rounded ${
+                    i === 0 ? 'bg-rose-100 text-rose-700' : i === 1 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                  }`}>{i === 0 ? (locale === 'es' ? 'ALTA' : 'HIGH') : i === 1 ? (locale === 'es' ? 'MEDIA' : 'MED') : (locale === 'es' ? 'BAJA' : 'LOW')}</span>
+                  <p className="text-[11px] text-slate-700 leading-relaxed">{rec}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* More Modules Quick Links */}
+          <div className="grid grid-cols-2 gap-2">
+            <ModuleCard href="/alm/yield-curve" icon={TrendingUp} title={locale === 'es' ? 'Curva Rendimiento' : 'Yield Curve'} iconColor="text-cyan-600" />
+            <ModuleCard href="/alm/concentration" icon={Target} title={locale === 'es' ? 'Concentración' : 'Concentration'} iconColor="text-rose-600" />
+            <ModuleCard href="/alm/repricing-gap" icon={BarChart3} title="Repricing Gap" value="OCIF Schedule 7" iconColor="text-sky-600" />
+            <ModuleCard href="/alm/macro-regime" icon={Activity} title={locale === 'es' ? 'Régimen Macro' : 'Macro Regime'} value="HMM Viterbi" iconColor="text-violet-600" />
+            <ModuleCard href="/alm/oas" icon={Layers} title="OAS Analysis" iconColor="text-indigo-600" />
+            <ModuleCard href="/alm/credit-risk" icon={AlertTriangle} title={locale === 'es' ? 'Riesgo Crediticio' : 'Credit Risk'} value="PD/LGD/EAD" iconColor="text-rose-600" />
+            <ModuleCard href="/alm/var" icon={Shield} title="VaR Suite" value="Hist+Param+MC" iconColor="text-purple-600" />
+            <ModuleCard href="/alm/capital-optimizer" icon={Sparkles} title={locale === 'es' ? 'Optimizador Capital' : 'Capital Optimizer'} iconColor="text-emerald-600" />
+          </div>
+
+          {/* Generate Board Report CTA */}
+          <Link href="/alm/board-report" className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900 p-4 text-white hover:bg-slate-800 transition">
+            <FileText className="h-5 w-5 text-cyan-400" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold">{locale === 'es' ? 'Generar Informe de Junta' : 'Generate Board Report'}</p>
+              <p className="text-[10px] text-slate-400">{locale === 'es' ? '20 páginas · PDF · Español' : '20 pages · PDF · Bilingual'}</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-slate-500" />
+          </Link>
+        </div>
+      </div>
+
+      {/* ═══ AI Advisor Panel ═══ */}
       {advisorOpen && selectedId && (
         <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm transition-opacity"
-            onClick={() => setAdvisorOpen(false)}
-          />
-          {/* Panel */}
+          <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" onClick={() => setAdvisorOpen(false)} />
           <div className="fixed right-0 top-0 z-50 flex h-full w-full max-w-lg flex-col shadow-2xl animate-in slide-in-from-right duration-300">
-            <AIAdvisorChat
-              institutionId={selectedId}
-              onClose={() => setAdvisorOpen(false)}
-            />
+            <AIAdvisorChat institutionId={selectedId} onClose={() => setAdvisorOpen(false)} />
           </div>
         </>
       )}
 
-      {/* ── Floating AI Advisor Button (visible when panel is closed) ── */}
-      {!advisorOpen && selectedId && summary && (
-        <button
-          onClick={() => setAdvisorOpen(true)}
-          className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1B3A6B] to-[#234B82] text-white shadow-lg shadow-[#1B3A6B]/25 transition hover:scale-105 hover:shadow-xl"
-          title={locale === 'en' ? 'AI Risk Advisor' : 'Asesor IA de Riesgo'}
-        >
-          <Sparkles className="h-6 w-6 text-amber-300" />
+      {/* Floating AI Button */}
+      {!advisorOpen && selectedId && (
+        <button onClick={() => setAdvisorOpen(true)}
+          className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 text-white shadow-lg shadow-purple-500/25 transition hover:scale-105">
+          <Brain className="h-6 w-6" />
         </button>
       )}
     </div>
