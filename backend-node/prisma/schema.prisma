@@ -232,6 +232,7 @@ model Institution {
   boardReports          BoardReport[]
   webhookSubscriptions  WebhookSubscription[]
   ssoConfiguration      SSOConfiguration?
+  institutionAlerts     InstitutionAlert[]
 
   @@index([workspaceId])
   @@map("institutions")
@@ -1122,4 +1123,42 @@ model DataDeletionRequest {
 
   @@index([institutionId])
   @@map("data_deletion_requests")
+}
+
+// ===== V6+V7: AI Research & Quant Expansion Models =====
+
+model RegulatoryPublication {
+  id          String    @id @default(cuid())
+  url         String    @unique
+  title       String
+  regulator   String    // COSSEC | OCIF | NCUA
+  publishedAt DateTime  @map("published_at")
+  rawText     String    @db.Text
+  impactJson  Json?     @map("impact_json")
+  processedAt DateTime? @map("processed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  alerts InstitutionAlert[]
+
+  @@map("regulatory_publications")
+}
+
+model InstitutionAlert {
+  id                String    @id @default(cuid())
+  institutionId     String    @map("institution_id")
+  publicationId     String    @map("publication_id")
+  severity          String    // HIGH | MEDIUM | LOW
+  alertTextEs       String    @db.Text @map("alert_text_es")
+  alertTextEn       String?   @db.Text @map("alert_text_en")
+  affectedItems     String[]  @map("affected_items")
+  recommendedAction String    @db.Text @map("recommended_action")
+  readAt            DateTime? @map("read_at")
+  dismissedAt       DateTime? @map("dismissed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  institution Institution          @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  publication RegulatoryPublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, createdAt(sort: Desc)])
+  @@map("institution_alerts")
 }
