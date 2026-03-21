@@ -1,0 +1,17 @@
+{
+  "name": "CERNIQ — Institutional ALM Intelligence",
+  "short_name": "CERNIQ",
+  "description": "AI quant ALM platform for Puerto Rico cooperativas and community banks",
+  "start_url": "/alm",
+  "display": "standalone",
+  "background_color": "#050C1C",
+  "theme_color": "#004EE5",
+  "orientation": "portrait-primary",
+  "categories": ["finance", "business"],
+  "lang": "es",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "64x64", "type": "image/x-icon" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
