@@ -80,6 +80,16 @@ import { BehavioralDurationService } from './behavioral-duration.service';
 import { AICostControllerService } from '../ai/cost-controller.service';
 import { ReferralService } from '../growth/referral.service';
 import { HMMRegimeService } from './hmm-regime.service';
+// V9 Quant Frontier
+import { BlackLittermanService } from './black-litterman.service';
+import { CVaROptimizerService } from './cvar-optimizer.service';
+import { HRPService } from './hrp.service';
+import { CreditMetricsService } from './credit-metrics.service';
+import { KMVMertonService } from './kmv-merton.service';
+import { PCAYieldCurveService } from './pca-yield-curve.service';
+import { FRTBESService } from './frtb-es.service';
+import { FedFuturesService } from './fed-futures.service';
+import { MacroFactorModelService } from './macro-factor-model.service';
 // Controllers
 import { AlmController } from './alm.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
@@ -125,6 +135,9 @@ import { AuthGuard } from '../auth/auth.guard';
     DemoWorkspaceService, OnboardingOrchestratorService,
     ClimateRiskService, NIMAttributionService, BehavioralDurationService,
     AICostControllerService, ReferralService, HMMRegimeService,
+    BlackLittermanService, CVaROptimizerService, HRPService,
+    CreditMetricsService, KMVMertonService, PCAYieldCurveService,
+    FRTBESService, FedFuturesService, MacroFactorModelService,
     // Guards
     AuthGuard,
   ],
@@ -153,6 +166,9 @@ import { AuthGuard } from '../auth/auth.guard';
     DemoWorkspaceService, OnboardingOrchestratorService,
     ClimateRiskService, NIMAttributionService, BehavioralDurationService,
     AICostControllerService, ReferralService, HMMRegimeService,
+    BlackLittermanService, CVaROptimizerService, HRPService,
+    CreditMetricsService, KMVMertonService, PCAYieldCurveService,
+    FRTBESService, FedFuturesService, MacroFactorModelService,
   ],
 })
 export class AlmModule {}

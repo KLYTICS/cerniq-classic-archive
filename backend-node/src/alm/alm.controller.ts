@@ -71,6 +71,15 @@ import { NIMAttributionService } from './nim-attribution.service';
 import { BehavioralDurationService } from './behavioral-duration.service';
 import { ReferralService } from '../growth/referral.service';
 import { HMMRegimeService } from './hmm-regime.service';
+import { BlackLittermanService } from './black-litterman.service';
+import { CVaROptimizerService } from './cvar-optimizer.service';
+import { HRPService } from './hrp.service';
+import { CreditMetricsService } from './credit-metrics.service';
+import { KMVMertonService } from './kmv-merton.service';
+import { PCAYieldCurveService } from './pca-yield-curve.service';
+import { FRTBESService } from './frtb-es.service';
+import { FedFuturesService } from './fed-futures.service';
+import { MacroFactorModelService } from './macro-factor-model.service';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   ScenarioRequestDto,
@@ -168,6 +177,15 @@ export class AlmController {
     private readonly behavioralDuration: BehavioralDurationService,
     private readonly referralSvc: ReferralService,
     private readonly hmmRegime: HMMRegimeService,
+    private readonly blackLitterman: BlackLittermanService,
+    private readonly cvarOptimizer: CVaROptimizerService,
+    private readonly hrpService: HRPService,
+    private readonly creditMetricsSvc: CreditMetricsService,
+    private readonly kmvMerton: KMVMertonService,
+    private readonly pcaYieldCurve: PCAYieldCurveService,
+    private readonly frtbES: FRTBESService,
+    private readonly fedFutures: FedFuturesService,
+    private readonly macroFactor: MacroFactorModelService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -1272,6 +1290,80 @@ export class AlmController {
     const weeklyRates = Array.from({ length: 26 }, (_, i) => 0.0475 + Math.sin(i * 0.3) * 0.005);
     const observations = this.hmmRegime.generateObservationsFromRates(weeklyRates);
     return this.hmmRegime.detectRegime(observations);
+  }
+
+  // ─── V9: Black-Litterman Portfolio ──────────────────────────────
+
+  @Post(':institutionId/black-litterman')
+  @UseGuards(AuthGuard)
+  async runBlackLitterman(@Param('institutionId') id: string, @Body() body: { views?: any[] }) {
+    return this.blackLitterman.computeBLPortfolio(id, body.views);
+  }
+
+  // ─── V9: CVaR Portfolio Optimizer ─────────────────────────────
+
+  @Post(':institutionId/cvar-optimize')
+  @UseGuards(AuthGuard)
+  async runCVaROptimizer(@Param('institutionId') id: string, @Body() body: { alpha?: number }) {
+    return this.cvarOptimizer.optimize(id, body.alpha);
+  }
+
+  // ─── V9: Hierarchical Risk Parity ─────────────────────────────
+
+  @Get(':institutionId/hrp')
+  @UseGuards(AuthGuard)
+  async getHRP(@Param('institutionId') id: string) {
+    return this.hrpService.computeHRP(id);
+  }
+
+  // ─── V9: CreditMetrics Migration ──────────────────────────────
+
+  @Post(':institutionId/credit-metrics')
+  @UseGuards(AuthGuard)
+  async runCreditMetrics(@Param('institutionId') id: string, @Body() body: { paths?: number }) {
+    return this.creditMetricsSvc.computePortfolioVaR(id, body.paths);
+  }
+
+  // ─── V9: KMV-Merton Structural Default ────────────────────────
+
+  @Get(':institutionId/kmv-merton')
+  @UseGuards(AuthGuard)
+  async getKMVMerton(@Param('institutionId') id: string) {
+    return this.kmvMerton.computeKMV(id);
+  }
+
+  // ─── V9: PCA Yield Curve Factors ──────────────────────────────
+
+  @Get(':institutionId/pca-factors')
+  @UseGuards(AuthGuard)
+  async getPCAFactors(@Param('institutionId') id: string) {
+    const baseRates = [0.048, 0.0465, 0.044, 0.042, 0.041, 0.0405, 0.041, 0.042, 0.0455, 0.0465];
+    const changes = this.pcaYieldCurve.generateSyntheticChanges(baseRates);
+    return this.pcaYieldCurve.computePCAFactors(changes);
+  }
+
+  // ─── V9: FRTB Expected Shortfall ──────────────────────────────
+
+  @Get(':institutionId/frtb-capital')
+  @UseGuards(AuthGuard)
+  async getFRTBCapital(@Param('institutionId') id: string) {
+    return this.frtbES.computeFRTBCapital(id);
+  }
+
+  // ─── V9: Fed Funds Futures ────────────────────────────────────
+
+  @Get('market/fed-futures')
+  @UseGuards(AuthGuard)
+  async getFedFutures() {
+    return this.fedFutures.computeFedFuturesCurve();
+  }
+
+  // ─── V9: Macro Factor Model ───────────────────────────────────
+
+  @Get(':institutionId/macro-factors')
+  @UseGuards(AuthGuard)
+  async getMacroFactors(@Param('institutionId') id: string) {
+    return this.macroFactor.computeMacroImpact(id);
   }
 
   // ─── MP-034: Reseller Portal ────────────────────────────────────
