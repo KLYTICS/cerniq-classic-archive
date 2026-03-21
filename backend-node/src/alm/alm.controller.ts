@@ -80,6 +80,10 @@ import { PCAYieldCurveService } from './pca-yield-curve.service';
 import { FRTBESService } from './frtb-es.service';
 import { FedFuturesService } from './fed-futures.service';
 import { MacroFactorModelService } from './macro-factor-model.service';
+import { CopulaCreditService } from './copula-credit.service';
+import { WrongWayRiskService } from './wrong-way-risk.service';
+import { IRCapFloorService } from './ir-cap-floor.service';
+import { NCUARBC2Service } from './ncua-rbc2.service';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   ScenarioRequestDto,
@@ -186,6 +190,10 @@ export class AlmController {
     private readonly frtbES: FRTBESService,
     private readonly fedFutures: FedFuturesService,
     private readonly macroFactor: MacroFactorModelService,
+    private readonly copulaCredit: CopulaCreditService,
+    private readonly wrongWayRisk: WrongWayRiskService,
+    private readonly irCapFloor: IRCapFloorService,
+    private readonly ncuaRBC2: NCUARBC2Service,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -1364,6 +1372,40 @@ export class AlmController {
   @UseGuards(AuthGuard)
   async getMacroFactors(@Param('institutionId') id: string) {
     return this.macroFactor.computeMacroImpact(id);
+  }
+
+  // ─── V9+: Copula Credit ────────────────────────────────────────
+
+  @Post(':institutionId/copula-credit')
+  @UseGuards(AuthGuard)
+  async runCopulaCredit(@Param('institutionId') id: string, @Body() body: { type?: string; paths?: number }) {
+    return this.copulaCredit.simulateWithCopula(id, (body.type as any) ?? 'gaussian', 5, body.paths);
+  }
+
+  // ─── V9+: Wrong-Way Risk ─────────────────────────────────────
+
+  @Get(':institutionId/wrong-way-risk')
+  @UseGuards(AuthGuard)
+  async getWrongWayRisk(@Param('institutionId') id: string) {
+    return this.wrongWayRisk.computeWWR(id);
+  }
+
+  // ─── V9+: IR Cap/Floor Pricer ─────────────────────────────────
+
+  @Post('derivatives/cap-floor')
+  @UseGuards(AuthGuard)
+  async priceCapFloor(@Body() body: { type: 'cap' | 'floor'; notional: number; strike: number; vol?: number }) {
+    const fwdRates = [0.048, 0.046, 0.044, 0.042, 0.041, 0.040, 0.040, 0.041];
+    const dfs = fwdRates.map((_, i) => Math.exp(-0.042 * (i + 1) * 0.25));
+    return this.irCapFloor.priceCapFloor(body.type, body.notional, body.strike, fwdRates, body.vol ?? 0.20, dfs);
+  }
+
+  // ─── V9+: NCUA RBC2 ──────────────────────────────────────────
+
+  @Get(':institutionId/rbc2')
+  @UseGuards(AuthGuard)
+  async getRBC2(@Param('institutionId') id: string) {
+    return this.ncuaRBC2.computeRBC2(id);
   }
 
   // ─── MP-034: Reseller Portal ────────────────────────────────────

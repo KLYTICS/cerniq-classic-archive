@@ -90,6 +90,10 @@ import { PCAYieldCurveService } from './pca-yield-curve.service';
 import { FRTBESService } from './frtb-es.service';
 import { FedFuturesService } from './fed-futures.service';
 import { MacroFactorModelService } from './macro-factor-model.service';
+import { CopulaCreditService } from './copula-credit.service';
+import { WrongWayRiskService } from './wrong-way-risk.service';
+import { IRCapFloorService } from './ir-cap-floor.service';
+import { NCUARBC2Service } from './ncua-rbc2.service';
 // Controllers
 import { AlmController } from './alm.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
@@ -138,6 +142,7 @@ import { AuthGuard } from '../auth/auth.guard';
     BlackLittermanService, CVaROptimizerService, HRPService,
     CreditMetricsService, KMVMertonService, PCAYieldCurveService,
     FRTBESService, FedFuturesService, MacroFactorModelService,
+    CopulaCreditService, WrongWayRiskService, IRCapFloorService, NCUARBC2Service,
     // Guards
     AuthGuard,
   ],
@@ -169,6 +174,7 @@ import { AuthGuard } from '../auth/auth.guard';
     BlackLittermanService, CVaROptimizerService, HRPService,
     CreditMetricsService, KMVMertonService, PCAYieldCurveService,
     FRTBESService, FedFuturesService, MacroFactorModelService,
+    CopulaCreditService, WrongWayRiskService, IRCapFloorService, NCUARBC2Service,
   ],
 })
 export class AlmModule {}
