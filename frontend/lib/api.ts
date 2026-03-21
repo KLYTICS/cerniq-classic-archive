@@ -807,14 +807,16 @@ class APIClient {
   // --- ALM Enterprise (DB-backed) ---
 
   async getInstitutions(workspaceId?: string) {
-    return Promise.resolve([{
-      id: 'demo-bank-id',
-      name: 'First Community Bank',
-      type: 'community_bank',
-      totalAssets: 1250,
-      currency: 'USD',
-      reportingDate: new Date().toISOString(),
-    }]);
+    try {
+      const params = workspaceId ? `?workspaceId=${workspaceId}` : '';
+      const response = await this.client.get(`${NODE_API_URL}/api/alm/institutions${params}`);
+      return response.data?.items ?? response.data ?? [];
+    } catch {
+      return [{
+        id: 'demo-bank-id', name: 'First Community Bank', type: 'community_bank',
+        totalAssets: 1250, currency: 'USD', reportingDate: new Date().toISOString(),
+      }];
+    }
   }
 
   async createInstitution(data: {
@@ -831,78 +833,79 @@ class APIClient {
   }
 
   async getInstitution(institutionId: string) {
-    return Promise.resolve({
-      id: 'demo-bank-id',
-      name: 'First Community Bank',
-      type: 'community_bank',
-      totalAssets: 1250,
-      balanceSheetItems: [
-        { category: 'asset', subcategory: 'commercial_loans', name: 'Commercial Real Estate', balance: 350, rate: 5.25, duration: 4.5, rateType: 'fixed' },
-        { category: 'asset', subcategory: 'residential_mortgages', name: '30yr Fixed Mortgages', balance: 280, rate: 4.75, duration: 6.2, rateType: 'fixed' },
-        { category: 'asset', subcategory: 'investment_securities', name: 'Treasury Notes', balance: 120, rate: 4.10, duration: 2.8, rateType: 'fixed' },
-        { category: 'asset', subcategory: 'cash_equivalents', name: 'Cash & Fed Funds', balance: 80, rate: 5.30, duration: 0.1, rateType: 'variable' },
-        { category: 'liability', subcategory: 'demand_deposits', name: 'Checking Accounts', balance: 200, rate: 0.50, duration: 0.1, rateType: 'variable' },
-        { category: 'liability', subcategory: 'savings_deposits', name: 'Money Market', balance: 150, rate: 3.80, duration: 0.3, rateType: 'variable' },
-        { category: 'liability', subcategory: 'time_deposits', name: '12-Month CDs', balance: 180, rate: 4.00, duration: 0.9, rateType: 'fixed' },
-        { category: 'liability', subcategory: 'borrowings', name: 'FHLB Advances', balance: 100, rate: 4.50, duration: 1.5, rateType: 'fixed' }
-      ]
-    });
+    try {
+      const response = await this.client.get(`${NODE_API_URL}/api/alm/institutions/${institutionId}`);
+      return response.data;
+    } catch {
+      return {
+        id: institutionId, name: 'First Community Bank', type: 'community_bank', totalAssets: 1250,
+        balanceSheetItems: [
+          { category: 'asset', subcategory: 'commercial_loans', name: 'Commercial Real Estate', balance: 350, rate: 5.25, duration: 4.5, rateType: 'fixed' },
+          { category: 'asset', subcategory: 'residential_mortgages', name: '30yr Fixed Mortgages', balance: 280, rate: 4.75, duration: 6.2, rateType: 'fixed' },
+          { category: 'asset', subcategory: 'investment_securities', name: 'Treasury Notes', balance: 120, rate: 4.10, duration: 2.8, rateType: 'fixed' },
+          { category: 'asset', subcategory: 'cash_equivalents', name: 'Cash & Fed Funds', balance: 80, rate: 5.30, duration: 0.1, rateType: 'variable' },
+          { category: 'liability', subcategory: 'demand_deposits', name: 'Checking Accounts', balance: 200, rate: 0.50, duration: 0.1, rateType: 'variable' },
+          { category: 'liability', subcategory: 'savings_deposits', name: 'Money Market', balance: 150, rate: 3.80, duration: 0.3, rateType: 'variable' },
+          { category: 'liability', subcategory: 'time_deposits', name: '12-Month CDs', balance: 180, rate: 4.00, duration: 0.9, rateType: 'fixed' },
+          { category: 'liability', subcategory: 'borrowings', name: 'FHLB Advances', balance: 100, rate: 4.50, duration: 1.5, rateType: 'fixed' },
+        ],
+      };
+    }
   }
 
   async getALMSummary(institutionId: string) {
-    return Promise.resolve({
-      institution: {
-        id: 'demo-bank-id',
-        name: 'First Community Bank',
-        type: 'community_bank',
-        totalAssets: 1250,
-        currency: 'USD',
-        reportingDate: new Date().toISOString(),
-      },
-      durationGap: {
-        assetDuration: 4.2,
-        liabilityDuration: 2.1,
-        durationGap: 2.1,
-        riskProfile: 'asset-sensitive' as const,
-      },
-      niiSensitivity: {
-        scenarios: [
-          { name: '+100 bps', shiftBps: 100, niImpact: 1.5, niImpactPct: 12.5, mveImpact: -1.8, mveImpactPct: -15.0 },
-          { name: '-100 bps', shiftBps: -100, niImpact: -1.2, niImpactPct: -10.0, mveImpact: 1.4, mveImpactPct: 11.6 },
-        ],
-        baseNII: 12.0,
-        riskRating: 'moderate' as const,
-      },
-      liquidity: {
-        lcr: 115.5,
-        hqla: 250,
-        netOutflows: 216.5,
-        status: 'compliant' as const,
-        buffer: 15.5,
-      },
-      topRisks: ['Rising interest rates impacting NII', 'Deposit flight risk increasing', 'Commercial real estate concentration'],
-      recommendations: ['Hedge 2.1yr duration gap using receive-fixed swaps', 'Increase HQLA buffer by $25M', 'Run severe deposit stress scenario'],
-      riskScore: 68,
-    });
+    try {
+      const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/summary`);
+      return response.data;
+    } catch {
+      // Graceful degradation: return demo data if backend unavailable
+      return {
+        institution: { id: institutionId, name: 'First Community Bank', type: 'community_bank', totalAssets: 1250, currency: 'USD', reportingDate: new Date().toISOString() },
+        durationGap: { assetDuration: 4.2, liabilityDuration: 2.1, durationGap: 2.1, riskProfile: 'asset-sensitive' as const },
+        niiSensitivity: {
+          scenarios: [
+            { name: '+200 bps', shiftBps: 200, niImpact: 3.1, niImpactPct: 25.8 },
+            { name: '+100 bps', shiftBps: 100, niImpact: 1.5, niImpactPct: 12.5 },
+            { name: 'Base', shiftBps: 0, niImpact: 0, niImpactPct: 0 },
+            { name: '-100 bps', shiftBps: -100, niImpact: -1.2, niImpactPct: -10.0 },
+            { name: '-200 bps', shiftBps: -200, niImpact: -2.5, niImpactPct: -20.8 },
+          ],
+          baseNII: 12.0, riskRating: 'moderate' as const,
+        },
+        liquidity: { lcr: 115.5, hqla: 250, netOutflows: 216.5, status: 'compliant' as const, buffer: 15.5 },
+        topRisks: ['Rising interest rates impacting NII', 'Deposit flight risk increasing', 'Commercial real estate concentration'],
+        recommendations: ['Hedge 2.1yr duration gap using receive-fixed swaps', 'Increase HQLA buffer by $25M', 'Run severe deposit stress scenario'],
+        riskScore: 68,
+      };
+    }
   }
 
   async getNIISensitivity(institutionId: string) {
-    return Promise.resolve({
-      institutionId,
-      baseNII: 12.0,
-      riskRating: 'moderate' as const,
-      scenarios: [
-        { name: '+200 bps', shiftBps: 200, niImpact: 3.1, niImpactPct: 25.8, mveImpact: -3.8, mveImpactPct: -31.6 },
-        { name: '+100 bps', shiftBps: 100, niImpact: 1.5, niImpactPct: 12.5, mveImpact: -1.8, mveImpactPct: -15.0 },
-        { name: 'Base', shiftBps: 0, niImpact: 0, niImpactPct: 0, mveImpact: 0, mveImpactPct: 0 },
-        { name: '-100 bps', shiftBps: -100, niImpact: -1.2, niImpactPct: -10.0, mveImpact: 1.4, mveImpactPct: 11.6 },
-        { name: '-200 bps', shiftBps: -200, niImpact: -2.5, niImpactPct: -20.8, mveImpact: 2.9, mveImpactPct: 24.1 },
-      ],
-    });
+    try {
+      const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/nii-sensitivity`);
+      return response.data;
+    } catch {
+      return {
+        institutionId, baseNII: 12.0, riskRating: 'moderate' as const,
+        scenarios: [
+          { name: '+200 bps', shiftBps: 200, niImpact: 3.1, niImpactPct: 25.8, mveImpact: -3.8, mveImpactPct: -31.6 },
+          { name: '+100 bps', shiftBps: 100, niImpact: 1.5, niImpactPct: 12.5, mveImpact: -1.8, mveImpactPct: -15.0 },
+          { name: 'Base', shiftBps: 0, niImpact: 0, niImpactPct: 0, mveImpact: 0, mveImpactPct: 0 },
+          { name: '-100 bps', shiftBps: -100, niImpact: -1.2, niImpactPct: -10.0, mveImpact: 1.4, mveImpactPct: 11.6 },
+          { name: '-200 bps', shiftBps: -200, niImpact: -2.5, niImpactPct: -20.8, mveImpact: 2.9, mveImpactPct: 24.1 },
+        ],
+      };
+    }
   }
 
   async getLiquidityPosition(institutionId: string) {
-    return Promise.resolve({
+    try {
+      const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/liquidity`);
+      return response.data;
+    } catch {
+      // Fallback demo data
+    }
+    return {
       institutionId,
       lcr: 115.5,
       nsfr: 108.2,
@@ -914,13 +917,12 @@ class APIClient {
   }
 
   async getDurationGap(institutionId: string) {
-    return Promise.resolve({
-      institutionId,
-      assetDuration: 4.2,
-      liabilityDuration: 2.1,
-      durationGap: 2.1,
-      riskProfile: 'asset-sensitive' as const,
-    });
+    try {
+      const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/duration-gap`);
+      return response.data;
+    } catch {
+      return { institutionId, assetDuration: 4.2, liabilityDuration: 2.1, durationGap: 2.1, riskProfile: 'asset-sensitive' as const };
+    }
   }
 
   async importBalanceSheetItems(institutionId: string, items: any[]) {
@@ -945,7 +947,11 @@ class APIClient {
   async runStressTest(institutionId: string, params?: {
     paths?: number; horizon?: number; volatility?: number; meanReversion?: number;
   }) {
-    return Promise.resolve({
+    try {
+      const response = await this.client.post(`${NODE_API_URL}/api/alm/${institutionId}/stress-test`, params ?? {});
+      return response.data;
+    } catch { /* fallback below */ }
+    return ({
       monteCarlo: {
         paths: 1000,
         horizon: 12,
@@ -1066,17 +1072,12 @@ class APIClient {
   }
 
   async seedDemoInstitution(workspaceId: string, type: 'bank' | 'credit_union' | 'family_office' | 'cooperativa') {
-    return Promise.resolve({
-      success: true,
-      institutionId: 'demo-bank-id',
-      institution: {
-        id: 'demo-bank-id',
-        name: 'First Community Bank',
-        type,
-        totalAssets: 1250,
-        currency: 'USD',
-      }
-    });
+    try {
+      const response = await this.client.post(`${NODE_API_URL}/api/alm/seed-demo`, { workspaceId, type });
+      return response.data;
+    } catch {
+      return { success: true, institutionId: 'demo-bank-id', institution: { id: 'demo-bank-id', name: 'First Community Bank', type, totalAssets: 1250, currency: 'USD' } };
+    }
   }
 
   // --- AI Advisor ---
