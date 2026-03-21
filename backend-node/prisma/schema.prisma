@@ -230,6 +230,8 @@ model Institution {
   policyBreachLogs      PolicyBreachLog[]
   columnMappingMemories ColumnMappingMemory[]
   boardReports          BoardReport[]
+  webhookSubscriptions  WebhookSubscription[]
+  ssoConfiguration      SSOConfiguration?
 
   @@index([workspaceId])
   @@map("institutions")
@@ -1017,4 +1019,107 @@ model Feedback {
 
   @@index([institutionId])
   @@map("feedback")
+}
+
+// ===== Phase VI: Growth Platform Models =====
+
+model WebhookSubscription {
+  id             String   @id @default(cuid())
+  institutionId  String   @map("institution_id")
+  url            String   // target URL for webhook delivery
+  events         String[] // ["policy.breach","rate.move","compliance.deadline","report.ready","ews.alert"]
+  secretKey      String   @map("secret_key") // HMAC-SHA256 signing key
+  isActive       Boolean  @default(true) @map("is_active")
+  lastDeliveredAt DateTime? @map("last_delivered_at")
+  failureCount   Int      @default(0) @map("failure_count")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@map("webhook_subscriptions")
+}
+
+model Reseller {
+  id              String   @id @default(cuid())
+  name            String   // "Ernst & Young PR"
+  slug            String   @unique // "ey-pr" → ey-pr.cerniq.io
+  logoUrl         String?  @map("logo_url")
+  primaryColor    String   @default("#1B3A6B") @map("primary_color")
+  domain          String?  // custom domain: alm.ey-pr.com
+  revenueSharePct Float    @map("revenue_share_pct") // 0.20 = 20%
+  billingModel    String   @default("PASS_THROUGH") @map("billing_model") // PASS_THROUGH | RESELLER_BILLS
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("resellers")
+}
+
+model ProspectAnalysis {
+  id              String    @id @default(cuid())
+  charterNumber   String    @map("charter_number")
+  institutionName String    @map("institution_name")
+  totalAssets     Float     @map("total_assets")
+  riskFlags       Json      @map("risk_flags")
+  emailDraft      String?   @map("email_draft")
+  emailDraftEs    String?   @map("email_draft_es")
+  overallRisk     String    @map("overall_risk") // HIGH | MEDIUM | LOW
+  status          String    @default("analyzed") // analyzed | email_sent | opened | replied
+  sentAt          DateTime? @map("sent_at")
+  openedAt        DateTime? @map("opened_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@unique([charterNumber])
+  @@map("prospect_analyses")
+}
+
+// ===== Phase VII: Enterprise Infrastructure Models =====
+
+model SSOConfiguration {
+  id              String   @id @default(cuid())
+  institutionId   String   @unique @map("institution_id")
+  protocol        String   // "SAML2" | "OIDC"
+  samlEntityId    String?  @map("saml_entity_id")
+  samlIdpUrl      String?  @map("saml_idp_url")
+  samlIdpCert     String?  @map("saml_idp_cert") // PEM-encoded
+  oidcIssuer      String?  @map("oidc_issuer")
+  oidcClientId    String?  @map("oidc_client_id")
+  oidcClientSecret String? @map("oidc_client_secret") // encrypted at rest
+  jitProvisioning Boolean  @default(true) @map("jit_provisioning")
+  defaultRole     String   @default("viewer") @map("default_role")
+  groupRoleMapping Json?   @map("group_role_mapping") // { "admins": "cfo", "board": "board_member" }
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@map("sso_configurations")
+}
+
+model UsageMeterEvent {
+  id              String   @id @default(cuid())
+  institutionId   String   @map("institution_id")
+  eventType       String   @map("event_type") // compute_job | api_call | report_generated | seat
+  quantity        Int      @default(1)
+  metadata        Json?
+  billedAt        DateTime? @map("billed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([institutionId, eventType, createdAt])
+  @@map("usage_meter_events")
+}
+
+model DataDeletionRequest {
+  id              String    @id @default(cuid())
+  institutionId   String    @map("institution_id")
+  requestedBy     String    @map("requested_by") // userId
+  regulation      String    // GDPR | CCPA | PR_ACT_81
+  status          String    @default("pending") // pending | processing | completed | rejected
+  dataScope       String    @map("data_scope") // full | member_pii_only
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([institutionId])
+  @@map("data_deletion_requests")
 }

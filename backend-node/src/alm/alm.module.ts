@@ -48,6 +48,10 @@ import { BoardReportService } from './board-report.service';
 import { ChatAnalystService } from './chat-analyst.service';
 import { NCUA5300Service } from './ncua-5300.service';
 import { ProspectIntelligenceService } from './prospect-intelligence.service';
+import { NetworkIntelligenceService } from './network-intelligence.service';
+import { WebhookService } from './webhook.service';
+import { UsageMeteringService } from './usage-metering.service';
+import { DataPrivacyService } from './data-privacy.service';
 // Controllers
 import { AlmController } from './alm.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
@@ -83,6 +87,7 @@ import { AuthGuard } from '../auth/auth.guard';
     // Phase VI
     CAMELScorerService, ExamPrepService,
     BoardReportService, ChatAnalystService, NCUA5300Service, ProspectIntelligenceService,
+    NetworkIntelligenceService, WebhookService, UsageMeteringService, DataPrivacyService,
     // Guards
     AuthGuard,
   ],
@@ -102,6 +107,7 @@ import { AuthGuard } from '../auth/auth.guard';
     SOFRMonitorService, TreasuryRatesService,
     CAMELScorerService, ExamPrepService,
     BoardReportService, ChatAnalystService, NCUA5300Service, ProspectIntelligenceService,
+    NetworkIntelligenceService, WebhookService, UsageMeteringService, DataPrivacyService,
   ],
 })
 export class AlmModule {}

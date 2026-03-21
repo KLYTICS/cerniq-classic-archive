@@ -45,6 +45,10 @@ import { BoardReportService } from './board-report.service';
 import { ChatAnalystService } from './chat-analyst.service';
 import { NCUA5300Service } from './ncua-5300.service';
 import { ProspectIntelligenceService } from './prospect-intelligence.service';
+import { NetworkIntelligenceService } from './network-intelligence.service';
+import { WebhookService } from './webhook.service';
+import { UsageMeteringService } from './usage-metering.service';
+import { DataPrivacyService } from './data-privacy.service';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   ScenarioRequestDto,
@@ -115,6 +119,10 @@ export class AlmController {
     private readonly chatAnalyst: ChatAnalystService,
     private readonly ncua5300: NCUA5300Service,
     private readonly prospectIntel: ProspectIntelligenceService,
+    private readonly networkIntel: NetworkIntelligenceService,
+    private readonly webhooks: WebhookService,
+    private readonly usageMetering: UsageMeteringService,
+    private readonly dataPrivacy: DataPrivacyService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -916,6 +924,73 @@ export class AlmController {
   @UseGuards(AuthGuard)
   async analyzeAllProspects() {
     return this.prospectIntel.analyzeAllProspects();
+  }
+
+  // ─── Phase VI: Network Intelligence (MP-026) ───────────────────
+
+  @Get('network/overview')
+  @UseGuards(AuthGuard)
+  async getNetworkOverview() {
+    this.logger.log('Network intelligence overview');
+    return this.networkIntel.getNetworkOverview();
+  }
+
+  // ─── Phase VI: Webhooks (MP-032) ──────────────────────────────
+
+  @Post(':institutionId/webhooks')
+  @UseGuards(AuthGuard)
+  async createWebhook(
+    @Param('institutionId') institutionId: string,
+    @Body() body: { url: string; events: string[] },
+  ) {
+    return this.webhooks.createSubscription(institutionId, body as any);
+  }
+
+  @Get(':institutionId/webhooks')
+  @UseGuards(AuthGuard)
+  async listWebhooks(@Param('institutionId') institutionId: string) {
+    return this.webhooks.listSubscriptions(institutionId);
+  }
+
+  @Post('webhooks/:webhookId/delete')
+  @UseGuards(AuthGuard)
+  async deleteWebhook(@Param('webhookId') webhookId: string) {
+    return this.webhooks.deleteSubscription(webhookId);
+  }
+
+  // ─── Phase VII: Usage Metering (MP-044) ───────────────────────
+
+  @Get(':institutionId/usage')
+  @UseGuards(AuthGuard)
+  async getUsageSummary(
+    @Param('institutionId') institutionId: string,
+    @Query('month') month?: string,
+  ) {
+    return this.usageMetering.getUsageSummary(institutionId, month);
+  }
+
+  // ─── Phase VII: Data Privacy (MP-041) ─────────────────────────
+
+  @Get('privacy/inventory')
+  @UseGuards(AuthGuard)
+  async getDataInventory() {
+    return this.dataPrivacy.getDataInventory();
+  }
+
+  @Post(':institutionId/privacy/deletion-request')
+  @UseGuards(AuthGuard)
+  async requestDeletion(
+    @Req() req: any,
+    @Param('institutionId') institutionId: string,
+    @Body() body: { regulation: string; scope?: string },
+  ) {
+    return this.dataPrivacy.requestDeletion(institutionId, req.user.userId, body.regulation as any, body.scope as any);
+  }
+
+  @Get(':institutionId/privacy/sar')
+  @UseGuards(AuthGuard)
+  async generateSAR(@Req() req: any) {
+    return this.dataPrivacy.generateSAR(req.user.userId);
   }
 
   // ─── Sample Report Factory ──────────────────────────────────────
