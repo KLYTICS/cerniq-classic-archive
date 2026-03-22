@@ -342,6 +342,28 @@ export default function LandingPage() {
             </div>
           </section>
 
+          {/* -- PLATFORM STATS BAR -- */}
+          <section className="cerniq-panel py-4 px-6 sm:px-8">
+            <div className="mx-auto grid max-w-5xl grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+              <div>
+                <p className="text-3xl font-bold tabular-nums text-slate-950">59</p>
+                <p className="text-xs text-slate-500">{t('ALM Modules', 'Módulos ALM')}</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold tabular-nums text-slate-950">34</p>
+                <p className="text-xs text-slate-500">{t('Quant Models', 'Modelos Cuantitativos')}</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold tabular-nums text-slate-950">130+</p>
+                <p className="text-xs text-slate-500">{t('API Endpoints', 'Endpoints API')}</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold tabular-nums text-slate-950">EN/ES</p>
+                <p className="text-xs text-slate-500">{t('Bilingual Reports', 'Informes Bilingües')}</p>
+              </div>
+            </div>
+          </section>
+
           {/* -- SOCIAL PROOF BAR -- */}
           <section className="cerniq-panel py-3 px-6 sm:px-8">
             <div className="mx-auto flex max-w-4xl flex-col items-center gap-3 text-center sm:flex-row sm:justify-center sm:gap-8">
@@ -448,6 +470,40 @@ export default function LandingPage() {
                   'Complete ALM analysis ready before your next ALCO meeting.',
                   'Analisis ALM completo listo antes de su proximo comite ALCO.'
                 )}
+              </p>
+            </div>
+          </section>
+
+          {/* -- QUANT ENGINE SHOWCASE -- */}
+          <section className="cerniq-panel p-4 sm:p-6 lg:p-8">
+            <div className="mx-auto max-w-5xl">
+              <p className="cerniq-section-label">{t('Quant Engine', 'Motor Cuantitativo')}</p>
+              <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
+                {t('Goldman Sachs-grade models, credit union pricing', 'Modelos nivel Goldman Sachs, precio de cooperativa')}
+              </h2>
+              <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {[
+                  { name: 'Nelson-Siegel', desc: t('Yield curve interpolation', 'Interpolación curva rendimiento') },
+                  { name: 'Vasicek Monte Carlo', desc: t('10K stochastic rate paths', '10K senderos estocásticos') },
+                  { name: 'Black-Litterman', desc: t('Bayesian portfolio allocation', 'Asignación Bayesiana') },
+                  { name: 'CVaR Optimizer', desc: t('Rockafellar-Uryasev tail risk', 'Riesgo de cola R-U') },
+                  { name: 'CreditMetrics', desc: t('JP Morgan migration VaR', 'VaR migración JP Morgan') },
+                  { name: 'KMV-Merton', desc: t('Distance-to-Default structural', 'Distancia al incumplimiento') },
+                  { name: 'FRTB Expected Shortfall', desc: t('Basel III.1 market capital', 'Capital mercado Basel III.1') },
+                  { name: 'HMM Regime Detection', desc: t('Viterbi macro state machine', 'Máquina estados Viterbi') },
+                  { name: 'PCA Yield Curve', desc: t('3-factor decomposition', 'Descomposición 3 factores') },
+                  { name: 'Copula Credit', desc: t('Gaussian vs t-Student tail', 'Cola Gaussian vs t-Student') },
+                  { name: 'NCUA RBC2', desc: t('8-component risk capital', 'Capital riesgo 8 componentes') },
+                  { name: 'CECL 3-Method', desc: t('WARM + Vintage + PD×LGD', 'WARM + Vintage + PD×LGD') },
+                ].map((m) => (
+                  <div key={m.name} className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="text-xs font-bold text-slate-800">{m.name}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{m.desc}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-center text-xs text-slate-500">
+                {t('+ 22 more models across duration, liquidity, credit, and market risk', '+ 22 modelos más en duración, liquidez, crédito y riesgo de mercado')}
               </p>
             </div>
           </section>
