@@ -58,6 +58,7 @@ const almNav: NavItem[] = [
       { href: '/alm/repricing-gap', icon: BarChart3, labelKey: 'sidebar.repricingGap' },
       { href: '/alm/rate-shock-v2', icon: Zap, labelKey: 'sidebar.rateShockV2' },
       { href: '/alm/key-rate-durations', icon: SlidersHorizontal, labelKey: 'sidebar.keyRateDuration' },
+      { href: '/alm/behavioral-duration', icon: Activity, labelKey: 'sidebar.behavioralDuration' },
       { href: '/alm/sofr-exposure', icon: TrendingUp, labelKey: 'sidebar.sofrExposure' },
       // Liquidity
       { href: '/alm/liquidity', icon: Shield, labelKey: 'sidebar.liquidity' },
