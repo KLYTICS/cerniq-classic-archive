@@ -268,10 +268,16 @@ export default function LandingPage() {
               {t('Pricing', 'Precios')}
             </button>
             <button
-              onClick={() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => router.push('/why-cerniq')}
               className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:border-cyan-300/50 hover:text-slate-950 sm:inline-flex"
             >
-              FAQ
+              {t('Why CERNIQ', 'Por qué CERNIQ')}
+            </button>
+            <button
+              onClick={() => router.push('/compliance')}
+              className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:border-cyan-300/50 hover:text-slate-950 lg:inline-flex"
+            >
+              {t('Compliance', 'Cumplimiento')}
             </button>
             <button
               onClick={() => router.push('/login')}
