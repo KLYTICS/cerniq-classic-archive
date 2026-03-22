@@ -428,7 +428,7 @@ export default function LandingPage() {
           {/* -- THREE FEATURES -- */}
           <section className="grid gap-4 sm:grid-cols-3">
             {/* Regulatory Compliance */}
-            <div className="cerniq-panel cerniq-card-hover p-4">
+            <a href="/compliance" className="cerniq-panel cerniq-card-hover p-4 block">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
                 <ShieldCheck className="h-5 w-5 text-cyan-700" />
               </div>
@@ -437,11 +437,14 @@ export default function LandingPage() {
               </p>
               <p className="mt-2 text-sm leading-6 text-slate-700">
                 {t(
-                  '12 COSSEC/NCUA ratios calculated automatically from your balance sheet.',
-                  '12 ratios COSSEC/NCUA calculados automaticamente desde su hoja de balance.'
+                  '20 regulatory requirements covered across COSSEC, NCUA & Basel III.',
+                  '20 requisitos regulatorios cubiertos en COSSEC, NCUA y Basel III.'
                 )}
               </p>
-            </div>
+              <span className="mt-2 inline-flex items-center text-xs text-cyan-700 font-medium">
+                {t('View compliance matrix', 'Ver matriz de cumplimiento')} <ChevronRight className="h-3 w-3 ml-1" />
+              </span>
+            </a>
             {/* Bilingual by Design */}
             <div className="cerniq-panel cerniq-card-hover p-4">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">

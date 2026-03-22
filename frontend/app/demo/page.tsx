@@ -35,7 +35,8 @@ const STEPS = [
   { id: 2, labelEn: 'ALM Report', labelEs: 'Informe ALM' },
   { id: 3, labelEn: 'SpendCheck', labelEs: 'SpendCheck' },
   { id: 4, labelEn: 'AI Advisor', labelEs: 'Asesor IA' },
-  { id: 5, labelEn: 'Get Started', labelEs: 'Comenzar' },
+  { id: 5, labelEn: 'Quant Engine', labelEs: 'Motor Cuantitativo' },
+  { id: 6, labelEn: 'Get Started', labelEs: 'Comenzar' },
 ];
 
 // ──────────────────────────────────────────────
@@ -998,9 +999,53 @@ export default function DemoPage() {
             )}
 
             {/* ══════════════════════════════════════════════ */}
-            {/* STEP 5: Get Started                           */}
+            {/* STEP 5: Quant Engine Preview                  */}
             {/* ══════════════════════════════════════════════ */}
             {step === 5 && (
+              <div className="space-y-4">
+                <div className="cerniq-shell p-5 sm:p-6">
+                  <div className="cerniq-panel p-6">
+                    <h2 className="font-display text-xl text-slate-950 mb-2">
+                      {l === 'en' ? '34 Quant Models — Goldman-Grade, Credit Union Pricing' : '34 Modelos Cuantitativos — Nivel Goldman, Precio Cooperativa'}
+                    </h2>
+                    <p className="text-sm text-slate-600 mb-5">
+                      {l === 'en'
+                        ? 'Every model runs on your institution\'s real data. No consultants, no spreadsheets.'
+                        : 'Cada modelo corre con datos reales de su institución. Sin consultores, sin hojas de cálculo.'}
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {[
+                        { name: 'Nelson-Siegel', desc: l === 'en' ? 'Yield curve' : 'Curva rendimiento' },
+                        { name: 'Vasicek MC', desc: l === 'en' ? '10K rate paths' : '10K senderos' },
+                        { name: 'Black-Litterman', desc: l === 'en' ? 'Bayesian allocation' : 'Asignación Bayesiana' },
+                        { name: 'CreditMetrics', desc: 'JP Morgan VaR' },
+                        { name: 'KMV-Merton', desc: 'Distance-to-Default' },
+                        { name: 'FRTB-IMA', desc: 'Basel III.1 ES' },
+                        { name: 'CVaR Optimizer', desc: 'Rockafellar-Uryasev' },
+                        { name: 'HRP', desc: 'López de Prado' },
+                        { name: 'CECL 3-Method', desc: 'WARM + Vintage + PD' },
+                        { name: 'HMM Regime', desc: l === 'en' ? 'Viterbi 4-state' : 'Viterbi 4 estados' },
+                        { name: 'PCA Yield Curve', desc: l === 'en' ? '3-factor decomp' : 'Descomp. 3 factores' },
+                        { name: 'Copula Credit', desc: 'Gaussian vs t' },
+                      ].map((m) => (
+                        <div key={m.name} className="rounded-lg border border-slate-200 bg-white p-2.5">
+                          <p className="text-xs font-bold text-slate-800">{m.name}</p>
+                          <p className="text-[10px] text-slate-400">{m.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-center text-[10px] text-slate-400 mt-3">
+                      {l === 'en' ? '+ 22 more models across duration, liquidity, credit & market risk' : '+ 22 modelos más en duración, liquidez, crédito y riesgo de mercado'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ══════════════════════════════════════════════ */}
+            {/* STEP 6: Get Started                           */}
+            {/* ══════════════════════════════════════════════ */}
+            {step === 6 && (
               <div className="space-y-4">
                 <div className="cerniq-shell p-5 sm:p-6 lg:p-8">
                   <div className="cerniq-panel p-6 sm:p-8">
