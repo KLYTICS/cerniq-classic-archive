@@ -211,6 +211,26 @@ export default function PricingPage() {
                   </span>
                 </div>
               </div>
+
+              {/* Platform Depth Strip */}
+              <div className="relative z-10 mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 mx-auto max-w-4xl">
+                <div className="rounded-xl border border-cyan-200 bg-cyan-50/50 p-3 text-center">
+                  <p className="text-2xl font-bold tabular-nums text-cyan-800">61</p>
+                  <p className="text-[10px] text-cyan-600 font-semibold uppercase">{t('ALM Modules', 'Módulos ALM')}</p>
+                </div>
+                <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-3 text-center">
+                  <p className="text-2xl font-bold tabular-nums text-violet-800">34</p>
+                  <p className="text-[10px] text-violet-600 font-semibold uppercase">{t('Quant Models', 'Modelos Quant')}</p>
+                </div>
+                <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 text-center">
+                  <p className="text-2xl font-bold tabular-nums text-amber-800">142</p>
+                  <p className="text-[10px] text-amber-600 font-semibold uppercase">{t('API Endpoints', 'Endpoints API')}</p>
+                </div>
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 text-center">
+                  <p className="text-2xl font-bold tabular-nums text-emerald-800">EN/ES</p>
+                  <p className="text-[10px] text-emerald-600 font-semibold uppercase">{t('Bilingual Everything', 'Todo Bilingüe')}</p>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -310,6 +330,52 @@ export default function PricingPage() {
                 <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-700">
                   {t('ESTIMATED SAVINGS: 83-93%', 'AHORRO ESTIMADO: 83-93%')}
                 </p>
+              </div>
+            </div>
+          </section>
+
+          {/* -- COMPETITIVE COMPARISON -- */}
+          <section className="cerniq-panel cerniq-card-hover p-6 sm:p-8 lg:p-10">
+            <div className="mx-auto max-w-5xl space-y-6">
+              <div>
+                <p className="cerniq-section-label">{t('Capability Comparison', 'Comparación de capacidades')}</p>
+                <h2 className="mt-4 font-display text-2xl text-slate-950 sm:text-3xl">
+                  {t('Same quant depth. 90% less cost.', 'Misma profundidad cuantitativa. 90% menos costo.')}
+                </h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500 w-48">{t('Capability', 'Capacidad')}</th>
+                      <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-400">{t("Moody's / S&P", "Moody's / S&P")}</th>
+                      <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-400">QRM / Empyrean</th>
+                      <th className="py-3 text-xs font-semibold uppercase tracking-wider text-cyan-700">CERNIQ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-xs">
+                    {[
+                      [t('Monte Carlo Simulation', 'Simulación Monte Carlo'), '10K+', '5K+', '10K Vasicek'],
+                      [t('Yield Curve Models', 'Modelos Curva Rendimiento'), 'Nelson-Siegel', 'Cubic Spline', 'Nelson-Siegel + PCA'],
+                      ['CECL', 'PD/LGD', 'WARM + PD/LGD', '3 methods'],
+                      [t('Credit Portfolio VaR', 'VaR Portafolio Crédito'), 'CreditMetrics', 'Basic', 'CreditMetrics + Copula'],
+                      [t('Structural Default', 'Incumplimiento Estructural'), 'Merton', '-', 'KMV-Merton'],
+                      [t('Portfolio Optimization', 'Optimización Portafolio'), 'MVO', '-', 'BL + CVaR + HRP'],
+                      [t('Market Risk Capital', 'Capital Riesgo Mercado'), 'VaR', 'VaR', 'FRTB-IMA ES'],
+                      [t('Bilingual Reports', 'Informes Bilingües'), '-', '-', 'EN/ES native'],
+                      [t('PR Regulatory', 'Regulatorio PR'), '-', '-', 'COSSEC + NCUA'],
+                      [t('Climate Risk', 'Riesgo Climático'), t('Separate product', 'Producto aparte'), '-', t('Built-in (Hurricane AAL)', 'Integrado (AAL Huracán)')],
+                      [t('Minimum Contract', 'Contrato mínimo'), '$150K+/yr', '$80K+/yr', '$2,400/yr'],
+                    ].map((row, i) => (
+                      <tr key={i} className="border-b border-slate-100">
+                        <td className="py-2.5 pr-4 font-medium text-slate-700">{row[0]}</td>
+                        <td className="py-2.5 pr-4 text-slate-500">{row[1]}</td>
+                        <td className="py-2.5 pr-4 text-slate-500">{row[2]}</td>
+                        <td className="py-2.5 font-semibold text-cyan-700">{row[3]}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </section>

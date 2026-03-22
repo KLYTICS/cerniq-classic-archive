@@ -187,6 +187,7 @@ export interface TranslationKeys {
     macroFactors: string;
     keyRateDuration: string;
     behavioralDuration: string;
+    moduleIndex: string;
     ltp: string;
     nimOptimizer: string;
     form5300: string;

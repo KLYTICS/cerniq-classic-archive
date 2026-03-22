@@ -49,6 +49,7 @@ const almNav: NavItem[] = [
     children: [
       // Core
       { href: '/alm', icon: BarChart3, labelKey: 'sidebar.overview' },
+      { href: '/alm/modules', icon: BarChart3, labelKey: 'sidebar.moduleIndex' },
       { href: '/alm/balance-sheet', icon: DollarSign, labelKey: 'sidebar.balanceSheet' },
       { href: '/alm/advisor-v2', icon: Zap, labelKey: 'sidebar.aiAdvisor' },
       { href: '/alm/analyst', icon: Zap, labelKey: 'sidebar.aiAdvisor' },

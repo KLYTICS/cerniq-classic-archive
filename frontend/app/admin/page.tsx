@@ -243,6 +243,39 @@ export default function AdminPage() {
           </Link>
         </div>
 
+        {/* Platform Metrics */}
+        <div className="bg-slate-900/60 border border-white/10 rounded-xl p-5">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4">Platform Metrics</h3>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+            {[
+              { label: 'Frontend Pages', value: '122', color: 'text-cyan-300' },
+              { label: 'ALM Modules', value: '62', color: 'text-indigo-300' },
+              { label: 'Backend Services', value: '142', color: 'text-emerald-300' },
+              { label: 'API Endpoints', value: '142', color: 'text-amber-300' },
+              { label: 'Prisma Models', value: '54', color: 'text-purple-300' },
+              { label: 'Quant Models', value: '34', color: 'text-rose-300' },
+            ].map((m) => (
+              <div key={m.label} className="text-center">
+                <p className={`text-2xl font-bold tabular-nums ${m.color}`}>{m.value}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">{m.label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: 'Sidebar Entries', value: '54' },
+              { label: 'i18n Keys', value: '240+' },
+              { label: 'Total Commits', value: '63' },
+              { label: 'Bibles Executed', value: 'V1-V12' },
+            ].map((m) => (
+              <div key={m.label} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2">
+                <span className="text-[10px] text-slate-500">{m.label}</span>
+                <span className="text-xs font-bold text-white tabular-nums">{m.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Tabs */}
         <div className="flex gap-2 border-b border-white/10 pb-2">
           <button onClick={() => setTab('requests')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tab === 'requests' ? 'bg-amber-500/20 text-amber-300' : 'text-slate-400 hover:text-white'}`}>

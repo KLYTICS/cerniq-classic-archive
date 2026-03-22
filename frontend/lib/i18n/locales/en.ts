@@ -213,6 +213,7 @@ export const en: TranslationKeys = {
     macroFactors: 'Macro Factors',
     keyRateDuration: 'Key Rate Duration',
     behavioralDuration: 'Behavioral Duration',
+    moduleIndex: 'All Modules',
     ltp: 'Liquidity Transfer',
     nimOptimizer: 'NIM Optimizer',
     form5300: 'NCUA 5300',
