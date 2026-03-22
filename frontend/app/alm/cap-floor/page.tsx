@@ -28,7 +28,7 @@ export default function CapFloorPage() {
       setLoading(true);
       try {
         const NODE = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-        const res = await fetch(`${NODE}/api/alm/${selectedId}/ir-cap-floor`);
+        const res = await fetch(`${NODE}/api/alm/derivatives/cap-floor`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ institutionId: selectedId }) });
         if (res.ok) setData(await res.json());
         else setData(getDemo());
       } catch { setData(getDemo()); }

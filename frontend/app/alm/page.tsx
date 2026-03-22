@@ -10,7 +10,8 @@ import {
   Zap, ArrowUpRight, ArrowDownRight, Building2, Download, Sparkles,
   SlidersHorizontal, MessageCircle, Bell, Activity, Layers, CloudLightning,
   BarChart3, AlertTriangle, Clock, Check, X, Brain, Target, Cpu,
-  FileText, Calculator,
+  FileText, Calculator, GitBranch, ArrowUpDown, Link2, ArrowDownUp, Gauge,
+  ShieldCheck,
 } from 'lucide-react';
 import RiskScoreGauge from '@/components/alm/RiskScoreGauge';
 import RiskBadge from '@/components/alm/RiskBadge';
@@ -413,6 +414,36 @@ export default function ALMDashboardPage() {
             </div>
             <ChevronRight className="h-4 w-4 text-slate-500" />
           </Link>
+        </div>
+      </div>
+
+      {/* ═══ QUANT FRONTIER — V9 MODELS ═══ */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-indigo-600">
+              <Cpu className="h-3 w-3 text-white" />
+            </div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              {locale === 'es' ? 'Frontera Cuantitativa' : 'Quant Frontier'}
+            </p>
+          </div>
+          <span className="text-[9px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">13 {locale === 'es' ? 'modelos' : 'models'}</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2">
+          <ModuleCard href="/alm/black-litterman" icon={Brain} title="Black-Litterman" value={locale === 'es' ? 'Asignación Bayesiana' : 'Bayesian Allocation'} iconColor="text-indigo-600" />
+          <ModuleCard href="/alm/cvar-optimizer" icon={Target} title={locale === 'es' ? 'Optimizador CVaR' : 'CVaR Optimizer'} value="Rockafellar-Uryasev" iconColor="text-violet-600" />
+          <ModuleCard href="/alm/hrp" icon={GitBranch} title="HRP" value="López de Prado" iconColor="text-purple-600" />
+          <ModuleCard href="/alm/credit-metrics" icon={Shield} title="CreditMetrics" value="JP Morgan" iconColor="text-rose-600" />
+          <ModuleCard href="/alm/kmv-merton" icon={Gauge} title="KMV-Merton" value="Distance-to-Default" iconColor="text-amber-600" />
+          <ModuleCard href="/alm/pca-yield-curve" icon={Layers} title={locale === 'es' ? 'PCA Curva' : 'PCA Curve'} value={locale === 'es' ? '3 factores' : '3 factors'} iconColor="text-teal-600" />
+          <ModuleCard href="/alm/frtb-ima" icon={ShieldCheck} title="FRTB-IMA" value="Basel III.1 ES" iconColor="text-sky-600" />
+          <ModuleCard href="/alm/fed-futures" icon={TrendingDown} title="Fed Futures" value={locale === 'es' ? 'Trayectoria implícita' : 'Implied path'} iconColor="text-emerald-600" />
+          <ModuleCard href="/alm/copula-credit" icon={Link2} title={locale === 'es' ? 'Copula Crediticia' : 'Credit Copula'} value="Gaussian vs t" iconColor="text-pink-600" />
+          <ModuleCard href="/alm/wrong-way-risk" icon={ArrowDownUp} title="Wrong-Way Risk" value={locale === 'es' ? 'CVA ajustado' : 'Adjusted CVA'} iconColor="text-red-600" />
+          <ModuleCard href="/alm/cap-floor" icon={ArrowUpDown} title="IR Cap/Floor" value="Black-76" iconColor="text-cyan-600" />
+          <ModuleCard href="/alm/rbc2" icon={Shield} title="NCUA RBC2" value={locale === 'es' ? '8 componentes' : '8 components'} iconColor="text-blue-600" />
+          <ModuleCard href="/alm/macro-factors" icon={Activity} title={locale === 'es' ? 'Factores Macro' : 'Macro Factors'} value={locale === 'es' ? 'Regresión multi-factor' : 'Multi-factor regression'} iconColor="text-orange-600" />
         </div>
       </div>
 

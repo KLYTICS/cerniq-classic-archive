@@ -27,7 +27,7 @@ export default function CreditMetricsPage() {
       setLoading(true);
       try {
         const NODE = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-        const res = await fetch(`${NODE}/api/alm/${selectedId}/credit-metrics`);
+        const res = await fetch(`${NODE}/api/alm/${selectedId}/credit-metrics`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
         if (res.ok) setData(await res.json());
         else setData(getDemo());
       } catch { setData(getDemo()); }
@@ -133,7 +133,7 @@ function getDemo(): CreditMetricsResult {
       { from: 'AA', AAA: 0.01, AA: 0.91, A: 0.06, BBB: 0.015, BB: 0.004, B: 0.001, Default: 0 },
       { from: 'A', AAA: 0.001, AA: 0.02, A: 0.90, BBB: 0.06, BB: 0.012, B: 0.005, Default: 0.002 },
       { from: 'BBB', AAA: 0, AA: 0.003, A: 0.04, BBB: 0.87, BB: 0.06, B: 0.02, Default: 0.007 },
-      { from: 'BB', AAA: 0, AA: 0, A: 0.005, BBB: 0.06, BB: 0.82, BB: 0.08, Default: 0.035 },
+      { from: 'BB', AAA: 0, AA: 0, A: 0.005, BBB: 0.06, BB: 0.82, B: 0.08, Default: 0.035 },
     ],
   };
 }

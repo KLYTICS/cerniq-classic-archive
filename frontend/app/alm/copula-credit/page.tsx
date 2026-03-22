@@ -28,7 +28,7 @@ export default function CopulaCreditPage() {
       setLoading(true);
       try {
         const NODE = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-        const res = await fetch(`${NODE}/api/alm/${selectedId}/copula-credit`);
+        const res = await fetch(`${NODE}/api/alm/${selectedId}/copula-credit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
         if (res.ok) setData(await res.json());
         else setData(getDemo());
       } catch { setData(getDemo()); }

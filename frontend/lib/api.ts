@@ -913,7 +913,7 @@ class APIClient {
       netOutflows: 216.5,
       status: 'compliant' as const,
       buffer: 15.5,
-    });
+    };
   }
 
   async getDurationGap(institutionId: string) {
