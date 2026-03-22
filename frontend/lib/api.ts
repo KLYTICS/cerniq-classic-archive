@@ -813,8 +813,8 @@ class APIClient {
       return response.data?.items ?? response.data ?? [];
     } catch {
       return [{
-        id: 'demo-bank-id', name: 'First Community Bank', type: 'community_bank',
-        totalAssets: 1250, currency: 'USD', reportingDate: new Date().toISOString(),
+        id: 'demo-bank-id', name: 'FirstBank Puerto Rico', type: 'commercial_bank',
+        totalAssets: 18900, currency: 'USD', reportingDate: '2025-12-31T00:00:00.000Z',
       }];
     }
   }
@@ -838,16 +838,22 @@ class APIClient {
       return response.data;
     } catch {
       return {
-        id: institutionId, name: 'First Community Bank', type: 'community_bank', totalAssets: 1250,
+        id: institutionId, name: 'FirstBank Puerto Rico', type: 'commercial_bank', totalAssets: 18900,
         balanceSheetItems: [
-          { category: 'asset', subcategory: 'commercial_loans', name: 'Commercial Real Estate', balance: 350, rate: 5.25, duration: 4.5, rateType: 'fixed' },
-          { category: 'asset', subcategory: 'residential_mortgages', name: '30yr Fixed Mortgages', balance: 280, rate: 4.75, duration: 6.2, rateType: 'fixed' },
-          { category: 'asset', subcategory: 'investment_securities', name: 'Treasury Notes', balance: 120, rate: 4.10, duration: 2.8, rateType: 'fixed' },
-          { category: 'asset', subcategory: 'cash_equivalents', name: 'Cash & Fed Funds', balance: 80, rate: 5.30, duration: 0.1, rateType: 'variable' },
-          { category: 'liability', subcategory: 'demand_deposits', name: 'Checking Accounts', balance: 200, rate: 0.50, duration: 0.1, rateType: 'variable' },
-          { category: 'liability', subcategory: 'savings_deposits', name: 'Money Market', balance: 150, rate: 3.80, duration: 0.3, rateType: 'variable' },
-          { category: 'liability', subcategory: 'time_deposits', name: '12-Month CDs', balance: 180, rate: 4.00, duration: 0.9, rateType: 'fixed' },
-          { category: 'liability', subcategory: 'borrowings', name: 'FHLB Advances', balance: 100, rate: 4.50, duration: 1.5, rateType: 'fixed' },
+          { category: 'asset', subcategory: 'commercial_loans', name: 'Commercial Real Estate Loans', balance: 4850, rate: 6.42, duration: 4.2, rateType: 'fixed' },
+          { category: 'asset', subcategory: 'residential_mortgages', name: 'Residential Mortgage Portfolio', balance: 3680, rate: 5.18, duration: 6.8, rateType: 'fixed' },
+          { category: 'asset', subcategory: 'commercial_loans', name: 'C&I Loans', balance: 2940, rate: 7.15, duration: 2.4, rateType: 'variable' },
+          { category: 'asset', subcategory: 'consumer_loans', name: 'Consumer & Auto Loans', balance: 1820, rate: 8.90, duration: 2.1, rateType: 'fixed' },
+          { category: 'asset', subcategory: 'investment_securities', name: 'US Treasury & Agency MBS', balance: 3200, rate: 3.85, duration: 4.6, rateType: 'fixed' },
+          { category: 'asset', subcategory: 'investment_securities', name: 'PR Municipal Bonds', balance: 680, rate: 4.20, duration: 5.1, rateType: 'fixed' },
+          { category: 'asset', subcategory: 'cash_equivalents', name: 'Cash & Fed Funds Sold', balance: 1730, rate: 4.85, duration: 0.01, rateType: 'variable' },
+          { category: 'liability', subcategory: 'demand_deposits', name: 'Non-Interest Bearing Deposits', balance: 3420, rate: 0, duration: 0.01, rateType: 'variable' },
+          { category: 'liability', subcategory: 'demand_deposits', name: 'Interest-Bearing Checking', balance: 2850, rate: 0.45, duration: 0.1, rateType: 'variable' },
+          { category: 'liability', subcategory: 'savings_deposits', name: 'Savings & Money Market', balance: 4180, rate: 2.95, duration: 0.3, rateType: 'variable' },
+          { category: 'liability', subcategory: 'time_deposits', name: 'Certificates of Deposit', balance: 3200, rate: 4.35, duration: 0.8, rateType: 'fixed' },
+          { category: 'liability', subcategory: 'borrowings', name: 'FHLB Advances & Repos', balance: 2100, rate: 4.72, duration: 1.4, rateType: 'fixed' },
+          { category: 'liability', subcategory: 'borrowings', name: 'Subordinated Debt', balance: 350, rate: 5.85, duration: 4.8, rateType: 'fixed' },
+          { category: 'equity', subcategory: 'equity', name: 'Common Equity', balance: 2400, rate: 0, duration: 0, rateType: 'fixed' },
         ],
       };
     }
@@ -860,22 +866,22 @@ class APIClient {
     } catch {
       // Graceful degradation: return demo data if backend unavailable
       return {
-        institution: { id: institutionId, name: 'First Community Bank', type: 'community_bank', totalAssets: 1250, currency: 'USD', reportingDate: new Date().toISOString() },
-        durationGap: { assetDuration: 4.2, liabilityDuration: 2.1, durationGap: 2.1, riskProfile: 'asset-sensitive' as const },
+        institution: { id: institutionId, name: 'FirstBank Puerto Rico', type: 'commercial_bank', totalAssets: 18900, currency: 'USD', reportingDate: '2025-12-31T00:00:00.000Z' },
+        durationGap: { assetDuration: 3.8, liabilityDuration: 2.0, durationGap: 1.8, riskProfile: 'asset-sensitive' as const },
         niiSensitivity: {
           scenarios: [
-            { name: '+200 bps', shiftBps: 200, niImpact: 3.1, niImpactPct: 25.8 },
-            { name: '+100 bps', shiftBps: 100, niImpact: 1.5, niImpactPct: 12.5 },
+            { name: '+200 bps', shiftBps: 200, niImpact: 118, niImpactPct: 15.9 },
+            { name: '+100 bps', shiftBps: 100, niImpact: 62, niImpactPct: 8.4 },
             { name: 'Base', shiftBps: 0, niImpact: 0, niImpactPct: 0 },
-            { name: '-100 bps', shiftBps: -100, niImpact: -1.2, niImpactPct: -10.0 },
-            { name: '-200 bps', shiftBps: -200, niImpact: -2.5, niImpactPct: -20.8 },
+            { name: '-100 bps', shiftBps: -100, niImpact: -48, niImpactPct: -6.5 },
+            { name: '-200 bps', shiftBps: -200, niImpact: -96, niImpactPct: -12.9 },
           ],
-          baseNII: 12.0, riskRating: 'moderate' as const,
+          baseNII: 742, riskRating: 'moderate' as const,
         },
-        liquidity: { lcr: 115.5, hqla: 250, netOutflows: 216.5, status: 'compliant' as const, buffer: 15.5 },
-        topRisks: ['Rising interest rates impacting NII', 'Deposit flight risk increasing', 'Commercial real estate concentration'],
-        recommendations: ['Hedge 2.1yr duration gap using receive-fixed swaps', 'Increase HQLA buffer by $25M', 'Run severe deposit stress scenario'],
-        riskScore: 68,
+        liquidity: { lcr: 148.2, hqla: 4800, netOutflows: 3240, status: 'compliant' as const, buffer: 48.2 },
+        topRisks: ['CRE concentration at 285% of capital (limit: 300%)', 'Fed rate cuts compressing NIM from 4.25%', 'Government deposit concentration (22% of total)'],
+        recommendations: ['Hedge +1.8yr duration gap via $500M receive-fixed swaps', 'Diversify CRE into C&I and consumer — target 250% concentration', 'Lock in $800M FHLB funding at 2-3yr terms before rate cuts'],
+        riskScore: 82,
       };
     }
   }
@@ -886,13 +892,13 @@ class APIClient {
       return response.data;
     } catch {
       return {
-        institutionId, baseNII: 12.0, riskRating: 'moderate' as const,
+        institutionId, baseNII: 742, riskRating: 'moderate' as const,
         scenarios: [
-          { name: '+200 bps', shiftBps: 200, niImpact: 3.1, niImpactPct: 25.8, mveImpact: -3.8, mveImpactPct: -31.6 },
-          { name: '+100 bps', shiftBps: 100, niImpact: 1.5, niImpactPct: 12.5, mveImpact: -1.8, mveImpactPct: -15.0 },
+          { name: '+200 bps', shiftBps: 200, niImpact: 118, niImpactPct: 15.9, mveImpact: -412, mveImpactPct: -17.2 },
+          { name: '+100 bps', shiftBps: 100, niImpact: 62, niImpactPct: 8.4, mveImpact: -198, mveImpactPct: -8.3 },
           { name: 'Base', shiftBps: 0, niImpact: 0, niImpactPct: 0, mveImpact: 0, mveImpactPct: 0 },
-          { name: '-100 bps', shiftBps: -100, niImpact: -1.2, niImpactPct: -10.0, mveImpact: 1.4, mveImpactPct: 11.6 },
-          { name: '-200 bps', shiftBps: -200, niImpact: -2.5, niImpactPct: -20.8, mveImpact: 2.9, mveImpactPct: 24.1 },
+          { name: '-100 bps', shiftBps: -100, niImpact: -48, niImpactPct: -6.5, mveImpact: 164, mveImpactPct: 6.8 },
+          { name: '-200 bps', shiftBps: -200, niImpact: -96, niImpactPct: -12.9, mveImpact: 341, mveImpactPct: 14.2 },
         ],
       };
     }
@@ -907,12 +913,12 @@ class APIClient {
     }
     return {
       institutionId,
-      lcr: 115.5,
-      nsfr: 108.2,
-      hqla: 250,
-      netOutflows: 216.5,
+      lcr: 148.2,
+      nsfr: 118.4,
+      hqla: 4800,
+      netOutflows: 3240,
       status: 'compliant' as const,
-      buffer: 15.5,
+      buffer: 48.2,
     };
   }
 
@@ -921,7 +927,7 @@ class APIClient {
       const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/duration-gap`);
       return response.data;
     } catch {
-      return { institutionId, assetDuration: 4.2, liabilityDuration: 2.1, durationGap: 2.1, riskProfile: 'asset-sensitive' as const };
+      return { institutionId, assetDuration: 3.8, liabilityDuration: 2.0, durationGap: 1.8, riskProfile: 'asset-sensitive' as const };
     }
   }
 
@@ -1076,7 +1082,7 @@ class APIClient {
       const response = await this.client.post(`${NODE_API_URL}/api/alm/seed-demo`, { workspaceId, type });
       return response.data;
     } catch {
-      return { success: true, institutionId: 'demo-bank-id', institution: { id: 'demo-bank-id', name: 'First Community Bank', type, totalAssets: 1250, currency: 'USD' } };
+      return { success: true, institutionId: 'demo-bank-id', institution: { id: 'demo-bank-id', name: 'FirstBank Puerto Rico', type, totalAssets: 18900, currency: 'USD' } };
     }
   }
 

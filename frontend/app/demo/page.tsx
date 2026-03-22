@@ -43,11 +43,11 @@ const STEPS = [
 // Demo institution data
 // ──────────────────────────────────────────────
 const DEMO_INSTITUTION = {
-  name: 'Demo Cooperativa',
-  assets: '$350M',
-  members: '42,000',
+  name: 'FirstBank Puerto Rico',
+  assets: '$18.9B',
+  members: '320,000+',
   location: 'San Juan, PR',
-  overallScore: 78,
+  overallScore: 82,
 };
 
 // ──────────────────────────────────────────────
@@ -66,38 +66,38 @@ interface CossecRatio {
 }
 
 const COSSEC_RATIOS: CossecRatio[] = [
-  { id: 'R1', nameEn: 'Net Worth / Total Assets', nameEs: 'Capital neto / Activos totales', value: '10.2%', thresholdEn: '>= 7%', thresholdEs: '>= 7%', status: 'PASS' },
-  { id: 'R2', nameEn: 'Delinquency Ratio', nameEs: 'Tasa de morosidad', value: '2.8%', thresholdEn: '<= 5%', thresholdEs: '<= 5%', status: 'PASS' },
-  { id: 'R3', nameEn: 'Net Income / Avg Assets (ROA)', nameEs: 'Ingreso neto / Activos promedio (ROA)', value: '0.62%', thresholdEn: '>= 0.5%', thresholdEs: '>= 0.5%', status: 'PASS' },
-  { id: 'R4', nameEn: 'Operating Expense Ratio', nameEs: 'Ratio gastos operativos', value: '3.9%', thresholdEn: '<= 5%', thresholdEs: '<= 5%', status: 'PASS' },
-  { id: 'R5', nameEn: 'Liquidity Coverage Ratio (LCR)', nameEs: 'Ratio de cobertura de liquidez (LCR)', value: '115.3%', thresholdEn: '>= 100%', thresholdEs: '>= 100%', status: 'PASS' },
-  { id: 'R6', nameEn: 'Loan-to-Share Ratio', nameEs: 'Prestamos / Depositos', value: '78.4%', thresholdEn: '<= 85%', thresholdEs: '<= 85%', status: 'PASS' },
-  { id: 'R7', nameEn: 'Allowance / Delinquent Loans', nameEs: 'Reserva / Prestamos morosos', value: '112.0%', thresholdEn: '>= 100%', thresholdEs: '>= 100%', status: 'PASS' },
-  { id: 'R8', nameEn: 'Net Interest Margin (NIM)', nameEs: 'Margen de interes neto (NIM)', value: '3.1%', thresholdEn: '>= 2.5%', thresholdEs: '>= 2.5%', status: 'PASS' },
-  { id: 'R9', nameEn: 'Asset Growth Rate', nameEs: 'Tasa de crecimiento de activos', value: '6.8%', thresholdEn: '3-10%', thresholdEs: '3-10%', status: 'PASS' },
-  { id: 'R10', nameEn: 'Duration Gap (years)', nameEs: 'Brecha de duracion (anos)', value: '+2.3 yr', thresholdEn: '<= 2.0 yr', thresholdEs: '<= 2.0 anos', status: 'WARNING' },
-  { id: 'R11', nameEn: 'Concentration Risk (Top 10 Borrowers)', nameEs: 'Riesgo de concentracion (Top 10 prestatarios)', value: '18.7%', thresholdEn: '<= 15%', thresholdEs: '<= 15%', status: 'WARNING' },
-  { id: 'R12', nameEn: 'EVE Sensitivity (+200bps)', nameEs: 'Sensibilidad EVE (+200pbs)', value: '-$4.2M', thresholdEn: '<= -$2M', thresholdEs: '<= -$2M', status: 'FAIL' },
+  { id: 'R1', nameEn: 'CET1 Capital Ratio', nameEs: 'Ratio Capital CET1', value: '16.4%', thresholdEn: '>= 6.5%', thresholdEs: '>= 6.5%', status: 'PASS' },
+  { id: 'R2', nameEn: 'NPL Ratio', nameEs: 'Ratio Morosidad (NPL)', value: '1.42%', thresholdEn: '<= 5%', thresholdEs: '<= 5%', status: 'PASS' },
+  { id: 'R3', nameEn: 'Return on Assets (ROA)', nameEs: 'Rentabilidad sobre Activos (ROA)', value: '1.58%', thresholdEn: '>= 0.5%', thresholdEs: '>= 0.5%', status: 'PASS' },
+  { id: 'R4', nameEn: 'Efficiency Ratio', nameEs: 'Ratio de Eficiencia', value: '52.8%', thresholdEn: '<= 65%', thresholdEs: '<= 65%', status: 'PASS' },
+  { id: 'R5', nameEn: 'Liquidity Coverage Ratio (LCR)', nameEs: 'Ratio de Cobertura de Liquidez (LCR)', value: '148.2%', thresholdEn: '>= 100%', thresholdEs: '>= 100%', status: 'PASS' },
+  { id: 'R6', nameEn: 'Loan-to-Deposit Ratio', nameEs: 'Préstamos / Depósitos', value: '71.6%', thresholdEn: '<= 85%', thresholdEs: '<= 85%', status: 'PASS' },
+  { id: 'R7', nameEn: 'Allowance / NPL Coverage', nameEs: 'Reserva / Cobertura NPL', value: '187.3%', thresholdEn: '>= 100%', thresholdEs: '>= 100%', status: 'PASS' },
+  { id: 'R8', nameEn: 'Net Interest Margin (NIM)', nameEs: 'Margen de Interés Neto (NIM)', value: '4.25%', thresholdEn: '>= 2.5%', thresholdEs: '>= 2.5%', status: 'PASS' },
+  { id: 'R9', nameEn: 'Asset Growth Rate', nameEs: 'Tasa de Crecimiento de Activos', value: '5.2%', thresholdEn: '3-10%', thresholdEs: '3-10%', status: 'PASS' },
+  { id: 'R10', nameEn: 'Duration Gap (years)', nameEs: 'Brecha de Duración (años)', value: '+1.8 yr', thresholdEn: '<= 2.0 yr', thresholdEs: '<= 2.0 años', status: 'PASS' },
+  { id: 'R11', nameEn: 'CRE Concentration / Total Capital', nameEs: 'Concentración CRE / Capital Total', value: '285%', thresholdEn: '<= 300%', thresholdEs: '<= 300%', status: 'WARNING' },
+  { id: 'R12', nameEn: 'EVE Sensitivity (+200bps)', nameEs: 'Sensibilidad EVE (+200pbs)', value: '-$412M', thresholdEn: '<= -15% equity', thresholdEs: '<= -15% patrimonio', status: 'WARNING' },
 ];
 
 // ──────────────────────────────────────────────
 // ALM Report pages (preview metadata)
 // ──────────────────────────────────────────────
 const ALM_REPORT_PAGES = [
-  { pageEn: 'Cover Page', pageEs: 'Portada', descEn: 'Demo Cooperativa - Q1 2026 ALM Report', descEs: 'Demo Cooperativa - Informe ALM Q1 2026' },
-  { pageEn: 'Executive Summary', pageEs: 'Resumen ejecutivo', descEn: 'Overall risk score: 78/100. Two warnings, one critical finding.', descEs: 'Puntaje de riesgo general: 78/100. Dos alertas, un hallazgo critico.' },
-  { pageEn: 'COSSEC Ratio Grid', pageEs: 'Cuadricula de ratios COSSEC', descEn: '12 regulatory ratios with traffic light indicators', descEs: '12 ratios regulatorios con indicadores semaforo' },
-  { pageEn: 'Balance Sheet Summary', pageEs: 'Resumen hoja de balance', descEn: 'Assets: $350M, Liabilities: $314M, Net Worth: $36M', descEs: 'Activos: $350M, Pasivos: $314M, Capital: $36M' },
-  { pageEn: 'NII Sensitivity Analysis', pageEs: 'Analisis de sensibilidad NII', descEn: '8 rate shock scenarios from -300bps to +400bps', descEs: '8 escenarios de choque de tasas de -300pbs a +400pbs' },
-  { pageEn: 'Duration Gap Analysis', pageEs: 'Analisis de brecha de duracion', descEn: 'Asset duration: 4.2yr, Liability duration: 1.9yr, Gap: +2.3yr', descEs: 'Duracion activos: 4.2a, Duracion pasivos: 1.9a, Brecha: +2.3a' },
-  { pageEn: 'EVE Sensitivity', pageEs: 'Sensibilidad EVE', descEn: 'Economic Value of Equity under 6 rate scenarios', descEs: 'Valor economico del patrimonio bajo 6 escenarios de tasas' },
-  { pageEn: 'Liquidity Coverage', pageEs: 'Cobertura de liquidez', descEn: 'LCR: 115.3%, HQLA: $42M, Net Outflows: $36.4M', descEs: 'LCR: 115.3%, HQLA: $42M, Flujos netos: $36.4M' },
-  { pageEn: 'Monte Carlo Stress Test', pageEs: 'Prueba de estres Monte Carlo', descEn: '10,000 scenarios - 95th percentile loss: $8.1M', descEs: '10,000 escenarios - Perdida percentil 95: $8.1M' },
-  { pageEn: 'Concentration Risk', pageEs: 'Riesgo de concentracion', descEn: 'Top 10 borrower exposure: 18.7% of total loans', descEs: 'Exposicion 10 principales prestatarios: 18.7% de prestamos totales' },
-  { pageEn: 'Peer Benchmarking', pageEs: 'Benchmarking sectorial', descEn: 'Compared against 47 PR cooperativas (COSSEC Q3 2025)', descEs: 'Comparado contra 47 cooperativas PR (COSSEC Q3 2025)' },
-  { pageEn: 'Recommendations', pageEs: 'Recomendaciones', descEn: '5 actionable items: reduce duration gap, diversify concentration, etc.', descEs: '5 acciones: reducir brecha duracion, diversificar concentracion, etc.' },
-  { pageEn: 'Appendix A: Methodology', pageEs: 'Apendice A: Metodologia', descEn: 'Calculation methodology & data sources', descEs: 'Metodologia de calculo y fuentes de datos' },
-  { pageEn: 'Appendix B: Glossary', pageEs: 'Apendice B: Glosario', descEn: 'Terms and definitions in EN/ES', descEs: 'Terminos y definiciones en EN/ES' },
+  { pageEn: 'Cover Page', pageEs: 'Portada', descEn: 'FirstBank Puerto Rico - Q4 2025 ALM Report', descEs: 'FirstBank Puerto Rico - Informe ALM Q4 2025' },
+  { pageEn: 'Executive Summary', pageEs: 'Resumen ejecutivo', descEn: 'Overall risk score: 82/100. Strong capital position, two concentration warnings.', descEs: 'Puntaje de riesgo general: 82/100. Posición de capital sólida, dos alertas de concentración.' },
+  { pageEn: 'Regulatory Ratio Grid', pageEs: 'Cuadrícula de Ratios Regulatorios', descEn: '12 NCUA/Basel ratios with traffic light indicators', descEs: '12 ratios NCUA/Basel con indicadores semáforo' },
+  { pageEn: 'Balance Sheet Summary', pageEs: 'Resumen Hoja de Balance', descEn: 'Assets: $18.9B, Deposits: $15.2B, Equity: $2.4B', descEs: 'Activos: $18.9B, Depósitos: $15.2B, Patrimonio: $2.4B' },
+  { pageEn: 'NII Sensitivity Analysis', pageEs: 'Análisis de Sensibilidad NII', descEn: 'Base NII: $742M. +200bps: +$118M (+15.9%). -200bps: -$96M (-12.9%)', descEs: 'NII Base: $742M. +200pbs: +$118M (+15.9%). -200pbs: -$96M (-12.9%)' },
+  { pageEn: 'Duration Gap Analysis', pageEs: 'Análisis de Brecha de Duración', descEn: 'Asset duration: 3.8yr, Liability duration: 2.0yr, Gap: +1.8yr', descEs: 'Duración activos: 3.8a, Duración pasivos: 2.0a, Brecha: +1.8a' },
+  { pageEn: 'EVE Sensitivity', pageEs: 'Sensibilidad EVE', descEn: 'EVE at +200bps: -$412M (-17.2%). Behavioral correction: -$248M (-10.3%)', descEs: 'EVE a +200pbs: -$412M (-17.2%). Corrección conductual: -$248M (-10.3%)' },
+  { pageEn: 'Liquidity Coverage', pageEs: 'Cobertura de Liquidez', descEn: 'LCR: 148.2%, HQLA: $4.8B, NSFR: 118.4%', descEs: 'LCR: 148.2%, HQLA: $4.8B, NSFR: 118.4%' },
+  { pageEn: 'Monte Carlo Stress Test', pageEs: 'Prueba de Estrés Monte Carlo', descEn: '10,000 Vasicek paths. VaR-95: $385M, CVaR-99: $528M', descEs: '10,000 senderos Vasicek. VaR-95: $385M, CVaR-99: $528M' },
+  { pageEn: 'Concentration Risk', pageEs: 'Riesgo de Concentración', descEn: 'CRE concentration: 285% of total capital (limit: 300%). HHI: 1,420', descEs: 'Concentración CRE: 285% del capital total (límite: 300%). HHI: 1,420' },
+  { pageEn: 'Peer Benchmarking', pageEs: 'Benchmarking Sectorial', descEn: 'Compared against 94 PR institutions (FDIC/NCUA Q3 2025)', descEs: 'Comparado contra 94 instituciones PR (FDIC/NCUA Q3 2025)' },
+  { pageEn: 'Recommendations', pageEs: 'Recomendaciones', descEn: '5 actionable items: hedge duration gap, diversify CRE, increase SOFR-linked assets', descEs: '5 acciones: cubrir brecha duración, diversificar CRE, aumentar activos SOFR' },
+  { pageEn: 'Appendix A: Methodology', pageEs: 'Apéndice A: Metodología', descEn: 'Calculation methodology & data sources (FRED, Treasury.gov, FDIC)', descEs: 'Metodología de cálculo y fuentes (FRED, Treasury.gov, FDIC)' },
+  { pageEn: 'Appendix B: Glossary', pageEs: 'Apéndice B: Glosario', descEn: 'Terms and definitions in EN/ES', descEs: 'Términos y definiciones en EN/ES' },
 ];
 
 // ──────────────────────────────────────────────
@@ -145,37 +145,37 @@ interface ChatMessage {
 const DEMO_CONVERSATION: ChatMessage[] = [
   {
     role: 'user',
-    textEn: 'What happens if rates rise 100 basis points?',
-    textEs: 'Que pasa si las tasas suben 100 puntos base?',
+    textEn: 'What happens to FirstBank if the Fed cuts 100 basis points in 2026?',
+    textEs: '¿Qué pasa con FirstBank si la Fed recorta 100 puntos base en 2026?',
   },
   {
     role: 'assistant',
-    textEn: 'Based on your duration gap of +2.3 years and $112M in fixed-rate assets, a +100bps shock would increase your NII by approximately $280K over 12 months. However, your EVE would decrease by approximately $2.1M. Your LCR of 115% provides adequate buffer. Recommendation: monitor CD repricing in the next 90 days.',
-    textEs: 'Basado en su brecha de duracion de +2.3 anos y $112M en activos de tasa fija, un choque de +100pbs aumentaria su NII en aproximadamente $280K en 12 meses. Sin embargo, su EVE disminuiria en aproximadamente $2.1M. Su LCR del 115% proporciona un margen adecuado. Recomendacion: monitorear la repreciacion de CDs en los proximos 90 dias.',
+    textEn: 'Based on FirstBank\'s duration gap of +1.8 years and $12.4B in fixed-rate assets, a -100bps shock would reduce NII by approximately $48M (-6.5%) over 12 months as variable-rate assets reprice faster than fixed-rate liabilities. Your EVE would increase by +$164M as the longer-duration asset portfolio gains value. With LCR at 148.2% and $4.8B HQLA, your liquidity position remains strong. Key risk: $3.2B in CDs repricing in the next 6 months may demand higher rates to retain. Recommendation: lock in funding with 2-3yr FHLB advances before the rate cut.',
+    textEs: 'Basado en la brecha de duración de +1.8 años de FirstBank y $12.4B en activos de tasa fija, un choque de -100pbs reduciría el NII en aproximadamente $48M (-6.5%) en 12 meses ya que los activos de tasa variable se reprecian más rápido que los pasivos de tasa fija. Su EVE aumentaría en +$164M al ganar valor el portafolio de activos de mayor duración. Con LCR al 148.2% y $4.8B en HQLA, su posición de liquidez se mantiene sólida. Riesgo clave: $3.2B en CDs repreciándose en los próximos 6 meses puede demandar tasas más altas para retención. Recomendación: asegurar fondeo con avances FHLB a 2-3 años antes del recorte.',
   },
 ];
 
 const CANNED_RESPONSES: { patternEn: string; responseEn: string; responseEs: string }[] = [
   {
     patternEn: 'liquidity',
-    responseEn: 'Your current LCR stands at 115.3%, which exceeds the 100% minimum. Your HQLA buffer of $42M against $36.4M net outflows gives you approximately 42 days of coverage. However, I recommend increasing your liquid asset buffer by $5-8M given the concentration risk in your top 3 depositors (32% of total deposits).',
-    responseEs: 'Su LCR actual es del 115.3%, que excede el minimo del 100%. Su reserva HQLA de $42M contra $36.4M de flujos netos le da aproximadamente 42 dias de cobertura. Sin embargo, recomiendo aumentar su reserva de activos liquidos en $5-8M dada la concentracion de riesgo en sus 3 principales depositantes (32% del total de depositos).',
+    responseEn: 'FirstBank\'s LCR stands at 148.2%, well above the 100% minimum. HQLA of $4.8B against $3.24B in net outflows provides a 148-day coverage horizon. NSFR is 118.4%, indicating strong structural funding. Key monitor: the government deposit concentration (22% of total deposits) introduces event-risk sensitivity — a sovereign downgrade could trigger $1.2B in outflows within 30 days. Recommendation: maintain the unencumbered securities portfolio above $5B and diversify into private-sector deposits.',
+    responseEs: 'El LCR de FirstBank es 148.2%, muy por encima del mínimo del 100%. Los HQLA de $4.8B contra $3.24B en flujos netos proporciona un horizonte de cobertura de 148 días. El NSFR es 118.4%, indicando fondeo estructural sólido. Monitor clave: la concentración en depósitos gubernamentales (22% del total) introduce sensibilidad a eventos — una rebaja soberana podría desencadenar $1.2B en salidas en 30 días. Recomendación: mantener el portafolio de valores no comprometidos sobre $5B y diversificar hacia depósitos del sector privado.',
   },
   {
     patternEn: 'capital',
-    responseEn: 'Your net worth ratio is 10.2% ($35.7M / $350M), well above the COSSEC minimum of 7%. You have $11.2M in excess capital above the minimum threshold. This positions your institution well for organic growth of up to 8-10% annually without requiring additional capital.',
-    responseEs: 'Su ratio de capital neto es 10.2% ($35.7M / $350M), muy por encima del minimo de COSSEC del 7%. Tiene $11.2M en exceso de capital sobre el umbral minimo. Esto posiciona a su institucion bien para un crecimiento organico de hasta 8-10% anual sin requerir capital adicional.',
+    responseEn: 'FirstBank\'s CET1 ratio is 16.4% ($2.4B equity / $14.6B risk-weighted assets), significantly above the 6.5% regulatory minimum and the 10% well-capitalized threshold. Total capital ratio: 17.8%. Excess capital above well-capitalized: $934M. This supports annual organic growth of 6-8% without capital raise. The 2025 share buyback program ($150M authorized) is well-covered. Key consideration: Basel III.1 implementation in 2026 may increase RWA for commercial real estate exposures by ~12%, which would reduce CET1 to approximately 14.8% — still well-capitalized.',
+    responseEs: 'El ratio CET1 de FirstBank es 16.4% ($2.4B patrimonio / $14.6B activos ponderados por riesgo), significativamente por encima del mínimo regulatorio de 6.5% y el umbral de bien capitalizado del 10%. Ratio capital total: 17.8%. Exceso de capital sobre bien capitalizado: $934M. Esto soporta crecimiento orgánico anual de 6-8% sin necesidad de levantar capital. El programa de recompra 2025 ($150M autorizado) está bien cubierto. Consideración clave: la implementación de Basel III.1 en 2026 puede incrementar los APR de CRE en ~12%, reduciendo CET1 a ~14.8% — aún bien capitalizado.',
   },
   {
     patternEn: 'stress',
-    responseEn: 'Under the Monte Carlo stress test (10,000 scenarios), the 95th percentile loss is $8.1M, which would reduce your net worth ratio from 10.2% to 7.9% - still above the 7% minimum. The worst-case scenario (99th percentile) shows a loss of $12.4M, which would breach the minimum. I recommend building an additional $4M capital buffer over the next 12 months.',
-    responseEs: 'Bajo la prueba de estres Monte Carlo (10,000 escenarios), la perdida del percentil 95 es $8.1M, lo que reduciria su ratio de capital neto de 10.2% a 7.9% - aun por encima del minimo del 7%. El peor escenario (percentil 99) muestra una perdida de $12.4M, que violaria el minimo. Recomiendo construir un buffer adicional de $4M de capital en los proximos 12 meses.',
+    responseEn: 'Under the Monte Carlo stress test (10,000 Vasicek paths), the 95th percentile NII loss is $385M, which would reduce NIM from 4.25% to 2.89%. The 99th percentile (CVaR) shows $528M loss, reducing NIM to 2.32%. Even in the severe adverse scenario, CET1 remains above 12.1% (well-capitalized threshold: 10%). DFAST 9-quarter projection under severely adverse: cumulative net loss of $892M with CET1 trough at 11.4% in Q6. Recommendation: the $4.8B HQLA buffer and $2.1B available FHLB capacity provide sufficient countercyclical cushion. No immediate action required.',
+    responseEs: 'Bajo la prueba de estrés Monte Carlo (10,000 senderos Vasicek), la pérdida NII del percentil 95 es $385M, que reduciría el NIM de 4.25% a 2.89%. El percentil 99 (CVaR) muestra pérdida de $528M, reduciendo NIM a 2.32%. Aun en el escenario severamente adverso, el CET1 se mantiene sobre 12.1% (umbral bien capitalizado: 10%). Proyección DFAST 9 trimestres adverso severo: pérdida neta acumulada $892M con CET1 mínimo 11.4% en Q6. Recomendación: el buffer HQLA de $4.8B y $2.1B de capacidad FHLB disponible proveen colchón contracíclico suficiente. No se requiere acción inmediata.',
   },
 ];
 
 const DEFAULT_CANNED_RESPONSE = {
-  responseEn: 'Based on Demo Cooperativa\'s current risk profile (score: 78/100), your institution is in a moderate risk position. Key areas to watch: (1) Duration gap of +2.3 years suggests asset-liability mismatch that should be addressed through shorter-duration asset allocation. (2) EVE sensitivity of -$4.2M at +200bps indicates vulnerability to rising rates. (3) Your strong capital position (10.2%) provides a buffer, but I recommend proactive duration management. Would you like me to elaborate on any specific metric?',
-  responseEs: 'Basado en el perfil de riesgo actual de Demo Cooperativa (puntaje: 78/100), su institucion se encuentra en una posicion de riesgo moderado. Areas clave a monitorear: (1) La brecha de duracion de +2.3 anos sugiere un desajuste activo-pasivo que debe abordarse mediante una asignacion de activos de menor duracion. (2) La sensibilidad EVE de -$4.2M a +200pbs indica vulnerabilidad a tasas en alza. (3) Su solida posicion de capital (10.2%) proporciona un buffer, pero recomiendo gestion proactiva de duracion. Desea que profundice en alguna metrica especifica?',
+  responseEn: 'Based on FirstBank Puerto Rico\'s current risk profile (score: 78/100), your institution is in a moderate risk position. Key areas to watch: (1) Duration gap of +2.3 years suggests asset-liability mismatch that should be addressed through shorter-duration asset allocation. (2) EVE sensitivity of -$4.2M at +200bps indicates vulnerability to rising rates. (3) Your strong capital position (10.2%) provides a buffer, but I recommend proactive duration management. Would you like me to elaborate on any specific metric?',
+  responseEs: 'Basado en el perfil de riesgo actual de FirstBank Puerto Rico (puntaje: 78/100), su institucion se encuentra en una posicion de riesgo moderado. Areas clave a monitorear: (1) La brecha de duracion de +2.3 anos sugiere un desajuste activo-pasivo que debe abordarse mediante una asignacion de activos de menor duracion. (2) La sensibilidad EVE de -$4.2M a +200pbs indica vulnerabilidad a tasas en alza. (3) Su solida posicion de capital (10.2%) proporciona un buffer, pero recomiendo gestion proactiva de duracion. Desea que profundice en alguna metrica especifica?',
 };
 
 // ──────────────────────────────────────────────
@@ -306,7 +306,7 @@ export default function DemoPage() {
       {/* ── AMBER BANNER ── */}
       <div className="bg-amber-500 px-4 py-2.5 text-center text-sm font-semibold text-white">
         <span className="mr-2">
-          {t('Demo Mode -- Sample data for Demo Cooperativa ($350M assets).', 'Modo Demo -- Datos de ejemplo para Demo Cooperativa ($350M activos).')}
+          {t('Demo Mode -- Sample data for FirstBank Puerto Rico ($18.9B assets).', 'Modo Demo -- Datos de ejemplo para FirstBank Puerto Rico ($18.9B activos).')}
         </span>
         <Link
           href="/pricing"
@@ -543,8 +543,8 @@ export default function DemoPage() {
                     </h2>
                     <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
                       {t(
-                        'Every analysis generates a comprehensive bilingual ALM report. Below is the table of contents for Demo Cooperativa\'s Q1 2026 report.',
-                        'Cada analisis genera un informe ALM bilingue completo. A continuacion se muestra el indice del informe Q1 2026 de Demo Cooperativa.'
+                        'Every analysis generates a comprehensive bilingual ALM report. Below is the table of contents for FirstBank Puerto Rico\'s Q1 2026 report.',
+                        'Cada analisis genera un informe ALM bilingue completo. A continuacion se muestra el indice del informe Q1 2026 de FirstBank Puerto Rico.'
                       )}
                     </p>
                   </div>
@@ -965,7 +965,7 @@ export default function DemoPage() {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleChatSend();
                         }}
-                        placeholder={t('Ask about Demo Cooperativa\'s risk profile...', 'Pregunte sobre el perfil de riesgo de Demo Cooperativa...')}
+                        placeholder={t('Ask about FirstBank Puerto Rico\'s risk profile...', 'Pregunte sobre el perfil de riesgo de FirstBank Puerto Rico...')}
                         className="cerniq-field flex-1 text-sm"
                       />
                       <button
@@ -1006,26 +1006,26 @@ export default function DemoPage() {
                 <div className="cerniq-shell p-5 sm:p-6">
                   <div className="cerniq-panel p-6">
                     <h2 className="font-display text-xl text-slate-950 mb-2">
-                      {l === 'en' ? '34 Quant Models — Goldman-Grade, Credit Union Pricing' : '34 Modelos Cuantitativos — Nivel Goldman, Precio Cooperativa'}
+                      {lang === 'en' ? '34 Quant Models — Goldman-Grade, Credit Union Pricing' : '34 Modelos Cuantitativos — Nivel Goldman, Precio Cooperativa'}
                     </h2>
                     <p className="text-sm text-slate-600 mb-5">
-                      {l === 'en'
+                      {lang === 'en'
                         ? 'Every model runs on your institution\'s real data. No consultants, no spreadsheets.'
                         : 'Cada modelo corre con datos reales de su institución. Sin consultores, sin hojas de cálculo.'}
                     </p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {[
-                        { name: 'Nelson-Siegel', desc: l === 'en' ? 'Yield curve' : 'Curva rendimiento' },
-                        { name: 'Vasicek MC', desc: l === 'en' ? '10K rate paths' : '10K senderos' },
-                        { name: 'Black-Litterman', desc: l === 'en' ? 'Bayesian allocation' : 'Asignación Bayesiana' },
+                        { name: 'Nelson-Siegel', desc: lang === 'en' ? 'Yield curve' : 'Curva rendimiento' },
+                        { name: 'Vasicek MC', desc: lang === 'en' ? '10K rate paths' : '10K senderos' },
+                        { name: 'Black-Litterman', desc: lang === 'en' ? 'Bayesian allocation' : 'Asignación Bayesiana' },
                         { name: 'CreditMetrics', desc: 'JP Morgan VaR' },
                         { name: 'KMV-Merton', desc: 'Distance-to-Default' },
                         { name: 'FRTB-IMA', desc: 'Basel III.1 ES' },
                         { name: 'CVaR Optimizer', desc: 'Rockafellar-Uryasev' },
                         { name: 'HRP', desc: 'López de Prado' },
                         { name: 'CECL 3-Method', desc: 'WARM + Vintage + PD' },
-                        { name: 'HMM Regime', desc: l === 'en' ? 'Viterbi 4-state' : 'Viterbi 4 estados' },
-                        { name: 'PCA Yield Curve', desc: l === 'en' ? '3-factor decomp' : 'Descomp. 3 factores' },
+                        { name: 'HMM Regime', desc: lang === 'en' ? 'Viterbi 4-state' : 'Viterbi 4 estados' },
+                        { name: 'PCA Yield Curve', desc: lang === 'en' ? '3-factor decomp' : 'Descomp. 3 factores' },
                         { name: 'Copula Credit', desc: 'Gaussian vs t' },
                       ].map((m) => (
                         <div key={m.name} className="rounded-lg border border-slate-200 bg-white p-2.5">
@@ -1035,7 +1035,7 @@ export default function DemoPage() {
                       ))}
                     </div>
                     <p className="text-center text-[10px] text-slate-400 mt-3">
-                      {l === 'en' ? '+ 22 more models across duration, liquidity, credit & market risk' : '+ 22 modelos más en duración, liquidez, crédito y riesgo de mercado'}
+                      {lang === 'en' ? '+ 22 more models across duration, liquidity, credit & market risk' : '+ 22 modelos más en duración, liquidez, crédito y riesgo de mercado'}
                     </p>
                   </div>
                 </div>
