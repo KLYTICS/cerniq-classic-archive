@@ -15,19 +15,29 @@ const displayFont = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "CERNIQ — Institutional ALM Intelligence | Credit Unions & Cooperativas",
-  description: "ALM analysis, regulatory compliance, and AP intelligence for credit unions, cooperativas, and community banks.",
-  keywords: "ALM reports, cooperativas, credit unions, COSSEC compliance, bilingual reporting, balance sheet upload, CERNIQ",
+  title: "CERNIQ — Institutional ALM Intelligence | 62 Modules, 34 Quant Models",
+  description: "Enterprise ALM platform with 62 analytical modules, 34 quant models (Nelson-Siegel, Monte Carlo, CreditMetrics, Black-Litterman), COSSEC/NCUA/Basel III compliance, and bilingual EN/ES reporting. From $2,400/year.",
+  keywords: "ALM software, asset liability management, credit union ALM, COSSEC compliance, NCUA ratios, Monte Carlo stress testing, NII sensitivity, EVE analysis, duration gap, CECL credit loss, yield curve modeling, bilingual ALM reports, Puerto Rico cooperativas, Basel IRRBB, CAMEL scoring, institutional risk intelligence, CERNIQ",
   metadataBase: new URL("https://cerniq.io"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "CERNIQ — Institutional ALM Intelligence | Credit Unions & Cooperativas",
-    description: "ALM analysis, regulatory compliance, and AP intelligence for credit unions, cooperativas, and community banks.",
+    title: "CERNIQ — 62 ALM Modules, 34 Quant Models, From $2,400/year",
+    description: "Goldman Sachs-grade ALM intelligence at credit union pricing. COSSEC, NCUA, and Basel III compliant. Bilingual EN/ES reports. Try the interactive demo.",
     url: "https://cerniq.io",
     siteName: "CERNIQ",
     locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CERNIQ — Institutional ALM Intelligence",
+    description: "62 modules, 34 quant models, COSSEC/NCUA/Basel III compliant. From $2,400/year.",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
   icons: {
     icon: "/favicon.svg",

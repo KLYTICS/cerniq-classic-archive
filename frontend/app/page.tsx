@@ -280,6 +280,12 @@ export default function LandingPage() {
               {t('Compliance', 'Cumplimiento')}
             </button>
             <button
+              onClick={() => router.push('/roi')}
+              className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:border-cyan-300/50 hover:text-slate-950 lg:inline-flex"
+            >
+              {t('ROI Calculator', 'Calculadora ROI')}
+            </button>
+            <button
               onClick={() => router.push('/login')}
               className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:border-cyan-300/50 hover:text-slate-950"
             >
