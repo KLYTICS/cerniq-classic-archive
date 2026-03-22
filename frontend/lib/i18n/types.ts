@@ -185,6 +185,11 @@ export interface TranslationKeys {
     capFloor: string;
     rbc2: string;
     macroFactors: string;
+    keyRateDuration: string;
+    ltp: string;
+    nimOptimizer: string;
+    form5300: string;
+    boardReport: string;
     profile: string;
     apiKeys: string;
     description: string;

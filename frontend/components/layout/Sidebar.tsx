@@ -57,32 +57,42 @@ const almNav: NavItem[] = [
       { href: '/alm/yield-curve', icon: TrendingUp, labelKey: 'sidebar.yieldCurve' },
       { href: '/alm/repricing-gap', icon: BarChart3, labelKey: 'sidebar.repricingGap' },
       { href: '/alm/rate-shock-v2', icon: Zap, labelKey: 'sidebar.rateShockV2' },
+      { href: '/alm/key-rate-durations', icon: SlidersHorizontal, labelKey: 'sidebar.keyRateDuration' },
+      { href: '/alm/sofr-exposure', icon: TrendingUp, labelKey: 'sidebar.sofrExposure' },
       // Liquidity
       { href: '/alm/liquidity', icon: Shield, labelKey: 'sidebar.liquidity' },
       { href: '/alm/stress-pack', icon: Shield, labelKey: 'sidebar.stressPack' },
+      { href: '/alm/ltp', icon: DollarSign, labelKey: 'sidebar.ltp' },
       // Credit
       { href: '/alm/cecl', icon: Shield, labelKey: 'sidebar.cecl' },
       { href: '/alm/concentration', icon: AlertOctagon, labelKey: 'sidebar.concentration' },
       { href: '/alm/credit-risk', icon: Shield, labelKey: 'sidebar.creditRisk' },
+      { href: '/alm/conc-var', icon: AlertOctagon, labelKey: 'sidebar.concVar' },
       // Quant Engine
       { href: '/alm/monte-carlo', icon: Activity, labelKey: 'sidebar.monteCarlo' },
       { href: '/alm/var', icon: AlertOctagon, labelKey: 'sidebar.var' },
       { href: '/alm/oas', icon: Landmark, labelKey: 'sidebar.oas' },
+      { href: '/alm/optionality', icon: SlidersHorizontal, labelKey: 'sidebar.optionality' },
       // Strategy
       { href: '/alm/ftp', icon: DollarSign, labelKey: 'sidebar.ftp' },
       { href: '/alm/capital-optimizer', icon: Zap, labelKey: 'sidebar.capitalOptimizer' },
       { href: '/alm/nim-attribution', icon: DollarSign, labelKey: 'sidebar.nimAttribution' },
+      { href: '/alm/nim-optimizer', icon: DollarSign, labelKey: 'sidebar.nimOptimizer' },
       { href: '/alm/forward-sim', icon: TrendingUp, labelKey: 'sidebar.forwardSim' },
       // Regulatory
       { href: '/alm/exam-prep', icon: Shield, labelKey: 'sidebar.examPrep' },
       { href: '/alm/irr-policy', icon: AlertOctagon, labelKey: 'sidebar.irrPolicy' },
       { href: '/alm/alerts', icon: Activity, labelKey: 'sidebar.alerts' },
       { href: '/alm/camel-forecast', icon: TrendingUp, labelKey: 'sidebar.camelForecast' },
+      { href: '/alm/form-5300', icon: Shield, labelKey: 'sidebar.form5300' },
+      { href: '/alm/board-report', icon: BarChart3, labelKey: 'sidebar.boardReport' },
       // Intelligence
       { href: '/alm/peer-analytics', icon: Activity, labelKey: 'sidebar.peerAnalytics' },
       { href: '/alm/climate-risk', icon: AlertOctagon, labelKey: 'sidebar.climateRisk' },
       { href: '/alm/macro-regime', icon: Activity, labelKey: 'sidebar.macroRegime' },
       { href: '/alm/stress-v2', icon: AlertOctagon, labelKey: 'sidebar.stressV2' },
+      { href: '/alm/ews', icon: AlertOctagon, labelKey: 'sidebar.ews' },
+      { href: '/alm/scenario-builder', icon: SlidersHorizontal, labelKey: 'sidebar.scenarioBuilder' },
       // Quant Frontier
       { href: '/alm/black-litterman', icon: TrendingUp, labelKey: 'sidebar.blackLitterman' },
       { href: '/alm/cvar-optimizer', icon: AlertOctagon, labelKey: 'sidebar.cvarOptimizer' },
