@@ -16,6 +16,8 @@ import {
 import RiskScoreGauge from '@/components/alm/RiskScoreGauge';
 import RiskBadge from '@/components/alm/RiskBadge';
 import AIAdvisorChat from '@/components/alm/AIAdvisorChat';
+import AlertBanner from '@/components/alm/AlertBanner';
+import ExportCSVButton from '@/components/alm/ExportCSVButton';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
 import { usePDFExport } from '@/hooks/usePDFExport';
@@ -202,10 +204,25 @@ export default function ALMDashboardPage() {
             className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] text-slate-500 hover:border-slate-300">
             <Download className="h-3 w-3" /> PDF
           </button>
+          <ExportCSVButton
+            data={{
+              'Health Score': score,
+              'NIM (%)': (nim / (s.institution.totalAssets || 445) * 100).toFixed(2),
+              'LCR (%)': lcr.toFixed(1),
+              'Duration Gap (yr)': gap.toFixed(1),
+              'Base NII ($M)': nim.toFixed(1),
+              'Total Assets ($M)': s.institution.totalAssets,
+              'Risk Profile': s.durationGap.riskProfile,
+              'Liquidity Status': s.liquidity.status,
+            }}
+            filename={`ALM_KPIs_${s.institution.name}`}
+          />
         </div>
       </div>
 
       {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</div>}
+
+      <AlertBanner />
 
       {/* ═══ KPI STRIP — 8 TILES ═══ */}
       <div className="grid grid-cols-4 md:grid-cols-8 gap-2.5">

@@ -241,6 +241,9 @@ export default function AdminPage() {
           <Link href="/admin/ops" className="flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
             <Activity className="h-4 w-4" /> Ops Dashboard
           </Link>
+          <Link href="/admin/audit" className="flex items-center gap-2 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
+            <FileText className="h-4 w-4" /> Audit Trail
+          </Link>
         </div>
 
         {/* Platform Metrics */}
