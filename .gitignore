@@ -57,6 +57,20 @@ __pycache__/
 venv/
 ENV/
 
+# Backend Node
+/backend-node/node_modules/
+/backend-node/dist/
+/backend-node/coverage/
+
+# Rust (legacy)
+/crates/
+/backend/target/
+
+# Legacy directories (archived — not part of active codebase)
+/archive/
+/platform/
+/projects/
+
 # Data cache
 /data/*.parquet
 /data/*.csv
@@ -67,3 +81,6 @@ tmp/
 temp/
 *.tmp
 .vercel
+
+# Firebase
+firebase-debug.log

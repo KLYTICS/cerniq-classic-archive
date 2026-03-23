@@ -241,7 +241,7 @@ function LoginContent() {
           </div>
 
           {error ? (
-            <div className="rounded-2xl border border-red-400/30 bg-red-500/12 px-4 py-3 text-sm text-red-200">
+            <div role="alert" className="rounded-2xl border border-red-400/30 bg-red-500/12 px-4 py-3 text-sm text-red-200">
               {error}
             </div>
           ) : null}

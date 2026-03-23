@@ -240,7 +240,7 @@ export default function LandingPage() {
     <div className="min-h-screen overflow-x-clip text-slate-950">
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
         {/* -- NAV -- */}
-        <nav className="mb-6 flex items-center justify-between gap-4 rounded-full border border-slate-200/80 bg-white/80 px-4 py-3 backdrop-blur-xl sm:px-6">
+        <nav aria-label="Main navigation" className="mb-6 flex items-center justify-between gap-4 rounded-full border border-slate-200/80 bg-white/80 px-4 py-3 backdrop-blur-xl sm:px-6">
           <button onClick={() => router.push('/')} className="flex items-center gap-3 text-left" aria-label="CERNIQ home">
             <CerniqMark size="sm" />
             <div>
