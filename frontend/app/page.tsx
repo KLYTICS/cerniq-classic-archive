@@ -1007,6 +1007,52 @@ export default function LandingPage() {
             </div>
           </section>
         </main>
+
+        {/* Footer */}
+        <footer className="border-t border-slate-200 bg-slate-50 py-8 px-6">
+          <div className="mx-auto max-w-6xl grid grid-cols-2 sm:grid-cols-4 gap-6 text-xs">
+            <div>
+              <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">{t('Product', 'Producto')}</p>
+              <div className="space-y-2">
+                <a href="/demo" className="block text-slate-500 hover:text-slate-800">{t('Interactive Demo', 'Demo Interactivo')}</a>
+                <a href="/pricing" className="block text-slate-500 hover:text-slate-800">{t('Pricing', 'Precios')}</a>
+                <a href="/roi" className="block text-slate-500 hover:text-slate-800">{t('ROI Calculator', 'Calculadora ROI')}</a>
+                <a href="/developers" className="block text-slate-500 hover:text-slate-800">{t('API Docs', 'Documentación API')}</a>
+                <a href="/changelog" className="block text-slate-500 hover:text-slate-800">{t("What's New", 'Novedades')}</a>
+              </div>
+            </div>
+            <div>
+              <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">{t('Platform', 'Plataforma')}</p>
+              <div className="space-y-2">
+                <a href="/why-cerniq" className="block text-slate-500 hover:text-slate-800">{t('Why CERNIQ', 'Por qué CERNIQ')}</a>
+                <a href="/compliance" className="block text-slate-500 hover:text-slate-800">{t('Compliance Matrix', 'Matriz Cumplimiento')}</a>
+                <a href="/case-studies" className="block text-slate-500 hover:text-slate-800">{t('Case Studies', 'Casos de Estudio')}</a>
+                <a href="/alm/modules" className="block text-slate-500 hover:text-slate-800">{t('62 ALM Modules', '62 Módulos ALM')}</a>
+              </div>
+            </div>
+            <div>
+              <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">{t('Compliance', 'Cumplimiento')}</p>
+              <div className="space-y-2">
+                <span className="block text-slate-500">COSSEC (PR)</span>
+                <span className="block text-slate-500">NCUA (US)</span>
+                <span className="block text-slate-500">Basel III / IRRBB</span>
+                <span className="block text-slate-500">FASB 326 (CECL)</span>
+              </div>
+            </div>
+            <div>
+              <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">{t('Company', 'Empresa')}</p>
+              <div className="space-y-2">
+                <span className="block text-slate-500">KLYTICS LLC</span>
+                <span className="block text-slate-500">San Juan, PR</span>
+                <a href="mailto:erwin@cerniq.io" className="block text-cyan-600 hover:text-cyan-800">erwin@cerniq.io</a>
+                <a href="/status" className="block text-slate-500 hover:text-slate-800">{t('System Status', 'Estado del Sistema')}</a>
+              </div>
+            </div>
+          </div>
+          <div className="mt-8 text-center text-[10px] text-slate-400">
+            &copy; {new Date().getFullYear()} KLYTICS LLC. {t('All rights reserved.', 'Todos los derechos reservados.')} CERNIQ&trade;
+          </div>
+        </footer>
       </div>
     </div>
   );
