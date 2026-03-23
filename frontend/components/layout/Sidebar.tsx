@@ -149,9 +149,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
   return (
     <>
-      {open ? <div className="fixed inset-0 z-40 bg-slate-950/15 lg:hidden" onClick={onClose} /> : null}
+      {open ? <div className="fixed inset-0 z-40 bg-slate-950/15 lg:hidden" onClick={onClose} aria-hidden="true" /> : null}
 
       <aside
+        role="navigation"
+        aria-label="Main navigation"
         className={`fixed top-0 left-0 z-50 flex h-full w-64 flex-col border-r border-slate-200/80 bg-[rgba(255,255,255,0.98)] shadow-[0_24px_80px_rgba(41,85,133,0.14)] backdrop-blur-xl transition-transform duration-200 ${
           open ? 'translate-x-0' : '-translate-x-full'
         } lg:static lg:z-auto lg:translate-x-0`}
@@ -161,7 +163,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             <Link href="/dashboard" className="flex items-center gap-2" onClick={onClose}>
               <CerniqLockup compact />
             </Link>
-            <button onClick={onClose} className="text-slate-400 transition hover:text-slate-950 lg:hidden">
+            <button onClick={onClose} className="text-slate-400 transition hover:text-slate-950 lg:hidden" aria-label="Close navigation menu">
               <X className="h-5 w-5" />
             </button>
           </div>

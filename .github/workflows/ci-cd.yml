@@ -49,6 +49,10 @@ jobs:
         working-directory: backend-node
         run: npx prisma validate
 
+      - name: Security audit
+        working-directory: backend-node
+        run: npm audit --audit-level=high --omit=dev || true
+
       - name: Lint
         working-directory: backend-node
         run: npm run lint
@@ -87,6 +91,10 @@ jobs:
       - name: Install dependencies
         working-directory: frontend
         run: npm ci --legacy-peer-deps
+
+      - name: Security audit
+        working-directory: frontend
+        run: npm audit --audit-level=high --omit=dev || true
 
       - name: Lint
         working-directory: frontend

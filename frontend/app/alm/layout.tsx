@@ -136,6 +136,7 @@ function MobileHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
         <button
           onClick={onOpenSidebar}
           className="rounded-xl p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
+          aria-label="Open navigation menu"
         >
           <Menu className="h-5 w-5" />
         </button>
