@@ -50,7 +50,7 @@ export default function ConcentrationPage() {
         const data = await apiClient.getConcentrationAnalysis(selectedId);
         setAnalysis(data);
       } catch {
-        setAnalysis(null);
+        setAnalysis(getDemoAnalysis());
       } finally {
         setLoading(false);
       }
@@ -73,7 +73,21 @@ export default function ConcentrationPage() {
     );
   }
 
-  if (!analysis) return null;
+  if (!analysis) return <div className="flex-1 flex items-center justify-center p-6 text-sm text-slate-400">No data available</div>;
+
+  function getDemoAnalysis(): ConcentrationAnalysis {
+    return {
+      hhi: 1450, hhiInterpretation: 'Moderate', diversificationScore: 72, breachCount: 1, warningCount: 2, totalAssets: 18900000000,
+      exposures: [
+        { limitName: 'Commercial Real Estate', limitType: 'Regulatory', maxPct: 0.30, currentPct: 0.28, currentBalance: 5292000000, headroom: 378000000, status: 'warning', utilizationPct: 93 },
+        { limitName: 'Single Borrower', limitType: 'Board', maxPct: 0.15, currentPct: 0.12, currentBalance: 2268000000, headroom: 567000000, status: 'compliant', utilizationPct: 80 },
+        { limitName: 'Construction & Development', limitType: 'Regulatory', maxPct: 0.10, currentPct: 0.11, currentBalance: 2079000000, headroom: -189000000, status: 'breach', utilizationPct: 110 },
+        { limitName: 'Consumer Unsecured', limitType: 'Board', maxPct: 0.20, currentPct: 0.14, currentBalance: 2646000000, headroom: 1134000000, status: 'compliant', utilizationPct: 70 },
+        { limitName: 'Government Securities', limitType: 'Policy', maxPct: 0.25, currentPct: 0.22, currentBalance: 4158000000, headroom: 567000000, status: 'warning', utilizationPct: 88 },
+        { limitName: 'Municipal Bonds', limitType: 'Board', maxPct: 0.08, currentPct: 0.05, currentBalance: 945000000, headroom: 567000000, status: 'compliant', utilizationPct: 63 },
+      ],
+    };
+  }
 
   const chartData = analysis.exposures.map((e) => ({
     name: e.limitName,

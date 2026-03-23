@@ -652,6 +652,8 @@ model DemoRequest {
   message         String?
   createdAt       DateTime @default(now()) @map("created_at")
 
+  @@index([email])
+  @@index([createdAt])
   @@map("demo_requests")
 }
 

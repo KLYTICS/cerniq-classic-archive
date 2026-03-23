@@ -26,6 +26,12 @@ async function bootstrap() {
     console.error('FATAL: DATABASE_URL must be set. Exiting.');
     process.exit(1);
   }
+  // Warn on missing but non-fatal integrations
+  const isProd = process.env.NODE_ENV === 'production';
+  if (isProd && !process.env.ADMIN_KEY) console.warn('WARN: ADMIN_KEY not set — admin endpoints disabled.');
+  if (isProd && !process.env.STRIPE_SECRET_KEY) console.warn('WARN: STRIPE_SECRET_KEY not set — billing disabled.');
+  if (isProd && !process.env.RESEND_API_KEY) console.warn('WARN: RESEND_API_KEY not set — email delivery disabled.');
+  if (isProd && !process.env.DATA_ENCRYPTION_KEY) console.warn('WARN: DATA_ENCRYPTION_KEY not set — PII encryption disabled.');
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true, // Required for Stripe webhook signature verification

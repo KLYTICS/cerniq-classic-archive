@@ -398,7 +398,13 @@ export class AppController {
 
   private verifyAdmin(key: string) {
     const adminKey = process.env.ADMIN_KEY;
-    if (!adminKey || key !== adminKey) {
+    if (!adminKey || !key) {
+      throw new UnauthorizedException('Invalid admin key');
+    }
+    // Timing-safe comparison to prevent oracle attacks
+    const a = Buffer.from(key);
+    const b = Buffer.from(adminKey);
+    if (a.length !== b.length || !require('crypto').timingSafeEqual(a, b)) {
       throw new UnauthorizedException('Invalid admin key');
     }
   }
