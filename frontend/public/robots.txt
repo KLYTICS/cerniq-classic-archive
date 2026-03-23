@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /portal
+Disallow: /portal/*
+Disallow: /settings
+Disallow: /settings/*
+Disallow: /onboarding
+Disallow: /onboarding/*
+Disallow: /api/
+
+Sitemap: https://cerniq.io/sitemap.xml

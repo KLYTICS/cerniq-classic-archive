@@ -54,6 +54,36 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'SoftwareApplication',
+              name: 'CERNIQ',
+              applicationCategory: 'FinanceApplication',
+              operatingSystem: 'Web',
+              description: 'Institutional ALM intelligence platform with 62 analytical modules, 34 quant models, and COSSEC/NCUA/Basel III compliance.',
+              url: 'https://cerniq.io',
+              offers: {
+                '@type': 'Offer',
+                price: '2400',
+                priceCurrency: 'USD',
+                priceValidUntil: '2027-01-01',
+                description: 'Annual ALM Platform',
+              },
+              publisher: {
+                '@type': 'Organization',
+                name: 'KLYTICS LLC',
+                url: 'https://cerniq.io',
+                address: { '@type': 'PostalAddress', addressLocality: 'San Juan', addressRegion: 'PR', addressCountry: 'US' },
+              },
+              featureList: 'ALM Analysis, Duration Gap, NII Sensitivity, EVE, Monte Carlo, CECL, Yield Curve, FTP, Stress Testing, CAMEL Scoring, Basel IRRBB, Bilingual EN/ES Reports',
+            }),
+          }}
+        />
+      </head>
       <body className={`${bodyFont.variable} ${displayFont.variable}`}>
         <Providers>
         {children}

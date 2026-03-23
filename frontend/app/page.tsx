@@ -1044,7 +1044,8 @@ export default function LandingPage() {
               <div className="space-y-2">
                 <span className="block text-slate-500">KLYTICS LLC</span>
                 <span className="block text-slate-500">San Juan, PR</span>
-                <a href="mailto:erwin@cerniq.io" className="block text-cyan-600 hover:text-cyan-800">erwin@cerniq.io</a>
+                <a href="/contact" className="block text-cyan-600 hover:text-cyan-800">{t('Book a Demo', 'Agendar Demo')}</a>
+                <a href="mailto:erwin@cerniq.io" className="block text-slate-500 hover:text-slate-800">erwin@cerniq.io</a>
                 <a href="/status" className="block text-slate-500 hover:text-slate-800">{t('System Status', 'Estado del Sistema')}</a>
               </div>
             </div>
