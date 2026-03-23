@@ -9,5 +9,6 @@ Disallow: /settings/*
 Disallow: /onboarding
 Disallow: /onboarding/*
 Disallow: /api/
+Disallow: /auth/
 
 Sitemap: https://cerniq.io/sitemap.xml
