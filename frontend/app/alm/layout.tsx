@@ -19,6 +19,7 @@ function LanguageToggle() {
         onClick={() => setLocale('en')}
         className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${locale === 'en' ? 'bg-cyan-500 text-slate-950' : 'text-slate-500 hover:text-slate-950'
           }`}
+        aria-label="Switch to English" aria-pressed={locale === 'en'}
       >
         EN
       </button>
@@ -26,6 +27,7 @@ function LanguageToggle() {
         onClick={() => setLocale('es')}
         className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${locale === 'es' ? 'bg-cyan-500 text-slate-950' : 'text-slate-500 hover:text-slate-950'
           }`}
+        aria-label="Cambiar a Espanol" aria-pressed={locale === 'es'}
       >
         ES
       </button>

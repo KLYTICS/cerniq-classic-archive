@@ -146,6 +146,7 @@ export default function LandingPage() {
   const [institutionName, setInstitutionName] = useState('');
   const [institutionType, setInstitutionType] = useState('');
   const [totalAssets, setTotalAssets] = useState('');
+  const [honeypot, setHoneypot] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -199,6 +200,7 @@ export default function LandingPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (honeypot) return; // Bot trap
     setSubmitError('');
     setLoading(true);
 
@@ -928,8 +930,12 @@ export default function LandingPage() {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Honeypot anti-spam */}
+                  <div className="absolute -left-[9999px]" aria-hidden="true">
+                    <input type="text" name="website" tabIndex={-1} autoComplete="off" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
+                  </div>
                   {submitError ? (
-                    <div className="rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{submitError}</div>
+                    <div role="alert" className="rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{submitError}</div>
                   ) : null}
 
                   <div className="grid gap-4 sm:grid-cols-2">

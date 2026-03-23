@@ -8,12 +8,14 @@ import { CerniqMark } from '@/components/brand/CerniqLogo';
 export default function ContactPage() {
   const [lang, setLang] = useState<'en' | 'es'>('en');
   const [form, setForm] = useState({ name: '', email: '', institution: '', assets: '', message: '' });
+  const [honeypot, setHoneypot] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const t = (en: string, es: string) => lang === 'en' ? en : es;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (honeypot) return; // Bot trap — real users never fill this
     setLoading(true);
     try {
       const NODE = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
@@ -109,6 +111,10 @@ export default function ContactPage() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 p-6 space-y-4">
+                {/* Honeypot anti-spam field — hidden from real users */}
+                <div className="absolute -left-[9999px]" aria-hidden="true">
+                  <input type="text" name="website" tabIndex={-1} autoComplete="off" value={honeypot} onChange={e => setHoneypot(e.target.value)} />
+                </div>
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-1.5">{t('Your Name', 'Su Nombre')}</label>
                   <input type="text" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}

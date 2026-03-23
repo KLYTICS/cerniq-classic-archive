@@ -169,12 +169,14 @@ export default function PricingPage() {
             <button
               onClick={() => setLang('en')}
               className={`rounded-l-full px-2.5 py-1.5 font-semibold transition ${lang === 'en' ? 'bg-cyan-700 text-white' : 'text-slate-500 hover:text-slate-950'}`}
+              aria-label="Switch to English" aria-pressed={lang === 'en'}
             >
               EN
             </button>
             <button
               onClick={() => setLang('es')}
               className={`rounded-r-full px-2.5 py-1.5 font-semibold transition ${lang === 'es' ? 'bg-cyan-700 text-white' : 'text-slate-500 hover:text-slate-950'}`}
+              aria-label="Cambiar a Espanol" aria-pressed={lang === 'es'}
             >
               ES
             </button>
