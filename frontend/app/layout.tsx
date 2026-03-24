@@ -3,6 +3,7 @@ import { Manrope, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Providers from '@/components/Providers';
+import CookieConsent from '@/components/CookieConsent';
 
 const bodyFont = Manrope({
   subsets: ['latin'],
@@ -92,6 +93,7 @@ export default function RootLayout({
         <div id="main-content">
         {children}
         </div>
+        <CookieConsent />
         </Providers>
         {SEGMENT_WRITE_KEY && (
           <Script id="segment-analytics" strategy="afterInteractive">

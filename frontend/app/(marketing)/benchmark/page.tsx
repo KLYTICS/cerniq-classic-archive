@@ -111,9 +111,14 @@ export default function BenchmarkPage() {
         )}
 
         {/* Social Proof */}
-        <div className="mt-16 text-center text-slate-500 text-xs">
+        <div className="mt-16 text-center text-slate-500 text-xs space-y-1">
           <p>94 cooperativas PR analizadas · 54 modelos Prisma · Formato exacto COSSEC</p>
-          <p className="mt-1">© {new Date().getFullYear()} KLYTICS LLC · cerniq.io</p>
+          <p>© {new Date().getFullYear()} KLYTICS LLC · cerniq.io</p>
+          <div className="flex items-center justify-center gap-3 mt-2">
+            <a href="/terms" className="hover:text-slate-700">Terms</a>
+            <a href="/privacy" className="hover:text-slate-700">Privacy</a>
+            <a href="/security" className="hover:text-slate-700">Security</a>
+          </div>
         </div>
       </div>
     </div>

@@ -216,20 +216,23 @@ function LoginContent() {
 
         <form onSubmit={handleSubmit} className="mt-10 space-y-6">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-200">{t('login.email')}</label>
+            <label htmlFor="login-email" className="mb-2 block text-sm font-medium text-slate-200">{t('login.email')}</label>
             <input
+              id="login-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-2xl border border-[#41577d] bg-[#202a43] px-5 py-4 text-white placeholder:text-slate-500 focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
               placeholder={t('login.emailPlaceholder')}
               required
+              autoComplete="email"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-200">{t('login.password')}</label>
+            <label htmlFor="login-password" className="mb-2 block text-sm font-medium text-slate-200">{t('login.password')}</label>
             <input
+              id="login-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -237,6 +240,7 @@ function LoginContent() {
               placeholder="••••••••"
               required
               minLength={8}
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
             />
           </div>
 

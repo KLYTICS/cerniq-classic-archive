@@ -116,22 +116,22 @@ export default function ContactPage() {
                   <input type="text" name="website" tabIndex={-1} autoComplete="off" value={honeypot} onChange={e => setHoneypot(e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-1.5">{t('Your Name', 'Su Nombre')}</label>
-                  <input type="text" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                  <label htmlFor="contact-name" className="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-1.5">{t('Your Name', 'Su Nombre')}</label>
+                  <input id="contact-name" type="text" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
                     className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:border-cyan-400 focus:ring-1 focus:ring-cyan-300 outline-none"
-                    placeholder={t('John Rivera', 'Juan Rivera')} />
+                    placeholder={t('John Rivera', 'Juan Rivera')} autoComplete="name" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-1.5">{t('Work Email', 'Email Laboral')}</label>
-                  <input type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+                  <label htmlFor="contact-email" className="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-1.5">{t('Work Email', 'Email Laboral')}</label>
+                  <input id="contact-email" type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                     className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:border-cyan-400 focus:ring-1 focus:ring-cyan-300 outline-none"
-                    placeholder="name@institution.com" />
+                    placeholder="name@institution.com" autoComplete="email" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-1.5">{t('Institution Name', 'Nombre Institución')}</label>
-                  <input type="text" required value={form.institution} onChange={e => setForm({ ...form, institution: e.target.value })}
+                  <label htmlFor="contact-institution" className="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-1.5">{t('Institution Name', 'Nombre Institución')}</label>
+                  <input id="contact-institution" type="text" required value={form.institution} onChange={e => setForm({ ...form, institution: e.target.value })}
                     className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:border-cyan-400 focus:ring-1 focus:ring-cyan-300 outline-none"
-                    placeholder={t('Cooperativa Oriental', 'Cooperativa Oriental')} />
+                    placeholder={t('Cooperativa Oriental', 'Cooperativa Oriental')} autoComplete="organization" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-1.5">{t('Asset Size', 'Tamaño de Activos')}</label>
