@@ -9,7 +9,9 @@ export class DataCryptoService {
   private getKey(): Buffer | null {
     const key = process.env.DATA_ENCRYPTION_KEY;
     if (!key) {
-      this.logger.warn('DATA_ENCRYPTION_KEY not set — data will not be encrypted');
+      this.logger.warn(
+        'DATA_ENCRYPTION_KEY not set — data will not be encrypted',
+      );
       return null;
     }
     return Buffer.from(key, 'hex');

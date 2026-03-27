@@ -6,7 +6,10 @@
  * Weights sum to 100 for the exam-readiness score.
  */
 
-import { IRegulatoryFramework, RegulatoryRatio } from './regulatory-framework.interface';
+import {
+  IRegulatoryFramework,
+  RegulatoryRatio,
+} from './regulatory-framework.interface';
 
 const COSSEC_RATIOS: RegulatoryRatio[] = [
   {

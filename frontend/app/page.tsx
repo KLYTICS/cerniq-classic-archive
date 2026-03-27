@@ -183,7 +183,7 @@ export default function LandingPage() {
     return () => clearInterval(interval);
   }, [urgencyHooks.length]);
 
-  const getSubmitErrorMessage = (error: unknown) => {
+  const getSubmitErrorMessage = (error: unknown): string => {
     if (
       typeof error === 'object' &&
       error !== null &&
@@ -192,7 +192,12 @@ export default function LandingPage() {
       (error as { response?: { data?: unknown } }).response?.data &&
       typeof (error as { response?: { data?: { message?: unknown } } }).response?.data?.message === 'string'
     ) {
-      return (error as { response?: { data?: { message?: string } } }).response?.data?.message;
+      const message =
+        (error as { response?: { data?: { message?: string } } }).response?.data
+          ?.message;
+      if (message) {
+        return message;
+      }
     }
 
     return t('Failed to submit. Please try again.', 'No se pudo enviar. Intente de nuevo.');

@@ -162,7 +162,10 @@ describe('BillingService', () => {
 
     it('should use "subscription" mode for monthly tier', async () => {
       const stripeMock = (service as any).stripe;
-      stripeMock.checkout.sessions.create.mockResolvedValue({ url: '', id: 'cs_m' });
+      stripeMock.checkout.sessions.create.mockResolvedValue({
+        url: '',
+        id: 'cs_m',
+      });
 
       await service.createCheckoutSession({
         tier: 'monthly',
@@ -176,7 +179,10 @@ describe('BillingService', () => {
 
     it('should prepend FRONTEND_URL to success/cancel URLs', async () => {
       const stripeMock = (service as any).stripe;
-      stripeMock.checkout.sessions.create.mockResolvedValue({ url: '', id: 'cs_x' });
+      stripeMock.checkout.sessions.create.mockResolvedValue({
+        url: '',
+        id: 'cs_x',
+      });
 
       await service.createCheckoutSession({
         tier: 'annual',
@@ -191,7 +197,10 @@ describe('BillingService', () => {
 
     it('should keep absolute success and cancel URLs unchanged', async () => {
       const stripeMock = (service as any).stripe;
-      stripeMock.checkout.sessions.create.mockResolvedValue({ url: '', id: 'cs_abs' });
+      stripeMock.checkout.sessions.create.mockResolvedValue({
+        url: '',
+        id: 'cs_abs',
+      });
 
       await service.createCheckoutSession({
         tier: 'monthly',
@@ -200,13 +209,18 @@ describe('BillingService', () => {
       });
 
       const callArgs = stripeMock.checkout.sessions.create.mock.calls[0][0];
-      expect(callArgs.success_url).toBe('https://preview.cerniq.io/portal?welcome=1');
+      expect(callArgs.success_url).toBe(
+        'https://preview.cerniq.io/portal?welcome=1',
+      );
       expect(callArgs.cancel_url).toBe('https://preview.cerniq.io/pricing');
     });
 
     it('should pass metadata including leadId and institutionName', async () => {
       const stripeMock = (service as any).stripe;
-      stripeMock.checkout.sessions.create.mockResolvedValue({ url: '', id: 'cs_y' });
+      stripeMock.checkout.sessions.create.mockResolvedValue({
+        url: '',
+        id: 'cs_y',
+      });
 
       await service.createCheckoutSession({
         tier: 'monthly',
@@ -235,9 +249,9 @@ describe('BillingService', () => {
     it('should throw when no subscription exists', async () => {
       prisma.subscription.findUnique.mockResolvedValue(null);
 
-      await expect(service.createBillingPortalSession('user-1')).rejects.toThrow(
-        'No billing account found',
-      );
+      await expect(
+        service.createBillingPortalSession('user-1'),
+      ).rejects.toThrow('No billing account found');
     });
 
     it('should throw when subscription has no stripeCustomerId', async () => {
@@ -246,9 +260,9 @@ describe('BillingService', () => {
         stripeCustomerId: null,
       });
 
-      await expect(service.createBillingPortalSession('user-1')).rejects.toThrow(
-        'No billing account found',
-      );
+      await expect(
+        service.createBillingPortalSession('user-1'),
+      ).rejects.toThrow('No billing account found');
     });
 
     it('should create portal session with return URL', async () => {
@@ -461,13 +475,23 @@ describe('BillingService', () => {
         tier: 'monthly',
         currentPeriodEnd: new Date(),
       });
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: 'u@test.com', name: 'U' });
-      prisma.reportJob.findFirst.mockResolvedValue({ institutionName: 'Coop A' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'u@test.com',
+        name: 'U',
+      });
+      prisma.reportJob.findFirst.mockResolvedValue({
+        institutionName: 'Coop A',
+      });
       prisma.reportJob.create.mockResolvedValue({});
 
       const invoice = {
         customer: 'cus_123',
-        lines: { data: [{ period: { end: Math.floor(Date.now() / 1000) + 86400 * 30 } }] },
+        lines: {
+          data: [
+            { period: { end: Math.floor(Date.now() / 1000) + 86400 * 30 } },
+          ],
+        },
       } as any;
 
       await service.handleInvoicePaid(invoice);
@@ -486,8 +510,14 @@ describe('BillingService', () => {
         userId: 'user-1',
         tier: 'monthly',
       });
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: 'u@test.com', name: 'U' });
-      prisma.reportJob.findFirst.mockResolvedValue({ institutionName: 'Coop B' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'u@test.com',
+        name: 'U',
+      });
+      prisma.reportJob.findFirst.mockResolvedValue({
+        institutionName: 'Coop B',
+      });
       prisma.reportJob.create.mockResolvedValue({});
 
       await service.handleInvoicePaid({
@@ -510,7 +540,11 @@ describe('BillingService', () => {
         userId: 'user-1',
         tier: 'annual',
       });
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: 'u@test.com', name: 'Jane' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'u@test.com',
+        name: 'Jane',
+      });
       prisma.reportJob.findFirst.mockResolvedValue(null);
       prisma.reportJob.create.mockResolvedValue({});
 
@@ -528,7 +562,10 @@ describe('BillingService', () => {
     it('should silently skip when no matching subscription', async () => {
       prisma.subscription.findFirst.mockResolvedValue(null);
 
-      await service.handleInvoicePaid({ customer: 'cus_unknown', lines: { data: [] } } as any);
+      await service.handleInvoicePaid({
+        customer: 'cus_unknown',
+        lines: { data: [] },
+      } as any);
 
       expect(prisma.subscription.update).not.toHaveBeenCalled();
     });
@@ -543,7 +580,11 @@ describe('BillingService', () => {
         userId: 'user-1',
         tier: 'monthly',
       });
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: 'u@test.com', name: 'U' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'u@test.com',
+        name: 'U',
+      });
 
       await service.handlePaymentFailed({ customer: 'cus_1' } as any);
 
@@ -559,7 +600,11 @@ describe('BillingService', () => {
         userId: 'user-1',
         tier: 'monthly',
       });
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: 'cfo@coop.pr', name: 'Maria' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'cfo@coop.pr',
+        name: 'Maria',
+      });
 
       await service.handlePaymentFailed({ customer: 'cus_1' } as any);
 
@@ -575,7 +620,10 @@ describe('BillingService', () => {
         userId: 'user-1',
         tier: 'annual',
       });
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: 'fail@test.com' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'fail@test.com',
+      });
 
       await service.handlePaymentFailed({ customer: 'cus_1' } as any);
 
@@ -596,11 +644,17 @@ describe('BillingService', () => {
         id: 'sub-1',
         userId: 'user-1',
       });
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: 'gone@test.com', name: 'Ex' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'gone@test.com',
+        name: 'Ex',
+      });
       prisma.emailSequence.findFirst.mockResolvedValue(null);
       prisma.emailSequence.create.mockResolvedValue({});
 
-      await service.handleSubscriptionCancelled({ customer: 'cus_cancel' } as any);
+      await service.handleSubscriptionCancelled({
+        customer: 'cus_cancel',
+      } as any);
 
       expect(prisma.subscription.update).toHaveBeenCalledWith({
         where: { id: 'sub-1' },
@@ -612,8 +666,15 @@ describe('BillingService', () => {
     });
 
     it('should send cancellation email', async () => {
-      prisma.subscription.findFirst.mockResolvedValue({ id: 'sub-1', userId: 'user-1' });
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: 'bye@test.com', name: 'Bye' });
+      prisma.subscription.findFirst.mockResolvedValue({
+        id: 'sub-1',
+        userId: 'user-1',
+      });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'bye@test.com',
+        name: 'Bye',
+      });
       prisma.emailSequence.findFirst.mockResolvedValue(null);
       prisma.emailSequence.create.mockResolvedValue({});
 
@@ -626,8 +687,15 @@ describe('BillingService', () => {
     });
 
     it('should schedule D5 win-back email at 90 days', async () => {
-      prisma.subscription.findFirst.mockResolvedValue({ id: 'sub-1', userId: 'user-1' });
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: 'wb@test.com', name: 'WB' });
+      prisma.subscription.findFirst.mockResolvedValue({
+        id: 'sub-1',
+        userId: 'user-1',
+      });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'wb@test.com',
+        name: 'WB',
+      });
       prisma.emailSequence.findFirst.mockResolvedValue(null);
       prisma.emailSequence.create.mockResolvedValue({});
 
@@ -668,7 +736,9 @@ describe('BillingService', () => {
 
       const url = await service.generateMagicLink('user-1');
 
-      expect(url).toMatch(/^https:\/\/cerniq\.io\/auth\/magic\?token=[a-f0-9]{64}$/);
+      expect(url).toMatch(
+        /^https:\/\/cerniq\.io\/auth\/magic\?token=[a-f0-9]{64}$/,
+      );
       expect(prisma.magicLink.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           userId: 'user-1',
@@ -810,7 +880,9 @@ describe('BillingService', () => {
 
       expect(email.sendMagicLinkEmail).toHaveBeenCalledWith({
         email: 'exists@test.com',
-        magicUrl: expect.stringContaining('https://cerniq.io/auth/magic?token='),
+        magicUrl: expect.stringContaining(
+          'https://cerniq.io/auth/magic?token=',
+        ),
         name: 'Test',
       });
     });

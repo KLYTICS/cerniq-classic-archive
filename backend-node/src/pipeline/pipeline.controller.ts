@@ -1,6 +1,16 @@
 import {
-  Controller, Get, Post, Param, Body, Headers, Query,
-  UnauthorizedException, HttpCode, HttpStatus, Logger, Sse,
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  Headers,
+  Query,
+  UnauthorizedException,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Sse,
 } from '@nestjs/common';
 import { Observable, interval, map, takeWhile, switchMap, from } from 'rxjs';
 import { PrismaService } from '../prisma.service';
@@ -38,7 +48,11 @@ export class PipelineController {
     // Pipeline health metrics
     const [awaitingData, processing, complete, failed] = await Promise.all([
       this.prisma.reportJob.count({ where: { status: 'AWAITING_DATA' } }),
-      this.prisma.reportJob.count({ where: { status: { in: ['PROCESSING', 'GENERATING_PDF', 'UPLOADING'] } } }),
+      this.prisma.reportJob.count({
+        where: {
+          status: { in: ['PROCESSING', 'GENERATING_PDF', 'UPLOADING'] },
+        },
+      }),
       this.prisma.reportJob.count({ where: { status: 'COMPLETE' } }),
       this.prisma.reportJob.count({ where: { status: 'FAILED' } }),
     ]);
@@ -96,7 +110,10 @@ export class PipelineController {
 
     await this.prisma.reportJob.update({
       where: { id: jobId },
-      data: { status: 'FAILED', errorMessage: body.reason || 'Manually failed by admin' },
+      data: {
+        status: 'FAILED',
+        errorMessage: body.reason || 'Manually failed by admin',
+      },
     });
 
     this.logger.log({ event: 'admin.force_fail', jobId, reason: body.reason });
@@ -129,9 +146,19 @@ export class PipelineController {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfYear = new Date(now.getFullYear(), 0, 1);
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
 
-    const [todayRevenue, monthRevenue, yearRevenue, activeSubscriptions, totalSubscriptions] = await Promise.all([
+    const [
+      todayRevenue,
+      monthRevenue,
+      yearRevenue,
+      activeSubscriptions,
+      totalSubscriptions,
+    ] = await Promise.all([
       this.prisma.lead.aggregate({
         _sum: { revenueAmount: true },
         where: { status: 'CLOSED_WON', convertedAt: { gte: startOfDay } },
@@ -144,16 +171,24 @@ export class PipelineController {
         _sum: { revenueAmount: true },
         where: { status: 'CLOSED_WON', convertedAt: { gte: startOfYear } },
       }),
-      this.prisma.subscription.count({ where: { status: 'active', tier: { not: 'one_time' } } }),
+      this.prisma.subscription.count({
+        where: { status: 'active', tier: { not: 'one_time' } },
+      }),
       this.prisma.subscription.count({ where: { status: 'active' } }),
     ]);
 
     // Calculate MRR from active subscriptions
-    const monthlySubs = await this.prisma.subscription.count({ where: { status: 'active', tier: 'monthly' } });
-    const annualSubs = await this.prisma.subscription.count({ where: { status: 'active', tier: 'annual' } });
-    const partnerSubs = await this.prisma.subscription.count({ where: { status: 'active', tier: 'partner' } });
+    const monthlySubs = await this.prisma.subscription.count({
+      where: { status: 'active', tier: 'monthly' },
+    });
+    const annualSubs = await this.prisma.subscription.count({
+      where: { status: 'active', tier: 'annual' },
+    });
+    const partnerSubs = await this.prisma.subscription.count({
+      where: { status: 'active', tier: 'partner' },
+    });
 
-    const mrr = (monthlySubs * 299) + (annualSubs * 200) + (partnerSubs * 499); // annual = $2400/12 = $200/mo
+    const mrr = monthlySubs * 299 + annualSubs * 200 + partnerSubs * 499; // annual = $2400/12 = $200/mo
 
     return {
       revenueToday: todayRevenue._sum.revenueAmount || 0,
@@ -171,13 +206,17 @@ export class PipelineController {
   @Sse('api/jobs/:jobId/status')
   jobStatus(@Param('jobId') jobId: string): Observable<MessageEvent> {
     return interval(3000).pipe(
-      switchMap(() => from(this.prisma.reportJob.findUnique({
-        where: { id: jobId },
-        select: { status: true, completedAt: true, errorMessage: true },
-      }))),
-      map(job => ({ data: job } as MessageEvent)),
-      takeWhile(event => {
-        const status = (event.data as any)?.status;
+      switchMap(() =>
+        from(
+          this.prisma.reportJob.findUnique({
+            where: { id: jobId },
+            select: { status: true, completedAt: true, errorMessage: true },
+          }),
+        ),
+      ),
+      map((job) => ({ data: job }) as MessageEvent),
+      takeWhile((event) => {
+        const status = event.data?.status;
         return status !== 'COMPLETE' && status !== 'FAILED';
       }, true),
     );

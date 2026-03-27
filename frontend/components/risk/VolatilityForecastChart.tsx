@@ -134,8 +134,8 @@ export function VolatilityForecastChart({ ticker, horizon = 30 }: VolatilityFore
                                 borderRadius: '8px',
                             }}
                             labelStyle={{ color: '#0f172a' }}
-                            formatter={(value: number | string, name: string | undefined) => {
-                                const numericValue = Number(value);
+                            formatter={(value, name) => {
+                                const numericValue = Number(value ?? 0);
                                 const formatted = `${(numericValue * 100).toFixed(2)}%`;
                                 if (name === 'volatility') return [formatted, 'Forecast'];
                                 if (name === 'lower95') return [formatted, '95% Lower Bound'];

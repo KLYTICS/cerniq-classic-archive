@@ -27,8 +27,8 @@ Complete every item before deploying. Do not skip items even for "small" changes
 
 - [ ] All changes committed and pushed to `main`
 - [ ] No TypeScript compilation errors: `cd backend-node && npx tsc --noEmit`
-- [ ] No frontend build errors: `cd frontend && bun run build`
-- [ ] Prisma schema matches migrations: `npx prisma migrate status`
+- [ ] No frontend build errors: `cd frontend && npm run build`
+- [ ] Prisma schema matches migrations: `cd backend-node && DATABASE_URL="postgresql://..." npm run prisma:status`
 - [ ] If schema changed: new migration created with `npx prisma migrate dev --name <description>`
 
 ### Environment Variables
@@ -90,8 +90,10 @@ The `backend-node/Dockerfile` executes:
 1. `npm ci` -- installs dependencies
 2. `npx prisma generate` -- generates Prisma client
 3. `npx nest build` -- compiles TypeScript
-4. On container start: `npx prisma migrate deploy` -- applies pending migrations
-5. `node dist/src/main.js` -- starts the NestJS server
+4. On container start: `node dist/src/main.js` -- starts the NestJS server
+
+Schema migrations are not run automatically at boot. Run them explicitly before
+deploying schema-dependent code. See [schema migration policy](/Users/money/Desktop/Cerniq/docs/ops/schema_migration_policy.md).
 
 ### Monitoring the Deploy
 
@@ -100,9 +102,8 @@ The `backend-node/Dockerfile` executes:
 railway logs --follow
 
 # Or watch in the dashboard for:
-# - "Prisma Migrate: X migrations applied"
 # - "Nest application successfully started"
-# - Health check passes (Railway auto-checks the PORT)
+# - Health check passes on /health
 ```
 
 Typical deploy time: 2-4 minutes.
@@ -134,7 +135,7 @@ vercel --prod
 |---------|-------|
 | Framework | Next.js |
 | Root Directory | `frontend/` |
-| Build Command | `bun run build` (or `next build`) |
+| Build Command | `npm run build` |
 | Output Directory | `.next` |
 | Node.js Version | 20.x |
 
@@ -154,24 +155,23 @@ Typical deploy time: 1-2 minutes.
 
 ## 4. Database Migration
 
-### Automatic (Default)
-
-The Railway Dockerfile runs `npx prisma migrate deploy` on every container start. No manual action needed for standard migrations.
-
-### Manual (If Needed)
+### Explicit Production Step
 
 ```bash
 cd backend-node
 
 # Check current status
-DATABASE_URL="postgresql://..." npx prisma migrate status
+DATABASE_URL="postgresql://..." npm run prisma:status
 
-# Apply pending migrations
-DATABASE_URL="postgresql://..." npx prisma migrate deploy
+# Apply pending migrations from a controlled release step
+DATABASE_URL="postgresql://..." ALLOW_SCHEMA_MIGRATIONS=true npm run prisma:deploy
 
 # Verify
-DATABASE_URL="postgresql://..." npx prisma migrate status
+DATABASE_URL="postgresql://..." npm run prisma:status
 ```
+
+Do not run schema changes during app startup. The backend must boot against an
+already-prepared database.
 
 ### Before Destructive Migrations
 
@@ -180,7 +180,7 @@ If a migration drops columns, tables, or changes types:
 1. **Backup the database** via Railway dashboard (Settings > Backups > Create Backup)
 2. Test the migration locally against a copy of production data
 3. Schedule a maintenance window if data transformation is slow
-4. Deploy backend first (migration runs), then frontend
+4. Run the explicit migration step first, then deploy backend, then frontend
 
 ---
 
@@ -199,11 +199,11 @@ All checks should show PASS. See `scripts/health-check.sh` for details.
 ```bash
 # 1. Backend health
 curl https://api.cerniq.io/health
-# Expected: {"status":"ok","db":"connected","version":"2.0.0",...}
+# Expected: {"success":true,"data":{"status":"ok"|"degraded",...}}
 
 # 2. Backend readiness
 curl https://api.cerniq.io/ready
-# Expected: {"ready":true,"checks":{"database":"ok"},...}
+# Expected: {"success":true,"data":{"ready":true,"checks":{"database":"ok"},...}}
 
 # 3. API status
 curl https://api.cerniq.io/api/status

@@ -1,6 +1,14 @@
 import {
-  Controller, Post, Get, Put, Param, Body, Query,
-  Logger, Headers, UnauthorizedException,
+  Controller,
+  Post,
+  Get,
+  Put,
+  Param,
+  Body,
+  Query,
+  Logger,
+  Headers,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { LeadsService } from './leads.service';
@@ -17,7 +25,9 @@ export class LeadsController {
   @Post('api/v1/leads/submit')
   @Throttle({ default: { limit: 20, ttl: 3600000 } })
   async submitLead(@Body() dto: SubmitLeadDto) {
-    this.logger.log(`Lead submission: ${dto.institutionName} (${dto.institutionType})`);
+    this.logger.log(
+      `Lead submission: ${dto.institutionName} (${dto.institutionType})`,
+    );
     return this.leads.submitLead(dto);
   }
 
@@ -103,7 +113,7 @@ export class LeadsController {
     @Query('lang') lang?: string,
   ) {
     this.verifyAdmin(adminKey);
-    return this.leads.generateOutreach(id, (lang === 'en' ? 'en' : 'es'));
+    return this.leads.generateOutreach(id, lang === 'en' ? 'en' : 'es');
   }
 
   private verifyAdmin(key: string) {

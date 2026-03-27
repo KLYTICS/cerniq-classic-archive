@@ -14,7 +14,7 @@ export interface NamedScenario {
   type: 'parallel' | 'steepening' | 'flattening' | 'pr_specific';
   rateShiftBps: number;
   depositShockPct: number; // e.g., -5 means 5% deposit outflow
-  creditShockPct: number;  // e.g., +2 means 2% increase in defaults
+  creditShockPct: number; // e.g., +2 means 2% increase in defaults
   description: string;
   descriptionEs: string;
   regulatoryBasis: string;
@@ -22,12 +22,12 @@ export interface NamedScenario {
 
 export interface NamedScenarioResult {
   scenario: NamedScenario;
-  niiImpact: number;        // $ impact on NII
-  niiImpactPct: number;     // % change vs base NII
-  depositImpact: number;    // $ deposit outflow
-  creditLoss: number;       // $ additional credit losses
-  totalImpact: number;      // NII + deposit cost + credit loss combined
-  totalImpactPct: number;   // % of base NII
+  niiImpact: number; // $ impact on NII
+  niiImpactPct: number; // % change vs base NII
+  depositImpact: number; // $ deposit outflow
+  creditLoss: number; // $ additional credit losses
+  totalImpact: number; // NII + deposit cost + credit loss combined
+  totalImpactPct: number; // % of base NII
   passFailStatus: 'pass' | 'warn' | 'fail';
 }
 
@@ -88,8 +88,10 @@ export const COSSEC_SCENARIOS: NamedScenario[] = [
     rateShiftBps: 200, // short +200bps, long +100bps
     depositShockPct: -2,
     creditShockPct: 0,
-    description: 'Short rates +200bps, long rates +100bps — deposit competition',
-    descriptionEs: 'Tasas cortas +200pbs, tasas largas +100pbs — competencia por depositos',
+    description:
+      'Short rates +200bps, long rates +100bps — deposit competition',
+    descriptionEs:
+      'Tasas cortas +200pbs, tasas largas +100pbs — competencia por depositos',
     regulatoryBasis: 'COSSEC Enhanced Scenario Guidelines',
   },
   {
@@ -100,8 +102,10 @@ export const COSSEC_SCENARIOS: NamedScenario[] = [
     rateShiftBps: 150,
     depositShockPct: -5,
     creditShockPct: 2,
-    description: 'Rates +150bps, deposits -5%, loan defaults +2% — hurricane/disaster scenario',
-    descriptionEs: 'Tasas +150pbs, depositos -5%, morosidad +2% — escenario huracan/desastre',
+    description:
+      'Rates +150bps, deposits -5%, loan defaults +2% — hurricane/disaster scenario',
+    descriptionEs:
+      'Tasas +150pbs, depositos -5%, morosidad +2% — escenario huracan/desastre',
     regulatoryBasis: 'COSSEC Hurricane Preparedness Guidelines',
   },
 ];

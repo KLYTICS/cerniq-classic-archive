@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 // ─── Peer Metrics ────────────────────────────────────────────
 
@@ -26,7 +26,13 @@ export interface PeerAnalyticsResult {
 }
 
 // PR cooperativa benchmark data by asset tier (from NCUA aggregate analysis)
-const PEER_BENCHMARKS: Record<string, Record<string, { min: number; p25: number; p50: number; p75: number; max: number }>> = {
+const PEER_BENCHMARKS: Record<
+  string,
+  Record<
+    string,
+    { min: number; p25: number; p50: number; p75: number; max: number }
+  >
+> = {
   small: {
     NIM: { min: 1.8, p25: 2.8, p50: 3.4, p75: 4.1, max: 5.8 },
     EVE_Sensitivity: { min: 2, p25: 8, p50: 14, p75: 22, max: 38 },
@@ -47,19 +53,46 @@ const PEER_BENCHMARKS: Record<string, Record<string, { min: number; p25: number;
     NIM: { min: 2.2, p25: 3.2, p50: 3.8, p75: 4.4, max: 5.2 },
     EVE_Sensitivity: { min: 5, p25: 12, p50: 18, p75: 26, max: 42 },
     LCR: { min: 82, p25: 108, p50: 128, p75: 158, max: 245 },
-    Deposit_Beta: { min: 0.10, p25: 0.15, p50: 0.22, p75: 0.30, max: 0.42 },
+    Deposit_Beta: { min: 0.1, p25: 0.15, p50: 0.22, p75: 0.3, max: 0.42 },
     Loan_to_Share: { min: 52, p25: 65, p50: 75, p75: 85, max: 100 },
     CECL_Coverage: { min: 0.6, p25: 1.0, p50: 1.5, p75: 2.2, max: 3.8 },
   },
 };
 
-const METRIC_LABELS: Record<string, { en: string; es: string; higherIsBetter: boolean }> = {
-  NIM: { en: 'Net Interest Margin (%)', es: 'Margen de Interés Neto (%)', higherIsBetter: true },
-  EVE_Sensitivity: { en: 'EVE Sensitivity +200bps (%)', es: 'Sensibilidad EVE +200bps (%)', higherIsBetter: false },
-  LCR: { en: 'Liquidity Coverage Ratio (%)', es: 'Ratio de Cobertura de Liquidez (%)', higherIsBetter: true },
-  Deposit_Beta: { en: 'Implied Deposit Beta', es: 'Beta de Depósito Implícito', higherIsBetter: false },
-  Loan_to_Share: { en: 'Loan-to-Share Ratio (%)', es: 'Ratio Préstamos/Acciones (%)', higherIsBetter: false },
-  CECL_Coverage: { en: 'CECL Allowance / Loans (%)', es: 'Provisión CECL / Préstamos (%)', higherIsBetter: true },
+const METRIC_LABELS: Record<
+  string,
+  { en: string; es: string; higherIsBetter: boolean }
+> = {
+  NIM: {
+    en: 'Net Interest Margin (%)',
+    es: 'Margen de Interés Neto (%)',
+    higherIsBetter: true,
+  },
+  EVE_Sensitivity: {
+    en: 'EVE Sensitivity +200bps (%)',
+    es: 'Sensibilidad EVE +200bps (%)',
+    higherIsBetter: false,
+  },
+  LCR: {
+    en: 'Liquidity Coverage Ratio (%)',
+    es: 'Ratio de Cobertura de Liquidez (%)',
+    higherIsBetter: true,
+  },
+  Deposit_Beta: {
+    en: 'Implied Deposit Beta',
+    es: 'Beta de Depósito Implícito',
+    higherIsBetter: false,
+  },
+  Loan_to_Share: {
+    en: 'Loan-to-Share Ratio (%)',
+    es: 'Ratio Préstamos/Acciones (%)',
+    higherIsBetter: false,
+  },
+  CECL_Coverage: {
+    en: 'CECL Allowance / Loans (%)',
+    es: 'Provisión CECL / Préstamos (%)',
+    higherIsBetter: true,
+  },
 };
 
 @Injectable()
@@ -69,19 +102,26 @@ export class PeerAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getPeerAnalytics(institutionId: string): Promise<PeerAnalyticsResult> {
-    const institution = await this.prisma.institution.findUnique({ where: { id: institutionId } });
+    const institution = await this.prisma.institution.findUnique({
+      where: { id: institutionId },
+    });
     const totalAssets = institution?.totalAssets ?? 200;
-    const assetTier = totalAssets < 50 ? 'small' : totalAssets < 300 ? 'medium' : 'large';
+    const assetTier =
+      totalAssets < 50 ? 'small' : totalAssets < 300 ? 'medium' : 'large';
 
     const peerData = PEER_BENCHMARKS[assetTier];
     const institutionMetrics = await this.getInstitutionMetrics(institutionId);
 
-    const metrics: PeerMetric[] = Object.keys(peerData).map(key => {
+    const metrics: PeerMetric[] = Object.keys(peerData).map((key) => {
       const bench = peerData[key];
       const label = METRIC_LABELS[key];
       const instValue = institutionMetrics[key] ?? bench.p50;
 
-      const percentile = this.computePercentileRank(instValue, bench, label.higherIsBetter);
+      const percentile = this.computePercentileRank(
+        instValue,
+        bench,
+        label.higherIsBetter,
+      );
       let status: PeerMetric['status'];
       if (percentile >= 75) status = 'top_quartile';
       else if (percentile >= 50) status = 'above_median';
@@ -102,10 +142,25 @@ export class PeerAnalyticsService {
       };
     });
 
-    const tierLabels: Record<string, { en: string; es: string; count: number }> = {
-      small: { en: 'PR Cooperativas < $50M Assets', es: 'Cooperativas PR < $50M Activos', count: 32 },
-      medium: { en: 'PR Cooperativas $50M–$300M', es: 'Cooperativas PR $50M–$300M', count: 43 },
-      large: { en: 'PR Cooperativas > $300M', es: 'Cooperativas PR > $300M', count: 19 },
+    const tierLabels: Record<
+      string,
+      { en: string; es: string; count: number }
+    > = {
+      small: {
+        en: 'PR Cooperativas < $50M Assets',
+        es: 'Cooperativas PR < $50M Activos',
+        count: 32,
+      },
+      medium: {
+        en: 'PR Cooperativas $50M–$300M',
+        es: 'Cooperativas PR $50M–$300M',
+        count: 43,
+      },
+      large: {
+        en: 'PR Cooperativas > $300M',
+        es: 'Cooperativas PR > $300M',
+        count: 19,
+      },
     };
 
     return {
@@ -118,23 +173,37 @@ export class PeerAnalyticsService {
     };
   }
 
-  private async getInstitutionMetrics(institutionId: string): Promise<Record<string, number>> {
+  private async getInstitutionMetrics(
+    institutionId: string,
+  ): Promise<Record<string, number>> {
     // Pull actual metrics from balance sheet if available
-    const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId },
+    });
     if (items.length === 0) {
-      return { NIM: 3.5, EVE_Sensitivity: 15.2, LCR: 115, Deposit_Beta: 0.18, Loan_to_Share: 72, CECL_Coverage: 1.3 };
+      return {
+        NIM: 3.5,
+        EVE_Sensitivity: 15.2,
+        LCR: 115,
+        Deposit_Beta: 0.18,
+        Loan_to_Share: 72,
+        CECL_Coverage: 1.3,
+      };
     }
 
-    const assets = items.filter(i => i.category === 'asset');
-    const liabs = items.filter(i => i.category === 'liability');
+    const assets = items.filter((i) => i.category === 'asset');
+    const liabs = items.filter((i) => i.category === 'liability');
     const totalAssets = assets.reduce((s, i) => s + i.balance, 0);
     const totalLiabs = liabs.reduce((s, i) => s + i.balance, 0);
 
     const assetIncome = assets.reduce((s, i) => s + i.balance * i.rate, 0);
     const liabCost = liabs.reduce((s, i) => s + i.balance * i.rate, 0);
-    const nim = totalAssets > 0 ? ((assetIncome - liabCost) / totalAssets) * 100 : 3.5;
+    const nim =
+      totalAssets > 0 ? ((assetIncome - liabCost) / totalAssets) * 100 : 3.5;
 
-    const loans = assets.filter(i => !['cash', 'securities'].includes(i.subcategory.toLowerCase()));
+    const loans = assets.filter(
+      (i) => !['cash', 'securities'].includes(i.subcategory.toLowerCase()),
+    );
     const totalLoans = loans.reduce((s, i) => s + i.balance, 0);
     const loanToShare = totalLiabs > 0 ? (totalLoans / totalLiabs) * 100 : 70;
 
@@ -164,7 +233,9 @@ export class PeerAnalyticsService {
 
     // For "lower is better" metrics, invert
     const v = higherIsBetter ? value : -value;
-    const pts = higherIsBetter ? points : points.map(p => ({ pct: p.pct, val: -p.val }));
+    const pts = higherIsBetter
+      ? points
+      : points.map((p) => ({ pct: p.pct, val: -p.val }));
 
     if (v <= pts[0].val) return 0;
     if (v >= pts[pts.length - 1].val) return 100;

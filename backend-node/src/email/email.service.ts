@@ -7,7 +7,9 @@ export class EmailService {
   private resend: Resend | null = null;
 
   private frontendUrl(): string {
-    return (process.env.FRONTEND_URL || 'https://cerniq.io').trim().replace(/\/+$/, '');
+    return (process.env.FRONTEND_URL || 'https://cerniq.io')
+      .trim()
+      .replace(/\/+$/, '');
   }
 
   constructor() {
@@ -22,10 +24,13 @@ export class EmailService {
   // ── HTML wrapper ──────────────────────────────────────
 
   private wrap(bodyHtml: string, ctaUrl?: string, ctaText?: string): string {
-    const cta = ctaUrl && ctaText ? `
+    const cta =
+      ctaUrl && ctaText
+        ? `
       <div style="margin: 28px 0 8px; text-align: center;">
         <a href="${ctaUrl}" style="background: #E8A020; color: #FFFFFF; padding: 16px 36px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">${ctaText}</a>
-      </div>` : '';
+      </div>`
+        : '';
     return `
       <!DOCTYPE html>
       <html>
@@ -58,8 +63,17 @@ export class EmailService {
 
   // ── 1. Client Welcome ─────────────────────────────────
 
-  async sendClientWelcome(data: { email: string; name: string; tier: string; magicUrl: string; institutionName: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] Client welcome: ${data.email}`); return; }
+  async sendClientWelcome(data: {
+    email: string;
+    name: string;
+    tier: string;
+    magicUrl: string;
+    institutionName: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Client welcome: ${data.email}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
@@ -98,13 +112,22 @@ export class EmailService {
           'Acceder al portal / Access portal',
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send welcome: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send welcome: ${err}`);
+    }
   }
 
   // ── 2. Data Submission Acknowledgment ──────────────────
 
-  async sendDataSubmissionAck(data: { email: string; name: string; institutionName: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] Data ack: ${data.email}`); return; }
+  async sendDataSubmissionAck(data: {
+    email: string;
+    name: string;
+    institutionName: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Data ack: ${data.email}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
@@ -141,13 +164,23 @@ export class EmailService {
           'Ver estado en portal / Check status in portal',
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send data ack: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send data ack: ${err}`);
+    }
   }
 
   // ── 3. Report Ready ───────────────────────────────────
 
-  async sendReportReady(data: { email: string; name: string; institutionName: string; portalUrl: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] Report ready: ${data.email}`); return; }
+  async sendReportReady(data: {
+    email: string;
+    name: string;
+    institutionName: string;
+    portalUrl: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Report ready: ${data.email}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
@@ -188,19 +221,29 @@ export class EmailService {
           'Descargar informe ahora / Download report now',
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send report ready: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send report ready: ${err}`);
+    }
   }
 
   // ── 4. Magic Link / Data Reminder ─────────────────────
 
-  async sendMagicLinkEmail(data: { email: string; magicUrl: string; name: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] Magic link: ${data.email}`); return; }
+  async sendMagicLinkEmail(data: {
+    email: string;
+    magicUrl: string;
+    name: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Magic link: ${data.email}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
         replyTo: 'erwin@klytics.io',
         to: data.email,
-        subject: `${data.name || ''} — Sus datos de balance estan pendientes / Your balance data is pending`.trim(),
+        subject:
+          `${data.name || ''} — Sus datos de balance estan pendientes / Your balance data is pending`.trim(),
         html: this.wrap(
           `<p>Hola ${data.name || ''},</p>
            <p>Le escribo porque sus datos de balance aun estan pendientes en su portal CERNIQ. Entiendo que preparar los datos puede tomar tiempo — estoy aqui para ayudar.</p>
@@ -229,13 +272,23 @@ export class EmailService {
           'Cargar datos ahora / Upload data now',
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send magic link: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send magic link: ${err}`);
+    }
   }
 
   // ── 5. Job Failed Alert (plain text to Erwin) ─────────
 
-  async sendJobFailedAlert(data: { jobId: string; institutionName: string; error: string; clientEmail: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] Job failed alert: ${data.jobId}`); return; }
+  async sendJobFailedAlert(data: {
+    jobId: string;
+    institutionName: string;
+    error: string;
+    clientEmail: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Job failed alert: ${data.jobId}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'CERNIQ Alerts <onboarding@resend.dev>',
@@ -243,7 +296,9 @@ export class EmailService {
         subject: `FAILED: ${data.institutionName} — Job ${data.jobId}`,
         text: `Report generation failed.\n\nJob ID: ${data.jobId}\nInstitution: ${data.institutionName}\nClient: ${data.clientEmail}\nError: ${data.error}\n\nCheck pipeline: ${this.frontendUrl()}/admin/pipeline`,
       });
-    } catch (err) { this.logger.error(`Failed to send job failed alert: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send job failed alert: ${err}`);
+    }
   }
 
   // ── 6. Demo Request Notification (plain text to Erwin) ─
@@ -285,12 +340,18 @@ export class EmailService {
     nextFollowUp: Date;
   }): Promise<void> {
     if (!this.resend) {
-      this.logger.log(`[DRY RUN] Lead notification: ${data.institutionName} (${data.priority})`);
+      this.logger.log(
+        `[DRY RUN] Lead notification: ${data.institutionName} (${data.priority})`,
+      );
       return;
     }
 
     const followUpStr = data.nextFollowUp.toLocaleDateString('en-US', {
-      weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
       timeZone: 'America/Puerto_Rico',
     });
 
@@ -338,7 +399,9 @@ export class EmailService {
            <p>Responda directamente a este correo si tiene preguntas — yo personalmente respondo.</p>
            ${this.SIGNATURE_ES}
 
-           ${data.bilingual ? `${this.DIVIDER}
+           ${
+             data.bilingual
+               ? `${this.DIVIDER}
            <p>Hi ${data.name},</p>
            <p>Thank you for reaching out. We've received your request for an ALM analysis for <strong>${data.institutionName}</strong>.</p>
            <p>Next steps:</p>
@@ -348,7 +411,9 @@ export class EmailService {
              <li>We'll include key findings and any regulatory flags</li>
            </ol>
            <p>Reply directly to this email if you have questions — I personally respond.</p>
-           ${this.SIGNATURE_EN}` : ''}`,
+           ${this.SIGNATURE_EN}`
+               : ''
+           }`,
         ),
       });
       this.logger.log(`Lead confirmation sent to ${data.email}`);
@@ -359,8 +424,16 @@ export class EmailService {
 
   // ── Revenue Alert (internal, to Erwin) ────────────────
 
-  async sendRevenueAlert(data: { amount: number; tier: string; customerEmail: string; institutionName: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] Revenue alert: $${data.amount}`); return; }
+  async sendRevenueAlert(data: {
+    amount: number;
+    tier: string;
+    customerEmail: string;
+    institutionName: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Revenue alert: $${data.amount}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'CERNIQ Alerts <onboarding@resend.dev>',
@@ -368,13 +441,21 @@ export class EmailService {
         subject: `REVENUE: $${data.amount} — ${data.institutionName} — ${data.tier}`,
         text: `New payment received.\n\nAmount: $${data.amount}\nTier: ${data.tier}\nClient: ${data.customerEmail}\nInstitution: ${data.institutionName}\n\nAdmin: ${this.frontendUrl()}/admin/leads`,
       });
-    } catch (err) { this.logger.error(`Failed to send revenue alert: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send revenue alert: ${err}`);
+    }
   }
 
   // ── Payment Failed (bilingual, to client) ─────────────
 
-  async sendPaymentFailed(data: { email: string; name: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] Payment failed: ${data.email}`); return; }
+  async sendPaymentFailed(data: {
+    email: string;
+    name: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Payment failed: ${data.email}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
@@ -397,19 +478,28 @@ export class EmailService {
           'Actualizar pago / Update payment',
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send payment failed: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send payment failed: ${err}`);
+    }
   }
 
   // ── Cancellation (bilingual, personal from Erwin) ─────
 
-  async sendCancellationEmail(data: { email: string; name: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] Cancellation: ${data.email}`); return; }
+  async sendCancellationEmail(data: {
+    email: string;
+    name: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Cancellation: ${data.email}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
         replyTo: 'erwin@klytics.io',
         to: data.email,
-        subject: 'Lamentamos verle ir — una nota personal / A personal note — CERNIQ',
+        subject:
+          'Lamentamos verle ir — una nota personal / A personal note — CERNIQ',
         html: this.wrap(
           `<p>Hola ${data.name || ''},</p>
            <p>Su suscripcion a CERNIQ ha sido cancelada. Quiero que sepa que sus informes historicos permaneceran disponibles en su portal.</p>
@@ -424,19 +514,28 @@ export class EmailService {
            ${this.SIGNATURE_EN}`,
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send cancellation: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send cancellation: ${err}`);
+    }
   }
 
   // ── Monthly Report Cycle (bilingual) ──────────────────
 
-  async sendMonthlyReportCycle(data: { email: string; name: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] Monthly cycle: ${data.email}`); return; }
+  async sendMonthlyReportCycle(data: {
+    email: string;
+    name: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Monthly cycle: ${data.email}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
         replyTo: 'erwin@klytics.io',
         to: data.email,
-        subject: 'Nuevo ciclo de reporte — envie sus datos actualizados / New reporting cycle — CERNIQ',
+        subject:
+          'Nuevo ciclo de reporte — envie sus datos actualizados / New reporting cycle — CERNIQ',
         html: this.wrap(
           `<p>Hola ${data.name || ''},</p>
            <p>Su renovacion mensual ha sido procesada y un nuevo ciclo de reporte ha comenzado. Para generar su informe ALM de este periodo, envie su balance actualizado a traves de su portal.</p>
@@ -453,13 +552,22 @@ export class EmailService {
           'Enviar datos / Submit data',
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send monthly cycle: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send monthly cycle: ${err}`);
+    }
   }
 
   // ── Dispute Alert (plain text, internal) ──────────────
 
-  async sendDisputeAlert(data: { chargeId: string; amount: number; reason: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] Dispute alert: ${data.chargeId}`); return; }
+  async sendDisputeAlert(data: {
+    chargeId: string;
+    amount: number;
+    reason: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Dispute alert: ${data.chargeId}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'CERNIQ Alerts <onboarding@resend.dev>',
@@ -467,13 +575,23 @@ export class EmailService {
         subject: `DISPUTE: $${data.amount} — ${data.reason}`,
         text: `Dispute alert — immediate action required.\n\nCharge: ${data.chargeId}\nAmount: $${data.amount}\nReason: ${data.reason}\n\nRespond in Stripe Dashboard immediately.`,
       });
-    } catch (err) { this.logger.error(`Failed to send dispute alert: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send dispute alert: ${err}`);
+    }
   }
 
   // ── Daily Operations Report (internal) ────────────────
 
-  async sendDailyOperationsReport(data: { pendingJobs: number; failedJobs: number; newLeads: number; pendingFollowUps: number }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] Daily ops report`); return; }
+  async sendDailyOperationsReport(data: {
+    pendingJobs: number;
+    failedJobs: number;
+    newLeads: number;
+    pendingFollowUps: number;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Daily ops report`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'CERNIQ Alerts <onboarding@resend.dev>',
@@ -481,20 +599,29 @@ export class EmailService {
         subject: `Daily Ops: ${data.newLeads} leads, ${data.pendingJobs} pending, ${data.failedJobs} failed`,
         text: `Daily Operations Report\n\nNew Leads (24h): ${data.newLeads}\nOverdue Follow-ups: ${data.pendingFollowUps}\nPending Jobs: ${data.pendingJobs}\nFailed Jobs (7d): ${data.failedJobs}\n\nAdmin: ${this.frontendUrl()}/admin`,
       });
-    } catch (err) { this.logger.error(`Failed to send daily ops report: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send daily ops report: ${err}`);
+    }
   }
 
   // ── Sequence Emails (fired by EmailSequenceProcessor) ──
 
   // B2: Data submission reminder (bilingual)
-  async sendDataSubmissionReminder(data: { email: string; name: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] B2 data reminder: ${data.email}`); return; }
+  async sendDataSubmissionReminder(data: {
+    email: string;
+    name: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] B2 data reminder: ${data.email}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
         replyTo: 'erwin@klytics.io',
         to: data.email,
-        subject: 'Siguiente paso: enviar sus datos de balance / Next step: submit your data — CERNIQ',
+        subject:
+          'Siguiente paso: enviar sus datos de balance / Next step: submit your data — CERNIQ',
         html: this.wrap(
           `<p>Hola ${data.name || ''},</p>
            <p>Su portal CERNIQ esta configurado y listo. El siguiente paso es enviar los datos de su balance general para que podamos generar su informe ALM personalizado.</p>
@@ -513,18 +640,27 @@ export class EmailService {
           'Enviar datos ahora / Submit data now',
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send B2: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send B2: ${err}`);
+    }
   }
 
   // B3: Onboarding check-in (bilingual)
-  async sendOnboardingCheckIn(data: { email: string; name: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] B3 check-in: ${data.email}`); return; }
+  async sendOnboardingCheckIn(data: {
+    email: string;
+    name: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] B3 check-in: ${data.email}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
         replyTo: 'erwin@klytics.io',
         to: data.email,
-        subject: 'Necesita ayuda con sus datos? / Need help with your data? — CERNIQ',
+        subject:
+          'Necesita ayuda con sus datos? / Need help with your data? — CERNIQ',
         html: this.wrap(
           `<p>Hola ${data.name || ''},</p>
            <p>Queria verificar personalmente si necesita ayuda para preparar sus datos de balance. Puedo asistirle con:</p>
@@ -549,12 +685,21 @@ export class EmailService {
            ${this.SIGNATURE_EN}`,
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send B3: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send B3: ${err}`);
+    }
   }
 
   // C2: Report follow-up (bilingual)
-  async sendReportFollowUp(data: { email: string; name: string; institutionName: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] C2 report follow-up: ${data.email}`); return; }
+  async sendReportFollowUp(data: {
+    email: string;
+    name: string;
+    institutionName: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] C2 report follow-up: ${data.email}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
@@ -587,18 +732,24 @@ export class EmailService {
            ${this.SIGNATURE_EN}`,
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send C2: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send C2: ${err}`);
+    }
   }
 
   // D5: Win-back (bilingual)
   async sendWinBackEmail(data: { email: string; name: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] D5 win-back: ${data.email}`); return; }
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] D5 win-back: ${data.email}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
         replyTo: 'erwin@klytics.io',
         to: data.email,
-        subject: 'Le extranamos — novedades en CERNIQ / We miss you — CERNIQ updates',
+        subject:
+          'Le extranamos — novedades en CERNIQ / We miss you — CERNIQ updates',
         html: this.wrap(
           `<p>Hola ${data.name || ''},</p>
            <p>Han pasado unos meses desde que cancelo su suscripcion. Queria escribirle personalmente porque hemos anadido mejoras significativas:</p>
@@ -623,12 +774,21 @@ export class EmailService {
            ${this.SIGNATURE_EN}`,
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send D5: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send D5: ${err}`);
+    }
   }
 
   // A1: Lead nurture teaser (bilingual)
-  async sendLeadNurtureTeaser(data: { email: string; name: string; institutionName: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] A1 lead teaser: ${data.email}`); return; }
+  async sendLeadNurtureTeaser(data: {
+    email: string;
+    name: string;
+    institutionName: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] A1 lead teaser: ${data.email}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
@@ -661,12 +821,20 @@ export class EmailService {
           'Ver demo / View demo',
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send A1: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send A1: ${err}`);
+    }
   }
 
   // A2: Lead nurture pricing (bilingual)
-  async sendLeadNurturePricing(data: { email: string; name: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] A2 pricing: ${data.email}`); return; }
+  async sendLeadNurturePricing(data: {
+    email: string;
+    name: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] A2 pricing: ${data.email}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
@@ -723,13 +891,26 @@ export class EmailService {
           'Ver planes / View plans',
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send A2: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send A2: ${err}`);
+    }
   }
 
   // ── Renewal Reminder (bilingual) ─────────────────────
 
-  async sendRenewalReminder(data: { email: string; name: string; daysLeft: number; tier: string; currentPeriodEnd: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] Renewal reminder (D-${data.daysLeft}): ${data.email}`); return; }
+  async sendRenewalReminder(data: {
+    email: string;
+    name: string;
+    daysLeft: number;
+    tier: string;
+    currentPeriodEnd: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(
+        `[DRY RUN] Renewal reminder (D-${data.daysLeft}): ${data.email}`,
+      );
+      return;
+    }
     try {
       const isUrgent = data.daysLeft <= 7;
       const subject = isUrgent
@@ -759,13 +940,24 @@ export class EmailService {
           'Ver facturacion / View billing',
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send renewal reminder: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send renewal reminder: ${err}`);
+    }
   }
 
   // ── Churn Risk Alert (internal, to Erwin) ───────────
 
-  async sendChurnRiskAlert(data: { userName: string; userEmail: string; tier: string; daysSinceLogin: number; currentPeriodEnd: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] Churn risk alert: ${data.userEmail}`); return; }
+  async sendChurnRiskAlert(data: {
+    userName: string;
+    userEmail: string;
+    tier: string;
+    daysSinceLogin: number;
+    currentPeriodEnd: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Churn risk alert: ${data.userEmail}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: 'CERNIQ Alerts <onboarding@resend.dev>',
@@ -773,7 +965,9 @@ export class EmailService {
         subject: `CHURN RISK: ${data.userName || data.userEmail} — ${data.daysSinceLogin}d inactive`,
         text: `Churn risk detected.\n\nUser: ${data.userName || '—'}\nEmail: ${data.userEmail}\nTier: ${data.tier}\nDays since login: ${data.daysSinceLogin}\nRenewal date: ${data.currentPeriodEnd}\n\nConsider reaching out personally.`,
       });
-    } catch (err) { this.logger.error(`Failed to send churn risk alert: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send churn risk alert: ${err}`);
+    }
   }
 
   // ── Weekly Revenue Report (internal, to Erwin) ──────
@@ -785,12 +979,20 @@ export class EmailService {
     cancelledThisWeek: number;
     upcomingRenewals: { email: string; tier: string; renewsAt: string }[];
   }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] Weekly revenue report`); return; }
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Weekly revenue report`);
+      return;
+    }
     try {
-      const tierLines = Object.entries(data.activeBytier).map(([tier, count]) => `  ${tier}: ${count}`).join('\n');
-      const renewalLines = data.upcomingRenewals.length > 0
-        ? data.upcomingRenewals.map(r => `  ${r.email} (${r.tier}) — ${r.renewsAt}`).join('\n')
-        : '  None';
+      const tierLines = Object.entries(data.activeBytier)
+        .map(([tier, count]) => `  ${tier}: ${count}`)
+        .join('\n');
+      const renewalLines =
+        data.upcomingRenewals.length > 0
+          ? data.upcomingRenewals
+              .map((r) => `  ${r.email} (${r.tier}) — ${r.renewsAt}`)
+              .join('\n')
+          : '  None';
 
       await this.resend.emails.send({
         from: 'CERNIQ Alerts <onboarding@resend.dev>',
@@ -798,15 +1000,28 @@ export class EmailService {
         subject: `Weekly Revenue: ${data.totalActive} active | +${data.newThisWeek} new | -${data.cancelledThisWeek} cancelled`,
         text: `Weekly Revenue Report\n\nActive Subscriptions: ${data.totalActive}\n\nBy Tier:\n${tierLines}\n\nNew This Week: ${data.newThisWeek}\nCancelled This Week: ${data.cancelledThisWeek}\n\nUpcoming Renewals (30d):\n${renewalLines}\n\nAdmin: ${this.frontendUrl()}/admin`,
       });
-    } catch (err) { this.logger.error(`Failed to send weekly revenue report: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send weekly revenue report: ${err}`);
+    }
   }
 
   // ── NPS Survey (bilingual) ──────────────────────────
 
-  async sendNPSSurvey(data: { email: string; name: string; institutionName: string; jobId: string; institutionId: string }): Promise<void> {
-    if (!this.resend) { this.logger.log(`[DRY RUN] NPS survey: ${data.email}`); return; }
+  async sendNPSSurvey(data: {
+    email: string;
+    name: string;
+    institutionName: string;
+    jobId: string;
+    institutionId: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] NPS survey: ${data.email}`);
+      return;
+    }
     try {
-      const baseUrl = (process.env.BACKEND_URL || 'https://api.cerniq.io').trim().replace(/\/+$/, '');
+      const baseUrl = (process.env.BACKEND_URL || 'https://api.cerniq.io')
+        .trim()
+        .replace(/\/+$/, '');
       const scoreLinks = Array.from({ length: 11 }, (_, i) => {
         const url = `${baseUrl}/api/feedback/nps?score=${i}&jobId=${data.jobId}&institutionId=${data.institutionId}`;
         const color = i <= 6 ? '#DC2626' : i <= 8 ? '#D97706' : '#16A34A';
@@ -836,7 +1051,9 @@ export class EmailService {
            ${this.SIGNATURE_EN}`,
         ),
       });
-    } catch (err) { this.logger.error(`Failed to send NPS survey: ${err}`); }
+    } catch (err) {
+      this.logger.error(`Failed to send NPS survey: ${err}`);
+    }
   }
 
   // ── Team Invite (bilingual) ──────────────────────────
@@ -889,7 +1106,10 @@ export class EmailService {
 
   // ── Demo Confirmation (bilingual) ─────────────────────
 
-  async sendDemoConfirmation(data: { name?: string; email: string }): Promise<void> {
+  async sendDemoConfirmation(data: {
+    name?: string;
+    email: string;
+  }): Promise<void> {
     if (!this.resend) return;
 
     try {

@@ -12,7 +12,12 @@ import { RealtimeModule } from '../realtime/realtime.module';
 @Module({
   imports: [ScheduleModule.forRoot(), EmailModule, AlmModule, RealtimeModule],
   controllers: [PipelineController],
-  providers: [PipelineWorker, PipelineHealthMonitor, ReportStorageService, AlcoPackService],
+  providers: [
+    PipelineWorker,
+    PipelineHealthMonitor,
+    ReportStorageService,
+    AlcoPackService,
+  ],
   exports: [PipelineWorker, ReportStorageService, AlcoPackService],
 })
 export class PipelineModule {}

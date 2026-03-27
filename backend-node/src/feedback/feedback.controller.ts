@@ -1,6 +1,14 @@
 import {
-  Controller, Get, Post, Param, Query, Body,
-  HttpStatus, Logger, BadRequestException, HttpCode,
+  Controller,
+  Get,
+  Post,
+  Param,
+  Query,
+  Body,
+  HttpStatus,
+  Logger,
+  BadRequestException,
+  HttpCode,
   Redirect,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
@@ -23,12 +31,17 @@ export class FeedbackController {
     @Query('jobId') jobId: string,
     @Query('institutionId') institutionId: string,
   ) {
-    const frontendUrl = (process.env.FRONTEND_URL || 'https://cerniq.io').trim().replace(/\/+$/, '');
+    const frontendUrl = (process.env.FRONTEND_URL || 'https://cerniq.io')
+      .trim()
+      .replace(/\/+$/, '');
 
     try {
       const score = parseInt(scoreStr, 10);
       if (isNaN(score) || score < 0 || score > 10) {
-        return { url: `${frontendUrl}/thank-you?error=invalid_score`, statusCode: HttpStatus.FOUND };
+        return {
+          url: `${frontendUrl}/thank-you?error=invalid_score`,
+          statusCode: HttpStatus.FOUND,
+        };
       }
 
       // Check if feedback already exists for this job
@@ -41,7 +54,11 @@ export class FeedbackController {
           where: { id: existing.id },
           data: { npsScore: score, respondedAt: new Date() },
         });
-        this.logger.log({ event: 'nps.updated', feedbackId: existing.id, score });
+        this.logger.log({
+          event: 'nps.updated',
+          feedbackId: existing.id,
+          score,
+        });
       } else {
         await this.prisma.feedback.create({
           data: {
@@ -54,10 +71,16 @@ export class FeedbackController {
         this.logger.log({ event: 'nps.recorded', jobId, score });
       }
 
-      return { url: `${frontendUrl}/thank-you?score=${score}&jobId=${jobId || ''}`, statusCode: HttpStatus.FOUND };
+      return {
+        url: `${frontendUrl}/thank-you?score=${score}&jobId=${jobId || ''}`,
+        statusCode: HttpStatus.FOUND,
+      };
     } catch (error: any) {
       this.logger.error({ event: 'nps.record.failed', error: error.message });
-      return { url: `${frontendUrl}/thank-you?error=server_error`, statusCode: HttpStatus.FOUND };
+      return {
+        url: `${frontendUrl}/thank-you?error=server_error`,
+        statusCode: HttpStatus.FOUND,
+      };
     }
   }
 
@@ -89,7 +112,11 @@ export class FeedbackController {
       return { success: true, id: updated.id };
     } catch (error: any) {
       if (error instanceof BadRequestException) throw error;
-      this.logger.error({ event: 'feedback.comment.failed', id, error: error.message });
+      this.logger.error({
+        event: 'feedback.comment.failed',
+        id,
+        error: error.message,
+      });
       throw new BadRequestException('Failed to save comment');
     }
   }
@@ -130,11 +157,17 @@ export class FeedbackController {
         });
       }
 
-      this.logger.log({ event: 'feedback.comment.added_by_job', jobId: body.jobId });
+      this.logger.log({
+        event: 'feedback.comment.added_by_job',
+        jobId: body.jobId,
+      });
       return { success: true, id: feedback.id };
     } catch (error: any) {
       if (error instanceof BadRequestException) throw error;
-      this.logger.error({ event: 'feedback.comment_by_job.failed', error: error.message });
+      this.logger.error({
+        event: 'feedback.comment_by_job.failed',
+        error: error.message,
+      });
       throw new BadRequestException('Failed to save comment');
     }
   }
@@ -162,12 +195,14 @@ export class FeedbackController {
         };
       }
 
-      const scores = allFeedback.map(f => f.npsScore!);
-      const promoters = scores.filter(s => s >= 9).length;
-      const passives = scores.filter(s => s >= 7 && s <= 8).length;
-      const detractors = scores.filter(s => s <= 6).length;
+      const scores = allFeedback.map((f) => f.npsScore!);
+      const promoters = scores.filter((s) => s >= 9).length;
+      const passives = scores.filter((s) => s >= 7 && s <= 8).length;
+      const detractors = scores.filter((s) => s <= 6).length;
       const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-      const npsScore = Math.round(((promoters - detractors) / scores.length) * 100);
+      const npsScore = Math.round(
+        ((promoters - detractors) / scores.length) * 100,
+      );
 
       return {
         averageScore: Math.round(averageScore * 10) / 10,
@@ -178,8 +213,18 @@ export class FeedbackController {
         npsScore,
       };
     } catch (error: any) {
-      this.logger.error({ event: 'feedback.stats.failed', error: error.message });
-      return { averageScore: 0, responseCount: 0, promoters: 0, passives: 0, detractors: 0, npsScore: 0 };
+      this.logger.error({
+        event: 'feedback.stats.failed',
+        error: error.message,
+      });
+      return {
+        averageScore: 0,
+        responseCount: 0,
+        promoters: 0,
+        passives: 0,
+        detractors: 0,
+        npsScore: 0,
+      };
     }
   }
 }

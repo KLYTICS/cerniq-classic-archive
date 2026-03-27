@@ -4,8 +4,8 @@ import { ReceiptParserService } from './receipt-parser.service';
 import { StorageModule } from '../storage/storage.module';
 
 @Module({
-    imports: [StorageModule],
-    providers: [LlmService, ReceiptParserService],
-    exports: [LlmService, ReceiptParserService],
+  imports: [StorageModule],
+  providers: [LlmService, ReceiptParserService],
+  exports: [LlmService, ReceiptParserService],
 })
-export class LlmModule { }
+export class LlmModule {}

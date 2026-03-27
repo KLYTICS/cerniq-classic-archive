@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { ComplianceCalendarService } from './compliance-calendar.service';
 
@@ -97,8 +97,16 @@ export class AlmAdvisorV2Service {
       rateRisk,
       credit,
       concentration,
-      label: overall >= 80 ? 'STRONG' : overall >= 60 ? 'SATISFACTORY'
-           : overall >= 40 ? 'FAIR' : overall >= 20 ? 'MARGINAL' : 'UNSATISFACTORY',
+      label:
+        overall >= 80
+          ? 'STRONG'
+          : overall >= 60
+            ? 'SATISFACTORY'
+            : overall >= 40
+              ? 'FAIR'
+              : overall >= 20
+                ? 'MARGINAL'
+                : 'UNSATISFACTORY',
     };
   }
 
@@ -109,36 +117,75 @@ export class AlmAdvisorV2Service {
 
     // Score each domain; lowest score = highest risk
     const domains = [
-      { domain: 'Interest Rate Risk', score: health.rateRisk, maxScore: 20,
+      {
+        domain: 'Interest Rate Risk',
+        score: health.rateRisk,
+        maxScore: 20,
         regRef: 'COSSEC Examen Art. 7.3 — Riesgo de Tasa',
-        enMsg: 'Interest rate sensitivity exceeds prudent levels. EVE/NII exposure requires hedging action.',
-        esMsg: 'La sensibilidad a tasas de interés excede niveles prudentes. La exposición EVE/NII requiere acción de cobertura.',
-        enRem: 'Consider receive-fixed interest rate swaps or ladder CD maturities to reduce duration gap.',
-        esRem: 'Considere swaps de tasa fija o escalone vencimientos de CDs para reducir la brecha de duración.' },
-      { domain: 'Liquidity', score: health.liquidity, maxScore: 20,
+        enMsg:
+          'Interest rate sensitivity exceeds prudent levels. EVE/NII exposure requires hedging action.',
+        esMsg:
+          'La sensibilidad a tasas de interés excede niveles prudentes. La exposición EVE/NII requiere acción de cobertura.',
+        enRem:
+          'Consider receive-fixed interest rate swaps or ladder CD maturities to reduce duration gap.',
+        esRem:
+          'Considere swaps de tasa fija o escalone vencimientos de CDs para reducir la brecha de duración.',
+      },
+      {
+        domain: 'Liquidity',
+        score: health.liquidity,
+        maxScore: 20,
         regRef: 'COSSEC Reglamento — Liquidez Mínima 15%',
-        enMsg: 'Liquidity buffers are below optimal levels. LCR or NSFR approaching regulatory minimum.',
-        esMsg: 'Los colchones de liquidez están por debajo de niveles óptimos. LCR o NSFR acercándose al mínimo regulatorio.',
-        enRem: 'Increase HQLA holdings by shifting $10-25M from non-liquid assets to Treasury bills.',
-        esRem: 'Aumente tenencias HQLA trasladando $10-25M de activos no líquidos a letras del Tesoro.' },
-      { domain: 'Capital Adequacy', score: health.capital, maxScore: 20,
+        enMsg:
+          'Liquidity buffers are below optimal levels. LCR or NSFR approaching regulatory minimum.',
+        esMsg:
+          'Los colchones de liquidez están por debajo de niveles óptimos. LCR o NSFR acercándose al mínimo regulatorio.',
+        enRem:
+          'Increase HQLA holdings by shifting $10-25M from non-liquid assets to Treasury bills.',
+        esRem:
+          'Aumente tenencias HQLA trasladando $10-25M de activos no líquidos a letras del Tesoro.',
+      },
+      {
+        domain: 'Capital Adequacy',
+        score: health.capital,
+        maxScore: 20,
         regRef: 'NCUA 12 C.F.R. § 702 — Net Worth Requirements',
-        enMsg: 'Capital ratio trending toward minimum well-capitalized threshold.',
-        esMsg: 'La razón de capital tiende hacia el umbral mínimo de bien capitalizada.',
-        enRem: 'Retain earnings above 85% and evaluate supplemental capital offering if NWR < 8%.',
-        esRem: 'Retenga ganancias por encima del 85% y evalúe oferta de capital suplementario si NWR < 8%.' },
-      { domain: 'Credit Quality', score: health.credit, maxScore: 20,
+        enMsg:
+          'Capital ratio trending toward minimum well-capitalized threshold.',
+        esMsg:
+          'La razón de capital tiende hacia el umbral mínimo de bien capitalizada.',
+        enRem:
+          'Retain earnings above 85% and evaluate supplemental capital offering if NWR < 8%.',
+        esRem:
+          'Retenga ganancias por encima del 85% y evalúe oferta de capital suplementario si NWR < 8%.',
+      },
+      {
+        domain: 'Credit Quality',
+        score: health.credit,
+        maxScore: 20,
         regRef: 'OCIF CC-2023-01 — Calidad de Activos',
         enMsg: 'Credit quality indicators show early deterioration signals.',
-        esMsg: 'Los indicadores de calidad crediticia muestran señales tempranas de deterioro.',
-        enRem: 'Review consumer and CRE loan portfolios for early delinquency trends; increase CECL qualitative factors.',
-        esRem: 'Revise carteras de préstamos de consumo y CRE para tendencias tempranas de morosidad; aumente factores cualitativos CECL.' },
-      { domain: 'Concentration Risk', score: health.concentration, maxScore: 20,
+        esMsg:
+          'Los indicadores de calidad crediticia muestran señales tempranas de deterioro.',
+        enRem:
+          'Review consumer and CRE loan portfolios for early delinquency trends; increase CECL qualitative factors.',
+        esRem:
+          'Revise carteras de préstamos de consumo y CRE para tendencias tempranas de morosidad; aumente factores cualitativos CECL.',
+      },
+      {
+        domain: 'Concentration Risk',
+        score: health.concentration,
+        maxScore: 20,
         regRef: 'COSSEC Examen Art. 8.2 — Límites de Concentración',
-        enMsg: 'Portfolio concentration in one or more sectors approaches policy limits.',
-        esMsg: 'La concentración del portafolio en uno o más sectores se acerca a los límites de política.',
-        enRem: 'Diversify new originations away from concentrated sectors; consider participations or loan sales.',
-        esRem: 'Diversifique nuevas originaciones lejos de sectores concentrados; considere participaciones o ventas de préstamos.' },
+        enMsg:
+          'Portfolio concentration in one or more sectors approaches policy limits.',
+        esMsg:
+          'La concentración del portafolio en uno o más sectores se acerca a los límites de política.',
+        enRem:
+          'Diversify new originations away from concentrated sectors; consider participations or loan sales.',
+        esRem:
+          'Diversifique nuevas originaciones lejos de sectores concentrados; considere participaciones o ventas de préstamos.',
+      },
     ];
 
     // Sort by score ascending (worst first)
@@ -146,8 +193,12 @@ export class AlmAdvisorV2Service {
 
     for (let i = 0; i < Math.min(3, domains.length); i++) {
       const d = domains[i];
-      const severity = d.score < d.maxScore * 0.3 ? 'HIGH'
-                     : d.score < d.maxScore * 0.6 ? 'MEDIUM' : 'LOW';
+      const severity =
+        d.score < d.maxScore * 0.3
+          ? 'HIGH'
+          : d.score < d.maxScore * 0.6
+            ? 'MEDIUM'
+            : 'LOW';
       alerts.push({
         rank: i + 1,
         domain: d.domain,
@@ -168,7 +219,8 @@ export class AlmAdvisorV2Service {
   async buildRegPulse(institutionId: string): Promise<RegPulse> {
     let deadlines: any[];
     try {
-      deadlines = await this.complianceCalendar.getUpcomingDeadlines(institutionId);
+      deadlines =
+        await this.complianceCalendar.getUpcomingDeadlines(institutionId);
     } catch {
       deadlines = [];
     }
@@ -178,14 +230,29 @@ export class AlmAdvisorV2Service {
     const in60 = new Date(now.getTime() + 60 * 86400000);
     const in90 = new Date(now.getTime() + 90 * 86400000);
 
-    const next30Items = deadlines.filter((d: any) => new Date(d.deadlineDate) <= in30);
-    const next60Items = deadlines.filter((d: any) => new Date(d.deadlineDate) > in30 && new Date(d.deadlineDate) <= in60);
-    const next90Items = deadlines.filter((d: any) => new Date(d.deadlineDate) > in60 && new Date(d.deadlineDate) <= in90);
+    const next30Items = deadlines.filter(
+      (d: any) => new Date(d.deadlineDate) <= in30,
+    );
+    const next60Items = deadlines.filter(
+      (d: any) =>
+        new Date(d.deadlineDate) > in30 && new Date(d.deadlineDate) <= in60,
+    );
+    const next90Items = deadlines.filter(
+      (d: any) =>
+        new Date(d.deadlineDate) > in60 && new Date(d.deadlineDate) <= in90,
+    );
 
     const formatItems = (items: any[], lang: 'en' | 'es') =>
       items.length === 0
-        ? (lang === 'es' ? 'Sin fechas límite pendientes en este período.' : 'No deadlines in this period.')
-        : items.map((d: any) => `${lang === 'es' ? d.titleEs || d.title : d.title} (${new Date(d.deadlineDate).toLocaleDateString()})`).join('; ');
+        ? lang === 'es'
+          ? 'Sin fechas límite pendientes en este período.'
+          : 'No deadlines in this period.'
+        : items
+            .map(
+              (d: any) =>
+                `${lang === 'es' ? d.titleEs || d.title : d.title} (${new Date(d.deadlineDate).toLocaleDateString()})`,
+            )
+            .join('; ');
 
     const critical = deadlines
       .filter((d: any) => d.urgency === 'CRITICAL' || d.urgency === 'OVERDUE')
@@ -204,7 +271,10 @@ export class AlmAdvisorV2Service {
 
   // ─── Narrative Synthesizer (AGENT-D) — SSE Streaming ───────
 
-  async *streamNarrative(institutionId: string, lang: string): AsyncGenerator<string> {
+  async *streamNarrative(
+    institutionId: string,
+    lang: string,
+  ): AsyncGenerator<string> {
     const [health, pulse] = await Promise.all([
       this.computeHealthScore(institutionId),
       this.buildRegPulse(institutionId),
@@ -222,13 +292,21 @@ export class AlmAdvisorV2Service {
     yield* this.generateLocalNarrative(health, alerts, pulse, lang);
   }
 
-  async getStaticNarrative(institutionId: string, lang: string): Promise<AdvisorNarrative> {
+  async getStaticNarrative(
+    institutionId: string,
+    lang: string,
+  ): Promise<AdvisorNarrative> {
     const health = await this.computeHealthScore(institutionId);
     const alerts = this.rankAlerts(health);
     const pulse = await this.buildRegPulse(institutionId);
 
     let narrative = '';
-    for await (const token of this.generateLocalNarrative(health, alerts, pulse, lang)) {
+    for await (const token of this.generateLocalNarrative(
+      health,
+      alerts,
+      pulse,
+      lang,
+    )) {
       narrative += token;
     }
 
@@ -238,15 +316,21 @@ export class AlmAdvisorV2Service {
   // ─── Private: Anthropic Streaming ──────────────────────────
 
   private async *streamFromAnthropic(
-    health: HealthScore, alerts: RiskAlert[], pulse: RegPulse, lang: string,
+    health: HealthScore,
+    alerts: RiskAlert[],
+    pulse: RegPulse,
+    lang: string,
   ): AsyncGenerator<string> {
     try {
-      const Anthropic = await import('@anthropic-ai/sdk').then(m => m.default || m);
-      const client = new Anthropic();
+      const AnthropicModule = await import('@anthropic-ai/sdk');
+      const AnthropicClient = AnthropicModule.default;
+      const client = new AnthropicClient({
+        apiKey: process.env.ANTHROPIC_API_KEY,
+      });
       const systemPrompt = lang === 'es' ? ES_SYSTEM_PROMPT : EN_SYSTEM_PROMPT;
       const userContent = JSON.stringify({
         healthScore: health,
-        riskAlerts: alerts.map(a => ({
+        riskAlerts: alerts.map((a) => ({
           rank: a.rank,
           domain: a.domain,
           severity: a.severity,
@@ -269,63 +353,100 @@ export class AlmAdvisorV2Service {
       });
 
       for await (const event of stream) {
-        if (event.type === 'content_block_delta' && (event as any).delta?.text) {
+        if (
+          event.type === 'content_block_delta' &&
+          (event as any).delta?.text
+        ) {
           yield (event as any).delta.text;
         }
       }
     } catch (err) {
-      this.logger.warn(`Anthropic streaming failed, falling back to local narrative: ${err}`);
-      yield* this.generateLocalNarrative(health, alerts.length > 0 ? [alerts[0]] as any : [], {} as any, lang);
+      this.logger.warn(
+        `Anthropic streaming failed, falling back to local narrative: ${err}`,
+      );
+      yield* this.generateLocalNarrative(
+        health,
+        alerts.length > 0 ? ([alerts[0]] as any) : [],
+        {} as any,
+        lang,
+      );
     }
   }
 
   // ─── Private: Local Narrative Generator ────────────────────
 
   private async *generateLocalNarrative(
-    health: HealthScore, alerts: RiskAlert[], pulse: RegPulse, lang: string,
+    health: HealthScore,
+    alerts: RiskAlert[],
+    pulse: RegPulse,
+    lang: string,
   ): AsyncGenerator<string> {
     const isEs = lang === 'es';
-    const delay = () => new Promise(r => setTimeout(r, 15)); // Simulate streaming
+    const delay = () => new Promise((r) => setTimeout(r, 15)); // Simulate streaming
 
     // Section 1: Health Score
-    const s1Header = isEs ? '## Puntuación de Salud del Balance\n\n' : '## Balance Sheet Health Score\n\n';
-    yield s1Header; await delay();
+    const s1Header = isEs
+      ? '## Puntuación de Salud del Balance\n\n'
+      : '## Balance Sheet Health Score\n\n';
+    yield s1Header;
+    await delay();
 
     const scoreLabel = isEs
-      ? { STRONG: 'Fuerte', SATISFACTORY: 'Satisfactorio', FAIR: 'Regular', MARGINAL: 'Marginal', UNSATISFACTORY: 'Insatisfactorio' }
-      : { STRONG: 'Strong', SATISFACTORY: 'Satisfactory', FAIR: 'Fair', MARGINAL: 'Marginal', UNSATISFACTORY: 'Unsatisfactory' };
+      ? {
+          STRONG: 'Fuerte',
+          SATISFACTORY: 'Satisfactorio',
+          FAIR: 'Regular',
+          MARGINAL: 'Marginal',
+          UNSATISFACTORY: 'Insatisfactorio',
+        }
+      : {
+          STRONG: 'Strong',
+          SATISFACTORY: 'Satisfactory',
+          FAIR: 'Fair',
+          MARGINAL: 'Marginal',
+          UNSATISFACTORY: 'Unsatisfactory',
+        };
 
     const s1Body = isEs
       ? `La institución presenta una puntuación compuesta de **${health.overall}/100** (${scoreLabel[health.label]}). Capital: ${health.capital}/20, Liquidez: ${health.liquidity}/20, Riesgo de Tasa: ${health.rateRisk}/20, Crédito: ${health.credit}/20, Concentración: ${health.concentration}/20.\n\n`
       : `The institution presents a composite score of **${health.overall}/100** (${scoreLabel[health.label]}). Capital: ${health.capital}/20, Liquidity: ${health.liquidity}/20, Rate Risk: ${health.rateRisk}/20, Credit: ${health.credit}/20, Concentration: ${health.concentration}/20.\n\n`;
 
     for (const chunk of s1Body.match(/.{1,8}/g) ?? []) {
-      yield chunk; await delay();
+      yield chunk;
+      await delay();
     }
 
     // Section 2: Risk Alerts
-    const s2Header = isEs ? '## Principales Alertas de Riesgo\n\n' : '## Top Risk Alerts\n\n';
-    yield s2Header; await delay();
+    const s2Header = isEs
+      ? '## Principales Alertas de Riesgo\n\n'
+      : '## Top Risk Alerts\n\n';
+    yield s2Header;
+    await delay();
 
     for (const alert of alerts) {
       const alertText = isEs
         ? `**${alert.rank}. ${alert.domain}** (${alert.severity}) — ${alert.messageEs} _Ref: ${alert.regulatoryRef}._ **Acción:** ${alert.remediationEs}\n\n`
         : `**${alert.rank}. ${alert.domain}** (${alert.severity}) — ${alert.message} _Ref: ${alert.regulatoryRef}._ **Action:** ${alert.remediation}\n\n`;
       for (const chunk of alertText.match(/.{1,10}/g) ?? []) {
-        yield chunk; await delay();
+        yield chunk;
+        await delay();
       }
     }
 
     // Section 3: Regulatory Pulse
-    const s3Header = isEs ? '## Pulso Regulatorio — Próximos 90 Días\n\n' : '## Regulatory Pulse — Next 90 Days\n\n';
-    yield s3Header; await delay();
+    const s3Header = isEs
+      ? '## Pulso Regulatorio — Próximos 90 Días\n\n'
+      : '## Regulatory Pulse — Next 90 Days\n\n';
+    yield s3Header;
+    await delay();
 
     const s3Body = isEs
       ? `**Próximos 30 días:** ${pulse.next30Es}\n**30–60 días:** ${pulse.next60Es}\n**60–90 días:** ${pulse.next90Es}\n`
       : `**Next 30 days:** ${pulse.next30}\n**30–60 days:** ${pulse.next60}\n**60–90 days:** ${pulse.next90}\n`;
 
     for (const chunk of s3Body.match(/.{1,10}/g) ?? []) {
-      yield chunk; await delay();
+      yield chunk;
+      await delay();
     }
 
     if (pulse.criticalDeadlines.length > 0) {
@@ -339,8 +460,11 @@ export class AlmAdvisorV2Service {
   // ─── Scoring Sub-Functions (each 0–20) ────────────────────
 
   private scoreCapital(summary: any): number {
-    const nwr = summary?.capitalRatio ?? summary?.riskScore ? (100 - (summary.riskScore ?? 50)) / 100 * 0.12 : 0.09;
-    if (nwr >= 0.10) return 20;
+    const nwr =
+      (summary?.capitalRatio ?? summary?.riskScore)
+        ? ((100 - (summary.riskScore ?? 50)) / 100) * 0.12
+        : 0.09;
+    if (nwr >= 0.1) return 20;
     if (nwr >= 0.08) return 16;
     if (nwr >= 0.07) return 12;
     if (nwr >= 0.06) return 8;
@@ -383,8 +507,13 @@ export class AlmAdvisorV2Service {
 
   private getDemoHealthScore(): HealthScore {
     return {
-      overall: 72, capital: 16, liquidity: 16, rateRisk: 12,
-      credit: 14, concentration: 14, label: 'SATISFACTORY',
+      overall: 72,
+      capital: 16,
+      liquidity: 16,
+      rateRisk: 12,
+      credit: 14,
+      concentration: 14,
+      label: 'SATISFACTORY',
     };
   }
 }

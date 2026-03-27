@@ -536,15 +536,41 @@ class APIClient {
 
   // Tickers
   async getPopularTickers() {
-    return Promise.resolve(['NVDA', 'AAPL', 'MSFT', 'AMD', 'TSLA', 'GOOGL', 'META', 'AMZN']);
+    const popularTickers: Array<{
+      ticker: string;
+      name: string;
+      sector: string | null;
+      industry: string | null;
+      asset_type: 'stock' | 'etf' | 'crypto' | 'index';
+      exchange: string | null;
+    }> = [
+      { ticker: 'NVDA', name: 'NVIDIA Corporation', sector: 'Technology', industry: 'Semiconductors', asset_type: 'stock', exchange: 'NASDAQ' },
+      { ticker: 'AAPL', name: 'Apple Inc.', sector: 'Technology', industry: 'Consumer Electronics', asset_type: 'stock', exchange: 'NASDAQ' },
+      { ticker: 'MSFT', name: 'Microsoft Corporation', sector: 'Technology', industry: 'Software', asset_type: 'stock', exchange: 'NASDAQ' },
+      { ticker: 'AMD', name: 'Advanced Micro Devices', sector: 'Technology', industry: 'Semiconductors', asset_type: 'stock', exchange: 'NASDAQ' },
+      { ticker: 'TSLA', name: 'Tesla, Inc.', sector: 'Consumer Discretionary', industry: 'Automobiles', asset_type: 'stock', exchange: 'NASDAQ' },
+      { ticker: 'GOOGL', name: 'Alphabet Inc.', sector: 'Communication Services', industry: 'Internet Content & Information', asset_type: 'stock', exchange: 'NASDAQ' },
+      { ticker: 'META', name: 'Meta Platforms, Inc.', sector: 'Communication Services', industry: 'Internet Content & Information', asset_type: 'stock', exchange: 'NASDAQ' },
+      { ticker: 'AMZN', name: 'Amazon.com, Inc.', sector: 'Consumer Discretionary', industry: 'Internet Retail', asset_type: 'stock', exchange: 'NASDAQ' },
+    ];
+    return Promise.resolve(popularTickers);
   }
 
   async searchTickers(query: string) {
-    const pseudoResults = [
-      { ticker: 'NVDA', name: 'NVIDIA Corporation', type: 'Stock' },
-      { ticker: 'AMD', name: 'Advanced Micro Devices', type: 'Stock' },
-      { ticker: 'TSX', name: 'Taiwan Semiconductor', type: 'Stock' },
-      query.length > 0 ? { ticker: query.toUpperCase(), name: `${query.toUpperCase()} Corp`, type: 'Stock' } : { ticker: 'INTC', name: 'Intel Corp', type: 'Stock' }
+    const pseudoResults: Array<{
+      ticker: string;
+      name: string;
+      sector: string | null;
+      industry: string | null;
+      asset_type: 'stock' | 'etf' | 'crypto' | 'index';
+      exchange: string | null;
+    }> = [
+      { ticker: 'NVDA', name: 'NVIDIA Corporation', sector: 'Technology', industry: 'Semiconductors', asset_type: 'stock', exchange: 'NASDAQ' },
+      { ticker: 'AMD', name: 'Advanced Micro Devices', sector: 'Technology', industry: 'Semiconductors', asset_type: 'stock', exchange: 'NASDAQ' },
+      { ticker: 'TSM', name: 'Taiwan Semiconductor', sector: 'Technology', industry: 'Semiconductors', asset_type: 'stock', exchange: 'NYSE' },
+      query.length > 0
+        ? { ticker: query.toUpperCase(), name: `${query.toUpperCase()} Corp`, sector: null, industry: null, asset_type: 'stock', exchange: 'NASDAQ' }
+        : { ticker: 'INTC', name: 'Intel Corp', sector: 'Technology', industry: 'Semiconductors', asset_type: 'stock', exchange: 'NASDAQ' },
     ];
     return Promise.resolve(pseudoResults);
   }

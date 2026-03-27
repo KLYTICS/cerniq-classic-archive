@@ -1,5 +1,10 @@
 import { Logger } from '@nestjs/common';
-import { QUEUE_NAMES, JOB_TYPES, QueueJobData, QueueJobResult } from './queue.config';
+import {
+  QUEUE_NAMES,
+  JOB_TYPES,
+  QueueJobData,
+  QueueJobResult,
+} from './queue.config';
 
 // ─── ALM Compute Queue Processor ────────────────────────────
 // In production: @Processor(QUEUE_NAMES.ALM_COMPUTE) with @nestjs/bull
@@ -26,7 +31,9 @@ export function getJobStatus(jobId: string): ComputeJobProgress | null {
 }
 
 export function listActiveJobs(): ComputeJobProgress[] {
-  return Array.from(activeJobs.values()).filter(j => j.status === 'running' || j.status === 'pending');
+  return Array.from(activeJobs.values()).filter(
+    (j) => j.status === 'running' || j.status === 'pending',
+  );
 }
 
 export async function enqueueComputeJob(
@@ -60,7 +67,9 @@ export async function enqueueComputeJob(
       job.status = 'completed';
       job.result = result;
       job.completedAt = new Date().toISOString();
-      logger.log(`Job ${jobId} (${jobType}) completed in ${Date.now() - new Date(job.startedAt!).getTime()}ms`);
+      logger.log(
+        `Job ${jobId} (${jobType}) completed in ${Date.now() - new Date(job.startedAt).getTime()}ms`,
+      );
     } catch (err: any) {
       job.status = 'failed';
       job.error = err.message;

@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { AlmEnterpriseService, type ALMSummaryResult } from './alm-enterprise.service';
+import {
+  AlmEnterpriseService,
+  type ALMSummaryResult,
+} from './alm-enterprise.service';
 import {
   StressTestingService,
   type MonteCarloParams,
@@ -57,7 +60,10 @@ export class AnalysisRunsService {
   ) {}
 
   async createRun(userId: string, dto: CreateAnalysisRunDto) {
-    const institution = await this.assertInstitutionAccess(dto.institutionId, userId);
+    const institution = await this.assertInstitutionAccess(
+      dto.institutionId,
+      userId,
+    );
     const normalizedRateShocks = this.normalizeRateShocks(dto.rateShocks);
     const stressParams = this.normalizeStressParams(dto.stressTesting);
     const balanceSheetSnapshot = toJsonValue(
@@ -81,7 +87,8 @@ export class AnalysisRunsService {
         analysisType: dto.analysisType || 'full_analysis',
         triggeredBy: dto.triggeredBy || 'manual_api',
         modelVersion: dto.modelVersion || 'alm-v1',
-        scenarioSet: dto.scenarioSet || this.deriveScenarioSet(normalizedRateShocks),
+        scenarioSet:
+          dto.scenarioSet || this.deriveScenarioSet(normalizedRateShocks),
         assumptions: toJsonValue(dto.assumptions || {}),
         parameterSnapshot: toJsonValue(parameterSnapshot),
         balanceSheetSnapshot,
@@ -102,7 +109,10 @@ export class AnalysisRunsService {
 
     try {
       const [summary, stressTest] = await Promise.all([
-        this.almEnterprise.getALMSummary(dto.institutionId, normalizedRateShocks),
+        this.almEnterprise.getALMSummary(
+          dto.institutionId,
+          normalizedRateShocks,
+        ),
         this.stressTesting.runFullStressTest(dto.institutionId, stressParams),
       ]);
 
@@ -134,7 +144,8 @@ export class AnalysisRunsService {
 
       return this.serializeRun(completedRun);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Analysis run failed';
+      const message =
+        error instanceof Error ? error.message : 'Analysis run failed';
 
       const failedRun = await this.prisma.analysisRun.update({
         where: { id: run.id },
@@ -161,7 +172,11 @@ export class AnalysisRunsService {
     }
   }
 
-  async listRuns(userId: string, institutionId?: string, pagination?: PaginationQueryDto) {
+  async listRuns(
+    userId: string,
+    institutionId?: string,
+    pagination?: PaginationQueryDto,
+  ) {
     const page = pagination?.page || 1;
     const pageSize = pagination?.pageSize || 20;
     const where = {
@@ -255,7 +270,9 @@ export class AnalysisRunsService {
       return [...DEFAULT_RATE_SHOCKS];
     }
 
-    const unique = Array.from(new Set(rateShocks.map((value) => Math.trunc(value))));
+    const unique = Array.from(
+      new Set(rateShocks.map((value) => Math.trunc(value))),
+    );
     return unique.sort((a, b) => a - b);
   }
 
@@ -266,7 +283,8 @@ export class AnalysisRunsService {
       paths: params?.paths ?? DEFAULT_STRESS_PARAMS.paths,
       horizon: params?.horizon ?? DEFAULT_STRESS_PARAMS.horizon,
       volatility: params?.volatility ?? DEFAULT_STRESS_PARAMS.volatility,
-      meanReversion: params?.meanReversion ?? DEFAULT_STRESS_PARAMS.meanReversion,
+      meanReversion:
+        params?.meanReversion ?? DEFAULT_STRESS_PARAMS.meanReversion,
     };
   }
 
@@ -275,7 +293,9 @@ export class AnalysisRunsService {
       rateShocks.length === DEFAULT_RATE_SHOCKS.length &&
       rateShocks.every((value, index) => value === DEFAULT_RATE_SHOCKS[index]);
 
-    return isDefault ? 'base_parallel_shocks' : `custom_${rateShocks.join('_')}`;
+    return isDefault
+      ? 'base_parallel_shocks'
+      : `custom_${rateShocks.join('_')}`;
   }
 
   private serializeRun(run: PersistedRun) {

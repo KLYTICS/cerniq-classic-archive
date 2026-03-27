@@ -1,7 +1,10 @@
 import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { AuditService } from './audit.service';
-import { AdminAuditController, PortalAuditController } from './audit.controller';
+import {
+  AdminAuditController,
+  PortalAuditController,
+} from './audit.controller';
 
 @Global()
 @Module({

@@ -45,6 +45,7 @@ export class ChangePasswordDto {
 }
 
 export class RefreshTokenDto {
+  @IsOptional()
   @IsString()
-  refreshToken: string;
+  refreshToken?: string;
 }

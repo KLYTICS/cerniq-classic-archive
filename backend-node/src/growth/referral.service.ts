@@ -1,5 +1,5 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 import * as crypto from 'crypto';
 
 export interface ReferralCode {
@@ -27,8 +27,14 @@ export class ReferralService {
   constructor(private readonly prisma: PrismaService) {}
 
   async generateCode(referrerInstitutionId: string): Promise<ReferralCode> {
-    const inst = await this.prisma.institution.findUniqueOrThrow({ where: { id: referrerInstitutionId } });
-    const prefix = inst.name.replace(/[^A-Z]/gi, '').slice(0, 4).toUpperCase() || 'CRNQ';
+    const inst = await this.prisma.institution.findUniqueOrThrow({
+      where: { id: referrerInstitutionId },
+    });
+    const prefix =
+      inst.name
+        .replace(/[^A-Z]/gi, '')
+        .slice(0, 4)
+        .toUpperCase() || 'CRNQ';
     const suffix = crypto.randomBytes(3).toString('hex').toUpperCase();
     const code = `CERNIQ-${prefix}-${suffix}`;
     const expiresAt = new Date(Date.now() + 90 * 86400000); // 90 days
@@ -48,7 +54,9 @@ export class ReferralService {
     };
   }
 
-  async validateCode(code: string): Promise<{ valid: boolean; referrerName?: string; discount?: string }> {
+  async validateCode(
+    code: string,
+  ): Promise<{ valid: boolean; referrerName?: string; discount?: string }> {
     // Simple validation — in production, check against DB
     if (!code.startsWith('CERNIQ-')) {
       return { valid: false };
@@ -60,13 +68,18 @@ export class ReferralService {
     };
   }
 
-  async applyCode(refereeInstitutionId: string, code: string): Promise<{ applied: boolean; message: string }> {
+  async applyCode(
+    refereeInstitutionId: string,
+    code: string,
+  ): Promise<{ applied: boolean; message: string }> {
     const validation = await this.validateCode(code);
     if (!validation.valid) {
       throw new BadRequestException('Invalid or expired referral code');
     }
 
-    this.logger.log(`Referral code ${code} applied by institution ${refereeInstitutionId}`);
+    this.logger.log(
+      `Referral code ${code} applied by institution ${refereeInstitutionId}`,
+    );
 
     return {
       applied: true,

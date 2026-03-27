@@ -30,7 +30,11 @@ export interface PaginatedResult<T> {
   totalPages: number;
 }
 
-export function paginate<T>(items: T[], total: number, query: PaginationQueryDto): PaginatedResult<T> {
+export function paginate<T>(
+  items: T[],
+  total: number,
+  query: PaginationQueryDto,
+): PaginatedResult<T> {
   const page = query.page || 1;
   const pageSize = query.pageSize || 20;
   return {

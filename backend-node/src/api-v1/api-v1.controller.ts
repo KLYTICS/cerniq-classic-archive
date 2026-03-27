@@ -136,7 +136,10 @@ export class ApiV1Controller {
     type: AnalysisResultResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Invalid or missing API key' })
-  @ApiResponse({ status: 422, description: 'Validation failed — check rows and required fields' })
+  @ApiResponse({
+    status: 422,
+    description: 'Validation failed — check rows and required fields',
+  })
   @ApiResponse({ status: 429, description: 'Rate limit exceeded' })
   async analyze(@Req() req: any, @Body() dto: AnalyzeRequestDto) {
     this.logger.log(
@@ -162,21 +165,39 @@ export class ApiV1Controller {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['file', 'institutionName', 'institutionType', 'framework', 'period'],
+      required: [
+        'file',
+        'institutionName',
+        'institutionType',
+        'framework',
+        'period',
+      ],
       properties: {
-        file: { type: 'string', format: 'binary', description: 'CSV file (max 2MB)' },
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'CSV file (max 2MB)',
+        },
         institutionName: { type: 'string', example: 'Cooperativa Oriental' },
         institutionType: {
           type: 'string',
           enum: ['cooperativa', 'credit_union', 'bank', 'community_bank'],
           example: 'cooperativa',
         },
-        framework: { type: 'string', enum: ['cossec', 'ncua'], example: 'cossec' },
+        framework: {
+          type: 'string',
+          enum: ['cossec', 'ncua'],
+          example: 'cossec',
+        },
         period: { type: 'string', example: 'Q1-2026' },
       },
     },
   })
-  @ApiResponse({ status: 200, description: 'Analysis complete', type: AnalysisResultResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Analysis complete',
+    type: AnalysisResultResponseDto,
+  })
   @ApiResponse({ status: 400, description: 'Invalid CSV format' })
   @ApiResponse({ status: 401, description: 'Invalid or missing API key' })
   @ApiResponse({ status: 429, description: 'Rate limit exceeded' })
@@ -185,7 +206,10 @@ export class ApiV1Controller {
       limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
       fileFilter: (_req, file, cb) => {
         if (!file.originalname.match(/\.csv$/i)) {
-          return cb(new BadRequestException('Only .csv files are accepted'), false);
+          return cb(
+            new BadRequestException('Only .csv files are accepted'),
+            false,
+          );
         }
         cb(null, true);
       },
@@ -205,7 +229,12 @@ export class ApiV1Controller {
     if (!file) {
       throw new BadRequestException('No CSV file provided');
     }
-    if (!body.institutionName || !body.institutionType || !body.framework || !body.period) {
+    if (
+      !body.institutionName ||
+      !body.institutionType ||
+      !body.framework ||
+      !body.period
+    ) {
       throw new BadRequestException(
         'Missing required fields: institutionName, institutionType, framework, period',
       );
@@ -238,14 +267,15 @@ export class ApiV1Controller {
       'Retrieve a previously computed analysis result by its ID. ' +
       'Only analyses created by the API key owner are accessible.',
   })
-  @ApiParam({ name: 'analysisId', description: 'Analysis run ID', example: 'clxyz123abc' })
+  @ApiParam({
+    name: 'analysisId',
+    description: 'Analysis run ID',
+    example: 'clxyz123abc',
+  })
   @ApiResponse({ status: 200, description: 'Analysis result' })
   @ApiResponse({ status: 401, description: 'Invalid or missing API key' })
   @ApiResponse({ status: 404, description: 'Analysis not found' })
-  async getAnalysis(
-    @Req() req: any,
-    @Param('analysisId') analysisId: string,
-  ) {
+  async getAnalysis(@Req() req: any, @Param('analysisId') analysisId: string) {
     return this.apiV1Service.getAnalysis(req.apiUser.userId, analysisId);
   }
 }

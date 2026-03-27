@@ -77,8 +77,24 @@ describe('AnalysisRunsService', () => {
 
     almEnterprise = {
       getBalanceSheetSnapshot: jest.fn().mockResolvedValue({
-        assets: [{ name: 'Cash', amount: 1000000, rate: 0.05, maturityYears: 0.1, isFloating: true }],
-        liabilities: [{ name: 'Deposits', amount: 900000, rate: 0.01, maturityYears: 0.1, isFloating: true }],
+        assets: [
+          {
+            name: 'Cash',
+            amount: 1000000,
+            rate: 0.05,
+            maturityYears: 0.1,
+            isFloating: true,
+          },
+        ],
+        liabilities: [
+          {
+            name: 'Deposits',
+            amount: 900000,
+            rate: 0.01,
+            maturityYears: 0.1,
+            isFloating: true,
+          },
+        ],
         equity: 100000,
       }),
       getALMSummary: jest.fn().mockResolvedValue({
@@ -90,14 +106,30 @@ describe('AnalysisRunsService', () => {
           currency: 'USD',
           reportingDate: '2026-01-31T00:00:00.000Z',
         },
-        durationGap: { assetDuration: 1, liabilityDuration: 0.5, durationGap: 0.5, riskProfile: 'neutral' },
+        durationGap: {
+          assetDuration: 1,
+          liabilityDuration: 0.5,
+          durationGap: 0.5,
+          riskProfile: 'neutral',
+        },
         niiSensitivity: { scenarios: [], baseNII: 1.2, riskRating: 'low' },
-        liquidity: { lcr: 115, hqla: 20, netOutflows: 18, status: 'compliant', buffer: 15 },
+        liquidity: {
+          lcr: 115,
+          hqla: 20,
+          netOutflows: 18,
+          status: 'compliant',
+          buffer: 15,
+        },
         topRisks: [],
         recommendations: [],
         riskScore: 82,
         fullAnalysis: {
-          summary: { totalAssets: 1, totalLiabilities: 1, equity: 0, timestamp: '2026-03-15T12:00:00.000Z' },
+          summary: {
+            totalAssets: 1,
+            totalLiabilities: 1,
+            equity: 0,
+            timestamp: '2026-03-15T12:00:00.000Z',
+          },
           durationGap: {} as any,
           niiSimulation: {} as any,
           eve: {} as any,
@@ -109,7 +141,16 @@ describe('AnalysisRunsService', () => {
 
     stressTesting = {
       runFullStressTest: jest.fn().mockResolvedValue({
-        monteCarlo: { paths: 1000, horizon: 12, ratePaths: [], niiDistribution: {}, monthlyNIIBands: [], worstCaseNII: 0, expectedNII: 0, niiAtRisk: 0 },
+        monteCarlo: {
+          paths: 1000,
+          horizon: 12,
+          ratePaths: [],
+          niiDistribution: {},
+          monthlyNIIBands: [],
+          worstCaseNII: 0,
+          expectedNII: 0,
+          niiAtRisk: 0,
+        },
         regulatory: { scenarios: [], overallRating: 'resilient' },
       }),
     };
@@ -131,17 +172,27 @@ describe('AnalysisRunsService', () => {
         }),
       }),
     );
-    expect(almEnterprise.getALMSummary).toHaveBeenCalledWith('inst_123', [-100, 0, 100]);
+    expect(almEnterprise.getALMSummary).toHaveBeenCalledWith(
+      'inst_123',
+      [-100, 0, 100],
+    );
     expect(stressTesting.runFullStressTest).toHaveBeenCalledWith(
       'inst_123',
-      expect.objectContaining({ paths: 500, horizon: 6, volatility: 150, meanReversion: 0.15 }),
+      expect.objectContaining({
+        paths: 500,
+        horizon: 6,
+        volatility: 150,
+        meanReversion: 0.15,
+      }),
     );
     expect(result.status).toBe('COMPLETED');
     expect(result.resultSummary?.summary?.riskScore).toBe(82);
   });
 
   it('persists a failed run when analysis execution throws', async () => {
-    almEnterprise.getALMSummary.mockRejectedValueOnce(new Error('summary failed'));
+    almEnterprise.getALMSummary.mockRejectedValueOnce(
+      new Error('summary failed'),
+    );
 
     const result = await service.createRun('user_123', {
       institutionId: 'inst_123',

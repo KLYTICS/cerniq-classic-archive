@@ -261,8 +261,8 @@ In the Railway dashboard, click the `cerniq-api` service and watch the **Build L
 3. `nest build` completes (compiles TypeScript to JavaScript)
 
 **What to look for in Deploy Logs:**
-1. `prisma migrate deploy` -- shows "X migrations applied" (or "Already in sync")
-2. `CERNIQ backend running on 0.0.0.0:XXXX [production]`
+1. `CERNIQ backend running on 0.0.0.0:XXXX [production]`
+2. `Nest application successfully started`
 3. `Swagger UI available at /api/v1/docs`
 4. No `FATAL:` error messages
 
@@ -283,15 +283,19 @@ In the Railway dashboard, click the `cerniq-api` service and watch the **Build L
 
 ## Step 3: Database Migration (5 minutes)
 
-### 3A. Verify Migrations Applied
+### 3A. Verify Migration Status
 
-Railway runs `prisma migrate deploy` automatically on every deployment (configured in `railway.json`). Check the deploy logs for the line:
+Production schema changes are explicit. They do not run automatically during app
+startup.
 
+Run:
+
+```bash
+cd backend-node
+DATABASE_URL="postgresql://..." npm run prisma:status
 ```
-X migrations applied
-```
 
-There are currently 17 migrations. All should show as "applied."
+Expected output: database schema is up to date.
 
 ### 3B. Manual Verification (if needed)
 
@@ -308,12 +312,22 @@ railway login
 railway link
 
 # Check migration status
-railway run npx prisma migrate status
+railway run npm run prisma:status
 ```
 
 Expected output: All migrations show "Applied."
 
-### 3C. Inspect the Database (optional)
+### 3C. Apply Schema Changes Explicitly (only when needed)
+
+```bash
+cd backend-node
+DATABASE_URL="postgresql://..." ALLOW_SCHEMA_MIGRATIONS=true npm run prisma:deploy
+```
+
+Only run this for reviewed schema changes, before deploying application code
+that depends on them.
+
+### 3D. Inspect the Database (optional)
 
 To open Prisma Studio (visual database browser):
 

@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 // ─── Standard Tenors (years) ─────────────────────────────────
 
@@ -8,14 +8,14 @@ const STANDARD_TENORS = [0.25, 0.5, 1, 2, 3, 5, 7, 10, 20, 30];
 // ─── Default US Treasury Curve (approximate March 2026) ──────
 
 const DEFAULT_BASE_CURVE: TenorRate[] = [
-  { tenor: 0.25, rate: 0.0480 },
+  { tenor: 0.25, rate: 0.048 },
   { tenor: 0.5, rate: 0.0465 },
-  { tenor: 1, rate: 0.0440 },
-  { tenor: 2, rate: 0.0420 },
-  { tenor: 3, rate: 0.0410 },
+  { tenor: 1, rate: 0.044 },
+  { tenor: 2, rate: 0.042 },
+  { tenor: 3, rate: 0.041 },
   { tenor: 5, rate: 0.0405 },
-  { tenor: 7, rate: 0.0410 },
-  { tenor: 10, rate: 0.0420 },
+  { tenor: 7, rate: 0.041 },
+  { tenor: 10, rate: 0.042 },
   { tenor: 20, rate: 0.0455 },
   { tenor: 30, rate: 0.0465 },
 ];
@@ -26,20 +26,52 @@ const BASEL_SHOCKS: Record<string, Record<number, number>> = {
   parallel_up: Object.fromEntries(STANDARD_TENORS.map((t) => [t, 200])),
   parallel_down: Object.fromEntries(STANDARD_TENORS.map((t) => [t, -200])),
   steepener: {
-    0.25: -100, 0.5: -90, 1: -75, 2: -50, 3: -30,
-    5: 0, 7: 30, 10: 60, 20: 90, 30: 100,
+    0.25: -100,
+    0.5: -90,
+    1: -75,
+    2: -50,
+    3: -30,
+    5: 0,
+    7: 30,
+    10: 60,
+    20: 90,
+    30: 100,
   },
   flattener: {
-    0.25: 100, 0.5: 90, 1: 75, 2: 50, 3: 30,
-    5: 0, 7: -30, 10: -60, 20: -90, 30: -100,
+    0.25: 100,
+    0.5: 90,
+    1: 75,
+    2: 50,
+    3: 30,
+    5: 0,
+    7: -30,
+    10: -60,
+    20: -90,
+    30: -100,
   },
   short_up: {
-    0.25: 300, 0.5: 275, 1: 250, 2: 200, 3: 150,
-    5: 75, 7: 40, 10: 0, 20: 0, 30: 0,
+    0.25: 300,
+    0.5: 275,
+    1: 250,
+    2: 200,
+    3: 150,
+    5: 75,
+    7: 40,
+    10: 0,
+    20: 0,
+    30: 0,
   },
   short_down: {
-    0.25: -300, 0.5: -275, 1: -250, 2: -200, 3: -150,
-    5: -75, 7: -40, 10: 0, 20: 0, 30: 0,
+    0.25: -300,
+    0.5: -275,
+    1: -250,
+    2: -200,
+    3: -150,
+    5: -75,
+    7: -40,
+    10: 0,
+    20: 0,
+    30: 0,
   },
 };
 
@@ -70,7 +102,12 @@ export interface YieldCurveAnalysis {
   nelsonSiegelParams: NelsonSiegelParams;
   forwardRates: TenorRate[];
   shockedCurves: ShockedCurve[];
-  niiImpact: Array<{ shockType: string; label: string; niiChangePct: number; eveChangePct: number }>;
+  niiImpact: Array<{
+    shockType: string;
+    label: string;
+    niiChangePct: number;
+    eveChangePct: number;
+  }>;
 }
 
 @Injectable()
@@ -128,10 +165,17 @@ export class YieldCurveService {
 
   // ─── Apply Shocks ──────────────────────────────────────────
 
-  applyShock(baseCurve: TenorRate[], shockType: string, customShocks?: Record<string, number>): ShockedCurve {
-    const shockBps = shockType === 'custom' && customShocks
-      ? Object.fromEntries(Object.entries(customShocks).map(([k, v]) => [parseFloat(k), v]))
-      : BASEL_SHOCKS[shockType] ?? BASEL_SHOCKS['parallel_up'];
+  applyShock(
+    baseCurve: TenorRate[],
+    shockType: string,
+    customShocks?: Record<string, number>,
+  ): ShockedCurve {
+    const shockBps =
+      shockType === 'custom' && customShocks
+        ? Object.fromEntries(
+            Object.entries(customShocks).map(([k, v]) => [parseFloat(k), v]),
+          )
+        : (BASEL_SHOCKS[shockType] ?? BASEL_SHOCKS['parallel_up']);
 
     const nsParams = this.fitNelsonSiegel(baseCurve);
 
@@ -162,12 +206,16 @@ export class YieldCurveService {
   }
 
   applyAllBaselShocks(baseCurve: TenorRate[]): ShockedCurve[] {
-    return Object.keys(BASEL_SHOCKS).map((type) => this.applyShock(baseCurve, type));
+    return Object.keys(BASEL_SHOCKS).map((type) =>
+      this.applyShock(baseCurve, type),
+    );
   }
 
   // ─── Full Yield Curve Analysis ─────────────────────────────
 
-  async getYieldCurveAnalysis(institutionId: string): Promise<YieldCurveAnalysis> {
+  async getYieldCurveAnalysis(
+    institutionId: string,
+  ): Promise<YieldCurveAnalysis> {
     // Try to load institution's base curve
     let baseCurve = DEFAULT_BASE_CURVE;
 
@@ -184,18 +232,39 @@ export class YieldCurveService {
     const shockedCurves = this.applyAllBaselShocks(baseCurve);
 
     // Estimate NII/EVE impact per shock
-    const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId },
+    });
     const niiImpact = shockedCurves.map((sc) => {
-      const { niiChangePct, eveChangePct } = this.estimateCurveImpact(items, baseCurve, sc);
-      return { shockType: sc.shockType, label: sc.shockLabel, niiChangePct, eveChangePct };
+      const { niiChangePct, eveChangePct } = this.estimateCurveImpact(
+        items,
+        baseCurve,
+        sc,
+      );
+      return {
+        shockType: sc.shockType,
+        label: sc.shockLabel,
+        niiChangePct,
+        eveChangePct,
+      };
     });
 
-    return { baseCurve, nelsonSiegelParams: nsParams, forwardRates, shockedCurves, niiImpact };
+    return {
+      baseCurve,
+      nelsonSiegelParams: nsParams,
+      forwardRates,
+      shockedCurves,
+      niiImpact,
+    };
   }
 
   // ─── NII/EVE with Tenor-Specific Shocks ────────────────────
 
-  niiSimulationWithCurve(items: any[], baseCurve: TenorRate[], shockedCurve: ShockedCurve): number {
+  niiSimulationWithCurve(
+    items: any[],
+    baseCurve: TenorRate[],
+    shockedCurve: ShockedCurve,
+  ): number {
     let baseNII = 0;
     let shockedNII = 0;
 
@@ -222,10 +291,16 @@ export class YieldCurveService {
       }
     }
 
-    return baseNII === 0 ? 0 : ((shockedNII - baseNII) / Math.abs(baseNII)) * 100;
+    return baseNII === 0
+      ? 0
+      : ((shockedNII - baseNII) / Math.abs(baseNII)) * 100;
   }
 
-  eveAnalysisWithCurve(items: any[], baseCurve: TenorRate[], shockedCurve: ShockedCurve): number {
+  eveAnalysisWithCurve(
+    items: any[],
+    baseCurve: TenorRate[],
+    shockedCurve: ShockedCurve,
+  ): number {
     let baseEVE = 0;
     let shockedEVE = 0;
 
@@ -250,7 +325,9 @@ export class YieldCurveService {
       }
     }
 
-    return baseEVE === 0 ? 0 : ((shockedEVE - baseEVE) / Math.abs(baseEVE)) * 100;
+    return baseEVE === 0
+      ? 0
+      : ((shockedEVE - baseEVE) / Math.abs(baseEVE)) * 100;
   }
 
   // ─── Forward NII Schedule (MP-002) ──────────────────────────
@@ -259,15 +336,27 @@ export class YieldCurveService {
     institutionId: string,
     shockBpsPerTenor: Record<string, number>,
     quarters: number = 12,
-  ): Promise<Array<{ quarter: string; baselineNII: number; shockedNII: number; delta: number; deltaPct: number }>> {
-    const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
+  ): Promise<
+    Array<{
+      quarter: string;
+      baselineNII: number;
+      shockedNII: number;
+      delta: number;
+      deltaPct: number;
+    }>
+  > {
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId },
+    });
 
     let baseCurve: TenorRate[];
     const savedCurve = await this.prisma.yieldCurve.findFirst({
       where: { institutionId, isBase: true },
       orderBy: { asOfDate: 'desc' },
     });
-    baseCurve = savedCurve ? (savedCurve.tenors as unknown as TenorRate[]) : DEFAULT_BASE_CURVE;
+    baseCurve = savedCurve
+      ? (savedCurve.tenors as unknown as TenorRate[])
+      : DEFAULT_BASE_CURVE;
 
     // Build shocked curve from per-tenor shocks
     const shockBps: Record<number, number> = {};
@@ -276,7 +365,13 @@ export class YieldCurveService {
     }
 
     const now = new Date();
-    const result: Array<{ quarter: string; baselineNII: number; shockedNII: number; delta: number; deltaPct: number }> = [];
+    const result: Array<{
+      quarter: string;
+      baselineNII: number;
+      shockedNII: number;
+      delta: number;
+      deltaPct: number;
+    }> = [];
 
     for (let q = 0; q < quarters; q++) {
       const qDate = new Date(now.getFullYear(), now.getMonth() + q * 3, 1);
@@ -292,7 +387,8 @@ export class YieldCurveService {
 
         // Check if item reprices in this quarter
         const repricingQuarter = Math.floor(tenor * 4);
-        const hasRepriced = q >= repricingQuarter || item.rateType === 'variable';
+        const hasRepriced =
+          q >= repricingQuarter || item.rateType === 'variable';
 
         const baseRate = item.rate;
         const beta = this.getRepricingBeta(item);
@@ -301,8 +397,8 @@ export class YieldCurveService {
           ? baseRate + (tenorShock / 10000) * beta
           : baseRate; // fixed-rate hasn't repriced yet
 
-        const baseIncome = balance * baseRate / 4; // quarterly
-        const shockedIncome = balance * shockedRate / 4;
+        const baseIncome = (balance * baseRate) / 4; // quarterly
+        const shockedIncome = (balance * shockedRate) / 4;
 
         if (isAsset) {
           baseNII += baseIncome;
@@ -359,8 +455,14 @@ export class YieldCurveService {
   private solveNSForLambda(curve: TenorRate[], lambda: number) {
     // Least-squares: y = β0 + β1*f1 + β2*f2
     const n = curve.length;
-    let sum_y = 0, sum_f1 = 0, sum_f2 = 0;
-    let sum_f1y = 0, sum_f2y = 0, sum_f1f1 = 0, sum_f2f2 = 0, sum_f1f2 = 0;
+    let sum_y = 0,
+      sum_f1 = 0,
+      sum_f2 = 0;
+    let sum_f1y = 0,
+      sum_f2y = 0,
+      sum_f1f1 = 0,
+      sum_f2f2 = 0,
+      sum_f1f2 = 0;
 
     for (const { tenor, rate } of curve) {
       const x = tenor / lambda;
@@ -394,7 +496,10 @@ export class YieldCurveService {
     // Compute error
     let error = 0;
     for (const { tenor, rate } of curve) {
-      const fitted = this.interpolateRate({ beta0, beta1, beta2, lambda }, tenor);
+      const fitted = this.interpolateRate(
+        { beta0, beta1, beta2, lambda },
+        tenor,
+      );
       error += (rate - fitted) ** 2;
     }
 
@@ -430,18 +535,26 @@ export class YieldCurveService {
     return [D0 / D, D1 / D, D2 / D];
   }
 
-  private interpolateShock(tenor: number, shockBps: Record<number, number>): number {
-    const tenors = Object.keys(shockBps).map(Number).sort((a, b) => a - b);
+  private interpolateShock(
+    tenor: number,
+    shockBps: Record<number, number>,
+  ): number {
+    const tenors = Object.keys(shockBps)
+      .map(Number)
+      .sort((a, b) => a - b);
     if (tenors.length === 0) return 0;
     if (tenor <= tenors[0]) return shockBps[tenors[0]];
-    if (tenor >= tenors[tenors.length - 1]) return shockBps[tenors[tenors.length - 1]];
+    if (tenor >= tenors[tenors.length - 1])
+      return shockBps[tenors[tenors.length - 1]];
 
     // Linear interpolation
     for (let i = 0; i < tenors.length - 1; i++) {
       if (tenor >= tenors[i] && tenor <= tenors[i + 1]) {
-        const t1 = tenors[i], t2 = tenors[i + 1];
-        const s1 = shockBps[t1], s2 = shockBps[t2];
-        return s1 + (s2 - s1) * (tenor - t1) / (t2 - t1);
+        const t1 = tenors[i],
+          t2 = tenors[i + 1];
+        const s1 = shockBps[t1],
+          s2 = shockBps[t2];
+        return s1 + ((s2 - s1) * (tenor - t1)) / (t2 - t1);
       }
     }
     return 0;
@@ -450,26 +563,36 @@ export class YieldCurveService {
   private getRateAtTenor(curve: TenorRate[], tenor: number): number {
     const sorted = [...curve].sort((a, b) => a.tenor - b.tenor);
     if (tenor <= sorted[0].tenor) return sorted[0].rate;
-    if (tenor >= sorted[sorted.length - 1].tenor) return sorted[sorted.length - 1].rate;
+    if (tenor >= sorted[sorted.length - 1].tenor)
+      return sorted[sorted.length - 1].rate;
 
     for (let i = 0; i < sorted.length - 1; i++) {
       if (tenor >= sorted[i].tenor && tenor <= sorted[i + 1].tenor) {
-        const t1 = sorted[i].tenor, t2 = sorted[i + 1].tenor;
-        const r1 = sorted[i].rate, r2 = sorted[i + 1].rate;
-        return r1 + (r2 - r1) * (tenor - t1) / (t2 - t1);
+        const t1 = sorted[i].tenor,
+          t2 = sorted[i + 1].tenor;
+        const r1 = sorted[i].rate,
+          r2 = sorted[i + 1].rate;
+        return r1 + ((r2 - r1) * (tenor - t1)) / (t2 - t1);
       }
     }
     return sorted[0].rate;
   }
 
   private getRepricingBeta(item: any): number {
-    if (item.depositBeta !== null && item.depositBeta !== undefined) return item.depositBeta;
+    if (item.depositBeta !== null && item.depositBeta !== undefined)
+      return item.depositBeta;
     if (item.rateType === 'variable') return 1.0;
     if (item.category === 'liability') {
       const sub = (item.subcategory || '').toLowerCase();
-      if (sub.includes('demand') || sub.includes('savings') || sub.includes('ahorros')) return 0.40;
-      if (sub.includes('cd') || sub.includes('time') || sub.includes('plazo')) return 0.80;
-      return 0.60;
+      if (
+        sub.includes('demand') ||
+        sub.includes('savings') ||
+        sub.includes('ahorros')
+      )
+        return 0.4;
+      if (sub.includes('cd') || sub.includes('time') || sub.includes('plazo'))
+        return 0.8;
+      return 0.6;
     }
     return 1.0;
   }
@@ -481,12 +604,22 @@ export class YieldCurveService {
   ): { niiChangePct: number; eveChangePct: number } {
     if (items.length === 0) {
       // Return heuristic based on shock magnitude
-      const avgShock = Object.values(shockedCurve.shockBps).reduce((a, b) => a + b, 0) / Object.values(shockedCurve.shockBps).length;
+      const avgShock =
+        Object.values(shockedCurve.shockBps).reduce((a, b) => a + b, 0) /
+        Object.values(shockedCurve.shockBps).length;
       return { niiChangePct: avgShock * 0.05, eveChangePct: -avgShock * 0.08 };
     }
 
-    const niiChangePct = this.niiSimulationWithCurve(items, baseCurve, shockedCurve);
-    const eveChangePct = this.eveAnalysisWithCurve(items, baseCurve, shockedCurve);
+    const niiChangePct = this.niiSimulationWithCurve(
+      items,
+      baseCurve,
+      shockedCurve,
+    );
+    const eveChangePct = this.eveAnalysisWithCurve(
+      items,
+      baseCurve,
+      shockedCurve,
+    );
     return { niiChangePct, eveChangePct };
   }
 }

@@ -1,19 +1,79 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 // ─── Data Inventory ─────────────────────────────────────────
 
 const DATA_INVENTORY = [
-  { field: 'User.email', category: 'PII', legalBasis: 'Contract performance', retentionDays: 1095, description: 'User login email' },
-  { field: 'User.name', category: 'PII', legalBasis: 'Contract performance', retentionDays: 1095, description: 'User display name' },
-  { field: 'Institution.contactEmail', category: 'PII', legalBasis: 'Legitimate interest', retentionDays: 1095, description: 'Institution contact' },
-  { field: 'Institution.contactName', category: 'PII', legalBasis: 'Legitimate interest', retentionDays: 1095, description: 'Institution contact name' },
-  { field: 'Institution.contactPhone', category: 'PII', legalBasis: 'Legitimate interest', retentionDays: 1095, description: 'Institution contact phone' },
-  { field: 'Lead.email', category: 'PII', legalBasis: 'Legitimate interest', retentionDays: 730, description: 'Prospect email' },
-  { field: 'Lead.name', category: 'PII', legalBasis: 'Legitimate interest', retentionDays: 730, description: 'Prospect name' },
-  { field: 'Lead.phone', category: 'PII', legalBasis: 'Legitimate interest', retentionDays: 730, description: 'Prospect phone' },
-  { field: 'AuditLog.ipAddress', category: 'PII', legalBasis: 'Security', retentionDays: 365, description: 'Login IP for security audit' },
-  { field: 'BalanceSheetItem.*', category: 'Financial', legalBasis: 'Contract performance', retentionDays: 2555, description: 'Institutional financial data (not PII)' },
+  {
+    field: 'User.email',
+    category: 'PII',
+    legalBasis: 'Contract performance',
+    retentionDays: 1095,
+    description: 'User login email',
+  },
+  {
+    field: 'User.name',
+    category: 'PII',
+    legalBasis: 'Contract performance',
+    retentionDays: 1095,
+    description: 'User display name',
+  },
+  {
+    field: 'Institution.contactEmail',
+    category: 'PII',
+    legalBasis: 'Legitimate interest',
+    retentionDays: 1095,
+    description: 'Institution contact',
+  },
+  {
+    field: 'Institution.contactName',
+    category: 'PII',
+    legalBasis: 'Legitimate interest',
+    retentionDays: 1095,
+    description: 'Institution contact name',
+  },
+  {
+    field: 'Institution.contactPhone',
+    category: 'PII',
+    legalBasis: 'Legitimate interest',
+    retentionDays: 1095,
+    description: 'Institution contact phone',
+  },
+  {
+    field: 'Lead.email',
+    category: 'PII',
+    legalBasis: 'Legitimate interest',
+    retentionDays: 730,
+    description: 'Prospect email',
+  },
+  {
+    field: 'Lead.name',
+    category: 'PII',
+    legalBasis: 'Legitimate interest',
+    retentionDays: 730,
+    description: 'Prospect name',
+  },
+  {
+    field: 'Lead.phone',
+    category: 'PII',
+    legalBasis: 'Legitimate interest',
+    retentionDays: 730,
+    description: 'Prospect phone',
+  },
+  {
+    field: 'AuditLog.ipAddress',
+    category: 'PII',
+    legalBasis: 'Security',
+    retentionDays: 365,
+    description: 'Login IP for security audit',
+  },
+  {
+    field: 'BalanceSheetItem.*',
+    category: 'Financial',
+    legalBasis: 'Contract performance',
+    retentionDays: 2555,
+    description: 'Institutional financial data (not PII)',
+  },
 ];
 
 // ─── Types ───────────────────────────────────────────────────
@@ -97,7 +157,14 @@ export class DataPrivacyService {
   async generateSAR(userId: string): Promise<SARExport> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, name: true, role: true, createdAt: true, lastLoginAt: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+        lastLoginAt: true,
+      },
     });
 
     const auditLogs = await this.prisma.auditLog.findMany({
@@ -113,7 +180,7 @@ export class DataPrivacyService {
       data: {
         personalData: user,
         activityLog: auditLogs,
-        dataInventory: DATA_INVENTORY.filter(d => d.category === 'PII'),
+        dataInventory: DATA_INVENTORY.filter((d) => d.category === 'PII'),
       },
     };
   }

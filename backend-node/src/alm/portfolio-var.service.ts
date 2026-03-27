@@ -1,15 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 // ─── Types ───────────────────────────────────────────────────
 
 export interface VaRResult {
   method: 'historical' | 'parametric' | 'montecarlo';
   confidenceLevel: number;
-  horizon: number;           // days
-  var: number;               // $ value at risk (positive = loss)
-  cvar: number;              // conditional VaR (expected shortfall)
-  varPct: number;            // as % of portfolio
+  horizon: number; // days
+  var: number; // $ value at risk (positive = loss)
+  cvar: number; // conditional VaR (expected shortfall)
+  varPct: number; // as % of portfolio
   portfolioValue: number;
 }
 
@@ -22,10 +22,10 @@ export interface VaRSuite {
 
 export interface BacktestResult {
   testDays: number;
-  exceptions: number;        // days where actual loss exceeded VaR
+  exceptions: number; // days where actual loss exceeded VaR
   exceptionRate: number;
   expectedExceptions: number;
-  kupiecLR: number;          // Kupiec likelihood ratio
+  kupiecLR: number; // Kupiec likelihood ratio
   kupiecPValue: number;
   trafficLight: 'GREEN' | 'AMBER' | 'RED';
 }
@@ -58,14 +58,32 @@ export class PortfolioVaRService {
       where: { institutionId, category: 'asset' },
     });
 
-    const portfolioValue = items.length > 0
-      ? items.reduce((s, i) => s + i.balance, 0)
-      : 445; // demo
+    const portfolioValue =
+      items.length > 0 ? items.reduce((s, i) => s + i.balance, 0) : 445; // demo
 
-    const historical = this.computeHistoricalVaR(items, portfolioValue, confidenceLevel, horizon);
-    const parametric = this.computeParametricVaR(items, portfolioValue, confidenceLevel, horizon);
-    const montecarlo = this.computeMonteCarloVaR(items, portfolioValue, confidenceLevel, horizon);
-    const backtestResult = this.backtestKupiec(historical, portfolioValue, confidenceLevel);
+    const historical = this.computeHistoricalVaR(
+      items,
+      portfolioValue,
+      confidenceLevel,
+      horizon,
+    );
+    const parametric = this.computeParametricVaR(
+      items,
+      portfolioValue,
+      confidenceLevel,
+      horizon,
+    );
+    const montecarlo = this.computeMonteCarloVaR(
+      items,
+      portfolioValue,
+      confidenceLevel,
+      horizon,
+    );
+    const backtestResult = this.backtestKupiec(
+      historical,
+      portfolioValue,
+      confidenceLevel,
+    );
 
     return { historical, parametric, montecarlo, backtestResult };
   }
@@ -73,13 +91,15 @@ export class PortfolioVaRService {
   // ─── Historical Simulation ────────────────────────────────
 
   private computeHistoricalVaR(
-    items: any[], portfolioValue: number,
-    confidenceLevel: number, horizon: number,
+    items: any[],
+    portfolioValue: number,
+    confidenceLevel: number,
+    horizon: number,
   ): VaRResult {
     const scenarios = generateHistoricalScenarios(1000);
 
     // Full revaluation at each scenario
-    const pnlVector = scenarios.map(bpsShift => {
+    const pnlVector = scenarios.map((bpsShift) => {
       if (items.length === 0) {
         // Demo: duration-based approximation
         const avgDuration = 4.2;
@@ -89,7 +109,7 @@ export class PortfolioVaRService {
       let portfolioPnL = 0;
       for (const item of items) {
         const duration = item.duration || 1;
-        const bpv = item.balance * duration / 10000; // dollar duration
+        const bpv = (item.balance * duration) / 10000; // dollar duration
         portfolioPnL -= bpv * bpsShift; // negative = loss when rates rise
       }
       return portfolioPnL;
@@ -99,11 +119,13 @@ export class PortfolioVaRService {
 
     // Scale by horizon (square-root-of-time)
     const scaleFactor = Math.sqrt(horizon);
-    const scaledPnL = pnlVector.map(p => p * scaleFactor);
+    const scaledPnL = pnlVector.map((p) => p * scaleFactor);
 
     const varIndex = Math.floor((1 - confidenceLevel) * scaledPnL.length);
     const var_ = -scaledPnL[varIndex];
-    const cvar = -scaledPnL.slice(0, varIndex).reduce((a, b) => a + b, 0) / Math.max(varIndex, 1);
+    const cvar =
+      -scaledPnL.slice(0, varIndex).reduce((a, b) => a + b, 0) /
+      Math.max(varIndex, 1);
 
     return {
       method: 'historical',
@@ -111,7 +133,10 @@ export class PortfolioVaRService {
       horizon,
       var: Math.round(var_ * 100) / 100,
       cvar: Math.round(cvar * 100) / 100,
-      varPct: portfolioValue > 0 ? Math.round((var_ / portfolioValue) * 10000) / 100 : 0,
+      varPct:
+        portfolioValue > 0
+          ? Math.round((var_ / portfolioValue) * 10000) / 100
+          : 0,
       portfolioValue,
     };
   }
@@ -119,15 +144,20 @@ export class PortfolioVaRService {
   // ─── Parametric (Delta-Normal) VaR ────────────────────────
 
   private computeParametricVaR(
-    items: any[], portfolioValue: number,
-    confidenceLevel: number, horizon: number,
+    items: any[],
+    portfolioValue: number,
+    confidenceLevel: number,
+    horizon: number,
   ): VaRResult {
     // Portfolio DV01 (dollar value of 1bp)
     let portfolioDV01: number;
     if (items.length > 0) {
-      portfolioDV01 = items.reduce((s, i) => s + i.balance * (i.duration || 1) / 10000, 0);
+      portfolioDV01 = items.reduce(
+        (s, i) => s + (i.balance * (i.duration || 1)) / 10000,
+        0,
+      );
     } else {
-      portfolioDV01 = portfolioValue * 4.2 / 10000; // demo avg duration 4.2
+      portfolioDV01 = (portfolioValue * 4.2) / 10000; // demo avg duration 4.2
     }
 
     // Daily rate volatility: ~5bps std
@@ -143,8 +173,9 @@ export class PortfolioVaRService {
     const var_ = z * dailyPortfolioVol * Math.sqrt(horizon);
 
     // CVaR for normal distribution: CVaR = σ × φ(z) / (1-α)
-    const phi_z = Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI);
-    const cvar = dailyPortfolioVol * Math.sqrt(horizon) * phi_z / (1 - confidenceLevel);
+    const phi_z = Math.exp((-z * z) / 2) / Math.sqrt(2 * Math.PI);
+    const cvar =
+      (dailyPortfolioVol * Math.sqrt(horizon) * phi_z) / (1 - confidenceLevel);
 
     return {
       method: 'parametric',
@@ -152,7 +183,10 @@ export class PortfolioVaRService {
       horizon,
       var: Math.round(var_ * 100) / 100,
       cvar: Math.round(cvar * 100) / 100,
-      varPct: portfolioValue > 0 ? Math.round((var_ / portfolioValue) * 10000) / 100 : 0,
+      varPct:
+        portfolioValue > 0
+          ? Math.round((var_ / portfolioValue) * 10000) / 100
+          : 0,
       portfolioValue,
     };
   }
@@ -160,17 +194,22 @@ export class PortfolioVaRService {
   // ─── Monte Carlo VaR ──────────────────────────────────────
 
   private computeMonteCarloVaR(
-    items: any[], portfolioValue: number,
-    confidenceLevel: number, horizon: number,
+    items: any[],
+    portfolioValue: number,
+    confidenceLevel: number,
+    horizon: number,
   ): VaRResult {
     const paths = 5000;
     const pnlVector: number[] = [];
 
     let portfolioDV01: number;
     if (items.length > 0) {
-      portfolioDV01 = items.reduce((s, i) => s + i.balance * (i.duration || 1) / 10000, 0);
+      portfolioDV01 = items.reduce(
+        (s, i) => s + (i.balance * (i.duration || 1)) / 10000,
+        0,
+      );
     } else {
-      portfolioDV01 = portfolioValue * 4.2 / 10000;
+      portfolioDV01 = (portfolioValue * 4.2) / 10000;
     }
 
     for (let p = 0; p < paths; p++) {
@@ -188,7 +227,9 @@ export class PortfolioVaRService {
     pnlVector.sort((a, b) => a - b);
     const varIndex = Math.floor((1 - confidenceLevel) * paths);
     const var_ = -pnlVector[varIndex];
-    const cvar = -pnlVector.slice(0, varIndex).reduce((a, b) => a + b, 0) / Math.max(varIndex, 1);
+    const cvar =
+      -pnlVector.slice(0, varIndex).reduce((a, b) => a + b, 0) /
+      Math.max(varIndex, 1);
 
     return {
       method: 'montecarlo',
@@ -196,7 +237,10 @@ export class PortfolioVaRService {
       horizon,
       var: Math.round(var_ * 100) / 100,
       cvar: Math.round(cvar * 100) / 100,
-      varPct: portfolioValue > 0 ? Math.round((var_ / portfolioValue) * 10000) / 100 : 0,
+      varPct:
+        portfolioValue > 0
+          ? Math.round((var_ / portfolioValue) * 10000) / 100
+          : 0,
       portfolioValue,
     };
   }
@@ -204,15 +248,21 @@ export class PortfolioVaRService {
   // ─── Kupiec Backtest ──────────────────────────────────────
 
   private backtestKupiec(
-    historicalVaR: VaRResult, portfolioValue: number, confidenceLevel: number,
+    historicalVaR: VaRResult,
+    portfolioValue: number,
+    confidenceLevel: number,
   ): BacktestResult {
     // Simulate 250 trading days of actual P&L
     const testDays = 250;
     const scenarios = generateHistoricalScenarios(testDays);
     const avgDuration = 4.2;
-    const actualPnL = scenarios.map(s => -portfolioValue * avgDuration * (s / 10000));
+    const actualPnL = scenarios.map(
+      (s) => -portfolioValue * avgDuration * (s / 10000),
+    );
 
-    const exceptions = actualPnL.filter(pnl => pnl < -historicalVaR.var).length;
+    const exceptions = actualPnL.filter(
+      (pnl) => pnl < -historicalVaR.var,
+    ).length;
     const exceptionRate = exceptions / testDays;
     const expectedExceptions = testDays * (1 - confidenceLevel);
 
@@ -227,12 +277,13 @@ export class PortfolioVaRService {
     } else if (x === T) {
       kupiecLR = -2 * T * Math.log(p);
     } else {
-      kupiecLR = -2 * ((T - x) * Math.log(1 - p) + x * Math.log(p))
-                + 2 * ((T - x) * Math.log(1 - x / T) + x * Math.log(x / T));
+      kupiecLR =
+        -2 * ((T - x) * Math.log(1 - p) + x * Math.log(p)) +
+        2 * ((T - x) * Math.log(1 - x / T) + x * Math.log(x / T));
     }
 
     // χ²(1) critical values: 3.84 (95%), 6.63 (99%)
-    const kupiecPValue = kupiecLR > 6.63 ? 0.01 : kupiecLR > 3.84 ? 0.05 : 0.10;
+    const kupiecPValue = kupiecLR > 6.63 ? 0.01 : kupiecLR > 3.84 ? 0.05 : 0.1;
 
     // Basel traffic light
     let trafficLight: BacktestResult['trafficLight'];
@@ -252,7 +303,8 @@ export class PortfolioVaRService {
   }
 
   private gaussianRandom(): number {
-    let u = 0, v = 0;
+    let u = 0,
+      v = 0;
     while (u === 0) u = Math.random();
     while (v === 0) v = Math.random();
     return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);

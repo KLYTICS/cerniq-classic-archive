@@ -1,23 +1,47 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 // ─── PD Logistic Regression Coefficients (calibrated on NCUA PR data) ──
 
-const PD_COEFFICIENTS: Record<string, { b0: number; b1: number; b2: number; b3: number; b4: number; b5: number }> = {
-  residential_mortgage: { b0: -3.2, b1: 12.1, b2: 0.08, b3: 0.015, b4: -0.9, b5: 0.002 },
-  auto_loans:           { b0: -2.8, b1: 15.3, b2: 0.11, b3: 0.0,   b4: -0.6, b5: 0.003 },
-  consumer_loans:       { b0: -2.1, b1: 18.7, b2: 0.14, b3: 0.0,   b4: 0.0,  b5: 0.004 },
-  commercial_re:        { b0: -3.5, b1: 10.2, b2: 0.07, b3: 0.012, b4: -1.2, b5: 0.001 },
-  commercial_loans:     { b0: -3.0, b1: 13.5, b2: 0.10, b3: 0.008, b4: -0.8, b5: 0.002 },
-  credit_cards:         { b0: -1.5, b1: 22.0, b2: 0.16, b3: 0.0,   b4: 0.0,  b5: 0.005 },
+const PD_COEFFICIENTS: Record<
+  string,
+  { b0: number; b1: number; b2: number; b3: number; b4: number; b5: number }
+> = {
+  residential_mortgage: {
+    b0: -3.2,
+    b1: 12.1,
+    b2: 0.08,
+    b3: 0.015,
+    b4: -0.9,
+    b5: 0.002,
+  },
+  auto_loans: { b0: -2.8, b1: 15.3, b2: 0.11, b3: 0.0, b4: -0.6, b5: 0.003 },
+  consumer_loans: { b0: -2.1, b1: 18.7, b2: 0.14, b3: 0.0, b4: 0.0, b5: 0.004 },
+  commercial_re: {
+    b0: -3.5,
+    b1: 10.2,
+    b2: 0.07,
+    b3: 0.012,
+    b4: -1.2,
+    b5: 0.001,
+  },
+  commercial_loans: {
+    b0: -3.0,
+    b1: 13.5,
+    b2: 0.1,
+    b3: 0.008,
+    b4: -0.8,
+    b5: 0.002,
+  },
+  credit_cards: { b0: -1.5, b1: 22.0, b2: 0.16, b3: 0.0, b4: 0.0, b5: 0.005 },
 };
 
 // LGD Haircuts (PR-calibrated from CRIM real estate data)
 const LGD_HAIRCUTS: Record<string, number> = {
   residential_re: 0.25,
   commercial_re: 0.35,
-  auto: 0.40,
-  unsecured: 1.00,
+  auto: 0.4,
+  unsecured: 1.0,
   credit_card: 0.85,
   government: 0.05,
 };
@@ -25,9 +49,9 @@ const LGD_HAIRCUTS: Record<string, number> = {
 // Vasicek asset correlations (Basel II IRB)
 const ASSET_CORRELATIONS: Record<string, number> = {
   residential_mortgage: 0.15,
-  auto_loans: 0.10,
+  auto_loans: 0.1,
   consumer_loans: 0.08,
-  commercial_re: 0.20,
+  commercial_re: 0.2,
   commercial_loans: 0.18,
   credit_cards: 0.04,
 };
@@ -36,15 +60,15 @@ const ASSET_CORRELATIONS: Record<string, number> = {
 
 export interface CreditRiskSegment {
   segmentName: string;
-  balance: number;         // EAD
-  annualPD: number;        // probability of default (annual)
-  lifetimePD: number;      // PD over remaining life
-  lgd: number;             // loss given default
-  expectedLoss: number;    // EL = PD × LGD × EAD
-  unexpectedLoss: number;  // UL at 99.9% confidence
+  balance: number; // EAD
+  annualPD: number; // probability of default (annual)
+  lifetimePD: number; // PD over remaining life
+  lgd: number; // loss given default
+  expectedLoss: number; // EL = PD × LGD × EAD
+  unexpectedLoss: number; // UL at 99.9% confidence
   economicCapital: number; // UL × maturity adjustment
-  elPct: number;           // EL as % of balance
-  ecPct: number;           // EC as % of balance
+  elPct: number; // EL as % of balance
+  ecPct: number; // EC as % of balance
 }
 
 export interface CreditRiskPortfolio {
@@ -70,12 +94,16 @@ export class CreditRiskQuantService {
   constructor(private readonly prisma: PrismaService) {}
 
   async analyzePortfolio(institutionId: string): Promise<CreditRiskPortfolio> {
-    const loanSegments = await this.prisma.loanSegment.findMany({ where: { institutionId } });
-    const institution = await this.prisma.institution.findUnique({ where: { id: institutionId } });
+    const loanSegments = await this.prisma.loanSegment.findMany({
+      where: { institutionId },
+    });
+    const institution = await this.prisma.institution.findUnique({
+      where: { id: institutionId },
+    });
 
     const segments: CreditRiskSegment[] = (
       loanSegments.length > 0 ? loanSegments : this.getDemoSegments()
-    ).map(seg => {
+    ).map((seg) => {
       const segType = this.normalizeType(seg.segmentName);
       const coeffs = PD_COEFFICIENTS[segType] ?? PD_COEFFICIENTS.consumer_loans;
 
@@ -84,14 +112,22 @@ export class CreditRiskQuantService {
       // LTV (use 0.75 default), DSCR (use 1.3 default), loan age (use maturity/2)
       const delinquencyProxy = seg.historicalLossRate * 1.5;
       const unemployment = 0.065;
-      const ltv = segType.includes('re') || segType.includes('mortgage') ? 0.75 : 0;
+      const ltv =
+        segType.includes('re') || segType.includes('mortgage') ? 0.75 : 0;
       const dscr = segType.includes('commercial') ? 1.3 : 0;
       const loanAge = (seg.weightedAvgMaturity ?? 5) / 2;
 
-      const logit = coeffs.b0 + coeffs.b1 * delinquencyProxy
-        + coeffs.b2 * unemployment + coeffs.b3 * ltv
-        + coeffs.b4 * dscr + coeffs.b5 * loanAge;
-      const annualPD = Math.min(0.99, Math.max(0.0001, 1 / (1 + Math.exp(-logit))));
+      const logit =
+        coeffs.b0 +
+        coeffs.b1 * delinquencyProxy +
+        coeffs.b2 * unemployment +
+        coeffs.b3 * ltv +
+        coeffs.b4 * dscr +
+        coeffs.b5 * loanAge;
+      const annualPD = Math.min(
+        0.99,
+        Math.max(0.0001, 1 / (1 + Math.exp(-logit))),
+      );
 
       // Lifetime PD: 1 - (1-PD)^maturity
       const maturity = seg.weightedAvgMaturity ?? 5;
@@ -99,7 +135,7 @@ export class CreditRiskQuantService {
 
       // LGD
       const lgdKey = this.getLGDKey(segType);
-      const haircut = LGD_HAIRCUTS[lgdKey] ?? 0.50;
+      const haircut = LGD_HAIRCUTS[lgdKey] ?? 0.5;
       const lgd = haircut; // simplified: LGD = haircut (no collateral recovery model)
 
       // Expected Loss
@@ -143,8 +179,10 @@ export class CreditRiskQuantService {
       totalEL: Math.round(totalEL * 100) / 100,
       totalUL: Math.round(totalUL * 100) / 100,
       totalEC: Math.round(totalEC * 100) / 100,
-      portfolioElPct: totalEAD > 0 ? Math.round((totalEL / totalEAD) * 10000) / 100 : 0,
-      portfolioEcPct: totalEAD > 0 ? Math.round((totalEC / totalEAD) * 10000) / 100 : 0,
+      portfolioElPct:
+        totalEAD > 0 ? Math.round((totalEL / totalEAD) * 10000) / 100 : 0,
+      portfolioEcPct:
+        totalEAD > 0 ? Math.round((totalEC / totalEAD) * 10000) / 100 : 0,
       capitalAdequacy: {
         actualCapital: Math.round(equityEstimate * 10) / 10,
         requiredEconomicCapital: Math.round(totalEC * 10) / 10,
@@ -156,14 +194,20 @@ export class CreditRiskQuantService {
 
   // ─── Vasicek Single-Factor UL ─────────────────────────────
 
-  private vasicekUL(pd: number, lgd: number, ead: number, rho: number, maturity: number): number {
+  private vasicekUL(
+    pd: number,
+    lgd: number,
+    ead: number,
+    rho: number,
+    maturity: number,
+  ): number {
     // UL(99.9%) = [Φ(Φ⁻¹(PD) + √ρ·Φ⁻¹(0.999)) / √(1-ρ)] × LGD × EAD - EL
     const alpha = 0.999;
     const phiInvPD = this.normInv(Math.min(0.9999, Math.max(0.0001, pd)));
     const phiInvAlpha = this.normInv(alpha); // ≈ 3.09
 
     const conditionalPD = this.normCDF(
-      (phiInvPD + Math.sqrt(rho) * phiInvAlpha) / Math.sqrt(1 - rho)
+      (phiInvPD + Math.sqrt(rho) * phiInvAlpha) / Math.sqrt(1 - rho),
     );
 
     const ul = conditionalPD * lgd * ead - pd * lgd * ead;
@@ -184,12 +228,17 @@ export class CreditRiskQuantService {
 
   private normCDF(x: number): number {
     // Abramowitz & Stegun approximation
-    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
-    const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+    const a1 = 0.254829592,
+      a2 = -0.284496736,
+      a3 = 1.421413741;
+    const a4 = -1.453152027,
+      a5 = 1.061405429,
+      p = 0.3275911;
     const sign = x < 0 ? -1 : 1;
     x = Math.abs(x) / Math.SQRT2;
     const t = 1 / (1 + p * x);
-    const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    const y =
+      1 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
     return 0.5 * (1 + sign * y);
   }
 
@@ -199,30 +248,47 @@ export class CreditRiskQuantService {
     if (p >= 1) return 8;
     if (p === 0.5) return 0;
 
-    const a = [-3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2,
-               1.383577518672690e2, -3.066479806614716e1, 2.506628277459239e0];
-    const b = [-5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2,
-               6.680131188771972e1, -1.328068155288572e1];
-    const c = [-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838e0,
-               -2.549732539343734e0, 4.374664141464968e0, 2.938163982698783e0];
-    const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996e0, 3.754408661907416e0];
+    const a = [
+      -3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2,
+      1.38357751867269e2, -3.066479806614716e1, 2.506628277459239,
+    ];
+    const b = [
+      -5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2,
+      6.680131188771972e1, -1.328068155288572e1,
+    ];
+    const c = [
+      -7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838,
+      -2.549732539343734, 4.374664141464968, 2.938163982698783,
+    ];
+    const d = [
+      7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996,
+      3.754408661907416,
+    ];
 
-    const pLow = 0.02425, pHigh = 1 - pLow;
+    const pLow = 0.02425,
+      pHigh = 1 - pLow;
     let q, r;
 
     if (p < pLow) {
       q = Math.sqrt(-2 * Math.log(p));
-      return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
-             ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+      return (
+        (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+      );
     } else if (p <= pHigh) {
       q = p - 0.5;
       r = q * q;
-      return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q /
-             (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+      return (
+        ((((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) *
+          q) /
+        (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
+      );
     } else {
       q = Math.sqrt(-2 * Math.log(1 - p));
-      return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
-              ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+      return (
+        -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+      );
     }
   }
 
@@ -231,9 +297,20 @@ export class CreditRiskQuantService {
   private normalizeType(name: string): string {
     const n = name.toLowerCase();
     if (n.includes('auto') || n.includes('vehicle')) return 'auto_loans';
-    if (n.includes('residential') || n.includes('mortgage') || n.includes('first')) return 'residential_mortgage';
-    if (n.includes('commercial') && (n.includes('re') || n.includes('real'))) return 'commercial_re';
-    if (n.includes('commercial') || n.includes('industrial') || n.includes('c&i')) return 'commercial_loans';
+    if (
+      n.includes('residential') ||
+      n.includes('mortgage') ||
+      n.includes('first')
+    )
+      return 'residential_mortgage';
+    if (n.includes('commercial') && (n.includes('re') || n.includes('real')))
+      return 'commercial_re';
+    if (
+      n.includes('commercial') ||
+      n.includes('industrial') ||
+      n.includes('c&i')
+    )
+      return 'commercial_loans';
     if (n.includes('credit') && n.includes('card')) return 'credit_cards';
     return 'consumer_loans';
   }
@@ -248,12 +325,54 @@ export class CreditRiskQuantService {
 
   private getDemoSegments() {
     return [
-      { segmentName: 'Consumer Loans', balance: 85, weightedAvgMaturity: 3.5, historicalLossRate: 0.018, lgd: 0.45, qualitativeAdj: 0.002 },
-      { segmentName: 'Auto Loans', balance: 62, weightedAvgMaturity: 4.2, historicalLossRate: 0.012, lgd: 0.35, qualitativeAdj: 0.001 },
-      { segmentName: 'Commercial RE', balance: 120, weightedAvgMaturity: 7.5, historicalLossRate: 0.008, lgd: 0.40, qualitativeAdj: 0.003 },
-      { segmentName: 'Residential Mortgage', balance: 95, weightedAvgMaturity: 15.0, historicalLossRate: 0.004, lgd: 0.30, qualitativeAdj: 0.001 },
-      { segmentName: 'Credit Cards', balance: 28, weightedAvgMaturity: 1.5, historicalLossRate: 0.035, lgd: 0.80, qualitativeAdj: 0.005 },
-      { segmentName: 'Commercial & Industrial', balance: 55, weightedAvgMaturity: 5.0, historicalLossRate: 0.015, lgd: 0.50, qualitativeAdj: 0.002 },
+      {
+        segmentName: 'Consumer Loans',
+        balance: 85,
+        weightedAvgMaturity: 3.5,
+        historicalLossRate: 0.018,
+        lgd: 0.45,
+        qualitativeAdj: 0.002,
+      },
+      {
+        segmentName: 'Auto Loans',
+        balance: 62,
+        weightedAvgMaturity: 4.2,
+        historicalLossRate: 0.012,
+        lgd: 0.35,
+        qualitativeAdj: 0.001,
+      },
+      {
+        segmentName: 'Commercial RE',
+        balance: 120,
+        weightedAvgMaturity: 7.5,
+        historicalLossRate: 0.008,
+        lgd: 0.4,
+        qualitativeAdj: 0.003,
+      },
+      {
+        segmentName: 'Residential Mortgage',
+        balance: 95,
+        weightedAvgMaturity: 15.0,
+        historicalLossRate: 0.004,
+        lgd: 0.3,
+        qualitativeAdj: 0.001,
+      },
+      {
+        segmentName: 'Credit Cards',
+        balance: 28,
+        weightedAvgMaturity: 1.5,
+        historicalLossRate: 0.035,
+        lgd: 0.8,
+        qualitativeAdj: 0.005,
+      },
+      {
+        segmentName: 'Commercial & Industrial',
+        balance: 55,
+        weightedAvgMaturity: 5.0,
+        historicalLossRate: 0.015,
+        lgd: 0.5,
+        qualitativeAdj: 0.002,
+      },
     ];
   }
 }

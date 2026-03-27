@@ -36,12 +36,20 @@ const VALID_CATEGORIES = ['asset', 'liability', 'activo', 'pasivo'];
 const VALID_RATE_TYPES = ['fixed', 'variable', 'hybrid', 'fijo', 'variable'];
 
 const ASSET_SUBCATEGORIES = new Set([
-  'commercial_loans', 'residential_mortgages', 'consumer_loans',
-  'investment_securities', 'cash_equivalents', 'other_assets',
+  'commercial_loans',
+  'residential_mortgages',
+  'consumer_loans',
+  'investment_securities',
+  'cash_equivalents',
+  'other_assets',
 ]);
 const LIABILITY_SUBCATEGORIES = new Set([
-  'demand_deposits', 'savings_deposits', 'time_deposits',
-  'borrowings', 'subordinated_debt', 'other_liabilities',
+  'demand_deposits',
+  'savings_deposits',
+  'time_deposits',
+  'borrowings',
+  'subordinated_debt',
+  'other_liabilities',
 ]);
 
 export interface CSVRowError {
@@ -90,21 +98,35 @@ export class CSVIngestionService {
       .filter((l) => l.trim().length > 0);
 
     if (lines.length < 2) {
-      return this.emptyResult('CSV must have a header row and at least one data row');
+      return this.emptyResult(
+        'CSV must have a header row and at least one data row',
+      );
     }
 
     // Parse headers
-    const headers = lines[0].split(',').map((h) => h.trim().toLowerCase().replace(/\s+/g, ''));
-    const requiredHeaders = ['category', 'subcategory', 'name', 'balance', 'rate', 'duration', 'ratetype'];
+    const headers = lines[0]
+      .split(',')
+      .map((h) => h.trim().toLowerCase().replace(/\s+/g, ''));
+    const requiredHeaders = [
+      'category',
+      'subcategory',
+      'name',
+      'balance',
+      'rate',
+      'duration',
+      'ratetype',
+    ];
 
     // Also accept Spanish headers
     const headerMap = this.mapHeaders(headers);
-    const missingHeaders = requiredHeaders.filter((h) => headerMap[h] === undefined);
+    const missingHeaders = requiredHeaders.filter(
+      (h) => headerMap[h] === undefined,
+    );
 
     if (missingHeaders.length > 0) {
       return this.emptyResult(
         `Missing required columns: ${missingHeaders.join(', ')}. ` +
-        `Required: category, subcategory, name, balance, rate, duration, rateType`,
+          `Required: category, subcategory, name, balance, rate, duration, rateType`,
       );
     }
 
@@ -129,34 +151,56 @@ export class CSVIngestionService {
       }
 
       // Normalize values
-      const rawCategory = this.getField(row, headerMap, 'category').toLowerCase();
-      const category = rawCategory === 'activo' ? 'asset' : rawCategory === 'pasivo' ? 'liability' : rawCategory;
+      const rawCategory = this.getField(
+        row,
+        headerMap,
+        'category',
+      ).toLowerCase();
+      const category =
+        rawCategory === 'activo'
+          ? 'asset'
+          : rawCategory === 'pasivo'
+            ? 'liability'
+            : rawCategory;
 
-      const rawSubcategory = this.getField(row, headerMap, 'subcategory').toLowerCase().replace(/\s+/g, '_');
+      const rawSubcategory = this.getField(row, headerMap, 'subcategory')
+        .toLowerCase()
+        .replace(/\s+/g, '_');
       const subcategory = SUBCATEGORY_ALIASES[rawSubcategory] || rawSubcategory;
 
       // Validate subcategory matches category
       if (category === 'asset' && !ASSET_SUBCATEGORIES.has(subcategory)) {
         if (LIABILITY_SUBCATEGORIES.has(subcategory)) {
           errors.push({
-            row: i + 1, field: 'subcategory', value: rawSubcategory,
+            row: i + 1,
+            field: 'subcategory',
+            value: rawSubcategory,
             message: `"${rawSubcategory}" is a liability subcategory but row is marked as asset`,
             messageEs: `"${rawSubcategory}" es subcategoría de pasivo pero la fila está marcada como activo`,
           });
           continue;
         }
-        warnings.push(`Row ${i + 1}: Unknown subcategory "${rawSubcategory}" mapped to "${subcategory}"`);
+        warnings.push(
+          `Row ${i + 1}: Unknown subcategory "${rawSubcategory}" mapped to "${subcategory}"`,
+        );
       }
-      if (category === 'liability' && !LIABILITY_SUBCATEGORIES.has(subcategory)) {
+      if (
+        category === 'liability' &&
+        !LIABILITY_SUBCATEGORIES.has(subcategory)
+      ) {
         if (ASSET_SUBCATEGORIES.has(subcategory)) {
           errors.push({
-            row: i + 1, field: 'subcategory', value: rawSubcategory,
+            row: i + 1,
+            field: 'subcategory',
+            value: rawSubcategory,
             message: `"${rawSubcategory}" is an asset subcategory but row is marked as liability`,
             messageEs: `"${rawSubcategory}" es subcategoría de activo pero la fila está marcada como pasivo`,
           });
           continue;
         }
-        warnings.push(`Row ${i + 1}: Unknown subcategory "${rawSubcategory}" mapped to "${subcategory}"`);
+        warnings.push(
+          `Row ${i + 1}: Unknown subcategory "${rawSubcategory}" mapped to "${subcategory}"`,
+        );
       }
 
       const balance = parseFloat(this.getField(row, headerMap, 'balance'));
@@ -165,10 +209,16 @@ export class CSVIngestionService {
       const rate = rawRate > 1 ? rawRate / 100 : rawRate;
 
       if (rawRate > 1) {
-        warnings.push(`Row ${i + 1}: Rate ${rawRate} interpreted as ${rawRate}% (converted to ${rate})`);
+        warnings.push(
+          `Row ${i + 1}: Rate ${rawRate} interpreted as ${rawRate}% (converted to ${rate})`,
+        );
       }
 
-      const rawRateType = this.getField(row, headerMap, 'ratetype').toLowerCase();
+      const rawRateType = this.getField(
+        row,
+        headerMap,
+        'ratetype',
+      ).toLowerCase();
       const rateType = rawRateType === 'fijo' ? 'fixed' : rawRateType;
 
       const repriceDateRaw = this.getField(row, headerMap, 'repricedate');
@@ -187,8 +237,12 @@ export class CSVIngestionService {
       });
     }
 
-    const totalAssets = items.filter((i) => i.category === 'asset').reduce((s, i) => s + i.balance, 0);
-    const totalLiabilities = items.filter((i) => i.category === 'liability').reduce((s, i) => s + i.balance, 0);
+    const totalAssets = items
+      .filter((i) => i.category === 'asset')
+      .reduce((s, i) => s + i.balance, 0);
+    const totalLiabilities = items
+      .filter((i) => i.category === 'liability')
+      .reduce((s, i) => s + i.balance, 0);
 
     // Sanity check: equity should be positive
     if (items.length > 0 && totalAssets < totalLiabilities) {
@@ -294,15 +348,26 @@ export class CSVIngestionService {
   private mapHeaders(headers: string[]): Record<string, number> {
     const map: Record<string, number> = {};
     const synonyms: Record<string, string> = {
-      category: 'category', categoria: 'category',
-      subcategory: 'subcategory', subcategoria: 'subcategory',
-      name: 'name', nombre: 'name',
-      balance: 'balance', saldo: 'balance', monto: 'balance',
-      rate: 'rate', tasa: 'rate',
-      duration: 'duration', duracion: 'duration',
-      ratetype: 'ratetype', tipotasa: 'ratetype', tipo_tasa: 'ratetype',
-      repricedate: 'repricedate', fechareprecio: 'repricedate',
-      maturitydate: 'maturitydate', fechavencimiento: 'maturitydate',
+      category: 'category',
+      categoria: 'category',
+      subcategory: 'subcategory',
+      subcategoria: 'subcategory',
+      name: 'name',
+      nombre: 'name',
+      balance: 'balance',
+      saldo: 'balance',
+      monto: 'balance',
+      rate: 'rate',
+      tasa: 'rate',
+      duration: 'duration',
+      duracion: 'duration',
+      ratetype: 'ratetype',
+      tipotasa: 'ratetype',
+      tipo_tasa: 'ratetype',
+      repricedate: 'repricedate',
+      fechareprecio: 'repricedate',
+      maturitydate: 'maturitydate',
+      fechavencimiento: 'maturitydate',
     };
 
     headers.forEach((h, idx) => {
@@ -315,7 +380,11 @@ export class CSVIngestionService {
     return map;
   }
 
-  private getField(row: Record<string, string>, headerMap: Record<string, number>, key: string): string {
+  private getField(
+    row: Record<string, string>,
+    headerMap: Record<string, number>,
+    key: string,
+  ): string {
     const headers = Object.keys(row);
     const idx = headerMap[key];
     if (idx === undefined) return '';
@@ -343,14 +412,20 @@ export class CSVIngestionService {
     return result;
   }
 
-  private validateRow(row: Record<string, string>, headerMap: Record<string, number>, rowNum: number): CSVRowError[] {
+  private validateRow(
+    row: Record<string, string>,
+    headerMap: Record<string, number>,
+    rowNum: number,
+  ): CSVRowError[] {
     const errors: CSVRowError[] = [];
 
     // Category
     const category = this.getField(row, headerMap, 'category').toLowerCase();
     if (!VALID_CATEGORIES.includes(category)) {
       errors.push({
-        row: rowNum, field: 'category', value: category,
+        row: rowNum,
+        field: 'category',
+        value: category,
         message: `Invalid category "${category}". Must be: asset, liability (or activo, pasivo)`,
         messageEs: `Categoría inválida "${category}". Debe ser: asset, liability, activo, o pasivo`,
       });
@@ -360,7 +435,9 @@ export class CSVIngestionService {
     const name = this.getField(row, headerMap, 'name');
     if (!name || name.length === 0) {
       errors.push({
-        row: rowNum, field: 'name', value: name,
+        row: rowNum,
+        field: 'name',
+        value: name,
         message: 'Name is required',
         messageEs: 'Nombre es requerido',
       });
@@ -371,13 +448,17 @@ export class CSVIngestionService {
     const balance = parseFloat(balanceStr);
     if (isNaN(balance)) {
       errors.push({
-        row: rowNum, field: 'balance', value: balanceStr,
+        row: rowNum,
+        field: 'balance',
+        value: balanceStr,
         message: `Invalid balance "${balanceStr}" — must be a number`,
         messageEs: `Saldo inválido "${balanceStr}" — debe ser un número`,
       });
     } else if (balance < 0) {
       errors.push({
-        row: rowNum, field: 'balance', value: balanceStr,
+        row: rowNum,
+        field: 'balance',
+        value: balanceStr,
         message: 'Balance cannot be negative',
         messageEs: 'El saldo no puede ser negativo',
       });
@@ -388,13 +469,17 @@ export class CSVIngestionService {
     const rate = parseFloat(rateStr);
     if (isNaN(rate)) {
       errors.push({
-        row: rowNum, field: 'rate', value: rateStr,
+        row: rowNum,
+        field: 'rate',
+        value: rateStr,
         message: `Invalid rate "${rateStr}" — must be a number`,
         messageEs: `Tasa inválida "${rateStr}" — debe ser un número`,
       });
     } else if (rate < 0 || rate > 100) {
       errors.push({
-        row: rowNum, field: 'rate', value: rateStr,
+        row: rowNum,
+        field: 'rate',
+        value: rateStr,
         message: `Rate ${rate} out of range (0–100%)`,
         messageEs: `Tasa ${rate} fuera de rango (0–100%)`,
       });
@@ -405,13 +490,17 @@ export class CSVIngestionService {
     const duration = parseFloat(durationStr);
     if (isNaN(duration)) {
       errors.push({
-        row: rowNum, field: 'duration', value: durationStr,
+        row: rowNum,
+        field: 'duration',
+        value: durationStr,
         message: `Invalid duration "${durationStr}" — must be a number in years`,
         messageEs: `Duración inválida "${durationStr}" — debe ser un número en años`,
       });
     } else if (duration < 0 || duration > 50) {
       errors.push({
-        row: rowNum, field: 'duration', value: durationStr,
+        row: rowNum,
+        field: 'duration',
+        value: durationStr,
         message: `Duration ${duration} out of range (0–50 years)`,
         messageEs: `Duración ${duration} fuera de rango (0–50 años)`,
       });
@@ -421,7 +510,9 @@ export class CSVIngestionService {
     const rateType = this.getField(row, headerMap, 'ratetype').toLowerCase();
     if (rateType && !VALID_RATE_TYPES.includes(rateType)) {
       errors.push({
-        row: rowNum, field: 'rateType', value: rateType,
+        row: rowNum,
+        field: 'rateType',
+        value: rateType,
         message: `Invalid rate type "${rateType}". Must be: fixed, variable, hybrid (or fijo)`,
         messageEs: `Tipo de tasa inválido "${rateType}". Debe ser: fixed, variable, hybrid, o fijo`,
       });
@@ -434,13 +525,23 @@ export class CSVIngestionService {
     return {
       valid: false,
       items: [],
-      errors: [{
-        row: 0, field: 'headers', value: '',
-        message: errorMessage,
-        messageEs: errorMessage,
-      }],
+      errors: [
+        {
+          row: 0,
+          field: 'headers',
+          value: '',
+          message: errorMessage,
+          messageEs: errorMessage,
+        },
+      ],
       warnings: [],
-      summary: { totalRows: 0, validRows: 0, errorRows: 1, totalAssets: 0, totalLiabilities: 0 },
+      summary: {
+        totalRows: 0,
+        validRows: 0,
+        errorRows: 1,
+        totalAssets: 0,
+        totalLiabilities: 0,
+      },
     };
   }
 }

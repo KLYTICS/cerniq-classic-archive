@@ -142,6 +142,22 @@ interface CalendarDeadline {
   relatedModule: string;
 }
 
+function normalizeCalendarDeadlines(
+  deadlines: Array<Record<string, unknown>>,
+): CalendarDeadline[] {
+  return deadlines.map((deadline, index) => ({
+    id: String(deadline.id ?? `deadline-${index}`),
+    titleEn: String(deadline.titleEn ?? deadline.title ?? ''),
+    titleEs: String(deadline.titleEs ?? deadline.title ?? ''),
+    deadlineDate: String(deadline.deadlineDate ?? ''),
+    category: (deadline.category as CalendarDeadline['category']) ?? 'report',
+    urgency: (deadline.urgency as CalendarDeadline['urgency']) ?? 'MEDIUM',
+    descriptionEn: String(deadline.descriptionEn ?? deadline.description ?? ''),
+    descriptionEs: String(deadline.descriptionEs ?? deadline.description ?? ''),
+    relatedModule: String(deadline.relatedModule ?? ''),
+  }));
+}
+
 function urgencyDotColor(urgency: string): string {
   switch (urgency) {
     case 'OVERDUE':
@@ -421,7 +437,11 @@ export default function DashboardPage() {
         // Try real API first (demo-bank-id as fallback for demo mode)
         const data = await apiClient.getComplianceCalendar('demo-bank-id');
         if (!cancelled && data && data.length > 0) {
-          setCalendarDeadlines(data);
+          setCalendarDeadlines(
+            normalizeCalendarDeadlines(
+              data as Array<Record<string, unknown>>,
+            ),
+          );
           setCalendarLoading(false);
           return;
         }

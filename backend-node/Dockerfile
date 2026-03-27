@@ -18,7 +18,7 @@ WORKDIR /app
 
 # Install production dependencies only
 COPY package*.json ./
-RUN npm ci --only=production --legacy-peer-deps
+RUN npm ci --omit=dev --legacy-peer-deps
 
 # Copy Prisma schema, config + migrations for runtime migrate
 COPY --from=builder /app/prisma ./prisma
@@ -39,4 +39,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 EXPOSE 3000
 
-CMD sh -c "npx prisma migrate deploy && node dist/src/main.js"
+CMD ["node", "dist/src/main.js"]

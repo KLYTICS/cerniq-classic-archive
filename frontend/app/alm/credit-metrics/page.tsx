@@ -68,7 +68,10 @@ export default function CreditMetricsPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis type="number" tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
             <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number) => `$${v.toFixed(2)}M`} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => `$${Number(value ?? 0).toFixed(2)}M`}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar dataKey="varContrib" name="VaR Contrib" radius={[0, 4, 4, 0]}>
               {data.segments.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}

@@ -70,7 +70,10 @@ export default function DepositBetaPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis type="number" domain={[0, 1]} tick={{ fontSize: 11 }} tickFormatter={v => `${(v * 100).toFixed(0)}%`} />
             <YAxis type="category" dataKey="subcategory" width={140} tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number) => `${(v * 100).toFixed(1)}%`} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => `${(Number(value ?? 0) * 100).toFixed(1)}%`}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar dataKey="beta" name={locale === 'es' ? 'Tu Beta' : 'Your Beta'} radius={[0, 4, 4, 0]}>
               {data.institutionBetas.map((b, i) => <Cell key={i} fill={betaColor(b.beta)} />)}
@@ -89,7 +92,10 @@ export default function DepositBetaPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="period" tick={{ fontSize: 10 }} />
             <YAxis tickFormatter={v => `${v}%`} tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number) => `${v.toFixed(2)}%`} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => `${Number(value ?? 0).toFixed(2)}%`}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Line type="monotone" dataKey="ffr" name="Fed Funds Rate" stroke="#0f172a" strokeWidth={2.5} dot={false} />
             <Line type="monotone" dataKey="savingsRate" name={locale === 'es' ? 'Ahorros' : 'Savings'} stroke="#22c55e" strokeWidth={1.5} dot={false} />

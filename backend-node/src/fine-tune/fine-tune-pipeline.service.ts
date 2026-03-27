@@ -7,7 +7,11 @@ import { Injectable, Logger } from '@nestjs/common';
 export interface TrainingExample {
   id: string;
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
-  category: 'regulatory' | 'financial_statement' | 'risk_management' | 'cossec_exam';
+  category:
+    | 'regulatory'
+    | 'financial_statement'
+    | 'risk_management'
+    | 'cossec_exam';
   quality: number; // 1-5 expert rating
   language: 'en' | 'es';
   source: string;
@@ -23,26 +27,59 @@ export interface FineTuneJob {
   createdAt: string;
   completedAt?: string;
   resultModelId?: string;
-  metrics?: { trainingLoss: number; validationLoss: number; bleuScore?: number };
+  metrics?: {
+    trainingLoss: number;
+    validationLoss: number;
+    bleuScore?: number;
+  };
 }
 
 // ─── Training Data Sources ──────────────────────────────────
 
 const DATA_SOURCES = [
-  { source: 'COSSEC Regulations', language: 'es', estimatedPages: 500, category: 'regulatory' },
-  { source: 'OCIF Cartas Circulares 2010-2024', language: 'es', estimatedPages: 200, category: 'regulatory' },
-  { source: 'NCUA Letters to CUs 2010-2024', language: 'en', estimatedPages: 300, category: 'regulatory' },
-  { source: 'PR CU Annual Reports 2018-2024', language: 'es', estimatedPages: 400, category: 'financial_statement' },
-  { source: 'CERNIQ AI Advisor Outputs (rated)', language: 'both', estimatedPages: 50, category: 'risk_management' },
+  {
+    source: 'COSSEC Regulations',
+    language: 'es',
+    estimatedPages: 500,
+    category: 'regulatory',
+  },
+  {
+    source: 'OCIF Cartas Circulares 2010-2024',
+    language: 'es',
+    estimatedPages: 200,
+    category: 'regulatory',
+  },
+  {
+    source: 'NCUA Letters to CUs 2010-2024',
+    language: 'en',
+    estimatedPages: 300,
+    category: 'regulatory',
+  },
+  {
+    source: 'PR CU Annual Reports 2018-2024',
+    language: 'es',
+    estimatedPages: 400,
+    category: 'financial_statement',
+  },
+  {
+    source: 'CERNIQ AI Advisor Outputs (rated)',
+    language: 'both',
+    estimatedPages: 50,
+    category: 'risk_management',
+  },
 ];
 
 // ─── System Prompts for Different Domains ───────────────────
 
 const DOMAIN_SYSTEM_PROMPTS = {
-  regulatory: 'Eres un experto en regulación financiera de Puerto Rico, especializado en COSSEC, OCIF y NCUA. Respondes citando artículos específicos de regulaciones.',
-  financial_statement: 'Eres un analista financiero especializado en cooperativas de ahorro y crédito de Puerto Rico. Interpretas estados financieros con precisión técnica.',
-  risk_management: 'Eres un asesor de riesgo ALM para instituciones financieras de Puerto Rico. Proporcionas recomendaciones específicas basadas en datos cuantitativos.',
-  cossec_exam: 'Eres un consultor de preparación de exámenes COSSEC. Conoces los formatos exactos de los Schedules 1-12 y los criterios CAMEL.',
+  regulatory:
+    'Eres un experto en regulación financiera de Puerto Rico, especializado en COSSEC, OCIF y NCUA. Respondes citando artículos específicos de regulaciones.',
+  financial_statement:
+    'Eres un analista financiero especializado en cooperativas de ahorro y crédito de Puerto Rico. Interpretas estados financieros con precisión técnica.',
+  risk_management:
+    'Eres un asesor de riesgo ALM para instituciones financieras de Puerto Rico. Proporcionas recomendaciones específicas basadas en datos cuantitativos.',
+  cossec_exam:
+    'Eres un consultor de preparación de exámenes COSSEC. Conoces los formatos exactos de los Schedules 1-12 y los criterios CAMEL.',
 };
 
 @Injectable()
@@ -79,19 +116,23 @@ export class FineTunePipelineService {
       byCategory: Object.fromEntries(byCategory),
       byLanguage: Object.fromEntries(byLanguage),
       byQuality: Object.fromEntries(byQuality),
-      avgQuality: this.trainingData.length > 0
-        ? this.trainingData.reduce((s, e) => s + e.quality, 0) / this.trainingData.length
-        : 0,
-      readyForTraining: this.trainingData.length >= 100 && this.trainingData.filter(e => e.quality >= 4).length >= 50,
+      avgQuality:
+        this.trainingData.length > 0
+          ? this.trainingData.reduce((s, e) => s + e.quality, 0) /
+            this.trainingData.length
+          : 0,
+      readyForTraining:
+        this.trainingData.length >= 100 &&
+        this.trainingData.filter((e) => e.quality >= 4).length >= 50,
     };
   }
 
   // ─── Format for OpenAI Fine-Tuning ────────────────────────
 
   exportTrainingData(minQuality: number = 3): string {
-    const filtered = this.trainingData.filter(e => e.quality >= minQuality);
+    const filtered = this.trainingData.filter((e) => e.quality >= minQuality);
     return filtered
-      .map(e => JSON.stringify({ messages: e.messages }))
+      .map((e) => JSON.stringify({ messages: e.messages }))
       .join('\n');
   }
 
@@ -103,7 +144,9 @@ export class FineTunePipelineService {
     minQuality?: number;
   }): Promise<FineTuneJob> {
     const baseModel = config.baseModel ?? 'gpt-4o-mini-2024-07-18';
-    const examples = this.trainingData.filter(e => e.quality >= (config.minQuality ?? 3));
+    const examples = this.trainingData.filter(
+      (e) => e.quality >= (config.minQuality ?? 3),
+    );
     const validationSplit = Math.floor(examples.length * 0.1);
 
     const job: FineTuneJob = {
@@ -126,7 +169,9 @@ export class FineTunePipelineService {
     //   hyperparameters: { n_epochs: config.epochs ?? 3 },
     // });
 
-    this.logger.log(`Fine-tune job ${job.id} submitted: ${job.trainingExamples} examples on ${baseModel}`);
+    this.logger.log(
+      `Fine-tune job ${job.id} submitted: ${job.trainingExamples} examples on ${baseModel}`,
+    );
     return job;
   }
 

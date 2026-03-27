@@ -21,7 +21,10 @@ export default function StockInsightsPopup({ ticker, trigger }: StockInsightsPop
             try {
                 // Fetch insight from API
                 const data = await apiClient.getInsights(ticker);
-                setInsight(data.insight);
+                const nextInsight = data.insights?.length
+                    ? data.insights.map((item) => `${item.title}\n${item.summary}`).join('\n\n')
+                    : "Unable to generate insights at this time. Please try again later.";
+                setInsight(nextInsight);
             } catch (error) {
                 console.error("Failed to fetch insights", error);
                 setInsight("Unable to generate insights at this time. Please try again later.");

@@ -10,6 +10,7 @@ interface MonteCarloResult {
   paths: number; quarters: number;
   vasicekParams: { kappa: number; theta: number; sigma: number; r0: number };
   meanNII: number; stdNII: number; var95NII: number; cvar99NII: number;
+  meanEVE?: number; var95EVE?: number;
   fanChart: Array<{ quarter: string; p5: number; p25: number; p50: number; p75: number; p95: number }>;
   distribution: { buckets: Array<{ min: number; max: number; count: number }>; mean: number; std: number };
 }
@@ -108,8 +109,10 @@ export default function MonteCarloPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="quarter" tick={{ fontSize: 10 }} />
                 <YAxis tickFormatter={v => `$${v.toFixed(1)}M`} tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
-                  formatter={(v: number) => [`$${v.toFixed(3)}M`, '']} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
+                  formatter={(value) => [`$${Number(value ?? 0).toFixed(3)}M`, '']}
+                />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Area type="monotone" dataKey="p95" stroke="none" fill="#dcfce7" fillOpacity={0.5} name="P95" />
                 <Area type="monotone" dataKey="p75" stroke="none" fill="#bbf7d0" fillOpacity={0.5} name="P75" />

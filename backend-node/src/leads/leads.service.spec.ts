@@ -89,31 +89,52 @@ describe('LeadsService', () => {
 
     it('should assign HIGH priority for cooperativas and credit unions', async () => {
       prisma.lead.findFirst.mockResolvedValue(null);
-      prisma.lead.create.mockImplementation(({ data }) => Promise.resolve({ id: 'l', ...data }));
+      prisma.lead.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'l', ...data }),
+      );
 
-      await service.submitLead({ ...baseDto, institutionType: 'cooperativa' } as any);
+      await service.submitLead({
+        ...baseDto,
+        institutionType: 'cooperativa',
+      } as any);
       expect(prisma.lead.create.mock.calls[0][0].data.priority).toBe('HIGH');
 
-      await service.submitLead({ ...baseDto, institutionType: 'credit_union' } as any);
+      await service.submitLead({
+        ...baseDto,
+        institutionType: 'credit_union',
+      } as any);
       expect(prisma.lead.create.mock.calls[1][0].data.priority).toBe('HIGH');
 
-      await service.submitLead({ ...baseDto, institutionType: 'cpa_consultant' } as any);
+      await service.submitLead({
+        ...baseDto,
+        institutionType: 'cpa_consultant',
+      } as any);
       expect(prisma.lead.create.mock.calls[2][0].data.priority).toBe('HIGH');
     });
 
     it('should assign MEDIUM priority for community banks', async () => {
       prisma.lead.findFirst.mockResolvedValue(null);
-      prisma.lead.create.mockImplementation(({ data }) => Promise.resolve({ id: 'l', ...data }));
+      prisma.lead.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'l', ...data }),
+      );
 
-      await service.submitLead({ ...baseDto, institutionType: 'community_bank' } as any);
+      await service.submitLead({
+        ...baseDto,
+        institutionType: 'community_bank',
+      } as any);
       expect(prisma.lead.create.mock.calls[0][0].data.priority).toBe('MEDIUM');
     });
 
     it('should assign LOW priority for unknown institution types', async () => {
       prisma.lead.findFirst.mockResolvedValue(null);
-      prisma.lead.create.mockImplementation(({ data }) => Promise.resolve({ id: 'l', ...data }));
+      prisma.lead.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'l', ...data }),
+      );
 
-      await service.submitLead({ ...baseDto, institutionType: 'fintech' } as any);
+      await service.submitLead({
+        ...baseDto,
+        institutionType: 'fintech',
+      } as any);
       expect(prisma.lead.create.mock.calls[0][0].data.priority).toBe('LOW');
     });
 
@@ -130,7 +151,11 @@ describe('LeadsService', () => {
 
     it('should send bilingual confirmation for cooperativa leads', async () => {
       prisma.lead.findFirst.mockResolvedValue(null);
-      prisma.lead.create.mockResolvedValue({ id: 'l', priority: 'HIGH', nextFollowUp: new Date() });
+      prisma.lead.create.mockResolvedValue({
+        id: 'l',
+        priority: 'HIGH',
+        nextFollowUp: new Date(),
+      });
 
       await service.submitLead(baseDto as any);
 
@@ -144,7 +169,9 @@ describe('LeadsService', () => {
 
     it('should set nextFollowUp to next business day at 9am AST', async () => {
       prisma.lead.findFirst.mockResolvedValue(null);
-      prisma.lead.create.mockImplementation(({ data }) => Promise.resolve({ id: 'l', ...data }));
+      prisma.lead.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'l', ...data }),
+      );
 
       await service.submitLead(baseDto as any);
 
@@ -282,7 +309,12 @@ describe('LeadsService', () => {
       const now = new Date();
       const leads = [
         { status: 'NEW', createdAt: now, revenueAmount: 0, convertedAt: null },
-        { status: 'CONTACTED', createdAt: now, revenueAmount: 0, convertedAt: null },
+        {
+          status: 'CONTACTED',
+          createdAt: now,
+          revenueAmount: 0,
+          convertedAt: null,
+        },
         {
           status: 'CLOSED_WON',
           createdAt: new Date(now.getTime() - 7 * 86400000),

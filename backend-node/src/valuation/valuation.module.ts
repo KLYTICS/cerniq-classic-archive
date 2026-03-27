@@ -9,15 +9,15 @@ import { MarketDataModule } from '../market-data/market-data.module';
 import { TickerModule } from '../ticker/ticker.module';
 
 @Module({
-    imports: [MarketDataModule, TickerModule],
-    controllers: [ValuationController],
-    providers: [
-        ValuationService,
-        CyclicalValuationEngine,
-        CompounderValuationEngine,
-        FrontierValuationEngine,
-        KPIScoringEngine,
-    ],
-    exports: [ValuationService],
+  imports: [MarketDataModule, TickerModule],
+  controllers: [ValuationController],
+  providers: [
+    ValuationService,
+    CyclicalValuationEngine,
+    CompounderValuationEngine,
+    FrontierValuationEngine,
+    KPIScoringEngine,
+  ],
+  exports: [ValuationService],
 })
-export class ValuationModule { }
+export class ValuationModule {}

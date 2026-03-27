@@ -98,7 +98,10 @@ export default function CapitalOptimizerPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number) => [`$${v.toFixed(1)}M`, '']} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: 12, fontSize: 12 }}
+                    formatter={(value) => [`$${Number(value ?? 0).toFixed(1)}M`, '']}
+                  />
                   <ReferenceLine y={0} stroke="#94a3b8" />
                   <Bar dataKey="delta" radius={[4, 4, 0, 0]}>
                     {data.deltaAllocations.map((a, i) => <Cell key={i} fill={a.deltaUSD >= 0 ? '#10b981' : '#ef4444'} />)}

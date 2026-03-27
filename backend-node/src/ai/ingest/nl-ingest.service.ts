@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from '../../prisma.service';
 
 export interface NLIngestResult {
   itemsCreated: number;
@@ -24,13 +24,19 @@ export class NLIngestService {
     if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
       try {
         const pdfParse = require('pdf-parse');
-        const data = await pdfParse(Buffer.isBuffer(content) ? content : Buffer.from(content as string, 'base64'));
+        const data = await pdfParse(
+          Buffer.isBuffer(content) ? content : Buffer.from(content, 'base64'),
+        );
         text = data.text.slice(0, 60000);
       } catch {
-        text = Buffer.isBuffer(content) ? content.toString('utf-8').slice(0, 60000) : (content as string).slice(0, 60000);
+        text = Buffer.isBuffer(content)
+          ? content.toString('utf-8').slice(0, 60000)
+          : content.slice(0, 60000);
       }
     } else {
-      text = (typeof content === 'string' ? content : content.toString('utf-8')).slice(0, 60000);
+      text = (
+        typeof content === 'string' ? content : content.toString('utf-8')
+      ).slice(0, 60000);
     }
 
     // Step 2: Extract balance sheet items via Claude API or heuristic
@@ -42,18 +48,26 @@ export class NLIngestService {
     }
 
     if (items.length === 0) {
-      return { itemsCreated: 0, warnings: ['No balance sheet items detected in document.'], extractedCategories: { assets: 0, liabilities: 0 } };
+      return {
+        itemsCreated: 0,
+        warnings: ['No balance sheet items detected in document.'],
+        extractedCategories: { assets: 0, liabilities: 0 },
+      };
     }
 
     // Step 3: Validate and save
-    const validItems = items.filter(i => i.name && i.balance > 0 && i.category);
+    const validItems = items.filter(
+      (i) => i.name && i.balance > 0 && i.category,
+    );
     await this.prisma.balanceSheetItem.deleteMany({ where: { institutionId } });
     const created = await this.prisma.balanceSheetItem.createMany({
-      data: validItems.map(i => ({
+      data: validItems.map((i) => ({
         institutionId,
         name: i.name,
         category: i.category,
-        subcategory: i.subcategory ?? (i.category === 'asset' ? 'other_assets' : 'other_borrowings'),
+        subcategory:
+          i.subcategory ??
+          (i.category === 'asset' ? 'other_assets' : 'other_borrowings'),
         balance: i.balance,
         rate: i.rate ?? 0,
         duration: i.duration ?? 1,
@@ -61,28 +75,46 @@ export class NLIngestService {
       })),
     });
 
-    const assetCount = validItems.filter(i => i.category === 'asset').length;
-    const liabCount = validItems.filter(i => i.category === 'liability').length;
-    this.logger.log(`NL ingest: ${created.count} items from "${fileName}" (${assetCount} assets, ${liabCount} liabilities)`);
+    const assetCount = validItems.filter((i) => i.category === 'asset').length;
+    const liabCount = validItems.filter(
+      (i) => i.category === 'liability',
+    ).length;
+    this.logger.log(
+      `NL ingest: ${created.count} items from "${fileName}" (${assetCount} assets, ${liabCount} liabilities)`,
+    );
 
     return {
       itemsCreated: created.count,
-      warnings: validItems.length < items.length ? [`${items.length - validItems.length} items skipped (validation)`] : [],
+      warnings:
+        validItems.length < items.length
+          ? [`${items.length - validItems.length} items skipped (validation)`]
+          : [],
       extractedCategories: { assets: assetCount, liabilities: liabCount },
     };
   }
 
-  private async extractWithClaude(text: string, fileName: string): Promise<any[]> {
+  private async extractWithClaude(
+    text: string,
+    fileName: string,
+  ): Promise<any[]> {
     try {
       const Anthropic = (await import('@anthropic-ai/sdk')).default;
       const client = new Anthropic();
       const response = await client.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 3000,
-        system: 'Extract balance sheet items from financial documents. Respond ONLY with a JSON array.',
-        messages: [{ role: 'user', content: `Extract balance sheet items from "${fileName}":\n${text.slice(0, 20000)}\n\nRespond with JSON array: [{ "name":string, "category":"asset"|"liability", "subcategory":string, "balance":number, "rate":number, "duration":number, "rateType":"fixed"|"variable" }]` }],
+        system:
+          'Extract balance sheet items from financial documents. Respond ONLY with a JSON array.',
+        messages: [
+          {
+            role: 'user',
+            content: `Extract balance sheet items from "${fileName}":\n${text.slice(0, 20000)}\n\nRespond with JSON array: [{ "name":string, "category":"asset"|"liability", "subcategory":string, "balance":number, "rate":number, "duration":number, "rateType":"fixed"|"variable" }]`,
+          },
+        ],
       });
-      const cleaned = (response.content[0] as any).text.replace(/```json|```/g, '').trim();
+      const cleaned = (response.content[0] as any).text
+        .replace(/```json|```/g, '')
+        .trim();
       return JSON.parse(cleaned);
     } catch (e: any) {
       this.logger.warn(`Claude extraction failed: ${e.message}`);
@@ -103,7 +135,11 @@ export class NLIngestService {
       if (amount < 0.1 || amount > 100000) continue;
 
       const lower = line.toLowerCase();
-      const isLiability = lower.includes('deposit') || lower.includes('borrow') || lower.includes('share') || lower.includes('pasivo');
+      const isLiability =
+        lower.includes('deposit') ||
+        lower.includes('borrow') ||
+        lower.includes('share') ||
+        lower.includes('pasivo');
       const category = isLiability ? 'liability' : 'asset';
 
       items.push({

@@ -3,11 +3,11 @@
 // Redis URL from environment: REDIS_URL
 
 export const QUEUE_NAMES = {
-  ALM_COMPUTE: 'alm-compute',       // Monte Carlo, OAS, VaR, credit risk
-  ALM_REPORTS: 'alm-reports',       // PDF generation, board report, COSSEC exam pack
-  MARKET_DATA: 'market-data',       // FRED pulls, NCUA pulls, peer benchmarks
-  NOTIFICATIONS: 'notifications',   // emails, webhooks, policy breach alerts
-  PROSPECT: 'prospect',             // prospect analysis, email generation
+  ALM_COMPUTE: 'alm-compute', // Monte Carlo, OAS, VaR, credit risk
+  ALM_REPORTS: 'alm-reports', // PDF generation, board report, COSSEC exam pack
+  MARKET_DATA: 'market-data', // FRED pulls, NCUA pulls, peer benchmarks
+  NOTIFICATIONS: 'notifications', // emails, webhooks, policy breach alerts
+  PROSPECT: 'prospect', // prospect analysis, email generation
 } as const;
 
 export const QUEUE_OPTIONS = {

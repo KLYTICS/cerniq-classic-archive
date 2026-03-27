@@ -1,4 +1,10 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  Logger,
+} from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 
 // ─── Stripe Usage Metering Interceptor ──────────────────────
@@ -18,7 +24,11 @@ const BILLABLE_ENDPOINTS: Record<string, string> = {
 };
 
 // Track usage in-memory (production: emit to Stripe Meter API)
-const usageLog: Array<{ institutionId: string; eventType: string; timestamp: number }> = [];
+const usageLog: Array<{
+  institutionId: string;
+  eventType: string;
+  timestamp: number;
+}> = [];
 
 @Injectable()
 export class StripeMeteringInterceptor implements NestInterceptor {
@@ -34,7 +44,9 @@ export class StripeMeteringInterceptor implements NestInterceptor {
         next: () => {
           // Check if this endpoint is billable
           const routeKey = `${method} ${path}`;
-          for (const [pattern, eventType] of Object.entries(BILLABLE_ENDPOINTS)) {
+          for (const [pattern, eventType] of Object.entries(
+            BILLABLE_ENDPOINTS,
+          )) {
             if (this.matchesPattern(routeKey, pattern)) {
               const institutionId = request.params?.institutionId;
               if (institutionId) {
@@ -46,7 +58,9 @@ export class StripeMeteringInterceptor implements NestInterceptor {
 
           // Always count API calls for v1 endpoints
           if (path.startsWith('/api/v1/')) {
-            const institutionId = request.params?.institutionId ?? request.headers?.['x-institution-id'];
+            const institutionId =
+              request.params?.institutionId ??
+              request.headers?.['x-institution-id'];
             if (institutionId) {
               this.recordUsage(institutionId, 'api_call');
             }
@@ -57,7 +71,9 @@ export class StripeMeteringInterceptor implements NestInterceptor {
   }
 
   private matchesPattern(actual: string, pattern: string): boolean {
-    const regex = pattern.replace(/:id/g, '[^/]+').replace(/:institutionId/g, '[^/]+');
+    const regex = pattern
+      .replace(/:id/g, '[^/]+')
+      .replace(/:institutionId/g, '[^/]+');
     return new RegExp(`^${regex}$`).test(actual);
   }
 
@@ -76,9 +92,13 @@ export class StripeMeteringInterceptor implements NestInterceptor {
 
 // ─── Get Usage Summary ──────────────────────────────────────
 
-export function getUsageLog(institutionId?: string, since?: number): typeof usageLog {
+export function getUsageLog(
+  institutionId?: string,
+  since?: number,
+): typeof usageLog {
   let filtered = usageLog;
-  if (institutionId) filtered = filtered.filter(e => e.institutionId === institutionId);
-  if (since) filtered = filtered.filter(e => e.timestamp >= since);
+  if (institutionId)
+    filtered = filtered.filter((e) => e.institutionId === institutionId);
+  if (since) filtered = filtered.filter((e) => e.timestamp >= since);
   return filtered;
 }

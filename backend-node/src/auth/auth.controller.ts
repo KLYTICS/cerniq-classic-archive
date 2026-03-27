@@ -31,19 +31,32 @@ const isProduction = process.env.NODE_ENV === 'production';
 function parseBoolean(raw: string | undefined, fallback: boolean): boolean {
   const normalized = (raw || '').trim().toLowerCase();
   if (!normalized) return fallback;
-  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+  return (
+    normalized === '1' ||
+    normalized === 'true' ||
+    normalized === 'yes' ||
+    normalized === 'on'
+  );
 }
 
 function resolveCookieSameSite(): 'lax' | 'strict' | 'none' {
-  const configured = (process.env.AUTH_COOKIE_SAMESITE || '').trim().toLowerCase();
-  if (configured === 'strict' || configured === 'none' || configured === 'lax') {
+  const configured = (process.env.AUTH_COOKIE_SAMESITE || '')
+    .trim()
+    .toLowerCase();
+  if (
+    configured === 'strict' ||
+    configured === 'none' ||
+    configured === 'lax'
+  ) {
     return configured;
   }
   return 'lax';
 }
 
 function resolveFrontendUrl(): string {
-  const configured = (process.env.FRONTEND_URL || '').trim().replace(/\/+$/, '');
+  const configured = (process.env.FRONTEND_URL || '')
+    .trim()
+    .replace(/\/+$/, '');
   if (configured) {
     return configured;
   }
@@ -53,7 +66,10 @@ function resolveFrontendUrl(): string {
   return 'https://cerniq.io';
 }
 
-const COOKIE_SECURE = parseBoolean(process.env.AUTH_COOKIE_SECURE, isProduction);
+const COOKIE_SECURE = parseBoolean(
+  process.env.AUTH_COOKIE_SECURE,
+  isProduction,
+);
 const COOKIE_SAME_SITE = resolveCookieSameSite();
 const COOKIE_DOMAIN = (process.env.AUTH_COOKIE_DOMAIN || '').trim();
 
@@ -93,7 +109,10 @@ export class AuthController {
 
   @Post('register')
   @Throttle({ default: { ttl: 60000, limit: 3 } })
-  async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: any) {
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: any,
+  ) {
     const result = await this.authService.register(dto);
     setAuthCookies(res, result.accessToken, result.refreshToken);
     return { user: result.user };
@@ -102,7 +121,11 @@ export class AuthController {
   @Post('login')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: LoginDto, @Req() req: any, @Res({ passthrough: true }) res: any) {
+  async login(
+    @Body() dto: LoginDto,
+    @Req() req: any,
+    @Res({ passthrough: true }) res: any,
+  ) {
     const result = await this.authService.login(dto);
     setAuthCookies(res, result.accessToken, result.refreshToken);
 
@@ -156,12 +179,17 @@ export class AuthController {
   @UseGuards(AuthGuard)
   async whoami(@Req() req: any) {
     const claims = req.user?.claims || {};
-    const expectedIssuer = process.env.SUPABASE_JWT_ISSUER || process.env.SUPABASE_ISSUER || null;
-    const expectedAudience = process.env.SUPABASE_JWT_AUDIENCE || process.env.SUPABASE_AUDIENCE || null;
+    const expectedIssuer =
+      process.env.SUPABASE_JWT_ISSUER || process.env.SUPABASE_ISSUER || null;
+    const expectedAudience =
+      process.env.SUPABASE_JWT_AUDIENCE ||
+      process.env.SUPABASE_AUDIENCE ||
+      null;
     const tokenAud = claims?.aud;
-    const audOk = !expectedAudience
-      || tokenAud === expectedAudience
-      || (Array.isArray(tokenAud) && tokenAud.includes(expectedAudience));
+    const audOk =
+      !expectedAudience ||
+      tokenAud === expectedAudience ||
+      (Array.isArray(tokenAud) && tokenAud.includes(expectedAudience));
 
     return {
       user_id: req.user.userId,
@@ -176,7 +204,11 @@ export class AuthController {
   @Put('password')
   @UseGuards(AuthGuard)
   changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
-    return this.authService.changePassword(req.user.userId, dto.currentPassword, dto.newPassword);
+    return this.authService.changePassword(
+      req.user.userId,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 
   @Get('api-keys')
@@ -190,7 +222,11 @@ export class AuthController {
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @UseGuards(AuthGuard)
   async createApiKey(@Req() req: any, @Body() dto: CreateApiKeyDto) {
-    const created = await this.authService.createApiKey(req.user.userId, dto.name, dto.expiresInDays);
+    const created = await this.authService.createApiKey(
+      req.user.userId,
+      dto.name,
+      dto.expiresInDays,
+    );
     return created;
   }
 

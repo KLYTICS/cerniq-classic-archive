@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PortalController } from './portal.controller';
 import { PrismaService } from '../prisma.service';
 import { AlmEnterpriseService } from '../alm/alm-enterprise.service';
@@ -9,6 +13,7 @@ import { EmailService } from '../email/email.service';
 import { DataCryptoService } from '../crypto/data-crypto.service';
 import { BillingService } from '../billing/billing.service';
 import { AuditService } from '../audit/audit.service';
+import { AlcoPackService } from '../pipeline/alco-pack.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 
@@ -26,6 +31,7 @@ describe('PortalController', () => {
   let dataCrypto: Record<string, jest.Mock>;
   let billing: Record<string, jest.Mock>;
   let audit: Record<string, jest.Mock>;
+  let alcoPackService: Record<string, jest.Mock>;
 
   const mockReq = (userId = 'user-1') => ({
     user: { userId },
@@ -83,11 +89,18 @@ describe('PortalController', () => {
     };
 
     billing = {
-      generateMagicLink: jest.fn().mockResolvedValue('https://cerniq.io/auth/magic?token=abc'),
+      generateMagicLink: jest
+        .fn()
+        .mockResolvedValue('https://cerniq.io/auth/magic?token=abc'),
     };
 
     audit = {
       log: jest.fn(),
+    };
+
+    alcoPackService = {
+      getPackStatus: jest.fn(),
+      generatePack: jest.fn(),
     };
 
     prisma.subscription.findUnique.mockResolvedValue({
@@ -106,6 +119,7 @@ describe('PortalController', () => {
         { provide: DataCryptoService, useValue: dataCrypto },
         { provide: BillingService, useValue: billing },
         { provide: AuditService, useValue: audit },
+        { provide: AlcoPackService, useValue: alcoPackService },
       ],
     })
       .overrideGuard(AuthGuard)
@@ -141,7 +155,9 @@ describe('PortalController', () => {
     it('should block free accounts from listing jobs', async () => {
       prisma.subscription.findUnique.mockResolvedValueOnce(null);
 
-      await expect(controller.listJobs(mockReq())).rejects.toThrow(ForbiddenException);
+      await expect(controller.listJobs(mockReq())).rejects.toThrow(
+        ForbiddenException,
+      );
       expect(prisma.reportJob.findMany).not.toHaveBeenCalled();
     });
   });
@@ -161,7 +177,9 @@ describe('PortalController', () => {
     it('should throw NotFoundException for missing job', async () => {
       prisma.reportJob.findFirst.mockResolvedValue(null);
 
-      await expect(controller.getJob(mockReq(), 'j-bad')).rejects.toThrow(NotFoundException);
+      await expect(controller.getJob(mockReq(), 'j-bad')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should audit log when job has a report URL', async () => {
@@ -262,7 +280,11 @@ describe('PortalController', () => {
       almEnterprise.createInstitution.mockResolvedValue({ id: 'inst-new' });
       almEnterprise.importBalanceSheetItems.mockResolvedValue(undefined);
       prisma.reportJob.update.mockResolvedValue({});
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: 'cfo@coop.pr', name: 'Maria' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'cfo@coop.pr',
+        name: 'Maria',
+      });
 
       const result = await controller.submitData(mockReq(), 'j1', mockFile, {});
 
@@ -273,7 +295,10 @@ describe('PortalController', () => {
 
       // Verify pipeline steps executed
       expect(almEnterprise.createInstitution).toHaveBeenCalled();
-      expect(almEnterprise.importBalanceSheetItems).toHaveBeenCalledWith('inst-new', expect.any(Array));
+      expect(almEnterprise.importBalanceSheetItems).toHaveBeenCalledWith(
+        'inst-new',
+        expect.any(Array),
+      );
       expect(dataCrypto.encrypt).toHaveBeenCalled();
       expect(email.sendDataSubmissionAck).toHaveBeenCalledWith(
         expect.objectContaining({ email: 'cfo@coop.pr' }),
@@ -301,7 +326,9 @@ describe('PortalController', () => {
 
       await controller.submitData(mockReq(), 'j1', mockFile, {});
 
-      expect(almEnterprise.getInstitution).toHaveBeenCalledWith('inst-existing');
+      expect(almEnterprise.getInstitution).toHaveBeenCalledWith(
+        'inst-existing',
+      );
       expect(almEnterprise.createInstitution).not.toHaveBeenCalled();
     });
 
@@ -317,7 +344,10 @@ describe('PortalController', () => {
     });
 
     it('should block free accounts from submitting data', async () => {
-      prisma.subscription.findUnique.mockResolvedValueOnce({ tier: 'free', status: 'active' });
+      prisma.subscription.findUnique.mockResolvedValueOnce({
+        tier: 'free',
+        status: 'active',
+      });
 
       await expect(
         controller.submitData(mockReq(), 'j1', mockFile, {}),
@@ -332,7 +362,12 @@ describe('PortalController', () => {
   describe('POST /api/portal/invite', () => {
     it('should invite a new team member with magic link', async () => {
       prisma.user.findUnique
-        .mockResolvedValueOnce({ id: 'owner-1', name: 'Erwin', email: 'erwin@cerniq.io', workspaces: [{ id: 'ws-1' }] }) // owner lookup
+        .mockResolvedValueOnce({
+          id: 'owner-1',
+          name: 'Erwin',
+          email: 'erwin@cerniq.io',
+          workspaces: [{ id: 'ws-1' }],
+        }) // owner lookup
         .mockResolvedValueOnce(null); // existing user check
       prisma.user.create.mockResolvedValue({
         id: 'new-user',
@@ -369,11 +404,19 @@ describe('PortalController', () => {
 
     it('should throw when invitee email already exists', async () => {
       prisma.user.findUnique
-        .mockResolvedValueOnce({ id: 'owner-1', name: 'E', email: 'e@test.com', workspaces: [] })
+        .mockResolvedValueOnce({
+          id: 'owner-1',
+          name: 'E',
+          email: 'e@test.com',
+          workspaces: [],
+        })
         .mockResolvedValueOnce({ id: 'existing', email: 'dupe@test.com' });
 
       await expect(
-        controller.inviteUser(mockReq(), { email: 'dupe@test.com', role: 'VIEWER' }),
+        controller.inviteUser(mockReq(), {
+          email: 'dupe@test.com',
+          role: 'VIEWER',
+        }),
       ).rejects.toThrow('already exists');
     });
 
@@ -381,7 +424,10 @@ describe('PortalController', () => {
       prisma.user.findUnique.mockResolvedValueOnce(null);
 
       await expect(
-        controller.inviteUser(mockReq(), { email: 'new@test.com', role: 'VIEWER' }),
+        controller.inviteUser(mockReq(), {
+          email: 'new@test.com',
+          role: 'VIEWER',
+        }),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -405,8 +451,16 @@ describe('PortalController', () => {
         reportsUsed: 4,
       });
       prisma.workspace.findMany.mockResolvedValue([
-        { id: 'ws-1', name: 'Primary Workspace', createdAt: new Date('2026-01-01') },
-        { id: 'ws-2', name: 'Secondary Workspace', createdAt: new Date('2026-02-01') },
+        {
+          id: 'ws-1',
+          name: 'Primary Workspace',
+          createdAt: new Date('2026-01-01'),
+        },
+        {
+          id: 'ws-2',
+          name: 'Secondary Workspace',
+          createdAt: new Date('2026-02-01'),
+        },
       ]);
       prisma.reportJob.count
         .mockResolvedValueOnce(9)
@@ -466,13 +520,17 @@ describe('PortalController', () => {
     it('should block free tier users from settings', async () => {
       prisma.subscription.findUnique.mockResolvedValueOnce(null);
 
-      await expect(controller.getSettings(mockReq())).rejects.toThrow(ForbiddenException);
+      await expect(controller.getSettings(mockReq())).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should throw when user not found', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(controller.getSettings(mockReq())).rejects.toThrow(NotFoundException);
+      await expect(controller.getSettings(mockReq())).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

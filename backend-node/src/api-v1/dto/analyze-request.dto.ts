@@ -107,10 +107,22 @@ export class AnalyzeRequestDto {
   @ApiProperty({
     description: 'Institution type',
     example: 'cooperativa',
-    enum: ['cooperativa', 'credit_union', 'bank', 'community_bank', 'family_office'],
+    enum: [
+      'cooperativa',
+      'credit_union',
+      'bank',
+      'community_bank',
+      'family_office',
+    ],
   })
   @IsString()
-  @IsIn(['cooperativa', 'credit_union', 'bank', 'community_bank', 'family_office'])
+  @IsIn([
+    'cooperativa',
+    'credit_union',
+    'bank',
+    'community_bank',
+    'family_office',
+  ])
   institutionType: string;
 
   @ApiProperty({

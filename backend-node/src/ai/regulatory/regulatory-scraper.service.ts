@@ -1,10 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from '../../prisma.service';
 
 const REGULATORY_SOURCES = [
-  { regulator: 'COSSEC', listUrl: 'https://www.cossec.pr.gov/circulares', description: 'COSSEC Circulares & Exam Guidance' },
-  { regulator: 'OCIF', listUrl: 'https://ocif.pr.gov/wp/cartas-circulares/', description: 'OCIF Cartas Circulares' },
-  { regulator: 'NCUA', listUrl: 'https://ncua.gov/regulation-supervision/letters-credit-unions-other-guidance', description: 'NCUA Letters to CUs' },
+  {
+    regulator: 'COSSEC',
+    listUrl: 'https://www.cossec.pr.gov/circulares',
+    description: 'COSSEC Circulares & Exam Guidance',
+  },
+  {
+    regulator: 'OCIF',
+    listUrl: 'https://ocif.pr.gov/wp/cartas-circulares/',
+    description: 'OCIF Cartas Circulares',
+  },
+  {
+    regulator: 'NCUA',
+    listUrl:
+      'https://ncua.gov/regulation-supervision/letters-credit-unions-other-guidance',
+    description: 'NCUA Letters to CUs',
+  },
 ];
 
 export interface NewPublication {
@@ -27,10 +40,18 @@ export class RegulatoryScraperService {
       try {
         const publications = await this.fetchPublications(source);
         for (const pub of publications) {
-          const exists = await this.prisma.regulatoryPublication.findUnique({ where: { url: pub.url } });
+          const exists = await this.prisma.regulatoryPublication.findUnique({
+            where: { url: pub.url },
+          });
           if (!exists) {
             await this.prisma.regulatoryPublication.create({
-              data: { url: pub.url, title: pub.title, regulator: pub.regulator, publishedAt: pub.publishedAt, rawText: pub.rawText },
+              data: {
+                url: pub.url,
+                title: pub.title,
+                regulator: pub.regulator,
+                publishedAt: pub.publishedAt,
+                rawText: pub.rawText,
+              },
             });
             newFound++;
             this.logger.log(`New: ${pub.regulator} — ${pub.title}`);
@@ -43,7 +64,9 @@ export class RegulatoryScraperService {
     return { scanned: REGULATORY_SOURCES.length, newFound };
   }
 
-  private async fetchPublications(source: typeof REGULATORY_SOURCES[0]): Promise<NewPublication[]> {
+  private async fetchPublications(
+    source: (typeof REGULATORY_SOURCES)[0],
+  ): Promise<NewPublication[]> {
     // In production: Puppeteer headless browser scraping
     // For now: return empty (real scraping requires browser binary on Railway)
     // When Puppeteer is installed: parse HTML, extract titles/links/dates
@@ -61,7 +84,11 @@ export class RegulatoryScraperService {
     }
   }
 
-  private parsePublications(html: string, regulator: string, baseUrl: string): NewPublication[] {
+  private parsePublications(
+    html: string,
+    regulator: string,
+    baseUrl: string,
+  ): NewPublication[] {
     // Simple regex-based extraction (production: use cheerio)
     const titleRegex = /<(?:h[23]|a)[^>]*>([^<]{10,120})<\/(?:h[23]|a)>/gi;
     const publications: NewPublication[] = [];

@@ -102,7 +102,10 @@ export default function CreditRiskPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={50} />
             <YAxis tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} formatter={(v: number) => [`$${v}M`, '']} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
+              formatter={(value) => [`$${Number(value ?? 0)}M`, '']}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar dataKey="EL" name={locale === 'es' ? 'Pérdida Esperada' : 'Expected Loss'} fill="#f59e0b" stackId="loss" radius={[0, 0, 0, 0]} />
             <Bar dataKey="UL" name={locale === 'es' ? 'Pérdida Inesperada' : 'Unexpected Loss'} fill="#ef4444" stackId="loss" radius={[4, 4, 0, 0]} />

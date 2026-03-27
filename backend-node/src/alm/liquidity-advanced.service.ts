@@ -1,27 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 // ─── Basel III NSFR Factors ──────────────────────────────────
 
 const ASF_FACTORS: Record<string, number> = {
-  equity: 1.00,
-  long_term_borrowings: 1.00,
+  equity: 1.0,
+  long_term_borrowings: 1.0,
   stable_deposits: 0.95,
-  less_stable_deposits: 0.90,
-  wholesale_funding: 0.50,
-  short_term_borrowings: 0.00,
+  less_stable_deposits: 0.9,
+  wholesale_funding: 0.5,
+  short_term_borrowings: 0.0,
 };
 
 const RSF_FACTORS: Record<string, number> = {
-  cash: 0.00,
+  cash: 0.0,
   treasuries: 0.05,
   agency_securities: 0.15,
-  investment_grade_bonds: 0.50,
-  performing_loans_lt1y: 0.50,
+  investment_grade_bonds: 0.5,
+  performing_loans_lt1y: 0.5,
   performing_loans_gt1y: 0.65,
   residential_mortgage: 0.65,
   commercial_re: 0.85,
-  other_assets: 1.00,
+  other_assets: 1.0,
 };
 
 // ─── Types ───────────────────────────────────────────────────
@@ -31,8 +31,18 @@ export interface NSFRResult {
   asf: number; // available stable funding ($M)
   rsf: number; // required stable funding ($M)
   status: 'compliant' | 'warning' | 'breach';
-  asfBreakdown: Array<{ category: string; balance: number; factor: number; weighted: number }>;
-  rsfBreakdown: Array<{ category: string; balance: number; factor: number; weighted: number }>;
+  asfBreakdown: Array<{
+    category: string;
+    balance: number;
+    factor: number;
+    weighted: number;
+  }>;
+  rsfBreakdown: Array<{
+    category: string;
+    balance: number;
+    factor: number;
+    weighted: number;
+  }>;
 }
 
 export interface DepositFlightSimulation {
@@ -70,17 +80,27 @@ export class LiquidityAdvancedService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async getAdvancedLiquidity(institutionId: string): Promise<AdvancedLiquidityResult> {
-    const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
+  async getAdvancedLiquidity(
+    institutionId: string,
+  ): Promise<AdvancedLiquidityResult> {
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId },
+    });
     const liquidityPos = await this.prisma.liquidityPosition.findFirst({
       where: { institutionId },
       orderBy: { date: 'desc' },
     });
-    const depositTiers = await this.prisma.depositTier.findMany({ where: { institutionId } });
+    const depositTiers = await this.prisma.depositTier.findMany({
+      where: { institutionId },
+    });
 
     const nsfr = this.calculateNSFR(items);
-    const tiers = depositTiers.length > 0 ? depositTiers : this.getDefaultTiers(items);
-    const depositFlight = this.simulateDepositFlight(tiers, liquidityPos?.hqlaLevel1 ?? 0 + (liquidityPos?.hqlaLevel2 ?? 0));
+    const tiers =
+      depositTiers.length > 0 ? depositTiers : this.getDefaultTiers(items);
+    const depositFlight = this.simulateDepositFlight(
+      tiers,
+      liquidityPos?.hqlaLevel1 ?? 0 + (liquidityPos?.hqlaLevel2 ?? 0),
+    );
 
     return {
       lcr: liquidityPos?.lcr ?? 115,
@@ -108,11 +128,18 @@ export class LiquidityAdvancedService {
     }
 
     // Add equity estimate (total assets - total liabilities)
-    const totalAssets = items.filter((i) => i.category === 'asset').reduce((s, i) => s + i.balance, 0);
+    const totalAssets = items
+      .filter((i) => i.category === 'asset')
+      .reduce((s, i) => s + i.balance, 0);
     const totalLiabilities = liabilities.reduce((s, i) => s + i.balance, 0);
     const equity = Math.max(totalAssets - totalLiabilities, 0);
     if (equity > 0) {
-      asfBreakdown.push({ category: 'Equity', balance: equity, factor: 1.00, weighted: equity });
+      asfBreakdown.push({
+        category: 'Equity',
+        balance: equity,
+        factor: 1.0,
+        weighted: equity,
+      });
     }
 
     // RSF: Assets
@@ -143,7 +170,10 @@ export class LiquidityAdvancedService {
 
   // ─── Deposit Flight Simulation ─────────────────────────────
 
-  simulateDepositFlight(tiers: any[], totalHQLA: number): DepositFlightSimulation {
+  simulateDepositFlight(
+    tiers: any[],
+    totalHQLA: number,
+  ): DepositFlightSimulation {
     const tierResults: DepositTierResult[] = tiers.map((t) => {
       const tierName = t.tierName ?? t.tier_name ?? 'unknown';
       const balance = t.balance;
@@ -153,13 +183,22 @@ export class LiquidityAdvancedService {
       const month6Loss = balance * (1 - Math.pow(1 - monthlyFlightRate, 6));
       const month12Loss = balance * (1 - Math.pow(1 - monthlyFlightRate, 12));
 
-      return { tierName, balance, insuredPct, monthlyFlightRate, month6Loss, month12Loss };
+      return {
+        tierName,
+        balance,
+        insuredPct,
+        monthlyFlightRate,
+        month6Loss,
+        month12Loss,
+      };
     });
 
     // Monthly projections
     const horizon = 12;
-    const monthlyProjections: DepositFlightSimulation['monthlyProjections'] = [];
-    let hqla = totalHQLA || tierResults.reduce((s, t) => s + t.balance, 0) * 0.15;
+    const monthlyProjections: DepositFlightSimulation['monthlyProjections'] =
+      [];
+    let hqla =
+      totalHQLA || tierResults.reduce((s, t) => s + t.balance, 0) * 0.15;
     let totalDeposits = tierResults.reduce((s, t) => s + t.balance, 0);
     let cumulativeOutflow = 0;
     let survivalHorizonMonths = horizon;
@@ -167,13 +206,17 @@ export class LiquidityAdvancedService {
     for (let m = 1; m <= horizon; m++) {
       let monthOutflow = 0;
       for (const tier of tierResults) {
-        monthOutflow += tier.balance * tier.monthlyFlightRate * Math.pow(1 - tier.monthlyFlightRate, m - 1);
+        monthOutflow +=
+          tier.balance *
+          tier.monthlyFlightRate *
+          Math.pow(1 - tier.monthlyFlightRate, m - 1);
       }
       cumulativeOutflow += monthOutflow;
       totalDeposits -= monthOutflow;
       hqla = Math.max(0, hqla - monthOutflow * 0.5); // HQLA depletes as we fund outflows
 
-      const liquidityRatio = totalDeposits > 0 ? (hqla / totalDeposits) * 100 : 0;
+      const liquidityRatio =
+        totalDeposits > 0 ? (hqla / totalDeposits) * 100 : 0;
 
       monthlyProjections.push({
         month: m,
@@ -201,28 +244,37 @@ export class LiquidityAdvancedService {
 
   private getASFFactor(item: any): number {
     const sub = (item.subcategory || '').toLowerCase();
-    if (sub.includes('demand') || sub.includes('savings') || sub.includes('ahorro')) return 0.95;
+    if (
+      sub.includes('demand') ||
+      sub.includes('savings') ||
+      sub.includes('ahorro')
+    )
+      return 0.95;
     if (sub.includes('time') || sub.includes('cd') || sub.includes('plazo')) {
-      return (item.duration || 1) > 1 ? 1.00 : 0.50;
+      return (item.duration || 1) > 1 ? 1.0 : 0.5;
     }
     if (sub.includes('borrowing') || sub.includes('fhlb')) {
-      return (item.duration || 0) > 1 ? 1.00 : 0.00;
+      return (item.duration || 0) > 1 ? 1.0 : 0.0;
     }
-    return 0.50;
+    return 0.5;
   }
 
   private getRSFFactor(item: any): number {
     const sub = (item.subcategory || '').toLowerCase();
-    if (sub.includes('cash') || sub.includes('reserves')) return 0.00;
+    if (sub.includes('cash') || sub.includes('reserves')) return 0.0;
     if (sub.includes('treasury') || sub.includes('government')) return 0.05;
     if (sub.includes('agency') || sub.includes('mbs')) return 0.15;
-    if (sub.includes('securities') || sub.includes('bonds')) return 0.50;
+    if (sub.includes('securities') || sub.includes('bonds')) return 0.5;
     if (sub.includes('mortgage') || sub.includes('residential')) return 0.65;
     if (sub.includes('commercial') && sub.includes('re')) return 0.85;
-    if (sub.includes('loan') || sub.includes('consumer') || sub.includes('auto')) {
-      return (item.duration || 1) > 1 ? 0.65 : 0.50;
+    if (
+      sub.includes('loan') ||
+      sub.includes('consumer') ||
+      sub.includes('auto')
+    ) {
+      return (item.duration || 1) > 1 ? 0.65 : 0.5;
     }
-    return 1.00;
+    return 1.0;
   }
 
   private getDefaultTiers(items: any[]): any[] {
@@ -230,10 +282,30 @@ export class LiquidityAdvancedService {
     const totalDeposits = liabilities.reduce((s, i) => s + i.balance, 0);
 
     return [
-      { tierName: 'Insured Core', balance: totalDeposits * 0.50, insuredPct: 0.95, flightRate: 0.02 },
-      { tierName: 'Uninsured', balance: totalDeposits * 0.25, insuredPct: 0.10, flightRate: 0.08 },
-      { tierName: 'Brokered', balance: totalDeposits * 0.15, insuredPct: 0.50, flightRate: 0.15 },
-      { tierName: 'Large Single Depositor', balance: totalDeposits * 0.10, insuredPct: 0.05, flightRate: 0.20 },
+      {
+        tierName: 'Insured Core',
+        balance: totalDeposits * 0.5,
+        insuredPct: 0.95,
+        flightRate: 0.02,
+      },
+      {
+        tierName: 'Uninsured',
+        balance: totalDeposits * 0.25,
+        insuredPct: 0.1,
+        flightRate: 0.08,
+      },
+      {
+        tierName: 'Brokered',
+        balance: totalDeposits * 0.15,
+        insuredPct: 0.5,
+        flightRate: 0.15,
+      },
+      {
+        tierName: 'Large Single Depositor',
+        balance: totalDeposits * 0.1,
+        insuredPct: 0.05,
+        flightRate: 0.2,
+      },
     ];
   }
 }

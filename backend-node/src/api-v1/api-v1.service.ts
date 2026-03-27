@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { AlmEnterpriseService } from '../alm/alm-enterprise.service';
 import { AlmService } from '../alm/alm.service';
@@ -92,7 +97,9 @@ export class ApiV1Service {
     );
 
     // Run COSSEC compliance analysis
-    const compliance = await this.almEnterprise.getCOSSECCompliance(institution.id);
+    const compliance = await this.almEnterprise.getCOSSECCompliance(
+      institution.id,
+    );
 
     // Run ALM summary (includes duration gap, NII sensitivity, LCR)
     const almSummary = await this.almEnterprise.getALMSummary(
@@ -182,10 +189,7 @@ export class ApiV1Service {
   /**
    * Retrieve a previously stored analysis by ID.
    */
-  async getAnalysis(
-    userId: string,
-    analysisId: string,
-  ): Promise<any> {
+  async getAnalysis(userId: string, analysisId: string): Promise<any> {
     const run = await this.prisma.analysisRun.findFirst({
       where: {
         id: analysisId,
@@ -209,7 +213,7 @@ export class ApiV1Service {
       throw new NotFoundException(`Analysis ${analysisId} not found`);
     }
 
-    const resultSummary = run.resultSummary as any;
+    const resultSummary = run.resultSummary;
 
     return {
       analysisId: run.id,

@@ -68,7 +68,10 @@ export default function CapFloorPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="date" tick={{ fontSize: 10 }} />
             <YAxis tickFormatter={v => `$${v}K`} tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number) => `$${v.toFixed(1)}K`} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => `$${Number(value ?? 0).toFixed(1)}K`}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar dataKey="capletValue" name={locale === 'es' ? 'Caplet' : 'Caplet'} fill="#ef4444" radius={[4, 4, 0, 0]} />
             <Bar dataKey="floorletValue" name={locale === 'es' ? 'Floorlet' : 'Floorlet'} fill="#3b82f6" radius={[4, 4, 0, 0]} />

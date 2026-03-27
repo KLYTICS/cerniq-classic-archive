@@ -3,8 +3,8 @@ import { OptionsController } from './options.controller';
 import { OptionsService } from './options.service';
 
 @Module({
-    controllers: [OptionsController],
-    providers: [OptionsService],
-    exports: [OptionsService],
+  controllers: [OptionsController],
+  providers: [OptionsService],
+  exports: [OptionsService],
 })
-export class OptionsModule { }
+export class OptionsModule {}

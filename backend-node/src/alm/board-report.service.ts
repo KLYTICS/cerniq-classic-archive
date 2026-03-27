@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { AlmAdvisorV2Service } from './alm-advisor-v2.service';
 import { CAMELScorerService } from './exam-prep/camel-scorer.service';
@@ -33,7 +33,12 @@ export interface BoardReportData {
   topRisksEs: string[];
   recommendations: string[];
   recommendationsEs: string[];
-  regPulse: Array<{ deadline: string; deadlineEs: string; date: string; urgency: string }>;
+  regPulse: Array<{
+    deadline: string;
+    deadlineEs: string;
+    date: string;
+    urgency: string;
+  }>;
 }
 
 @Injectable()
@@ -47,22 +52,35 @@ export class BoardReportService {
     private readonly camelScorer: CAMELScorerService,
   ) {}
 
-  async generateBoardReportData(institutionId: string): Promise<BoardReportData> {
-    const institution = await this.prisma.institution.findUnique({ where: { id: institutionId } });
+  async generateBoardReportData(
+    institutionId: string,
+  ): Promise<BoardReportData> {
+    const institution = await this.prisma.institution.findUnique({
+      where: { id: institutionId },
+    });
     const now = new Date();
     const reportMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     let summary: any;
-    try { summary = await this.almEnterprise.getALMSummary(institutionId); } catch { summary = null; }
+    try {
+      summary = await this.almEnterprise.getALMSummary(institutionId);
+    } catch {
+      summary = null;
+    }
 
     const healthScore = await this.advisorV2.computeHealthScore(institutionId);
     const camel = await this.camelScorer.scoreInstitution(institutionId);
 
     const kpis = {
-      nim: summary?.niiSensitivity?.baseNII ? (summary.niiSensitivity.baseNII / (institution?.totalAssets ?? 445) * 100) : 3.5,
+      nim: summary?.niiSensitivity?.baseNII
+        ? (summary.niiSensitivity.baseNII / (institution?.totalAssets ?? 445)) *
+          100
+        : 3.5,
       lcr: summary?.liquidity?.lcr ?? 115,
       nsfr: 108,
-      nwr: institution?.totalAssets ? ((institution.totalAssets * 0.09) / institution.totalAssets * 100) : 9.2,
+      nwr: institution?.totalAssets
+        ? ((institution.totalAssets * 0.09) / institution.totalAssets) * 100
+        : 9.2,
       eveSensitivity: 15.2,
       nplRatio: 1.8,
       ceclCoverage: 1.3,
@@ -70,20 +88,52 @@ export class BoardReportService {
     };
 
     const sections: BoardReportSection[] = [
-      { title: 'Executive Summary', titleEs: 'Resumen Ejecutivo', pageRange: '2',
-        content: { healthScore: healthScore.overall, label: healthScore.label, camelComposite: camel.composite } },
-      { title: 'Key Metrics Dashboard', titleEs: 'Panel de Indicadores Clave', pageRange: '3-4',
-        content: { kpis } },
-      { title: 'Risk Trend Analysis', titleEs: 'Análisis de Tendencia de Riesgo', pageRange: '5-7',
-        content: { alerts: await this.advisorV2.rankAlerts(healthScore) } },
-      { title: 'Peer Comparison', titleEs: 'Comparación con Pares', pageRange: '8-9',
-        content: { peerGroup: 'PR Cooperativas', assetTier: 'medium' } },
-      { title: 'Forward Projection (3-Year)', titleEs: 'Proyección Forward (3 Años)', pageRange: '10-11',
-        content: { horizon: 3, ratePaths: ['base', 'up200', 'down100'] } },
-      { title: 'Recommended Actions', titleEs: 'Acciones Recomendadas', pageRange: '13-14',
-        content: { count: 5 } },
-      { title: 'Regulatory Pulse', titleEs: 'Pulso Regulatorio', pageRange: '15',
-        content: { days: 90 } },
+      {
+        title: 'Executive Summary',
+        titleEs: 'Resumen Ejecutivo',
+        pageRange: '2',
+        content: {
+          healthScore: healthScore.overall,
+          label: healthScore.label,
+          camelComposite: camel.composite,
+        },
+      },
+      {
+        title: 'Key Metrics Dashboard',
+        titleEs: 'Panel de Indicadores Clave',
+        pageRange: '3-4',
+        content: { kpis },
+      },
+      {
+        title: 'Risk Trend Analysis',
+        titleEs: 'Análisis de Tendencia de Riesgo',
+        pageRange: '5-7',
+        content: { alerts: await this.advisorV2.rankAlerts(healthScore) },
+      },
+      {
+        title: 'Peer Comparison',
+        titleEs: 'Comparación con Pares',
+        pageRange: '8-9',
+        content: { peerGroup: 'PR Cooperativas', assetTier: 'medium' },
+      },
+      {
+        title: 'Forward Projection (3-Year)',
+        titleEs: 'Proyección Forward (3 Años)',
+        pageRange: '10-11',
+        content: { horizon: 3, ratePaths: ['base', 'up200', 'down100'] },
+      },
+      {
+        title: 'Recommended Actions',
+        titleEs: 'Acciones Recomendadas',
+        pageRange: '13-14',
+        content: { count: 5 },
+      },
+      {
+        title: 'Regulatory Pulse',
+        titleEs: 'Pulso Regulatorio',
+        pageRange: '15',
+        content: { days: 90 },
+      },
     ];
 
     const recommendations = [
@@ -126,7 +176,9 @@ export class BoardReportService {
           topRiskAlert: topRisks[0],
         },
       });
-    } catch { /* non-critical */ }
+    } catch {
+      /* non-critical */
+    }
 
     return {
       institutionName: institution?.name ?? 'Institution',
@@ -140,9 +192,24 @@ export class BoardReportService {
       recommendations,
       recommendationsEs,
       regPulse: [
-        { deadline: 'COSSEC Quarterly Report', deadlineEs: 'Informe Trimestral COSSEC', date: '2026-04-15', urgency: 'HIGH' },
-        { deadline: 'ALCO Committee Meeting', deadlineEs: 'Reunión Comité ALCO', date: '2026-04-01', urgency: 'MEDIUM' },
-        { deadline: 'NCUA 5300 Filing', deadlineEs: 'Radicación NCUA 5300', date: '2026-04-30', urgency: 'HIGH' },
+        {
+          deadline: 'COSSEC Quarterly Report',
+          deadlineEs: 'Informe Trimestral COSSEC',
+          date: '2026-04-15',
+          urgency: 'HIGH',
+        },
+        {
+          deadline: 'ALCO Committee Meeting',
+          deadlineEs: 'Reunión Comité ALCO',
+          date: '2026-04-01',
+          urgency: 'MEDIUM',
+        },
+        {
+          deadline: 'NCUA 5300 Filing',
+          deadlineEs: 'Radicación NCUA 5300',
+          date: '2026-04-30',
+          urgency: 'HIGH',
+        },
       ],
     };
   }

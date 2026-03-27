@@ -47,7 +47,11 @@ export class IngestionLogsService {
     });
   }
 
-  async listInstitutionLogs(userId: string, institutionId: string, pagination?: PaginationQueryDto) {
+  async listInstitutionLogs(
+    userId: string,
+    institutionId: string,
+    pagination?: PaginationQueryDto,
+  ) {
     await this.assertInstitutionAccess(userId, institutionId);
 
     const page = pagination?.page || 1;
@@ -67,7 +71,13 @@ export class IngestionLogsService {
       this.prisma.ingestionLog.count({ where }),
     ]);
 
-    return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async listJobLogs(userId: string, reportJobId: string) {

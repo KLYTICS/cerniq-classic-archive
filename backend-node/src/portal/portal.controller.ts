@@ -1,7 +1,19 @@
 import {
-  Controller, Get, Post, Param, Body, Req, Res, Logger, Query,
-  UseGuards, UseInterceptors, UploadedFile,
-  BadRequestException, ForbiddenException, NotFoundException,
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  Req,
+  Res,
+  Logger,
+  Query,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
@@ -139,9 +151,15 @@ export class PortalController {
     }
 
     const language = lang === 'en' ? 'en' : 'es'; // default Spanish for cooperativas
-    const pdfBuffer = await this.alcoPackService.buildALCOPack(job.institutionId, language);
+    const pdfBuffer = await this.alcoPackService.buildALCOPack(
+      job.institutionId,
+      language,
+    );
 
-    const safeInstName = (job.institutionName || 'institution').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeInstName = (job.institutionName || 'institution').replace(
+      /[^a-zA-Z0-9_-]/g,
+      '_',
+    );
     const filename = `ALCO_Pack_${safeInstName}_${new Date().toISOString().slice(0, 10)}.pdf`;
 
     this.audit.log({
@@ -154,7 +172,12 @@ export class PortalController {
       userAgent: req.headers?.['user-agent'],
     });
 
-    this.logger.log({ event: 'portal.alco_pack.generated', jobId, userId, language });
+    this.logger.log({
+      event: 'portal.alco_pack.generated',
+      jobId,
+      userId,
+      language,
+    });
 
     res.set({
       'Content-Type': 'application/pdf',
@@ -169,15 +192,20 @@ export class PortalController {
 
   @Post('jobs/:jobId/submit')
   @Roles('OWNER', 'ANALYST')
-  @UseInterceptors(FileInterceptor('file', {
-    limits: { fileSize: 2 * 1024 * 1024 },
-    fileFilter: (_req, file, cb) => {
-      if (!file.originalname.match(/\.csv$/i)) {
-        return cb(new BadRequestException('Only .csv files are accepted'), false);
-      }
-      cb(null, true);
-    },
-  }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 2 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (!file.originalname.match(/\.csv$/i)) {
+          return cb(
+            new BadRequestException('Only .csv files are accepted'),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+    }),
+  )
   async submitData(
     @Req() req: any,
     @Param('jobId') jobId: string,
@@ -193,7 +221,9 @@ export class PortalController {
     });
     if (!job) throw new NotFoundException('Job not found');
     if (job.status !== 'AWAITING_DATA') {
-      throw new BadRequestException(`Job is not awaiting data (current: ${job.status})`);
+      throw new BadRequestException(
+        `Job is not awaiting data (current: ${job.status})`,
+      );
     }
     if (!file) throw new BadRequestException('No CSV file provided');
 
@@ -212,9 +242,16 @@ export class PortalController {
       });
       await this.prisma.reportJob.update({
         where: { id: jobId },
-        data: { status: 'VALIDATION_FAILED', errorMessage: this.formatValidationErrors(parseResult.errors) },
+        data: {
+          status: 'VALIDATION_FAILED',
+          errorMessage: this.formatValidationErrors(parseResult.errors),
+        },
       });
-      return { valid: false, errors: parseResult.errors, status: 'VALIDATION_FAILED' };
+      return {
+        valid: false,
+        errors: parseResult.errors,
+        status: 'VALIDATION_FAILED',
+      };
     }
 
     // Transition to VALIDATING
@@ -239,7 +276,10 @@ export class PortalController {
     }
 
     // Import balance sheet items
-    await this.almEnterprise.importBalanceSheetItems(institution.id, parseResult.items);
+    await this.almEnterprise.importBalanceSheetItems(
+      institution.id,
+      parseResult.items,
+    );
     const log = await this.ingestionLogs.recordLog({
       userId,
       institutionId: institution.id,
@@ -298,7 +338,12 @@ export class PortalController {
       });
     }
 
-    this.logger.log({ event: 'portal.data_submitted', jobId, userId, items: parseResult.items.length });
+    this.logger.log({
+      event: 'portal.data_submitted',
+      jobId,
+      userId,
+      items: parseResult.items.length,
+    });
 
     this.audit.log({
       userId,
@@ -422,7 +467,16 @@ export class PortalController {
     const userId = req.user.userId;
     await this.requirePaidPortalAccess(userId);
 
-    const [user, subscription, workspaces, totalReports, completedReports, inProgressReports, awaitingDataReports, activeApiKeys] = await Promise.all([
+    const [
+      user,
+      subscription,
+      workspaces,
+      totalReports,
+      completedReports,
+      inProgressReports,
+      awaitingDataReports,
+      activeApiKeys,
+    ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -462,7 +516,13 @@ export class PortalController {
         where: {
           userId,
           status: {
-            in: ['QUEUED', 'PROCESSING', 'GENERATING_PDF', 'UPLOADING', 'VALIDATING'],
+            in: [
+              'QUEUED',
+              'PROCESSING',
+              'GENERATING_PDF',
+              'UPLOADING',
+              'VALIDATING',
+            ],
           },
         },
       }),
@@ -485,27 +545,31 @@ export class PortalController {
     if (!user) throw new NotFoundException('User not found');
 
     const workspaceIds = workspaces.map((workspace) => workspace.id);
-    const institutions = workspaceIds.length > 0
-      ? await this.prisma.institution.findMany({
-        where: {
-          workspaceId: {
-            in: workspaceIds,
-          },
-        },
-        select: {
-          id: true,
-          name: true,
-          type: true,
-          totalAssets: true,
-          preferredLanguage: true,
-          updatedAt: true,
-          workspaceId: true,
-        },
-        orderBy: { updatedAt: 'desc' },
-      })
-      : [];
+    const institutions =
+      workspaceIds.length > 0
+        ? await this.prisma.institution.findMany({
+            where: {
+              workspaceId: {
+                in: workspaceIds,
+              },
+            },
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              totalAssets: true,
+              preferredLanguage: true,
+              updatedAt: true,
+              workspaceId: true,
+            },
+            orderBy: { updatedAt: 'desc' },
+          })
+        : [];
 
-    const totalInstitutionAssets = institutions.reduce((sum, institution) => sum + institution.totalAssets, 0);
+    const totalInstitutionAssets = institutions.reduce(
+      (sum, institution) => sum + institution.totalAssets,
+      0,
+    );
 
     return {
       user,
@@ -545,7 +609,9 @@ export class PortalController {
     });
 
     if (!subscription || subscription.tier === 'free') {
-      throw new ForbiddenException('A paid CERNIQ plan is required to access the client portal.');
+      throw new ForbiddenException(
+        'A paid CERNIQ plan is required to access the client portal.',
+      );
     }
   }
 }

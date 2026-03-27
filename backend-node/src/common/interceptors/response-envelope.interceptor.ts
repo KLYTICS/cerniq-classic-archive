@@ -18,8 +18,14 @@ export interface ApiSuccessResponse<T> {
 }
 
 @Injectable()
-export class ResponseEnvelopeInterceptor<T> implements NestInterceptor<T, ApiSuccessResponse<T>> {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<ApiSuccessResponse<T>> {
+export class ResponseEnvelopeInterceptor<T> implements NestInterceptor<
+  T,
+  ApiSuccessResponse<T>
+> {
+  intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Observable<ApiSuccessResponse<T>> {
     return next.handle().pipe(
       map((data) => {
         // If already wrapped (has success field), pass through
@@ -28,7 +34,12 @@ export class ResponseEnvelopeInterceptor<T> implements NestInterceptor<T, ApiSuc
         }
 
         // If paginated result (has items + total), extract meta
-        if (data && typeof data === 'object' && 'items' in data && 'total' in data) {
+        if (
+          data &&
+          typeof data === 'object' &&
+          'items' in data &&
+          'total' in data
+        ) {
           return {
             success: true as const,
             data: data.items,
@@ -36,7 +47,11 @@ export class ResponseEnvelopeInterceptor<T> implements NestInterceptor<T, ApiSuc
               page: data.page || 1,
               pageSize: data.pageSize || data.items.length,
               total: data.total,
-              totalPages: data.totalPages || Math.ceil(data.total / (data.pageSize || data.items.length || 1)),
+              totalPages:
+                data.totalPages ||
+                Math.ceil(
+                  data.total / (data.pageSize || data.items.length || 1),
+                ),
             },
           };
         }

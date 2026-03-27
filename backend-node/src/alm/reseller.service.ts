@@ -1,11 +1,18 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 export interface ResellerProfile {
-  id: string; name: string; slug: string; logoUrl: string | null;
-  primaryColor: string; domain: string | null; revenueSharePct: number;
-  billingModel: string; isActive: boolean;
-  clientCount: number; totalMRR: number;
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  primaryColor: string;
+  domain: string | null;
+  revenueSharePct: number;
+  billingModel: string;
+  isActive: boolean;
+  clientCount: number;
+  totalMRR: number;
 }
 
 @Injectable()
@@ -15,9 +22,13 @@ export class ResellerService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createReseller(data: {
-    name: string; slug: string; logoUrl?: string;
-    primaryColor?: string; domain?: string;
-    revenueSharePct: number; billingModel?: string;
+    name: string;
+    slug: string;
+    logoUrl?: string;
+    primaryColor?: string;
+    domain?: string;
+    revenueSharePct: number;
+    billingModel?: string;
   }) {
     return this.prisma.reseller.create({
       data: {
@@ -45,10 +56,22 @@ export class ResellerService {
   }
 
   async listResellers() {
-    return this.prisma.reseller.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
+    return this.prisma.reseller.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+    });
   }
 
-  async updateReseller(id: string, data: Partial<{ name: string; logoUrl: string; primaryColor: string; domain: string; revenueSharePct: number }>) {
+  async updateReseller(
+    id: string,
+    data: Partial<{
+      name: string;
+      logoUrl: string;
+      primaryColor: string;
+      domain: string;
+      revenueSharePct: number;
+    }>,
+  ) {
     return this.prisma.reseller.update({ where: { id }, data });
   }
 }

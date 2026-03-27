@@ -6,8 +6,8 @@ import { OptionsModule } from '../options/options.module';
 import { PortfolioModule } from '../portfolio/portfolio.module';
 
 @Module({
-    imports: [MarketDataModule, OptionsModule, PortfolioModule],
-    providers: [RealtimeGateway, PipelineGateway],
-    exports: [RealtimeGateway, PipelineGateway],
+  imports: [MarketDataModule, OptionsModule, PortfolioModule],
+  providers: [RealtimeGateway, PipelineGateway],
+  exports: [RealtimeGateway, PipelineGateway],
 })
-export class RealtimeModule { }
+export class RealtimeModule {}

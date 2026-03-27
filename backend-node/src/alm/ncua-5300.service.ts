@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 // ─── NCUA Account Code → CERNIQ Subcategory Mapping ────────
 
@@ -34,22 +34,55 @@ interface EditCheck {
 }
 
 const EDIT_CHECKS: EditCheck[] = [
-  { code: 'EC-001', description: 'Total Assets must equal Total Liabilities + Net Worth',
-    validate: (f) => Math.abs(f.totalAssets - f.totalLiabilities - f.netWorth) < 0.1, severity: 'error' },
-  { code: 'EC-002', description: 'Total Shares must equal sum of all share subcategories',
-    validate: (f) => Math.abs(f.totalShares - f.sumShareSubs) < 0.1, severity: 'error' },
-  { code: 'EC-003', description: 'Net Worth Ratio must be non-negative',
-    validate: (f) => f.netWorth >= 0, severity: 'error' },
-  { code: 'EC-004', description: 'Total Loans must not exceed Total Assets',
-    validate: (f) => f.totalLoans <= f.totalAssets * 1.001, severity: 'error' },
-  { code: 'EC-005', description: 'Allowance should not exceed 15% of Gross Loans',
-    validate: (f) => f.allowance <= f.totalLoans * 0.15, severity: 'warning' },
-  { code: 'EC-006', description: 'Investments should not exceed 80% of Total Assets',
-    validate: (f) => f.totalInvestments <= f.totalAssets * 0.80, severity: 'warning' },
-  { code: 'EC-010', description: 'All account balances must be non-negative',
-    validate: (f) => Object.values(f).every(v => v >= 0), severity: 'error' },
-  { code: 'EC-020', description: 'Delinquent loans > 6% flags for examiner review',
-    validate: (f) => f.delinquentLoans <= f.totalLoans * 0.06, severity: 'warning' },
+  {
+    code: 'EC-001',
+    description: 'Total Assets must equal Total Liabilities + Net Worth',
+    validate: (f) =>
+      Math.abs(f.totalAssets - f.totalLiabilities - f.netWorth) < 0.1,
+    severity: 'error',
+  },
+  {
+    code: 'EC-002',
+    description: 'Total Shares must equal sum of all share subcategories',
+    validate: (f) => Math.abs(f.totalShares - f.sumShareSubs) < 0.1,
+    severity: 'error',
+  },
+  {
+    code: 'EC-003',
+    description: 'Net Worth Ratio must be non-negative',
+    validate: (f) => f.netWorth >= 0,
+    severity: 'error',
+  },
+  {
+    code: 'EC-004',
+    description: 'Total Loans must not exceed Total Assets',
+    validate: (f) => f.totalLoans <= f.totalAssets * 1.001,
+    severity: 'error',
+  },
+  {
+    code: 'EC-005',
+    description: 'Allowance should not exceed 15% of Gross Loans',
+    validate: (f) => f.allowance <= f.totalLoans * 0.15,
+    severity: 'warning',
+  },
+  {
+    code: 'EC-006',
+    description: 'Investments should not exceed 80% of Total Assets',
+    validate: (f) => f.totalInvestments <= f.totalAssets * 0.8,
+    severity: 'warning',
+  },
+  {
+    code: 'EC-010',
+    description: 'All account balances must be non-negative',
+    validate: (f) => Object.values(f).every((v) => v >= 0),
+    severity: 'error',
+  },
+  {
+    code: 'EC-020',
+    description: 'Delinquent loans > 6% flags for examiner review',
+    validate: (f) => f.delinquentLoans <= f.totalLoans * 0.06,
+    severity: 'warning',
+  },
 ];
 
 // ─── Types ───────────────────────────────────────────────────
@@ -89,18 +122,26 @@ export class NCUA5300Service {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async generateForm5300(institutionId: string, quarter?: string): Promise<Form5300Result> {
-    const institution = await this.prisma.institution.findUnique({ where: { id: institutionId } });
-    const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
+  async generateForm5300(
+    institutionId: string,
+    quarter?: string,
+  ): Promise<Form5300Result> {
+    const institution = await this.prisma.institution.findUnique({
+      where: { id: institutionId },
+    });
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId },
+    });
 
     const now = new Date();
-    const q = quarter ?? `${now.getFullYear()}Q${Math.ceil((now.getMonth() + 1) / 3)}`;
+    const q =
+      quarter ?? `${now.getFullYear()}Q${Math.ceil((now.getMonth() + 1) / 3)}`;
 
     // Map balance sheet items to 5300 fields
     const fields: Form5300Field[] = [];
 
     // Assets
-    const assets = items.filter(i => i.category === 'asset');
+    const assets = items.filter((i) => i.category === 'asset');
     const assetBySub = new Map<string, number>();
     for (const item of assets) {
       const sub = item.subcategory.toLowerCase();
@@ -109,11 +150,17 @@ export class NCUA5300Service {
 
     for (const [sub, mapping] of Object.entries(ASSET_CODES)) {
       const value = assetBySub.get(sub) ?? 0;
-      fields.push({ accountCode: mapping.code, label: mapping.label, value, sourceField: `BalanceSheetItem.${sub}`, schedule: 'A' });
+      fields.push({
+        accountCode: mapping.code,
+        label: mapping.label,
+        value,
+        sourceField: `BalanceSheetItem.${sub}`,
+        schedule: 'A',
+      });
     }
 
     // Liabilities
-    const liabilities = items.filter(i => i.category === 'liability');
+    const liabilities = items.filter((i) => i.category === 'liability');
     const liabBySub = new Map<string, number>();
     for (const item of liabilities) {
       const sub = item.subcategory.toLowerCase();
@@ -122,28 +169,66 @@ export class NCUA5300Service {
 
     for (const [sub, mapping] of Object.entries(LIABILITY_CODES)) {
       const value = liabBySub.get(sub) ?? 0;
-      fields.push({ accountCode: mapping.code, label: mapping.label, value, sourceField: `BalanceSheetItem.${sub}`, schedule: 'C' });
+      fields.push({
+        accountCode: mapping.code,
+        label: mapping.label,
+        value,
+        sourceField: `BalanceSheetItem.${sub}`,
+        schedule: 'C',
+      });
     }
 
     // Computed fields
     const totalAssets = assets.reduce((s, i) => s + i.balance, 0);
     const totalLiabilities = liabilities.reduce((s, i) => s + i.balance, 0);
     const netWorth = totalAssets - totalLiabilities;
-    const totalLoans = assets.filter(i => !['cash', 'securities'].includes(i.subcategory.toLowerCase())).reduce((s, i) => s + i.balance, 0);
-    const totalShares = liabilities.filter(i => !i.subcategory.toLowerCase().includes('borrowing')).reduce((s, i) => s + i.balance, 0);
+    const totalLoans = assets
+      .filter(
+        (i) => !['cash', 'securities'].includes(i.subcategory.toLowerCase()),
+      )
+      .reduce((s, i) => s + i.balance, 0);
+    const totalShares = liabilities
+      .filter((i) => !i.subcategory.toLowerCase().includes('borrowing'))
+      .reduce((s, i) => s + i.balance, 0);
     const totalInvestments = assetBySub.get('securities') ?? 0;
 
     fields.push(
-      { accountCode: '010TOTAL', label: 'Total Assets', value: totalAssets, sourceField: 'computed', schedule: 'A' },
-      { accountCode: '802', label: 'Total Shares & Deposits', value: totalShares, sourceField: 'computed', schedule: 'C' },
-      { accountCode: '931', label: 'Total Equity (Net Worth)', value: netWorth, sourceField: 'computed', schedule: 'D' },
+      {
+        accountCode: '010TOTAL',
+        label: 'Total Assets',
+        value: totalAssets,
+        sourceField: 'computed',
+        schedule: 'A',
+      },
+      {
+        accountCode: '802',
+        label: 'Total Shares & Deposits',
+        value: totalShares,
+        sourceField: 'computed',
+        schedule: 'C',
+      },
+      {
+        accountCode: '931',
+        label: 'Total Equity (Net Worth)',
+        value: netWorth,
+        sourceField: 'computed',
+        schedule: 'D',
+      },
     );
 
     // Run edit checks
     const checkFields: Record<string, number> = {
-      totalAssets, totalLiabilities, netWorth, totalLoans, totalShares,
-      totalInvestments, allowance: totalLoans * 0.013, delinquentLoans: totalLoans * 0.018,
-      sumShareSubs: Array.from(liabBySub.values()).reduce((s, v) => s + v, 0) - (liabBySub.get('borrowings') ?? 0),
+      totalAssets,
+      totalLiabilities,
+      netWorth,
+      totalLoans,
+      totalShares,
+      totalInvestments,
+      allowance: totalLoans * 0.013,
+      delinquentLoans: totalLoans * 0.018,
+      sumShareSubs:
+        Array.from(liabBySub.values()).reduce((s, v) => s + v, 0) -
+        (liabBySub.get('borrowings') ?? 0),
     };
 
     const errors: Array<{ code: string; description: string }> = [];
@@ -151,8 +236,10 @@ export class NCUA5300Service {
 
     for (const check of EDIT_CHECKS) {
       if (!check.validate(checkFields)) {
-        if (check.severity === 'error') errors.push({ code: check.code, description: check.description });
-        else warnings.push({ code: check.code, description: check.description });
+        if (check.severity === 'error')
+          errors.push({ code: check.code, description: check.description });
+        else
+          warnings.push({ code: check.code, description: check.description });
       }
     }
 
@@ -166,7 +253,10 @@ export class NCUA5300Service {
         totalAssets: Math.round(totalAssets * 10) / 10,
         totalLiabilities: Math.round(totalLiabilities * 10) / 10,
         netWorth: Math.round(netWorth * 10) / 10,
-        netWorthRatio: totalAssets > 0 ? Math.round((netWorth / totalAssets) * 10000) / 100 : 0,
+        netWorthRatio:
+          totalAssets > 0
+            ? Math.round((netWorth / totalAssets) * 10000) / 100
+            : 0,
         totalLoans: Math.round(totalLoans * 10) / 10,
         totalShares: Math.round(totalShares * 10) / 10,
         totalInvestments: Math.round(totalInvestments * 10) / 10,

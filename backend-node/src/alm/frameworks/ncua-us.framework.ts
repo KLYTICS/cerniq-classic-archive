@@ -12,7 +12,10 @@
  * Weights sum to 100.
  */
 
-import { IRegulatoryFramework, RegulatoryRatio } from './regulatory-framework.interface';
+import {
+  IRegulatoryFramework,
+  RegulatoryRatio,
+} from './regulatory-framework.interface';
 
 const NCUA_RATIOS: RegulatoryRatio[] = [
   {

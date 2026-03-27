@@ -53,22 +53,58 @@ export function getPercentileRank(
   value: number,
   benchmark: SectorBenchmark,
   lowerIsBetter: boolean,
-): { rank: string; rankEs: string; quartile: 'top' | 'above' | 'below' | 'bottom' } {
+): {
+  rank: string;
+  rankEs: string;
+  quartile: 'top' | 'above' | 'below' | 'bottom';
+} {
   if (lowerIsBetter) {
     if (value <= benchmark.p25)
-      return { rank: 'Top quartile', rankEs: 'Cuartil superior', quartile: 'top' };
+      return {
+        rank: 'Top quartile',
+        rankEs: 'Cuartil superior',
+        quartile: 'top',
+      };
     if (value <= benchmark.median)
-      return { rank: 'Above sector median', rankEs: 'Por encima de la mediana', quartile: 'above' };
+      return {
+        rank: 'Above sector median',
+        rankEs: 'Por encima de la mediana',
+        quartile: 'above',
+      };
     if (value <= benchmark.p75)
-      return { rank: 'Below sector median', rankEs: 'Por debajo de la mediana', quartile: 'below' };
-    return { rank: 'Bottom quartile', rankEs: 'Cuartil inferior', quartile: 'bottom' };
+      return {
+        rank: 'Below sector median',
+        rankEs: 'Por debajo de la mediana',
+        quartile: 'below',
+      };
+    return {
+      rank: 'Bottom quartile',
+      rankEs: 'Cuartil inferior',
+      quartile: 'bottom',
+    };
   }
   // Higher is better
   if (value >= benchmark.p75)
-    return { rank: 'Top quartile', rankEs: 'Cuartil superior', quartile: 'top' };
+    return {
+      rank: 'Top quartile',
+      rankEs: 'Cuartil superior',
+      quartile: 'top',
+    };
   if (value >= benchmark.median)
-    return { rank: 'Above sector median', rankEs: 'Por encima de la mediana', quartile: 'above' };
+    return {
+      rank: 'Above sector median',
+      rankEs: 'Por encima de la mediana',
+      quartile: 'above',
+    };
   if (value >= benchmark.p25)
-    return { rank: 'Below sector median', rankEs: 'Por debajo de la mediana', quartile: 'below' };
-  return { rank: 'Bottom quartile', rankEs: 'Cuartil inferior', quartile: 'bottom' };
+    return {
+      rank: 'Below sector median',
+      rankEs: 'Por debajo de la mediana',
+      quartile: 'below',
+    };
+  return {
+    rank: 'Bottom quartile',
+    rankEs: 'Cuartil inferior',
+    quartile: 'bottom',
+  };
 }

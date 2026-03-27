@@ -7,7 +7,11 @@ describe('IngestionLogsService', () => {
   beforeEach(() => {
     prisma = {
       ingestionLog: {
-        create: jest.fn().mockImplementation(({ data }: any) => Promise.resolve({ id: 'log_123', ...data })),
+        create: jest
+          .fn()
+          .mockImplementation(({ data }: any) =>
+            Promise.resolve({ id: 'log_123', ...data }),
+          ),
         findMany: jest.fn().mockResolvedValue([]),
       },
       institution: {

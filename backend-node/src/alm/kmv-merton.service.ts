@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 // KMV-Merton (1974) — Structural Default Model
 // Equity as call option on firm assets → solve for asset value and vol → Distance-to-Default
@@ -22,11 +22,23 @@ export class KMVMertonService {
   constructor(private readonly prisma: PrismaService) {}
 
   async computeKMV(institutionId: string): Promise<KMVResult> {
-    const inst = await this.prisma.institution.findUnique({ where: { id: institutionId } });
-    const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
+    const inst = await this.prisma.institution.findUnique({
+      where: { id: institutionId },
+    });
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId },
+    });
 
-    const totalAssets = items.filter(i => i.category === 'asset').reduce((s, i) => s + i.balance, 0) || inst?.totalAssets || 445;
-    const totalLiabilities = items.filter(i => i.category === 'liability').reduce((s, i) => s + i.balance, 0) || totalAssets * 0.87;
+    const totalAssets =
+      items
+        .filter((i) => i.category === 'asset')
+        .reduce((s, i) => s + i.balance, 0) ||
+      inst?.totalAssets ||
+      445;
+    const totalLiabilities =
+      items
+        .filter((i) => i.category === 'liability')
+        .reduce((s, i) => s + i.balance, 0) || totalAssets * 0.87;
     const equity = totalAssets - totalLiabilities;
 
     // For cooperativas: use net worth as equity proxy, total deposits + borrowings as debt
@@ -39,20 +51,27 @@ export class KMVMertonService {
     return this.solveAssetValue(E, sigmaE, D, r, T);
   }
 
-  solveAssetValue(E: number, sigmaE: number, D: number, r: number, T: number): KMVResult {
+  solveAssetValue(
+    E: number,
+    sigmaE: number,
+    D: number,
+    r: number,
+    T: number,
+  ): KMVResult {
     // Newton-Raphson: solve system of 2 equations
     // Eq1: E = A*N(d1) - D*e^(-rT)*N(d2)
     // Eq2: sigmaE*E = N(d1)*sigmaA*A
 
     let A = E + D;
-    let sigmaA = sigmaE * E / A;
+    let sigmaA = (sigmaE * E) / A;
 
     for (let iter = 0; iter < 200; iter++) {
-      const d1 = (Math.log(A / D) + (r + sigmaA ** 2 / 2) * T) / (sigmaA * Math.sqrt(T));
+      const d1 =
+        (Math.log(A / D) + (r + sigmaA ** 2 / 2) * T) / (sigmaA * Math.sqrt(T));
       const d2 = d1 - sigmaA * Math.sqrt(T);
 
       const E_model = A * this.N(d1) - D * Math.exp(-r * T) * this.N(d2);
-      const sigE_model = this.N(d1) * sigmaA * A / E;
+      const sigE_model = (this.N(d1) * sigmaA * A) / E;
 
       const err1 = E_model - E;
       const err2 = sigE_model - sigmaE;
@@ -62,8 +81,8 @@ export class KMVMertonService {
       // Newton step (approximate Jacobian)
       const dE_dA = this.N(d1);
       const dE_dSig = A * this.phi(d1) * Math.sqrt(T);
-      const dSig_dA = this.N(d1) * sigmaA / E / A;
-      const dSig_dSig = this.N(d1) * A / E;
+      const dSig_dA = (this.N(d1) * sigmaA) / E / A;
+      const dSig_dSig = (this.N(d1) * A) / E;
       const det = dE_dA * dSig_dSig - dE_dSig * dSig_dA;
       if (Math.abs(det) < 1e-12) break;
 
@@ -74,7 +93,8 @@ export class KMVMertonService {
     }
 
     const mu = r + 0.02; // risk premium
-    const DD = (Math.log(A / D) + (mu - sigmaA ** 2 / 2) * T) / (sigmaA * Math.sqrt(T));
+    const DD =
+      (Math.log(A / D) + (mu - sigmaA ** 2 / 2) * T) / (sigmaA * Math.sqrt(T));
     const EDF = this.N(-DD);
 
     return {
@@ -100,11 +120,21 @@ export class KMVMertonService {
     return 'D';
   }
 
-  private N(x: number): number { return 0.5 * (1 + this.erf(x / Math.SQRT2)); }
-  private phi(x: number): number { return Math.exp(-x * x / 2) / Math.sqrt(2 * Math.PI); }
+  private N(x: number): number {
+    return 0.5 * (1 + this.erf(x / Math.SQRT2));
+  }
+  private phi(x: number): number {
+    return Math.exp((-x * x) / 2) / Math.sqrt(2 * Math.PI);
+  }
   private erf(x: number): number {
     const t = 1 / (1 + 0.3275911 * Math.abs(x));
-    const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+    const y =
+      1 -
+      ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) *
+        t +
+        0.254829592) *
+        t *
+        Math.exp(-x * x);
     return x >= 0 ? y : -y;
   }
 }

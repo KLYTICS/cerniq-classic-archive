@@ -251,7 +251,7 @@ export default function StressTestPage() {
                                             border: '1px solid #475569',
                                             borderRadius: '8px',
                                         }}
-                                        formatter={(value: number | undefined) => [`${(value || 0).toFixed(1)}%`, 'Loss']}
+                                        formatter={(value) => [`${Number(value ?? 0).toFixed(1)}%`, 'Loss']}
                                         labelFormatter={(name) => chartData.find((d) => d.name === name)?.fullName || name}
                                     />
                                     <Bar dataKey="pnlPercent" radius={[0, 4, 4, 0]}>

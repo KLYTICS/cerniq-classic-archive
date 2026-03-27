@@ -1,5 +1,10 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from '../../prisma.service';
 
 @Injectable()
 export class ScenarioPersistenceService {
@@ -7,16 +12,21 @@ export class ScenarioPersistenceService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async saveScenario(userId: string, dto: {
-    institutionId: string;
-    name: string;
-    description?: string;
-    scenarioType: string;
-    parameters: Record<string, unknown>;
-    results?: Record<string, unknown>;
-    tags?: string[];
-  }) {
-    this.logger.log(`Saving scenario "${dto.name}" for institution ${dto.institutionId}`);
+  async saveScenario(
+    userId: string,
+    dto: {
+      institutionId: string;
+      name: string;
+      description?: string;
+      scenarioType: string;
+      parameters: Record<string, unknown>;
+      results?: Record<string, unknown>;
+      tags?: string[];
+    },
+  ) {
+    this.logger.log(
+      `Saving scenario "${dto.name}" for institution ${dto.institutionId}`,
+    );
     return this.prisma.savedScenario.create({
       data: {
         institutionId: dto.institutionId,
@@ -25,13 +35,16 @@ export class ScenarioPersistenceService {
         description: dto.description,
         scenarioType: dto.scenarioType,
         parameters: dto.parameters as any,
-        results: dto.results as any ?? undefined,
+        results: (dto.results as any) ?? undefined,
         tags: dto.tags ?? [],
       },
     });
   }
 
-  async listScenarios(institutionId: string, opts?: { page?: number; pageSize?: number; tag?: string }) {
+  async listScenarios(
+    institutionId: string,
+    opts?: { page?: number; pageSize?: number; tag?: string },
+  ) {
     const page = opts?.page ?? 1;
     const pageSize = Math.min(opts?.pageSize ?? 20, 100);
     const skip = (page - 1) * pageSize;
@@ -64,7 +77,8 @@ export class ScenarioPersistenceService {
     const scenario = await this.prisma.savedScenario.findUnique({
       where: { id: scenarioId },
     });
-    if (!scenario) throw new NotFoundException(`Scenario ${scenarioId} not found`);
+    if (!scenario)
+      throw new NotFoundException(`Scenario ${scenarioId} not found`);
     return scenario;
   }
 
@@ -101,7 +115,11 @@ export class ScenarioPersistenceService {
     };
   }
 
-  async duplicateScenario(scenarioId: string, userId: string, newName?: string) {
+  async duplicateScenario(
+    scenarioId: string,
+    userId: string,
+    newName?: string,
+  ) {
     const original = await this.getScenario(scenarioId);
     return this.prisma.savedScenario.create({
       data: {
@@ -111,35 +129,48 @@ export class ScenarioPersistenceService {
         description: original.description,
         scenarioType: original.scenarioType,
         parameters: original.parameters as any,
-        results: original.results as any ?? undefined,
+        results: (original.results as any) ?? undefined,
         tags: original.tags,
       },
     });
   }
 
   async deleteScenario(scenarioId: string) {
-    const scenario = await this.prisma.savedScenario.findUnique({ where: { id: scenarioId } });
-    if (!scenario) throw new NotFoundException(`Scenario ${scenarioId} not found`);
+    const scenario = await this.prisma.savedScenario.findUnique({
+      where: { id: scenarioId },
+    });
+    if (!scenario)
+      throw new NotFoundException(`Scenario ${scenarioId} not found`);
     await this.prisma.savedScenario.delete({ where: { id: scenarioId } });
     return { deleted: true, id: scenarioId };
   }
 
-  async updateScenario(scenarioId: string, updates: {
-    name?: string;
-    description?: string;
-    tags?: string[];
-    results?: Record<string, unknown>;
-  }) {
-    const scenario = await this.prisma.savedScenario.findUnique({ where: { id: scenarioId } });
-    if (!scenario) throw new NotFoundException(`Scenario ${scenarioId} not found`);
+  async updateScenario(
+    scenarioId: string,
+    updates: {
+      name?: string;
+      description?: string;
+      tags?: string[];
+      results?: Record<string, unknown>;
+    },
+  ) {
+    const scenario = await this.prisma.savedScenario.findUnique({
+      where: { id: scenarioId },
+    });
+    if (!scenario)
+      throw new NotFoundException(`Scenario ${scenarioId} not found`);
 
     return this.prisma.savedScenario.update({
       where: { id: scenarioId },
       data: {
         ...(updates.name !== undefined && { name: updates.name }),
-        ...(updates.description !== undefined && { description: updates.description }),
+        ...(updates.description !== undefined && {
+          description: updates.description,
+        }),
         ...(updates.tags !== undefined && { tags: updates.tags }),
-        ...(updates.results !== undefined && { results: updates.results as any }),
+        ...(updates.results !== undefined && {
+          results: updates.results as any,
+        }),
       },
     });
   }
@@ -152,23 +183,33 @@ export class ScenarioPersistenceService {
       { key: 'nimAfter', label: 'NIM After (%)', higherIsBetter: true },
       { key: 'lcrAfter', label: 'LCR After (%)', higherIsBetter: true },
       { key: 'capitalAfter', label: 'Capital After (%)', higherIsBetter: true },
-      { key: 'examReadinessAfter', label: 'Exam Readiness', higherIsBetter: true },
+      {
+        key: 'examReadinessAfter',
+        label: 'Exam Readiness',
+        higherIsBetter: true,
+      },
     ];
 
     const rows = metricKeys.map(({ key, label, higherIsBetter }) => {
       const values = scenarios.map((s) => {
         const results = (s.results ?? {}) as Record<string, unknown>;
-        return typeof results[key] === 'number' ? results[key] as number : null;
+        return typeof results[key] === 'number' ? results[key] : null;
       });
 
       // Determine best/worst
       const validValues = values.filter((v): v is number => v !== null);
-      const best = validValues.length > 0
-        ? (higherIsBetter ? Math.max(...validValues) : Math.min(...validValues))
-        : null;
-      const worst = validValues.length > 0
-        ? (higherIsBetter ? Math.min(...validValues) : Math.max(...validValues))
-        : null;
+      const best =
+        validValues.length > 0
+          ? higherIsBetter
+            ? Math.max(...validValues)
+            : Math.min(...validValues)
+          : null;
+      const worst =
+        validValues.length > 0
+          ? higherIsBetter
+            ? Math.min(...validValues)
+            : Math.max(...validValues)
+          : null;
 
       return {
         metric: label,

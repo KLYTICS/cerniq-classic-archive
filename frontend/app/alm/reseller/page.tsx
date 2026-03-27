@@ -67,7 +67,10 @@ export default function ResellerPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="month" tick={{ fontSize: 11 }} />
             <YAxis tickFormatter={v => `$${v / 1000}K`} tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number) => `$${v.toLocaleString()}`} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => `$${Number(value ?? 0).toLocaleString()}`}
+            />
             <Bar dataKey="revenue" name={locale === 'es' ? 'Ingresos' : 'Revenue'} fill="#6366f1" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

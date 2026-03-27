@@ -25,7 +25,8 @@ export class BillingService {
   }
 
   private requireStripe(): Stripe {
-    if (!this.stripe) throw new BadRequestException('Billing is not configured');
+    if (!this.stripe)
+      throw new BadRequestException('Billing is not configured');
     return this.stripe;
   }
 
@@ -64,7 +65,11 @@ export class BillingService {
       locale: 'auto',
     });
 
-    this.logger.log({ event: 'checkout.created', tier: params.tier, sessionId: session.id });
+    this.logger.log({
+      event: 'checkout.created',
+      tier: params.tier,
+      sessionId: session.id,
+    });
 
     return { checkoutUrl: session.url, sessionId: session.id };
   }
@@ -73,7 +78,9 @@ export class BillingService {
 
   async createBillingPortalSession(userId: string) {
     const stripe = this.requireStripe();
-    const sub = await this.prisma.subscription.findUnique({ where: { userId } });
+    const sub = await this.prisma.subscription.findUnique({
+      where: { userId },
+    });
     if (!sub?.stripeCustomerId) {
       throw new BadRequestException('No billing account found');
     }
@@ -96,13 +103,20 @@ export class BillingService {
   }
 
   async handlePaymentComplete(session: Stripe.Checkout.Session) {
-    const { customer_email: customerEmail, metadata, customer, amount_total } = session;
+    const {
+      customer_email: customerEmail,
+      metadata,
+      customer,
+      amount_total,
+    } = session;
     if (!customerEmail || !metadata) return;
 
     const tier = (metadata.tier || 'one_time') as BillingTier;
 
     // 1. Find or create user
-    let user = await this.prisma.user.findUnique({ where: { email: customerEmail } });
+    let user = await this.prisma.user.findUnique({
+      where: { email: customerEmail },
+    });
     if (!user) {
       user = await this.prisma.user.create({
         data: {
@@ -112,7 +126,11 @@ export class BillingService {
           emailVerified: true,
         },
       });
-      this.logger.log({ event: 'user.auto_created', email: customerEmail, tier });
+      this.logger.log({
+        event: 'user.auto_created',
+        email: customerEmail,
+        tier,
+      });
     }
 
     // 2. Upsert subscription
@@ -124,30 +142,41 @@ export class BillingService {
         stripeCustomerId: (customer as string) || null,
         stripeSessionId: session.id,
         status: 'active',
-        currentPeriodEnd: tier === 'one_time' ? null : this.addMonths(new Date(), tier === 'annual' ? 12 : 1),
+        currentPeriodEnd:
+          tier === 'one_time'
+            ? null
+            : this.addMonths(new Date(), tier === 'annual' ? 12 : 1),
       },
       update: {
         tier,
         status: 'active',
         stripeCustomerId: (customer as string) || null,
         stripeSessionId: session.id,
-        currentPeriodEnd: tier === 'one_time' ? null : this.addMonths(new Date(), tier === 'annual' ? 12 : 1),
+        currentPeriodEnd:
+          tier === 'one_time'
+            ? null
+            : this.addMonths(new Date(), tier === 'annual' ? 12 : 1),
       },
     });
 
     // 3. Update lead if linked
     if (metadata.leadId) {
-      await this.prisma.lead.update({
-        where: { id: metadata.leadId },
-        data: {
-          status: 'CLOSED_WON',
-          revenueAmount: (amount_total || 0) / 100,
-          dealType: tier,
-          convertedAt: new Date(),
-        },
-      }).catch(() => {
-        this.logger.warn({ event: 'lead.update_failed', leadId: metadata.leadId });
-      });
+      await this.prisma.lead
+        .update({
+          where: { id: metadata.leadId },
+          data: {
+            status: 'CLOSED_WON',
+            revenueAmount: (amount_total || 0) / 100,
+            dealType: tier,
+            convertedAt: new Date(),
+          },
+        })
+        .catch(() => {
+          this.logger.warn({
+            event: 'lead.update_failed',
+            leadId: metadata.leadId,
+          });
+        });
     }
 
     // 4. Create report job for one-time / first report
@@ -179,8 +208,18 @@ export class BillingService {
     });
 
     // 7. Schedule onboarding emails
-    await this.scheduleEmail(user.id, null, 'B2', new Date(Date.now() + 30 * 60 * 1000)); // 30 min
-    await this.scheduleEmail(user.id, null, 'B3', new Date(Date.now() + 48 * 60 * 60 * 1000)); // 48h
+    await this.scheduleEmail(
+      user.id,
+      null,
+      'B2',
+      new Date(Date.now() + 30 * 60 * 1000),
+    ); // 30 min
+    await this.scheduleEmail(
+      user.id,
+      null,
+      'B3',
+      new Date(Date.now() + 48 * 60 * 60 * 1000),
+    ); // 48h
 
     this.logger.log({
       event: 'payment.complete',
@@ -217,7 +256,9 @@ export class BillingService {
 
     // Auto-create new report job for monthly/annual
     if (sub.tier === 'monthly' || sub.tier === 'annual') {
-      const user = await this.prisma.user.findUnique({ where: { id: sub.userId } });
+      const user = await this.prisma.user.findUnique({
+        where: { id: sub.userId },
+      });
       const latestJob = await this.prisma.reportJob.findFirst({
         where: { userId: sub.userId },
         orderBy: { createdAt: 'desc' },
@@ -233,7 +274,10 @@ export class BillingService {
       });
 
       if (user?.email) {
-        await this.email.sendMonthlyReportCycle({ email: user.email, name: user.name || '' });
+        await this.email.sendMonthlyReportCycle({
+          email: user.email,
+          name: user.name || '',
+        });
       }
     }
 
@@ -252,9 +296,14 @@ export class BillingService {
       data: { status: 'past_due' },
     });
 
-    const user = await this.prisma.user.findUnique({ where: { id: sub.userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: sub.userId },
+    });
     if (user?.email) {
-      await this.email.sendPaymentFailed({ email: user.email, name: user.name || '' });
+      await this.email.sendPaymentFailed({
+        email: user.email,
+        name: user.name || '',
+      });
     }
 
     // Alert Erwin
@@ -265,7 +314,11 @@ export class BillingService {
       institutionName: `PAYMENT FAILED — ${user?.email}`,
     });
 
-    this.logger.warn({ event: 'payment.failed', userId: sub.userId, customerId });
+    this.logger.warn({
+      event: 'payment.failed',
+      userId: sub.userId,
+      customerId,
+    });
   }
 
   async handleSubscriptionCancelled(subscription: Stripe.Subscription) {
@@ -280,17 +333,31 @@ export class BillingService {
       data: { status: 'cancelled', cancelledAt: new Date() },
     });
 
-    const user = await this.prisma.user.findUnique({ where: { id: sub.userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: sub.userId },
+    });
     if (user?.email) {
-      await this.email.sendCancellationEmail({ email: user.email, name: user.name || '' });
+      await this.email.sendCancellationEmail({
+        email: user.email,
+        name: user.name || '',
+      });
     }
 
     // Schedule win-back email (90 days)
     if (user) {
-      await this.scheduleEmail(user.id, null, 'D5', new Date(Date.now() + 90 * 24 * 60 * 60 * 1000));
+      await this.scheduleEmail(
+        user.id,
+        null,
+        'D5',
+        new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      );
     }
 
-    this.logger.log({ event: 'subscription.cancelled', userId: sub.userId, customerId });
+    this.logger.log({
+      event: 'subscription.cancelled',
+      userId: sub.userId,
+      customerId,
+    });
   }
 
   async handleDispute(dispute: Stripe.Dispute) {
@@ -299,7 +366,11 @@ export class BillingService {
       amount: dispute.amount / 100,
       reason: dispute.reason,
     });
-    this.logger.error({ event: 'dispute.created', chargeId: dispute.charge, reason: dispute.reason });
+    this.logger.error({
+      event: 'dispute.created',
+      chargeId: dispute.charge,
+      reason: dispute.reason,
+    });
   }
 
   // ── Magic Links ───────────────────────────────────────
@@ -331,17 +402,26 @@ export class BillingService {
     });
 
     // Update lastLoginAt timestamp for magic link login
-    await this.prisma.user.update({
-      where: { id: link.user.id },
-      data: { lastLoginAt: new Date() },
-    }).catch(() => { /* best-effort */ });
+    await this.prisma.user
+      .update({
+        where: { id: link.user.id },
+        data: { lastLoginAt: new Date() },
+      })
+      .catch(() => {
+        /* best-effort */
+      });
 
     return link.user;
   }
 
   // ── Email Sequence Scheduling ─────────────────────────
 
-  async scheduleEmail(userId: string | null, leadId: string | null, sequenceKey: string, scheduledAt: Date) {
+  async scheduleEmail(
+    userId: string | null,
+    leadId: string | null,
+    sequenceKey: string,
+    scheduledAt: Date,
+  ) {
     // Check for duplicates
     const existing = await this.prisma.emailSequence.findFirst({
       where: { userId, leadId, sequenceKey, cancelled: false },
@@ -369,7 +449,11 @@ export class BillingService {
     if (!user) return;
 
     const magicUrl = await this.generateMagicLink(user.id);
-    await this.email.sendMagicLinkEmail({ email, magicUrl, name: user.name || '' });
+    await this.email.sendMagicLinkEmail({
+      email,
+      magicUrl,
+      name: user.name || '',
+    });
   }
 
   async getSubscription(userId: string) {
@@ -394,7 +478,9 @@ export class BillingService {
   }
 
   private resolveFrontendUrl(pathOrUrl: string): string {
-    const baseUrl = (process.env.FRONTEND_URL || 'https://cerniq.io').trim().replace(/\/+$/, '');
+    const baseUrl = (process.env.FRONTEND_URL || 'https://cerniq.io')
+      .trim()
+      .replace(/\/+$/, '');
     const trimmed = (pathOrUrl || '').trim();
 
     if (!trimmed) {
@@ -429,15 +515,22 @@ export class BillingService {
     }
   }
 
-  private resolveTierFromPriceId(subscription: Stripe.Subscription): BillingTier | null {
+  private resolveTierFromPriceId(
+    subscription: Stripe.Subscription,
+  ): BillingTier | null {
     const priceId = subscription.items?.data?.[0]?.price?.id;
     if (!priceId) return null;
-    const match = Object.entries(STRIPE_PRICE_IDS).find(([, configuredPriceId]) => configuredPriceId === priceId);
+    const match = Object.entries(STRIPE_PRICE_IDS).find(
+      ([, configuredPriceId]) => configuredPriceId === priceId,
+    );
     if (!match) return null;
     return match[0] as BillingTier;
   }
 
-  private async syncSubscriptionFromStripe(subscription: Stripe.Subscription, eventName: string) {
+  private async syncSubscriptionFromStripe(
+    subscription: Stripe.Subscription,
+    eventName: string,
+  ) {
     const customerId = subscription.customer as string;
     const sub = await this.prisma.subscription.findFirst({
       where: { stripeCustomerId: customerId },
@@ -446,7 +539,9 @@ export class BillingService {
 
     const status = this.resolveSubscriptionStatus(subscription.status);
     const nextTier = this.resolveTierFromPriceId(subscription);
-    const periodEndUnix = (subscription as any).current_period_end as number | undefined;
+    const periodEndUnix = (subscription as any).current_period_end as
+      | number
+      | undefined;
 
     await this.prisma.subscription.update({
       where: { id: sub.id },
@@ -454,13 +549,21 @@ export class BillingService {
         stripeSubscriptionId: subscription.id,
         status,
         ...(nextTier ? { tier: nextTier } : {}),
-        ...(periodEndUnix ? { currentPeriodEnd: new Date(periodEndUnix * 1000) } : {}),
+        ...(periodEndUnix
+          ? { currentPeriodEnd: new Date(periodEndUnix * 1000) }
+          : {}),
         ...(status === 'cancelled'
           ? { cancelledAt: new Date() }
           : { cancelledAt: null }),
       },
     });
 
-    this.logger.log({ event: eventName, customerId, subscriptionId: subscription.id, status, tier: nextTier || sub.tier });
+    this.logger.log({
+      event: eventName,
+      customerId,
+      subscriptionId: subscription.id,
+      status,
+      tier: nextTier || sub.tier,
+    });
   }
 }

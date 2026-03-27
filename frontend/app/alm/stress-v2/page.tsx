@@ -68,7 +68,7 @@ export default function StressV2Page() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="quarter" data={results[0]?.quarters} tick={{ fontSize: 10 }} />
+                <XAxis dataKey="quarter" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${v}%`} domain={[0, 'auto']} />
                 <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />

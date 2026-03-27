@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from '../../prisma.service';
 import { RegulatoryImpact } from './impact-extractor.service';
 
 export interface PersonalizedAlert {
@@ -18,7 +18,10 @@ export class AlertDeliveryService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async mapAndDeliverToAllInstitutions(publicationId: string, impact: RegulatoryImpact): Promise<number> {
+  async mapAndDeliverToAllInstitutions(
+    publicationId: string,
+    impact: RegulatoryImpact,
+  ): Promise<number> {
     const institutions = await this.prisma.institution.findMany({
       include: { balanceSheetItems: { select: { subcategory: true } } },
     });
@@ -26,13 +29,23 @@ export class AlertDeliveryService {
     let delivered = 0;
 
     for (const inst of institutions) {
-      const instSubcategories = new Set(inst.balanceSheetItems.map(i => i.subcategory.toLowerCase()));
-      const affected = impact.affectedSubcategories.filter(sub => {
+      const instSubcategories = new Set<string>(
+        inst.balanceSheetItems
+          .map((i) => i.subcategory)
+          .filter(
+            (subcategory): subcategory is string =>
+              typeof subcategory === 'string' && subcategory.length > 0,
+          )
+          .map((subcategory) => subcategory.toLowerCase()),
+      );
+      const affected = impact.affectedSubcategories.filter((sub) => {
         const subLower = sub.toLowerCase();
         if (subLower === 'liquidity') return true; // affects all
         if (subLower === 'capital') return true;
         if (subLower === 'interest_rate') return true;
-        return Array.from(instSubcategories).some(is => is.includes(subLower) || subLower.includes(is));
+        return Array.from(instSubcategories).some(
+          (is) => is.includes(subLower) || subLower.includes(is),
+        );
       });
 
       if (affected.length === 0 && impact.severity !== 'HIGH') continue;
@@ -44,9 +57,10 @@ export class AlertDeliveryService {
         alertTextEs: `Nueva regulación ${impact.severity}: ${impact.requirements[0] ?? impact.keyQuote}. Afecta: ${affected.join(', ') || 'general'}.`,
         alertTextEn: `New ${impact.severity} regulation: ${impact.requirements[0] ?? impact.keyQuote}. Affects: ${affected.join(', ') || 'general'}.`,
         affectedItems: affected,
-        recommendedAction: impact.requirements.length > 1
-          ? impact.requirements.slice(1).join('; ')
-          : `Review the full regulation and assess impact on ${affected[0] ?? 'operations'}.`,
+        recommendedAction:
+          impact.requirements.length > 1
+            ? impact.requirements.slice(1).join('; ')
+            : `Review the full regulation and assess impact on ${affected[0] ?? 'operations'}.`,
       };
 
       await this.prisma.institutionAlert.create({
@@ -63,11 +77,16 @@ export class AlertDeliveryService {
       delivered++;
     }
 
-    this.logger.log(`Delivered ${delivered} alerts for publication ${publicationId}`);
+    this.logger.log(
+      `Delivered ${delivered} alerts for publication ${publicationId}`,
+    );
     return delivered;
   }
 
-  async getInstitutionAlerts(institutionId: string, unreadOnly: boolean = false) {
+  async getInstitutionAlerts(
+    institutionId: string,
+    unreadOnly: boolean = false,
+  ) {
     return this.prisma.institutionAlert.findMany({
       where: {
         institutionId,
@@ -79,10 +98,16 @@ export class AlertDeliveryService {
   }
 
   async markRead(alertId: string) {
-    return this.prisma.institutionAlert.update({ where: { id: alertId }, data: { readAt: new Date() } });
+    return this.prisma.institutionAlert.update({
+      where: { id: alertId },
+      data: { readAt: new Date() },
+    });
   }
 
   async dismiss(alertId: string) {
-    return this.prisma.institutionAlert.update({ where: { id: alertId }, data: { dismissedAt: new Date() } });
+    return this.prisma.institutionAlert.update({
+      where: { id: alertId },
+      data: { dismissedAt: new Date() },
+    });
   }
 }

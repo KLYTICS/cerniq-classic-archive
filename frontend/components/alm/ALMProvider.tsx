@@ -19,6 +19,7 @@ interface ALMContextType {
   institution: Institution | null;
   loading: boolean;
   setSelectedId: (id: string) => void;
+  selectInstitution: (id: string) => void;
   refresh: () => Promise<void>;
 }
 
@@ -28,6 +29,7 @@ const ALMContext = createContext<ALMContextType>({
   institution: null,
   loading: true,
   setSelectedId: () => {},
+  selectInstitution: () => {},
   refresh: async () => {},
 });
 
@@ -92,6 +94,7 @@ export default function ALMProvider({ children }: { children: ReactNode }) {
         institution,
         loading,
         setSelectedId,
+        selectInstitution: setSelectedId,
         refresh: fetchInstitutions,
       }}
     >

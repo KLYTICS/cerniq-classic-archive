@@ -5,7 +5,10 @@
  * definition. Defaults to COSSEC when no match is found.
  */
 
-export type { IRegulatoryFramework, RegulatoryRatio } from './regulatory-framework.interface';
+export type {
+  IRegulatoryFramework,
+  RegulatoryRatio,
+} from './regulatory-framework.interface';
 export { COSSEC_PR_FRAMEWORK } from './cossec-pr.framework';
 export { NCUA_US_FRAMEWORK } from './ncua-us.framework';
 

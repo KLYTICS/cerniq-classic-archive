@@ -74,7 +74,10 @@ describe('BillingController', () => {
         successUrl: '/success',
         cancelUrl: '/cancel',
       };
-      const expected = { checkoutUrl: 'https://checkout.stripe.com/xxx', sessionId: 'sess_123' };
+      const expected = {
+        checkoutUrl: 'https://checkout.stripe.com/xxx',
+        sessionId: 'sess_123',
+      };
       billingService.createCheckoutSession.mockResolvedValue(expected);
 
       const req = { ip: '127.0.0.1', headers: { 'user-agent': 'jest' } };
@@ -92,7 +95,10 @@ describe('BillingController', () => {
         successUrl: '/ok',
         cancelUrl: '/nope',
       };
-      billingService.createCheckoutSession.mockResolvedValue({ checkoutUrl: '', sessionId: '' });
+      billingService.createCheckoutSession.mockResolvedValue({
+        checkoutUrl: '',
+        sessionId: '',
+      });
 
       await controller.createCheckout(dto, { ip: '1.2.3.4', headers: {} });
 
@@ -115,9 +121,15 @@ describe('BillingController', () => {
         successUrl: '/s',
         cancelUrl: '/c',
       };
-      billingService.createCheckoutSession.mockResolvedValue({ checkoutUrl: '', sessionId: '' });
+      billingService.createCheckoutSession.mockResolvedValue({
+        checkoutUrl: '',
+        sessionId: '',
+      });
 
-      await controller.createCheckout(dto, { ip: '10.0.0.1', headers: { 'user-agent': 'Mozilla' } });
+      await controller.createCheckout(dto, {
+        ip: '10.0.0.1',
+        headers: { 'user-agent': 'Mozilla' },
+      });
 
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -139,9 +151,9 @@ describe('BillingController', () => {
         cancelUrl: '/c',
       };
 
-      await expect(controller.createCheckout(dto, { ip: '', headers: {} })).rejects.toThrow(
-        'Unknown tier: invalid',
-      );
+      await expect(
+        controller.createCheckout(dto, { ip: '', headers: {} }),
+      ).rejects.toThrow('Unknown tier: invalid');
     });
   });
 
@@ -149,9 +161,9 @@ describe('BillingController', () => {
     it('should reject when stripe-signature header is missing', async () => {
       const req = { rawBody: Buffer.from('{}') };
 
-      await expect(controller.handleWebhook(undefined as any, req)).rejects.toThrow(
-        'Missing stripe-signature header',
-      );
+      await expect(
+        controller.handleWebhook(undefined as any, req),
+      ).rejects.toThrow('Missing stripe-signature header');
     });
 
     it('should reject when stripe-signature header is empty string', async () => {
@@ -196,7 +208,9 @@ describe('BillingController', () => {
       const result = await controller.handleWebhook('sig_valid', req);
 
       expect(result).toEqual({ received: true });
-      expect(billingService.handlePaymentComplete).toHaveBeenCalledWith(session);
+      expect(billingService.handlePaymentComplete).toHaveBeenCalledWith(
+        session,
+      );
     });
 
     it('should not call handlePaymentComplete when payment_status is not paid', async () => {
@@ -263,12 +277,16 @@ describe('BillingController', () => {
     });
 
     it('should pass userId from request to service', async () => {
-      billingService.createBillingPortalSession.mockResolvedValue({ portalUrl: '' });
+      billingService.createBillingPortalSession.mockResolvedValue({
+        portalUrl: '',
+      });
 
       const req = { user: { userId: 'user-def' } };
       await controller.getBillingPortal(req);
 
-      expect(billingService.createBillingPortalSession).toHaveBeenCalledWith('user-def');
+      expect(billingService.createBillingPortalSession).toHaveBeenCalledWith(
+        'user-def',
+      );
     });
 
     it('should propagate error when no billing account found', async () => {
@@ -278,7 +296,9 @@ describe('BillingController', () => {
 
       const req = { user: { userId: 'user-no-billing' } };
 
-      await expect(controller.getBillingPortal(req)).rejects.toThrow('No billing account found');
+      await expect(controller.getBillingPortal(req)).rejects.toThrow(
+        'No billing account found',
+      );
     });
   });
 });

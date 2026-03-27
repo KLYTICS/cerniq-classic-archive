@@ -1,4 +1,8 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
 // In-memory circuit breaker (production: Redis-backed)
 // States: CLOSED (normal) → OPEN (failing) → HALF_OPEN (testing recovery)
@@ -11,12 +15,12 @@ interface CircuitState {
 }
 
 const CONFIGS: Record<string, { threshold: number; cooldownMs: number }> = {
-  ncua_pull:    { threshold: 3, cooldownMs: 300000 },  // 5 min
-  claude_api:   { threshold: 5, cooldownMs: 60000 },   // 1 min
-  fred_api:     { threshold: 3, cooldownMs: 120000 },  // 2 min
-  stripe_api:   { threshold: 3, cooldownMs: 180000 },  // 3 min
-  monte_carlo:  { threshold: 3, cooldownMs: 30000 },   // 30 sec
-  default:      { threshold: 5, cooldownMs: 60000 },
+  ncua_pull: { threshold: 3, cooldownMs: 300000 }, // 5 min
+  claude_api: { threshold: 5, cooldownMs: 60000 }, // 1 min
+  fred_api: { threshold: 3, cooldownMs: 120000 }, // 2 min
+  stripe_api: { threshold: 3, cooldownMs: 180000 }, // 3 min
+  monte_carlo: { threshold: 3, cooldownMs: 30000 }, // 30 sec
+  default: { threshold: 5, cooldownMs: 60000 },
 };
 
 @Injectable()
@@ -36,10 +40,14 @@ export class CircuitBreakerService {
     if (circuit.state === 'open') {
       if (Date.now() - circuit.openedAt >= config.cooldownMs) {
         circuit.state = 'half_open';
-        this.logger.log(`Circuit ${serviceKey}: open → half_open (testing recovery)`);
+        this.logger.log(
+          `Circuit ${serviceKey}: open → half_open (testing recovery)`,
+        );
       } else {
         if (fallback) return fallback();
-        throw new ServiceUnavailableException(`Service ${serviceKey} circuit is open. Retry in ${Math.ceil((config.cooldownMs - (Date.now() - circuit.openedAt)) / 1000)}s`);
+        throw new ServiceUnavailableException(
+          `Service ${serviceKey} circuit is open. Retry in ${Math.ceil((config.cooldownMs - (Date.now() - circuit.openedAt)) / 1000)}s`,
+        );
       }
     }
 
@@ -47,7 +55,9 @@ export class CircuitBreakerService {
       const result = await fn();
       // Success: reset
       if (circuit.state === 'half_open') {
-        this.logger.log(`Circuit ${serviceKey}: half_open → closed (recovered)`);
+        this.logger.log(
+          `Circuit ${serviceKey}: half_open → closed (recovered)`,
+        );
       }
       circuit.state = 'closed';
       circuit.failures = 0;
@@ -56,10 +66,15 @@ export class CircuitBreakerService {
       circuit.failures++;
       circuit.lastFailure = Date.now();
 
-      if (circuit.failures >= config.threshold || circuit.state === 'half_open') {
+      if (
+        circuit.failures >= config.threshold ||
+        circuit.state === 'half_open'
+      ) {
         circuit.state = 'open';
         circuit.openedAt = Date.now();
-        this.logger.error(`Circuit ${serviceKey} OPENED after ${circuit.failures} failures`);
+        this.logger.error(
+          `Circuit ${serviceKey} OPENED after ${circuit.failures} failures`,
+        );
       }
 
       if (fallback) return fallback();
@@ -69,14 +84,21 @@ export class CircuitBreakerService {
 
   getStatus(): Array<{ service: string; state: string; failures: number }> {
     return Array.from(this.circuits.entries()).map(([service, cs]) => ({
-      service, state: cs.state, failures: cs.failures,
+      service,
+      state: cs.state,
+      failures: cs.failures,
     }));
   }
 
   private getCircuit(key: string): CircuitState {
     if (!this.circuits.has(key)) {
-      this.circuits.set(key, { state: 'closed', failures: 0, lastFailure: 0, openedAt: 0 });
+      this.circuits.set(key, {
+        state: 'closed',
+        failures: 0,
+        lastFailure: 0,
+        openedAt: 0,
+      });
     }
-    return this.circuits.get(key)!;
+    return this.circuits.get(key);
   }
 }

@@ -6,7 +6,7 @@ dev:
 	@echo "Waiting for services..."
 	@sleep 3
 	cd backend-node && npm run start:dev &
-	cd frontend && bun run dev
+	cd frontend && npm run dev
 
 dev-docker:
 	docker compose up --build
@@ -23,7 +23,7 @@ build-backend:
 	cd backend-node && npm ci --legacy-peer-deps && npm run build
 
 build-frontend:
-	cd frontend && bun install && bun run build
+	cd frontend && npm ci && npm run build
 
 build: build-backend build-frontend
 
@@ -45,7 +45,7 @@ test:
 	cd backend-node && npm test
 
 test-e2e:
-	cd frontend && bun run test:e2e
+	cd frontend && npm run test:e2e
 
 test-cov:
 	cd backend-node && npm run test:cov
@@ -69,7 +69,7 @@ health-prod:
 # ─── Lint ──────────────────────────────────────
 lint:
 	cd backend-node && npm run lint
-	cd frontend && bun run lint
+	cd frontend && npm run lint
 
 # ─── Clean ─────────────────────────────────────
 clean:

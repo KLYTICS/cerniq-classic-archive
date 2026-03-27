@@ -10,16 +10,20 @@ import { DataQualityService } from '../common/data-quality.service';
 import { MarketStreamManagerService } from './market-stream-manager.service';
 
 @Module({
-    imports: [LlmModule],
-    controllers: [MarketDataController, ChartsController],
-    providers: [
-        MarketDataService,
-        TechnicalIndicatorsService,
-        YahooFinanceProvider,
-        CoinGeckoProvider,
-        DataQualityService,
-        MarketStreamManagerService,
-    ],
-    exports: [MarketDataService, TechnicalIndicatorsService, MarketStreamManagerService],
+  imports: [LlmModule],
+  controllers: [MarketDataController, ChartsController],
+  providers: [
+    MarketDataService,
+    TechnicalIndicatorsService,
+    YahooFinanceProvider,
+    CoinGeckoProvider,
+    DataQualityService,
+    MarketStreamManagerService,
+  ],
+  exports: [
+    MarketDataService,
+    TechnicalIndicatorsService,
+    MarketStreamManagerService,
+  ],
 })
-export class MarketDataModule { }
+export class MarketDataModule {}

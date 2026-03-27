@@ -1,4 +1,21 @@
-import { Controller, Get, Post, Patch, Delete, Param, Query, Body, Headers, HttpCode, HttpStatus, UseGuards, UnauthorizedException, Req, NotFoundException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Query,
+  Body,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  UnauthorizedException,
+  Req,
+  NotFoundException,
+} from '@nestjs/common';
+import { readFileSync } from 'node:fs';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import { AuthGuard } from './auth/auth.guard';
@@ -14,6 +31,120 @@ function shouldExposeDetailedHealth(): boolean {
     return true;
   }
   return process.env.NODE_ENV !== 'production';
+}
+
+const BYTES_PER_MB = 1048576;
+const CGROUP_MEMORY_LIMIT_PATHS = [
+  '/sys/fs/cgroup/memory.max',
+  '/sys/fs/cgroup/memory/memory.limit_in_bytes',
+];
+const UNBOUNDED_MEMORY_THRESHOLD = 1n << 60n;
+
+export interface HealthMemorySnapshot {
+  source: 'container' | 'heap';
+  primaryPercent: number;
+  heapPercent: number | null;
+  rssPercent: number | null;
+  heapUsedMB: number;
+  heapTotalMB: number;
+  rssMB: number;
+  limitMB: number | null;
+}
+
+function toMegabytes(bytes: number): number {
+  return Math.round(bytes / BYTES_PER_MB);
+}
+
+function toPercent(numerator: number, denominator: number): number | null {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator)) {
+    return null;
+  }
+  if (denominator <= 0) {
+    return null;
+  }
+  return +((numerator / denominator) * 100).toFixed(1);
+}
+
+function parseContainerMemoryLimit(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === 'max') {
+    return null;
+  }
+
+  try {
+    const bytes = BigInt(trimmed);
+    if (bytes <= 0n || bytes >= UNBOUNDED_MEMORY_THRESHOLD) {
+      return null;
+    }
+    return Number(bytes);
+  } catch {
+    return null;
+  }
+}
+
+function readContainerMemoryLimitBytes(): number | null {
+  for (const path of CGROUP_MEMORY_LIMIT_PATHS) {
+    try {
+      const raw = readFileSync(path, 'utf8');
+      const parsed = parseContainerMemoryLimit(raw);
+      if (parsed !== null) {
+        return parsed;
+      }
+    } catch {
+      // Best-effort only. Local dev and some hosts will not expose cgroups.
+    }
+  }
+
+  return null;
+}
+
+export function getHealthMemorySnapshot(
+  mem: NodeJS.MemoryUsage = process.memoryUsage(),
+): HealthMemorySnapshot {
+  const limitBytes = readContainerMemoryLimitBytes();
+  const heapPercent = toPercent(mem.heapUsed, mem.heapTotal);
+  const rssPercent =
+    limitBytes !== null ? toPercent(mem.rss, limitBytes) : null;
+  const source: HealthMemorySnapshot['source'] =
+    rssPercent !== null ? 'container' : 'heap';
+  const primaryPercent =
+    source === 'container' ? (rssPercent ?? 0) : (heapPercent ?? 0);
+
+  return {
+    source,
+    primaryPercent,
+    heapPercent,
+    rssPercent,
+    heapUsedMB: toMegabytes(mem.heapUsed),
+    heapTotalMB: toMegabytes(mem.heapTotal),
+    rssMB: toMegabytes(mem.rss),
+    limitMB: limitBytes !== null ? toMegabytes(limitBytes) : null,
+  };
+}
+
+function isDependencyDegraded(status: string | undefined): boolean {
+  return status === 'degraded' || status === 'down' || status === 'unhealthy';
+}
+
+export function determineOverallHealthStatus(params: {
+  dbConnected: boolean;
+  checks: Record<string, string>;
+  memory: HealthMemorySnapshot;
+}): 'ok' | 'degraded' | 'down' {
+  if (!params.dbConnected) {
+    return 'down';
+  }
+
+  const memoryThreshold =
+    params.memory.source === 'container'
+      ? params.memory.primaryPercent >= 90
+      : params.memory.primaryPercent >= 95;
+
+  if (memoryThreshold || Object.values(params.checks).some(isDependencyDegraded)) {
+    return 'degraded';
+  }
+
+  return 'ok';
 }
 
 @Controller()
@@ -43,7 +174,9 @@ export class AppController {
 
     // Send email notifications (fire-and-forget)
     this.emailService.sendDemoRequestNotification(body).catch(() => {});
-    this.emailService.sendDemoConfirmation({ name: body.name, email: body.email }).catch(() => {});
+    this.emailService
+      .sendDemoConfirmation({ name: body.name, email: body.email })
+      .catch(() => {});
 
     // Auto-create prospect from demo request
     try {
@@ -89,10 +222,13 @@ export class AppController {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const Redis = require('ioredis');
-      const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-        connectTimeout: 2000,
-        lazyConnect: true,
-      });
+      const redis = new Redis(
+        process.env.REDIS_URL || 'redis://localhost:6379',
+        {
+          connectTimeout: 2000,
+          lazyConnect: true,
+        },
+      );
       await redis.connect();
       await redis.ping();
       checks.cache = 'up';
@@ -101,26 +237,31 @@ export class AppController {
       checks.cache = 'degraded';
     }
 
-    const marketDataHealth = this.marketDataService.getHealth(this.marketStreamManager.getStreamStatus());
+    const marketDataHealth = this.marketDataService.getHealth(
+      this.marketStreamManager.getStreamStatus(),
+    );
     checks.marketData = marketDataHealth.status;
 
-    const mem = process.memoryUsage();
-    const memoryPercent = +(mem.heapUsed / mem.heapTotal * 100).toFixed(1);
-
-    // Determine overall status
-    let status: 'ok' | 'degraded' | 'down';
-    if (!dbConnected) {
-      status = 'down';
-    } else if (memoryPercent >= 85) {
-      status = 'degraded';
-    } else {
-      status = 'ok';
-    }
+    const memory = getHealthMemorySnapshot();
+    const status = determineOverallHealthStatus({
+      dbConnected,
+      checks,
+      memory,
+    });
 
     return {
       status,
       db: dbConnected ? 'connected' : 'error',
-      memoryPercent,
+      memoryPercent: memory.primaryPercent,
+      memorySource: memory.source,
+      memory: {
+        heapUsedMB: memory.heapUsedMB,
+        heapTotalMB: memory.heapTotalMB,
+        rssMB: memory.rssMB,
+        limitMB: memory.limitMB,
+        heapPercent: memory.heapPercent,
+        rssPercent: memory.rssPercent,
+      },
       version: '2.0.0',
       uptime: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
@@ -173,32 +314,43 @@ export class AppController {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const Redis = require('ioredis');
-      const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-        connectTimeout: 2000,
-        lazyConnect: true,
-      });
+      const redis = new Redis(
+        process.env.REDIS_URL || 'redis://localhost:6379',
+        {
+          connectTimeout: 2000,
+          lazyConnect: true,
+        },
+      );
       await redis.connect();
       await redis.ping();
       services.cache = { status: 'up', latencyMs: Date.now() - redisStart };
       await redis.quit();
     } catch {
-      services.cache = { status: 'degraded', latencyMs: Date.now() - redisStart };
+      services.cache = {
+        status: 'degraded',
+        latencyMs: Date.now() - redisStart,
+      };
     }
 
-    const marketDataHealth = this.marketDataService.getHealth(this.marketStreamManager.getStreamStatus());
+    const marketDataHealth = this.marketDataService.getHealth(
+      this.marketStreamManager.getStreamStatus(),
+    );
+    const memory = getHealthMemorySnapshot();
     services.marketData = {
       status: marketDataHealth.status,
       latencyMs: 0,
     };
 
-    const allUp = Object.values(services).every((s) => s.status === 'up' || s.status === 'healthy');
+    const allUp = Object.values(services).every(
+      (s) => s.status === 'up' || s.status === 'healthy',
+    );
 
     return {
       status: allUp ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
       version: '2.0.0',
       uptime: process.uptime(),
-      memory: process.memoryUsage(),
+      memory,
       services,
       marketData: marketDataHealth,
     };
@@ -246,18 +398,36 @@ export class AppController {
     this.verifyAdmin(adminKey);
     const seedJson = process.env.PROSPECT_SEED_DATA;
     if (!seedJson) {
-      return { error: 'PROSPECT_SEED_DATA env var not configured', seeded: 0, total: 0 };
+      return {
+        error: 'PROSPECT_SEED_DATA env var not configured',
+        seeded: 0,
+        total: 0,
+      };
     }
-    let seeds: Array<{ name: string; email: string; company: string; role: string; stage: 'lead' | 'contacted' | 'demo_done' | 'demo_scheduled' | 'proposal'; source: string; notes: string }>;
+    let seeds: Array<{
+      name: string;
+      email: string;
+      company: string;
+      role: string;
+      stage: 'lead' | 'contacted' | 'demo_done' | 'demo_scheduled' | 'proposal';
+      source: string;
+      notes: string;
+    }>;
     try {
       seeds = JSON.parse(seedJson);
     } catch {
-      return { error: 'PROSPECT_SEED_DATA is not valid JSON', seeded: 0, total: 0 };
+      return {
+        error: 'PROSPECT_SEED_DATA is not valid JSON',
+        seeded: 0,
+        total: 0,
+      };
     }
 
     const results = [];
     for (const seed of seeds) {
-      const existing = await this.prisma.prospect.findFirst({ where: { email: seed.email } });
+      const existing = await this.prisma.prospect.findFirst({
+        where: { email: seed.email },
+      });
       if (!existing) {
         results.push(await this.prisma.prospect.create({ data: seed }));
       }
@@ -309,7 +479,10 @@ export class AppController {
   // --- Prospect CRM Endpoints ---
 
   @Get('api/admin/prospects')
-  async getProspects(@Headers('x-admin-key') adminKey: string, @Query('stage') stage?: string) {
+  async getProspects(
+    @Headers('x-admin-key') adminKey: string,
+    @Query('stage') stage?: string,
+  ) {
     this.verifyAdmin(adminKey);
     const where = stage ? { stage: stage as any } : {};
     return this.prisma.prospect.findMany({
@@ -322,7 +495,16 @@ export class AppController {
   @HttpCode(HttpStatus.CREATED)
   async createProspect(
     @Headers('x-admin-key') adminKey: string,
-    @Body() body: { name: string; email?: string; company?: string; role?: string; stage?: string; source?: string; notes?: string },
+    @Body()
+    body: {
+      name: string;
+      email?: string;
+      company?: string;
+      role?: string;
+      stage?: string;
+      source?: string;
+      notes?: string;
+    },
   ) {
     this.verifyAdmin(adminKey);
     return this.prisma.prospect.create({
@@ -342,7 +524,15 @@ export class AppController {
   async updateProspect(
     @Headers('x-admin-key') adminKey: string,
     @Param('id') id: string,
-    @Body() body: { stage?: string; notes?: string; name?: string; email?: string; company?: string; role?: string },
+    @Body()
+    body: {
+      stage?: string;
+      notes?: string;
+      name?: string;
+      email?: string;
+      company?: string;
+      role?: string;
+    },
   ) {
     this.verifyAdmin(adminKey);
     const data: any = {};
@@ -357,7 +547,10 @@ export class AppController {
 
   @Delete('api/admin/prospects/:id')
   @HttpCode(HttpStatus.OK)
-  async deleteProspect(@Headers('x-admin-key') adminKey: string, @Param('id') id: string) {
+  async deleteProspect(
+    @Headers('x-admin-key') adminKey: string,
+    @Param('id') id: string,
+  ) {
     this.verifyAdmin(adminKey);
     await this.prisma.prospect.delete({ where: { id } });
     return { message: 'Prospect deleted' };
@@ -367,27 +560,24 @@ export class AppController {
   async getAdminOps(@Headers('x-admin-key') adminKey: string) {
     this.verifyAdmin(adminKey);
 
-    const [
-      recentJobs,
-      activeSubscriptions,
-      totalAnalysisRuns,
-    ] = await Promise.all([
-      this.prisma.reportJob.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-        select: {
-          id: true,
-          institutionName: true,
-          status: true,
-          createdAt: true,
-          completedAt: true,
-          errorMessage: true,
-          triggeredBy: true,
-        },
-      }),
-      this.prisma.subscription.count({ where: { status: 'active' } }),
-      this.prisma.analysisRun.count(),
-    ]);
+    const [recentJobs, activeSubscriptions, totalAnalysisRuns] =
+      await Promise.all([
+        this.prisma.reportJob.findMany({
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          select: {
+            id: true,
+            institutionName: true,
+            status: true,
+            createdAt: true,
+            completedAt: true,
+            errorMessage: true,
+            triggeredBy: true,
+          },
+        }),
+        this.prisma.subscription.count({ where: { status: 'active' } }),
+        this.prisma.analysisRun.count(),
+      ]);
 
     return {
       recentJobs,

@@ -239,7 +239,7 @@ export default function YieldCurvePage() {
             <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
             <Tooltip
               contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-              formatter={(value: number) => [`${value.toFixed(3)}%`, '']}
+              formatter={(value) => [`${Number(value ?? 0).toFixed(3)}%`, '']}
             />
             <Legend wrapperStyle={{ fontSize: '11px' }} />
             <Line type="monotone" dataKey="base" stroke="#0f172a" strokeWidth={3} dot={{ r: 4 }} name="Base Curve" />

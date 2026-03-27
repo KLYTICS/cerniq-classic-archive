@@ -66,7 +66,10 @@ export default function PCAYieldCurvePage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="tenor" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number) => v.toFixed(4)} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => Number(value ?? 0).toFixed(4)}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Area type="monotone" dataKey="pc1" name="PC1 — Level" stroke="#0d9488" fill="#0d9488" fillOpacity={0.15} strokeWidth={2} />
             <Area type="monotone" dataKey="pc2" name="PC2 — Slope" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.1} strokeWidth={2} />

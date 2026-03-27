@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from '../../prisma.service';
 
 export interface PeerSynthesisReport {
   month: string;
@@ -29,19 +29,30 @@ export class PeerSynthesisService {
     const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     // Compute NIM per institution
-    const nims = institutions.map(inst => {
-      const assets = inst.balanceSheetItems.filter(i => i.category === 'asset');
-      const liabs = inst.balanceSheetItems.filter(i => i.category === 'liability');
-      const totalA = assets.reduce((s, i) => s + i.balance, 0) || inst.totalAssets;
-      const income = assets.reduce((s, i) => s + i.balance * i.rate, 0);
-      const cost = liabs.reduce((s, i) => s + i.balance * i.rate, 0);
-      return { name: inst.name, nim: totalA > 0 ? ((income - cost) / totalA) * 100 : 3.5 };
-    }).sort((a, b) => b.nim - a.nim);
+    const nims = institutions
+      .map((inst) => {
+        const assets = inst.balanceSheetItems.filter(
+          (i) => i.category === 'asset',
+        );
+        const liabs = inst.balanceSheetItems.filter(
+          (i) => i.category === 'liability',
+        );
+        const totalA =
+          assets.reduce((s, i) => s + i.balance, 0) || inst.totalAssets;
+        const income = assets.reduce((s, i) => s + i.balance * i.rate, 0);
+        const cost = liabs.reduce((s, i) => s + i.balance * i.rate, 0);
+        return {
+          name: inst.name,
+          nim: totalA > 0 ? ((income - cost) / totalA) * 100 : 3.5,
+        };
+      })
+      .sort((a, b) => b.nim - a.nim);
 
     const topQ = nims.slice(0, Math.max(1, Math.floor(nims.length / 4)));
     const bottomQ = nims.slice(-Math.max(1, Math.floor(nims.length / 4)));
     const topAvg = topQ.reduce((s, n) => s + n.nim, 0) / (topQ.length || 1);
-    const bottomAvg = bottomQ.reduce((s, n) => s + n.nim, 0) / (bottomQ.length || 1);
+    const bottomAvg =
+      bottomQ.reduce((s, n) => s + n.nim, 0) / (bottomQ.length || 1);
 
     const analysis = {
       institutionCount: institutions.length || 94,

@@ -113,7 +113,9 @@ export class ExpenseIngestionService {
       .filter((l) => l.trim().length > 0);
 
     if (lines.length < 2) {
-      return this.emptyResult('CSV must have a header row and at least one data row');
+      return this.emptyResult(
+        'CSV must have a header row and at least one data row',
+      );
     }
 
     // Parse headers
@@ -124,7 +126,9 @@ export class ExpenseIngestionService {
 
     // Validate required headers
     const requiredColumns = ['date', 'invoice_number', 'vendor', 'amount'];
-    const missingColumns = requiredColumns.filter((col) => headerMap[col] === undefined);
+    const missingColumns = requiredColumns.filter(
+      (col) => headerMap[col] === undefined,
+    );
 
     if (missingColumns.length > 0) {
       return this.emptyResult(
@@ -170,7 +174,10 @@ export class ExpenseIngestionService {
       }
 
       // Parse amount
-      const rawAmount = this.getField(row, headerMap, 'amount').replace(/[,$]/g, '');
+      const rawAmount = this.getField(row, headerMap, 'amount').replace(
+        /[,$]/g,
+        '',
+      );
       const amount = parseFloat(rawAmount);
 
       // Parse vendor
@@ -181,9 +188,15 @@ export class ExpenseIngestionService {
 
       // Parse optional fields
       const description = this.getField(row, headerMap, 'description') || '';
-      const currency = (this.getField(row, headerMap, 'currency') || 'USD').toUpperCase();
-      const rawCategory = (this.getField(row, headerMap, 'category') || 'other').toLowerCase();
-      const category = VALID_CATEGORIES.has(rawCategory) ? rawCategory : 'other';
+      const currency = (
+        this.getField(row, headerMap, 'currency') || 'USD'
+      ).toUpperCase();
+      const rawCategory = (
+        this.getField(row, headerMap, 'category') || 'other'
+      ).toLowerCase();
+      const category = VALID_CATEGORIES.has(rawCategory)
+        ? rawCategory
+        : 'other';
 
       if (rawCategory && !VALID_CATEGORIES.has(rawCategory)) {
         warnings.push(
@@ -192,7 +205,9 @@ export class ExpenseIngestionService {
       }
 
       // Parse status
-      const rawStatus = (this.getField(row, headerMap, 'status') || 'paid').toLowerCase().trim();
+      const rawStatus = (this.getField(row, headerMap, 'status') || 'paid')
+        .toLowerCase()
+        .trim();
       const status = STATUS_ALIASES[rawStatus] || 'PAID';
 
       if (rawStatus && !STATUS_ALIASES[rawStatus]) {
@@ -215,9 +230,11 @@ export class ExpenseIngestionService {
 
     // Compute summary
     const totalAmount = items.reduce((s, i) => s + i.amount, 0);
-    const uniqueVendors = new Set(items.map((i) => i.vendor.toLowerCase())).size;
+    const uniqueVendors = new Set(items.map((i) => i.vendor.toLowerCase()))
+      .size;
     const dates = items.map((i) => i.date).sort();
-    const dateRange = dates.length > 0 ? { from: dates[0], to: dates[dates.length - 1] } : null;
+    const dateRange =
+      dates.length > 0 ? { from: dates[0], to: dates[dates.length - 1] } : null;
 
     return {
       valid: errors.length === 0 && items.length > 0,
@@ -247,7 +264,10 @@ export class ExpenseIngestionService {
         map[COLUMN_ALIASES[h]] = idx;
       }
       // Try normalized match
-      if (COLUMN_ALIASES[normalized] && map[COLUMN_ALIASES[normalized]] === undefined) {
+      if (
+        COLUMN_ALIASES[normalized] &&
+        map[COLUMN_ALIASES[normalized]] === undefined
+      ) {
         map[COLUMN_ALIASES[normalized]] = idx;
       }
     });
@@ -367,7 +387,10 @@ export class ExpenseIngestionService {
     }
 
     // amount
-    const rawAmount = this.getField(row, headerMap, 'amount').replace(/[,$]/g, '');
+    const rawAmount = this.getField(row, headerMap, 'amount').replace(
+      /[,$]/g,
+      '',
+    );
     const amount = parseFloat(rawAmount);
     if (!rawAmount || isNaN(amount)) {
       errors.push({

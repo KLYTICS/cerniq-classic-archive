@@ -177,7 +177,7 @@ export default function RateShockV2Page() {
               <XAxis dataKey="quarter" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" height={50} />
               <YAxis tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
               <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
-                formatter={(v: number) => [`$${v.toFixed(2)}M`, '']} />
+                formatter={(value) => [`$${Number(value ?? 0).toFixed(2)}M`, '']} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="baselineNII" name={locale === 'es' ? 'NII Base' : 'Baseline NII'} fill="#06b6d4" radius={[4, 4, 0, 0]} />
               <Bar dataKey="shockedNII" name={locale === 'es' ? 'NII Choque' : 'Shocked NII'} fill="#f59e0b" radius={[4, 4, 0, 0]} />

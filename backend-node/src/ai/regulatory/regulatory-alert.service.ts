@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { RegulatoryScraperService } from './regulatory-scraper.service';
 import { ImpactExtractorService } from './impact-extractor.service';
 import { AlertDeliveryService } from './alert-delivery.service';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from '../../prisma.service';
 
 @Injectable()
 export class RegulatoryAlertService {
@@ -15,7 +15,11 @@ export class RegulatoryAlertService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async runFullPipeline(): Promise<{ scanned: number; newPublications: number; alertsDelivered: number }> {
+  async runFullPipeline(): Promise<{
+    scanned: number;
+    newPublications: number;
+    alertsDelivered: number;
+  }> {
     this.logger.log('Starting regulatory alert pipeline...');
     const { scanned, newFound } = await this.scraper.runDailyScan();
 
@@ -29,12 +33,17 @@ export class RegulatoryAlertService {
 
       for (const pub of unprocessed) {
         const impact = await this.extractor.extract(pub.id);
-        const delivered = await this.delivery.mapAndDeliverToAllInstitutions(pub.id, impact);
+        const delivered = await this.delivery.mapAndDeliverToAllInstitutions(
+          pub.id,
+          impact,
+        );
         totalAlerts += delivered;
       }
     }
 
-    this.logger.log(`Pipeline complete: ${scanned} sources scanned, ${newFound} new, ${totalAlerts} alerts`);
+    this.logger.log(
+      `Pipeline complete: ${scanned} sources scanned, ${newFound} new, ${totalAlerts} alerts`,
+    );
     return { scanned, newPublications: newFound, alertsDelivered: totalAlerts };
   }
 

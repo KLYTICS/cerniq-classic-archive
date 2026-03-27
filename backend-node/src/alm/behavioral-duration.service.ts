@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 // Hutchison & Pennacchi (1996) Non-Maturity Deposit Model
 // Cooperative deposits have behavioral duration much longer than overnight
@@ -8,7 +8,7 @@ export interface NMDDuration {
   subcategory: string;
   balance: number;
   contractualDuration: number; // overnight = 0
-  behavioralDuration: number;  // Hutchison model output
+  behavioralDuration: number; // Hutchison model output
   beta: number;
   runoffRate: number;
   interpretation: string;
@@ -26,8 +26,8 @@ export interface BehavioralDurationResult {
 }
 
 const NMD_PARAMS: Record<string, { beta: number; runoffRate: number }> = {
-  demand_deposits: { beta: 0.10, runoffRate: 0.08 },
-  savings: { beta: 0.18, runoffRate: 0.10 },
+  demand_deposits: { beta: 0.1, runoffRate: 0.08 },
+  savings: { beta: 0.18, runoffRate: 0.1 },
   share_drafts: { beta: 0.13, runoffRate: 0.09 },
   money_market: { beta: 0.41, runoffRate: 0.15 },
 };
@@ -38,7 +38,9 @@ export class BehavioralDurationService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async computeBehavioralDurations(institutionId: string): Promise<BehavioralDurationResult> {
+  async computeBehavioralDurations(
+    institutionId: string,
+  ): Promise<BehavioralDurationResult> {
     const items = await this.prisma.balanceSheetItem.findMany({
       where: { institutionId, category: 'liability' },
     });
@@ -63,8 +65,11 @@ export class BehavioralDurationService {
       // Hutchison-Pennacchi: D_NMD = beta / (kappa + phi)
       // Convexity adjustment: D_adj = D * (1 - sigma²/(2*kappa²) * (1 - beta))
       const coreD = beta / (kappa + phi);
-      const convAdj = (sigma ** 2) / (2 * kappa ** 2);
-      const behavioralD = Math.min(10, Math.max(0.25, coreD * (1 - convAdj * (1 - beta))));
+      const convAdj = sigma ** 2 / (2 * kappa ** 2);
+      const behavioralD = Math.min(
+        10,
+        Math.max(0.25, coreD * (1 - convAdj * (1 - beta))),
+      );
 
       const contractualD = 0; // NMDs are contractually overnight
 
@@ -84,8 +89,10 @@ export class BehavioralDurationService {
       weightedBehavioral += behavioralD * item.balance;
     }
 
-    const portContractual = totalBalance > 0 ? weightedContractual / totalBalance : 0;
-    const portBehavioral = totalBalance > 0 ? weightedBehavioral / totalBalance : 0;
+    const portContractual =
+      totalBalance > 0 ? weightedContractual / totalBalance : 0;
+    const portBehavioral =
+      totalBalance > 0 ? weightedBehavioral / totalBalance : 0;
     const correction = portBehavioral - portContractual;
 
     // EVE impact: using behavioral durations reduces the EVE gap

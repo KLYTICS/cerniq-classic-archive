@@ -1,6 +1,17 @@
 import {
-  Controller, Post, Get, Body, Headers, Req, Res, Query,
-  UseGuards, HttpCode, HttpStatus, BadRequestException, Logger,
+  Controller,
+  Post,
+  Get,
+  Body,
+  Headers,
+  Req,
+  Res,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { BillingService } from './billing.service';
@@ -13,19 +24,32 @@ const isProduction = process.env.NODE_ENV === 'production';
 function parseBoolean(raw: string | undefined, fallback: boolean): boolean {
   const normalized = (raw || '').trim().toLowerCase();
   if (!normalized) return fallback;
-  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+  return (
+    normalized === '1' ||
+    normalized === 'true' ||
+    normalized === 'yes' ||
+    normalized === 'on'
+  );
 }
 
 function resolveCookieSameSite(): 'lax' | 'strict' | 'none' {
-  const configured = (process.env.AUTH_COOKIE_SAMESITE || '').trim().toLowerCase();
-  if (configured === 'strict' || configured === 'none' || configured === 'lax') {
+  const configured = (process.env.AUTH_COOKIE_SAMESITE || '')
+    .trim()
+    .toLowerCase();
+  if (
+    configured === 'strict' ||
+    configured === 'none' ||
+    configured === 'lax'
+  ) {
     return configured;
   }
   return 'lax';
 }
 
 function resolveFrontendUrl(): string {
-  const configured = (process.env.FRONTEND_URL || '').trim().replace(/\/+$/, '');
+  const configured = (process.env.FRONTEND_URL || '')
+    .trim()
+    .replace(/\/+$/, '');
   if (configured) {
     return configured;
   }
@@ -35,7 +59,10 @@ function resolveFrontendUrl(): string {
   return 'https://cerniq.io';
 }
 
-const COOKIE_SECURE = parseBoolean(process.env.AUTH_COOKIE_SECURE, isProduction);
+const COOKIE_SECURE = parseBoolean(
+  process.env.AUTH_COOKIE_SECURE,
+  isProduction,
+);
 const COOKIE_SAME_SITE = resolveCookieSameSite();
 const COOKIE_DOMAIN = (process.env.AUTH_COOKIE_DOMAIN || '').trim();
 
@@ -112,37 +139,44 @@ export class BillingController {
     try {
       event = this.billing.verifyWebhookSignature(rawBody, sig);
     } catch (err: any) {
-      this.logger.error({ event: 'webhook.signature_failed', error: err.message });
+      this.logger.error({
+        event: 'webhook.signature_failed',
+        error: err.message,
+      });
       throw new BadRequestException('Invalid webhook signature');
     }
 
-    this.logger.log({ event: 'webhook.received', type: event.type, id: event.id });
+    this.logger.log({
+      event: 'webhook.received',
+      type: event.type,
+      id: event.id,
+    });
 
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
-        if ((session as any).payment_status === 'paid') {
-          await this.billing.handlePaymentComplete(session as any);
+        if (session.payment_status === 'paid') {
+          await this.billing.handlePaymentComplete(session);
         }
         break;
       }
       case 'customer.subscription.created':
-        await this.billing.handleSubscriptionCreated(event.data.object as any);
+        await this.billing.handleSubscriptionCreated(event.data.object);
         break;
       case 'customer.subscription.updated':
-        await this.billing.handleSubscriptionUpdated(event.data.object as any);
+        await this.billing.handleSubscriptionUpdated(event.data.object);
         break;
       case 'invoice.payment_succeeded':
-        await this.billing.handleInvoicePaid(event.data.object as any);
+        await this.billing.handleInvoicePaid(event.data.object);
         break;
       case 'invoice.payment_failed':
-        await this.billing.handlePaymentFailed(event.data.object as any);
+        await this.billing.handlePaymentFailed(event.data.object);
         break;
       case 'customer.subscription.deleted':
-        await this.billing.handleSubscriptionCancelled(event.data.object as any);
+        await this.billing.handleSubscriptionCancelled(event.data.object);
         break;
       case 'charge.dispute.created':
-        await this.billing.handleDispute(event.data.object as any);
+        await this.billing.handleDispute(event.data.object);
         break;
       default:
         this.logger.log({ event: 'webhook.unhandled', type: event.type });
@@ -155,7 +189,11 @@ export class BillingController {
 
   @Get('auth/magic')
   @Throttle({ default: { limit: 10, ttl: 900000 } })
-  async verifyMagicLink(@Query('token') token: string, @Req() req: any, @Res() res: any) {
+  async verifyMagicLink(
+    @Query('token') token: string,
+    @Req() req: any,
+    @Res() res: any,
+  ) {
     const frontendUrl = resolveFrontendUrl();
     if (!token) {
       return res.redirect(`${frontendUrl}/auth/expired`);

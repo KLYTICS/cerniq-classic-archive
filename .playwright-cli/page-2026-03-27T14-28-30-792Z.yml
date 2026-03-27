@@ -1,0 +1,509 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - navigation [ref=e4]:
+      - button "CERNIQ home" [ref=e5]:
+        - generic [ref=e16]:
+          - generic [ref=e17]: Cerniq
+          - generic [ref=e18]: ALM Intelligence
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - button "EN" [ref=e21]
+          - button "ES" [ref=e22]
+        - button "Try Demo" [ref=e23]
+        - button "Pricing" [ref=e24]
+        - button "FAQ" [ref=e25]
+        - button "Login" [ref=e26]
+        - button "Request Demo" [ref=e27]
+    - main [ref=e28]:
+      - generic [ref=e31]:
+        - generic [ref=e32]: ALM Intelligence for Credit Unions & Community Banks
+        - generic [ref=e34]:
+          - generic [ref=e35]: Cerniq
+          - paragraph [ref=e36]: Institutional ALM Intelligence
+        - generic [ref=e47]:
+          - heading "Institutional ALM Intelligence for Credit Unions & Cooperativas" [level=1] [ref=e48]
+          - paragraph [ref=e49]: Upload your balance sheet. Get a 14-page compliance-ready ALM report with 12 regulatory ratios, Monte Carlo stress testing, and sector benchmarking — in hours, not weeks.
+          - paragraph [ref=e51]: COSSEC exam season is approaching. Is your institution ready?
+        - generic [ref=e52]:
+          - button "Request Free Analysis" [ref=e53]:
+            - text: Request Free Analysis
+            - img [ref=e54]
+          - button "Start — $750" [ref=e56]
+      - generic [ref=e58]:
+        - generic [ref=e59]:
+          - paragraph [ref=e60]: "59"
+          - paragraph [ref=e61]: ALM Modules
+        - generic [ref=e62]:
+          - paragraph [ref=e63]: "34"
+          - paragraph [ref=e64]: Quant Models
+        - generic [ref=e65]:
+          - paragraph [ref=e66]: 130+
+          - paragraph [ref=e67]: API Endpoints
+        - generic [ref=e68]:
+          - paragraph [ref=e69]: EN/ES
+          - paragraph [ref=e70]: Bilingual Reports
+      - generic [ref=e72]:
+        - generic [ref=e73]: 3 institutions in pilot
+        - generic [ref=e75]: $1.1B+ assets analyzed
+        - generic [ref=e77]: 12+ reports delivered
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - paragraph [ref=e81]: Cost Comparison
+          - heading "How much does your institution spend on ALM analysis?" [level=2] [ref=e82]
+        - table [ref=e84]:
+          - rowgroup [ref=e85]:
+            - row "Traditional Consultant CERNIQ" [ref=e86]:
+              - columnheader [ref=e87]
+              - columnheader "Traditional Consultant" [ref=e88]
+              - columnheader "CERNIQ" [ref=e89]
+          - rowgroup [ref=e90]:
+            - row "Quarterly ALM report $8,000 - $12,000 $750" [ref=e91]:
+              - cell "Quarterly ALM report" [ref=e92]
+              - cell "$8,000 - $12,000" [ref=e93]
+              - cell "$750" [ref=e94]
+            - row "Annual access (4 reports) $32,000 - $48,000 $2,400" [ref=e95]:
+              - cell "Annual access (4 reports)" [ref=e96]
+              - cell "$32,000 - $48,000" [ref=e97]
+              - cell "$2,400" [ref=e98]
+            - row "Delivery time 3-6 weeks 24 hours" [ref=e99]:
+              - cell "Delivery time" [ref=e100]
+              - cell "3-6 weeks" [ref=e101]
+              - cell "24 hours" [ref=e102]
+            - row "Bilingual included Extra charge Included" [ref=e103]:
+              - cell "Bilingual included" [ref=e104]
+              - cell "Extra charge" [ref=e105]
+              - cell "Included" [ref=e106]
+        - paragraph [ref=e108]: "ESTIMATED SAVINGS: 83-93%"
+      - generic [ref=e109]:
+        - generic [ref=e110]:
+          - img [ref=e112]
+          - paragraph [ref=e115]: Regulatory Compliance
+          - paragraph [ref=e116]: 12 COSSEC/NCUA ratios calculated automatically from your balance sheet.
+        - generic [ref=e117]:
+          - img [ref=e119]
+          - paragraph [ref=e123]: Bilingual by Design
+          - paragraph [ref=e124]: English and Spanish in the same report, board-ready for any audience.
+        - generic [ref=e125]:
+          - img [ref=e127]
+          - paragraph [ref=e130]: 24-Hour Delivery
+          - paragraph [ref=e131]: Complete ALM analysis ready before your next ALCO meeting.
+      - generic [ref=e133]:
+        - paragraph [ref=e134]: Quant Engine
+        - heading "Goldman Sachs-grade models, credit union pricing" [level=2] [ref=e135]
+        - generic [ref=e136]:
+          - generic [ref=e137]:
+            - paragraph [ref=e138]: Nelson-Siegel
+            - paragraph [ref=e139]: Yield curve interpolation
+          - generic [ref=e140]:
+            - paragraph [ref=e141]: Vasicek Monte Carlo
+            - paragraph [ref=e142]: 10K stochastic rate paths
+          - generic [ref=e143]:
+            - paragraph [ref=e144]: Black-Litterman
+            - paragraph [ref=e145]: Bayesian portfolio allocation
+          - generic [ref=e146]:
+            - paragraph [ref=e147]: CVaR Optimizer
+            - paragraph [ref=e148]: Rockafellar-Uryasev tail risk
+          - generic [ref=e149]:
+            - paragraph [ref=e150]: CreditMetrics
+            - paragraph [ref=e151]: JP Morgan migration VaR
+          - generic [ref=e152]:
+            - paragraph [ref=e153]: KMV-Merton
+            - paragraph [ref=e154]: Distance-to-Default structural
+          - generic [ref=e155]:
+            - paragraph [ref=e156]: FRTB Expected Shortfall
+            - paragraph [ref=e157]: Basel III.1 market capital
+          - generic [ref=e158]:
+            - paragraph [ref=e159]: HMM Regime Detection
+            - paragraph [ref=e160]: Viterbi macro state machine
+          - generic [ref=e161]:
+            - paragraph [ref=e162]: PCA Yield Curve
+            - paragraph [ref=e163]: 3-factor decomposition
+          - generic [ref=e164]:
+            - paragraph [ref=e165]: Copula Credit
+            - paragraph [ref=e166]: Gaussian vs t-Student tail
+          - generic [ref=e167]:
+            - paragraph [ref=e168]: NCUA RBC2
+            - paragraph [ref=e169]: 8-component risk capital
+          - generic [ref=e170]:
+            - paragraph [ref=e171]: CECL 3-Method
+            - paragraph [ref=e172]: WARM + Vintage + PD×LGD
+        - paragraph [ref=e173]: + 22 more models across duration, liquidity, credit, and market risk
+      - generic [ref=e175]:
+        - generic [ref=e176]:
+          - paragraph [ref=e177]: How It Works
+          - heading "Upload CSV. CERNIQ Analyzes. Receive Bilingual PDF." [level=2] [ref=e178]
+        - generic [ref=e179]:
+          - generic [ref=e180]:
+            - img [ref=e182]
+            - paragraph [ref=e185]: Step 1
+            - heading "Upload Your CSV" [level=3] [ref=e186]
+            - paragraph [ref=e187]: Upload your institution balance sheet through a secure workflow.
+          - generic [ref=e188]:
+            - img [ref=e190]
+            - paragraph [ref=e193]: Step 2
+            - heading "CERNIQ Analyzes" [level=3] [ref=e194]
+            - paragraph [ref=e195]: The platform validates the file, applies the ALM engine, and prepares the draft.
+          - generic [ref=e196]:
+            - img [ref=e198]
+            - paragraph [ref=e201]: Step 3
+            - heading "Receive Your Bilingual PDF" [level=3] [ref=e202]
+            - paragraph [ref=e203]: A professional report in English and Spanish for management, committee, or regulator.
+      - generic [ref=e205]:
+        - generic [ref=e206]:
+          - paragraph [ref=e207]: Walkthrough
+          - heading "See the upload-to-report workflow in action" [level=2] [ref=e208]
+        - iframe [ref=e211]:
+          - generic [active] [ref=f1e1]:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: "1"
+                    - generic: Cargar CSV / Upload
+                  - generic:
+                    - generic: "2"
+                    - generic: Analisis ALM
+                  - generic:
+                    - generic: "3"
+                    - generic: Informe bilingüe
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                      - paragraph: Arrastre su hoja de balance aqui
+                      - paragraph: CSV, XLSX — hasta 50MB
+                  - generic:
+                    - paragraph: Validacion del archivo / File validation
+                    - generic:
+                      - generic:
+                        - generic: ✓
+                        - generic:
+                          - generic: Formato CSV valido
+                          - generic: Valid CSV format
+                      - generic:
+                        - generic: ✓
+                        - generic:
+                          - generic: 847 filas, 24 columnas
+                          - generic: 847 rows, 24 columns
+                      - generic:
+                        - generic: ✓
+                        - generic:
+                          - generic: Columnas requeridas presentes
+                          - generic: Required columns present
+                      - generic:
+                        - generic: ✓
+                        - generic:
+                          - generic: "Activos totales: $342.8M"
+                          - generic: "Total assets: $342.8M"
+                      - generic:
+                        - generic: ✓
+                        - generic:
+                          - generic: "Periodo fiscal: Q1 2026"
+                          - generic: "Fiscal period: Q1 2026"
+                      - generic:
+                        - generic: "!"
+                        - generic:
+                          - generic: 2 valores faltantes imputados
+                          - generic: 2 missing values imputed
+              - generic: Cargue su balance y valide en segundos.
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: ✓
+                    - generic: CSV subido
+                  - generic:
+                    - generic: "2"
+                    - generic: Analisis ALM
+                  - generic:
+                    - generic: "3"
+                    - generic: Informe
+                - generic:
+                  - generic:
+                    - generic: Activos Totales
+                    - generic: $342.8M
+                    - generic: Total Assets
+                  - generic:
+                    - generic: Capital Neto
+                    - generic: 12.4%
+                    - generic: Net Worth Ratio
+                  - generic:
+                    - generic: NIM
+                    - generic: 3.86%
+                    - generic: Net Interest Margin
+                  - generic:
+                    - generic: Liquidez
+                    - generic: 28.1%
+                    - generic: Liquidity Ratio
+                  - generic:
+                    - generic: Morosidad
+                    - generic: 4.2%
+                    - generic: Delinquency Rate
+                - generic:
+                  - generic:
+                    - generic: Analisis de Brecha / Gap Analysis
+                    - generic:
+                      - img:
+                        - generic: Excedente
+                        - generic: Deficit
+                        - generic: 0-30d
+                        - generic: 30-90d
+                        - generic: 90-180d
+                        - generic: 180d-1y
+                        - generic: 1-3y
+                        - generic: 3-5y
+                        - generic: 5y+
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic: Ratios COSSEC
+                        - generic: 12 / 12 calculados
+                      - table:
+                        - rowgroup:
+                          - row "Ratio Valor Min Estado":
+                            - columnheader "Ratio"
+                            - columnheader "Valor"
+                            - columnheader "Min"
+                            - columnheader "Estado"
+                        - rowgroup:
+                          - row "Capital Neto 12.4% 6.0% Pass":
+                            - cell "Capital Neto"
+                            - cell "12.4%"
+                            - cell "6.0%"
+                            - cell "Pass":
+                              - generic: Pass
+                          - row "Liquidez 28.1% 15.0% Pass":
+                            - cell "Liquidez"
+                            - cell "28.1%"
+                            - cell "15.0%"
+                            - cell "Pass":
+                              - generic: Pass
+                          - row "Morosidad 4.2% 5.0% Pass":
+                            - cell "Morosidad"
+                            - cell "4.2%"
+                            - cell "5.0%"
+                            - cell "Pass":
+                              - generic: Pass
+                          - row "Provision 98.6% 100% Near":
+                            - cell "Provision"
+                            - cell "98.6%"
+                            - cell "100%"
+                            - cell "Near":
+                              - generic: Near
+                    - generic:
+                      - generic:
+                        - generic: Procesando sensitividad de tasas...
+              - generic: 12 ratios COSSEC calculados automaticamente.
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: ✓
+                    - generic: CSV subido
+                  - generic:
+                    - generic: ✓
+                    - generic: Analisis ALM
+                  - generic:
+                    - generic: "3"
+                    - generic: Informe bilingüe
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic: COSSEC-compliant
+                      - generic:
+                        - generic: Informe ALM — Q1 2026
+                      - generic:
+                        - generic:
+                          - text: Cooperativa de Ahorro y Credito
+                          - text: Modelo PR
+                        - generic: "Periodo: Enero — Marzo 2026"
+                      - generic:
+                        - generic:
+                          - generic: Español
+                          - generic: El capital neto de la cooperativa se situa en 12.4%, superando el minimo regulatorio de 6.0% establecido por COSSEC.
+                        - generic:
+                          - generic: English
+                          - generic: The cooperative's net worth stands at 12.4%, exceeding the 6.0% regulatory minimum established by COSSEC.
+                      - generic:
+                        - generic: Pagina 1 de 28
+                        - generic: ·
+                        - generic: Generado automaticamente
+                  - generic:
+                    - generic:
+                      - generic:
+                        - paragraph: Secciones del informe / Report sections
+                        - paragraph: 28 paginas — Español e Ingles
+                      - generic:
+                        - button "Descargar PDF ↓"
+                        - button "Compartir ↗"
+                    - generic:
+                      - generic:
+                        - generic:
+                          - img
+                        - generic:
+                          - generic: Resumen Ejecutivo / Executive Summary
+                          - generic: pp. 1-3
+                        - generic: Completo
+                      - generic:
+                        - generic:
+                          - img
+                        - generic:
+                          - generic: Ratios COSSEC / COSSEC Ratios
+                          - generic: pp. 4-8
+                        - generic: Completo
+                      - generic:
+                        - generic:
+                          - img
+                        - generic:
+                          - generic: Analisis de Brecha / Gap Analysis
+                          - generic: pp. 9-14
+                        - generic: Completo
+                      - generic:
+                        - generic:
+                          - img
+                        - generic:
+                          - generic: Sensitividad de Tasas / Rate Sensitivity
+                          - generic: pp. 15-20
+                        - generic: Completo
+                      - generic:
+                        - generic:
+                          - img
+                        - generic:
+                          - generic: Riesgo y Recomendaciones / Risk & Recommendations
+                          - generic: pp. 21-28
+                        - generic: Completo
+                    - generic:
+                      - generic:
+                        - generic: ✓
+                        - generic:
+                          - generic: Informe listo para comite ALCO
+                          - generic: Report ready for ALCO committee
+              - generic: De balance a informe bilingüe — en minutos, no semanas.
+      - generic [ref=e213]:
+        - generic [ref=e214]:
+          - paragraph [ref=e215]: Pricing
+          - heading "Start with a pilot report. Scale when ready." [level=2] [ref=e216]
+        - generic [ref=e217]:
+          - generic [ref=e218]:
+            - paragraph [ref=e219]: ALM Report
+            - generic [ref=e220]: $750one-time
+            - paragraph [ref=e221]: One bilingual ALM report to validate the process with your institution.
+            - generic [ref=e222]:
+              - generic [ref=e223]:
+                - img [ref=e224]
+                - text: 1 bilingual ALM report
+              - generic [ref=e227]:
+                - img [ref=e228]
+                - text: Data review & guided setup
+              - generic [ref=e231]:
+                - img [ref=e232]
+                - text: Board-ready PDF
+            - button "Start — $750" [ref=e235]
+          - generic [ref=e236]:
+            - generic [ref=e237]: Recommended
+            - paragraph [ref=e238]: Monthly ALM Platform
+            - generic [ref=e239]: $299/month
+            - paragraph [ref=e240]: Ongoing access to the upload, analysis, and report delivery workflow.
+            - generic [ref=e241]:
+              - generic [ref=e242]:
+                - img [ref=e243]
+                - text: Recurring reports
+              - generic [ref=e246]:
+                - img [ref=e247]
+                - text: Portal access
+              - generic [ref=e250]:
+                - img [ref=e251]
+                - text: Bilingual PDF delivery
+            - button "Subscribe — $299/mo" [ref=e254]
+          - generic [ref=e255]:
+            - paragraph [ref=e256]: Annual ALM Platform
+            - generic [ref=e257]: $2,400/year
+            - paragraph [ref=e258]: Save $1,188 vs. monthly plan. Ideal for budget planning.
+            - generic [ref=e259]:
+              - generic [ref=e260]:
+                - img [ref=e261]
+                - text: 4+ annual reports
+              - generic [ref=e264]:
+                - img [ref=e265]
+                - text: Predictable fixed price
+              - generic [ref=e268]:
+                - img [ref=e269]
+                - text: Priority support
+            - button "Buy Annual — $2,400" [ref=e272]
+      - generic [ref=e274]:
+        - generic [ref=e275]:
+          - paragraph [ref=e276]: FAQ
+          - heading "Frequently Asked Questions" [level=2] [ref=e277]
+        - generic [ref=e278]:
+          - group [ref=e279]:
+            - generic "What data do I need to generate a report?" [ref=e280] [cursor=pointer]:
+              - generic [ref=e281]:
+                - generic [ref=e282]: What data do I need to generate a report?
+                - img [ref=e283]
+          - group [ref=e285]:
+            - generic "Does the report meet regulatory requirements?" [ref=e286] [cursor=pointer]:
+              - generic [ref=e287]:
+                - generic [ref=e288]: Does the report meet regulatory requirements?
+                - img [ref=e289]
+          - group [ref=e291]:
+            - generic "How long does it take to receive the report?" [ref=e292] [cursor=pointer]:
+              - generic [ref=e293]:
+                - generic [ref=e294]: How long does it take to receive the report?
+                - img [ref=e295]
+          - group [ref=e297]:
+            - generic "Is my data secure?" [ref=e298] [cursor=pointer]:
+              - generic [ref=e299]:
+                - generic [ref=e300]: Is my data secure?
+                - img [ref=e301]
+          - group [ref=e303]:
+            - generic "Can you generate reports for multiple institutions?" [ref=e304] [cursor=pointer]:
+              - generic [ref=e305]:
+                - generic [ref=e306]: Can you generate reports for multiple institutions?
+                - img [ref=e307]
+      - generic [ref=e309]:
+        - paragraph [ref=e310]: Request Demo
+        - heading "Bring your institution into the workflow" [level=2] [ref=e311]
+        - paragraph [ref=e312]: Tell us who you are and we'll schedule a focused walkthrough around the ALM upload, bilingual report output, and pilot path for your institution.
+        - generic [ref=e314]:
+          - generic [ref=e315]:
+            - generic [ref=e316]:
+              - generic [ref=e317]: Name
+              - textbox "Maria Rodriguez" [ref=e318]
+            - generic [ref=e319]:
+              - generic [ref=e320]: Work Email
+              - textbox "maria@institution.com" [ref=e321]
+          - generic [ref=e322]:
+            - generic [ref=e323]: Institution Name
+            - textbox "Your institution name" [ref=e324]
+          - generic [ref=e325]:
+            - generic [ref=e326]:
+              - generic [ref=e327]: Type
+              - combobox [ref=e328]:
+                - option "Institution type" [selected]
+                - option "Cooperativa"
+                - option "Credit Union"
+                - option "CPA / Consulting Firm"
+                - option "Community Bank"
+                - option "Other"
+            - generic [ref=e329]:
+              - generic [ref=e330]: Asset Range
+              - combobox [ref=e331]:
+                - option "Asset range" [selected]
+                - option "< $100M"
+                - option "$100M - $500M"
+                - option "$500M - $1B"
+                - option "$1B - $5B"
+                - option "$5B+"
+          - button "Request Free Analysis" [ref=e332]:
+            - text: Request Free Analysis
+            - img [ref=e333]
+      - generic [ref=e336]:
+        - generic [ref=e337]:
+          - paragraph [ref=e338]: CERNIQ
+          - heading "Compliance-ready ALM reports. Bilingual. In 24 hours." [level=2] [ref=e339]
+          - paragraph [ref=e340]: CERNIQ is institutional ALM intelligence for credit unions, cooperativas, and community banks. One focused workflow, one clear deliverable, one product your institution understands immediately.
+        - generic [ref=e341]:
+          - button "Request Demo" [ref=e342]
+          - button "Start — $750" [ref=e343]
+  - alert [ref=e344]

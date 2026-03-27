@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 // ─── Types ───────────────────────────────────────────────────
 
 export interface VasicekParams {
-  kappa: number;  // mean reversion speed
-  theta: number;  // long-run mean rate
-  sigma: number;  // volatility
-  r0: number;     // current short rate
+  kappa: number; // mean reversion speed
+  theta: number; // long-run mean rate
+  sigma: number; // volatility
+  r0: number; // current short rate
 }
 
 export interface MonteCarloResult {
@@ -16,8 +16,8 @@ export interface MonteCarloResult {
   vasicekParams: VasicekParams;
   meanNII: number;
   stdNII: number;
-  var95NII: number;     // 5th percentile (worst-case)
-  cvar99NII: number;    // expected value of worst 1%
+  var95NII: number; // 5th percentile (worst-case)
+  cvar99NII: number; // expected value of worst 1%
   meanEVE: number;
   var95EVE: number;
   fanChart: Array<{
@@ -37,10 +37,10 @@ export interface MonteCarloResult {
 
 // Default Vasicek calibration (approximate from FRED Fed Funds 2015-2024)
 const DEFAULT_PARAMS: VasicekParams = {
-  kappa: 0.15,    // moderate mean reversion
-  theta: 0.035,   // 3.5% long-run neutral rate
-  sigma: 0.012,   // annualized volatility
-  r0: 0.0475,     // current Fed Funds rate
+  kappa: 0.15, // moderate mean reversion
+  theta: 0.035, // 3.5% long-run neutral rate
+  sigma: 0.012, // annualized volatility
+  r0: 0.0475, // current Fed Funds rate
 };
 
 @Injectable()
@@ -53,7 +53,13 @@ export class MonteCarloService {
 
   async runSimulation(
     institutionId: string,
-    opts?: { paths?: number; quarters?: number; kappa?: number; theta?: number; sigma?: number },
+    opts?: {
+      paths?: number;
+      quarters?: number;
+      kappa?: number;
+      theta?: number;
+      sigma?: number;
+    },
   ): Promise<MonteCarloResult> {
     const paths = opts?.paths ?? 10000;
     const quarters = opts?.quarters ?? 12;
@@ -66,16 +72,23 @@ export class MonteCarloService {
       r0: DEFAULT_PARAMS.r0,
     };
 
-    const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId },
+    });
 
-    this.logger.log(`Monte Carlo: ${paths} paths × ${quarters}Q for institution ${institutionId}`);
+    this.logger.log(
+      `Monte Carlo: ${paths} paths × ${quarters}Q for institution ${institutionId}`,
+    );
 
     // Generate rate paths (Vasicek discretization with antithetic variates)
     const ratePaths = this.generateVasicekPaths(params, dt, quarters, paths);
 
     // Compute NII for each path
     const niiByPath: number[] = new Array(paths);
-    const niiByQuarter: number[][] = Array.from({ length: quarters }, () => new Array(paths));
+    const niiByQuarter: number[][] = Array.from(
+      { length: quarters },
+      () => new Array(paths),
+    );
 
     for (let p = 0; p < paths; p++) {
       let totalNII = 0;
@@ -96,18 +109,24 @@ export class MonteCarloService {
     const var95Index = Math.floor(paths * 0.05);
     const var95 = niiByPath[var95Index];
     const cvar99Index = Math.floor(paths * 0.01);
-    const cvar99 = niiByPath.slice(0, cvar99Index).reduce((a, b) => a + b, 0) / Math.max(cvar99Index, 1);
+    const cvar99 =
+      niiByPath.slice(0, cvar99Index).reduce((a, b) => a + b, 0) /
+      Math.max(cvar99Index, 1);
 
     // Fan chart: percentiles by quarter
     const fanChart = Array.from({ length: quarters }, (_, q) => {
       const qValues = [...niiByQuarter[q]].sort((a, b) => a - b);
       const now = new Date();
-      const qDate = new Date(now.getFullYear(), now.getMonth() + (q + 1) * 3, 1);
+      const qDate = new Date(
+        now.getFullYear(),
+        now.getMonth() + (q + 1) * 3,
+        1,
+      );
       return {
         quarter: `Q${Math.ceil((qDate.getMonth() + 1) / 3)} ${qDate.getFullYear()}`,
         p5: qValues[Math.floor(paths * 0.05)],
         p25: qValues[Math.floor(paths * 0.25)],
-        p50: qValues[Math.floor(paths * 0.50)],
+        p50: qValues[Math.floor(paths * 0.5)],
         p75: qValues[Math.floor(paths * 0.75)],
         p95: qValues[Math.floor(paths * 0.95)],
       };
@@ -121,7 +140,9 @@ export class MonteCarloService {
     for (let i = 0; i < 20; i++) {
       const bMin = minNII + i * bucketWidth;
       const bMax = bMin + bucketWidth;
-      const count = niiByPath.filter(v => v >= bMin && (i === 19 ? v <= bMax : v < bMax)).length;
+      const count = niiByPath.filter(
+        (v) => v >= bMin && (i === 19 ? v <= bMax : v < bMax),
+      ).length;
       buckets.push({ min: +bMin.toFixed(2), max: +bMax.toFixed(2), count });
     }
 
@@ -135,7 +156,7 @@ export class MonteCarloService {
       cvar99NII: +cvar99.toFixed(3),
       meanEVE: 0, // simplified — full EVE MC is Phase V+
       var95EVE: 0,
-      fanChart: fanChart.map(f => ({
+      fanChart: fanChart.map((f) => ({
         ...f,
         p5: +f.p5.toFixed(3),
         p25: +f.p25.toFixed(3),
@@ -150,7 +171,10 @@ export class MonteCarloService {
   // ─── Vasicek Path Generator ───────────────────────────────
 
   private generateVasicekPaths(
-    params: VasicekParams, dt: number, quarters: number, paths: number,
+    params: VasicekParams,
+    dt: number,
+    quarters: number,
+    paths: number,
   ): number[][] {
     const { kappa, theta, sigma, r0 } = params;
     const result: number[][] = [];
@@ -193,7 +217,11 @@ export class MonteCarloService {
 
   // ─── Compute Quarter NII at Given Rate ────────────────────
 
-  private computeQuarterNII(items: any[], rate: number, quarter: number): number {
+  private computeQuarterNII(
+    items: any[],
+    rate: number,
+    quarter: number,
+  ): number {
     if (items.length === 0) {
       // Demo: generate realistic NII based on rate level
       const baseNII = 3.2; // $3.2M quarterly
@@ -207,17 +235,20 @@ export class MonteCarloService {
       const isAsset = item.category === 'asset';
       const balance = item.balance;
       const baseRate = item.rate;
-      const beta = item.depositBeta ?? (isAsset ? 1.0 : this.getDefaultBeta(item.subcategory));
+      const beta =
+        item.depositBeta ??
+        (isAsset ? 1.0 : this.getDefaultBeta(item.subcategory));
 
       // Variable-rate reprices immediately; fixed-rate reprices at maturity
-      const repricingQuarter = item.rateType === 'variable' ? 0 : Math.floor(item.duration * 4);
+      const repricingQuarter =
+        item.rateType === 'variable' ? 0 : Math.floor(item.duration * 4);
       const hasRepriced = quarter >= repricingQuarter;
 
       const effectiveRate = hasRepriced
         ? baseRate + (rate - DEFAULT_PARAMS.r0) * beta
         : baseRate;
 
-      const quarterIncome = balance * effectiveRate / 4;
+      const quarterIncome = (balance * effectiveRate) / 4;
       nii += isAsset ? quarterIncome : -quarterIncome;
     }
 
@@ -226,15 +257,16 @@ export class MonteCarloService {
 
   private getDefaultBeta(subcategory: string): number {
     const s = (subcategory || '').toLowerCase();
-    if (s.includes('demand') || s.includes('checking')) return 0.10;
-    if (s.includes('saving')) return 0.40;
-    if (s.includes('time') || s.includes('cd')) return 0.80;
-    return 0.50;
+    if (s.includes('demand') || s.includes('checking')) return 0.1;
+    if (s.includes('saving')) return 0.4;
+    if (s.includes('time') || s.includes('cd')) return 0.8;
+    return 0.5;
   }
 
   // Box-Muller transform
   private gaussianRandom(): number {
-    let u = 0, v = 0;
+    let u = 0,
+      v = 0;
     while (u === 0) u = Math.random();
     while (v === 0) v = Math.random();
     return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);

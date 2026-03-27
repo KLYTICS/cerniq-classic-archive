@@ -29,7 +29,9 @@ export class DegradationService {
       setTimeout(() => cache.delete(key), cacheTtlMs * 24); // keep cache longer than TTL for degradation
       return { data, level: 'live' };
     } catch (liveError: any) {
-      this.logger.warn(`Live computation failed for ${key}: ${liveError.message}`);
+      this.logger.warn(
+        `Live computation failed for ${key}: ${liveError.message}`,
+      );
     }
 
     // Level 2: Cached result

@@ -187,7 +187,7 @@ export default function FTPPage() {
             <YAxis tickFormatter={(v) => `$${v}M`} tick={{ fontSize: 11 }} />
             <Tooltip
               contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-              formatter={(value: number) => [`$${value.toFixed(3)}M`, '']}
+              formatter={(value) => [`$${Number(value ?? 0).toFixed(3)}M`, '']}
             />
             <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
             <Bar dataKey="contribution" name={locale === 'es' ? 'Contribución' : 'Contribution'} radius={[4, 4, 0, 0]}>

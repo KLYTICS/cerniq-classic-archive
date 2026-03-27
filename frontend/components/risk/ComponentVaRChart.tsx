@@ -153,9 +153,9 @@ export function ComponentVaRChart({ positions, confidenceLevel = 0.95, horizon =
                                 borderRadius: '8px',
                             }}
                             labelStyle={{ color: '#0f172a' }}
-                            formatter={(value: number | string, name: string | undefined) => {
+                            formatter={(value, name) => {
                                 if (name === 'componentVaR') {
-                                    return [`$${Number(value).toLocaleString()}`, 'Component VaR'];
+                                    return [`$${Number(value ?? 0).toLocaleString()}`, 'Component VaR'];
                                 }
                                 return [value, name];
                             }}

@@ -28,7 +28,7 @@ export class AlmAdvisorController {
   async askAdvisor(
     @Param('institutionId') institutionId: string,
     @Body() dto: AskAdvisorDto,
-  ) {
+  ): Promise<unknown> {
     this.logger.log(
       `AI Advisor query for institution ${institutionId}: "${(dto.message || '').slice(0, 80)}..."`,
     );

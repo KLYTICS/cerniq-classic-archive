@@ -1,4 +1,12 @@
-import { Controller, Get, Param, Query, Sse, UseGuards, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  Sse,
+  UseGuards,
+  Logger,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { AlmAdvisorV2Service } from './alm-advisor-v2.service';
 import { AuthGuard } from '../auth/auth.guard';
@@ -16,7 +24,9 @@ export class AlmAdvisorV2Controller {
     @Param('institutionId') institutionId: string,
     @Query('lang') lang = 'en',
   ): Observable<MessageEvent> {
-    this.logger.log(`Streaming advisor narrative for ${institutionId} (lang=${lang})`);
+    this.logger.log(
+      `Streaming advisor narrative for ${institutionId} (lang=${lang})`,
+    );
     return createSSEStream(this.advisorV2.streamNarrative(institutionId, lang));
   }
 

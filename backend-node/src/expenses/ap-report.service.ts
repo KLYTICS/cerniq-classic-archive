@@ -1,8 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { AnomalyDetectionService, APAnalysisResult, ApLcrImpact } from './anomaly-detection.service';
+import {
+  AnomalyDetectionService,
+  APAnalysisResult,
+  ApLcrImpact,
+} from './anomaly-detection.service';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
 
 @Injectable()
@@ -37,13 +40,21 @@ export class ApReportService {
     let lcrImpact: ApLcrImpact | null = null;
     if (institutionId) {
       try {
-        lcrImpact = await this.anomalyDetection.calculateApLcrImpact(orgId, institutionId);
+        lcrImpact = await this.anomalyDetection.calculateApLcrImpact(
+          orgId,
+          institutionId,
+        );
       } catch (err) {
         this.logger.warn(`LCR impact calculation failed: ${err}`);
       }
     }
 
-    const pdf = await this.buildPDF(organization, analysis, lcrImpact, language);
+    const pdf = await this.buildPDF(
+      organization,
+      analysis,
+      lcrImpact,
+      language,
+    );
     this.logger.log({ event: 'ap_report.build.complete', orgId, pages: 6 });
     return pdf;
   }
@@ -125,11 +136,16 @@ export class ApReportService {
           752,
           { width: 160, align: 'center', lineBreak: false },
         );
-        doc.text(`${t('Pag.', 'Pg.')} ${pageNum}/${TOTAL_PAGES}`, PW - MR - 40, 752, {
-          width: 40,
-          align: 'right',
-          lineBreak: false,
-        });
+        doc.text(
+          `${t('Pag.', 'Pg.')} ${pageNum}/${TOTAL_PAGES}`,
+          PW - MR - 40,
+          752,
+          {
+            width: 40,
+            align: 'right',
+            lineBreak: false,
+          },
+        );
       };
 
       const statusClr = (s: string) =>
@@ -165,7 +181,8 @@ export class ApReportService {
         score >= 80 ? '#16A34A' : score >= 50 ? '#D97706' : '#DC2626';
 
       // Compute derived data
-      const totalSpend = analysis.findings.reduce((s, f) => s + f.estimatedRecovery, 0) || 0;
+      const totalSpend =
+        analysis.findings.reduce((s, f) => s + f.estimatedRecovery, 0) || 0;
       const invoiceCount = analysis.totalExpenses;
       const activeFindings = analysis.findings.length;
       const totalRecovery = analysis.estimatedTotalRecovery;
@@ -207,10 +224,7 @@ export class ApReportService {
         .font('Helvetica-Bold')
         .fontSize(24)
         .text(
-          t(
-            'Informe de Inteligencia AP',
-            'AP Intelligence Report',
-          ),
+          t('Informe de Inteligencia AP', 'AP Intelligence Report'),
           ML,
           55,
         );
@@ -219,10 +233,7 @@ export class ApReportService {
         .font('Helvetica')
         .fontSize(11)
         .text(
-          t(
-            'Analisis de Cuentas por Pagar',
-            'Accounts Payable Analysis',
-          ),
+          t('Analisis de Cuentas por Pagar', 'Accounts Payable Analysis'),
           ML,
           88,
         );
@@ -279,12 +290,10 @@ export class ApReportService {
         .fill('#64748B')
         .font('Helvetica-Bold')
         .fontSize(8)
-        .text(
-          t('Salud AP', 'AP Health'),
-          gaugeX - 50,
-          gaugeY + gaugeR + 10,
-          { width: 100, align: 'center' },
-        );
+        .text(t('Salud AP', 'AP Health'), gaugeX - 50, gaugeY + gaugeR + 10, {
+          width: 100,
+          align: 'center',
+        });
 
       // Summary stats on the right of gauge
       const statX = ML + 180;
@@ -335,9 +344,7 @@ export class ApReportService {
       // PAGE 2: EXECUTIVE SUMMARY
       // ═══════════════════════════════════════════════════════════
       doc.addPage();
-      y = pageHeader(
-        t('RESUMEN EJECUTIVO', 'EXECUTIVE SUMMARY'),
-      );
+      y = pageHeader(t('RESUMEN EJECUTIVO', 'EXECUTIVE SUMMARY'));
       drawFooter();
 
       // 6 KPI cards (3x2 grid)
@@ -362,11 +369,7 @@ export class ApReportService {
           fmtD(totalRecovery),
           '#16A34A',
         ],
-        [
-          t('Salud AP', 'AP Health Score'),
-          `${healthScore}/100`,
-          hClr,
-        ],
+        [t('Salud AP', 'AP Health Score'), `${healthScore}/100`, hClr],
         [
           t('Proveedor Principal', 'Top Vendor'),
           `${topVendor} (${fmtPct(analysis.topVendorPct)})`,
@@ -405,19 +408,21 @@ export class ApReportService {
         .fill('#1B3A6B')
         .font('Helvetica-Bold')
         .fontSize(11)
-        .text(
-          t('RESUMEN DEL ANALISIS', 'ANALYSIS SUMMARY'),
-          ML,
-          y,
-        );
+        .text(t('RESUMEN DEL ANALISIS', 'ANALYSIS SUMMARY'), ML, y);
       y += 18;
 
       const healthLabel =
         healthScore >= 80
           ? t('saludable', 'healthy')
           : healthScore >= 50
-            ? t('moderada, con areas de atencion', 'moderate, with areas of concern')
-            : t('critica, requiere accion inmediata', 'critical, requiring immediate action');
+            ? t(
+                'moderada, con areas de atencion',
+                'moderate, with areas of concern',
+              )
+            : t(
+                'critica, requiere accion inmediata',
+                'critical, requiring immediate action',
+              );
 
       const narrativeEs = `El analisis de ${invoiceCount} facturas de ${analysis.totalVendors} proveedores revela una postura AP ${healthLabel} con un puntaje de salud de ${healthScore}/100. Se identificaron ${activeFindings} hallazgos con una recuperacion estimada de ${fmtD(totalRecovery)}. El proveedor con mayor concentracion es ${topVendor} con ${fmtPct(analysis.topVendorPct)} del gasto total.`;
       const narrativeEn = `Analysis of ${invoiceCount} invoices from ${analysis.totalVendors} vendors reveals a ${healthLabel} AP posture with a health score of ${healthScore}/100. ${activeFindings} findings were identified with an estimated recovery of ${fmtD(totalRecovery)}. The highest-concentration vendor is ${topVendor} at ${fmtPct(analysis.topVendorPct)} of total spend.`;
@@ -432,9 +437,7 @@ export class ApReportService {
       // PAGE 3: ANOMALY ANALYSIS
       // ═══════════════════════════════════════════════════════════
       doc.addPage();
-      y = pageHeader(
-        t('ANALISIS DE ANOMALIAS', 'ANOMALY ANALYSIS'),
-      );
+      y = pageHeader(t('ANALISIS DE ANOMALIAS', 'ANOMALY ANALYSIS'));
       drawFooter();
 
       // Section: HIGH findings
@@ -570,9 +573,7 @@ export class ApReportService {
       // PAGE 4: VENDOR INTELLIGENCE
       // ═══════════════════════════════════════════════════════════
       doc.addPage();
-      y = pageHeader(
-        t('INTELIGENCIA DE PROVEEDORES', 'VENDOR INTELLIGENCE'),
-      );
+      y = pageHeader(t('INTELIGENCIA DE PROVEEDORES', 'VENDOR INTELLIGENCE'));
       drawFooter();
 
       // Top 10 vendors table
@@ -639,11 +640,7 @@ export class ApReportService {
         .fill('#1B3A6B')
         .font('Helvetica-Bold')
         .fontSize(11)
-        .text(
-          t('RIESGO DE CONCENTRACION', 'CONCENTRATION RISK'),
-          ML,
-          y,
-        );
+        .text(t('RIESGO DE CONCENTRACION', 'CONCENTRATION RISK'), ML, y);
       y += 18;
 
       if (concentrationVendors.length === 0) {
@@ -666,7 +663,9 @@ export class ApReportService {
           const riskLevel = v.percentOfTotalSpend > 35 ? 'HIGH' : 'MEDIUM';
           const rClr = riskLevel === 'HIGH' ? '#DC2626' : '#D97706';
 
-          doc.rect(ML, y - 2, CW, 20).fill(riskLevel === 'HIGH' ? '#FEF2F2' : '#FFF7ED');
+          doc
+            .rect(ML, y - 2, CW, 20)
+            .fill(riskLevel === 'HIGH' ? '#FEF2F2' : '#FFF7ED');
           doc.rect(ML, y - 2, 4, 20).fill(rClr);
           doc
             .fill('#1F2937')
@@ -743,9 +742,7 @@ export class ApReportService {
       // PAGE 5: CASH FLOW IMPACT
       // ═══════════════════════════════════════════════════════════
       doc.addPage();
-      y = pageHeader(
-        t('IMPACTO EN FLUJO DE EFECTIVO', 'CASH FLOW IMPACT'),
-      );
+      y = pageHeader(t('IMPACTO EN FLUJO DE EFECTIVO', 'CASH FLOW IMPACT'));
       drawFooter();
 
       if (lcrImpact) {
@@ -869,21 +866,11 @@ export class ApReportService {
           .fill('#1B3A6B')
           .font('Helvetica-Bold')
           .fontSize(11)
-          .text(
-            t(
-              'OBLIGACIONES AP A 30 DIAS',
-              '30-DAY AP OBLIGATIONS',
-            ),
-            ML,
-            y,
-          );
+          .text(t('OBLIGACIONES AP A 30 DIAS', '30-DAY AP OBLIGATIONS'), ML, y);
         y += 18;
 
         const lcrMetrics: [string, string][] = [
-          [
-            t('HQLA Disponible', 'Available HQLA'),
-            fmtM(lcrImpact.hqla),
-          ],
+          [t('HQLA Disponible', 'Available HQLA'), fmtM(lcrImpact.hqla)],
           [
             t('Flujos Netos Actuales', 'Current Net Outflows'),
             fmtM(lcrImpact.currentNetOutflows),
@@ -927,10 +914,7 @@ export class ApReportService {
           .font('Helvetica-Bold')
           .fontSize(14)
           .text(
-            t(
-              'Conecte el Analisis ALM',
-              'Connect ALM Analysis',
-            ),
+            t('Conecte el Analisis ALM', 'Connect ALM Analysis'),
             ML + 20,
             y + 20,
             { width: CW - 40 },
@@ -968,9 +952,7 @@ export class ApReportService {
       // PAGE 6: RECOMMENDATIONS
       // ═══════════════════════════════════════════════════════════
       doc.addPage();
-      y = pageHeader(
-        t('RECOMENDACIONES', 'RECOMMENDATIONS'),
-      );
+      y = pageHeader(t('RECOMENDACIONES', 'RECOMMENDATIONS'));
       drawFooter();
 
       doc
@@ -989,7 +971,11 @@ export class ApReportService {
       y += 25;
 
       // Generate recommendations based on findings
-      const recommendations = this.generateRecommendations(analysis, lcrImpact, isEs);
+      const recommendations = this.generateRecommendations(
+        analysis,
+        lcrImpact,
+        isEs,
+      );
 
       const priorityColors: Record<string, string> = {
         HIGH: '#DC2626',
@@ -1065,11 +1051,7 @@ export class ApReportService {
         .fill('#94A3B8')
         .font('Helvetica-Bold')
         .fontSize(8)
-        .text(
-          t('METODOLOGIA', 'METHODOLOGY'),
-          ML,
-          y,
-        );
+        .text(t('METODOLOGIA', 'METHODOLOGY'), ML, y);
       y += 12;
       doc
         .fill('#94A3B8')
@@ -1078,7 +1060,7 @@ export class ApReportService {
         .text(
           t(
             'Este informe fue generado utilizando el motor de deteccion de anomalias de CERNIQ, que aplica 7 detectores independientes (duplicados, anomalias de monto, facturacion fraccionada, concentracion de proveedores, anomalias de frecuencia, proveedores inactivos reactivados, y categorias no autorizadas) sobre los datos de cuentas por pagar de la organizacion.',
-            'This report was generated using the CERNIQ anomaly detection engine, which applies 7 independent detectors (duplicates, amount anomalies, split billing, vendor concentration, frequency anomalies, dormant vendor reactivation, and unauthorized categories) to the organization\'s accounts payable data.',
+            "This report was generated using the CERNIQ anomaly detection engine, which applies 7 independent detectors (duplicates, amount anomalies, split billing, vendor concentration, frequency anomalies, dormant vendor reactivation, and unauthorized categories) to the organization's accounts payable data.",
           ),
           ML,
           y,

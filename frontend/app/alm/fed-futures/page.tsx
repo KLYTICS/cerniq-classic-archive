@@ -68,7 +68,15 @@ export default function FedFuturesPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="date" tick={{ fontSize: 10 }} />
             <YAxis tickFormatter={v => `${(v * 100).toFixed(1)}%`} tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number | null) => v !== null ? `${(v * 100).toFixed(2)}%` : 'N/A'} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => {
+                if (value === null || value === undefined) {
+                  return 'N/A';
+                }
+                return `${(Number(value) * 100).toFixed(2)}%`;
+              }}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <ReferenceLine y={data.currentFFR} stroke="#94a3b8" strokeDasharray="5 5" label={{ value: 'Current', fontSize: 10 }} />
             <Line type="monotone" dataKey="implied" name={locale === 'es' ? 'Futuros Implícitos' : 'Futures Implied'} stroke="#10b981" strokeWidth={2.5} dot={false} />

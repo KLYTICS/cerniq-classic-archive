@@ -153,8 +153,8 @@ Located in `backend-node/prisma/migrations/`. Managed by Prisma Migrate.
 
 ```bash
 npx prisma migrate dev --name description   # Create + apply
-npx prisma migrate deploy                   # Apply in production
-npx prisma migrate status                   # Check status
+DATABASE_URL="postgresql://..." npm run prisma:status
+DATABASE_URL="postgresql://..." ALLOW_SCHEMA_MIGRATIONS=true npm run prisma:deploy
 ```
 
 ---

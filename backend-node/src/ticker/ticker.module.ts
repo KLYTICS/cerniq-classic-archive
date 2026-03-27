@@ -3,8 +3,8 @@ import { TickerController } from './ticker.controller';
 import { TickerService } from './ticker.service';
 
 @Module({
-    controllers: [TickerController],
-    providers: [TickerService],
-    exports: [TickerService], // Export for use in other modules
+  controllers: [TickerController],
+  providers: [TickerService],
+  exports: [TickerService], // Export for use in other modules
 })
-export class TickerModule { }
+export class TickerModule {}

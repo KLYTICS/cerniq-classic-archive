@@ -53,14 +53,28 @@ export class EmailSequenceProcessor {
           data: { sentAt: new Date() },
         });
 
-        this.logger.log({ event: 'sequence.sent', id: seq.id, key: seq.sequenceKey });
+        this.logger.log({
+          event: 'sequence.sent',
+          id: seq.id,
+          key: seq.sequenceKey,
+        });
       } catch (err: any) {
-        this.logger.error({ event: 'sequence.failed', id: seq.id, key: seq.sequenceKey, error: err.message });
+        this.logger.error({
+          event: 'sequence.failed',
+          id: seq.id,
+          key: seq.sequenceKey,
+          error: err.message,
+        });
       }
     }
   }
 
-  private async fireSequence(seq: { sequenceKey: string; userId: string | null; leadId: string | null; metadata: any }) {
+  private async fireSequence(seq: {
+    sequenceKey: string;
+    userId: string | null;
+    leadId: string | null;
+    metadata: any;
+  }) {
     // Resolve user context
     let user: { email: string; name: string | null } | null = null;
     if (seq.userId) {
@@ -71,7 +85,8 @@ export class EmailSequenceProcessor {
     }
 
     // Resolve lead context
-    let lead: { email: string; name: string; institutionName: string } | null = null;
+    let lead: { email: string; name: string; institutionName: string } | null =
+      null;
     if (seq.leadId) {
       lead = await this.prisma.lead.findUnique({
         where: { id: seq.leadId },
@@ -81,7 +96,12 @@ export class EmailSequenceProcessor {
 
     const email = user?.email || lead?.email;
     if (!email) {
-      this.logger.warn({ event: 'sequence.no_recipient', id: seq.sequenceKey, userId: seq.userId, leadId: seq.leadId });
+      this.logger.warn({
+        event: 'sequence.no_recipient',
+        id: seq.sequenceKey,
+        userId: seq.userId,
+        leadId: seq.leadId,
+      });
       return;
     }
 
@@ -100,7 +120,11 @@ export class EmailSequenceProcessor {
 
       case 'C2':
         // Report follow-up (24h after delivery)
-        await this.email.sendReportFollowUp({ email, name, institutionName: lead?.institutionName || '' });
+        await this.email.sendReportFollowUp({
+          email,
+          name,
+          institutionName: lead?.institutionName || '',
+        });
         break;
 
       case 'D5':
@@ -110,7 +134,11 @@ export class EmailSequenceProcessor {
 
       case 'A1':
         // Lead nurture: teaser
-        await this.email.sendLeadNurtureTeaser({ email, name, institutionName: lead?.institutionName || '' });
+        await this.email.sendLeadNurtureTeaser({
+          email,
+          name,
+          institutionName: lead?.institutionName || '',
+        });
         break;
 
       case 'A2':
@@ -121,11 +149,17 @@ export class EmailSequenceProcessor {
       case 'NPS':
         // NPS survey — handled directly by pipeline worker sendNPSSurveys cron
         // If it reaches here, it was already sent inline; skip gracefully.
-        this.logger.log({ event: 'sequence.nps.skip', note: 'NPS sent inline by cron' });
+        this.logger.log({
+          event: 'sequence.nps.skip',
+          note: 'NPS sent inline by cron',
+        });
         break;
 
       default:
-        this.logger.warn({ event: 'sequence.unknown_key', key: seq.sequenceKey });
+        this.logger.warn({
+          event: 'sequence.unknown_key',
+          key: seq.sequenceKey,
+        });
     }
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 export interface DepositBetaConfig {
   subcategory: string;
@@ -17,13 +17,13 @@ export interface DepositBetaImpact {
 }
 
 const DEFAULT_BETAS: Record<string, number> = {
-  demand_deposits: 0.10,
-  savings: 0.40,
-  money_market: 0.50,
-  time_deposits: 0.80,
+  demand_deposits: 0.1,
+  savings: 0.4,
+  money_market: 0.5,
+  time_deposits: 0.8,
   cds: 0.85,
-  borrowings: 1.00,
-  fhlb: 1.00,
+  borrowings: 1.0,
+  fhlb: 1.0,
 };
 
 @Injectable()
@@ -44,7 +44,7 @@ export class DepositBetaService {
       if (!seen.has(sub)) {
         seen.set(sub, { beta: item.depositBeta, balance: item.balance });
       } else {
-        const existing = seen.get(sub)!;
+        const existing = seen.get(sub);
         existing.balance += item.balance;
         if (item.depositBeta !== null) existing.beta = item.depositBeta;
       }
@@ -73,8 +73,13 @@ export class DepositBetaService {
     return { updated: count };
   }
 
-  async calculateBetaImpact(institutionId: string, shockBps: number = 100): Promise<DepositBetaImpact> {
-    const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
+  async calculateBetaImpact(
+    institutionId: string,
+    shockBps: number = 100,
+  ): Promise<DepositBetaImpact> {
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId },
+    });
     const betas = await this.getDepositBetas(institutionId);
 
     let baseNII = 0;
@@ -82,7 +87,9 @@ export class DepositBetaService {
 
     for (const item of items) {
       const isAsset = item.category === 'asset';
-      const beta = isAsset ? 1.0 : (item.depositBeta ?? this.getDefaultBeta(item.subcategory));
+      const beta = isAsset
+        ? 1.0
+        : (item.depositBeta ?? this.getDefaultBeta(item.subcategory));
       const rateChange = (shockBps / 10000) * beta;
 
       const baseIncome = item.balance * item.rate;
@@ -101,7 +108,8 @@ export class DepositBetaService {
       baseNII,
       adjustedNII,
       niiDelta: adjustedNII - baseNII,
-      niiDeltaPct: baseNII !== 0 ? ((adjustedNII - baseNII) / Math.abs(baseNII)) * 100 : 0,
+      niiDeltaPct:
+        baseNII !== 0 ? ((adjustedNII - baseNII) / Math.abs(baseNII)) * 100 : 0,
       betaConfigs: betas,
     };
   }
@@ -129,9 +137,10 @@ export class DepositBetaService {
     for (const [key, beta] of Object.entries(DEFAULT_BETAS)) {
       if (sub.includes(key) || sub.includes(key.replace('_', ''))) return beta;
     }
-    if (sub.includes('demand') || sub.includes('checking')) return 0.10;
-    if (sub.includes('saving') || sub.includes('ahorro')) return 0.40;
-    if (sub.includes('cd') || sub.includes('plazo') || sub.includes('time')) return 0.80;
-    return 0.60;
+    if (sub.includes('demand') || sub.includes('checking')) return 0.1;
+    if (sub.includes('saving') || sub.includes('ahorro')) return 0.4;
+    if (sub.includes('cd') || sub.includes('plazo') || sub.includes('time'))
+      return 0.8;
+    return 0.6;
   }
 }

@@ -109,7 +109,7 @@ function HQLAComposition({ hqla, netOutflows }: { hqla: number; netOutflows: num
                 color: '#f1f5f9',
                 fontSize: 12,
               }}
-              formatter={(value: number | undefined) => [`$${(value ?? 0).toFixed(1)}M`, '']}
+              formatter={(value) => [`$${Number(value ?? 0).toFixed(1)}M`, '']}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -180,8 +180,8 @@ function CashFlowWaterfall({ hqla, netOutflows }: { hqla: number; netOutflows: n
               color: '#f1f5f9',
               fontSize: 12,
             }}
-            formatter={(value: number | undefined, name: string | undefined) => [
-              `$${(value ?? 0).toFixed(1)}M`,
+            formatter={(value, name) => [
+              `$${Number(value ?? 0).toFixed(1)}M`,
               name === 'inflow' ? 'Inflows' : 'Outflows',
             ]}
           />

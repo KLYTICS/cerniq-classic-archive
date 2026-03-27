@@ -67,7 +67,10 @@ export default function FRTBIMAPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="name" tick={{ fontSize: 11 }} />
             <YAxis tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number) => `$${v.toFixed(2)}M`} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => `$${Number(value ?? 0).toFixed(2)}M`}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar dataKey="imcc" name="IMCC" stackId="a" fill="#0ea5e9" radius={[0, 0, 0, 0]} />
             <Bar dataKey="ses" name="SES" stackId="a" fill="#f97316" radius={[4, 4, 0, 0]} />

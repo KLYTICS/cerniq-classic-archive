@@ -67,7 +67,10 @@ export default function BlackLittermanPage() {
             <PolarGrid stroke="#e2e8f0" />
             <PolarAngleAxis dataKey="asset" tick={{ fontSize: 11 }} />
             <PolarRadiusAxis tick={{ fontSize: 10 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number) => `${(v * 100).toFixed(1)}%`} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => `${(Number(value ?? 0) * 100).toFixed(1)}%`}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Radar name="Prior (CAPM)" dataKey="prior" stroke="#94a3b8" fill="#94a3b8" fillOpacity={0.2} />
             <Radar name="Posterior (BL)" dataKey="posterior" stroke="#6366f1" fill="#6366f1" fillOpacity={0.3} />

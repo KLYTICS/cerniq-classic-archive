@@ -66,7 +66,10 @@ export default function WrongWayRiskPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="timeStep" tick={{ fontSize: 11 }} />
             <YAxis tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number) => `$${v.toFixed(2)}M`} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => `$${Number(value ?? 0).toFixed(2)}M`}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Line type="monotone" dataKey="naive" name={locale === 'es' ? 'Naive (sin WWR)' : 'Naive (no WWR)'} stroke="#94a3b8" strokeWidth={2} dot={false} />
             <Line type="monotone" dataKey="adjusted" name={locale === 'es' ? 'Ajustado (con WWR)' : 'Adjusted (with WWR)'} stroke="#ef4444" strokeWidth={2.5} dot={false} />

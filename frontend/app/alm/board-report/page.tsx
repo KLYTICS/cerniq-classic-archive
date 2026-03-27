@@ -48,12 +48,23 @@ export default function BoardReportPage() {
 
       {/* KPI Grid */}
       <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
-        {Object.entries(data.kpis).map(([key, value]) => (
-          <div key={key} className="rounded-xl border border-slate-200 bg-white p-3 text-center">
-            <p className="text-[9px] font-medium uppercase tracking-wider text-slate-400">{key}</p>
-            <p className="text-lg font-bold tabular-nums text-slate-950">{typeof value === 'number' ? (value as number).toFixed(value as number < 10 ? 2 : 0) : value}{key.includes('ratio') || key.includes('nim') || key.includes('roa') ? '%' : ''}</p>
-          </div>
-        ))}
+        {Object.entries(data.kpis as Record<string, string | number>).map(([key, value]) => {
+          const formattedValue =
+            typeof value === 'number'
+              ? value.toFixed(value < 10 ? 2 : 0)
+              : value;
+          const suffix =
+            key.includes('ratio') || key.includes('nim') || key.includes('roa')
+              ? '%'
+              : '';
+
+          return (
+            <div key={key} className="rounded-xl border border-slate-200 bg-white p-3 text-center">
+              <p className="text-[9px] font-medium uppercase tracking-wider text-slate-400">{key}</p>
+              <p className="text-lg font-bold tabular-nums text-slate-950">{formattedValue}{suffix}</p>
+            </div>
+          );
+        })}
       </div>
 
       {/* Report Sections */}

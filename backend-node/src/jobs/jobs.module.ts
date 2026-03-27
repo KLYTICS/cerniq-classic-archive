@@ -7,13 +7,9 @@ import { MarketDataModule } from '../market-data/market-data.module';
 import { RiskModule } from '../risk/risk.module';
 
 @Module({
-    imports: [
-        ScheduleModule.forRoot(),
-        MarketDataModule,
-        RiskModule,
-    ],
-    controllers: [AdminController, PipelineHealthController],
-    providers: [DailyPipelineService],
-    exports: [DailyPipelineService],
+  imports: [ScheduleModule.forRoot(), MarketDataModule, RiskModule],
+  controllers: [AdminController, PipelineHealthController],
+  providers: [DailyPipelineService],
+  exports: [DailyPipelineService],
 })
 export class JobsModule {}

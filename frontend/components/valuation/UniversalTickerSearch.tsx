@@ -79,7 +79,7 @@ export default function UniversalTickerSearch({
             setIsLoading(true);
             try {
                 const response = await apiClient.searchTickers(query);
-                setResults(response.results || []);
+                setResults(response);
                 setSelectedIndex(0);
             } catch (error) {
                 console.error('Search failed:', error);

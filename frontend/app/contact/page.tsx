@@ -11,15 +11,17 @@ export default function ContactPage() {
   const [honeypot, setHoneypot] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const t = (en: string, es: string) => lang === 'en' ? en : es;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (honeypot) return; // Bot trap — real users never fill this
+    setSubmitError('');
     setLoading(true);
     try {
       const NODE = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-      await fetch(`${NODE}/api/leads/demo-request`, {
+      const response = await fetch(`${NODE}/api/demo-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -31,10 +33,18 @@ export default function ContactPage() {
           source: 'contact_page',
         }),
       });
+      if (!response.ok) {
+        throw new Error('submit_failed');
+      }
+      setSubmitted(true);
     } catch {
-      // Always show success to prevent information leakage
+      setSubmitError(
+        t(
+          'We could not submit your request. Please email erwin@cerniq.io and we will get back to you.',
+          'No pudimos enviar su solicitud. Escriba a erwin@cerniq.io y le responderemos.'
+        ),
+      );
     }
-    setSubmitted(true);
     setLoading(false);
   };
 
@@ -155,6 +165,9 @@ export default function ContactPage() {
                   className="w-full rounded-xl bg-amber-500 py-3.5 text-sm font-semibold text-white hover:bg-amber-600 transition disabled:opacity-50 flex items-center justify-center gap-2">
                   {loading ? t('Sending...', 'Enviando...') : <><Send className="h-4 w-4" /> {t('Request Demo', 'Solicitar Demo')}</>}
                 </button>
+                {submitError && (
+                  <p className="text-xs text-red-600 text-center">{submitError}</p>
+                )}
                 <p className="text-[10px] text-slate-400 text-center">{t('No credit card required. We respond within 24 hours.', 'Sin tarjeta de crédito. Respondemos en 24 horas.')}</p>
               </form>
             )}

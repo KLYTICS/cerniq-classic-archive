@@ -8,7 +8,10 @@ import {
 } from '../scenarios/cossec-scenarios';
 
 // Re-export for consumers (e.g. pipeline worker, controller)
-export type { NamedScenario, NamedScenarioResult } from '../scenarios/cossec-scenarios';
+export type {
+  NamedScenario,
+  NamedScenarioResult,
+} from '../scenarios/cossec-scenarios';
 
 /** Round to n decimal places */
 function round(value: number, decimals: number): number {
@@ -19,10 +22,10 @@ function round(value: number, decimals: number): number {
 // ─── Custom Scenario Interfaces ───────────────────────────────
 
 export interface CustomScenarioParams {
-  rateShockBps: number;              // -300 to +300
-  depositRunoffPct: number;          // 0 to 30
-  defaultRateIncreasePct: number;    // 0 to 15
-  energyCostShockPct: number;        // 0 to 50
+  rateShockBps: number; // -300 to +300
+  depositRunoffPct: number; // 0 to 30
+  defaultRateIncreasePct: number; // 0 to 15
+  energyCostShockPct: number; // 0 to 50
 }
 
 export interface CustomScenarioResult {
@@ -43,9 +46,9 @@ export interface CustomScenarioResult {
 // ─── Result Interfaces ────────────────────────────────────────
 
 export interface MonteCarloParams {
-  paths: number;         // default 1000
-  horizon: number;       // months, default 12
-  volatility: number;    // rate vol in bps, default 150
+  paths: number; // default 1000
+  horizon: number; // months, default 12
+  volatility: number; // rate vol in bps, default 150
   meanReversion: number; // Vasicek kappa, default 0.15
 }
 
@@ -72,13 +75,13 @@ export interface MonteCarloResult {
   }>;
   worstCaseNII: number;
   expectedNII: number;
-  niiAtRisk: number;    // expected - worstCase
+  niiAtRisk: number; // expected - worstCase
 }
 
 export interface RegulatoryScenario {
   name: string;
   description: string;
-  rateShock: number[];   // monthly rate path in bps
+  rateShock: number[]; // monthly rate path in bps
   niImpact: number;
   mveImpact: number;
   lcrImpact: number;
@@ -102,7 +105,7 @@ export interface StressTestResult {
 const DEFAULT_PARAMS: MonteCarloParams = {
   paths: 1000,
   horizon: 12,
-  volatility: 150,    // 150 bps annualized vol
+  volatility: 150, // 150 bps annualized vol
   meanReversion: 0.15, // Vasicek kappa
 };
 
@@ -218,20 +221,26 @@ export class StressTestingService {
 
       // Calculate NII under this rate path
       // Average rate change over the horizon
-      const avgRate =
-        ratePath.reduce((s, v) => s + v, 0) / ratePath.length;
+      const avgRate = ratePath.reduce((s, v) => s + v, 0) / ratePath.length;
       const rateChangeBps = avgRate - r0;
 
       // NII = fixed income + floating income - fixed cost - floating cost
       // Floating reprices with rate changes; fixed stays constant
-      const fixedIncome = totalFixedAssets * (avgFixedAssetRate / 100) / 12 * p.horizon;
+      const fixedIncome =
+        ((totalFixedAssets * (avgFixedAssetRate / 100)) / 12) * p.horizon;
       const floatingIncome =
-        totalFloatingAssets *
-        ((avgFloatingAssetRate + rateChangeBps / 100) / 100) / 12 * p.horizon;
-      const fixedCost = totalFixedLiabilities * (avgFixedLiabilityRate / 100) / 12 * p.horizon;
+        ((totalFloatingAssets *
+          ((avgFloatingAssetRate + rateChangeBps / 100) / 100)) /
+          12) *
+        p.horizon;
+      const fixedCost =
+        ((totalFixedLiabilities * (avgFixedLiabilityRate / 100)) / 12) *
+        p.horizon;
       const floatingCost =
-        totalFloatingLiabilities *
-        ((avgFloatingLiabilityRate + rateChangeBps / 100) / 100) / 12 * p.horizon;
+        ((totalFloatingLiabilities *
+          ((avgFloatingLiabilityRate + rateChangeBps / 100) / 100)) /
+          12) *
+        p.horizon;
 
       const annualNII = floatingIncome + fixedIncome - floatingCost - fixedCost;
       allNIIPaths.push(round(annualNII, 2));
@@ -257,10 +266,16 @@ export class StressTestingService {
       // Convert rates to NII impact at each month
       const rateChanges = sorted.map((r) => r - r0);
       const monthlyNIIs = rateChanges.map((rc) => {
-        const floatInc = totalFloatingAssets * ((avgFloatingAssetRate + rc / 100) / 100) / 12;
-        const fixInc = totalFixedAssets * (avgFixedAssetRate / 100) / 12;
-        const floatCst = totalFloatingLiabilities * ((avgFloatingLiabilityRate + rc / 100) / 100) / 12;
-        const fixCst = totalFixedLiabilities * (avgFixedLiabilityRate / 100) / 12;
+        const floatInc =
+          (totalFloatingAssets * ((avgFloatingAssetRate + rc / 100) / 100)) /
+          12;
+        const fixInc = (totalFixedAssets * (avgFixedAssetRate / 100)) / 12;
+        const floatCst =
+          (totalFloatingLiabilities *
+            ((avgFloatingLiabilityRate + rc / 100) / 100)) /
+          12;
+        const fixCst =
+          (totalFixedLiabilities * (avgFixedLiabilityRate / 100)) / 12;
         return floatInc + fixInc - floatCst - fixCst;
       });
       const sortedMonthlyNII = [...monthlyNIIs].sort((a, b) => a - b);
@@ -319,8 +334,12 @@ export class StressTestingService {
     ];
 
     // Overall rating
-    const failCount = scenarios.filter((s) => s.passFailStatus === 'fail').length;
-    const warnCount = scenarios.filter((s) => s.passFailStatus === 'warn').length;
+    const failCount = scenarios.filter(
+      (s) => s.passFailStatus === 'fail',
+    ).length;
+    const warnCount = scenarios.filter(
+      (s) => s.passFailStatus === 'warn',
+    ).length;
 
     let overallRating: RegulatoryStressResult['overallRating'];
     if (failCount >= 2) overallRating = 'critical';
@@ -434,21 +453,30 @@ export class StressTestingService {
     baseNII: number,
     baseLCR: number,
     gap: number,
-    nii: { scenarios: Array<{ shiftBps: number; niImpact: number; mveImpact: number; niImpactPct: number }> },
+    nii: {
+      scenarios: Array<{
+        shiftBps: number;
+        niImpact: number;
+        mveImpact: number;
+        niImpactPct: number;
+      }>;
+    },
   ): RegulatoryScenario {
     // +300bps over 6 months, hold for remaining
     const rateShock = Array.from({ length: 12 }, (_, i) =>
       i < 6 ? Math.round((i + 1) * 50) : 300,
     );
     const scenario300 = nii.scenarios.find((s) => s.shiftBps === 300);
-    const niImpact = scenario300?.niImpact ?? baseNII * (gap > 0 ? 0.08 : -0.08);
+    const niImpact =
+      scenario300?.niImpact ?? baseNII * (gap > 0 ? 0.08 : -0.08);
     const mveImpact = scenario300?.mveImpact ?? -baseNII * 0.15;
     const lcrImpact = round(baseLCR * 0.92, 2); // LCR typically drops ~8% in rapid rise
-    const capitalImpact = round(mveImpact / (baseNII * 10) * 100, 2); // rough capital ratio impact
+    const capitalImpact = round((mveImpact / (baseNII * 10)) * 100, 2); // rough capital ratio impact
 
     return {
       name: 'Rapid Rise',
-      description: '+300bps over 6 months — sudden tightening cycle, stress on fixed-rate assets',
+      description:
+        '+300bps over 6 months — sudden tightening cycle, stress on fixed-rate assets',
       rateShock,
       niImpact: round(niImpact, 2),
       mveImpact: round(mveImpact, 2),
@@ -462,7 +490,14 @@ export class StressTestingService {
     baseNII: number,
     baseLCR: number,
     gap: number,
-    nii: { scenarios: Array<{ shiftBps: number; niImpact: number; mveImpact: number; niImpactPct: number }> },
+    nii: {
+      scenarios: Array<{
+        shiftBps: number;
+        niImpact: number;
+        mveImpact: number;
+        niImpactPct: number;
+      }>;
+    },
   ): RegulatoryScenario {
     // +25bps per quarter for 8 quarters = +200bps
     const rateShock = Array.from({ length: 12 }, (_, i) =>
@@ -474,11 +509,12 @@ export class StressTestingService {
       : baseNII * (gap > 0 ? 0.04 : -0.04);
     const mveImpact = scenario200?.mveImpact ?? -baseNII * 0.08;
     const lcrImpact = round(baseLCR * 0.96, 2);
-    const capitalImpact = round(mveImpact / (baseNII * 10) * 100, 2);
+    const capitalImpact = round((mveImpact / (baseNII * 10)) * 100, 2);
 
     return {
       name: 'Gradual Rise',
-      description: '+25bps per quarter for 2 years — orderly tightening, manageable repricing',
+      description:
+        '+25bps per quarter for 2 years — orderly tightening, manageable repricing',
       rateShock,
       niImpact: round(niImpact, 2),
       mveImpact: round(mveImpact, 2),
@@ -492,7 +528,14 @@ export class StressTestingService {
     baseNII: number,
     baseLCR: number,
     gap: number,
-    nii: { scenarios: Array<{ shiftBps: number; niImpact: number; mveImpact: number; niImpactPct: number }> },
+    nii: {
+      scenarios: Array<{
+        shiftBps: number;
+        niImpact: number;
+        mveImpact: number;
+        niImpactPct: number;
+      }>;
+    },
   ): RegulatoryScenario {
     // Short rates +200bps, long rates flat (yield curve inversion)
     const rateShock = Array.from({ length: 12 }, () => 200);
@@ -501,13 +544,16 @@ export class StressTestingService {
     const niImpact = scenario200
       ? scenario200.niImpact * 0.6 - baseNII * 0.03 // additional NIM compression from flattening
       : -baseNII * 0.05;
-    const mveImpact = scenario200 ? scenario200.mveImpact * 0.5 : -baseNII * 0.05;
+    const mveImpact = scenario200
+      ? scenario200.mveImpact * 0.5
+      : -baseNII * 0.05;
     const lcrImpact = round(baseLCR * 0.88, 2); // more stress
-    const capitalImpact = round(mveImpact / (baseNII * 10) * 100, 2);
+    const capitalImpact = round((mveImpact / (baseNII * 10)) * 100, 2);
 
     return {
       name: 'Yield Curve Inversion',
-      description: 'Short rates +200bps, long rates flat — NIM compression, deposit competition',
+      description:
+        'Short rates +200bps, long rates flat — NIM compression, deposit competition',
       rateShock,
       niImpact: round(niImpact, 2),
       mveImpact: round(mveImpact, 2),
@@ -521,19 +567,29 @@ export class StressTestingService {
     baseNII: number,
     baseLCR: number,
     gap: number,
-    nii: { scenarios: Array<{ shiftBps: number; niImpact: number; mveImpact: number; niImpactPct: number }> },
+    nii: {
+      scenarios: Array<{
+        shiftBps: number;
+        niImpact: number;
+        mveImpact: number;
+        niImpactPct: number;
+      }>;
+    },
   ): RegulatoryScenario {
     // -200bps immediate
     const rateShock = Array.from({ length: 12 }, () => -200);
     const scenarioDown = nii.scenarios.find((s) => s.shiftBps === -200);
-    const niImpact = scenarioDown?.niImpact ?? baseNII * (gap > 0 ? -0.06 : 0.04);
-    const mveImpact = scenarioDown?.mveImpact ?? baseNII * (gap > 0 ? 0.10 : -0.05);
+    const niImpact =
+      scenarioDown?.niImpact ?? baseNII * (gap > 0 ? -0.06 : 0.04);
+    const mveImpact =
+      scenarioDown?.mveImpact ?? baseNII * (gap > 0 ? 0.1 : -0.05);
     const lcrImpact = round(baseLCR * 1.05, 2); // rates down can improve liquidity
-    const capitalImpact = round(mveImpact / (baseNII * 10) * 100, 2);
+    const capitalImpact = round((mveImpact / (baseNII * 10)) * 100, 2);
 
     return {
       name: 'Shock Down',
-      description: '-200bps immediate — recession/deflation, asset-sensitive banks lose NII',
+      description:
+        '-200bps immediate — recession/deflation, asset-sensitive banks lose NII',
       rateShock,
       niImpact: round(niImpact, 2),
       mveImpact: round(mveImpact, 2),
@@ -556,8 +612,14 @@ export class StressTestingService {
     // Clamp parameters to valid ranges
     const rateShockBps = Math.max(-300, Math.min(300, params.rateShockBps));
     const depositRunoffPct = Math.max(0, Math.min(30, params.depositRunoffPct));
-    const defaultRateIncreasePct = Math.max(0, Math.min(15, params.defaultRateIncreasePct));
-    const energyCostShockPct = Math.max(0, Math.min(50, params.energyCostShockPct));
+    const defaultRateIncreasePct = Math.max(
+      0,
+      Math.min(15, params.defaultRateIncreasePct),
+    );
+    const energyCostShockPct = Math.max(
+      0,
+      Math.min(50, params.energyCostShockPct),
+    );
 
     // Fetch institution data via ALM enterprise service
     let niiSensitivity: any;
@@ -570,7 +632,9 @@ export class StressTestingService {
         this.almEnterprise.getCOSSECCompliance(institutionId),
       ]);
     } catch (err) {
-      this.logger.warn(`Custom scenario: could not load institution data — returning empty result`);
+      this.logger.warn(
+        `Custom scenario: could not load institution data — returning empty result`,
+      );
       return this.emptyCustomScenarioResult();
     }
 
@@ -588,12 +652,15 @@ export class StressTestingService {
     // Find closest NII sensitivity scenario and interpolate
     const closestScenario = niiSensitivity.scenarios.reduce(
       (prev: any, curr: any) =>
-        Math.abs(curr.shiftBps - rateShockBps) < Math.abs(prev.shiftBps - rateShockBps)
+        Math.abs(curr.shiftBps - rateShockBps) <
+        Math.abs(prev.shiftBps - rateShockBps)
           ? curr
           : prev,
     );
     const scaleFactor =
-      closestScenario.shiftBps !== 0 ? rateShockBps / closestScenario.shiftBps : 1;
+      closestScenario.shiftBps !== 0
+        ? rateShockBps / closestScenario.shiftBps
+        : 1;
     const niiImpact = closestScenario.niImpact * scaleFactor; // in $M
     const niiImpactPct = baseNII !== 0 ? (niiImpact / baseNII) * 100 : 0;
 
@@ -608,19 +675,22 @@ export class StressTestingService {
     const depositFundingCost = depositOutflow * 0.015; // 150bps marginal cost
     // LCR drops proportionally to deposit outflow vs HQLA
     const hqla = liquidity.hqla || 0;
-    const lcrReduction = hqla > 0
-      ? (depositOutflow / Math.max(hqla, 1)) * 100 * 0.5 // 50% pass-through to LCR
-      : depositRunoffPct * 2;
+    const lcrReduction =
+      hqla > 0
+        ? (depositOutflow / Math.max(hqla, 1)) * 100 * 0.5 // 50% pass-through to LCR
+        : depositRunoffPct * 2;
     const lcrAfter = round(Math.max(0, baseLCR - lcrReduction), 1);
 
     // ── 3. Loan Default Increase → Capital Impact ──
     // Additional credit losses from increased defaults
     const additionalCreditLoss = totalLoans * (defaultRateIncreasePct / 100);
     // Capital ratio impact: loss / total assets (% points)
-    const capitalImpactPct = totalAssets > 0
-      ? (additionalCreditLoss / totalAssets) * 100
-      : 0;
-    const capitalAfter = round(Math.max(0, capitalRatioBefore - capitalImpactPct), 2);
+    const capitalImpactPct =
+      totalAssets > 0 ? (additionalCreditLoss / totalAssets) * 100 : 0;
+    const capitalAfter = round(
+      Math.max(0, capitalRatioBefore - capitalImpactPct),
+      2,
+    );
 
     // ── 4. Energy Cost Shock → Operating Expense Stress ──
     // Energy costs typically 2-5% of operating expenses for PR institutions
@@ -635,7 +705,8 @@ export class StressTestingService {
     let examDeductions = 0;
     // NIM degradation
     if (nimAfter < nimBefore) {
-      const nimDropPct = ((nimBefore - nimAfter) / Math.max(nimBefore, 0.01)) * 100;
+      const nimDropPct =
+        ((nimBefore - nimAfter) / Math.max(nimBefore, 0.01)) * 100;
       if (nimDropPct > 20) examDeductions += 15;
       else if (nimDropPct > 10) examDeductions += 10;
       else if (nimDropPct > 5) examDeductions += 5;
@@ -650,13 +721,20 @@ export class StressTestingService {
     if (defaultRateIncreasePct > 8) examDeductions += 10;
     else if (defaultRateIncreasePct > 3) examDeductions += 5;
 
-    const examReadinessAfter = Math.max(0, examReadinessBefore - examDeductions);
+    const examReadinessAfter = Math.max(
+      0,
+      examReadinessBefore - examDeductions,
+    );
 
     // ── 6. Verdict ──
     let verdict: CustomScenarioResult['verdict'];
     if (capitalAfter >= 8 && lcrAfter >= 100 && examReadinessAfter >= 70) {
       verdict = 'RESILIENT';
-    } else if (capitalAfter >= 6 && lcrAfter >= 90 && examReadinessAfter >= 50) {
+    } else if (
+      capitalAfter >= 6 &&
+      lcrAfter >= 90 &&
+      examReadinessAfter >= 50
+    ) {
       verdict = 'ADEQUATE';
     } else if (capitalAfter >= 4 && lcrAfter >= 80) {
       verdict = 'VULNERABLE';
@@ -666,12 +744,32 @@ export class StressTestingService {
 
     // ── 7. Bilingual Narrative ──
     const narrative = this.buildCustomNarrative(
-      rateShockBps, depositRunoffPct, defaultRateIncreasePct, energyCostShockPct,
-      nimBefore, nimAfter, baseLCR, lcrAfter, capitalRatioBefore, capitalAfter, verdict, 'en',
+      rateShockBps,
+      depositRunoffPct,
+      defaultRateIncreasePct,
+      energyCostShockPct,
+      nimBefore,
+      nimAfter,
+      baseLCR,
+      lcrAfter,
+      capitalRatioBefore,
+      capitalAfter,
+      verdict,
+      'en',
     );
     const narrativeEs = this.buildCustomNarrative(
-      rateShockBps, depositRunoffPct, defaultRateIncreasePct, energyCostShockPct,
-      nimBefore, nimAfter, baseLCR, lcrAfter, capitalRatioBefore, capitalAfter, verdict, 'es',
+      rateShockBps,
+      depositRunoffPct,
+      defaultRateIncreasePct,
+      energyCostShockPct,
+      nimBefore,
+      nimAfter,
+      baseLCR,
+      lcrAfter,
+      capitalRatioBefore,
+      capitalAfter,
+      verdict,
+      'es',
     );
 
     return {
@@ -691,40 +789,67 @@ export class StressTestingService {
   }
 
   private buildCustomNarrative(
-    rateShockBps: number, depositRunoffPct: number,
-    defaultRateIncreasePct: number, energyCostShockPct: number,
-    nimBefore: number, nimAfter: number,
-    lcrBefore: number, lcrAfter: number,
-    capitalBefore: number, capitalAfter: number,
-    verdict: string, lang: 'en' | 'es',
+    rateShockBps: number,
+    depositRunoffPct: number,
+    defaultRateIncreasePct: number,
+    energyCostShockPct: number,
+    nimBefore: number,
+    nimAfter: number,
+    lcrBefore: number,
+    lcrAfter: number,
+    capitalBefore: number,
+    capitalAfter: number,
+    verdict: string,
+    lang: 'en' | 'es',
   ): string {
     if (lang === 'es') {
       const shocks: string[] = [];
-      if (rateShockBps !== 0) shocks.push(`choque de tasas de ${rateShockBps > 0 ? '+' : ''}${rateShockBps}bps`);
-      if (depositRunoffPct > 0) shocks.push(`fuga de depositos del ${depositRunoffPct}%`);
-      if (defaultRateIncreasePct > 0) shocks.push(`aumento de morosidad del ${defaultRateIncreasePct}%`);
-      if (energyCostShockPct > 0) shocks.push(`aumento de costos energeticos del ${energyCostShockPct}%`);
-      const shockStr = shocks.length > 0 ? shocks.join(', ') : 'sin choques aplicados';
+      if (rateShockBps !== 0)
+        shocks.push(
+          `choque de tasas de ${rateShockBps > 0 ? '+' : ''}${rateShockBps}bps`,
+        );
+      if (depositRunoffPct > 0)
+        shocks.push(`fuga de depositos del ${depositRunoffPct}%`);
+      if (defaultRateIncreasePct > 0)
+        shocks.push(`aumento de morosidad del ${defaultRateIncreasePct}%`);
+      if (energyCostShockPct > 0)
+        shocks.push(`aumento de costos energeticos del ${energyCostShockPct}%`);
+      const shockStr =
+        shocks.length > 0 ? shocks.join(', ') : 'sin choques aplicados';
       return `Bajo este escenario (${shockStr}), el NIM se mueve de ${nimBefore.toFixed(2)}% a ${nimAfter.toFixed(2)}%, el LCR cambia de ${lcrBefore.toFixed(1)}% a ${lcrAfter.toFixed(1)}%, y el ratio de capital se ajusta de ${capitalBefore.toFixed(2)}% a ${capitalAfter.toFixed(2)}%. Veredicto: ${verdict}.`;
     }
     const shocks: string[] = [];
-    if (rateShockBps !== 0) shocks.push(`${rateShockBps > 0 ? '+' : ''}${rateShockBps}bps rate shock`);
-    if (depositRunoffPct > 0) shocks.push(`${depositRunoffPct}% deposit runoff`);
-    if (defaultRateIncreasePct > 0) shocks.push(`${defaultRateIncreasePct}% default rate increase`);
-    if (energyCostShockPct > 0) shocks.push(`${energyCostShockPct}% energy cost shock`);
-    const shockStr = shocks.length > 0 ? shocks.join(', ') : 'no shocks applied';
+    if (rateShockBps !== 0)
+      shocks.push(
+        `${rateShockBps > 0 ? '+' : ''}${rateShockBps}bps rate shock`,
+      );
+    if (depositRunoffPct > 0)
+      shocks.push(`${depositRunoffPct}% deposit runoff`);
+    if (defaultRateIncreasePct > 0)
+      shocks.push(`${defaultRateIncreasePct}% default rate increase`);
+    if (energyCostShockPct > 0)
+      shocks.push(`${energyCostShockPct}% energy cost shock`);
+    const shockStr =
+      shocks.length > 0 ? shocks.join(', ') : 'no shocks applied';
     return `Under this scenario (${shockStr}), NIM moves from ${nimBefore.toFixed(2)}% to ${nimAfter.toFixed(2)}%, LCR changes from ${lcrBefore.toFixed(1)}% to ${lcrAfter.toFixed(1)}%, and capital ratio adjusts from ${capitalBefore.toFixed(2)}% to ${capitalAfter.toFixed(2)}%. Verdict: ${verdict}.`;
   }
 
   private emptyCustomScenarioResult(): CustomScenarioResult {
     return {
-      nimImpactBps: 0, nimBefore: 0, nimAfter: 0,
-      lcrBefore: 0, lcrAfter: 0,
-      capitalBefore: 0, capitalAfter: 0,
-      examReadinessBefore: 0, examReadinessAfter: 0,
+      nimImpactBps: 0,
+      nimBefore: 0,
+      nimAfter: 0,
+      lcrBefore: 0,
+      lcrAfter: 0,
+      capitalBefore: 0,
+      capitalAfter: 0,
+      examReadinessBefore: 0,
+      examReadinessAfter: 0,
       verdict: 'CRITICAL',
-      narrative: 'No balance sheet data available. Upload your balance sheet to use the scenario builder.',
-      narrativeEs: 'No hay datos de balance disponibles. Cargue su balance para usar el constructor de escenarios.',
+      narrative:
+        'No balance sheet data available. Upload your balance sheet to use the scenario builder.',
+      narrativeEs:
+        'No hay datos de balance disponibles. Cargue su balance para usar el constructor de escenarios.',
     };
   }
 
@@ -772,7 +897,11 @@ export class StressTestingService {
       niiDistribution: { p5: 0, p25: 0, median: 0, p75: 0, p95: 0 },
       monthlyNIIBands: Array.from({ length: p.horizon + 1 }, (_, month) => ({
         month,
-        p5: 0, p25: 0, median: 0, p75: 0, p95: 0,
+        p5: 0,
+        p25: 0,
+        median: 0,
+        p75: 0,
+        p95: 0,
       })),
       worstCaseNII: 0,
       expectedNII: 0,

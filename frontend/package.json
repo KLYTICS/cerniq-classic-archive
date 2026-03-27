@@ -17,9 +17,9 @@
     "date-fns": "^4.1.0",
     "framer-motion": "^12.29.2",
     "html2canvas": "^1.4.1",
-    "jspdf": "^4.2.0",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.563.0",
-    "next": "16.1.5",
+    "next": "16.2.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-dropzone": "^14.4.0",
@@ -35,7 +35,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "@playwright/test": "^1.52.0",
-    "eslint-config-next": "16.1.5",
+    "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
@@ -46,5 +46,9 @@
   "trustedDependencies": [
     "sharp",
     "unrs-resolver"
-  ]
+  ],
+  "overrides": {
+    "dompurify": "3.3.3",
+    "socket.io-parser": "4.2.6"
+  }
 }

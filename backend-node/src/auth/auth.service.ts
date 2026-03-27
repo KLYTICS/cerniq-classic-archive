@@ -40,7 +40,11 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async register(dto: { email: string; password: string; name?: string }): Promise<{
+  async register(dto: {
+    email: string;
+    password: string;
+    name?: string;
+  }): Promise<{
     user: AuthResponse['user'];
     accessToken: string;
     refreshToken: string;
@@ -66,7 +70,12 @@ export class AuthService {
       },
     });
 
-    this.logger.log({ event: 'user_registered', userId: user.id, email: dto.email, provider: 'email' });
+    this.logger.log({
+      event: 'user_registered',
+      userId: user.id,
+      email: dto.email,
+      provider: 'email',
+    });
 
     // Auto-create a default workspace for the new user
     await this.prisma.workspace.create({
@@ -89,23 +98,40 @@ export class AuthService {
     });
 
     if (!user || !user.passwordHash) {
-      this.logger.warn({ event: 'login_failed', email: dto.email, reason: 'not_found' });
+      this.logger.warn({
+        event: 'login_failed',
+        email: dto.email,
+        reason: 'not_found',
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordValid) {
-      this.logger.warn({ event: 'login_failed', email: dto.email, reason: 'bad_password' });
+      this.logger.warn({
+        event: 'login_failed',
+        email: dto.email,
+        reason: 'bad_password',
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
     // Update lastLoginAt timestamp
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    }).catch(() => { /* best-effort */ });
+    await this.prisma.user
+      .update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      })
+      .catch(() => {
+        /* best-effort */
+      });
 
-    this.logger.log({ event: 'user_login', userId: user.id, email: dto.email, provider: 'email' });
+    this.logger.log({
+      event: 'user_login',
+      userId: user.id,
+      email: dto.email,
+      provider: 'email',
+    });
     return this.generateTokens(user);
   }
 
@@ -157,16 +183,28 @@ export class AuthService {
     }
 
     // Update lastLoginAt timestamp for OAuth login
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    }).catch(() => { /* best-effort */ });
+    await this.prisma.user
+      .update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      })
+      .catch(() => {
+        /* best-effort */
+      });
 
-    this.logger.log({ event: 'oauth_login', userId: user.id, provider: profile.provider });
+    this.logger.log({
+      event: 'oauth_login',
+      userId: user.id,
+      provider: profile.provider,
+    });
     return user;
   }
 
-  async generateTokens(user: { id: string; email: string; name?: string | null }) {
+  async generateTokens(user: {
+    id: string;
+    email: string;
+    name?: string | null;
+  }) {
     const accessPayload = {
       sub: user.id,
       email: user.email,
@@ -193,7 +231,10 @@ export class AuthService {
     await this.prisma.refreshToken.create({
       data: {
         userId: user.id,
-        token: crypto.createHash('sha256').update(refreshTokenValue).digest('hex'),
+        token: crypto
+          .createHash('sha256')
+          .update(refreshTokenValue)
+          .digest('hex'),
         expiresAt,
       },
     });
@@ -221,18 +262,29 @@ export class AuthService {
       throw new UnauthorizedException('Invalid token type');
     }
 
-    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
     const storedToken = await this.prisma.refreshToken.findUnique({
       where: { token: tokenHash },
     });
 
     if (!storedToken || storedToken.revokedAt) {
-      this.logger.warn({ event: 'token_refresh_failed', reason: 'revoked', userId: payload.sub });
+      this.logger.warn({
+        event: 'token_refresh_failed',
+        reason: 'revoked',
+        userId: payload.sub,
+      });
       throw new UnauthorizedException('Refresh token revoked');
     }
 
     if (storedToken.expiresAt < new Date()) {
-      this.logger.warn({ event: 'token_refresh_failed', reason: 'expired', userId: payload.sub });
+      this.logger.warn({
+        event: 'token_refresh_failed',
+        reason: 'expired',
+        userId: payload.sub,
+      });
       throw new UnauthorizedException('Refresh token expired');
     }
 
@@ -255,7 +307,10 @@ export class AuthService {
 
   async logout(refreshToken: string) {
     if (!refreshToken) return;
-    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
     try {
       await this.prisma.refreshToken.updateMany({
         where: { token: tokenHash, revokedAt: null },
@@ -309,18 +364,28 @@ export class AuthService {
     };
   }
 
-  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user || !user.passwordHash) {
-      throw new BadRequestException('Cannot change password for OAuth accounts');
+      throw new BadRequestException(
+        'Cannot change password for OAuth accounts',
+      );
     }
 
     const valid = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!valid) {
-      this.logger.warn({ event: 'password_change_failed', userId, reason: 'bad_current_password' });
+      this.logger.warn({
+        event: 'password_change_failed',
+        userId,
+        reason: 'bad_current_password',
+      });
       throw new UnauthorizedException('Current password is incorrect');
     }
 
@@ -353,7 +418,10 @@ export class AuthService {
 
     // Generate a cryptographically random token (plaintext goes in email)
     const plainToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(plainToken).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(plainToken)
+      .digest('hex');
 
     await this.prisma.passwordResetToken.create({
       data: {
@@ -364,7 +432,9 @@ export class AuthService {
     });
 
     // Send reset email via Resend (fire-and-forget)
-    this.sendPasswordResetEmail(user.email, user.name || '', plainToken).catch(() => {});
+    this.sendPasswordResetEmail(user.email, user.name || '', plainToken).catch(
+      () => {},
+    );
 
     this.logger.log({ event: 'password_reset_requested', userId: user.id });
     return { message: successMsg };
@@ -377,8 +447,14 @@ export class AuthService {
       where: { tokenHash },
     });
 
-    if (!resetRecord || resetRecord.usedAt || resetRecord.expiresAt < new Date()) {
-      throw new BadRequestException('Reset link is invalid or has expired. Please request a new one.');
+    if (
+      !resetRecord ||
+      resetRecord.usedAt ||
+      resetRecord.expiresAt < new Date()
+    ) {
+      throw new BadRequestException(
+        'Reset link is invalid or has expired. Please request a new one.',
+      );
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
@@ -399,12 +475,24 @@ export class AuthService {
       }),
     ]);
 
-    this.logger.log({ event: 'password_reset_completed', userId: resetRecord.userId });
-    return { message: 'Password has been reset successfully. Please log in with your new password.' };
+    this.logger.log({
+      event: 'password_reset_completed',
+      userId: resetRecord.userId,
+    });
+    return {
+      message:
+        'Password has been reset successfully. Please log in with your new password.',
+    };
   }
 
-  private async sendPasswordResetEmail(email: string, name: string, token: string): Promise<void> {
-    const frontendUrl = (process.env.FRONTEND_URL || 'https://cerniq.io').trim().replace(/\/+$/, '');
+  private async sendPasswordResetEmail(
+    email: string,
+    name: string,
+    token: string,
+  ): Promise<void> {
+    const frontendUrl = (process.env.FRONTEND_URL || 'https://cerniq.io')
+      .trim()
+      .replace(/\/+$/, '');
     const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
 
     try {
@@ -412,7 +500,9 @@ export class AuthService {
       const { Resend } = require('resend');
       const apiKey = process.env.RESEND_API_KEY;
       if (!apiKey) {
-        this.logger.warn('RESEND_API_KEY not set — password reset email not sent');
+        this.logger.warn(
+          'RESEND_API_KEY not set — password reset email not sent',
+        );
         return;
       }
       const resend = new Resend(apiKey);
@@ -450,8 +540,12 @@ export class AuthService {
     }
   }
 
-  async getUserOrgs(userId: string): Promise<Array<{ org_id: string; role: string; apps: string[] }>> {
-    const supabaseUrl = (process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
+  async getUserOrgs(
+    userId: string,
+  ): Promise<Array<{ org_id: string; role: string; apps: string[] }>> {
+    const supabaseUrl = (process.env.SUPABASE_URL || '')
+      .trim()
+      .replace(/\/$/, '');
     const serviceRole = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
     if (!supabaseUrl || !serviceRole || !userId) {
       return [];
@@ -470,7 +564,10 @@ export class AuthService {
       if (!membershipsRes.ok) {
         return [];
       }
-      const memberships = (await membershipsRes.json()) as Array<{ org_id: string; role: string }>;
+      const memberships = (await membershipsRes.json()) as Array<{
+        org_id: string;
+        role: string;
+      }>;
       const out: Array<{ org_id: string; role: string; apps: string[] }> = [];
 
       for (const membership of memberships || []) {
@@ -482,11 +579,15 @@ export class AuthService {
           `${supabaseUrl}/rest/v1/org_apps?select=app_id&org_id=eq.${encodeURIComponent(membership.org_id)}&enabled=is.true`,
           { headers },
         );
-        const appsJson = appsRes.ok ? ((await appsRes.json()) as Array<{ app_id?: string }>) : [];
+        const appsJson = appsRes.ok
+          ? ((await appsRes.json()) as Array<{ app_id?: string }>)
+          : [];
         out.push({
           org_id: membership.org_id,
           role: membership.role || 'viewer',
-          apps: (appsJson || []).map((a) => a.app_id).filter((v): v is string => !!v),
+          apps: (appsJson || [])
+            .map((a) => a.app_id)
+            .filter((v): v is string => !!v),
         });
       }
 

@@ -285,7 +285,7 @@ export default function StressTestPage() {
                     color: '#f1f5f9',
                     fontSize: 12,
                   }}
-                  formatter={(value: number | undefined) => [`$${(value ?? 0).toFixed(2)}M`, '']}
+                  formatter={(value) => [`$${Number(value ?? 0).toFixed(2)}M`, '']}
                   labelFormatter={(label) => `Month ${label}`}
                 />
                 <Area type="monotone" dataKey="p95" stackId="1" stroke="none" fill="#22c55e" fillOpacity={0.08} name="95th %ile" />

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 import { NCUADataPullService } from './data-pull/ncua-data-pull.service';
 
 // ─── Types ───────────────────────────────────────────────────
@@ -49,31 +49,40 @@ export class ProspectIntelligenceService {
   async analyzeProspect(charterNumber: string): Promise<ProspectAnalysis> {
     const ncuaData = await this.ncuaPull.pullByCharterNumber(charterNumber);
 
-    const assets = ncuaData.items.filter(i => i.category === 'asset');
-    const liabilities = ncuaData.items.filter(i => i.category === 'liability');
+    const assets = ncuaData.items.filter((i) => i.category === 'asset');
+    const liabilities = ncuaData.items.filter(
+      (i) => i.category === 'liability',
+    );
     const totalAssets = assets.reduce((s, i) => s + i.balance, 0);
     const totalLiabilities = liabilities.reduce((s, i) => s + i.balance, 0);
     const equity = totalAssets - totalLiabilities;
     const nwr = totalAssets > 0 ? (equity / totalAssets) * 100 : 0;
 
-    const loans = assets.filter(i => !['cash', 'securities'].includes(i.subcategory));
+    const loans = assets.filter(
+      (i) => !['cash', 'securities'].includes(i.subcategory),
+    );
     const totalLoans = loans.reduce((s, i) => s + i.balance, 0);
     const totalShares = liabilities.reduce((s, i) => s + i.balance, 0);
     const loanToShare = totalShares > 0 ? (totalLoans / totalShares) * 100 : 0;
 
     const assetIncome = assets.reduce((s, i) => s + i.balance * i.rate, 0);
     const liabCost = liabilities.reduce((s, i) => s + i.balance * i.rate, 0);
-    const nim = totalAssets > 0 ? ((assetIncome - liabCost) / totalAssets) * 100 : 0;
+    const nim =
+      totalAssets > 0 ? ((assetIncome - liabCost) / totalAssets) * 100 : 0;
 
-    const assetTier = totalAssets < 50 ? 'small' : totalAssets < 300 ? 'medium' : 'large';
+    const assetTier =
+      totalAssets < 50 ? 'small' : totalAssets < 300 ? 'medium' : 'large';
 
     // Identify risk flags vs. peer medians
     const riskFlags: ProspectRiskFlag[] = [];
 
     if (nwr < PEER_MEDIANS.nwr) {
       riskFlags.push({
-        metric: 'Net Worth Ratio', metricEs: 'Ratio de Capital Neto',
-        actual: +nwr.toFixed(1), peerMedian: PEER_MEDIANS.nwr, gap: +(nwr - PEER_MEDIANS.nwr).toFixed(1),
+        metric: 'Net Worth Ratio',
+        metricEs: 'Ratio de Capital Neto',
+        actual: +nwr.toFixed(1),
+        peerMedian: PEER_MEDIANS.nwr,
+        gap: +(nwr - PEER_MEDIANS.nwr).toFixed(1),
         severity: nwr < 7 ? 'HIGH' : 'MEDIUM',
         narrative: `NWR of ${nwr.toFixed(1)}% is below the PR cooperativa median of ${PEER_MEDIANS.nwr}%.`,
         narrativeEs: `NWR de ${nwr.toFixed(1)}% está por debajo de la mediana de cooperativas PR de ${PEER_MEDIANS.nwr}%.`,
@@ -82,8 +91,11 @@ export class ProspectIntelligenceService {
 
     if (nim < PEER_MEDIANS.nim) {
       riskFlags.push({
-        metric: 'Net Interest Margin', metricEs: 'Margen de Interés Neto',
-        actual: +nim.toFixed(2), peerMedian: PEER_MEDIANS.nim, gap: +(nim - PEER_MEDIANS.nim).toFixed(2),
+        metric: 'Net Interest Margin',
+        metricEs: 'Margen de Interés Neto',
+        actual: +nim.toFixed(2),
+        peerMedian: PEER_MEDIANS.nim,
+        gap: +(nim - PEER_MEDIANS.nim).toFixed(2),
         severity: nim < 2.5 ? 'HIGH' : 'MEDIUM',
         narrative: `NIM of ${nim.toFixed(2)}% is below the peer median of ${PEER_MEDIANS.nim}%.`,
         narrativeEs: `NIM de ${nim.toFixed(2)}% está por debajo de la mediana de pares de ${PEER_MEDIANS.nim}%.`,
@@ -92,8 +104,11 @@ export class ProspectIntelligenceService {
 
     if (loanToShare > PEER_MEDIANS.loanToShare + 10) {
       riskFlags.push({
-        metric: 'Loan-to-Share Ratio', metricEs: 'Ratio Préstamos/Acciones',
-        actual: +loanToShare.toFixed(1), peerMedian: PEER_MEDIANS.loanToShare, gap: +(loanToShare - PEER_MEDIANS.loanToShare).toFixed(1),
+        metric: 'Loan-to-Share Ratio',
+        metricEs: 'Ratio Préstamos/Acciones',
+        actual: +loanToShare.toFixed(1),
+        peerMedian: PEER_MEDIANS.loanToShare,
+        gap: +(loanToShare - PEER_MEDIANS.loanToShare).toFixed(1),
         severity: loanToShare > 90 ? 'HIGH' : 'MEDIUM',
         narrative: `Loan-to-share of ${loanToShare.toFixed(1)}% exceeds peer median of ${PEER_MEDIANS.loanToShare}%.`,
         narrativeEs: `Ratio préstamos/acciones de ${loanToShare.toFixed(1)}% excede la mediana de pares de ${PEER_MEDIANS.loanToShare}%.`,
@@ -103,15 +118,24 @@ export class ProspectIntelligenceService {
     // Always add at least one flag for outreach relevance
     if (riskFlags.length === 0) {
       riskFlags.push({
-        metric: 'Exam Preparation', metricEs: 'Preparación de Examen',
-        actual: 0, peerMedian: 0, gap: 0, severity: 'LOW',
-        narrative: 'Institution metrics are within peer norms — COSSEC exam prep automation is the primary value proposition.',
-        narrativeEs: 'Las métricas institucionales están dentro de normas de pares — la automatización de preparación de examen COSSEC es la propuesta de valor principal.',
+        metric: 'Exam Preparation',
+        metricEs: 'Preparación de Examen',
+        actual: 0,
+        peerMedian: 0,
+        gap: 0,
+        severity: 'LOW',
+        narrative:
+          'Institution metrics are within peer norms — COSSEC exam prep automation is the primary value proposition.',
+        narrativeEs:
+          'Las métricas institucionales están dentro de normas de pares — la automatización de preparación de examen COSSEC es la propuesta de valor principal.',
       });
     }
 
-    const overallRiskLevel = riskFlags.some(f => f.severity === 'HIGH') ? 'HIGH'
-      : riskFlags.some(f => f.severity === 'MEDIUM') ? 'MEDIUM' : 'LOW';
+    const overallRiskLevel = riskFlags.some((f) => f.severity === 'HIGH')
+      ? 'HIGH'
+      : riskFlags.some((f) => f.severity === 'MEDIUM')
+        ? 'MEDIUM'
+        : 'LOW';
 
     // Generate personalized email
     const topFlag = riskFlags[0];
@@ -155,7 +179,10 @@ cerniq.io`;
     };
   }
 
-  async analyzeAllProspects(): Promise<{ analyzed: number; results: ProspectAnalysis[] }> {
+  async analyzeAllProspects(): Promise<{
+    analyzed: number;
+    results: ProspectAnalysis[];
+  }> {
     // Pull all prospects from ProspectInstitution table
     const prospects = await this.prisma.prospectInstitution.findMany({
       where: { outreachStatus: { in: ['not_started', 'sample_generated'] } },
@@ -167,14 +194,23 @@ cerniq.io`;
       if (!prospect.publicDataSource) continue;
       try {
         // Use a deterministic charter-like number from the prospect name
-        const charter = String(Math.abs(this.hashCode(prospect.name)) % 100000).padStart(5, '0');
+        const charter = String(
+          Math.abs(this.hashCode(prospect.name)) % 100000,
+        ).padStart(5, '0');
         const analysis = await this.analyzeProspect(charter);
-        results.push({ ...analysis, institutionName: prospect.name, charterNumber: charter });
+        results.push({
+          ...analysis,
+          institutionName: prospect.name,
+          charterNumber: charter,
+        });
 
         // Update prospect status
         await this.prisma.prospectInstitution.update({
           where: { id: prospect.id },
-          data: { outreachStatus: 'sample_generated', notes: `Risk flags: ${analysis.riskFlags.map(f => f.metric).join(', ')}` },
+          data: {
+            outreachStatus: 'sample_generated',
+            notes: `Risk flags: ${analysis.riskFlags.map((f) => f.metric).join(', ')}`,
+          },
         });
       } catch (err) {
         this.logger.warn(`Failed to analyze prospect ${prospect.name}: ${err}`);
@@ -187,7 +223,7 @@ cerniq.io`;
   private hashCode(s: string): number {
     let hash = 0;
     for (let i = 0; i < s.length; i++) {
-      hash = ((hash << 5) - hash) + s.charCodeAt(i);
+      hash = (hash << 5) - hash + s.charCodeAt(i);
       hash |= 0;
     }
     return hash;

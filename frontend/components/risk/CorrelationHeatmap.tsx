@@ -7,7 +7,7 @@ import { apiClient } from '@/lib/api';
 interface CorrelationData {
     tickers: string[];
     matrix: number[][];
-    computedAt: Date;
+    computedAt: string | Date;
 }
 
 interface CorrelationHeatmapProps {

@@ -4,15 +4,15 @@ import { Injectable, Logger } from '@nestjs/common';
 // States: RISING_RATES, PLATEAU, EASING, CRISIS
 
 const STATE_NAMES = ['RISING_RATES', 'PLATEAU', 'EASING', 'CRISIS'] as const;
-type RegimeState = typeof STATE_NAMES[number];
+type RegimeState = (typeof STATE_NAMES)[number];
 
 // Gaussian emission parameters (calibrated from Fed Funds 1990-2024)
 // Observation vector: [weekly_rate_change_bps, rate_volatility, credit_spread_change]
 const EMISSION_MEANS = [
-  [8.5, 0.12, 0.05],   // RISING: rates up, low vol, spreads stable
-  [0.2, 0.06, 0.00],   // PLATEAU: flat, very low vol
-  [-6.0, 0.10, -0.03], // EASING: rates down, moderate vol
-  [-2.0, 0.35, 0.25],  // CRISIS: flat rates, HIGH vol, spreads widen
+  [8.5, 0.12, 0.05], // RISING: rates up, low vol, spreads stable
+  [0.2, 0.06, 0.0], // PLATEAU: flat, very low vol
+  [-6.0, 0.1, -0.03], // EASING: rates down, moderate vol
+  [-2.0, 0.35, 0.25], // CRISIS: flat rates, HIGH vol, spreads widen
 ];
 const EMISSION_STDS = [
   [4.0, 0.05, 0.03],
@@ -22,12 +22,12 @@ const EMISSION_STDS = [
 ];
 
 const TRANSITION = [
-  [0.85, 0.10, 0.03, 0.02], // From RISING
-  [0.05, 0.80, 0.12, 0.03], // From PLATEAU
-  [0.02, 0.15, 0.80, 0.03], // From EASING
-  [0.01, 0.10, 0.09, 0.80], // From CRISIS
+  [0.85, 0.1, 0.03, 0.02], // From RISING
+  [0.05, 0.8, 0.12, 0.03], // From PLATEAU
+  [0.02, 0.15, 0.8, 0.03], // From EASING
+  [0.01, 0.1, 0.09, 0.8], // From CRISIS
 ];
-const INITIAL = [0.25, 0.40, 0.25, 0.10];
+const INITIAL = [0.25, 0.4, 0.25, 0.1];
 
 export interface RegimeResult {
   currentRegime: RegimeState;
@@ -49,8 +49,12 @@ export class HMMRegimeService {
     const T = observations.length;
 
     // Viterbi algorithm
-    const delta: number[][] = Array.from({ length: T }, () => new Array(this.K).fill(-Infinity));
-    const psi: number[][] = Array.from({ length: T }, () => new Array(this.K).fill(0));
+    const delta: number[][] = Array.from({ length: T }, () =>
+      new Array(this.K).fill(-Infinity),
+    );
+    const psi: number[][] = Array.from({ length: T }, () =>
+      new Array(this.K).fill(0),
+    );
 
     // Init
     for (let j = 0; j < this.K; j++) {
@@ -60,10 +64,14 @@ export class HMMRegimeService {
     // Recurse
     for (let t = 1; t < T; t++) {
       for (let j = 0; j < this.K; j++) {
-        let best = -Infinity, bestI = 0;
+        let best = -Infinity,
+          bestI = 0;
         for (let i = 0; i < this.K; i++) {
           const v = delta[t - 1][i] + Math.log(TRANSITION[i][j]);
-          if (v > best) { best = v; bestI = i; }
+          if (v > best) {
+            best = v;
+            bestI = i;
+          }
         }
         delta[t][j] = best + this.logEmit(j, observations[t]);
         psi[t][j] = bestI;
@@ -79,7 +87,7 @@ export class HMMRegimeService {
     const fwd = this.forward(observations);
     const lastFwd = fwd[T - 1];
     const sumFwd = lastFwd.reduce((s, p) => s + p, 0);
-    const probs = lastFwd.map(p => p / (sumFwd || 1));
+    const probs = lastFwd.map((p) => p / (sumFwd || 1));
 
     const currentState = path[T - 1];
     const currentRegime = STATE_NAMES[currentState];
@@ -106,7 +114,10 @@ export class HMMRegimeService {
 
     return {
       currentRegime,
-      currentProbabilities: STATE_NAMES.map((r, i) => ({ regime: r, probability: +probs[i].toFixed(4) })),
+      currentProbabilities: STATE_NAMES.map((r, i) => ({
+        regime: r,
+        probability: +probs[i].toFixed(4),
+      })),
       regimePersistence: persistence,
       statePath: path.map((s: number) => STATE_NAMES[s]),
       almImplications: implications[currentRegime].en,
@@ -131,21 +142,26 @@ export class HMMRegimeService {
     for (let d = 0; d < Math.min(obs.length, 3); d++) {
       const mu = EMISSION_MEANS[state][d];
       const std = EMISSION_STDS[state][d];
-      logP += -0.5 * ((obs[d] - mu) / std) ** 2 - Math.log(std * Math.sqrt(2 * Math.PI));
+      logP +=
+        -0.5 * ((obs[d] - mu) / std) ** 2 -
+        Math.log(std * Math.sqrt(2 * Math.PI));
     }
     return logP;
   }
 
   private forward(observations: number[][]): number[][] {
     const T = observations.length;
-    const alpha: number[][] = Array.from({ length: T }, () => new Array(this.K).fill(0));
+    const alpha: number[][] = Array.from({ length: T }, () =>
+      new Array(this.K).fill(0),
+    );
     for (let j = 0; j < this.K; j++) {
       alpha[0][j] = INITIAL[j] * Math.exp(this.logEmit(j, observations[0]));
     }
     for (let t = 1; t < T; t++) {
       for (let j = 0; j < this.K; j++) {
-        alpha[t][j] = alpha[t - 1].reduce((s, a, i) => s + a * TRANSITION[i][j], 0)
-          * Math.exp(this.logEmit(j, observations[t]));
+        alpha[t][j] =
+          alpha[t - 1].reduce((s, a, i) => s + a * TRANSITION[i][j], 0) *
+          Math.exp(this.logEmit(j, observations[t]));
       }
       // Scale to prevent underflow
       const scale = alpha[t].reduce((s, a) => s + a, 0) || 1;
@@ -163,10 +179,17 @@ export class HMMRegimeService {
         { regime: 'EASING', probability: 0.25 },
         { regime: 'CRISIS', probability: 0.05 },
       ],
-      regimePersistence: 0.80,
-      statePath: ['RISING_RATES', 'RISING_RATES', 'PLATEAU', 'PLATEAU', 'PLATEAU'],
+      regimePersistence: 0.8,
+      statePath: [
+        'RISING_RATES',
+        'RISING_RATES',
+        'PLATEAU',
+        'PLATEAU',
+        'PLATEAU',
+      ],
       almImplications: 'Rate plateau regime. NIM stable but under pressure.',
-      almImplicationsEs: 'Régimen de meseta de tasas. NIM estable pero bajo presión.',
+      almImplicationsEs:
+        'Régimen de meseta de tasas. NIM estable pero bajo presión.',
     };
   }
 }

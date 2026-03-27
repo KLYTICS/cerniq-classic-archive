@@ -96,7 +96,7 @@ describe('API Integration Tests (e2e)', () => {
         .post('/api/execution/slippage')
         .send({
           ticker: 'AAPL',
-          executionPrice: 175.10,
+          executionPrice: 175.1,
           executionTime: new Date().toISOString(),
           side: 'BUY',
           quantity: 100,
@@ -105,7 +105,9 @@ describe('API Integration Tests (e2e)', () => {
 
       expect(response.body).toHaveProperty('slippageBps');
       expect(response.body).toHaveProperty('quality');
-      expect(['EXCELLENT', 'GOOD', 'FAIR', 'POOR']).toContain(response.body.quality);
+      expect(['EXCELLENT', 'GOOD', 'FAIR', 'POOR']).toContain(
+        response.body.quality,
+      );
     });
 
     it('GET /api/execution/strategies should return available strategies', async () => {

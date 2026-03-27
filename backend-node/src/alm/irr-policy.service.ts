@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -35,12 +35,54 @@ export interface PolicyDashboard {
 }
 
 const DEFAULT_LIMITS: PolicyLimitConfig[] = [
-  { limitType: 'EVE_PCT', scenario: '+200bps', watchPct: 12, warningPct: 18, breachPct: 25, regulatoryRef: 'Basel IRRBB — EVE outlier test' },
-  { limitType: 'EVE_PCT', scenario: '-200bps', watchPct: 12, warningPct: 18, breachPct: 25, regulatoryRef: 'Basel IRRBB — EVE outlier test' },
-  { limitType: 'NII_AT_RISK', scenario: '+200bps', watchPct: 10, warningPct: 15, breachPct: 20, regulatoryRef: 'OCIF CC-2022-03 §IV.A — NII Sensitivity' },
-  { limitType: 'NII_AT_RISK', scenario: '-100bps', watchPct: 8, warningPct: 12, breachPct: 15, regulatoryRef: 'OCIF CC-2022-03 §IV.A — NII Sensitivity' },
-  { limitType: 'DURATION_GAP', scenario: 'base', watchPct: 2.5, warningPct: 3.5, breachPct: 5.0, regulatoryRef: 'COSSEC Examen Art. 7.3 — Duration Gap' },
-  { limitType: 'REPRICING_GAP', scenario: '0-90d', watchPct: 15, warningPct: 20, breachPct: 25, regulatoryRef: 'OCIF CC-2022-03 §IV.B — Repricing Gap' },
+  {
+    limitType: 'EVE_PCT',
+    scenario: '+200bps',
+    watchPct: 12,
+    warningPct: 18,
+    breachPct: 25,
+    regulatoryRef: 'Basel IRRBB — EVE outlier test',
+  },
+  {
+    limitType: 'EVE_PCT',
+    scenario: '-200bps',
+    watchPct: 12,
+    warningPct: 18,
+    breachPct: 25,
+    regulatoryRef: 'Basel IRRBB — EVE outlier test',
+  },
+  {
+    limitType: 'NII_AT_RISK',
+    scenario: '+200bps',
+    watchPct: 10,
+    warningPct: 15,
+    breachPct: 20,
+    regulatoryRef: 'OCIF CC-2022-03 §IV.A — NII Sensitivity',
+  },
+  {
+    limitType: 'NII_AT_RISK',
+    scenario: '-100bps',
+    watchPct: 8,
+    warningPct: 12,
+    breachPct: 15,
+    regulatoryRef: 'OCIF CC-2022-03 §IV.A — NII Sensitivity',
+  },
+  {
+    limitType: 'DURATION_GAP',
+    scenario: 'base',
+    watchPct: 2.5,
+    warningPct: 3.5,
+    breachPct: 5.0,
+    regulatoryRef: 'COSSEC Examen Art. 7.3 — Duration Gap',
+  },
+  {
+    limitType: 'REPRICING_GAP',
+    scenario: '0-90d',
+    watchPct: 15,
+    warningPct: 20,
+    breachPct: 25,
+    regulatoryRef: 'OCIF CC-2022-03 §IV.B — Repricing Gap',
+  },
 ];
 
 @Injectable()
@@ -52,15 +94,20 @@ export class IRRPolicyService {
   // ─── Get / Set Policy Limits ──────────────────────────────
 
   async getLimits(institutionId: string): Promise<PolicyLimitConfig[]> {
-    const limits = await this.prisma.iRRPolicyLimit.findMany({ where: { institutionId } });
+    const limits = await this.prisma.iRRPolicyLimit.findMany({
+      where: { institutionId },
+    });
     if (limits.length > 0) return limits;
     return DEFAULT_LIMITS; // demo fallback
   }
 
-  async saveLimits(institutionId: string, limits: PolicyLimitConfig[]): Promise<{ saved: number }> {
+  async saveLimits(
+    institutionId: string,
+    limits: PolicyLimitConfig[],
+  ): Promise<{ saved: number }> {
     await this.prisma.iRRPolicyLimit.deleteMany({ where: { institutionId } });
     const created = await this.prisma.iRRPolicyLimit.createMany({
-      data: limits.map(l => ({
+      data: limits.map((l) => ({
         institutionId,
         limitType: l.limitType,
         scenario: l.scenario,
@@ -79,7 +126,7 @@ export class IRRPolicyService {
     const limits = await this.getLimits(institutionId);
     const metrics = await this.getCurrentMetrics(institutionId);
 
-    const checks: PolicyCheckResult[] = limits.map(limit => {
+    const checks: PolicyCheckResult[] = limits.map((limit) => {
       const actual = this.getActualForLimit(limit, metrics);
       const absActual = Math.abs(actual);
       let level: PolicyCheckResult['level'] = 'COMPLIANT';
@@ -87,7 +134,8 @@ export class IRRPolicyService {
       else if (absActual >= limit.warningPct) level = 'WARNING';
       else if (absActual >= limit.watchPct) level = 'WATCH';
 
-      const utilization = limit.breachPct > 0 ? (absActual / limit.breachPct) * 100 : 0;
+      const utilization =
+        limit.breachPct > 0 ? (absActual / limit.breachPct) * 100 : 0;
 
       return {
         limitType: limit.limitType,
@@ -103,21 +151,24 @@ export class IRRPolicyService {
     });
 
     // Log breaches
-    const breaches = checks.filter(c => c.level === 'BREACH' || c.level === 'WARNING');
+    const breaches = checks.filter(
+      (c) => c.level === 'BREACH' || c.level === 'WARNING',
+    );
     for (const breach of breaches) {
       await this.logBreach(institutionId, breach);
     }
 
-    const breachCount = checks.filter(c => c.level === 'BREACH').length;
-    const warningCount = checks.filter(c => c.level === 'WARNING').length;
-    const watchCount = checks.filter(c => c.level === 'WATCH').length;
+    const breachCount = checks.filter((c) => c.level === 'BREACH').length;
+    const warningCount = checks.filter((c) => c.level === 'WARNING').length;
+    const watchCount = checks.filter((c) => c.level === 'WATCH').length;
 
     return {
       checks,
       breachCount,
       warningCount,
       watchCount,
-      overallStatus: breachCount > 0 ? 'RED' : warningCount > 0 ? 'AMBER' : 'GREEN',
+      overallStatus:
+        breachCount > 0 ? 'RED' : warningCount > 0 ? 'AMBER' : 'GREEN',
       lastChecked: new Date().toISOString(),
     };
   }
@@ -134,9 +185,13 @@ export class IRRPolicyService {
 
   // ─── Private ──────────────────────────────────────────────
 
-  private async getCurrentMetrics(institutionId: string): Promise<Record<string, number>> {
+  private async getCurrentMetrics(
+    institutionId: string,
+  ): Promise<Record<string, number>> {
     // Pull latest analysis data
-    const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId },
+    });
     if (items.length === 0) {
       return {
         'EVE_PCT:+200bps': -15.2,
@@ -149,16 +204,25 @@ export class IRRPolicyService {
     }
 
     // Compute actual metrics from balance sheet
-    const totalAssets = items.filter(i => i.category === 'asset').reduce((s, i) => s + i.balance, 0);
-    const assetDuration = items.filter(i => i.category === 'asset')
-      .reduce((s, i) => s + i.balance * i.duration, 0) / (totalAssets || 1);
-    const liabDuration = items.filter(i => i.category === 'liability')
-      .reduce((s, i) => s + i.balance * i.duration, 0) / (items.filter(i => i.category === 'liability').reduce((s, i) => s + i.balance, 0) || 1);
+    const totalAssets = items
+      .filter((i) => i.category === 'asset')
+      .reduce((s, i) => s + i.balance, 0);
+    const assetDuration =
+      items
+        .filter((i) => i.category === 'asset')
+        .reduce((s, i) => s + i.balance * i.duration, 0) / (totalAssets || 1);
+    const liabDuration =
+      items
+        .filter((i) => i.category === 'liability')
+        .reduce((s, i) => s + i.balance * i.duration, 0) /
+      (items
+        .filter((i) => i.category === 'liability')
+        .reduce((s, i) => s + i.balance, 0) || 1);
     const durationGap = assetDuration - liabDuration;
 
     // Simplified EVE/NII estimates
-    const eve200up = -durationGap * totalAssets * 0.02 / totalAssets * 100;
-    const eve200down = durationGap * totalAssets * 0.02 / totalAssets * 100;
+    const eve200up = ((-durationGap * totalAssets * 0.02) / totalAssets) * 100;
+    const eve200down = ((durationGap * totalAssets * 0.02) / totalAssets) * 100;
 
     return {
       'EVE_PCT:+200bps': eve200up,
@@ -170,7 +234,10 @@ export class IRRPolicyService {
     };
   }
 
-  private getActualForLimit(limit: PolicyLimitConfig, metrics: Record<string, number>): number {
+  private getActualForLimit(
+    limit: PolicyLimitConfig,
+    metrics: Record<string, number>,
+  ): number {
     const key = `${limit.limitType}:${limit.scenario}`;
     return metrics[key] ?? 0;
   }

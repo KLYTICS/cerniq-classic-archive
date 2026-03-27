@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 import { YieldCurveService, TenorRate } from './yield-curve.service';
 
 // ─── Types ───────────────────────────────────────────────────
@@ -65,7 +65,10 @@ export class FTPService {
 
   // ─── Full FTP Analysis ──────────────────────────────────────
 
-  async getFTPAnalysis(institutionId: string, spreadAdjBps?: number): Promise<FTPAnalysis> {
+  async getFTPAnalysis(
+    institutionId: string,
+    spreadAdjBps?: number,
+  ): Promise<FTPAnalysis> {
     // Load balance sheet items
     const items = await this.prisma.balanceSheetItem.findMany({
       where: { institutionId },
@@ -86,9 +89,15 @@ export class FTPService {
       curveName = savedCurve.name;
     } else {
       baseCurve = [
-        { tenor: 0.25, rate: 0.0480 }, { tenor: 0.5, rate: 0.0465 }, { tenor: 1, rate: 0.0440 },
-        { tenor: 2, rate: 0.0420 }, { tenor: 3, rate: 0.0410 }, { tenor: 5, rate: 0.0405 },
-        { tenor: 7, rate: 0.0410 }, { tenor: 10, rate: 0.0420 }, { tenor: 20, rate: 0.0455 },
+        { tenor: 0.25, rate: 0.048 },
+        { tenor: 0.5, rate: 0.0465 },
+        { tenor: 1, rate: 0.044 },
+        { tenor: 2, rate: 0.042 },
+        { tenor: 3, rate: 0.041 },
+        { tenor: 5, rate: 0.0405 },
+        { tenor: 7, rate: 0.041 },
+        { tenor: 10, rate: 0.042 },
+        { tenor: 20, rate: 0.0455 },
         { tenor: 30, rate: 0.0465 },
       ];
     }
@@ -134,7 +143,7 @@ export class FTPService {
           instrumentCount: 0,
         });
       }
-      const seg = segmentMap.get(key)!;
+      const seg = segmentMap.get(key);
       seg.totalBalance += inst.balance;
       seg.weightedActualRate += inst.actualRate * inst.balance;
       seg.weightedFTPRate += inst.ftpRate * inst.balance;
@@ -145,9 +154,12 @@ export class FTPService {
 
     const segments = Array.from(segmentMap.values()).map((seg) => ({
       ...seg,
-      weightedActualRate: seg.totalBalance > 0 ? seg.weightedActualRate / seg.totalBalance : 0,
-      weightedFTPRate: seg.totalBalance > 0 ? seg.weightedFTPRate / seg.totalBalance : 0,
-      weightedSpread: seg.totalBalance > 0 ? seg.weightedSpread / seg.totalBalance : 0,
+      weightedActualRate:
+        seg.totalBalance > 0 ? seg.weightedActualRate / seg.totalBalance : 0,
+      weightedFTPRate:
+        seg.totalBalance > 0 ? seg.weightedFTPRate / seg.totalBalance : 0,
+      weightedSpread:
+        seg.totalBalance > 0 ? seg.weightedSpread / seg.totalBalance : 0,
     }));
 
     // Summary
@@ -156,20 +168,30 @@ export class FTPService {
     const totalAssets = assets.reduce((s, i) => s + i.balance, 0);
     const totalLiabilities = liabilities.reduce((s, i) => s + i.balance, 0);
     const totalAssetContrib = assets.reduce((s, i) => s + i.contribution, 0);
-    const totalLiabContrib = liabilities.reduce((s, i) => s + i.contribution, 0);
+    const totalLiabContrib = liabilities.reduce(
+      (s, i) => s + i.contribution,
+      0,
+    );
 
     return {
       instruments,
-      segments: segments.sort((a, b) => Math.abs(b.totalContribution) - Math.abs(a.totalContribution)),
+      segments: segments.sort(
+        (a, b) => Math.abs(b.totalContribution) - Math.abs(a.totalContribution),
+      ),
       summary: {
         totalAssetContribution: totalAssetContrib,
         totalLiabilityContribution: totalLiabContrib,
         netFTPMargin: totalAssetContrib + totalLiabContrib,
-        netFTPMarginPct: totalAssets > 0 ? (totalAssetContrib + totalLiabContrib) / totalAssets : 0,
+        netFTPMarginPct:
+          totalAssets > 0
+            ? (totalAssetContrib + totalLiabContrib) / totalAssets
+            : 0,
         totalAssets,
         totalLiabilities,
-        weightedAssetSpread: totalAssets > 0 ? totalAssetContrib / totalAssets : 0,
-        weightedLiabilitySpread: totalLiabilities > 0 ? totalLiabContrib / totalLiabilities : 0,
+        weightedAssetSpread:
+          totalAssets > 0 ? totalAssetContrib / totalAssets : 0,
+        weightedLiabilitySpread:
+          totalLiabilities > 0 ? totalLiabContrib / totalLiabilities : 0,
       },
       curveUsed: curveName,
       asOfDate: new Date().toISOString(),
@@ -185,7 +207,10 @@ export class FTPService {
 
   // ─── New Product Pricing Tool ──────────────────────────────
 
-  getNewProductPricing(baseCurve: TenorRate[], tenors: number[] = [1, 2, 3, 5, 7, 10]): NewProductPricing[] {
+  getNewProductPricing(
+    baseCurve: TenorRate[],
+    tenors: number[] = [1, 2, 3, 5, 7, 10],
+  ): NewProductPricing[] {
     return tenors.map((tenor) => {
       const ftpRate = this.interpolateRate(baseCurve, tenor);
       const targetSpread = 0.015; // 150bps default target
@@ -204,13 +229,16 @@ export class FTPService {
   private interpolateRate(curve: TenorRate[], tenor: number): number {
     const sorted = [...curve].sort((a, b) => a.tenor - b.tenor);
     if (tenor <= sorted[0].tenor) return sorted[0].rate;
-    if (tenor >= sorted[sorted.length - 1].tenor) return sorted[sorted.length - 1].rate;
+    if (tenor >= sorted[sorted.length - 1].tenor)
+      return sorted[sorted.length - 1].rate;
 
     for (let i = 0; i < sorted.length - 1; i++) {
       if (tenor >= sorted[i].tenor && tenor <= sorted[i + 1].tenor) {
-        const t1 = sorted[i].tenor, t2 = sorted[i + 1].tenor;
-        const r1 = sorted[i].rate, r2 = sorted[i + 1].rate;
-        return r1 + (r2 - r1) * (tenor - t1) / (t2 - t1);
+        const t1 = sorted[i].tenor,
+          t2 = sorted[i + 1].tenor;
+        const r1 = sorted[i].rate,
+          r2 = sorted[i + 1].rate;
+        return r1 + ((r2 - r1) * (tenor - t1)) / (t2 - t1);
       }
     }
     return sorted[0].rate;

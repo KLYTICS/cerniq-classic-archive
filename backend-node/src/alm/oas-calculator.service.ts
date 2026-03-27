@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 import { YieldCurveService, TenorRate } from './yield-curve.service';
 
 // ─── Types ───────────────────────────────────────────────────
@@ -9,10 +9,10 @@ export interface OASResult {
   instrumentName: string;
   category: string;
   balance: number;
-  nominalSpread: number;    // bps above benchmark
-  zSpread: number;          // zero-volatility spread
-  oas: number;              // option-adjusted spread
-  optionCost: number;       // zSpread - OAS (cost of embedded option)
+  nominalSpread: number; // bps above benchmark
+  zSpread: number; // zero-volatility spread
+  oas: number; // option-adjusted spread
+  optionCost: number; // zSpread - OAS (cost of embedded option)
   effectiveDuration: number;
   effectiveConvexity: number;
   modifiedDuration: number;
@@ -20,10 +20,10 @@ export interface OASResult {
 
 export interface OASPortfolioResult {
   instruments: OASResult[];
-  portfolioOAS: number;         // balance-weighted OAS
+  portfolioOAS: number; // balance-weighted OAS
   portfolioEffDuration: number;
   portfolioEffConvexity: number;
-  totalOptionCost: number;      // $ total option cost
+  totalOptionCost: number; // $ total option cost
   totalBalance: number;
 }
 
@@ -36,7 +36,7 @@ interface TreeNode {
 
 // PSA Prepayment Speeds
 const PSA_BASE_CPR = 0.06; // 6% base CPR (100% PSA)
-const PR_LOYALTY_DISCOUNT = 0.80; // PR cooperatives 20% less likely to prepay
+const PR_LOYALTY_DISCOUNT = 0.8; // PR cooperatives 20% less likely to prepay
 
 @Injectable()
 export class OASCalculatorService {
@@ -50,14 +50,18 @@ export class OASCalculatorService {
   // ─── Full Portfolio OAS Analysis ──────────────────────────
 
   async analyzePortfolio(institutionId: string): Promise<OASPortfolioResult> {
-    const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId },
+    });
 
     let baseCurve: TenorRate[];
     const saved = await this.prisma.yieldCurve.findFirst({
       where: { institutionId, isBase: true },
       orderBy: { asOfDate: 'desc' },
     });
-    baseCurve = saved ? (saved.tenors as unknown as TenorRate[]) : this.getDefaultCurve();
+    baseCurve = saved
+      ? (saved.tenors as unknown as TenorRate[])
+      : this.getDefaultCurve();
 
     if (items.length === 0) return this.getDemoPortfolio();
 
@@ -113,16 +117,26 @@ export class OASCalculatorService {
     }
 
     const totalBalance = instruments.reduce((s, i) => s + i.balance, 0);
-    const portfolioOAS = totalBalance > 0
-      ? instruments.reduce((s, i) => s + i.oas * i.balance, 0) / totalBalance
-      : 0;
-    const portfolioEffDuration = totalBalance > 0
-      ? instruments.reduce((s, i) => s + i.effectiveDuration * i.balance, 0) / totalBalance
-      : 0;
-    const portfolioEffConvexity = totalBalance > 0
-      ? instruments.reduce((s, i) => s + i.effectiveConvexity * i.balance, 0) / totalBalance
-      : 0;
-    const totalOptionCost = instruments.reduce((s, i) => s + (i.optionCost / 10000) * i.balance, 0);
+    const portfolioOAS =
+      totalBalance > 0
+        ? instruments.reduce((s, i) => s + i.oas * i.balance, 0) / totalBalance
+        : 0;
+    const portfolioEffDuration =
+      totalBalance > 0
+        ? instruments.reduce((s, i) => s + i.effectiveDuration * i.balance, 0) /
+          totalBalance
+        : 0;
+    const portfolioEffConvexity =
+      totalBalance > 0
+        ? instruments.reduce(
+            (s, i) => s + i.effectiveConvexity * i.balance,
+            0,
+          ) / totalBalance
+        : 0;
+    const totalOptionCost = instruments.reduce(
+      (s, i) => s + (i.optionCost / 10000) * i.balance,
+      0,
+    );
 
     return {
       instruments,
@@ -136,8 +150,13 @@ export class OASCalculatorService {
 
   // ─── BDT Binomial Tree OAS Computation ────────────────────
 
-  private computeOASBinomialTree(item: any, baseCurve: TenorRate[]): {
-    oas: number; effectiveDuration: number; effectiveConvexity: number;
+  private computeOASBinomialTree(
+    item: any,
+    baseCurve: TenorRate[],
+  ): {
+    oas: number;
+    effectiveDuration: number;
+    effectiveConvexity: number;
   } {
     const periods = Math.min(50, Math.max(10, Math.round(item.duration * 2)));
     const dt = item.duration / periods;
@@ -148,12 +167,21 @@ export class OASCalculatorService {
     const rateTree = this.buildRateTree(baseCurve, periods, dt);
 
     // Binary search for OAS
-    let lo = -200, hi = 800; // bps
+    let lo = -200,
+      hi = 800; // bps
     const marketPrice = par; // assume trading at par
 
     for (let iter = 0; iter < 50; iter++) {
       const mid = (lo + hi) / 2;
-      const modelPrice = this.priceWithOAS(rateTree, coupon, par, periods, dt, mid, item);
+      const modelPrice = this.priceWithOAS(
+        rateTree,
+        coupon,
+        par,
+        periods,
+        dt,
+        mid,
+        item,
+      );
       if (Math.abs(modelPrice - marketPrice) < 0.001) break;
       if (modelPrice > marketPrice) lo = mid;
       else hi = mid;
@@ -161,12 +189,32 @@ export class OASCalculatorService {
     const oas = (lo + hi) / 2;
 
     // Effective duration: bump OAS curve ±25bps, reprice
-    const priceUp = this.priceWithOAS(rateTree, coupon, par, periods, dt, oas, item, -25);
-    const priceDown = this.priceWithOAS(rateTree, coupon, par, periods, dt, oas, item, 25);
-    const effectiveDuration = (priceDown - priceUp) / (2 * 0.0025 * marketPrice);
+    const priceUp = this.priceWithOAS(
+      rateTree,
+      coupon,
+      par,
+      periods,
+      dt,
+      oas,
+      item,
+      -25,
+    );
+    const priceDown = this.priceWithOAS(
+      rateTree,
+      coupon,
+      par,
+      periods,
+      dt,
+      oas,
+      item,
+      25,
+    );
+    const effectiveDuration =
+      (priceDown - priceUp) / (2 * 0.0025 * marketPrice);
 
     // Effective convexity
-    const effectiveConvexity = (priceUp + priceDown - 2 * marketPrice) / (0.0025 * 0.0025 * marketPrice);
+    const effectiveConvexity =
+      (priceUp + priceDown - 2 * marketPrice) / (0.0025 * 0.0025 * marketPrice);
 
     return {
       oas: Math.max(-100, Math.min(500, oas)),
@@ -175,14 +223,21 @@ export class OASCalculatorService {
     };
   }
 
-  private buildRateTree(curve: TenorRate[], periods: number, dt: number): number[][] {
+  private buildRateTree(
+    curve: TenorRate[],
+    periods: number,
+    dt: number,
+  ): number[][] {
     // Simplified BDT-like tree: lognormal rate at each node
     const tree: number[][] = [];
     const vol = 0.15; // rate volatility (annualized)
 
     for (let t = 0; t <= periods; t++) {
       const tenor = t * dt;
-      const baseRate = Math.max(0.001, this.interpolateRate(curve, Math.max(0.25, tenor)));
+      const baseRate = Math.max(
+        0.001,
+        this.interpolateRate(curve, Math.max(0.25, tenor)),
+      );
       const nodes: number[] = [];
 
       for (let j = 0; j <= t; j++) {
@@ -198,8 +253,13 @@ export class OASCalculatorService {
   }
 
   private priceWithOAS(
-    rateTree: number[][], coupon: number, par: number,
-    periods: number, dt: number, oas: number, item: any,
+    rateTree: number[][],
+    coupon: number,
+    par: number,
+    periods: number,
+    dt: number,
+    oas: number,
+    item: any,
     parallelBump: number = 0,
   ): number {
     const oasDecimal = oas / 10000;
@@ -227,8 +287,12 @@ export class OASCalculatorService {
           if (isMortgage) {
             // Prepayment probability based on rate incentive
             const incentive = coupon - rateTree[t][j];
-            const preProbability = this.prPrepayProbability(incentive, t * dt * 12);
-            nodePrice = nodePrice * (1 - preProbability) + exercisePrice * preProbability;
+            const preProbability = this.prPrepayProbability(
+              incentive,
+              t * dt * 12,
+            );
+            nodePrice =
+              nodePrice * (1 - preProbability) + exercisePrice * preProbability;
           } else {
             // Callable bond: exercise if price > call price
             nodePrice = Math.min(nodePrice, exercisePrice);
@@ -243,12 +307,16 @@ export class OASCalculatorService {
     return prices[0];
   }
 
-  private prPrepayProbability(rateIncentive: number, ageMonths: number): number {
+  private prPrepayProbability(
+    rateIncentive: number,
+    ageMonths: number,
+  ): number {
     // PR-specific CPR (from MP-016 prepayment model)
     const baseCPR = PSA_BASE_CPR;
     const incentiveFactor = 1 / (1 + Math.exp(-10 * (rateIncentive - 0.015)));
     const ageRamp = Math.min(1, ageMonths / 30);
-    const monthlyRate = (baseCPR * incentiveFactor * ageRamp * PR_LOYALTY_DISCOUNT) / 12;
+    const monthlyRate =
+      (baseCPR * incentiveFactor * ageRamp * PR_LOYALTY_DISCOUNT) / 12;
     return Math.min(0.05, monthlyRate); // cap at 5% per period
   }
 
@@ -261,7 +329,8 @@ export class OASCalculatorService {
     const periods = Math.max(1, Math.round(tenor));
 
     // Binary search for z-spread
-    let lo = -100, hi = 500;
+    let lo = -100,
+      hi = 500;
     for (let iter = 0; iter < 50; iter++) {
       const mid = (lo + hi) / 2;
       let pv = 0;
@@ -289,24 +358,34 @@ export class OASCalculatorService {
   private computeConvexity(item: any): number {
     const tenor = item.duration || 1;
     const y = item.rate || 0.05;
-    return tenor * (tenor + 1) / Math.pow(1 + y, 2);
+    return (tenor * (tenor + 1)) / Math.pow(1 + y, 2);
   }
 
   private hasEmbeddedOption(item: any): boolean {
     const sub = (item.subcategory || '').toLowerCase();
-    return sub.includes('mortgage') || sub.includes('residential')
-        || sub.includes('mbs') || sub.includes('callable')
-        || sub.includes('auto') || sub.includes('consumer');
+    return (
+      sub.includes('mortgage') ||
+      sub.includes('residential') ||
+      sub.includes('mbs') ||
+      sub.includes('callable') ||
+      sub.includes('auto') ||
+      sub.includes('consumer')
+    );
   }
 
   private interpolateRate(curve: TenorRate[], tenor: number): number {
     const sorted = [...curve].sort((a, b) => a.tenor - b.tenor);
     if (tenor <= sorted[0].tenor) return sorted[0].rate;
-    if (tenor >= sorted[sorted.length - 1].tenor) return sorted[sorted.length - 1].rate;
+    if (tenor >= sorted[sorted.length - 1].tenor)
+      return sorted[sorted.length - 1].rate;
     for (let i = 0; i < sorted.length - 1; i++) {
       if (tenor >= sorted[i].tenor && tenor <= sorted[i + 1].tenor) {
-        const t1 = sorted[i].tenor, t2 = sorted[i + 1].tenor;
-        return sorted[i].rate + (sorted[i + 1].rate - sorted[i].rate) * (tenor - t1) / (t2 - t1);
+        const t1 = sorted[i].tenor,
+          t2 = sorted[i + 1].tenor;
+        return (
+          sorted[i].rate +
+          ((sorted[i + 1].rate - sorted[i].rate) * (tenor - t1)) / (t2 - t1)
+        );
       }
     }
     return sorted[0].rate;
@@ -314,23 +393,93 @@ export class OASCalculatorService {
 
   private getDefaultCurve(): TenorRate[] {
     return [
-      { tenor: 0.25, rate: 0.048 }, { tenor: 0.5, rate: 0.0465 }, { tenor: 1, rate: 0.044 },
-      { tenor: 2, rate: 0.042 }, { tenor: 3, rate: 0.041 }, { tenor: 5, rate: 0.0405 },
-      { tenor: 7, rate: 0.041 }, { tenor: 10, rate: 0.042 }, { tenor: 20, rate: 0.0455 }, { tenor: 30, rate: 0.0465 },
+      { tenor: 0.25, rate: 0.048 },
+      { tenor: 0.5, rate: 0.0465 },
+      { tenor: 1, rate: 0.044 },
+      { tenor: 2, rate: 0.042 },
+      { tenor: 3, rate: 0.041 },
+      { tenor: 5, rate: 0.0405 },
+      { tenor: 7, rate: 0.041 },
+      { tenor: 10, rate: 0.042 },
+      { tenor: 20, rate: 0.0455 },
+      { tenor: 30, rate: 0.0465 },
     ];
   }
 
   private getDemoPortfolio(): OASPortfolioResult {
     return {
       instruments: [
-        { instrumentId: 'd1', instrumentName: 'FHLB Callable 5Y', category: 'asset', balance: 25, nominalSpread: 45, zSpread: 42, oas: 28, optionCost: 14, effectiveDuration: 3.2, effectiveConvexity: -0.8, modifiedDuration: 4.5 },
-        { instrumentId: 'd2', instrumentName: 'FNMA 30Y MBS Pool', category: 'asset', balance: 35, nominalSpread: 120, zSpread: 115, oas: 65, optionCost: 50, effectiveDuration: 4.8, effectiveConvexity: -2.4, modifiedDuration: 8.2 },
-        { instrumentId: 'd3', instrumentName: 'UST 10Y Note', category: 'asset', balance: 20, nominalSpread: 0, zSpread: 0, oas: 0, optionCost: 0, effectiveDuration: 8.5, effectiveConvexity: 0.9, modifiedDuration: 8.5 },
-        { instrumentId: 'd4', instrumentName: 'FHLMC 15Y MBS', category: 'asset', balance: 15, nominalSpread: 85, zSpread: 80, oas: 52, optionCost: 28, effectiveDuration: 3.1, effectiveConvexity: -1.5, modifiedDuration: 5.8 },
-        { instrumentId: 'd5', instrumentName: 'PR Muni GO Bond', category: 'asset', balance: 10, nominalSpread: 250, zSpread: 245, oas: 240, optionCost: 5, effectiveDuration: 6.2, effectiveConvexity: 0.5, modifiedDuration: 6.5 },
+        {
+          instrumentId: 'd1',
+          instrumentName: 'FHLB Callable 5Y',
+          category: 'asset',
+          balance: 25,
+          nominalSpread: 45,
+          zSpread: 42,
+          oas: 28,
+          optionCost: 14,
+          effectiveDuration: 3.2,
+          effectiveConvexity: -0.8,
+          modifiedDuration: 4.5,
+        },
+        {
+          instrumentId: 'd2',
+          instrumentName: 'FNMA 30Y MBS Pool',
+          category: 'asset',
+          balance: 35,
+          nominalSpread: 120,
+          zSpread: 115,
+          oas: 65,
+          optionCost: 50,
+          effectiveDuration: 4.8,
+          effectiveConvexity: -2.4,
+          modifiedDuration: 8.2,
+        },
+        {
+          instrumentId: 'd3',
+          instrumentName: 'UST 10Y Note',
+          category: 'asset',
+          balance: 20,
+          nominalSpread: 0,
+          zSpread: 0,
+          oas: 0,
+          optionCost: 0,
+          effectiveDuration: 8.5,
+          effectiveConvexity: 0.9,
+          modifiedDuration: 8.5,
+        },
+        {
+          instrumentId: 'd4',
+          instrumentName: 'FHLMC 15Y MBS',
+          category: 'asset',
+          balance: 15,
+          nominalSpread: 85,
+          zSpread: 80,
+          oas: 52,
+          optionCost: 28,
+          effectiveDuration: 3.1,
+          effectiveConvexity: -1.5,
+          modifiedDuration: 5.8,
+        },
+        {
+          instrumentId: 'd5',
+          instrumentName: 'PR Muni GO Bond',
+          category: 'asset',
+          balance: 10,
+          nominalSpread: 250,
+          zSpread: 245,
+          oas: 240,
+          optionCost: 5,
+          effectiveDuration: 6.2,
+          effectiveConvexity: 0.5,
+          modifiedDuration: 6.5,
+        },
       ],
-      portfolioOAS: 58.3, portfolioEffDuration: 4.6, portfolioEffConvexity: -1.1,
-      totalOptionCost: 2.85, totalBalance: 105,
+      portfolioOAS: 58.3,
+      portfolioEffDuration: 4.6,
+      portfolioEffConvexity: -1.1,
+      totalOptionCost: 2.85,
+      totalBalance: 105,
     };
   }
 }

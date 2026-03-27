@@ -71,8 +71,10 @@ export default function CVaROptimizerPage() {
             <YAxis dataKey="ret" name={locale === 'es' ? 'Retorno' : 'Return'} tick={{ fontSize: 11 }}
               tickFormatter={v => `${(v * 100).toFixed(1)}%`} />
             <ZAxis range={[40, 40]} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }}
-              formatter={(v: number) => `${(v * 100).toFixed(2)}%`} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => `${(Number(value ?? 0) * 100).toFixed(2)}%`}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Scatter name={locale === 'es' ? 'Frontera' : 'Frontier'} data={data.frontier} fill="#8b5cf6" />
             <Scatter name={locale === 'es' ? 'Actual' : 'Current'} data={[data.currentPortfolio]} fill="#ef4444" />

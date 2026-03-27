@@ -4,9 +4,9 @@ import { PortfolioService } from './portfolio.service';
 import { MarketDataModule } from '../market-data/market-data.module';
 
 @Module({
-    imports: [MarketDataModule],
-    controllers: [PortfolioController],
-    providers: [PortfolioService],
-    exports: [PortfolioService],
+  imports: [MarketDataModule],
+  controllers: [PortfolioController],
+  providers: [PortfolioService],
+  exports: [PortfolioService],
 })
-export class PortfolioModule { }
+export class PortfolioModule {}

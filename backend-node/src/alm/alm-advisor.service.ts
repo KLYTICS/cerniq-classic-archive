@@ -35,12 +35,14 @@ export class AlmAdvisorService {
     const key = (process.env.ANTHROPIC_API_KEY || '').trim();
     if (key) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const Anthropic = require('@anthropic-ai/sdk');
         this.anthropic = new Anthropic({ apiKey: key });
         this.logger.log('Anthropic SDK initialised for AI Advisor');
       } catch (err) {
-        this.logger.warn('Failed to initialise Anthropic SDK — AI Advisor will be unavailable', err);
+        this.logger.warn(
+          'Failed to initialise Anthropic SDK — AI Advisor will be unavailable',
+          err,
+        );
       }
     } else {
       this.logger.warn('ANTHROPIC_API_KEY not set — AI Advisor disabled');
@@ -82,7 +84,7 @@ export class AlmAdvisorService {
     // ── Construct messages array ──
     const messages = [
       ...history.map((m) => ({
-        role: m.role as 'user' | 'assistant',
+        role: m.role,
         content: m.content,
       })),
       { role: 'user' as const, content: message },
@@ -139,7 +141,10 @@ export class AlmAdvisorService {
         this.almEnterprise.getALMSummary(institutionId),
       ]);
     } catch (err) {
-      this.logger.warn('Failed to fetch institution data for system prompt', err);
+      this.logger.warn(
+        'Failed to fetch institution data for system prompt',
+        err,
+      );
     }
 
     // Fallback when data is missing
@@ -157,16 +162,29 @@ export class AlmAdvisorService {
 
     const lcrStatusLabel =
       liq.status === 'compliant'
-        ? language === 'es' ? 'cumple' : 'compliant'
+        ? language === 'es'
+          ? 'cumple'
+          : 'compliant'
         : liq.status === 'warning'
-          ? language === 'es' ? 'advertencia' : 'warning'
-          : language === 'es' ? 'incumplimiento' : 'breach';
+          ? language === 'es'
+            ? 'advertencia'
+            : 'warning'
+          : language === 'es'
+            ? 'incumplimiento'
+            : 'breach';
 
-    const topRisk = summary.topRisks?.[0] || (language === 'es' ? 'Sin riesgos significativos' : 'No significant risks');
+    const topRisk =
+      summary.topRisks?.[0] ||
+      (language === 'es'
+        ? 'Sin riesgos significativos'
+        : 'No significant risks');
 
     const ratiosSummary = cossec.ratios
       .filter((r: any) => r.status !== 'info')
-      .map((r: any) => `  - ${language === 'es' ? r.nameEs : r.name}: ${r.value}${r.unit} (${r.status})`)
+      .map(
+        (r: any) =>
+          `  - ${language === 'es' ? r.nameEs : r.name}: ${r.value}${r.unit} (${r.status})`,
+      )
       .join('\n');
 
     const recommendationsList = summary.recommendations

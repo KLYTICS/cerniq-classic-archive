@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { EmailService } from '../email/email.service';
 import { SubmitLeadDto, UpdateLeadDto } from './leads.dto';
-import { COOPERATIVA_PROSPECTS, COSSEC_BENCHMARK_Q3_2025 } from './prospect-seed';
+import {
+  COOPERATIVA_PROSPECTS,
+  COSSEC_BENCHMARK_Q3_2025,
+} from './prospect-seed';
 
 @Injectable()
 export class LeadsService {
@@ -34,7 +37,11 @@ export class LeadsService {
         },
       });
       this.logger.log(`Lead updated (duplicate within 24h): ${updated.id}`);
-      return { leadId: updated.id, message: "We'll have your sample report ready within 48 hours.", duplicate: true };
+      return {
+        leadId: updated.id,
+        message: "We'll have your sample report ready within 48 hours.",
+        duplicate: true,
+      };
     }
 
     // Auto-assign priority
@@ -61,10 +68,12 @@ export class LeadsService {
       },
     });
 
-    this.logger.log(`New lead created: ${lead.id} — ${dto.institutionName} (${priority})`);
+    this.logger.log(
+      `New lead created: ${lead.id} — ${dto.institutionName} (${priority})`,
+    );
 
     // Fire-and-forget: send notification emails
-    this.sendNotificationEmails(lead, dto).catch(err => {
+    this.sendNotificationEmails(lead, dto).catch((err) => {
       this.logger.error(`Email notification failed: ${err.message}`);
     });
 
@@ -75,7 +84,12 @@ export class LeadsService {
   }
 
   private assignPriority(institutionType: string): 'HIGH' | 'MEDIUM' | 'LOW' {
-    if (['cooperativa', 'credit_union', 'cpa_consultant'].includes(institutionType)) return 'HIGH';
+    if (
+      ['cooperativa', 'credit_union', 'cpa_consultant'].includes(
+        institutionType,
+      )
+    )
+      return 'HIGH';
     if (['community_bank'].includes(institutionType)) return 'MEDIUM';
     return 'LOW';
   }
@@ -157,7 +171,10 @@ export class LeadsService {
     const newNotes = lead.notes
       ? `${lead.notes}\n[${timestamp}] ${note}`
       : `[${timestamp}] ${note}`;
-    return this.prisma.lead.update({ where: { id }, data: { notes: newNotes } });
+    return this.prisma.lead.update({
+      where: { id },
+      data: { notes: newNotes },
+    });
   }
 
   async markReportSent(id: string) {
@@ -191,14 +208,21 @@ export class LeadsService {
         closedWon++;
         totalRevenue += lead.revenueAmount || 0;
         if (lead.convertedAt) {
-          totalCloseTimeMs += lead.convertedAt.getTime() - lead.createdAt.getTime();
+          totalCloseTimeMs +=
+            lead.convertedAt.getTime() - lead.createdAt.getTime();
         }
         if (lead.convertedAt && lead.convertedAt >= monthStart) {
           monthRevenue += lead.revenueAmount || 0;
         }
       }
       // Pipeline value for active stages
-      const activeStages = ['CONTACTED', 'DEMO_SCHEDULED', 'DEMO_COMPLETED', 'PROPOSAL_SENT', 'NEGOTIATING'];
+      const activeStages = [
+        'CONTACTED',
+        'DEMO_SCHEDULED',
+        'DEMO_COMPLETED',
+        'PROPOSAL_SENT',
+        'NEGOTIATING',
+      ];
       if (activeStages.includes(lead.status)) {
         statusRevenue[lead.status] = (statusRevenue[lead.status] || 0) + 750; // Expected deal value
       }
@@ -208,8 +232,14 @@ export class LeadsService {
       totalLeads: allLeads.length,
       monthLeads: monthLeads.length,
       statusCounts,
-      conversionRate: allLeads.length > 0 ? (closedWon / allLeads.length * 100).toFixed(1) + '%' : '0%',
-      avgCloseTimeDays: closedWon > 0 ? Math.round(totalCloseTimeMs / closedWon / 86400000) : null,
+      conversionRate:
+        allLeads.length > 0
+          ? ((closedWon / allLeads.length) * 100).toFixed(1) + '%'
+          : '0%',
+      avgCloseTimeDays:
+        closedWon > 0
+          ? Math.round(totalCloseTimeMs / closedWon / 86400000)
+          : null,
       monthRevenue,
       totalRevenue,
       pipelineValue: Object.values(statusRevenue).reduce((a, b) => a + b, 0),
@@ -235,11 +265,17 @@ export class LeadsService {
       where: { period: COSSEC_BENCHMARK_Q3_2025.period },
     });
     if (!existingBenchmark) {
-      await this.prisma.cooperativaBenchmark.create({ data: COSSEC_BENCHMARK_Q3_2025 });
+      await this.prisma.cooperativaBenchmark.create({
+        data: COSSEC_BENCHMARK_Q3_2025,
+      });
     }
 
     this.logger.log(`Prospect pipeline seeded: ${created} new prospects`);
-    return { created, total: COOPERATIVA_PROSPECTS.length, benchmarkSeeded: !existingBenchmark };
+    return {
+      created,
+      total: COOPERATIVA_PROSPECTS.length,
+      benchmarkSeeded: !existingBenchmark,
+    };
   }
 
   async listProspects() {
@@ -266,31 +302,43 @@ export class LeadsService {
     });
 
     const assetsM = (prospect.estimatedAssets / 1_000_000).toFixed(0);
-    const sectorMedianM = benchmark ? (benchmark.totalAssetsMedian / 1_000_000).toFixed(0) : '185';
+    const sectorMedianM = benchmark
+      ? (benchmark.totalAssetsMedian / 1_000_000).toFixed(0)
+      : '185';
     const capitalRatio = benchmark?.capitalRatioMedian?.toFixed(1) ?? '9.2';
 
     // Compute key flags for this prospect
     const flags: string[] = [];
-    if (prospect.estimatedAssets > (benchmark?.totalAssetsMedian ?? 185_000_000)) {
-      flags.push(lang === 'es'
-        ? `Con $${assetsM}M en activos, su cooperativa está por encima de la mediana del sector ($${sectorMedianM}M)`
-        : `At $${assetsM}M in assets, your cooperativa is above the sector median ($${sectorMedianM}M)`);
+    if (
+      prospect.estimatedAssets > (benchmark?.totalAssetsMedian ?? 185_000_000)
+    ) {
+      flags.push(
+        lang === 'es'
+          ? `Con $${assetsM}M en activos, su cooperativa está por encima de la mediana del sector ($${sectorMedianM}M)`
+          : `At $${assetsM}M in assets, your cooperativa is above the sector median ($${sectorMedianM}M)`,
+      );
     } else {
-      flags.push(lang === 'es'
-        ? `Su cooperativa de $${assetsM}M puede aprovechar las economías de escala con herramientas ALM automatizadas`
-        : `Your $${assetsM}M cooperativa can leverage economies of scale with automated ALM tools`);
+      flags.push(
+        lang === 'es'
+          ? `Su cooperativa de $${assetsM}M puede aprovechar las economías de escala con herramientas ALM automatizadas`
+          : `Your $${assetsM}M cooperativa can leverage economies of scale with automated ALM tools`,
+      );
     }
 
-    flags.push(lang === 'es'
-      ? `La mediana del ratio de capital del sector es ${capitalRatio}% — ¿cómo se compara su institución?`
-      : `The sector median capital ratio is ${capitalRatio}% — how does your institution compare?`);
+    flags.push(
+      lang === 'es'
+        ? `La mediana del ratio de capital del sector es ${capitalRatio}% — ¿cómo se compara su institución?`
+        : `The sector median capital ratio is ${capitalRatio}% — how does your institution compare?`,
+    );
 
-    const subject = lang === 'es'
-      ? `Informe ALM gratuito para ${prospect.name}`
-      : `Free ALM Report for ${prospect.name}`;
+    const subject =
+      lang === 'es'
+        ? `Informe ALM gratuito para ${prospect.name}`
+        : `Free ALM Report for ${prospect.name}`;
 
-    const body = lang === 'es'
-      ? `Estimado/a ${prospect.contactRole || 'Director Financiero'},
+    const body =
+      lang === 'es'
+        ? `Estimado/a ${prospect.contactRole || 'Director Financiero'},
 
 Nos dirigimos a usted desde CERNIQ, plataforma de inteligencia ALM diseñada para cooperativas en Puerto Rico.
 
@@ -308,7 +356,7 @@ Hemos preparado un informe ALM de muestra para ${prospect.name} basado en datos 
 Saludos cordiales,
 Erwin Kiess
 CERNIQ — San Juan, PR`
-      : `Dear ${prospect.contactRole || 'CFO'},
+        : `Dear ${prospect.contactRole || 'CFO'},
 
 We're reaching out from CERNIQ, an ALM intelligence platform built for cooperativas in Puerto Rico.
 
@@ -327,6 +375,15 @@ Best regards,
 Erwin Kiess
 CERNIQ — San Juan, PR`;
 
-    return { subject, body, flags, prospect: { name: prospect.name, assets: assetsM, location: prospect.location } };
+    return {
+      subject,
+      body,
+      flags,
+      prospect: {
+        name: prospect.name,
+        assets: assetsM,
+        location: prospect.location,
+      },
+    };
   }
 }

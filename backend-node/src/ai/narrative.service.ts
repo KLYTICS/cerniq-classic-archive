@@ -42,10 +42,13 @@ export class NarrativeService {
     const cached = narrativeCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached.text;
 
-    const prompt = NARRATIVE_PROMPTS[metricName] ?? `Analiza la métrica ${metricName}.`;
+    const prompt =
+      NARRATIVE_PROMPTS[metricName] ?? `Analiza la métrica ${metricName}.`;
     const citation = CITATIONS[metricName] ?? '';
     const compare = value >= peerMedian ? 'por encima' : 'por debajo';
-    const deltaPct = Math.abs(((value - peerMedian) / (peerMedian || 1)) * 100).toFixed(1);
+    const deltaPct = Math.abs(
+      ((value - peerMedian) / (peerMedian || 1)) * 100,
+    ).toFixed(1);
 
     // Try Claude API
     if (process.env.ANTHROPIC_API_KEY) {
@@ -55,12 +58,21 @@ export class NarrativeService {
         const response = await client.messages.create({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 200,
-          system: 'Eres el analista de riesgo de CERNIQ. Escribe exactamente 3 oraciones en español profesional financiero.',
-          messages: [{ role: 'user', content: `${prompt} Institución: ${institutionName}. Valor: ${value.toFixed(2)}. Mediana PR: ${peerMedian.toFixed(2)} (${deltaPct}% ${compare}). Ref: ${citation}. Estructura: (1) estado actual vs pares, (2) implicación, (3) acción sugerida.` }],
+          system:
+            'Eres el analista de riesgo de CERNIQ. Escribe exactamente 3 oraciones en español profesional financiero.',
+          messages: [
+            {
+              role: 'user',
+              content: `${prompt} Institución: ${institutionName}. Valor: ${value.toFixed(2)}. Mediana PR: ${peerMedian.toFixed(2)} (${deltaPct}% ${compare}). Ref: ${citation}. Estructura: (1) estado actual vs pares, (2) implicación, (3) acción sugerida.`,
+            },
+          ],
         });
         const text = (response.content[0] as any).text?.trim() ?? '';
         if (text) {
-          narrativeCache.set(cacheKey, { text, expiresAt: Date.now() + 86400000 });
+          narrativeCache.set(cacheKey, {
+            text,
+            expiresAt: Date.now() + 86400000,
+          });
           return text;
         }
       } catch (e: any) {
@@ -70,7 +82,10 @@ export class NarrativeService {
 
     // Fallback: template-based narrative
     const template = `${institutionName} presenta un ${metricName.toUpperCase()} de ${value.toFixed(2)}, que se encuentra ${deltaPct}% ${compare} de la mediana de cooperativas PR de ${peerMedian.toFixed(2)}. ${value >= peerMedian ? 'Esta posición es favorable comparada con el sector.' : 'Se recomienda revisar estrategias para mejorar este indicador.'} Referencia: ${citation}.`;
-    narrativeCache.set(cacheKey, { text: template, expiresAt: Date.now() + 86400000 });
+    narrativeCache.set(cacheKey, {
+      text: template,
+      expiresAt: Date.now() + 86400000,
+    });
     return template;
   }
 
@@ -80,7 +95,9 @@ export class NarrativeService {
   ): Promise<Record<string, string>> {
     const entries = Object.entries(metrics);
     const results = await Promise.all(
-      entries.map(([name, m]) => this.generateNarrative(institutionName, name, m.value, m.peerMedian))
+      entries.map(([name, m]) =>
+        this.generateNarrative(institutionName, name, m.value, m.peerMedian),
+      ),
     );
     return Object.fromEntries(entries.map(([name], i) => [name, results[i]]));
   }

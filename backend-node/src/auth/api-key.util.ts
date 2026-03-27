@@ -13,13 +13,12 @@ export function apiKeyPrefix(token: string): string {
 
 export function hashApiKey(token: string): string {
   const pepper = (process.env.API_KEY_PEPPER || '').trim();
-  return crypto
-    .createHash('sha256')
-    .update(`${token}:${pepper}`)
-    .digest('hex');
+  return crypto.createHash('sha256').update(`${token}:${pepper}`).digest('hex');
 }
 
 export function isReadOnlyMethod(method: string): boolean {
   const normalized = (method || '').toUpperCase();
-  return normalized === 'GET' || normalized === 'HEAD' || normalized === 'OPTIONS';
+  return (
+    normalized === 'GET' || normalized === 'HEAD' || normalized === 'OPTIONS'
+  );
 }

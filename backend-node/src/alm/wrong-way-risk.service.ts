@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 // Wrong-Way Risk — Exposure increases when counterparty most likely to default
 
@@ -8,7 +8,12 @@ export interface WWRResult {
   adjustedCVA: number;
   wwrPremium: number;
   wwrMultiplier: number;
-  bySegment: Array<{ segment: string; naiveCVA: number; adjustedCVA: number; premium: number }>;
+  bySegment: Array<{
+    segment: string;
+    naiveCVA: number;
+    adjustedCVA: number;
+    premium: number;
+  }>;
   narrativeEs: string;
   narrativeEn: string;
 }
@@ -19,11 +24,17 @@ export class WrongWayRiskService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async computeWWR(institutionId: string, wwrCorrelation: number = 0.3): Promise<WWRResult> {
-    const segments = await this.prisma.loanSegment.findMany({ where: { institutionId } });
+  async computeWWR(
+    institutionId: string,
+    wwrCorrelation: number = 0.3,
+  ): Promise<WWRResult> {
+    const segments = await this.prisma.loanSegment.findMany({
+      where: { institutionId },
+    });
     if (segments.length === 0) return this.getDemoResult();
 
-    let totalNaive = 0, totalAdjusted = 0;
+    let totalNaive = 0,
+      totalAdjusted = 0;
     const bySegment: WWRResult['bySegment'] = [];
 
     for (const seg of segments) {
@@ -34,13 +45,13 @@ export class WrongWayRiskService {
       const vol = 0.15; // exposure volatility
 
       // Naive CVA = LGD × PD × EAD × maturity
-      const naiveCVA = lgd * pd * ead * maturity / 4; // quarterly
+      const naiveCVA = (lgd * pd * ead * maturity) / 4; // quarterly
 
       // WWR adjustment: E[X|D=1] = E[X] × (1 + ρ × σ × Φ⁻¹(PD) / PD)
       const normInvPD = this.normInv(1 - pd);
-      const wwrAdj = 1 + wwrCorrelation * vol * normInvPD / (pd || 1e-6);
+      const wwrAdj = 1 + (wwrCorrelation * vol * normInvPD) / (pd || 1e-6);
       const adjustedEPE = ead * Math.max(0.5, Math.min(3.0, wwrAdj));
-      const adjustedCVA = lgd * pd * adjustedEPE * maturity / 4;
+      const adjustedCVA = (lgd * pd * adjustedEPE * maturity) / 4;
 
       totalNaive += naiveCVA;
       totalAdjusted += adjustedCVA;
@@ -67,14 +78,42 @@ export class WrongWayRiskService {
   }
 
   private normInv(p: number): number {
-    if (p <= 0.0001) return -3.7; if (p >= 0.9999) return 3.7;
-    const a = [-3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2, 1.383577518672690e2, -3.066479806614716e1, 2.506628277459239e0];
-    const b = [-5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2, 6.680131188771972e1, -1.328068155288572e1];
-    const q = p - 0.5, r = q * q;
-    return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q / (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+    if (p <= 0.0001) return -3.7;
+    if (p >= 0.9999) return 3.7;
+    const a = [
+      -3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2,
+      1.38357751867269e2, -3.066479806614716e1, 2.506628277459239,
+    ];
+    const b = [
+      -5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2,
+      6.680131188771972e1, -1.328068155288572e1,
+    ];
+    const q = p - 0.5,
+      r = q * q;
+    return (
+      ((((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) *
+        q) /
+      (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
+    );
   }
 
   private getDemoResult(): WWRResult {
-    return { naiveCVA: 2.4, adjustedCVA: 3.8, wwrPremium: 1.4, wwrMultiplier: 1.58, bySegment: [{ segment: 'Commercial RE', naiveCVA: 1.2, adjustedCVA: 2.0, premium: 0.8 }, { segment: 'Consumer', naiveCVA: 0.8, adjustedCVA: 1.1, premium: 0.3 }], narrativeEs: 'CVA ajustado: $3.8M (1.58× naive).', narrativeEn: 'Adjusted CVA: $3.8M (1.58× naive).' };
+    return {
+      naiveCVA: 2.4,
+      adjustedCVA: 3.8,
+      wwrPremium: 1.4,
+      wwrMultiplier: 1.58,
+      bySegment: [
+        {
+          segment: 'Commercial RE',
+          naiveCVA: 1.2,
+          adjustedCVA: 2.0,
+          premium: 0.8,
+        },
+        { segment: 'Consumer', naiveCVA: 0.8, adjustedCVA: 1.1, premium: 0.3 },
+      ],
+      narrativeEs: 'CVA ajustado: $3.8M (1.58× naive).',
+      narrativeEn: 'Adjusted CVA: $3.8M (1.58× naive).',
+    };
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 import { KeyRateDurationService } from './key-rate-duration.service';
 
 export interface OptionAdjustedMetrics {
@@ -22,8 +22,18 @@ export interface PortfolioOptionalityResult {
   negConvexityBalance: number;
   negConvexityPct: number;
   keyRiskTenor: string;
-  durationMismatchHeatmap: Array<{ bucket: string; assetDuration: number; liabDuration: number; mismatch: number }>;
-  convexityContributors: Array<{ name: string; balance: number; convexity: number; contribution: number }>;
+  durationMismatchHeatmap: Array<{
+    bucket: string;
+    assetDuration: number;
+    liabDuration: number;
+    mismatch: number;
+  }>;
+  convexityContributors: Array<{
+    name: string;
+    balance: number;
+    convexity: number;
+    contribution: number;
+  }>;
 }
 
 const MATURITY_BUCKETS = ['0-1Y', '1-3Y', '3-5Y', '5-10Y', '10Y+'];
@@ -37,18 +47,25 @@ export class OptionalitySuiteService {
     private readonly krd: KeyRateDurationService,
   ) {}
 
-  async analyzePortfolio(institutionId: string): Promise<PortfolioOptionalityResult> {
-    const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
+  async analyzePortfolio(
+    institutionId: string,
+  ): Promise<PortfolioOptionalityResult> {
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId },
+    });
     if (items.length === 0) return this.getDemoResult();
 
-    const instruments: OptionAdjustedMetrics[] = items.map(item => {
+    const instruments: OptionAdjustedMetrics[] = items.map((item) => {
       const optionType = this.classifyOptionType(item);
       const modDur = item.duration / (1 + item.rate);
       // Effective duration: shorter for callable/prepayable instruments
       const effDur = optionType !== 'none' ? modDur * 0.75 : modDur; // prepayment shortens effective
-      const convexity = optionType === 'prepayable' || optionType === 'callable'
-        ? -(item.duration * (item.duration + 1)) / Math.pow(1 + item.rate, 2) * 0.3 // negative convexity
-        : (item.duration * (item.duration + 1)) / Math.pow(1 + item.rate, 2);
+      const convexity =
+        optionType === 'prepayable' || optionType === 'callable'
+          ? (-(item.duration * (item.duration + 1)) /
+              Math.pow(1 + item.rate, 2)) *
+            0.3 // negative convexity
+          : (item.duration * (item.duration + 1)) / Math.pow(1 + item.rate, 2);
 
       return {
         instrumentName: item.name,
@@ -62,31 +79,71 @@ export class OptionalitySuiteService {
       };
     });
 
-    const assets = instruments.filter(i => i.category === 'asset');
-    const liabilities = instruments.filter(i => i.category === 'liability');
+    const assets = instruments.filter((i) => i.category === 'asset');
+    const liabilities = instruments.filter((i) => i.category === 'liability');
     const totalA = assets.reduce((s, i) => s + i.balance, 0);
     const totalL = liabilities.reduce((s, i) => s + i.balance, 0);
 
-    const portModDur = totalA > 0 ? assets.reduce((s, i) => s + i.modifiedDuration * i.balance, 0) / totalA : 0;
-    const portEffDur = totalA > 0 ? assets.reduce((s, i) => s + i.effectiveDuration * i.balance, 0) / totalA : 0;
-    const portConv = totalA > 0 ? assets.reduce((s, i) => s + i.effectiveConvexity * i.balance, 0) / totalA : 0;
-    const liabEffDur = totalL > 0 ? liabilities.reduce((s, i) => s + i.effectiveDuration * i.balance, 0) / totalL : 0;
+    const portModDur =
+      totalA > 0
+        ? assets.reduce((s, i) => s + i.modifiedDuration * i.balance, 0) /
+          totalA
+        : 0;
+    const portEffDur =
+      totalA > 0
+        ? assets.reduce((s, i) => s + i.effectiveDuration * i.balance, 0) /
+          totalA
+        : 0;
+    const portConv =
+      totalA > 0
+        ? assets.reduce((s, i) => s + i.effectiveConvexity * i.balance, 0) /
+          totalA
+        : 0;
+    const liabEffDur =
+      totalL > 0
+        ? liabilities.reduce((s, i) => s + i.effectiveDuration * i.balance, 0) /
+          totalL
+        : 0;
 
-    const negConvItems = instruments.filter(i => i.isNegativelyConvex && i.category === 'asset');
+    const negConvItems = instruments.filter(
+      (i) => i.isNegativelyConvex && i.category === 'asset',
+    );
     const negConvBal = negConvItems.reduce((s, i) => s + i.balance, 0);
 
     // Duration mismatch heatmap by maturity bucket
-    const heatmap = MATURITY_BUCKETS.map(bucket => {
+    const heatmap = MATURITY_BUCKETS.map((bucket) => {
       const [min, max] = this.parseBucket(bucket);
-      const aDur = assets.filter(i => i.effectiveDuration >= min && i.effectiveDuration < max).reduce((s, i) => s + i.effectiveDuration * i.balance, 0) / (totalA || 1);
-      const lDur = liabilities.filter(i => i.effectiveDuration >= min && i.effectiveDuration < max).reduce((s, i) => s + i.effectiveDuration * i.balance, 0) / (totalL || 1);
-      return { bucket, assetDuration: +aDur.toFixed(2), liabDuration: +lDur.toFixed(2), mismatch: +(aDur - lDur).toFixed(2) };
+      const aDur =
+        assets
+          .filter(
+            (i) => i.effectiveDuration >= min && i.effectiveDuration < max,
+          )
+          .reduce((s, i) => s + i.effectiveDuration * i.balance, 0) /
+        (totalA || 1);
+      const lDur =
+        liabilities
+          .filter(
+            (i) => i.effectiveDuration >= min && i.effectiveDuration < max,
+          )
+          .reduce((s, i) => s + i.effectiveDuration * i.balance, 0) /
+        (totalL || 1);
+      return {
+        bucket,
+        assetDuration: +aDur.toFixed(2),
+        liabDuration: +lDur.toFixed(2),
+        mismatch: +(aDur - lDur).toFixed(2),
+      };
     });
 
     // Top convexity contributors (most negative)
     const convContrib = instruments
-      .filter(i => i.category === 'asset')
-      .map(i => ({ name: i.instrumentName, balance: i.balance, convexity: i.effectiveConvexity, contribution: i.effectiveConvexity * i.balance }))
+      .filter((i) => i.category === 'asset')
+      .map((i) => ({
+        name: i.instrumentName,
+        balance: i.balance,
+        convexity: i.effectiveConvexity,
+        contribution: i.effectiveConvexity * i.balance,
+      }))
       .sort((a, b) => a.contribution - b.contribution)
       .slice(0, 5);
 
@@ -95,18 +152,26 @@ export class OptionalitySuiteService {
       portfolioModDuration: +portModDur.toFixed(2),
       portfolioEffDuration: +portEffDur.toFixed(2),
       portfolioConvexity: +portConv.toFixed(2),
-      durationGap: +(portEffDur - liabEffDur * (totalL / (totalA || 1))).toFixed(2),
+      durationGap: +(
+        portEffDur -
+        liabEffDur * (totalL / (totalA || 1))
+      ).toFixed(2),
       negConvexityBalance: +negConvBal.toFixed(1),
-      negConvexityPct: totalA > 0 ? +(negConvBal / totalA * 100).toFixed(1) : 0,
+      negConvexityPct:
+        totalA > 0 ? +((negConvBal / totalA) * 100).toFixed(1) : 0,
       keyRiskTenor: '5Y',
       durationMismatchHeatmap: heatmap,
-      convexityContributors: convContrib.map(c => ({ ...c, contribution: +c.contribution.toFixed(1) })),
+      convexityContributors: convContrib.map((c) => ({
+        ...c,
+        contribution: +c.contribution.toFixed(1),
+      })),
     };
   }
 
   private classifyOptionType(item: any): OptionAdjustedMetrics['optionType'] {
     const sub = (item.subcategory ?? '').toLowerCase();
-    if (sub.includes('mortgage') || sub.includes('residential')) return 'prepayable';
+    if (sub.includes('mortgage') || sub.includes('residential'))
+      return 'prepayable';
     if (sub.includes('mbs') || sub.includes('callable')) return 'callable';
     if (item.rateType === 'variable') return 'indexed';
     return 'none';
@@ -123,13 +188,38 @@ export class OptionalitySuiteService {
   private getDemoResult(): PortfolioOptionalityResult {
     return {
       instruments: [],
-      portfolioModDuration: 4.2, portfolioEffDuration: 3.6, portfolioConvexity: -0.8,
-      durationGap: 1.8, negConvexityBalance: 130, negConvexityPct: 29.2, keyRiskTenor: '5Y',
-      durationMismatchHeatmap: MATURITY_BUCKETS.map(b => ({ bucket: b, assetDuration: Math.random() * 2, liabDuration: Math.random() * 1.5, mismatch: Math.random() * 0.8 - 0.2 })),
+      portfolioModDuration: 4.2,
+      portfolioEffDuration: 3.6,
+      portfolioConvexity: -0.8,
+      durationGap: 1.8,
+      negConvexityBalance: 130,
+      negConvexityPct: 29.2,
+      keyRiskTenor: '5Y',
+      durationMismatchHeatmap: MATURITY_BUCKETS.map((b) => ({
+        bucket: b,
+        assetDuration: Math.random() * 2,
+        liabDuration: Math.random() * 1.5,
+        mismatch: Math.random() * 0.8 - 0.2,
+      })),
       convexityContributors: [
-        { name: 'FNMA 30Y MBS', balance: 35, convexity: -2.4, contribution: -84 },
-        { name: 'FHLMC 15Y MBS', balance: 15, convexity: -1.5, contribution: -22.5 },
-        { name: 'Residential Mortgages', balance: 80, convexity: -0.6, contribution: -48 },
+        {
+          name: 'FNMA 30Y MBS',
+          balance: 35,
+          convexity: -2.4,
+          contribution: -84,
+        },
+        {
+          name: 'FHLMC 15Y MBS',
+          balance: 15,
+          convexity: -1.5,
+          contribution: -22.5,
+        },
+        {
+          name: 'Residential Mortgages',
+          balance: 80,
+          convexity: -0.6,
+          contribution: -48,
+        },
       ],
     };
   }

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 import * as crypto from 'crypto';
 
 // ─── Webhook Event Types ────────────────────────────────────
@@ -31,10 +31,13 @@ export class WebhookService {
 
   // ─── Manage Subscriptions ─────────────────────────────────
 
-  async createSubscription(institutionId: string, data: {
-    url: string;
-    events: WebhookEventType[];
-  }) {
+  async createSubscription(
+    institutionId: string,
+    data: {
+      url: string;
+      events: WebhookEventType[];
+    },
+  ) {
     const secretKey = crypto.randomBytes(32).toString('hex');
     return this.prisma.webhookSubscription.create({
       data: {
@@ -49,7 +52,15 @@ export class WebhookService {
   async listSubscriptions(institutionId: string) {
     return this.prisma.webhookSubscription.findMany({
       where: { institutionId, isActive: true },
-      select: { id: true, url: true, events: true, isActive: true, lastDeliveredAt: true, failureCount: true, createdAt: true },
+      select: {
+        id: true,
+        url: true,
+        events: true,
+        isActive: true,
+        lastDeliveredAt: true,
+        failureCount: true,
+        createdAt: true,
+      },
     });
   }
 
@@ -63,7 +74,11 @@ export class WebhookService {
 
   // ─── Dispatch Events ──────────────────────────────────────
 
-  async dispatchEvent(institutionId: string, eventType: WebhookEventType, payload: Record<string, any>): Promise<WebhookDeliveryResult[]> {
+  async dispatchEvent(
+    institutionId: string,
+    eventType: WebhookEventType,
+    payload: Record<string, any>,
+  ): Promise<WebhookDeliveryResult[]> {
     const subscriptions = await this.prisma.webhookSubscription.findMany({
       where: { institutionId, isActive: true, events: { has: eventType } },
     });
@@ -140,7 +155,9 @@ export class WebhookService {
         deliveredAt: new Date().toISOString(),
       };
     } catch (err: any) {
-      this.logger.warn(`Webhook delivery failed to ${subscription.url}: ${err.message}`);
+      this.logger.warn(
+        `Webhook delivery failed to ${subscription.url}: ${err.message}`,
+      );
       return {
         subscriptionId: subscription.id,
         url: subscription.url,

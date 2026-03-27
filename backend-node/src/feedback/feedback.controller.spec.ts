@@ -72,8 +72,14 @@ describe('FeedbackController', () => {
     });
 
     it('should update existing feedback instead of creating duplicate', async () => {
-      prisma.feedback.findFirst.mockResolvedValue({ id: 'fb-existing', npsScore: 5 });
-      prisma.feedback.update.mockResolvedValue({ id: 'fb-existing', npsScore: 8 });
+      prisma.feedback.findFirst.mockResolvedValue({
+        id: 'fb-existing',
+        npsScore: 5,
+      });
+      prisma.feedback.update.mockResolvedValue({
+        id: 'fb-existing',
+        npsScore: 8,
+      });
 
       const result = await controller.recordNPS('8', 'job-1', 'inst-1');
 
@@ -191,10 +197,10 @@ describe('FeedbackController', () => {
     it('should compute NPS from scores', async () => {
       prisma.feedback.findMany.mockResolvedValue([
         { npsScore: 10 }, // promoter
-        { npsScore: 9 },  // promoter
-        { npsScore: 8 },  // passive
-        { npsScore: 7 },  // passive
-        { npsScore: 5 },  // detractor
+        { npsScore: 9 }, // promoter
+        { npsScore: 8 }, // passive
+        { npsScore: 7 }, // passive
+        { npsScore: 5 }, // detractor
       ]);
 
       const stats = await controller.getStats();

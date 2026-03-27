@@ -155,7 +155,7 @@ All variables sourced from `.env.example` at project root. Set these in Railway 
 
 - [ ] Provision PostgreSQL instance (Railway Postgres or Supabase managed)
 - [ ] Confirm `DATABASE_URL` connection string is set and reachable from Railway
-- [ ] Run `npx prisma migrate deploy` against production database
+- [ ] Run `ALLOW_SCHEMA_MIGRATIONS=true npm run prisma:deploy` against production database from `backend-node/`
 - [ ] Verify all 14 migrations applied:
 
 | Migration | Description |
@@ -175,7 +175,7 @@ All variables sourced from `.env.example` at project root. Set these in Railway 
 | `20260315180000` | Raw data encryption |
 | `20260315190000` | Password reset tokens |
 
-- [ ] Check migration status: `npx prisma migrate status`
+- [ ] Check migration status: `npm run prisma:status`
 - [ ] Create initial admin user if needed (via Supabase dashboard or seed script)
 - [ ] Configure connection pooling — Railway Postgres uses PgBouncer; set `DATABASE_POOL_SIZE` to stay within plan limits
 - [ ] If using Supabase Postgres: use the pooled connection string (port 6543) for `DATABASE_URL`
@@ -257,8 +257,10 @@ The Dockerfile (`backend-node/Dockerfile`) handles everything:
 1. Installs dependencies (`npm ci`)
 2. Generates Prisma client
 3. Builds NestJS (`nest build`)
-4. Runs `npx prisma migrate deploy` on container start
-5. Starts `node dist/src/main.js`
+4. Starts `node dist/src/main.js`
+
+Schema migrations are explicit and should be run before deploy, not on container
+startup.
 
 **Post-deploy backend checks:**
 
@@ -285,7 +287,7 @@ Or connect the repo and configure auto-deploy in Vercel dashboard.
 **Vercel settings:**
 - Framework: Next.js
 - Root directory: `frontend/`
-- Build command: `bun run build` (or `next build`)
+- Build command: `npm run build`
 - Output directory: `.next`
 - Node.js version: 20.x
 
@@ -305,12 +307,13 @@ NEXT_PUBLIC_ALLOW_DEMO_MOCKS=false
 
 The `next.config.ts` rewrites all `/api/*` requests to `NEXT_PUBLIC_NODE_API_URL`, so the frontend proxies API calls to the Railway backend.
 
-### Database Migration (if not using Dockerfile auto-migrate)
+### Database Migration
 
 ```bash
 cd backend-node
-DATABASE_URL="postgresql://..." npx prisma migrate deploy
-npx prisma migrate status
+DATABASE_URL="postgresql://..." npm run prisma:status
+DATABASE_URL="postgresql://..." ALLOW_SCHEMA_MIGRATIONS=true npm run prisma:deploy
+DATABASE_URL="postgresql://..." npm run prisma:status
 ```
 
 ---

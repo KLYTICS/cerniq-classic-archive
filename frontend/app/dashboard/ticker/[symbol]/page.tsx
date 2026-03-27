@@ -86,7 +86,7 @@ interface NewsArticle {
     title: string;
     publisher: string;
     link: string;
-    publishedAt: string;
+    publishedAt: string | Date;
     relatedTickers?: string[];
 }
 

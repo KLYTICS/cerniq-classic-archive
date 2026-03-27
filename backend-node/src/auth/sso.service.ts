@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 // ─── SSO Configuration Service ──────────────────────────────
 // Manages per-institution SAML 2.0 / OIDC configurations
@@ -50,7 +50,10 @@ export class SSOService {
       oidcClientId: config.oidcClientId ?? undefined,
       jitProvisioning: config.jitProvisioning,
       defaultRole: config.defaultRole,
-      groupRoleMapping: config.groupRoleMapping as Record<string, string> | null,
+      groupRoleMapping: config.groupRoleMapping as Record<
+        string,
+        string
+      > | null,
     };
   }
 
@@ -88,7 +91,8 @@ export class SSOService {
     ssoProfile: { email: string; name?: string; groups?: string[] },
   ): Promise<SSOLoginResult> {
     const config = await this.getConfig(institutionId);
-    if (!config) throw new NotFoundException('SSO not configured for this institution');
+    if (!config)
+      throw new NotFoundException('SSO not configured for this institution');
 
     // Determine role from group mapping
     let role = config.defaultRole;
@@ -102,7 +106,9 @@ export class SSOService {
     }
 
     // Find or create user
-    let user = await this.prisma.user.findUnique({ where: { email: ssoProfile.email } });
+    let user = await this.prisma.user.findUnique({
+      where: { email: ssoProfile.email },
+    });
     let isNewUser = false;
 
     if (!user && config.jitProvisioning) {
@@ -116,10 +122,15 @@ export class SSOService {
         },
       });
       isNewUser = true;
-      this.logger.log(`JIT provisioned user ${ssoProfile.email} with role ${role}`);
+      this.logger.log(
+        `JIT provisioned user ${ssoProfile.email} with role ${role}`,
+      );
     }
 
-    if (!user) throw new NotFoundException('User not found and JIT provisioning is disabled');
+    if (!user)
+      throw new NotFoundException(
+        'User not found and JIT provisioning is disabled',
+      );
 
     // Update last login
     await this.prisma.user.update({

@@ -2,18 +2,33 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 
 // ─── NCUA Call Report Account Code Mapping ──────────────────
 
-const NCUA_ASSET_MAPPING: Record<string, { subcategory: string; name: string }> = {
+const NCUA_ASSET_MAPPING: Record<
+  string,
+  { subcategory: string; name: string }
+> = {
   '010': { subcategory: 'cash', name: 'Cash & Equivalents' },
   '799B': { subcategory: 'securities', name: 'Total Investments' },
   '025A': { subcategory: 'consumer_loans', name: 'Personal Loans' },
   '025B': { subcategory: 'auto_loans', name: 'Vehicle Loans' },
-  '703': { subcategory: 'residential_mortgage', name: 'First Mortgage RE Loans' },
-  '385': { subcategory: 'commercial_re', name: 'Member Business Loans - RE Secured' },
-  '386': { subcategory: 'commercial_industrial', name: 'Member Business Loans - Other' },
+  '703': {
+    subcategory: 'residential_mortgage',
+    name: 'First Mortgage RE Loans',
+  },
+  '385': {
+    subcategory: 'commercial_re',
+    name: 'Member Business Loans - RE Secured',
+  },
+  '386': {
+    subcategory: 'commercial_industrial',
+    name: 'Member Business Loans - Other',
+  },
   '696': { subcategory: 'credit_cards', name: 'Credit Card Loans' },
 };
 
-const NCUA_LIABILITY_MAPPING: Record<string, { subcategory: string; name: string }> = {
+const NCUA_LIABILITY_MAPPING: Record<
+  string,
+  { subcategory: string; name: string }
+> = {
   '018': { subcategory: 'shares', name: 'Total Shares & Deposits' },
   '657A': { subcategory: 'demand_deposits', name: 'Regular Shares' },
   '657B': { subcategory: 'savings', name: 'Share Savings' },
@@ -55,7 +70,10 @@ export interface NCUAPullResult {
 @Injectable()
 export class NCUADataPullService {
   private readonly logger = new Logger(NCUADataPullService.name);
-  private cache = new Map<string, { data: NCUAPullResult; timestamp: number }>();
+  private cache = new Map<
+    string,
+    { data: NCUAPullResult; timestamp: number }
+  >();
 
   // ─── Pull NCUA Data ────────────────────────────────────────
 
@@ -78,7 +96,9 @@ export class NCUADataPullService {
     const result = this.generateRealisticData(charterNumber);
 
     this.cache.set(charterNumber, { data: result, timestamp: Date.now() });
-    this.logger.log(`NCUA data pulled for charter ${charterNumber}: ${result.institutionName}`);
+    this.logger.log(
+      `NCUA data pulled for charter ${charterNumber}: ${result.institutionName}`,
+    );
 
     return result;
   }
@@ -106,36 +126,99 @@ export class NCUADataPullService {
     const netWorth = totalAssets * (0.08 + rng() * 0.06); // 8-14% capital
 
     const names = [
-      'Federal Credit Union', 'Community Credit Union', 'Employees Credit Union',
-      'Heritage Credit Union', 'Unity Federal CU', 'Pacific Northwest CU',
+      'Federal Credit Union',
+      'Community Credit Union',
+      'Employees Credit Union',
+      'Heritage Credit Union',
+      'Unity Federal CU',
+      'Pacific Northwest CU',
     ];
-    const cities = ['Washington DC', 'Sacramento CA', 'Austin TX', 'Charlotte NC', 'Denver CO'];
+    const cities = [
+      'Washington DC',
+      'Sacramento CA',
+      'Austin TX',
+      'Charlotte NC',
+      'Denver CO',
+    ];
 
     return {
       charterNumber,
       institutionName: `${names[seed % names.length]} #${charterNumber}`,
       city: cities[seed % cities.length],
-      state: cities[seed % cities.length].split(' ').pop()!,
+      state: cities[seed % cities.length].split(' ').pop(),
       totalAssets: Math.round(totalAssets * 10) / 10,
       totalShares: Math.round((totalAssets - netWorth) * 0.85 * 10) / 10,
       netWorth: Math.round(netWorth * 10) / 10,
       netWorthRatio: Math.round((netWorth / totalAssets) * 10000) / 100,
       items: [...assetMix, ...liabilityMix],
       loanSegments: this.generateLoanSegments(assetMix, rng),
-      asOfDate: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 30).toISOString(),
+      asOfDate: new Date(
+        new Date().getFullYear(),
+        new Date().getMonth() - 1,
+        30,
+      ).toISOString(),
       source: 'ncua_5300',
     };
   }
 
   private generateAssetMix(totalAssets: number, rng: () => number) {
     const allocations = [
-      { subcategory: 'cash', name: 'Cash & Equivalents', pct: 0.05 + rng() * 0.05, rate: 0.04, duration: 0.1, rateType: 'variable' },
-      { subcategory: 'securities', name: 'Investment Securities', pct: 0.10 + rng() * 0.10, rate: 0.035 + rng() * 0.02, duration: 3 + rng() * 4, rateType: 'fixed' },
-      { subcategory: 'consumer_loans', name: 'Consumer Loans', pct: 0.10 + rng() * 0.10, rate: 0.06 + rng() * 0.03, duration: 2 + rng() * 3, rateType: 'fixed' },
-      { subcategory: 'auto_loans', name: 'Auto Loans', pct: 0.08 + rng() * 0.08, rate: 0.055 + rng() * 0.025, duration: 3 + rng() * 2, rateType: 'fixed' },
-      { subcategory: 'residential_mortgage', name: 'Real Estate - First Mortgage', pct: 0.15 + rng() * 0.15, rate: 0.045 + rng() * 0.02, duration: 7 + rng() * 10, rateType: 'fixed' },
-      { subcategory: 'commercial_re', name: 'Member Business - RE', pct: 0.05 + rng() * 0.12, rate: 0.05 + rng() * 0.025, duration: 5 + rng() * 5, rateType: 'variable' },
-      { subcategory: 'credit_cards', name: 'Credit Card Loans', pct: 0.02 + rng() * 0.05, rate: 0.12 + rng() * 0.06, duration: 1 + rng(), rateType: 'variable' },
+      {
+        subcategory: 'cash',
+        name: 'Cash & Equivalents',
+        pct: 0.05 + rng() * 0.05,
+        rate: 0.04,
+        duration: 0.1,
+        rateType: 'variable',
+      },
+      {
+        subcategory: 'securities',
+        name: 'Investment Securities',
+        pct: 0.1 + rng() * 0.1,
+        rate: 0.035 + rng() * 0.02,
+        duration: 3 + rng() * 4,
+        rateType: 'fixed',
+      },
+      {
+        subcategory: 'consumer_loans',
+        name: 'Consumer Loans',
+        pct: 0.1 + rng() * 0.1,
+        rate: 0.06 + rng() * 0.03,
+        duration: 2 + rng() * 3,
+        rateType: 'fixed',
+      },
+      {
+        subcategory: 'auto_loans',
+        name: 'Auto Loans',
+        pct: 0.08 + rng() * 0.08,
+        rate: 0.055 + rng() * 0.025,
+        duration: 3 + rng() * 2,
+        rateType: 'fixed',
+      },
+      {
+        subcategory: 'residential_mortgage',
+        name: 'Real Estate - First Mortgage',
+        pct: 0.15 + rng() * 0.15,
+        rate: 0.045 + rng() * 0.02,
+        duration: 7 + rng() * 10,
+        rateType: 'fixed',
+      },
+      {
+        subcategory: 'commercial_re',
+        name: 'Member Business - RE',
+        pct: 0.05 + rng() * 0.12,
+        rate: 0.05 + rng() * 0.025,
+        duration: 5 + rng() * 5,
+        rateType: 'variable',
+      },
+      {
+        subcategory: 'credit_cards',
+        name: 'Credit Card Loans',
+        pct: 0.02 + rng() * 0.05,
+        rate: 0.12 + rng() * 0.06,
+        duration: 1 + rng(),
+        rateType: 'variable',
+      },
     ];
 
     // Normalize to 100%
@@ -154,11 +237,46 @@ export class NCUADataPullService {
   private generateLiabilityMix(totalAssets: number, rng: () => number) {
     const totalLiabilities = totalAssets * (0.88 + rng() * 0.04);
     const allocations = [
-      { subcategory: 'demand_deposits', name: 'Regular Shares', pct: 0.25 + rng() * 0.15, rate: 0.003 + rng() * 0.005, duration: 0.5, rateType: 'variable' },
-      { subcategory: 'savings', name: 'Share Savings', pct: 0.20 + rng() * 0.10, rate: 0.01 + rng() * 0.01, duration: 1, rateType: 'variable' },
-      { subcategory: 'time_deposits', name: 'Share Certificates', pct: 0.15 + rng() * 0.10, rate: 0.035 + rng() * 0.015, duration: 1.5 + rng() * 2, rateType: 'fixed' },
-      { subcategory: 'money_market', name: 'Money Market Shares', pct: 0.10 + rng() * 0.10, rate: 0.02 + rng() * 0.02, duration: 0.25, rateType: 'variable' },
-      { subcategory: 'borrowings', name: 'Borrowed Funds', pct: 0.03 + rng() * 0.08, rate: 0.04 + rng() * 0.02, duration: 2 + rng() * 3, rateType: 'fixed' },
+      {
+        subcategory: 'demand_deposits',
+        name: 'Regular Shares',
+        pct: 0.25 + rng() * 0.15,
+        rate: 0.003 + rng() * 0.005,
+        duration: 0.5,
+        rateType: 'variable',
+      },
+      {
+        subcategory: 'savings',
+        name: 'Share Savings',
+        pct: 0.2 + rng() * 0.1,
+        rate: 0.01 + rng() * 0.01,
+        duration: 1,
+        rateType: 'variable',
+      },
+      {
+        subcategory: 'time_deposits',
+        name: 'Share Certificates',
+        pct: 0.15 + rng() * 0.1,
+        rate: 0.035 + rng() * 0.015,
+        duration: 1.5 + rng() * 2,
+        rateType: 'fixed',
+      },
+      {
+        subcategory: 'money_market',
+        name: 'Money Market Shares',
+        pct: 0.1 + rng() * 0.1,
+        rate: 0.02 + rng() * 0.02,
+        duration: 0.25,
+        rateType: 'variable',
+      },
+      {
+        subcategory: 'borrowings',
+        name: 'Borrowed Funds',
+        pct: 0.03 + rng() * 0.08,
+        rate: 0.04 + rng() * 0.02,
+        duration: 2 + rng() * 3,
+        rateType: 'fixed',
+      },
     ];
 
     const totalPct = allocations.reduce((s, a) => s + a.pct, 0);

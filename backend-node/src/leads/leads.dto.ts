@@ -1,4 +1,11 @@
-import { IsString, IsEmail, IsOptional, IsIn, IsNumber, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsOptional,
+  IsIn,
+  IsNumber,
+  IsDateString,
+} from 'class-validator';
 
 export class SubmitLeadDto {
   @IsString()
@@ -18,7 +25,13 @@ export class SubmitLeadDto {
   @IsString()
   institutionName: string;
 
-  @IsIn(['cooperativa', 'credit_union', 'community_bank', 'cpa_consultant', 'other'])
+  @IsIn([
+    'cooperativa',
+    'credit_union',
+    'community_bank',
+    'cpa_consultant',
+    'other',
+  ])
   institutionType: string;
 
   @IsOptional()
@@ -44,7 +57,17 @@ export class SubmitLeadDto {
 
 export class UpdateLeadDto {
   @IsOptional()
-  @IsIn(['NEW', 'CONTACTED', 'DEMO_SCHEDULED', 'DEMO_COMPLETED', 'PROPOSAL_SENT', 'NEGOTIATING', 'CLOSED_WON', 'CLOSED_LOST', 'UNQUALIFIED'])
+  @IsIn([
+    'NEW',
+    'CONTACTED',
+    'DEMO_SCHEDULED',
+    'DEMO_COMPLETED',
+    'PROPOSAL_SENT',
+    'NEGOTIATING',
+    'CLOSED_WON',
+    'CLOSED_LOST',
+    'UNQUALIFIED',
+  ])
   status?: string;
 
   @IsOptional()

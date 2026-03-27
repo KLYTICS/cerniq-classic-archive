@@ -210,7 +210,7 @@ export default function CECLPage() {
             <YAxis type="category" dataKey="segmentName" tick={{ fontSize: 11 }} width={130} />
             <Tooltip
               contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-              formatter={(value: number) => [`$${value.toFixed(3)}M`, '']}
+              formatter={(value) => [`$${Number(value ?? 0).toFixed(3)}M`, '']}
             />
             <Bar dataKey="allowanceRequired" name={locale === 'es' ? 'Provisión' : 'Allowance'} radius={[0, 4, 4, 0]}>
               {analysis.segments.map((_, i) => (
@@ -285,7 +285,7 @@ export default function CECLPage() {
               <YAxis tickFormatter={(v) => `$${v.toFixed(1)}M`} tick={{ fontSize: 11 }} />
               <Tooltip
                 contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-                formatter={(value: number) => [`$${value.toFixed(3)}M`, '']}
+                formatter={(value) => [`$${Number(value ?? 0).toFixed(3)}M`, '']}
               />
               <Legend wrapperStyle={{ fontSize: '11px' }} />
               <Area type="monotone" dataKey="allowance" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.15} strokeWidth={2} name={locale === 'es' ? 'Provisión' : 'Allowance'} />

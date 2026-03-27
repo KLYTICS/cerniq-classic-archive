@@ -39,11 +39,16 @@ export class VendorIntelligenceService {
    * Fuzzy-match a vendor name against PR_VENDOR_PROFILES.
    * Returns null if no profile matches.
    */
-  matchVendorProfile(vendorName: string, quarterlyTotal: number): VendorMatch | null {
+  matchVendorProfile(
+    vendorName: string,
+    quarterlyTotal: number,
+  ): VendorMatch | null {
     const nameLower = vendorName.trim().toLowerCase();
 
     for (const profile of PR_VENDOR_PROFILES) {
-      const matched = profile.matchKeywords.some((kw) => nameLower.includes(kw.toLowerCase()));
+      const matched = profile.matchKeywords.some((kw) =>
+        nameLower.includes(kw.toLowerCase()),
+      );
       if (!matched) continue;
 
       const { p25, median, p75 } = profile.typicalQuarterlyRange;
@@ -51,15 +56,15 @@ export class VendorIntelligenceService {
       // Calculate percentile rank within the p25–p75 interquartile range
       let percentileRank: number;
       if (quarterlyTotal <= p25) {
-        percentileRank = p75 !== p25
-          ? ((quarterlyTotal - p25) / (median - p25)) * 25
-          : 0;
+        percentileRank =
+          p75 !== p25 ? ((quarterlyTotal - p25) / (median - p25)) * 25 : 0;
       } else if (quarterlyTotal <= median) {
         percentileRank = 25 + ((quarterlyTotal - p25) / (median - p25)) * 25;
       } else if (quarterlyTotal <= p75) {
         percentileRank = 50 + ((quarterlyTotal - median) / (p75 - median)) * 25;
       } else {
-        percentileRank = 75 + ((quarterlyTotal - p75) / (p75 - median || 1)) * 25;
+        percentileRank =
+          75 + ((quarterlyTotal - p75) / (p75 - median || 1)) * 25;
       }
 
       percentileRank = Math.round(percentileRank * 10) / 10;
@@ -99,10 +104,13 @@ export class VendorIntelligenceService {
     if (expenses.length === 0) return [];
 
     // Group by normalized vendor name
-    const vendorMap = new Map<string, {
-      originalName: string;
-      items: VendorExpenseInput[];
-    }>();
+    const vendorMap = new Map<
+      string,
+      {
+        originalName: string;
+        items: VendorExpenseInput[];
+      }
+    >();
 
     for (const e of expenses) {
       const key = e.merchantName.trim().toLowerCase();
@@ -121,7 +129,8 @@ export class VendorIntelligenceService {
     for (const [, { originalName, items }] of vendorMap) {
       const quarterlyTotal = items.reduce((s, e) => s + e.amount, 0);
       const latestTransactionDate = items.reduce(
-        (latest, e) => (e.transactionDate > latest ? e.transactionDate : latest),
+        (latest, e) =>
+          e.transactionDate > latest ? e.transactionDate : latest,
         items[0].transactionDate,
       );
 
@@ -131,9 +140,10 @@ export class VendorIntelligenceService {
         vendorName: originalName,
         transactionCount: items.length,
         quarterlyTotal: Math.round(quarterlyTotal * 100) / 100,
-        percentOfTotalSpend: totalSpend > 0
-          ? Math.round((quarterlyTotal / totalSpend) * 10000) / 100
-          : 0,
+        percentOfTotalSpend:
+          totalSpend > 0
+            ? Math.round((quarterlyTotal / totalSpend) * 10000) / 100
+            : 0,
         match,
         latestTransactionDate,
       });
@@ -144,7 +154,7 @@ export class VendorIntelligenceService {
 
     this.logger.log(
       `Generated vendor report: ${reports.length} vendors, ` +
-      `${reports.filter((r) => r.match).length} matched to profiles`,
+        `${reports.filter((r) => r.match).length} matched to profiles`,
     );
 
     return reports;

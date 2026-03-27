@@ -59,7 +59,7 @@ export default function ScenarioChart({
               borderRadius: 8,
               color: '#f1f5f9',
             }}
-            formatter={(value: number | undefined) => [`$${(value ?? 0).toFixed(2)}M`, dataKey === 'niImpact' ? 'NII Impact' : 'MVE Impact']}
+            formatter={(value) => [`$${Number(value ?? 0).toFixed(2)}M`, dataKey === 'niImpact' ? 'NII Impact' : 'MVE Impact']}
           />
           <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
           <Bar dataKey={dataKey} radius={[4, 4, 0, 0]}>

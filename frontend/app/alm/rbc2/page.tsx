@@ -76,9 +76,11 @@ export default function RBC2Page() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis type="number" tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
             <YAxis type="category" dataKey="code" width={60} tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }}
-              formatter={(v: number, name: string) => [`$${v.toFixed(2)}M`, name]}
-              labelFormatter={(label) => data.components.find(c => c.code === label)?.name || label} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value, name) => [`$${Number(value ?? 0).toFixed(2)}M`, name ?? '']}
+              labelFormatter={(label) => data.components.find(c => c.code === label)?.name || label}
+            />
             <Bar dataKey="weighted" name={locale === 'es' ? 'Ponderado' : 'Weighted'} radius={[0, 4, 4, 0]}>
               {data.components.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
             </Bar>

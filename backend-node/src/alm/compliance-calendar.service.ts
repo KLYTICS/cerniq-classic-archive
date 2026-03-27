@@ -19,7 +19,9 @@ export class ComplianceCalendarService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async getUpcomingDeadlines(institutionId: string): Promise<ComplianceDeadline[]> {
+  async getUpcomingDeadlines(
+    institutionId: string,
+  ): Promise<ComplianceDeadline[]> {
     const institution = await this.prisma.institution.findUnique({
       where: { id: institutionId },
     });
@@ -53,7 +55,8 @@ export class ComplianceCalendarService {
         category: 'exam',
         urgency: this.calculateUrgency(estimated, now),
         description: 'Estimated COSSEC exam based on last exam + 15 months',
-        descriptionEs: 'Examen COSSEC estimado basado en ultimo examen + 15 meses',
+        descriptionEs:
+          'Examen COSSEC estimado basado en ultimo examen + 15 meses',
         relatedModule: '/alm',
       });
     }
@@ -94,10 +97,10 @@ export class ComplianceCalendarService {
     // ── Quarterly COSSEC Reports ─────────────────────────────────────
     // Fixed deadlines: Q1=Apr 15, Q2=Jul 15, Q3=Oct 15, Q4=Jan 15
     const quarterlyDeadlines = [
-      { month: 0, day: 15, quarter: 'Q4', prev: 'Oct-Dec' },  // Jan 15 = Q4 report
-      { month: 3, day: 15, quarter: 'Q1', prev: 'Jan-Mar' },  // Apr 15 = Q1 report
-      { month: 6, day: 15, quarter: 'Q2', prev: 'Apr-Jun' },  // Jul 15 = Q2 report
-      { month: 9, day: 15, quarter: 'Q3', prev: 'Jul-Sep' },  // Oct 15 = Q3 report
+      { month: 0, day: 15, quarter: 'Q4', prev: 'Oct-Dec' }, // Jan 15 = Q4 report
+      { month: 3, day: 15, quarter: 'Q1', prev: 'Jan-Mar' }, // Apr 15 = Q1 report
+      { month: 6, day: 15, quarter: 'Q2', prev: 'Apr-Jun' }, // Jul 15 = Q2 report
+      { month: 9, day: 15, quarter: 'Q3', prev: 'Jul-Sep' }, // Oct 15 = Q3 report
     ];
 
     const currentYear = now.getFullYear();
@@ -152,8 +155,10 @@ export class ComplianceCalendarService {
             deadlineDate: nextReportDue,
             category: 'report',
             urgency: this.calculateUrgency(nextReportDue, now),
-            description: 'Annual fiscal year-end regulatory filing due 90 days after FYE',
-            descriptionEs: 'Informe regulatorio de cierre fiscal anual, debido 90 dias despues del cierre',
+            description:
+              'Annual fiscal year-end regulatory filing due 90 days after FYE',
+            descriptionEs:
+              'Informe regulatorio de cierre fiscal anual, debido 90 dias despues del cierre',
             relatedModule: '/alm',
           });
         } else {
@@ -164,8 +169,10 @@ export class ComplianceCalendarService {
             deadlineDate: reportDue,
             category: 'report',
             urgency: this.calculateUrgency(reportDue, now),
-            description: 'Annual fiscal year-end regulatory filing due 90 days after FYE',
-            descriptionEs: 'Informe regulatorio de cierre fiscal anual, debido 90 dias despues del cierre',
+            description:
+              'Annual fiscal year-end regulatory filing due 90 days after FYE',
+            descriptionEs:
+              'Informe regulatorio de cierre fiscal anual, debido 90 dias despues del cierre',
             relatedModule: '/alm',
           });
         }
@@ -216,7 +223,9 @@ export class ComplianceCalendarService {
       const upcoming = allDeadlines.filter(
         (d) =>
           d.deadlineDate <= cutoff &&
-          (d.urgency === 'CRITICAL' || d.urgency === 'HIGH' || d.urgency === 'OVERDUE'),
+          (d.urgency === 'CRITICAL' ||
+            d.urgency === 'HIGH' ||
+            d.urgency === 'OVERDUE'),
       );
       if (upcoming.length > 0) {
         results.push({
@@ -238,9 +247,7 @@ export class ComplianceCalendarService {
     deadline: Date,
     now: Date,
   ): 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'OVERDUE' {
-    const days = Math.floor(
-      (deadline.getTime() - now.getTime()) / 86_400_000,
-    );
+    const days = Math.floor((deadline.getTime() - now.getTime()) / 86_400_000);
     if (days < 0) return 'OVERDUE';
     if (days <= 14) return 'CRITICAL';
     if (days <= 30) return 'HIGH';

@@ -3,15 +3,15 @@ import { Injectable, Logger } from '@nestjs/common';
 // ─── PR-Specific CPR Model ──────────────────────────────────
 
 export interface CPRResult {
-  rateIncentive: number;    // mortgage rate - current market rate
-  baseCPR: number;          // annual CPR before adjustments
+  rateIncentive: number; // mortgage rate - current market rate
+  baseCPR: number; // annual CPR before adjustments
   seasonalAdj: number;
   ageRampAdj: number;
   loyaltyDiscount: number;
   burnoutAdj: number;
   disasterAdj: number;
-  finalCPR: number;         // annual CPR after all adjustments
-  monthlySMM: number;       // single monthly mortality
+  finalCPR: number; // annual CPR after all adjustments
+  monthlySMM: number; // single monthly mortality
 }
 
 export interface CPRSensitivity {
@@ -20,7 +20,9 @@ export interface CPRSensitivity {
 }
 
 // PR-specific seasonality factors (higher in Q1/Q4)
-const PR_SEASONALITY = [1.0, 1.2, 1.1, 0.9, 0.8, 0.9, 0.9, 1.0, 1.0, 1.1, 1.1, 1.2];
+const PR_SEASONALITY = [
+  1.0, 1.2, 1.1, 0.9, 0.8, 0.9, 0.9, 1.0, 1.0, 1.1, 1.1, 1.2,
+];
 
 @Injectable()
 export class PrepaymentEngineService {
@@ -32,12 +34,12 @@ export class PrepaymentEngineService {
     mortgageRate: number;
     currentMarketRate: number;
     ageMonths: number;
-    month?: number;          // 1-12
-    burnoutFactor?: number;  // 0-1
+    month?: number; // 1-12
+    burnoutFactor?: number; // 0-1
     disasterOverride?: number; // 0=normal, 1=post-hurricane
   }): CPRResult {
     const { mortgageRate, currentMarketRate, ageMonths } = params;
-    const month = params.month ?? (new Date().getMonth() + 1);
+    const month = params.month ?? new Date().getMonth() + 1;
     const burnoutFactor = params.burnoutFactor ?? 1.0;
     const disasterOverride = params.disasterOverride ?? 0;
 
@@ -54,15 +56,21 @@ export class PrepaymentEngineService {
     const ageRampAdj = Math.min(1, ageMonths / 30);
 
     // PR cooperative member loyalty discount: 20% less likely to refi
-    const loyaltyDiscount = 0.80;
+    const loyaltyDiscount = 0.8;
 
     // Burnout: remaining pool is less rate-sensitive
     const burnoutAdj = burnoutFactor;
 
     // Disaster override: post-hurricane, 30% CPR spike
-    const disasterAdj = 1 + 0.30 * disasterOverride;
+    const disasterAdj = 1 + 0.3 * disasterOverride;
 
-    const finalCPR = baseCPR * seasonalAdj * ageRampAdj * loyaltyDiscount * burnoutAdj * disasterAdj;
+    const finalCPR =
+      baseCPR *
+      seasonalAdj *
+      ageRampAdj *
+      loyaltyDiscount *
+      burnoutAdj *
+      disasterAdj;
 
     // SMM = 1 - (1 - CPR)^(1/12)
     const monthlySMM = 1 - Math.pow(1 - finalCPR, 1 / 12);
@@ -82,7 +90,11 @@ export class PrepaymentEngineService {
 
   // ─── CPR Sensitivity Curve ────────────────────────────────
 
-  computeSensitivity(currentMortgageRate: number, currentMarketRate: number, ageMonths: number = 36): CPRSensitivity {
+  computeSensitivity(
+    currentMortgageRate: number,
+    currentMarketRate: number,
+    ageMonths: number = 36,
+  ): CPRSensitivity {
     const points: CPRSensitivity['points'] = [];
 
     // Sweep market rates from -200bps to +200bps around current
@@ -94,7 +106,8 @@ export class PrepaymentEngineService {
         ageMonths,
       });
       points.push({
-        rateIncentive: Math.round((currentMortgageRate - marketRate) * 10000) / 10000,
+        rateIncentive:
+          Math.round((currentMortgageRate - marketRate) * 10000) / 10000,
         cpr: result.finalCPR,
       });
     }

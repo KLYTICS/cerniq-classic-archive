@@ -28,10 +28,16 @@ async function bootstrap() {
   }
   // Warn on missing but non-fatal integrations
   const isProd = process.env.NODE_ENV === 'production';
-  if (isProd && !process.env.ADMIN_KEY) console.warn('WARN: ADMIN_KEY not set — admin endpoints disabled.');
-  if (isProd && !process.env.STRIPE_SECRET_KEY) console.warn('WARN: STRIPE_SECRET_KEY not set — billing disabled.');
-  if (isProd && !process.env.RESEND_API_KEY) console.warn('WARN: RESEND_API_KEY not set — email delivery disabled.');
-  if (isProd && !process.env.DATA_ENCRYPTION_KEY) console.warn('WARN: DATA_ENCRYPTION_KEY not set — PII encryption disabled.');
+  if (isProd && !process.env.ADMIN_KEY)
+    console.warn('WARN: ADMIN_KEY not set — admin endpoints disabled.');
+  if (isProd && !process.env.STRIPE_SECRET_KEY)
+    console.warn('WARN: STRIPE_SECRET_KEY not set — billing disabled.');
+  if (isProd && !process.env.RESEND_API_KEY)
+    console.warn('WARN: RESEND_API_KEY not set — email delivery disabled.');
+  if (isProd && !process.env.DATA_ENCRYPTION_KEY)
+    console.warn(
+      'WARN: DATA_ENCRYPTION_KEY not set — PII encryption disabled.',
+    );
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true, // Required for Stripe webhook signature verification
@@ -91,7 +97,13 @@ async function bootstrap() {
     origin: corsOriginCallback,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key', 'x-organization-id'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'x-admin-key',
+      'x-organization-id',
+      'x-klytics-org-id',
+    ],
     maxAge: 86400,
   });
 
@@ -103,14 +115,14 @@ async function bootstrap() {
     .setTitle('CERNIQ API')
     .setDescription(
       'Institutional ALM Intelligence API for credit unions, cooperativas, and community banks.\n\n' +
-      '## Authentication\n' +
-      'All authenticated endpoints require an API key passed via the `Authorization` header:\n' +
-      '```\nAuthorization: Bearer ck_live_...\n```\n\n' +
-      '## Rate Limits\n' +
-      '- **Standard tier:** 100 requests/hour per API key\n' +
-      '- **Partner tier:** 1,000 requests/hour per API key\n\n' +
-      '## Response Envelope\n' +
-      'All responses are wrapped in: `{ "success": true, "data": ... }`',
+        '## Authentication\n' +
+        'All authenticated endpoints require an API key passed via the `Authorization` header:\n' +
+        '```\nAuthorization: Bearer ck_live_...\n```\n\n' +
+        '## Rate Limits\n' +
+        '- **Standard tier:** 100 requests/hour per API key\n' +
+        '- **Partner tier:** 1,000 requests/hour per API key\n\n' +
+        '## Response Envelope\n' +
+        'All responses are wrapped in: `{ "success": true, "data": ... }`',
     )
     .setVersion('1.0')
     .addBearerAuth(
@@ -138,6 +150,8 @@ async function bootstrap() {
   // --- Start server ---
   const port = process.env.PORT || process.env.BACKEND_PORT || 3000;
   await app.listen(port, '0.0.0.0');
-  console.log(`CERNIQ backend running on 0.0.0.0:${port} [${process.env.NODE_ENV || 'development'}]`);
+  console.log(
+    `CERNIQ backend running on 0.0.0.0:${port} [${process.env.NODE_ENV || 'development'}]`,
+  );
 }
 bootstrap();

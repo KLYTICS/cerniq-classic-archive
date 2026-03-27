@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
-import { ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -224,7 +228,9 @@ describe('AuthService', () => {
 
       const result = await service.requestPasswordReset('nobody@example.com');
 
-      expect(result.message).toBe('If that email exists, a reset link has been sent');
+      expect(result.message).toBe(
+        'If that email exists, a reset link has been sent',
+      );
     });
 
     it('should not create a token for non-existent email', async () => {
@@ -236,7 +242,10 @@ describe('AuthService', () => {
     });
 
     it('should invalidate previous tokens when new request is made', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-reset', email: 'reset@example.com' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-reset',
+        email: 'reset@example.com',
+      });
       prisma.passwordResetToken.updateMany.mockResolvedValue({ count: 1 });
       prisma.passwordResetToken.create.mockResolvedValue({});
 
@@ -249,7 +258,10 @@ describe('AuthService', () => {
     });
 
     it('should create a PasswordResetToken with hashed token', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-hash', email: 'hash@example.com' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-hash',
+        email: 'hash@example.com',
+      });
       prisma.passwordResetToken.updateMany.mockResolvedValue({ count: 0 });
       prisma.passwordResetToken.create.mockResolvedValue({});
 
@@ -262,7 +274,10 @@ describe('AuthService', () => {
 
     it('should create a PasswordResetToken with 1-hour expiry', async () => {
       const before = Date.now();
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-exp', email: 'exp@example.com' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-exp',
+        email: 'exp@example.com',
+      });
       prisma.passwordResetToken.updateMany.mockResolvedValue({ count: 0 });
       prisma.passwordResetToken.create.mockResolvedValue({});
 
@@ -278,13 +293,18 @@ describe('AuthService', () => {
     });
 
     it('should return success message for existing email', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-ok', email: 'ok@example.com' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-ok',
+        email: 'ok@example.com',
+      });
       prisma.passwordResetToken.updateMany.mockResolvedValue({ count: 0 });
       prisma.passwordResetToken.create.mockResolvedValue({});
 
       const result = await service.requestPasswordReset('ok@example.com');
 
-      expect(result.message).toBe('If that email exists, a reset link has been sent');
+      expect(result.message).toBe(
+        'If that email exists, a reset link has been sent',
+      );
     });
   });
 
@@ -300,9 +320,9 @@ describe('AuthService', () => {
         expiresAt: new Date(Date.now() - 60000), // expired 1 minute ago
       });
 
-      await expect(service.resetPassword('some-token', 'newPass123')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.resetPassword('some-token', 'newPass123'),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should reject expired tokens with correct message', async () => {
@@ -314,7 +334,9 @@ describe('AuthService', () => {
         expiresAt: new Date(Date.now() - 1000),
       });
 
-      await expect(service.resetPassword('some-token', 'newPass123')).rejects.toThrow(
+      await expect(
+        service.resetPassword('some-token', 'newPass123'),
+      ).rejects.toThrow(
         'Reset link is invalid or has expired. Please request a new one.',
       );
     });
@@ -328,15 +350,17 @@ describe('AuthService', () => {
         expiresAt: new Date(Date.now() + 3600000),
       });
 
-      await expect(service.resetPassword('used-token', 'newPass123')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.resetPassword('used-token', 'newPass123'),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should reject non-existent tokens', async () => {
       prisma.passwordResetToken.findUnique.mockResolvedValue(null);
 
-      await expect(service.resetPassword('invalid-token', 'newPass123')).rejects.toThrow(
+      await expect(
+        service.resetPassword('invalid-token', 'newPass123'),
+      ).rejects.toThrow(
         'Reset link is invalid or has expired. Please request a new one.',
       );
     });
@@ -351,7 +375,10 @@ describe('AuthService', () => {
       });
       prisma.$transaction.mockResolvedValue([{}, {}, {}]);
 
-      const result = await service.resetPassword('valid-token', 'brandNewPassword');
+      const result = await service.resetPassword(
+        'valid-token',
+        'brandNewPassword',
+      );
 
       expect(result.message).toBe(
         'Password has been reset successfully. Please log in with your new password.',

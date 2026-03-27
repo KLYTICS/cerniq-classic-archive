@@ -5,13 +5,13 @@ import { Injectable, Logger } from '@nestjs/common';
  * Compatible with Prisma BalanceSheetItem model.
  */
 export interface BalanceSheetItem {
-  category: string;       // 'asset' | 'liability'
+  category: string; // 'asset' | 'liability'
   subcategory: string;
   name: string;
-  balance: number;        // in millions ($M)
-  rate: number;           // decimal (0.05 = 5%) or percentage (5.0) — auto-detected
-  duration: number;       // years (used as fallback maturity)
-  rateType: string;       // 'fixed' | 'variable'
+  balance: number; // in millions ($M)
+  rate: number; // decimal (0.05 = 5%) or percentage (5.0) — auto-detected
+  duration: number; // years (used as fallback maturity)
+  rateType: string; // 'fixed' | 'variable'
   maturityDate?: Date | null;
   repriceDate?: Date | null;
 }
@@ -19,11 +19,11 @@ export interface BalanceSheetItem {
 export interface InstrumentCashFlows {
   name: string;
   category: string;
-  balance: number;          // in $M
-  cashFlows: number[];      // annual cash flows in $M
-  yieldRate: number;        // decimal
+  balance: number; // in $M
+  cashFlows: number[]; // annual cash flows in $M
+  yieldRate: number; // decimal
   maturityYears: number;
-  price: number;            // current market value in $M (≈ balance for par instruments)
+  price: number; // current market value in $M (≈ balance for par instruments)
 }
 
 export interface PortfolioDurationMetrics {
@@ -33,7 +33,7 @@ export interface PortfolioDurationMetrics {
   liabilityConvexity: number;
   durationGap: number;
   leverageAdjustedDurationGap: number;
-  totalAssets: number;      // $M
+  totalAssets: number; // $M
   totalLiabilities: number; // $M
   assetDetails: Array<{
     name: string;
@@ -55,11 +55,11 @@ export interface PortfolioDurationMetrics {
 
 export interface EVESensitivityPoint {
   shockBps: number;
-  assetValueChange: number;      // $M
-  liabilityValueChange: number;  // $M
-  eveChange: number;             // $M
-  eveChangePct: number;          // percentage
-  baseEVE: number;               // $M
+  assetValueChange: number; // $M
+  liabilityValueChange: number; // $M
+  eveChange: number; // $M
+  eveChangePct: number; // percentage
+  baseEVE: number; // $M
 }
 
 /** Round to n decimal places */
@@ -85,7 +85,11 @@ export class DurationService {
    *
    * Test: calculateModifiedDuration([100, 100, 1100], 0.05, 1000) ≈ 2.72 years
    */
-  calculateModifiedDuration(cashFlows: number[], yieldRate: number, price: number): number {
+  calculateModifiedDuration(
+    cashFlows: number[],
+    yieldRate: number,
+    price: number,
+  ): number {
     if (price <= 0 || cashFlows.length === 0) return 0;
     if (yieldRate < 0) yieldRate = 0;
 
@@ -102,7 +106,11 @@ export class DurationService {
   /**
    * Macaulay duration (non-modified) for a single instrument.
    */
-  calculateMacaulayDuration(cashFlows: number[], yieldRate: number, price: number): number {
+  calculateMacaulayDuration(
+    cashFlows: number[],
+    yieldRate: number,
+    price: number,
+  ): number {
     if (price <= 0 || cashFlows.length === 0) return 0;
     if (yieldRate < 0) yieldRate = 0;
 
@@ -122,13 +130,18 @@ export class DurationService {
    * skip it, but for large rate shocks (±200-300bps) the second-order
    * term becomes material (can be 10-15% of total price change).
    */
-  calculateConvexity(cashFlows: number[], yieldRate: number, price: number): number {
+  calculateConvexity(
+    cashFlows: number[],
+    yieldRate: number,
+    price: number,
+  ): number {
     if (price <= 0 || cashFlows.length === 0) return 0;
     if (yieldRate < 0) yieldRate = 0;
 
     let convexity = 0;
     for (let t = 1; t <= cashFlows.length; t++) {
-      convexity += (t * (t + 1) * cashFlows[t - 1]) / Math.pow(1 + yieldRate, t + 2);
+      convexity +=
+        (t * (t + 1) * cashFlows[t - 1]) / Math.pow(1 + yieldRate, t + 2);
     }
     return convexity / price;
   }
@@ -156,7 +169,10 @@ export class DurationService {
     if (item.maturityDate) {
       maturityYears = Math.max(
         1,
-        Math.round((item.maturityDate.getTime() - Date.now()) / (365.25 * 24 * 3600 * 1000)),
+        Math.round(
+          (item.maturityDate.getTime() - Date.now()) /
+            (365.25 * 24 * 3600 * 1000),
+        ),
       );
     } else {
       maturityYears = Math.max(1, Math.round(item.duration || 1));
@@ -210,18 +226,32 @@ export class DurationService {
    * Duration Gap = D_assets - (L/A) × D_liabilities
    * where L/A is the leverage ratio (total liabilities / total assets).
    */
-  calculatePortfolioMetrics(items: BalanceSheetItem[]): PortfolioDurationMetrics {
-    const assetItems = items.filter(i => i.category === 'asset' && i.balance > 0);
-    const liabilityItems = items.filter(i => i.category === 'liability' && i.balance > 0);
+  calculatePortfolioMetrics(
+    items: BalanceSheetItem[],
+  ): PortfolioDurationMetrics {
+    const assetItems = items.filter(
+      (i) => i.category === 'asset' && i.balance > 0,
+    );
+    const liabilityItems = items.filter(
+      (i) => i.category === 'liability' && i.balance > 0,
+    );
 
     const totalAssets = assetItems.reduce((s, i) => s + i.balance, 0);
     const totalLiabilities = liabilityItems.reduce((s, i) => s + i.balance, 0);
 
     // Calculate per-instrument metrics for assets
-    const assetDetails = assetItems.map(item => {
+    const assetDetails = assetItems.map((item) => {
       const cf = this.generateCashFlows(item);
-      const modDuration = this.calculateModifiedDuration(cf.cashFlows, cf.yieldRate, cf.price);
-      const convexity = this.calculateConvexity(cf.cashFlows, cf.yieldRate, cf.price);
+      const modDuration = this.calculateModifiedDuration(
+        cf.cashFlows,
+        cf.yieldRate,
+        cf.price,
+      );
+      const convexity = this.calculateConvexity(
+        cf.cashFlows,
+        cf.yieldRate,
+        cf.price,
+      );
       return {
         name: item.name,
         balance: item.balance,
@@ -233,10 +263,18 @@ export class DurationService {
     });
 
     // Calculate per-instrument metrics for liabilities
-    const liabilityDetails = liabilityItems.map(item => {
+    const liabilityDetails = liabilityItems.map((item) => {
       const cf = this.generateCashFlows(item);
-      const modDuration = this.calculateModifiedDuration(cf.cashFlows, cf.yieldRate, cf.price);
-      const convexity = this.calculateConvexity(cf.cashFlows, cf.yieldRate, cf.price);
+      const modDuration = this.calculateModifiedDuration(
+        cf.cashFlows,
+        cf.yieldRate,
+        cf.price,
+      );
+      const convexity = this.calculateConvexity(
+        cf.cashFlows,
+        cf.yieldRate,
+        cf.price,
+      );
       return {
         name: item.name,
         balance: item.balance,
@@ -248,27 +286,44 @@ export class DurationService {
     });
 
     // Weighted average duration (weights = market value / total)
-    const assetDuration = totalAssets > 0
-      ? assetDetails.reduce((s, d) => s + (d.balance / totalAssets) * d.modifiedDuration, 0)
-      : 0;
-    const liabilityDuration = totalLiabilities > 0
-      ? liabilityDetails.reduce((s, d) => s + (d.balance / totalLiabilities) * d.modifiedDuration, 0)
-      : 0;
+    const assetDuration =
+      totalAssets > 0
+        ? assetDetails.reduce(
+            (s, d) => s + (d.balance / totalAssets) * d.modifiedDuration,
+            0,
+          )
+        : 0;
+    const liabilityDuration =
+      totalLiabilities > 0
+        ? liabilityDetails.reduce(
+            (s, d) => s + (d.balance / totalLiabilities) * d.modifiedDuration,
+            0,
+          )
+        : 0;
 
     // Weighted average convexity
-    const assetConvexity = totalAssets > 0
-      ? assetDetails.reduce((s, d) => s + (d.balance / totalAssets) * d.convexity, 0)
-      : 0;
-    const liabilityConvexity = totalLiabilities > 0
-      ? liabilityDetails.reduce((s, d) => s + (d.balance / totalLiabilities) * d.convexity, 0)
-      : 0;
+    const assetConvexity =
+      totalAssets > 0
+        ? assetDetails.reduce(
+            (s, d) => s + (d.balance / totalAssets) * d.convexity,
+            0,
+          )
+        : 0;
+    const liabilityConvexity =
+      totalLiabilities > 0
+        ? liabilityDetails.reduce(
+            (s, d) => s + (d.balance / totalLiabilities) * d.convexity,
+            0,
+          )
+        : 0;
 
     // Duration gap = D_a - D_l (simple)
     const durationGap = assetDuration - liabilityDuration;
 
     // Leverage-adjusted duration gap = D_a - (L/A) × D_l
     const leverageRatio = totalAssets > 0 ? totalLiabilities / totalAssets : 0;
-    const leverageAdjustedDurationGap = assetDuration - leverageRatio * liabilityDuration;
+    const leverageAdjustedDurationGap =
+      assetDuration - leverageRatio * liabilityDuration;
 
     return {
       assetDuration: round(assetDuration, 4),
@@ -319,7 +374,7 @@ export class DurationService {
     const shocks = rateShocks || [-200, -100, 100, 200, 300];
     const baseEVE = totalAssets - totalLiabilities;
 
-    return shocks.map(shockBps => {
+    return shocks.map((shockBps) => {
       const dr = shockBps / 10000; // convert bps to decimal
 
       // First-order (duration) effect
@@ -328,7 +383,8 @@ export class DurationService {
 
       // Second-order (convexity) adjustment
       const assetConvexityEffect = 0.5 * assetConvexity * totalAssets * dr * dr;
-      const liabConvexityEffect = 0.5 * liabConvexity * totalLiabilities * dr * dr;
+      const liabConvexityEffect =
+        0.5 * liabConvexity * totalLiabilities * dr * dr;
 
       // Total value change for each side
       const assetValueChange = assetDurationEffect + assetConvexityEffect;
@@ -336,7 +392,8 @@ export class DurationService {
 
       // EVE change = asset value change - liability value change
       const eveChange = assetValueChange - liabilityValueChange;
-      const eveChangePct = baseEVE !== 0 ? (eveChange / Math.abs(baseEVE)) * 100 : 0;
+      const eveChangePct =
+        baseEVE !== 0 ? (eveChange / Math.abs(baseEVE)) * 100 : 0;
 
       return {
         shockBps,

@@ -1,4 +1,5 @@
-const CERNIQ_ORIGIN_PATTERN = /^https?:\/\/([a-z0-9-]+\.)*cerniq\.io(?::\d+)?$/i;
+const CERNIQ_ORIGIN_PATTERN =
+  /^https?:\/\/([a-z0-9-]+\.)*cerniq\.io(?::\d+)?$/i;
 const DEFAULT_VERCEL_PREVIEW_PATTERN =
   /^https:\/\/[a-z0-9-]+-ekiess-projects\.vercel\.app$/i;
 

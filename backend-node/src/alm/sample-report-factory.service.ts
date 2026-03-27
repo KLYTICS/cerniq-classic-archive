@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 import { NCUADataPullService } from './data-pull/ncua-data-pull.service';
 import { AlmService } from './alm.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
@@ -16,7 +16,10 @@ export class SampleReportFactoryService {
     private readonly reportsService: ReportsService,
   ) {}
 
-  async generateSampleReport(charterNumber: string, lang: string = 'en'): Promise<Buffer> {
+  async generateSampleReport(
+    charterNumber: string,
+    lang: string = 'en',
+  ): Promise<Buffer> {
     this.logger.log(`Generating sample report for charter ${charterNumber}`);
 
     // 1. Pull NCUA data
@@ -61,17 +64,26 @@ export class SampleReportFactoryService {
       return buffer;
     } finally {
       // 5. Cleanup: delete temp data
-      await this.prisma.balanceSheetItem.deleteMany({ where: { institutionId: tempInstitution.id } });
-      await this.prisma.institution.delete({ where: { id: tempInstitution.id } });
+      await this.prisma.balanceSheetItem.deleteMany({
+        where: { institutionId: tempInstitution.id },
+      });
+      await this.prisma.institution.delete({
+        where: { id: tempInstitution.id },
+      });
     }
   }
 
-  async generateAndSaveForProspect(charterNumber: string, prospectId: string): Promise<{ success: boolean; reportUrl?: string }> {
+  async generateAndSaveForProspect(
+    charterNumber: string,
+    prospectId: string,
+  ): Promise<{ success: boolean; reportUrl?: string }> {
     try {
       const buffer = await this.generateSampleReport(charterNumber);
 
       // In production, upload to blob storage; for now, store as base64 in prospect notes
-      const prospect = await this.prisma.prospectInstitution.findUnique({ where: { id: prospectId } });
+      const prospect = await this.prisma.prospectInstitution.findUnique({
+        where: { id: prospectId },
+      });
       if (prospect) {
         await this.prisma.prospectInstitution.update({
           where: { id: prospectId },
@@ -84,7 +96,9 @@ export class SampleReportFactoryService {
 
       return { success: true };
     } catch (err) {
-      this.logger.error(`Failed to generate sample for charter ${charterNumber}: ${err}`);
+      this.logger.error(
+        `Failed to generate sample for charter ${charterNumber}: ${err}`,
+      );
       return { success: false };
     }
   }

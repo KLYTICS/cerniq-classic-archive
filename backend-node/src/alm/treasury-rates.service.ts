@@ -44,7 +44,10 @@ export class TreasuryRatesService {
 
   async getLatestSnapshot(): Promise<TreasuryRateSnapshot> {
     // Return cached if < 4 hours old
-    if (this.cachedSnapshot && Date.now() - this.cacheTimestamp < 4 * 3600 * 1000) {
+    if (
+      this.cachedSnapshot &&
+      Date.now() - this.cacheTimestamp < 4 * 3600 * 1000
+    ) {
       return this.cachedSnapshot;
     }
 
@@ -75,9 +78,17 @@ export class TreasuryRatesService {
     ];
   }
 
-  detectRateMoves(previous: TreasuryRateSnapshot, current: TreasuryRateSnapshot): RateMoveAlert[] {
+  detectRateMoves(
+    previous: TreasuryRateSnapshot,
+    current: TreasuryRateSnapshot,
+  ): RateMoveAlert[] {
     const alerts: RateMoveAlert[] = [];
-    const keys: (keyof TreasuryRateSnapshot)[] = ['fedFunds', 'sofr', 'treasury2Y', 'treasury10Y'];
+    const keys: (keyof TreasuryRateSnapshot)[] = [
+      'fedFunds',
+      'sofr',
+      'treasury2Y',
+      'treasury10Y',
+    ];
 
     for (const key of keys) {
       const prev = previous[key] as number;
@@ -86,7 +97,10 @@ export class TreasuryRatesService {
       const deltaBps = Math.round((curr - prev) * 10000);
       if (Math.abs(deltaBps) >= 5) {
         alerts.push({
-          rate: key, previous: prev, current: curr, deltaBps,
+          rate: key,
+          previous: prev,
+          current: curr,
+          deltaBps,
           direction: deltaBps > 0 ? 'UP' : 'DOWN',
           timestamp: current.capturedAt,
         });
@@ -107,7 +121,9 @@ export class TreasuryRatesService {
           const val = parseFloat(data?.observations?.[0]?.value);
           if (!isNaN(val)) results[key] = val / 100;
         }
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     });
 
     await Promise.all(fetches);
@@ -115,12 +131,12 @@ export class TreasuryRatesService {
     return {
       capturedAt: new Date().toISOString(),
       fedFunds: results.fedFunds ?? 0.0475,
-      sofr: results.sofr ?? 0.0470,
-      treasury3M: results.treasury3M ?? 0.0480,
-      treasury1Y: results.treasury1Y ?? 0.0440,
-      treasury2Y: results.treasury2Y ?? 0.0420,
+      sofr: results.sofr ?? 0.047,
+      treasury3M: results.treasury3M ?? 0.048,
+      treasury1Y: results.treasury1Y ?? 0.044,
+      treasury2Y: results.treasury2Y ?? 0.042,
       treasury5Y: results.treasury5Y ?? 0.0405,
-      treasury10Y: results.treasury10Y ?? 0.0420,
+      treasury10Y: results.treasury10Y ?? 0.042,
       treasury30Y: results.treasury30Y ?? 0.0465,
       prMuniSpread: 0.0185,
       source: 'FRED',
@@ -130,10 +146,16 @@ export class TreasuryRatesService {
   private getApproximation(): TreasuryRateSnapshot {
     return {
       capturedAt: new Date().toISOString(),
-      fedFunds: 0.0475, sofr: 0.0470, treasury3M: 0.0480,
-      treasury1Y: 0.0440, treasury2Y: 0.0420, treasury5Y: 0.0405,
-      treasury10Y: 0.0420, treasury30Y: 0.0465,
-      prMuniSpread: 0.0185, source: 'approximation',
+      fedFunds: 0.0475,
+      sofr: 0.047,
+      treasury3M: 0.048,
+      treasury1Y: 0.044,
+      treasury2Y: 0.042,
+      treasury5Y: 0.0405,
+      treasury10Y: 0.042,
+      treasury30Y: 0.0465,
+      prMuniSpread: 0.0185,
+      source: 'approximation',
     };
   }
 }

@@ -67,8 +67,19 @@ export default function KMVMertonPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis type="number" tick={{ fontSize: 11 }} domain={[0, 6]} />
             <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }}
-              formatter={(v: number, name: string) => [name === 'dd' ? v.toFixed(2) : `${(v * 100).toFixed(3)}%`, name === 'dd' ? 'DD' : 'EDF']} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value, name) => {
+                const numericValue = Number(value ?? 0);
+                const seriesName = name ?? '';
+                return [
+                  seriesName === 'dd'
+                    ? numericValue.toFixed(2)
+                    : `${(numericValue * 100).toFixed(3)}%`,
+                  seriesName === 'dd' ? 'DD' : 'EDF',
+                ];
+              }}
+            />
             <Bar dataKey="dd" name="Distance-to-Default" radius={[0, 4, 4, 0]}>
               {data.obligors.map((o, i) => <Cell key={i} fill={ddColor(o.dd)} />)}
             </Bar>

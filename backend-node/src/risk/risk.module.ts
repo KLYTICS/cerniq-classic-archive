@@ -9,10 +9,9 @@ import { MarketDataModule } from '../market-data/market-data.module';
 import { CacheModule } from '../cache/cache.module';
 
 @Module({
-    imports: [PortfolioModule, MarketDataModule, CacheModule],
-    controllers: [RiskController, VolatilityController],
-    providers: [RiskService, AdvancedRiskService, VolatilityService],
-    exports: [RiskService, AdvancedRiskService, VolatilityService],
+  imports: [PortfolioModule, MarketDataModule, CacheModule],
+  controllers: [RiskController, VolatilityController],
+  providers: [RiskService, AdvancedRiskService, VolatilityService],
+  exports: [RiskService, AdvancedRiskService, VolatilityService],
 })
-export class RiskModule { }
-
+export class RiskModule {}

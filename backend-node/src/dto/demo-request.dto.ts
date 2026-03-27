@@ -1,4 +1,10 @@
-import { IsEmail, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class DemoRequestDto {
   @IsEmail()
@@ -16,7 +22,15 @@ export class DemoRequestDto {
   institutionName?: string;
 
   @IsOptional()
-  @IsIn(['cooperativa', 'credit_union', 'community_bank', 'cpa_consultant', 'bank', 'family_office', 'other'])
+  @IsIn([
+    'cooperativa',
+    'credit_union',
+    'community_bank',
+    'cpa_consultant',
+    'bank',
+    'family_office',
+    'other',
+  ])
   institutionType?: string;
 
   @IsOptional()

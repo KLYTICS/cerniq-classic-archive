@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 import { YieldCurveService, TenorRate } from './yield-curve.service';
 
 // ─── Types ───────────────────────────────────────────────────
@@ -25,9 +25,14 @@ export interface PortfolioKRDResult {
 }
 
 const KRD_TENORS = [
-  { label: '3M', years: 0.25 }, { label: '1Y', years: 1 }, { label: '2Y', years: 2 },
-  { label: '3Y', years: 3 }, { label: '5Y', years: 5 }, { label: '7Y', years: 7 },
-  { label: '10Y', years: 10 }, { label: '30Y', years: 30 },
+  { label: '3M', years: 0.25 },
+  { label: '1Y', years: 1 },
+  { label: '2Y', years: 2 },
+  { label: '3Y', years: 3 },
+  { label: '5Y', years: 5 },
+  { label: '7Y', years: 7 },
+  { label: '10Y', years: 10 },
+  { label: '30Y', years: 30 },
 ];
 
 @Injectable()
@@ -40,14 +45,18 @@ export class KeyRateDurationService {
   ) {}
 
   async analyzePortfolio(institutionId: string): Promise<PortfolioKRDResult> {
-    const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId },
+    });
 
     let baseCurve: TenorRate[];
     const saved = await this.prisma.yieldCurve.findFirst({
       where: { institutionId, isBase: true },
       orderBy: { asOfDate: 'desc' },
     });
-    baseCurve = saved ? (saved.tenors as unknown as TenorRate[]) : this.getDefaultCurve();
+    baseCurve = saved
+      ? (saved.tenors as unknown as TenorRate[])
+      : this.getDefaultCurve();
 
     if (items.length === 0) return this.getDemoResult();
 
@@ -63,27 +72,50 @@ export class KeyRateDurationService {
 
       // Effective duration: bump curve ±25bps, reprice
       const priceBase = this.priceInstrument(item.balance, coupon, y, tenor);
-      const priceUp = this.priceInstrument(item.balance, coupon, y + 0.0025, tenor);
-      const priceDown = this.priceInstrument(item.balance, coupon, y - 0.0025, tenor);
-      const effDuration = priceBase > 0 ? (priceDown - priceUp) / (2 * 0.0025 * priceBase) : modDuration;
+      const priceUp = this.priceInstrument(
+        item.balance,
+        coupon,
+        y + 0.0025,
+        tenor,
+      );
+      const priceDown = this.priceInstrument(
+        item.balance,
+        coupon,
+        y - 0.0025,
+        tenor,
+      );
+      const effDuration =
+        priceBase > 0
+          ? (priceDown - priceUp) / (2 * 0.0025 * priceBase)
+          : modDuration;
 
       // Convexity
-      const convexity = priceBase > 0 ? (priceUp + priceDown - 2 * priceBase) / (0.0025 * 0.0025 * priceBase) : 0;
+      const convexity =
+        priceBase > 0
+          ? (priceUp + priceDown - 2 * priceBase) /
+            (0.0025 * 0.0025 * priceBase)
+          : 0;
 
       // Key-rate durations: bump each tenor by 1bp, measure price sensitivity
-      const krds = KRD_TENORS.map(t => {
+      const krds = KRD_TENORS.map((t) => {
         // Only tenors near the instrument's maturity have significant KRD
         const distance = Math.abs(t.years - tenor);
         const weight = Math.exp(-distance * 0.5); // exponential decay from instrument's tenor
         const krd = effDuration * weight;
-        return { tenor: t.label, tenorYears: t.years, krd: Math.round(krd * 1000) / 1000 };
+        return {
+          tenor: t.label,
+          tenorYears: t.years,
+          krd: Math.round(krd * 1000) / 1000,
+        };
       });
 
       // Normalize KRDs so sum ≈ effective duration
       const krdSum = krds.reduce((s, k) => s + k.krd, 0);
       if (krdSum > 0) {
         const scale = effDuration / krdSum;
-        krds.forEach(k => { k.krd = Math.round(k.krd * scale * 1000) / 1000; });
+        krds.forEach((k) => {
+          k.krd = Math.round(k.krd * scale * 1000) / 1000;
+        });
       }
 
       instruments.push({
@@ -98,28 +130,54 @@ export class KeyRateDurationService {
     }
 
     // Portfolio aggregates
-    const assets = instruments.filter(i => i.category === 'asset');
-    const liabilities = instruments.filter(i => i.category === 'liability');
+    const assets = instruments.filter((i) => i.category === 'asset');
+    const liabilities = instruments.filter((i) => i.category === 'liability');
     const totalAssets = assets.reduce((s, i) => s + i.balance, 0);
     const totalLiabilities = liabilities.reduce((s, i) => s + i.balance, 0);
 
-    const portfolioModDur = totalAssets > 0
-      ? assets.reduce((s, i) => s + i.modifiedDuration * i.balance, 0) / totalAssets : 0;
-    const portfolioEffDur = totalAssets > 0
-      ? assets.reduce((s, i) => s + i.effectiveDuration * i.balance, 0) / totalAssets : 0;
-    const portfolioConv = totalAssets > 0
-      ? assets.reduce((s, i) => s + i.convexity * i.balance, 0) / totalAssets : 0;
-    const liabEffDur = totalLiabilities > 0
-      ? liabilities.reduce((s, i) => s + i.effectiveDuration * i.balance, 0) / totalLiabilities : 0;
+    const portfolioModDur =
+      totalAssets > 0
+        ? assets.reduce((s, i) => s + i.modifiedDuration * i.balance, 0) /
+          totalAssets
+        : 0;
+    const portfolioEffDur =
+      totalAssets > 0
+        ? assets.reduce((s, i) => s + i.effectiveDuration * i.balance, 0) /
+          totalAssets
+        : 0;
+    const portfolioConv =
+      totalAssets > 0
+        ? assets.reduce((s, i) => s + i.convexity * i.balance, 0) / totalAssets
+        : 0;
+    const liabEffDur =
+      totalLiabilities > 0
+        ? liabilities.reduce((s, i) => s + i.effectiveDuration * i.balance, 0) /
+          totalLiabilities
+        : 0;
 
     // Portfolio KRDs
-    const portfolioKRDs = KRD_TENORS.map(t => {
-      const assetKRD = totalAssets > 0
-        ? assets.reduce((s, inst) => s + (inst.keyRateDurations.find(k => k.tenor === t.label)?.krd ?? 0) * inst.balance, 0) / totalAssets : 0;
-      return { tenor: t.label, tenorYears: t.years, krd: Math.round(assetKRD * 1000) / 1000 };
+    const portfolioKRDs = KRD_TENORS.map((t) => {
+      const assetKRD =
+        totalAssets > 0
+          ? assets.reduce(
+              (s, inst) =>
+                s +
+                (inst.keyRateDurations.find((k) => k.tenor === t.label)?.krd ??
+                  0) *
+                  inst.balance,
+              0,
+            ) / totalAssets
+          : 0;
+      return {
+        tenor: t.label,
+        tenorYears: t.years,
+        krd: Math.round(assetKRD * 1000) / 1000,
+      };
     });
 
-    const negConvExposure = instruments.filter(i => i.convexity < 0).reduce((s, i) => s + i.balance, 0);
+    const negConvExposure = instruments
+      .filter((i) => i.convexity < 0)
+      .reduce((s, i) => s + i.balance, 0);
 
     return {
       instruments,
@@ -127,23 +185,38 @@ export class KeyRateDurationService {
       portfolioEffectiveDuration: Math.round(portfolioEffDur * 100) / 100,
       portfolioConvexity: Math.round(portfolioConv * 100) / 100,
       portfolioKRDs,
-      durationGap: Math.round((portfolioEffDur - liabEffDur * (totalLiabilities / (totalAssets || 1))) * 100) / 100,
+      durationGap:
+        Math.round(
+          (portfolioEffDur -
+            liabEffDur * (totalLiabilities / (totalAssets || 1))) *
+            100,
+        ) / 100,
       negativeConvexityExposure: Math.round(negConvExposure * 10) / 10,
     };
   }
 
-  private priceInstrument(balance: number, coupon: number, y: number, tenor: number): number {
+  private priceInstrument(
+    balance: number,
+    coupon: number,
+    y: number,
+    tenor: number,
+  ): number {
     return balance / Math.pow(1 + y, tenor);
   }
 
   private interpolateRate(curve: TenorRate[], tenor: number): number {
     const sorted = [...curve].sort((a, b) => a.tenor - b.tenor);
     if (tenor <= sorted[0].tenor) return sorted[0].rate;
-    if (tenor >= sorted[sorted.length - 1].tenor) return sorted[sorted.length - 1].rate;
+    if (tenor >= sorted[sorted.length - 1].tenor)
+      return sorted[sorted.length - 1].rate;
     for (let i = 0; i < sorted.length - 1; i++) {
       if (tenor >= sorted[i].tenor && tenor <= sorted[i + 1].tenor) {
-        const t1 = sorted[i].tenor, t2 = sorted[i + 1].tenor;
-        return sorted[i].rate + (sorted[i + 1].rate - sorted[i].rate) * (tenor - t1) / (t2 - t1);
+        const t1 = sorted[i].tenor,
+          t2 = sorted[i + 1].tenor;
+        return (
+          sorted[i].rate +
+          ((sorted[i + 1].rate - sorted[i].rate) * (tenor - t1)) / (t2 - t1)
+        );
       }
     }
     return sorted[0].rate;
@@ -151,17 +224,28 @@ export class KeyRateDurationService {
 
   private getDefaultCurve(): TenorRate[] {
     return [
-      { tenor: 0.25, rate: 0.048 }, { tenor: 1, rate: 0.044 }, { tenor: 2, rate: 0.042 },
-      { tenor: 5, rate: 0.0405 }, { tenor: 10, rate: 0.042 }, { tenor: 30, rate: 0.0465 },
+      { tenor: 0.25, rate: 0.048 },
+      { tenor: 1, rate: 0.044 },
+      { tenor: 2, rate: 0.042 },
+      { tenor: 5, rate: 0.0405 },
+      { tenor: 10, rate: 0.042 },
+      { tenor: 30, rate: 0.0465 },
     ];
   }
 
   private getDemoResult(): PortfolioKRDResult {
     return {
       instruments: [],
-      portfolioModifiedDuration: 4.2, portfolioEffectiveDuration: 3.8,
-      portfolioConvexity: -0.6, portfolioKRDs: KRD_TENORS.map(t => ({ tenor: t.label, tenorYears: t.years, krd: +(3.8 * Math.exp(-Math.abs(t.years - 5) * 0.3) / 4).toFixed(3) })),
-      durationGap: 2.1, negativeConvexityExposure: 50,
+      portfolioModifiedDuration: 4.2,
+      portfolioEffectiveDuration: 3.8,
+      portfolioConvexity: -0.6,
+      portfolioKRDs: KRD_TENORS.map((t) => ({
+        tenor: t.label,
+        tenorYears: t.years,
+        krd: +((3.8 * Math.exp(-Math.abs(t.years - 5) * 0.3)) / 4).toFixed(3),
+      })),
+      durationGap: 2.1,
+      negativeConvexityExposure: 50,
     };
   }
 }

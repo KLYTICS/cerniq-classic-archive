@@ -10,21 +10,21 @@ import { StorageModule } from '../storage/storage.module';
 import { AlmModule } from '../alm/alm.module';
 
 @Module({
-    imports: [LlmModule, StorageModule, AlmModule],
-    controllers: [ExpensesController],
-    providers: [
-        ExpensesService,
-        AnomalyDetectionService,
-        ApReportService,
-        VendorIntelligenceService,
-        ExpenseIngestionService,
-    ],
-    exports: [
-        ExpensesService,
-        AnomalyDetectionService,
-        ApReportService,
-        VendorIntelligenceService,
-        ExpenseIngestionService,
-    ],
+  imports: [LlmModule, StorageModule, AlmModule],
+  controllers: [ExpensesController],
+  providers: [
+    ExpensesService,
+    AnomalyDetectionService,
+    ApReportService,
+    VendorIntelligenceService,
+    ExpenseIngestionService,
+  ],
+  exports: [
+    ExpensesService,
+    AnomalyDetectionService,
+    ApReportService,
+    VendorIntelligenceService,
+    ExpenseIngestionService,
+  ],
 })
-export class ExpensesModule { }
+export class ExpensesModule {}

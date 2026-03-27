@@ -106,8 +106,8 @@ npm run start:dev
 
 ```bash
 cd frontend
-bun install       # or npm install
-bun run dev       # or npm run dev
+npm install
+npm run dev
 # → http://localhost:3001
 ```
 

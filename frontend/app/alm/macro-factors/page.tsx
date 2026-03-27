@@ -83,7 +83,10 @@ export default function MacroFactorsPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="date" tick={{ fontSize: 10 }} />
             <YAxis tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number) => `$${v.toFixed(2)}M`} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => `$${Number(value ?? 0).toFixed(2)}M`}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Line type="monotone" dataKey="actual" name={locale === 'es' ? 'Actual' : 'Actual'} stroke="#0f172a" strokeWidth={2} dot={false} />
             <Line type="monotone" dataKey="predicted" name={locale === 'es' ? 'Predicho' : 'Predicted'} stroke="#f59e0b" strokeWidth={2} strokeDasharray="6 3" dot={false} />

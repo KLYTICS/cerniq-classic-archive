@@ -128,7 +128,10 @@ export default function VaRPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="method" tick={{ fontSize: 11 }} />
             <YAxis tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} formatter={(v: number) => [`$${v.toFixed(2)}M`, '']} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
+              formatter={(value) => [`$${Number(value ?? 0).toFixed(2)}M`, '']}
+            />
             <Bar dataKey="var" name={`VaR ${confidence}%`} radius={[4, 4, 0, 0]}>
               {compChart.map((e, i) => <Cell key={i} fill={e.color} />)}
             </Bar>

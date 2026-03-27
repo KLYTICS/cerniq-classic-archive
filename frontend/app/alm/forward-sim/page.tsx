@@ -11,7 +11,7 @@ interface ForwardQuarter {
   quarter: string; ratePath: string;
   projectedNII: number; projectedEVE: number;
   projectedLCR: number; projectedNSFR: number;
-  projectedNWR: number; totalAssets: number;
+  projectedNWR: number; totalAssets: number; totalLiabilities: number;
 }
 
 interface ForwardSimResult {

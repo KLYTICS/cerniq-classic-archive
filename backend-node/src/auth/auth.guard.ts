@@ -66,7 +66,9 @@ export class AuthGuard implements CanActivate {
 
     let orgId = user.orgId || null;
     if (user.authMethod !== 'api_key') {
-      const orgHeader = this.getHeader(request, 'x-klytics-org-id');
+      const orgHeader =
+        this.getHeader(request, 'x-organization-id') ||
+        this.getHeader(request, 'x-klytics-org-id');
       orgId = orgId || orgHeader || null;
       const orgAllowed = await this.enforceOrgAccess(user.userId, orgId);
       if (!orgAllowed) {
@@ -149,7 +151,7 @@ export class AuthGuard implements CanActivate {
 
   private verifyLegacyToken(token: string): AuthenticatedRequestUser | null {
     try {
-      const payload = this.jwtService.verify(token) as Record<string, any>;
+      const payload = this.jwtService.verify(token);
       return {
         userId: payload.sub,
         email: payload.email,
@@ -321,4 +323,3 @@ export class AuthGuard implements CanActivate {
     }
   }
 }
-

@@ -45,7 +45,10 @@ export class DurationGapResponseDto {
   @ApiProperty({ example: 3.78 })
   durationGap: number;
 
-  @ApiProperty({ example: 'asset-sensitive', enum: ['asset-sensitive', 'liability-sensitive', 'neutral'] })
+  @ApiProperty({
+    example: 'asset-sensitive',
+    enum: ['asset-sensitive', 'liability-sensitive', 'neutral'],
+  })
   riskProfile: string;
 }
 
@@ -53,7 +56,10 @@ export class NIISensitivityResponseDto {
   @ApiProperty({ example: 4.8 })
   baseNII: number;
 
-  @ApiProperty({ example: 'moderate', enum: ['low', 'moderate', 'high', 'critical'] })
+  @ApiProperty({
+    example: 'moderate',
+    enum: ['low', 'moderate', 'high', 'critical'],
+  })
   riskRating: string;
 }
 
@@ -61,36 +67,61 @@ export class LCRResponseDto {
   @ApiProperty({ example: 118.5 })
   lcr: number;
 
-  @ApiProperty({ example: 'compliant', enum: ['compliant', 'warning', 'breach'] })
+  @ApiProperty({
+    example: 'compliant',
+    enum: ['compliant', 'warning', 'breach'],
+  })
   status: string;
 }
 
 export class AnalysisResultResponseDto {
-  @ApiProperty({ description: 'Unique analysis ID for retrieval', example: 'clxyz123abc' })
+  @ApiProperty({
+    description: 'Unique analysis ID for retrieval',
+    example: 'clxyz123abc',
+  })
   analysisId: string;
 
-  @ApiProperty({ description: 'COSSEC regulatory ratios (12 ratios)', type: [CossecRatioResponseDto] })
+  @ApiProperty({
+    description: 'COSSEC regulatory ratios (12 ratios)',
+    type: [CossecRatioResponseDto],
+  })
   ratios: CossecRatioResponseDto[];
 
-  @ApiProperty({ description: 'Duration gap analysis', type: DurationGapResponseDto })
+  @ApiProperty({
+    description: 'Duration gap analysis',
+    type: DurationGapResponseDto,
+  })
   durationGap: DurationGapResponseDto;
 
-  @ApiProperty({ description: 'NII sensitivity analysis', type: NIISensitivityResponseDto })
+  @ApiProperty({
+    description: 'NII sensitivity analysis',
+    type: NIISensitivityResponseDto,
+  })
   niiSensitivity: NIISensitivityResponseDto;
 
-  @ApiProperty({ description: 'Liquidity coverage ratio', type: LCRResponseDto })
+  @ApiProperty({
+    description: 'Liquidity coverage ratio',
+    type: LCRResponseDto,
+  })
   lcr: LCRResponseDto;
 
   @ApiProperty({ description: 'Exam readiness score (0-100)', example: 75 })
   examReadinessScore: number;
 
-  @ApiProperty({ description: 'AI-generated recommendations', example: ['Extend liability duration to narrow gap'] })
+  @ApiProperty({
+    description: 'AI-generated recommendations',
+    example: ['Extend liability duration to narrow gap'],
+  })
   recommendations: string[];
 
   @ApiProperty({ description: 'PR cooperativa sector benchmarks used' })
   benchmarks: any;
 
-  @ApiProperty({ description: 'COSSEC compliance status', example: 'conditional', enum: ['compliant', 'conditional', 'non-compliant'] })
+  @ApiProperty({
+    description: 'COSSEC compliance status',
+    example: 'conditional',
+    enum: ['compliant', 'conditional', 'non-compliant'],
+  })
   overallStatus: string;
 
   @ApiProperty({ description: 'Balance sheet summary' })
@@ -101,7 +132,9 @@ export class BenchmarkResponseDto {
   @ApiProperty({ example: '2025-Q3' })
   lastUpdated: string;
 
-  @ApiProperty({ example: 'COSSEC Informe Sectorial Q3 2025 / NCUA Call Reports' })
+  @ApiProperty({
+    example: 'COSSEC Informe Sectorial Q3 2025 / NCUA Call Reports',
+  })
   source: string;
 
   @ApiProperty({ example: 185 })
@@ -118,7 +151,10 @@ export class FrameworkResponseDto {
   @ApiProperty({ example: 'COSSEC (PR Cooperativas)' })
   name: string;
 
-  @ApiProperty({ example: 'Corporacion para la Supervision y Seguro de Cooperativas de Puerto Rico' })
+  @ApiProperty({
+    example:
+      'Corporacion para la Supervision y Seguro de Cooperativas de Puerto Rico',
+  })
   description: string;
 
   @ApiProperty({ example: 12 })

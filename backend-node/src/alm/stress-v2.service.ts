@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma.service';
 
 export interface DFASTScenario {
   id: string;
@@ -36,9 +36,39 @@ export interface StressV2Result {
 }
 
 const DFAST_PRESETS: DFASTScenario[] = [
-  { id: 'dfast-severe', name: 'Severe Adverse', nameEs: 'Severamente Adverso', ratePathBps: [75, 75, 100, 50, 0, -25, -50, -50, -25], gdpDelta: -0.035, unemploymentDelta: 0.04, reDelta: -0.15, hurricaneProb: 0, isPreset: true },
-  { id: 'dfast-hurricane', name: 'Hurricane Scenario', nameEs: 'Escenario Huracán', ratePathBps: [0, 0, 0, 0, 0, 0, 0, 0, 0], gdpDelta: -0.08, unemploymentDelta: 0.06, reDelta: -0.30, hurricaneProb: 1.0, isPreset: true },
-  { id: 'dfast-stagflation', name: 'Stagflation', nameEs: 'Estanflación', ratePathBps: [100, 100, 75, 50, 25, 25, 0, 0, -25], gdpDelta: -0.015, unemploymentDelta: 0.03, reDelta: -0.05, hurricaneProb: 0, isPreset: true },
+  {
+    id: 'dfast-severe',
+    name: 'Severe Adverse',
+    nameEs: 'Severamente Adverso',
+    ratePathBps: [75, 75, 100, 50, 0, -25, -50, -50, -25],
+    gdpDelta: -0.035,
+    unemploymentDelta: 0.04,
+    reDelta: -0.15,
+    hurricaneProb: 0,
+    isPreset: true,
+  },
+  {
+    id: 'dfast-hurricane',
+    name: 'Hurricane Scenario',
+    nameEs: 'Escenario Huracán',
+    ratePathBps: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    gdpDelta: -0.08,
+    unemploymentDelta: 0.06,
+    reDelta: -0.3,
+    hurricaneProb: 1.0,
+    isPreset: true,
+  },
+  {
+    id: 'dfast-stagflation',
+    name: 'Stagflation',
+    nameEs: 'Estanflación',
+    ratePathBps: [100, 100, 75, 50, 25, 25, 0, 0, -25],
+    gdpDelta: -0.015,
+    unemploymentDelta: 0.03,
+    reDelta: -0.05,
+    hurricaneProb: 0,
+    isPreset: true,
+  },
 ];
 
 @Injectable()
@@ -51,12 +81,29 @@ export class StressV2Service {
     return DFAST_PRESETS;
   }
 
-  async runStressTest(institutionId: string, scenario: DFASTScenario): Promise<StressV2Result> {
-    const items = await this.prisma.balanceSheetItem.findMany({ where: { institutionId } });
-    const totalAssets = items.filter(i => i.category === 'asset').reduce((s, i) => s + i.balance, 0) || 445;
-    const totalLiabilities = items.filter(i => i.category === 'liability').reduce((s, i) => s + i.balance, 0) || 385;
+  async runStressTest(
+    institutionId: string,
+    scenario: DFASTScenario,
+  ): Promise<StressV2Result> {
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId },
+    });
+    const totalAssets =
+      items
+        .filter((i) => i.category === 'asset')
+        .reduce((s, i) => s + i.balance, 0) || 445;
+    const totalLiabilities =
+      items
+        .filter((i) => i.category === 'liability')
+        .reduce((s, i) => s + i.balance, 0) || 385;
     const equity = totalAssets - totalLiabilities;
-    const baseNII = items.filter(i => i.category === 'asset').reduce((s, i) => s + i.balance * i.rate, 0) - items.filter(i => i.category === 'liability').reduce((s, i) => s + i.balance * i.rate, 0);
+    const baseNII =
+      items
+        .filter((i) => i.category === 'asset')
+        .reduce((s, i) => s + i.balance * i.rate, 0) -
+      items
+        .filter((i) => i.category === 'liability')
+        .reduce((s, i) => s + i.balance * i.rate, 0);
 
     const quarters: StressV2Quarter[] = [];
     let cumRateShock = 0;
@@ -66,7 +113,11 @@ export class StressV2Service {
     const now = new Date();
     for (let q = 0; q < 9; q++) {
       cumRateShock += (scenario.ratePathBps[q] ?? 0) / 10000;
-      const qDate = new Date(now.getFullYear(), now.getMonth() + (q + 1) * 3, 1);
+      const qDate = new Date(
+        now.getFullYear(),
+        now.getMonth() + (q + 1) * 3,
+        1,
+      );
       const qLabel = `Q${Math.ceil((qDate.getMonth() + 1) / 3)} ${qDate.getFullYear()}`;
 
       // Growth impacted by GDP shock
@@ -74,8 +125,12 @@ export class StressV2Service {
       runningAssets *= growthFactor;
 
       // NII: rate shock affects repricing + credit loss from macro overlay
-      const rateImpactOnNII = baseNII / 4 * (1 + cumRateShock * 3);
-      const creditLoss = runningAssets * 0.005 * (1 + scenario.unemploymentDelta * 5) * (1 + scenario.hurricaneProb * 2);
+      const rateImpactOnNII = (baseNII / 4) * (1 + cumRateShock * 3);
+      const creditLoss =
+        runningAssets *
+        0.005 *
+        (1 + scenario.unemploymentDelta * 5) *
+        (1 + scenario.hurricaneProb * 2);
       const quarterNII = rateImpactOnNII - creditLoss;
 
       runningEquity += quarterNII;
@@ -95,9 +150,12 @@ export class StressV2Service {
       });
     }
 
-    const minNWR = Math.min(...quarters.map(q => q.nwr));
-    const minLCR = Math.min(...quarters.map(q => q.lcr));
-    const cumNIILoss = quarters.reduce((s, q) => s + Math.min(0, q.nii - baseNII / 4), 0);
+    const minNWR = Math.min(...quarters.map((q) => q.nwr));
+    const minLCR = Math.min(...quarters.map((q) => q.lcr));
+    const cumNIILoss = quarters.reduce(
+      (s, q) => s + Math.min(0, q.nii - baseNII / 4),
+      0,
+    );
 
     return {
       scenarioId: scenario.id,
@@ -113,6 +171,8 @@ export class StressV2Service {
   }
 
   async runAllPresets(institutionId: string): Promise<StressV2Result[]> {
-    return Promise.all(DFAST_PRESETS.map(s => this.runStressTest(institutionId, s)));
+    return Promise.all(
+      DFAST_PRESETS.map((s) => this.runStressTest(institutionId, s)),
+    );
   }
 }

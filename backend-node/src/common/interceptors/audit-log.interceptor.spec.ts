@@ -39,8 +39,8 @@ describe('AuditLogInterceptor', () => {
       getHandler: () => jest.fn(),
       getArgs: () => [],
       getArgByIndex: () => null,
-      switchToRpc: () => ({} as any),
-      switchToWs: () => ({} as any),
+      switchToRpc: () => ({}) as any,
+      switchToWs: () => ({}) as any,
       getType: () => 'http' as any,
     } as unknown as ExecutionContext;
   }
@@ -57,7 +57,10 @@ describe('AuditLogInterceptor', () => {
   });
 
   it('should skip GET requests and not persist audit log', async () => {
-    const context = createMockContext({ method: 'GET', routePath: '/api/billing/subscription' });
+    const context = createMockContext({
+      method: 'GET',
+      routePath: '/api/billing/subscription',
+    });
 
     const obs = interceptor.intercept(context, callHandler);
     await lastValueFrom(obs);
@@ -66,7 +69,10 @@ describe('AuditLogInterceptor', () => {
   });
 
   it('should skip HEAD requests and not persist audit log', async () => {
-    const context = createMockContext({ method: 'HEAD', routePath: '/api/health' });
+    const context = createMockContext({
+      method: 'HEAD',
+      routePath: '/api/health',
+    });
 
     const obs = interceptor.intercept(context, callHandler);
     await lastValueFrom(obs);
@@ -258,7 +264,9 @@ describe('AuditLogInterceptor', () => {
       user: { userId: 'user-10' },
     });
 
-    expect(() => interceptor.intercept(context, failingHandler)).toThrow('Handler failed');
+    expect(() => interceptor.intercept(context, failingHandler)).toThrow(
+      'Handler failed',
+    );
     expect(prisma.auditLog.create).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,11 @@
-import { IsString, IsNumber, IsOptional, IsDateString, IsIn, Min } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsDateString,
+  IsIn,
+  Min,
+} from 'class-validator';
 
 export class CreateInstitutionDto {
   @IsString()

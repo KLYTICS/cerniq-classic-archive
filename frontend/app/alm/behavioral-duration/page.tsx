@@ -92,7 +92,13 @@ export default function BehavioralDurationPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="category" tick={{ fontSize: 10 }} />
             <YAxis tick={{ fontSize: 11 }} label={{ value: locale === 'es' ? 'Años' : 'Years', angle: -90, position: 'insideLeft', style: { fontSize: 10 } }} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number) => `${v.toFixed(2)} yr`} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => {
+                const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+                return `${numericValue.toFixed(2)} yr`;
+              }}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar dataKey="contractualDuration" name={locale === 'es' ? 'Contractual' : 'Contractual'} fill="#94a3b8" radius={[4, 4, 0, 0]} />
             <Bar dataKey="behavioralDuration" name={locale === 'es' ? 'Conductual (H-P)' : 'Behavioral (H-P)'} fill="#a855f7" radius={[4, 4, 0, 0]} />
@@ -110,7 +116,13 @@ export default function BehavioralDurationPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="month" tick={{ fontSize: 11 }} label={{ value: locale === 'es' ? 'Meses' : 'Months', position: 'insideBottomRight', style: { fontSize: 10 } }} />
             <YAxis tickFormatter={v => `${v}%`} tick={{ fontSize: 11 }} domain={[0, 100]} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number) => `${v.toFixed(1)}%`} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => {
+                const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+                return `${numericValue.toFixed(1)}%`;
+              }}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Line type="monotone" dataKey="contractual" name={locale === 'es' ? 'Contractual (step)' : 'Contractual (step)'} stroke="#94a3b8" strokeWidth={2} strokeDasharray="6 3" dot={false} />
             <Line type="monotone" dataKey="behavioral" name={locale === 'es' ? 'Conductual (H-P decay)' : 'Behavioral (H-P decay)'} stroke="#a855f7" strokeWidth={2.5} dot={false} />
