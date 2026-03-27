@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import * as Sentry from '@sentry/nextjs';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface Props {
@@ -25,7 +26,14 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error with context — structured for observability
+    // Report to Sentry with component context
+    Sentry.captureException(error, {
+      tags: { context: this.props.context || 'unknown' },
+      extra: {
+        componentStack: errorInfo.componentStack?.split('\n').slice(0, 10).join('\n'),
+      },
+    });
+    // Also log locally for development
     console.error('[ErrorBoundary]', {
       context: this.props.context || 'unknown',
       error: error.message,

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { SentryModule } from '@sentry/nestjs/setup';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma.module';
@@ -34,6 +36,20 @@ import { ApiV1Module } from './api-v1/api-v1.module';
 
 @Module({
   imports: [
+    // Sentry error tracking (must be first)
+    SentryModule.forRoot(),
+    // Structured JSON logging
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+        transport: process.env.NODE_ENV !== 'production' ? { target: 'pino-pretty', options: { colorize: true } } : undefined,
+        redact: ['req.headers.authorization', 'req.headers.cookie', 'req.headers["x-admin-key"]'],
+        serializers: {
+          req: (req) => ({ method: req.method, url: req.url, id: req.id }),
+          res: (res) => ({ statusCode: res.statusCode }),
+        },
+      },
+    }),
     // Rate limiting — 100 requests per minute globally
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     PrismaModule,

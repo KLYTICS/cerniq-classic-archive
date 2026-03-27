@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/nestjs';
 import { Response } from 'express';
 
 export interface ApiErrorResponse {
@@ -47,6 +48,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof Error) {
       message = exception.message;
       this.logger.error(`Unhandled exception: ${message}`, exception.stack);
+      // Report unhandled errors to Sentry with request context
+      Sentry.captureException(exception, {
+        extra: { path: request.url, method: request.method },
+      });
     }
 
     const errorResponse: ApiErrorResponse = {

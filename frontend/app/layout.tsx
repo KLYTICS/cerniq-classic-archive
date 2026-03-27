@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import Providers from '@/components/Providers';
 import CookieConsent from '@/components/CookieConsent';
@@ -95,6 +97,8 @@ export default function RootLayout({
         </div>
         <CookieConsent />
         </Providers>
+        <Analytics />
+        <SpeedInsights />
         {SEGMENT_WRITE_KEY && (
           <Script id="segment-analytics" strategy="afterInteractive">
             {`

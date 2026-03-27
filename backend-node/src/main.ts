@@ -1,7 +1,11 @@
+// Sentry must be imported before everything else
+import './instrument';
+import * as Sentry from '@sentry/nestjs';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger as NestLogger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { Logger } from 'nestjs-pino';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const cookieParser = require('cookie-parser');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -41,7 +45,16 @@ async function bootstrap() {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true, // Required for Stripe webhook signature verification
+    bufferLogs: true, // Buffer logs until Pino is attached
   });
+
+  // Use Pino structured logger as the application logger
+  try {
+    app.useLogger(app.get(Logger));
+  } catch {
+    // Fallback to default NestJS logger if Pino module not loaded
+    new NestLogger('Bootstrap').warn('Pino logger not available, using default');
+  }
 
   // Trust Railway/Vercel proxy for correct client IP in rate limiting
   app.set('trust proxy', 1);
@@ -52,6 +65,12 @@ async function bootstrap() {
 
   // --- Security middleware ---
   app.use(cookieParser());
+  app.use((_req: any, res: any, next: any) => {
+    // Generate a per-request nonce for inline scripts
+    const nonce = require('crypto').randomBytes(16).toString('base64');
+    res.locals.cspNonce = nonce;
+    next();
+  });
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -59,7 +78,7 @@ async function bootstrap() {
           defaultSrc: ["'self'"],
           scriptSrc: [
             "'self'",
-            "'unsafe-inline'",
+            ((_req: any, res: any) => `'nonce-${res.locals.cspNonce}'`) as any,
             'https://cdn.segment.com',
             'https://*.google-analytics.com',
             'https://*.googletagmanager.com',
@@ -71,15 +90,26 @@ async function bootstrap() {
             'https://*.google-analytics.com',
             'https://*.analytics.google.com',
             'https://us.i.posthog.com',
+            'wss:',
           ],
           imgSrc: ["'self'", 'data:', 'https:'],
-          styleSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"], // Styles need unsafe-inline for Tailwind
+          fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+          frameSrc: ["'none'"],
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+          upgradeInsecureRequests: [],
         },
       },
     }),
   );
 
   // --- Global exception filter & response envelope ---
+  // Sentry filter must be registered first so it captures before our custom filter formats
+  if (process.env.SENTRY_DSN && typeof (Sentry as any).SentryGlobalFilter === 'function') {
+    app.useGlobalFilters(new (Sentry as any).SentryGlobalFilter());
+  }
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
 
