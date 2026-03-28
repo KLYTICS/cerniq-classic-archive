@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "prepare": "husky",
+    "build": "cd frontend && npm run build",
     "lint:backend": "cd backend-node && npm run lint",
     "lint:frontend": "cd frontend && npm run lint",
     "test:backend": "cd backend-node && npm run test -- --forceExit",
@@ -11,7 +12,10 @@
   },
   "devDependencies": {
     "husky": "^9.1.7",
-    "lint-staged": "^16.4.0"
+    "lint-staged": "^16.4.0",
+    "next": "16.2.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
   },
   "lint-staged": {
     "backend-node/src/**/*.ts": [

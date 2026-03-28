@@ -370,8 +370,8 @@ describe('RiskService', () => {
       });
 
       const results = await service.runStressTest('port-1', 'user-1', [
-        { name: '2008 Crisis', marketShock: -0.4, interestRateShock: -0.02 },
-        { name: 'Mild Correction', marketShock: -0.1, interestRateShock: 0 },
+        { name: '2008 Crisis', description: 'Severe downturn', marketShock: -0.4 },
+        { name: 'Mild Correction', description: 'Minor pullback', marketShock: -0.1 },
       ]);
 
       expect(results).toHaveLength(2);
@@ -393,7 +393,7 @@ describe('RiskService', () => {
       });
 
       const results = await service.runStressTest('port-1', 'user-1', [
-        { name: 'Crash', marketShock: -0.3, interestRateShock: 0 },
+        { name: 'Crash', description: 'Market crash scenario', marketShock: -0.3 },
       ]);
 
       expect(results[0].worstPosition.ticker).toBe('AAPL');
@@ -409,7 +409,7 @@ describe('RiskService', () => {
       });
 
       const results = await service.runStressTest('port-1', 'user-1', [
-        { name: 'No Change', marketShock: 0, interestRateShock: 0 },
+        { name: 'No Change', description: 'Baseline', marketShock: 0 },
       ]);
 
       expect(results[0].portfolioLoss).toBe(0);

@@ -74,6 +74,69 @@ export class LCRResponseDto {
   status: string;
 }
 
+export class BenchmarkDto {
+  @ApiProperty({ example: 'capital_adequacy' })
+  metric!: string;
+
+  @ApiProperty({ example: 10.81 })
+  value!: number;
+
+  @ApiProperty({ example: 9.2 })
+  peerMedian!: number;
+
+  @ApiProperty({ example: 75 })
+  percentile!: number;
+
+  @ApiPropertyOptional({ example: 'above-median' })
+  status?: string;
+}
+
+export class AnalysisSummaryDto {
+  @ApiProperty({ example: 42 })
+  riskScore!: number;
+
+  @ApiProperty({ example: 10.81 })
+  capitalRatio!: number;
+
+  @ApiProperty({ example: 118.5 })
+  liquidityCoverageRatio!: number;
+
+  @ApiProperty({ example: 3.78 })
+  durationGap!: number;
+
+  @ApiPropertyOptional({ example: 4.8 })
+  niiSensitivity?: number;
+
+  @ApiPropertyOptional({ example: -2.1 })
+  eveSensitivity?: number;
+
+  @ApiPropertyOptional({ example: 'Overall risk profile is moderate.' })
+  narrative?: string;
+}
+
+export class RegulatoryRatioDto {
+  @ApiProperty({ example: 'cap_adequacy' })
+  id!: string;
+
+  @ApiProperty({ example: 'Capital Adequacy' })
+  name!: string;
+
+  @ApiProperty({ example: 10.81 })
+  value!: number;
+
+  @ApiProperty({ example: 8 })
+  threshold!: number;
+
+  @ApiProperty({
+    description: "'PASS' | 'WARNING' | 'FAIL'",
+    example: 'PASS',
+  })
+  status!: string;
+
+  @ApiPropertyOptional({ example: 'Equity/Assets ratio' })
+  description?: string;
+}
+
 export class AnalysisResultResponseDto {
   @ApiProperty({
     description: 'Unique analysis ID for retrieval',
@@ -114,8 +177,11 @@ export class AnalysisResultResponseDto {
   })
   recommendations: string[];
 
-  @ApiProperty({ description: 'PR cooperativa sector benchmarks used' })
-  benchmarks: any;
+  @ApiProperty({
+    description: 'PR cooperativa sector benchmarks used',
+    type: [BenchmarkDto],
+  })
+  benchmarks: BenchmarkDto[];
 
   @ApiProperty({
     description: 'COSSEC compliance status',
@@ -124,8 +190,11 @@ export class AnalysisResultResponseDto {
   })
   overallStatus: string;
 
-  @ApiProperty({ description: 'Balance sheet summary' })
-  summary: any;
+  @ApiProperty({
+    description: 'Balance sheet summary',
+    type: AnalysisSummaryDto,
+  })
+  summary: AnalysisSummaryDto;
 }
 
 export class BenchmarkResponseDto {
@@ -140,8 +209,11 @@ export class BenchmarkResponseDto {
   @ApiProperty({ example: 185 })
   medianAssets: number;
 
-  @ApiProperty({ description: 'Ratio benchmarks with median, p25, p75' })
-  ratios: any;
+  @ApiProperty({
+    description: 'Ratio benchmarks with median, p25, p75',
+    type: [RegulatoryRatioDto],
+  })
+  ratios: RegulatoryRatioDto[];
 }
 
 export class FrameworkResponseDto {

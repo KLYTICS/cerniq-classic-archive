@@ -1,4 +1,10 @@
+import type { Metadata } from 'next';
 import { GreeksCalculator } from '@/components/options/GreeksCalculator';
+
+export const metadata: Metadata = {
+  title: 'Options Analytics — CERNIQ',
+  description: 'Institutional-grade Black-Scholes pricing and Greeks calculation for options analytics.',
+};
 
 export default function OptionsPage() {
     return (
