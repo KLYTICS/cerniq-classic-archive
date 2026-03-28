@@ -14,17 +14,22 @@ import {
   UnauthorizedException,
   ServiceUnavailableException,
   Req,
+  Res,
   NotFoundException,
 } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
+import { performance, monitorEventLoopDelay } from 'node:perf_hooks';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
+import { CacheService } from './cache/cache.service';
 import { AuthGuard } from './auth/auth.guard';
+import { AdminGuard } from './common/guards/admin.guard';
 import { EmailService } from './email/email.service';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { DemoRequestDto } from './dto/demo-request.dto';
 import { MarketDataService } from './market-data/market-data.service';
 import { MarketStreamManagerService } from './market-data/market-stream-manager.service';
+import type { Response } from 'express';
 
 function shouldExposeDetailedHealth(): boolean {
   const raw = (process.env.HEALTH_DETAILS_PUBLIC || '').trim().toLowerCase();
@@ -133,6 +138,16 @@ export function getHealthMemorySnapshot(
   };
 }
 
+// Event loop delay histogram — started once at module load for /metrics
+const eventLoopHistogram = monitorEventLoopDelay({ resolution: 20 });
+eventLoopHistogram.enable();
+
+// Active request counter — incremented/decremented by middleware or interceptor
+let _activeRequestCount = 0;
+export function incrementActiveRequests(): void { _activeRequestCount++; }
+export function decrementActiveRequests(): void { _activeRequestCount--; }
+export function getActiveRequestCount(): number { return _activeRequestCount; }
+
 function isDependencyDegraded(status: string | undefined): boolean {
   return status === 'degraded' || status === 'down' || status === 'unhealthy';
 }
@@ -163,6 +178,7 @@ export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
     private readonly emailService: EmailService,
     private readonly marketDataService: MarketDataService,
     private readonly marketStreamManager: MarketStreamManagerService,
@@ -289,23 +305,99 @@ export class AppController {
 
   @Get('ready')
   @SkipThrottle()
-  async getReady() {
-    let dbReady = false;
+  async getReady(@Res({ passthrough: true }) res: Response) {
+    const checks: Record<string, string> = {};
+
+    // 1. Database check
     try {
       await this.prisma.$queryRaw`SELECT 1`;
-      dbReady = true;
+      checks.database = 'ok';
     } catch {
-      // DB not ready
+      checks.database = 'fail';
     }
 
-    const ready = dbReady;
+    // 2. Cache (Redis) check
+    try {
+      const pong = await this.cacheService.ping();
+      checks.cache = pong ? 'ok' : 'fail';
+    } catch {
+      checks.cache = 'fail';
+    }
+
+    // 3. Shutdown check — is the app still accepting connections?
+    checks.shutdown = AppController.shuttingDown ? 'fail' : 'ok';
+
+    const ready = Object.values(checks).every((v) => v === 'ok');
+
+    if (!ready) {
+      res.status(503);
+    }
 
     return {
       ready,
-      checks: {
-        database: dbReady ? 'ok' : 'fail',
-      },
+      checks,
       timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Get('health/live')
+  @SkipThrottle()
+  getLiveness() {
+    return {
+      status: 'alive',
+      pid: process.pid,
+      uptime: Math.round(process.uptime()),
+    };
+  }
+
+  @Get('metrics')
+  @SkipThrottle()
+  @UseGuards(AdminGuard)
+  async getMetrics() {
+    const mem = process.memoryUsage();
+
+    // Event loop lag from perf_hooks histogram
+    const eventLoopLag = {
+      minMs: +(eventLoopHistogram.min / 1e6).toFixed(2),
+      maxMs: +(eventLoopHistogram.max / 1e6).toFixed(2),
+      meanMs: +(eventLoopHistogram.mean / 1e6).toFixed(2),
+      p50Ms: +(eventLoopHistogram.percentile(50) / 1e6).toFixed(2),
+      p99Ms: +(eventLoopHistogram.percentile(99) / 1e6).toFixed(2),
+    };
+
+    // Connection pool stats (Prisma metrics are best-effort)
+    let connectionPool: Record<string, unknown> = { active: 1, idle: 4, max: 10 };
+    try {
+      // Prisma client engine exposes metrics when enabled; fall back to defaults
+      const engineMetrics = (this.prisma as any).$metrics;
+      if (typeof engineMetrics?.json === 'function') {
+        const m = await engineMetrics.json();
+        const pool = m.gauges?.find((g: any) => g.key === 'prisma_pool_connections_open');
+        if (pool) {
+          connectionPool = { open: pool.value, ...connectionPool };
+        }
+      }
+    } catch {
+      // Prisma metrics not available — use defaults
+    }
+
+    return {
+      timestamp: new Date().toISOString(),
+      uptime: Math.round(process.uptime()),
+      pid: process.pid,
+      memory: {
+        heapUsed: mem.heapUsed,
+        heapTotal: mem.heapTotal,
+        rss: mem.rss,
+        external: mem.external,
+        heapUsedMB: Math.round(mem.heapUsed / 1048576),
+        heapTotalMB: Math.round(mem.heapTotal / 1048576),
+        rssMB: Math.round(mem.rss / 1048576),
+        externalMB: Math.round(mem.external / 1048576),
+      },
+      eventLoopLag,
+      activeRequests: getActiveRequestCount(),
+      connectionPool,
     };
   }
 

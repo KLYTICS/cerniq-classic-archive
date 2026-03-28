@@ -293,4 +293,493 @@ describe('OptionsService', () => {
       expect(Math.abs(result.error)).toBeLessThan(0.01);
     });
   });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // NEW TESTS: Black-Scholes Pricing
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('Black-Scholes Pricing', () => {
+    it('ATM call option price matches known analytical value', async () => {
+      // S=100, K=100, T=1, r=0.05, sigma=0.2
+      // Known BS call price ≈ 10.4506
+      const result = await service.calculateGreeks({
+        underlying: 100,
+        strike: 100,
+        timeToExpiry: 1.0,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        optionType: OptionType.CALL,
+      });
+
+      expect(result.price).toBeCloseTo(10.4506, 1);
+    });
+
+    it('deep ITM call has delta near 1 and price near intrinsic', async () => {
+      // S=150, K=100, T=0.25, r=0.05, sigma=0.2
+      // Deep ITM: intrinsic = 50, delta should be very close to 1
+      const result = await service.calculateGreeks({
+        underlying: 150,
+        strike: 100,
+        timeToExpiry: 0.25,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        optionType: OptionType.CALL,
+      });
+
+      expect(result.delta).toBeCloseTo(1.0, 2);
+      // Price should be at least intrinsic value (50)
+      expect(result.price).toBeGreaterThanOrEqual(50);
+      // Price should be close to S - K*e^(-rT) = 150 - 100*e^(-0.0125) ≈ 51.24
+      expect(result.price).toBeCloseTo(51.24, 0);
+    });
+
+    it('deep OTM call has delta near 0 and very small price', async () => {
+      // S=50, K=100, T=0.25, r=0.05, sigma=0.2
+      // Deep OTM: essentially worthless
+      const result = await service.calculateGreeks({
+        underlying: 50,
+        strike: 100,
+        timeToExpiry: 0.25,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        optionType: OptionType.CALL,
+      });
+
+      expect(result.delta).toBeCloseTo(0, 4);
+      expect(result.price).toBeCloseTo(0, 2);
+    });
+
+    it('ATM put option price matches known analytical value', async () => {
+      // S=100, K=100, T=1, r=0.05, sigma=0.2
+      // Known BS put price ≈ 5.5735
+      const result = await service.calculateGreeks({
+        underlying: 100,
+        strike: 100,
+        timeToExpiry: 1.0,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        optionType: OptionType.PUT,
+      });
+
+      expect(result.price).toBeCloseTo(5.5735, 1);
+    });
+
+    it('put-call parity holds: C - P = S - K*e^(-rT)', async () => {
+      const S = 100;
+      const K = 105;
+      const T = 0.5;
+      const r = 0.05;
+      const sigma = 0.3;
+
+      const call = await service.calculateGreeks({
+        underlying: S,
+        strike: K,
+        timeToExpiry: T,
+        riskFreeRate: r,
+        volatility: sigma,
+        optionType: OptionType.CALL,
+      });
+
+      const put = await service.calculateGreeks({
+        underlying: S,
+        strike: K,
+        timeToExpiry: T,
+        riskFreeRate: r,
+        volatility: sigma,
+        optionType: OptionType.PUT,
+      });
+
+      const parity = S - K * Math.exp(-r * T);
+      expect(call.price - put.price).toBeCloseTo(parity, 4);
+    });
+
+    it('call price increases with underlying price (monotonicity)', async () => {
+      const prices: number[] = [];
+      for (const underlying of [90, 100, 110]) {
+        const result = await service.calculateGreeks({
+          underlying,
+          strike: 100,
+          timeToExpiry: 0.5,
+          riskFreeRate: 0.05,
+          volatility: 0.25,
+          optionType: OptionType.CALL,
+        });
+        prices.push(result.price);
+      }
+
+      expect(prices[1]).toBeGreaterThan(prices[0]);
+      expect(prices[2]).toBeGreaterThan(prices[1]);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // NEW TESTS: Greeks Validation
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('Greeks Validation', () => {
+    it('call delta is between 0 and 1', async () => {
+      // Test across a range of moneyness levels
+      for (const underlying of [80, 100, 120]) {
+        const result = await service.calculateGreeks({
+          underlying,
+          strike: 100,
+          timeToExpiry: 0.5,
+          riskFreeRate: 0.05,
+          volatility: 0.3,
+          optionType: OptionType.CALL,
+        });
+        expect(result.delta).toBeGreaterThanOrEqual(0);
+        expect(result.delta).toBeLessThanOrEqual(1);
+      }
+    });
+
+    it('put delta is between -1 and 0', async () => {
+      for (const underlying of [80, 100, 120]) {
+        const result = await service.calculateGreeks({
+          underlying,
+          strike: 100,
+          timeToExpiry: 0.5,
+          riskFreeRate: 0.05,
+          volatility: 0.3,
+          optionType: OptionType.PUT,
+        });
+        expect(result.delta).toBeGreaterThanOrEqual(-1);
+        expect(result.delta).toBeLessThanOrEqual(0);
+      }
+    });
+
+    it('gamma is always positive for both calls and puts', async () => {
+      for (const optionType of [OptionType.CALL, OptionType.PUT]) {
+        for (const underlying of [80, 100, 120]) {
+          const result = await service.calculateGreeks({
+            underlying,
+            strike: 100,
+            timeToExpiry: 0.5,
+            riskFreeRate: 0.05,
+            volatility: 0.25,
+            optionType,
+          });
+          expect(result.gamma).toBeGreaterThan(0);
+        }
+      }
+    });
+
+    it('vega is always positive for both calls and puts', async () => {
+      for (const optionType of [OptionType.CALL, OptionType.PUT]) {
+        for (const underlying of [80, 100, 120]) {
+          const result = await service.calculateGreeks({
+            underlying,
+            strike: 100,
+            timeToExpiry: 0.5,
+            riskFreeRate: 0.05,
+            volatility: 0.25,
+            optionType,
+          });
+          expect(result.vega).toBeGreaterThan(0);
+        }
+      }
+    });
+
+    it('theta is negative for long calls and puts (time decay)', async () => {
+      for (const optionType of [OptionType.CALL, OptionType.PUT]) {
+        const result = await service.calculateGreeks({
+          underlying: 100,
+          strike: 100,
+          timeToExpiry: 0.5,
+          riskFreeRate: 0.05,
+          volatility: 0.25,
+          optionType,
+        });
+        // Theta should be negative: options lose value over time
+        expect(result.theta).toBeLessThan(0);
+      }
+    });
+
+    it('rho is positive for calls and negative for puts', async () => {
+      const call = await service.calculateGreeks({
+        underlying: 100,
+        strike: 100,
+        timeToExpiry: 0.5,
+        riskFreeRate: 0.05,
+        volatility: 0.25,
+        optionType: OptionType.CALL,
+      });
+
+      const put = await service.calculateGreeks({
+        underlying: 100,
+        strike: 100,
+        timeToExpiry: 0.5,
+        riskFreeRate: 0.05,
+        volatility: 0.25,
+        optionType: OptionType.PUT,
+      });
+
+      expect(call.rho).toBeGreaterThan(0);
+      expect(put.rho).toBeLessThan(0);
+    });
+
+    it('gamma is highest for ATM options and decreases for ITM/OTM', async () => {
+      const gammas: number[] = [];
+      for (const underlying of [80, 100, 120]) {
+        const result = await service.calculateGreeks({
+          underlying,
+          strike: 100,
+          timeToExpiry: 0.5,
+          riskFreeRate: 0.05,
+          volatility: 0.25,
+          optionType: OptionType.CALL,
+        });
+        gammas.push(result.gamma);
+      }
+
+      // ATM gamma (index 1) should be highest
+      expect(gammas[1]).toBeGreaterThan(gammas[0]);
+      expect(gammas[1]).toBeGreaterThan(gammas[2]);
+    });
+
+    it('call and put gamma are equal (same underlying/strike/T/vol)', async () => {
+      const params = {
+        underlying: 100,
+        strike: 100,
+        timeToExpiry: 0.5,
+        riskFreeRate: 0.05,
+        volatility: 0.25,
+      };
+
+      const call = await service.calculateGreeks({
+        ...params,
+        optionType: OptionType.CALL,
+      });
+
+      const put = await service.calculateGreeks({
+        ...params,
+        optionType: OptionType.PUT,
+      });
+
+      expect(call.gamma).toBeCloseTo(put.gamma, 6);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // NEW TESTS: Implied Volatility
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('Implied Volatility (extended)', () => {
+    it('Newton-Raphson converges for ATM option within few iterations', async () => {
+      // Price an ATM call with known vol, then recover the vol
+      const knownVol = 0.30;
+      const greeks = await service.calculateGreeks({
+        underlying: 100,
+        strike: 100,
+        timeToExpiry: 0.5,
+        riskFreeRate: 0.05,
+        volatility: knownVol,
+        optionType: OptionType.CALL,
+      });
+
+      const result = await service.calculateImpliedVolatility({
+        ticker: 'TEST',
+        strike: 100,
+        expiration: new Date(
+          Date.now() + 182 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
+        optionType: OptionType.CALL,
+        marketPrice: greeks.price,
+      });
+
+      expect(result.impliedVolatility).toBeCloseTo(knownVol, 2);
+      expect(result.iterations).toBeLessThan(25);
+      expect(Math.abs(result.error)).toBeLessThan(1e-4);
+    });
+
+    it('round-trip: IV recovered matches input volatility for puts', async () => {
+      const knownVol = 0.35;
+      const greeks = await service.calculateGreeks({
+        underlying: 100,
+        strike: 100,
+        timeToExpiry: 0.5,
+        riskFreeRate: 0.05,
+        volatility: knownVol,
+        optionType: OptionType.PUT,
+      });
+
+      const result = await service.calculateImpliedVolatility({
+        ticker: 'TEST',
+        strike: 100,
+        expiration: new Date(
+          Date.now() + 182 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
+        optionType: OptionType.PUT,
+        marketPrice: greeks.price,
+      });
+
+      expect(result.impliedVolatility).toBeCloseTo(knownVol, 2);
+    });
+
+    it('higher option price implies higher IV', async () => {
+      const expiration = new Date(
+        Date.now() + 182 * 24 * 60 * 60 * 1000,
+      ).toISOString();
+
+      // Calculate prices for two different volatilities
+      const lowVol = await service.calculateGreeks({
+        underlying: 100,
+        strike: 100,
+        timeToExpiry: 0.5,
+        riskFreeRate: 0.05,
+        volatility: 0.20,
+        optionType: OptionType.CALL,
+      });
+
+      const highVol = await service.calculateGreeks({
+        underlying: 100,
+        strike: 100,
+        timeToExpiry: 0.5,
+        riskFreeRate: 0.05,
+        volatility: 0.40,
+        optionType: OptionType.CALL,
+      });
+
+      // Recover IVs
+      const ivLow = await service.calculateImpliedVolatility({
+        ticker: 'TEST',
+        strike: 100,
+        expiration,
+        optionType: OptionType.CALL,
+        marketPrice: lowVol.price,
+      });
+
+      const ivHigh = await service.calculateImpliedVolatility({
+        ticker: 'TEST',
+        strike: 100,
+        expiration,
+        optionType: OptionType.CALL,
+        marketPrice: highVol.price,
+      });
+
+      expect(ivHigh.impliedVolatility).toBeGreaterThan(
+        ivLow.impliedVolatility,
+      );
+    });
+
+    it('IV converges for OTM option', async () => {
+      const knownVol = 0.25;
+      // OTM call: S < K
+      const greeks = await service.calculateGreeks({
+        underlying: 90,
+        strike: 100,
+        timeToExpiry: 0.5,
+        riskFreeRate: 0.05,
+        volatility: knownVol,
+        optionType: OptionType.CALL,
+      });
+
+      const result = await service.calculateImpliedVolatility({
+        ticker: 'TEST',
+        strike: 100,
+        expiration: new Date(
+          Date.now() + 182 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
+        optionType: OptionType.CALL,
+        // IV calc uses strike as underlying estimate, so pass the price
+        // that would be obtained with underlying=strike
+        marketPrice: greeks.price,
+      });
+
+      // The IV won't exactly match because the IV solver uses strike as
+      // the underlying estimate, but it should still converge
+      expect(result.iterations).toBeLessThan(100);
+      expect(Math.abs(result.error)).toBeLessThan(0.01);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // NEW TESTS: Edge Cases
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('Edge Cases', () => {
+    it('near-zero time to expiry produces intrinsic value for ITM call', async () => {
+      const result = await service.calculateGreeks({
+        underlying: 105,
+        strike: 100,
+        timeToExpiry: 0.001, // ~8.7 hours
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        optionType: OptionType.CALL,
+      });
+
+      // Price should be very close to intrinsic value (5)
+      expect(result.price).toBeCloseTo(5, 0);
+      // Delta should be close to 1 for ITM near expiry
+      expect(result.delta).toBeGreaterThan(0.9);
+    });
+
+    it('near-zero time to expiry for OTM put produces near-zero price', async () => {
+      const result = await service.calculateGreeks({
+        underlying: 105,
+        strike: 100,
+        timeToExpiry: 0.001,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        optionType: OptionType.PUT,
+      });
+
+      // OTM put near expiry should be nearly worthless
+      expect(result.price).toBeCloseTo(0, 1);
+      expect(result.delta).toBeGreaterThan(-0.1);
+    });
+
+    it('very high volatility inflates option price significantly', async () => {
+      const normalVol = await service.calculateGreeks({
+        underlying: 100,
+        strike: 100,
+        timeToExpiry: 0.5,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        optionType: OptionType.CALL,
+      });
+
+      const highVol = await service.calculateGreeks({
+        underlying: 100,
+        strike: 100,
+        timeToExpiry: 0.5,
+        riskFreeRate: 0.05,
+        volatility: 2.0, // 200% volatility
+        optionType: OptionType.CALL,
+      });
+
+      // Price with 200% vol should be much larger than with 20% vol
+      expect(highVol.price).toBeGreaterThan(normalVol.price * 3);
+      // Should still produce valid numbers
+      expect(Number.isFinite(highVol.price)).toBe(true);
+      expect(Number.isFinite(highVol.delta)).toBe(true);
+      expect(Number.isFinite(highVol.gamma)).toBe(true);
+    });
+
+    it('expired OTM call has zero price and zero delta', async () => {
+      const result = await service.calculateGreeks({
+        underlying: 95,
+        strike: 100,
+        timeToExpiry: 0,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        optionType: OptionType.CALL,
+      });
+
+      expect(result.price).toBe(0);
+      expect(result.delta).toBe(0);
+      expect(result.gamma).toBe(0);
+      expect(result.vega).toBe(0);
+    });
+
+    it('expired ITM put has correct intrinsic value and delta=-1', async () => {
+      const result = await service.calculateGreeks({
+        underlying: 90,
+        strike: 100,
+        timeToExpiry: 0,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        optionType: OptionType.PUT,
+      });
+
+      expect(result.price).toBe(10);
+      expect(result.delta).toBe(-1);
+    });
+  });
 });

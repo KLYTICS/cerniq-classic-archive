@@ -8,6 +8,7 @@ import Providers from '@/components/Providers';
 import CookieConsent from '@/components/CookieConsent';
 import SessionTimeoutWarning from '@/components/SessionTimeoutWarning';
 import { ToastProvider } from '@/components/Toast';
+import { WebVitals } from '@/components/WebVitals';
 
 const bodyFont = Manrope({
   subsets: ['latin'],
@@ -94,6 +95,7 @@ export default function RootLayout({
           Skip to content
         </a>
         <Providers>
+        <WebVitals />
         <ToastProvider>
         <div id="main-content">
         {children}

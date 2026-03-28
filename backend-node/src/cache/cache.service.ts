@@ -42,6 +42,21 @@ export class CacheService implements OnModuleInit {
   }
 
   /**
+   * Ping Redis to check connectivity (used by readiness probes)
+   * @returns true if Redis responds to PING, false otherwise
+   */
+  async ping(): Promise<boolean> {
+    if (!this.redis) return false;
+
+    try {
+      const result = await this.redis.ping();
+      return result === 'PONG';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Get value from cache
    */
   async get<T>(key: string): Promise<T | null> {

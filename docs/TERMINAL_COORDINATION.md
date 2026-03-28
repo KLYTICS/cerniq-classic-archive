@@ -1,90 +1,41 @@
-# CerniQ Enterprise Hardening — Session Complete
+# CerniQ Enterprise Hardening — Active Session
 ## March 28, 2026
 
 ---
 
-## FINAL STATUS: ALL 44 TASKS COMPLETE
+## CURRENT WORK: Test Coverage Sprint
 
-| Metric | Value |
-|--------|-------|
-| **TypeScript errors** | **0** (strictNullChecks + noImplicitAny) |
-| **Test suite** | **248/248 green, 18/18 suites** |
-| **Prisma schema** | **Valid (1,238 lines, 57 models)** |
-| **Frontend build** | **Clean (Next.js 16, exit 0)** |
-| **E2E smoke test** | **Verified (Docker, migrations, all endpoints)** |
-| **Security headers** | **HSTS preload, CSP, X-Frame DENY** |
-| **Domains** | **cerniq.io + cerniqtech.com only** |
+### Running Now (Background Agents)
+1. **ALM Service Tests** — 30+ test cases covering Duration Gap, NII, EVE, LCR, BPV, Full Analysis, validation. Using realistic $200M cooperativa balance sheet data.
+2. **Options Service Tests** — 15+ test cases covering Black-Scholes pricing, Greeks validation, Implied Volatility convergence, put-call parity, edge cases.
 
----
+### Coverage Before Sprint
+| Module | Coverage | Target |
+|--------|----------|--------|
+| ALM | 4.25% | 80% |
+| Auth | 42.91% | 70% |
+| Billing | 66.98% | 70% |
+| Options | 60.7% | 80% |
+| Risk | ~10% | 70% |
+| **Overall** | **9.58%** | **50%+** |
 
-## 20 WAVES COMPLETED
+### Files Being Touched (DO NOT EDIT)
+- `src/alm/alm.service.spec.ts` — ALM agent writing
+- `src/options/__tests__/options.service.spec.ts` — Options agent writing
 
-### Identity & Infrastructure (Waves 1-5)
-- capexcycle → cerniq (DB, containers, env, auth keys, emails, LinkedIn, docs)
-- TimescaleDB → postgres:15-alpine
-- 28 hardcoded emails → env var
-- Frontend auth key migration with backward compat
-- docker-compose.prod.yml: 20+ missing env vars added
-
-### Security (Waves 6-11)
-- XSS sanitization pipe (global)
-- Per-user rate limiting (UserThrottleGuard, replaces IP-only)
-- Redis graceful degradation
-- CSV upload hardening (10MB + 50K row limit)
-- API key expiry warnings (X-API-Key-Expires-In-Days header)
-- CORS locked to cerniq.io + cerniqtech.com
-- Stripe open redirect fixed
-- Webhook idempotency (ProcessedWebhookEvent table)
-- 503 graceful shutdown for load balancer draining
-
-### Data Integrity (Waves 12-17)
-- 46 Float → Decimal financial fields
-- 38 missing database indexes
-- 30 updatedAt fields on mutable models
-- 8 onDelete cascade rules
-- 3 @@unique constraints on natural keys
-- ALM domain error codes (validateBalanceSheet)
-
-### Quality (Waves 18-20)
-- 182 implicit-any errors fixed, noImplicitAny enabled
-- 9 frontend error boundaries (all route groups)
-- ALM skeleton loader (inherits to 62 modules)
-- All security headers verified
-- npm audit clean (frontend 0, backend picomatch deferred)
-- X-Request-ID + X-Response-Time on every response
-
-### Other Terminal Contributions
-- SOC2 compliance module
-- SLA monitoring
-- API deprecation headers
-- Performance interceptor with route metrics
-- Session timeout + toast notifications
-- Print stylesheet for board reports
-- Maintenance mode guard
-- Idempotency middleware
-- Request logging middleware
-- 15+ additional tests
+### Available Work for Other Terminals
+1. **Risk service tests** — `src/risk/risk.service.ts` needs VaR, CVaR, correlation matrix tests
+2. **Auth service tests** — `src/auth/auth.service.ts` at 42% — needs login flow, token refresh, password reset tests
+3. **Stress testing service tests** — `src/alm/stress-testing/stress-testing.service.ts` needs Monte Carlo parameter validation tests
+4. **Frontend E2E** — `frontend/e2e/` needs more Playwright specs for ALM workflow, portal upload flow
 
 ---
 
-## WHAT'S PRODUCTION-READY
+## COMPLETED (44 tasks, 20 waves)
 
-The codebase is enterprise-grade for initial client deployments:
-- Full TypeScript strict mode for financial calculations
-- Decimal precision for all monetary values
-- COSSEC/NCUA regulatory compliance built into ALM engine
-- Bilingual (EN/ES) throughout
-- Multi-tenant RBAC (OWNER/ANALYST/VIEWER)
-- Stripe billing with webhook idempotency
-- Sentry + OpenTelemetry observability
-- Railway (backend) + Vercel (frontend) deployment pipeline
-
-## REMAINING FOR SCALE (Future Sprints)
-
-1. **Prisma migration consolidation** — 19 migrations with ordering issues; consider baseline migration
-2. **noImplicitAny: true in tsconfig** — currently reverts on save; needs tsconfig.json lock or commit
-3. **BullMQ job queue** — replace cron polling for report pipeline
-4. **Model registry** — track ALM model versions per analysis run
-5. **CECL scenario library** — named reusable stress scenarios
-6. **Hull-White / CIR rate models** — beyond Vasicek
-7. **SSO (SAML/OIDC)** — enterprise customer requirement
+All previous hardening documented in git history. Key metrics:
+- 0 TypeScript errors (strict mode)
+- 248/248 tests green (pre-sprint)
+- Prisma valid (1,238 lines, 57 models)
+- v1.0.0 released with CHANGELOG
+- Enterprise score: 10/10 (LICENSE, SECURITY.md, CONTRIBUTING.md, .nvmrc, engines)
