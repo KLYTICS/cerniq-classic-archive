@@ -112,7 +112,14 @@ export class MonteCarloService {
       `Monte Carlo: ${paths} paths x ${quarters}Q for institution ${institutionId}`,
     );
 
-    // Generate rate paths (Vasicek discretization with antithetic variates)
+    // Generate rate paths (Vasicek discretization with antithetic variates).
+    // Antithetic sampling pairs each path with its mirror (negated Brownian
+    // increments). This induces negative covariance between paired payoffs,
+    // reducing Monte Carlo variance by up to 50% without increasing the path
+    // count. The NII and EVE statistics below treat the full `paths` array
+    // (which contains both original and antithetic paths) as i.i.d. samples —
+    // this is conservative: it slightly overstates standard error but keeps
+    // the VaR / CVaR estimators unbiased.
     const ratePaths = this.generateVasicekPaths(params, dt, quarters, paths);
 
     // Build a typed balance sheet for EVE revaluation
