@@ -379,11 +379,11 @@ export default function LandingPage() {
           <section className="cerniq-panel py-4 px-6 sm:px-8">
             <div className="mx-auto grid max-w-5xl grid-cols-2 sm:grid-cols-4 gap-4 text-center">
               <div>
-                <p className="text-3xl font-bold tabular-nums text-slate-950">70+</p>
+                <p className="text-3xl font-bold tabular-nums text-slate-950">100+</p>
                 <p className="text-xs text-slate-500">{t('ALM Modules', 'Módulos ALM')}</p>
               </div>
               <div>
-                <p className="text-3xl font-bold tabular-nums text-slate-950">100</p>
+                <p className="text-3xl font-bold tabular-nums text-slate-950">130</p>
                 <p className="text-xs text-slate-500">{t('Quant Models', 'Modelos Cuantitativos')}</p>
               </div>
               <div>
