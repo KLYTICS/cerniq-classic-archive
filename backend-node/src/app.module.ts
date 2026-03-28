@@ -12,6 +12,8 @@ import { SlowRequestInterceptor } from './common/interceptors/slow-query.interce
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { ApiVersionMiddleware } from './common/middleware/api-version.middleware';
+import { RequestLoggingMiddleware } from './common/middleware/request-logging.middleware';
+import { CorrelationInterceptor } from './common/interceptors/correlation.interceptor';
 import { MarketDataModule } from './market-data/market-data.module';
 import { TickerModule } from './ticker/ticker.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
@@ -116,10 +118,14 @@ import { ApiV1Module } from './api-v1/api-v1.module';
       provide: APP_INTERCEPTOR,
       useClass: TimeoutInterceptor,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: CorrelationInterceptor,
+    },
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RequestIdMiddleware, ApiVersionMiddleware).forRoutes('*');
+    consumer.apply(RequestIdMiddleware, ApiVersionMiddleware, RequestLoggingMiddleware).forRoutes('*');
   }
 }

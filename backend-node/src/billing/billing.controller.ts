@@ -14,6 +14,13 @@ import {
   Logger,
 } from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { BillingService } from './billing.service';
 import { CheckoutRequestDto } from './billing.dto';
 import { AuthGuard } from '../auth/auth.guard';
@@ -75,6 +82,7 @@ const AUTH_COOKIE_OPTIONS = {
   ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
 };
 
+@ApiTags('Billing')
 @Controller()
 export class BillingController {
   private readonly logger = new Logger(BillingController.name);

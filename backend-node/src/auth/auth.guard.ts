@@ -63,6 +63,21 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
+    // Warn in response headers if API key expires within 14 days
+    if (user.authMethod === 'api_key' && user.keyExpiresAt) {
+      const daysLeft = Math.ceil(
+        (new Date(user.keyExpiresAt).getTime() - Date.now()) / 86_400_000,
+      );
+      if (daysLeft <= 14) {
+        const res = context.switchToHttp().getResponse();
+        res.setHeader('X-API-Key-Expires-In-Days', String(daysLeft));
+        res.setHeader(
+          'Warning',
+          `299 - "API key expires in ${daysLeft} day(s). Rotate at POST /api/auth/api-key"`,
+        );
+      }
+    }
+
     if (user.authMethod === 'api_key' && !isReadOnlyMethod(request.method)) {
       throw new ForbiddenException('API keys are read-only');
     }
@@ -259,6 +274,7 @@ export class AuthGuard implements CanActivate {
       },
       orgId: null,
       authMethod: 'api_key',
+      keyExpiresAt: key.expiresAt ?? undefined,
     };
   }
 
