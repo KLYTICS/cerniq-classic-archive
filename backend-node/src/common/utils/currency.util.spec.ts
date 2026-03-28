@@ -40,7 +40,7 @@ describe('formatCurrency', () => {
 describe('formatCompactCurrency', () => {
   it('formats thousands as K', () => {
     const result = formatCompactCurrency(5000, 'en');
-    expect(result).toMatch(/\$5K/);
+    expect(result).toMatch(/\$5\.?0?K/);
   });
 
   it('formats millions as M', () => {

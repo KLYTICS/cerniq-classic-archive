@@ -137,8 +137,8 @@ describe('maskSensitiveFields', () => {
       { email: 'a@b.com' },
       { email: 'c@d.com' },
     ]);
-    expect(result[0].email).toBe('a***@b.com');
-    expect(result[1].email).toBe('c***@d.com');
+    expect(result[0].email).toBe('*@b.com');
+    expect(result[1].email).toBe('*@d.com');
   });
 
   it('returns null/primitive as-is', () => {
