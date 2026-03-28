@@ -275,6 +275,7 @@ export default function PricingPage() {
                 {tier.id === 'partner' ? (
                   <a
                     href="/contact"
+                    rel="noopener noreferrer"
                     className="mt-8 w-full cerniq-button-secondary text-center"
                   >
                     {getCtaLabel(tier.id, lang)}
