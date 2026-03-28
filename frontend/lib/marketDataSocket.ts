@@ -323,7 +323,6 @@ export function useLivePrice(ticker: string | null) {
     useEffect(() => {
         if (!ticker || !isConnected) {
             previousPriceRef.current = null;
-            setPriceDirection('neutral');
             return;
         }
 
@@ -353,6 +352,7 @@ export function useLivePrice(ticker: string | null) {
 
         return () => {
             unsubscribe();
+            setPriceDirection('neutral');
             if (directionResetTimeoutRef.current) {
                 clearTimeout(directionResetTimeoutRef.current);
                 directionResetTimeoutRef.current = null;

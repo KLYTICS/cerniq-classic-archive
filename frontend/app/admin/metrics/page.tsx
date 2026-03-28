@@ -70,7 +70,13 @@ export default function AdminMetrics() {
       return;
     }
 
-    void fetchMetrics(adminKey);
+    const timer = window.setTimeout(() => {
+      void fetchMetrics(adminKey);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [adminKey, fetchMetrics]);
 
   const handleLogin = () => {

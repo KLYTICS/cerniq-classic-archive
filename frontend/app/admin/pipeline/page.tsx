@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import {
   Clock, CheckCircle, AlertTriangle, Loader2, XCircle,
-  RefreshCw, Play, RotateCcw, ChevronRight,
+  RefreshCw, Play, RotateCcw,
 } from 'lucide-react';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
@@ -86,7 +85,13 @@ export default function AdminPipeline() {
       return;
     }
 
-    void fetchJobs(adminKey);
+    const timer = window.setTimeout(() => {
+      void fetchJobs(adminKey);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [adminKey, fetchJobs]);
 
   const handleLogin = () => {
