@@ -945,24 +945,24 @@ export default function LandingPage() {
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">
+                      <label htmlFor="landing-name" className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">
                         {t('Name', 'Nombre')}
                       </label>
-                      <input type="text" placeholder="Maria Rodriguez" className="cerniq-input" value={name} onChange={(event) => setName(event.target.value)} />
+                      <input id="landing-name" type="text" placeholder="Maria Rodriguez" className="cerniq-input" value={name} onChange={(event) => setName(event.target.value)} />
                     </div>
                     <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">
+                      <label htmlFor="landing-email" className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">
                         {t('Work Email', 'Correo institucional')}
                       </label>
-                      <input type="email" required placeholder="maria@institution.com" className="cerniq-input" value={email} onChange={(event) => setEmail(event.target.value)} />
+                      <input id="landing-email" type="email" required placeholder="maria@institution.com" className="cerniq-input" value={email} onChange={(event) => setEmail(event.target.value)} />
                     </div>
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">
+                    <label htmlFor="landing-institution" className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">
                       {t('Institution Name', 'Nombre de institucion')}
                     </label>
-                    <input type="text" placeholder={t('Your institution name', 'Nombre de su institucion')} className="cerniq-input" value={institutionName} onChange={(event) => setInstitutionName(event.target.value)} />
+                    <input id="landing-institution" type="text" placeholder={t('Your institution name', 'Nombre de su institucion')} className="cerniq-input" value={institutionName} onChange={(event) => setInstitutionName(event.target.value)} />
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
