@@ -55,7 +55,7 @@ export class LeadsController {
     @Param('id') id: string,
   ) {
     this.verifyAdmin(adminKey);
-    return this.leads.getLead(id, 'admin');
+    return this.leads.getLead(id);
   }
 
   @Put('admin/api/leads/:id')
@@ -66,7 +66,7 @@ export class LeadsController {
   ) {
     this.verifyAdmin(adminKey);
     this.logger.log(`Lead updated: ${id}`);
-    return this.leads.updateLead(id, 'admin', dto);
+    return this.leads.updateLead(id, dto);
   }
 
   @Post('admin/api/leads/:id/note')
@@ -76,7 +76,7 @@ export class LeadsController {
     @Body('note') note: string,
   ) {
     this.verifyAdmin(adminKey);
-    return this.leads.addNote(id, 'admin', note);
+    return this.leads.addNote(id, note);
   }
 
   @Post('admin/api/leads/:id/mark-report-sent')

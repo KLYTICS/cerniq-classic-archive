@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
@@ -9,8 +10,19 @@ import { useAuthStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
 import TickerSearch from '@/components/valuation/TickerSearch';
 import ValuationCard from '@/components/valuation/ValuationCard';
-import CycleChart from '@/components/valuation/CycleChart';
 import MetricsGrid from '@/components/valuation/MetricsGrid';
+
+const CycleChart = dynamic(
+  () => import('@/components/valuation/CycleChart'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-64 rounded-xl border border-slate-200 bg-white animate-pulse">
+        <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+      </div>
+    ),
+  }
+);
 
 interface ValuationData {
   ticker: string;
