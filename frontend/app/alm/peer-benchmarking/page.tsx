@@ -53,7 +53,40 @@ interface PeerResult {
 
 // ─── Translations ───────────────────────────────────────────
 
-const T = {
+interface PageStrings {
+  title: string;
+  subtitle: string;
+  section1: string;
+  section2: string;
+  section3: string;
+  section4: string;
+  yourValue: string;
+  peerMedian: string;
+  percentile: string;
+  strength: string;
+  improvement: string;
+  metric: string;
+  yours: string;
+  median: string;
+  deviation: string;
+  flag: string;
+  totalInstitutions: string;
+  medianAssets: string;
+  medianCapitalRatio: string;
+  medianNIM: string;
+  noOutliers: string;
+  peerGroup: string;
+  institutions: string;
+  loading: string;
+  noInstitution: string;
+  aboveMedian: string;
+  belowMedian: string;
+  systemTrend: string;
+  trendUp: string;
+  trendStable: string;
+}
+
+const T: Record<string, PageStrings> = {
   en: {
     title: 'Peer Benchmarking',
     subtitle: 'How your institution compares to peers',
@@ -118,7 +151,7 @@ const T = {
     trendUp: 'Mejorando',
     trendStable: 'Estable',
   },
-} as const;
+};
 
 // ─── Key metric keys for the comparison bar chart ───────────
 

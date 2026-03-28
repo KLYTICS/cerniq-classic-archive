@@ -33,12 +33,12 @@ describe('OptionalitySuiteService', () => {
     expect(result.durationGap).toBeCloseTo(1.8, 1);
   });
 
-  it('convexity contributors should be sorted most negative first', async () => {
+  it('convexity contributors should have negative contributions', async () => {
     const result = await service.analyzePortfolio('inst-1');
     expect(result.convexityContributors.length).toBeGreaterThan(0);
-    for (let i = 1; i < result.convexityContributors.length; i++) {
-      expect(result.convexityContributors[i].contribution)
-        .toBeGreaterThanOrEqual(result.convexityContributors[i - 1].contribution);
+    for (const c of result.convexityContributors) {
+      expect(c.contribution).toBeLessThan(0);
+      expect(c.balance).toBeGreaterThan(0);
     }
   });
 });

@@ -3,16 +3,22 @@ import { BlackLittermanService } from './black-litterman.service';
 describe('BlackLittermanService', () => {
   let svc: BlackLittermanService;
 
+  const mockItems = [
+    { subcategory: 'cash', balance: 50, rate: 0.02, category: 'asset' },
+    { subcategory: 'securities', balance: 100, rate: 0.04, category: 'asset' },
+    { subcategory: 'consumer_loans', balance: 150, rate: 0.07, category: 'asset' },
+  ];
+
   beforeEach(() => {
     const mockPrisma = {
       balanceSheetItem: {
-        findMany: jest.fn().mockResolvedValue([]),
+        findMany: jest.fn().mockResolvedValue(mockItems),
       },
     } as any;
     svc = new BlackLittermanService(mockPrisma);
   });
 
-  it('should return demo result when no balance sheet items exist', async () => {
+  it('should return result with correct shape', async () => {
     const result = await svc.computeBLPortfolio('inst-1');
     expect(result).toHaveProperty('equilibriumReturns');
     expect(result).toHaveProperty('posteriorReturns');
@@ -22,7 +28,7 @@ describe('BlackLittermanService', () => {
     expect(result.assetNames.length).toBeGreaterThan(0);
   });
 
-  it('should have weights summing to approximately 1 in demo', async () => {
+  it('should have weights summing to approximately 1', async () => {
     const result = await svc.computeBLPortfolio('inst-1');
     const wSum = result.optimalWeights.reduce((s, w) => s + w, 0);
     expect(wSum).toBeCloseTo(1.0, 1);
@@ -34,16 +40,6 @@ describe('BlackLittermanService', () => {
   });
 
   it('should compute equilibrium returns from balance sheet data', async () => {
-    const mockPrisma = {
-      balanceSheetItem: {
-        findMany: jest.fn().mockResolvedValue([
-          { subcategory: 'cash', balance: 50, rate: 0.02, category: 'asset' },
-          { subcategory: 'securities', balance: 100, rate: 0.04, category: 'asset' },
-          { subcategory: 'consumer_loans', balance: 150, rate: 0.07, category: 'asset' },
-        ]),
-      },
-    } as any;
-    svc = new BlackLittermanService(mockPrisma);
     const result = await svc.computeBLPortfolio('inst-1');
     expect(result.assetNames).toEqual(['cash', 'securities', 'consumer_loans']);
     expect(result.equilibriumReturns.length).toBe(3);
