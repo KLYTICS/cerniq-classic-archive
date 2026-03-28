@@ -30,6 +30,7 @@ import RiskBadge from '@/components/alm/RiskBadge';
 import AIAdvisorChat from '@/components/alm/AIAdvisorChat';
 import AlertBanner from '@/components/alm/AlertBanner';
 import ExportCSVButton from '@/components/alm/ExportCSVButton';
+import { ExportButtons } from '@/components/alm/ExportButtons';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
 import { usePDFExport } from '@/hooks/usePDFExport';
@@ -233,6 +234,7 @@ export default function ALMDashboardPage() {
             }}
             filename={`ALM_KPIs_${s.institution.name}`}
           />
+          <ExportButtons />
         </div>
       </div>
 

@@ -94,6 +94,12 @@ import { CopulaCreditService } from './copula-credit.service';
 import { WrongWayRiskService } from './wrong-way-risk.service';
 import { IRCapFloorService } from './ir-cap-floor.service';
 import { NCUARBC2Service } from './ncua-rbc2.service';
+// Trend + Export services
+import { TrendAnalysisService } from './trend-analysis.service';
+import { DataExportService } from './data-export.service';
+// Custom Scenario & Excel Export
+import { CustomScenarioService } from './custom-scenario.service';
+import { ExcelExportService } from './excel-export.service';
 // Controllers
 import { AlmController } from './alm.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
@@ -201,6 +207,12 @@ import { AuthGuard } from '../auth/auth.guard';
     WrongWayRiskService,
     IRCapFloorService,
     NCUARBC2Service,
+    // Trend + Export
+    TrendAnalysisService,
+    DataExportService,
+    // Custom Scenario & Excel Export
+    CustomScenarioService,
+    ExcelExportService,
     // Guards
     AuthGuard,
   ],
@@ -290,6 +302,10 @@ import { AuthGuard } from '../auth/auth.guard';
     WrongWayRiskService,
     IRCapFloorService,
     NCUARBC2Service,
+    TrendAnalysisService,
+    DataExportService,
+    CustomScenarioService,
+    ExcelExportService,
   ],
 })
 export class AlmModule {}

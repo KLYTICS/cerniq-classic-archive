@@ -95,6 +95,10 @@ import { CopulaCreditService } from './copula-credit.service';
 import { WrongWayRiskService } from './wrong-way-risk.service';
 import { IRCapFloorService } from './ir-cap-floor.service';
 import { NCUARBC2Service } from './ncua-rbc2.service';
+import { TrendAnalysisService } from './trend-analysis.service';
+import { DataExportService } from './data-export.service';
+import { CustomScenarioService, CustomScenarioParams } from './custom-scenario.service';
+import { ExcelExportService } from './excel-export.service';
 import {
   ApiTags,
   ApiOperation,
@@ -218,6 +222,8 @@ export class AlmController {
     private readonly wrongWayRisk: WrongWayRiskService,
     private readonly irCapFloor: IRCapFloorService,
     private readonly ncuaRBC2: NCUARBC2Service,
+    private readonly trendAnalysis: TrendAnalysisService,
+    private readonly dataExport: DataExportService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -1841,6 +1847,67 @@ export class AlmController {
       dto.lcr,
     );
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Historical Trend API
+  // ═══════════════════════════════════════════════════════════════
+
+  @Get(':institutionId/trend')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Get historical trend of key ALM metrics' })
+  @ApiParam({ name: 'institutionId', description: 'Institution ID' })
+  @ApiResponse({ status: 200, description: 'Historical trend time series' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getHistoricalTrend(
+    @Param('institutionId') institutionId: string,
+  ) {
+    this.logger.log(`Historical trend requested for institution ${institutionId}`);
+    return this.trendAnalysis.getHistoricalTrend(institutionId);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Data Export API
+  // ═══════════════════════════════════════════════════════════════
+
+  @Get(':institutionId/export/json')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Export latest ALM metrics as JSON' })
+  @ApiParam({ name: 'institutionId', description: 'Institution ID' })
+  @ApiResponse({ status: 200, description: 'JSON metrics export' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'No completed analysis found' })
+  async exportJSON(@Param('institutionId') id: string) {
+    this.logger.log(`JSON export requested for institution ${id}`);
+    return this.dataExport.exportMetrics(id, 'json');
+  }
+
+  @Get(':institutionId/export/csv')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Export latest ALM metrics as CSV' })
+  @ApiParam({ name: 'institutionId', description: 'Institution ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'CSV file download',
+    content: { 'text/csv': {} },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'No completed analysis found' })
+  async exportCSV(
+    @Param('institutionId') id: string,
+    @Res() res: any,
+  ) {
+    this.logger.log(`CSV export requested for institution ${id}`);
+    const csv = await this.dataExport.exportMetrics(id, 'csv');
+    res.set({
+      'Content-Type': 'text/csv',
+      'Content-Disposition': 'attachment; filename="cerniq-metrics.csv"',
+    });
+    res.send(csv);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Demo / Static Endpoints
+  // ═══════════════════════════════════════════════════════════════
 
   @Get('demo-balance-sheet')
   demoBalanceSheet(): BalanceSheetDto {

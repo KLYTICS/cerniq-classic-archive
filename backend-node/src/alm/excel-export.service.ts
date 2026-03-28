@@ -1,0 +1,524 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { AlmEnterpriseService } from './alm-enterprise.service';
+
+/** Round to n decimal places with NaN guard */
+function round(value: number, decimals: number): number {
+  if (!Number.isFinite(value)) return 0;
+  const factor = Math.pow(10, decimals);
+  return Math.round(value * factor) / factor;
+}
+
+/**
+ * Escape a value for inclusion in a TSV cell.
+ * Wraps strings containing tabs, newlines, or quotes in double-quotes.
+ */
+function escapeCell(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  const str = String(value);
+  if (str.includes('\t') || str.includes('\n') || str.includes('"')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+/** Build a single TSV row from an array of values */
+function tsvRow(values: unknown[]): string {
+  return values.map(escapeCell).join('\t');
+}
+
+@Injectable()
+export class ExcelExportService {
+  private readonly logger = new Logger(ExcelExportService.name);
+
+  constructor(private readonly almEnterprise: AlmEnterpriseService) {}
+
+  /**
+   * Export a multi-sheet ALM report as a tab-separated workbook.
+   *
+   * Uses an XML Spreadsheet 2003 format (SpreadsheetML) which Excel,
+   * LibreOffice, and Numbers open natively with proper sheet tabs.
+   * This avoids any dependency on heavy xlsx libraries.
+   *
+   * Sheets:
+   *   1. Executive Summary (risk score, key metrics)
+   *   2. COSSEC Ratios (all 12 with thresholds and status)
+   *   3. Balance Sheet (all line items)
+   *   4. NII Sensitivity (rate shock scenarios)
+   */
+  async exportToExcel(institutionId: string): Promise<Buffer> {
+    this.logger.log(`Excel export requested for institution ${institutionId}`);
+
+    // Fetch all data in parallel
+    const [summary, cossec, balanceSheetData, niiSensitivity] =
+      await Promise.all([
+        this.almEnterprise.getALMSummary(institutionId).catch(() => null),
+        this.almEnterprise.getCOSSECCompliance(institutionId).catch(() => null),
+        this.almEnterprise
+          .listBalanceSheetItems(institutionId, { page: 1, pageSize: 1000 })
+          .catch(() => ({ items: [] })),
+        this.almEnterprise
+          .calculateNIISensitivity(institutionId)
+          .catch(() => null),
+      ]);
+
+    // Build XML Spreadsheet 2003 workbook
+    const xml = this.buildSpreadsheetML(
+      institutionId,
+      summary,
+      cossec,
+      balanceSheetData.items ?? [],
+      niiSensitivity,
+    );
+
+    return Buffer.from(xml, 'utf-8');
+  }
+
+  // ─── SpreadsheetML Builder ──────────────────────────────────────
+
+  private buildSpreadsheetML(
+    institutionId: string,
+    summary: any,
+    cossec: any,
+    balanceSheetItems: any[],
+    niiSensitivity: any,
+  ): string {
+    const sheets: string[] = [];
+
+    sheets.push(this.buildExecutiveSummarySheet(summary, institutionId));
+    sheets.push(this.buildCOSSECSheet(cossec));
+    sheets.push(this.buildBalanceSheetSheet(balanceSheetItems));
+    sheets.push(this.buildNIISensitivitySheet(niiSensitivity));
+
+    return [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<?mso-application progid="Excel.Sheet"?>',
+      '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"',
+      '  xmlns:o="urn:schemas-microsoft-com:office:office"',
+      '  xmlns:x="urn:schemas-microsoft-com:office:excel"',
+      '  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">',
+      '  <Styles>',
+      '    <Style ss:ID="header">',
+      '      <Font ss:Bold="1" ss:Size="11"/>',
+      '      <Interior ss:Color="#4472C4" ss:Pattern="Solid"/>',
+      '      <Font ss:Color="#FFFFFF" ss:Bold="1" ss:Size="11"/>',
+      '    </Style>',
+      '    <Style ss:ID="title">',
+      '      <Font ss:Bold="1" ss:Size="14"/>',
+      '    </Style>',
+      '    <Style ss:ID="number">',
+      '      <NumberFormat ss:Format="#,##0.00"/>',
+      '    </Style>',
+      '    <Style ss:ID="pct">',
+      '      <NumberFormat ss:Format="0.00%"/>',
+      '    </Style>',
+      '    <Style ss:ID="pass">',
+      '      <Interior ss:Color="#C6EFCE" ss:Pattern="Solid"/>',
+      '    </Style>',
+      '    <Style ss:ID="warn">',
+      '      <Interior ss:Color="#FFEB9C" ss:Pattern="Solid"/>',
+      '    </Style>',
+      '    <Style ss:ID="fail">',
+      '      <Interior ss:Color="#FFC7CE" ss:Pattern="Solid"/>',
+      '    </Style>',
+      '  </Styles>',
+      ...sheets,
+      '</Workbook>',
+    ].join('\n');
+  }
+
+  // ─── Sheet 1: Executive Summary ─────────────────────────────────
+
+  private buildExecutiveSummarySheet(
+    summary: any,
+    institutionId: string,
+  ): string {
+    const rows: string[] = [];
+
+    const instName = summary?.institution?.name ?? 'Unknown Institution';
+    const reportDate =
+      summary?.institution?.reportingDate?.split('T')[0] ??
+      new Date().toISOString().split('T')[0];
+
+    rows.push(this.xmlRow([this.xmlStringCell('CerniQ ALM Report', 'title')]));
+    rows.push(this.xmlRow([this.xmlStringCell(`Institution: ${instName}`)]));
+    rows.push(this.xmlRow([this.xmlStringCell(`Report Date: ${reportDate}`)]));
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell(`Institution ID: ${institutionId.slice(0, 8)}...`),
+      ]),
+    );
+    rows.push(this.xmlRow([])); // blank row
+
+    // Risk Score
+    const riskScore = summary?.riskScore ?? 'N/A';
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Risk Score', 'header'),
+        this.xmlStringCell('Value', 'header'),
+      ]),
+    );
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Overall Risk Score (0-100)'),
+        this.xmlNumberCell(riskScore),
+      ]),
+    );
+    rows.push(this.xmlRow([]));
+
+    // Duration Gap
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Duration Gap Analysis', 'header'),
+        this.xmlStringCell('Value', 'header'),
+      ]),
+    );
+    const dg = summary?.durationGap;
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Asset Duration (years)'),
+        this.xmlNumberCell(dg?.assetDuration ?? 0),
+      ]),
+    );
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Liability Duration (years)'),
+        this.xmlNumberCell(dg?.liabilityDuration ?? 0),
+      ]),
+    );
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Duration Gap'),
+        this.xmlNumberCell(dg?.durationGap ?? 0),
+      ]),
+    );
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Risk Profile'),
+        this.xmlStringCell(dg?.riskProfile ?? 'N/A'),
+      ]),
+    );
+    rows.push(this.xmlRow([]));
+
+    // Liquidity
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Liquidity', 'header'),
+        this.xmlStringCell('Value', 'header'),
+      ]),
+    );
+    const liq = summary?.liquidity;
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('LCR (%)'),
+        this.xmlNumberCell(liq?.lcr ?? 0),
+      ]),
+    );
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('HQLA ($M)'),
+        this.xmlNumberCell(liq?.hqla ?? 0),
+      ]),
+    );
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Net Outflows ($M)'),
+        this.xmlNumberCell(liq?.netOutflows ?? 0),
+      ]),
+    );
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Status'),
+        this.xmlStringCell(liq?.status ?? 'N/A'),
+      ]),
+    );
+    rows.push(this.xmlRow([]));
+
+    // Top Risks
+    rows.push(
+      this.xmlRow([this.xmlStringCell('Top Risks', 'header')]),
+    );
+    const risks: string[] = summary?.topRisks ?? [];
+    for (const risk of risks) {
+      rows.push(this.xmlRow([this.xmlStringCell(risk)]));
+    }
+    rows.push(this.xmlRow([]));
+
+    // Recommendations
+    rows.push(
+      this.xmlRow([this.xmlStringCell('Recommendations', 'header')]),
+    );
+    const recs: string[] = summary?.recommendations ?? [];
+    for (const rec of recs) {
+      rows.push(this.xmlRow([this.xmlStringCell(rec)]));
+    }
+
+    return this.wrapSheet('Executive Summary', rows);
+  }
+
+  // ─── Sheet 2: COSSEC Ratios ─────────────────────────────────────
+
+  private buildCOSSECSheet(cossec: any): string {
+    const rows: string[] = [];
+
+    // Header
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('#', 'header'),
+        this.xmlStringCell('Ratio', 'header'),
+        this.xmlStringCell('Value', 'header'),
+        this.xmlStringCell('Unit', 'header'),
+        this.xmlStringCell('Threshold', 'header'),
+        this.xmlStringCell('Status', 'header'),
+        this.xmlStringCell('Description', 'header'),
+        this.xmlStringCell('Exam Readiness Contribution', 'header'),
+      ]),
+    );
+
+    const ratios: any[] = cossec?.ratios ?? [];
+    for (const ratio of ratios) {
+      const statusStyle =
+        ratio.status === 'pass'
+          ? 'pass'
+          : ratio.status === 'warning'
+            ? 'warn'
+            : ratio.status === 'fail'
+              ? 'fail'
+              : undefined;
+
+      rows.push(
+        this.xmlRow([
+          this.xmlNumberCell(ratio.id ?? 0),
+          this.xmlStringCell(ratio.name ?? ''),
+          this.xmlNumberCell(ratio.value ?? 0),
+          this.xmlStringCell(ratio.unit ?? ''),
+          this.xmlStringCell(ratio.threshold ?? ''),
+          this.xmlStringCell(
+            (ratio.status ?? '').toUpperCase(),
+            statusStyle,
+          ),
+          this.xmlStringCell(ratio.description ?? ''),
+          this.xmlNumberCell(ratio.examReadinessContribution ?? 0),
+        ]),
+      );
+    }
+
+    // Summary row
+    rows.push(this.xmlRow([]));
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell(''),
+        this.xmlStringCell('Exam Readiness Score', 'header'),
+        this.xmlNumberCell(cossec?.examReadinessScore ?? 0),
+      ]),
+    );
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell(''),
+        this.xmlStringCell('Overall Status', 'header'),
+        this.xmlStringCell(
+          (cossec?.overallStatus ?? 'N/A').toUpperCase(),
+        ),
+      ]),
+    );
+
+    return this.wrapSheet('COSSEC Ratios', rows);
+  }
+
+  // ─── Sheet 3: Balance Sheet ─────────────────────────────────────
+
+  private buildBalanceSheetSheet(items: any[]): string {
+    const rows: string[] = [];
+
+    // Header
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Category', 'header'),
+        this.xmlStringCell('Subcategory', 'header'),
+        this.xmlStringCell('Name', 'header'),
+        this.xmlStringCell('Balance ($M)', 'header'),
+        this.xmlStringCell('Rate (%)', 'header'),
+        this.xmlStringCell('Duration (yrs)', 'header'),
+        this.xmlStringCell('Rate Type', 'header'),
+      ]),
+    );
+
+    // Separate assets and liabilities
+    const assets = items.filter((i: any) => i.category === 'asset');
+    const liabilities = items.filter((i: any) => i.category === 'liability');
+
+    // Assets
+    if (assets.length > 0) {
+      rows.push(
+        this.xmlRow([this.xmlStringCell('--- ASSETS ---', 'title')]),
+      );
+      let totalAssets = 0;
+      for (const item of assets) {
+        totalAssets += item.balance ?? 0;
+        rows.push(
+          this.xmlRow([
+            this.xmlStringCell(item.category ?? ''),
+            this.xmlStringCell(item.subcategory ?? ''),
+            this.xmlStringCell(item.name ?? ''),
+            this.xmlNumberCell(round(item.balance ?? 0, 2)),
+            this.xmlNumberCell(round(item.rate ?? 0, 4)),
+            this.xmlNumberCell(round(item.duration ?? 0, 2)),
+            this.xmlStringCell(item.rateType ?? ''),
+          ]),
+        );
+      }
+      rows.push(
+        this.xmlRow([
+          this.xmlStringCell(''),
+          this.xmlStringCell(''),
+          this.xmlStringCell('Total Assets', 'header'),
+          this.xmlNumberCell(round(totalAssets, 2)),
+        ]),
+      );
+    }
+
+    // Liabilities
+    if (liabilities.length > 0) {
+      rows.push(this.xmlRow([]));
+      rows.push(
+        this.xmlRow([
+          this.xmlStringCell('--- LIABILITIES ---', 'title'),
+        ]),
+      );
+      let totalLiabilities = 0;
+      for (const item of liabilities) {
+        totalLiabilities += item.balance ?? 0;
+        rows.push(
+          this.xmlRow([
+            this.xmlStringCell(item.category ?? ''),
+            this.xmlStringCell(item.subcategory ?? ''),
+            this.xmlStringCell(item.name ?? ''),
+            this.xmlNumberCell(round(item.balance ?? 0, 2)),
+            this.xmlNumberCell(round(item.rate ?? 0, 4)),
+            this.xmlNumberCell(round(item.duration ?? 0, 2)),
+            this.xmlStringCell(item.rateType ?? ''),
+          ]),
+        );
+      }
+      rows.push(
+        this.xmlRow([
+          this.xmlStringCell(''),
+          this.xmlStringCell(''),
+          this.xmlStringCell('Total Liabilities', 'header'),
+          this.xmlNumberCell(round(totalLiabilities, 2)),
+        ]),
+      );
+    }
+
+    if (items.length === 0) {
+      rows.push(
+        this.xmlRow([
+          this.xmlStringCell(
+            'No balance sheet data. Upload your balance sheet to populate this sheet.',
+          ),
+        ]),
+      );
+    }
+
+    return this.wrapSheet('Balance Sheet', rows);
+  }
+
+  // ─── Sheet 4: NII Sensitivity ───────────────────────────────────
+
+  private buildNIISensitivitySheet(niiSensitivity: any): string {
+    const rows: string[] = [];
+
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Scenario', 'header'),
+        this.xmlStringCell('Rate Shift (bps)', 'header'),
+        this.xmlStringCell('NII Impact ($M)', 'header'),
+        this.xmlStringCell('NII Impact (%)', 'header'),
+        this.xmlStringCell('MVE Impact ($M)', 'header'),
+        this.xmlStringCell('MVE Impact (%)', 'header'),
+      ]),
+    );
+
+    const baseNII = niiSensitivity?.baseNII ?? 0;
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Base Case'),
+        this.xmlNumberCell(0),
+        this.xmlNumberCell(round(baseNII, 2)),
+        this.xmlStringCell('--'),
+        this.xmlStringCell('--'),
+        this.xmlStringCell('--'),
+      ]),
+    );
+
+    const scenarios: any[] = niiSensitivity?.scenarios ?? [];
+    for (const s of scenarios) {
+      rows.push(
+        this.xmlRow([
+          this.xmlStringCell(s.name ?? ''),
+          this.xmlNumberCell(s.shiftBps ?? 0),
+          this.xmlNumberCell(round(s.niImpact ?? 0, 2)),
+          this.xmlNumberCell(round(s.niImpactPct ?? 0, 2)),
+          this.xmlNumberCell(round(s.mveImpact ?? 0, 2)),
+          this.xmlNumberCell(round(s.mveImpactPct ?? 0, 2)),
+        ]),
+      );
+    }
+
+    // Summary
+    rows.push(this.xmlRow([]));
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Base NII ($M)', 'header'),
+        this.xmlNumberCell(round(baseNII, 2)),
+      ]),
+    );
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Risk Rating', 'header'),
+        this.xmlStringCell(
+          (niiSensitivity?.riskRating ?? 'N/A').toUpperCase(),
+        ),
+      ]),
+    );
+
+    return this.wrapSheet('NII Sensitivity', rows);
+  }
+
+  // ─── XML Helpers ────────────────────────────────────────────────
+
+  private xmlEscape(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  private xmlStringCell(value: string, styleId?: string): string {
+    const style = styleId ? ` ss:StyleID="${styleId}"` : '';
+    return `<Cell${style}><Data ss:Type="String">${this.xmlEscape(String(value))}</Data></Cell>`;
+  }
+
+  private xmlNumberCell(value: number, styleId?: string): string {
+    const style = styleId ? ` ss:StyleID="${styleId}"` : ' ss:StyleID="number"';
+    const num = Number.isFinite(value) ? value : 0;
+    return `<Cell${style}><Data ss:Type="Number">${num}</Data></Cell>`;
+  }
+
+  private xmlRow(cells: string[]): string {
+    if (cells.length === 0) {
+      return '      <Row/>';
+    }
+    return `      <Row>${cells.join('')}</Row>`;
+  }
+
+  private wrapSheet(name: string, rows: string[]): string {
+    return [
+      `  <Worksheet ss:Name="${this.xmlEscape(name)}">`,
+      '    <Table>',
+      ...rows,
+      '    </Table>',
+      '  </Worksheet>',
+    ].join('\n');
+  }
+}
