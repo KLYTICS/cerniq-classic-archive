@@ -114,6 +114,7 @@ import {
 } from './alm.dto';
 import { SaveScenarioDto, CompareScenarioDto } from './dto/save-scenario.dto';
 import { YieldCurveShockDto, SaveYieldCurveDto } from './dto/yield-curve.dto';
+import { YieldCurveOverrideDto } from './dto/inline-bodies.dto';
 import { ImportLoanSegmentsDto, WARMCalculationDto } from './dto/cecl.dto';
 import type {
   DurationGapResult,
@@ -537,7 +538,7 @@ export class AlmController {
   @UseGuards(AuthGuard)
   async runCustomFTP(
     @Param('institutionId') institutionId: string,
-    @Body() body: { curveId?: string; spreadAdjBps?: number },
+    @Body() body: YieldCurveOverrideDto,
   ) {
     return this.ftp.getFTPAnalysis(institutionId, body.spreadAdjBps);
   }

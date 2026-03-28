@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service';
 import { AuthGuard } from '../auth/auth.guard';
+import { UpdateMemberRoleDto } from '../alm/dto/inline-bodies.dto';
 
 @Controller('api/organizations')
 @UseGuards(AuthGuard)
@@ -61,7 +62,7 @@ export class OrganizationsController {
   updateMemberRole(
     @Param('id') id: string,
     @Param('userId') userId: string,
-    @Body() body: { role: string },
+    @Body() body: UpdateMemberRoleDto,
     @Req() req: any,
   ) {
     return this.organizationsService.updateMemberRole(

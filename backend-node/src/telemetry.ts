@@ -41,5 +41,5 @@ if (OTEL_ENDPOINT) {
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
 
-  console.log(`OpenTelemetry traces exporting to ${OTEL_ENDPOINT}`);
+  process.stdout.write(JSON.stringify({ level: 'info', msg: `OpenTelemetry traces exporting to ${OTEL_ENDPOINT}`, timestamp: new Date().toISOString() }) + '\n');
 }

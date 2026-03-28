@@ -25,7 +25,7 @@ export class RiskService {
   /**
    * Run Monte Carlo simulation
    * This is a pure TypeScript implementation
-   * TODO: Replace with Rust FFI for better performance
+   * PERF: Rust FFI planned for high-volume simulations — see CERNIQ-PERF-002
    */
   async runMonteCarloSimulation(
     request: MonteCarloRequestDto,

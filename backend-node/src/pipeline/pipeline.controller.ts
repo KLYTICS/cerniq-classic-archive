@@ -4,16 +4,17 @@ import {
   Post,
   Param,
   Body,
-  Headers,
   Query,
-  UnauthorizedException,
   HttpCode,
   HttpStatus,
   Logger,
   Sse,
+  UseGuards,
 } from '@nestjs/common';
 import { Observable, interval, map, takeWhile, switchMap, from } from 'rxjs';
 import { PrismaService } from '../prisma.service';
+import { AdminGuard } from '../common/guards/admin.guard';
+import { ForceFailDto } from '../alm/dto/inline-bodies.dto';
 
 @Controller()
 export class PipelineController {
@@ -21,22 +22,13 @@ export class PipelineController {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  private verifyAdmin(key: string) {
-    const adminKey = process.env.ADMIN_KEY;
-    if (!adminKey || key !== adminKey) {
-      throw new UnauthorizedException('Invalid admin key');
-    }
-  }
-
   // ── Pipeline Dashboard ────────────────────────────────
 
   @Get('admin/api/pipeline')
+  @UseGuards(AdminGuard)
   async getPipelineJobs(
-    @Headers('x-admin-key') adminKey: string,
     @Query('status') status?: string,
   ) {
-    this.verifyAdmin(adminKey);
-
     const where = status ? { status: status as any } : {};
     const jobs = await this.prisma.reportJob.findMany({
       where,
@@ -66,12 +58,10 @@ export class PipelineController {
   // ── Job Detail ────────────────────────────────────────
 
   @Get('admin/api/pipeline/:jobId')
+  @UseGuards(AdminGuard)
   async getJobDetail(
-    @Headers('x-admin-key') adminKey: string,
     @Param('jobId') jobId: string,
   ) {
-    this.verifyAdmin(adminKey);
-
     const job = await this.prisma.reportJob.findUnique({
       where: { id: jobId },
       include: { user: { select: { email: true, name: true } } },
@@ -84,12 +74,10 @@ export class PipelineController {
 
   @Post('admin/api/pipeline/:jobId/force-advance')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AdminGuard)
   async forceAdvance(
-    @Headers('x-admin-key') adminKey: string,
     @Param('jobId') jobId: string,
   ) {
-    this.verifyAdmin(adminKey);
-
     await this.prisma.reportJob.update({
       where: { id: jobId },
       data: { status: 'QUEUED' },
@@ -101,13 +89,11 @@ export class PipelineController {
 
   @Post('admin/api/pipeline/:jobId/force-fail')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AdminGuard)
   async forceFail(
-    @Headers('x-admin-key') adminKey: string,
     @Param('jobId') jobId: string,
-    @Body() body: { reason: string },
+    @Body() body: ForceFailDto,
   ) {
-    this.verifyAdmin(adminKey);
-
     await this.prisma.reportJob.update({
       where: { id: jobId },
       data: {
@@ -122,12 +108,10 @@ export class PipelineController {
 
   @Post('admin/api/pipeline/:jobId/force-regenerate')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AdminGuard)
   async forceRegenerate(
-    @Headers('x-admin-key') adminKey: string,
     @Param('jobId') jobId: string,
   ) {
-    this.verifyAdmin(adminKey);
-
     await this.prisma.reportJob.update({
       where: { id: jobId },
       data: { status: 'QUEUED', retryCount: 0, errorMessage: null },
@@ -140,9 +124,8 @@ export class PipelineController {
   // ── Revenue Metrics ───────────────────────────────────
 
   @Get('admin/api/revenue')
-  async getRevenueMetrics(@Headers('x-admin-key') adminKey: string) {
-    this.verifyAdmin(adminKey);
-
+  @UseGuards(AdminGuard)
+  async getRevenueMetrics() {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfYear = new Date(now.getFullYear(), 0, 1);

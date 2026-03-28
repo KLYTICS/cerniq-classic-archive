@@ -20,5 +20,9 @@
     "frontend/**/*.{ts,tsx}": [
       "bash -c 'cd frontend && npx eslint --fix --no-warn-ignored \"$@\"' --"
     ]
+  },
+  "dependencies": {
+    "@types/compression": "^1.8.1",
+    "compression": "^1.8.1"
   }
 }

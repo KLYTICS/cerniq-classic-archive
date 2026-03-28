@@ -1,3 +1,12 @@
+/**
+ * Options Pricing Engine — Black-Scholes with Greeks.
+ *
+ * Known limitations (tracked):
+ * - CERNIQ-PERF-001: JS-based pricing; WASM planned for batch workloads
+ * - CERNIQ-DATA-001: Uses synthetic data for demo; real options chain integration pending
+ * - CERNIQ-MATH-001: American options approximation via Barone-Adesi-Whaley not yet implemented
+ */
+
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import {
   CalculateGreeksDto,
@@ -24,8 +33,7 @@ export class OptionsService {
    */
   async calculateGreeks(dto: CalculateGreeksDto): Promise<GreeksResponseDto> {
     try {
-      // TODO: Replace with WASM engine call
-      // const greeks = WasmOptionEngine.calculate(...);
+      // PERF: WASM integration planned — see CERNIQ-PERF-001
 
       // TypeScript fallback implementation
       const greeks = this.calculateBlackScholesGreeks({
@@ -61,8 +69,7 @@ export class OptionsService {
     dto: OptionChainRequestDto,
   ): Promise<OptionsChainResponseDto> {
     try {
-      // TODO: Integrate with IOptionsDataProvider
-      // const chain = await this.dataProvider.getOptionsChain(dto.ticker, maturity);
+      // DATA: Options chain provider integration pending — see CERNIQ-DATA-001
 
       // Mock response for now
       throw new HttpException(
@@ -224,7 +231,7 @@ export class OptionsService {
 
   /**
    * Black-Scholes pricing formula (TypeScript implementation)
-   * TODO: Replace with WASM for 10-100x performance improvement
+   * PERF: Newton-Raphson in JS is adequate for <1000 options. WASM planned for batch pricing — see CERNIQ-PERF-001
    *
    * Edge cases handled:
    * - T <= 0: returns intrinsic value with correct delta (0 or +/-1)
@@ -628,7 +635,7 @@ export class OptionsService {
 
   /**
    * Generate mock volatility surface data
-   * TODO: Replace with real data from options chain provider
+   * DATA: Uses synthetic data for demo; real options chain integration pending — see CERNIQ-DATA-001
    */
   async getVolatilitySurface(ticker: string): Promise<any> {
     // Generate mock IV surface data

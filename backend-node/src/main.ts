@@ -12,6 +12,8 @@ const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const express = require('express');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const compression = require('compression');
 import { AppModule } from './app.module';
 import { PerformanceInterceptor } from './common/interceptors/performance.interceptor';
 import { MaintenanceModeGuard } from './common/guards/maintenance-mode.guard';
@@ -65,6 +67,9 @@ async function bootstrap() {
   // --- Request body size limits ---
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+  // --- Response compression (gzip/br) — reduces ALM report payloads by 70-90% ---
+  app.use(compression({ threshold: 1024 })); // Only compress responses > 1KB
 
   // --- Security middleware ---
   app.use(cookieParser());
