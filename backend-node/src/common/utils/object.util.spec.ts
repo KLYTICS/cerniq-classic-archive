@@ -19,7 +19,7 @@ describe('object.util', () => {
 
   describe('deepMerge', () => {
     it('merges nested objects', () => {
-      const result = deepMerge({ a: { x: 1, y: 2 } }, { a: { y: 3 } });
+      const result = deepMerge({ a: { x: 1, y: 2 } }, { a: { y: 3 } } as any);
       expect(result).toEqual({ a: { x: 1, y: 3 } });
     });
   });
