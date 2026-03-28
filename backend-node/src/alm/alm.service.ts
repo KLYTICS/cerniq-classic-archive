@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { validateBalanceSheet } from './alm-errors';
 import {
   BalanceSheetDto,
   InstrumentDto,
@@ -42,6 +43,8 @@ export class AlmService {
    * liabilities ⇒ rising rates hurt equity.
    */
   durationGapAnalysis(balanceSheet: BalanceSheetDto): DurationGapResult {
+    validateBalanceSheet(balanceSheet, 'Duration Gap');
+
     const assetDetails = balanceSheet.assets.map((i) =>
       this.instrumentDetail(i),
     );
@@ -100,6 +103,8 @@ export class AlmService {
     balanceSheet: BalanceSheetDto,
     rateShocksBps: number[] = DEFAULT_SHOCKS_BPS,
   ): NIIResult {
+    validateBalanceSheet(balanceSheet, 'NII Simulation');
+
     const baseAssetIncome = balanceSheet.assets.reduce(
       (s, a) => s + a.amount * a.rate,
       0,
@@ -163,6 +168,8 @@ export class AlmService {
     balanceSheet: BalanceSheetDto,
     rateShocksBps: number[] = DEFAULT_SHOCKS_BPS,
   ): EVEResult {
+    validateBalanceSheet(balanceSheet, 'EVE Analysis');
+
     const baseAssetPV = balanceSheet.assets.reduce(
       (s, a) => s + this.presentValue(a, 0),
       0,
@@ -235,6 +242,8 @@ export class AlmService {
    * Positive net BPV means the institution loses value when rates rise.
    */
   basisPointValue(balanceSheet: BalanceSheetDto): BPVResult {
+    validateBalanceSheet(balanceSheet, 'BPV');
+
     const assetBPVs: BPVInstrument[] = balanceSheet.assets.map((i) => {
       const detail = this.instrumentDetail(i);
       return {
