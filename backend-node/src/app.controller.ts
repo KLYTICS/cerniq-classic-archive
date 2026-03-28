@@ -596,10 +596,15 @@ export class AppController {
         this.prisma.analysisRun.count(),
       ]);
 
+    // Import performance metrics
+    const { getRouteMetrics } = require('./common/interceptors/performance.interceptor');
+    const performanceMetrics = getRouteMetrics().slice(0, 20); // Top 20 slowest routes
+
     return {
       recentJobs,
       activeSubscriptions,
       totalAnalysisRuns,
+      performanceMetrics,
     };
   }
 

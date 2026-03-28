@@ -113,6 +113,12 @@ async function bootstrap() {
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
 
+  // --- Enterprise interceptors & guards ---
+  const { PerformanceInterceptor } = await import('./common/interceptors/performance.interceptor');
+  const { MaintenanceModeGuard } = await import('./common/guards/maintenance-mode.guard');
+  app.useGlobalInterceptors(new PerformanceInterceptor());
+  app.useGlobalGuards(new MaintenanceModeGuard());
+
   // --- Global validation pipe ---
   app.useGlobalPipes(
     new ValidationPipe({
