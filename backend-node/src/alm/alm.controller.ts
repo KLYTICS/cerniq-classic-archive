@@ -14,6 +14,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { AlmService } from './alm.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
@@ -721,6 +722,7 @@ export class AlmController {
   // ─── Stress Testing ────────────────────────────────────────────
 
   @Post(':institutionId/stress-test')
+  @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 runs per minute — heavy compute
   @UseGuards(AuthGuard)
   async runStressTest(
     @Param('institutionId') institutionId: string,
@@ -812,6 +814,7 @@ export class AlmController {
   // ─── MP-013: Monte Carlo Simulation ───────────────────────────
 
   @Post(':institutionId/monte-carlo/run')
+  @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 runs per minute — heavy compute
   @UseGuards(AuthGuard)
   async runMonteCarlo(
     @Param('institutionId') institutionId: string,
@@ -1354,6 +1357,7 @@ export class AlmController {
   }
 
   @Post(':institutionId/stress-v2/run-all')
+  @Throttle({ default: { ttl: 60000, limit: 3 } }) // 3 runs per minute — runs all scenarios
   @UseGuards(AuthGuard)
   async runAllStressV2(@Param('institutionId') institutionId: string) {
     return this.stressV2.runAllPresets(institutionId);
@@ -1481,6 +1485,7 @@ export class AlmController {
   // ─── V9: CVaR Portfolio Optimizer ─────────────────────────────
 
   @Post(':institutionId/cvar-optimize')
+  @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 runs per minute — optimization solver
   @UseGuards(AuthGuard)
   async runCVaROptimizer(
     @Param('institutionId') id: string,

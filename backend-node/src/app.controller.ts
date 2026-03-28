@@ -378,6 +378,7 @@ export class AppController {
     this.verifyAdmin(adminKey);
     return this.prisma.demoRequest.findMany({
       orderBy: { createdAt: 'desc' },
+      take: 100,
     });
   }
 

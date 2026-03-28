@@ -18,6 +18,7 @@ import { MaintenanceModeGuard } from './common/guards/maintenance-mode.guard';
 import { corsOriginCallback } from './security/origin-allowlist';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
+import { SanitizePipe } from './common/pipes/sanitize.pipe';
 
 async function bootstrap() {
   // --- Env var validation ---
@@ -128,6 +129,9 @@ async function bootstrap() {
     }),
   );
 
+  // --- Input sanitization (XSS prevention) ---
+  app.useGlobalPipes(new SanitizePipe());
+
   // --- CORS ---
   app.enableCors({
     origin: corsOriginCallback,
@@ -139,6 +143,7 @@ async function bootstrap() {
       'x-admin-key',
       'x-organization-id',
       'x-klytics-org-id',
+      'x-idempotency-key',
     ],
     maxAge: 86400,
   });

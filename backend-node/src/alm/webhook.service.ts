@@ -72,7 +72,10 @@ export class WebhookService {
     return { deleted: true };
   }
 
-  // ─── Dispatch Events ──────────────────────────────────────
+  // ─── Dispatch Events (with exponential backoff retry) ────
+
+  private static readonly MAX_RETRIES = 3;
+  private static readonly BASE_DELAY_MS = 1000; // 1s, 2s, 4s
 
   async dispatchEvent(
     institutionId: string,
@@ -86,7 +89,7 @@ export class WebhookService {
     const results: WebhookDeliveryResult[] = [];
 
     for (const sub of subscriptions) {
-      const result = await this.deliverWebhook(sub, eventType, payload);
+      const result = await this.deliverWithRetry(sub, eventType, payload);
       results.push(result);
 
       // Update subscription status
@@ -104,10 +107,40 @@ export class WebhookService {
             isActive: newFailureCount < 10, // disable after 10 consecutive failures
           },
         });
+        this.logger.warn(
+          `Webhook ${sub.id} failed after ${WebhookService.MAX_RETRIES} retries (total failures: ${newFailureCount})`,
+        );
       }
     }
 
     return results;
+  }
+
+  private async deliverWithRetry(
+    subscription: any,
+    eventType: string,
+    payload: Record<string, any>,
+  ): Promise<WebhookDeliveryResult> {
+    let lastResult: WebhookDeliveryResult | null = null;
+
+    for (let attempt = 0; attempt <= WebhookService.MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = WebhookService.BASE_DELAY_MS * Math.pow(2, attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        this.logger.log(`Webhook retry ${attempt}/${WebhookService.MAX_RETRIES} for ${subscription.url}`);
+      }
+
+      lastResult = await this.deliverWebhook(subscription, eventType, payload);
+      if (lastResult.success) return lastResult;
+
+      // Don't retry on 4xx (client errors) — only retry on 5xx and network failures
+      if (lastResult.statusCode && lastResult.statusCode >= 400 && lastResult.statusCode < 500) {
+        return lastResult;
+      }
+    }
+
+    return lastResult!;
   }
 
   // ─── Private: Deliver Single Webhook ──────────────────────

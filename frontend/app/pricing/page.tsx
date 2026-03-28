@@ -146,7 +146,7 @@ export default function PricingPage() {
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-center justify-between gap-3 rounded-full border border-slate-200/80 bg-white/80 px-4 py-3 backdrop-blur-xl sm:px-6">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-slate-500 transition hover:text-slate-950">
+            <Link href="/" className="text-slate-500 transition hover:text-slate-950" aria-label={t('Back to home', 'Volver al inicio')}>
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <CerniqMark size="sm" />
@@ -309,11 +309,11 @@ export default function PricingPage() {
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200">
-                      <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500" />
-                      <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      <th scope="col" className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500" />
+                      <th scope="col" className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
                         {t('Traditional Consultant', 'Consultor tradicional')}
                       </th>
-                      <th className="py-3 text-xs font-semibold uppercase tracking-wider text-cyan-700">CERNIQ</th>
+                      <th scope="col" className="py-3 text-xs font-semibold uppercase tracking-wider text-cyan-700">CERNIQ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -349,10 +349,10 @@ export default function PricingPage() {
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200">
-                      <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500 w-48">{t('Capability', 'Capacidad')}</th>
-                      <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-400">{t("Moody's / S&P", "Moody's / S&P")}</th>
-                      <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-400">QRM / Empyrean</th>
-                      <th className="py-3 text-xs font-semibold uppercase tracking-wider text-cyan-700">CERNIQ</th>
+                      <th scope="col" className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500 w-48">{t('Capability', 'Capacidad')}</th>
+                      <th scope="col" className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-400">{t("Moody's / S&P", "Moody's / S&P")}</th>
+                      <th scope="col" className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-400">QRM / Empyrean</th>
+                      <th scope="col" className="py-3 text-xs font-semibold uppercase tracking-wider text-cyan-700">CERNIQ</th>
                     </tr>
                   </thead>
                   <tbody className="text-xs">

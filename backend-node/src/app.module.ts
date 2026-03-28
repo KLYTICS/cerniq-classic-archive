@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma.module';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
 import { SlowRequestInterceptor } from './common/interceptors/slow-query.interceptor';
+import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { ApiVersionMiddleware } from './common/middleware/api-version.middleware';
 import { MarketDataModule } from './market-data/market-data.module';

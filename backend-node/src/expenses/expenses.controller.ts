@@ -227,7 +227,8 @@ export class ExpensesController {
   // ── Existing Endpoints ────────────────────────────────────────────
 
   @Post(':orgId/analyze')
-  analyzeOrganization(@Param('orgId') orgId: string) {
+  async analyzeOrganization(@Param('orgId') orgId: string, @Req() req: any) {
+    await this.verifyOrgMembership(orgId, req.user.userId);
     return this.anomalyDetectionService.analyzeOrganization(orgId);
   }
 
@@ -236,8 +237,10 @@ export class ExpensesController {
     @Param('orgId') orgId: string,
     @Query('lang') lang: string,
     @Query('institutionId') institutionId: string,
+    @Req() req: any,
     @Res() res: any,
   ) {
+    await this.verifyOrgMembership(orgId, req.user.userId);
     const language = lang === 'es' ? 'es' : 'en';
     const buffer = await this.apReportService.generateAPReport(
       orgId,
@@ -255,9 +258,25 @@ export class ExpensesController {
     res.end(buffer);
   }
 
+  /**
+   * Resolve organizationId from request — prefers x-organization-id header,
+   * falls back to orgId from the auth context. Throws if neither is set.
+   */
+  private resolveOrgId(req: any): string {
+    const orgId =
+      req.headers['x-organization-id'] ||
+      req.user?.orgId;
+    if (!orgId) {
+      throw new BadRequestException(
+        'Missing organization context. Provide x-organization-id header or authenticate with an org-scoped token.',
+      );
+    }
+    return orgId;
+  }
+
   @Post('process-receipt')
   processReceipt(@Body() dto: any, @Req() req: any) {
-    const organizationId = req.headers['x-organization-id'] || 'default-org';
+    const organizationId = this.resolveOrgId(req);
     return this.expensesService.processReceipt(
       organizationId,
       req.user.userId,
@@ -278,7 +297,7 @@ export class ExpensesController {
     },
     @Req() req: any,
   ) {
-    const organizationId = req.headers['x-organization-id'] || 'default-org';
+    const organizationId = this.resolveOrgId(req);
     return this.expensesService.create(
       organizationId,
       req.user.userId,
@@ -288,7 +307,7 @@ export class ExpensesController {
 
   @Get()
   findAll(@Query('status') status: string, @Req() req: any) {
-    const organizationId = req.headers['x-organization-id'] || 'default-org';
+    const organizationId = this.resolveOrgId(req);
     return this.expensesService.findAll(
       organizationId,
       req.user.userId,
@@ -298,13 +317,13 @@ export class ExpensesController {
 
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: any) {
-    const organizationId = req.headers['x-organization-id'] || 'default-org';
+    const organizationId = this.resolveOrgId(req);
     return this.expensesService.findOne(id, organizationId, req.user.userId);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateDto: any, @Req() req: any) {
-    const organizationId = req.headers['x-organization-id'] || 'default-org';
+    const organizationId = this.resolveOrgId(req);
     return this.expensesService.update(
       id,
       organizationId,
@@ -315,30 +334,31 @@ export class ExpensesController {
 
   @Post(':id/submit')
   submit(@Param('id') id: string, @Req() req: any) {
-    const organizationId = req.headers['x-organization-id'] || 'default-org';
+    const organizationId = this.resolveOrgId(req);
     return this.expensesService.submit(id, organizationId, req.user.userId);
   }
 
   @Post(':id/approve')
   approve(@Param('id') id: string, @Req() req: any) {
-    const organizationId = req.headers['x-organization-id'] || 'default-org';
+    const organizationId = this.resolveOrgId(req);
     return this.expensesService.approve(id, organizationId, req.user.userId);
   }
 
   @Post(':id/reject')
   reject(@Param('id') id: string, @Req() req: any) {
-    const organizationId = req.headers['x-organization-id'] || 'default-org';
+    const organizationId = this.resolveOrgId(req);
     return this.expensesService.reject(id, organizationId, req.user.userId);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
-    const organizationId = req.headers['x-organization-id'] || 'default-org';
+    const organizationId = this.resolveOrgId(req);
     return this.expensesService.remove(id, organizationId, req.user.userId);
   }
 
   @Get(':orgId/vendor-report')
-  async getVendorReport(@Param('orgId') orgId: string) {
+  async getVendorReport(@Param('orgId') orgId: string, @Req() req: any) {
+    await this.verifyOrgMembership(orgId, req.user.userId);
     const rawExpenses = await this.prisma.expense.findMany({
       where: { organizationId: orgId },
       select: {
@@ -361,7 +381,9 @@ export class ExpensesController {
   async getLiquidityImpact(
     @Param('orgId') orgId: string,
     @Query('institutionId') institutionId: string,
+    @Req() req: any,
   ) {
+    await this.verifyOrgMembership(orgId, req.user.userId);
     return this.anomalyDetectionService.calculateApLcrImpact(
       orgId,
       institutionId,

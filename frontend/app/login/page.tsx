@@ -80,9 +80,11 @@ function LanguageToggle() {
   const { locale, setLocale } = useTranslation();
 
   return (
-    <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
+    <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1" role="group" aria-label="Language">
       <button
         onClick={() => setLocale('en')}
+        aria-label="Switch to English"
+        aria-pressed={locale === 'en'}
         className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
           locale === 'en' ? 'bg-cyan-400 text-slate-950' : 'text-slate-400 hover:text-white'
         }`}
@@ -91,6 +93,8 @@ function LanguageToggle() {
       </button>
       <button
         onClick={() => setLocale('es')}
+        aria-label="Cambiar a Espanol"
+        aria-pressed={locale === 'es'}
         className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
           locale === 'es' ? 'bg-cyan-400 text-slate-950' : 'text-slate-400 hover:text-white'
         }`}
@@ -214,7 +218,7 @@ function LoginContent() {
           </ul>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-10 space-y-6">
+        <form onSubmit={handleSubmit} className="mt-10 space-y-6" aria-label={isLogin ? t('login.signInToAccount') : t('login.createAccount')}>
           <div>
             <label htmlFor="login-email" className="mb-2 block text-sm font-medium text-slate-200">{t('login.email')}</label>
             <input

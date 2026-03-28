@@ -159,6 +159,7 @@ export class ExpensesService {
       orderBy: {
         transactionDate: 'desc',
       },
+      take: 100,
     });
   }
 

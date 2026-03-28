@@ -597,19 +597,19 @@ export default function PortalHome() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm" aria-label={t('Report history', 'Historial de informes')}>
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/60">
-                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  <th scope="col" className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                     {t('Institution', 'Institucion')}
                   </th>
-                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  <th scope="col" className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                     {t('Status', 'Estado')}
                   </th>
-                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  <th scope="col" className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                     {t('Date', 'Fecha')}
                   </th>
-                  <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  <th scope="col" className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                     {t('Actions', 'Acciones')}
                   </th>
                 </tr>

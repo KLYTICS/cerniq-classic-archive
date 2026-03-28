@@ -303,6 +303,7 @@ export default function DemoPage() {
 
   return (
     <div className="min-h-screen text-slate-950">
+      <h1 className="sr-only">{t('CERNIQ Interactive Demo', 'Demo Interactivo CERNIQ')}</h1>
       {/* ── AMBER BANNER ── */}
       <div className="bg-amber-500 px-4 py-2.5 text-center text-sm font-semibold text-white">
         <span className="mr-2">
@@ -372,7 +373,7 @@ export default function DemoPage() {
                 </p>
 
                 {/* Progress bar */}
-                <div className="cerniq-progress-track mb-5">
+                <div className="cerniq-progress-track mb-5" role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={5} aria-label={t(`Step ${step} of 5`, `Paso ${step} de 5`)}>
                   <div className="cerniq-progress-bar" style={{ width: `${(step / 5) * 100}%` }} />
                 </div>
 
@@ -883,9 +884,9 @@ export default function DemoPage() {
                 </div>
 
                 {/* Chat window */}
-                <div className="cerniq-panel flex flex-col" style={{ height: '480px' }}>
+                <div className="cerniq-panel flex flex-col" style={{ height: '480px' }} role="region" aria-label={t('AI Advisor chat', 'Chat del Asesor IA')}>
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-5" aria-live="polite">
                     <div className="space-y-4">
                       {chatMessages.map((msg, idx) => (
                         <div
@@ -960,7 +961,9 @@ export default function DemoPage() {
                   {/* Input */}
                   <div className="border-t border-slate-200/60 p-3">
                     <div className="flex gap-2">
+                      <label htmlFor="demo-chat-input" className="sr-only">{t('Ask a question', 'Haga una pregunta')}</label>
                       <input
+                        id="demo-chat-input"
                         type="text"
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
@@ -973,6 +976,7 @@ export default function DemoPage() {
                       <button
                         onClick={handleChatSend}
                         disabled={!chatInput.trim() || isTyping}
+                        aria-label={t('Send message', 'Enviar mensaje')}
                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-700 text-white transition hover:bg-cyan-600 disabled:opacity-40"
                       >
                         <Send className="h-4 w-4" />

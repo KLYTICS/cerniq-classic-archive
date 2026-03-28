@@ -135,22 +135,30 @@ export class LeadsService {
 
   // ── Admin Operations ──
 
-  async listLeads(filters?: { status?: string; priority?: string }) {
-    const where: any = {};
+  async listLeads(userId: string, filters?: { status?: string; priority?: string }) {
+    const where: any = { createdByUserId: userId };
     if (filters?.status) where.status = filters.status;
     if (filters?.priority) where.priority = filters.priority;
 
     return this.prisma.lead.findMany({
       where,
       orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
+      take: 100,
     });
   }
 
-  async getLead(id: string) {
-    return this.prisma.lead.findUniqueOrThrow({ where: { id } });
+  async getLead(id: string, userId: string) {
+    return this.prisma.lead.findFirstOrThrow({
+      where: { id, createdByUserId: userId },
+    });
   }
 
-  async updateLead(id: string, dto: UpdateLeadDto) {
+  async updateLead(id: string, userId: string, dto: UpdateLeadDto) {
+    // Verify ownership before updating
+    await this.prisma.lead.findFirstOrThrow({
+      where: { id, createdByUserId: userId },
+    });
+
     const data: any = { ...dto };
 
     // If closing as won, set convertedAt
@@ -165,8 +173,10 @@ export class LeadsService {
     return this.prisma.lead.update({ where: { id }, data });
   }
 
-  async addNote(id: string, note: string) {
-    const lead = await this.prisma.lead.findUniqueOrThrow({ where: { id } });
+  async addNote(id: string, userId: string, note: string) {
+    const lead = await this.prisma.lead.findFirstOrThrow({
+      where: { id, createdByUserId: userId },
+    });
     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
     const newNotes = lead.notes
       ? `${lead.notes}\n[${timestamp}] ${note}`
@@ -177,7 +187,11 @@ export class LeadsService {
     });
   }
 
-  async markReportSent(id: string) {
+  async markReportSent(id: string, userId: string) {
+    // Verify ownership before updating
+    await this.prisma.lead.findFirstOrThrow({
+      where: { id, createdByUserId: userId },
+    });
     return this.prisma.lead.update({
       where: { id },
       data: { reportSentAt: new Date() },
@@ -186,13 +200,13 @@ export class LeadsService {
 
   // ── Pipeline Metrics ──
 
-  async getPipelineMetrics() {
+  async getPipelineMetrics(userId: string) {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const [allLeads, monthLeads] = await Promise.all([
-      this.prisma.lead.findMany(),
-      this.prisma.lead.findMany({ where: { createdAt: { gte: monthStart } } }),
+      this.prisma.lead.findMany({ where: { createdByUserId: userId } }),
+      this.prisma.lead.findMany({ where: { createdByUserId: userId, createdAt: { gte: monthStart } } }),
     ]);
 
     const statusCounts: Record<string, number> = {};
@@ -281,12 +295,14 @@ export class LeadsService {
   async listProspects() {
     return this.prisma.prospectInstitution.findMany({
       orderBy: [{ estimatedAssets: 'desc' }],
+      take: 100,
     });
   }
 
   async getBenchmarks() {
     return this.prisma.cooperativaBenchmark.findMany({
       orderBy: { period: 'desc' },
+      take: 100,
     });
   }
 

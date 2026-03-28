@@ -204,12 +204,17 @@ export class PipelineController {
   // ── SSE Job Status (for client portal) ────────────────
 
   @Sse('api/jobs/:jobId/status')
-  jobStatus(@Param('jobId') jobId: string): Observable<MessageEvent> {
+  jobStatus(
+    @Param('jobId') jobId: string,
+    @Query('userId') userId?: string,
+  ): Observable<MessageEvent> {
+    // Tenant-scoped: only return status for jobs owned by the requesting user.
+    // If no userId is provided, the query returns null (no data leak).
     return interval(3000).pipe(
       switchMap(() =>
         from(
-          this.prisma.reportJob.findUnique({
-            where: { id: jobId },
+          this.prisma.reportJob.findFirst({
+            where: { id: jobId, ...(userId ? { userId } : { userId: '__none__' }) },
             select: { status: true, completedAt: true, errorMessage: true },
           }),
         ),

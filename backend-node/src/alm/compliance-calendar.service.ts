@@ -189,7 +189,11 @@ export class ComplianceCalendarService {
    * Returns institutions with deadlines within the specified number of days.
    * Used by the daily reminder cron.
    */
-  async getInstitutionsWithUpcomingDeadlines(withinDays: number): Promise<
+  async getInstitutionsWithUpcomingDeadlines(
+    withinDays: number,
+    /** Restrict to a single workspace for tenant isolation */
+    workspaceId?: string,
+  ): Promise<
     Array<{
       institutionId: string;
       contactEmail: string | null;
@@ -198,7 +202,9 @@ export class ComplianceCalendarService {
       deadlines: ComplianceDeadline[];
     }>
   > {
+    const where = workspaceId ? { workspaceId } : {};
     const institutions = await this.prisma.institution.findMany({
+      where,
       select: {
         id: true,
         name: true,
