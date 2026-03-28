@@ -8,6 +8,7 @@ import {
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -32,6 +33,11 @@ describe('AuthService', () => {
       findUnique: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
+    };
+    apiKey: {
+      findMany: jest.Mock;
+      create: jest.Mock;
       updateMany: jest.Mock;
     };
     $transaction: jest.Mock;
@@ -60,6 +66,11 @@ describe('AuthService', () => {
         findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
+      },
+      apiKey: {
+        findMany: jest.fn(),
+        create: jest.fn(),
         updateMany: jest.fn(),
       },
       $transaction: jest.fn(),
