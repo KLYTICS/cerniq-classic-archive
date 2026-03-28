@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { LeadsService } from './leads.service';
+import { LeadQualificationService } from './lead-qualification.service';
 import { SubmitLeadDto, UpdateLeadDto } from './leads.dto';
 import { AdminGuard } from '../common/guards/admin.guard';
 
@@ -18,7 +19,10 @@ import { AdminGuard } from '../common/guards/admin.guard';
 export class LeadsController {
   private readonly logger = new Logger(LeadsController.name);
 
-  constructor(private readonly leads: LeadsService) {}
+  constructor(
+    private readonly leads: LeadsService,
+    private readonly qualification: LeadQualificationService,
+  ) {}
 
   // ── Public endpoint (rate-limited at app level) ──
 
@@ -108,5 +112,19 @@ export class LeadsController {
     @Query('lang') lang?: string,
   ) {
     return this.leads.generateOutreach(id, lang === 'en' ? 'en' : 'es');
+  }
+
+  // ── Lead Qualification ──
+
+  @Get('admin/api/prospects/:id/qualify')
+  @UseGuards(AdminGuard)
+  async qualifyProspect(@Param('id') id: string) {
+    return this.qualification.qualifyProspect(id);
+  }
+
+  @Get('admin/api/prospects/qualify/all')
+  @UseGuards(AdminGuard)
+  async qualifyAllProspects() {
+    return this.qualification.qualifyAllProspects();
   }
 }
