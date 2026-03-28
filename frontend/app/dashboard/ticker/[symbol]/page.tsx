@@ -120,7 +120,7 @@ export default function TickerDetailPage({ params }: TickerPageProps) {
                     const fundData = await apiClient.getNodeFundamentals(symbol);
                     setFundamentals(fundData);
                 } catch (err) {
-                    console.log('Fundamentals not available');
+                    // Fundamentals not available for this ticker — non-critical
                 }
 
                 // Fetch historical data (last 30 days)

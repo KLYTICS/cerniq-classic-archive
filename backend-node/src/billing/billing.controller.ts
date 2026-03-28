@@ -244,8 +244,9 @@ export class BillingController {
     // Always return success (don't reveal if email exists)
     try {
       await this.billing.requestMagicLink(body.email);
-    } catch {
-      // silently ignore
+    } catch (err) {
+      // Don't reveal account existence — but log for audit trail
+      this.logger.warn(`Magic link request failed for ${body.email}: ${(err as Error).message}`);
     }
     return { message: 'If this email has an account, a login link was sent.' };
   }
