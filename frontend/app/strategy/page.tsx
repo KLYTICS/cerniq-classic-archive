@@ -1,6 +1,21 @@
 'use client';
 
-import { StrategyBuilder } from '@/components/options/StrategyBuilder';
+import dynamic from 'next/dynamic';
+
+const StrategyBuilder = dynamic(
+  () => import('@/components/options/StrategyBuilder').then((mod) => mod.StrategyBuilder),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-96 rounded-xl border border-slate-700 bg-slate-900/50 animate-pulse">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+          <p className="text-xs text-slate-500">Loading strategy builder...</p>
+        </div>
+      </div>
+    ),
+  }
+);
 
 export default function StrategyPage() {
     return (

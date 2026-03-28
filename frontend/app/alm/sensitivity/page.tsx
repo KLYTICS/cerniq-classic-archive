@@ -1,11 +1,23 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { apiClient } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
 import { RefreshCw, TrendingUp, AlertTriangle, Info } from 'lucide-react';
-import ScenarioChart from '@/components/alm/ScenarioChart';
 import RiskBadge from '@/components/alm/RiskBadge';
+
+const ScenarioChart = dynamic(
+  () => import('@/components/alm/ScenarioChart'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-64 rounded-xl border border-slate-200 bg-white animate-pulse">
+        <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+      </div>
+    ),
+  }
+);
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
 

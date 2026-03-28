@@ -85,7 +85,7 @@ export class LeadsController {
     @Param('id') id: string,
   ) {
     this.verifyAdmin(adminKey);
-    return this.leads.markReportSent(id, 'admin');
+    return this.leads.markReportSent(id);
   }
 
   @Post('admin/api/prospects/seed')

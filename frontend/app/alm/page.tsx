@@ -13,7 +13,19 @@ import {
   FileText, Calculator, GitBranch, ArrowUpDown, Link2, ArrowDownUp, Gauge,
   ShieldCheck,
 } from 'lucide-react';
-import RiskScoreGauge from '@/components/alm/RiskScoreGauge';
+import dynamic from 'next/dynamic';
+
+const RiskScoreGauge = dynamic(
+  () => import('@/components/alm/RiskScoreGauge'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-32 w-32 rounded-full border border-slate-200 bg-white animate-pulse">
+        <div className="w-6 h-6 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+      </div>
+    ),
+  }
+);
 import RiskBadge from '@/components/alm/RiskBadge';
 import AIAdvisorChat from '@/components/alm/AIAdvisorChat';
 import AlertBanner from '@/components/alm/AlertBanner';
