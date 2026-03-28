@@ -219,8 +219,9 @@ export class AlmAdvisorV2Service {
   async buildRegPulse(institutionId: string): Promise<RegPulse> {
     let deadlines: any[];
     try {
-      deadlines =
+      const calendarResult =
         await this.complianceCalendar.getUpcomingDeadlines(institutionId);
+      deadlines = calendarResult.events;
     } catch {
       deadlines = [];
     }

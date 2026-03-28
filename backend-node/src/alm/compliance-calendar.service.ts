@@ -185,9 +185,11 @@ export class ComplianceCalendarService {
     }
 
     // Sort by deadlineDate ascending and return
-    return deadlines.sort(
-      (a, b) => a.deadlineDate.getTime() - b.deadlineDate.getTime(),
-    );
+    return {
+      events: deadlines.sort(
+        (a, b) => a.deadlineDate.getTime() - b.deadlineDate.getTime(),
+      ),
+    };
   }
 
   /**
@@ -230,8 +232,8 @@ export class ComplianceCalendarService {
     cutoff.setDate(cutoff.getDate() + withinDays);
 
     for (const inst of institutions) {
-      const allDeadlines = await this.getUpcomingDeadlines(inst.id);
-      const upcoming = allDeadlines.filter(
+      const result = await this.getUpcomingDeadlines(inst.id);
+      const upcoming = result.events.filter(
         (d) =>
           d.deadlineDate <= cutoff &&
           (d.urgency === 'CRITICAL' ||
