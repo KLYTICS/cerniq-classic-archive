@@ -200,7 +200,7 @@ model Workspace {
 
 model Institution {
   id                       String    @id @default(cuid())
-  workspaceId              String    @map("workspace_id")
+  workspaceId              String    @map("workspace_id") @db.Uuid
   name                     String
   type                     String    // bank | credit_union | family_office | cooperativa
   totalAssets              Decimal   @map("total_assets") @db.Decimal(18, 2)
