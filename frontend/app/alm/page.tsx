@@ -202,10 +202,12 @@ export default function ALMDashboardPage() {
             <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-600">LIVE</span>
           </div>
           <button onClick={() => selectedId && fetchSummary(selectedId)} disabled={loading}
+            aria-label={locale === 'es' ? 'Actualizar datos' : 'Refresh data'}
             className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] text-slate-500 hover:border-slate-300 disabled:opacity-50">
             <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
           <button onClick={() => setAdvisorOpen(true)}
+            aria-label={locale === 'es' ? 'Abrir analista IA' : 'Open AI Analyst'}
             className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-3 py-1.5 text-[10px] font-semibold text-white hover:from-purple-700 hover:to-indigo-700">
             <Brain className="h-3 w-3" /> {locale === 'es' ? 'Analista IA' : 'AI Analyst'}
           </button>
@@ -213,6 +215,7 @@ export default function ALMDashboardPage() {
             if (!selectedId) return;
             try { await apiClient.downloadALMReport(selectedId, locale); } catch { exportToPDF({ elementId: 'alm-report-content', filename: `ALM_${s.institution.name}.pdf` }); }
           }} disabled={isExporting}
+            aria-label={locale === 'es' ? 'Descargar informe PDF' : 'Download PDF report'}
             className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] text-slate-500 hover:border-slate-300">
             <Download className="h-3 w-3" /> PDF
           </button>
@@ -489,6 +492,7 @@ export default function ALMDashboardPage() {
       {/* Floating AI Button */}
       {!advisorOpen && selectedId && (
         <button onClick={() => setAdvisorOpen(true)}
+          aria-label={locale === 'es' ? 'Abrir chat analista IA' : 'Open AI Analyst chat'}
           className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 text-white shadow-lg shadow-purple-500/25 transition hover:scale-105">
           <Brain className="h-6 w-6" />
         </button>
