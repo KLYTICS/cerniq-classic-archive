@@ -9,19 +9,16 @@ describe('ETagInterceptor', () => {
     interceptor = new ETagInterceptor();
   });
 
-  const createMockContext = (method: string, headers: Record<string, string> = {}): ExecutionContext =>
-    ({
-      switchToHttp: () => ({
-        getRequest: () => ({ method, headers }),
-        getResponse: () => ({
-          setHeader: jest.fn(),
-          status: jest.fn(),
-        }),
-      }),
-    }) as unknown as ExecutionContext;
+  const createMockContext = (method: string, headers: Record<string, string> = {}) => {
+    const req = { method, headers };
+    const res = { setHeader: jest.fn(), status: jest.fn().mockReturnThis() };
+    const http = { getRequest: () => req, getResponse: () => res };
+    const ctx = { switchToHttp: () => http } as unknown as ExecutionContext;
+    return { ctx, res };
+  };
 
   it('skips non-GET requests', (done) => {
-    const ctx = createMockContext('POST');
+    const { ctx } = createMockContext('POST');
     const handler: CallHandler = { handle: () => of({ data: 'test' }) };
 
     interceptor.intercept(ctx, handler).subscribe((result) => {
@@ -31,8 +28,7 @@ describe('ETagInterceptor', () => {
   });
 
   it('sets ETag header on GET requests', (done) => {
-    const ctx = createMockContext('GET');
-    const res = ctx.switchToHttp().getResponse() as any;
+    const { ctx, res } = createMockContext('GET');
     const handler: CallHandler = { handle: () => of({ data: 'test' }) };
 
     interceptor.intercept(ctx, handler).subscribe(() => {
@@ -49,8 +45,7 @@ describe('ETagInterceptor', () => {
     const hash = crypto.createHash('md5').update(json).digest('hex').slice(0, 16);
     const etag = `W/"${hash}"`;
 
-    const ctx = createMockContext('GET', { 'if-none-match': etag });
-    const res = ctx.switchToHttp().getResponse() as any;
+    const { ctx, res } = createMockContext('GET', { 'if-none-match': etag });
     const handler: CallHandler = { handle: () => of(body) };
 
     interceptor.intercept(ctx, handler).subscribe((result) => {
