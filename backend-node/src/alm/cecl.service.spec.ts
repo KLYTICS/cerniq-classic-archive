@@ -27,12 +27,15 @@ describe('CECLService', () => {
     expect(result.segments.length).toBe(2);
   });
 
-  it('should compute WARM lifetime loss correctly', () => {
+  it('should compute WARM lifetime loss with PV discounting correctly', () => {
     const result = svc.calculateWARM(segments);
-    // Consumer: adjRate = 0.02 + 0.005 = 0.025; lifetimeLoss = 0.025 * 3 = 0.075
-    // EL = 100M * 0.075 = 7,500,000
+    // Consumer: adjRate = 0.02 + 0.005 = 0.025; maturity = 3; discountRate = 0.03 (default)
+    // undiscountedLoss = 0.025 * 3 = 0.075
+    // pvFactor = (1 - (1.03)^-3) / (0.03 * 3) ≈ 0.9429
+    // lifetimeLoss = 0.075 * 0.9429 ≈ 0.07072
+    // EL = 100M * 0.07072 ≈ 7,071,712
     const consumer = result.segments.find(s => s.segmentName === 'Consumer')!;
-    expect(consumer.expectedLoss).toBeCloseTo(7_500_000, -3);
+    expect(consumer.expectedLoss).toBeCloseTo(7_071_712, -4);
   });
 
   it('should compute totalBalance as sum of segment balances', () => {

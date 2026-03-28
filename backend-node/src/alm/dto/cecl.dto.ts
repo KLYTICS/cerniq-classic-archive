@@ -31,6 +31,10 @@ export class LoanSegmentDto {
   @IsOptional()
   @IsNumber()
   qualitativeAdj?: number; // +/- adjustment
+
+  @IsOptional()
+  @IsNumber()
+  discountRate?: number; // PV discount rate for FASB 326 (default 0.03)
 }
 
 export class ImportLoanSegmentsDto {

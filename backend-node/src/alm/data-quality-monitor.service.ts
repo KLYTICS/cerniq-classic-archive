@@ -149,7 +149,7 @@ export class DataQualityMonitorService {
     if (!params.assets || params.assets.length === 0) {
       const msg = 'No assets provided';
       issues.push(msg);
-      deductions += 30;
+      deductions += 50;
       criticals.push(this.issue('critical', 'assets', '', 'MIN_ASSETS',
         msg,
         'No se proporcionaron activos',
@@ -161,7 +161,7 @@ export class DataQualityMonitorService {
     if (!params.liabilities || params.liabilities.length === 0) {
       const msg = 'No liabilities provided';
       issues.push(msg);
-      deductions += 30;
+      deductions += 50;
       criticals.push(this.issue('critical', 'liabilities', '', 'MIN_LIABILITIES',
         msg,
         'No se proporcionaron pasivos',
@@ -222,7 +222,7 @@ export class DataQualityMonitorService {
     if (params.equity === undefined || params.equity === null) {
       const msg = 'Equity not provided';
       issues.push(msg);
-      deductions += 20;
+      deductions += 30;
       criticals.push(this.issue('critical', 'equity', '', 'MISSING_EQUITY',
         msg,
         'No se proporcionó el capital',
@@ -231,7 +231,7 @@ export class DataQualityMonitorService {
     } else if (params.equity === 0) {
       const msg = 'Equity is zero';
       issues.push(msg);
-      deductions += 15;
+      deductions += 25;
       criticals.push(this.issue('critical', 'equity', '', 'ZERO_EQUITY',
         msg,
         'El capital es cero',

@@ -174,6 +174,16 @@ export class MonteCarloService {
     const cvar99 =
       niiByPath.slice(0, cvar99Index).reduce((a, b) => a + b, 0) / cvar99Index;
 
+    // EVE statistics
+    const sortedEVE = [...eveDistribution].sort((a, b) => a - b);
+    const meanEVE =
+      eveDistribution.reduce((s, v) => s + v, 0) / eveDistribution.length;
+    const var95EVE = sortedEVE[Math.floor(sortedEVE.length * 0.05)]; // 5th percentile = worst case
+    const cvar99Count = Math.max(1, Math.floor(sortedEVE.length * 0.01));
+    const cvar99EVE =
+      sortedEVE.slice(0, cvar99Count).reduce((s, v) => s + v, 0) /
+      cvar99Count;
+
     // ── Convergence check: standard error of the mean ──
     const standardError = std / Math.sqrt(paths);
     // Convergence criterion: SE < 1% of |mean| (or absolute floor of 0.001)
@@ -226,8 +236,9 @@ export class MonteCarloService {
       stdNII: +std.toFixed(3),
       var95NII: +var95.toFixed(3),
       cvar99NII: +cvar99.toFixed(3),
-      meanEVE: 0, // simplified — full EVE MC is Phase V+
-      var95EVE: 0,
+      meanEVE: +meanEVE.toFixed(3),
+      var95EVE: +var95EVE.toFixed(3),
+      cvar99EVE: +cvar99EVE.toFixed(3),
       convergenceMet,
       standardError: +standardError.toFixed(6),
       fanChart: fanChart.map((f) => ({
