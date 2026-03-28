@@ -31,6 +31,16 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3000
 
+  outbound-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: cd services/outbound && pip install -r requirements.txt pytest
+      - run: cd services/outbound && python -m pytest tests/ -q
+
   prisma-validate:
     runs-on: ubuntu-latest
     steps:

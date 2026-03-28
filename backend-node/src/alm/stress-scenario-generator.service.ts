@@ -17,9 +17,9 @@ export class StressScenarioGeneratorService {
     }>;
   } {
     switch (params.framework) {
-      case 'cossec': return { scenarios: this.cossecScenarios() };
-      case 'basel': return { scenarios: this.baselScenarios() };
-      case 'dfast': return { scenarios: this.dfastScenarios() };
+      case 'cossec': return { scenarios: this.cossecScenarios() as any };
+      case 'basel': return { scenarios: this.baselScenarios() as any };
+      case 'dfast': return { scenarios: this.dfastScenarios() as any };
       default: return { scenarios: [{ name: 'Custom', nameEs: 'Personalizado', category: 'custom', shocks: params.customShocks ?? {}, probability: 'User-defined', severity: 'moderate' }] };
     }
   }
