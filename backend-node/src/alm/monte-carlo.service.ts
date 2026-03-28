@@ -130,15 +130,13 @@ export class MonteCarloService {
     // Statistics
     niiByPath.sort((a, b) => a - b);
     const mean = niiByPath.reduce((a, b) => a + b, 0) / paths;
-    const variance =
-      niiByPath.reduce((a, v) => a + (v - mean) ** 2, 0) / paths;
+    const variance = niiByPath.reduce((a, v) => a + (v - mean) ** 2, 0) / paths;
     const std = Math.sqrt(Math.max(variance, 0)); // guard against negative due to float error
     const var95Index = Math.max(0, Math.floor(paths * 0.05));
     const var95 = niiByPath[var95Index] ?? 0;
     const cvar99Index = Math.max(1, Math.floor(paths * 0.01));
     const cvar99 =
-      niiByPath.slice(0, cvar99Index).reduce((a, b) => a + b, 0) /
-      cvar99Index;
+      niiByPath.slice(0, cvar99Index).reduce((a, b) => a + b, 0) / cvar99Index;
 
     // ── Convergence check: standard error of the mean ──
     const standardError = std / Math.sqrt(paths);

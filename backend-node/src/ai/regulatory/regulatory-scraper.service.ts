@@ -34,7 +34,11 @@ export class RegulatoryScraperService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async runDailyScan(): Promise<{ scanned: number; newFound: number; errors: string[] }> {
+  async runDailyScan(): Promise<{
+    scanned: number;
+    newFound: number;
+    errors: string[];
+  }> {
     let newFound = 0;
     const errors: string[] = [];
     for (const source of REGULATORY_SOURCES) {

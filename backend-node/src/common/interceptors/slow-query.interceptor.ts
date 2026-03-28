@@ -8,7 +8,10 @@ import {
 import { Observable, tap } from 'rxjs';
 import * as Sentry from '@sentry/nestjs';
 
-const SLOW_THRESHOLD_MS = parseInt(process.env.SLOW_REQUEST_THRESHOLD_MS || '3000', 10);
+const SLOW_THRESHOLD_MS = parseInt(
+  process.env.SLOW_REQUEST_THRESHOLD_MS || '3000',
+  10,
+);
 
 /**
  * Logs and reports any request that takes longer than SLOW_REQUEST_THRESHOLD_MS.

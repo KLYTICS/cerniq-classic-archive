@@ -180,11 +180,15 @@ export class NCUA5300Service {
 
     // Computed fields
     const totalAssets = assets.reduce((s: number, i: any) => s + i.balance, 0);
-    const totalLiabilities = liabilities.reduce((s: number, i: any) => s + i.balance, 0);
+    const totalLiabilities = liabilities.reduce(
+      (s: number, i: any) => s + i.balance,
+      0,
+    );
     const netWorth = totalAssets - totalLiabilities;
     const totalLoans = assets
       .filter(
-        (i: any) => !['cash', 'securities'].includes(i.subcategory.toLowerCase()),
+        (i: any) =>
+          !['cash', 'securities'].includes(i.subcategory.toLowerCase()),
       )
       .reduce((s: number, i: any) => s + i.balance, 0);
     const totalShares = liabilities

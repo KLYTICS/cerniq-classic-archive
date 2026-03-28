@@ -38,8 +38,7 @@ function generateHistoricalScenarios(days: number = 1000): number[] {
   for (let i = 0; i < days; i++) {
     // Fat-tailed distribution: mix of normal + occasional jumps
     const normal = (Math.random() + Math.random() + Math.random() - 1.5) * 5; // ~N(0, 5bps)
-    const jump =
-      Math.random() < 0.02 ? (Math.random() - 0.5) * 30 : 0; // 2% chance of 30bps jump
+    const jump = Math.random() < 0.02 ? (Math.random() - 0.5) * 30 : 0; // 2% chance of 30bps jump
     scenarios.push(normal + jump);
   }
   return scenarios;
@@ -131,9 +130,7 @@ export class PortfolioVaRService {
 
       let portfolioPnL = 0;
       for (const item of items) {
-        const duration = Number.isFinite(item.duration)
-          ? item.duration
-          : 1;
+        const duration = Number.isFinite(item.duration) ? item.duration : 1;
         const balance = Number.isFinite(item.balance) ? item.balance : 0;
         const bpv = (balance * duration) / 10000; // dollar duration
         portfolioPnL -= bpv * bpsShift; // negative = loss when rates rise
@@ -153,8 +150,7 @@ export class PortfolioVaRService {
     );
     const var_ = -scaledPnL[varIndex];
     const cvarSlice = scaledPnL.slice(0, Math.max(varIndex, 1));
-    const cvar =
-      -cvarSlice.reduce((a, b) => a + b, 0) / cvarSlice.length;
+    const cvar = -cvarSlice.reduce((a, b) => a + b, 0) / cvarSlice.length;
 
     return {
       method: 'historical',
@@ -205,8 +201,7 @@ export class PortfolioVaRService {
     // CVaR for normal distribution: CVaR = sigma * phi(z) / (1-alpha)
     const phi_z = Math.exp((-z * z) / 2) / Math.sqrt(2 * Math.PI);
     const cvar =
-      (dailyPortfolioVol * Math.sqrt(horizon) * phi_z) /
-      (1 - confidenceLevel);
+      (dailyPortfolioVol * Math.sqrt(horizon) * phi_z) / (1 - confidenceLevel);
 
     return {
       method: 'parametric',
@@ -250,8 +245,7 @@ export class PortfolioVaRService {
       for (let d = 0; d < horizon; d++) {
         // Normal + occasional fat tail
         const z = this.gaussianRandom();
-        const jump =
-          Math.random() < 0.02 ? (Math.random() - 0.5) * 25 : 0;
+        const jump = Math.random() < 0.02 ? (Math.random() - 0.5) * 25 : 0;
         totalShock += z * 5 + jump; // 5bps daily vol
       }
       const pnl = -portfolioDV01 * totalShock;
@@ -259,14 +253,10 @@ export class PortfolioVaRService {
     }
 
     pnlVector.sort((a, b) => a - b);
-    const varIndex = Math.max(
-      0,
-      Math.floor((1 - confidenceLevel) * paths),
-    );
+    const varIndex = Math.max(0, Math.floor((1 - confidenceLevel) * paths));
     const var_ = -pnlVector[varIndex];
     const cvarSlice = pnlVector.slice(0, Math.max(varIndex, 1));
-    const cvar =
-      -cvarSlice.reduce((a, b) => a + b, 0) / cvarSlice.length;
+    const cvar = -cvarSlice.reduce((a, b) => a + b, 0) / cvarSlice.length;
 
     return {
       method: 'montecarlo',
@@ -330,8 +320,7 @@ export class PortfolioVaRService {
     }
 
     // chi-squared(1) critical values: 3.84 (95%), 6.63 (99%)
-    const kupiecPValue =
-      kupiecLR > 6.63 ? 0.01 : kupiecLR > 3.84 ? 0.05 : 0.1;
+    const kupiecPValue = kupiecLR > 6.63 ? 0.01 : kupiecLR > 3.84 ? 0.05 : 0.1;
 
     // Basel traffic light (based on 250-day window at 99% confidence)
     // At 95% confidence, thresholds should be scaled
@@ -368,8 +357,7 @@ export class PortfolioVaRService {
       v = 0;
     while (u === 0) u = this.cryptoUniform();
     while (v === 0) v = this.cryptoUniform();
-    const z =
-      Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
     return Number.isFinite(z) ? z : 0;
   }
 

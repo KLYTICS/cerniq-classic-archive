@@ -52,14 +52,18 @@ export class ClimateRiskService {
     const items = await this.prisma.balanceSheetItem.findMany({
       where: { institutionId },
     });
-    const totalAssets = items.reduce((s: any, i: any) => s + i.balance, 0) || 445;
+    const totalAssets =
+      items.reduce((s: any, i: any) => s + i.balance, 0) || 445;
 
     const reLoans = items.filter(
       (i: any) =>
         i.category === 'asset' &&
         ['residential_mortgage', 'commercial_re'].includes(i.subcategory),
     );
-    const totalREExposure = reLoans.reduce((s: any, i: any) => s + i.balance, 0);
+    const totalREExposure = reLoans.reduce(
+      (s: any, i: any) => s + i.balance,
+      0,
+    );
 
     // Hurricane AAL across all categories
     const scenarios = Object.entries(PR_HURRICANE_AAL).map(

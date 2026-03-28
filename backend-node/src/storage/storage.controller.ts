@@ -22,7 +22,10 @@ export class StorageController {
   constructor(private readonly storageService: StorageService) {}
 
   @Post('upload-url')
-  async generateUploadUrl(@Body() dto: GenerateUploadUrlDto, @Request() req: any) {
+  async generateUploadUrl(
+    @Body() dto: GenerateUploadUrlDto,
+    @Request() req: any,
+  ) {
     // Get organization ID from request context
     // For now using a placeholder - replace with real org context
     const organizationId = req.headers['x-organization-id'] || 'default-org';

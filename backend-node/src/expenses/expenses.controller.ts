@@ -55,11 +55,25 @@ export class ExpensesController {
   // ── CSV Upload Endpoint ──────────────────────────────────────────
 
   @Post(':orgId/upload')
-  @ApiOperation({ summary: 'Upload a CSV file of expenses for anomaly detection and analysis' })
-  @ApiParam({ name: 'orgId', description: 'Organization ID (or "auto" for default org)' })
+  @ApiOperation({
+    summary: 'Upload a CSV file of expenses for anomaly detection and analysis',
+  })
+  @ApiParam({
+    name: 'orgId',
+    description: 'Organization ID (or "auto" for default org)',
+  })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ description: 'CSV file with expense records', schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
-  @ApiResponse({ status: 201, description: 'Expenses ingested and anomaly detection triggered' })
+  @ApiBody({
+    description: 'CSV file with expense records',
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Expenses ingested and anomaly detection triggered',
+  })
   @ApiResponse({ status: 400, description: 'Invalid CSV file or format' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @UseInterceptors(
@@ -251,7 +265,9 @@ export class ExpensesController {
   // ── Existing Endpoints ────────────────────────────────────────────
 
   @Post(':orgId/analyze')
-  @ApiOperation({ summary: 'Trigger anomaly detection analysis for an organization' })
+  @ApiOperation({
+    summary: 'Trigger anomaly detection analysis for an organization',
+  })
   @ApiParam({ name: 'orgId', description: 'Organization UUID' })
   @ApiResponse({ status: 201, description: 'Anomaly detection results' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -263,9 +279,21 @@ export class ExpensesController {
   @Post(':orgId/report')
   @ApiOperation({ summary: 'Generate AP intelligence report as PDF' })
   @ApiParam({ name: 'orgId', description: 'Organization UUID' })
-  @ApiQuery({ name: 'lang', required: false, description: 'Report language (en or es)' })
-  @ApiQuery({ name: 'institutionId', required: false, description: 'Optional institution ID for LCR context' })
-  @ApiResponse({ status: 201, description: 'PDF report binary stream', content: { 'application/pdf': {} } })
+  @ApiQuery({
+    name: 'lang',
+    required: false,
+    description: 'Report language (en or es)',
+  })
+  @ApiQuery({
+    name: 'institutionId',
+    required: false,
+    description: 'Optional institution ID for LCR context',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'PDF report binary stream',
+    content: { 'application/pdf': {} },
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async generateAPReport(
     @Param('orgId') orgId: string,
@@ -297,9 +325,7 @@ export class ExpensesController {
    * falls back to orgId from the auth context. Throws if neither is set.
    */
   private resolveOrgId(req: any): string {
-    const orgId =
-      req.headers['x-organization-id'] ||
-      req.user?.orgId;
+    const orgId = req.headers['x-organization-id'] || req.user?.orgId;
     if (!orgId) {
       throw new BadRequestException(
         'Missing organization context. Provide x-organization-id header or authenticate with an org-scoped token.',
@@ -340,8 +366,15 @@ export class ExpensesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List all expenses for the authenticated user and organization' })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by expense status (DRAFT, SUBMITTED, APPROVED, REJECTED)' })
+  @ApiOperation({
+    summary: 'List all expenses for the authenticated user and organization',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description:
+      'Filter by expense status (DRAFT, SUBMITTED, APPROVED, REJECTED)',
+  })
   @ApiResponse({ status: 200, description: 'List of expense records' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAll(@Query('status') status: string, @Req() req: any) {
@@ -395,9 +428,15 @@ export class ExpensesController {
   }
 
   @Get(':orgId/vendor-report')
-  @ApiOperation({ summary: 'Generate vendor intelligence report with spend concentration analysis' })
+  @ApiOperation({
+    summary:
+      'Generate vendor intelligence report with spend concentration analysis',
+  })
   @ApiParam({ name: 'orgId', description: 'Organization UUID' })
-  @ApiResponse({ status: 200, description: 'Vendor report with spend analysis and risk indicators' })
+  @ApiResponse({
+    status: 200,
+    description: 'Vendor report with spend analysis and risk indicators',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getVendorReport(@Param('orgId') orgId: string, @Req() req: any) {
     await this.verifyOrgMembership(orgId, req.user.userId);

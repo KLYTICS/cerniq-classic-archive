@@ -103,10 +103,7 @@ export function classifyField(fieldPath: string): DataClassification {
  * Returns a summary suitable for SOC 2 evidence packages:
  * how many fields fall into each classification tier.
  */
-export function getClassificationSummary(): Record<
-  DataClassification,
-  number
-> {
+export function getClassificationSummary(): Record<DataClassification, number> {
   const summary: Record<DataClassification, number> = {
     [DataClassification.PUBLIC]: 0,
     [DataClassification.INTERNAL]: 0,

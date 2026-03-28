@@ -97,7 +97,9 @@ export class BillingController {
 
   @Post('api/billing/checkout')
   @Throttle({ default: { limit: 10, ttl: 3600000 } })
-  @ApiOperation({ summary: 'Create a Stripe checkout session for subscription purchase' })
+  @ApiOperation({
+    summary: 'Create a Stripe checkout session for subscription purchase',
+  })
   @ApiResponse({ status: 201, description: 'Checkout session URL returned' })
   @ApiResponse({ status: 400, description: 'Invalid checkout parameters' })
   @ApiResponse({ status: 429, description: 'Rate limit exceeded (max 10/hr)' })
@@ -132,7 +134,10 @@ export class BillingController {
   @Post('api/billing/portal')
   @UseGuards(AuthGuard)
   @ApiBearerAuth('BearerAuth')
-  @ApiOperation({ summary: 'Create a Stripe billing portal session for subscription management' })
+  @ApiOperation({
+    summary:
+      'Create a Stripe billing portal session for subscription management',
+  })
   @ApiResponse({ status: 201, description: 'Billing portal URL returned' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getBillingPortal(@Req() req: any) {
@@ -144,10 +149,19 @@ export class BillingController {
   @Post('api/billing/webhook')
   @SkipThrottle()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Handle incoming Stripe webhook events (signature-verified)' })
-  @ApiHeader({ name: 'stripe-signature', description: 'Stripe webhook signature header', required: true })
+  @ApiOperation({
+    summary: 'Handle incoming Stripe webhook events (signature-verified)',
+  })
+  @ApiHeader({
+    name: 'stripe-signature',
+    description: 'Stripe webhook signature header',
+    required: true,
+  })
   @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
-  @ApiResponse({ status: 400, description: 'Missing or invalid webhook signature' })
+  @ApiResponse({
+    status: 400,
+    description: 'Missing or invalid webhook signature',
+  })
   async handleWebhook(
     @Headers('stripe-signature') sig: string,
     @Req() req: any,
@@ -215,12 +229,18 @@ export class BillingController {
       }
 
       // Mark event as processed after successful handling
-      await this.prisma.processedWebhookEvent.create({
-        data: { id: event.id, eventType: event.type },
-      }).catch((err: any) => {
-        // Unique constraint race — another instance processed it first
-        this.logger.warn({ event: 'webhook.dedup_race', id: event.id, error: err.message });
-      });
+      await this.prisma.processedWebhookEvent
+        .create({
+          data: { id: event.id, eventType: event.type },
+        })
+        .catch((err: any) => {
+          // Unique constraint race — another instance processed it first
+          this.logger.warn({
+            event: 'webhook.dedup_race',
+            id: event.id,
+            error: err.message,
+          });
+        });
     } catch (err: any) {
       // Log error but return 200 to prevent Stripe retry storms
       this.logger.error({
@@ -239,8 +259,13 @@ export class BillingController {
 
   @Get('auth/magic')
   @Throttle({ default: { limit: 10, ttl: 900000 } })
-  @ApiOperation({ summary: 'Verify a magic link token and set authentication cookies' })
-  @ApiResponse({ status: 302, description: 'Redirects to portal on success or auth/expired on failure' })
+  @ApiOperation({
+    summary: 'Verify a magic link token and set authentication cookies',
+  })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirects to portal on success or auth/expired on failure',
+  })
   async verifyMagicLink(
     @Query('token') token: string,
     @Req() req: any,
@@ -298,7 +323,9 @@ export class BillingController {
       await this.billing.requestMagicLink(body.email);
     } catch (err) {
       // Don't reveal account existence — but log for audit trail
-      this.logger.warn(`Magic link request failed for ${body.email}: ${(err as Error).message}`);
+      this.logger.warn(
+        `Magic link request failed for ${body.email}: ${(err as Error).message}`,
+      );
     }
     return { message: 'If this email has an account, a login link was sent.' };
   }
@@ -308,7 +335,9 @@ export class BillingController {
   @Get('api/billing/subscription')
   @UseGuards(AuthGuard)
   @ApiBearerAuth('BearerAuth')
-  @ApiOperation({ summary: 'Get current subscription details for the authenticated user' })
+  @ApiOperation({
+    summary: 'Get current subscription details for the authenticated user',
+  })
   @ApiResponse({ status: 200, description: 'Subscription tier and status' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getSubscription(@Req() req: any) {

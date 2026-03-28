@@ -6,15 +6,59 @@ import { BalanceSheetDto, LCRRequestDto } from './alm.dto';
 
 const SAMPLE_COOPERATIVA: BalanceSheetDto = {
   assets: [
-    { name: 'Fixed Mortgages', amount: 80_000_000, rate: 0.045, maturityYears: 7, isFloating: false },
-    { name: 'Commercial Loans', amount: 50_000_000, rate: 0.07, maturityYears: 3, isFloating: true, repricingFrequencyMonths: 3 },
-    { name: 'Securities', amount: 40_000_000, rate: 0.038, maturityYears: 5, isFloating: false },
-    { name: 'Cash', amount: 30_000_000, rate: 0.045, maturityYears: 0.01, isFloating: true },
+    {
+      name: 'Fixed Mortgages',
+      amount: 80_000_000,
+      rate: 0.045,
+      maturityYears: 7,
+      isFloating: false,
+    },
+    {
+      name: 'Commercial Loans',
+      amount: 50_000_000,
+      rate: 0.07,
+      maturityYears: 3,
+      isFloating: true,
+      repricingFrequencyMonths: 3,
+    },
+    {
+      name: 'Securities',
+      amount: 40_000_000,
+      rate: 0.038,
+      maturityYears: 5,
+      isFloating: false,
+    },
+    {
+      name: 'Cash',
+      amount: 30_000_000,
+      rate: 0.045,
+      maturityYears: 0.01,
+      isFloating: true,
+    },
   ],
   liabilities: [
-    { name: 'Core Deposits', amount: 80_000_000, rate: 0.004, maturityYears: 3, isFloating: false },
-    { name: 'Money Market', amount: 50_000_000, rate: 0.012, maturityYears: 0.5, isFloating: true, repricingFrequencyMonths: 1 },
-    { name: 'CDs', amount: 30_000_000, rate: 0.025, maturityYears: 2, isFloating: false },
+    {
+      name: 'Core Deposits',
+      amount: 80_000_000,
+      rate: 0.004,
+      maturityYears: 3,
+      isFloating: false,
+    },
+    {
+      name: 'Money Market',
+      amount: 50_000_000,
+      rate: 0.012,
+      maturityYears: 0.5,
+      isFloating: true,
+      repricingFrequencyMonths: 1,
+    },
+    {
+      name: 'CDs',
+      amount: 30_000_000,
+      rate: 0.025,
+      maturityYears: 2,
+      isFloating: false,
+    },
   ],
   equity: 40_000_000,
 };
@@ -43,10 +87,22 @@ describe('AlmService', () => {
     it('should compute a negative duration gap when liabilities have longer duration than assets', () => {
       const bs: BalanceSheetDto = {
         assets: [
-          { name: 'Short-Term Loan', amount: 100_000, rate: 0.06, maturityYears: 1, isFloating: false },
+          {
+            name: 'Short-Term Loan',
+            amount: 100_000,
+            rate: 0.06,
+            maturityYears: 1,
+            isFloating: false,
+          },
         ],
         liabilities: [
-          { name: 'Long-Term Bond', amount: 80_000, rate: 0.04, maturityYears: 10, isFloating: false },
+          {
+            name: 'Long-Term Bond',
+            amount: 80_000,
+            rate: 0.04,
+            maturityYears: 10,
+            isFloating: false,
+          },
         ],
         equity: 20_000,
       };
@@ -60,10 +116,22 @@ describe('AlmService', () => {
     it('should compute zero duration gap for a perfectly immunized position', () => {
       const bs: BalanceSheetDto = {
         assets: [
-          { name: 'Matched Loan', amount: 100_000, rate: 0.05, maturityYears: 5, isFloating: false },
+          {
+            name: 'Matched Loan',
+            amount: 100_000,
+            rate: 0.05,
+            maturityYears: 5,
+            isFloating: false,
+          },
         ],
         liabilities: [
-          { name: 'Matched Deposit', amount: 100_000, rate: 0.05, maturityYears: 5, isFloating: false },
+          {
+            name: 'Matched Deposit',
+            amount: 100_000,
+            rate: 0.05,
+            maturityYears: 5,
+            isFloating: false,
+          },
         ],
         equity: 0,
       };
@@ -76,10 +144,22 @@ describe('AlmService', () => {
     it('should correctly handle a single asset versus a single liability', () => {
       const bs: BalanceSheetDto = {
         assets: [
-          { name: 'Sole Asset', amount: 500_000, rate: 0.06, maturityYears: 10, isFloating: false },
+          {
+            name: 'Sole Asset',
+            amount: 500_000,
+            rate: 0.06,
+            maturityYears: 10,
+            isFloating: false,
+          },
         ],
         liabilities: [
-          { name: 'Sole Liability', amount: 400_000, rate: 0.03, maturityYears: 2, isFloating: false },
+          {
+            name: 'Sole Liability',
+            amount: 400_000,
+            rate: 0.03,
+            maturityYears: 2,
+            isFloating: false,
+          },
         ],
         equity: 100_000,
       };
@@ -108,10 +188,23 @@ describe('AlmService', () => {
     it('should assign near-zero duration to floating-rate instruments', () => {
       const bs: BalanceSheetDto = {
         assets: [
-          { name: 'Quarterly Floater', amount: 100_000, rate: 0.05, maturityYears: 5, isFloating: true, repricingFrequencyMonths: 3 },
+          {
+            name: 'Quarterly Floater',
+            amount: 100_000,
+            rate: 0.05,
+            maturityYears: 5,
+            isFloating: true,
+            repricingFrequencyMonths: 3,
+          },
         ],
         liabilities: [
-          { name: 'Stub', amount: 1_000, rate: 0.02, maturityYears: 1, isFloating: false },
+          {
+            name: 'Stub',
+            amount: 1_000,
+            rate: 0.02,
+            maturityYears: 1,
+            isFloating: false,
+          },
         ],
         equity: 99_000,
       };
@@ -125,10 +218,22 @@ describe('AlmService', () => {
     it('should handle zero equity edge case without division errors', () => {
       const bs: BalanceSheetDto = {
         assets: [
-          { name: 'Asset A', amount: 100_000, rate: 0.05, maturityYears: 3, isFloating: false },
+          {
+            name: 'Asset A',
+            amount: 100_000,
+            rate: 0.05,
+            maturityYears: 3,
+            isFloating: false,
+          },
         ],
         liabilities: [
-          { name: 'Liability A', amount: 100_000, rate: 0.03, maturityYears: 5, isFloating: false },
+          {
+            name: 'Liability A',
+            amount: 100_000,
+            rate: 0.03,
+            maturityYears: 5,
+            isFloating: false,
+          },
         ],
         equity: 0,
       };
@@ -151,10 +256,22 @@ describe('AlmService', () => {
     it('should produce "well matched" interpretation for near-zero duration gap', () => {
       const bs: BalanceSheetDto = {
         assets: [
-          { name: 'Bond', amount: 100_000, rate: 0.05, maturityYears: 5, isFloating: false },
+          {
+            name: 'Bond',
+            amount: 100_000,
+            rate: 0.05,
+            maturityYears: 5,
+            isFloating: false,
+          },
         ],
         liabilities: [
-          { name: 'Funding', amount: 100_000, rate: 0.05, maturityYears: 5, isFloating: false },
+          {
+            name: 'Funding',
+            amount: 100_000,
+            rate: 0.05,
+            maturityYears: 5,
+            isFloating: false,
+          },
         ],
         equity: 0,
       };
@@ -167,10 +284,22 @@ describe('AlmService', () => {
     it('should compute Macaulay duration equal to maturity for a zero-coupon bond', () => {
       const bs: BalanceSheetDto = {
         assets: [
-          { name: 'Zero-Coupon Bond', amount: 100_000, rate: 0.0, maturityYears: 10, isFloating: false },
+          {
+            name: 'Zero-Coupon Bond',
+            amount: 100_000,
+            rate: 0.0,
+            maturityYears: 10,
+            isFloating: false,
+          },
         ],
         liabilities: [
-          { name: 'Stub', amount: 1_000, rate: 0.01, maturityYears: 1, isFloating: false },
+          {
+            name: 'Stub',
+            amount: 1_000,
+            rate: 0.01,
+            maturityYears: 1,
+            isFloating: false,
+          },
         ],
         equity: 99_000,
       };
@@ -195,7 +324,11 @@ describe('AlmService', () => {
       //   Securities: 40M * 3.8% = 1,520,000
       //   Cash: 30M * 4.5% = 1,350,000
       //   Total = 9,970,000
-      const expectedAssetIncome = 80_000_000 * 0.045 + 50_000_000 * 0.07 + 40_000_000 * 0.038 + 30_000_000 * 0.045;
+      const expectedAssetIncome =
+        80_000_000 * 0.045 +
+        50_000_000 * 0.07 +
+        40_000_000 * 0.038 +
+        30_000_000 * 0.045;
       expect(result.assetIncome).toBeCloseTo(expectedAssetIncome, 0);
 
       // Liability cost:
@@ -203,10 +336,14 @@ describe('AlmService', () => {
       //   Money Market: 50M * 1.2% = 600,000
       //   CDs: 30M * 2.5% = 750,000
       //   Total = 1,670,000
-      const expectedLiabilityCost = 80_000_000 * 0.004 + 50_000_000 * 0.012 + 30_000_000 * 0.025;
+      const expectedLiabilityCost =
+        80_000_000 * 0.004 + 50_000_000 * 0.012 + 30_000_000 * 0.025;
       expect(result.liabilityCost).toBeCloseTo(expectedLiabilityCost, 0);
 
-      expect(result.baseNII).toBeCloseTo(expectedAssetIncome - expectedLiabilityCost, 0);
+      expect(result.baseNII).toBeCloseTo(
+        expectedAssetIncome - expectedLiabilityCost,
+        0,
+      );
     });
 
     it('should show NII increasing under positive rate shock for asset-sensitive cooperativa', () => {
@@ -234,10 +371,23 @@ describe('AlmService', () => {
     it('should reprice floating-rate assets under rate shocks', () => {
       const allFloat: BalanceSheetDto = {
         assets: [
-          { name: 'Float Loan', amount: 100_000, rate: 0.05, maturityYears: 3, isFloating: true, repricingFrequencyMonths: 3 },
+          {
+            name: 'Float Loan',
+            amount: 100_000,
+            rate: 0.05,
+            maturityYears: 3,
+            isFloating: true,
+            repricingFrequencyMonths: 3,
+          },
         ],
         liabilities: [
-          { name: 'Fixed Deposit', amount: 80_000, rate: 0.02, maturityYears: 2, isFloating: false },
+          {
+            name: 'Fixed Deposit',
+            amount: 80_000,
+            rate: 0.02,
+            maturityYears: 2,
+            isFloating: false,
+          },
         ],
         equity: 20_000,
       };
@@ -255,10 +405,22 @@ describe('AlmService', () => {
     it('should not reprice fixed-rate assets under any rate shock', () => {
       const allFixed: BalanceSheetDto = {
         assets: [
-          { name: 'Fixed Loan', amount: 100_000, rate: 0.06, maturityYears: 5, isFloating: false },
+          {
+            name: 'Fixed Loan',
+            amount: 100_000,
+            rate: 0.06,
+            maturityYears: 5,
+            isFloating: false,
+          },
         ],
         liabilities: [
-          { name: 'Fixed Deposit', amount: 80_000, rate: 0.03, maturityYears: 3, isFloating: false },
+          {
+            name: 'Fixed Deposit',
+            amount: 80_000,
+            rate: 0.03,
+            maturityYears: 3,
+            isFloating: false,
+          },
         ],
         equity: 20_000,
       };
@@ -283,10 +445,23 @@ describe('AlmService', () => {
       // Build a balance sheet where a 100bps shock causes 5-10% NII change
       const bs: BalanceSheetDto = {
         assets: [
-          { name: 'Float Loan', amount: 200_000, rate: 0.05, maturityYears: 3, isFloating: true, repricingFrequencyMonths: 3 },
+          {
+            name: 'Float Loan',
+            amount: 200_000,
+            rate: 0.05,
+            maturityYears: 3,
+            isFloating: true,
+            repricingFrequencyMonths: 3,
+          },
         ],
         liabilities: [
-          { name: 'Fixed Deposit', amount: 150_000, rate: 0.03, maturityYears: 2, isFloating: false },
+          {
+            name: 'Fixed Deposit',
+            amount: 150_000,
+            rate: 0.03,
+            maturityYears: 2,
+            isFloating: false,
+          },
         ],
         equity: 50_000,
       };
@@ -305,10 +480,23 @@ describe('AlmService', () => {
       // Highly asset-sensitive balance sheet
       const bs: BalanceSheetDto = {
         assets: [
-          { name: 'Float Loan', amount: 200_000, rate: 0.05, maturityYears: 3, isFloating: true, repricingFrequencyMonths: 1 },
+          {
+            name: 'Float Loan',
+            amount: 200_000,
+            rate: 0.05,
+            maturityYears: 3,
+            isFloating: true,
+            repricingFrequencyMonths: 1,
+          },
         ],
         liabilities: [
-          { name: 'Fixed Deposit', amount: 150_000, rate: 0.03, maturityYears: 2, isFloating: false },
+          {
+            name: 'Fixed Deposit',
+            amount: 150_000,
+            rate: 0.03,
+            maturityYears: 2,
+            isFloating: false,
+          },
         ],
         equity: 50_000,
       };
@@ -375,10 +563,22 @@ describe('AlmService', () => {
       // A fixed-rate instrument with known PV
       const bs: BalanceSheetDto = {
         assets: [
-          { name: 'Bond', amount: 100_000, rate: 0.05, maturityYears: 1, isFloating: false },
+          {
+            name: 'Bond',
+            amount: 100_000,
+            rate: 0.05,
+            maturityYears: 1,
+            isFloating: false,
+          },
         ],
         liabilities: [
-          { name: 'Stub', amount: 1, rate: 0.01, maturityYears: 1, isFloating: false },
+          {
+            name: 'Stub',
+            amount: 1,
+            rate: 0.01,
+            maturityYears: 1,
+            isFloating: false,
+          },
         ],
         equity: 99_999,
       };
@@ -535,11 +735,29 @@ describe('AlmService', () => {
       // BPV = amount * modifiedDuration * 0.0001
       const bs: BalanceSheetDto = {
         assets: [
-          { name: 'Big Loan', amount: 1_000_000, rate: 0.05, maturityYears: 10, isFloating: false },
-          { name: 'Small Loan', amount: 100_000, rate: 0.05, maturityYears: 10, isFloating: false },
+          {
+            name: 'Big Loan',
+            amount: 1_000_000,
+            rate: 0.05,
+            maturityYears: 10,
+            isFloating: false,
+          },
+          {
+            name: 'Small Loan',
+            amount: 100_000,
+            rate: 0.05,
+            maturityYears: 10,
+            isFloating: false,
+          },
         ],
         liabilities: [
-          { name: 'Stub', amount: 1_000, rate: 0.01, maturityYears: 1, isFloating: false },
+          {
+            name: 'Stub',
+            amount: 1_000,
+            rate: 0.01,
+            maturityYears: 1,
+            isFloating: false,
+          },
         ],
         equity: 1_099_000,
       };
@@ -556,10 +774,22 @@ describe('AlmService', () => {
     it('should compute BPV = amount * modifiedDuration * 0.0001 for each instrument', () => {
       const bs: BalanceSheetDto = {
         assets: [
-          { name: 'Fixed Bond', amount: 500_000, rate: 0.06, maturityYears: 5, isFloating: false },
+          {
+            name: 'Fixed Bond',
+            amount: 500_000,
+            rate: 0.06,
+            maturityYears: 5,
+            isFloating: false,
+          },
         ],
         liabilities: [
-          { name: 'Stub', amount: 1_000, rate: 0.01, maturityYears: 1, isFloating: false },
+          {
+            name: 'Stub',
+            amount: 1_000,
+            rate: 0.01,
+            maturityYears: 1,
+            isFloating: false,
+          },
         ],
         equity: 499_000,
       };
@@ -621,7 +851,11 @@ describe('AlmService', () => {
         totalNetOutflows: 16_000_000,
       };
 
-      const result = service.fullAnalysis(SAMPLE_COOPERATIVA, customShocks, lcrInput);
+      const result = service.fullAnalysis(
+        SAMPLE_COOPERATIVA,
+        customShocks,
+        lcrInput,
+      );
 
       expect(result.niiSimulation.scenarios).toHaveLength(3);
       expect(result.eve.scenarios).toHaveLength(3);
@@ -639,7 +873,13 @@ describe('AlmService', () => {
       const bs: BalanceSheetDto = {
         assets: [],
         liabilities: [
-          { name: 'Deposit', amount: 100_000, rate: 0.02, maturityYears: 1, isFloating: false },
+          {
+            name: 'Deposit',
+            amount: 100_000,
+            rate: 0.02,
+            maturityYears: 1,
+            isFloating: false,
+          },
         ],
         equity: 0,
       };
@@ -656,7 +896,13 @@ describe('AlmService', () => {
     it('should throw ALM_NO_LIABILITIES when liabilities array is empty', () => {
       const bs: BalanceSheetDto = {
         assets: [
-          { name: 'Loan', amount: 100_000, rate: 0.05, maturityYears: 5, isFloating: false },
+          {
+            name: 'Loan',
+            amount: 100_000,
+            rate: 0.05,
+            maturityYears: 5,
+            isFloating: false,
+          },
         ],
         liabilities: [],
         equity: 100_000,

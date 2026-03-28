@@ -38,8 +38,14 @@ export class NIMAttributionService {
     const totalA = assets.reduce((s: number, i: any) => s + i.balance, 0);
     const totalL = liabs.reduce((s: number, i: any) => s + i.balance, 0);
 
-    const assetIncome = assets.reduce((s: number, i: any) => s + i.balance * i.rate, 0);
-    const liabCost = liabs.reduce((s: number, i: any) => s + i.balance * i.rate, 0);
+    const assetIncome = assets.reduce(
+      (s: number, i: any) => s + i.balance * i.rate,
+      0,
+    );
+    const liabCost = liabs.reduce(
+      (s: number, i: any) => s + i.balance * i.rate,
+      0,
+    );
     const nimCurrent =
       totalA > 0 ? ((assetIncome - liabCost) / totalA) * 100 : 3.5;
 

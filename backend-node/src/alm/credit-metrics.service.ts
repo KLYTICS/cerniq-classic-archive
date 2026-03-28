@@ -119,7 +119,8 @@ export class CreditMetricsService {
         name: s.segmentName,
         marginalVaR: +(s.balance * 0.02).toFixed(2),
         pctOfTotal: +(
-          (s.balance / segments.reduce((sum: number, seg: any) => sum + seg.balance, 0)) *
+          (s.balance /
+            segments.reduce((sum: number, seg: any) => sum + seg.balance, 0)) *
           100
         ).toFixed(1),
       })),

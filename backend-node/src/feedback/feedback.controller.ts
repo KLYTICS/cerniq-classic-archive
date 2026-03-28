@@ -205,7 +205,8 @@ export class FeedbackController {
       const promoters = scores.filter((s: number) => s >= 9).length;
       const passives = scores.filter((s: number) => s >= 7 && s <= 8).length;
       const detractors = scores.filter((s: number) => s <= 6).length;
-      const averageScore = scores.reduce((a: number, b: number) => a + b, 0) / scores.length;
+      const averageScore =
+        scores.reduce((a: number, b: number) => a + b, 0) / scores.length;
       const npsScore = Math.round(
         ((promoters - detractors) / scores.length) * 100,
       );

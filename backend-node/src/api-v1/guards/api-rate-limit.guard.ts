@@ -70,8 +70,14 @@ export class ApiRateLimitGuard implements CanActivate {
 
     const response = context.switchToHttp().getResponse();
     response.setHeader('X-RateLimit-Limit', String(limit));
-    response.setHeader('X-RateLimit-Remaining', String(Math.max(0, limit - count)));
-    response.setHeader('X-RateLimit-Reset', String(Math.ceil(Date.now() / 1000) + ttlRemaining));
+    response.setHeader(
+      'X-RateLimit-Remaining',
+      String(Math.max(0, limit - count)),
+    );
+    response.setHeader(
+      'X-RateLimit-Reset',
+      String(Math.ceil(Date.now() / 1000) + ttlRemaining),
+    );
 
     if (count > limit) {
       response.setHeader('Retry-After', String(ttlRemaining));
@@ -90,7 +96,10 @@ export class ApiRateLimitGuard implements CanActivate {
     return true;
   }
 
-  private async incrementRedis(key: string, windowSec: number): Promise<{ count: number; ttl: number } | null> {
+  private async incrementRedis(
+    key: string,
+    windowSec: number,
+  ): Promise<{ count: number; ttl: number } | null> {
     if (!this.cache) return null;
     const redis = (this.cache as any).redis;
     if (!redis) return null;

@@ -39,7 +39,8 @@ export class MaintenanceModeGuard implements CanActivate {
       success: false,
       error: {
         code: 'MAINTENANCE',
-        message: 'CERNIQ is currently undergoing scheduled maintenance. Please try again shortly.',
+        message:
+          'CERNIQ is currently undergoing scheduled maintenance. Please try again shortly.',
         estimatedDowntime: process.env.MAINTENANCE_ETA || 'Unknown',
       },
     });

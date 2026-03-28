@@ -2,7 +2,10 @@ import { IsEmail, IsString, MinLength, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RegisterDto {
-  @ApiProperty({ description: 'User email address', example: 'analyst@creditunion.coop' })
+  @ApiProperty({
+    description: 'User email address',
+    example: 'analyst@creditunion.coop',
+  })
   @IsEmail()
   email: string;
 
@@ -18,7 +21,10 @@ export class RegisterDto {
 }
 
 export class LoginDto {
-  @ApiProperty({ description: 'Registered email address', example: 'analyst@creditunion.coop' })
+  @ApiProperty({
+    description: 'Registered email address',
+    example: 'analyst@creditunion.coop',
+  })
   @IsEmail()
   email: string;
 
@@ -28,7 +34,10 @@ export class LoginDto {
 }
 
 export class PasswordResetRequestDto {
-  @ApiProperty({ description: 'Email address to send reset link', example: 'analyst@creditunion.coop' })
+  @ApiProperty({
+    description: 'Email address to send reset link',
+    example: 'analyst@creditunion.coop',
+  })
   @IsEmail()
   email: string;
 }
@@ -56,7 +65,9 @@ export class ChangePasswordDto {
 }
 
 export class RefreshTokenDto {
-  @ApiPropertyOptional({ description: 'Refresh token (also read from cookie if omitted)' })
+  @ApiPropertyOptional({
+    description: 'Refresh token (also read from cookie if omitted)',
+  })
   @IsOptional()
   @IsString()
   refreshToken?: string;

@@ -27,7 +27,9 @@ export class IdempotencyMiddleware implements NestMiddleware {
     const cacheKey = `idempotency:${idempotencyKey}`;
 
     try {
-      const cached = await this.cache.get<{ status: number; body: any }>(cacheKey);
+      const cached = await this.cache.get<{ status: number; body: any }>(
+        cacheKey,
+      );
       if (cached) {
         this.logger.log(`Idempotency hit: ${idempotencyKey}`);
         res.status(cached.status || 200).json(cached.body);
@@ -41,7 +43,9 @@ export class IdempotencyMiddleware implements NestMiddleware {
     const originalJson = res.json.bind(res);
     res.json = (body: any) => {
       // Cache the response
-      this.cache.set(cacheKey, { status: res.statusCode, body }, this.TTL_SECONDS).catch(() => {});
+      this.cache
+        .set(cacheKey, { status: res.statusCode, body }, this.TTL_SECONDS)
+        .catch(() => {});
       return originalJson(body);
     };
 

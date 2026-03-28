@@ -46,9 +46,7 @@ jest.mock('./prisma.service', () => ({
   })),
 }));
 
-const { readFileSync } = jest.requireMock('node:fs') as {
-  readFileSync: jest.Mock;
-};
+const { readFileSync } = jest.requireMock('node:fs');
 
 describe('AppController', () => {
   let controller: AppController;

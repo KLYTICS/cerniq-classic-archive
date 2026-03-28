@@ -22,9 +22,9 @@ import { PrismaService } from '../prisma.service';
  */
 
 export interface GARCHParams {
-  omega: number;   // ω — long-run variance intercept
-  alpha: number;   // α — ARCH effect (reaction to shocks)
-  beta: number;    // β — GARCH effect (volatility persistence)
+  omega: number; // ω — long-run variance intercept
+  alpha: number; // α — ARCH effect (reaction to shocks)
+  beta: number; // β — GARCH effect (volatility persistence)
   persistence: number; // α + β (should be < 1)
   longRunVariance: number; // ω / (1 - α - β)
   longRunVol: number; // sqrt(longRunVariance) annualized
@@ -81,8 +81,13 @@ export class GARCHVolatilityService {
     // Step 3: Forecast forward
     const lastVariance = variances[variances.length - 1];
     const lastResidual = residuals[residuals.length - 1];
-    const forecasts = forecastHorizons.map(h => {
-      const variance = this.forecastVariance(params, lastVariance, lastResidual, h);
+    const forecasts = forecastHorizons.map((h) => {
+      const variance = this.forecastVariance(
+        params,
+        lastVariance,
+        lastResidual,
+        h,
+      );
       const volatility = Math.sqrt(variance);
       return {
         horizon: h,
@@ -98,8 +103,13 @@ export class GARCHVolatilityService {
     const k = 3; // omega, alpha, beta
     const aic = -2 * logLikelihood + 2 * k;
     const bic = -2 * logLikelihood + k * Math.log(n);
-    const standardizedResiduals = residuals.map((r, i) => r / Math.sqrt(variances[i]));
-    const ljungBoxPValue = this.ljungBoxTest(standardizedResiduals.map(r => r * r), 10);
+    const standardizedResiduals = residuals.map(
+      (r, i) => r / Math.sqrt(variances[i]),
+    );
+    const ljungBoxPValue = this.ljungBoxTest(
+      standardizedResiduals.map((r) => r * r),
+      10,
+    );
 
     // Step 5: Build historical vol series
     const historicalVols = returns.map((r, i) => ({
@@ -142,7 +152,11 @@ export class GARCHVolatilityService {
         const omega = sampleVar * (1 - alpha - beta);
         if (omega <= 0) continue;
 
-        const { variances } = this.filterVariances(returns, { omega, alpha, beta } as GARCHParams);
+        const { variances } = this.filterVariances(returns, {
+          omega,
+          alpha,
+          beta,
+        } as GARCHParams);
         const ll = this.logLikelihood(returns, variances);
 
         if (ll > bestLL) {
@@ -155,8 +169,12 @@ export class GARCHVolatilityService {
     }
 
     const persistence = bestAlpha + bestBeta;
-    const longRunVariance = persistence < 1 ? bestOmega / (1 - persistence) : sampleVar;
-    const halfLife = persistence > 0 && persistence < 1 ? Math.log(2) / Math.log(1 / persistence) : Infinity;
+    const longRunVariance =
+      persistence < 1 ? bestOmega / (1 - persistence) : sampleVar;
+    const halfLife =
+      persistence > 0 && persistence < 1
+        ? Math.log(2) / Math.log(1 / persistence)
+        : Infinity;
 
     return {
       omega: bestOmega,
@@ -172,11 +190,14 @@ export class GARCHVolatilityService {
   /**
    * Filter: compute conditional variance series σ²(t) = ω + α·ε²(t-1) + β·σ²(t-1)
    */
-  private filterVariances(returns: number[], params: GARCHParams | { omega: number; alpha: number; beta: number }): { variances: number[]; residuals: number[] } {
+  private filterVariances(
+    returns: number[],
+    params: GARCHParams | { omega: number; alpha: number; beta: number },
+  ): { variances: number[]; residuals: number[] } {
     const { omega, alpha, beta } = params;
     const n = returns.length;
     const mean = returns.reduce((s, r) => s + r, 0) / n;
-    const residuals = returns.map(r => r - mean);
+    const residuals = returns.map((r) => r - mean);
     const variances: number[] = [this.variance(returns)]; // initialize with sample variance
 
     for (let t = 1; t < n; t++) {
@@ -194,7 +215,12 @@ export class GARCHVolatilityService {
    * σ²(t+h) = ω·Σ(α+β)^i + (α+β)^h · σ²(t) for i=0..h-1
    * Simplifies to: V_LR + (α+β)^h · (σ²(t) - V_LR)
    */
-  private forecastVariance(params: GARCHParams, currentVar: number, lastResidual: number, h: number): number {
+  private forecastVariance(
+    params: GARCHParams,
+    currentVar: number,
+    lastResidual: number,
+    h: number,
+  ): number {
     const { omega, alpha, beta } = params;
     const persistence = alpha + beta;
 
@@ -204,7 +230,8 @@ export class GARCHVolatilityService {
 
     const longRunVar = persistence < 1 ? omega / (1 - persistence) : currentVar;
     // First step forecast
-    const oneStep = omega + alpha * lastResidual * lastResidual + beta * currentVar;
+    const oneStep =
+      omega + alpha * lastResidual * lastResidual + beta * currentVar;
     // Multi-step: mean-revert toward long-run variance
     return longRunVar + Math.pow(persistence, h - 1) * (oneStep - longRunVar);
   }
@@ -219,7 +246,7 @@ export class GARCHVolatilityService {
     for (let t = 0; t < n; t++) {
       const sigma2 = variances[t];
       const resid = returns[t] - mean;
-      ll -= 0.5 * (Math.log(sigma2) + resid * resid / sigma2);
+      ll -= 0.5 * (Math.log(sigma2) + (resid * resid) / sigma2);
     }
     return ll;
   }
@@ -231,7 +258,7 @@ export class GARCHVolatilityService {
   private ljungBoxTest(series: number[], lags: number): number {
     const n = series.length;
     const mean = series.reduce((s, x) => s + x, 0) / n;
-    const centered = series.map(x => x - mean);
+    const centered = series.map((x) => x - mean);
     const denom = centered.reduce((s, x) => s + x * x, 0);
 
     let Q = 0;
@@ -258,7 +285,7 @@ export class GARCHVolatilityService {
     const z = x / 2;
     // Series expansion for small z
     let sum = 0;
-    let term = Math.exp(-z) * Math.pow(z, a) / this.gamma(a + 1);
+    let term = (Math.exp(-z) * Math.pow(z, a)) / this.gamma(a + 1);
     for (let n = 0; n < 100; n++) {
       sum += term;
       term *= z / (a + n + 1);
@@ -279,7 +306,11 @@ export class GARCHVolatilityService {
     }
     // Lanczos approximation
     const g = 7;
-    const c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+    const c = [
+      0.99999999999980993, 676.5203681218851, -1259.1392167224028,
+      771.32342877765313, -176.61502916214059, 12.507343278686905,
+      -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7,
+    ];
     const x = n - 1;
     let sum = c[0];
     for (let i = 1; i < g + 2; i++) sum += c[i] / (x + i);
@@ -299,19 +330,58 @@ export class GARCHVolatilityService {
   private getDemoForecast(): GARCHForecast {
     return {
       params: {
-        omega: 0.0000012, alpha: 0.08, beta: 0.89,
-        persistence: 0.97, longRunVariance: 0.00004,
-        longRunVol: 15.8, halfLife: 23,
+        omega: 0.0000012,
+        alpha: 0.08,
+        beta: 0.89,
+        persistence: 0.97,
+        longRunVariance: 0.00004,
+        longRunVol: 15.8,
+        halfLife: 23,
       },
       currentVol: 14.2,
       forecasts: [
-        { horizon: 1, variance: 0.0000032, volatility: 0.0018, annualizedVol: 12.8 },
-        { horizon: 5, variance: 0.0000035, volatility: 0.0019, annualizedVol: 13.4 },
-        { horizon: 10, variance: 0.0000037, volatility: 0.0019, annualizedVol: 13.8 },
-        { horizon: 21, variance: 0.0000039, volatility: 0.0020, annualizedVol: 14.5 },
-        { horizon: 63, variance: 0.0000040, volatility: 0.0020, annualizedVol: 15.1 },
-        { horizon: 126, variance: 0.0000040, volatility: 0.0020, annualizedVol: 15.5 },
-        { horizon: 252, variance: 0.0000040, volatility: 0.0020, annualizedVol: 15.8 },
+        {
+          horizon: 1,
+          variance: 0.0000032,
+          volatility: 0.0018,
+          annualizedVol: 12.8,
+        },
+        {
+          horizon: 5,
+          variance: 0.0000035,
+          volatility: 0.0019,
+          annualizedVol: 13.4,
+        },
+        {
+          horizon: 10,
+          variance: 0.0000037,
+          volatility: 0.0019,
+          annualizedVol: 13.8,
+        },
+        {
+          horizon: 21,
+          variance: 0.0000039,
+          volatility: 0.002,
+          annualizedVol: 14.5,
+        },
+        {
+          horizon: 63,
+          variance: 0.000004,
+          volatility: 0.002,
+          annualizedVol: 15.1,
+        },
+        {
+          horizon: 126,
+          variance: 0.000004,
+          volatility: 0.002,
+          annualizedVol: 15.5,
+        },
+        {
+          horizon: 252,
+          variance: 0.000004,
+          volatility: 0.002,
+          annualizedVol: 15.8,
+        },
       ],
       historicalVols: Array.from({ length: 60 }, (_, i) => ({
         date: `2025-${String(Math.floor(i / 30) + 10).padStart(2, '0')}-${String((i % 30) + 1).padStart(2, '0')}`,

@@ -226,7 +226,9 @@ export class AlmController {
 
   @Post('institutions')
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Create a new financial institution for ALM analysis' })
+  @ApiOperation({
+    summary: 'Create a new financial institution for ALM analysis',
+  })
   @ApiResponse({ status: 201, description: 'Institution created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid institution data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -237,8 +239,14 @@ export class AlmController {
 
   @Get('institutions')
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'List institutions for the authenticated user or workspace' })
-  @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter by workspace ID' })
+  @ApiOperation({
+    summary: 'List institutions for the authenticated user or workspace',
+  })
+  @ApiQuery({
+    name: 'workspaceId',
+    required: false,
+    description: 'Filter by workspace ID',
+  })
   @ApiResponse({ status: 200, description: 'Paginated list of institutions' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async listInstitutions(
@@ -263,7 +271,10 @@ export class AlmController {
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Get institution details by ID' })
   @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
-  @ApiResponse({ status: 200, description: 'Institution details with balance sheet summary' })
+  @ApiResponse({
+    status: 200,
+    description: 'Institution details with balance sheet summary',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Institution not found' })
   async getInstitution(@Param('institutionId') institutionId: string) {
@@ -272,9 +283,14 @@ export class AlmController {
 
   @Post('institutions/:institutionId/balance-sheet-items')
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Import balance sheet line items for an institution' })
+  @ApiOperation({
+    summary: 'Import balance sheet line items for an institution',
+  })
   @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
-  @ApiResponse({ status: 201, description: 'Balance sheet items imported successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Balance sheet items imported successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid balance sheet data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async importBalanceSheetItems(
@@ -298,7 +314,9 @@ export class AlmController {
 
   @Get(':institutionId/summary')
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Get full ALM summary including duration gap, NII, EVE, and LCR' })
+  @ApiOperation({
+    summary: 'Get full ALM summary including duration gap, NII, EVE, and LCR',
+  })
   @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
   @ApiResponse({ status: 200, description: 'Complete ALM analysis summary' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -317,9 +335,14 @@ export class AlmController {
 
   @Get(':institutionId/regulatory-compliance')
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Check regulatory compliance status (NCUA, COSSEC, Basel III)' })
+  @ApiOperation({
+    summary: 'Check regulatory compliance status (NCUA, COSSEC, Basel III)',
+  })
   @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
-  @ApiResponse({ status: 200, description: 'Regulatory compliance results with pass/fail indicators' })
+  @ApiResponse({
+    status: 200,
+    description: 'Regulatory compliance results with pass/fail indicators',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getRegulatoryCompliance(@Param('institutionId') institutionId: string) {
     this.logger.log(
@@ -348,8 +371,13 @@ export class AlmController {
 
   @Post('analysis/run')
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Trigger a full ALM analysis run for an institution' })
-  @ApiResponse({ status: 201, description: 'Analysis run created and queued for processing' })
+  @ApiOperation({
+    summary: 'Trigger a full ALM analysis run for an institution',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Analysis run created and queued for processing',
+  })
   @ApiResponse({ status: 400, description: 'Invalid analysis parameters' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createAnalysisRun(@Req() req: any, @Body() dto: CreateAnalysisRunDto) {
@@ -406,11 +434,27 @@ export class AlmController {
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Upload a CSV file to import balance sheet data' })
   @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
-  @ApiQuery({ name: 'dryRun', required: false, description: 'Set to "true" to validate without importing' })
+  @ApiQuery({
+    name: 'dryRun',
+    required: false,
+    description: 'Set to "true" to validate without importing',
+  })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ description: 'CSV file containing balance sheet line items', schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
-  @ApiResponse({ status: 201, description: 'CSV parsed and balance sheet items imported' })
-  @ApiResponse({ status: 400, description: 'Invalid CSV format or validation errors' })
+  @ApiBody({
+    description: 'CSV file containing balance sheet line items',
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'CSV parsed and balance sheet items imported',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid CSV format or validation errors',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @UseInterceptors(
     FileInterceptor('file', {
@@ -776,9 +820,14 @@ export class AlmController {
   @Post(':institutionId/stress-test')
   @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 runs per minute — heavy compute
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Run Monte Carlo interest rate stress test on an institution' })
+  @ApiOperation({
+    summary: 'Run Monte Carlo interest rate stress test on an institution',
+  })
   @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
-  @ApiResponse({ status: 201, description: 'Stress test results with scenario outcomes' })
+  @ApiResponse({
+    status: 201,
+    description: 'Stress test results with scenario outcomes',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 429, description: 'Rate limit exceeded (max 5/min)' })
   async runStressTest(
@@ -817,8 +866,17 @@ export class AlmController {
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Download a full ALM analysis report as PDF' })
   @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
-  @ApiQuery({ name: 'lang', required: false, description: 'Report language (en or es)', example: 'en' })
-  @ApiResponse({ status: 200, description: 'PDF report binary stream', content: { 'application/pdf': {} } })
+  @ApiQuery({
+    name: 'lang',
+    required: false,
+    description: 'Report language (en or es)',
+    example: 'en',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'PDF report binary stream',
+    content: { 'application/pdf': {} },
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Institution not found' })
   async downloadReport(

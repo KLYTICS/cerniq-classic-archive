@@ -75,7 +75,10 @@ export class CapitalOptimizerService {
     const assets = items.filter((i: any) => i.category === 'asset');
     const liabilities = items.filter((i: any) => i.category === 'liability');
     const totalAssets = assets.reduce((s: any, i: any) => s + i.balance, 0);
-    const totalLiabilities = liabilities.reduce((s: any, i: any) => s + i.balance, 0);
+    const totalLiabilities = liabilities.reduce(
+      (s: any, i: any) => s + i.balance,
+      0,
+    );
     const equity = totalAssets - totalLiabilities;
 
     // Current NII
@@ -191,7 +194,8 @@ export class CapitalOptimizerService {
       const items = liabilities.filter((i: any) => i.subcategory === sub);
       entry.rate =
         entry.balance > 0
-          ? items.reduce((s: any, i: any) => s + i.rate * i.balance, 0) / entry.balance
+          ? items.reduce((s: any, i: any) => s + i.rate * i.balance, 0) /
+            entry.balance
           : 0;
     }
 

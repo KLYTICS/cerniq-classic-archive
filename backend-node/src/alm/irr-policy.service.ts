@@ -210,7 +210,8 @@ export class IRRPolicyService {
     const assetDuration =
       items
         .filter((i: any) => i.category === 'asset')
-        .reduce((s: number, i: any) => s + i.balance * i.duration, 0) / (totalAssets || 1);
+        .reduce((s: number, i: any) => s + i.balance * i.duration, 0) /
+      (totalAssets || 1);
     const liabDuration =
       items
         .filter((i: any) => i.category === 'liability')

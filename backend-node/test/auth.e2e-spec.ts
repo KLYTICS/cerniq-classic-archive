@@ -105,17 +105,38 @@ function createPrismaMock() {
     },
 
     // Stub out models that may be touched by global interceptors/guards
-    demoRequest: { findMany: jest.fn().mockResolvedValue([]), create: jest.fn(), count: jest.fn().mockResolvedValue(0) },
-    institution: { count: jest.fn().mockResolvedValue(0), deleteMany: jest.fn() },
+    demoRequest: {
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn(),
+      count: jest.fn().mockResolvedValue(0),
+    },
+    institution: {
+      count: jest.fn().mockResolvedValue(0),
+      deleteMany: jest.fn(),
+    },
     balanceSheetItem: { deleteMany: jest.fn() },
     interestRateScenario: { deleteMany: jest.fn() },
     liquidityPosition: { deleteMany: jest.fn() },
-    prospect: { count: jest.fn().mockResolvedValue(0), create: jest.fn(), findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn().mockResolvedValue(null) },
+    prospect: {
+      count: jest.fn().mockResolvedValue(0),
+      create: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
     subscription: { count: jest.fn().mockResolvedValue(0) },
     analysisRun: { count: jest.fn().mockResolvedValue(0) },
     reportJob: { findMany: jest.fn().mockResolvedValue([]) },
-    passwordResetToken: { create: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
-    apiKey: { findMany: jest.fn().mockResolvedValue([]), create: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
+    passwordResetToken: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    apiKey: {
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      updateMany: jest.fn(),
+    },
 
     // Internal state accessors for test assertions
     _users: users,

@@ -111,7 +111,8 @@ export class RiskService {
     // CVaR (Expected Shortfall): average of returns at or below VaR threshold
     const returnsAtRisk = sortedReturns.slice(0, varIndex);
     const cvarReturn =
-      returnsAtRisk.reduce((sum: number, r: number) => sum + r, 0) / returnsAtRisk.length;
+      returnsAtRisk.reduce((sum: number, r: number) => sum + r, 0) /
+      returnsAtRisk.length;
     const cvar = -cvarReturn * request.portfolioValue;
 
     return {

@@ -214,9 +214,7 @@ describe('BillingService', () => {
       });
 
       const callArgs = stripeMock.checkout.sessions.create.mock.calls[0][0];
-      expect(callArgs.success_url).toBe(
-        'https://cerniq.io/portal?welcome=1',
-      );
+      expect(callArgs.success_url).toBe('https://cerniq.io/portal?welcome=1');
       expect(callArgs.cancel_url).toBe('https://cerniq.io/pricing');
     });
 

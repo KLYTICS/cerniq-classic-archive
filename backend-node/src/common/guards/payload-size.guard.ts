@@ -17,7 +17,8 @@ import { Reflector } from '@nestjs/core';
  *   async uploadCSV(@Body() body: any) { ... }
  */
 export const MAX_PAYLOAD_KEY = 'max_payload_bytes';
-export const MaxPayloadSize = (bytes: number) => SetMetadata(MAX_PAYLOAD_KEY, bytes);
+export const MaxPayloadSize = (bytes: number) =>
+  SetMetadata(MAX_PAYLOAD_KEY, bytes);
 
 @Injectable()
 export class PayloadSizeGuard implements CanActivate {
@@ -32,7 +33,10 @@ export class PayloadSizeGuard implements CanActivate {
     if (!maxBytes) return true; // No limit specified, use global default
 
     const request = context.switchToHttp().getRequest();
-    const contentLength = parseInt(request.headers['content-length'] || '0', 10);
+    const contentLength = parseInt(
+      request.headers['content-length'] || '0',
+      10,
+    );
 
     if (contentLength > maxBytes) {
       const maxMB = (maxBytes / (1024 * 1024)).toFixed(1);

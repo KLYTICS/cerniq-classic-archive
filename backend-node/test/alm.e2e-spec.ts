@@ -56,9 +56,9 @@ function createPrismaMock() {
     },
 
     demoRequest: {
-      findMany: jest.fn().mockImplementation(() =>
-        Promise.resolve(demoRequests),
-      ),
+      findMany: jest
+        .fn()
+        .mockImplementation(() => Promise.resolve(demoRequests)),
       create: jest.fn().mockImplementation(({ data }: any) => {
         const req = { id: crypto.randomUUID(), ...data, createdAt: new Date() };
         demoRequests.push(req);
@@ -79,7 +79,11 @@ function createPrismaMock() {
       }),
       findFirst: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockImplementation(({ data }: any) => {
-        const user = { id: crypto.randomUUID(), ...data, createdAt: new Date() };
+        const user = {
+          id: crypto.randomUUID(),
+          ...data,
+          createdAt: new Date(),
+        };
         users.push(user);
         return Promise.resolve(user);
       }),
@@ -89,7 +93,12 @@ function createPrismaMock() {
 
     refreshToken: {
       create: jest.fn().mockImplementation(({ data }: any) => {
-        const token = { id: crypto.randomUUID(), ...data, revokedAt: null, createdAt: new Date() };
+        const token = {
+          id: crypto.randomUUID(),
+          ...data,
+          revokedAt: null,
+          createdAt: new Date(),
+        };
         refreshTokens.push(token);
         return Promise.resolve(token);
       }),
@@ -100,7 +109,9 @@ function createPrismaMock() {
     },
 
     workspace: {
-      create: jest.fn().mockResolvedValue({ id: crypto.randomUUID(), name: 'Test' }),
+      create: jest
+        .fn()
+        .mockResolvedValue({ id: crypto.randomUUID(), name: 'Test' }),
       findMany: jest.fn().mockResolvedValue([]),
     },
 
@@ -109,7 +120,10 @@ function createPrismaMock() {
     },
 
     // Models required by AppController
-    institution: { count: jest.fn().mockResolvedValue(0), deleteMany: jest.fn() },
+    institution: {
+      count: jest.fn().mockResolvedValue(0),
+      deleteMany: jest.fn(),
+    },
     balanceSheetItem: { deleteMany: jest.fn() },
     interestRateScenario: { deleteMany: jest.fn() },
     liquidityPosition: { deleteMany: jest.fn() },
@@ -124,8 +138,17 @@ function createPrismaMock() {
     subscription: { count: jest.fn().mockResolvedValue(0) },
     analysisRun: { count: jest.fn().mockResolvedValue(0) },
     reportJob: { findMany: jest.fn().mockResolvedValue([]) },
-    passwordResetToken: { create: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
-    apiKey: { findMany: jest.fn().mockResolvedValue([]), create: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
+    passwordResetToken: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    apiKey: {
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      updateMany: jest.fn(),
+    },
 
     // Leads-specific models
     prospectInstitution: {
@@ -187,9 +210,7 @@ describe('ALM & Health API Integration Tests (e2e)', () => {
 
   describe('GET /health', () => {
     it('should return 200 with health status', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/health')
-        .expect(200);
+      const res = await request(app.getHttpServer()).get('/health').expect(200);
 
       expect(res.body).toHaveProperty('success', true);
       expect(res.body.data).toHaveProperty('status');
@@ -201,9 +222,7 @@ describe('ALM & Health API Integration Tests (e2e)', () => {
     });
 
     it('should include memory and database info', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/health')
-        .expect(200);
+      const res = await request(app.getHttpServer()).get('/health').expect(200);
 
       expect(res.body.data).toHaveProperty('memoryPercent');
       expect(typeof res.body.data.memoryPercent).toBe('number');
@@ -217,9 +236,7 @@ describe('ALM & Health API Integration Tests (e2e)', () => {
 
   describe('GET /ready', () => {
     it('should return readiness check status', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/ready')
-        .expect(200);
+      const res = await request(app.getHttpServer()).get('/ready').expect(200);
 
       expect(res.body).toHaveProperty('success', true);
       expect(res.body.data).toHaveProperty('ready');
@@ -230,9 +247,7 @@ describe('ALM & Health API Integration Tests (e2e)', () => {
     });
 
     it('should report database check result', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/ready')
-        .expect(200);
+      const res = await request(app.getHttpServer()).get('/ready').expect(200);
 
       expect(['ok', 'fail']).toContain(res.body.data.checks.database);
     });

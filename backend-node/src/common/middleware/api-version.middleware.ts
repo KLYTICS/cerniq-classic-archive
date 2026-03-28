@@ -13,11 +13,14 @@ export class ApiVersionMiddleware implements NestMiddleware {
   private readonly logger = new Logger('ApiVersion');
 
   use(req: any, res: any, next: () => void) {
-    const requestedVersion = req.headers['accept-version'] || CURRENT_API_VERSION;
+    const requestedVersion =
+      req.headers['accept-version'] || CURRENT_API_VERSION;
 
     // Warn on unsupported version requests (forward-compatible)
     if (!SUPPORTED_VERSIONS.includes(requestedVersion)) {
-      this.logger.warn(`Client requested unsupported API version: ${requestedVersion}`);
+      this.logger.warn(
+        `Client requested unsupported API version: ${requestedVersion}`,
+      );
     }
 
     // Always respond with the version being served

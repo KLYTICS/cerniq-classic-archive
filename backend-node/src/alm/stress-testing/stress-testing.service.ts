@@ -144,8 +144,14 @@ export class StressTestingService {
         Math.max(Math.floor(params.horizon ?? DEFAULT_PARAMS.horizon), 1),
         MAX_MC_HORIZON,
       ),
-      volatility: Math.max(1, Math.min(params.volatility ?? DEFAULT_PARAMS.volatility, 1000)),
-      meanReversion: Math.max(0, Math.min(params.meanReversion ?? DEFAULT_PARAMS.meanReversion, 5)),
+      volatility: Math.max(
+        1,
+        Math.min(params.volatility ?? DEFAULT_PARAMS.volatility, 1000),
+      ),
+      meanReversion: Math.max(
+        0,
+        Math.min(params.meanReversion ?? DEFAULT_PARAMS.meanReversion, 5),
+      ),
     };
     this.logger.log(
       `Monte Carlo: ${p.paths} paths, ${p.horizon}mo, vol=${p.volatility}bps, kappa=${p.meanReversion}`,
@@ -182,7 +188,10 @@ export class StressTestingService {
       (s: number, l: any) => s + l.balance,
       0,
     );
-    const totalFixedAssets = fixedAssets.reduce((s: number, a: any) => s + a.balance, 0);
+    const totalFixedAssets = fixedAssets.reduce(
+      (s: number, a: any) => s + a.balance,
+      0,
+    );
     const totalFixedLiabilities = fixedLiabilities.reduce(
       (s: number, l: any) => s + l.balance,
       0,
@@ -191,13 +200,17 @@ export class StressTestingService {
     // Weighted average rates
     const avgFloatingAssetRate =
       totalFloatingAssets > 0
-        ? floatingAssets.reduce((s: number, a: any) => s + a.balance * a.rate, 0) /
-          totalFloatingAssets
+        ? floatingAssets.reduce(
+            (s: number, a: any) => s + a.balance * a.rate,
+            0,
+          ) / totalFloatingAssets
         : 0;
     const avgFloatingLiabilityRate =
       totalFloatingLiabilities > 0
-        ? floatingLiabilities.reduce((s: number, l: any) => s + l.balance * l.rate, 0) /
-          totalFloatingLiabilities
+        ? floatingLiabilities.reduce(
+            (s: number, l: any) => s + l.balance * l.rate,
+            0,
+          ) / totalFloatingLiabilities
         : 0;
     const avgFixedAssetRate =
       totalFixedAssets > 0
@@ -206,8 +219,10 @@ export class StressTestingService {
         : 0;
     const avgFixedLiabilityRate =
       totalFixedLiabilities > 0
-        ? fixedLiabilities.reduce((s: number, l: any) => s + l.balance * l.rate, 0) /
-          totalFixedLiabilities
+        ? fixedLiabilities.reduce(
+            (s: number, l: any) => s + l.balance * l.rate,
+            0,
+          ) / totalFixedLiabilities
         : 0;
 
     // Current short-term rate (starting point for simulation)
@@ -276,7 +291,14 @@ export class StressTestingService {
     };
 
     // Monthly NII bands (for fan chart)
-    const monthlyNIIBands: { month: number; p5: number; p25: number; median: number; p75: number; p95: number }[] = [];
+    const monthlyNIIBands: {
+      month: number;
+      p5: number;
+      p25: number;
+      median: number;
+      p75: number;
+      p95: number;
+    }[] = [];
     for (let month = 0; month <= p.horizon; month++) {
       const ratesAtMonth = allPaths.map((path) => path[month]);
       const sorted = [...ratesAtMonth].sort((a, b) => a - b);

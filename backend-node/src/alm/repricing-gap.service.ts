@@ -69,13 +69,15 @@ export class RepricingGapService {
       totalAssets > 0
         ? items
             .filter((i: any) => i.category === 'asset')
-            .reduce((s: number, i: any) => s + i.balance * i.duration, 0) / totalAssets
+            .reduce((s: number, i: any) => s + i.balance * i.duration, 0) /
+          totalAssets
         : 0;
     const liabDuration =
       totalLiabilities > 0
         ? items
             .filter((i: any) => i.category === 'liability')
-            .reduce((s: number, i: any) => s + i.balance * i.duration, 0) / totalLiabilities
+            .reduce((s: number, i: any) => s + i.balance * i.duration, 0) /
+          totalLiabilities
         : 0;
 
     let cumulativeGap = 0;

@@ -31,7 +31,10 @@ export class CreditConcentrationVaRService {
 
     if (segments.length === 0) return this.getDemoResult();
 
-    const totalLoans = segments.reduce((s: number, seg: any) => s + seg.balance, 0);
+    const totalLoans = segments.reduce(
+      (s: number, seg: any) => s + seg.balance,
+      0,
+    );
     if (totalLoans === 0) return this.getDemoResult();
 
     // HHI = Σ(s_i²) where s_i = segment_i / total

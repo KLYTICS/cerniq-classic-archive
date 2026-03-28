@@ -58,7 +58,9 @@ async function bootstrap() {
     app.useLogger(app.get(Logger));
   } catch {
     // Fallback to default NestJS logger if Pino module not loaded
-    new NestLogger('Bootstrap').warn('Pino logger not available, using default');
+    new NestLogger('Bootstrap').warn(
+      'Pino logger not available, using default',
+    );
   }
 
   // Trust Railway/Vercel proxy for correct client IP in rate limiting
@@ -115,7 +117,10 @@ async function bootstrap() {
 
   // --- Global exception filter & response envelope ---
   // Sentry filter must be registered first so it captures before our custom filter formats
-  if (process.env.SENTRY_DSN && typeof (Sentry as any).SentryGlobalFilter === 'function') {
+  if (
+    process.env.SENTRY_DSN &&
+    typeof (Sentry as any).SentryGlobalFilter === 'function'
+  ) {
     app.useGlobalFilters(new (Sentry as any).SentryGlobalFilter());
   }
   app.useGlobalFilters(new GlobalExceptionFilter());
@@ -182,10 +187,22 @@ async function bootstrap() {
       'BearerAuth',
     )
     .addTag('ALM Analysis', 'Balance sheet analysis and regulatory compliance')
-    .addTag('Authentication', 'User registration, login, OAuth, and API key management')
-    .addTag('Billing', 'Subscription checkout, Stripe webhooks, and billing portal')
-    .addTag('Client Portal', 'Report jobs, data submission, ALCO packs, and team management')
-    .addTag('SpendCheck', 'Expense management, anomaly detection, and AP intelligence')
+    .addTag(
+      'Authentication',
+      'User registration, login, OAuth, and API key management',
+    )
+    .addTag(
+      'Billing',
+      'Subscription checkout, Stripe webhooks, and billing portal',
+    )
+    .addTag(
+      'Client Portal',
+      'Report jobs, data submission, ALCO packs, and team management',
+    )
+    .addTag(
+      'SpendCheck',
+      'Expense management, anomaly detection, and AP intelligence',
+    )
     .addTag('Benchmarks', 'Sector benchmarks and comparison data')
     .addTag('Reference Data', 'Supported frameworks and configuration')
     .addTag('System', 'Health checks and diagnostics')
@@ -215,7 +232,9 @@ async function bootstrap() {
 // --- Global crash handlers — catch everything Sentry + Pino can't ---
 process.on('unhandledRejection', (reason: unknown) => {
   console.error('[FATAL] Unhandled Promise rejection:', reason);
-  Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason)));
+  Sentry.captureException(
+    reason instanceof Error ? reason : new Error(String(reason)),
+  );
   // Give Sentry 2s to flush, then exit
   setTimeout(() => process.exit(1), 2000);
 });

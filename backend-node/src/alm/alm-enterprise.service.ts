@@ -440,7 +440,10 @@ export class AlmEnterpriseService {
       .map(toInstrument);
 
     const totalAssets = assets.reduce((s: any, a: any) => s + a.amount, 0);
-    const totalLiabilities = liabilities.reduce((s: any, l: any) => s + l.amount, 0);
+    const totalLiabilities = liabilities.reduce(
+      (s: any, l: any) => s + l.amount,
+      0,
+    );
     const equity = totalAssets - totalLiabilities;
 
     return {
@@ -637,7 +640,10 @@ export class AlmEnterpriseService {
     const liabilityItems = items.filter((i: any) => i.category === 'liability');
 
     const totalAssets = assetItems.reduce((s: any, i: any) => s + i.balance, 0);
-    const totalLiabilities = liabilityItems.reduce((s: any, i: any) => s + i.balance, 0);
+    const totalLiabilities = liabilityItems.reduce(
+      (s: any, i: any) => s + i.balance,
+      0,
+    );
     const equity = totalAssets - totalLiabilities;
 
     const loanSubcats = [
@@ -673,13 +679,15 @@ export class AlmEnterpriseService {
     const interestIncome = assetItems
       .filter((i: any) => earningSubcats.includes(i.subcategory))
       .reduce(
-        (s: any, i: any) => s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
+        (s: any, i: any) =>
+          s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
         0,
       );
     const interestExpense = liabilityItems
       .filter((i: any) => i.rate > 0)
       .reduce(
-        (s: any, i: any) => s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
+        (s: any, i: any) =>
+          s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
         0,
       );
 
@@ -1265,7 +1273,10 @@ export class AlmEnterpriseService {
     const liabilityItems = items.filter((i: any) => i.category === 'liability');
 
     const totalAssets = assetItems.reduce((s: any, i: any) => s + i.balance, 0);
-    const totalLiabilities = liabilityItems.reduce((s: any, i: any) => s + i.balance, 0);
+    const totalLiabilities = liabilityItems.reduce(
+      (s: any, i: any) => s + i.balance,
+      0,
+    );
     const equity = totalAssets - totalLiabilities;
 
     const loanSubcats = [
@@ -1301,13 +1312,15 @@ export class AlmEnterpriseService {
     const interestIncome = assetItems
       .filter((i: any) => earningSubcats.includes(i.subcategory))
       .reduce(
-        (s: any, i: any) => s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
+        (s: any, i: any) =>
+          s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
         0,
       );
     const interestExpense = liabilityItems
       .filter((i: any) => i.rate > 0)
       .reduce(
-        (s: any, i: any) => s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
+        (s: any, i: any) =>
+          s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
         0,
       );
 

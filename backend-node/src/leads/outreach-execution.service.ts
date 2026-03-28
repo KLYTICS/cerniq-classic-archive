@@ -41,9 +41,7 @@ export class OutreachExecutionService {
         html: outreach.body.replace(/\n/g, '<br>'),
       });
     } catch (err: any) {
-      this.logger.error(
-        `Outreach failed for ${prospectId}: ${err.message}`,
-      );
+      this.logger.error(`Outreach failed for ${prospectId}: ${err.message}`);
       return { sent: false, error: err.message };
     }
 

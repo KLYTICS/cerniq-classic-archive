@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as Sentry from '@sentry/nestjs';
 import pg from 'pg';
@@ -6,9 +11,15 @@ import pg from 'pg';
 const { PrismaClient } = require('@prisma/client');
 
 /** Queries exceeding this threshold are logged as warnings. */
-const SLOW_QUERY_WARN_MS = parseInt(process.env.SLOW_QUERY_WARN_MS || '500', 10);
+const SLOW_QUERY_WARN_MS = parseInt(
+  process.env.SLOW_QUERY_WARN_MS || '500',
+  10,
+);
 /** Queries exceeding this threshold are logged as errors and reported to Sentry. */
-const SLOW_QUERY_ERROR_MS = parseInt(process.env.SLOW_QUERY_ERROR_MS || '2000', 10);
+const SLOW_QUERY_ERROR_MS = parseInt(
+  process.env.SLOW_QUERY_ERROR_MS || '2000',
+  10,
+);
 
 export interface PoolStats {
   totalCount: number;
@@ -106,7 +117,7 @@ export class PrismaService
     (this as any)._request = async function (internalParams: any) {
       const model: string | undefined = internalParams.model;
       const action: string | undefined = internalParams.action;
-      const label = model ? `${model}.${action}` : action ?? 'unknown';
+      const label = model ? `${model}.${action}` : (action ?? 'unknown');
 
       const start = Date.now();
       try {
@@ -116,14 +127,15 @@ export class PrismaService
 
         if (duration > SLOW_QUERY_ERROR_MS) {
           logger.error(`Slow query: ${label} took ${duration}ms`);
-          Sentry.captureMessage(
-            `Slow DB query: ${label} (${duration}ms)`,
-            {
-              level: 'warning',
-              tags: { type: 'slow_query', model: model ?? 'n/a', action: action ?? 'n/a' },
-              extra: { durationMs: duration, threshold: SLOW_QUERY_ERROR_MS },
+          Sentry.captureMessage(`Slow DB query: ${label} (${duration}ms)`, {
+            level: 'warning',
+            tags: {
+              type: 'slow_query',
+              model: model ?? 'n/a',
+              action: action ?? 'n/a',
             },
-          );
+            extra: { durationMs: duration, threshold: SLOW_QUERY_ERROR_MS },
+          });
         } else if (duration > SLOW_QUERY_WARN_MS) {
           logger.warn(`Slow query: ${label} took ${duration}ms`);
         }

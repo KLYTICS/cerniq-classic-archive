@@ -118,8 +118,14 @@ export class AuthController {
   @Post('register')
   @Throttle({ default: { ttl: 60000, limit: 3 } })
   @ApiOperation({ summary: 'Register a new user account' })
-  @ApiResponse({ status: 201, description: 'User registered and authentication cookies set' })
-  @ApiResponse({ status: 400, description: 'Invalid registration data or email already exists' })
+  @ApiResponse({
+    status: 201,
+    description: 'User registered and authentication cookies set',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid registration data or email already exists',
+  })
   @ApiResponse({ status: 429, description: 'Rate limit exceeded (max 3/min)' })
   async register(
     @Body() dto: RegisterDto,
@@ -134,7 +140,10 @@ export class AuthController {
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Authenticate with email and password' })
-  @ApiResponse({ status: 200, description: 'Login successful, authentication cookies set' })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful, authentication cookies set',
+  })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @ApiResponse({ status: 429, description: 'Rate limit exceeded (max 5/min)' })
   async login(
@@ -161,7 +170,10 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access and refresh tokens' })
-  @ApiResponse({ status: 200, description: 'New tokens issued and cookies set' })
+  @ApiResponse({
+    status: 200,
+    description: 'New tokens issued and cookies set',
+  })
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   async refresh(
     @Body() body: RefreshTokenDto,
@@ -192,7 +204,10 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth('BearerAuth')
   @ApiOperation({ summary: 'Get the authenticated user profile' })
-  @ApiResponse({ status: 200, description: 'User profile with subscription and workspace data' })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile with subscription and workspace data',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getProfile(@Req() req: any) {
     return this.authService.getUserProfile(req.user.userId);
@@ -246,7 +261,10 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth('BearerAuth')
   @ApiOperation({ summary: 'Create a new API key for programmatic access' })
-  @ApiResponse({ status: 201, description: 'API key created (secret shown only once)' })
+  @ApiResponse({
+    status: 201,
+    description: 'API key created (secret shown only once)',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createApiKey(@Req() req: any, @Body() dto: CreateApiKeyDto) {
     const created = await this.authService.createApiKey(

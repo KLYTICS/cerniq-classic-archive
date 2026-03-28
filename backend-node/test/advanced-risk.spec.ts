@@ -99,7 +99,10 @@ describe('AdvancedRiskService', () => {
 
   describe('forecastVolatility (GARCH)', () => {
     it('should return volatility forecast array', async () => {
-      const result = await service.forecastVolatility({ ticker: 'AAPL', horizon: 30 });
+      const result = await service.forecastVolatility({
+        ticker: 'AAPL',
+        horizon: 30,
+      });
 
       expect(result).toHaveProperty('ticker');
       expect(result).toHaveProperty('currentVolatility');
@@ -111,7 +114,10 @@ describe('AdvancedRiskService', () => {
     });
 
     it('should have positive volatility forecasts', async () => {
-      const result = await service.forecastVolatility({ ticker: 'AAPL', horizon: 30 });
+      const result = await service.forecastVolatility({
+        ticker: 'AAPL',
+        horizon: 30,
+      });
 
       result.forecast.forEach((f) => {
         expect(f.volatility).toBeGreaterThan(0);
@@ -120,7 +126,10 @@ describe('AdvancedRiskService', () => {
     });
 
     it('should have confidence intervals around forecast', async () => {
-      const result = await service.forecastVolatility({ ticker: 'AAPL', horizon: 30 });
+      const result = await service.forecastVolatility({
+        ticker: 'AAPL',
+        horizon: 30,
+      });
 
       result.forecast.forEach((f) => {
         expect(f.lower95).toBeLessThan(f.volatility);
@@ -129,7 +138,10 @@ describe('AdvancedRiskService', () => {
     });
 
     it('should return valid GARCH model identifier', async () => {
-      const result = await service.forecastVolatility({ ticker: 'AAPL', horizon: 10 });
+      const result = await service.forecastVolatility({
+        ticker: 'AAPL',
+        horizon: 10,
+      });
 
       expect(typeof result.model).toBe('string');
       expect(result.model.length).toBeGreaterThan(0);

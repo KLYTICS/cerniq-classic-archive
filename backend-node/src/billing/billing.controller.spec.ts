@@ -251,7 +251,9 @@ describe('BillingController', () => {
       const result = await controller.handleWebhook('sig_valid', req);
 
       expect(result).toEqual({ received: true });
-      expect(billingService.handleSubscriptionCreated).toHaveBeenCalledWith(sub);
+      expect(billingService.handleSubscriptionCreated).toHaveBeenCalledWith(
+        sub,
+      );
     });
 
     it('should process customer.subscription.updated event', async () => {
@@ -268,7 +270,9 @@ describe('BillingController', () => {
       const result = await controller.handleWebhook('sig_valid', req);
 
       expect(result).toEqual({ received: true });
-      expect(billingService.handleSubscriptionUpdated).toHaveBeenCalledWith(sub);
+      expect(billingService.handleSubscriptionUpdated).toHaveBeenCalledWith(
+        sub,
+      );
     });
 
     it('should process customer.subscription.deleted event', async () => {
@@ -285,7 +289,9 @@ describe('BillingController', () => {
       const result = await controller.handleWebhook('sig_valid', req);
 
       expect(result).toEqual({ received: true });
-      expect(billingService.handleSubscriptionCancelled).toHaveBeenCalledWith(sub);
+      expect(billingService.handleSubscriptionCancelled).toHaveBeenCalledWith(
+        sub,
+      );
     });
 
     it('should process invoice.payment_succeeded event', async () => {

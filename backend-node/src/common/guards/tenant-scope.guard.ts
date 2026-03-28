@@ -31,10 +31,7 @@ export class TenantScopeGuard implements CanActivate {
   private readonly logger = new Logger(TenantScopeGuard.name);
 
   /** Paths that MUST have an orgId for proper tenant isolation */
-  private readonly TENANT_REQUIRED_PREFIXES = [
-    '/api/alm',
-    '/api/expenses',
-  ];
+  private readonly TENANT_REQUIRED_PREFIXES = ['/api/alm', '/api/expenses'];
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();

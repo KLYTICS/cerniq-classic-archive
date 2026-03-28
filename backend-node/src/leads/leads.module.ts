@@ -9,7 +9,17 @@ import { EmailModule } from '../email/email.module';
 @Module({
   imports: [EmailModule],
   controllers: [LeadsController],
-  providers: [LeadsService, LeadQualificationService, LeadScoringService, OutreachExecutionService],
-  exports: [LeadsService, LeadQualificationService, LeadScoringService, OutreachExecutionService],
+  providers: [
+    LeadsService,
+    LeadQualificationService,
+    LeadScoringService,
+    OutreachExecutionService,
+  ],
+  exports: [
+    LeadsService,
+    LeadQualificationService,
+    LeadScoringService,
+    OutreachExecutionService,
+  ],
 })
 export class LeadsModule {}

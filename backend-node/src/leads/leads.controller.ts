@@ -60,36 +60,26 @@ export class LeadsController {
 
   @Get('admin/api/leads/:id')
   @UseGuards(AdminGuard)
-  async getLead(
-    @Param('id') id: string,
-  ) {
+  async getLead(@Param('id') id: string) {
     return this.leads.getLead(id);
   }
 
   @Put('admin/api/leads/:id')
   @UseGuards(AdminGuard)
-  async updateLead(
-    @Param('id') id: string,
-    @Body() dto: UpdateLeadDto,
-  ) {
+  async updateLead(@Param('id') id: string, @Body() dto: UpdateLeadDto) {
     this.logger.log(`Lead updated: ${id}`);
     return this.leads.updateLead(id, dto);
   }
 
   @Post('admin/api/leads/:id/note')
   @UseGuards(AdminGuard)
-  async addNote(
-    @Param('id') id: string,
-    @Body('note') note: string,
-  ) {
+  async addNote(@Param('id') id: string, @Body('note') note: string) {
     return this.leads.addNote(id, note);
   }
 
   @Post('admin/api/leads/:id/mark-report-sent')
   @UseGuards(AdminGuard)
-  async markReportSent(
-    @Param('id') id: string,
-  ) {
+  async markReportSent(@Param('id') id: string) {
     return this.leads.markReportSent(id);
   }
 
@@ -152,10 +142,7 @@ export class LeadsController {
 
   @Post('admin/api/prospects/:id/send-outreach')
   @UseGuards(AdminGuard)
-  async sendOutreach(
-    @Param('id') id: string,
-    @Query('lang') lang?: string,
-  ) {
+  async sendOutreach(@Param('id') id: string, @Query('lang') lang?: string) {
     return this.outreachExecution.executeOutreach(
       id,
       lang === 'en' ? 'en' : 'es',

@@ -348,8 +348,7 @@ export class ComplianceReportService {
       if (logs.length < 2) {
         return {
           gapDetected: false,
-          gapDetails:
-            'Insufficient audit log entries to perform gap analysis.',
+          gapDetails: 'Insufficient audit log entries to perform gap analysis.',
         };
       }
 

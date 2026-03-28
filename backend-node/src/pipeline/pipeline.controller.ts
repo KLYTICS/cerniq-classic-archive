@@ -26,9 +26,7 @@ export class PipelineController {
 
   @Get('admin/api/pipeline')
   @UseGuards(AdminGuard)
-  async getPipelineJobs(
-    @Query('status') status?: string,
-  ) {
+  async getPipelineJobs(@Query('status') status?: string) {
     const where = status ? { status: status as any } : {};
     const jobs = await this.prisma.reportJob.findMany({
       where,
@@ -59,9 +57,7 @@ export class PipelineController {
 
   @Get('admin/api/pipeline/:jobId')
   @UseGuards(AdminGuard)
-  async getJobDetail(
-    @Param('jobId') jobId: string,
-  ) {
+  async getJobDetail(@Param('jobId') jobId: string) {
     const job = await this.prisma.reportJob.findUnique({
       where: { id: jobId },
       include: { user: { select: { email: true, name: true } } },
@@ -75,9 +71,7 @@ export class PipelineController {
   @Post('admin/api/pipeline/:jobId/force-advance')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AdminGuard)
-  async forceAdvance(
-    @Param('jobId') jobId: string,
-  ) {
+  async forceAdvance(@Param('jobId') jobId: string) {
     await this.prisma.reportJob.update({
       where: { id: jobId },
       data: { status: 'QUEUED' },
@@ -90,10 +84,7 @@ export class PipelineController {
   @Post('admin/api/pipeline/:jobId/force-fail')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AdminGuard)
-  async forceFail(
-    @Param('jobId') jobId: string,
-    @Body() body: ForceFailDto,
-  ) {
+  async forceFail(@Param('jobId') jobId: string, @Body() body: ForceFailDto) {
     await this.prisma.reportJob.update({
       where: { id: jobId },
       data: {
@@ -109,9 +100,7 @@ export class PipelineController {
   @Post('admin/api/pipeline/:jobId/force-regenerate')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AdminGuard)
-  async forceRegenerate(
-    @Param('jobId') jobId: string,
-  ) {
+  async forceRegenerate(@Param('jobId') jobId: string) {
     await this.prisma.reportJob.update({
       where: { id: jobId },
       data: { status: 'QUEUED', retryCount: 0, errorMessage: null },
@@ -197,7 +186,10 @@ export class PipelineController {
       switchMap(() =>
         from(
           this.prisma.reportJob.findFirst({
-            where: { id: jobId, ...(userId ? { userId } : { userId: '__none__' }) },
+            where: {
+              id: jobId,
+              ...(userId ? { userId } : { userId: '__none__' }),
+            },
             select: { status: true, completedAt: true, errorMessage: true },
           }),
         ),

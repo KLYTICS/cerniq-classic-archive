@@ -1,7 +1,10 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
+import {
+  ATTR_SERVICE_NAME,
+  ATTR_SERVICE_VERSION,
+} from '@opentelemetry/semantic-conventions';
 
 const OTEL_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 
@@ -41,5 +44,11 @@ if (OTEL_ENDPOINT) {
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
 
-  process.stdout.write(JSON.stringify({ level: 'info', msg: `OpenTelemetry traces exporting to ${OTEL_ENDPOINT}`, timestamp: new Date().toISOString() }) + '\n');
+  process.stdout.write(
+    JSON.stringify({
+      level: 'info',
+      msg: `OpenTelemetry traces exporting to ${OTEL_ENDPOINT}`,
+      timestamp: new Date().toISOString(),
+    }) + '\n',
+  );
 }

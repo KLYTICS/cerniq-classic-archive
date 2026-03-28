@@ -487,10 +487,7 @@ describe('AuthService', () => {
   describe('refreshTokens', () => {
     it('should return new access + refresh tokens for a valid refresh token', async () => {
       const token = 'valid-refresh-jwt';
-      const tokenHash = crypto
-        .createHash('sha256')
-        .update(token)
-        .digest('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
       jwtService.verify.mockReturnValue({
         sub: 'user-r1',
@@ -521,10 +518,7 @@ describe('AuthService', () => {
 
     it('should revoke the old refresh token during rotation', async () => {
       const token = 'rotate-token';
-      const tokenHash = crypto
-        .createHash('sha256')
-        .update(token)
-        .digest('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
       jwtService.verify.mockReturnValue({
         sub: 'user-r2',
@@ -581,10 +575,7 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException for a revoked refresh token', async () => {
       const token = 'revoked-token';
-      const tokenHash = crypto
-        .createHash('sha256')
-        .update(token)
-        .digest('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
       jwtService.verify.mockReturnValue({
         sub: 'user-rev',
@@ -619,10 +610,7 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException for an expired stored token', async () => {
       const token = 'db-expired-token';
-      const tokenHash = crypto
-        .createHash('sha256')
-        .update(token)
-        .digest('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
       jwtService.verify.mockReturnValue({
         sub: 'user-exp',
@@ -644,10 +632,7 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException when user no longer exists', async () => {
       const token = 'orphan-token';
-      const tokenHash = crypto
-        .createHash('sha256')
-        .update(token)
-        .digest('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
       jwtService.verify.mockReturnValue({
         sub: 'user-deleted',
@@ -837,12 +822,12 @@ describe('AuthService', () => {
     });
 
     it('should throw BadRequestException for empty name', async () => {
-      await expect(
-        service.createApiKey('user-ak4', ''),
-      ).rejects.toThrow(BadRequestException);
-      await expect(
-        service.createApiKey('user-ak4', '   '),
-      ).rejects.toThrow('API key name is required');
+      await expect(service.createApiKey('user-ak4', '')).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.createApiKey('user-ak4', '   ')).rejects.toThrow(
+        'API key name is required',
+      );
     });
   });
 

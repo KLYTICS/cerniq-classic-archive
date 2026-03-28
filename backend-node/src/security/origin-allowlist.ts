@@ -39,7 +39,10 @@ function getPreviewRegex(): RegExp {
   try {
     return new RegExp(configured, 'i');
   } catch (err) {
-    console.warn(`[CORS] Invalid VERCEL_PREVIEW_ORIGIN_REGEX: "${configured}", using default pattern`, err);
+    console.warn(
+      `[CORS] Invalid VERCEL_PREVIEW_ORIGIN_REGEX: "${configured}", using default pattern`,
+      err,
+    );
     return DEFAULT_VERCEL_PREVIEW_PATTERN;
   }
 }

@@ -91,7 +91,8 @@ export class SLAMonitorService {
     const p95 = len > 0 ? sorted[Math.floor(len * 0.95)] : 0;
     const p99 = len > 0 ? sorted[Math.floor(len * 0.99)] : 0;
     const errorRate = totalReqs > 0 ? (totalErrors / totalReqs) * 100 : 0;
-    const availability = totalReqs > 0 ? ((totalReqs - totalErrors) / totalReqs) * 100 : 100;
+    const availability =
+      totalReqs > 0 ? ((totalReqs - totalErrors) / totalReqs) * 100 : 100;
 
     const errorRateMet = errorRate <= SLA_TARGETS.maxErrorRatePercent;
     const p95Met = p95 <= SLA_TARGETS.p95LatencyMs;
@@ -105,7 +106,10 @@ export class SLAMonitorService {
       return {
         hour: new Date(w.windowStart).toISOString(),
         requests: w.totalRequests,
-        errorRate: w.totalRequests > 0 ? +((w.errorRequests / w.totalRequests) * 100).toFixed(3) : 0,
+        errorRate:
+          w.totalRequests > 0
+            ? +((w.errorRequests / w.totalRequests) * 100).toFixed(3)
+            : 0,
         p95Ms: wLen > 0 ? wSorted[Math.floor(wLen * 0.95)] : 0,
       };
     });

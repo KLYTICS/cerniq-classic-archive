@@ -78,13 +78,15 @@ export class LeadsService {
     this.sendNotificationEmails(lead, dto).catch((err: any) => {
       this.logger.error(`Email notification failed: ${err.message}`);
     });
-    this.slack?.notifyNewLead({
-      name: dto.name,
-      email: dto.email,
-      institution: dto.institutionName,
-      type: dto.institutionType,
-      priority,
-    }).catch(() => {});
+    this.slack
+      ?.notifyNewLead({
+        name: dto.name,
+        email: dto.email,
+        institution: dto.institutionName,
+        type: dto.institutionType,
+        priority,
+      })
+      .catch(() => {});
 
     return {
       leadId: lead.id,
@@ -202,7 +204,10 @@ export class LeadsService {
 
     const [allLeads, monthLeads] = await Promise.all([
       this.prisma.lead.findMany({ take: 1000 }),
-      this.prisma.lead.findMany({ where: { createdAt: { gte: monthStart } }, take: 1000 }),
+      this.prisma.lead.findMany({
+        where: { createdAt: { gte: monthStart } },
+        take: 1000,
+      }),
     ]);
 
     const statusCounts: Record<string, number> = {};

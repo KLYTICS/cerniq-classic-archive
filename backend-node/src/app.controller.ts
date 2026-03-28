@@ -144,9 +144,15 @@ eventLoopHistogram.enable();
 
 // Active request counter — incremented/decremented by middleware or interceptor
 let _activeRequestCount = 0;
-export function incrementActiveRequests(): void { _activeRequestCount++; }
-export function decrementActiveRequests(): void { _activeRequestCount--; }
-export function getActiveRequestCount(): number { return _activeRequestCount; }
+export function incrementActiveRequests(): void {
+  _activeRequestCount++;
+}
+export function decrementActiveRequests(): void {
+  _activeRequestCount--;
+}
+export function getActiveRequestCount(): number {
+  return _activeRequestCount;
+}
 
 function isDependencyDegraded(status: string | undefined): boolean {
   return status === 'degraded' || status === 'down' || status === 'unhealthy';
@@ -166,7 +172,10 @@ export function determineOverallHealthStatus(params: {
       ? params.memory.primaryPercent >= 90
       : params.memory.primaryPercent >= 95;
 
-  if (memoryThreshold || Object.values(params.checks).some(isDependencyDegraded)) {
+  if (
+    memoryThreshold ||
+    Object.values(params.checks).some(isDependencyDegraded)
+  ) {
     return 'degraded';
   }
 
@@ -232,7 +241,9 @@ export class AppController {
 
   // Graceful shutdown: return 503 during drain period so load balancers stop routing
   private static shuttingDown = false;
-  static markShuttingDown() { AppController.shuttingDown = true; }
+  static markShuttingDown() {
+    AppController.shuttingDown = true;
+  }
 
   @Get('health')
   @SkipThrottle()
@@ -707,7 +718,9 @@ export class AppController {
       ]);
 
     // Import performance metrics
-    const { getRouteMetrics } = require('./common/interceptors/performance.interceptor');
+    const {
+      getRouteMetrics,
+    } = require('./common/interceptors/performance.interceptor');
     const performanceMetrics = getRouteMetrics().slice(0, 20); // Top 20 slowest routes
 
     return {

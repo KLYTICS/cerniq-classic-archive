@@ -101,7 +101,11 @@ describe('OrganizationsService', () => {
       });
 
       await expect(
-        service.addMember('org-1', { userId: 'new-user', role: 'MEMBER' } as any, 'member-user'),
+        service.addMember(
+          'org-1',
+          { userId: 'new-user', role: 'MEMBER' } as any,
+          'member-user',
+        ),
       ).rejects.toThrow();
     });
   });

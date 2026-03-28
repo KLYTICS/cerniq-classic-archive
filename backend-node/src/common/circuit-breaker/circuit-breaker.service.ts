@@ -35,7 +35,10 @@ export class CircuitBreakerService {
 
   constructor() {
     // Periodic sweep to prevent unbounded memory growth
-    this.evictionTimer = setInterval(() => this.evictStale(), EVICTION_INTERVAL_MS);
+    this.evictionTimer = setInterval(
+      () => this.evictStale(),
+      EVICTION_INTERVAL_MS,
+    );
     // Don't let the timer keep the process alive during shutdown
     if (this.evictionTimer.unref) this.evictionTimer.unref();
   }
@@ -48,7 +51,11 @@ export class CircuitBreakerService {
     const now = Date.now();
     for (const [key, circuit] of this.circuits) {
       const lastActivity = Math.max(circuit.lastFailure, circuit.openedAt);
-      if (circuit.state === 'closed' && lastActivity > 0 && now - lastActivity > STALE_THRESHOLD_MS) {
+      if (
+        circuit.state === 'closed' &&
+        lastActivity > 0 &&
+        now - lastActivity > STALE_THRESHOLD_MS
+      ) {
         this.circuits.delete(key);
       }
     }

@@ -39,9 +39,12 @@ export class TimeoutInterceptor implements NestInterceptor {
       timeout(ms),
       catchError((err: any) => {
         if (err instanceof TimeoutError) {
-          return throwError(() => new RequestTimeoutException(
-            `Request timed out after ${ms / 1000}s. For compute-heavy operations, consider reducing input parameters.`,
-          ));
+          return throwError(
+            () =>
+              new RequestTimeoutException(
+                `Request timed out after ${ms / 1000}s. For compute-heavy operations, consider reducing input parameters.`,
+              ),
+          );
         }
         return throwError(() => err);
       }),

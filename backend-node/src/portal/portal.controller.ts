@@ -77,7 +77,10 @@ export class PortalController {
   @Get('jobs')
   @Roles('OWNER', 'ANALYST', 'VIEWER')
   @ApiOperation({ summary: 'List all report jobs for the authenticated user' })
-  @ApiResponse({ status: 200, description: 'Array of report jobs with status and metadata' })
+  @ApiResponse({
+    status: 200,
+    description: 'Array of report jobs with status and metadata',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Paid subscription required' })
   async listJobs(@Req() req: any) {
@@ -148,11 +151,24 @@ export class PortalController {
 
   @Post('jobs/:jobId/alco-pack')
   @Roles('OWNER', 'ANALYST', 'VIEWER')
-  @ApiOperation({ summary: 'Generate an 8-page board-ready ALCO meeting pack PDF' })
+  @ApiOperation({
+    summary: 'Generate an 8-page board-ready ALCO meeting pack PDF',
+  })
   @ApiParam({ name: 'jobId', description: 'Completed report job UUID' })
-  @ApiQuery({ name: 'lang', required: false, description: 'Language (en or es, default: es)' })
-  @ApiResponse({ status: 201, description: 'ALCO pack PDF binary stream', content: { 'application/pdf': {} } })
-  @ApiResponse({ status: 400, description: 'Job not complete or no institution linked' })
+  @ApiQuery({
+    name: 'lang',
+    required: false,
+    description: 'Language (en or es, default: es)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'ALCO pack PDF binary stream',
+    content: { 'application/pdf': {} },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Job not complete or no institution linked',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Job not found' })
   async generateAlcoPack(
@@ -223,9 +239,25 @@ export class PortalController {
   @ApiOperation({ summary: 'Submit balance sheet CSV data for a report job' })
   @ApiParam({ name: 'jobId', description: 'Report job UUID' })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ description: 'CSV file with balance sheet data', schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' }, institutionName: { type: 'string' }, analysisPeriod: { type: 'string' } } } })
-  @ApiResponse({ status: 201, description: 'Data submitted and job queued for processing' })
-  @ApiResponse({ status: 400, description: 'Validation failed or job not awaiting data' })
+  @ApiBody({
+    description: 'CSV file with balance sheet data',
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        institutionName: { type: 'string' },
+        analysisPeriod: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Data submitted and job queued for processing',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failed or job not awaiting data',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Job not found' })
   @UseInterceptors(
@@ -410,7 +442,9 @@ export class PortalController {
 
   @Post('invite')
   @Roles('OWNER')
-  @ApiOperation({ summary: 'Invite a team member to the portal via magic link email' })
+  @ApiOperation({
+    summary: 'Invite a team member to the portal via magic link email',
+  })
   @ApiResponse({ status: 201, description: 'Invite sent successfully' })
   @ApiResponse({ status: 400, description: 'Email already registered' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })

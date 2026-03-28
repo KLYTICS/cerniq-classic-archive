@@ -113,7 +113,10 @@ export class AuthGuard implements CanActivate {
         }
       } catch (dbError) {
         // Fall back to token-based role on DB error — but log it
-        this.logger.warn(`DB role lookup failed for user ${user.userId}, using token role`, dbError);
+        this.logger.warn(
+          `DB role lookup failed for user ${user.userId}, using token role`,
+          dbError,
+        );
       }
     }
 

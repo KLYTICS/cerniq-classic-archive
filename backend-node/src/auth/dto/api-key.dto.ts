@@ -9,12 +9,21 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateApiKeyDto {
-  @ApiProperty({ description: 'Human-readable name for the API key', example: 'Production Integration', maxLength: 80 })
+  @ApiProperty({
+    description: 'Human-readable name for the API key',
+    example: 'Production Integration',
+    maxLength: 80,
+  })
   @IsString()
   @MaxLength(80)
   name: string;
 
-  @ApiPropertyOptional({ description: 'Expiration in days (1-3650, default: no expiry)', example: 365, minimum: 1, maximum: 3650 })
+  @ApiPropertyOptional({
+    description: 'Expiration in days (1-3650, default: no expiry)',
+    example: 365,
+    minimum: 1,
+    maximum: 3650,
+  })
   @IsOptional()
   @IsInt()
   @Min(1)

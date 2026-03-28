@@ -49,7 +49,11 @@ describe('AuthController', () => {
 
   describe('POST /api/auth/register', () => {
     it('should register a user and set auth cookies', async () => {
-      const dto = { email: 'new@test.com', password: 'Secure123!', name: 'Test' };
+      const dto = {
+        email: 'new@test.com',
+        password: 'Secure123!',
+        name: 'Test',
+      };
       const result = {
         user: { id: 'u1', email: 'new@test.com', name: 'Test' },
         accessToken: 'at_123',
@@ -74,7 +78,10 @@ describe('AuthController', () => {
       const res = mockRes();
 
       await expect(
-        controller.register({ email: 'dup@test.com', password: 'x' } as any, res),
+        controller.register(
+          { email: 'dup@test.com', password: 'x' } as any,
+          res,
+        ),
       ).rejects.toThrow('Email already exists');
     });
   });
@@ -260,10 +267,9 @@ describe('AuthController', () => {
       authService.createApiKey.mockResolvedValue(newKey);
 
       const req = { user: { userId: 'u7' } };
-      const result = await controller.createApiKey(
-        req,
-        { name: 'production' } as any,
-      );
+      const result = await controller.createApiKey(req, {
+        name: 'production',
+      } as any);
 
       expect(authService.createApiKey).toHaveBeenCalledWith(
         'u7',

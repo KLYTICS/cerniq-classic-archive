@@ -22,11 +22,11 @@ import { PrismaService } from '../prisma.service';
  */
 
 export interface LeadScore {
-  total: number;       // 0-100
-  fit: number;         // 0-50
-  intent: number;      // 0-50
+  total: number; // 0-100
+  fit: number; // 0-50
+  intent: number; // 0-50
   tier: 'HOT' | 'WARM' | 'COLD' | 'UNQUALIFIED';
-  factors: string[];   // Human-readable scoring factors
+  factors: string[]; // Human-readable scoring factors
 }
 
 @Injectable()
@@ -37,7 +37,14 @@ export class LeadScoringService {
 
   async scoreLead(leadId: string): Promise<LeadScore> {
     const lead = await this.prisma.lead.findUnique({ where: { id: leadId } });
-    if (!lead) return { total: 0, fit: 0, intent: 0, tier: 'UNQUALIFIED', factors: ['Lead not found'] };
+    if (!lead)
+      return {
+        total: 0,
+        fit: 0,
+        intent: 0,
+        tier: 'UNQUALIFIED',
+        factors: ['Lead not found'],
+      };
 
     let fit = 0;
     let intent = 0;
@@ -46,27 +53,41 @@ export class LeadScoringService {
     // ── Fit Score ──
     // Institution type
     const typeScores: Record<string, number> = {
-      cooperativa: 15, credit_union: 12, bank: 10, community_bank: 10,
-      family_office: 8, cpa_consultant: 6, other: 5,
+      cooperativa: 15,
+      credit_union: 12,
+      bank: 10,
+      community_bank: 10,
+      family_office: 8,
+      cpa_consultant: 6,
+      other: 5,
     };
-    const typeScore = typeScores[(lead as any).institutionType] || 5;
+    const typeScore = typeScores[lead.institutionType] || 5;
     fit += typeScore;
-    factors.push(`Institution type: ${(lead as any).institutionType} (+${typeScore})`);
+    factors.push(`Institution type: ${lead.institutionType} (+${typeScore})`);
 
     // Source quality
-    if ((lead as any).source === 'demo_completion') { intent += 15; factors.push('Completed demo (+15 intent)'); }
-    else if ((lead as any).source === 'pricing_page') { intent += 10; factors.push('From pricing page (+10 intent)'); }
-    else if ((lead as any).source === 'contact_form') { intent += 8; factors.push('Contact form submission (+8 intent)'); }
-    else if ((lead as any).source === 'referral') { intent += 12; factors.push('Referral lead (+12 intent)'); }
+    if (lead.source === 'demo_completion') {
+      intent += 15;
+      factors.push('Completed demo (+15 intent)');
+    } else if (lead.source === 'pricing_page') {
+      intent += 10;
+      factors.push('From pricing page (+10 intent)');
+    } else if (lead.source === 'contact_form') {
+      intent += 8;
+      factors.push('Contact form submission (+8 intent)');
+    } else if (lead.source === 'referral') {
+      intent += 12;
+      factors.push('Referral lead (+12 intent)');
+    }
 
     // Notes indicate engagement
-    if ((lead as any).notes && (lead as any).notes.length > 0) {
+    if (lead.notes && lead.notes.length > 0) {
       intent += 5;
       factors.push('Has engagement notes (+5 intent)');
     }
 
     // Report sent = high intent
-    if ((lead as any).reportSentAt) {
+    if (lead.reportSentAt) {
       intent += 10;
       factors.push('Report delivered (+10 intent)');
     }
@@ -86,18 +107,32 @@ export class LeadScoringService {
     return { total, fit, intent, tier, factors };
   }
 
-  async scoreAllLeads(): Promise<{ scored: number; hot: number; warm: number; cold: number }> {
+  async scoreAllLeads(): Promise<{
+    scored: number;
+    hot: number;
+    warm: number;
+    cold: number;
+  }> {
     const leads = await this.prisma.lead.findMany({
-      where: { status: { notIn: ['CLOSED_WON', 'CLOSED_LOST', 'UNQUALIFIED'] } },
+      where: {
+        status: { notIn: ['CLOSED_WON', 'CLOSED_LOST', 'UNQUALIFIED'] },
+      },
       take: 500,
     });
 
-    let hot = 0, warm = 0, cold = 0;
+    let hot = 0,
+      warm = 0,
+      cold = 0;
     for (const lead of leads) {
       const score = await this.scoreLead(lead.id);
 
       // Update lead priority based on score
-      const priority = score.tier === 'HOT' ? 'HIGH' : score.tier === 'WARM' ? 'MEDIUM' : 'LOW';
+      const priority =
+        score.tier === 'HOT'
+          ? 'HIGH'
+          : score.tier === 'WARM'
+            ? 'MEDIUM'
+            : 'LOW';
       await this.prisma.lead.update({
         where: { id: lead.id },
         data: { priority },

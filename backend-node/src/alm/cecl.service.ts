@@ -97,16 +97,11 @@ export class CECLService {
       historicalLossRate: Math.max(
         0,
         Math.min(
-          Number.isFinite(seg.historicalLossRate)
-            ? seg.historicalLossRate
-            : 0,
+          Number.isFinite(seg.historicalLossRate) ? seg.historicalLossRate : 0,
           1,
         ),
       ), // 0-100%
-      lgd: Math.max(
-        0,
-        Math.min(Number.isFinite(seg.lgd) ? seg.lgd! : 0.5, 1),
-      ), // 0-100%
+      lgd: Math.max(0, Math.min(Number.isFinite(seg.lgd) ? seg.lgd! : 0.5, 1)), // 0-100%
       qualitativeAdj: Math.max(
         -0.1,
         Math.min(
@@ -254,8 +249,7 @@ export class CECLService {
 
         // Lifetime PD: 1 - (1 - annual PD)^maturity
         const lifetimePD =
-          1 -
-          Math.pow(1 - scenarioPD, seg.weightedAvgMaturity);
+          1 - Math.pow(1 - scenarioPD, seg.weightedAvgMaturity);
         const expectedLoss = seg.balance * lifetimePD * seg.lgd;
 
         return {

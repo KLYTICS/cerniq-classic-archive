@@ -34,7 +34,9 @@ export class CopulaCreditService {
     if (segments.length === 0) return this.getDemoResult(copulaType);
 
     const n = segments.length;
-    const pds = segments.map((s: any) => Math.min(0.3, s.historicalLossRate * 2));
+    const pds = segments.map((s: any) =>
+      Math.min(0.3, s.historicalLossRate * 2),
+    );
     const lgds = segments.map((s: any) => s.lgd);
     const eads = segments.map((s: any) => s.balance);
 
@@ -97,8 +99,9 @@ export class CopulaCreditService {
 
     // Joint default probability
     const jointDefault =
-      losses.filter((l) => l > eads.reduce((s: number, e: number) => s + e, 0) * 0.5).length /
-      paths;
+      losses.filter(
+        (l) => l > eads.reduce((s: number, e: number) => s + e, 0) * 0.5,
+      ).length / paths;
 
     // t-copula premium: how much more risk than Gaussian
     let tPremium = 0;

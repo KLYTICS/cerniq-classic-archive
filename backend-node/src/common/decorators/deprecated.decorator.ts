@@ -1,5 +1,10 @@
 import { SetMetadata, applyDecorators, UseInterceptors } from '@nestjs/common';
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+} from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 import { Reflector } from '@nestjs/core';
 
@@ -15,7 +20,7 @@ import { Reflector } from '@nestjs/core';
 export const DEPRECATION_KEY = 'api_deprecation';
 
 export interface DeprecationMeta {
-  sunsetDate: string;  // ISO date when the endpoint will be removed
+  sunsetDate: string; // ISO date when the endpoint will be removed
   alternative: string; // What to use instead
 }
 

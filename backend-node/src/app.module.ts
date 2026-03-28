@@ -50,8 +50,13 @@ import { NotificationsModule } from './notifications/notifications.module';
     // Structured JSON logging
     LoggerModule.forRoot({
       pinoHttp: {
-        level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
-        transport: process.env.NODE_ENV !== 'production' ? { target: 'pino-pretty', options: { colorize: true } } : undefined,
+        level:
+          process.env.LOG_LEVEL ||
+          (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+        transport:
+          process.env.NODE_ENV !== 'production'
+            ? { target: 'pino-pretty', options: { colorize: true } }
+            : undefined,
         redact: [
           'req.headers.authorization',
           'req.headers.cookie',
@@ -141,6 +146,12 @@ import { NotificationsModule } from './notifications/notifications.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RequestIdMiddleware, ApiVersionMiddleware, RequestLoggingMiddleware).forRoutes('*');
+    consumer
+      .apply(
+        RequestIdMiddleware,
+        ApiVersionMiddleware,
+        RequestLoggingMiddleware,
+      )
+      .forRoutes('*');
   }
 }

@@ -226,12 +226,7 @@ export class BillingService {
     });
 
     // 8. Schedule onboarding emails (B1 immediate, B2 at 30 min, B3 at 48h)
-    await this.scheduleEmail(
-      user.id,
-      null,
-      'B1',
-      new Date(),
-    ); // immediate
+    await this.scheduleEmail(user.id, null, 'B1', new Date()); // immediate
     await this.scheduleEmail(
       user.id,
       null,
@@ -517,7 +512,8 @@ export class BillingService {
         const allowed = new URL(baseUrl);
         const provided = new URL(trimmed);
         const isSameHost = provided.host === allowed.host;
-        const isCerniqDomain = /^([a-z0-9-]+\.)*(cerniq\.io|cerniqtech\.com)$/i.test(provided.host);
+        const isCerniqDomain =
+          /^([a-z0-9-]+\.)*(cerniq\.io|cerniqtech\.com)$/i.test(provided.host);
         const isLocalDev = /^localhost(:\d+)?$/.test(provided.host);
         if (isSameHost || isCerniqDomain || isLocalDev) {
           return trimmed;

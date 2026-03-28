@@ -196,8 +196,14 @@ export class PeerAnalyticsService {
     const totalAssets = assets.reduce((s: number, i: any) => s + i.balance, 0);
     const totalLiabs = liabs.reduce((s: number, i: any) => s + i.balance, 0);
 
-    const assetIncome = assets.reduce((s: number, i: any) => s + i.balance * i.rate, 0);
-    const liabCost = liabs.reduce((s: number, i: any) => s + i.balance * i.rate, 0);
+    const assetIncome = assets.reduce(
+      (s: number, i: any) => s + i.balance * i.rate,
+      0,
+    );
+    const liabCost = liabs.reduce(
+      (s: number, i: any) => s + i.balance * i.rate,
+      0,
+    );
     const nim =
       totalAssets > 0 ? ((assetIncome - liabCost) / totalAssets) * 100 : 3.5;
 

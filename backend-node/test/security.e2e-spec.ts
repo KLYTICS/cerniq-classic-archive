@@ -52,7 +52,12 @@ function createPrismaMock() {
 
     refreshToken: {
       create: jest.fn().mockImplementation(({ data }: any) => {
-        const token = { id: crypto.randomUUID(), ...data, revokedAt: null, createdAt: new Date() };
+        const token = {
+          id: crypto.randomUUID(),
+          ...data,
+          revokedAt: null,
+          createdAt: new Date(),
+        };
         refreshTokens.push(token);
         return Promise.resolve(token);
       }),
@@ -63,7 +68,9 @@ function createPrismaMock() {
     },
 
     workspace: {
-      create: jest.fn().mockResolvedValue({ id: crypto.randomUUID(), name: 'Test' }),
+      create: jest
+        .fn()
+        .mockResolvedValue({ id: crypto.randomUUID(), name: 'Test' }),
       findMany: jest.fn().mockResolvedValue([]),
     },
 
@@ -75,7 +82,12 @@ function createPrismaMock() {
       findFirst: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue(leads),
       create: jest.fn().mockImplementation(({ data }: any) => {
-        const lead = { id: crypto.randomUUID(), ...data, status: 'NEW', createdAt: new Date() };
+        const lead = {
+          id: crypto.randomUUID(),
+          ...data,
+          status: 'NEW',
+          createdAt: new Date(),
+        };
         leads.push(lead);
         return Promise.resolve(lead);
       }),
@@ -83,8 +95,15 @@ function createPrismaMock() {
       count: jest.fn().mockResolvedValue(0),
     },
 
-    demoRequest: { findMany: jest.fn().mockResolvedValue([]), create: jest.fn(), count: jest.fn().mockResolvedValue(0) },
-    institution: { count: jest.fn().mockResolvedValue(0), deleteMany: jest.fn() },
+    demoRequest: {
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn(),
+      count: jest.fn().mockResolvedValue(0),
+    },
+    institution: {
+      count: jest.fn().mockResolvedValue(0),
+      deleteMany: jest.fn(),
+    },
     balanceSheetItem: { deleteMany: jest.fn() },
     interestRateScenario: { deleteMany: jest.fn() },
     liquidityPosition: { deleteMany: jest.fn() },
@@ -97,10 +116,27 @@ function createPrismaMock() {
     subscription: { count: jest.fn().mockResolvedValue(0) },
     analysisRun: { count: jest.fn().mockResolvedValue(0) },
     reportJob: { findMany: jest.fn().mockResolvedValue([]) },
-    passwordResetToken: { create: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
-    apiKey: { findMany: jest.fn().mockResolvedValue([]), create: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
-    prospectInstitution: { findFirst: jest.fn().mockResolvedValue(null), findMany: jest.fn().mockResolvedValue([]), create: jest.fn() },
-    cooperativaBenchmark: { findFirst: jest.fn().mockResolvedValue(null), findMany: jest.fn().mockResolvedValue([]), create: jest.fn() },
+    passwordResetToken: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    apiKey: {
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    prospectInstitution: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn(),
+    },
+    cooperativaBenchmark: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn(),
+    },
   };
 }
 
@@ -133,7 +169,10 @@ describe('Security Integration Tests (e2e)', () => {
 
     // Enable CORS same as production to test CORS headers
     app.enableCors({
-      origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      origin: (
+        origin: string | undefined,
+        callback: (err: Error | null, allow?: boolean) => void,
+      ) => {
         // Allow test origins
         if (!origin || origin === 'http://localhost:3001') {
           callback(null, true);
@@ -363,7 +402,11 @@ describe('Security Integration Tests (e2e)', () => {
     it('should return 401 with forged JWT token', async () => {
       // Sign with a completely different secret
       const forgedPayload = Buffer.from(
-        JSON.stringify({ sub: 'fake-user', email: 'hacker@evil.com', type: 'access' }),
+        JSON.stringify({
+          sub: 'fake-user',
+          email: 'hacker@evil.com',
+          type: 'access',
+        }),
       ).toString('base64url');
       const forgedHeader = Buffer.from(
         JSON.stringify({ alg: 'HS256', typ: 'JWT' }),

@@ -242,12 +242,19 @@ export class AuthService {
     // Enforce concurrent session limit — evict oldest sessions beyond cap
     const MAX_SESSIONS = 5;
     const activeSessions = await this.prisma.refreshToken.findMany({
-      where: { userId: user.id, revokedAt: null, expiresAt: { gt: new Date() } },
+      where: {
+        userId: user.id,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
       orderBy: { createdAt: 'asc' },
       select: { id: true },
     });
     if (activeSessions.length > MAX_SESSIONS) {
-      const toRevoke = activeSessions.slice(0, activeSessions.length - MAX_SESSIONS);
+      const toRevoke = activeSessions.slice(
+        0,
+        activeSessions.length - MAX_SESSIONS,
+      );
       await this.prisma.refreshToken.updateMany({
         where: { id: { in: toRevoke.map((s: { id: string }) => s.id) } },
         data: { revokedAt: new Date() },

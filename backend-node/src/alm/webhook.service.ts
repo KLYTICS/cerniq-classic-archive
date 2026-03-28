@@ -47,13 +47,23 @@ function validateWebhookUrl(url: string): void {
   const hostname = parsed.hostname.toLowerCase();
 
   // Block localhost and loopback
-  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '0.0.0.0') {
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname === '0.0.0.0'
+  ) {
     throw new BadRequestException('Webhook URL cannot target localhost');
   }
 
   // Block cloud metadata endpoints
-  if (hostname === '169.254.169.254' || hostname === 'metadata.google.internal') {
-    throw new BadRequestException('Webhook URL cannot target cloud metadata services');
+  if (
+    hostname === '169.254.169.254' ||
+    hostname === 'metadata.google.internal'
+  ) {
+    throw new BadRequestException(
+      'Webhook URL cannot target cloud metadata services',
+    );
   }
 
   // Block private/internal IP ranges
@@ -65,7 +75,9 @@ function validateWebhookUrl(url: string): void {
       (parts[0] === 192 && parts[1] === 168) ||
       (parts[0] === 169 && parts[1] === 254);
     if (isPrivate) {
-      throw new BadRequestException('Webhook URL cannot target private IP addresses');
+      throw new BadRequestException(
+        'Webhook URL cannot target private IP addresses',
+      );
     }
   }
 }
@@ -176,14 +188,20 @@ export class WebhookService {
         // Exponential backoff: 1s, 2s, 4s
         const delay = WebhookService.BASE_DELAY_MS * Math.pow(2, attempt - 1);
         await new Promise((resolve) => setTimeout(resolve, delay));
-        this.logger.log(`Webhook retry ${attempt}/${WebhookService.MAX_RETRIES} for ${subscription.url}`);
+        this.logger.log(
+          `Webhook retry ${attempt}/${WebhookService.MAX_RETRIES} for ${subscription.url}`,
+        );
       }
 
       lastResult = await this.deliverWebhook(subscription, eventType, payload);
       if (lastResult.success) return lastResult;
 
       // Don't retry on 4xx (client errors) — only retry on 5xx and network failures
-      if (lastResult.statusCode && lastResult.statusCode >= 400 && lastResult.statusCode < 500) {
+      if (
+        lastResult.statusCode &&
+        lastResult.statusCode >= 400 &&
+        lastResult.statusCode < 500
+      ) {
         return lastResult;
       }
     }
@@ -202,8 +220,20 @@ export class WebhookService {
     try {
       validateWebhookUrl(subscription.url);
     } catch {
-      this.logger.warn({ event: 'webhook.ssrf_blocked', url: subscription.url, subscriptionId: subscription.id });
-      return { subscriptionId: subscription.id, url: subscription.url, eventType, statusCode: null, success: false, error: 'URL blocked by SSRF policy', deliveredAt: new Date().toISOString() };
+      this.logger.warn({
+        event: 'webhook.ssrf_blocked',
+        url: subscription.url,
+        subscriptionId: subscription.id,
+      });
+      return {
+        subscriptionId: subscription.id,
+        url: subscription.url,
+        eventType,
+        statusCode: null,
+        success: false,
+        error: 'URL blocked by SSRF policy',
+        deliveredAt: new Date().toISOString(),
+      };
     }
 
     const body = JSON.stringify({

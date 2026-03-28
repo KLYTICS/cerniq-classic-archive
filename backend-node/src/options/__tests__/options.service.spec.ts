@@ -564,7 +564,7 @@ describe('OptionsService', () => {
   describe('Implied Volatility (extended)', () => {
     it('Newton-Raphson converges for ATM option within few iterations', async () => {
       // Price an ATM call with known vol, then recover the vol
-      const knownVol = 0.30;
+      const knownVol = 0.3;
       const greeks = await service.calculateGreeks({
         underlying: 100,
         strike: 100,
@@ -624,7 +624,7 @@ describe('OptionsService', () => {
         strike: 100,
         timeToExpiry: 0.5,
         riskFreeRate: 0.05,
-        volatility: 0.20,
+        volatility: 0.2,
         optionType: OptionType.CALL,
       });
 
@@ -633,7 +633,7 @@ describe('OptionsService', () => {
         strike: 100,
         timeToExpiry: 0.5,
         riskFreeRate: 0.05,
-        volatility: 0.40,
+        volatility: 0.4,
         optionType: OptionType.CALL,
       });
 
@@ -654,9 +654,7 @@ describe('OptionsService', () => {
         marketPrice: highVol.price,
       });
 
-      expect(ivHigh.impliedVolatility).toBeGreaterThan(
-        ivLow.impliedVolatility,
-      );
+      expect(ivHigh.impliedVolatility).toBeGreaterThan(ivLow.impliedVolatility);
     });
 
     it('IV converges for OTM option', async () => {

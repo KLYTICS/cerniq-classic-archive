@@ -17,13 +17,21 @@ export class SlackService {
   private readonly webhookUrl = process.env.SLACK_WEBHOOK_URL;
 
   async sendAlert(alert: {
-    type: 'new_lead' | 'demo_completed' | 'checkout_started' | 'checkout_completed' | 'hot_lead' | 'outreach_sent';
+    type:
+      | 'new_lead'
+      | 'demo_completed'
+      | 'checkout_started'
+      | 'checkout_completed'
+      | 'hot_lead'
+      | 'outreach_sent';
     title: string;
     details: Record<string, string | number | null>;
     urgency?: 'low' | 'medium' | 'high';
   }): Promise<boolean> {
     if (!this.webhookUrl) {
-      this.logger.debug(`Slack alert skipped (no SLACK_WEBHOOK_URL): ${alert.type}`);
+      this.logger.debug(
+        `Slack alert skipped (no SLACK_WEBHOOK_URL): ${alert.type}`,
+      );
       return false;
     }
 
@@ -45,7 +53,9 @@ export class SlackService {
     const fields = Object.entries(alert.details)
       .filter(([, v]) => v !== null && v !== undefined)
       .map(([k, v]) => ({
-        title: k.replace(/([A-Z])/g, ' $1').replace(/^./, (s: string) => s.toUpperCase()),
+        title: k
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/^./, (s: string) => s.toUpperCase()),
         value: String(v),
         short: String(v).length < 30,
       }));
@@ -83,7 +93,13 @@ export class SlackService {
 
   // Convenience methods for common alerts
 
-  async notifyNewLead(lead: { name: string; email: string; institution: string; type: string; priority: string }) {
+  async notifyNewLead(lead: {
+    name: string;
+    email: string;
+    institution: string;
+    type: string;
+    priority: string;
+  }) {
     return this.sendAlert({
       type: 'new_lead',
       title: `New Lead: ${lead.institution}`,
@@ -94,11 +110,21 @@ export class SlackService {
         Type: lead.type,
         Priority: lead.priority,
       },
-      urgency: lead.priority === 'HIGH' ? 'high' : lead.priority === 'MEDIUM' ? 'medium' : 'low',
+      urgency:
+        lead.priority === 'HIGH'
+          ? 'high'
+          : lead.priority === 'MEDIUM'
+            ? 'medium'
+            : 'low',
     });
   }
 
-  async notifyCheckoutCompleted(data: { email: string; institution: string; tier: string; amount: number }) {
+  async notifyCheckoutCompleted(data: {
+    email: string;
+    institution: string;
+    tier: string;
+    amount: number;
+  }) {
     return this.sendAlert({
       type: 'checkout_completed',
       title: `Payment Received: ${data.institution}`,
@@ -112,7 +138,12 @@ export class SlackService {
     });
   }
 
-  async notifyHotLead(data: { name: string; institution: string; score: number; reason: string }) {
+  async notifyHotLead(data: {
+    name: string;
+    institution: string;
+    score: number;
+    reason: string;
+  }) {
     return this.sendAlert({
       type: 'hot_lead',
       title: `HOT Lead Detected: ${data.institution} (Score: ${data.score})`,

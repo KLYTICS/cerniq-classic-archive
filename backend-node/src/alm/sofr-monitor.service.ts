@@ -45,7 +45,8 @@ export class SOFRMonitorService {
     const items = await this.prisma.balanceSheetItem.findMany({
       where: { institutionId },
     });
-    const totalPortfolio = items.reduce((s: number, i: any) => s + i.balance, 0) || 445;
+    const totalPortfolio =
+      items.reduce((s: number, i: any) => s + i.balance, 0) || 445;
 
     // Identify LIBOR-referenced instruments
     const exposures: LIBORExposure[] = items

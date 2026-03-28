@@ -128,8 +128,8 @@ export class ScenarioPersistenceService {
         name: newName ?? `${original.name} (copy)`,
         description: original.description,
         scenarioType: original.scenarioType,
-        parameters: original.parameters as any,
-        results: (original.results as any) ?? undefined,
+        parameters: original.parameters,
+        results: original.results ?? undefined,
         tags: original.tags,
       },
     });

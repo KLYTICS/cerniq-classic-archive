@@ -14,29 +14,52 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 // ─── Instrument ────────────────────────────────────────────────
 
 export class InstrumentDto {
-  @ApiProperty({ description: 'Instrument name', example: '30-Year Fixed Mortgage' })
+  @ApiProperty({
+    description: 'Instrument name',
+    example: '30-Year Fixed Mortgage',
+  })
   @IsString()
   name: string;
 
-  @ApiProperty({ description: 'Notional / principal amount in dollars', example: 5000000, minimum: 0 })
+  @ApiProperty({
+    description: 'Notional / principal amount in dollars',
+    example: 5000000,
+    minimum: 0,
+  })
   @IsNumber()
   @Min(0)
   amount: number;
 
-  @ApiProperty({ description: 'Annual coupon / interest rate as a decimal (e.g. 0.055 = 5.5%)', example: 0.055 })
+  @ApiProperty({
+    description:
+      'Annual coupon / interest rate as a decimal (e.g. 0.055 = 5.5%)',
+    example: 0.055,
+  })
   @IsNumber()
   rate: number;
 
-  @ApiProperty({ description: 'Years to maturity. 0 = overnight / demand', example: 10, minimum: 0 })
+  @ApiProperty({
+    description: 'Years to maturity. 0 = overnight / demand',
+    example: 10,
+    minimum: 0,
+  })
   @IsNumber()
   @Min(0)
   maturityYears: number;
 
-  @ApiProperty({ description: 'True if the rate floats (reprices periodically)', example: false })
+  @ApiProperty({
+    description: 'True if the rate floats (reprices periodically)',
+    example: false,
+  })
   @IsBoolean()
   isFloating: boolean;
 
-  @ApiPropertyOptional({ description: 'Months between repricings. 0 = overnight. Only relevant when isFloating = true', example: 12, minimum: 0 })
+  @ApiPropertyOptional({
+    description:
+      'Months between repricings. 0 = overnight. Only relevant when isFloating = true',
+    example: 12,
+    minimum: 0,
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -46,21 +69,30 @@ export class InstrumentDto {
 // ─── Balance Sheet ─────────────────────────────────────────────
 
 export class BalanceSheetDto {
-  @ApiProperty({ description: 'Array of asset instruments', type: [InstrumentDto] })
+  @ApiProperty({
+    description: 'Array of asset instruments',
+    type: [InstrumentDto],
+  })
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => InstrumentDto)
   assets: InstrumentDto[];
 
-  @ApiProperty({ description: 'Array of liability instruments', type: [InstrumentDto] })
+  @ApiProperty({
+    description: 'Array of liability instruments',
+    type: [InstrumentDto],
+  })
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => InstrumentDto)
   liabilities: InstrumentDto[];
 
-  @ApiProperty({ description: 'Total equity (assets minus liabilities)', example: 15000000 })
+  @ApiProperty({
+    description: 'Total equity (assets minus liabilities)',
+    example: 15000000,
+  })
   @IsNumber()
   equity: number;
 }
@@ -68,12 +100,18 @@ export class BalanceSheetDto {
 // ─── Scenario Request ──────────────────────────────────────────
 
 export class ScenarioRequestDto {
-  @ApiProperty({ description: 'Balance sheet with assets, liabilities, and equity', type: BalanceSheetDto })
+  @ApiProperty({
+    description: 'Balance sheet with assets, liabilities, and equity',
+    type: BalanceSheetDto,
+  })
   @ValidateNested()
   @Type(() => BalanceSheetDto)
   balanceSheet: BalanceSheetDto;
 
-  @ApiPropertyOptional({ description: 'Parallel rate shocks in basis points (default: -300 to +300)', example: [-300, -200, -100, 0, 100, 200, 300] })
+  @ApiPropertyOptional({
+    description: 'Parallel rate shocks in basis points (default: -300 to +300)',
+    example: [-300, -200, -100, 0, 100, 200, 300],
+  })
   @IsOptional()
   @IsArray()
   rateShocks?: number[];
@@ -82,17 +120,31 @@ export class ScenarioRequestDto {
 // ─── HQLA ─────────────────────────────────────────────────────
 
 export class HQLADto {
-  @ApiProperty({ description: 'Level 1 assets: cash, central bank reserves, sovereign debt (0% haircut)', example: 50000000, minimum: 0 })
+  @ApiProperty({
+    description:
+      'Level 1 assets: cash, central bank reserves, sovereign debt (0% haircut)',
+    example: 50000000,
+    minimum: 0,
+  })
   @IsNumber()
   @Min(0)
   level1: number;
 
-  @ApiProperty({ description: 'Level 2A assets: agency MBS, covered bonds (15% haircut)', example: 20000000, minimum: 0 })
+  @ApiProperty({
+    description: 'Level 2A assets: agency MBS, covered bonds (15% haircut)',
+    example: 20000000,
+    minimum: 0,
+  })
   @IsNumber()
   @Min(0)
   level2a: number;
 
-  @ApiProperty({ description: 'Level 2B assets: corporate bonds, equities (25% haircut, 40% cap on Level 2 total)', example: 5000000, minimum: 0 })
+  @ApiProperty({
+    description:
+      'Level 2B assets: corporate bonds, equities (25% haircut, 40% cap on Level 2 total)',
+    example: 5000000,
+    minimum: 0,
+  })
   @IsNumber()
   @Min(0)
   level2b: number;
@@ -101,12 +153,19 @@ export class HQLADto {
 // ─── LCR Request ───────────────────────────────────────────────
 
 export class LCRRequestDto {
-  @ApiProperty({ description: 'High Quality Liquid Assets breakdown', type: HQLADto })
+  @ApiProperty({
+    description: 'High Quality Liquid Assets breakdown',
+    type: HQLADto,
+  })
   @ValidateNested()
   @Type(() => HQLADto)
   hqla: HQLADto;
 
-  @ApiProperty({ description: 'Total net cash outflows over 30 calendar days', example: 40000000, minimum: 0 })
+  @ApiProperty({
+    description: 'Total net cash outflows over 30 calendar days',
+    example: 40000000,
+    minimum: 0,
+  })
   @IsNumber()
   @Min(0)
   totalNetOutflows: number;
@@ -115,17 +174,27 @@ export class LCRRequestDto {
 // ─── Full Analysis Request ─────────────────────────────────────
 
 export class FullAnalysisRequestDto {
-  @ApiProperty({ description: 'Balance sheet with assets, liabilities, and equity', type: BalanceSheetDto })
+  @ApiProperty({
+    description: 'Balance sheet with assets, liabilities, and equity',
+    type: BalanceSheetDto,
+  })
   @ValidateNested()
   @Type(() => BalanceSheetDto)
   balanceSheet: BalanceSheetDto;
 
-  @ApiPropertyOptional({ description: 'Parallel rate shocks in basis points', example: [-300, -200, -100, 0, 100, 200, 300] })
+  @ApiPropertyOptional({
+    description: 'Parallel rate shocks in basis points',
+    example: [-300, -200, -100, 0, 100, 200, 300],
+  })
   @IsOptional()
   @IsArray()
   rateShocks?: number[];
 
-  @ApiPropertyOptional({ description: 'Optional LCR data; if omitted, LCR is derived from balance sheet', type: LCRRequestDto })
+  @ApiPropertyOptional({
+    description:
+      'Optional LCR data; if omitted, LCR is derived from balance sheet',
+    type: LCRRequestDto,
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => LCRRequestDto)

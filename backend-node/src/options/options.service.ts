@@ -373,9 +373,10 @@ export class OptionsService {
       price = S * dfq * Nd1 - K * df * Nd2;
       delta = dfq * Nd1;
       theta =
-        ((-S * dfq * npd1 * sigma) / (2 * sqrtT)
-         + q * S * dfq * Nd1
-         - r * K * df * Nd2) / 365;
+        ((-S * dfq * npd1 * sigma) / (2 * sqrtT) +
+          q * S * dfq * Nd1 -
+          r * K * df * Nd2) /
+        365;
       rho = (K * T * df * Nd2) / 100;
     } else {
       const Nmd1 = this.normalCDF(-d1c);
@@ -383,9 +384,10 @@ export class OptionsService {
       price = K * df * Nmd2 - S * dfq * Nmd1;
       delta = -dfq * Nmd1;
       theta =
-        ((-S * dfq * npd1 * sigma) / (2 * sqrtT)
-         - q * S * dfq * Nmd1
-         + r * K * df * Nmd2) / 365;
+        ((-S * dfq * npd1 * sigma) / (2 * sqrtT) -
+          q * S * dfq * Nmd1 +
+          r * K * df * Nmd2) /
+        365;
       rho = (-K * T * df * Nmd2) / 100;
     }
 
@@ -491,10 +493,7 @@ export class OptionsService {
       const americanPrice = euroGreeks.price + earlyExercisePremium;
 
       // Compute American Greeks via finite differences
-      const americanGreeks = this.computeAmericanGreeks(
-        params,
-        americanPrice,
-      );
+      const americanGreeks = this.computeAmericanGreeks(params, americanPrice);
 
       return {
         greeks: americanGreeks,
@@ -528,17 +527,13 @@ export class OptionsService {
 
       // Compute A1
       const d1Star = this.bsD1(SStar, K, T, r, q, sigma);
-      const A1 =
-        (SStar / q1) * (1 - Math.exp(-q * T) * this.normalCDF(d1Star));
+      const A1 = (SStar / q1) * (1 - Math.exp(-q * T) * this.normalCDF(d1Star));
 
       // American call price = European call price + A1 * (S/S*)^q1
       const earlyExercisePremium = A1 * Math.pow(S / SStar, q1);
       const americanPrice = euroGreeks.price + earlyExercisePremium;
 
-      const americanGreeks = this.computeAmericanGreeks(
-        params,
-        americanPrice,
-      );
+      const americanGreeks = this.computeAmericanGreeks(params, americanPrice);
 
       return {
         greeks: americanGreeks,
@@ -560,8 +555,7 @@ export class OptionsService {
   ): number {
     const sqrtT = Math.sqrt(T);
     return (
-      (Math.log(S / K) + (r - q + 0.5 * sigma * sigma) * T) /
-      (sigma * sqrtT)
+      (Math.log(S / K) + (r - q + 0.5 * sigma * sigma) * T) / (sigma * sqrtT)
     );
   }
 
@@ -579,9 +573,7 @@ export class OptionsService {
     optionType: OptionType,
   ): number {
     if (T <= 0) {
-      return optionType === 'call'
-        ? Math.max(S - K, 0)
-        : Math.max(K - S, 0);
+      return optionType === 'call' ? Math.max(S - K, 0) : Math.max(K - S, 0);
     }
     if (sigma < 1e-10) {
       const fwd = S * Math.exp((r - q) * T);
@@ -758,19 +750,40 @@ export class OptionsService {
    * we bump each input by a small epsilon and re-price to get numerical
    * derivatives. This is standard practice for approximate models.
    */
-  private computeAmericanGreeks(
-    params: OptionParams,
-    _price: number,
-  ): Greeks {
-    const { underlying: S, strike: K, timeToExpiry: T, riskFreeRate: r, volatility: sigma, optionType, dividendYield: q = 0 } = params;
+  private computeAmericanGreeks(params: OptionParams, _price: number): Greeks {
+    const {
+      underlying: S,
+      strike: K,
+      timeToExpiry: T,
+      riskFreeRate: r,
+      volatility: sigma,
+      optionType,
+      dividendYield: q = 0,
+    } = params;
 
     // Use americanPriceDirect to avoid infinite recursion with calculateAmericanPrice
     const price = this.americanPriceDirect(S, K, T, r, q, sigma, optionType);
 
     // Delta: dP/dS
     const dS = S * 0.001;
-    const priceUp = this.americanPriceDirect(S + dS, K, T, r, q, sigma, optionType);
-    const priceDown = this.americanPriceDirect(S - dS, K, T, r, q, sigma, optionType);
+    const priceUp = this.americanPriceDirect(
+      S + dS,
+      K,
+      T,
+      r,
+      q,
+      sigma,
+      optionType,
+    );
+    const priceDown = this.americanPriceDirect(
+      S - dS,
+      K,
+      T,
+      r,
+      q,
+      sigma,
+      optionType,
+    );
     const delta = (priceUp - priceDown) / (2 * dS);
 
     // Gamma: d2P/dS2
@@ -778,19 +791,59 @@ export class OptionsService {
 
     // Theta: dP/dT (per day, divide by 365)
     const dT = T > 0.002 ? 0.001 : T * 0.1;
-    const priceTDown = this.americanPriceDirect(S, K, T - dT, r, q, sigma, optionType);
+    const priceTDown = this.americanPriceDirect(
+      S,
+      K,
+      T - dT,
+      r,
+      q,
+      sigma,
+      optionType,
+    );
     const theta = (dT > 0 ? -(price - priceTDown) / dT : 0) / 365;
 
     // Vega: dP/dSigma (per 1% move, divide by 100)
     const dSigma = 0.001;
-    const priceSigmaUp = this.americanPriceDirect(S, K, T, r, q, sigma + dSigma, optionType);
-    const priceSigmaDown = this.americanPriceDirect(S, K, T, r, q, sigma - dSigma, optionType);
+    const priceSigmaUp = this.americanPriceDirect(
+      S,
+      K,
+      T,
+      r,
+      q,
+      sigma + dSigma,
+      optionType,
+    );
+    const priceSigmaDown = this.americanPriceDirect(
+      S,
+      K,
+      T,
+      r,
+      q,
+      sigma - dSigma,
+      optionType,
+    );
     const vega = (priceSigmaUp - priceSigmaDown) / (2 * dSigma) / 100;
 
     // Rho: dP/dR (per 1% move, divide by 100)
     const dR = 0.001;
-    const priceRUp = this.americanPriceDirect(S, K, T, r + dR, q, sigma, optionType);
-    const priceRDown = this.americanPriceDirect(S, K, T, r - dR, q, sigma, optionType);
+    const priceRUp = this.americanPriceDirect(
+      S,
+      K,
+      T,
+      r + dR,
+      q,
+      sigma,
+      optionType,
+    );
+    const priceRDown = this.americanPriceDirect(
+      S,
+      K,
+      T,
+      r - dR,
+      q,
+      sigma,
+      optionType,
+    );
     const rho = (priceRUp - priceRDown) / (2 * dR) / 100;
 
     const safeNum = (v: number) => (Number.isFinite(v) ? v : 0);
@@ -820,9 +873,7 @@ export class OptionsService {
   ): number {
     // Edge cases
     if (T <= 0) {
-      return optionType === 'call'
-        ? Math.max(S - K, 0)
-        : Math.max(K - S, 0);
+      return optionType === 'call' ? Math.max(S - K, 0) : Math.max(K - S, 0);
     }
     if (sigma < 1e-10 || S <= 0 || K <= 0) {
       return this.bsPrice(S, K, T, r, q, sigma, optionType);
@@ -854,8 +905,7 @@ export class OptionsService {
       const d1Star = this.bsD1(SStar, K, T, r, q, sigma);
       const d1Starc = Math.max(-30, Math.min(30, d1Star));
       const A2 =
-        -(SStar / q2) *
-        (1 - Math.exp(-q * T) * this.normalCDF(-d1Starc));
+        -(SStar / q2) * (1 - Math.exp(-q * T) * this.normalCDF(-d1Starc));
 
       const premium = A2 * Math.pow(S / SStar, q2);
       return Math.max(euroPrice + premium, Math.max(K - S, 0));
@@ -874,8 +924,7 @@ export class OptionsService {
       const d1Star = this.bsD1(SStar, K, T, r, q, sigma);
       const d1Starc = Math.max(-30, Math.min(30, d1Star));
       const A1 =
-        (SStar / q1) *
-        (1 - Math.exp(-q * T) * this.normalCDF(d1Starc));
+        (SStar / q1) * (1 - Math.exp(-q * T) * this.normalCDF(d1Starc));
 
       const premium = A1 * Math.pow(S / SStar, q1);
       return Math.max(euroPrice + premium, Math.max(S - K, 0));

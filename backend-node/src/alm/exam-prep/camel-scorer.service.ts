@@ -255,7 +255,8 @@ export class CAMELScorerService {
         i.category === 'asset' &&
         !['cash', 'securities'].includes(i.subcategory),
     );
-    const totalLoans = loans.reduce((s: number, i: any) => s + i.balance, 0) || 300;
+    const totalLoans =
+      loans.reduce((s: number, i: any) => s + i.balance, 0) || 300;
     const avgLossRate = 0.015; // approximate
     const nplRatio = avgLossRate * 1.2;
     const classifiedRatio = avgLossRate * 2;
