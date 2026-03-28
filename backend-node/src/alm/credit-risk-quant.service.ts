@@ -95,102 +95,108 @@ export class CreditRiskQuantService {
   constructor(private readonly prisma: PrismaService) {}
 
   async analyzePortfolio(institutionId: string): Promise<CreditRiskPortfolio> {
-    const loanSegments = await this.prisma.loanSegment.findMany({
-      where: { institutionId },
-    });
-    const institution = await this.prisma.institution.findUnique({
-      where: { id: institutionId },
-    });
+    try {
+      const loanSegments = await this.prisma.loanSegment.findMany({
+        where: { institutionId },
+      });
+      const institution = await this.prisma.institution.findUnique({
+        where: { id: institutionId },
+      });
 
-    const segments: CreditRiskSegment[] = (
-      loanSegments.length > 0 ? loanSegments : this.getDemoSegments()
-    ).map((seg: any) => {
-      const segType = this.normalizeType(seg.segmentName);
-      const coeffs = PD_COEFFICIENTS[segType] ?? PD_COEFFICIENTS.consumer_loans;
+      const segments: CreditRiskSegment[] = (
+        loanSegments.length > 0 ? loanSegments : this.getDemoSegments()
+      ).map((seg: any) => {
+        const segType = this.normalizeType(seg.segmentName);
+        const coeffs = PD_COEFFICIENTS[segType] ?? PD_COEFFICIENTS.consumer_loans;
 
-      // PD from logistic regression
-      // Features: delinquency rate (approx from historical loss), unemployment (PR ~6.5%),
-      // LTV (use 0.75 default), DSCR (use 1.3 default), loan age (use maturity/2)
-      const delinquencyProxy = seg.historicalLossRate * 1.5;
-      const unemployment = 0.065;
-      const ltv =
-        segType.includes('re') || segType.includes('mortgage') ? 0.75 : 0;
-      const dscr = segType.includes('commercial') ? 1.3 : 0;
-      const loanAge = (seg.weightedAvgMaturity ?? 5) / 2;
+        // PD from logistic regression
+        // Features: delinquency rate (approx from historical loss), unemployment (PR ~6.5%),
+        // LTV (use 0.75 default), DSCR (use 1.3 default), loan age (use maturity/2)
+        const delinquencyProxy = seg.historicalLossRate * 1.5;
+        const unemployment = 0.065;
+        const ltv =
+          segType.includes('re') || segType.includes('mortgage') ? 0.75 : 0;
+        const dscr = segType.includes('commercial') ? 1.3 : 0;
+        const loanAge = (seg.weightedAvgMaturity ?? 5) / 2;
 
-      const logit =
-        coeffs.b0 +
-        coeffs.b1 * delinquencyProxy +
-        coeffs.b2 * unemployment +
-        coeffs.b3 * ltv +
-        coeffs.b4 * dscr +
-        coeffs.b5 * loanAge;
-      const annualPD = Math.min(
-        0.99,
-        Math.max(0.0001, 1 / (1 + Math.exp(-logit))),
-      );
+        const logit =
+          coeffs.b0 +
+          coeffs.b1 * delinquencyProxy +
+          coeffs.b2 * unemployment +
+          coeffs.b3 * ltv +
+          coeffs.b4 * dscr +
+          coeffs.b5 * loanAge;
+        const annualPD = Math.min(
+          0.99,
+          Math.max(0.0001, 1 / (1 + Math.exp(-logit))),
+        );
 
-      // Lifetime PD: 1 - (1-PD)^maturity
-      const maturity = seg.weightedAvgMaturity ?? 5;
-      const lifetimePD = 1 - Math.pow(1 - annualPD, maturity);
+        // Lifetime PD: 1 - (1-PD)^maturity
+        const maturity = seg.weightedAvgMaturity ?? 5;
+        const lifetimePD = 1 - Math.pow(1 - annualPD, maturity);
 
-      // LGD
-      const lgdKey = this.getLGDKey(segType);
-      const haircut = LGD_HAIRCUTS[lgdKey] ?? 0.5;
-      const lgd = haircut; // simplified: LGD = haircut (no collateral recovery model)
+        // LGD
+        const lgdKey = this.getLGDKey(segType);
+        const haircut = LGD_HAIRCUTS[lgdKey] ?? 0.5;
+        const lgd = haircut; // simplified: LGD = haircut (no collateral recovery model)
 
-      // Expected Loss
-      const ead = seg.balance;
-      const expectedLoss = lifetimePD * lgd * ead;
+        // Expected Loss
+        const ead = seg.balance;
+        const expectedLoss = lifetimePD * lgd * ead;
 
-      // Unexpected Loss (Vasicek single-factor, 99.9% confidence)
-      const rho = ASSET_CORRELATIONS[segType] ?? 0.12;
-      const unexpectedLoss = this.vasicekUL(annualPD, lgd, ead, rho, maturity);
+        // Unexpected Loss (Vasicek single-factor, 99.9% confidence)
+        const rho = ASSET_CORRELATIONS[segType] ?? 0.12;
+        const unexpectedLoss = this.vasicekUL(annualPD, lgd, ead, rho, maturity);
 
-      // Economic Capital = UL × maturity adjustment
-      const maturityAdj = this.maturityAdjustment(annualPD, maturity);
-      const economicCapital = unexpectedLoss * maturityAdj;
+        // Economic Capital = UL × maturity adjustment
+        const maturityAdj = this.maturityAdjustment(annualPD, maturity);
+        const economicCapital = unexpectedLoss * maturityAdj;
+
+        return {
+          segmentName: seg.segmentName,
+          balance: ead,
+          annualPD: Math.round(annualPD * 10000) / 10000,
+          lifetimePD: Math.round(lifetimePD * 10000) / 10000,
+          lgd: Math.round(lgd * 1000) / 1000,
+          expectedLoss: Math.round(expectedLoss * 100) / 100,
+          unexpectedLoss: Math.round(unexpectedLoss * 100) / 100,
+          economicCapital: Math.round(economicCapital * 100) / 100,
+          elPct: ead > 0 ? Math.round((expectedLoss / ead) * 10000) / 100 : 0,
+          ecPct: ead > 0 ? Math.round((economicCapital / ead) * 10000) / 100 : 0,
+        };
+      });
+
+      const totalEAD = segments.reduce((s, seg) => s + seg.balance, 0);
+      const totalEL = segments.reduce((s, seg) => s + seg.expectedLoss, 0);
+      const totalUL = segments.reduce((s, seg) => s + seg.unexpectedLoss, 0);
+      const totalEC = segments.reduce((s, seg) => s + seg.economicCapital, 0);
+
+      // Capital adequacy check
+      const totalAssets = institution?.totalAssets ?? totalEAD;
+      const equityEstimate = totalAssets * 0.09; // ~9% NWR
 
       return {
-        segmentName: seg.segmentName,
-        balance: ead,
-        annualPD: Math.round(annualPD * 10000) / 10000,
-        lifetimePD: Math.round(lifetimePD * 10000) / 10000,
-        lgd: Math.round(lgd * 1000) / 1000,
-        expectedLoss: Math.round(expectedLoss * 100) / 100,
-        unexpectedLoss: Math.round(unexpectedLoss * 100) / 100,
-        economicCapital: Math.round(economicCapital * 100) / 100,
-        elPct: ead > 0 ? Math.round((expectedLoss / ead) * 10000) / 100 : 0,
-        ecPct: ead > 0 ? Math.round((economicCapital / ead) * 10000) / 100 : 0,
+        segments,
+        totalEAD,
+        totalEL: Math.round(totalEL * 100) / 100,
+        totalUL: Math.round(totalUL * 100) / 100,
+        totalEC: Math.round(totalEC * 100) / 100,
+        portfolioElPct:
+          totalEAD > 0 ? Math.round((totalEL / totalEAD) * 10000) / 100 : 0,
+        portfolioEcPct:
+          totalEAD > 0 ? Math.round((totalEC / totalEAD) * 10000) / 100 : 0,
+        capitalAdequacy: {
+          actualCapital: Math.round(equityEstimate * 10) / 10,
+          requiredEconomicCapital: Math.round(totalEC * 10) / 10,
+          capitalSurplus: Math.round((equityEstimate - totalEC) * 10) / 10,
+          isAdequate: equityEstimate >= totalEC,
+        },
       };
-    });
-
-    const totalEAD = segments.reduce((s, seg) => s + seg.balance, 0);
-    const totalEL = segments.reduce((s, seg) => s + seg.expectedLoss, 0);
-    const totalUL = segments.reduce((s, seg) => s + seg.unexpectedLoss, 0);
-    const totalEC = segments.reduce((s, seg) => s + seg.economicCapital, 0);
-
-    // Capital adequacy check
-    const totalAssets = institution?.totalAssets ?? totalEAD;
-    const equityEstimate = totalAssets * 0.09; // ~9% NWR
-
-    return {
-      segments,
-      totalEAD,
-      totalEL: Math.round(totalEL * 100) / 100,
-      totalUL: Math.round(totalUL * 100) / 100,
-      totalEC: Math.round(totalEC * 100) / 100,
-      portfolioElPct:
-        totalEAD > 0 ? Math.round((totalEL / totalEAD) * 10000) / 100 : 0,
-      portfolioEcPct:
-        totalEAD > 0 ? Math.round((totalEC / totalEAD) * 10000) / 100 : 0,
-      capitalAdequacy: {
-        actualCapital: Math.round(equityEstimate * 10) / 10,
-        requiredEconomicCapital: Math.round(totalEC * 10) / 10,
-        capitalSurplus: Math.round((equityEstimate - totalEC) * 10) / 10,
-        isAdequate: equityEstimate >= totalEC,
-      },
-    };
+    } catch (error: any) {
+      this.logger.error(`Computation failed: ${error.message}`, error.stack);
+      Sentry.captureException(error);
+      throw new InternalServerErrorException('Computation failed. Please try again.');
+    }
   }
 
   // ─── Vasicek Single-Factor UL ─────────────────────────────
