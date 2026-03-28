@@ -60,11 +60,17 @@ export class RegimeSwitchingVaRService {
     const sorted = [...returns].sort((a, b) => a - b);
     const bestSplit = findVarianceBreakpoint(sorted);
 
-    const calmReturns = sorted.slice(bestSplit);
-    const volatileReturns = sorted.slice(0, bestSplit);
+    const groupA = sorted.slice(0, bestSplit);
+    const groupB = sorted.slice(bestSplit);
 
-    const calmVol = stddev(calmReturns);
-    const volVol = stddev(volatileReturns);
+    const volA = stddev(groupA);
+    const volB = stddev(groupB);
+
+    // Label by actual volatility — higher vol group is VOLATILE
+    const calmReturns = volA <= volB ? groupA : groupB;
+    const volatileReturns = volA > volB ? groupA : groupB;
+    const calmVol = Math.min(volA, volB);
+    const volVol = Math.max(volA, volB);
 
     const calmProb = calmReturns.length / returns.length;
     const volProb = volatileReturns.length / returns.length;

@@ -10,8 +10,8 @@ function strongParams(): FundsAvailabilityParams {
     reserves: 50_000_000,
     committedLines: 30_000_000,
     uncommittedLines: 20_000_000,
-    liquidSecurities: 40_000_000,
-    expectedInflows30d: 15_000_000,
+    liquidSecurities: 80_000_000,
+    expectedInflows30d: 30_000_000,
   };
 }
 
