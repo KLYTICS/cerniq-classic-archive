@@ -260,6 +260,7 @@ export class LeadQualificationService {
   > {
     const prospects = await this.prisma.prospectInstitution.findMany({
       orderBy: { estimatedAssets: 'desc' },
+      take: 100,
     });
 
     const results = await Promise.all(

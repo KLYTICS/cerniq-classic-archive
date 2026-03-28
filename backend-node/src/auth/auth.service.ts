@@ -632,6 +632,7 @@ export class AuthService {
         revokedAt: true,
         expiresAt: true,
       },
+      take: 100,
     });
   }
 

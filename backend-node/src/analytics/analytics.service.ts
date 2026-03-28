@@ -132,6 +132,7 @@ export class AnalyticsService {
         transactionDate: true,
       },
       orderBy: { transactionDate: 'asc' },
+      take: 500,
     });
 
     // Group by month
@@ -229,6 +230,7 @@ export class AnalyticsService {
           select: { id: true, name: true, email: true },
         },
       },
+      take: 500,
     });
 
     const teamMap = new Map<string, TeamMemberSpend>();
@@ -282,6 +284,7 @@ export class AnalyticsService {
         user: { select: { name: true, email: true } },
       },
       orderBy: { transactionDate: 'desc' },
+      take: 500,
     });
 
     return expenses.map((e: any) => ({

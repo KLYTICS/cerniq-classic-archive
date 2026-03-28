@@ -58,6 +58,7 @@ export class ExpensesService {
       select: {
         aiData: true,
       },
+      take: 500,
     });
 
     const existingParsed = recentExpenses

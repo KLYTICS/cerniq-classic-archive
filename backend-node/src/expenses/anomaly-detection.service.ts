@@ -84,6 +84,7 @@ export class AnomalyDetectionService {
     const rawExpenses = await this.prisma.expense.findMany({
       where: { organizationId: orgId },
       orderBy: { transactionDate: 'asc' },
+      take: 500,
     });
 
     // Normalize Prisma Decimal → number and compute hashes
@@ -716,6 +717,7 @@ export class AnomalyDetectionService {
         transactionDate: { gte: ninetyDaysAgo },
       },
       select: { amount: true },
+      take: 500,
     });
 
     const quarterlyAPTotal = recentExpenses.reduce(
@@ -733,6 +735,7 @@ export class AnomalyDetectionService {
         transactionDate: { gte: oneEightyDaysAgo, lt: ninetyDaysAgo },
       },
       select: { amount: true },
+      take: 500,
     });
 
     const priorQuarterlyTotal = priorExpenses.reduce(
