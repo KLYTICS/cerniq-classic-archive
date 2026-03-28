@@ -46,12 +46,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       }
       code = this.statusToCode(status);
     } else if (exception instanceof Error) {
-      message = exception.message;
-      this.logger.error(`Unhandled exception: ${message}`, exception.stack);
+      this.logger.error(`Unhandled exception: ${exception.message}`, exception.stack);
       // Report unhandled errors to Sentry with request context
       Sentry.captureException(exception, {
         extra: { path: request.url, method: request.method },
       });
+      // Never leak internal error details to clients in production
+      message = process.env.NODE_ENV === 'production'
+        ? 'An unexpected error occurred. Please try again or contact support.'
+        : exception.message;
     }
 
     const errorResponse: ApiErrorResponse = {

@@ -13,6 +13,11 @@ export enum OptionType {
   PUT = 'put',
 }
 
+export enum ExerciseStyle {
+  EUROPEAN = 'european',
+  AMERICAN = 'american',
+}
+
 export class CalculateGreeksDto {
   @IsNumber()
   @Min(0)
@@ -39,6 +44,16 @@ export class CalculateGreeksDto {
 
   @IsEnum(OptionType)
   optionType: OptionType;
+
+  @IsOptional()
+  @IsEnum(ExerciseStyle)
+  exercise?: ExerciseStyle; // Defaults to 'european' if omitted
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  dividendYield?: number; // Continuous dividend yield (e.g., 0.02 for 2%)
 }
 
 export class GreeksResponseDto {

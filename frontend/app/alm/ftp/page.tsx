@@ -59,6 +59,7 @@ export default function FTPPage() {
   const [analysis, setAnalysis] = useState<FTPAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [spreadAdj, setSpreadAdj] = useState(0);
+  const [isDemo, setIsDemo] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!selectedId) return;
@@ -66,8 +67,10 @@ export default function FTPPage() {
     try {
       const data = await apiClient.getFTPAnalysis(selectedId);
       setAnalysis(data);
+      setIsDemo(false);
     } catch {
       setAnalysis(getDemoFTP());
+      setIsDemo(true);
     } finally {
       setLoading(false);
     }
@@ -115,6 +118,11 @@ export default function FTPPage() {
 
   return (
     <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
+      {isDemo && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 mb-4">
+          <strong>Sample data</strong> — Connect your institution for live analysis.
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

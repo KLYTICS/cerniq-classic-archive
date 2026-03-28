@@ -60,9 +60,10 @@ export class RegulatoryScraperService {
         }
       } catch (e: any) {
         this.logger.warn(`Scan failed for ${source.regulator}: ${e.message}`);
+        errors.push(`${source.regulator}: ${e.message}`);
       }
     }
-    return { scanned: REGULATORY_SOURCES.length, newFound };
+    return { scanned: REGULATORY_SOURCES.length, newFound, errors };
   }
 
   private async fetchPublications(
