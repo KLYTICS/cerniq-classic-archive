@@ -66,7 +66,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend-node
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       - name: Generate Prisma client
         working-directory: backend-node
@@ -124,7 +124,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       - name: Security audit
         working-directory: frontend
@@ -154,6 +154,31 @@ jobs:
           if [ "$FIRST_LOAD" -gt "$BUDGET" ]; then
             echo "::warning::Bundle size ($FIRST_LOAD bytes) exceeds budget ($BUDGET bytes)"
           fi
+
+  # Outbound Python engine — lint, test
+  outbound-test:
+    name: Outbound Engine Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: services/outbound/requirements.txt
+
+      - name: Install dependencies
+        working-directory: services/outbound
+        run: pip install -r requirements.txt pytest
+
+      - name: Run tests
+        working-directory: services/outbound
+        run: python -m pytest tests/ -v --tb=short
 
   # Deploy Backend to Railway (main branch only)
   deploy-backend:
@@ -198,7 +223,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       - name: Install Playwright browsers
         working-directory: frontend
