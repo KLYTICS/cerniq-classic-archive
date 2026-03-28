@@ -3,8 +3,8 @@
 
 set -e
 
-echo "🧪 Testing CapexCycleOS Market Data API"
-echo "========================================"
+echo "🧪 Testing CERNIQ Market Data API"
+echo "=================================="
 echo ""
 
 # Colors

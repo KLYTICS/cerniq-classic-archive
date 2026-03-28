@@ -14,7 +14,7 @@
 - SUPABASE_JWT_SECRET (legacy fallback only)
 
 ## App
-- KLYTICS_APP_ID=capexcycle
+- KLYTICS_APP_ID=cerniq
 - KLYTICS_REQUIRE_ORG
 - KLYTICS_REQUIRE_ENTITLEMENT
 

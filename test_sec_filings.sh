@@ -3,11 +3,11 @@
 
 set -e
 
-echo "🧪 Testing CapexCycleOS SEC Filing Service"
-echo "==========================================="
+echo "🧪 Testing CERNIQ SEC Filing Service"
+echo "====================================="
 echo ""
 
-BACKEND_URL="http://localhost:8001"
+BACKEND_URL="http://localhost:3000"
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'

@@ -7,7 +7,7 @@ import { es } from './locales/es';
 
 const translations: Record<Locale, TranslationKeys> = { en, es };
 
-const STORAGE_KEY = 'capex_locale';
+const STORAGE_KEY = 'cerniq_locale';
 
 function detectLocale(): Locale {
   if (typeof window === 'undefined') return 'en';

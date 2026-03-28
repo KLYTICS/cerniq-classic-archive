@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# CapexCycleOS Options API Demo
+# CERNIQ Options API Demo
 # Tests all options endpoints
 
 BASE_URL="http://localhost:3000/api/options"
 
-echo "🎯 CapexCycleOS Options Analytics API Demo"
+echo "🎯 CERNIQ Options Analytics API Demo"
 echo "=========================================="
 echo ""
 

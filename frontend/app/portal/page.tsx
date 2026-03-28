@@ -221,7 +221,7 @@ function AlcoPackButton({ jobId, compact }: { jobId: string; compact?: boolean }
   const handleDownload = async () => {
     setLoading(true);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('capex_access_token') : null;
+      const token = typeof window !== 'undefined' ? (sessionStorage.getItem('cerniq_access_token') || localStorage.getItem('cerniq_access_token')) : null;
       const res = await fetch(`${NODE_API_URL}/api/portal/jobs/${jobId}/alco-pack?lang=es`, {
         method: 'POST',
         credentials: 'include',
