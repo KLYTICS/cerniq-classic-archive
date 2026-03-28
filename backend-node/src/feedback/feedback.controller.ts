@@ -28,6 +28,7 @@ export class FeedbackController {
    * Records NPS score and redirects to frontend thank-you page.
    */
   @Get('nps')
+  @Throttle({ default: { ttl: 60000, limit: 10 } }) // 10 NPS submissions per minute per IP
   @Redirect()
   async recordNPS(
     @Query('score') scoreStr: string,
@@ -178,8 +179,10 @@ export class FeedbackController {
   /**
    * GET /api/feedback/admin/stats
    * Returns NPS stats: average, count, promoters, passives, detractors.
+   * Protected: requires ADMIN_KEY.
    */
   @Get('admin/stats')
+  @UseGuards(AdminGuard)
   async getStats() {
     try {
       const allFeedback = await this.prisma.feedback.findMany({
