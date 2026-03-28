@@ -129,10 +129,40 @@ class APIClient {
       return config;
     });
 
-    // Disable 401 redirect to keep app accessible without auth
+    // 401 interceptor: attempt token refresh, then redirect to login
     this.client.interceptors.response.use(
       (response) => response,
-      (error) => {
+      async (error) => {
+        const status = error.response?.status;
+        const originalRequest = error.config;
+
+        // Only handle 401s; don't retry refresh calls themselves
+        if (status === 401 && !originalRequest._retry401) {
+          originalRequest._retry401 = true;
+          try {
+            // Attempt silent token refresh via HttpOnly cookie
+            const refreshRes = await axios.post(
+              `${NODE_API_URL}/api/auth/refresh`,
+              {},
+              { withCredentials: true }
+            );
+            const newToken: string = refreshRes.data?.accessToken ?? '';
+            if (newToken) {
+              setAccessToken(newToken);
+              originalRequest.headers = originalRequest.headers || {};
+              originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+              return this.client(originalRequest);
+            }
+          } catch {
+            // Refresh failed — clear session and redirect to login
+          }
+          clearAccessToken();
+          if (typeof window !== 'undefined') {
+            const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.href = `/login?returnUrl=${returnUrl}`;
+          }
+        }
+
         return Promise.reject(error);
       }
     );

@@ -21,6 +21,10 @@ export class EmailService {
     }
   }
 
+  private adminEmail(): string {
+    return process.env.ERWIN_EMAIL || 'eskiessalfonso@gmail.com';
+  }
+
   // ── HTML wrapper ──────────────────────────────────────
 
   private wrap(bodyHtml: string, ctaUrl?: string, ctaText?: string): string {
@@ -77,7 +81,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject: `Bienvenido a CERNIQ, ${data.institutionName} — Sus proximos pasos / Welcome to CERNIQ`,
         html: this.wrap(
@@ -131,7 +135,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject: `Datos recibidos — Procesando su analisis ALM, ${data.institutionName}`,
         html: this.wrap(
@@ -184,7 +188,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject: `Su Informe ALM esta listo — ${data.institutionName} / Your ALM Report is Ready`,
         html: this.wrap(
@@ -240,7 +244,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject:
           `${data.name || ''} — Sus datos de balance estan pendientes / Your balance data is pending`.trim(),
@@ -292,7 +296,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'CERNIQ Alerts <onboarding@resend.dev>',
-        to: 'erwin@klytics.io',
+        to: this.adminEmail(),
         subject: `FAILED: ${data.institutionName} — Job ${data.jobId}`,
         text: `Report generation failed.\n\nJob ID: ${data.jobId}\nInstitution: ${data.institutionName}\nClient: ${data.clientEmail}\nError: ${data.error}\n\nCheck pipeline: ${this.frontendUrl()}/admin/pipeline`,
       });
@@ -315,7 +319,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'CERNIQ Alerts <onboarding@resend.dev>',
-        to: 'erwin@klytics.io',
+        to: this.adminEmail(),
         subject: `NEW LEAD: ${data.institutionName || data.email}`,
         text: `New demo request received.\n\nName: ${data.name || '—'}\nEmail: ${data.email}\nInstitution: ${data.institutionName || '—'}\nType: ${data.institutionType || '—'}\nAsset range: ${data.totalAssets || '—'}\n\nReply directly: ${data.email}`,
       });
@@ -358,7 +362,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'CERNIQ Alerts <onboarding@resend.dev>',
-        to: 'erwin@klytics.io',
+        to: this.adminEmail(),
         subject: `NEW LEAD [${data.priority}]: ${data.institutionName} — ${data.institutionType}`,
         text: `New lead: ${data.name} from ${data.institutionName}\n\nRole: ${data.role}\nType: ${data.institutionType}\nEmail: ${data.email}${data.phone ? `\nPhone: ${data.phone}` : ''}${data.message ? `\nMessage: ${data.message}` : ''}\nPriority: ${data.priority}\nFollow-up: ${followUpStr}\n\nAdmin: ${this.frontendUrl()}/admin/leads/${data.leadId}`,
       });
@@ -384,7 +388,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject: `Solicitud recibida — ${data.institutionName} / Your ALM Request — CERNIQ`,
         html: this.wrap(
@@ -437,7 +441,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'CERNIQ Alerts <onboarding@resend.dev>',
-        to: 'erwin@klytics.io',
+        to: this.adminEmail(),
         subject: `REVENUE: $${data.amount} — ${data.institutionName} — ${data.tier}`,
         text: `New payment received.\n\nAmount: $${data.amount}\nTier: ${data.tier}\nClient: ${data.customerEmail}\nInstitution: ${data.institutionName}\n\nAdmin: ${this.frontendUrl()}/admin/leads`,
       });
@@ -459,7 +463,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject: 'Problema con su pago — CERNIQ / Payment Issue',
         html: this.wrap(
@@ -496,7 +500,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject:
           'Lamentamos verle ir — una nota personal / A personal note — CERNIQ',
@@ -532,7 +536,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject:
           'Nuevo ciclo de reporte — envie sus datos actualizados / New reporting cycle — CERNIQ',
@@ -571,7 +575,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'CERNIQ Alerts <onboarding@resend.dev>',
-        to: 'erwin@klytics.io',
+        to: this.adminEmail(),
         subject: `DISPUTE: $${data.amount} — ${data.reason}`,
         text: `Dispute alert — immediate action required.\n\nCharge: ${data.chargeId}\nAmount: $${data.amount}\nReason: ${data.reason}\n\nRespond in Stripe Dashboard immediately.`,
       });
@@ -595,7 +599,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'CERNIQ Alerts <onboarding@resend.dev>',
-        to: 'erwin@klytics.io',
+        to: this.adminEmail(),
         subject: `Daily Ops: ${data.newLeads} leads, ${data.pendingJobs} pending, ${data.failedJobs} failed`,
         text: `Daily Operations Report\n\nNew Leads (24h): ${data.newLeads}\nOverdue Follow-ups: ${data.pendingFollowUps}\nPending Jobs: ${data.pendingJobs}\nFailed Jobs (7d): ${data.failedJobs}\n\nAdmin: ${this.frontendUrl()}/admin`,
       });
@@ -618,7 +622,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject:
           'Siguiente paso: enviar sus datos de balance / Next step: submit your data — CERNIQ',
@@ -657,7 +661,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject:
           'Necesita ayuda con sus datos? / Need help with your data? — CERNIQ',
@@ -703,7 +707,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject: `Guia rapida: como usar su informe ALM — ${data.institutionName} / Quick guide — CERNIQ`,
         html: this.wrap(
@@ -746,7 +750,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject:
           'Le extranamos — novedades en CERNIQ / We miss you — CERNIQ updates',
@@ -792,7 +796,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject: `Vista previa: analisis ALM de ${data.institutionName} / ALM Preview — CERNIQ`,
         html: this.wrap(
@@ -838,7 +842,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject: 'Planes y precios — CERNIQ ALM / Plans & pricing',
         html: this.wrap(
@@ -919,7 +923,7 @@ export class EmailService {
 
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject,
         html: this.wrap(
@@ -961,7 +965,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'CERNIQ Alerts <onboarding@resend.dev>',
-        to: 'erwin@klytics.io',
+        to: this.adminEmail(),
         subject: `CHURN RISK: ${data.userName || data.userEmail} — ${data.daysSinceLogin}d inactive`,
         text: `Churn risk detected.\n\nUser: ${data.userName || '—'}\nEmail: ${data.userEmail}\nTier: ${data.tier}\nDays since login: ${data.daysSinceLogin}\nRenewal date: ${data.currentPeriodEnd}\n\nConsider reaching out personally.`,
       });
@@ -996,7 +1000,7 @@ export class EmailService {
 
       await this.resend.emails.send({
         from: 'CERNIQ Alerts <onboarding@resend.dev>',
-        to: 'erwin@klytics.io',
+        to: this.adminEmail(),
         subject: `Weekly Revenue: ${data.totalActive} active | +${data.newThisWeek} new | -${data.cancelledThisWeek} cancelled`,
         text: `Weekly Revenue Report\n\nActive Subscriptions: ${data.totalActive}\n\nBy Tier:\n${tierLines}\n\nNew This Week: ${data.newThisWeek}\nCancelled This Week: ${data.cancelledThisWeek}\n\nUpcoming Renewals (30d):\n${renewalLines}\n\nAdmin: ${this.frontendUrl()}/admin`,
       });
@@ -1030,7 +1034,7 @@ export class EmailService {
 
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject: `Como fue su experiencia? — ${data.institutionName} / How was your experience? — CERNIQ`,
         html: this.wrap(
@@ -1079,7 +1083,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject: `${data.inviterName} le ha invitado a CERNIQ / You've been invited to CERNIQ`,
         html: this.wrap(
@@ -1115,7 +1119,7 @@ export class EmailService {
     try {
       await this.resend.emails.send({
         from: 'Erwin Kiess <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: this.adminEmail(),
         to: data.email,
         subject: 'Su demo de CERNIQ esta listo / Your CERNIQ demo is ready',
         html: this.wrap(

@@ -46,14 +46,21 @@ node --version && echo "✅ Node.js OK" || echo "❌ Install Node.js 20+"
 python3 --version && echo "✅ Python OK" || echo "❌ Install Python 3.10+"
 
 # 4. Environment files exist
-[ -f "backend-node/.env" ] && echo "✅ Backend .env" || echo "⚠️  Copy backend-node/.env.example → .env"
-[ -f "frontend/.env.local" ] && echo "✅ Frontend .env.local" || echo "⚠️  Copy frontend/.env.example → .env.local"
+[ -f "backend-node/.env" ] && echo "✅ Backend .env" || echo "⚠️  cp backend-node/.env.example backend-node/.env"
+[ -f "frontend/.env.local" ] && echo "✅ Frontend .env.local" || echo "⚠️  cp frontend/.env.example frontend/.env.local"
+[ -f "services/outbound/.env" ] && echo "✅ Outbound .env" || echo "⚠️  cp services/outbound/.env.example services/outbound/.env"
 
 # 5. Critical env vars are set
 source backend-node/.env 2>/dev/null
 [ -n "$DATABASE_URL" ] && echo "✅ DATABASE_URL set" || echo "❌ Set DATABASE_URL"
 [ -n "$JWT_SECRET" ] && echo "✅ JWT_SECRET set" || echo "❌ Set JWT_SECRET"
 [ -n "$ADMIN_KEY" ] && echo "✅ ADMIN_KEY set" || echo "❌ Set ADMIN_KEY"
+[ -n "$REDIS_URL" ] && echo "✅ REDIS_URL set" || echo "❌ Set REDIS_URL"
+
+# 6. Frontend API URL is set
+grep -q "NEXT_PUBLIC_NODE_API_URL" frontend/.env.local 2>/dev/null \
+  && echo "✅ NEXT_PUBLIC_NODE_API_URL set" \
+  || echo "❌ Add NEXT_PUBLIC_NODE_API_URL=http://localhost:3000 to frontend/.env.local"
 ```
 
 ---
@@ -61,6 +68,10 @@ source backend-node/.env 2>/dev/null
 ## TERMINAL 1 — DATA LAYER
 
 **Role:** PostgreSQL 15 + Redis 7 — start first, shut down last.
+
+> Both dev and prod compose use `postgres:15-alpine` with user `cerniq` / database `cerniq`.
+> If you have volumes from an older compose config (e.g., using `capexcycle`), run
+> `docker compose down -v` to recreate them — the `POSTGRES_USER` only applies on first init.
 
 ```bash
 # ─── STEP 1: Navigate to project root ───
@@ -71,7 +82,7 @@ docker compose up -d postgres redis
 
 # ─── STEP 3: Verify both services are healthy ───
 echo "Waiting for PostgreSQL..."
-until docker exec cerniq-db pg_isready -U capexcycle 2>/dev/null; do sleep 1; done
+until docker exec cerniq-db pg_isready -U cerniq 2>/dev/null; do sleep 1; done
 echo "✅ PostgreSQL ready"
 
 echo "Checking Redis..."
@@ -80,8 +91,9 @@ docker exec cerniq-redis redis-cli ping && echo "✅ Redis ready"
 # ─── STEP 4: Run migrations (first time or after schema changes) ───
 cd backend-node && npx prisma migrate deploy && cd ..
 
-# ─── STEP 5: Seed demo data (first time only) ───
+# ─── STEP 5: Seed demo data (first time only — populates tickers table) ───
 # cd backend-node && npx prisma db seed && cd ..
+# Seeds ~55 tickers (stocks, ETFs, futures, crypto) for market data features
 
 # ─── STEP 6: Follow logs (keep this running) ───
 docker compose logs -f postgres redis
@@ -90,7 +102,7 @@ docker compose logs -f postgres redis
 **Verify:**
 ```bash
 # DB accessible
-docker exec cerniq-db psql -U capexcycle -d capexcycle -c "\dt" | head -20
+docker exec cerniq-db psql -U cerniq -d cerniq -c "\dt" | head -20
 
 # Redis accessible
 docker exec cerniq-redis redis-cli info server | grep redis_version
@@ -99,7 +111,7 @@ docker exec cerniq-redis redis-cli info server | grep redis_version
 **Common issues:**
 | Error | Cause | Fix |
 |---|---|---|
-| `password authentication failed` | Wrong user in command | Dev compose uses `POSTGRES_USER=capexcycle` / `POSTGRES_DB=capexcycle` — use `-U capexcycle` in all psql/pg_isready commands |
+| `password authentication failed` | Wrong user in command | Dev compose uses `POSTGRES_USER=cerniq` / `POSTGRES_DB=cerniq` — use `-U cerniq` in all psql/pg_isready commands |
 | `Error: connect ECONNREFUSED 127.0.0.1:6379` | Redis on 6380 but env says 6379 | Set `REDIS_URL=redis://localhost:6380` in backend .env |
 | `relation "users" does not exist` | Migrations not run | Run `npx prisma migrate deploy` from backend-node/ |
 
@@ -141,14 +153,33 @@ npm run start:dev
 # Health check
 curl -s http://localhost:3000/health | python3 -m json.tool
 
-# Expected:
+# Expected shape:
 {
-  "status": "ok",
+  "status": "healthy",
   "db": "connected",
-  "timestamp": "2026-03-27T...",
+  "memoryPercent": 45,
+  "memorySource": "...",
+  "memory": {
+    "heapUsedMB": 80,
+    "heapTotalMB": 180,
+    "rssMB": 220,
+    "limitMB": 512,
+    "heapPercent": 44,
+    "rssPercent": 43
+  },
+  "version": "2.0.0",
   "uptime": 12,
-  "memoryPercent": 45
+  "timestamp": "2026-03-27T...",
+  "services": {
+    "api": "up",
+    "database": "up",
+    "cache": "up",
+    "marketData": "..."
+  }
 }
+
+# Readiness probe
+curl -s http://localhost:3000/ready | python3 -m json.tool
 ```
 
 **Common issues:**
@@ -179,8 +210,8 @@ bun install
 # NEXT_PUBLIC_APP_URL=http://localhost:3001
 
 # ─── STEP 4: Start development server ───
-npm run dev
-# OR: bun dev
+npm run dev          # runs on port 3001 (configured in package.json)
+# OR: bun dev        # also uses --port 3001 from package.json
 ```
 
 **Expected startup output:**
@@ -221,6 +252,9 @@ open http://localhost:3001/admin
 
 **Role:** Python autonomous sales agent — cooperativa outreach pipeline.
 
+> **Note:** The outbound engine uses SMTP for email delivery and Hunter/Apollo/Clearbit
+> for lead enrichment. It does NOT use OpenAI or SendGrid — those are separate services.
+
 ```bash
 # ─── STEP 1: Navigate to outbound service ───
 cd ~/Desktop/Cerniq/services/outbound
@@ -233,10 +267,11 @@ pip install -r requirements.txt
 # ─── STEP 3: Activate environment (subsequent runs) ───
 source venv/bin/activate
 
-# ─── STEP 4: Configure environment ───
-# Ensure .env has:
-# OPENAI_API_KEY=sk-...
-# SENDGRID_API_KEY=SG.... (or SMTP credentials)
+# ─── STEP 4: Configure environment (first time) ───
+cp .env.example .env
+# Edit .env — at minimum set SMTP credentials for email delivery.
+# Enrichment API keys (Hunter, Apollo, Clearbit) are optional — agents
+# degrade gracefully without them.
 
 # ─── STEP 5: Start the FastAPI server ───
 uvicorn app:app --host 0.0.0.0 --port 8002 --reload
@@ -247,6 +282,9 @@ python3 pipelines/daily_outreach_pipeline.py
 # ─── OR run lead ingestion ───
 python3 pipelines/lead_ingestion_pipeline.py
 ```
+
+> **Port note:** The config.py default is `8099`, but this runbook standardizes on `8002`
+> via the explicit `--port 8002` flag above. The port table and all curl examples use `8002`.
 
 **Expected startup output:**
 ```
@@ -264,8 +302,12 @@ curl http://localhost:8002/health
 # API docs (interactive)
 open http://localhost:8002/docs
 
-# View cooperativa seed data
-curl http://localhost:8002/api/leads/prospects
+# Seed cooperativa data then list leads
+curl -X POST http://localhost:8002/leads/seed | python3 -m json.tool
+curl http://localhost:8002/leads | python3 -m json.tool
+
+# Pipeline metrics
+curl http://localhost:8002/metrics | python3 -m json.tool
 ```
 
 **Running specific agent:**
@@ -304,9 +346,9 @@ while true; do
   DB=$(echo $HEALTH | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('db','?'))" 2>/dev/null)
   MEM=$(echo $HEALTH | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('memoryPercent','?'))" 2>/dev/null)
 
-  echo "  Backend:  $STATUS"
-  echo "  Database: $DB"
-  echo "  Memory:   ${MEM}%"
+  echo "  Backend:  ${STATUS:-unknown}"
+  echo "  Database: ${DB:-unknown}"
+  echo "  Memory:   ${MEM:-?}%"
 
   # Frontend health
   FE_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:3001 2>/dev/null || echo "000")
@@ -386,7 +428,7 @@ cd ~/Desktop/Cerniq/backend-node
 npx prisma migrate dev --name "add_model_registry_table"
 
 # ─── OR: Open database CLI ───
-docker exec -it cerniq-db psql -U capexcycle -d capexcycle
+docker exec -it cerniq-db psql -U cerniq -d cerniq
 ```
 
 ---
@@ -431,7 +473,7 @@ curl -s -X POST http://localhost:3000/api/alm/duration-gap \
   }' | python3 -m json.tool
 
 # ─── Test Risk: Monte Carlo VaR ───
-curl -s -X POST http://localhost:3000/risk/monte-carlo \
+curl -s -X POST http://localhost:3000/api/risk/monte-carlo \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -443,7 +485,7 @@ curl -s -X POST http://localhost:3000/risk/monte-carlo \
   }' | python3 -m json.tool
 
 # ─── Test Options: Black-Scholes Greeks ───
-curl -s -X POST http://localhost:3000/api/options/greeks \
+curl -s -X POST http://localhost:3000/api/options/calculate \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -456,21 +498,27 @@ curl -s -X POST http://localhost:3000/api/options/greeks \
   }' | python3 -m json.tool
 
 # ─── Test Options: Implied Volatility ───
-curl -s -X POST http://localhost:3000/api/options/implied-vol \
+curl -s -X POST http://localhost:3000/api/options/implied-volatility \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "underlying": 450.00,
+    "ticker": "AAPL",
     "strike": 460.00,
-    "timeToExpiry": 0.0833,
-    "riskFreeRate": 0.045,
-    "marketPrice": 8.50,
-    "optionType": "call"
+    "expiration": "2026-06-21",
+    "optionType": "call",
+    "marketPrice": 8.50
   }' | python3 -m json.tool
 
 # ─── Test Admin Stats ───
 ADMIN_KEY=$(grep ADMIN_KEY backend-node/.env | cut -d= -f2)
 curl -s -H "x-admin-key: $ADMIN_KEY" http://localhost:3000/api/admin/stats | python3 -m json.tool
+# Returns: { demoRequests, institutions, users, recentUsers, prospects }
+
+# ─── Test Admin Ops ───
+curl -s -H "x-admin-key: $ADMIN_KEY" http://localhost:3000/api/admin/ops | python3 -m json.tool
+
+# ─── Trigger daily pipeline manually ───
+curl -s -X POST -H "x-admin-key: $ADMIN_KEY" http://localhost:3000/api/admin/run-pipeline | python3 -m json.tool
 
 # ─── Full cooperativa demo flow ───
 # 1. Create institution
@@ -498,8 +546,11 @@ Use this sequence when starting from cold (everything off):
 ```bash
 # ─── ONE-LINE FULL START (using Makefile) ───
 cd ~/Desktop/Cerniq && make dev
+# ⚠️  Note: `make dev` backgrounds the backend with `&` and runs the frontend
+# in the foreground. This works for quick starts but you lose separate log
+# streams. For debugging, use the full multi-terminal approach below.
 
-# ─── OR manual sequence ───
+# ─── OR manual sequence (recommended for development) ───
 
 # Step 1: Start data layer (background)
 cd ~/Desktop/Cerniq && docker compose up -d postgres redis
@@ -565,8 +616,11 @@ railway connect --service postgres
 ADMIN_KEY=<your_prod_admin_key>
 curl -H "x-admin-key: $ADMIN_KEY" https://api.cerniq.io/api/admin/stats | python3 -m json.tool
 
-# ─── Check active report jobs on production ───
-curl -H "x-admin-key: $ADMIN_KEY" https://api.cerniq.io/api/admin/jobs | python3 -m json.tool
+# ─── Admin ops on production ───
+curl -H "x-admin-key: $ADMIN_KEY" https://api.cerniq.io/api/admin/ops | python3 -m json.tool
+
+# ─── Trigger pipeline on production ───
+curl -X POST -H "x-admin-key: $ADMIN_KEY" https://api.cerniq.io/api/admin/run-pipeline | python3 -m json.tool
 ```
 
 ---
@@ -578,7 +632,7 @@ curl -H "x-admin-key: $ADMIN_KEY" https://api.cerniq.io/api/admin/jobs | python3
 | T1 | PostgreSQL 15 | 5432 | 5433 | `localhost:5433` |
 | T1 | Redis 7 | 6379 | 6380 | `localhost:6380` |
 | T2 | NestJS Backend | 3000 | 3000 | `http://localhost:3000` |
-| T3 | Next.js Frontend | 3000 (internal) | 3001 | `http://localhost:3001` |
+| T3 | Next.js 16 Frontend | 3001 | 3001 | `http://localhost:3001` |
 | T4 | Python FastAPI | 8002 | 8002 | `http://localhost:8002` |
 | T6 | Prisma Studio | 5555 | 5555 | `http://localhost:5555` |
 
@@ -588,9 +642,9 @@ curl -H "x-admin-key: $ADMIN_KEY" https://api.cerniq.io/api/admin/jobs | python3
 
 | File | Purpose | Source |
 |---|---|---|
-| `backend-node/.env` | NestJS API runtime config | Copy from `.env.example`, fill in secrets |
-| `frontend/.env.local` | Next.js public + private env | Copy from `frontend/.env.example` |
-| `services/outbound/.env` | Python outbound agent config | Copy from `services/outbound/.env.example` |
+| `backend-node/.env` | NestJS API runtime config | `cp backend-node/.env.example backend-node/.env` — fill in secrets |
+| `frontend/.env.local` | Next.js public + private env | `cp frontend/.env.example frontend/.env.local` — set API URL + keys |
+| `services/outbound/.env` | Python outbound agent config | `cp services/outbound/.env.example services/outbound/.env` — set SMTP + enrichment keys |
 | `.env` (root) | Docker compose env vars | Rarely needed; `docker-compose.yml` has defaults |
 
 ---
@@ -605,9 +659,9 @@ npx prisma generate              # regenerate Prisma client
 npm ci --legacy-peer-deps        # reinstall deps
 
 # ─── "Frontend can't reach API" ───
-cat frontend/.env.local | grep NEXT_PUBLIC_NODE_API_URL
+grep NEXT_PUBLIC_NODE_API_URL frontend/.env.local
 # Should be: http://localhost:3000
-# If showing 8001 → that was the dead Rust backend
+# If this var is missing entirely, the next.config.ts rewrites will break silently
 
 # ─── "Database connection refused" ───
 docker ps | grep cerniq-db      # Is container running?

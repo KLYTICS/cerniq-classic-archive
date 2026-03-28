@@ -1,6 +1,7 @@
 <p align="center">
   <strong>CERNIQ</strong><br/>
-  <em>Intelligent ALM Reporting for Puerto Rico Financial Institutions</em>
+  <em>Intelligent ALM Reporting for Puerto Rico Financial Institutions</em><br/>
+  <a href="https://cerniq.io">cerniq.io</a> &bull; <a href="https://cerniqtech.com">cerniqtech.com</a>
 </p>
 
 <p align="center">
@@ -26,15 +27,16 @@ It automates the ALM analysis process that institutions currently perform manual
 
 ## Key Features
 
-### ALM Analysis Engine
-| Analysis | Description |
-|----------|-------------|
-| **Duration Gap** | Interest rate risk profiling at ±100, 200, 300 bps |
-| **NII Sensitivity** | Net interest income impact across multiple rate scenarios |
-| **EVE** | Economic Value of Equity — long-term equity sensitivity |
-| **LCR** | Basel III-aligned Liquidity Coverage Ratio |
-| **BPV** | Basis Point Value — portfolio sensitivity per 1bp move |
-| **Monte Carlo** | 1,000 rate-path simulations with 4 regulatory scenarios |
+### 62 ALM Analysis Modules
+| Domain | Modules |
+|--------|---------|
+| **Interest Rate Risk** | Duration Gap, NII Sensitivity, EVE, BPV, Key Rate Durations, Rate Shock v2, Repricing Gap |
+| **Stress Testing** | Monte Carlo (10K paths, Vasicek), Scenario Builder, Scenario Compare, Stress Pack, FRTB-IMA |
+| **Credit Risk** | CECL Vintage, KMV-Merton, Copula Credit, Credit Metrics, Concentration, Wrong-Way Risk |
+| **Liquidity** | LCR/NSFR, Cash Flow Bucketing, SOFR Exposure, Deposit Beta |
+| **Portfolio** | Black-Litterman, HRP, Capital Optimizer, CVaR Optimizer, VaR |
+| **Regulatory** | COSSEC Compliance, NCUA Form 5300, Exam Prep, Board Report, CAMEL Forecast |
+| **Advanced** | PCA Yield Curve, Macro Regime Detection, NIM Attribution, FTP Attribution, Climate Risk |
 
 ### COSSEC Compliance
 - Automated compliance checks against current PR regulatory requirements
@@ -60,7 +62,7 @@ It automates the ALM analysis process that institutions currently perform manual
 |-------|-----------|
 | **Frontend** | Next.js 16, React 19, Bun, Tailwind CSS 4, Recharts, Framer Motion, Zustand |
 | **Backend** | NestJS 11, TypeScript 5.9, Prisma 7 ORM, Socket.IO |
-| **Database** | PostgreSQL 15 (TimescaleDB), Redis 7 |
+| **Database** | PostgreSQL 15, Redis 7 |
 | **Auth** | Supabase + JWT + OAuth (Google, GitHub) + API keys + Magic links |
 | **Billing** | Stripe (checkout, subscriptions, webhooks) |
 | **Email** | Resend (bilingual transactional emails) |
@@ -181,16 +183,16 @@ cerniq/
 │       ├── storage/       #   Cloudflare R2 file storage
 │       ├── leads/         #   Lead pipeline management
 │       └── ...            #   18 more modules
-├── frontend/              # Next.js 16 app (34 routes)
+├── frontend/              # Next.js 16 app (100+ routes)
 │   ├── app/               #   App Router pages
-│   │   ├── portal/        #     Client portal (submit, settings)
-│   │   ├── alm/           #     ALM analysis pages
-│   │   ├── pricing/       #     Pricing page
-│   │   ├── demo/          #     Demo pages
-│   │   └── ...            #     30 more routes
+│   │   ├── alm/           #     62 ALM analysis modules
+│   │   ├── portal/        #     Client portal (submit, settings, billing)
+│   │   ├── admin/         #     Admin panel (leads, pipeline, metrics)
+│   │   ├── demo/          #     Interactive demo
+│   │   └── ...            #     40+ more routes
 │   ├── components/        #   React components (16 directories)
-│   ├── lib/               #   API client, stores, utils, i18n
-│   └── e2e/               #   Playwright E2E tests (5 specs)
+│   ├── lib/               #   API client, stores, utils, i18n (EN/ES)
+│   └── e2e/               #   Playwright E2E tests
 ├── services/
 │   └── outbound/          # Python outbound sales engine
 │       ├── agents/        #   6 autonomous agents
@@ -209,8 +211,8 @@ cerniq/
 │   ├── security/          #   Security audit
 │   └── strategy/          #   ICP, value prop, problem map
 ├── .github/workflows/     # CI/CD (typecheck, validate, build)
-├── infra/k8s/             # Kubernetes manifests
-├── archive/               # Archived Rust backend + stale docs
+├── infrastructure/        # Terraform (AWS ECS, RDS, ElastiCache)
+├── archive/               # Archived dead code (Rust backend, experiments)
 ├── docker-compose.yml     # Dev environment
 ├── docker-compose.prod.yml# Production environment
 ├── Makefile               # Dev workflow automation

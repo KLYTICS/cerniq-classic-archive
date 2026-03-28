@@ -16,7 +16,7 @@ class Config:
     # Database
     DATABASE_URL: str = os.getenv(
         "OUTBOUND_DATABASE_URL",
-        "postgresql://capexcycle:dev_password_change_in_prod@localhost:5433/capexcycle",
+        "postgresql://cerniq:dev_password_change_in_prod@localhost:5433/cerniq",
     )
 
     # SMTP / Email

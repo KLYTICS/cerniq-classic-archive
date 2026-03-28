@@ -508,7 +508,7 @@ export class AuthService {
       const resend = new Resend(apiKey);
       await resend.emails.send({
         from: 'CERNIQ <onboarding@resend.dev>',
-        replyTo: 'erwin@klytics.io',
+        replyTo: process.env.ERWIN_EMAIL || 'eskiessalfonso@gmail.com',
         to: email,
         subject: 'Restablecer contraseña — CERNIQ / Reset your password',
         html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#F8FAFC;font-family:Georgia,serif;">

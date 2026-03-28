@@ -136,7 +136,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
             <div className="space-y-1 border-t border-slate-200/80 p-3">
               <a
-                href="mailto:erwin@klytics.io"
+                href="mailto:soporte@cerniq.io"
                 className="flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm text-slate-600 transition hover:bg-slate-50 hover:text-slate-950"
               >
                 <HelpCircle className="h-4 w-4" />

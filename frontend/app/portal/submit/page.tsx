@@ -563,7 +563,7 @@ export default function PortalSubmit() {
                 {t('Issues?', 'Problemas?')}
               </p>
               <a
-                href="mailto:erwin@klytics.io"
+                href="mailto:soporte@cerniq.io"
                 className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-[#1ABFFF] hover:underline"
               >
                 {t('Contact support', 'Contactar soporte')}

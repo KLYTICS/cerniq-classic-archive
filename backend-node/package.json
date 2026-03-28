@@ -116,6 +116,9 @@
     "qs": "6.15.0",
     "socket.io-parser": "4.2.6"
   },
+  "prisma": {
+    "seed": "npx ts-node prisma/seed.ts"
+  },
   "jest": {
     "moduleFileExtensions": [
       "js",

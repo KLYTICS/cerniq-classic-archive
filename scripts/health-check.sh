@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-API_URL="${1:-https://api-production-f804.up.railway.app}"
+API_URL="${1:-https://api.cerniq.io}"
 FRONTEND_URL="${2:-https://cerniq.io}"
 ADMIN_KEY="${ADMIN_KEY:-}"
 
