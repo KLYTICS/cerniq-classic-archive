@@ -53,32 +53,6 @@ function completedStepsForStatus(status: string | undefined): number[] {
   return completed;
 }
 
-/* ---------- rotating processing messages ---------- */
-const PROCESSING_MESSAGES_EN = [
-  'Validating data...',
-  'Calculating duration gaps...',
-  'Running Monte Carlo simulations...',
-  'Generating PDF report...',
-];
-
-const PROCESSING_MESSAGES_ES = [
-  'Validando datos...',
-  'Calculando brechas de duracion...',
-  'Ejecutando simulaciones Monte Carlo...',
-  'Generando informe PDF...',
-];
-
-function useRotatingMessage(interval = 3500) {
-  const [index, setIndex] = useState(0);
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % PROCESSING_MESSAGES_EN.length);
-    }, interval);
-    return () => clearInterval(timer);
-  }, [interval]);
-  return { en: PROCESSING_MESSAGES_EN[index], es: PROCESSING_MESSAGES_ES[index] };
-}
-
 /* ---------- Welcome Banner (shown when ?welcome=1) ---------- */
 function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
   const searchParams = useSearchParams();
@@ -329,7 +303,7 @@ function StatusBadge({ status }: { status: string }) {
 export default function PortalHome() {
   const { user, subscription } = usePortal();
   const { locale } = useTranslation();
-  const t = (en: string, es: string) => locale === 'en' ? en : es;
+  const t = useCallback((en: string, es: string) => locale === 'en' ? en : es, [locale]);
 
   const [jobs, setJobs] = useState<ReportJob[]>([]);
   const [loading, setLoading] = useState(true);

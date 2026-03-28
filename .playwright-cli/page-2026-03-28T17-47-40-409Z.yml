@@ -1,0 +1,14 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - dialog "Cookie consent" [ref=e16]:
+    - generic [ref=e17]:
+      - paragraph [ref=e18]:
+        - text: We use essential cookies for authentication and analytics cookies to improve our platform. See our
+        - link "Privacy Policy" [ref=e19] [cursor=pointer]:
+          - /url: /privacy
+        - text: for details.
+      - generic [ref=e20]:
+        - button "Decline" [ref=e21]
+        - button "Accept" [ref=e22]
+  - alert [ref=e23]

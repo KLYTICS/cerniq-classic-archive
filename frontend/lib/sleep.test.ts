@@ -38,7 +38,8 @@ describe('retry', () => {
   it('throws after max attempts exhausted', async () => {
     const fn = vi.fn().mockRejectedValue(new Error('always fails'));
     const promise = retry(fn, { maxAttempts: 2, baseDelay: 50 });
+    const rejection = expect(promise).rejects.toThrow('always fails');
     await vi.advanceTimersByTimeAsync(200);
-    await expect(promise).rejects.toThrow('always fails');
+    await rejection;
   });
 });

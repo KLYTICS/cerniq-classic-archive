@@ -1,0 +1,34 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e8]: C
+      - heading "CERNIQ Portal" [level=1] [ref=e9]
+      - paragraph [ref=e10]: Asset Liability Management
+    - generic [ref=e11]:
+      - heading "Sign in" [level=2] [ref=e12]
+      - paragraph [ref=e13]: Enter your email to receive a secure login link.
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - generic [ref=e16]: Email address
+          - generic [ref=e17]:
+            - img [ref=e18]
+            - textbox "Email address" [ref=e21]:
+              - /placeholder: cfo@institution.com
+        - button "Send Login Link" [disabled] [ref=e22]
+    - link "Back to home" [ref=e24] [cursor=pointer]:
+      - /url: /
+      - img [ref=e25]
+      - text: Back to home
+  - dialog "Cookie consent" [ref=e27]:
+    - generic [ref=e28]:
+      - paragraph [ref=e29]:
+        - text: We use essential cookies for authentication and analytics cookies to improve our platform. See our
+        - link "Privacy Policy" [ref=e30] [cursor=pointer]:
+          - /url: /privacy
+        - text: for details.
+      - generic [ref=e31]:
+        - button "Decline" [ref=e32]
+        - button "Accept" [ref=e33]
+  - alert [ref=e34]

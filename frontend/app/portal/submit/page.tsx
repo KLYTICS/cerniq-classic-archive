@@ -132,7 +132,7 @@ const PERIOD_OPTIONS = (() => {
 /* ---------- Main Submit Page ---------- */
 export default function PortalSubmit() {
   const { locale } = useTranslation();
-  const t = (en: string, es: string) => locale === 'en' ? en : es;
+  const t = useCallback((en: string, es: string) => locale === 'en' ? en : es, [locale]);
 
   const [jobs, setJobs] = useState<ReportJob[]>([]);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);

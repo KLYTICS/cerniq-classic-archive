@@ -1,0 +1,254 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - link "Back to home" [ref=e8] [cursor=pointer]:
+          - /url: /
+          - img [ref=e9]
+        - generic [ref=e21]:
+          - generic [ref=e22]: Cerniq
+          - generic [ref=e23]: Plans & Pricing
+      - generic [ref=e24]:
+        - link "Try Demo" [ref=e25] [cursor=pointer]:
+          - /url: /demo
+        - generic [ref=e26]:
+          - button "Switch to English" [pressed] [ref=e27]: EN
+          - button "Cambiar a Espanol" [ref=e28]: ES
+    - main [ref=e29]:
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e33]: Plans & Pricing
+          - heading "Plans & Pricing" [level=1] [ref=e34]
+          - paragraph [ref=e35]: Start with a pilot report. Scale when ready.
+          - generic [ref=e36]:
+            - generic [ref=e37]:
+              - strong [ref=e38]: Pilot
+              - text: to validate
+            - generic [ref=e39]:
+              - strong [ref=e40]: Recurring
+              - text: for ongoing reports
+            - generic [ref=e41]:
+              - strong [ref=e42]: Partner
+              - text: for multi-client firms
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - paragraph [ref=e45]: "61"
+            - paragraph [ref=e46]: ALM Modules
+          - generic [ref=e47]:
+            - paragraph [ref=e48]: "34"
+            - paragraph [ref=e49]: Quant Models
+          - generic [ref=e50]:
+            - paragraph [ref=e51]: "142"
+            - paragraph [ref=e52]: API Endpoints
+          - generic [ref=e53]:
+            - paragraph [ref=e54]: EN/ES
+            - paragraph [ref=e55]: Bilingual Everything
+      - region "Pricing tiers" [ref=e56]:
+        - article "ALM Report" [ref=e57]:
+          - paragraph [ref=e59]: ALM Report
+          - generic [ref=e60]: $750one-time
+          - generic [ref=e61]:
+            - generic [ref=e62]:
+              - img [ref=e63]
+              - generic [ref=e66]: One 14+ page bilingual ALM report
+            - generic [ref=e67]:
+              - img [ref=e68]
+              - generic [ref=e71]: Data review & guided setup
+            - generic [ref=e72]:
+              - img [ref=e73]
+              - generic [ref=e76]: Board-ready bilingual PDF
+            - generic [ref=e77]:
+              - img [ref=e78]
+              - generic [ref=e81]: 12 COSSEC/NCUA ratios
+          - button "Start — $750" [ref=e82]
+        - article "Monthly ALM Platform" [ref=e83]:
+          - generic [ref=e84]:
+            - paragraph [ref=e85]: Monthly ALM Platform
+            - generic [ref=e86]: Recommended
+          - generic [ref=e87]: $299/month
+          - generic [ref=e88]:
+            - generic [ref=e89]:
+              - img [ref=e90]
+              - generic [ref=e93]: Recurring upload-to-report workflow
+            - generic [ref=e94]:
+              - img [ref=e95]
+              - generic [ref=e98]: Bilingual report delivery
+            - generic [ref=e99]:
+              - img [ref=e100]
+              - generic [ref=e103]: Portal access for report retrieval
+            - generic [ref=e104]:
+              - img [ref=e105]
+              - generic [ref=e108]: 12 COSSEC/NCUA ratios updated monthly
+          - button "Subscribe — $299/mo" [ref=e109]
+        - article "Annual ALM Platform" [ref=e110]:
+          - paragraph [ref=e112]: Annual ALM Platform
+          - generic [ref=e113]: $2,400/year
+          - generic [ref=e114]:
+            - generic [ref=e115]:
+              - img [ref=e116]
+              - generic [ref=e119]: 4+ annual reports included
+            - generic [ref=e120]:
+              - img [ref=e121]
+              - generic [ref=e124]: Predictable fixed pricing
+            - generic [ref=e125]:
+              - img [ref=e126]
+              - generic [ref=e129]: Priority support
+            - generic [ref=e130]:
+              - img [ref=e131]
+              - generic [ref=e134]: Save $1,188 vs. monthly
+          - button "Buy Annual — $2,400" [ref=e135]
+        - article "CPA Partner" [ref=e136]:
+          - paragraph [ref=e138]: CPA Partner
+          - generic [ref=e139]: $499/month
+          - generic [ref=e140]:
+            - generic [ref=e141]:
+              - img [ref=e142]
+              - generic [ref=e145]: Multi-client workflow
+            - generic [ref=e146]:
+              - img [ref=e147]
+              - generic [ref=e150]: Partner access portal
+            - generic [ref=e151]:
+              - img [ref=e152]
+              - generic [ref=e155]: White-label delivery support
+            - generic [ref=e156]:
+              - img [ref=e157]
+              - generic [ref=e160]: Client management dashboard
+          - link "Contact Sales" [ref=e161] [cursor=pointer]:
+            - /url: /contact
+      - generic [ref=e163]:
+        - generic [ref=e164]:
+          - paragraph [ref=e165]: Cost Comparison
+          - heading "Your institution spends $13,900-$33,000/year on ALM consultants. CERNIQ from $2,400/year." [level=2] [ref=e166]
+          - paragraph [ref=e167]: Same ratios, same accuracy, fraction of the cost.
+        - table [ref=e169]:
+          - rowgroup [ref=e170]:
+            - row "Traditional Consultant CERNIQ" [ref=e171]:
+              - columnheader [ref=e172]
+              - columnheader "Traditional Consultant" [ref=e173]
+              - columnheader "CERNIQ" [ref=e174]
+          - rowgroup [ref=e175]:
+            - row "Quarterly ALM report $8,000 - $12,000 $750" [ref=e176]:
+              - cell "Quarterly ALM report" [ref=e177]
+              - cell "$8,000 - $12,000" [ref=e178]
+              - cell "$750" [ref=e179]
+            - row "Annual access (4 reports) $32,000 - $48,000 $2,400" [ref=e180]:
+              - cell "Annual access (4 reports)" [ref=e181]
+              - cell "$32,000 - $48,000" [ref=e182]
+              - cell "$2,400" [ref=e183]
+            - row "Delivery time 3-6 weeks 24 hours" [ref=e184]:
+              - cell "Delivery time" [ref=e185]
+              - cell "3-6 weeks" [ref=e186]
+              - cell "24 hours" [ref=e187]
+            - row "Bilingual included Extra charge Included" [ref=e188]:
+              - cell "Bilingual included" [ref=e189]
+              - cell "Extra charge" [ref=e190]
+              - cell "Included" [ref=e191]
+        - paragraph [ref=e193]: "ESTIMATED SAVINGS: 83-93%"
+      - generic [ref=e195]:
+        - generic [ref=e196]:
+          - paragraph [ref=e197]: Capability Comparison
+          - heading "Same quant depth. 90% less cost." [level=2] [ref=e198]
+        - table [ref=e200]:
+          - rowgroup [ref=e201]:
+            - row "Capability Moody's / S&P QRM / Empyrean CERNIQ" [ref=e202]:
+              - columnheader "Capability" [ref=e203]
+              - columnheader "Moody's / S&P" [ref=e204]
+              - columnheader "QRM / Empyrean" [ref=e205]
+              - columnheader "CERNIQ" [ref=e206]
+          - rowgroup [ref=e207]:
+            - row "Monte Carlo Simulation 10K+ 5K+ 10K Vasicek" [ref=e208]:
+              - cell "Monte Carlo Simulation" [ref=e209]
+              - cell "10K+" [ref=e210]
+              - cell "5K+" [ref=e211]
+              - cell "10K Vasicek" [ref=e212]
+            - row "Yield Curve Models Nelson-Siegel Cubic Spline Nelson-Siegel + PCA" [ref=e213]:
+              - cell "Yield Curve Models" [ref=e214]
+              - cell "Nelson-Siegel" [ref=e215]
+              - cell "Cubic Spline" [ref=e216]
+              - cell "Nelson-Siegel + PCA" [ref=e217]
+            - row "CECL PD/LGD WARM + PD/LGD 3 methods" [ref=e218]:
+              - cell "CECL" [ref=e219]
+              - cell "PD/LGD" [ref=e220]
+              - cell "WARM + PD/LGD" [ref=e221]
+              - cell "3 methods" [ref=e222]
+            - row "Credit Portfolio VaR CreditMetrics Basic CreditMetrics + Copula" [ref=e223]:
+              - cell "Credit Portfolio VaR" [ref=e224]
+              - cell "CreditMetrics" [ref=e225]
+              - cell "Basic" [ref=e226]
+              - cell "CreditMetrics + Copula" [ref=e227]
+            - row "Structural Default Merton - KMV-Merton" [ref=e228]:
+              - cell "Structural Default" [ref=e229]
+              - cell "Merton" [ref=e230]
+              - cell "-" [ref=e231]
+              - cell "KMV-Merton" [ref=e232]
+            - row "Portfolio Optimization MVO - BL + CVaR + HRP" [ref=e233]:
+              - cell "Portfolio Optimization" [ref=e234]
+              - cell "MVO" [ref=e235]
+              - cell "-" [ref=e236]
+              - cell "BL + CVaR + HRP" [ref=e237]
+            - row "Market Risk Capital VaR VaR FRTB-IMA ES" [ref=e238]:
+              - cell "Market Risk Capital" [ref=e239]
+              - cell "VaR" [ref=e240]
+              - cell "VaR" [ref=e241]
+              - cell "FRTB-IMA ES" [ref=e242]
+            - row "Bilingual Reports - - EN/ES native" [ref=e243]:
+              - cell "Bilingual Reports" [ref=e244]
+              - cell "-" [ref=e245]
+              - cell "-" [ref=e246]
+              - cell "EN/ES native" [ref=e247]
+            - row "PR Regulatory - - COSSEC + NCUA" [ref=e248]:
+              - cell "PR Regulatory" [ref=e249]
+              - cell "-" [ref=e250]
+              - cell "-" [ref=e251]
+              - cell "COSSEC + NCUA" [ref=e252]
+            - row "Climate Risk Separate product - Built-in (Hurricane AAL)" [ref=e253]:
+              - cell "Climate Risk" [ref=e254]
+              - cell "Separate product" [ref=e255]
+              - cell "-" [ref=e256]
+              - cell "Built-in (Hurricane AAL)" [ref=e257]
+            - row "Minimum Contract $150K+/yr $80K+/yr $2,400/yr" [ref=e258]:
+              - cell "Minimum Contract" [ref=e259]
+              - cell "$150K+/yr" [ref=e260]
+              - cell "$80K+/yr" [ref=e261]
+              - cell "$2,400/yr" [ref=e262]
+      - generic [ref=e264]:
+        - generic [ref=e265]:
+          - img [ref=e266]
+          - paragraph [ref=e269]: FAQ
+        - generic [ref=e270]:
+          - group [ref=e271]:
+            - generic "Why start with a pilot?" [ref=e272] [cursor=pointer]:
+              - generic [ref=e273]:
+                - generic [ref=e274]: Why start with a pilot?
+                - img [ref=e275]
+          - group [ref=e277]:
+            - generic "What's in each report?" [ref=e278] [cursor=pointer]:
+              - generic [ref=e279]:
+                - generic [ref=e280]: What's in each report?
+                - img [ref=e281]
+          - group [ref=e283]:
+            - generic "How does the subscription work?" [ref=e284] [cursor=pointer]:
+              - generic [ref=e285]:
+                - generic [ref=e286]: How does the subscription work?
+                - img [ref=e287]
+      - generic [ref=e290]:
+        - generic [ref=e291]:
+          - paragraph [ref=e292]: CERNIQ
+          - heading "Compliance-ready ALM reports. Bilingual. In 24 hours." [level=2] [ref=e293]
+        - generic [ref=e294]:
+          - button "Start — $750" [ref=e295]
+          - link "Back to home" [ref=e296] [cursor=pointer]:
+            - /url: /
+  - dialog "Cookie consent" [ref=e297]:
+    - generic [ref=e298]:
+      - paragraph [ref=e299]:
+        - text: We use essential cookies for authentication and analytics cookies to improve our platform. See our
+        - link "Privacy Policy" [ref=e300] [cursor=pointer]:
+          - /url: /privacy
+        - text: for details.
+      - generic [ref=e301]:
+        - button "Decline" [ref=e302]
+        - button "Accept" [ref=e303]
+  - alert [ref=e304]
