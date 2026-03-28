@@ -26,7 +26,11 @@ export interface DepositDecayResult {
     decayRate: number; // annual λ
     halfLife: number; // years
     behavioralMaturity: number; // years (weighted average life)
-    survivalCurve: Array<{ year: number; pctRemaining: number; balance: number }>;
+    survivalCurve: Array<{
+      year: number;
+      pctRemaining: number;
+      balance: number;
+    }>;
   }>;
   portfolioWeightedLife: number; // years
   portfolioHalfLife: number;
@@ -48,19 +52,44 @@ export class DepositDecayService {
 
   private getDemoDecay(): DepositDecayResult {
     const products = [
-      this.modelProduct('Regular Savings', 'Ahorro Regular', 4_200_000_000, 0.08),
-      this.modelProduct('Share Accounts', 'Cuentas de Acciones', 5_800_000_000, 0.06),
-      this.modelProduct('Money Market', 'Mercado Monetario', 2_100_000_000, 0.15),
-      this.modelProduct('Checking/Draft', 'Cuenta Corriente', 1_400_000_000, 0.22),
+      this.modelProduct(
+        'Regular Savings',
+        'Ahorro Regular',
+        4_200_000_000,
+        0.08,
+      ),
+      this.modelProduct(
+        'Share Accounts',
+        'Cuentas de Acciones',
+        5_800_000_000,
+        0.06,
+      ),
+      this.modelProduct(
+        'Money Market',
+        'Mercado Monetario',
+        2_100_000_000,
+        0.15,
+      ),
+      this.modelProduct(
+        'Checking/Draft',
+        'Cuenta Corriente',
+        1_400_000_000,
+        0.22,
+      ),
       this.modelProduct('Club Accounts', 'Cuentas Club', 350_000_000, 0.12),
     ];
 
     const totalBalance = products.reduce((s, p) => s + p.balance, 0);
-    const portfolioWeightedLife = products.reduce((s, p) => s + p.balance * p.behavioralMaturity, 0) / totalBalance;
-    const portfolioHalfLife = products.reduce((s, p) => s + p.balance * p.halfLife, 0) / totalBalance;
+    const portfolioWeightedLife =
+      products.reduce((s, p) => s + p.balance * p.behavioralMaturity, 0) /
+      totalBalance;
+    const portfolioHalfLife =
+      products.reduce((s, p) => s + p.balance * p.halfLife, 0) / totalBalance;
 
     // Core deposits = those with behavioral maturity > 1 year
-    const coreBalance = products.filter(p => p.behavioralMaturity > 1).reduce((s, p) => s + p.balance, 0);
+    const coreBalance = products
+      .filter((p) => p.behavioralMaturity > 1)
+      .reduce((s, p) => s + p.balance, 0);
     const stableCorePct = (coreBalance / totalBalance) * 100;
 
     return {
@@ -74,16 +103,37 @@ export class DepositDecayService {
     };
   }
 
-  private modelProduct(name: string, nameEs: string, balance: number, decayRate: number) {
+  private modelProduct(
+    name: string,
+    nameEs: string,
+    balance: number,
+    decayRate: number,
+  ) {
     const halfLife = Math.log(2) / decayRate;
     const behavioralMaturity = 1 / decayRate; // WAL for exponential decay
-    const survivalCurve: Array<{ year: number; pctRemaining: number; balance: number }> = [];
+    const survivalCurve: Array<{
+      year: number;
+      pctRemaining: number;
+      balance: number;
+    }> = [];
 
     for (let y = 0; y <= 10; y++) {
       const pct = Math.exp(-decayRate * y) * 100;
-      survivalCurve.push({ year: y, pctRemaining: +pct.toFixed(1), balance: +(balance * pct / 100) });
+      survivalCurve.push({
+        year: y,
+        pctRemaining: +pct.toFixed(1),
+        balance: +((balance * pct) / 100),
+      });
     }
 
-    return { name, nameEs, balance, decayRate, halfLife: +halfLife.toFixed(2), behavioralMaturity: +behavioralMaturity.toFixed(2), survivalCurve };
+    return {
+      name,
+      nameEs,
+      balance,
+      decayRate,
+      halfLife: +halfLife.toFixed(2),
+      behavioralMaturity: +behavioralMaturity.toFixed(2),
+      survivalCurve,
+    };
   }
 }

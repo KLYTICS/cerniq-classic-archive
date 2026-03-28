@@ -32,7 +32,8 @@ describe('http.util', () => {
 
   describe('parseUserAgent', () => {
     it('detects Chrome on macOS', () => {
-      const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/120.0.0.0';
+      const ua =
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/120.0.0.0';
       const info = parseUserAgent(ua);
       expect(info.browser).toBe('Chrome');
       expect(info.os).toBe('macOS');
@@ -41,7 +42,9 @@ describe('http.util', () => {
     });
 
     it('detects bots', () => {
-      const info = parseUserAgent('Googlebot/2.1 (+http://www.google.com/bot.html)');
+      const info = parseUserAgent(
+        'Googlebot/2.1 (+http://www.google.com/bot.html)',
+      );
       expect(info.isBot).toBe(true);
     });
 

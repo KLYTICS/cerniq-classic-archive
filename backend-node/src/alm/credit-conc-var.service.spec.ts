@@ -24,7 +24,9 @@ describe('CreditConcentrationVaRService', () => {
 
   it('should have concentrationVaR >= diversifiedVaR', async () => {
     const result = await svc.compute('inst-1');
-    expect(result.concentrationVaR).toBeGreaterThanOrEqual(result.diversifiedVaR);
+    expect(result.concentrationVaR).toBeGreaterThanOrEqual(
+      result.diversifiedVaR,
+    );
   });
 
   it('should have premium equal to concentrationVaR minus diversifiedVaR', async () => {
@@ -44,7 +46,9 @@ describe('CreditConcentrationVaRService', () => {
   it('should sort topConcentrations by share descending', async () => {
     const result = await svc.compute('inst-1');
     for (let i = 0; i < result.topConcentrations.length - 1; i++) {
-      expect(result.topConcentrations[i].shareOfPortfolio).toBeGreaterThanOrEqual(
+      expect(
+        result.topConcentrations[i].shareOfPortfolio,
+      ).toBeGreaterThanOrEqual(
         result.topConcentrations[i + 1].shareOfPortfolio,
       );
     }

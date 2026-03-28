@@ -5,9 +5,30 @@ describe('CreditRiskPlusService', () => {
 
   const baseParams = {
     segments: [
-      { name: 'Consumer', nameEs: 'Consumo', exposure: 100_000_000, pd: 0.02, lgd: 0.5, count: 5000 },
-      { name: 'Commercial', nameEs: 'Comercial', exposure: 150_000_000, pd: 0.01, lgd: 0.4, count: 200 },
-      { name: 'Mortgage', nameEs: 'Hipoteca', exposure: 200_000_000, pd: 0.005, lgd: 0.25, count: 3000 },
+      {
+        name: 'Consumer',
+        nameEs: 'Consumo',
+        exposure: 100_000_000,
+        pd: 0.02,
+        lgd: 0.5,
+        count: 5000,
+      },
+      {
+        name: 'Commercial',
+        nameEs: 'Comercial',
+        exposure: 150_000_000,
+        pd: 0.01,
+        lgd: 0.4,
+        count: 200,
+      },
+      {
+        name: 'Mortgage',
+        nameEs: 'Hipoteca',
+        exposure: 200_000_000,
+        pd: 0.005,
+        lgd: 0.25,
+        count: 3000,
+      },
     ],
   };
 
@@ -40,14 +61,18 @@ describe('CreditRiskPlusService', () => {
 
   it('should have sector contributions summing to ~1', () => {
     const result = svc.analyze(baseParams);
-    const totalContrib = result.sectorContributions.reduce((s, c) => s + c.contribution, 0);
+    const totalContrib = result.sectorContributions.reduce(
+      (s, c) => s + c.contribution,
+      0,
+    );
     expect(totalContrib).toBeCloseTo(1, 1);
   });
 
   it('should produce a loss distribution with cumulative reaching 1', () => {
     const result = svc.analyze(baseParams);
     expect(result.lossDistribution.length).toBeGreaterThan(0);
-    const lastCum = result.lossDistribution[result.lossDistribution.length - 1].cumulative;
+    const lastCum =
+      result.lossDistribution[result.lossDistribution.length - 1].cumulative;
     expect(lastCum).toBeCloseTo(1, 1);
   });
 });

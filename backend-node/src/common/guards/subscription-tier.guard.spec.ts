@@ -1,4 +1,7 @@
-import { SubscriptionTierGuard, SUBSCRIPTION_TIER_KEY } from './subscription-tier.guard';
+import {
+  SubscriptionTierGuard,
+  SUBSCRIPTION_TIER_KEY,
+} from './subscription-tier.guard';
 import { Reflector } from '@nestjs/core';
 import { ForbiddenException, ExecutionContext } from '@nestjs/common';
 
@@ -27,13 +30,17 @@ describe('SubscriptionTierGuard', () => {
   });
 
   it('allows access when user tier meets requirement', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['professional']);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue(['professional']);
     const ctx = createMockContext({ subscriptionTier: 'enterprise' });
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
   it('throws when user tier is below requirement', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['professional']);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue(['professional']);
     const ctx = createMockContext({ subscriptionTier: 'free' });
     expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
   });

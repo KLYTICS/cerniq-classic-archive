@@ -24,7 +24,9 @@ describe('PortfolioVaRService', () => {
 
   it('CVaR should be >= VaR (expected shortfall is worse)', async () => {
     const result = await service.computeVaRSuite('inst-1', 0.95, 1);
-    expect(result.parametric.cvar).toBeGreaterThanOrEqual(result.parametric.var);
+    expect(result.parametric.cvar).toBeGreaterThanOrEqual(
+      result.parametric.var,
+    );
   });
 
   it('99% VaR should exceed 95% VaR for parametric', async () => {
@@ -35,12 +37,15 @@ describe('PortfolioVaRService', () => {
 
   it('backtest should return traffic light color', async () => {
     const result = await service.computeVaRSuite('inst-1', 0.95, 1);
-    expect(['GREEN', 'AMBER', 'RED']).toContain(result.backtestResult.trafficLight);
+    expect(['GREEN', 'AMBER', 'RED']).toContain(
+      result.backtestResult.trafficLight,
+    );
     expect(result.backtestResult.testDays).toBe(250);
   });
 
   it('should reject invalid confidence level', async () => {
-    await expect(service.computeVaRSuite('inst-1', 0.90 as any, 1))
-      .rejects.toThrow('Invalid confidence level');
+    await expect(
+      service.computeVaRSuite('inst-1', 0.9 as any, 1),
+    ).rejects.toThrow('Invalid confidence level');
   });
 });

@@ -16,14 +16,18 @@ describe('CorrelationInterceptor', () => {
     jest.clearAllMocks();
   });
 
-  const createMockContext = (requestId?: string): { ctx: ExecutionContext; res: any } => {
+  const createMockContext = (
+    requestId?: string,
+  ): { ctx: ExecutionContext; res: any } => {
     const res = {
       setHeader: jest.fn(),
     };
     const ctx = {
       switchToHttp: () => ({
         getRequest: () => ({
-          headers: requestId ? { 'x-request-id': requestId, 'user-agent': 'test' } : { 'user-agent': 'test' },
+          headers: requestId
+            ? { 'x-request-id': requestId, 'user-agent': 'test' }
+            : { 'user-agent': 'test' },
           id: requestId,
           method: 'GET',
           url: '/api/test',
@@ -41,7 +45,10 @@ describe('CorrelationInterceptor', () => {
 
     interceptor.intercept(ctx, handler).subscribe(() => {
       expect(Sentry.setTag).toHaveBeenCalledWith('request_id', 'req-123');
-      expect(Sentry.setContext).toHaveBeenCalledWith('request', expect.objectContaining({ id: 'req-123' }));
+      expect(Sentry.setContext).toHaveBeenCalledWith(
+        'request',
+        expect.objectContaining({ id: 'req-123' }),
+      );
       done();
     });
   });
@@ -51,8 +58,14 @@ describe('CorrelationInterceptor', () => {
     const handler: CallHandler = { handle: () => of('result') };
 
     interceptor.intercept(ctx, handler).subscribe(() => {
-      expect(res.setHeader).toHaveBeenCalledWith('X-Response-Time', expect.stringMatching(/\d+ms/));
-      expect(res.setHeader).toHaveBeenCalledWith('Server-Timing', expect.stringMatching(/total;dur=\d+/));
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'X-Response-Time',
+        expect.stringMatching(/\d+ms/),
+      );
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Server-Timing',
+        expect.stringMatching(/total;dur=\d+/),
+      );
       done();
     });
   });

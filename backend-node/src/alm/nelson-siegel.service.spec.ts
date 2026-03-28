@@ -3,7 +3,9 @@ import { NelsonSiegelService } from './nelson-siegel.service';
 // Sample US Treasury curve (approximate, March 2026)
 const US_TREASURY = {
   maturities: [0.25, 0.5, 1, 2, 3, 5, 7, 10, 20, 30],
-  yields: [0.0450, 0.0442, 0.0420, 0.0395, 0.0380, 0.0370, 0.0365, 0.0370, 0.0390, 0.0395],
+  yields: [
+    0.045, 0.0442, 0.042, 0.0395, 0.038, 0.037, 0.0365, 0.037, 0.039, 0.0395,
+  ],
 };
 
 describe('NelsonSiegelService', () => {
@@ -103,7 +105,12 @@ describe('NelsonSiegelService', () => {
 
   it('interpolation reproduces fitted values at observed maturities', () => {
     const fit = service.fitNelsonSiegel(US_TREASURY);
-    const model = { beta0: fit.beta0, beta1: fit.beta1, beta2: fit.beta2, lambda: fit.lambda };
+    const model = {
+      beta0: fit.beta0,
+      beta1: fit.beta1,
+      beta2: fit.beta2,
+      lambda: fit.lambda,
+    };
 
     const interp = service.interpolate({
       model,
@@ -120,8 +127,12 @@ describe('NelsonSiegelService', () => {
   it('interpolation works with Svensson model', () => {
     const fit = service.fitSvensson(US_TREASURY);
     const model = {
-      beta0: fit.beta0, beta1: fit.beta1, beta2: fit.beta2, beta3: fit.beta3,
-      lambda1: fit.lambda1, lambda2: fit.lambda2,
+      beta0: fit.beta0,
+      beta1: fit.beta1,
+      beta2: fit.beta2,
+      beta3: fit.beta3,
+      lambda1: fit.lambda1,
+      lambda2: fit.lambda2,
     };
 
     const interp = service.interpolate({
@@ -141,7 +152,12 @@ describe('NelsonSiegelService', () => {
 
   it('decomposition level + slope + curvature = total', () => {
     const fit = service.fitNelsonSiegel(US_TREASURY);
-    const model = { beta0: fit.beta0, beta1: fit.beta1, beta2: fit.beta2, lambda: fit.lambda };
+    const model = {
+      beta0: fit.beta0,
+      beta1: fit.beta1,
+      beta2: fit.beta2,
+      lambda: fit.lambda,
+    };
 
     const decomp = service.decompose({ model });
 
@@ -171,7 +187,12 @@ describe('NelsonSiegelService', () => {
     expect(result.rmse).toBeLessThan(0.01);
     // The interpolation/decomposition should still work
     const interp = service.interpolate({
-      model: { beta0: result.beta0, beta1: result.beta1, beta2: result.beta2, lambda: result.lambda },
+      model: {
+        beta0: result.beta0,
+        beta1: result.beta1,
+        beta2: result.beta2,
+        lambda: result.lambda,
+      },
       maturities: [5],
     });
     expect(interp.curve).toHaveLength(1);

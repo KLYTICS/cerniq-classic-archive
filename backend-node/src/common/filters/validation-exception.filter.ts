@@ -21,7 +21,10 @@ export class ValidationExceptionFilter implements ExceptionFilter {
     const exceptionResponse = exception.getResponse() as any;
 
     // Only intercept validation errors from class-validator
-    if (!exceptionResponse?.message || !Array.isArray(exceptionResponse.message)) {
+    if (
+      !exceptionResponse?.message ||
+      !Array.isArray(exceptionResponse.message)
+    ) {
       response.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         error: {
@@ -63,6 +66,9 @@ export class ValidationExceptionFilter implements ExceptionFilter {
   }
 
   private camelToReadable(str: string): string {
-    return str.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+    return str
+      .replace(/([A-Z])/g, ' $1')
+      .trim()
+      .toLowerCase();
   }
 }

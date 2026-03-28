@@ -20,13 +20,18 @@ export interface EaRResult {
   earAmount: number; // dollars at risk
   earPct: number; // % of base NII
   scenarios: Array<{
-    name: string; nameEs: string;
+    name: string;
+    nameEs: string;
     shockBps: number;
     projectedNII: number;
     niiChange: number;
     niiChangePct: number;
   }>;
-  distribution: Array<{ bucket: string; frequency: number; cumulative: number }>;
+  distribution: Array<{
+    bucket: string;
+    frequency: number;
+    cumulative: number;
+  }>;
   interpretation: string;
   interpretationEs: string;
 }
@@ -37,8 +42,14 @@ export class EarningsAtRiskService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async calculateEaR(institutionId: string, horizonQuarters = 4, confidence = 0.95): Promise<EaRResult> {
-    const institution = await this.prisma.institution.findFirst({ where: { id: institutionId } });
+  async calculateEaR(
+    institutionId: string,
+    horizonQuarters = 4,
+    confidence = 0.95,
+  ): Promise<EaRResult> {
+    const institution = await this.prisma.institution.findFirst({
+      where: { id: institutionId },
+    });
     if (!institution) return this.getDemoEaR(confidence);
 
     const totalAssets = institution.totalAssets || 18_900_000_000;
@@ -48,7 +59,12 @@ export class EarningsAtRiskService {
     return this.computeEaR(baseNII, totalAssets, horizonQuarters, confidence);
   }
 
-  private computeEaR(baseNII: number, totalAssets: number, horizonQ: number, confidence: number): EaRResult {
+  private computeEaR(
+    baseNII: number,
+    totalAssets: number,
+    horizonQ: number,
+    confidence: number,
+  ): EaRResult {
     // Generate rate scenarios: -300 to +300 bps in 25bp increments
     const scenarios: EaRResult['scenarios'] = [];
     for (let shock = -300; shock <= 300; shock += 25) {
@@ -93,11 +109,11 @@ export class EarningsAtRiskService {
     for (let i = 0; i < bucketCount; i++) {
       const lo = min + i * bucketSize;
       const hi = lo + bucketSize;
-      const count = niiResults.filter(v => v >= lo && v < hi).length;
+      const count = niiResults.filter((v) => v >= lo && v < hi).length;
       distribution.push({
         bucket: `$${(lo / 1_000_000).toFixed(0)}M`,
         frequency: count,
-        cumulative: niiResults.filter(v => v < hi).length / numSims,
+        cumulative: niiResults.filter((v) => v < hi).length / numSims,
       });
     }
 
@@ -109,7 +125,7 @@ export class EarningsAtRiskService {
       confidence,
       earAmount,
       earPct: +earPct.toFixed(2),
-      scenarios: scenarios.filter(s => Math.abs(s.shockBps) <= 200),
+      scenarios: scenarios.filter((s) => Math.abs(s.shockBps) <= 200),
       distribution,
       interpretation: `Earnings at Risk: $${(earAmount / 1_000_000).toFixed(1)}M (${earPct.toFixed(1)}% of base NII) at ${(confidence * 100).toFixed(0)}% confidence over ${horizonQ} quarters. Risk level: ${status}.`,
       interpretationEs: `Ganancias en Riesgo: $${(earAmount / 1_000_000).toFixed(1)}M (${earPct.toFixed(1)}% del NII base) al ${(confidence * 100).toFixed(0)}% de confianza sobre ${horizonQ} trimestres. Nivel de riesgo: ${status}.`,

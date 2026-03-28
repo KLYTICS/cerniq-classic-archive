@@ -2,9 +2,13 @@ import { BadRequestException } from '@nestjs/common';
 import { CustomScenarioService } from './custom-scenario.service';
 
 function mockSvc(): any {
-  return new Proxy({}, {
-    get: (_t: any, p: any) => typeof p === 'symbol' ? undefined : jest.fn().mockResolvedValue(null),
-  });
+  return new Proxy(
+    {},
+    {
+      get: (_t: any, p: any) =>
+        typeof p === 'symbol' ? undefined : jest.fn().mockResolvedValue(null),
+    },
+  );
 }
 
 describe('CustomScenarioService', () => {
@@ -47,13 +51,17 @@ describe('CustomScenarioService', () => {
 
     scenarioPersistence = {
       persist: jest.fn().mockResolvedValue({ id: 'scen-1' }),
-      saveScenario: jest.fn().mockResolvedValue({ id: 'scen-1', name: 'Test', createdAt: new Date() }),
+      saveScenario: jest.fn().mockResolvedValue({
+        id: 'scen-1',
+        name: 'Test',
+        createdAt: new Date(),
+      }),
     };
 
     service = new CustomScenarioService(
-      mockSvc() as any,       // prisma
+      mockSvc(), // prisma
       almEnterprise as any,
-      mockSvc() as any,       // stressTesting
+      mockSvc(), // stressTesting
       scenarioPersistence as any,
     );
   });

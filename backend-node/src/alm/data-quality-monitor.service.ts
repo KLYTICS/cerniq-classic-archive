@@ -71,9 +71,24 @@ export class DataQualityMonitorService {
     const warnings: DataQualityIssue[] = [];
     const infos: DataQualityIssue[] = [];
 
-    const completeness = this.checkCompleteness(params, criticals, warnings, infos);
-    const consistency = this.checkConsistency(params, criticals, warnings, infos);
-    const plausibility = this.checkPlausibility(params, criticals, warnings, infos);
+    const completeness = this.checkCompleteness(
+      params,
+      criticals,
+      warnings,
+      infos,
+    );
+    const consistency = this.checkConsistency(
+      params,
+      criticals,
+      warnings,
+      infos,
+    );
+    const plausibility = this.checkPlausibility(
+      params,
+      criticals,
+      warnings,
+      infos,
+    );
     const timeliness = this.checkTimeliness(params, criticals, warnings, infos);
 
     // Base score from weighted components
@@ -150,11 +165,17 @@ export class DataQualityMonitorService {
       const msg = 'No assets provided';
       issues.push(msg);
       deductions += 50;
-      criticals.push(this.issue('critical', 'assets', '', 'MIN_ASSETS',
-        msg,
-        'No se proporcionaron activos',
-        'Add at least one asset instrument to the balance sheet.',
-      ));
+      criticals.push(
+        this.issue(
+          'critical',
+          'assets',
+          '',
+          'MIN_ASSETS',
+          msg,
+          'No se proporcionaron activos',
+          'Add at least one asset instrument to the balance sheet.',
+        ),
+      );
     }
 
     // At least 1 liability
@@ -162,11 +183,17 @@ export class DataQualityMonitorService {
       const msg = 'No liabilities provided';
       issues.push(msg);
       deductions += 50;
-      criticals.push(this.issue('critical', 'liabilities', '', 'MIN_LIABILITIES',
-        msg,
-        'No se proporcionaron pasivos',
-        'Add at least one liability instrument to the balance sheet.',
-      ));
+      criticals.push(
+        this.issue(
+          'critical',
+          'liabilities',
+          '',
+          'MIN_LIABILITIES',
+          msg,
+          'No se proporcionaron pasivos',
+          'Add at least one liability instrument to the balance sheet.',
+        ),
+      );
     }
 
     // Every instrument must have name, balance, rate, maturity
@@ -180,41 +207,65 @@ export class DataQualityMonitorService {
         const msg = `${inst.side} instrument missing name`;
         issues.push(msg);
         deductions += 5;
-        warnings.push(this.issue('warning', 'name', inst.name || '(unnamed)', 'MISSING_NAME',
-          msg,
-          `Instrumento de ${inst.side === 'asset' ? 'activo' : 'pasivo'} sin nombre`,
-          'Provide a descriptive name for each instrument.',
-        ));
+        warnings.push(
+          this.issue(
+            'warning',
+            'name',
+            inst.name || '(unnamed)',
+            'MISSING_NAME',
+            msg,
+            `Instrumento de ${inst.side === 'asset' ? 'activo' : 'pasivo'} sin nombre`,
+            'Provide a descriptive name for each instrument.',
+          ),
+        );
       }
       if (inst.balance === undefined || inst.balance === null) {
         const msg = `${inst.name || '(unnamed)'}: missing balance`;
         issues.push(msg);
         deductions += 10;
-        criticals.push(this.issue('critical', 'balance', inst.name || '(unnamed)', 'MISSING_BALANCE',
-          msg,
-          `${inst.name || '(sin nombre)'}: falta el saldo`,
-          'Every instrument must have a balance value.',
-        ));
+        criticals.push(
+          this.issue(
+            'critical',
+            'balance',
+            inst.name || '(unnamed)',
+            'MISSING_BALANCE',
+            msg,
+            `${inst.name || '(sin nombre)'}: falta el saldo`,
+            'Every instrument must have a balance value.',
+          ),
+        );
       }
       if (inst.rate === undefined || inst.rate === null) {
         const msg = `${inst.name || '(unnamed)'}: missing rate`;
         issues.push(msg);
         deductions += 5;
-        warnings.push(this.issue('warning', 'rate', inst.name || '(unnamed)', 'MISSING_RATE',
-          msg,
-          `${inst.name || '(sin nombre)'}: falta la tasa`,
-          'Provide an interest rate for each instrument.',
-        ));
+        warnings.push(
+          this.issue(
+            'warning',
+            'rate',
+            inst.name || '(unnamed)',
+            'MISSING_RATE',
+            msg,
+            `${inst.name || '(sin nombre)'}: falta la tasa`,
+            'Provide an interest rate for each instrument.',
+          ),
+        );
       }
       if (inst.maturityYears === undefined || inst.maturityYears === null) {
         const msg = `${inst.name || '(unnamed)'}: missing maturity`;
         issues.push(msg);
         deductions += 5;
-        warnings.push(this.issue('warning', 'maturityYears', inst.name || '(unnamed)', 'MISSING_MATURITY',
-          msg,
-          `${inst.name || '(sin nombre)'}: falta el vencimiento`,
-          'Provide a maturity in years for each instrument.',
-        ));
+        warnings.push(
+          this.issue(
+            'warning',
+            'maturityYears',
+            inst.name || '(unnamed)',
+            'MISSING_MATURITY',
+            msg,
+            `${inst.name || '(sin nombre)'}: falta el vencimiento`,
+            'Provide a maturity in years for each instrument.',
+          ),
+        );
       }
     }
 
@@ -223,25 +274,43 @@ export class DataQualityMonitorService {
       const msg = 'Equity not provided';
       issues.push(msg);
       deductions += 30;
-      criticals.push(this.issue('critical', 'equity', '', 'MISSING_EQUITY',
-        msg,
-        'No se proporcionó el capital',
-        'Provide the institution equity/capital value.',
-      ));
+      criticals.push(
+        this.issue(
+          'critical',
+          'equity',
+          '',
+          'MISSING_EQUITY',
+          msg,
+          'No se proporcionó el capital',
+          'Provide the institution equity/capital value.',
+        ),
+      );
     } else if (params.equity === 0) {
       const msg = 'Equity is zero';
       issues.push(msg);
       deductions += 25;
-      criticals.push(this.issue('critical', 'equity', '', 'ZERO_EQUITY',
-        msg,
-        'El capital es cero',
-        'Equity of zero indicates data error or insolvency — verify.',
-      ));
+      criticals.push(
+        this.issue(
+          'critical',
+          'equity',
+          '',
+          'ZERO_EQUITY',
+          msg,
+          'El capital es cero',
+          'Equity of zero indicates data error or insolvency — verify.',
+        ),
+      );
     }
 
     // Balance sheet equation: assets ≈ liabilities + equity (±5%)
-    const totalAssets = (params.assets || []).reduce((s, a) => s + (a.balance || 0), 0);
-    const totalLiabilities = (params.liabilities || []).reduce((s, l) => s + (l.balance || 0), 0);
+    const totalAssets = (params.assets || []).reduce(
+      (s, a) => s + (a.balance || 0),
+      0,
+    );
+    const totalLiabilities = (params.liabilities || []).reduce(
+      (s, l) => s + (l.balance || 0),
+      0,
+    );
     const rightSide = totalLiabilities + (params.equity || 0);
 
     if (totalAssets > 0 && rightSide > 0) {
@@ -252,11 +321,17 @@ export class DataQualityMonitorService {
         const msg = `Balance sheet does not balance: assets=${totalAssets.toLocaleString()}, liabilities+equity=${rightSide.toLocaleString()} (${pct}% gap)`;
         issues.push(msg);
         deductions += 15;
-        warnings.push(this.issue('warning', 'balanceEquation', '', 'BS_IMBALANCE',
-          msg,
-          `El balance general no cuadra: activos=${totalAssets.toLocaleString()}, pasivos+capital=${rightSide.toLocaleString()} (${pct}% diferencia)`,
-          'Verify total assets equal total liabilities plus equity within 5%.',
-        ));
+        warnings.push(
+          this.issue(
+            'warning',
+            'balanceEquation',
+            '',
+            'BS_IMBALANCE',
+            msg,
+            `El balance general no cuadra: activos=${totalAssets.toLocaleString()}, pasivos+capital=${rightSide.toLocaleString()} (${pct}% diferencia)`,
+            'Verify total assets equal total liabilities plus equity within 5%.',
+          ),
+        );
       }
     }
 
@@ -276,20 +351,33 @@ export class DataQualityMonitorService {
 
     const allInstruments = [
       ...(params.assets || []).map((a) => ({ ...a, side: 'asset' as const })),
-      ...(params.liabilities || []).map((l) => ({ ...l, side: 'liability' as const })),
+      ...(params.liabilities || []).map((l) => ({
+        ...l,
+        side: 'liability' as const,
+      })),
     ];
 
     for (const inst of allInstruments) {
       // No negative balances
-      if (inst.balance !== undefined && inst.balance !== null && inst.balance < 0) {
+      if (
+        inst.balance !== undefined &&
+        inst.balance !== null &&
+        inst.balance < 0
+      ) {
         const msg = `${inst.name}: negative balance (${inst.balance})`;
         issues.push(msg);
         deductions += 15;
-        criticals.push(this.issue('critical', 'balance', inst.name, 'NEGATIVE_BALANCE',
-          msg,
-          `${inst.name}: saldo negativo (${inst.balance})`,
-          'Balance values should be positive. Check sign convention.',
-        ));
+        criticals.push(
+          this.issue(
+            'critical',
+            'balance',
+            inst.name,
+            'NEGATIVE_BALANCE',
+            msg,
+            `${inst.name}: saldo negativo (${inst.balance})`,
+            'Balance values should be positive. Check sign convention.',
+          ),
+        );
       }
 
       // No negative rates (except liabilities in negative-rate environments)
@@ -298,75 +386,125 @@ export class DataQualityMonitorService {
           const msg = `${inst.name}: negative asset rate (${(inst.rate * 100).toFixed(2)}%)`;
           issues.push(msg);
           deductions += 10;
-          criticals.push(this.issue('critical', 'rate', inst.name, 'NEGATIVE_ASSET_RATE',
-            msg,
-            `${inst.name}: tasa de activo negativa (${(inst.rate * 100).toFixed(2)}%)`,
-            'Asset rates should not be negative. Verify the rate sign.',
-          ));
+          criticals.push(
+            this.issue(
+              'critical',
+              'rate',
+              inst.name,
+              'NEGATIVE_ASSET_RATE',
+              msg,
+              `${inst.name}: tasa de activo negativa (${(inst.rate * 100).toFixed(2)}%)`,
+              'Asset rates should not be negative. Verify the rate sign.',
+            ),
+          );
         } else if (inst.rate < -0.01) {
           // Liabilities below -1% are suspicious even in negative-rate environments
           const msg = `${inst.name}: extremely negative liability rate (${(inst.rate * 100).toFixed(2)}%)`;
           issues.push(msg);
           deductions += 5;
-          warnings.push(this.issue('warning', 'rate', inst.name, 'EXTREME_NEGATIVE_RATE',
-            msg,
-            `${inst.name}: tasa de pasivo extremadamente negativa (${(inst.rate * 100).toFixed(2)}%)`,
-            'Verify this rate — even negative-rate environments rarely go below -1%.',
-          ));
+          warnings.push(
+            this.issue(
+              'warning',
+              'rate',
+              inst.name,
+              'EXTREME_NEGATIVE_RATE',
+              msg,
+              `${inst.name}: tasa de pasivo extremadamente negativa (${(inst.rate * 100).toFixed(2)}%)`,
+              'Verify this rate — even negative-rate environments rarely go below -1%.',
+            ),
+          );
         }
       }
 
       // No negative maturities
-      if (inst.maturityYears !== undefined && inst.maturityYears !== null && inst.maturityYears < 0) {
+      if (
+        inst.maturityYears !== undefined &&
+        inst.maturityYears !== null &&
+        inst.maturityYears < 0
+      ) {
         const msg = `${inst.name}: negative maturity (${inst.maturityYears} years)`;
         issues.push(msg);
         deductions += 10;
-        criticals.push(this.issue('critical', 'maturityYears', inst.name, 'NEGATIVE_MATURITY',
-          msg,
-          `${inst.name}: vencimiento negativo (${inst.maturityYears} años)`,
-          'Maturity must be zero or positive. Check for data entry errors.',
-        ));
+        criticals.push(
+          this.issue(
+            'critical',
+            'maturityYears',
+            inst.name,
+            'NEGATIVE_MATURITY',
+            msg,
+            `${inst.name}: vencimiento negativo (${inst.maturityYears} años)`,
+            'Maturity must be zero or positive. Check for data entry errors.',
+          ),
+        );
       }
 
       // Floating instruments: repricingMonths between 0 and 60
-      if (inst.isFloating && inst.repricingMonths !== undefined && inst.repricingMonths !== null) {
+      if (
+        inst.isFloating &&
+        inst.repricingMonths !== undefined &&
+        inst.repricingMonths !== null
+      ) {
         if (inst.repricingMonths < 0 || inst.repricingMonths > 60) {
           const msg = `${inst.name}: repricing period out of range (${inst.repricingMonths} months)`;
           issues.push(msg);
           deductions += 5;
-          warnings.push(this.issue('warning', 'repricingMonths', inst.name, 'REPRICING_OUT_OF_RANGE',
-            msg,
-            `${inst.name}: periodo de reprecio fuera de rango (${inst.repricingMonths} meses)`,
-            'Floating repricing period should be 0-60 months.',
-          ));
+          warnings.push(
+            this.issue(
+              'warning',
+              'repricingMonths',
+              inst.name,
+              'REPRICING_OUT_OF_RANGE',
+              msg,
+              `${inst.name}: periodo de reprecio fuera de rango (${inst.repricingMonths} meses)`,
+              'Floating repricing period should be 0-60 months.',
+            ),
+          );
         }
       }
     }
 
     // Sum of asset categories > 0
-    const totalAssets = (params.assets || []).reduce((s, a) => s + (a.balance || 0), 0);
+    const totalAssets = (params.assets || []).reduce(
+      (s, a) => s + (a.balance || 0),
+      0,
+    );
     if ((params.assets || []).length > 0 && totalAssets <= 0) {
       const msg = 'Total asset balance is zero or negative';
       issues.push(msg);
       deductions += 10;
-      criticals.push(this.issue('critical', 'assets.total', '', 'ZERO_TOTAL_ASSETS',
-        msg,
-        'El saldo total de activos es cero o negativo',
-        'Sum of asset balances must be positive.',
-      ));
+      criticals.push(
+        this.issue(
+          'critical',
+          'assets.total',
+          '',
+          'ZERO_TOTAL_ASSETS',
+          msg,
+          'El saldo total de activos es cero o negativo',
+          'Sum of asset balances must be positive.',
+        ),
+      );
     }
 
     // Sum of liability categories > 0
-    const totalLiabilities = (params.liabilities || []).reduce((s, l) => s + (l.balance || 0), 0);
+    const totalLiabilities = (params.liabilities || []).reduce(
+      (s, l) => s + (l.balance || 0),
+      0,
+    );
     if ((params.liabilities || []).length > 0 && totalLiabilities <= 0) {
       const msg = 'Total liability balance is zero or negative';
       issues.push(msg);
       deductions += 10;
-      criticals.push(this.issue('critical', 'liabilities.total', '', 'ZERO_TOTAL_LIABILITIES',
-        msg,
-        'El saldo total de pasivos es cero o negativo',
-        'Sum of liability balances must be positive.',
-      ));
+      criticals.push(
+        this.issue(
+          'critical',
+          'liabilities.total',
+          '',
+          'ZERO_TOTAL_LIABILITIES',
+          msg,
+          'El saldo total de pasivos es cero o negativo',
+          'Sum of liability balances must be positive.',
+        ),
+      );
     }
 
     return { score: Math.max(0, 100 - deductions), issues };
@@ -385,15 +523,21 @@ export class DataQualityMonitorService {
 
     // Asset rate plausibility: 0-20%
     for (const asset of params.assets || []) {
-      if (asset.rate !== undefined && asset.rate !== null && asset.rate > 0.20) {
+      if (asset.rate !== undefined && asset.rate !== null && asset.rate > 0.2) {
         const msg = `${asset.name}: asset rate ${(asset.rate * 100).toFixed(2)}% exceeds 20% — likely data error`;
         issues.push(msg);
         deductions += 5;
-        warnings.push(this.issue('warning', 'rate', asset.name, 'HIGH_ASSET_RATE',
-          msg,
-          `${asset.name}: tasa de activo ${(asset.rate * 100).toFixed(2)}% excede 20% — posible error de datos`,
-          'Verify this rate. Most bank assets yield between 0% and 20%.',
-        ));
+        warnings.push(
+          this.issue(
+            'warning',
+            'rate',
+            asset.name,
+            'HIGH_ASSET_RATE',
+            msg,
+            `${asset.name}: tasa de activo ${(asset.rate * 100).toFixed(2)}% excede 20% — posible error de datos`,
+            'Verify this rate. Most bank assets yield between 0% and 20%.',
+          ),
+        );
       }
     }
 
@@ -403,11 +547,17 @@ export class DataQualityMonitorService {
         const msg = `${liab.name}: liability rate ${(liab.rate * 100).toFixed(2)}% exceeds 15%`;
         issues.push(msg);
         deductions += 5;
-        warnings.push(this.issue('warning', 'rate', liab.name, 'HIGH_LIABILITY_RATE',
-          msg,
-          `${liab.name}: tasa de pasivo ${(liab.rate * 100).toFixed(2)}% excede 15%`,
-          'Verify this funding cost. Most liabilities cost less than 15%.',
-        ));
+        warnings.push(
+          this.issue(
+            'warning',
+            'rate',
+            liab.name,
+            'HIGH_LIABILITY_RATE',
+            msg,
+            `${liab.name}: tasa de pasivo ${(liab.rate * 100).toFixed(2)}% excede 15%`,
+            'Verify this funding cost. Most liabilities cost less than 15%.',
+          ),
+        );
       }
     }
 
@@ -422,66 +572,104 @@ export class DataQualityMonitorService {
           const msg = `${inst.name}: maturity ${inst.maturityYears} years exceeds 40 years`;
           issues.push(msg);
           deductions += 5;
-          warnings.push(this.issue('warning', 'maturityYears', inst.name, 'EXTREME_MATURITY',
-            msg,
-            `${inst.name}: vencimiento de ${inst.maturityYears} años excede 40 años`,
-            'Maturities over 40 years are rare. Verify this is correct.',
-          ));
+          warnings.push(
+            this.issue(
+              'warning',
+              'maturityYears',
+              inst.name,
+              'EXTREME_MATURITY',
+              msg,
+              `${inst.name}: vencimiento de ${inst.maturityYears} años excede 40 años`,
+              'Maturities over 40 years are rare. Verify this is correct.',
+            ),
+          );
         } else if (inst.maturityYears > 30) {
           const msg = `${inst.name}: long maturity of ${inst.maturityYears} years`;
           issues.push(msg);
-          infos.push(this.issue('info', 'maturityYears', inst.name, 'LONG_MATURITY',
-            msg,
-            `${inst.name}: vencimiento largo de ${inst.maturityYears} años`,
-            'Maturities over 30 years warrant extra review.',
-          ));
+          infos.push(
+            this.issue(
+              'info',
+              'maturityYears',
+              inst.name,
+              'LONG_MATURITY',
+              msg,
+              `${inst.name}: vencimiento largo de ${inst.maturityYears} años`,
+              'Maturities over 30 years warrant extra review.',
+            ),
+          );
         }
       }
     }
 
     // Duration gap plausibility: |gap| < 10 years
     const assetDuration = this.weightedAvgMaturity(params.assets || []);
-    const liabilityDuration = this.weightedAvgMaturity(params.liabilities || []);
+    const liabilityDuration = this.weightedAvgMaturity(
+      params.liabilities || [],
+    );
     if (assetDuration !== null && liabilityDuration !== null) {
       const durationGap = Math.abs(assetDuration - liabilityDuration);
       if (durationGap > 10) {
         const msg = `Duration gap of ${durationGap.toFixed(2)} years is extreme (|gap| > 10)`;
         issues.push(msg);
         deductions += 10;
-        warnings.push(this.issue('warning', 'durationGap', '', 'EXTREME_DURATION_GAP',
-          msg,
-          `Brecha de duración de ${durationGap.toFixed(2)} años es extrema (|brecha| > 10)`,
-          'A duration gap exceeding 10 years indicates significant interest rate risk.',
-        ));
+        warnings.push(
+          this.issue(
+            'warning',
+            'durationGap',
+            '',
+            'EXTREME_DURATION_GAP',
+            msg,
+            `Brecha de duración de ${durationGap.toFixed(2)} años es extrema (|brecha| > 10)`,
+            'A duration gap exceeding 10 years indicates significant interest rate risk.',
+          ),
+        );
       }
     }
 
     // Total assets between $1M and $100B (cooperativa range)
-    const totalAssets = (params.assets || []).reduce((s, a) => s + (a.balance || 0), 0);
+    const totalAssets = (params.assets || []).reduce(
+      (s, a) => s + (a.balance || 0),
+      0,
+    );
     if (totalAssets > 0) {
       if (totalAssets < 1_000_000) {
         const msg = `Total assets $${totalAssets.toLocaleString()} below $1M — unusual for a financial institution`;
         issues.push(msg);
         deductions += 5;
-        warnings.push(this.issue('warning', 'totalAssets', '', 'LOW_TOTAL_ASSETS',
-          msg,
-          `Activos totales $${totalAssets.toLocaleString()} por debajo de $1M — inusual para una institución financiera`,
-          'Verify balances are in dollars, not thousands or millions.',
-        ));
+        warnings.push(
+          this.issue(
+            'warning',
+            'totalAssets',
+            '',
+            'LOW_TOTAL_ASSETS',
+            msg,
+            `Activos totales $${totalAssets.toLocaleString()} por debajo de $1M — inusual para una institución financiera`,
+            'Verify balances are in dollars, not thousands or millions.',
+          ),
+        );
       } else if (totalAssets > 100_000_000_000) {
         const msg = `Total assets $${totalAssets.toLocaleString()} exceed $100B — verify units`;
         issues.push(msg);
         deductions += 5;
-        warnings.push(this.issue('warning', 'totalAssets', '', 'HIGH_TOTAL_ASSETS',
-          msg,
-          `Activos totales $${totalAssets.toLocaleString()} exceden $100B — verifique las unidades`,
-          'Verify balances are in dollars, not cents or some other unit.',
-        ));
+        warnings.push(
+          this.issue(
+            'warning',
+            'totalAssets',
+            '',
+            'HIGH_TOTAL_ASSETS',
+            msg,
+            `Activos totales $${totalAssets.toLocaleString()} exceden $100B — verifique las unidades`,
+            'Verify balances are in dollars, not cents or some other unit.',
+          ),
+        );
       }
     }
 
     // NIM plausibility: 0.5% to 8%
-    const totalLiabilities = (params.liabilities || []).reduce((s, l) => s + (l.balance || 0), 0);
+    const totalLiabilities = (params.liabilities || []).reduce(
+      (s, l) => s + (l.balance || 0),
+      0,
+    );
     if (totalAssets > 0 && totalLiabilities > 0) {
       const weightedAssetRate = this.weightedAvgRate(params.assets || []);
       const weightedLiabRate = this.weightedAvgRate(params.liabilities || []);
@@ -491,20 +679,32 @@ export class DataQualityMonitorService {
           const msg = `Implied NIM of ${(impliedNIM * 100).toFixed(2)}% is below 0.5%`;
           issues.push(msg);
           deductions += 5;
-          warnings.push(this.issue('warning', 'nim', '', 'LOW_NIM',
-            msg,
-            `NIM implícito de ${(impliedNIM * 100).toFixed(2)}% está por debajo de 0.5%`,
-            'A NIM below 0.5% is unusual — verify asset yields and funding costs.',
-          ));
+          warnings.push(
+            this.issue(
+              'warning',
+              'nim',
+              '',
+              'LOW_NIM',
+              msg,
+              `NIM implícito de ${(impliedNIM * 100).toFixed(2)}% está por debajo de 0.5%`,
+              'A NIM below 0.5% is unusual — verify asset yields and funding costs.',
+            ),
+          );
         } else if (impliedNIM > 0.08) {
           const msg = `Implied NIM of ${(impliedNIM * 100).toFixed(2)}% exceeds 8%`;
           issues.push(msg);
           deductions += 5;
-          warnings.push(this.issue('warning', 'nim', '', 'HIGH_NIM',
-            msg,
-            `NIM implícito de ${(impliedNIM * 100).toFixed(2)}% excede 8%`,
-            'A NIM above 8% is unusual — verify rates are entered correctly.',
-          ));
+          warnings.push(
+            this.issue(
+              'warning',
+              'nim',
+              '',
+              'HIGH_NIM',
+              msg,
+              `NIM implícito de ${(impliedNIM * 100).toFixed(2)}% excede 8%`,
+              'A NIM above 8% is unusual — verify rates are entered correctly.',
+            ),
+          );
         }
       }
     }
@@ -516,20 +716,32 @@ export class DataQualityMonitorService {
         const msg = `Leverage ratio ${(leverage * 100).toFixed(1)}% is below 50% — unusual capital structure`;
         issues.push(msg);
         deductions += 5;
-        warnings.push(this.issue('warning', 'leverageRatio', '', 'LOW_LEVERAGE',
-          msg,
-          `Ratio de apalancamiento ${(leverage * 100).toFixed(1)}% está por debajo de 50% — estructura de capital inusual`,
-          'Most financial institutions have leverage ratios between 50% and 98%.',
-        ));
+        warnings.push(
+          this.issue(
+            'warning',
+            'leverageRatio',
+            '',
+            'LOW_LEVERAGE',
+            msg,
+            `Ratio de apalancamiento ${(leverage * 100).toFixed(1)}% está por debajo de 50% — estructura de capital inusual`,
+            'Most financial institutions have leverage ratios between 50% and 98%.',
+          ),
+        );
       } else if (leverage > 0.98) {
         const msg = `Leverage ratio ${(leverage * 100).toFixed(1)}% exceeds 98% — critically thin capital`;
         issues.push(msg);
         deductions += 10;
-        warnings.push(this.issue('warning', 'leverageRatio', '', 'HIGH_LEVERAGE',
-          msg,
-          `Ratio de apalancamiento ${(leverage * 100).toFixed(1)}% excede 98% — capital críticamente delgado`,
-          'Leverage above 98% signals potential capital inadequacy.',
-        ));
+        warnings.push(
+          this.issue(
+            'warning',
+            'leverageRatio',
+            '',
+            'HIGH_LEVERAGE',
+            msg,
+            `Ratio de apalancamiento ${(leverage * 100).toFixed(1)}% excede 98% — capital críticamente delgado`,
+            'Leverage above 98% signals potential capital inadequacy.',
+          ),
+        );
       }
     }
 
@@ -551,11 +763,17 @@ export class DataQualityMonitorService {
       const msg = 'No asOfDate provided';
       issues.push(msg);
       deductions += 30;
-      criticals.push(this.issue('critical', 'asOfDate', '', 'MISSING_DATE',
-        msg,
-        'No se proporcionó la fecha del balance',
-        'Provide the as-of date for the balance sheet data.',
-      ));
+      criticals.push(
+        this.issue(
+          'critical',
+          'asOfDate',
+          '',
+          'MISSING_DATE',
+          msg,
+          'No se proporcionó la fecha del balance',
+          'Provide the as-of date for the balance sheet data.',
+        ),
+      );
       return { score: Math.max(0, 100 - deductions), issues };
     }
 
@@ -566,11 +784,17 @@ export class DataQualityMonitorService {
       const msg = `Invalid asOfDate: "${params.asOfDate}"`;
       issues.push(msg);
       deductions += 30;
-      criticals.push(this.issue('critical', 'asOfDate', '', 'INVALID_DATE',
-        msg,
-        `Fecha inválida: "${params.asOfDate}"`,
-        'Provide a valid date in ISO format (YYYY-MM-DD).',
-      ));
+      criticals.push(
+        this.issue(
+          'critical',
+          'asOfDate',
+          '',
+          'INVALID_DATE',
+          msg,
+          `Fecha inválida: "${params.asOfDate}"`,
+          'Provide a valid date in ISO format (YYYY-MM-DD).',
+        ),
+      );
       return { score: Math.max(0, 100 - deductions), issues };
     }
 
@@ -579,34 +803,54 @@ export class DataQualityMonitorService {
       const msg = `asOfDate ${params.asOfDate} is in the future`;
       issues.push(msg);
       deductions += 30;
-      criticals.push(this.issue('critical', 'asOfDate', '', 'FUTURE_DATE',
-        msg,
-        `La fecha ${params.asOfDate} está en el futuro`,
-        'Balance sheet date should not be in the future.',
-      ));
+      criticals.push(
+        this.issue(
+          'critical',
+          'asOfDate',
+          '',
+          'FUTURE_DATE',
+          msg,
+          `La fecha ${params.asOfDate} está en el futuro`,
+          'Balance sheet date should not be in the future.',
+        ),
+      );
     }
 
     // Staleness
-    const daysDiff = Math.floor((now.getTime() - asOf.getTime()) / (1000 * 60 * 60 * 24));
+    const daysDiff = Math.floor(
+      (now.getTime() - asOf.getTime()) / (1000 * 60 * 60 * 24),
+    );
 
     if (daysDiff > 90) {
       const msg = `Data is ${daysDiff} days old (>90 days) — stale for regulatory reporting`;
       issues.push(msg);
       deductions += 25;
-      criticals.push(this.issue('critical', 'asOfDate', '', 'STALE_DATA_CRITICAL',
-        msg,
-        `Los datos tienen ${daysDiff} días de antigüedad (>90 días) — obsoletos para reportes regulatorios`,
-        'Update balance sheet data to within the last 90 days.',
-      ));
+      criticals.push(
+        this.issue(
+          'critical',
+          'asOfDate',
+          '',
+          'STALE_DATA_CRITICAL',
+          msg,
+          `Los datos tienen ${daysDiff} días de antigüedad (>90 días) — obsoletos para reportes regulatorios`,
+          'Update balance sheet data to within the last 90 days.',
+        ),
+      );
     } else if (daysDiff > 60) {
       const msg = `Data is ${daysDiff} days old (>60 days) — approaching staleness`;
       issues.push(msg);
       deductions += 10;
-      warnings.push(this.issue('warning', 'asOfDate', '', 'STALE_DATA_WARNING',
-        msg,
-        `Los datos tienen ${daysDiff} días de antigüedad (>60 días) — próximos a estar obsoletos`,
-        'Consider refreshing balance sheet data soon.',
-      ));
+      warnings.push(
+        this.issue(
+          'warning',
+          'asOfDate',
+          '',
+          'STALE_DATA_WARNING',
+          msg,
+          `Los datos tienen ${daysDiff} días de antigüedad (>60 días) — próximos a estar obsoletos`,
+          'Consider refreshing balance sheet data soon.',
+        ),
+      );
     }
 
     return { score: Math.max(0, 100 - deductions), issues };
@@ -631,10 +875,20 @@ export class DataQualityMonitorService {
     messageEs: string,
     suggestion: string,
   ): DataQualityIssue {
-    return { severity, field, instrument, rule, message, messageEs, suggestion };
+    return {
+      severity,
+      field,
+      instrument,
+      rule,
+      message,
+      messageEs,
+      suggestion,
+    };
   }
 
-  private weightedAvgMaturity(instruments: BalanceSheetInstrument[]): number | null {
+  private weightedAvgMaturity(
+    instruments: BalanceSheetInstrument[],
+  ): number | null {
     const totalBalance = instruments.reduce((s, i) => s + (i.balance || 0), 0);
     if (totalBalance <= 0) return null;
     const weighted = instruments.reduce(
@@ -644,7 +898,9 @@ export class DataQualityMonitorService {
     return weighted / totalBalance;
   }
 
-  private weightedAvgRate(instruments: BalanceSheetInstrument[]): number | null {
+  private weightedAvgRate(
+    instruments: BalanceSheetInstrument[],
+  ): number | null {
     const totalBalance = instruments.reduce((s, i) => s + (i.balance || 0), 0);
     if (totalBalance <= 0) return null;
     const weighted = instruments.reduce(

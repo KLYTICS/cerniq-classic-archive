@@ -36,12 +36,28 @@ describe('IRRPolicyService', () => {
 
   it('saves custom limits and returns count', async () => {
     const result = await service.saveLimits('inst_1', [
-      { limitType: 'EVE_PCT', scenario: '+200bps', watchPct: 10, warningPct: 15, breachPct: 20, regulatoryRef: 'Test' },
-      { limitType: 'NII_AT_RISK', scenario: '+200bps', watchPct: 8, warningPct: 12, breachPct: 16, regulatoryRef: 'Test' },
+      {
+        limitType: 'EVE_PCT',
+        scenario: '+200bps',
+        watchPct: 10,
+        warningPct: 15,
+        breachPct: 20,
+        regulatoryRef: 'Test',
+      },
+      {
+        limitType: 'NII_AT_RISK',
+        scenario: '+200bps',
+        watchPct: 8,
+        warningPct: 12,
+        breachPct: 16,
+        regulatoryRef: 'Test',
+      },
     ]);
 
     expect(result.saved).toBe(2);
-    expect(prisma.iRRPolicyLimit.deleteMany).toHaveBeenCalledWith({ where: { institutionId: 'inst_1' } });
+    expect(prisma.iRRPolicyLimit.deleteMany).toHaveBeenCalledWith({
+      where: { institutionId: 'inst_1' },
+    });
   });
 
   it('checks all limits and returns dashboard with demo metrics', async () => {
@@ -53,7 +69,9 @@ describe('IRRPolicyService', () => {
     expect(dashboard.checks.length).toBeGreaterThanOrEqual(6);
     expect(['GREEN', 'AMBER', 'RED']).toContain(dashboard.overallStatus);
     expect(dashboard.lastChecked).toBeDefined();
-    expect(dashboard.breachCount + dashboard.warningCount + dashboard.watchCount).toBeGreaterThanOrEqual(0);
+    expect(
+      dashboard.breachCount + dashboard.warningCount + dashboard.watchCount,
+    ).toBeGreaterThanOrEqual(0);
   });
 
   it('classifies levels correctly: COMPLIANT < WATCH < WARNING < BREACH', async () => {

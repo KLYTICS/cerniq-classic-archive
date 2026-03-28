@@ -22,7 +22,9 @@ describe('promise.util', () => {
 
     it('rejects if promise exceeds timeout', async () => {
       const slow = new Promise((resolve) => setTimeout(resolve, 5000));
-      await expect(withTimeout(slow, 10)).rejects.toThrow('Operation timed out');
+      await expect(withTimeout(slow, 10)).rejects.toThrow(
+        'Operation timed out',
+      );
     });
   });
 

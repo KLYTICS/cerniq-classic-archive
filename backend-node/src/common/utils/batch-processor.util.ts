@@ -52,7 +52,9 @@ export async function processBatch<TInput, TOutput>(
   const failed: Array<{ item: any; error: Error }> = [];
 
   const totalBatches = Math.ceil(items.length / batchSize);
-  logger.debug(`Processing ${items.length} items in ${totalBatches} batches of ${batchSize}`);
+  logger.debug(
+    `Processing ${items.length} items in ${totalBatches} batches of ${batchSize}`,
+  );
 
   for (let i = 0; i < items.length; i += batchSize) {
     const batch = items.slice(i, i + batchSize);
@@ -62,7 +64,9 @@ export async function processBatch<TInput, TOutput>(
       const results = await processor(batch);
       successful.push(...results);
     } catch (error: any) {
-      logger.error(`Batch ${batchNum}/${totalBatches} failed: ${error.message}`);
+      logger.error(
+        `Batch ${batchNum}/${totalBatches} failed: ${error.message}`,
+      );
       if (continueOnError) {
         failed.push(...batch.map((item) => ({ item, error })));
       } else {
@@ -74,7 +78,9 @@ export async function processBatch<TInput, TOutput>(
     onProgress?.(processed, items.length);
 
     if (delayBetweenBatchesMs > 0 && i + batchSize < items.length) {
-      await new Promise((resolve) => setTimeout(resolve, delayBetweenBatchesMs));
+      await new Promise((resolve) =>
+        setTimeout(resolve, delayBetweenBatchesMs),
+      );
     }
   }
 

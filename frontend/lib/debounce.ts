@@ -2,19 +2,19 @@
  * Standalone debounce utility (non-React).
  * Use for event handlers outside of component lifecycle.
  */
-export function debounce<T extends (...args: any[]) => void>(
-  fn: T,
+export function debounce<Args extends unknown[]>(
+  fn: (...args: Args) => void,
   delayMs: number,
-): T & { cancel: () => void } {
+): ((...args: Args) => void) & { cancel: () => void } {
   let timer: ReturnType<typeof setTimeout> | null = null;
 
-  const debounced = ((...args: any[]) => {
+  const debounced = ((...args: Args) => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       fn(...args);
       timer = null;
     }, delayMs);
-  }) as T & { cancel: () => void };
+  }) as ((...args: Args) => void) & { cancel: () => void };
 
   debounced.cancel = () => {
     if (timer) {

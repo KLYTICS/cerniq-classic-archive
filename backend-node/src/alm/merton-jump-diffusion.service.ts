@@ -78,7 +78,7 @@ export class MertonJumpDiffusionService {
 
     const dt = 1 / stepsPerYear;
     const totalSteps = Math.round(horizonYears * stepsPerYear);
-    const k = Math.exp(jumpMean + jumpVol * jumpVol / 2) - 1;
+    const k = Math.exp(jumpMean + (jumpVol * jumpVol) / 2) - 1;
     const adjustedDrift = drift - jumpIntensity * k;
 
     const allPaths: number[][] = [];
@@ -109,13 +109,16 @@ export class MertonJumpDiffusionService {
     }
 
     // Statistics
-    const returns = finalValues.map(v => Math.log(v / initialValue));
+    const returns = finalValues.map((v) => Math.log(v / initialValue));
     const meanReturn = returns.reduce((s, r) => s + r, 0) / numPaths;
-    const variance = returns.reduce((s, r) => s + (r - meanReturn) ** 2, 0) / (numPaths - 1);
+    const variance =
+      returns.reduce((s, r) => s + (r - meanReturn) ** 2, 0) / (numPaths - 1);
     const totalVol = Math.sqrt(variance / horizonYears);
 
-    const m3 = returns.reduce((s, r) => s + (r - meanReturn) ** 3, 0) / numPaths;
-    const m4 = returns.reduce((s, r) => s + (r - meanReturn) ** 4, 0) / numPaths;
+    const m3 =
+      returns.reduce((s, r) => s + (r - meanReturn) ** 3, 0) / numPaths;
+    const m4 =
+      returns.reduce((s, r) => s + (r - meanReturn) ** 4, 0) / numPaths;
     const skewness = m3 / Math.pow(variance, 1.5);
     const kurtosis = m4 / (variance * variance);
 
@@ -128,12 +131,21 @@ export class MertonJumpDiffusionService {
     const var95 = initialValue - sorted[Math.floor(numPaths * 0.05)];
     const var99 = initialValue - sorted[Math.floor(numPaths * 0.01)];
     const cvar95Idx = Math.floor(numPaths * 0.05);
-    const cvar95 = initialValue - sorted.slice(0, cvar95Idx).reduce((s, v) => s + v, 0) / cvar95Idx;
+    const cvar95 =
+      initialValue -
+      sorted.slice(0, cvar95Idx).reduce((s, v) => s + v, 0) / cvar95Idx;
     const maxDrawdown = initialValue - sorted[0];
     const jumpProb1Y = 1 - Math.exp(-jumpIntensity);
 
     return {
-      params: { drift, diffusionVol, jumpIntensity, jumpMean, jumpVol, totalVol: +totalVol.toFixed(4) },
+      params: {
+        drift,
+        diffusionVol,
+        jumpIntensity,
+        jumpMean,
+        jumpVol,
+        totalVol: +totalVol.toFixed(4),
+      },
       paths: allPaths,
       statistics: {
         meanReturn: +meanReturn.toFixed(4),
@@ -165,7 +177,10 @@ export class MertonJumpDiffusionService {
     const L = Math.exp(-lambda);
     let k = 0;
     let p = 1;
-    do { k++; p *= Math.random(); } while (p > L);
+    do {
+      k++;
+      p *= Math.random();
+    } while (p > L);
     return k - 1;
   }
 }

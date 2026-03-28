@@ -55,7 +55,10 @@ describe('LiquidityGapService', () => {
     const result2 = service.analyze(2_000_000_000);
 
     // Net gaps should scale by 2x
-    expect(result2.buckets[0].netGap).toBeCloseTo(result1.buckets[0].netGap * 2, 0);
+    expect(result2.buckets[0].netGap).toBeCloseTo(
+      result1.buckets[0].netGap * 2,
+      0,
+    );
     expect(result2.shortTermGap).toBeCloseTo(result1.shortTermGap * 2, 0);
   });
 });

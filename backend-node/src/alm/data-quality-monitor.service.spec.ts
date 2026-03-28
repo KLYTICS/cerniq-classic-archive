@@ -12,7 +12,9 @@ describe('DataQualityMonitorService', () => {
     .toISOString()
     .split('T')[0];
 
-  const makeAsset = (overrides: Partial<BalanceSheetInstrument> = {}): BalanceSheetInstrument => ({
+  const makeAsset = (
+    overrides: Partial<BalanceSheetInstrument> = {},
+  ): BalanceSheetInstrument => ({
     name: 'Auto Loans',
     balance: 50_000_000,
     rate: 0.055,
@@ -22,7 +24,9 @@ describe('DataQualityMonitorService', () => {
     ...overrides,
   });
 
-  const makeLiability = (overrides: Partial<BalanceSheetInstrument> = {}): BalanceSheetInstrument => ({
+  const makeLiability = (
+    overrides: Partial<BalanceSheetInstrument> = {},
+  ): BalanceSheetInstrument => ({
     name: 'Share Certificates',
     balance: 40_000_000,
     rate: 0.025,
@@ -34,15 +38,50 @@ describe('DataQualityMonitorService', () => {
 
   const perfectBS = (): BalanceSheetInput => ({
     assets: [
-      makeAsset({ name: 'Auto Loans', balance: 30_000_000, rate: 0.055, maturityYears: 5 }),
-      makeAsset({ name: 'Mortgages', balance: 40_000_000, rate: 0.045, maturityYears: 15 }),
-      makeAsset({ name: 'Treasury Securities', balance: 20_000_000, rate: 0.035, maturityYears: 3 }),
-      makeAsset({ name: 'Cash', balance: 10_000_000, rate: 0.0, maturityYears: 0 }),
+      makeAsset({
+        name: 'Auto Loans',
+        balance: 30_000_000,
+        rate: 0.055,
+        maturityYears: 5,
+      }),
+      makeAsset({
+        name: 'Mortgages',
+        balance: 40_000_000,
+        rate: 0.045,
+        maturityYears: 15,
+      }),
+      makeAsset({
+        name: 'Treasury Securities',
+        balance: 20_000_000,
+        rate: 0.035,
+        maturityYears: 3,
+      }),
+      makeAsset({
+        name: 'Cash',
+        balance: 10_000_000,
+        rate: 0.0,
+        maturityYears: 0,
+      }),
     ],
     liabilities: [
-      makeLiability({ name: 'Regular Shares', balance: 25_000_000, rate: 0.005, maturityYears: 0 }),
-      makeLiability({ name: 'Share Certificates', balance: 35_000_000, rate: 0.03, maturityYears: 1.5 }),
-      makeLiability({ name: 'Borrowings', balance: 25_000_000, rate: 0.04, maturityYears: 3 }),
+      makeLiability({
+        name: 'Regular Shares',
+        balance: 25_000_000,
+        rate: 0.005,
+        maturityYears: 0,
+      }),
+      makeLiability({
+        name: 'Share Certificates',
+        balance: 35_000_000,
+        rate: 0.03,
+        maturityYears: 1.5,
+      }),
+      makeLiability({
+        name: 'Borrowings',
+        balance: 25_000_000,
+        rate: 0.04,
+        maturityYears: 3,
+      }),
     ],
     equity: 15_000_000,
     asOfDate: recentDate,
@@ -83,25 +122,39 @@ describe('DataQualityMonitorService', () => {
     const bs = perfectBS();
     bs.assets[0] = makeAsset({ name: 'Bad Loan', balance: -5_000_000 });
     const result = service.validateBalanceSheet(bs);
-    expect(result.critical.some((c) => c.rule === 'NEGATIVE_BALANCE')).toBe(true);
+    expect(result.critical.some((c) => c.rule === 'NEGATIVE_BALANCE')).toBe(
+      true,
+    );
   });
 
   // ── 4. Rate > 20% → warning ──────────────────────────────────────
 
   it('flags asset rate above 20% as warning', () => {
     const bs = perfectBS();
-    bs.assets.push(makeAsset({ name: 'Suspicious Loan', rate: 0.25, balance: 1_000_000 }));
+    bs.assets.push(
+      makeAsset({ name: 'Suspicious Loan', rate: 0.25, balance: 1_000_000 }),
+    );
     const result = service.validateBalanceSheet(bs);
-    expect(result.warnings.some((w) => w.rule === 'HIGH_ASSET_RATE')).toBe(true);
+    expect(result.warnings.some((w) => w.rule === 'HIGH_ASSET_RATE')).toBe(
+      true,
+    );
   });
 
   // ── 5. Maturity > 40 years → warning ─────────────────────────────
 
   it('flags maturity exceeding 40 years as warning', () => {
     const bs = perfectBS();
-    bs.assets.push(makeAsset({ name: 'Century Bond', maturityYears: 50, balance: 1_000_000 }));
+    bs.assets.push(
+      makeAsset({
+        name: 'Century Bond',
+        maturityYears: 50,
+        balance: 1_000_000,
+      }),
+    );
     const result = service.validateBalanceSheet(bs);
-    expect(result.warnings.some((w) => w.rule === 'EXTREME_MATURITY')).toBe(true);
+    expect(result.warnings.some((w) => w.rule === 'EXTREME_MATURITY')).toBe(
+      true,
+    );
   });
 
   // ── 6. Assets ≠ liabilities + equity → consistency warning ───────
@@ -123,7 +176,9 @@ describe('DataQualityMonitorService', () => {
     const staleDate = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000);
     bs.asOfDate = staleDate.toISOString().split('T')[0];
     const result = service.validateBalanceSheet(bs);
-    expect(result.critical.some((c) => c.rule === 'STALE_DATA_CRITICAL')).toBe(true);
+    expect(result.critical.some((c) => c.rule === 'STALE_DATA_CRITICAL')).toBe(
+      true,
+    );
   });
 
   // ── 8. Future date → critical ────────────────────────────────────
@@ -143,9 +198,9 @@ describe('DataQualityMonitorService', () => {
     const result = service.validateBalanceSheet(bs);
     const expected = Math.round(
       result.checks.completeness.score * 0.25 +
-      result.checks.consistency.score * 0.25 +
-      result.checks.plausibility.score * 0.25 +
-      result.checks.timeliness.score * 0.25,
+        result.checks.consistency.score * 0.25 +
+        result.checks.plausibility.score * 0.25 +
+        result.checks.timeliness.score * 0.25,
     );
     expect(result.overallScore).toBe(expected);
   });
@@ -227,20 +282,26 @@ describe('DataQualityMonitorService', () => {
     const bs = perfectBS();
     bs.assets[0] = makeAsset({ name: 'Expired?', maturityYears: -2 });
     const result = service.validateBalanceSheet(bs);
-    expect(result.critical.some((c) => c.rule === 'NEGATIVE_MATURITY')).toBe(true);
+    expect(result.critical.some((c) => c.rule === 'NEGATIVE_MATURITY')).toBe(
+      true,
+    );
   });
 
   // ── 15. Floating repricing out of range → warning ─────────────────
 
   it('flags floating instrument with repricing out of 0-60 months', () => {
     const bs = perfectBS();
-    bs.assets.push(makeAsset({
-      name: 'ARM',
-      isFloating: true,
-      repricingMonths: 120,
-      balance: 5_000_000,
-    }));
+    bs.assets.push(
+      makeAsset({
+        name: 'ARM',
+        isFloating: true,
+        repricingMonths: 120,
+        balance: 5_000_000,
+      }),
+    );
     const result = service.validateBalanceSheet(bs);
-    expect(result.warnings.some((w) => w.rule === 'REPRICING_OUT_OF_RANGE')).toBe(true);
+    expect(
+      result.warnings.some((w) => w.rule === 'REPRICING_OUT_OF_RANGE'),
+    ).toBe(true);
   });
 });

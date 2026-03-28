@@ -25,7 +25,9 @@ describe('ValidationExceptionFilter', () => {
       message: ['email must be an email', 'name should not be empty'],
     });
     filter.catch(exception, mockHost);
-    expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(mockResponse.status).toHaveBeenCalledWith(
+      HttpStatus.UNPROCESSABLE_ENTITY,
+    );
     expect(mockResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,

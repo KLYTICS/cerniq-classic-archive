@@ -4,16 +4,16 @@ import { Injectable, Logger } from '@nestjs/common';
 
 export interface TermStructurePoint {
   maturity: number; // time in years
-  rate: number;     // continuously compounded zero rate
+  rate: number; // continuously compounded zero rate
 }
 
 export interface HullWhiteSimulationParams {
   initialRate: number;
-  kappa: number;                    // mean reversion speed
-  sigma: number;                    // volatility
+  kappa: number; // mean reversion speed
+  sigma: number; // volatility
   termStructure: TermStructurePoint[]; // current yield curve
   numPaths: number;
-  horizon: number;                  // in years
+  horizon: number; // in years
   timeSteps: number;
 }
 
@@ -84,7 +84,7 @@ export class HullWhiteService {
   /** Maximum paths to prevent memory exhaustion */
   private static readonly MAX_PATHS = 100_000;
   /** Rate ceiling to prevent overflow */
-  private static readonly RATE_CEILING = 0.50;
+  private static readonly RATE_CEILING = 0.5;
 
   // ─── Simulate Rate Paths ─────────────────────────────────
 
@@ -97,15 +97,11 @@ export class HullWhiteService {
    * θ(t) is calibrated from the provided term structure so that
    * the model reprices all observed zero-coupon bonds exactly.
    */
-  simulateRatePaths(params: HullWhiteSimulationParams): HullWhiteSimulationResult {
-    const {
-      initialRate,
-      kappa,
-      sigma,
-      termStructure,
-      horizon,
-      timeSteps,
-    } = params;
+  simulateRatePaths(
+    params: HullWhiteSimulationParams,
+  ): HullWhiteSimulationResult {
+    const { initialRate, kappa, sigma, termStructure, horizon, timeSteps } =
+      params;
 
     const numPaths = Math.min(
       Math.max(Math.floor(params.numPaths), 1),
@@ -121,7 +117,13 @@ export class HullWhiteService {
     const sortedTS = [...termStructure].sort((a, b) => a.maturity - b.maturity);
 
     // Precompute θ(t) at each time step
-    const thetaValues = this.computeThetaValues(sortedTS, safeKappa, safeSigma, dt, timeSteps);
+    const thetaValues = this.computeThetaValues(
+      sortedTS,
+      safeKappa,
+      safeSigma,
+      dt,
+      timeSteps,
+    );
 
     this.logger.log(
       `Hull-White simulation: ${numPaths} paths, ${timeSteps} steps, horizon=${horizon}y, κ=${kappa}, σ=${sigma}`,
@@ -184,9 +186,11 @@ export class HullWhiteService {
 
     // Final rate statistics
     const finalRates = paths.map((p) => p[timeSteps - 1]).sort((a, b) => a - b);
-    const meanFinal = finalRates.reduce((sum, v) => sum + v, 0) / finalRates.length;
+    const meanFinal =
+      finalRates.reduce((sum, v) => sum + v, 0) / finalRates.length;
     const variance =
-      finalRates.reduce((sum, v) => sum + (v - meanFinal) ** 2, 0) / finalRates.length;
+      finalRates.reduce((sum, v) => sum + (v - meanFinal) ** 2, 0) /
+      finalRates.length;
 
     return {
       paths,
@@ -283,32 +287,45 @@ export class HullWhiteService {
     // Derive term structure from market prices
     const termStructure: TermStructurePoint[] = marketPrices.map((mp) => ({
       maturity: mp.maturity,
-      rate: mp.maturity > 0 ? -Math.log(Math.max(mp.price, 1e-10)) / mp.maturity : 0,
+      rate:
+        mp.maturity > 0
+          ? -Math.log(Math.max(mp.price, 1e-10)) / mp.maturity
+          : 0,
     }));
 
     // Initial rate from shortest maturity
-    const sortedPrices = [...marketPrices].sort((a, b) => a.maturity - b.maturity);
-    const initialRate = termStructure.length > 0
-      ? this.instantaneousForward(
-          [...termStructure].sort((a, b) => a.maturity - b.maturity),
-          0,
-        )
-      : 0.04;
+    const sortedPrices = [...marketPrices].sort(
+      (a, b) => a.maturity - b.maturity,
+    );
+    const initialRate =
+      termStructure.length > 0
+        ? this.instantaneousForward(
+            [...termStructure].sort((a, b) => a.maturity - b.maturity),
+            0,
+          )
+        : 0.04;
 
     let bestKappa = fixedKappa ?? 0.1;
     let bestSigma = 0.01;
     let bestError = Infinity;
 
     // Grid search
-    const kappaGrid = fixedKappa != null
-      ? [fixedKappa]
-      : [0.01, 0.03, 0.05, 0.08, 0.1, 0.15, 0.2, 0.3, 0.5, 0.8, 1.0];
-    const sigmaGrid = [0.001, 0.003, 0.005, 0.008, 0.01, 0.015, 0.02, 0.03, 0.05, 0.08, 0.1];
+    const kappaGrid =
+      fixedKappa != null
+        ? [fixedKappa]
+        : [0.01, 0.03, 0.05, 0.08, 0.1, 0.15, 0.2, 0.3, 0.5, 0.8, 1.0];
+    const sigmaGrid = [
+      0.001, 0.003, 0.005, 0.008, 0.01, 0.015, 0.02, 0.03, 0.05, 0.08, 0.1,
+    ];
 
     for (const k of kappaGrid) {
       for (const s of sigmaGrid) {
         const error = this.computeFitError(
-          initialRate, k, s, termStructure, sortedPrices,
+          initialRate,
+          k,
+          s,
+          termStructure,
+          sortedPrices,
         );
         if (error < bestError) {
           bestError = error;
@@ -322,16 +339,25 @@ export class HullWhiteService {
     const refinementSteps = 20;
     for (let i = 0; i < refinementSteps; i++) {
       const scale = 0.5 ** (i + 1);
-      const kappaRange = fixedKappa != null
-        ? [bestKappa]
-        : [bestKappa * (1 - scale), bestKappa, bestKappa * (1 + scale)];
-      const sigmaRange = [bestSigma * (1 - scale), bestSigma, bestSigma * (1 + scale)];
+      const kappaRange =
+        fixedKappa != null
+          ? [bestKappa]
+          : [bestKappa * (1 - scale), bestKappa, bestKappa * (1 + scale)];
+      const sigmaRange = [
+        bestSigma * (1 - scale),
+        bestSigma,
+        bestSigma * (1 + scale),
+      ];
 
       for (const k of kappaRange) {
         for (const s of sigmaRange) {
           if (k <= 0 || s <= 0) continue;
           const error = this.computeFitError(
-            initialRate, k, s, termStructure, sortedPrices,
+            initialRate,
+            k,
+            s,
+            termStructure,
+            sortedPrices,
           );
           if (error < bestError) {
             bestError = error;
@@ -380,11 +406,17 @@ export class HullWhiteService {
 
       // ∂f/∂t: derivative of forward rate (finite difference)
       const fPlus = this.instantaneousForward(termStructure, t + dt * 0.01);
-      const fMinus = this.instantaneousForward(termStructure, Math.max(0, t - dt * 0.01));
+      const fMinus = this.instantaneousForward(
+        termStructure,
+        Math.max(0, t - dt * 0.01),
+      );
       const dfdt = (fPlus - fMinus) / (2 * dt * 0.01);
 
       // θ(t) = ∂f/∂t + κf(0,t) + (σ²/2κ)(1 - e^{-2κt})
-      theta[s] = dfdt + kappa * f + (sigma * sigma / (2 * kappa)) * (1 - Math.exp(-2 * kappa * t));
+      theta[s] =
+        dfdt +
+        kappa * f +
+        ((sigma * sigma) / (2 * kappa)) * (1 - Math.exp(-2 * kappa * t));
     }
 
     return theta;
@@ -405,7 +437,10 @@ export class HullWhiteService {
    * Interpolate the zero rate at an arbitrary maturity from
    * the term structure using linear interpolation.
    */
-  private interpolateRate(termStructure: TermStructurePoint[], t: number): number {
+  private interpolateRate(
+    termStructure: TermStructurePoint[],
+    t: number,
+  ): number {
     if (termStructure.length === 0) return 0.04; // fallback
     if (t <= 0) return termStructure[0].rate;
     if (termStructure.length === 1) return termStructure[0].rate;
@@ -418,7 +453,10 @@ export class HullWhiteService {
 
     // Linear interpolation
     for (let i = 0; i < termStructure.length - 1; i++) {
-      if (t >= termStructure[i].maturity && t <= termStructure[i + 1].maturity) {
+      if (
+        t >= termStructure[i].maturity &&
+        t <= termStructure[i + 1].maturity
+      ) {
         const t1 = termStructure[i].maturity;
         const t2 = termStructure[i + 1].maturity;
         const r1 = termStructure[i].rate;
@@ -439,7 +477,10 @@ export class HullWhiteService {
    *
    * Uses finite-difference approximation for the derivative.
    */
-  private instantaneousForward(termStructure: TermStructurePoint[], t: number): number {
+  private instantaneousForward(
+    termStructure: TermStructurePoint[],
+    t: number,
+  ): number {
     if (termStructure.length === 0) return 0.04;
 
     const epsilon = 1e-4;

@@ -6,7 +6,7 @@ describe('ZSpreadService', () => {
     { tenor: 0.5, rate: 0.045 },
     { tenor: 1, rate: 0.044 },
     { tenor: 2, rate: 0.042 },
-    { tenor: 5, rate: 0.040 },
+    { tenor: 5, rate: 0.04 },
     { tenor: 10, rate: 0.042 },
     { tenor: 30, rate: 0.046 },
   ];

@@ -29,9 +29,19 @@ describe('HRPService', () => {
   it('computes weights that sum to 1.0', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
       { subcategory: 'cash', category: 'asset', balance: 50, rate: 0.01 },
-      { subcategory: 'securities', category: 'asset', balance: 200, rate: 0.04 },
+      {
+        subcategory: 'securities',
+        category: 'asset',
+        balance: 200,
+        rate: 0.04,
+      },
       { subcategory: 'mortgage', category: 'asset', balance: 300, rate: 0.055 },
-      { subcategory: 'commercial', category: 'asset', balance: 150, rate: 0.06 },
+      {
+        subcategory: 'commercial',
+        category: 'asset',
+        balance: 150,
+        rate: 0.06,
+      },
     ]);
 
     const result = await service.computeHRP('inst_1');
@@ -42,7 +52,12 @@ describe('HRPService', () => {
   it('assigns lower weight to higher-volatility assets', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
       { subcategory: 'cash', category: 'asset', balance: 100, rate: 0.01 },
-      { subcategory: 'commercial_loans', category: 'asset', balance: 100, rate: 0.07 },
+      {
+        subcategory: 'commercial_loans',
+        category: 'asset',
+        balance: 100,
+        rate: 0.07,
+      },
     ]);
 
     const result = await service.computeHRP('inst_1');
@@ -55,8 +70,18 @@ describe('HRPService', () => {
   it('diversification ratio is greater than 1 for diversified portfolio', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
       { subcategory: 'cash', category: 'asset', balance: 50, rate: 0.01 },
-      { subcategory: 'securities', category: 'asset', balance: 150, rate: 0.04 },
-      { subcategory: 'consumer_loans', category: 'asset', balance: 200, rate: 0.06 },
+      {
+        subcategory: 'securities',
+        category: 'asset',
+        balance: 150,
+        rate: 0.04,
+      },
+      {
+        subcategory: 'consumer_loans',
+        category: 'asset',
+        balance: 200,
+        rate: 0.06,
+      },
     ]);
 
     const result = await service.computeHRP('inst_1');

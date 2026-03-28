@@ -17,7 +17,9 @@ describe('timer.util', () => {
       const stop = createTimer();
       // Busy wait ~1ms
       const start = Date.now();
-      while (Date.now() - start < 2) { /* spin */ }
+      while (Date.now() - start < 2) {
+        /* spin */
+      }
       const result = stop();
       expect(result.ms).toBeGreaterThan(0);
     });

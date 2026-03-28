@@ -24,7 +24,9 @@ export class ResponseTimeHistogramInterceptor implements NestInterceptor {
     { samples: number[]; bucketCounts: Map<number, number> }
   >();
 
-  constructor(private readonly buckets = ResponseTimeHistogramInterceptor.DEFAULT_BUCKETS) {}
+  constructor(
+    private readonly buckets = ResponseTimeHistogramInterceptor.DEFAULT_BUCKETS,
+  ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const start = process.hrtime.bigint();
@@ -69,8 +71,13 @@ export class ResponseTimeHistogramInterceptor implements NestInterceptor {
   /**
    * Get percentile stats for a specific route or all routes.
    */
-  getStats(routeKey?: string): Record<string, { p50: number; p95: number; p99: number; count: number }> {
-    const result: Record<string, { p50: number; p95: number; p99: number; count: number }> = {};
+  getStats(
+    routeKey?: string,
+  ): Record<string, { p50: number; p95: number; p99: number; count: number }> {
+    const result: Record<
+      string,
+      { p50: number; p95: number; p99: number; count: number }
+    > = {};
 
     const entries = routeKey
       ? [[routeKey, this.routeHistograms.get(routeKey)] as const]

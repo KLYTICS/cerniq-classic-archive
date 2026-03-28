@@ -74,10 +74,7 @@ export class TokenBucketLimiter {
     if (!bucket) return this.maxTokens;
 
     const elapsed = (Date.now() - bucket.lastRefill) / 1000;
-    return Math.min(
-      this.maxTokens,
-      bucket.tokens + elapsed * this.refillRate,
-    );
+    return Math.min(this.maxTokens, bucket.tokens + elapsed * this.refillRate);
   }
 
   /**

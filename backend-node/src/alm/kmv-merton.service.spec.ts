@@ -58,7 +58,10 @@ describe('KMVMertonService', () => {
   });
 
   it('computes KMV from balance sheet items via computeKMV', async () => {
-    prisma.institution.findUnique.mockResolvedValue({ id: 'inst_1', totalAssets: 500 });
+    prisma.institution.findUnique.mockResolvedValue({
+      id: 'inst_1',
+      totalAssets: 500,
+    });
     prisma.balanceSheetItem.findMany.mockResolvedValue([
       { category: 'asset', balance: 500, rate: 0.05, duration: 3 },
       { category: 'liability', balance: 435, rate: 0.03, duration: 1 },

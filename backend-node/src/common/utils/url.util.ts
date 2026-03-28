@@ -72,9 +72,7 @@ export function isSafeRedirect(
     }
 
     return allowedHosts.some(
-      (host) =>
-        url.hostname === host ||
-        url.hostname.endsWith(`.${host}`),
+      (host) => url.hostname === host || url.hostname.endsWith(`.${host}`),
     );
   } catch {
     return false;

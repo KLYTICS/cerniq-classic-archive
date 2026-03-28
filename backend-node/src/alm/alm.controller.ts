@@ -914,8 +914,7 @@ export class AlmController {
   @Get(':institutionId/export/excel')
   @UseGuards(AuthGuard)
   @ApiOperation({
-    summary:
-      'Export ALM report as Excel workbook (XML SpreadsheetML format)',
+    summary: 'Export ALM report as Excel workbook (XML SpreadsheetML format)',
   })
   @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
   @ApiResponse({
@@ -925,10 +924,7 @@ export class AlmController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Institution not found' })
-  async exportExcel(
-    @Param('institutionId') id: string,
-    @Res() res: any,
-  ) {
+  async exportExcel(@Param('institutionId') id: string, @Res() res: any) {
     this.logger.log(`Excel export requested for institution ${id}`);
     const buffer = await this.excelExport.exportToExcel(id);
     res.set({
@@ -1929,10 +1925,10 @@ export class AlmController {
   @ApiParam({ name: 'institutionId', description: 'Institution ID' })
   @ApiResponse({ status: 200, description: 'Historical trend time series' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getHistoricalTrend(
-    @Param('institutionId') institutionId: string,
-  ) {
-    this.logger.log(`Historical trend requested for institution ${institutionId}`);
+  async getHistoricalTrend(@Param('institutionId') institutionId: string) {
+    this.logger.log(
+      `Historical trend requested for institution ${institutionId}`,
+    );
     return this.trendAnalysis.getHistoricalTrend(institutionId);
   }
 
@@ -1963,10 +1959,7 @@ export class AlmController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'No completed analysis found' })
-  async exportCSV(
-    @Param('institutionId') id: string,
-    @Res() res: any,
-  ) {
+  async exportCSV(@Param('institutionId') id: string, @Res() res: any) {
     this.logger.log(`CSV export requested for institution ${id}`);
     const csv = await this.dataExport.exportMetrics(id, 'csv');
     res.set({

@@ -47,9 +47,7 @@ export class WorkspaceAccessGuard implements CanActivate {
       this.logger.warn(
         `User ${user.id} denied access to workspace ${workspaceId}`,
       );
-      throw new ForbiddenException(
-        'You do not have access to this workspace',
-      );
+      throw new ForbiddenException('You do not have access to this workspace');
     }
 
     // Attach the resolved workspace ID to the request for downstream use

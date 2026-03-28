@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import type { MutableRefObject } from 'react';
 import { useClickOutside } from './useClickOutside';
 
 describe('useClickOutside', () => {
@@ -15,7 +16,7 @@ describe('useClickOutside', () => {
     const { result } = renderHook(() => useClickOutside(handler));
 
     const el = document.createElement('div');
-    (result.current as any).current = el;
+    (result.current as MutableRefObject<HTMLDivElement | null>).current = el;
 
     act(() => {
       document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
@@ -29,7 +30,7 @@ describe('useClickOutside', () => {
 
     const el = document.createElement('div');
     document.body.appendChild(el);
-    (result.current as any).current = el;
+    (result.current as MutableRefObject<HTMLDivElement | null>).current = el;
 
     act(() => {
       el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));

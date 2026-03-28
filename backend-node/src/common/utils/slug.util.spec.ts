@@ -80,7 +80,8 @@ describe('truncateSlug', () => {
   });
 
   it('truncates at word boundary', () => {
-    const input = 'this is a very long title that should be truncated at a word boundary';
+    const input =
+      'this is a very long title that should be truncated at a word boundary';
     const result = truncateSlug(input, 30);
     expect(result.length).toBeLessThanOrEqual(30);
     expect(result.endsWith('-')).toBe(false);

@@ -14,7 +14,9 @@ import { Request } from 'express';
  */
 @Injectable()
 export class ResponseHistogramInterceptor implements NestInterceptor {
-  private static readonly BUCKETS = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
+  private static readonly BUCKETS = [
+    10, 25, 50, 100, 250, 500, 1000, 2500, 5000,
+  ];
   private readonly logger = new Logger(ResponseHistogramInterceptor.name);
   private samples: number[] = [];
   private bucketCounts: Map<number, number> = new Map(
@@ -31,7 +33,9 @@ export class ResponseHistogramInterceptor implements NestInterceptor {
         this.record(ms);
 
         if (ms > 2000) {
-          this.logger.warn(`Slow request: ${req.method} ${req.originalUrl} ${ms.toFixed(0)}ms`);
+          this.logger.warn(
+            `Slow request: ${req.method} ${req.originalUrl} ${ms.toFixed(0)}ms`,
+          );
         }
       }),
     );

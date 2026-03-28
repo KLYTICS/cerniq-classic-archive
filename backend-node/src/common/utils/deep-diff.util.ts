@@ -36,9 +36,19 @@ export function deepDiff(
     const newVal = newObj?.[key];
 
     if (oldVal === undefined && newVal !== undefined) {
-      diffs.push({ path, oldValue: undefined, newValue: newVal, type: 'added' });
+      diffs.push({
+        path,
+        oldValue: undefined,
+        newValue: newVal,
+        type: 'added',
+      });
     } else if (oldVal !== undefined && newVal === undefined) {
-      diffs.push({ path, oldValue: oldVal, newValue: undefined, type: 'removed' });
+      diffs.push({
+        path,
+        oldValue: oldVal,
+        newValue: undefined,
+        type: 'removed',
+      });
     } else if (isObject(oldVal) && isObject(newVal)) {
       diffs.push(...deepDiff(oldVal, newVal, path));
     } else if (!isEqual(oldVal, newVal)) {
@@ -70,11 +80,17 @@ export function formatDiffSummary(diffs: DiffEntry[]): string {
 }
 
 function isObject(val: any): val is Record<string, any> {
-  return val !== null && typeof val === 'object' && !Array.isArray(val) && !(val instanceof Date);
+  return (
+    val !== null &&
+    typeof val === 'object' &&
+    !Array.isArray(val) &&
+    !(val instanceof Date)
+  );
 }
 
 function isEqual(a: any, b: any): boolean {
   if (a === b) return true;
-  if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
+  if (a instanceof Date && b instanceof Date)
+    return a.getTime() === b.getTime();
   return JSON.stringify(a) === JSON.stringify(b);
 }

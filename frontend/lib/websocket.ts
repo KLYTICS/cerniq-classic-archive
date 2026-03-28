@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 
 function resolveWebSocketUrl(): string {
     const explicitWsUrl = (process.env.NEXT_PUBLIC_WS_URL || '').trim();
@@ -24,13 +24,31 @@ const WS_URL = resolveWebSocketUrl();
 
 export interface WebSocketMessage {
     type: string;
-    data: any;
+    data: unknown;
+}
+
+function asWebSocketMessage(payload: unknown): WebSocketMessage {
+    if (payload !== null && typeof payload === 'object') {
+        const record = payload as Record<string, unknown>;
+        if (typeof record.type === 'string') {
+            return {
+                type: record.type,
+                data: record.data,
+            };
+        }
+    }
+
+    return {
+        type: 'message',
+        data: payload,
+    };
 }
 
 export function useWebSocket(onMessage: (message: WebSocketMessage) => void) {
     const [isConnected, setIsConnected] = useState(false);
     const ws = useRef<WebSocket | null>(null);
     const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
+    const handleMessage = useEffectEvent(onMessage);
 
     useEffect(() => {
         function connect() {
@@ -43,8 +61,8 @@ export function useWebSocket(onMessage: (message: WebSocketMessage) => void) {
 
                 ws.current.onmessage = (event) => {
                     try {
-                        const message = JSON.parse(event.data);
-                        onMessage(message);
+                        const message = asWebSocketMessage(JSON.parse(event.data) as unknown);
+                        handleMessage(message);
                     } catch (error) {
                         console.error('Failed to parse WebSocket message:', error);
                     }
@@ -79,7 +97,7 @@ export function useWebSocket(onMessage: (message: WebSocketMessage) => void) {
         };
     }, []);
 
-    const send = (message: any) => {
+    const send = (message: unknown) => {
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
             ws.current.send(JSON.stringify(message));
         }

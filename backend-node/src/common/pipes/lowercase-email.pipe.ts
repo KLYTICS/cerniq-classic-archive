@@ -7,7 +7,12 @@ import { PipeTransform, Injectable } from '@nestjs/common';
  */
 @Injectable()
 export class LowercaseEmailPipe implements PipeTransform {
-  private readonly emailFields = ['email', 'userEmail', 'contactEmail', 'workEmail'];
+  private readonly emailFields = [
+    'email',
+    'userEmail',
+    'contactEmail',
+    'workEmail',
+  ];
 
   transform(value: any) {
     if (typeof value === 'string') {

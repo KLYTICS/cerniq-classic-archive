@@ -1,4 +1,10 @@
-import { isValidUrl, normalizeUrl, isSafeRedirect, extractDomain, buildUrl } from './url.util';
+import {
+  isValidUrl,
+  normalizeUrl,
+  isSafeRedirect,
+  extractDomain,
+  buildUrl,
+} from './url.util';
 
 describe('url.util', () => {
   describe('isValidUrl', () => {
@@ -13,7 +19,9 @@ describe('url.util', () => {
 
   describe('normalizeUrl', () => {
     it('removes default port 443 for HTTPS', () => {
-      expect(normalizeUrl('https://example.com:443/path')).toBe('https://example.com/path');
+      expect(normalizeUrl('https://example.com:443/path')).toBe(
+        'https://example.com/path',
+      );
     });
 
     it('sorts query parameters alphabetically', () => {
@@ -32,17 +40,23 @@ describe('url.util', () => {
     });
 
     it('allows URLs on allowed hosts', () => {
-      expect(isSafeRedirect('https://app.example.com/page', ['example.com'])).toBe(true);
+      expect(
+        isSafeRedirect('https://app.example.com/page', ['example.com']),
+      ).toBe(true);
     });
 
     it('blocks URLs on disallowed hosts', () => {
-      expect(isSafeRedirect('https://evil.com/page', ['example.com'])).toBe(false);
+      expect(isSafeRedirect('https://evil.com/page', ['example.com'])).toBe(
+        false,
+      );
     });
   });
 
   describe('extractDomain', () => {
     it('extracts hostname from URL', () => {
-      expect(extractDomain('https://www.example.com:8080/path')).toBe('www.example.com');
+      expect(extractDomain('https://www.example.com:8080/path')).toBe(
+        'www.example.com',
+      );
     });
 
     it('returns null for invalid input', () => {
@@ -52,7 +66,10 @@ describe('url.util', () => {
 
   describe('buildUrl', () => {
     it('builds URL with query parameters', () => {
-      const result = buildUrl('https://api.example.com/search', { q: 'test', page: 1 });
+      const result = buildUrl('https://api.example.com/search', {
+        q: 'test',
+        page: 1,
+      });
       expect(result).toContain('q=test');
       expect(result).toContain('page=1');
     });

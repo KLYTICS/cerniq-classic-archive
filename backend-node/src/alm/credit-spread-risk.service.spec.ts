@@ -8,8 +8,18 @@ describe('CreditSpreadRiskService', () => {
   });
 
   const portfolio = [
-    { name: 'US Treasury 5Y', balance: 20_000_000, spread: 0.005, duration: 4.5 },
-    { name: 'Corp Bond AAA', balance: 10_000_000, spread: 0.012, duration: 6.0 },
+    {
+      name: 'US Treasury 5Y',
+      balance: 20_000_000,
+      spread: 0.005,
+      duration: 4.5,
+    },
+    {
+      name: 'Corp Bond AAA',
+      balance: 10_000_000,
+      spread: 0.012,
+      duration: 6.0,
+    },
     { name: 'MBS Pool', balance: 15_000_000, spread: 0.018, duration: 3.2 },
   ];
 

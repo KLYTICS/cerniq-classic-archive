@@ -172,7 +172,8 @@ export class DailyPnLAttributionService {
 
       const priorSpread = p.rate - prior.benchmarkRate;
       const currentSpread = c.rate - current.benchmarkRate;
-      const spreadChange = (currentSpread - priorSpread) * p.balance * pf * p.sign;
+      const spreadChange =
+        (currentSpread - priorSpread) * p.balance * pf * p.sign;
       totalSpreadEffect += spreadChange;
     }
 
@@ -342,8 +343,7 @@ export class DailyPnLAttributionService {
     }
 
     // ── Spanish summary ───────────────────────────────────
-    const directionEs =
-      result.totalNIIChange >= 0 ? 'aumentó' : 'disminuyó';
+    const directionEs = result.totalNIIChange >= 0 ? 'aumentó' : 'disminuyó';
     let es = `Resumen Diario de P&L: El ingreso neto por intereses ${directionEs} ${amount}.`;
     if (top3.length > 0) {
       es += ' Principales factores:';
@@ -420,9 +420,10 @@ export class DailyPnLAttributionService {
             `${d.name} ${d.driver} (-${this.formatDollars(Math.abs(d.impact))})`,
         )
         .join(', ');
-      summary += positiveDrivers.length > 0
-        ? `, partially offset by ${negDesc}`
-        : ` driven by ${negDesc}`;
+      summary +=
+        positiveDrivers.length > 0
+          ? `, partially offset by ${negDesc}`
+          : ` driven by ${negDesc}`;
     }
 
     return summary;

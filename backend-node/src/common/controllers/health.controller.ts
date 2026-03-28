@@ -38,14 +38,21 @@ export class HealthController {
       }),
       await this.checkDependency('cache', async () => {
         if (!this.cache) return false;
-        return (this.cache as any).ping ? await (this.cache as any).ping() : true;
+        return (this.cache as any).ping
+          ? await (this.cache as any).ping()
+          : true;
       }),
     ];
 
-    const allHealthy = dependencies.every((d: DependencyStatus) => d.status === 'healthy');
-    const anyUnhealthy = dependencies.some((d: DependencyStatus) => d.status === 'unhealthy');
+    const allHealthy = dependencies.every(
+      (d: DependencyStatus) => d.status === 'healthy',
+    );
+    const anyUnhealthy = dependencies.some(
+      (d: DependencyStatus) => d.status === 'unhealthy',
+    );
 
-    const pool = (this.prisma?.getPoolStats?.() as HealthResponse['pool']) || null;
+    const pool =
+      (this.prisma?.getPoolStats?.() as HealthResponse['pool']) || null;
 
     return {
       status: anyUnhealthy ? 'unhealthy' : allHealthy ? 'ok' : 'degraded',
@@ -70,7 +77,11 @@ export class HealthController {
         latencyMs: Math.round(performance.now() - start),
       };
     } catch {
-      return { name, status: 'unhealthy', latencyMs: Math.round(performance.now() - start) };
+      return {
+        name,
+        status: 'unhealthy',
+        latencyMs: Math.round(performance.now() - start),
+      };
     }
   }
 }

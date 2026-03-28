@@ -1,4 +1,8 @@
-import { FTPAttributionService, SpreadDecomposition, RarocRanking } from './ftp-attribution.service';
+import {
+  FTPAttributionService,
+  SpreadDecomposition,
+  RarocRanking,
+} from './ftp-attribution.service';
 
 describe('FTPAttributionService', () => {
   let service: FTPAttributionService;
@@ -57,7 +61,9 @@ describe('FTPAttributionService', () => {
   it('should decompose FTP net spread as actualRate minus ftpRate for assets', async () => {
     const result = await service.getFullAttribution('inst-1');
 
-    const autoLoans = result.decompositions.find((d) => d.subcategory === 'auto_loans');
+    const autoLoans = result.decompositions.find(
+      (d) => d.subcategory === 'auto_loans',
+    );
     expect(autoLoans).toBeDefined();
     // FTP net for asset = actualRate - ftpRate = 0.065 - 0.042 = 0.023
     expect(autoLoans!.ftpNet).toBeCloseTo(0.023, 4);
@@ -66,28 +72,36 @@ describe('FTPAttributionService', () => {
   it('should decompose FTP net spread as ftpRate minus actualRate for liabilities', async () => {
     const result = await service.getFullAttribution('inst-1');
 
-    const deposits = result.decompositions.find((d) => d.subcategory === 'savings');
+    const deposits = result.decompositions.find(
+      (d) => d.subcategory === 'savings',
+    );
     expect(deposits).toBeDefined();
     // FTP net for liability = ftpRate - actualRate = 0.035 - 0.015 = 0.020
-    expect(deposits!.ftpNet).toBeCloseTo(0.020, 4);
+    expect(deposits!.ftpNet).toBeCloseTo(0.02, 4);
   });
 
   it('should assign credit spread from lookup table for known asset types', async () => {
     const result = await service.getFullAttribution('inst-1');
 
-    const mortgage = result.decompositions.find((d) => d.subcategory === 'residential_mortgage');
+    const mortgage = result.decompositions.find(
+      (d) => d.subcategory === 'residential_mortgage',
+    );
     expect(mortgage).toBeDefined();
     // residential_mortgage credit spread = 0.004
     expect(mortgage!.creditSpread).toBeCloseTo(0.004, 4);
 
-    const auto = result.decompositions.find((d) => d.subcategory === 'auto_loans');
+    const auto = result.decompositions.find(
+      (d) => d.subcategory === 'auto_loans',
+    );
     expect(auto!.creditSpread).toBeCloseTo(0.012, 4);
   });
 
   it('should assign zero credit spread and option cost to liabilities', async () => {
     const result = await service.getFullAttribution('inst-1');
 
-    const deposits = result.decompositions.find((d) => d.category === 'liability');
+    const deposits = result.decompositions.find(
+      (d) => d.category === 'liability',
+    );
     expect(deposits).toBeDefined();
     expect(deposits!.creditSpread).toBe(0);
     expect(deposits!.optionCost).toBe(0);
@@ -99,7 +113,12 @@ describe('FTPAttributionService', () => {
 
     for (const d of result.decompositions) {
       const expectedProfit =
-        d.balance * (d.ftpNet - d.creditSpread - d.optionCost - d.liquidityPremium - d.opCost);
+        d.balance *
+        (d.ftpNet -
+          d.creditSpread -
+          d.optionCost -
+          d.liquidityPremium -
+          d.opCost);
       expect(d.economicProfit).toBeCloseTo(expectedProfit, 0);
     }
   });

@@ -146,10 +146,10 @@ describe('DurationService', () => {
     // Positive duration gap: rate increase hurts EVE
     const points = service.calculateEVESensitivity(
       4.0, // asset duration
-      10,  // asset convexity
+      10, // asset convexity
       400, // total assets
       1.0, // liability duration
-      2,   // liability convexity
+      2, // liability convexity
       350, // total liabilities
       [100, 200],
     );

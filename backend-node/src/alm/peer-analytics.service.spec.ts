@@ -3,7 +3,9 @@ import { PeerAnalyticsService } from './peer-analytics.service';
 describe('PeerAnalyticsService', () => {
   let service: PeerAnalyticsService;
   const mockPrisma = {
-    institution: { findUnique: jest.fn().mockResolvedValue({ totalAssets: 200 }) },
+    institution: {
+      findUnique: jest.fn().mockResolvedValue({ totalAssets: 200 }),
+    },
     balanceSheetItem: { findMany: jest.fn().mockResolvedValue([]) },
   } as any;
 
@@ -32,13 +34,17 @@ describe('PeerAnalyticsService', () => {
 
   it('NIM demo default should be around 3.5', async () => {
     const result = await service.getPeerAnalytics('inst-1');
-    const nim = result.metrics.find(m => m.metricName.includes('Net Interest Margin'));
+    const nim = result.metrics.find((m) =>
+      m.metricName.includes('Net Interest Margin'),
+    );
     expect(nim!.institutionValue).toBeCloseTo(3.5, 1);
   });
 
   it('small tier for < $50M assets', async () => {
     const smallPrisma = {
-      institution: { findUnique: jest.fn().mockResolvedValue({ totalAssets: 30 }) },
+      institution: {
+        findUnique: jest.fn().mockResolvedValue({ totalAssets: 30 }),
+      },
       balanceSheetItem: { findMany: jest.fn().mockResolvedValue([]) },
     } as any;
     const svc = new PeerAnalyticsService(smallPrisma);

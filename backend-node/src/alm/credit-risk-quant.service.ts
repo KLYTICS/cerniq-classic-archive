@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import * as Sentry from '@sentry/nestjs';
 
@@ -107,7 +111,8 @@ export class CreditRiskQuantService {
         loanSegments.length > 0 ? loanSegments : this.getDemoSegments()
       ).map((seg: any) => {
         const segType = this.normalizeType(seg.segmentName);
-        const coeffs = PD_COEFFICIENTS[segType] ?? PD_COEFFICIENTS.consumer_loans;
+        const coeffs =
+          PD_COEFFICIENTS[segType] ?? PD_COEFFICIENTS.consumer_loans;
 
         // PD from logistic regression
         // Features: delinquency rate (approx from historical loss), unemployment (PR ~6.5%),
@@ -146,7 +151,13 @@ export class CreditRiskQuantService {
 
         // Unexpected Loss (Vasicek single-factor, 99.9% confidence)
         const rho = ASSET_CORRELATIONS[segType] ?? 0.12;
-        const unexpectedLoss = this.vasicekUL(annualPD, lgd, ead, rho, maturity);
+        const unexpectedLoss = this.vasicekUL(
+          annualPD,
+          lgd,
+          ead,
+          rho,
+          maturity,
+        );
 
         // Economic Capital = UL × maturity adjustment
         const maturityAdj = this.maturityAdjustment(annualPD, maturity);
@@ -162,7 +173,8 @@ export class CreditRiskQuantService {
           unexpectedLoss: Math.round(unexpectedLoss * 100) / 100,
           economicCapital: Math.round(economicCapital * 100) / 100,
           elPct: ead > 0 ? Math.round((expectedLoss / ead) * 10000) / 100 : 0,
-          ecPct: ead > 0 ? Math.round((economicCapital / ead) * 10000) / 100 : 0,
+          ecPct:
+            ead > 0 ? Math.round((economicCapital / ead) * 10000) / 100 : 0,
         };
       });
 
@@ -195,7 +207,9 @@ export class CreditRiskQuantService {
     } catch (error: any) {
       this.logger.error(`Computation failed: ${error.message}`, error.stack);
       Sentry.captureException(error);
-      throw new InternalServerErrorException('Computation failed. Please try again.');
+      throw new InternalServerErrorException(
+        'Computation failed. Please try again.',
+      );
     }
   }
 

@@ -29,7 +29,9 @@ describe('CreditMetricsService', () => {
 
   it('should have economicCapital > unexpectedLoss (includes 1.06x factor)', async () => {
     const result = await svc.computePortfolioVaR('inst-1');
-    expect(result.economicCapital).toBeGreaterThanOrEqual(result.unexpectedLoss);
+    expect(result.economicCapital).toBeGreaterThanOrEqual(
+      result.unexpectedLoss,
+    );
   });
 
   it('should have non-negative expected and unexpected loss', async () => {

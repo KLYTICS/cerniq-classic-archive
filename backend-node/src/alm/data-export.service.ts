@@ -132,33 +132,48 @@ export class DataExportService {
     }
 
     // LCR / Liquidity
-    const liquidity = summary['liquidity'] as Record<string, unknown> | undefined;
+    const liquidity = summary['liquidity'] as
+      | Record<string, unknown>
+      | undefined;
     if (liquidity) {
       metrics.lcr = this.safeNumber(liquidity['lcr']);
       metrics.lcrStatus = this.safeString(liquidity['status']);
     }
 
     // NII Sensitivity
-    const nii = summary['niiSensitivity'] as Record<string, unknown> | undefined;
+    const nii = summary['niiSensitivity'] as
+      | Record<string, unknown>
+      | undefined;
     if (nii) {
       metrics.baseNII = this.safeNumber(nii['baseNII']);
       metrics.niiRiskRating = this.safeString(nii['riskRating']);
     }
 
     // Full Analysis sub-fields
-    const fullAnalysis = summary['fullAnalysis'] as Record<string, unknown> | undefined;
+    const fullAnalysis = summary['fullAnalysis'] as
+      | Record<string, unknown>
+      | undefined;
     if (fullAnalysis) {
       // Summary block
-      const faSummary = fullAnalysis['summary'] as Record<string, unknown> | undefined;
+      const faSummary = fullAnalysis['summary'] as
+        | Record<string, unknown>
+        | undefined;
       if (faSummary) {
         metrics.totalAssets = this.safeNumber(faSummary['totalAssets']);
-        metrics.totalLiabilities = this.safeNumber(faSummary['totalLiabilities']);
+        metrics.totalLiabilities = this.safeNumber(
+          faSummary['totalLiabilities'],
+        );
         metrics.equity = this.safeNumber(faSummary['equity']);
       }
 
       // Capital ratio
-      if (metrics.equity !== null && metrics.totalAssets !== null && metrics.totalAssets > 0) {
-        metrics.capitalRatio = Math.round((metrics.equity / metrics.totalAssets) * 10000) / 100;
+      if (
+        metrics.equity !== null &&
+        metrics.totalAssets !== null &&
+        metrics.totalAssets > 0
+      ) {
+        metrics.capitalRatio =
+          Math.round((metrics.equity / metrics.totalAssets) * 10000) / 100;
       }
 
       // EVE

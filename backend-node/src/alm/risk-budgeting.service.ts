@@ -290,10 +290,7 @@ export class RiskBudgetingService {
     const actualBudgets = cr.map((c) => (totalCR > 0 ? c / totalCR : 1 / n));
 
     const trackingError = Math.sqrt(
-      actualBudgets.reduce(
-        (s, a, i) => s + (a - targetBudgets[i]) ** 2,
-        0,
-      ) / n,
+      actualBudgets.reduce((s, a, i) => s + (a - targetBudgets[i]) ** 2, 0) / n,
     );
 
     return {
@@ -310,10 +307,7 @@ export class RiskBudgetingService {
 
   // ─── Matrix Helpers ──────────────────────────────────────
 
-  private buildCovarianceMatrix(
-    vols: number[],
-    corr: number[][],
-  ): number[][] {
+  private buildCovarianceMatrix(vols: number[], corr: number[][]): number[][] {
     const n = vols.length;
     return Array.from({ length: n }, (_, i) =>
       Array.from({ length: n }, (_, j) => vols[i] * vols[j] * corr[i][j]),

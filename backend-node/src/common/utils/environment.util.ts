@@ -51,7 +51,10 @@ export function getEnvBool(key: string, defaultValue = false): boolean {
 export function getEnvList(key: string, defaultValue: string[] = []): string[] {
   const raw = process.env[key];
   if (!raw) return defaultValue;
-  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 /**

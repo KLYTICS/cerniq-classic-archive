@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import * as Sentry from '@sentry/nestjs';
 
@@ -56,7 +60,10 @@ export class ConcentrationService {
       });
 
       const assets = items.filter((i: any) => i.category === 'asset');
-      const totalAssets = assets.reduce((s: number, i: any) => s + i.balance, 0);
+      const totalAssets = assets.reduce(
+        (s: number, i: any) => s + i.balance,
+        0,
+      );
 
       if (totalAssets === 0) {
         return this.getDemoAnalysis();
@@ -102,10 +109,12 @@ export class ConcentrationService {
       } else {
         // Use defaults
         for (const [name, config] of Object.entries(DEFAULT_LIMITS)) {
-          const balance = sectorBalances.get(this.normalizeSectorName(name)) ?? 0;
+          const balance =
+            sectorBalances.get(this.normalizeSectorName(name)) ?? 0;
           const currentPct = totalAssets > 0 ? balance / totalAssets : 0;
           const headroom = config.maxPct - currentPct;
-          const utilization = config.maxPct > 0 ? currentPct / config.maxPct : 0;
+          const utilization =
+            config.maxPct > 0 ? currentPct / config.maxPct : 0;
 
           if (balance > 0 || config.type === 'single_name') {
             exposures.push({
@@ -141,7 +150,9 @@ export class ConcentrationService {
       const diversificationScore = Math.max(0, Math.min(100, 100 - hhi / 100));
 
       return {
-        exposures: exposures.sort((a, b) => b.utilizationPct - a.utilizationPct),
+        exposures: exposures.sort(
+          (a, b) => b.utilizationPct - a.utilizationPct,
+        ),
         hhi: Math.round(hhi),
         hhiInterpretation,
         diversificationScore: Math.round(diversificationScore),
@@ -152,7 +163,9 @@ export class ConcentrationService {
     } catch (error: any) {
       this.logger.error(`Computation failed: ${error.message}`, error.stack);
       Sentry.captureException(error);
-      throw new InternalServerErrorException('Computation failed. Please try again.');
+      throw new InternalServerErrorException(
+        'Computation failed. Please try again.',
+      );
     }
   }
 

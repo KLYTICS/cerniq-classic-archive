@@ -159,9 +159,11 @@ export class CECLService {
       // FASB 326 requires PV discounting of expected losses (ASC 326-20-30-4)
       const discountRate = seg.discountRate ?? 0.03; // Default 3% if not specified
       const undiscountedLoss = adjRate * seg.weightedAvgMaturity;
-      const pvFactor = seg.weightedAvgMaturity > 0
-        ? (1 - Math.pow(1 + discountRate, -seg.weightedAvgMaturity)) / (discountRate * seg.weightedAvgMaturity)
-        : 1;
+      const pvFactor =
+        seg.weightedAvgMaturity > 0
+          ? (1 - Math.pow(1 + discountRate, -seg.weightedAvgMaturity)) /
+            (discountRate * seg.weightedAvgMaturity)
+          : 1;
       const lifetimeLossRate = Math.min(undiscountedLoss * pvFactor, 1);
       const expectedLoss = seg.balance * lifetimeLossRate;
       const allowance = expectedLoss;

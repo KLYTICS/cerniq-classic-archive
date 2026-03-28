@@ -214,7 +214,7 @@ describe('ExpectedShortfallBacktestService', () => {
     const totalDays = 150;
     const returns = Array.from(
       { length: totalDays },
-      (_, i) => (i % 7 === 0 ? -0.02 : 0.003) + (Math.sin(i) * 0.001),
+      (_, i) => (i % 7 === 0 ? -0.02 : 0.003) + Math.sin(i) * 0.001,
     );
 
     const result = service.rollingBacktest({
@@ -285,7 +285,7 @@ describe('ExpectedShortfallBacktestService', () => {
     // Exception rate should be in a reasonable range around 1%
     // Allow wider tolerance for deterministic pseudo-random data
     expect(rate).toBeGreaterThanOrEqual(0);
-    expect(rate).toBeLessThanOrEqual(0.10); // Not wildly off
+    expect(rate).toBeLessThanOrEqual(0.1); // Not wildly off
     expect(totalPeriods).toBe(n - windowSize);
   });
 

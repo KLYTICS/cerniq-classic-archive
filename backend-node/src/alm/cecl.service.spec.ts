@@ -5,15 +5,33 @@ describe('CECLService', () => {
 
   beforeEach(() => {
     const mockPrisma = {
-      loanSegment: { findMany: jest.fn().mockResolvedValue([]), createMany: jest.fn(), deleteMany: jest.fn() },
+      loanSegment: {
+        findMany: jest.fn().mockResolvedValue([]),
+        createMany: jest.fn(),
+        deleteMany: jest.fn(),
+      },
       institution: { findFirst: jest.fn().mockResolvedValue(null) },
     } as any;
     svc = new CECLService(mockPrisma);
   });
 
   const segments = [
-    { segmentName: 'Consumer', balance: 100_000_000, weightedAvgMaturity: 3, historicalLossRate: 0.02, lgd: 0.5, qualitativeAdj: 0.005 },
-    { segmentName: 'Commercial', balance: 200_000_000, weightedAvgMaturity: 5, historicalLossRate: 0.01, lgd: 0.4, qualitativeAdj: 0.002 },
+    {
+      segmentName: 'Consumer',
+      balance: 100_000_000,
+      weightedAvgMaturity: 3,
+      historicalLossRate: 0.02,
+      lgd: 0.5,
+      qualitativeAdj: 0.005,
+    },
+    {
+      segmentName: 'Commercial',
+      balance: 200_000_000,
+      weightedAvgMaturity: 5,
+      historicalLossRate: 0.01,
+      lgd: 0.4,
+      qualitativeAdj: 0.002,
+    },
   ];
 
   it('should return correct WARM output shape', () => {
@@ -34,7 +52,7 @@ describe('CECLService', () => {
     // pvFactor = (1 - (1.03)^-3) / (0.03 * 3) ≈ 0.9429
     // lifetimeLoss = 0.075 * 0.9429 ≈ 0.07072
     // EL = 100M * 0.07072 ≈ 7,071,712
-    const consumer = result.segments.find(s => s.segmentName === 'Consumer')!;
+    const consumer = result.segments.find((s) => s.segmentName === 'Consumer')!;
     expect(consumer.expectedLoss).toBeCloseTo(7_071_712, -4);
   });
 
@@ -57,13 +75,26 @@ describe('CECLService', () => {
     expect(result.methodology).toBe('PD×LGD');
     expect(result.macroScenarioBreakdown).toBeDefined();
     // adverse allowance >= baseline
-    expect(result.macroScenarioBreakdown!.adverse).toBeGreaterThanOrEqual(result.macroScenarioBreakdown!.baseline);
+    expect(result.macroScenarioBreakdown!.adverse).toBeGreaterThanOrEqual(
+      result.macroScenarioBreakdown!.baseline,
+    );
     // severely adverse >= adverse
-    expect(result.macroScenarioBreakdown!.severelyAdverse).toBeGreaterThanOrEqual(result.macroScenarioBreakdown!.adverse);
+    expect(
+      result.macroScenarioBreakdown!.severelyAdverse,
+    ).toBeGreaterThanOrEqual(result.macroScenarioBreakdown!.adverse);
   });
 
   it('should handle zero balance segments gracefully', () => {
-    const zeroSegments = [{ segmentName: 'Empty', balance: 0, weightedAvgMaturity: 3, historicalLossRate: 0.02, lgd: 0.5, qualitativeAdj: 0 }];
+    const zeroSegments = [
+      {
+        segmentName: 'Empty',
+        balance: 0,
+        weightedAvgMaturity: 3,
+        historicalLossRate: 0.02,
+        lgd: 0.5,
+        qualitativeAdj: 0,
+      },
+    ];
     const result = svc.calculateWARM(zeroSegments);
     expect(result.totalBalance).toBe(0);
     expect(result.totalAllowance).toBe(0);

@@ -28,8 +28,20 @@ describe('LiquidityTransferPricingService', () => {
 
   it('charges assets and credits liabilities for liquidity', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { subcategory: 'mortgage', category: 'asset', balance: 100, rate: 0.055, duration: 7 },
-      { subcategory: 'demand_deposits', category: 'liability', balance: 80, rate: 0.005, duration: 0.1 },
+      {
+        subcategory: 'mortgage',
+        category: 'asset',
+        balance: 100,
+        rate: 0.055,
+        duration: 7,
+      },
+      {
+        subcategory: 'demand_deposits',
+        category: 'liability',
+        balance: 80,
+        rate: 0.005,
+        duration: 0.1,
+      },
     ]);
 
     const result = await service.computeLTP('inst_1');
@@ -46,7 +58,13 @@ describe('LiquidityTransferPricingService', () => {
 
   it('after-LTP NIM reflects liquidity premium adjustment', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { subcategory: 'loans', category: 'asset', balance: 200, rate: 0.06, duration: 5 },
+      {
+        subcategory: 'loans',
+        category: 'asset',
+        balance: 200,
+        rate: 0.06,
+        duration: 5,
+      },
     ]);
 
     const result = await service.computeLTP('inst_1');
@@ -66,8 +84,20 @@ describe('LiquidityTransferPricingService', () => {
 
   it('net LTP transfer equals charge minus credit', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { subcategory: 'loans', category: 'asset', balance: 100, rate: 0.06, duration: 3 },
-      { subcategory: 'deposits', category: 'liability', balance: 90, rate: 0.02, duration: 0.5 },
+      {
+        subcategory: 'loans',
+        category: 'asset',
+        balance: 100,
+        rate: 0.06,
+        duration: 3,
+      },
+      {
+        subcategory: 'deposits',
+        category: 'liability',
+        balance: 90,
+        rate: 0.02,
+        duration: 0.5,
+      },
     ]);
 
     const result = await service.computeLTP('inst_1');

@@ -189,7 +189,8 @@ describe('ForwardSimulationService', () => {
       expect(q.totalAssets).toBeGreaterThan(0);
       expect(q.totalLiabilities).toBeGreaterThan(0);
       // NWR = (assets - liabilities) / assets * 100
-      const expectedNWR = ((q.totalAssets - q.totalLiabilities) / q.totalAssets) * 100;
+      const expectedNWR =
+        ((q.totalAssets - q.totalLiabilities) / q.totalAssets) * 100;
       expect(q.projectedNWR).toBeCloseTo(expectedNWR, 0);
     }
   });
@@ -210,8 +211,12 @@ describe('ForwardSimulationService', () => {
     expect(result.summary).toHaveProperty('worstCaseNWR');
     expect(result.summary).toHaveProperty('worstCaseLCR');
     // Year 3 cumulative NII should exceed year 1
-    expect(result.summary.baseNIIYear3).toBeGreaterThan(result.summary.baseNIIYear1);
+    expect(result.summary.baseNIIYear3).toBeGreaterThan(
+      result.summary.baseNIIYear1,
+    );
     // Up200 should produce more NII than down100 in demo
-    expect(result.summary.up200NIIYear3).toBeGreaterThan(result.summary.down100NIIYear3);
+    expect(result.summary.up200NIIYear3).toBeGreaterThan(
+      result.summary.down100NIIYear3,
+    );
   });
 });

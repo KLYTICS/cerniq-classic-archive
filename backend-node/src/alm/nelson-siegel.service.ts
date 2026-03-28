@@ -39,7 +39,12 @@ export interface FitResult {
   lambda: number;
   rmse: number;
   r2: number;
-  fitted: Array<{ maturity: number; actual: number; fitted: number; residual: number }>;
+  fitted: Array<{
+    maturity: number;
+    actual: number;
+    fitted: number;
+    residual: number;
+  }>;
 }
 
 export interface SvenssonFitResult {
@@ -51,7 +56,12 @@ export interface SvenssonFitResult {
   lambda2: number;
   rmse: number;
   r2: number;
-  fitted: Array<{ maturity: number; actual: number; fitted: number; residual: number }>;
+  fitted: Array<{
+    maturity: number;
+    actual: number;
+    fitted: number;
+    residual: number;
+  }>;
 }
 
 export interface InterpolationResult {
@@ -106,7 +116,11 @@ export class NelsonSiegelService {
    * Svensson basis: NS basis plus a fourth factor.
    * f3(t) = (1 - exp(-l2*t)) / (l2*t) - exp(-l2*t)
    */
-  private svBasis(t: number, lambda1: number, lambda2: number): [number, number, number, number] {
+  private svBasis(
+    t: number,
+    lambda1: number,
+    lambda2: number,
+  ): [number, number, number, number] {
     const [f0, f1, f2] = this.nsBasis(t, lambda1);
     const l2t = lambda2 * t;
     let f3: number;
@@ -124,7 +138,12 @@ export class NelsonSiegelService {
    */
   private svYield(params: SvenssonParams, t: number): number {
     const [f0, f1, f2, f3] = this.svBasis(t, params.lambda1, params.lambda2);
-    return params.beta0 * f0 + params.beta1 * f1 + params.beta2 * f2 + params.beta3 * f3;
+    return (
+      params.beta0 * f0 +
+      params.beta1 * f1 +
+      params.beta2 * f2 +
+      params.beta3 * f3
+    );
   }
 
   // ─── Linear Algebra (Normal Equations) ───────────────────────
@@ -251,7 +270,10 @@ export class NelsonSiegelService {
     // Compute SSE
     let sse = 0;
     for (let i = 0; i < n; i++) {
-      const fitted = this.nsYield({ beta0, beta1, beta2, lambda }, maturities[i]);
+      const fitted = this.nsYield(
+        { beta0, beta1, beta2, lambda },
+        maturities[i],
+      );
       sse += (yields[i] - fitted) ** 2;
     }
 
@@ -266,7 +288,13 @@ export class NelsonSiegelService {
     yields: number[],
     lambda1: number,
     lambda2: number,
-  ): { beta0: number; beta1: number; beta2: number; beta3: number; sse: number } {
+  ): {
+    beta0: number;
+    beta1: number;
+    beta2: number;
+    beta3: number;
+    sse: number;
+  } {
     const n = maturities.length;
 
     const XtX = Array.from({ length: 4 }, () => new Array(4).fill(0));
@@ -300,7 +328,13 @@ export class NelsonSiegelService {
       sse += (yields[i] - fitted) ** 2;
     }
 
-    return { beta0: betas[0], beta1: betas[1], beta2: betas[2], beta3: betas[3], sse };
+    return {
+      beta0: betas[0],
+      beta1: betas[1],
+      beta2: betas[2],
+      beta3: betas[3],
+      sse,
+    };
   }
 
   /**
@@ -337,7 +371,15 @@ export class NelsonSiegelService {
 
     if (maturities.length === 0 || yields.length === 0) {
       this.logger.warn('Empty input to fitNelsonSiegel');
-      return { beta0: 0, beta1: 0, beta2: 0, lambda: 1, rmse: 0, r2: 1, fitted: [] };
+      return {
+        beta0: 0,
+        beta1: 0,
+        beta2: 0,
+        lambda: 1,
+        rmse: 0,
+        r2: 1,
+        fitted: [],
+      };
     }
 
     const n = Math.min(maturities.length, yields.length);
@@ -353,7 +395,9 @@ export class NelsonSiegelService {
         lambda: 1,
         rmse: 0,
         r2: 1,
-        fitted: [{ maturity: mats[0], actual: ylds[0], fitted: ylds[0], residual: 0 }],
+        fitted: [
+          { maturity: mats[0], actual: ylds[0], fitted: ylds[0], residual: 0 },
+        ],
       };
     }
 
@@ -387,8 +431,17 @@ export class NelsonSiegelService {
       }
     }
 
-    const { beta0, beta1, beta2 } = this.solveNSForLambda(mats, ylds, bestLambda);
-    const nsParams: NelsonSiegelParams = { beta0, beta1, beta2, lambda: bestLambda };
+    const { beta0, beta1, beta2 } = this.solveNSForLambda(
+      mats,
+      ylds,
+      bestLambda,
+    );
+    const nsParams: NelsonSiegelParams = {
+      beta0,
+      beta1,
+      beta2,
+      lambda: bestLambda,
+    };
 
     // Build fitted array
     const fitted = mats.map((m, i) => {
@@ -420,8 +473,15 @@ export class NelsonSiegelService {
     if (maturities.length === 0 || yields.length === 0) {
       this.logger.warn('Empty input to fitSvensson');
       return {
-        beta0: 0, beta1: 0, beta2: 0, beta3: 0,
-        lambda1: 1, lambda2: 1, rmse: 0, r2: 1, fitted: [],
+        beta0: 0,
+        beta1: 0,
+        beta2: 0,
+        beta3: 0,
+        lambda1: 1,
+        lambda2: 1,
+        rmse: 0,
+        r2: 1,
+        fitted: [],
       };
     }
 
@@ -433,8 +493,15 @@ export class NelsonSiegelService {
       // Degenerate: fall back to NS
       const ns = this.fitNelsonSiegel({ maturities: mats, yields: ylds });
       return {
-        beta0: ns.beta0, beta1: ns.beta1, beta2: ns.beta2, beta3: 0,
-        lambda1: ns.lambda, lambda2: 1, rmse: ns.rmse, r2: ns.r2, fitted: ns.fitted,
+        beta0: ns.beta0,
+        beta1: ns.beta1,
+        beta2: ns.beta2,
+        beta3: 0,
+        lambda1: ns.lambda,
+        lambda2: 1,
+        rmse: ns.rmse,
+        r2: ns.r2,
+        fitted: ns.fitted,
       };
     }
 
@@ -475,12 +542,19 @@ export class NelsonSiegelService {
     }
 
     const { beta0, beta1, beta2, beta3 } = this.solveSVForLambdas(
-      mats, ylds, bestLambda1, bestLambda2,
+      mats,
+      ylds,
+      bestLambda1,
+      bestLambda2,
     );
 
     const svParams: SvenssonParams = {
-      beta0, beta1, beta2, beta3,
-      lambda1: bestLambda1, lambda2: bestLambda2,
+      beta0,
+      beta1,
+      beta2,
+      beta3,
+      lambda1: bestLambda1,
+      lambda2: bestLambda2,
     };
 
     const fitted = mats.map((m, i) => {
@@ -497,9 +571,15 @@ export class NelsonSiegelService {
     );
 
     return {
-      beta0, beta1, beta2, beta3,
-      lambda1: bestLambda1, lambda2: bestLambda2,
-      rmse, r2, fitted,
+      beta0,
+      beta1,
+      beta2,
+      beta3,
+      lambda1: bestLambda1,
+      lambda2: bestLambda2,
+      rmse,
+      r2,
+      fitted,
     };
   }
 
@@ -519,9 +599,9 @@ export class NelsonSiegelService {
       const t = Math.max(m, 1e-6); // avoid division by zero
       let y: number;
       if (isSvensson) {
-        y = this.svYield(model as SvenssonParams, t);
+        y = this.svYield(model, t);
       } else {
-        y = this.nsYield(model as NelsonSiegelParams, t);
+        y = this.nsYield(model, t);
       }
       return { maturity: m, yield: y };
     });
@@ -533,9 +613,7 @@ export class NelsonSiegelService {
    * Decompose a Nelson-Siegel curve into level, slope, and curvature
    * components at standard maturities.
    */
-  decompose(params: {
-    model: NelsonSiegelParams;
-  }): DecompositionResult {
+  decompose(params: { model: NelsonSiegelParams }): DecompositionResult {
     const { model } = params;
 
     const maturities = STANDARD_MATURITIES;

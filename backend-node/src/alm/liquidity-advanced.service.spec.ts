@@ -22,9 +22,25 @@ describe('LiquidityAdvancedService', () => {
 
   it('should compute NSFR as (ASF / RSF) x 100', () => {
     const items = [
-      { category: 'liability', subcategory: 'savings', balance: 500_000, name: 'Savings' },
-      { category: 'asset', subcategory: 'cash', balance: 100_000, name: 'Cash' },
-      { category: 'asset', subcategory: 'consumer_loans', balance: 300_000, name: 'Consumer Loans', duration: 2 },
+      {
+        category: 'liability',
+        subcategory: 'savings',
+        balance: 500_000,
+        name: 'Savings',
+      },
+      {
+        category: 'asset',
+        subcategory: 'cash',
+        balance: 100_000,
+        name: 'Cash',
+      },
+      {
+        category: 'asset',
+        subcategory: 'consumer_loans',
+        balance: 300_000,
+        name: 'Consumer Loans',
+        duration: 2,
+      },
     ];
 
     const result = service.calculateNSFR(items);
@@ -43,15 +59,35 @@ describe('LiquidityAdvancedService', () => {
   it('should classify NSFR status as compliant (>=100), warning (90-100), or breach (<90)', () => {
     // Compliant case: more ASF than RSF
     const compliantItems = [
-      { category: 'liability', subcategory: 'savings', balance: 1_000_000, name: 'Savings' },
-      { category: 'asset', subcategory: 'cash', balance: 500_000, name: 'Cash' },
+      {
+        category: 'liability',
+        subcategory: 'savings',
+        balance: 1_000_000,
+        name: 'Savings',
+      },
+      {
+        category: 'asset',
+        subcategory: 'cash',
+        balance: 500_000,
+        name: 'Cash',
+      },
     ];
     expect(service.calculateNSFR(compliantItems).status).toBe('compliant');
 
     // Breach case: very little ASF vs RSF
     const breachItems = [
-      { category: 'liability', subcategory: 'short_term_stuff', balance: 1_000_000, name: 'ST Borr' },
-      { category: 'asset', subcategory: 'other_assets', balance: 900_000, name: 'Illiquid' },
+      {
+        category: 'liability',
+        subcategory: 'short_term_stuff',
+        balance: 1_000_000,
+        name: 'ST Borr',
+      },
+      {
+        category: 'asset',
+        subcategory: 'other_assets',
+        balance: 900_000,
+        name: 'Illiquid',
+      },
     ];
     const breachResult = service.calculateNSFR(breachItems);
     // other_assets RSF factor = 1.0, so RSF = 900K
@@ -62,17 +98,31 @@ describe('LiquidityAdvancedService', () => {
 
   it('should assign ASF factor of 0.95 for demand/savings deposits and 1.0 for equity', () => {
     const items = [
-      { category: 'liability', subcategory: 'demand_deposits', balance: 100_000, name: 'Demand' },
-      { category: 'asset', subcategory: 'cash', balance: 200_000, name: 'Cash' },
+      {
+        category: 'liability',
+        subcategory: 'demand_deposits',
+        balance: 100_000,
+        name: 'Demand',
+      },
+      {
+        category: 'asset',
+        subcategory: 'cash',
+        balance: 200_000,
+        name: 'Cash',
+      },
     ];
 
     const result = service.calculateNSFR(items);
 
-    const demandEntry = result.asfBreakdown.find((a) => a.category === 'Demand');
+    const demandEntry = result.asfBreakdown.find(
+      (a) => a.category === 'Demand',
+    );
     expect(demandEntry).toBeDefined();
     expect(demandEntry!.factor).toBe(0.95);
 
-    const equityEntry = result.asfBreakdown.find((a) => a.category === 'Equity');
+    const equityEntry = result.asfBreakdown.find(
+      (a) => a.category === 'Equity',
+    );
     expect(equityEntry).toBeDefined();
     expect(equityEntry!.factor).toBe(1.0);
     // Equity = totalAssets - totalLiabilities = 200K - 100K = 100K
@@ -82,7 +132,12 @@ describe('LiquidityAdvancedService', () => {
   it('should assign RSF factor of 0.0 for cash and 0.05 for treasuries', () => {
     const items = [
       { category: 'asset', subcategory: 'cash', balance: 50_000, name: 'Cash' },
-      { category: 'asset', subcategory: 'treasury_securities', balance: 200_000, name: 'Treasuries' },
+      {
+        category: 'asset',
+        subcategory: 'treasury_securities',
+        balance: 200_000,
+        name: 'Treasuries',
+      },
     ];
 
     const result = service.calculateNSFR(items);
@@ -91,7 +146,9 @@ describe('LiquidityAdvancedService', () => {
     expect(cashEntry!.factor).toBe(0.0);
     expect(cashEntry!.weighted).toBe(0);
 
-    const treasuryEntry = result.rsfBreakdown.find((r) => r.category === 'Treasuries');
+    const treasuryEntry = result.rsfBreakdown.find(
+      (r) => r.category === 'Treasuries',
+    );
     expect(treasuryEntry!.factor).toBe(0.05);
     expect(treasuryEntry!.weighted).toBeCloseTo(10_000, 0);
   });
@@ -100,8 +157,18 @@ describe('LiquidityAdvancedService', () => {
 
   it('should simulate 12-month deposit flight with monotonically decreasing total deposits', () => {
     const tiers = [
-      { tierName: 'Core', balance: 1_000_000, insuredPct: 0.9, flightRate: 0.03 },
-      { tierName: 'Uninsured', balance: 500_000, insuredPct: 0.1, flightRate: 0.10 },
+      {
+        tierName: 'Core',
+        balance: 1_000_000,
+        insuredPct: 0.9,
+        flightRate: 0.03,
+      },
+      {
+        tierName: 'Uninsured',
+        balance: 500_000,
+        insuredPct: 0.1,
+        flightRate: 0.1,
+      },
     ];
 
     const result = service.simulateDepositFlight(tiers, 200_000);
@@ -117,7 +184,12 @@ describe('LiquidityAdvancedService', () => {
 
   it('should compute tier-level 6-month and 12-month losses using compound flight rate', () => {
     const tiers = [
-      { tierName: 'Test Tier', balance: 1_000_000, insuredPct: 0.5, flightRate: 0.05 },
+      {
+        tierName: 'Test Tier',
+        balance: 1_000_000,
+        insuredPct: 0.5,
+        flightRate: 0.05,
+      },
     ];
 
     const result = service.simulateDepositFlight(tiers, 150_000);
@@ -135,12 +207,15 @@ describe('LiquidityAdvancedService', () => {
   it('should compute worst-case loss as sum of all 12-month tier losses', () => {
     const tiers = [
       { tierName: 'A', balance: 500_000, insuredPct: 0.8, flightRate: 0.02 },
-      { tierName: 'B', balance: 300_000, insuredPct: 0.2, flightRate: 0.10 },
+      { tierName: 'B', balance: 300_000, insuredPct: 0.2, flightRate: 0.1 },
     ];
 
     const result = service.simulateDepositFlight(tiers, 100_000);
 
-    const totalMonth12Loss = result.tiers.reduce((s, t) => s + t.month12Loss, 0);
+    const totalMonth12Loss = result.tiers.reduce(
+      (s, t) => s + t.month12Loss,
+      0,
+    );
     expect(result.worstCaseLoss).toBeCloseTo(totalMonth12Loss, 0);
   });
 });

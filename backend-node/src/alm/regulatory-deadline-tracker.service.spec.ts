@@ -19,7 +19,13 @@ describe('RegulatoryDeadlineTrackerService', () => {
     // Jan & Feb ALCO meetings, Feb board report — but NOT May 15 COSSEC.
     const dueDates = result.deadlines.map((d) => d.dueDate);
     expect(dueDates.some((d) => d === '2026-02-14')).toBe(true);
-    expect(dueDates.every((d) => d <= '2026-03-02'|| result.deadlines.find(dl => dl.dueDate === d)!.status === 'OVERDUE')).toBe(true);
+    expect(
+      dueDates.every(
+        (d) =>
+          d <= '2026-03-02' ||
+          result.deadlines.find((dl) => dl.dueDate === d)!.status === 'OVERDUE',
+      ),
+    ).toBe(true);
   });
 
   it('COSSEC quarterly deadlines present for cooperativa', () => {
@@ -54,7 +60,9 @@ describe('RegulatoryDeadlineTrackerService', () => {
       currentDate: '2026-02-20', // Feb 14 COSSEC already passed
       lookAheadDays: 90,
     });
-    const cossecFeb = result.deadlines.find((d) => d.dueDate === '2026-02-14' && d.regulator === 'COSSEC');
+    const cossecFeb = result.deadlines.find(
+      (d) => d.dueDate === '2026-02-14' && d.regulator === 'COSSEC',
+    );
     expect(cossecFeb).toBeDefined();
     expect(cossecFeb!.status).toBe('OVERDUE');
     expect(cossecFeb!.daysRemaining).toBeLessThan(0);
@@ -66,7 +74,9 @@ describe('RegulatoryDeadlineTrackerService', () => {
       currentDate: '2026-02-10', // 4 days before Feb 14 COSSEC
       lookAheadDays: 90,
     });
-    const cossecFeb = result.deadlines.find((d) => d.dueDate === '2026-02-14' && d.regulator === 'COSSEC');
+    const cossecFeb = result.deadlines.find(
+      (d) => d.dueDate === '2026-02-14' && d.regulator === 'COSSEC',
+    );
     expect(cossecFeb).toBeDefined();
     expect(cossecFeb!.status).toBe('URGENT');
   });
@@ -77,7 +87,9 @@ describe('RegulatoryDeadlineTrackerService', () => {
       currentDate: '2026-01-20', // 25 days before Feb 14 COSSEC
       lookAheadDays: 90,
     });
-    const cossecFeb = result.deadlines.find((d) => d.dueDate === '2026-02-14' && d.regulator === 'COSSEC');
+    const cossecFeb = result.deadlines.find(
+      (d) => d.dueDate === '2026-02-14' && d.regulator === 'COSSEC',
+    );
     expect(cossecFeb).toBeDefined();
     expect(cossecFeb!.status).toBe('APPROACHING');
   });
@@ -88,7 +100,9 @@ describe('RegulatoryDeadlineTrackerService', () => {
       currentDate: '2026-01-01', // 44 days before Feb 14 COSSEC
       lookAheadDays: 90,
     });
-    const cossecFeb = result.deadlines.find((d) => d.dueDate === '2026-02-14' && d.regulator === 'COSSEC');
+    const cossecFeb = result.deadlines.find(
+      (d) => d.dueDate === '2026-02-14' && d.regulator === 'COSSEC',
+    );
     expect(cossecFeb).toBeDefined();
     expect(cossecFeb!.status).toBe('ON_TRACK');
   });
@@ -101,11 +115,21 @@ describe('RegulatoryDeadlineTrackerService', () => {
     });
     const { summary, deadlines } = result;
     expect(summary.total).toBe(deadlines.length);
-    expect(summary.overdue).toBe(deadlines.filter((d) => d.status === 'OVERDUE').length);
-    expect(summary.urgent).toBe(deadlines.filter((d) => d.status === 'URGENT').length);
-    expect(summary.approaching).toBe(deadlines.filter((d) => d.status === 'APPROACHING').length);
-    expect(summary.onTrack).toBe(deadlines.filter((d) => d.status === 'ON_TRACK').length);
-    expect(summary.overdue + summary.urgent + summary.approaching + summary.onTrack).toBe(summary.total);
+    expect(summary.overdue).toBe(
+      deadlines.filter((d) => d.status === 'OVERDUE').length,
+    );
+    expect(summary.urgent).toBe(
+      deadlines.filter((d) => d.status === 'URGENT').length,
+    );
+    expect(summary.approaching).toBe(
+      deadlines.filter((d) => d.status === 'APPROACHING').length,
+    );
+    expect(summary.onTrack).toBe(
+      deadlines.filter((d) => d.status === 'ON_TRACK').length,
+    );
+    expect(
+      summary.overdue + summary.urgent + summary.approaching + summary.onTrack,
+    ).toBe(summary.total);
   });
 
   it('next critical deadline identified', () => {

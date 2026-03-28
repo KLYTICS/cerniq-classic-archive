@@ -106,7 +106,7 @@ const MAX_HORIZON_DAYS = 365;
 const HAIRCUTS = {
   treasuries: 0.99,
   agencyMBS: 0.95,
-  otherSecurities: 0.90,
+  otherSecurities: 0.9,
 } as const;
 
 /** Settlement lag in days for each asset class */
@@ -161,19 +161,26 @@ export class LiquiditySurvivalService {
 
       // ── Inflows ──
       const adjustedLoanRepayments =
-        dailyCashFlows.loanRepayments * (1 - stressAssumptions.loanRepaymentReduction);
+        dailyCashFlows.loanRepayments *
+        (1 - stressAssumptions.loanRepaymentReduction);
 
       // Deposit inflows decay as run-off erodes confidence
-      const depositInflowDecay = Math.max(0, 1 - (stressAssumptions.depositRunoffRate * day) / 30);
-      const adjustedDepositInflows = dailyCashFlows.depositInflows * depositInflowDecay;
+      const depositInflowDecay = Math.max(
+        0,
+        1 - (stressAssumptions.depositRunoffRate * day) / 30,
+      );
+      const adjustedDepositInflows =
+        dailyCashFlows.depositInflows * depositInflowDecay;
 
       const inflows = adjustedLoanRepayments + adjustedDepositInflows + settled;
 
       // ── Outflows ──
       const depositOutflow = depositBase * stressAssumptions.depositRunoffRate;
-      const loanOriginations =
-        stressAssumptions.newLoanHalt ? 0 : dailyCashFlows.loanDisbursements;
-      const outflows = dailyCashFlows.operatingExpenses + depositOutflow + loanOriginations;
+      const loanOriginations = stressAssumptions.newLoanHalt
+        ? 0
+        : dailyCashFlows.loanDisbursements;
+      const outflows =
+        dailyCashFlows.operatingExpenses + depositOutflow + loanOriginations;
 
       // Track peak outflow
       if (outflows > peakOutflow) {
@@ -183,14 +190,15 @@ export class LiquiditySurvivalService {
 
       // ── Net flow (excluding settled amounts already added to cash) ──
       const netFlowExSettlement =
-        (adjustedLoanRepayments + adjustedDepositInflows) - outflows;
+        adjustedLoanRepayments + adjustedDepositInflows - outflows;
       cash += netFlowExSettlement;
 
       // ── Deposit base decays ──
       depositBase = Math.max(0, depositBase - depositOutflow);
 
       // ── Estimate remaining survival to decide triggers ──
-      const dailyBurn = outflows - (adjustedLoanRepayments + adjustedDepositInflows);
+      const dailyBurn =
+        outflows - (adjustedLoanRepayments + adjustedDepositInflows);
       const estSurvival = dailyBurn > 0 ? cash / dailyBurn : MAX_HORIZON_DAYS;
 
       // ── Sell securities when warning threshold is breached ──
@@ -254,7 +262,8 @@ export class LiquiditySurvivalService {
           stressAssumptions.wholesaleFundingAvailable &&
           wholesaleFundingUsed < stressAssumptions.wholesaleFundingLimit
         ) {
-          const draw = stressAssumptions.wholesaleFundingLimit - wholesaleFundingUsed;
+          const draw =
+            stressAssumptions.wholesaleFundingLimit - wholesaleFundingUsed;
           cash += draw;
           wholesaleFundingUsed += draw;
           actions.push({
@@ -311,7 +320,8 @@ export class LiquiditySurvivalService {
     }
 
     // ── Liquidity profile ──
-    const immediatelyAvailable = liquidAssets.cash + liquidAssets.fedFundsDeposits;
+    const immediatelyAvailable =
+      liquidAssets.cash + liquidAssets.fedFundsDeposits;
     const availableWithin7Days =
       immediatelyAvailable +
       liquidAssets.treasuries * HAIRCUTS.treasuries +
@@ -333,7 +343,11 @@ export class LiquiditySurvivalService {
     const severity = classifySeverity(survivalDays);
 
     // ── Recommendation ──
-    const recommendation = buildRecommendation(survivalDays, severity, exhausted);
+    const recommendation = buildRecommendation(
+      survivalDays,
+      severity,
+      exhausted,
+    );
 
     return {
       survivalDays,

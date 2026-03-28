@@ -160,7 +160,7 @@ export class MonteCarloService {
       let eveChange = 0;
       for (const item of balanceSheet) {
         const dur = item.duration ?? (item.isAsset ? 3.0 : 1.5); // default durations
-        const conv = item.convexity ?? (dur * dur * 0.5); // approximate convexity
+        const conv = item.convexity ?? dur * dur * 0.5; // approximate convexity
         const balance = item.balance;
         const dv =
           -dur * balance * deltaRate +
@@ -188,8 +188,7 @@ export class MonteCarloService {
     const var95EVE = sortedEVE[Math.floor(sortedEVE.length * 0.05)]; // 5th percentile = worst case
     const cvar99Count = Math.max(1, Math.floor(sortedEVE.length * 0.01));
     const cvar99EVE =
-      sortedEVE.slice(0, cvar99Count).reduce((s, v) => s + v, 0) /
-      cvar99Count;
+      sortedEVE.slice(0, cvar99Count).reduce((s, v) => s + v, 0) / cvar99Count;
 
     // ── Convergence check: standard error of the mean ──
     const standardError = std / Math.sqrt(paths);

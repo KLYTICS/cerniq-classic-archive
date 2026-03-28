@@ -25,10 +25,10 @@ export class FeatureFlagGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const flagName = this.reflector.getAllAndOverride<string>(FEATURE_FLAG_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const flagName = this.reflector.getAllAndOverride<string>(
+      FEATURE_FLAG_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     if (!flagName) {
       // No feature flag metadata — allow access
@@ -40,7 +40,9 @@ export class FeatureFlagGuard implements CanActivate {
     const isEnabled = flagValue === 'true' || flagValue === '1';
 
     if (!isEnabled) {
-      this.logger.debug(`Feature flag ${flagName} is disabled — blocking access`);
+      this.logger.debug(
+        `Feature flag ${flagName} is disabled — blocking access`,
+      );
       throw new ForbiddenException(
         `This feature is not yet available. Flag: ${flagName}`,
       );

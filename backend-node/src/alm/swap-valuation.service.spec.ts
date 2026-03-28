@@ -35,11 +35,13 @@ describe('SwapValuationService', () => {
         // First call: run the real implementation (which will call the spy for DV01)
         spy.mockRestore();
         // Re-spy so we can intercept the recursive DV01 call
-        const innerSpy = jest.spyOn(svc, 'valueSwap').mockImplementation((innerP) => {
-          innerSpy.mockRestore();
-          // For the DV01 call, compute just the NPV without further DV01 recursion
-          return computeNPVOnly(svc, innerP);
-        });
+        const innerSpy = jest
+          .spyOn(svc, 'valueSwap')
+          .mockImplementation((innerP) => {
+            innerSpy.mockRestore();
+            // For the DV01 call, compute just the NPV without further DV01 recursion
+            return computeNPVOnly(svc, innerP);
+          });
         return original(p);
       }
       spy.mockRestore();
@@ -65,24 +67,34 @@ describe('SwapValuationService', () => {
     } = params;
 
     const zeroCurve = params.zeroCurve || [
-      { tenor: 0.25, rate: 0.048 }, { tenor: 0.5, rate: 0.0465 },
-      { tenor: 1, rate: 0.044 }, { tenor: 2, rate: 0.042 },
-      { tenor: 3, rate: 0.041 }, { tenor: 5, rate: 0.0405 },
-      { tenor: 7, rate: 0.041 }, { tenor: 10, rate: 0.042 },
+      { tenor: 0.25, rate: 0.048 },
+      { tenor: 0.5, rate: 0.0465 },
+      { tenor: 1, rate: 0.044 },
+      { tenor: 2, rate: 0.042 },
+      { tenor: 3, rate: 0.041 },
+      { tenor: 5, rate: 0.0405 },
+      { tenor: 7, rate: 0.041 },
+      { tenor: 10, rate: 0.042 },
     ];
-    const periodsPerYear = frequency === 'quarterly' ? 4 : frequency === 'semiannual' ? 2 : 1;
+    const periodsPerYear =
+      frequency === 'quarterly' ? 4 : frequency === 'semiannual' ? 2 : 1;
     const totalPeriods = maturityYears * periodsPerYear;
     const dt = 1 / periodsPerYear;
 
     let fixedPVTotal = 0;
     let floatingPVTotal = 0;
 
-    const interpolate = (curve: Array<{ tenor: number; rate: number }>, t: number) => {
+    const interpolate = (
+      curve: Array<{ tenor: number; rate: number }>,
+      t: number,
+    ) => {
       if (t <= curve[0].tenor) return curve[0].rate;
-      if (t >= curve[curve.length - 1].tenor) return curve[curve.length - 1].rate;
+      if (t >= curve[curve.length - 1].tenor)
+        return curve[curve.length - 1].rate;
       for (let i = 1; i < curve.length; i++) {
         if (t <= curve[i].tenor) {
-          const w = (t - curve[i - 1].tenor) / (curve[i].tenor - curve[i - 1].tenor);
+          const w =
+            (t - curve[i - 1].tenor) / (curve[i].tenor - curve[i - 1].tenor);
           return curve[i - 1].rate + w * (curve[i].rate - curve[i - 1].rate);
         }
       }
@@ -105,7 +117,11 @@ describe('SwapValuationService', () => {
     const npv = floatingPVTotal - fixedPVTotal;
 
     return {
-      notional, fixedRate, floatingSpread, maturityYears, frequency,
+      notional,
+      fixedRate,
+      floatingSpread,
+      maturityYears,
+      frequency,
       fixedLeg: { periods: [], totalPV: fixedPVTotal },
       floatingLeg: { periods: [], totalPV: floatingPVTotal },
       npv: +npv.toFixed(2),

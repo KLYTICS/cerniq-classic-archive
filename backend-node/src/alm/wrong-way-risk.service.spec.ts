@@ -19,7 +19,10 @@ describe('WrongWayRiskService', () => {
 
     it('WWR premium should be adjustedCVA - naiveCVA', async () => {
       const result = await service.computeWWR('inst-1');
-      expect(result.wwrPremium).toBeCloseTo(result.adjustedCVA - result.naiveCVA, 1);
+      expect(result.wwrPremium).toBeCloseTo(
+        result.adjustedCVA - result.naiveCVA,
+        1,
+      );
     });
 
     it('multiplier should be > 1 (WWR increases CVA)', async () => {
@@ -33,8 +36,20 @@ describe('WrongWayRiskService', () => {
     const mockPrisma = {
       loanSegment: {
         findMany: jest.fn().mockResolvedValue([
-          { segmentName: 'CRE', historicalLossRate: 0.02, lgd: 0.4, balance: 100, weightedAvgMaturity: 5 },
-          { segmentName: 'Consumer', historicalLossRate: 0.03, lgd: 0.6, balance: 50, weightedAvgMaturity: 3 },
+          {
+            segmentName: 'CRE',
+            historicalLossRate: 0.02,
+            lgd: 0.4,
+            balance: 100,
+            weightedAvgMaturity: 5,
+          },
+          {
+            segmentName: 'Consumer',
+            historicalLossRate: 0.03,
+            lgd: 0.6,
+            balance: 50,
+            weightedAvgMaturity: 3,
+          },
         ]),
       },
     } as any;

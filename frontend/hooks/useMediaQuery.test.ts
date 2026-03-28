@@ -3,7 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useMediaQuery } from './useMediaQuery';
 
 describe('useMediaQuery', () => {
-  let listeners: Array<(e: { matches: boolean }) => void>;
+  let listeners: Array<(event: MediaQueryListEvent) => void>;
   let currentMatches: boolean;
 
   beforeEach(() => {
@@ -14,7 +14,11 @@ describe('useMediaQuery', () => {
       value: vi.fn().mockImplementation((query: string) => ({
         matches: currentMatches,
         media: query,
-        addEventListener: vi.fn((_event: string, cb: any) => listeners.push(cb)),
+        addEventListener: vi.fn(
+          (_event: 'change', cb: (event: MediaQueryListEvent) => void) => {
+            listeners.push(cb);
+          },
+        ),
         removeEventListener: vi.fn(),
         onchange: null,
       })),
@@ -39,7 +43,8 @@ describe('useMediaQuery', () => {
     expect(result.current).toBe(false);
 
     act(() => {
-      listeners.forEach((cb) => cb({ matches: true }));
+      currentMatches = true;
+      listeners.forEach((cb) => cb({ matches: true } as MediaQueryListEvent));
     });
     expect(result.current).toBe(true);
   });

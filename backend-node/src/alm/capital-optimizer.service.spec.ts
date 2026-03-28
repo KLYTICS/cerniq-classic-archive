@@ -39,7 +39,10 @@ describe('CapitalOptimizerService', () => {
 
   it('should produce balanced delta allocations (sum to zero)', async () => {
     const result = await svc.optimize('inst-1');
-    const totalDelta = result.deltaAllocations.reduce((s, d) => s + d.deltaUSD, 0);
+    const totalDelta = result.deltaAllocations.reduce(
+      (s, d) => s + d.deltaUSD,
+      0,
+    );
     expect(totalDelta).toBeCloseTo(0, 1);
   });
 

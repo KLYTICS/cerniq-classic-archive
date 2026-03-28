@@ -19,7 +19,13 @@ import { Injectable, Logger } from '@nestjs/common';
  */
 
 export interface SABRResult {
-  params: { alpha: number; beta: number; rho: number; sigma0: number; forward: number };
+  params: {
+    alpha: number;
+    beta: number;
+    rho: number;
+    sigma0: number;
+    forward: number;
+  };
   volSmile: Array<{ strike: number; impliedVol: number; moneyness: number }>;
   skewMetrics: {
     atmVol: number;
@@ -45,8 +51,12 @@ export class SABRVolatilityService {
     numStrikes?: number;
   }): SABRResult {
     const {
-      forward, expiry,
-      alpha = 0.3, beta = 0.5, rho = -0.2, sigma0 = 0.20,
+      forward,
+      expiry,
+      alpha = 0.3,
+      beta = 0.5,
+      rho = -0.2,
+      sigma0 = 0.2,
       strikeRange = [forward * 0.7, forward * 1.3],
       numStrikes = 25,
     } = params;
@@ -56,7 +66,15 @@ export class SABRVolatilityService {
 
     for (let i = 0; i < numStrikes; i++) {
       const K = strikeRange[0] + i * strikeStep;
-      const iv = this.haganFormula(forward, K, expiry, alpha, beta, rho, sigma0);
+      const iv = this.haganFormula(
+        forward,
+        K,
+        expiry,
+        alpha,
+        beta,
+        rho,
+        sigma0,
+      );
       volSmile.push({
         strike: +K.toFixed(4),
         impliedVol: +(iv * 100).toFixed(2),
@@ -65,14 +83,20 @@ export class SABRVolatilityService {
     }
 
     // ATM vol
-    const atmVol = this.haganFormula(forward, forward, expiry, alpha, beta, rho, sigma0) * 100;
+    const atmVol =
+      this.haganFormula(forward, forward, expiry, alpha, beta, rho, sigma0) *
+      100;
 
     // 25-delta approximation: strikes at ~forward × e^(±0.67σ√T)
     const d25 = 0.67 * sigma0 * Math.sqrt(expiry);
     const k25call = forward * Math.exp(d25);
     const k25put = forward * Math.exp(-d25);
-    const vol25call = this.haganFormula(forward, k25call, expiry, alpha, beta, rho, sigma0) * 100;
-    const vol25put = this.haganFormula(forward, k25put, expiry, alpha, beta, rho, sigma0) * 100;
+    const vol25call =
+      this.haganFormula(forward, k25call, expiry, alpha, beta, rho, sigma0) *
+      100;
+    const vol25put =
+      this.haganFormula(forward, k25put, expiry, alpha, beta, rho, sigma0) *
+      100;
     const riskReversal25D = vol25call - vol25put;
     const butterflySpread = (vol25call + vol25put) / 2 - atmVol;
 
@@ -92,16 +116,25 @@ export class SABRVolatilityService {
   /**
    * Hagan et al. (2002) SABR implied volatility approximation.
    */
-  private haganFormula(F: number, K: number, T: number, alpha: number, beta: number, rho: number, sigma0: number): number {
+  private haganFormula(
+    F: number,
+    K: number,
+    T: number,
+    alpha: number,
+    beta: number,
+    rho: number,
+    sigma0: number,
+  ): number {
     if (Math.abs(F - K) < 1e-10) {
       // ATM formula
       const Fbeta = Math.pow(F, 1 - beta);
       const term1 = sigma0 / Fbeta;
-      const term2 = 1 + T * (
-        ((1 - beta) ** 2 * sigma0 ** 2) / (24 * F ** (2 - 2 * beta))
-        + (rho * beta * alpha * sigma0) / (4 * F ** (1 - beta))
-        + ((2 - 3 * rho ** 2) * alpha ** 2) / 24
-      );
+      const term2 =
+        1 +
+        T *
+          (((1 - beta) ** 2 * sigma0 ** 2) / (24 * F ** (2 - 2 * beta)) +
+            (rho * beta * alpha * sigma0) / (4 * F ** (1 - beta)) +
+            ((2 - 3 * rho ** 2) * alpha ** 2) / 24);
       return term1 * term2;
     }
 
@@ -109,15 +142,23 @@ export class SABRVolatilityService {
     const FK = F * K;
     const FKbeta = Math.pow(FK, (1 - beta) / 2);
     const z = (alpha / sigma0) * FKbeta * logFK;
-    const xz = Math.log((Math.sqrt(1 - 2 * rho * z + z * z) + z - rho) / (1 - rho));
-
-    const prefix = sigma0 / (FKbeta * (1 + ((1 - beta) ** 2 / 24) * logFK ** 2 + ((1 - beta) ** 4 / 1920) * logFK ** 4));
-    const zOverXz = Math.abs(xz) > 1e-10 ? z / xz : 1;
-    const correction = 1 + T * (
-      ((1 - beta) ** 2 * sigma0 ** 2) / (24 * FK ** (1 - beta))
-      + (rho * beta * alpha * sigma0) / (4 * FKbeta)
-      + ((2 - 3 * rho ** 2) * alpha ** 2) / 24
+    const xz = Math.log(
+      (Math.sqrt(1 - 2 * rho * z + z * z) + z - rho) / (1 - rho),
     );
+
+    const prefix =
+      sigma0 /
+      (FKbeta *
+        (1 +
+          ((1 - beta) ** 2 / 24) * logFK ** 2 +
+          ((1 - beta) ** 4 / 1920) * logFK ** 4));
+    const zOverXz = Math.abs(xz) > 1e-10 ? z / xz : 1;
+    const correction =
+      1 +
+      T *
+        (((1 - beta) ** 2 * sigma0 ** 2) / (24 * FK ** (1 - beta)) +
+          (rho * beta * alpha * sigma0) / (4 * FKbeta) +
+          ((2 - 3 * rho ** 2) * alpha ** 2) / 24);
 
     return prefix * zOverXz * correction;
   }

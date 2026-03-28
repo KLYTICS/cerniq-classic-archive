@@ -5,7 +5,7 @@
 
 /** Puerto Rico / US federal holidays (month is 1-indexed) */
 const PR_HOLIDAYS: Array<{ month: number; day: number; name: string }> = [
-  { month: 1, day: 1, name: 'New Year\'s Day' },
+  { month: 1, day: 1, name: "New Year's Day" },
   { month: 1, day: 6, name: 'Three Kings Day / Epiphany' },
   { month: 3, day: 22, name: 'Emancipation Day' },
   { month: 7, day: 4, name: 'Independence Day' },
@@ -84,7 +84,9 @@ export function nextBusinessDay(date: Date): Date {
 /**
  * Get all PR holidays for a given year.
  */
-export function getHolidaysForYear(year: number): Array<{ date: Date; name: string }> {
+export function getHolidaysForYear(
+  year: number,
+): Array<{ date: Date; name: string }> {
   return PR_HOLIDAYS.map((h) => ({
     date: new Date(year, h.month - 1, h.day),
     name: h.name,

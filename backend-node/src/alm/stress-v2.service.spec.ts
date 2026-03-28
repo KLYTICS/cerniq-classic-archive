@@ -34,7 +34,7 @@ describe('StressV2Service', () => {
   it('minNWR should be the minimum across quarters', async () => {
     const scenarios = service.getPresetScenarios();
     const result = await service.runStressTest('inst-1', scenarios[0]);
-    const calcMin = Math.min(...result.quarters.map(q => q.nwr));
+    const calcMin = Math.min(...result.quarters.map((q) => q.nwr));
     expect(result.minNWR).toBeCloseTo(calcMin, 1);
   });
 

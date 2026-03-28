@@ -1,4 +1,11 @@
-import { truncate, capitalize, pluralize, toCamelCase, toSnakeCase, isBlank } from './string.util';
+import {
+  truncate,
+  capitalize,
+  pluralize,
+  toCamelCase,
+  toSnakeCase,
+  isBlank,
+} from './string.util';
 
 describe('string.util', () => {
   describe('truncate', () => {

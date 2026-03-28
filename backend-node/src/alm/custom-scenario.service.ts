@@ -146,7 +146,10 @@ export class CustomScenarioService {
     if (prepaymentMultiplier !== 1 && rateShiftBps < 0) {
       // Prepayment effect is most relevant in falling-rate environment
       const prepayLoss =
-        baseNII * (prepaymentMultiplier - 1) * 0.03 * (Math.abs(rateShiftBps) / 300);
+        baseNII *
+        (prepaymentMultiplier - 1) *
+        0.03 *
+        (Math.abs(rateShiftBps) / 300);
       niiImpact = round(niiImpact - prepayLoss, 2);
     }
 
@@ -180,7 +183,7 @@ export class CustomScenarioService {
 
     // Rate shock also affects LCR through bond revaluation
     if (Math.abs(rateShiftBps) > 100) {
-      const rateLCREffect = (Math.abs(rateShiftBps) - 100) / 100 * 2; // ~2% per 100bps beyond 100
+      const rateLCREffect = ((Math.abs(rateShiftBps) - 100) / 100) * 2; // ~2% per 100bps beyond 100
       lcrImpact = round(lcrImpact - rateLCREffect, 2);
     }
 
@@ -273,7 +276,9 @@ export class CustomScenarioService {
       );
     }
     if (params.rateShiftBps < -300 || params.rateShiftBps > 300) {
-      throw new BadRequestException('rateShiftBps must be between -300 and +300');
+      throw new BadRequestException(
+        'rateShiftBps must be between -300 and +300',
+      );
     }
     if (
       params.yieldCurveTwist !== undefined &&
@@ -357,8 +362,7 @@ export class CustomScenarioService {
     }
 
     // Describe impacts
-    const niiPct =
-      baseNII !== 0 ? round((niiImpact / baseNII) * 100, 1) : 0;
+    const niiPct = baseNII !== 0 ? round((niiImpact / baseNII) * 100, 1) : 0;
     parts.push(
       `NII impact: ${niiImpact >= 0 ? '+' : ''}$${niiImpact.toFixed(2)}M (${niiPct >= 0 ? '+' : ''}${niiPct}% of base NII).`,
     );
@@ -378,7 +382,9 @@ export class CustomScenarioService {
 
     // Overall assessment
     if (capitalAfter >= 8 && lcrAfter >= 100) {
-      parts.push('Assessment: Institution remains well-capitalized and liquid.');
+      parts.push(
+        'Assessment: Institution remains well-capitalized and liquid.',
+      );
     } else if (capitalAfter >= 6 && lcrAfter >= 90) {
       parts.push(
         'Assessment: Institution remains adequately capitalized but warrants monitoring.',

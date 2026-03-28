@@ -136,27 +136,40 @@ export class LiquidityAdvancedService {
     const liabilities = items.filter((i: any) => i.category === 'liability');
 
     // HQLA: cash + government securities + high-grade bonds
-    const cash = assets.filter((i: any) =>
-      ['cash', 'cash_equivalents'].includes(i.subcategory?.toLowerCase()),
-    ).reduce((s: number, i: any) => s + (i.balance || 0), 0);
-    const govSecurities = assets.filter((i: any) =>
-      ['government_securities', 'treasury'].includes(i.subcategory?.toLowerCase()),
-    ).reduce((s: number, i: any) => s + (i.balance || 0), 0);
-    const corpBonds = assets.filter((i: any) =>
-      ['corporate_bonds', 'investment_securities'].includes(i.subcategory?.toLowerCase()),
-    ).reduce((s: number, i: any) => s + (i.balance || 0), 0);
+    const cash = assets
+      .filter((i: any) =>
+        ['cash', 'cash_equivalents'].includes(i.subcategory?.toLowerCase()),
+      )
+      .reduce((s: number, i: any) => s + (i.balance || 0), 0);
+    const govSecurities = assets
+      .filter((i: any) =>
+        ['government_securities', 'treasury'].includes(
+          i.subcategory?.toLowerCase(),
+        ),
+      )
+      .reduce((s: number, i: any) => s + (i.balance || 0), 0);
+    const corpBonds = assets
+      .filter((i: any) =>
+        ['corporate_bonds', 'investment_securities'].includes(
+          i.subcategory?.toLowerCase(),
+        ),
+      )
+      .reduce((s: number, i: any) => s + (i.balance || 0), 0);
 
     const level1 = cash + govSecurities;
     const level2a = corpBonds * 0.85; // 15% haircut
     const hqlaTotal = level1 + level2a;
 
     // Net cash outflows: short-term liabilities with runoff assumptions
-    const shortTermLiabilities = liabilities.filter(
-      (i: any) => (i.maturityYears ?? 0) <= 1,
-    ).reduce((s: number, i: any) => s + (i.balance || 0), 0);
+    const shortTermLiabilities = liabilities
+      .filter((i: any) => (i.maturityYears ?? 0) <= 1)
+      .reduce((s: number, i: any) => s + (i.balance || 0), 0);
     const totalNetOutflows = shortTermLiabilities * 0.25; // 25% stress outflow rate
 
-    const lcr = totalNetOutflows > 0 ? +(hqlaTotal / totalNetOutflows * 100).toFixed(1) : 999;
+    const lcr =
+      totalNetOutflows > 0
+        ? +((hqlaTotal / totalNetOutflows) * 100).toFixed(1)
+        : 999;
 
     return {
       lcr,

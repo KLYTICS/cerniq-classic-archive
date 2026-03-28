@@ -6,9 +6,9 @@
 declare global {
   interface Window {
     analytics?: {
-      identify: (userId: string, traits?: Record<string, any>) => void;
-      track: (event: string, properties?: Record<string, any>) => void;
-      page: (name?: string, properties?: Record<string, any>) => void;
+      identify: (userId: string, traits?: Record<string, unknown>) => void;
+      track: (event: string, properties?: Record<string, unknown>) => void;
+      page: (name?: string, properties?: Record<string, unknown>) => void;
       reset: () => void;
     };
   }
@@ -69,15 +69,15 @@ function getSegment() {
 }
 
 export const analytics = {
-  identify(userId: string, traits?: Record<string, any>) {
+  identify(userId: string, traits?: Record<string, unknown>) {
     getSegment()?.identify(userId, traits);
   },
 
-  track(event: string, properties?: Record<string, any>) {
+  track(event: string, properties?: Record<string, unknown>) {
     getSegment()?.track(event, properties);
   },
 
-  page(name?: string, properties?: Record<string, any>) {
+  page(name?: string, properties?: Record<string, unknown>) {
     getSegment()?.page(name, properties);
   },
 

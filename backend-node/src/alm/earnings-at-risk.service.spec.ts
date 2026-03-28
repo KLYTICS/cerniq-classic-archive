@@ -50,7 +50,8 @@ describe('EarningsAtRiskService', () => {
   it('should produce distribution with cumulative approaching 1', async () => {
     const result = await svc.calculateEaR('inst-1');
     expect(result.distribution.length).toBeGreaterThan(0);
-    const lastCum = result.distribution[result.distribution.length - 1].cumulative;
+    const lastCum =
+      result.distribution[result.distribution.length - 1].cumulative;
     expect(lastCum).toBeCloseTo(1, 0);
   });
 });

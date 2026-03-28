@@ -21,7 +21,11 @@ describe('MertonJumpDiffusionService', () => {
   });
 
   it('kurtosis should exceed 3 (fat tails from jumps)', () => {
-    const result = service.simulate({ numPaths: 5000, jumpIntensity: 1.0, jumpVol: 0.15 });
+    const result = service.simulate({
+      numPaths: 5000,
+      jumpIntensity: 1.0,
+      jumpVol: 0.15,
+    });
     expect(result.statistics.kurtosis).toBeGreaterThan(2.5);
   });
 
@@ -33,11 +37,17 @@ describe('MertonJumpDiffusionService', () => {
 
   it('VaR99 should exceed VaR95', () => {
     const result = service.simulate({ numPaths: 5000 });
-    expect(result.riskMetrics.var99).toBeGreaterThanOrEqual(result.riskMetrics.var95);
+    expect(result.riskMetrics.var99).toBeGreaterThanOrEqual(
+      result.riskMetrics.var95,
+    );
   });
 
   it('jump contribution percentage should be positive', () => {
-    const result = service.simulate({ jumpIntensity: 0.5, jumpMean: -0.05, jumpVol: 0.08 });
+    const result = service.simulate({
+      jumpIntensity: 0.5,
+      jumpMean: -0.05,
+      jumpVol: 0.08,
+    });
     expect(result.statistics.jumpContributionPct).toBeGreaterThan(0);
   });
 });

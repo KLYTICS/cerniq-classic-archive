@@ -18,10 +18,23 @@ export class ZSpreadService {
     maturityYears: number;
     frequency?: number;
     zeroCurve: Array<{ tenor: number; rate: number }>;
-  }): { zSpread: number; zSpreadBps: number; iterations: number; interpretation: string; interpretationEs: string } {
-    const { marketPrice, parValue, couponRate, maturityYears, frequency = 2, zeroCurve } = params;
+  }): {
+    zSpread: number;
+    zSpreadBps: number;
+    iterations: number;
+    interpretation: string;
+    interpretationEs: string;
+  } {
+    const {
+      marketPrice,
+      parValue,
+      couponRate,
+      maturityYears,
+      frequency = 2,
+      zeroCurve,
+    } = params;
     const n = maturityYears * frequency;
-    const coupon = parValue * couponRate / frequency;
+    const coupon = (parValue * couponRate) / frequency;
 
     let zSpread = 0.005; // initial guess 50bps
     for (let iter = 0; iter < 100; iter++) {
@@ -33,7 +46,9 @@ export class ZSpreadService {
         const spotRate = this.interpolate(zeroCurve, t);
         const discount = Math.pow(1 + (spotRate + zSpread) / frequency, -i);
         price += cf * discount;
-        dPrice -= cf * (i / frequency) * discount / (1 + (spotRate + zSpread) / frequency);
+        dPrice -=
+          (cf * (i / frequency) * discount) /
+          (1 + (spotRate + zSpread) / frequency);
       }
       const error = price - marketPrice;
       if (Math.abs(error) < 0.0001) {
@@ -47,15 +62,25 @@ export class ZSpreadService {
       }
       zSpread -= error / dPrice;
     }
-    return { zSpread: +zSpread.toFixed(6), zSpreadBps: +(zSpread * 10000).toFixed(1), iterations: 100, interpretation: 'Convergence not achieved', interpretationEs: 'Convergencia no alcanzada' };
+    return {
+      zSpread: +zSpread.toFixed(6),
+      zSpreadBps: +(zSpread * 10000).toFixed(1),
+      iterations: 100,
+      interpretation: 'Convergence not achieved',
+      interpretationEs: 'Convergencia no alcanzada',
+    };
   }
 
-  private interpolate(curve: Array<{ tenor: number; rate: number }>, t: number): number {
+  private interpolate(
+    curve: Array<{ tenor: number; rate: number }>,
+    t: number,
+  ): number {
     if (t <= curve[0].tenor) return curve[0].rate;
     if (t >= curve[curve.length - 1].tenor) return curve[curve.length - 1].rate;
     for (let i = 1; i < curve.length; i++) {
       if (t <= curve[i].tenor) {
-        const w = (t - curve[i - 1].tenor) / (curve[i].tenor - curve[i - 1].tenor);
+        const w =
+          (t - curve[i - 1].tenor) / (curve[i].tenor - curve[i - 1].tenor);
         return curve[i - 1].rate + w * (curve[i].rate - curve[i - 1].rate);
       }
     }

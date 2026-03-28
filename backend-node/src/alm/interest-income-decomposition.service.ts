@@ -18,11 +18,17 @@ export interface IncomeDecompositionResult {
   mixEffect: number;
   interactionEffect: number;
   segments: Array<{
-    name: string; nameEs: string;
-    prevBalance: number; currBalance: number;
-    prevRate: number; currRate: number;
-    prevIncome: number; currIncome: number;
-    volumeContrib: number; rateContrib: number; mixContrib: number;
+    name: string;
+    nameEs: string;
+    prevBalance: number;
+    currBalance: number;
+    prevRate: number;
+    currRate: number;
+    prevIncome: number;
+    currIncome: number;
+    volumeContrib: number;
+    rateContrib: number;
+    mixContrib: number;
   }>;
   interpretation: string;
   interpretationEs: string;
@@ -34,9 +40,12 @@ export class InterestIncomeDecompositionService {
 
   decompose(params: {
     segments: Array<{
-      name: string; nameEs: string;
-      prevBalance: number; currBalance: number;
-      prevRate: number; currRate: number;
+      name: string;
+      nameEs: string;
+      prevBalance: number;
+      currBalance: number;
+      prevRate: number;
+      currRate: number;
     }>;
   }): IncomeDecompositionResult {
     const { segments: segParams } = params;
@@ -45,7 +54,7 @@ export class InterestIncomeDecompositionService {
     let totalRateEffect = 0;
     let totalMixEffect = 0;
 
-    const segments = segParams.map(s => {
+    const segments = segParams.map((s) => {
       const prevIncome = s.prevBalance * s.prevRate;
       const currIncome = s.currBalance * s.currRate;
       const deltaV = s.currBalance - s.prevBalance;
@@ -59,7 +68,14 @@ export class InterestIncomeDecompositionService {
       totalRateEffect += rateContrib;
       totalMixEffect += mixContrib;
 
-      return { ...s, prevIncome, currIncome, volumeContrib, rateContrib, mixContrib };
+      return {
+        ...s,
+        prevIncome,
+        currIncome,
+        volumeContrib,
+        rateContrib,
+        mixContrib,
+      };
     });
 
     const totalChange = totalVolumeEffect + totalRateEffect + totalMixEffect;

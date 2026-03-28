@@ -1,4 +1,12 @@
-import { clamp, lerp, percentile, safeDiv, roundTo, sum, mean } from './math.util';
+import {
+  clamp,
+  lerp,
+  percentile,
+  safeDiv,
+  roundTo,
+  sum,
+  mean,
+} from './math.util';
 
 describe('math.util', () => {
   describe('clamp', () => {

@@ -5,9 +5,13 @@
  */
 
 function mockSvc(): any {
-  return new Proxy({}, {
-    get: (_t: any, p: any) => typeof p === 'symbol' ? undefined : jest.fn().mockResolvedValue(null),
-  });
+  return new Proxy(
+    {},
+    {
+      get: (_t: any, p: any) =>
+        typeof p === 'symbol' ? undefined : jest.fn().mockResolvedValue(null),
+    },
+  );
 }
 
 import { AlmController } from './alm.controller';
@@ -39,7 +43,11 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('POST /api/alm/institutions', () => {
     it('creates institution', async () => {
-      const dto = { name: 'CoopAhorro', type: 'cooperativa', totalAssets: 250e6 };
+      const dto = {
+        name: 'CoopAhorro',
+        type: 'cooperativa',
+        totalAssets: 250e6,
+      };
       enterprise.createInstitution.mockResolvedValue({ id: 'i1', ...dto });
       const r = await controller.createInstitution(dto as any);
       expect(enterprise.createInstitution).toHaveBeenCalledWith(dto);
@@ -47,31 +55,50 @@ describe('AlmController — Core Revenue Path', () => {
     });
 
     it('propagates errors', async () => {
-      enterprise.createInstitution.mockRejectedValue(new Error('Name required'));
-      await expect(controller.createInstitution({} as any)).rejects.toThrow('Name required');
+      enterprise.createInstitution.mockRejectedValue(
+        new Error('Name required'),
+      );
+      await expect(controller.createInstitution({} as any)).rejects.toThrow(
+        'Name required',
+      );
     });
   });
 
   describe('GET /api/alm/institutions', () => {
     it('lists by userId', async () => {
-      enterprise.getInstitutionsByUser.mockResolvedValue({ data: [{ id: 'i1' }], total: 1 });
+      enterprise.getInstitutionsByUser.mockResolvedValue({
+        data: [{ id: 'i1' }],
+        total: 1,
+      });
       const req = { user: { userId: 'u1' }, query: {} };
       const r = await controller.listInstitutions(req, {} as any);
-      expect(enterprise.getInstitutionsByUser).toHaveBeenCalledWith('u1', expect.any(Object));
+      expect(enterprise.getInstitutionsByUser).toHaveBeenCalledWith(
+        'u1',
+        expect.any(Object),
+      );
       expect(r.total).toBe(1);
     });
 
     it('filters by workspaceId', async () => {
-      enterprise.getInstitutionsByWorkspace.mockResolvedValue({ data: [], total: 0 });
+      enterprise.getInstitutionsByWorkspace.mockResolvedValue({
+        data: [],
+        total: 0,
+      });
       const req = { user: { userId: 'u1' }, query: { workspaceId: 'ws1' } };
       await controller.listInstitutions(req, {} as any);
-      expect(enterprise.getInstitutionsByWorkspace).toHaveBeenCalledWith('ws1', expect.any(Object));
+      expect(enterprise.getInstitutionsByWorkspace).toHaveBeenCalledWith(
+        'ws1',
+        expect.any(Object),
+      );
     });
   });
 
   describe('GET /api/alm/institutions/:id', () => {
     it('returns details', async () => {
-      enterprise.getInstitution.mockResolvedValue({ id: 'i1', name: 'CoopAhorro' });
+      enterprise.getInstitution.mockResolvedValue({
+        id: 'i1',
+        name: 'CoopAhorro',
+      });
       const r = await controller.getInstitution('i1');
       expect(r.name).toBe('CoopAhorro');
     });
@@ -80,9 +107,15 @@ describe('AlmController — Core Revenue Path', () => {
   describe('POST /api/alm/institutions/:id/balance-sheet-items', () => {
     it('imports items', async () => {
       const dto = { items: [{ category: 'asset', balance: 45e6 }] };
-      enterprise.importBalanceSheetItems.mockResolvedValue({ count: 1, warnings: [] });
+      enterprise.importBalanceSheetItems.mockResolvedValue({
+        count: 1,
+        warnings: [],
+      });
       const r = await controller.importBalanceSheetItems('i1', dto as any);
-      expect(enterprise.importBalanceSheetItems).toHaveBeenCalledWith('i1', dto.items);
+      expect(enterprise.importBalanceSheetItems).toHaveBeenCalledWith(
+        'i1',
+        dto.items,
+      );
       expect(r.count).toBe(1);
     });
   });
@@ -129,7 +162,10 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/:id/liquidity', () => {
     it('calculates LCR', async () => {
-      enterprise.calculateLCR.mockResolvedValue({ lcr: 142.5, status: 'compliant' });
+      enterprise.calculateLCR.mockResolvedValue({
+        lcr: 142.5,
+        status: 'compliant',
+      });
       const r = await controller.getLiquidity('i1');
       expect(r.lcr).toBe(142.5);
     });

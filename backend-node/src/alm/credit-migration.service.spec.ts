@@ -56,12 +56,12 @@ describe('CreditMigrationService', () => {
     });
 
     const bbbIdx = RATINGS.indexOf('BBB'); // 3
-    const aIdx = RATINGS.indexOf('A');     // 2
-    const bbIdx = RATINGS.indexOf('BB');   // 4
+    const aIdx = RATINGS.indexOf('A'); // 2
+    const bbIdx = RATINGS.indexOf('BB'); // 4
 
-    expect(result.matrix[bbbIdx][bbbIdx]).toBeCloseTo(0.5, 4);  // 2/4
-    expect(result.matrix[bbbIdx][aIdx]).toBeCloseTo(0.25, 4);   // 1/4
-    expect(result.matrix[bbbIdx][bbIdx]).toBeCloseTo(0.25, 4);  // 1/4
+    expect(result.matrix[bbbIdx][bbbIdx]).toBeCloseTo(0.5, 4); // 2/4
+    expect(result.matrix[bbbIdx][aIdx]).toBeCloseTo(0.25, 4); // 1/4
+    expect(result.matrix[bbbIdx][bbIdx]).toBeCloseTo(0.25, 4); // 1/4
     expect(result.sampleSize).toBe(4);
   });
 
@@ -87,7 +87,7 @@ describe('CreditMigrationService', () => {
 
   // ── 4. Default (D) is an absorbing state ─────────────────
 
-  it('default is an absorbing state in Moody\'s defaults', () => {
+  it("default is an absorbing state in Moody's defaults", () => {
     const result = service.generateTransitionMatrix({
       historicalRatings: [], // Use defaults
     });
@@ -101,7 +101,7 @@ describe('CreditMigrationService', () => {
 
   // ── 5. Moody's defaults returned when no data ────────────
 
-  it('returns Moody\'s default matrix when no historical data provided', () => {
+  it("returns Moody's default matrix when no historical data provided", () => {
     const result = service.generateTransitionMatrix({
       historicalRatings: [],
     });
@@ -182,10 +182,7 @@ describe('CreditMigrationService', () => {
     });
 
     const totalOriginal = portfolio.reduce((s, p) => s + p.exposure, 0);
-    const totalProjected = result.projected.reduce(
-      (s, p) => s + p.exposure,
-      0,
-    );
+    const totalProjected = result.projected.reduce((s, p) => s + p.exposure, 0);
 
     // Total exposure should be conserved (within rounding)
     expect(totalProjected).toBeCloseTo(totalOriginal, 0);
@@ -236,10 +233,7 @@ describe('CreditMigrationService', () => {
       horizon: 3,
     });
 
-    expect(result.survivalProbability).toBeCloseTo(
-      1 - result.cumulativePD,
-      6,
-    );
+    expect(result.survivalProbability).toBeCloseTo(1 - result.cumulativePD, 6);
     expect(result.cumulativePD).toBeGreaterThan(0);
     expect(result.survivalProbability).toBeLessThan(1);
   });

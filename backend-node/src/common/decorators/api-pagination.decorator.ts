@@ -12,9 +12,32 @@ import { ApiQuery } from '@nestjs/swagger';
  */
 export function ApiPagination() {
   return applyDecorators(
-    ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (1-indexed)', example: 1 }),
-    ApiQuery({ name: 'pageSize', required: false, type: Number, description: 'Items per page (max 100)', example: 20 }),
-    ApiQuery({ name: 'sortBy', required: false, type: String, description: 'Sort field', example: 'createdAt' }),
-    ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'], description: 'Sort direction' }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      description: 'Page number (1-indexed)',
+      example: 1,
+    }),
+    ApiQuery({
+      name: 'pageSize',
+      required: false,
+      type: Number,
+      description: 'Items per page (max 100)',
+      example: 20,
+    }),
+    ApiQuery({
+      name: 'sortBy',
+      required: false,
+      type: String,
+      description: 'Sort field',
+      example: 'createdAt',
+    }),
+    ApiQuery({
+      name: 'sortOrder',
+      required: false,
+      enum: ['asc', 'desc'],
+      description: 'Sort direction',
+    }),
   );
 }

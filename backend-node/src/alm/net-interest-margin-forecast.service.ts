@@ -11,24 +11,40 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class NIMForecastService {
   forecast(params: {
-    currentNIM: number; earningAssets: number; interestIncome: number; interestExpense: number;
-    assetBeta: number; liabilityBeta: number; // sensitivity to rate changes
+    currentNIM: number;
+    earningAssets: number;
+    interestIncome: number;
+    interestExpense: number;
+    assetBeta: number;
+    liabilityBeta: number; // sensitivity to rate changes
     rateScenarios: Array<{ name: string; nameEs: string; shockBps: number }>;
     quarters?: number;
   }): {
     projections: Array<{
-      scenario: string; scenarioEs: string; shockBps: number;
+      scenario: string;
+      scenarioEs: string;
+      shockBps: number;
       quarterlyNIM: number[];
       endingNIM: number;
       nimChangeBps: number;
       annualizedNIIChange: number;
     }>;
     baseNIM: number;
-    interpretation: string; interpretationEs: string;
+    interpretation: string;
+    interpretationEs: string;
   } {
-    const { currentNIM, earningAssets, interestIncome, interestExpense, assetBeta, liabilityBeta, rateScenarios, quarters = 8 } = params;
+    const {
+      currentNIM,
+      earningAssets,
+      interestIncome,
+      interestExpense,
+      assetBeta,
+      liabilityBeta,
+      rateScenarios,
+      quarters = 8,
+    } = params;
 
-    const projections = rateScenarios.map(sc => {
+    const projections = rateScenarios.map((sc) => {
       const quarterlyNIM: number[] = [];
       let nim = currentNIM;
       const rateChangePerQ = sc.shockBps / (quarters * 100);
@@ -43,16 +59,27 @@ export class NIMForecastService {
 
       const endingNIM = quarterlyNIM[quarterlyNIM.length - 1];
       const nimChangeBps = +((endingNIM - currentNIM) * 10000).toFixed(0);
-      const annualizedNIIChange = +(nimChangeBps / 10000 * earningAssets).toFixed(0);
+      const annualizedNIIChange = +(
+        (nimChangeBps / 10000) *
+        earningAssets
+      ).toFixed(0);
 
-      return { scenario: sc.name, scenarioEs: sc.nameEs, shockBps: sc.shockBps, quarterlyNIM, endingNIM, nimChangeBps, annualizedNIIChange };
+      return {
+        scenario: sc.name,
+        scenarioEs: sc.nameEs,
+        shockBps: sc.shockBps,
+        quarterlyNIM,
+        endingNIM,
+        nimChangeBps,
+        annualizedNIIChange,
+      };
     });
 
     return {
       projections,
       baseNIM: currentNIM,
-      interpretation: `Base NIM: ${(currentNIM * 100).toFixed(2)}%. Range under scenarios: ${Math.min(...projections.map(p => p.endingNIM * 100)).toFixed(2)}% to ${Math.max(...projections.map(p => p.endingNIM * 100)).toFixed(2)}%.`,
-      interpretationEs: `NIM base: ${(currentNIM * 100).toFixed(2)}%. Rango bajo escenarios: ${Math.min(...projections.map(p => p.endingNIM * 100)).toFixed(2)}% a ${Math.max(...projections.map(p => p.endingNIM * 100)).toFixed(2)}%.`,
+      interpretation: `Base NIM: ${(currentNIM * 100).toFixed(2)}%. Range under scenarios: ${Math.min(...projections.map((p) => p.endingNIM * 100)).toFixed(2)}% to ${Math.max(...projections.map((p) => p.endingNIM * 100)).toFixed(2)}%.`,
+      interpretationEs: `NIM base: ${(currentNIM * 100).toFixed(2)}%. Rango bajo escenarios: ${Math.min(...projections.map((p) => p.endingNIM * 100)).toFixed(2)}% a ${Math.max(...projections.map((p) => p.endingNIM * 100)).toFixed(2)}%.`,
     };
   }
 }

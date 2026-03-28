@@ -2,14 +2,14 @@
  * Throttle utility — ensures a function runs at most once per interval.
  * Useful for scroll and resize handlers.
  */
-export function throttle<T extends (...args: any[]) => void>(
-  fn: T,
+export function throttle<Args extends unknown[]>(
+  fn: (...args: Args) => void,
   intervalMs: number,
-): T {
+): (...args: Args) => void {
   let lastTime = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
-  return ((...args: any[]) => {
+  return (...args: Args) => {
     const now = Date.now();
     const remaining = intervalMs - (now - lastTime);
 
@@ -27,5 +27,5 @@ export function throttle<T extends (...args: any[]) => void>(
         fn(...args);
       }, remaining);
     }
-  }) as T;
+  };
 }

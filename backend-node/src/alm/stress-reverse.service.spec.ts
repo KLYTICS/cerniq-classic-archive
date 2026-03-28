@@ -144,7 +144,10 @@ describe('StressReverseService', () => {
     });
 
     it('larger balance sheet breaches at a smaller shock (proportionally same)', () => {
-      const smallBS = makeBalanceSheet({ assetAmount: 100, liabilityAmount: 85 });
+      const smallBS = makeBalanceSheet({
+        assetAmount: 100,
+        liabilityAmount: 85,
+      });
       const largeBS = makeLargeBalanceSheet();
 
       const smallResult = service.findBreachScenario({
@@ -164,8 +167,13 @@ describe('StressReverseService', () => {
       expect(largeResult.breachShock).not.toBeNull();
 
       // The shock levels should be similar since the B/S is proportionally identical
-      if (smallResult.breachShock !== null && largeResult.breachShock !== null) {
-        expect(Math.abs(smallResult.breachShock - largeResult.breachShock)).toBeLessThanOrEqual(10);
+      if (
+        smallResult.breachShock !== null &&
+        largeResult.breachShock !== null
+      ) {
+        expect(
+          Math.abs(smallResult.breachShock - largeResult.breachShock),
+        ).toBeLessThanOrEqual(10);
       }
     });
 
@@ -187,9 +195,17 @@ describe('StressReverseService', () => {
 
       // Floating rate assets have very short duration, so EVE is less sensitive
       // to rate shocks. Floating should require a LARGER shock to breach.
-      if (fixedResult.breachShock !== null && floatingResult.breachShock !== null) {
-        expect(floatingResult.breachShock).toBeGreaterThan(fixedResult.breachShock);
-      } else if (fixedResult.breachShock !== null && floatingResult.breachShock === null) {
+      if (
+        fixedResult.breachShock !== null &&
+        floatingResult.breachShock !== null
+      ) {
+        expect(floatingResult.breachShock).toBeGreaterThan(
+          fixedResult.breachShock,
+        );
+      } else if (
+        fixedResult.breachShock !== null &&
+        floatingResult.breachShock === null
+      ) {
         // Floating doesn't breach at all = even more resilient
         expect(true).toBe(true);
       }

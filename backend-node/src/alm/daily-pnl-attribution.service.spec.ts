@@ -12,7 +12,14 @@ describe('DailyPnLAttributionService', () => {
 
   // ── Helpers ──────────────────────────────────────────────
 
-  const baseAsset = (overrides: Partial<{ name: string; balance: number; rate: number; category: string }> = {}) => ({
+  const baseAsset = (
+    overrides: Partial<{
+      name: string;
+      balance: number;
+      rate: number;
+      category: string;
+    }> = {},
+  ) => ({
     name: 'Commercial Loans',
     balance: 10_000_000,
     rate: 0.065,
@@ -20,7 +27,14 @@ describe('DailyPnLAttributionService', () => {
     ...overrides,
   });
 
-  const baseLiab = (overrides: Partial<{ name: string; balance: number; rate: number; category: string }> = {}) => ({
+  const baseLiab = (
+    overrides: Partial<{
+      name: string;
+      balance: number;
+      rate: number;
+      category: string;
+    }> = {},
+  ) => ({
     name: 'Savings Deposits',
     balance: 8_000_000,
     rate: 0.02,
@@ -145,10 +159,12 @@ describe('DailyPnLAttributionService', () => {
     // The three non-spread effects must exactly decompose the period-scaled NII change
     const pf = 1 / 365;
     const priorNII =
-      5_000_000 * 0.055 + 3_000_000 * 0.045 -
+      5_000_000 * 0.055 +
+      3_000_000 * 0.045 -
       (4_000_000 * 0.005 + 3_000_000 * 0.035);
     const currentNII =
-      5_500_000 * 0.06 + 2_800_000 * 0.05 -
+      5_500_000 * 0.06 +
+      2_800_000 * 0.05 -
       (4_200_000 * 0.008 + 3_200_000 * 0.04);
     const scaledChange = (currentNII - priorNII) * pf;
 
@@ -203,23 +219,63 @@ describe('DailyPnLAttributionService', () => {
     const params: DailyPnLAttributionParams = {
       prior: {
         assets: [
-          baseAsset({ name: 'Loan A', category: 'loans', balance: 5_000_000, rate: 0.06 }),
-          baseAsset({ name: 'Loan B', category: 'loans', balance: 3_000_000, rate: 0.055 }),
-          baseAsset({ name: 'Bond Portfolio', category: 'securities', balance: 2_000_000, rate: 0.04 }),
+          baseAsset({
+            name: 'Loan A',
+            category: 'loans',
+            balance: 5_000_000,
+            rate: 0.06,
+          }),
+          baseAsset({
+            name: 'Loan B',
+            category: 'loans',
+            balance: 3_000_000,
+            rate: 0.055,
+          }),
+          baseAsset({
+            name: 'Bond Portfolio',
+            category: 'securities',
+            balance: 2_000_000,
+            rate: 0.04,
+          }),
         ],
         liabilities: [
-          baseLiab({ name: 'DDA', category: 'deposits', balance: 6_000_000, rate: 0.01 }),
+          baseLiab({
+            name: 'DDA',
+            category: 'deposits',
+            balance: 6_000_000,
+            rate: 0.01,
+          }),
         ],
         benchmarkRate: 0.05,
       },
       current: {
         assets: [
-          baseAsset({ name: 'Loan A', category: 'loans', balance: 5_200_000, rate: 0.062 }),
-          baseAsset({ name: 'Loan B', category: 'loans', balance: 3_100_000, rate: 0.057 }),
-          baseAsset({ name: 'Bond Portfolio', category: 'securities', balance: 1_800_000, rate: 0.042 }),
+          baseAsset({
+            name: 'Loan A',
+            category: 'loans',
+            balance: 5_200_000,
+            rate: 0.062,
+          }),
+          baseAsset({
+            name: 'Loan B',
+            category: 'loans',
+            balance: 3_100_000,
+            rate: 0.057,
+          }),
+          baseAsset({
+            name: 'Bond Portfolio',
+            category: 'securities',
+            balance: 1_800_000,
+            rate: 0.042,
+          }),
         ],
         liabilities: [
-          baseLiab({ name: 'DDA', category: 'deposits', balance: 6_200_000, rate: 0.012 }),
+          baseLiab({
+            name: 'DDA',
+            category: 'deposits',
+            balance: 6_200_000,
+            rate: 0.012,
+          }),
         ],
         benchmarkRate: 0.052,
       },
@@ -271,7 +327,9 @@ describe('DailyPnLAttributionService', () => {
   // ─────────────────────────────────────────────────────────
 
   it('scales effects correctly for daily vs quarterly periods', () => {
-    const makeParams = (period: 'daily' | 'quarterly'): DailyPnLAttributionParams => ({
+    const makeParams = (
+      period: 'daily' | 'quarterly',
+    ): DailyPnLAttributionParams => ({
       prior: {
         assets: [baseAsset({ rate: 0.06 })],
         liabilities: [baseLiab()],
@@ -289,7 +347,9 @@ describe('DailyPnLAttributionService', () => {
     const quarterlyResult = service.attributePnL(makeParams('quarterly'));
 
     // Quarterly rate effect should be ~91.25x larger than daily (365/4 = 91.25)
-    const ratio = quarterlyResult.attribution.rateEffect / dailyResult.attribution.rateEffect;
+    const ratio =
+      quarterlyResult.attribution.rateEffect /
+      dailyResult.attribution.rateEffect;
     expect(ratio).toBeCloseTo(365 / 4, 0);
   });
 
@@ -333,16 +393,36 @@ describe('DailyPnLAttributionService', () => {
     const params: DailyPnLAttributionParams = {
       prior: {
         assets: [
-          baseAsset({ name: 'Stable Asset', category: 'stable', balance: 10_000_000, rate: 0.05 }),
-          baseAsset({ name: 'Volatile Asset', category: 'volatile', balance: 1_000_000, rate: 0.04 }),
+          baseAsset({
+            name: 'Stable Asset',
+            category: 'stable',
+            balance: 10_000_000,
+            rate: 0.05,
+          }),
+          baseAsset({
+            name: 'Volatile Asset',
+            category: 'volatile',
+            balance: 1_000_000,
+            rate: 0.04,
+          }),
         ],
         liabilities: [baseLiab()],
         benchmarkRate: 0.05,
       },
       current: {
         assets: [
-          baseAsset({ name: 'Stable Asset', category: 'stable', balance: 10_000_000, rate: 0.051 }),
-          baseAsset({ name: 'Volatile Asset', category: 'volatile', balance: 1_000_000, rate: 0.08 }),
+          baseAsset({
+            name: 'Stable Asset',
+            category: 'stable',
+            balance: 10_000_000,
+            rate: 0.051,
+          }),
+          baseAsset({
+            name: 'Volatile Asset',
+            category: 'volatile',
+            balance: 1_000_000,
+            rate: 0.08,
+          }),
         ],
         liabilities: [baseLiab()],
         benchmarkRate: 0.05,

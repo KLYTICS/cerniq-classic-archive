@@ -18,8 +18,18 @@ export interface CreditRiskPlusResult {
   expectedLoss: number;
   unexpectedLoss: number;
   economicCapital: number; // at 99.9% confidence
-  lossDistribution: Array<{ lossAmount: number; probability: number; cumulative: number }>;
-  sectorContributions: Array<{ sector: string; sectorEs: string; exposure: number; expectedDefault: number; contribution: number }>;
+  lossDistribution: Array<{
+    lossAmount: number;
+    probability: number;
+    cumulative: number;
+  }>;
+  sectorContributions: Array<{
+    sector: string;
+    sectorEs: string;
+    exposure: number;
+    expectedDefault: number;
+    contribution: number;
+  }>;
   var99: number;
   var999: number;
   interpretation: string;
@@ -44,7 +54,7 @@ export class CreditRiskPlusService {
     const { segments, confidenceLevel = 0.999 } = params;
 
     // Expected loss per segment
-    const segmentResults = segments.map(seg => {
+    const segmentResults = segments.map((seg) => {
       const el = seg.exposure * seg.pd * seg.lgd;
       const lambda = seg.count * seg.pd; // expected number of defaults
       return { ...seg, expectedLoss: el, lambda };
@@ -55,8 +65,12 @@ export class CreditRiskPlusService {
 
     // Poisson loss distribution via Panjer recursion
     const maxLossBuckets = 200;
-    const bucketSize = totalEL * 5 / maxLossBuckets; // cover up to 5x EL
-    const distribution: Array<{ lossAmount: number; probability: number; cumulative: number }> = [];
+    const bucketSize = (totalEL * 5) / maxLossBuckets; // cover up to 5x EL
+    const distribution: Array<{
+      lossAmount: number;
+      probability: number;
+      cumulative: number;
+    }> = [];
 
     // Compound Poisson approximation
     const probs = new Array(maxLossBuckets).fill(0);
@@ -67,7 +81,8 @@ export class CreditRiskPlusService {
       let sum = 0;
       for (let j = 1; j <= Math.min(k, 20); j++) {
         const severity = j * bucketSize;
-        const severityProb = Math.exp(-severity / (totalEL || 1)) / (totalEL || 1);
+        const severityProb =
+          Math.exp(-severity / (totalEL || 1)) / (totalEL || 1);
         sum += j * severityProb * probs[k - j];
       }
       probs[k] = (totalLambda / k) * sum;
@@ -76,7 +91,7 @@ export class CreditRiskPlusService {
 
     // Normalize
     const totalProb = probs.reduce((s, p) => s + p, 0);
-    if (totalProb > 0) probs.forEach((_, i) => probs[i] /= totalProb);
+    if (totalProb > 0) probs.forEach((_, i) => (probs[i] /= totalProb));
 
     let cumulative = 0;
     for (let i = 0; i < maxLossBuckets; i++) {
@@ -94,7 +109,7 @@ export class CreditRiskPlusService {
     const unexpectedLoss = var999 - totalEL;
     const economicCapital = unexpectedLoss;
 
-    const sectorContributions = segmentResults.map(s => ({
+    const sectorContributions = segmentResults.map((s) => ({
       sector: s.name,
       sectorEs: s.nameEs,
       exposure: s.exposure,
@@ -115,7 +130,10 @@ export class CreditRiskPlusService {
     };
   }
 
-  private findVaR(dist: Array<{ lossAmount: number; cumulative: number }>, level: number): number {
+  private findVaR(
+    dist: Array<{ lossAmount: number; cumulative: number }>,
+    level: number,
+  ): number {
     for (const d of dist) {
       if (d.cumulative >= level) return d.lossAmount;
     }

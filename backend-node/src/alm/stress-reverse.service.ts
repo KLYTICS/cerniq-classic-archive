@@ -75,7 +75,7 @@ function approxDuration(maturityYears: number, rate: number): number {
   const macaulay = pvAnnuity - (n * (y - y)) / (y * (Math.pow(1 + y, n) - 1));
   // Simplified: weighted average time of cash flows
   const mac =
-    (1 + y) / y - ((1 + y + n * (y)) / (y * (Math.pow(1 + y, n) - 1) + y));
+    (1 + y) / y - (1 + y + n * y) / (y * (Math.pow(1 + y, n) - 1) + y);
   // Use simpler approximation that's robust
   const simpleDuration = (1 - Math.pow(1 + y, -n)) / y;
   return simpleDuration / (1 + y); // modified duration
@@ -106,9 +106,7 @@ export class StressReverseService {
 
     let liabilityValue = 0;
     for (const l of balanceSheet.liabilities) {
-      const dur = l.isFloating
-        ? 0.25
-        : approxDuration(l.maturityYears, l.rate);
+      const dur = l.isFloating ? 0.25 : approxDuration(l.maturityYears, l.rate);
       const deltaV = -dur * deltaRate * l.amount;
       liabilityValue += l.amount + deltaV;
     }
@@ -149,10 +147,7 @@ export class StressReverseService {
     balanceSheet: BalanceSheetInput,
     shockBps: number,
   ): number {
-    const totalAssets = balanceSheet.assets.reduce(
-      (s, a) => s + a.amount,
-      0,
-    );
+    const totalAssets = balanceSheet.assets.reduce((s, a) => s + a.amount, 0);
     const totalLiabilities = balanceSheet.liabilities.reduce(
       (s, l) => s + l.amount,
       0,
@@ -182,10 +177,7 @@ export class StressReverseService {
     shockBps: number,
     currentCapitalRatio?: number,
   ): number {
-    const totalAssets = balanceSheet.assets.reduce(
-      (s, a) => s + a.amount,
-      0,
-    );
+    const totalAssets = balanceSheet.assets.reduce((s, a) => s + a.amount, 0);
     const totalLiabilities = balanceSheet.liabilities.reduce(
       (s, l) => s + l.amount,
       0,
@@ -282,11 +274,7 @@ export class StressReverseService {
         breaches,
       );
       // Also scan negative shocks linearly for simplicity
-      for (
-        let shock = -stepBps;
-        shock >= minShockBps;
-        shock -= stepBps
-      ) {
+      for (let shock = -stepBps; shock >= minShockBps; shock -= stepBps) {
         const val = this.evaluateMetric(balanceSheet, metric, shock);
         if (breaches(val)) {
           if (
@@ -396,13 +384,7 @@ export class StressReverseService {
     const gridPoints = 10; // points per factor
     const candidates: { factor: string; value: number }[][] = [];
 
-    this.generateCombinations(
-      factors,
-      gridPoints,
-      0,
-      [],
-      candidates,
-    );
+    this.generateCombinations(factors, gridPoints, 0, [], candidates);
 
     let bestScenario: { factor: string; value: number }[] | null = null;
     let bestBreachedMetrics: {
@@ -424,15 +406,16 @@ export class StressReverseService {
       for (const t of thresholds) {
         const val = this.evaluateMetric(adjustedBS, t.metric, shockBps);
         if (val < t.limit) {
-          breached.push({ metric: t.metric, value: round(val, 2), limit: t.limit });
+          breached.push({
+            metric: t.metric,
+            value: round(val, 2),
+            limit: t.limit,
+          });
         }
       }
 
       // Score: prefer scenarios that breach ALL thresholds with smallest factor magnitudes
-      const severity = candidate.reduce(
-        (s, f) => s + Math.abs(f.value),
-        0,
-      );
+      const severity = candidate.reduce((s, f) => s + Math.abs(f.value), 0);
 
       if (
         breached.length > bestBreachCount ||
@@ -445,7 +428,8 @@ export class StressReverseService {
       }
     }
 
-    const scenario = bestScenario ?? factors.map((f) => ({ factor: f.name, value: 0 }));
+    const scenario =
+      bestScenario ?? factors.map((f) => ({ factor: f.name, value: 0 }));
 
     return {
       scenario,
@@ -488,8 +472,8 @@ export class StressReverseService {
     balanceSheet: BalanceSheetInput,
     factors: { factor: string; value: number }[],
   ): BalanceSheetInput {
-    let adjustedAssets = [...balanceSheet.assets.map((a) => ({ ...a }))];
-    let adjustedLiabilities = [
+    const adjustedAssets = [...balanceSheet.assets.map((a) => ({ ...a }))];
+    const adjustedLiabilities = [
       ...balanceSheet.liabilities.map((l) => ({ ...l })),
     ];
 
@@ -531,7 +515,7 @@ export class StressReverseService {
     const ratio = totalSeverity / maxSeverity;
 
     if (ratio < 0.25) return 'CRITICAL'; // small shocks cause breach = very risky
-    if (ratio < 0.50) return 'HIGH';
+    if (ratio < 0.5) return 'HIGH';
     if (ratio < 0.75) return 'MEDIUM';
     return 'LOW'; // only extreme scenarios cause breach = healthy
   }
@@ -555,10 +539,7 @@ export class StressReverseService {
       minimumCapitalRatio,
     } = params;
 
-    const totalAssets = balanceSheet.assets.reduce(
-      (s, a) => s + a.amount,
-      0,
-    );
+    const totalAssets = balanceSheet.assets.reduce((s, a) => s + a.amount, 0);
 
     // Current capital = ratio * RWA
     const currentCapital = (currentCapitalRatio / 100) * riskWeightedAssets;
@@ -616,9 +597,7 @@ export class StressReverseService {
     }
 
     for (const l of balanceSheet.liabilities) {
-      const dur = l.isFloating
-        ? 0.25
-        : approxDuration(l.maturityYears, l.rate);
+      const dur = l.isFloating ? 0.25 : approxDuration(l.maturityYears, l.rate);
       durationSum += dur * l.amount;
       totalWeight += l.amount;
     }

@@ -1,4 +1,10 @@
-import { isWeekend, isPRHoliday, isBusinessDay, addBusinessDays, countBusinessDays } from './date.util';
+import {
+  isWeekend,
+  isPRHoliday,
+  isBusinessDay,
+  addBusinessDays,
+  countBusinessDays,
+} from './date.util';
 
 // Use UTC noon to ensure consistent day-of-week regardless of runner timezone
 function noon(dateStr: string): Date {
@@ -21,7 +27,7 @@ describe('date.util', () => {
   });
 
   describe('isPRHoliday', () => {
-    it('recognizes New Year\'s Day', () => {
+    it("recognizes New Year's Day", () => {
       expect(isPRHoliday(noon('2026-01-01'))).toBe(true);
     });
 

@@ -72,7 +72,7 @@ describe('LoanLossReserveService', () => {
       totalLoans: 10_000_000,
       currentALLL: 150_000,
       netChargeOffs: 50_000,
-      delinquent30: 400_000,  // high delinquency triggers Q-factor
+      delinquent30: 400_000, // high delinquency triggers Q-factor
       delinquent60: 200_000,
       delinquent90: 100_000,
       nonPerforming: 300_000, // high NPL triggers Q-factor

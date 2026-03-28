@@ -46,7 +46,8 @@ export class PrismaExceptionFilter implements ExceptionFilter {
   } {
     switch (exception.code) {
       case 'P2002': {
-        const fields = (exception.meta?.target as string[])?.join(', ') || 'field';
+        const fields =
+          (exception.meta?.target as string[])?.join(', ') || 'field';
         return {
           status: HttpStatus.CONFLICT,
           message: `A record with this ${fields} already exists`,

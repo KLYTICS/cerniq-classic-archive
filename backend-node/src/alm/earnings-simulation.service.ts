@@ -134,10 +134,10 @@ interface LiabilityWorking {
 // ─── Constants ──────────────────────────────────────────────────────
 
 /** Floating-rate asset beta — assets reprice quickly */
-const ASSET_BETA = 0.90;
+const ASSET_BETA = 0.9;
 
 /** Deposit beta — deposits are sticky, reprice slowly */
-const DEPOSIT_BETA = 0.40;
+const DEPOSIT_BETA = 0.4;
 
 /** Quarter = 0.25 years */
 const QTR = 0.25;
@@ -194,8 +194,12 @@ export class EarningsSimulationService {
   generateStandardRatePaths(currentRate: number, quarters = 8): RatePath[] {
     const zero = new Array(quarters).fill(0);
 
-    const gradualUp = new Array(quarters).fill(0).map((_, i) => (i < 8 ? 25 : 0));
-    const gradualDown = new Array(quarters).fill(0).map((_, i) => (i < 8 ? -25 : 0));
+    const gradualUp = new Array(quarters)
+      .fill(0)
+      .map((_, i) => (i < 8 ? 25 : 0));
+    const gradualDown = new Array(quarters)
+      .fill(0)
+      .map((_, i) => (i < 8 ? -25 : 0));
 
     const shockUp = [300, ...new Array(quarters - 1).fill(0)];
     const shockDown = [-100, ...new Array(quarters - 1).fill(0)];
@@ -218,7 +222,7 @@ export class EarningsSimulationService {
     quarters: number,
   ): ScenarioResult {
     // Deep-clone positions so each scenario is independent
-    let assets: AssetWorking[] = bs.assets.map((a) => ({
+    const assets: AssetWorking[] = bs.assets.map((a) => ({
       name: a.name,
       balance: a.balance,
       rate: a.rate,
@@ -228,7 +232,7 @@ export class EarningsSimulationService {
       prepaymentSpeed: a.prepaymentSpeed ?? 0,
     }));
 
-    let liabilities: LiabilityWorking[] = bs.liabilities.map((l) => ({
+    const liabilities: LiabilityWorking[] = bs.liabilities.map((l) => ({
       name: l.name,
       balance: l.balance,
       rate: l.rate,
@@ -306,10 +310,7 @@ export class EarningsSimulationService {
         // Deposit decay
         if (l.decayRate > 0) {
           const decay =
-            l.balance *
-            l.decayRate *
-            assumptions.depositDecayMultiplier *
-            QTR;
+            l.balance * l.decayRate * assumptions.depositDecayMultiplier * QTR;
           l.balance -= decay;
         }
         if (l.balance < 0) l.balance = 0;
@@ -380,7 +381,9 @@ export class EarningsSimulationService {
 
     const summary: ScenarioSummary = {
       totalNII: this.round2(totalNII),
-      averageNIM: this.round6(nimValues.reduce((a, b) => a + b, 0) / nimValues.length),
+      averageNIM: this.round6(
+        nimValues.reduce((a, b) => a + b, 0) / nimValues.length,
+      ),
       niiChange: 0, // filled in by caller after all scenarios computed
       niiChangePct: 0,
       worstQuarterNII: this.round2(Math.min(...niiValues)),

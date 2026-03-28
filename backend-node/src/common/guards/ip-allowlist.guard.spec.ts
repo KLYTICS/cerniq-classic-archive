@@ -14,7 +14,10 @@ describe('IpAllowlistGuard', () => {
     process.env = OLD_ENV;
   });
 
-  const createMockContext = (ip: string, headers: Record<string, string> = {}): ExecutionContext =>
+  const createMockContext = (
+    ip: string,
+    headers: Record<string, string> = {},
+  ): ExecutionContext =>
     ({
       switchToHttp: () => ({
         getRequest: () => ({

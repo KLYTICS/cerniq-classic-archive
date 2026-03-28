@@ -100,7 +100,11 @@ export class RegulatoryDeadlineTrackerService {
     const deadlines: RegulatoryDeadline[] = [];
 
     // Scan current year and next year to catch cross-year boundaries
-    for (const year of [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1]) {
+    for (const year of [
+      now.getFullYear() - 1,
+      now.getFullYear(),
+      now.getFullYear() + 1,
+    ]) {
       for (const tpl of templates) {
         for (const dueDate of tpl.dueDates(year)) {
           const daysRemaining = this.diffDays(now, dueDate);
@@ -108,7 +112,10 @@ export class RegulatoryDeadlineTrackerService {
           if (dueDate <= horizon && daysRemaining >= -90) {
             const status = this.classifyStatus(daysRemaining);
             // For upcoming: include if within window; for overdue: always include
-            if (dueDate <= horizon && (daysRemaining < 0 || dueDate >= now || dueDate <= horizon)) {
+            if (
+              dueDate <= horizon &&
+              (daysRemaining < 0 || dueDate >= now || dueDate <= horizon)
+            ) {
               deadlines.push({
                 id: `${tpl.idPrefix}-${year}-${(dueDate.getMonth() + 1).toString().padStart(2, '0')}`,
                 name: tpl.name,
@@ -153,8 +160,18 @@ export class RegulatoryDeadlineTrackerService {
   }): ComplianceCalendarResult {
     const templates = this.getTemplatesForInstitution(params.institutionType);
     const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
 
     const months: ComplianceCalendarMonth[] = monthNames.map((name, idx) => ({
@@ -238,7 +255,9 @@ export class RegulatoryDeadlineTrackerService {
       return true;
     });
 
-    const filedMap = new Map(params.completedFilings.map((f) => [f.deadlineId, f.filedDate]));
+    const filedMap = new Map(
+      params.completedFilings.map((f) => [f.deadlineId, f.filedDate]),
+    );
 
     const missedDeadlines: RegulatoryDeadline[] = [];
     const lateFilings: ComplianceCheckResult['lateFilings'] = [];
@@ -320,10 +339,15 @@ export class RegulatoryDeadlineTrackerService {
 
   // ── Deadline Templates ─────────────────────────────────────────────────
 
-  private getTemplatesForInstitution(institutionType: InstitutionType): DeadlineTemplate[] {
+  private getTemplatesForInstitution(
+    institutionType: InstitutionType,
+  ): DeadlineTemplate[] {
     const templates: DeadlineTemplate[] = [];
 
-    if (institutionType === 'cooperativa' || institutionType === 'credit_union') {
+    if (
+      institutionType === 'cooperativa' ||
+      institutionType === 'credit_union'
+    ) {
       // COSSEC Quarterly Filings (Q+45 days)
       templates.push({
         idPrefix: 'cossec-quarterly',
@@ -345,12 +369,13 @@ export class RegulatoryDeadlineTrackerService {
           'Informe de brecha de duracion',
           'Evaluacion de adecuacion de capital',
         ],
-        penalty: 'Regulatory sanctions, potential conservatorship, civil money penalties up to $25,000/day',
+        penalty:
+          'Regulatory sanctions, potential conservatorship, civil money penalties up to $25,000/day',
         dueDates: (year: number) => [
-          new Date(year, 1, 14),   // Q4 prior year: Feb 14
-          new Date(year, 4, 15),   // Q1: May 15
-          new Date(year, 7, 14),   // Q2: Aug 14
-          new Date(year, 10, 14),  // Q3: Nov 14
+          new Date(year, 1, 14), // Q4 prior year: Feb 14
+          new Date(year, 4, 15), // Q1: May 15
+          new Date(year, 7, 14), // Q2: Aug 14
+          new Date(year, 10, 14), // Q3: Nov 14
         ],
       });
 
@@ -371,12 +396,13 @@ export class RegulatoryDeadlineTrackerService {
           'Estados financieros',
           'Informe de morosidad',
         ],
-        penalty: 'Federal regulatory action, potential loss of share insurance, fines up to $10,000/day',
+        penalty:
+          'Federal regulatory action, potential loss of share insurance, fines up to $10,000/day',
         dueDates: (year: number) => [
-          new Date(year, 0, 30),   // Q4 prior year: Jan 30
-          new Date(year, 3, 30),   // Q1: Apr 30
-          new Date(year, 6, 30),   // Q2: Jul 30
-          new Date(year, 9, 30),   // Q3: Oct 30
+          new Date(year, 0, 30), // Q4 prior year: Jan 30
+          new Date(year, 3, 30), // Q1: Apr 30
+          new Date(year, 6, 30), // Q2: Jul 30
+          new Date(year, 9, 30), // Q3: Oct 30
         ],
       });
     }
@@ -426,7 +452,8 @@ export class RegulatoryDeadlineTrackerService {
         'Informe de liquidez',
         'Revision de limites de politica',
       ],
-      penalty: 'Internal policy violation, potential regulatory finding on governance',
+      penalty:
+        'Internal policy violation, potential regulatory finding on governance',
       dueDates: (year: number) => {
         const dates: Date[] = [];
         for (let m = 0; m < 12; m++) {
@@ -453,12 +480,13 @@ export class RegulatoryDeadlineTrackerService {
         'Analisis comparativo con pares',
         'Resumen de cumplimiento regulatorio',
       ],
-      penalty: 'Board governance failure, regulatory criticism in exam findings',
+      penalty:
+        'Board governance failure, regulatory criticism in exam findings',
       dueDates: (year: number) => [
-        new Date(year, 2, 16),   // 15 days before Mar 31
-        new Date(year, 5, 15),   // 15 days before Jun 30
-        new Date(year, 8, 15),   // 15 days before Sep 30
-        new Date(year, 11, 16),  // 15 days before Dec 31
+        new Date(year, 2, 16), // 15 days before Mar 31
+        new Date(year, 5, 15), // 15 days before Jun 30
+        new Date(year, 8, 15), // 15 days before Sep 30
+        new Date(year, 11, 16), // 15 days before Dec 31
       ],
     });
 
@@ -479,7 +507,8 @@ export class RegulatoryDeadlineTrackerService {
         'Evaluacion de controles internos',
         'Revision de cumplimiento BSA/AML',
       ],
-      penalty: 'Regulatory enforcement action, potential consent order, reputational damage',
+      penalty:
+        'Regulatory enforcement action, potential consent order, reputational damage',
       dueDates: (year: number) => [new Date(year, 2, 31)],
     });
 

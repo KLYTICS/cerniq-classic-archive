@@ -31,10 +31,23 @@ export class CIRModelService {
   private readonly logger = new Logger(CIRModelService.name);
 
   simulate(params: {
-    r0?: number; a?: number; b?: number; sigma?: number;
-    horizonYears?: number; numPaths?: number; dt?: number;
+    r0?: number;
+    a?: number;
+    b?: number;
+    sigma?: number;
+    horizonYears?: number;
+    numPaths?: number;
+    dt?: number;
   }): CIRResult {
-    const { r0 = 0.045, a = 0.15, b = 0.04, sigma = 0.06, horizonYears = 5, numPaths = 1000, dt = 1/252 } = params;
+    const {
+      r0 = 0.045,
+      a = 0.15,
+      b = 0.04,
+      sigma = 0.06,
+      horizonYears = 5,
+      numPaths = 1000,
+      dt = 1 / 252,
+    } = params;
     const steps = Math.round(horizonYears / dt);
     const fellerSatisfied = 2 * a * b > sigma * sigma;
 
@@ -64,55 +77,95 @@ export class CIRModelService {
     for (const pct of [5, 25, 50, 75, 95]) {
       percentiles[`p${pct}`] = meanPath.map((m, i) => {
         const t = i * 0.25;
-        const variance = (sigma * sigma * b / (2 * a)) * (1 - Math.exp(-a * t)) ** 2;
-        const z = pct === 50 ? 0 : pct < 50 ? -this.normalInv(1 - pct/100) : this.normalInv(pct/100);
+        const variance =
+          ((sigma * sigma * b) / (2 * a)) * (1 - Math.exp(-a * t)) ** 2;
+        const z =
+          pct === 50
+            ? 0
+            : pct < 50
+              ? -this.normalInv(1 - pct / 100)
+              : this.normalInv(pct / 100);
         return Math.max(0, m + z * Math.sqrt(Math.max(variance, 0)));
       });
     }
 
     // Closed-form bond prices: P(t,T) = A(t,T) × exp(-B(t,T) × r)
-    const bondPrices = [0.5, 1, 2, 3, 5, 7, 10].map(T => {
+    const bondPrices = [0.5, 1, 2, 3, 5, 7, 10].map((T) => {
       const h = Math.sqrt(a * a + 2 * sigma * sigma);
-      const BtT = 2 * (Math.exp(h * T) - 1) / ((h + a) * (Math.exp(h * T) - 1) + 2 * h);
-      const AtT = Math.pow(2 * h * Math.exp((a + h) * T / 2) / ((h + a) * (Math.exp(h * T) - 1) + 2 * h), 2 * a * b / (sigma * sigma));
+      const BtT =
+        (2 * (Math.exp(h * T) - 1)) / ((h + a) * (Math.exp(h * T) - 1) + 2 * h);
+      const AtT = Math.pow(
+        (2 * h * Math.exp(((a + h) * T) / 2)) /
+          ((h + a) * (Math.exp(h * T) - 1) + 2 * h),
+        (2 * a * b) / (sigma * sigma),
+      );
       const price = AtT * Math.exp(-BtT * r0);
       const yield_ = -Math.log(price) / T;
-      return { maturity: T, price: +price.toFixed(6), yield_: +yield_.toFixed(6) };
+      return {
+        maturity: T,
+        price: +price.toFixed(6),
+        yield_: +yield_.toFixed(6),
+      };
     });
 
     return {
       params: { a, b, sigma, fellerSatisfied },
       simulation: { meanPath, percentiles, samplePaths: paths },
       bondPrices,
-      interpretation: `CIR model: mean reversion a=${a}, long-run rate b=${(b*100).toFixed(1)}%, vol σ=${sigma}. Feller condition ${fellerSatisfied ? 'SATISFIED' : 'VIOLATED'} (2ab=${(2*a*b).toFixed(4)} vs σ²=${(sigma*sigma).toFixed(4)}).`,
-      interpretationEs: `Modelo CIR: reversion media a=${a}, tasa largo plazo b=${(b*100).toFixed(1)}%, vol σ=${sigma}. Condicion Feller ${fellerSatisfied ? 'SATISFECHA' : 'VIOLADA'} (2ab=${(2*a*b).toFixed(4)} vs σ²=${(sigma*sigma).toFixed(4)}).`,
+      interpretation: `CIR model: mean reversion a=${a}, long-run rate b=${(b * 100).toFixed(1)}%, vol σ=${sigma}. Feller condition ${fellerSatisfied ? 'SATISFIED' : 'VIOLATED'} (2ab=${(2 * a * b).toFixed(4)} vs σ²=${(sigma * sigma).toFixed(4)}).`,
+      interpretationEs: `Modelo CIR: reversion media a=${a}, tasa largo plazo b=${(b * 100).toFixed(1)}%, vol σ=${sigma}. Condicion Feller ${fellerSatisfied ? 'SATISFECHA' : 'VIOLADA'} (2ab=${(2 * a * b).toFixed(4)} vs σ²=${(sigma * sigma).toFixed(4)}).`,
     };
   }
 
   private gaussianRandom(): number {
-    const u1 = Math.random(); const u2 = Math.random();
+    const u1 = Math.random();
+    const u2 = Math.random();
     return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   }
 
   private normalInv(p: number): number {
     // Rational approximation (Abramowitz & Stegun)
-    const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
-    const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
-    const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
-    const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+    const a = [
+      -3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2,
+      1.38357751867269e2, -3.066479806614716e1, 2.506628277459239,
+    ];
+    const b = [
+      -5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2,
+      6.680131188771972e1, -1.328068155288572e1,
+    ];
+    const c = [
+      -7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838,
+      -2.549732539343734, 4.374664141464968, 2.938163982698783,
+    ];
+    const d = [
+      7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996,
+      3.754408661907416,
+    ];
 
-    const pLow = 0.02425; const pHigh = 1 - pLow;
+    const pLow = 0.02425;
+    const pHigh = 1 - pLow;
     let q: number, r: number;
 
     if (p < pLow) {
       q = Math.sqrt(-2 * Math.log(p));
-      return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+      return (
+        (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+      );
     } else if (p <= pHigh) {
-      q = p - 0.5; r = q * q;
-      return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q / (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+      q = p - 0.5;
+      r = q * q;
+      return (
+        ((((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) *
+          q) /
+        (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
+      );
     } else {
       q = Math.sqrt(-2 * Math.log(1 - p));
-      return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+      return (
+        -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+      );
     }
   }
 }

@@ -9,16 +9,71 @@ import {
 
 const COOPERATIVA: BalanceSheetInput = {
   assets: [
-    { name: 'Fixed Mortgages', balance: 80_000_000, rate: 0.045, maturityYears: 7, isFloating: false, prepaymentSpeed: 0.06 },
-    { name: 'Commercial Loans', balance: 50_000_000, rate: 0.07, maturityYears: 3, isFloating: true, repricingMonths: 3 },
-    { name: 'Auto Loans', balance: 20_000_000, rate: 0.065, maturityYears: 5, isFloating: false, prepaymentSpeed: 0.10 },
-    { name: 'Cash & Fed Funds', balance: 30_000_000, rate: 0.045, maturityYears: 0.01, isFloating: true },
+    {
+      name: 'Fixed Mortgages',
+      balance: 80_000_000,
+      rate: 0.045,
+      maturityYears: 7,
+      isFloating: false,
+      prepaymentSpeed: 0.06,
+    },
+    {
+      name: 'Commercial Loans',
+      balance: 50_000_000,
+      rate: 0.07,
+      maturityYears: 3,
+      isFloating: true,
+      repricingMonths: 3,
+    },
+    {
+      name: 'Auto Loans',
+      balance: 20_000_000,
+      rate: 0.065,
+      maturityYears: 5,
+      isFloating: false,
+      prepaymentSpeed: 0.1,
+    },
+    {
+      name: 'Cash & Fed Funds',
+      balance: 30_000_000,
+      rate: 0.045,
+      maturityYears: 0.01,
+      isFloating: true,
+    },
   ],
   liabilities: [
-    { name: 'Core Savings', balance: 80_000_000, rate: 0.004, maturityYears: 3, isFloating: false, decayRate: 0.05 },
-    { name: 'Money Market', balance: 40_000_000, rate: 0.012, maturityYears: 0.5, isFloating: true, repricingMonths: 1, decayRate: 0.10 },
-    { name: 'CDs', balance: 30_000_000, rate: 0.025, maturityYears: 2, isFloating: false, decayRate: 0.02 },
-    { name: 'Borrowings', balance: 10_000_000, rate: 0.04, maturityYears: 5, isFloating: false },
+    {
+      name: 'Core Savings',
+      balance: 80_000_000,
+      rate: 0.004,
+      maturityYears: 3,
+      isFloating: false,
+      decayRate: 0.05,
+    },
+    {
+      name: 'Money Market',
+      balance: 40_000_000,
+      rate: 0.012,
+      maturityYears: 0.5,
+      isFloating: true,
+      repricingMonths: 1,
+      decayRate: 0.1,
+    },
+    {
+      name: 'CDs',
+      balance: 30_000_000,
+      rate: 0.025,
+      maturityYears: 2,
+      isFloating: false,
+      decayRate: 0.02,
+    },
+    {
+      name: 'Borrowings',
+      balance: 10_000_000,
+      rate: 0.04,
+      maturityYears: 5,
+      isFloating: false,
+    },
   ],
   equity: 40_000_000,
 };
@@ -67,7 +122,9 @@ describe('EarningsSimulationService', () => {
   it('should increase NII under rising rates for an asset-sensitive institution', () => {
     const result = runStandard();
     const base = result.scenarios[result.baseScenarioIndex];
-    const risingIdx = result.scenarios.findIndex((s) => s.name === 'Gradual +200bps');
+    const risingIdx = result.scenarios.findIndex(
+      (s) => s.name === 'Gradual +200bps',
+    );
     expect(risingIdx).toBeGreaterThanOrEqual(0);
     const rising = result.scenarios[risingIdx];
     // Asset-sensitive: more floating assets than floating liabilities → NII goes up
@@ -79,7 +136,9 @@ describe('EarningsSimulationService', () => {
   it('should decrease NII under falling rates for an asset-sensitive institution', () => {
     const result = runStandard();
     const base = result.scenarios[result.baseScenarioIndex];
-    const fallingIdx = result.scenarios.findIndex((s) => s.name === 'Gradual -200bps');
+    const fallingIdx = result.scenarios.findIndex(
+      (s) => s.name === 'Gradual -200bps',
+    );
     expect(fallingIdx).toBeGreaterThanOrEqual(0);
     const falling = result.scenarios[fallingIdx];
     expect(falling.summary.totalNII).toBeLessThan(base.summary.totalNII);
@@ -96,7 +155,10 @@ describe('EarningsSimulationService', () => {
     const firstQ = base.quarters[0];
     const lastQ = base.quarters[base.quarters.length - 1];
     // At minimum total assets should stay above 50% of starting (no catastrophic collapse)
-    const startingAssets = COOPERATIVA.assets.reduce((s, a) => s + a.balance, 0);
+    const startingAssets = COOPERATIVA.assets.reduce(
+      (s, a) => s + a.balance,
+      0,
+    );
     expect(lastQ.totalAssets).toBeGreaterThan(startingAssets * 0.5);
   });
 
@@ -106,13 +168,21 @@ describe('EarningsSimulationService', () => {
     const paths = svc.generateStandardRatePaths(0.045, 8);
     const fastPrepay: EarningsSimulationParams = {
       balanceSheet: COOPERATIVA,
-      assumptions: { ...BASE_ASSUMPTIONS, prepaymentMultiplier: 3.0, assetGrowthRate: 0 },
+      assumptions: {
+        ...BASE_ASSUMPTIONS,
+        prepaymentMultiplier: 3.0,
+        assetGrowthRate: 0,
+      },
       ratePaths: [paths[0]], // base only
       quarters: 8,
     };
     const normalPrepay: EarningsSimulationParams = {
       balanceSheet: COOPERATIVA,
-      assumptions: { ...BASE_ASSUMPTIONS, prepaymentMultiplier: 1.0, assetGrowthRate: 0 },
+      assumptions: {
+        ...BASE_ASSUMPTIONS,
+        prepaymentMultiplier: 1.0,
+        assetGrowthRate: 0,
+      },
       ratePaths: [paths[0]],
       quarters: 8,
     };
@@ -129,13 +199,21 @@ describe('EarningsSimulationService', () => {
     const paths = svc.generateStandardRatePaths(0.045, 8);
     const fastDecay: EarningsSimulationParams = {
       balanceSheet: COOPERATIVA,
-      assumptions: { ...BASE_ASSUMPTIONS, depositDecayMultiplier: 3.0, depositGrowthRate: 0 },
+      assumptions: {
+        ...BASE_ASSUMPTIONS,
+        depositDecayMultiplier: 3.0,
+        depositGrowthRate: 0,
+      },
       ratePaths: [paths[0]],
       quarters: 8,
     };
     const normalDecay: EarningsSimulationParams = {
       balanceSheet: COOPERATIVA,
-      assumptions: { ...BASE_ASSUMPTIONS, depositDecayMultiplier: 1.0, depositGrowthRate: 0 },
+      assumptions: {
+        ...BASE_ASSUMPTIONS,
+        depositDecayMultiplier: 1.0,
+        depositGrowthRate: 0,
+      },
       ratePaths: [paths[0]],
       quarters: 8,
     };
@@ -153,7 +231,7 @@ describe('EarningsSimulationService', () => {
     for (const sc of result.scenarios) {
       for (const q of sc.quarters) {
         expect(q.nim).toBeGreaterThanOrEqual(0.01); // 1%
-        expect(q.nim).toBeLessThanOrEqual(0.06);    // 6%
+        expect(q.nim).toBeLessThanOrEqual(0.06); // 6%
       }
     }
   });

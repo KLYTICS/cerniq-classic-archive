@@ -4,7 +4,9 @@ import { UnauthorizedException, ExecutionContext } from '@nestjs/common';
 describe('AdminGuard', () => {
   let guard: AdminGuard;
 
-  const createMockContext = (headers: Record<string, string> = {}): ExecutionContext =>
+  const createMockContext = (
+    headers: Record<string, string> = {},
+  ): ExecutionContext =>
     ({
       switchToHttp: () => ({
         getRequest: () => ({

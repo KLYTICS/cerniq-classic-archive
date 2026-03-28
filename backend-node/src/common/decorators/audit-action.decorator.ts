@@ -11,4 +11,5 @@ import { SetMetadata } from '@nestjs/common';
  *   async generateReport() { ... }
  */
 export const AUDIT_ACTION_KEY = 'audit_action';
-export const AuditAction = (action: string) => SetMetadata(AUDIT_ACTION_KEY, action);
+export const AuditAction = (action: string) =>
+  SetMetadata(AUDIT_ACTION_KEY, action);

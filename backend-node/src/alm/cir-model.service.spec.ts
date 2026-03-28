@@ -29,7 +29,13 @@ describe('CIRModelService', () => {
   });
 
   it('should produce mean path converging to long-run rate', () => {
-    const result = svc.simulate({ r0: 0.08, b: 0.04, a: 0.5, horizonYears: 10, numPaths: 50 });
+    const result = svc.simulate({
+      r0: 0.08,
+      b: 0.04,
+      a: 0.5,
+      horizonYears: 10,
+      numPaths: 50,
+    });
     const meanPath = result.simulation.meanPath;
     const lastValue = meanPath[meanPath.length - 1];
     // Should converge toward b = 0.04

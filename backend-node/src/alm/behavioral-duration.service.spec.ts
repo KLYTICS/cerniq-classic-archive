@@ -25,7 +25,11 @@ describe('BehavioralDurationService', () => {
     // D_NMD = beta / (kappa + phi) with kappa=0.15
     // demand_deposits: beta=0.1, phi=0.08 => D = 0.1 / (0.15+0.08) = 0.4348
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
-      { subcategory: 'demand_deposits', balance: 100_000_000, depositBeta: null },
+      {
+        subcategory: 'demand_deposits',
+        balance: 100_000_000,
+        depositBeta: null,
+      },
     ]);
 
     const result = await service.computeBehavioralDurations('inst-1');
@@ -60,7 +64,11 @@ describe('BehavioralDurationService', () => {
   it('should use custom depositBeta from balance sheet item when available', async () => {
     const customBeta = 0.25;
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
-      { subcategory: 'demand_deposits', balance: 100_000_000, depositBeta: customBeta },
+      {
+        subcategory: 'demand_deposits',
+        balance: 100_000_000,
+        depositBeta: customBeta,
+      },
     ]);
 
     const result = await service.computeBehavioralDurations('inst-1');
@@ -70,7 +78,11 @@ describe('BehavioralDurationService', () => {
 
   it('should compute portfolio weighted behavioral duration across multiple deposit types', async () => {
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
-      { subcategory: 'demand_deposits', balance: 60_000_000, depositBeta: null },
+      {
+        subcategory: 'demand_deposits',
+        balance: 60_000_000,
+        depositBeta: null,
+      },
       { subcategory: 'savings', balance: 40_000_000, depositBeta: null },
     ]);
 
@@ -82,7 +94,10 @@ describe('BehavioralDurationService', () => {
     // Contractual is always 0 for NMDs
     expect(result.portfolioContractualDuration).toBe(0);
     // Duration correction = behavioral - contractual (positive)
-    expect(result.durationCorrection).toBeCloseTo(result.portfolioBehavioralDuration, 2);
+    expect(result.durationCorrection).toBeCloseTo(
+      result.portfolioBehavioralDuration,
+      2,
+    );
   });
 
   it('should compute EVE impact correction proportional to behavioral duration and balance', async () => {
@@ -104,7 +119,11 @@ describe('BehavioralDurationService', () => {
 
   it('should skip non-NMD items like time deposits or borrowings', async () => {
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
-      { subcategory: 'demand_deposits', balance: 50_000_000, depositBeta: null },
+      {
+        subcategory: 'demand_deposits',
+        balance: 50_000_000,
+        depositBeta: null,
+      },
       { subcategory: 'time_deposits', balance: 30_000_000, depositBeta: null },
       { subcategory: 'borrowings', balance: 20_000_000, depositBeta: null },
     ]);
@@ -131,7 +150,11 @@ describe('BehavioralDurationService', () => {
   it('should clamp behavioral duration between 0.25 and 10 years', async () => {
     // Very high beta to push duration up
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
-      { subcategory: 'demand_deposits', balance: 100_000_000, depositBeta: 5.0 },
+      {
+        subcategory: 'demand_deposits',
+        balance: 100_000_000,
+        depositBeta: 5.0,
+      },
     ]);
 
     const result = await service.computeBehavioralDurations('inst-1');

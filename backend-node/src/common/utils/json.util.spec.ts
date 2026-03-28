@@ -1,4 +1,11 @@
-import { safeParse, stringifyWithBigInt, parseWithBigInt, jsonClone, isValidJson, prettyJson } from './json.util';
+import {
+  safeParse,
+  stringifyWithBigInt,
+  parseWithBigInt,
+  jsonClone,
+  isValidJson,
+  prettyJson,
+} from './json.util';
 
 describe('json.util', () => {
   describe('safeParse', () => {

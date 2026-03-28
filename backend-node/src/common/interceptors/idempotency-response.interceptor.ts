@@ -17,7 +17,10 @@ import { tap } from 'rxjs/operators';
 @Injectable()
 export class IdempotencyResponseInterceptor implements NestInterceptor {
   private readonly logger = new Logger(IdempotencyResponseInterceptor.name);
-  private readonly cache = new Map<string, { data: any; status: number; expiry: number }>();
+  private readonly cache = new Map<
+    string,
+    { data: any; status: number; expiry: number }
+  >();
   private readonly ttlMs: number;
 
   constructor(ttlMinutes = 60) {
@@ -45,7 +48,9 @@ export class IdempotencyResponseInterceptor implements NestInterceptor {
     const cached = this.cache.get(cacheKey);
 
     if (cached && cached.expiry > Date.now()) {
-      this.logger.debug(`Returning cached idempotent response for key: ${idempotencyKey}`);
+      this.logger.debug(
+        `Returning cached idempotent response for key: ${idempotencyKey}`,
+      );
       res.setHeader('X-Idempotent-Replayed', 'true');
       res.status(cached.status);
       return of(cached.data);

@@ -11,4 +11,5 @@ import { SetMetadata } from '@nestjs/common';
  */
 export const RATE_LIMIT_TIER_KEY = 'rate_limit_tier';
 export type RateLimitTier = 'free' | 'standard' | 'compute' | 'unlimited';
-export const RateLimitTier = (tier: RateLimitTier) => SetMetadata(RATE_LIMIT_TIER_KEY, tier);
+export const RateLimitTier = (tier: RateLimitTier) =>
+  SetMetadata(RATE_LIMIT_TIER_KEY, tier);

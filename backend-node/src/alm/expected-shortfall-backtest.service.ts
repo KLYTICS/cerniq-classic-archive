@@ -81,9 +81,7 @@ export interface TrafficLightResult {
 
 @Injectable()
 export class ExpectedShortfallBacktestService {
-  private readonly logger = new Logger(
-    ExpectedShortfallBacktestService.name,
-  );
+  private readonly logger = new Logger(ExpectedShortfallBacktestService.name);
 
   /**
    * Backtest VaR estimates against realized returns.
@@ -96,9 +94,7 @@ export class ExpectedShortfallBacktestService {
     const { returns, varEstimates, confidenceLevel } = params;
 
     if (returns.length !== varEstimates.length) {
-      throw new Error(
-        'returns and varEstimates must have the same length',
-      );
+      throw new Error('returns and varEstimates must have the same length');
     }
     if (returns.length === 0) {
       throw new Error('returns array cannot be empty');
@@ -227,9 +223,7 @@ export class ExpectedShortfallBacktestService {
     const { returns, windowSize, confidenceLevel, method } = params;
 
     if (returns.length <= windowSize) {
-      throw new Error(
-        'returns array must be longer than windowSize',
-      );
+      throw new Error('returns array must be longer than windowSize');
     }
 
     const periods: RollingBacktestResult['periods'] = [];
@@ -312,9 +306,7 @@ export class ExpectedShortfallBacktestService {
       const yellowRange = yellowMax - greenMax;
       const yellowPos = exceptions - greenMax;
       multiplier =
-        yellowRange > 0
-          ? 3.4 + (0.25 * yellowPos) / yellowRange
-          : 3.4;
+        yellowRange > 0 ? 3.4 + (0.25 * yellowPos) / yellowRange : 3.4;
       multiplier = Math.round(multiplier * 100) / 100;
       description = `Model requires attention. ${exceptions} exception(s) in warning range (${greenMax + 1}-${yellowMax}).`;
     } else {
@@ -378,9 +370,11 @@ export class ExpectedShortfallBacktestService {
    * LR_ind = -2 * ln(L_ind / L_dep)
    * Under H0 (independence), LR_ind ~ chi-squared(1).
    */
-  private christoffersenTest(
-    exceptions: boolean[],
-  ): { statistic: number; pValue: number; pass: boolean } {
+  private christoffersenTest(exceptions: boolean[]): {
+    statistic: number;
+    pValue: number;
+    pass: boolean;
+  } {
     if (exceptions.length < 2) {
       return { statistic: 0, pValue: 1, pass: true };
     }
@@ -419,23 +413,27 @@ export class ExpectedShortfallBacktestService {
     // Log-likelihood under independence (H0)
     let llInd = 0;
     if (n00 + n01 > 0) {
-      llInd += (n00 > 0 ? n00 * Math.log(1 - pi) : 0) +
-               (n01 > 0 ? n01 * Math.log(pi) : 0);
+      llInd +=
+        (n00 > 0 ? n00 * Math.log(1 - pi) : 0) +
+        (n01 > 0 ? n01 * Math.log(pi) : 0);
     }
     if (n10 + n11 > 0) {
-      llInd += (n10 > 0 ? n10 * Math.log(1 - pi) : 0) +
-               (n11 > 0 ? n11 * Math.log(pi) : 0);
+      llInd +=
+        (n10 > 0 ? n10 * Math.log(1 - pi) : 0) +
+        (n11 > 0 ? n11 * Math.log(pi) : 0);
     }
 
     // Log-likelihood under dependence (H1, Markov model)
     let llDep = 0;
     if (n0 > 0) {
-      llDep += (n00 > 0 ? n00 * Math.log(1 - pi01) : 0) +
-               (n01 > 0 ? n01 * Math.log(pi01) : 0);
+      llDep +=
+        (n00 > 0 ? n00 * Math.log(1 - pi01) : 0) +
+        (n01 > 0 ? n01 * Math.log(pi01) : 0);
     }
     if (n1 > 0) {
-      llDep += (n10 > 0 ? n10 * Math.log(1 - pi11) : 0) +
-               (n11 > 0 ? n11 * Math.log(pi11) : 0);
+      llDep +=
+        (n10 > 0 ? n10 * Math.log(1 - pi11) : 0) +
+        (n11 > 0 ? n11 * Math.log(pi11) : 0);
     }
 
     let lr = -2 * (llInd - llDep);
@@ -457,10 +455,7 @@ export class ExpectedShortfallBacktestService {
    */
   private historicalVaR(returns: number[], confidence: number): number {
     const sorted = [...returns].sort((a, b) => a - b);
-    const index = Math.max(
-      0,
-      Math.floor((1 - confidence) * sorted.length) - 1,
-    );
+    const index = Math.max(0, Math.floor((1 - confidence) * sorted.length) - 1);
     return -sorted[index]; // Positive number representing loss
   }
 
@@ -499,8 +494,7 @@ export class ExpectedShortfallBacktestService {
 
     return -(
       t -
-      (c0 + c1 * t + c2 * t * t) /
-        (1 + d1 * t + d2 * t * t + d3 * t * t * t)
+      (c0 + c1 * t + c2 * t * t) / (1 + d1 * t + d2 * t * t + d3 * t * t * t)
     );
   }
 
@@ -514,8 +508,7 @@ export class ExpectedShortfallBacktestService {
 
     // Wilson-Hilferty transformation
     const z =
-      (Math.pow(x / df, 1 / 3) - (1 - 2 / (9 * df))) /
-      Math.sqrt(2 / (9 * df));
+      (Math.pow(x / df, 1 / 3) - (1 - 2 / (9 * df))) / Math.sqrt(2 / (9 * df));
 
     // Standard normal CDF approximation
     return 1 - this.normalCDF(z);
@@ -542,7 +535,7 @@ export class ExpectedShortfallBacktestService {
       1.0 -
       ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) *
         t *
-        Math.exp(-absZ * absZ / 2);
+        Math.exp((-absZ * absZ) / 2);
 
     return 0.5 * (1.0 + sign * y);
   }

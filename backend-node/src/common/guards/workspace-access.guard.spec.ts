@@ -8,7 +8,12 @@ describe('WorkspaceAccessGuard', () => {
     guard = new WorkspaceAccessGuard();
   });
 
-  const createMockContext = (user: any, params: any = {}, headers: any = {}, query: any = {}): ExecutionContext =>
+  const createMockContext = (
+    user: any,
+    params: any = {},
+    headers: any = {},
+    query: any = {},
+  ): ExecutionContext =>
     ({
       switchToHttp: () => ({
         getRequest: () => ({ user, params, headers, query }),

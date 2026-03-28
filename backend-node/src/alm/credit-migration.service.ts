@@ -10,21 +10,21 @@ const STANDARD_RATINGS = ['AAA', 'AA', 'A', 'BBB', 'BB', 'B', 'CCC', 'D'];
 
 const MOODYS_DEFAULT_MATRIX: number[][] = [
   // AAA ->
-  [0.9081, 0.0833, 0.0068, 0.0006, 0.0012, 0.0000, 0.0000, 0.0000],
+  [0.9081, 0.0833, 0.0068, 0.0006, 0.0012, 0.0, 0.0, 0.0],
   // AA ->
-  [0.0070, 0.9065, 0.0779, 0.0064, 0.0006, 0.0014, 0.0002, 0.0000],
+  [0.007, 0.9065, 0.0779, 0.0064, 0.0006, 0.0014, 0.0002, 0.0],
   // A ->
   [0.0009, 0.0227, 0.9105, 0.0552, 0.0074, 0.0026, 0.0001, 0.0006],
   // BBB ->
-  [0.0002, 0.0033, 0.0595, 0.8693, 0.0530, 0.0117, 0.0012, 0.0018],
+  [0.0002, 0.0033, 0.0595, 0.8693, 0.053, 0.0117, 0.0012, 0.0018],
   // BB ->
-  [0.0003, 0.0014, 0.0067, 0.0773, 0.8053, 0.0884, 0.0100, 0.0106],
+  [0.0003, 0.0014, 0.0067, 0.0773, 0.8053, 0.0884, 0.01, 0.0106],
   // B ->
-  [0.0000, 0.0011, 0.0024, 0.0043, 0.0648, 0.8346, 0.0407, 0.0521],
+  [0.0, 0.0011, 0.0024, 0.0043, 0.0648, 0.8346, 0.0407, 0.0521],
   // CCC ->
-  [0.0022, 0.0000, 0.0022, 0.0130, 0.0238, 0.1124, 0.6486, 0.1978],
+  [0.0022, 0.0, 0.0022, 0.013, 0.0238, 0.1124, 0.6486, 0.1978],
   // D -> (absorbing state)
-  [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 1.0000],
+  [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
 ];
 
 // ─── Types ───────────────────────────────────────────────────
@@ -135,7 +135,9 @@ export class CreditMigrationService {
     }
 
     // Normalize rows to probabilities (sum to 1.0)
-    const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
+    const matrix: number[][] = Array.from({ length: n }, () =>
+      Array(n).fill(0),
+    );
     for (let i = 0; i < n; i++) {
       const rowSum = transitionCounts[i].reduce((a, b) => a + b, 0);
       if (rowSum > 0) {
@@ -202,13 +204,19 @@ export class CreditMigrationService {
         rating,
         exposure: Math.round(proj * 100) / 100,
         change: Math.round(change * 100) / 100,
-        changePct: original > 0 ? Math.round((change / original) * 10000) / 100 : (proj > 0 ? 100 : 0),
+        changePct:
+          original > 0
+            ? Math.round((change / original) * 10000) / 100
+            : proj > 0
+              ? 100
+              : 0,
       };
     });
 
     // Expected loss = exposure that migrated to default (last rating)
     const defaultIdx = n - 1;
-    const expectedLoss = projectedVector[defaultIdx] - portfolioVector[defaultIdx];
+    const expectedLoss =
+      projectedVector[defaultIdx] - portfolioVector[defaultIdx];
 
     // Migration risk: weighted average rating change (downgrade magnitude)
     let migrationRisk = 0;
@@ -217,8 +225,7 @@ export class CreditMigrationService {
         for (let j = 0; j < n; j++) {
           if (j > i) {
             // Downgrade
-            migrationRisk +=
-              portfolioVector[i] * matrixPow[i][j] * (j - i);
+            migrationRisk += portfolioVector[i] * matrixPow[i][j] * (j - i);
           }
         }
       }
@@ -322,7 +329,9 @@ export class CreditMigrationService {
       for (let j = 0; j < n; j++) {
         if (j < i) {
           stressedMatrix[i][j] =
-            upgradeSum > 0 ? baseMatrix[i][j] * (newUpgradeSum / upgradeSum) : 0;
+            upgradeSum > 0
+              ? baseMatrix[i][j] * (newUpgradeSum / upgradeSum)
+              : 0;
         } else if (j === i) {
           stressedMatrix[i][j] = Math.max(0, newStayProb);
         } else {

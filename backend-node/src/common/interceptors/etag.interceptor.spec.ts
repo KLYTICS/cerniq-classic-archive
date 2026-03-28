@@ -9,7 +9,10 @@ describe('ETagInterceptor', () => {
     interceptor = new ETagInterceptor();
   });
 
-  const createMockContext = (method: string, headers: Record<string, string> = {}) => {
+  const createMockContext = (
+    method: string,
+    headers: Record<string, string> = {},
+  ) => {
     const req = { method, headers };
     const res = { setHeader: jest.fn(), status: jest.fn().mockReturnThis() };
     const http = { getRequest: () => req, getResponse: () => res };
@@ -32,8 +35,14 @@ describe('ETagInterceptor', () => {
     const handler: CallHandler = { handle: () => of({ data: 'test' }) };
 
     interceptor.intercept(ctx, handler).subscribe(() => {
-      expect(res.setHeader).toHaveBeenCalledWith('ETag', expect.stringMatching(/^W\/"[a-f0-9]+"/));
-      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'private, no-cache');
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'ETag',
+        expect.stringMatching(/^W\/"[a-f0-9]+"/),
+      );
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Cache-Control',
+        'private, no-cache',
+      );
       done();
     });
   });
@@ -42,7 +51,11 @@ describe('ETagInterceptor', () => {
     const body = { data: 'test' };
     const json = JSON.stringify(body);
     const crypto = require('crypto');
-    const hash = crypto.createHash('md5').update(json).digest('hex').slice(0, 16);
+    const hash = crypto
+      .createHash('md5')
+      .update(json)
+      .digest('hex')
+      .slice(0, 16);
     const etag = `W/"${hash}"`;
 
     const { ctx, res } = createMockContext('GET', { 'if-none-match': etag });

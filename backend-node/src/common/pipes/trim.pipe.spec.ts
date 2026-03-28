@@ -74,11 +74,7 @@ describe('TrimPipe', () => {
   });
 
   it('handles mixed arrays with objects', () => {
-    const result = pipe.transform([
-      { name: '  Test  ' },
-      '  value  ',
-      42,
-    ]);
+    const result = pipe.transform([{ name: '  Test  ' }, '  value  ', 42]);
     expect(result).toEqual([{ name: 'Test' }, 'value', 42]);
   });
 });

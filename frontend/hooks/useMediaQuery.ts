@@ -1,6 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
+
+function subscribeToMediaQuery(query: string, onStoreChange: () => void) {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+
+  const mql = window.matchMedia(query);
+  const handler = () => onStoreChange();
+  mql.addEventListener('change', handler);
+  return () => mql.removeEventListener('change', handler);
+}
+
+function getMediaQuerySnapshot(query: string): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return window.matchMedia(query).matches;
+}
 
 /**
  * Subscribe to a CSS media query and return whether it matches.
@@ -12,18 +31,13 @@ import { useState, useEffect } from 'react';
  * const isDesktop = useMediaQuery('(min-width: 1024px)');
  */
 export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(false);
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => subscribeToMediaQuery(query, onStoreChange),
+    [query],
+  );
+  const getSnapshot = useCallback(() => getMediaQuerySnapshot(query), [query]);
 
-  useEffect(() => {
-    const mql = window.matchMedia(query);
-    setMatches(mql.matches);
-
-    const handler = (event: MediaQueryListEvent) => setMatches(event.matches);
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }, [query]);
-
-  return matches;
+  return useSyncExternalStore(subscribe, getSnapshot, () => false);
 }
 
 /** Convenience breakpoint helpers */

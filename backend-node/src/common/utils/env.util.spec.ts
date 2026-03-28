@@ -1,4 +1,11 @@
-import { requireEnv, optionalEnv, envBool, envInt, envFloat, envEnum } from './env.util';
+import {
+  requireEnv,
+  optionalEnv,
+  envBool,
+  envInt,
+  envFloat,
+  envEnum,
+} from './env.util';
 
 describe('env.util', () => {
   const OLD_ENV = process.env;
@@ -19,12 +26,16 @@ describe('env.util', () => {
 
     it('throws when missing', () => {
       delete process.env.MISSING_KEY;
-      expect(() => requireEnv('MISSING_KEY')).toThrow('Missing required env var: MISSING_KEY');
+      expect(() => requireEnv('MISSING_KEY')).toThrow(
+        'Missing required env var: MISSING_KEY',
+      );
     });
 
     it('throws on empty string', () => {
       process.env.EMPTY_KEY = '';
-      expect(() => requireEnv('EMPTY_KEY')).toThrow('Missing required env var: EMPTY_KEY');
+      expect(() => requireEnv('EMPTY_KEY')).toThrow(
+        'Missing required env var: EMPTY_KEY',
+      );
     });
   });
 
@@ -41,15 +52,21 @@ describe('env.util', () => {
   });
 
   describe('envBool', () => {
-    it.each(['1', 'true', 'yes', 'on', 'TRUE', 'Yes'])('returns true for "%s"', (val) => {
-      process.env.BOOL_KEY = val;
-      expect(envBool('BOOL_KEY')).toBe(true);
-    });
+    it.each(['1', 'true', 'yes', 'on', 'TRUE', 'Yes'])(
+      'returns true for "%s"',
+      (val) => {
+        process.env.BOOL_KEY = val;
+        expect(envBool('BOOL_KEY')).toBe(true);
+      },
+    );
 
-    it.each(['0', 'false', 'no', 'off', 'FALSE', 'No'])('returns false for "%s"', (val) => {
-      process.env.BOOL_KEY = val;
-      expect(envBool('BOOL_KEY')).toBe(false);
-    });
+    it.each(['0', 'false', 'no', 'off', 'FALSE', 'No'])(
+      'returns false for "%s"',
+      (val) => {
+        process.env.BOOL_KEY = val;
+        expect(envBool('BOOL_KEY')).toBe(false);
+      },
+    );
 
     it('returns default when unset', () => {
       delete process.env.BOOL_KEY;
@@ -95,12 +112,24 @@ describe('env.util', () => {
   describe('envEnum', () => {
     it('returns value when in allowed list', () => {
       process.env.ENV_KEY = 'production';
-      expect(envEnum('ENV_KEY', ['development', 'production', 'test'] as const, 'development')).toBe('production');
+      expect(
+        envEnum(
+          'ENV_KEY',
+          ['development', 'production', 'test'] as const,
+          'development',
+        ),
+      ).toBe('production');
     });
 
     it('returns default when not in allowed list', () => {
       process.env.ENV_KEY = 'staging';
-      expect(envEnum('ENV_KEY', ['development', 'production', 'test'] as const, 'development')).toBe('development');
+      expect(
+        envEnum(
+          'ENV_KEY',
+          ['development', 'production', 'test'] as const,
+          'development',
+        ),
+      ).toBe('development');
     });
 
     it('returns default when unset', () => {

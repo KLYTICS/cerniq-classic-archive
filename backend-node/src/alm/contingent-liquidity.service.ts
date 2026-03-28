@@ -23,21 +23,64 @@ export class ContingentLiquidityService {
   }): {
     totalContingentFunding: number;
     coverageDays: number;
-    sources: Array<{ name: string; nameEs: string; capacity: number; timeToAccess: string; haircut: number }>;
+    sources: Array<{
+      name: string;
+      nameEs: string;
+      capacity: number;
+      timeToAccess: string;
+      haircut: number;
+    }>;
     stressCapacity: number;
     interpretation: string;
     interpretationEs: string;
   } {
-    const { totalAssets, pledgeableAssets, fhlbCapacity, fedDiscountCapacity, unencumberedSecurities, cashReserves } = params;
+    const {
+      totalAssets,
+      pledgeableAssets,
+      fhlbCapacity,
+      fedDiscountCapacity,
+      unencumberedSecurities,
+      cashReserves,
+    } = params;
     const repoCapacity = unencumberedSecurities * 0.95;
     const assetSale = pledgeableAssets * 0.85;
 
     const sources = [
-      { name: 'Cash Reserves', nameEs: 'Reservas Efectivo', capacity: cashReserves, timeToAccess: 'Immediate', haircut: 0 },
-      { name: 'FHLB Advances', nameEs: 'Adelantos FHLB', capacity: fhlbCapacity, timeToAccess: '1-2 days', haircut: 5 },
-      { name: 'Fed Discount Window', nameEs: 'Ventana Descuento Fed', capacity: fedDiscountCapacity, timeToAccess: 'Same day', haircut: 2 },
-      { name: 'Repo Market', nameEs: 'Mercado Repo', capacity: repoCapacity, timeToAccess: '1 day', haircut: 5 },
-      { name: 'Asset Liquidation', nameEs: 'Liquidacion Activos', capacity: assetSale, timeToAccess: '3-7 days', haircut: 15 },
+      {
+        name: 'Cash Reserves',
+        nameEs: 'Reservas Efectivo',
+        capacity: cashReserves,
+        timeToAccess: 'Immediate',
+        haircut: 0,
+      },
+      {
+        name: 'FHLB Advances',
+        nameEs: 'Adelantos FHLB',
+        capacity: fhlbCapacity,
+        timeToAccess: '1-2 days',
+        haircut: 5,
+      },
+      {
+        name: 'Fed Discount Window',
+        nameEs: 'Ventana Descuento Fed',
+        capacity: fedDiscountCapacity,
+        timeToAccess: 'Same day',
+        haircut: 2,
+      },
+      {
+        name: 'Repo Market',
+        nameEs: 'Mercado Repo',
+        capacity: repoCapacity,
+        timeToAccess: '1 day',
+        haircut: 5,
+      },
+      {
+        name: 'Asset Liquidation',
+        nameEs: 'Liquidacion Activos',
+        capacity: assetSale,
+        timeToAccess: '3-7 days',
+        haircut: 15,
+      },
     ];
 
     const totalContingent = sources.reduce((s, src) => s + src.capacity, 0);

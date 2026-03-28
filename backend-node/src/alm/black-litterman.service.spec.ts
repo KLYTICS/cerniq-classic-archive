@@ -6,7 +6,12 @@ describe('BlackLittermanService', () => {
   const mockItems = [
     { subcategory: 'cash', balance: 50, rate: 0.02, category: 'asset' },
     { subcategory: 'securities', balance: 100, rate: 0.04, category: 'asset' },
-    { subcategory: 'consumer_loans', balance: 150, rate: 0.07, category: 'asset' },
+    {
+      subcategory: 'consumer_loans',
+      balance: 150,
+      rate: 0.07,
+      category: 'asset',
+    },
   ];
 
   beforeEach(() => {

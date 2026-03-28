@@ -23,9 +23,9 @@ function wellCapitalizedParams(): SurvivalParams {
       loanDisbursements: 400_000,
     },
     stressAssumptions: {
-      depositRunoffRate: 0.001,       // 0.1%/day — mild
+      depositRunoffRate: 0.001, // 0.1%/day — mild
       totalDeposits: 200_000_000,
-      loanRepaymentReduction: 0.05,   // 5% reduction
+      loanRepaymentReduction: 0.05, // 5% reduction
       newLoanHalt: false,
       wholesaleFundingAvailable: true,
       wholesaleFundingLimit: 20_000_000,
@@ -55,9 +55,9 @@ function highStressParams(): SurvivalParams {
       loanDisbursements: 300_000,
     },
     stressAssumptions: {
-      depositRunoffRate: 0.03,        // 3%/day — severe
+      depositRunoffRate: 0.03, // 3%/day — severe
       totalDeposits: 100_000_000,
-      loanRepaymentReduction: 0.50,   // 50% fewer payments
+      loanRepaymentReduction: 0.5, // 50% fewer payments
       newLoanHalt: false,
       wholesaleFundingAvailable: false,
       wholesaleFundingLimit: 0,
@@ -108,7 +108,9 @@ describe('LiquiditySurvivalService', () => {
     const resultBase = service.analyzeSurvival(base);
     const resultHalt = service.analyzeSurvival(withHalt);
 
-    expect(resultHalt.survivalDays).toBeGreaterThanOrEqual(resultBase.survivalDays);
+    expect(resultHalt.survivalDays).toBeGreaterThanOrEqual(
+      resultBase.survivalDays,
+    );
   });
 
   // 4. Wholesale funding extends survival
@@ -126,15 +128,21 @@ describe('LiquiditySurvivalService', () => {
     const resultBase = service.analyzeSurvival(base);
     const resultWholesale = service.analyzeSurvival(withWholesale);
 
-    expect(resultWholesale.survivalDays).toBeGreaterThan(resultBase.survivalDays);
+    expect(resultWholesale.survivalDays).toBeGreaterThan(
+      resultBase.survivalDays,
+    );
   });
 
   // 5. Securities sold in priority order (treasuries first)
   it('sells treasuries before MBS and other securities', () => {
     const result = service.analyzeSurvival(highStressParams());
-    const treasuryAction = result.actions.find((a) => a.action.includes('Treasury'));
+    const treasuryAction = result.actions.find((a) =>
+      a.action.includes('Treasury'),
+    );
     const mbsAction = result.actions.find((a) => a.action.includes('MBS'));
-    const otherAction = result.actions.find((a) => a.action.includes('other securities'));
+    const otherAction = result.actions.find((a) =>
+      a.action.includes('other securities'),
+    );
 
     // If all are sold, treasuries should be first
     if (treasuryAction && mbsAction) {
@@ -233,8 +241,12 @@ describe('LiquiditySurvivalService', () => {
 
     const expectedImmediate =
       params.liquidAssets.cash + params.liquidAssets.fedFundsDeposits;
-    expect(result.liquidityProfile.immediatelyAvailable).toBe(expectedImmediate);
-    expect(result.liquidityProfile.availableWithin7Days).toBeGreaterThan(expectedImmediate);
+    expect(result.liquidityProfile.immediatelyAvailable).toBe(
+      expectedImmediate,
+    );
+    expect(result.liquidityProfile.availableWithin7Days).toBeGreaterThan(
+      expectedImmediate,
+    );
     expect(result.liquidityProfile.availableWithin30Days).toBeGreaterThan(
       result.liquidityProfile.availableWithin7Days,
     );

@@ -38,7 +38,8 @@ export class DatabaseConnectionFilter implements ExceptionFilter {
       success: false,
       error: {
         code: 'DATABASE_UNAVAILABLE',
-        message: 'The service is temporarily unavailable. Please retry shortly.',
+        message:
+          'The service is temporarily unavailable. Please retry shortly.',
         timestamp: new Date().toISOString(),
         path: request.url,
       },

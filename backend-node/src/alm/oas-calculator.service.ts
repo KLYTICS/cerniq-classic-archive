@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { YieldCurveService, TenorRate } from './yield-curve.service';
 import * as Sentry from '@sentry/nestjs';
@@ -121,12 +125,15 @@ export class OASCalculatorService {
       const totalBalance = instruments.reduce((s, i) => s + i.balance, 0);
       const portfolioOAS =
         totalBalance > 0
-          ? instruments.reduce((s, i) => s + i.oas * i.balance, 0) / totalBalance
+          ? instruments.reduce((s, i) => s + i.oas * i.balance, 0) /
+            totalBalance
           : 0;
       const portfolioEffDuration =
         totalBalance > 0
-          ? instruments.reduce((s, i) => s + i.effectiveDuration * i.balance, 0) /
-            totalBalance
+          ? instruments.reduce(
+              (s, i) => s + i.effectiveDuration * i.balance,
+              0,
+            ) / totalBalance
           : 0;
       const portfolioEffConvexity =
         totalBalance > 0
@@ -151,7 +158,9 @@ export class OASCalculatorService {
     } catch (error: any) {
       this.logger.error(`Computation failed: ${error.message}`, error.stack);
       Sentry.captureException(error);
-      throw new InternalServerErrorException('Computation failed. Please try again.');
+      throw new InternalServerErrorException(
+        'Computation failed. Please try again.',
+      );
     }
   }
 

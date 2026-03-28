@@ -48,7 +48,10 @@ export async function withRetry<T>(
       if (attempt >= maxAttempts || !shouldRetry(lastError)) {
         throw lastError;
       }
-      const delay = Math.min(baseDelayMs * Math.pow(2, attempt - 1), maxDelayMs);
+      const delay = Math.min(
+        baseDelayMs * Math.pow(2, attempt - 1),
+        maxDelayMs,
+      );
       await sleep(delay);
     }
   }
@@ -59,9 +62,7 @@ export async function withRetry<T>(
 /**
  * Settle all promises and return both fulfilled and rejected results.
  */
-export async function settleAll<T>(
-  promises: Promise<T>[],
-): Promise<{
+export async function settleAll<T>(promises: Promise<T>[]): Promise<{
   fulfilled: T[];
   rejected: Error[];
 }> {

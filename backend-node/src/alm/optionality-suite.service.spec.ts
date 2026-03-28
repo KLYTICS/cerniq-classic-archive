@@ -19,7 +19,9 @@ describe('OptionalitySuiteService', () => {
 
   it('effective duration should be less than modified duration', async () => {
     const result = await service.analyzePortfolio('inst-1');
-    expect(result.portfolioEffDuration).toBeLessThanOrEqual(result.portfolioModDuration);
+    expect(result.portfolioEffDuration).toBeLessThanOrEqual(
+      result.portfolioModDuration,
+    );
   });
 
   it('should report negative convexity balance', async () => {

@@ -47,13 +47,16 @@ export class RequestContextInterceptor implements NestInterceptor {
 
     return new Observable((subscriber) => {
       requestContextStorage.run(ctx, () => {
-        next.handle().pipe(
-          tap({
-            next: (val) => subscriber.next(val),
-            error: (err) => subscriber.error(err),
-            complete: () => subscriber.complete(),
-          }),
-        ).subscribe();
+        next
+          .handle()
+          .pipe(
+            tap({
+              next: (val) => subscriber.next(val),
+              error: (err) => subscriber.error(err),
+              complete: () => subscriber.complete(),
+            }),
+          )
+          .subscribe();
       });
     });
   }

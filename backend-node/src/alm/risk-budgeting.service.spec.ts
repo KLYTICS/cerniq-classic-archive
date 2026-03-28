@@ -16,7 +16,12 @@ describe('RiskBudgetingService', () => {
   it('single asset gets 100% weight and 100% risk contribution', () => {
     const result = service.calculateRiskDecomposition({
       positions: [
-        { name: 'Bonds', weight: 1.0, annualReturn: 0.05, annualVolatility: 0.1 },
+        {
+          name: 'Bonds',
+          weight: 1.0,
+          annualReturn: 0.05,
+          annualVolatility: 0.1,
+        },
       ],
       correlationMatrix: [[1]],
     });
@@ -51,9 +56,24 @@ describe('RiskBudgetingService', () => {
   it('marginal contributions (w_i * MCTR_i) sum to portfolio volatility', () => {
     const result = service.calculateRiskDecomposition({
       positions: [
-        { name: 'Equities', weight: 0.6, annualReturn: 0.08, annualVolatility: 0.18 },
-        { name: 'Bonds', weight: 0.3, annualReturn: 0.03, annualVolatility: 0.05 },
-        { name: 'Gold', weight: 0.1, annualReturn: 0.02, annualVolatility: 0.15 },
+        {
+          name: 'Equities',
+          weight: 0.6,
+          annualReturn: 0.08,
+          annualVolatility: 0.18,
+        },
+        {
+          name: 'Bonds',
+          weight: 0.3,
+          annualReturn: 0.03,
+          annualVolatility: 0.05,
+        },
+        {
+          name: 'Gold',
+          weight: 0.1,
+          annualReturn: 0.02,
+          annualVolatility: 0.15,
+        },
       ],
       correlationMatrix: [
         [1.0, 0.3, -0.1],
@@ -72,7 +92,7 @@ describe('RiskBudgetingService', () => {
     const positions = [
       { name: 'A', weight: 0.4, annualReturn: 0.06, annualVolatility: 0.12 },
       { name: 'B', weight: 0.35, annualReturn: 0.04, annualVolatility: 0.08 },
-      { name: 'C', weight: 0.25, annualReturn: 0.03, annualVolatility: 0.10 },
+      { name: 'C', weight: 0.25, annualReturn: 0.03, annualVolatility: 0.1 },
     ];
     const corr = [
       [1.0, 0.5, 0.2],
@@ -110,8 +130,12 @@ describe('RiskBudgetingService', () => {
       ],
     });
 
-    const highVolWeight = result.weights.find((w) => w.name === 'HighVol')!.weight;
-    const lowVolWeight = result.weights.find((w) => w.name === 'LowVol')!.weight;
+    const highVolWeight = result.weights.find(
+      (w) => w.name === 'HighVol',
+    )!.weight;
+    const lowVolWeight = result.weights.find(
+      (w) => w.name === 'LowVol',
+    )!.weight;
     expect(lowVolWeight).toBeGreaterThan(highVolWeight);
   });
 
@@ -121,7 +145,7 @@ describe('RiskBudgetingService', () => {
     const assets = [
       { name: 'A', annualVolatility: 0.12 },
       { name: 'B', annualVolatility: 0.08 },
-      { name: 'C', annualVolatility: 0.20 },
+      { name: 'C', annualVolatility: 0.2 },
     ];
     const corr = [
       [1.0, 0.4, 0.2],
@@ -154,8 +178,8 @@ describe('RiskBudgetingService', () => {
   it('perfect correlation yields no diversification benefit', () => {
     const result = service.calculateRiskDecomposition({
       positions: [
-        { name: 'A', weight: 0.5, annualReturn: 0.05, annualVolatility: 0.10 },
-        { name: 'B', weight: 0.5, annualReturn: 0.05, annualVolatility: 0.10 },
+        { name: 'A', weight: 0.5, annualReturn: 0.05, annualVolatility: 0.1 },
+        { name: 'B', weight: 0.5, annualReturn: 0.05, annualVolatility: 0.1 },
       ],
       correlationMatrix: [
         [1, 1],
@@ -165,7 +189,7 @@ describe('RiskBudgetingService', () => {
 
     // With perfect correlation and equal vols, portfolio vol = weighted avg vol
     // sigma_p = 0.5*0.10 + 0.5*0.10 = 0.10
-    expect(result.portfolioVolatility).toBeCloseTo(0.10, 4);
+    expect(result.portfolioVolatility).toBeCloseTo(0.1, 4);
   });
 
   // ── Correlation = 0: maximum diversification ──────────────
@@ -173,8 +197,8 @@ describe('RiskBudgetingService', () => {
   it('zero correlation gives maximum diversification benefit', () => {
     const resultZeroCorr = service.calculateRiskDecomposition({
       positions: [
-        { name: 'A', weight: 0.5, annualReturn: 0.05, annualVolatility: 0.10 },
-        { name: 'B', weight: 0.5, annualReturn: 0.05, annualVolatility: 0.10 },
+        { name: 'A', weight: 0.5, annualReturn: 0.05, annualVolatility: 0.1 },
+        { name: 'B', weight: 0.5, annualReturn: 0.05, annualVolatility: 0.1 },
       ],
       correlationMatrix: [
         [1, 0],
@@ -183,12 +207,9 @@ describe('RiskBudgetingService', () => {
     });
 
     // sigma_p = sqrt(0.5^2 * 0.01 + 0.5^2 * 0.01) = sqrt(0.005) ~ 0.0707
-    expect(resultZeroCorr.portfolioVolatility).toBeCloseTo(
-      Math.sqrt(0.005),
-      4,
-    );
+    expect(resultZeroCorr.portfolioVolatility).toBeCloseTo(Math.sqrt(0.005), 4);
     // Confirm it's lower than the undiversified case (0.10)
-    expect(resultZeroCorr.portfolioVolatility).toBeLessThan(0.10);
+    expect(resultZeroCorr.portfolioVolatility).toBeLessThan(0.1);
   });
 
   // ── Risk parity converges within 100 iterations ───────────
@@ -245,7 +266,7 @@ describe('RiskBudgetingService', () => {
   it('percent contributions sum to 1.0', () => {
     const result = service.calculateRiskDecomposition({
       positions: [
-        { name: 'A', weight: 0.3, annualReturn: 0.07, annualVolatility: 0.20 },
+        { name: 'A', weight: 0.3, annualReturn: 0.07, annualVolatility: 0.2 },
         { name: 'B', weight: 0.4, annualReturn: 0.04, annualVolatility: 0.06 },
         { name: 'C', weight: 0.3, annualReturn: 0.05, annualVolatility: 0.12 },
       ],
@@ -269,8 +290,8 @@ describe('RiskBudgetingService', () => {
     expect(() =>
       service.riskBudget({
         assets: [
-          { name: 'A', annualVolatility: 0.10 },
-          { name: 'B', annualVolatility: 0.10 },
+          { name: 'A', annualVolatility: 0.1 },
+          { name: 'B', annualVolatility: 0.1 },
         ],
         correlationMatrix: [
           [1, 0],
@@ -286,7 +307,7 @@ describe('RiskBudgetingService', () => {
   it('sharpe ratio equals return divided by volatility', () => {
     const result = service.calculateRiskDecomposition({
       positions: [
-        { name: 'A', weight: 0.5, annualReturn: 0.10, annualVolatility: 0.20 },
+        { name: 'A', weight: 0.5, annualReturn: 0.1, annualVolatility: 0.2 },
         { name: 'B', weight: 0.5, annualReturn: 0.04, annualVolatility: 0.08 },
       ],
       correlationMatrix: [

@@ -31,7 +31,9 @@ export class PasswordComplexityPipe implements PipeTransform {
     }
 
     if (failures.length > 0) {
-      throw new BadRequestException(`Password must contain: ${failures.join(', ')}`);
+      throw new BadRequestException(
+        `Password must contain: ${failures.join(', ')}`,
+      );
     }
 
     return value;

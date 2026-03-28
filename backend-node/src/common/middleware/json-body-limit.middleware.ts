@@ -21,7 +21,10 @@ export class JsonBodyLimitMiddleware implements NestMiddleware {
     const contentLength = parseInt(req.headers['content-length'] || '0', 10);
     const contentType = req.headers['content-type'] || '';
 
-    if (contentType.includes('application/json') && contentLength > this.maxBodySizeBytes) {
+    if (
+      contentType.includes('application/json') &&
+      contentLength > this.maxBodySizeBytes
+    ) {
       this.logger.warn(
         `Rejected oversized JSON body: ${contentLength} bytes from ${req.ip} on ${req.method} ${req.url}`,
       );

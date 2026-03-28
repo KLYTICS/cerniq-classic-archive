@@ -18,19 +18,14 @@ export function generateSecureToken(length = 32): string {
  * @param length - Number of random bytes
  */
 export function generateUrlSafeToken(length = 32): string {
-  return randomBytes(length)
-    .toString('base64url')
-    .substring(0, length);
+  return randomBytes(length).toString('base64url').substring(0, length);
 }
 
 /**
  * Generate an HMAC-SHA256 signature.
  * Useful for webhook verification and signed URLs.
  */
-export function createHmacSignature(
-  payload: string,
-  secret: string,
-): string {
+export function createHmacSignature(payload: string, secret: string): string {
   return createHmac('sha256', secret).update(payload).digest('hex');
 }
 
@@ -71,7 +66,5 @@ export function generateOtp(digits = 6): string {
  * Useful for creating fingerprints or content hashes.
  */
 export function sha256(input: string): string {
-  return createHmac('sha256', '')
-    .update(input)
-    .digest('hex');
+  return createHmac('sha256', '').update(input).digest('hex');
 }

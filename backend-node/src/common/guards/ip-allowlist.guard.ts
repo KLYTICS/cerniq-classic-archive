@@ -28,7 +28,9 @@ export class IpAllowlistGuard implements CanActivate {
 
     const allowlist = this.getAllowlist();
     if (allowlist.length === 0) {
-      this.logger.warn('IP_ALLOWLIST not configured — blocking all non-local requests');
+      this.logger.warn(
+        'IP_ALLOWLIST not configured — blocking all non-local requests',
+      );
       throw new ForbiddenException('Access denied');
     }
 

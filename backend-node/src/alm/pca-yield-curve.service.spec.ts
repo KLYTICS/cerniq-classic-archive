@@ -21,7 +21,9 @@ describe('PCAYieldCurveService', () => {
   });
 
   it('should compute PCA from synthetic yield changes', () => {
-    const baseRates = [0.048, 0.046, 0.044, 0.042, 0.041, 0.040, 0.041, 0.042, 0.045, 0.046];
+    const baseRates = [
+      0.048, 0.046, 0.044, 0.042, 0.041, 0.04, 0.041, 0.042, 0.045, 0.046,
+    ];
     const changes = service.generateSyntheticChanges(baseRates, 100);
     const result = service.computePCAFactors(changes);
     expect(result.factors).toHaveLength(3);
@@ -29,11 +31,14 @@ describe('PCAYieldCurveService', () => {
   });
 
   it('Level factor should explain most variance', () => {
-    const baseRates = [0.048, 0.046, 0.044, 0.042, 0.041, 0.040, 0.041, 0.042, 0.045, 0.046];
+    const baseRates = [
+      0.048, 0.046, 0.044, 0.042, 0.041, 0.04, 0.041, 0.042, 0.045, 0.046,
+    ];
     const changes = service.generateSyntheticChanges(baseRates, 100);
     const result = service.computePCAFactors(changes);
-    expect(result.factors[0].explainedVariancePct)
-      .toBeGreaterThan(result.factors[1].explainedVariancePct);
+    expect(result.factors[0].explainedVariancePct).toBeGreaterThan(
+      result.factors[1].explainedVariancePct,
+    );
   });
 
   it('attributeDV01 should return level, slope, curvature', () => {

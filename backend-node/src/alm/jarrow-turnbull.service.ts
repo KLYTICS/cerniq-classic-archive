@@ -19,7 +19,12 @@ import { Injectable, Logger } from '@nestjs/common';
  */
 
 export interface JarrowTurnbullResult {
-  hazardRates: Array<{ tenor: number; hazardRate: number; survivalProb: number; defaultProb: number }>;
+  hazardRates: Array<{
+    tenor: number;
+    hazardRate: number;
+    survivalProb: number;
+    defaultProb: number;
+  }>;
   riskyBondPrice: number;
   riskFreeBondPrice: number;
   creditSpread: number; // bps
@@ -42,11 +47,18 @@ export class JarrowTurnbullService {
     couponRate?: number;
     maturity?: number;
   }): JarrowTurnbullResult {
-    const { creditSpreads, recovery = 0.4, riskFreeRates, notional = 1_000_000, couponRate = 0.05, maturity = 5 } = params;
+    const {
+      creditSpreads,
+      recovery = 0.4,
+      riskFreeRates,
+      notional = 1_000_000,
+      couponRate = 0.05,
+      maturity = 5,
+    } = params;
 
     // Bootstrap hazard rates from credit spreads
     // λ(t) ≈ s(t) / (1 - R)
-    const hazardRates = creditSpreads.map(cs => {
+    const hazardRates = creditSpreads.map((cs) => {
       const lambda = cs.spread / (1 - recovery);
       const survivalProb = Math.exp(-lambda * cs.tenor);
       const defaultProb = 1 - survivalProb;
@@ -66,7 +78,10 @@ export class JarrowTurnbullService {
 
     for (let i = 1; i <= periods; i++) {
       const t = i * dt;
-      const cf = i < periods ? notional * couponRate * dt : notional * (1 + couponRate * dt);
+      const cf =
+        i < periods
+          ? notional * couponRate * dt
+          : notional * (1 + couponRate * dt);
       const rfRate = this.interpolate(riskFreeRates, t);
       const df = Math.exp(-rfRate * t);
 
@@ -79,13 +94,15 @@ export class JarrowTurnbullService {
     }
 
     // Add recovery value for default scenario
-    const lambdaT = this.interpolateSpread(creditSpreads, maturity) / (1 - recovery);
+    const lambdaT =
+      this.interpolateSpread(creditSpreads, maturity) / (1 - recovery);
     const defaultProbT = 1 - Math.exp(-lambdaT * maturity);
     const rfRateT = this.interpolate(riskFreeRates, maturity);
     const dfT = Math.exp(-rfRateT * maturity);
     riskyPV += recovery * notional * defaultProbT * dfT;
 
-    const creditSpreadBps = ((riskFreePV - riskyPV) / (notional * maturity)) * 10000;
+    const creditSpreadBps =
+      ((riskFreePV - riskyPV) / (notional * maturity)) * 10000;
     const cva = riskFreePV - riskyPV;
     const impliedPD = defaultProbT;
 
@@ -102,25 +119,38 @@ export class JarrowTurnbullService {
     };
   }
 
-  private interpolate(curve: Array<{ tenor: number; rate: number }>, t: number): number {
+  private interpolate(
+    curve: Array<{ tenor: number; rate: number }>,
+    t: number,
+  ): number {
     if (t <= curve[0].tenor) return curve[0].rate;
     if (t >= curve[curve.length - 1].tenor) return curve[curve.length - 1].rate;
     for (let i = 1; i < curve.length; i++) {
       if (t <= curve[i].tenor) {
-        const w = (t - curve[i-1].tenor) / (curve[i].tenor - curve[i-1].tenor);
-        return curve[i-1].rate + w * (curve[i].rate - curve[i-1].rate);
+        const w =
+          (t - curve[i - 1].tenor) / (curve[i].tenor - curve[i - 1].tenor);
+        return curve[i - 1].rate + w * (curve[i].rate - curve[i - 1].rate);
       }
     }
     return curve[curve.length - 1].rate;
   }
 
-  private interpolateSpread(spreads: Array<{ tenor: number; spread: number }>, t: number): number {
+  private interpolateSpread(
+    spreads: Array<{ tenor: number; spread: number }>,
+    t: number,
+  ): number {
     if (t <= spreads[0].tenor) return spreads[0].spread;
-    if (t >= spreads[spreads.length - 1].tenor) return spreads[spreads.length - 1].spread;
+    if (t >= spreads[spreads.length - 1].tenor)
+      return spreads[spreads.length - 1].spread;
     for (let i = 1; i < spreads.length; i++) {
       if (t <= spreads[i].tenor) {
-        const w = (t - spreads[i-1].tenor) / (spreads[i].tenor - spreads[i-1].tenor);
-        return spreads[i-1].spread + w * (spreads[i].spread - spreads[i-1].spread);
+        const w =
+          (t - spreads[i - 1].tenor) /
+          (spreads[i].tenor - spreads[i - 1].tenor);
+        return (
+          spreads[i - 1].spread +
+          w * (spreads[i].spread - spreads[i - 1].spread)
+        );
       }
     }
     return spreads[spreads.length - 1].spread;

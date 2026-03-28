@@ -234,9 +234,7 @@ export class ExcelExportService {
     rows.push(this.xmlRow([]));
 
     // Top Risks
-    rows.push(
-      this.xmlRow([this.xmlStringCell('Top Risks', 'header')]),
-    );
+    rows.push(this.xmlRow([this.xmlStringCell('Top Risks', 'header')]));
     const risks: string[] = summary?.topRisks ?? [];
     for (const risk of risks) {
       rows.push(this.xmlRow([this.xmlStringCell(risk)]));
@@ -244,9 +242,7 @@ export class ExcelExportService {
     rows.push(this.xmlRow([]));
 
     // Recommendations
-    rows.push(
-      this.xmlRow([this.xmlStringCell('Recommendations', 'header')]),
-    );
+    rows.push(this.xmlRow([this.xmlStringCell('Recommendations', 'header')]));
     const recs: string[] = summary?.recommendations ?? [];
     for (const rec of recs) {
       rows.push(this.xmlRow([this.xmlStringCell(rec)]));
@@ -292,10 +288,7 @@ export class ExcelExportService {
           this.xmlNumberCell(ratio.value ?? 0),
           this.xmlStringCell(ratio.unit ?? ''),
           this.xmlStringCell(ratio.threshold ?? ''),
-          this.xmlStringCell(
-            (ratio.status ?? '').toUpperCase(),
-            statusStyle,
-          ),
+          this.xmlStringCell((ratio.status ?? '').toUpperCase(), statusStyle),
           this.xmlStringCell(ratio.description ?? ''),
           this.xmlNumberCell(ratio.examReadinessContribution ?? 0),
         ]),
@@ -315,9 +308,7 @@ export class ExcelExportService {
       this.xmlRow([
         this.xmlStringCell(''),
         this.xmlStringCell('Overall Status', 'header'),
-        this.xmlStringCell(
-          (cossec?.overallStatus ?? 'N/A').toUpperCase(),
-        ),
+        this.xmlStringCell((cossec?.overallStatus ?? 'N/A').toUpperCase()),
       ]),
     );
 
@@ -348,9 +339,7 @@ export class ExcelExportService {
 
     // Assets
     if (assets.length > 0) {
-      rows.push(
-        this.xmlRow([this.xmlStringCell('--- ASSETS ---', 'title')]),
-      );
+      rows.push(this.xmlRow([this.xmlStringCell('--- ASSETS ---', 'title')]));
       let totalAssets = 0;
       for (const item of assets) {
         totalAssets += item.balance ?? 0;
@@ -380,9 +369,7 @@ export class ExcelExportService {
     if (liabilities.length > 0) {
       rows.push(this.xmlRow([]));
       rows.push(
-        this.xmlRow([
-          this.xmlStringCell('--- LIABILITIES ---', 'title'),
-        ]),
+        this.xmlRow([this.xmlStringCell('--- LIABILITIES ---', 'title')]),
       );
       let totalLiabilities = 0;
       for (const item of liabilities) {
@@ -475,9 +462,7 @@ export class ExcelExportService {
     rows.push(
       this.xmlRow([
         this.xmlStringCell('Risk Rating', 'header'),
-        this.xmlStringCell(
-          (niiSensitivity?.riskRating ?? 'N/A').toUpperCase(),
-        ),
+        this.xmlStringCell((niiSensitivity?.riskRating ?? 'N/A').toUpperCase()),
       ]),
     );
 

@@ -9,7 +9,10 @@ import { Request, Response, NextFunction } from 'express';
 export class SecurityHeadersMiddleware implements NestMiddleware {
   use(_req: Request, res: Response, next: NextFunction): void {
     // HTTPS enforcement (1 year, include subdomains, preload-ready)
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    res.setHeader(
+      'Strict-Transport-Security',
+      'max-age=31536000; includeSubDomains; preload',
+    );
 
     // Prevent MIME sniffing
     res.setHeader('X-Content-Type-Options', 'nosniff');

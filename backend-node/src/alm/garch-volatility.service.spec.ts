@@ -13,7 +13,9 @@ describe('GARCHVolatilityService', () => {
 
   it('returns demo forecast when fewer than 30 observations', () => {
     const returns = Array.from({ length: 10 }, () => 0.001);
-    const dates = returns.map((_, i) => `2025-01-${String(i + 1).padStart(2, '0')}`);
+    const dates = returns.map(
+      (_, i) => `2025-01-${String(i + 1).padStart(2, '0')}`,
+    );
     const result = service.fitAndForecast(returns, dates);
 
     expect(result.params.alpha).toBeCloseTo(0.08, 2);
@@ -28,7 +30,9 @@ describe('GARCHVolatilityService', () => {
     for (let i = 0; i < 100; i++) {
       returns.push((rng() - 0.5) * 0.02);
     }
-    const dates = returns.map((_, i) => `2025-01-${String((i % 28) + 1).padStart(2, '0')}`);
+    const dates = returns.map(
+      (_, i) => `2025-01-${String((i % 28) + 1).padStart(2, '0')}`,
+    );
 
     const result = service.fitAndForecast(returns, dates);
 
@@ -40,7 +44,9 @@ describe('GARCHVolatilityService', () => {
 
   it('produces forecasts for all requested horizons', () => {
     const returns = generateReturns(60);
-    const dates = returns.map((_, i) => `2025-01-${String((i % 28) + 1).padStart(2, '0')}`);
+    const dates = returns.map(
+      (_, i) => `2025-01-${String((i % 28) + 1).padStart(2, '0')}`,
+    );
     const horizons = [1, 5, 10, 21];
 
     const result = service.fitAndForecast(returns, dates, horizons);

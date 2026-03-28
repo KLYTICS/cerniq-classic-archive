@@ -27,7 +27,12 @@ describe('CECLVintageService', () => {
 
   it('returns default Weibull params when fewer than 3 valid cohort points', () => {
     const cohorts = [
-      { originationQtr: '2023Q1', ageMonths: 6, cumulativeDefaultRate: 0.01, balance: 10 },
+      {
+        originationQtr: '2023Q1',
+        ageMonths: 6,
+        cumulativeDefaultRate: 0.01,
+        balance: 10,
+      },
     ];
 
     const params = service.fitWeibull(cohorts, 'consumer');
@@ -42,11 +47,36 @@ describe('CECLVintageService', () => {
 
   it('fits Weibull with shape > 1 for increasing cumulative default rates', () => {
     const cohorts = [
-      { originationQtr: '2022Q1', ageMonths: 6, cumulativeDefaultRate: 0.005, balance: 10 },
-      { originationQtr: '2022Q1', ageMonths: 12, cumulativeDefaultRate: 0.015, balance: 9.5 },
-      { originationQtr: '2022Q1', ageMonths: 18, cumulativeDefaultRate: 0.03, balance: 9.0 },
-      { originationQtr: '2022Q1', ageMonths: 24, cumulativeDefaultRate: 0.05, balance: 8.5 },
-      { originationQtr: '2022Q1', ageMonths: 30, cumulativeDefaultRate: 0.07, balance: 8.0 },
+      {
+        originationQtr: '2022Q1',
+        ageMonths: 6,
+        cumulativeDefaultRate: 0.005,
+        balance: 10,
+      },
+      {
+        originationQtr: '2022Q1',
+        ageMonths: 12,
+        cumulativeDefaultRate: 0.015,
+        balance: 9.5,
+      },
+      {
+        originationQtr: '2022Q1',
+        ageMonths: 18,
+        cumulativeDefaultRate: 0.03,
+        balance: 9.0,
+      },
+      {
+        originationQtr: '2022Q1',
+        ageMonths: 24,
+        cumulativeDefaultRate: 0.05,
+        balance: 8.5,
+      },
+      {
+        originationQtr: '2022Q1',
+        ageMonths: 30,
+        cumulativeDefaultRate: 0.07,
+        balance: 8.0,
+      },
     ];
 
     const params = service.fitWeibull(cohorts, 'auto');
@@ -62,11 +92,36 @@ describe('CECLVintageService', () => {
   it('clamps shape parameter between 0.5 and 5', () => {
     // Steep curve that might push shape high
     const cohorts = [
-      { originationQtr: '2022Q1', ageMonths: 1, cumulativeDefaultRate: 0.001, balance: 10 },
-      { originationQtr: '2022Q1', ageMonths: 6, cumulativeDefaultRate: 0.01, balance: 9 },
-      { originationQtr: '2022Q1', ageMonths: 12, cumulativeDefaultRate: 0.05, balance: 8 },
-      { originationQtr: '2022Q1', ageMonths: 24, cumulativeDefaultRate: 0.2, balance: 6 },
-      { originationQtr: '2022Q1', ageMonths: 36, cumulativeDefaultRate: 0.5, balance: 4 },
+      {
+        originationQtr: '2022Q1',
+        ageMonths: 1,
+        cumulativeDefaultRate: 0.001,
+        balance: 10,
+      },
+      {
+        originationQtr: '2022Q1',
+        ageMonths: 6,
+        cumulativeDefaultRate: 0.01,
+        balance: 9,
+      },
+      {
+        originationQtr: '2022Q1',
+        ageMonths: 12,
+        cumulativeDefaultRate: 0.05,
+        balance: 8,
+      },
+      {
+        originationQtr: '2022Q1',
+        ageMonths: 24,
+        cumulativeDefaultRate: 0.2,
+        balance: 6,
+      },
+      {
+        originationQtr: '2022Q1',
+        ageMonths: 36,
+        cumulativeDefaultRate: 0.5,
+        balance: 4,
+      },
     ];
 
     const params = service.fitWeibull(cohorts, 'consumer');
@@ -119,8 +174,22 @@ describe('CECLVintageService', () => {
 
   it('deletes existing cohorts and imports new ones', async () => {
     const cohorts = [
-      { loanType: 'consumer', originationQtr: '2024Q1', originalBalance: 100, currentBalance: 95, defaults: 2, ageMonths: 6 },
-      { loanType: 'consumer', originationQtr: '2024Q1', originalBalance: 100, currentBalance: 90, defaults: 5, ageMonths: 12 },
+      {
+        loanType: 'consumer',
+        originationQtr: '2024Q1',
+        originalBalance: 100,
+        currentBalance: 95,
+        defaults: 2,
+        ageMonths: 6,
+      },
+      {
+        loanType: 'consumer',
+        originationQtr: '2024Q1',
+        originalBalance: 100,
+        currentBalance: 90,
+        defaults: 5,
+        ageMonths: 12,
+      },
     ];
 
     const result = await service.importCohorts('inst_123', cohorts);

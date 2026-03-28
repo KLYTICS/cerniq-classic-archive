@@ -62,7 +62,7 @@ export class DurationConvexityService {
     const { instruments: instParams } = params;
     const totalMV = instParams.reduce((s, i) => s + i.marketValue, 0);
 
-    const instruments = instParams.map(inst => {
+    const instruments = instParams.map((inst) => {
       const freq = inst.frequency ?? 2;
       const n = inst.maturityYears * freq;
       const c = inst.couponRate / freq;
@@ -87,14 +87,15 @@ export class DurationConvexityService {
       for (let t = 1; t <= n; t++) {
         const cf = t < n ? c : 1 + c;
         const pv = cf / Math.pow(1 + y, t);
-        conv += (t / freq) * ((t / freq) + 1 / freq) * pv;
+        conv += (t / freq) * (t / freq + 1 / freq) * pv;
       }
-      conv /= (price * (1 + y) * (1 + y));
+      conv /= price * (1 + y) * (1 + y);
 
       // Effective duration for callable (approximation)
-      const effective = inst.callable && inst.callDate
-        ? Math.min(mod, inst.callDate * 0.8)
-        : mod;
+      const effective =
+        inst.callable && inst.callDate
+          ? Math.min(mod, inst.callDate * 0.8)
+          : mod;
 
       const weight = inst.marketValue / totalMV;
       return {
@@ -110,13 +111,19 @@ export class DurationConvexityService {
     // Portfolio-level
     const portMod = instruments.reduce((s, i) => s + i.contribution, 0);
     const portMac = instruments.reduce((s, i) => s + i.weight * i.macaulay, 0);
-    const portConv = instruments.reduce((s, i) => s + i.weight * i.convexity, 0);
-    const portEff = instruments.reduce((s, i) => s + i.weight * (i.modified * 0.95), 0); // simplified
-    const dollarDuration = portMod * totalMV / 100;
+    const portConv = instruments.reduce(
+      (s, i) => s + i.weight * i.convexity,
+      0,
+    );
+    const portEff = instruments.reduce(
+      (s, i) => s + i.weight * (i.modified * 0.95),
+      0,
+    ); // simplified
+    const dollarDuration = (portMod * totalMV) / 100;
     const pvbp = dollarDuration / 100;
 
     // Scenario analysis
-    const scenarios = [-200, -100, -50, -25, 25, 50, 100, 200].map(bps => {
+    const scenarios = [-200, -100, -50, -25, 25, 50, 100, 200].map((bps) => {
       const dy = bps / 10000;
       const durationOnly = -portMod * dy * 100;
       const withConvexity = (-portMod * dy + 0.5 * portConv * dy * dy) * 100;

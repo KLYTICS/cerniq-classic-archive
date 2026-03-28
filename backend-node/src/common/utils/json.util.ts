@@ -21,10 +21,7 @@ export function safeParse<T = unknown>(
  * JSON.stringify with BigInt support.
  * Converts BigInt values to strings with a "n" suffix for round-tripping.
  */
-export function stringifyWithBigInt(
-  value: unknown,
-  space?: number,
-): string {
+export function stringifyWithBigInt(value: unknown, space?: number): string {
   return JSON.stringify(
     value,
     (_key, val) => (typeof val === 'bigint' ? `${val.toString()}n` : val),

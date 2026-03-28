@@ -15,9 +15,9 @@ describe('PrepaymentEngineService', () => {
 
   it('produces higher CPR when rate incentive is large (200bps)', () => {
     const result = service.computePRCPR({
-      mortgageRate: 0.065,       // borrower's rate 6.5%
-      currentMarketRate: 0.045,  // market dropped to 4.5%
-      ageMonths: 36,             // mature loan
+      mortgageRate: 0.065, // borrower's rate 6.5%
+      currentMarketRate: 0.045, // market dropped to 4.5%
+      ageMonths: 36, // mature loan
       month: 6,
     });
 
@@ -38,7 +38,7 @@ describe('PrepaymentEngineService', () => {
 
     expect(result.rateIncentive).toBeCloseTo(0, 4);
     // Near-zero incentive => base CPR relatively low (under ~10%)
-    expect(result.finalCPR).toBeLessThan(0.10);
+    expect(result.finalCPR).toBeLessThan(0.1);
   });
 
   // ── Age ramp factor ───────────────────────────────────────

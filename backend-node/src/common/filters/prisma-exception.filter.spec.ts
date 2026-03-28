@@ -45,6 +45,8 @@ describe('PrismaExceptionFilter', () => {
   it('maps unknown codes to 500', () => {
     const exception = { code: 'P9999', message: 'Unknown', meta: {} };
     filter.catch(exception as any, mockHost);
-    expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    expect(mockResponse.status).toHaveBeenCalledWith(
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
   });
 });

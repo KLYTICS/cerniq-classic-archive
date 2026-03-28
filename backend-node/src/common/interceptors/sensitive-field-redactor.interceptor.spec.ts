@@ -7,7 +7,11 @@ describe('SensitiveFieldRedactorInterceptor', () => {
 
   function makeContext(): ExecutionContext {
     return {
-      switchToHttp: () => ({ getRequest: () => ({}), getResponse: () => ({}), getNext: () => jest.fn() }),
+      switchToHttp: () => ({
+        getRequest: () => ({}),
+        getResponse: () => ({}),
+        getNext: () => jest.fn(),
+      }),
       getClass: () => Object,
       getHandler: () => jest.fn(),
       getArgs: () => [],
@@ -24,9 +28,12 @@ describe('SensitiveFieldRedactorInterceptor', () => {
 
   it('should redact password fields', async () => {
     const handler: CallHandler = {
-      handle: () => of({ email: 'user@test.com', password: 'secret123', name: 'Test' }),
+      handle: () =>
+        of({ email: 'user@test.com', password: 'secret123', name: 'Test' }),
     };
-    const result = await lastValueFrom(interceptor.intercept(makeContext(), handler));
+    const result = await lastValueFrom(
+      interceptor.intercept(makeContext(), handler),
+    );
     expect(result.password).toBe('[REDACTED]');
     expect(result.email).toBe('user@test.com');
     expect(result.name).toBe('Test');
@@ -34,9 +41,16 @@ describe('SensitiveFieldRedactorInterceptor', () => {
 
   it('should redact token fields', async () => {
     const handler: CallHandler = {
-      handle: () => of({ accessToken: 'jwt.token.here', refreshToken: 'rt_abc', userId: 'u1' }),
+      handle: () =>
+        of({
+          accessToken: 'jwt.token.here',
+          refreshToken: 'rt_abc',
+          userId: 'u1',
+        }),
     };
-    const result = await lastValueFrom(interceptor.intercept(makeContext(), handler));
+    const result = await lastValueFrom(
+      interceptor.intercept(makeContext(), handler),
+    );
     expect(result.accessToken).toBe('[REDACTED]');
     expect(result.refreshToken).toBe('[REDACTED]');
     expect(result.userId).toBe('u1');
@@ -44,12 +58,15 @@ describe('SensitiveFieldRedactorInterceptor', () => {
 
   it('should redact nested sensitive fields', async () => {
     const handler: CallHandler = {
-      handle: () => of({
-        user: { email: 'a@b.com', passwordHash: 'hashed' },
-        billing: { apiSecret: 'sk_live_xxx' },
-      }),
+      handle: () =>
+        of({
+          user: { email: 'a@b.com', passwordHash: 'hashed' },
+          billing: { apiSecret: 'sk_live_xxx' },
+        }),
     };
-    const result = await lastValueFrom(interceptor.intercept(makeContext(), handler));
+    const result = await lastValueFrom(
+      interceptor.intercept(makeContext(), handler),
+    );
     expect(result.user.passwordHash).toBe('[REDACTED]');
     expect(result.billing.apiSecret).toBe('[REDACTED]');
     expect(result.user.email).toBe('a@b.com');
@@ -57,9 +74,12 @@ describe('SensitiveFieldRedactorInterceptor', () => {
 
   it('should redact SSN and tax fields', async () => {
     const handler: CallHandler = {
-      handle: () => of({ ssn: '123-45-6789', taxId: 'XX-1234567', name: 'Corp' }),
+      handle: () =>
+        of({ ssn: '123-45-6789', taxId: 'XX-1234567', name: 'Corp' }),
     };
-    const result = await lastValueFrom(interceptor.intercept(makeContext(), handler));
+    const result = await lastValueFrom(
+      interceptor.intercept(makeContext(), handler),
+    );
     expect(result.ssn).toBe('[REDACTED]');
     expect(result.taxId).toBe('[REDACTED]');
     expect(result.name).toBe('Corp');
@@ -67,12 +87,15 @@ describe('SensitiveFieldRedactorInterceptor', () => {
 
   it('should handle arrays', async () => {
     const handler: CallHandler = {
-      handle: () => of([
-        { id: 1, secret: 'x' },
-        { id: 2, secret: 'y' },
-      ]),
+      handle: () =>
+        of([
+          { id: 1, secret: 'x' },
+          { id: 2, secret: 'y' },
+        ]),
     };
-    const result = await lastValueFrom(interceptor.intercept(makeContext(), handler));
+    const result = await lastValueFrom(
+      interceptor.intercept(makeContext(), handler),
+    );
     expect(result[0].secret).toBe('[REDACTED]');
     expect(result[1].secret).toBe('[REDACTED]');
     expect(result[0].id).toBe(1);
@@ -80,15 +103,20 @@ describe('SensitiveFieldRedactorInterceptor', () => {
 
   it('should pass through null and primitives', async () => {
     const handler: CallHandler = { handle: () => of(null) };
-    const result = await lastValueFrom(interceptor.intercept(makeContext(), handler));
+    const result = await lastValueFrom(
+      interceptor.intercept(makeContext(), handler),
+    );
     expect(result).toBeNull();
   });
 
   it('should not redact safe fields', async () => {
     const handler: CallHandler = {
-      handle: () => of({ durationGap: 2.1, lcr: 142.5, institution: 'CoopAhorro' }),
+      handle: () =>
+        of({ durationGap: 2.1, lcr: 142.5, institution: 'CoopAhorro' }),
     };
-    const result = await lastValueFrom(interceptor.intercept(makeContext(), handler));
+    const result = await lastValueFrom(
+      interceptor.intercept(makeContext(), handler),
+    );
     expect(result.durationGap).toBe(2.1);
     expect(result.lcr).toBe(142.5);
     expect(result.institution).toBe('CoopAhorro');

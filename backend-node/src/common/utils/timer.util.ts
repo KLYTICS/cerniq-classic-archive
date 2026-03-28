@@ -60,9 +60,10 @@ export async function measureAsync<T>(
 /**
  * Measure the execution time of a sync function.
  */
-export function measureSync<T>(
-  fn: () => T,
-): { result: T; timing: TimerResult } {
+export function measureSync<T>(fn: () => T): {
+  result: T;
+  timing: TimerResult;
+} {
   const stop = createTimer();
   const result = fn();
   const timing = stop();

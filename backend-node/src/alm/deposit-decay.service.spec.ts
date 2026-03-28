@@ -55,7 +55,10 @@ describe('DepositDecayService', () => {
 
       // Year 1: e^(-lambda) * 100
       const expectedPctY1 = Math.exp(-product.decayRate * 1) * 100;
-      expect(product.survivalCurve[1].pctRemaining).toBeCloseTo(expectedPctY1, 0);
+      expect(product.survivalCurve[1].pctRemaining).toBeCloseTo(
+        expectedPctY1,
+        0,
+      );
     }
   });
 
@@ -74,7 +77,10 @@ describe('DepositDecayService', () => {
 
     const totalBalance = result.products.reduce((s, p) => s + p.balance, 0);
     const expectedWAL =
-      result.products.reduce((s, p) => s + p.balance * p.behavioralMaturity, 0) / totalBalance;
+      result.products.reduce(
+        (s, p) => s + p.balance * p.behavioralMaturity,
+        0,
+      ) / totalBalance;
 
     expect(result.portfolioWeightedLife).toBeCloseTo(expectedWAL, 1);
   });

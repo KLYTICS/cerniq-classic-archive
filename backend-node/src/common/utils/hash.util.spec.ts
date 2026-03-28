@@ -1,4 +1,9 @@
-import { consistentHash, buildCacheKey, stableStringify, fingerprint } from './hash.util';
+import {
+  consistentHash,
+  buildCacheKey,
+  stableStringify,
+  fingerprint,
+} from './hash.util';
 
 describe('hash.util', () => {
   describe('consistentHash', () => {

@@ -28,8 +28,18 @@ describe('NIMOptimizerService', () => {
       const mockPrisma = {
         balanceSheetItem: {
           findMany: jest.fn().mockResolvedValue([
-            { category: 'asset', subcategory: 'consumer_loans', balance: 100, rate: 0.06 },
-            { category: 'liability', subcategory: 'time_deposits', balance: 80, rate: 0.05 },
+            {
+              category: 'asset',
+              subcategory: 'consumer_loans',
+              balance: 100,
+              rate: 0.06,
+            },
+            {
+              category: 'liability',
+              subcategory: 'time_deposits',
+              balance: 80,
+              rate: 0.05,
+            },
           ]),
         },
       } as any;
@@ -49,7 +59,10 @@ describe('NIMOptimizerService', () => {
 
     it('totalNIIGain should match sum of recommendation impacts', async () => {
       const result = await service.optimize('inst-1');
-      const sumImpacts = result.recommendations.reduce((s, r) => s + r.niiImpact, 0);
+      const sumImpacts = result.recommendations.reduce(
+        (s, r) => s + r.niiImpact,
+        0,
+      );
       expect(result.totalNIIGain).toBeCloseTo(sumImpacts, 1);
     });
   });

@@ -30,7 +30,10 @@ export function formatCurrency(amount: number, locale: Locale = 'en'): string {
  * EN: $1.2M, $500K
  * ES: $1,2 M, $500 K
  */
-export function formatCompactCurrency(amount: number, locale: Locale = 'en'): string {
+export function formatCompactCurrency(
+  amount: number,
+  locale: Locale = 'en',
+): string {
   const localeMap: Record<Locale, string> = {
     en: 'en-US',
     es: 'es-PR',

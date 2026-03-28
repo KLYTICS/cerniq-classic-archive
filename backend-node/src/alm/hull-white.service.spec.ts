@@ -39,7 +39,8 @@ describe('HullWhiteService', () => {
     // After the first step the rate should be close to initialRate
     // (within a few sigma * sqrt(dt) moves)
     const firstStepValues = result.paths.map((p) => p[0]);
-    const meanFirst = firstStepValues.reduce((s, v) => s + v, 0) / firstStepValues.length;
+    const meanFirst =
+      firstStepValues.reduce((s, v) => s + v, 0) / firstStepValues.length;
     expect(Math.abs(meanFirst - 0.05)).toBeLessThan(0.01);
   });
 
@@ -107,8 +108,10 @@ describe('HullWhiteService', () => {
 
     // At the final time step, the 5-95 band should be wider for high vol
     const lastStep = baseParams.timeSteps - 1;
-    const lowBand = lowVol.percentile95[lastStep] - lowVol.percentile5[lastStep];
-    const highBand = highVol.percentile95[lastStep] - highVol.percentile5[lastStep];
+    const lowBand =
+      lowVol.percentile95[lastStep] - lowVol.percentile5[lastStep];
+    const highBand =
+      highVol.percentile95[lastStep] - highVol.percentile5[lastStep];
 
     expect(highBand).toBeGreaterThan(lowBand);
   });
@@ -117,8 +120,8 @@ describe('HullWhiteService', () => {
     // Start far above the curve and check that mean reverts down
     const result = service.simulateRatePaths({
       initialRate: 0.12, // well above any term structure rate
-      kappa: 1.0,        // strong mean reversion
-      sigma: 0.005,      // low vol so mean reversion dominates
+      kappa: 1.0, // strong mean reversion
+      sigma: 0.005, // low vol so mean reversion dominates
       termStructure,
       numPaths: 1000,
       horizon: 5,
@@ -141,8 +144,12 @@ describe('HullWhiteService', () => {
       timeSteps: 24,
     });
 
-    expect(result.statistics.minFinalRate).toBeLessThanOrEqual(result.statistics.meanFinalRate);
-    expect(result.statistics.maxFinalRate).toBeGreaterThanOrEqual(result.statistics.meanFinalRate);
+    expect(result.statistics.minFinalRate).toBeLessThanOrEqual(
+      result.statistics.meanFinalRate,
+    );
+    expect(result.statistics.maxFinalRate).toBeGreaterThanOrEqual(
+      result.statistics.meanFinalRate,
+    );
     expect(result.statistics.stdFinalRate).toBeGreaterThanOrEqual(0);
   });
 
@@ -190,13 +197,25 @@ describe('HullWhiteService', () => {
 
   it('longer maturity bonds have lower prices', () => {
     const price1y = service.priceZeroCouponBond({
-      currentRate: 0.04, kappa: 0.15, sigma: 0.01, maturity: 1, termStructure,
+      currentRate: 0.04,
+      kappa: 0.15,
+      sigma: 0.01,
+      maturity: 1,
+      termStructure,
     });
     const price5y = service.priceZeroCouponBond({
-      currentRate: 0.04, kappa: 0.15, sigma: 0.01, maturity: 5, termStructure,
+      currentRate: 0.04,
+      kappa: 0.15,
+      sigma: 0.01,
+      maturity: 5,
+      termStructure,
     });
     const price10y = service.priceZeroCouponBond({
-      currentRate: 0.04, kappa: 0.15, sigma: 0.01, maturity: 10, termStructure,
+      currentRate: 0.04,
+      kappa: 0.15,
+      sigma: 0.01,
+      maturity: 10,
+      termStructure,
     });
 
     expect(price1y.price).toBeGreaterThan(price5y.price);

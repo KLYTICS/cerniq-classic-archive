@@ -19,7 +19,10 @@ describe('NSFRService', () => {
 
     it('surplus should be ASF - RSF', async () => {
       const result = await service.calculateNSFR('inst-1');
-      expect(result.surplus).toBeCloseTo(result.asf.total - result.rsf.total, 0);
+      expect(result.surplus).toBeCloseTo(
+        result.asf.total - result.rsf.total,
+        0,
+      );
     });
 
     it('should include recommendations', async () => {

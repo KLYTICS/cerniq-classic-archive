@@ -4,8 +4,22 @@ describe('DurationConvexityService', () => {
   const svc = new DurationConvexityService();
 
   const baseInstruments = [
-    { name: '5Y Treasury', marketValue: 1_000_000, couponRate: 0.04, ytm: 0.04, maturityYears: 5, frequency: 2 },
-    { name: '10Y Bond', marketValue: 2_000_000, couponRate: 0.05, ytm: 0.05, maturityYears: 10, frequency: 2 },
+    {
+      name: '5Y Treasury',
+      marketValue: 1_000_000,
+      couponRate: 0.04,
+      ytm: 0.04,
+      maturityYears: 5,
+      frequency: 2,
+    },
+    {
+      name: '10Y Bond',
+      marketValue: 2_000_000,
+      couponRate: 0.05,
+      ytm: 0.05,
+      maturityYears: 10,
+      frequency: 2,
+    },
   ];
 
   it('should return correct output shape', () => {
@@ -24,14 +38,25 @@ describe('DurationConvexityService', () => {
   it('should compute Macaulay duration approximately correct for par bond', () => {
     // A 5-year semiannual 4% coupon bond at par should have Macaulay ~4.5 years
     const result = svc.analyze({
-      instruments: [{ name: '5Y Par', marketValue: 1_000_000, couponRate: 0.04, ytm: 0.04, maturityYears: 5, frequency: 2 }],
+      instruments: [
+        {
+          name: '5Y Par',
+          marketValue: 1_000_000,
+          couponRate: 0.04,
+          ytm: 0.04,
+          maturityYears: 5,
+          frequency: 2,
+        },
+      ],
     });
     expect(result.portfolio.macaulayDuration).toBeCloseTo(4.56, 0);
   });
 
   it('should have modified duration < Macaulay duration', () => {
     const result = svc.analyze({ instruments: baseInstruments });
-    expect(result.portfolio.modifiedDuration).toBeLessThan(result.portfolio.macaulayDuration);
+    expect(result.portfolio.modifiedDuration).toBeLessThan(
+      result.portfolio.macaulayDuration,
+    );
   });
 
   it('should have positive convexity for plain bonds', () => {

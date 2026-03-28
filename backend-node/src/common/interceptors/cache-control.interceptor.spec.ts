@@ -9,7 +9,10 @@ describe('CacheControlInterceptor', () => {
     interceptor = new CacheControlInterceptor();
   });
 
-  const createMockContext = (method: string, url: string): { ctx: ExecutionContext; res: any } => {
+  const createMockContext = (
+    method: string,
+    url: string,
+  ): { ctx: ExecutionContext; res: any } => {
     const res = { setHeader: jest.fn() };
     const ctx = {
       switchToHttp: () => ({
@@ -35,7 +38,10 @@ describe('CacheControlInterceptor', () => {
     const handler: CallHandler = { handle: () => of('ok') };
 
     interceptor.intercept(ctx, handler).subscribe(() => {
-      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-cache, no-store, must-revalidate');
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Cache-Control',
+        'no-cache, no-store, must-revalidate',
+      );
       done();
     });
   });
@@ -45,7 +51,10 @@ describe('CacheControlInterceptor', () => {
     const handler: CallHandler = { handle: () => of('ok') };
 
     interceptor.intercept(ctx, handler).subscribe(() => {
-      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'public, max-age=3600');
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Cache-Control',
+        'public, max-age=3600',
+      );
       done();
     });
   });
@@ -55,7 +64,10 @@ describe('CacheControlInterceptor', () => {
     const handler: CallHandler = { handle: () => of('ok') };
 
     interceptor.intercept(ctx, handler).subscribe(() => {
-      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'private, max-age=60');
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Cache-Control',
+        'private, max-age=60',
+      );
       done();
     });
   });
@@ -65,7 +77,10 @@ describe('CacheControlInterceptor', () => {
     const handler: CallHandler = { handle: () => of('ok') };
 
     interceptor.intercept(ctx, handler).subscribe(() => {
-      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'private, no-cache');
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Cache-Control',
+        'private, no-cache',
+      );
       done();
     });
   });

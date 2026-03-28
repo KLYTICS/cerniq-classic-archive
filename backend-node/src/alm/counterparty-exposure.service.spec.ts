@@ -9,8 +9,18 @@ describe('CounterpartyExposureService', () => {
 
   const totalAssets = 100_000_000;
   const counterparties = [
-    { name: 'Banco Popular', exposure: 8_000_000, sector: 'Banking', rating: 'A' },
-    { name: 'First BanCorp', exposure: 6_000_000, sector: 'Banking', rating: 'BBB' },
+    {
+      name: 'Banco Popular',
+      exposure: 8_000_000,
+      sector: 'Banking',
+      rating: 'A',
+    },
+    {
+      name: 'First BanCorp',
+      exposure: 6_000_000,
+      sector: 'Banking',
+      rating: 'BBB',
+    },
     { name: 'Gobierno de PR', exposure: 12_000_000, sector: 'Government' },
     { name: 'PREPA', exposure: 3_000_000, sector: 'Utilities', rating: 'BB' },
     { name: 'Small Corp', exposure: 1_000_000, sector: 'Corporate' },
@@ -45,8 +55,9 @@ describe('CounterpartyExposureService', () => {
   it('sorts by exposure descending', () => {
     const result = service.analyze(counterparties, totalAssets);
     for (let i = 1; i < result.counterparties.length; i++) {
-      expect(result.counterparties[i].exposure)
-        .toBeLessThanOrEqual(result.counterparties[i - 1].exposure);
+      expect(result.counterparties[i].exposure).toBeLessThanOrEqual(
+        result.counterparties[i - 1].exposure,
+      );
     }
   });
 

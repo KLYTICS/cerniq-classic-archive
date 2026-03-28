@@ -64,18 +64,21 @@ export class TrendAnalysisService {
       'niiSensitivity',
       'eveSensitivity',
     ];
-    const activeKeys = metricKeys && metricKeys.length > 0
-      ? allMetricKeys.filter((k) => metricKeys.includes(k))
-      : allMetricKeys;
+    const activeKeys =
+      metricKeys && metricKeys.length > 0
+        ? allMetricKeys.filter((k) => metricKeys.includes(k))
+        : allMetricKeys;
 
-    const periods: TrendPeriod[] = runs.map((run: { id: string; createdAt: Date; resultSummary: unknown }) => {
-      const metrics = this.extractMetrics(run.resultSummary, activeKeys);
-      return {
-        date: run.createdAt.toISOString(),
-        runId: run.id,
-        ...metrics,
-      };
-    });
+    const periods: TrendPeriod[] = runs.map(
+      (run: { id: string; createdAt: Date; resultSummary: unknown }) => {
+        const metrics = this.extractMetrics(run.resultSummary, activeKeys);
+        return {
+          date: run.createdAt.toISOString(),
+          runId: run.id,
+          ...metrics,
+        };
+      },
+    );
 
     // Return in chronological order (oldest first) for charting
     periods.reverse();
@@ -132,15 +135,21 @@ export class TrendAnalysisService {
     }
 
     if (activeKeys.includes('lcr')) {
-      const liquidity = summary['liquidity'] as Record<string, unknown> | undefined;
+      const liquidity = summary['liquidity'] as
+        | Record<string, unknown>
+        | undefined;
       result.lcr = liquidity ? this.safeNumber(liquidity['lcr']) : null;
     }
 
     if (activeKeys.includes('niiSensitivity')) {
-      const nii = summary['niiSensitivity'] as Record<string, unknown> | undefined;
+      const nii = summary['niiSensitivity'] as
+        | Record<string, unknown>
+        | undefined;
       if (nii) {
         // Use the worst-case NII impact percentage as the sensitivity metric
-        const scenarios = nii['scenarios'] as Array<Record<string, unknown>> | undefined;
+        const scenarios = nii['scenarios'] as
+          | Array<Record<string, unknown>>
+          | undefined;
         if (scenarios && scenarios.length > 0) {
           const worstImpact = scenarios.reduce((worst, s) => {
             const pct = Math.abs(this.safeNumber(s['niImpactPct']) ?? 0);
@@ -154,7 +163,9 @@ export class TrendAnalysisService {
     }
 
     if (activeKeys.includes('eveSensitivity')) {
-      const eveSens = summary['eveSensitivity'] as Array<Record<string, unknown>> | undefined;
+      const eveSens = summary['eveSensitivity'] as
+        | Array<Record<string, unknown>>
+        | undefined;
       if (eveSens && eveSens.length > 0) {
         // Use the worst-case EVE change percentage
         const worstEve = eveSens.reduce((worst, point) => {
@@ -164,11 +175,17 @@ export class TrendAnalysisService {
         result.eveSensitivity = worstEve;
       } else {
         // Fall back to fullAnalysis.eve if available
-        const fullAnalysis = summary['fullAnalysis'] as Record<string, unknown> | undefined;
+        const fullAnalysis = summary['fullAnalysis'] as
+          | Record<string, unknown>
+          | undefined;
         if (fullAnalysis) {
-          const eve = fullAnalysis['eve'] as Record<string, unknown> | undefined;
+          const eve = fullAnalysis['eve'] as
+            | Record<string, unknown>
+            | undefined;
           if (eve) {
-            const scenarios = eve['scenarios'] as Array<Record<string, unknown>> | undefined;
+            const scenarios = eve['scenarios'] as
+              | Array<Record<string, unknown>>
+              | undefined;
             if (scenarios && scenarios.length > 0) {
               const worstEve = scenarios.reduce((worst, s) => {
                 const pct = Math.abs(this.safeNumber(s['changePct']) ?? 0);
@@ -183,14 +200,19 @@ export class TrendAnalysisService {
 
     if (activeKeys.includes('capitalRatio')) {
       // capitalRatio is derived: equity / totalAssets from the fullAnalysis summary
-      const fullAnalysis = summary['fullAnalysis'] as Record<string, unknown> | undefined;
+      const fullAnalysis = summary['fullAnalysis'] as
+        | Record<string, unknown>
+        | undefined;
       if (fullAnalysis) {
-        const faSummary = fullAnalysis['summary'] as Record<string, unknown> | undefined;
+        const faSummary = fullAnalysis['summary'] as
+          | Record<string, unknown>
+          | undefined;
         if (faSummary) {
           const equity = this.safeNumber(faSummary['equity']);
           const totalAssets = this.safeNumber(faSummary['totalAssets']);
           if (equity !== null && totalAssets !== null && totalAssets > 0) {
-            result.capitalRatio = Math.round((equity / totalAssets) * 10000) / 100; // percentage with 2 decimals
+            result.capitalRatio =
+              Math.round((equity / totalAssets) * 10000) / 100; // percentage with 2 decimals
           }
         }
       }
