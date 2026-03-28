@@ -64,6 +64,8 @@ export default function GARCHPage() {
   }));
 
   const ljungBoxOk = data.diagnostics.ljungBoxPValue > 0.05;
+  const formatPercent = (value: number | string | undefined, digits = 1) =>
+    `${Number(value ?? 0).toFixed(digits)}%`;
 
   return (
     <div className="p-6 space-y-5 max-w-[1400px] mx-auto animate-fade-in">
@@ -103,8 +105,8 @@ export default function GARCHPage() {
             <AreaChart data={data.historicalVols}>
               <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
               <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={9} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(0)}%`} />
-              <Tooltip formatter={(v: number) => `${Number(v).toFixed(1)}%`} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(value) => formatPercent(value, 0)} />
+              <Tooltip formatter={(value) => formatPercent(value)} />
               <Area type="monotone" dataKey="conditionalVol" name={locale === 'es' ? 'Vol Condicional' : 'Conditional Vol'} stroke="#f97316" fill="#fed7aa" fillOpacity={0.4} strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
@@ -116,8 +118,8 @@ export default function GARCHPage() {
             <LineChart data={forecastData}>
               <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
               <XAxis dataKey="horizon" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v}%`} domain={['auto', 'auto']} />
-              <Tooltip formatter={(v: number) => `${v}%`} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(value) => formatPercent(value, 0)} domain={['auto', 'auto']} />
+              <Tooltip formatter={(value) => formatPercent(value, 0)} />
               <Line type="monotone" dataKey="vol" name={locale === 'es' ? 'Vol Anualizada' : 'Annualized Vol'} stroke="#f97316" strokeWidth={2.5} dot={{ r: 5, fill: '#f97316' }} />
             </LineChart>
           </ResponsiveContainer>
