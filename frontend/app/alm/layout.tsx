@@ -10,6 +10,7 @@ import { apiClient } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
 import { useTranslation } from '@/lib/i18n';
 import { usePDFExport } from '@/hooks/usePDFExport';
+import ALMBreadcrumb from '@/components/alm/ALMBreadcrumb';
 
 function LanguageToggle() {
   const { locale, setLocale } = useTranslation();
@@ -163,6 +164,7 @@ function ALMShell({ children }: { children: React.ReactNode }) {
 
         <DemoBanner />
         <ALMTopBar />
+        <ALMBreadcrumb />
 
         <main id="alm-report-content" className="flex-1 overflow-y-auto bg-transparent">
           {children}

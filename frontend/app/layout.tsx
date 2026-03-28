@@ -6,6 +6,8 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import Providers from '@/components/Providers';
 import CookieConsent from '@/components/CookieConsent';
+import SessionTimeoutWarning from '@/components/SessionTimeoutWarning';
+import { ToastProvider } from '@/components/Toast';
 
 const bodyFont = Manrope({
   subsets: ['latin'],
@@ -92,10 +94,13 @@ export default function RootLayout({
           Skip to content
         </a>
         <Providers>
+        <ToastProvider>
         <div id="main-content">
         {children}
         </div>
         <CookieConsent />
+        <SessionTimeoutWarning timeoutMinutes={30} />
+        </ToastProvider>
         </Providers>
         <Analytics />
         <SpeedInsights />
