@@ -1127,134 +1127,134 @@ CREATE UNIQUE INDEX IF NOT EXISTS "regulatory_publications_url_key" ON "regulato
 CREATE INDEX IF NOT EXISTS "institution_alerts_institution_id_created_at_idx" ON "institution_alerts"("institution_id", "created_at" DESC);
 
 -- AddForeignKey
-ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "password_reset_tokens" ADD CONSTRAINT "password_reset_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "password_reset_tokens" ADD CONSTRAINT "password_reset_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "organization_members" ADD CONSTRAINT "organization_members_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "organization_members" ADD CONSTRAINT "organization_members_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "organization_members" ADD CONSTRAINT "organization_members_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "organization_members" ADD CONSTRAINT "organization_members_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "expenses" ADD CONSTRAINT "expenses_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "expenses" ADD CONSTRAINT "expenses_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "expenses" ADD CONSTRAINT "expenses_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "expenses" ADD CONSTRAINT "expenses_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "workspaces" ADD CONSTRAINT "workspaces_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "workspaces" ADD CONSTRAINT "workspaces_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "institutions" ADD CONSTRAINT "institutions_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "institutions" ADD CONSTRAINT "institutions_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "balance_sheet_items" ADD CONSTRAINT "balance_sheet_items_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "balance_sheet_items" ADD CONSTRAINT "balance_sheet_items_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "interest_rate_scenarios" ADD CONSTRAINT "interest_rate_scenarios_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "interest_rate_scenarios" ADD CONSTRAINT "interest_rate_scenarios_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "liquidity_positions" ADD CONSTRAINT "liquidity_positions_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "liquidity_positions" ADD CONSTRAINT "liquidity_positions_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "saved_scenarios" ADD CONSTRAINT "saved_scenarios_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "saved_scenarios" ADD CONSTRAINT "saved_scenarios_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "yield_curves" ADD CONSTRAINT "yield_curves_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "yield_curves" ADD CONSTRAINT "yield_curves_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "loan_segments" ADD CONSTRAINT "loan_segments_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "loan_segments" ADD CONSTRAINT "loan_segments_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "deposit_tiers" ADD CONSTRAINT "deposit_tiers_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "deposit_tiers" ADD CONSTRAINT "deposit_tiers_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "concentration_limits" ADD CONSTRAINT "concentration_limits_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "concentration_limits" ADD CONSTRAINT "concentration_limits_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "loan_cohorts" ADD CONSTRAINT "loan_cohorts_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "loan_cohorts" ADD CONSTRAINT "loan_cohorts_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "cecl_vintage_allowances" ADD CONSTRAINT "cecl_vintage_allowances_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "cecl_vintage_allowances" ADD CONSTRAINT "cecl_vintage_allowances_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "irr_policy_limits" ADD CONSTRAINT "irr_policy_limits_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "irr_policy_limits" ADD CONSTRAINT "irr_policy_limits_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "policy_breach_logs" ADD CONSTRAINT "policy_breach_logs_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "policy_breach_logs" ADD CONSTRAINT "policy_breach_logs_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "column_mapping_memories" ADD CONSTRAINT "column_mapping_memories_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "column_mapping_memories" ADD CONSTRAINT "column_mapping_memories_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "board_reports" ADD CONSTRAINT "board_reports_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "board_reports" ADD CONSTRAINT "board_reports_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "uploads" ADD CONSTRAINT "uploads_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "uploads" ADD CONSTRAINT "uploads_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE RESTRICT ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "invoices" ADD CONSTRAINT "invoices_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "invoices" ADD CONSTRAINT "invoices_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE RESTRICT ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "invoices" ADD CONSTRAINT "invoices_upload_id_fkey" FOREIGN KEY ("upload_id") REFERENCES "uploads"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "invoices" ADD CONSTRAINT "invoices_upload_id_fkey" FOREIGN KEY ("upload_id") REFERENCES "uploads"("id") ON DELETE SET NULL ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "findings" ADD CONSTRAINT "findings_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "findings" ADD CONSTRAINT "findings_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE RESTRICT ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "findings" ADD CONSTRAINT "findings_invoice_id_fkey" FOREIGN KEY ("invoice_id") REFERENCES "invoices"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "findings" ADD CONSTRAINT "findings_invoice_id_fkey" FOREIGN KEY ("invoice_id") REFERENCES "invoices"("id") ON DELETE SET NULL ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "reports" ADD CONSTRAINT "reports_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "reports" ADD CONSTRAINT "reports_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE RESTRICT ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "portfolios" ADD CONSTRAINT "portfolios_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "portfolios" ADD CONSTRAINT "portfolios_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "positions" ADD CONSTRAINT "positions_portfolio_id_fkey" FOREIGN KEY ("portfolio_id") REFERENCES "portfolios"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "positions" ADD CONSTRAINT "positions_portfolio_id_fkey" FOREIGN KEY ("portfolio_id") REFERENCES "portfolios"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "positions" ADD CONSTRAINT "positions_ticker_fkey" FOREIGN KEY ("ticker") REFERENCES "tickers"("ticker") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "positions" ADD CONSTRAINT "positions_ticker_fkey" FOREIGN KEY ("ticker") REFERENCES "tickers"("ticker") ON DELETE RESTRICT ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "analysis_runs" ADD CONSTRAINT "analysis_runs_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "analysis_runs" ADD CONSTRAINT "analysis_runs_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "analysis_runs" ADD CONSTRAINT "analysis_runs_created_by_user_id_fkey" FOREIGN KEY ("created_by_user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "analysis_runs" ADD CONSTRAINT "analysis_runs_created_by_user_id_fkey" FOREIGN KEY ("created_by_user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "ingestion_logs" ADD CONSTRAINT "ingestion_logs_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "ingestion_logs" ADD CONSTRAINT "ingestion_logs_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE SET NULL ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "ingestion_logs" ADD CONSTRAINT "ingestion_logs_created_by_user_id_fkey" FOREIGN KEY ("created_by_user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "ingestion_logs" ADD CONSTRAINT "ingestion_logs_created_by_user_id_fkey" FOREIGN KEY ("created_by_user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "report_jobs" ADD CONSTRAINT "report_jobs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "report_jobs" ADD CONSTRAINT "report_jobs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "magic_links" ADD CONSTRAINT "magic_links_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "magic_links" ADD CONSTRAINT "magic_links_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "partner_configs" ADD CONSTRAINT "partner_configs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "partner_configs" ADD CONSTRAINT "partner_configs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "webhook_subscriptions" ADD CONSTRAINT "webhook_subscriptions_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "webhook_subscriptions" ADD CONSTRAINT "webhook_subscriptions_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "sso_configurations" ADD CONSTRAINT "sso_configurations_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "sso_configurations" ADD CONSTRAINT "sso_configurations_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "institution_alerts" ADD CONSTRAINT "institution_alerts_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "institution_alerts" ADD CONSTRAINT "institution_alerts_institution_id_fkey" FOREIGN KEY ("institution_id") REFERENCES "institutions"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "institution_alerts" ADD CONSTRAINT "institution_alerts_publication_id_fkey" FOREIGN KEY ("publication_id") REFERENCES "regulatory_publications"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN ALTER TABLE "institution_alerts" ADD CONSTRAINT "institution_alerts_publication_id_fkey" FOREIGN KEY ("publication_id") REFERENCES "regulatory_publications"("id") ON DELETE CASCADE ON UPDATE CASCADE;; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
