@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma.service';
 import { AlmEnterpriseService } from '../alm-enterprise.service';
 import {
@@ -13,11 +14,17 @@ export type {
   NamedScenarioResult,
 } from '../scenarios/cossec-scenarios';
 
-/** Round to n decimal places */
+/** Round to n decimal places with NaN guard */
 function round(value: number, decimals: number): number {
+  if (!Number.isFinite(value)) return 0;
   const factor = Math.pow(10, decimals);
   return Math.round(value * factor) / factor;
 }
+
+/** Maximum Monte Carlo paths to prevent memory exhaustion */
+const MAX_MC_PATHS = 50_000;
+/** Maximum simulation horizon in months */
+const MAX_MC_HORIZON = 120;
 
 // ─── Custom Scenario Interfaces ───────────────────────────────
 
@@ -128,9 +135,20 @@ export class StressTestingService {
     institutionId: string,
     params: Partial<MonteCarloParams> = {},
   ): Promise<MonteCarloResult> {
-    const p: MonteCarloParams = { ...DEFAULT_PARAMS, ...params };
+    const p: MonteCarloParams = {
+      paths: Math.min(
+        Math.max(Math.floor(params.paths ?? DEFAULT_PARAMS.paths), 100),
+        MAX_MC_PATHS,
+      ),
+      horizon: Math.min(
+        Math.max(Math.floor(params.horizon ?? DEFAULT_PARAMS.horizon), 1),
+        MAX_MC_HORIZON,
+      ),
+      volatility: Math.max(1, Math.min(params.volatility ?? DEFAULT_PARAMS.volatility, 1000)),
+      meanReversion: Math.max(0, Math.min(params.meanReversion ?? DEFAULT_PARAMS.meanReversion, 5)),
+    };
     this.logger.log(
-      `Monte Carlo: ${p.paths} paths, ${p.horizon}mo, vol=${p.volatility}bps, κ=${p.meanReversion}`,
+      `Monte Carlo: ${p.paths} paths, ${p.horizon}mo, vol=${p.volatility}bps, kappa=${p.meanReversion}`,
     );
 
     // Fetch balance sheet data to calculate NII sensitivity
@@ -870,13 +888,20 @@ export class StressTestingService {
     return 'pass';
   }
 
-  /** Box-Muller transform for standard normal random numbers */
+  /** Crypto-quality Box-Muller transform for standard normal random numbers */
   private boxMullerRandom(): number {
     let u = 0;
     let v = 0;
-    while (u === 0) u = Math.random();
-    while (v === 0) v = Math.random();
-    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    while (u === 0) u = this.cryptoUniform();
+    while (v === 0) v = this.cryptoUniform();
+    const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    return Number.isFinite(z) ? z : 0;
+  }
+
+  /** Uniform [0, 1) using crypto.randomBytes */
+  private cryptoUniform(): number {
+    const buf = randomBytes(4);
+    return buf.readUInt32BE(0) / 0x100000000;
   }
 
   private percentile(sorted: number[], pct: number): number {

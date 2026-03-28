@@ -114,8 +114,8 @@ describe('OptionsService', () => {
       // Expired call should equal intrinsic value
       expect(result.price).toBe(5);
 
-      // All Greeks should be zero
-      expect(result.delta).toBe(0);
+      // ITM call at expiry: delta=1, all other Greeks=0
+      expect(result.delta).toBe(1);
       expect(result.gamma).toBe(0);
       expect(result.theta).toBe(0);
       expect(result.vega).toBe(0);

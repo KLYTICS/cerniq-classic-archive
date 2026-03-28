@@ -126,6 +126,6 @@ export class OnboardingOrchestratorService {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
-    return Promise.all(institutions.map((i) => this.getOnboardingStatus(i.id)));
+    return Promise.all(institutions.map((i: { id: string }) => this.getOnboardingStatus(i.id)));
   }
 }

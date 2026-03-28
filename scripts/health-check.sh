@@ -108,10 +108,11 @@ echo ""
 # ---- Section 5: Database Connectivity (from health payload) ----
 echo "--- Service Status (from /health) ---"
 if command -v python3 &>/dev/null; then
-  db_status=$(echo "$health_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('db','unknown'))" 2>/dev/null || echo "unknown")
-  api_status=$(echo "$health_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','unknown'))" 2>/dev/null || echo "unknown")
-  mem_pct=$(echo "$health_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('memoryPercent','?'))" 2>/dev/null || echo "?")
-  uptime=$(echo "$health_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('uptime','?'))" 2>/dev/null || echo "?")
+  # Unwrap ResponseEnvelopeInterceptor: { success, data: { ... } }
+  db_status=$(echo "$health_json" | python3 -c "import sys,json; r=json.load(sys.stdin); d=r.get('data',r); print(d.get('db','unknown'))" 2>/dev/null || echo "unknown")
+  api_status=$(echo "$health_json" | python3 -c "import sys,json; r=json.load(sys.stdin); d=r.get('data',r); print(d.get('status','unknown'))" 2>/dev/null || echo "unknown")
+  mem_pct=$(echo "$health_json" | python3 -c "import sys,json; r=json.load(sys.stdin); d=r.get('data',r); print(d.get('memoryPercent','?'))" 2>/dev/null || echo "?")
+  uptime=$(echo "$health_json" | python3 -c "import sys,json; r=json.load(sys.stdin); d=r.get('data',r); print(d.get('uptime','?'))" 2>/dev/null || echo "?")
 
   printf "  %-20s %s\n" "Overall:" "$api_status"
   printf "  %-20s %s\n" "Database:" "$db_status"

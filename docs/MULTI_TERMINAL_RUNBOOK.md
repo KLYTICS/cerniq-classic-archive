@@ -153,28 +153,31 @@ npm run start:dev
 # Health check
 curl -s http://localhost:3000/health | python3 -m json.tool
 
-# Expected shape:
+# Expected shape (wrapped by ResponseEnvelopeInterceptor):
 {
-  "status": "healthy",
-  "db": "connected",
-  "memoryPercent": 45,
-  "memorySource": "...",
-  "memory": {
-    "heapUsedMB": 80,
-    "heapTotalMB": 180,
-    "rssMB": 220,
-    "limitMB": 512,
-    "heapPercent": 44,
-    "rssPercent": 43
-  },
-  "version": "2.0.0",
-  "uptime": 12,
-  "timestamp": "2026-03-27T...",
-  "services": {
-    "api": "up",
-    "database": "up",
-    "cache": "up",
-    "marketData": "..."
+  "success": true,
+  "data": {
+    "status": "ok",
+    "db": "connected",
+    "memoryPercent": 2,
+    "memorySource": "container",
+    "memory": {
+      "heapUsedMB": 83,
+      "heapTotalMB": 87,
+      "rssMB": 156,
+      "limitMB": 7629,
+      "heapPercent": 95,
+      "rssPercent": 2
+    },
+    "version": "2.0.0",
+    "uptime": 66254,
+    "timestamp": "2026-03-28T...",
+    "services": {
+      "api": "up",
+      "database": "up",
+      "cache": "up",
+      "marketData": "healthy"
+    }
   }
 }
 
@@ -342,9 +345,10 @@ while true; do
 
   # Backend health
   HEALTH=$(curl -s --max-time 5 http://localhost:3000/health 2>/dev/null || echo '{"status":"unreachable"}')
-  STATUS=$(echo $HEALTH | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','?'))" 2>/dev/null)
-  DB=$(echo $HEALTH | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('db','?'))" 2>/dev/null)
-  MEM=$(echo $HEALTH | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('memoryPercent','?'))" 2>/dev/null)
+  # Unwrap ResponseEnvelopeInterceptor: { success, data: { ... } }
+  STATUS=$(echo $HEALTH | python3 -c "import sys,json; r=json.load(sys.stdin); d=r.get('data',r); print(d.get('status','?'))" 2>/dev/null)
+  DB=$(echo $HEALTH | python3 -c "import sys,json; r=json.load(sys.stdin); d=r.get('data',r); print(d.get('db','?'))" 2>/dev/null)
+  MEM=$(echo $HEALTH | python3 -c "import sys,json; r=json.load(sys.stdin); d=r.get('data',r); print(d.get('memoryPercent','?'))" 2>/dev/null)
 
   echo "  Backend:  ${STATUS:-unknown}"
   echo "  Database: ${DB:-unknown}"

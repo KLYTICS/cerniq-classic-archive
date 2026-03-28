@@ -63,6 +63,60 @@ export class CECLService {
 
   // ─── WARM Method (Weighted Average Remaining Life) ─────────
 
+  /**
+   * Validate and sanitize segment inputs.
+   * Clamps values to reasonable bounds to prevent nonsensical results.
+   */
+  private validateSegment(seg: {
+    segmentName: string;
+    balance: number;
+    weightedAvgMaturity: number;
+    historicalLossRate: number;
+    lgd?: number;
+    qualitativeAdj?: number;
+  }): {
+    segmentName: string;
+    balance: number;
+    weightedAvgMaturity: number;
+    historicalLossRate: number;
+    lgd: number;
+    qualitativeAdj: number;
+  } {
+    return {
+      segmentName: seg.segmentName || 'Unknown',
+      balance: Math.max(0, Number.isFinite(seg.balance) ? seg.balance : 0),
+      weightedAvgMaturity: Math.max(
+        0,
+        Math.min(
+          Number.isFinite(seg.weightedAvgMaturity)
+            ? seg.weightedAvgMaturity
+            : 0,
+          50,
+        ),
+      ), // cap at 50 years
+      historicalLossRate: Math.max(
+        0,
+        Math.min(
+          Number.isFinite(seg.historicalLossRate)
+            ? seg.historicalLossRate
+            : 0,
+          1,
+        ),
+      ), // 0-100%
+      lgd: Math.max(
+        0,
+        Math.min(Number.isFinite(seg.lgd) ? seg.lgd! : 0.5, 1),
+      ), // 0-100%
+      qualitativeAdj: Math.max(
+        -0.1,
+        Math.min(
+          Number.isFinite(seg.qualitativeAdj) ? seg.qualitativeAdj! : 0,
+          0.1,
+        ),
+      ), // -10% to +10%
+    };
+  }
+
   calculateWARM(
     segments: Array<{
       segmentName: string;
@@ -73,10 +127,12 @@ export class CECLService {
       qualitativeAdj?: number;
     }>,
   ): CECLSummary {
-    const results: CECLSegmentResult[] = segments.map((seg) => {
-      const adjRate = seg.historicalLossRate + (seg.qualitativeAdj ?? 0);
-      // WARM: lifetime loss = annual loss rate × remaining life
-      const lifetimeLossRate = adjRate * seg.weightedAvgMaturity;
+    const results: CECLSegmentResult[] = segments.map((rawSeg) => {
+      const seg = this.validateSegment(rawSeg);
+      const adjRate = seg.historicalLossRate + seg.qualitativeAdj;
+      // WARM: lifetime loss = annual loss rate * remaining life
+      // Cap lifetime loss rate at 1 (100%) to prevent nonsensical results
+      const lifetimeLossRate = Math.min(adjRate * seg.weightedAvgMaturity, 1);
       const expectedLoss = seg.balance * lifetimeLossRate;
       const allowance = expectedLoss;
 
@@ -85,7 +141,7 @@ export class CECLService {
         balance: seg.balance,
         methodology: 'WARM',
         historicalLossRate: seg.historicalLossRate,
-        qualitativeAdj: seg.qualitativeAdj ?? 0,
+        qualitativeAdj: seg.qualitativeAdj,
         adjustedLossRate: adjRate,
         expectedLoss,
         allowanceRequired: allowance,
@@ -121,12 +177,13 @@ export class CECLService {
       qualitativeAdj?: number;
     }>,
   ): CECLSummary {
-    const results: CECLSegmentResult[] = segments.map((seg) => {
+    const results: CECLSegmentResult[] = segments.map((rawSeg) => {
+      const seg = this.validateSegment(rawSeg);
       // Vintage: cumulative loss curve based on age
       // Simplified: use loss emergence pattern (30% Y1, 25% Y2, 20% Y3, 15% Y4, 10% Y5+)
       const emergencePattern = [0.3, 0.25, 0.2, 0.15, 0.1];
       const years = Math.ceil(seg.weightedAvgMaturity);
-      const adjRate = seg.historicalLossRate + (seg.qualitativeAdj ?? 0);
+      const adjRate = seg.historicalLossRate + seg.qualitativeAdj;
 
       let cumulativeLoss = 0;
       for (let y = 0; y < Math.min(years, emergencePattern.length); y++) {
@@ -138,16 +195,18 @@ export class CECLService {
         cumulativeLoss += adjRate * 0.05 * remainingYears;
       }
 
+      // Cap cumulative loss at 100%
+      cumulativeLoss = Math.min(cumulativeLoss, 1);
+
       const expectedLoss = seg.balance * cumulativeLoss;
-      const lgd = seg.lgd ?? 0.5;
-      const allowance = expectedLoss * lgd;
+      const allowance = expectedLoss * seg.lgd;
 
       return {
         segmentName: seg.segmentName,
         balance: seg.balance,
         methodology: 'Vintage',
         historicalLossRate: seg.historicalLossRate,
-        qualitativeAdj: seg.qualitativeAdj ?? 0,
+        qualitativeAdj: seg.qualitativeAdj,
         adjustedLossRate: adjRate,
         expectedLoss,
         allowanceRequired: allowance,
@@ -187,22 +246,24 @@ export class CECLService {
     const scenarioTotals: Record<string, number> = {};
 
     for (const [scenario, pdMult] of Object.entries(PD_MULTIPLIERS)) {
-      const results: CECLSegmentResult[] = segments.map((seg) => {
-        const basePD = seg.historicalLossRate + (seg.qualitativeAdj ?? 0);
-        const scenarioPD = basePD * pdMult;
-        const lgd = seg.lgd ?? 0.5;
+      const results: CECLSegmentResult[] = segments.map((rawSeg) => {
+        const seg = this.validateSegment(rawSeg);
+        const basePD = seg.historicalLossRate + seg.qualitativeAdj;
+        // Clamp scenarioPD to [0, 1) to prevent Math.pow domain issues
+        const scenarioPD = Math.max(0, Math.min(basePD * pdMult, 0.99));
 
         // Lifetime PD: 1 - (1 - annual PD)^maturity
         const lifetimePD =
-          1 - Math.pow(1 - Math.min(scenarioPD, 0.99), seg.weightedAvgMaturity);
-        const expectedLoss = seg.balance * lifetimePD * lgd;
+          1 -
+          Math.pow(1 - scenarioPD, seg.weightedAvgMaturity);
+        const expectedLoss = seg.balance * lifetimePD * seg.lgd;
 
         return {
           segmentName: seg.segmentName,
           balance: seg.balance,
-          methodology: `PD×LGD (${scenario})`,
+          methodology: `PD*LGD (${scenario})`,
           historicalLossRate: seg.historicalLossRate,
-          qualitativeAdj: seg.qualitativeAdj ?? 0,
+          qualitativeAdj: seg.qualitativeAdj,
           adjustedLossRate: scenarioPD,
           expectedLoss,
           allowanceRequired: expectedLoss,
