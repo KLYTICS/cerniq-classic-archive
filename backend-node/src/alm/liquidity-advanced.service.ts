@@ -129,6 +129,52 @@ export class LiquidityAdvancedService {
     };
   }
 
+  // ─── LCR Calculation ───────────────────────────────────────
+
+  calculateLCR(items: any[]): LCRDetail {
+    const assets = items.filter((i: any) => i.category === 'asset');
+    const liabilities = items.filter((i: any) => i.category === 'liability');
+
+    // HQLA: cash + government securities + high-grade bonds
+    const cash = assets.filter((i: any) =>
+      ['cash', 'cash_equivalents'].includes(i.subcategory?.toLowerCase()),
+    ).reduce((s: number, i: any) => s + (i.balance || 0), 0);
+    const govSecurities = assets.filter((i: any) =>
+      ['government_securities', 'treasury'].includes(i.subcategory?.toLowerCase()),
+    ).reduce((s: number, i: any) => s + (i.balance || 0), 0);
+    const corpBonds = assets.filter((i: any) =>
+      ['corporate_bonds', 'investment_securities'].includes(i.subcategory?.toLowerCase()),
+    ).reduce((s: number, i: any) => s + (i.balance || 0), 0);
+
+    const level1 = cash + govSecurities;
+    const level2a = corpBonds * 0.85; // 15% haircut
+    const hqlaTotal = level1 + level2a;
+
+    // Net cash outflows: short-term liabilities with runoff assumptions
+    const shortTermLiabilities = liabilities.filter(
+      (i: any) => (i.maturityYears ?? 0) <= 1,
+    ).reduce((s: number, i: any) => s + (i.balance || 0), 0);
+    const totalNetOutflows = shortTermLiabilities * 0.25; // 25% stress outflow rate
+
+    const lcr = totalNetOutflows > 0 ? +(hqlaTotal / totalNetOutflows * 100).toFixed(1) : 999;
+
+    return {
+      lcr,
+      hqlaTotal,
+      hqlaBreakdown: {
+        level1,
+        level2a,
+        level2aAdjusted: level2a,
+        level2b: 0,
+        level2bAdjusted: 0,
+        level2Cap: level1 * 0.6667, // Basel III: Level 2 ≤ 2/3 of Level 1
+        level2Applied: Math.min(level2a, level1 * 0.6667),
+      },
+      totalNetOutflows,
+      status: lcr >= 100 ? 'compliant' : lcr >= 80 ? 'warning' : 'breach',
+    };
+  }
+
   // ─── NSFR Calculation ──────────────────────────────────────
 
   calculateNSFR(items: any[]): NSFRResult {
