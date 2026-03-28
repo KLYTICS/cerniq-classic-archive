@@ -65,6 +65,7 @@ const almNav: NavItem[] = [
       { href: '/alm/liquidity', icon: Shield, labelKey: 'sidebar.liquidity' },
       { href: '/alm/stress-pack', icon: Shield, labelKey: 'sidebar.stressPack' },
       { href: '/alm/ltp', icon: DollarSign, labelKey: 'sidebar.ltp' },
+      { href: '/alm/nsfr', icon: Shield, labelKey: 'sidebar.nsfr' },
       // Credit
       { href: '/alm/cecl', icon: Shield, labelKey: 'sidebar.cecl' },
       { href: '/alm/concentration', icon: AlertOctagon, labelKey: 'sidebar.concentration' },
