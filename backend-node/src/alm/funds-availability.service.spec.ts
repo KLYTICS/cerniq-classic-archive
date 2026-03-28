@@ -19,9 +19,9 @@ function weakParams(): FundsAvailabilityParams {
   return {
     reserves: 2_000_000,
     committedLines: 1_000_000,
-    uncommittedLines: 500_000,
-    liquidSecurities: 1_000_000,
-    expectedInflows30d: 500_000,
+    uncommittedLines: 0,
+    liquidSecurities: 0,
+    expectedInflows30d: 0,
   };
 }
 
