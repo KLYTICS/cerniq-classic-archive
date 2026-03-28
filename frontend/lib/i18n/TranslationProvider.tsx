@@ -1,13 +1,13 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useSyncExternalStore, type ReactNode } from 'react';
 import { Locale, TranslationKeys } from './types';
 import { en } from './locales/en';
 import { es } from './locales/es';
 
 const translations: Record<Locale, TranslationKeys> = { en, es };
-
 const STORAGE_KEY = 'cerniq_locale';
+type TranslationValue = string | string[] | { [key: string]: TranslationValue };
 
 function detectLocale(): Locale {
   if (typeof window === 'undefined') return 'en';
@@ -19,14 +19,47 @@ function detectLocale(): Locale {
   return nav.startsWith('es') ? 'es' : 'en';
 }
 
-function getNestedValue(obj: any, path: string): string {
+function subscribeToLocaleStorage(onStoreChange: () => void) {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === STORAGE_KEY) {
+      onStoreChange();
+    }
+  };
+
+  window.addEventListener('storage', handleStorage);
+  return () => {
+    window.removeEventListener('storage', handleStorage);
+  };
+}
+
+function getNestedValue(obj: TranslationValue, path: string): string {
   const keys = path.split('.');
-  let current = obj;
+  let current: TranslationValue | undefined = obj;
   for (const key of keys) {
     if (current == null) return path;
+    if (typeof current !== 'object' || Array.isArray(current)) {
+      return path;
+    }
     current = current[key];
   }
   return typeof current === 'string' ? current : path;
+}
+
+function getNestedArray(obj: TranslationValue, path: string): string[] {
+  const keys = path.split('.');
+  let current: TranslationValue | undefined = obj;
+  for (const key of keys) {
+    if (current == null) return [];
+    if (typeof current !== 'object' || Array.isArray(current)) {
+      return [];
+    }
+    current = current[key];
+  }
+  return Array.isArray(current) ? current.filter((value): value is string => typeof value === 'string') : [];
 }
 
 interface TranslationContextValue {
@@ -44,14 +77,12 @@ const TranslationContext = createContext<TranslationContextValue>({
 });
 
 export function TranslationProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>('en');
-
-  useEffect(() => {
-    setLocaleState(detectLocale());
-  }, []);
+  const storedLocale = useSyncExternalStore(subscribeToLocaleStorage, detectLocale, () => 'en');
+  const [localeOverride, setLocaleOverride] = useState<Locale | null>(null);
+  const locale = localeOverride ?? storedLocale;
 
   const setLocale = useCallback((newLocale: Locale) => {
-    setLocaleState(newLocale);
+    setLocaleOverride(newLocale);
     try {
       localStorage.setItem(STORAGE_KEY, newLocale);
     } catch { /* storage blocked */ }
@@ -63,15 +94,7 @@ export function TranslationProvider({ children }: { children: ReactNode }) {
   );
 
   const ta = useCallback(
-    (key: string): string[] => {
-      const keys = key.split('.');
-      let current: any = translations[locale];
-      for (const k of keys) {
-        if (current == null) return [];
-        current = current[k];
-      }
-      return Array.isArray(current) ? current : [];
-    },
+    (key: string): string[] => getNestedArray(translations[locale] as TranslationValue, key),
     [locale],
   );
 

@@ -46,6 +46,7 @@ const STAGES: { value: Prospect['stage']; label: string; color: string; bg: stri
 ];
 
 const STAGE_MAP = Object.fromEntries(STAGES.map((s) => [s.value, s]));
+const SKELETON_BAR_WIDTHS = ['62%', '74%', '58%', '81%', '69%', '53%'];
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -76,9 +77,9 @@ function urgencyTextColor(score: number): string {
 function SkeletonRow() {
   return (
     <tr className="border-b border-white/[0.04]">
-      {[...Array(6)].map((_, i) => (
+      {SKELETON_BAR_WIDTHS.map((width, i) => (
         <td key={i} className="px-4 py-4">
-          <div className="h-4 bg-white/[0.06] rounded animate-pulse" style={{ width: `${50 + Math.random() * 40}%` }} />
+          <div className="h-4 bg-white/[0.06] rounded animate-pulse" style={{ width }} />
         </td>
       ))}
     </tr>
@@ -101,7 +102,7 @@ function SkeletonCard() {
 
 export default function ProspectsDashboard() {
   const [lang, setLang] = useState<Lang>('en');
-  const t = (en: string, es: string) => lang === 'en' ? en : es;
+  const t = useCallback((enText: string, esText: string) => (lang === 'en' ? enText : esText), [lang]);
 
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,12 +125,22 @@ export default function ProspectsDashboard() {
     try {
       const data = await apiClient.getProspects();
       setProspects(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      setError(err?.response?.status === 401 ? t('Invalid admin key', 'Clave de administrador invalida') : t('Failed to load prospects', 'No se pudo cargar los prospectos'));
+    } catch (error: unknown) {
+      const isUnauthorized =
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof (error as { response?: { status?: number } }).response?.status === 'number' &&
+        (error as { response?: { status?: number } }).response?.status === 401;
+      setError(
+        isUnauthorized
+          ? t('Invalid admin key', 'Clave de administrador invalida')
+          : t('Failed to load prospects', 'No se pudo cargar los prospectos')
+      );
     } finally {
       setLoading(false);
     }
-  }, [lang]);
+  }, [t]);
 
   useEffect(() => {
     fetchProspects();

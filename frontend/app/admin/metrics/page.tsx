@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DollarSign, TrendingUp, Users, FileText, RefreshCw } from 'lucide-react';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
@@ -40,13 +40,14 @@ interface PipelineHealth {
 }
 
 export default function AdminMetrics() {
+  const initialAdminKey = loadAdminKey();
   const [revenue, setRevenue] = useState<RevenueMetrics | null>(null);
   const [pipeline, setPipeline] = useState<PipelineHealth | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [adminKey, setAdminKey] = useState('');
+  const [loading, setLoading] = useState(Boolean(initialAdminKey));
+  const [adminKey, setAdminKey] = useState(initialAdminKey);
   const [authenticated, setAuthenticated] = useState(false);
 
-  const fetchMetrics = async (key: string) => {
+  const fetchMetrics = useCallback(async (key: string) => {
     try {
       const [revRes, pipeRes] = await Promise.all([
         fetch(`${NODE_API_URL}/admin/api/revenue`, { headers: { 'x-admin-key': key } }),
@@ -62,17 +63,15 @@ export default function AdminMetrics() {
       }
     } catch { /* silent */ }
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
-    const key = loadAdminKey();
-    if (key) {
-      setAdminKey(key);
-      fetchMetrics(key);
-    } else {
-      setLoading(false);
+    if (!adminKey) {
+      return;
     }
-  }, []);
+
+    void fetchMetrics(adminKey);
+  }, [adminKey, fetchMetrics]);
 
   const handleLogin = () => {
     sessionStorage.setItem(ADMIN_KEY_STORAGE, adminKey);

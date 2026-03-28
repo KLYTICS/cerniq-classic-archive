@@ -33,9 +33,14 @@ export default function StatusPage() {
   }, []);
 
   useEffect(() => {
-    checkHealth();
+    const timer = window.setTimeout(() => {
+      void checkHealth();
+    }, 0);
     const interval = setInterval(checkHealth, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      window.clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, [checkHealth]);
 
   useEffect(() => {

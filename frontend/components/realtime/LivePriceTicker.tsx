@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useLivePrice } from '@/lib/marketDataSocket';
 
@@ -9,29 +8,7 @@ interface LivePriceTickerProps {
 }
 
 export function LivePriceTicker({ ticker }: LivePriceTickerProps) {
-    const { priceData, isConnected } = useLivePrice(ticker);
-    const [previousPrice, setPreviousPrice] = useState<number | null>(null);
-    const [priceDirection, setPriceDirection] = useState<'up' | 'down' | 'neutral'>('neutral');
-
-    useEffect(() => {
-        if (!priceData) return;
-
-        if (previousPrice !== null) {
-            if (priceData.price > previousPrice) {
-                setPriceDirection('up');
-            } else if (priceData.price < previousPrice) {
-                setPriceDirection('down');
-            } else {
-                setPriceDirection('neutral');
-            }
-        }
-
-        setPreviousPrice(priceData.price);
-
-        // Reset direction after animation fastforward
-        const timeout = setTimeout(() => setPriceDirection('neutral'), 500);
-        return () => clearTimeout(timeout);
-    }, [priceData, previousPrice]);
+    const { priceData, isConnected, priceDirection } = useLivePrice(ticker);
 
     if (!priceData) {
         return (

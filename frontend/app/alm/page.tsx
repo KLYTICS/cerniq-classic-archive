@@ -98,7 +98,8 @@ function ModuleCard({ href, icon: Icon, title, value, status, iconColor }: {
 }
 
 function DeadlineItem({ label, date, urgency }: { label: string; date: string; urgency: string }) {
-  const days = Math.ceil((new Date(date).getTime() - Date.now()) / 86400000);
+  const [todayMs] = useState(() => Date.now());
+  const days = Math.ceil((new Date(date).getTime() - todayMs) / 86400000);
   return (
     <div className="flex items-center gap-2 py-1.5">
       <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${days <= 30 ? 'bg-rose-500' : days <= 60 ? 'bg-amber-400' : 'bg-emerald-400'}`} />

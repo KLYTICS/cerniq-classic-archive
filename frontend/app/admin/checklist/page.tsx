@@ -64,15 +64,26 @@ const SECTIONS: CheckSection[] = [
 
 const STORAGE_KEY = 'cerniq_wednesday_checklist';
 
-export default function ChecklistPage() {
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
+function loadSavedChecklist() {
+  if (typeof window === 'undefined') {
+    return {};
+  }
 
-  useEffect(() => {
-    const saved = sessionStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try { setChecked(JSON.parse(saved)); } catch { /* ignore */ }
-    }
-  }, []);
+  const saved = sessionStorage.getItem(STORAGE_KEY);
+  if (!saved) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(saved);
+    return typeof parsed === 'object' && parsed !== null ? parsed as Record<string, boolean> : {};
+  } catch {
+    return {};
+  }
+}
+
+export default function ChecklistPage() {
+  const [checked, setChecked] = useState<Record<string, boolean>>(() => loadSavedChecklist());
 
   const toggle = (id: string) => {
     setChecked((prev) => {

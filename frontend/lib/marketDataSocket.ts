@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { getMarketSocketNamespaceUrl } from './marketTransport';
 
@@ -107,6 +107,21 @@ function notifyConnectionState(connected: boolean) {
     connectionListeners.forEach((listener) => listener(connected));
 }
 
+function subscribeToConnectionSnapshot(onStoreChange: () => void) {
+    const handleConnectionChange = () => {
+        onStoreChange();
+    };
+
+    connectionListeners.add(handleConnectionChange);
+    return () => {
+        connectionListeners.delete(handleConnectionChange);
+    };
+}
+
+function getConnectionSnapshot() {
+    return sharedSocket?.connected ?? false;
+}
+
 function getSharedSocket(): Socket {
     if (sharedSocket) {
         return sharedSocket;
@@ -160,7 +175,11 @@ function releaseTickerRoom(ticker: string) {
  * Hook for real-time market data via Socket.IO
  */
 export function useMarketDataSocket() {
-    const [isConnected, setIsConnected] = useState(false);
+    const isConnected = useSyncExternalStore(
+        subscribeToConnectionSnapshot,
+        getConnectionSnapshot,
+        () => false,
+    );
     const socketRef = useRef<Socket | null>(null);
 
     useEffect(() => {
@@ -168,20 +187,13 @@ export function useMarketDataSocket() {
         socketRef.current = socket;
         socketConsumerCount += 1;
 
-        const handleConnectionChange = (connected: boolean) => {
-            setIsConnected(connected);
-        };
-
-        connectionListeners.add(handleConnectionChange);
-        setIsConnected(socket.connected);
-
         return () => {
-            connectionListeners.delete(handleConnectionChange);
             socketConsumerCount = Math.max(0, socketConsumerCount - 1);
             if (socketConsumerCount === 0 && sharedSocket) {
                 sharedSocket.close();
                 sharedSocket = null;
                 tickerRoomReferences.clear();
+                notifyConnectionState(false);
             }
         };
     }, []);
@@ -303,19 +315,52 @@ export function useMarketDataSocket() {
  */
 export function useLivePrice(ticker: string | null) {
     const [priceData, setPriceData] = useState<PriceUpdate | null>(null);
+    const [priceDirection, setPriceDirection] = useState<'up' | 'down' | 'neutral'>('neutral');
     const { isConnected, subscribeTicker } = useMarketDataSocket();
+    const previousPriceRef = useRef<number | null>(null);
+    const directionResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
-        if (!ticker || !isConnected) return;
+        if (!ticker || !isConnected) {
+            previousPriceRef.current = null;
+            setPriceDirection('neutral');
+            return;
+        }
 
         const unsubscribe = subscribeTicker(ticker, (data) => {
+            const previousPrice = previousPriceRef.current;
+            if (previousPrice !== null) {
+                if (data.price > previousPrice) {
+                    setPriceDirection('up');
+                } else if (data.price < previousPrice) {
+                    setPriceDirection('down');
+                } else {
+                    setPriceDirection('neutral');
+                }
+
+                if (directionResetTimeoutRef.current) {
+                    clearTimeout(directionResetTimeoutRef.current);
+                }
+
+                directionResetTimeoutRef.current = setTimeout(() => {
+                    setPriceDirection('neutral');
+                }, 500);
+            }
+
+            previousPriceRef.current = data.price;
             setPriceData(data);
         });
 
-        return unsubscribe;
+        return () => {
+            unsubscribe();
+            if (directionResetTimeoutRef.current) {
+                clearTimeout(directionResetTimeoutRef.current);
+                directionResetTimeoutRef.current = null;
+            }
+        };
     }, [ticker, isConnected, subscribeTicker]);
 
-    return { priceData, isConnected };
+    return { priceData, isConnected, priceDirection };
 }
 
 export function useLiveInstrument(ticker: string | null) {

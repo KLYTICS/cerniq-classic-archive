@@ -6,8 +6,16 @@ export default function CookieConsent() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const consent = localStorage.getItem('cerniq_cookie_consent');
-    if (!consent) setVisible(true);
+    const timer = window.setTimeout(() => {
+      const consent = localStorage.getItem('cerniq_cookie_consent');
+      if (!consent) {
+        setVisible(true);
+      }
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, []);
 
   function accept() {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Clock, CheckCircle, AlertTriangle, Loader2, XCircle,
@@ -57,14 +57,15 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function AdminPipeline() {
+  const initialAdminKey = loadAdminKey();
   const [jobs, setJobs] = useState<PipelineJob[]>([]);
   const [health, setHealth] = useState<PipelineHealth | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(initialAdminKey));
   const [statusFilter, setStatusFilter] = useState('');
-  const [adminKey, setAdminKey] = useState('');
+  const [adminKey, setAdminKey] = useState(initialAdminKey);
   const [authenticated, setAuthenticated] = useState(false);
 
-  const fetchJobs = async (key: string) => {
+  const fetchJobs = useCallback(async (key: string) => {
     try {
       const url = statusFilter
         ? `${NODE_API_URL}/admin/api/pipeline?status=${statusFilter}`
@@ -78,17 +79,15 @@ export default function AdminPipeline() {
       }
     } catch { /* silent */ }
     setLoading(false);
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
-    const key = loadAdminKey();
-    if (key) {
-      setAdminKey(key);
-      fetchJobs(key);
-    } else {
-      setLoading(false);
+    if (!adminKey) {
+      return;
     }
-  }, [statusFilter]);
+
+    void fetchJobs(adminKey);
+  }, [adminKey, fetchJobs]);
 
   const handleLogin = () => {
     sessionStorage.setItem(ADMIN_KEY_STORAGE, adminKey);
@@ -104,7 +103,7 @@ export default function AdminPipeline() {
       headers: { 'x-admin-key': adminKey, 'Content-Type': 'application/json' },
       body,
     });
-    fetchJobs(adminKey);
+    void fetchJobs(adminKey);
   };
 
   if (!authenticated && !loading) {
