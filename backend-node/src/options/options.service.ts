@@ -269,11 +269,6 @@ export class OptionsService {
    * - S ~= 0 or K ~= 0: degenerate cases
    * - Deep ITM/OTM: d1/d2 clamped to prevent CDF overflow
    */
-  /** American option pricing — falls back to European (lower bound) until BAW is implemented. */
-  private calculateAmericanPrice(params: OptionParams): Greeks {
-    return this.calculateBlackScholesGreeks(params);
-  }
-
   private calculateBlackScholesGreeks(params: OptionParams): Greeks {
     const {
       underlying: S,
@@ -603,13 +598,11 @@ export class OptionsService {
   }
 
   /**
-   * Find the critical stock price S* for American put using Newton-Raphson.
+   * Find the critical stock price S_star for American put using Newton-Raphson.
    *
-   * At S*, the condition is:
-   *   K - S* = P_eu(S*) + A2(S*)
-   * where A2(S*) = -(S*/q2) * (1 - e^{-qT} * N(-d1(S*)))
-   *
-   * Rearranging: f(S*) = K - S* - P_eu(S*) + (S*/q2)*(1 - e^{-qT}*N(-d1(S*))) = 0
+   * At S_star, the condition is:
+   *   K - S_star = P_eu(S_star) + A2(S_star)
+   * where A2 = -(S_star / q2) * (1 - exp(-qT) * N(-d1(S_star)))
    */
   private findCriticalPricePut(
     _S: number,
@@ -620,8 +613,6 @@ export class OptionsService {
     sigma: number,
     q2: number,
   ): number {
-    // Initial guess: start near K (put is at-the-money)
-    const dfr = Math.exp(-r * T);
     const dfq = Math.exp(-q * T);
 
     // Initial estimate: between 0 and K
@@ -640,7 +631,7 @@ export class OptionsService {
 
       // The exercise boundary condition:
       // LHS = K - Si (exercise value)
-      // RHS = P_eu(Si) - (Si/q2)*(1 - e^{-qT}*Nmd1) (continuation value)
+      // RHS = P_eu(Si) - (Si/q2)*(1 - exp(-qT)*Nmd1) (continuation value)
       const LHS = K - Si;
       const A2_at_star = -(Si / q2) * (1 - dfq * Nmd1);
       const RHS = pEu + A2_at_star;
@@ -684,11 +675,11 @@ export class OptionsService {
   }
 
   /**
-   * Find the critical stock price S* for American call using Newton-Raphson.
+   * Find the critical stock price S_star for American call using Newton-Raphson.
    *
-   * At S*, the condition is:
-   *   S* - K = C_eu(S*) + A1(S*)
-   * where A1(S*) = (S*/q1) * (1 - e^{-qT} * N(d1(S*)))
+   * At S_star, the condition is:
+   *   S_star - K = C_eu(S_star) + A1(S_star)
+   * where A1 = (S_star / q1) * (1 - exp(-qT) * N(d1(S_star)))
    */
   private findCriticalPriceCall(
     _S: number,
@@ -765,14 +756,7 @@ export class OptionsService {
   ): Greeks {
     const { underlying: S, strike: K, timeToExpiry: T, riskFreeRate: r, volatility: sigma, optionType, dividendYield: q = 0 } = params;
 
-    // Helper to get the full BAW price for a given parameter set
-    const bawPrice = (p: OptionParams): number => {
-      const result = this.calculateAmericanPrice(p);
-      return result.greeks.price;
-    };
-
-    // Use the analytical price as the center (avoid infinite recursion by
-    // computing the price directly here instead of calling calculateAmericanPrice)
+    // Use americanPriceDirect to avoid infinite recursion with calculateAmericanPrice
     const price = this.americanPriceDirect(S, K, T, r, q, sigma, optionType);
 
     // Delta: dP/dS
