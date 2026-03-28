@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import * as Sentry from '@sentry/nestjs';
 
 // ─── Default Policy Limits ──────────────────────────────────
 
@@ -46,75 +47,51 @@ export class ConcentrationService {
   async getConcentrationAnalysis(
     institutionId: string,
   ): Promise<ConcentrationAnalysis> {
-    const items = await this.prisma.balanceSheetItem.findMany({
-      where: { institutionId },
-    });
-    const customLimits = await this.prisma.concentrationLimit.findMany({
-      where: { institutionId },
-    });
+    try {
+      const items = await this.prisma.balanceSheetItem.findMany({
+        where: { institutionId },
+      });
+      const customLimits = await this.prisma.concentrationLimit.findMany({
+        where: { institutionId },
+      });
 
-    const assets = items.filter((i: any) => i.category === 'asset');
-    const totalAssets = assets.reduce((s: number, i: any) => s + i.balance, 0);
+      const assets = items.filter((i: any) => i.category === 'asset');
+      const totalAssets = assets.reduce((s: number, i: any) => s + i.balance, 0);
 
-    if (totalAssets === 0) {
-      return this.getDemoAnalysis();
-    }
-
-    // Aggregate by subcategory
-    const sectorBalances = new Map<string, number>();
-    for (const item of assets) {
-      const sector = this.normalizeSectorName(item.subcategory);
-      sectorBalances.set(
-        sector,
-        (sectorBalances.get(sector) ?? 0) + item.balance,
-      );
-    }
-
-    // Build exposure list from custom limits or defaults
-    const exposures: ConcentrationExposure[] = [];
-
-    if (customLimits.length > 0) {
-      for (const limit of customLimits) {
-        const balance =
-          sectorBalances.get(this.normalizeSectorName(limit.limitName)) ?? 0;
-        const currentPct = totalAssets > 0 ? balance / totalAssets : 0;
-        const headroom = limit.maxPct - currentPct;
-        const utilization = limit.maxPct > 0 ? currentPct / limit.maxPct : 0;
-
-        exposures.push({
-          limitName: limit.limitName,
-          limitType: limit.limitType,
-          maxPct: limit.maxPct,
-          currentPct,
-          currentBalance: balance,
-          headroom,
-          status:
-            currentPct > limit.maxPct
-              ? 'breach'
-              : utilization > 0.8
-                ? 'warning'
-                : 'compliant',
-          utilizationPct: utilization * 100,
-        });
+      if (totalAssets === 0) {
+        return this.getDemoAnalysis();
       }
-    } else {
-      // Use defaults
-      for (const [name, config] of Object.entries(DEFAULT_LIMITS)) {
-        const balance = sectorBalances.get(this.normalizeSectorName(name)) ?? 0;
-        const currentPct = totalAssets > 0 ? balance / totalAssets : 0;
-        const headroom = config.maxPct - currentPct;
-        const utilization = config.maxPct > 0 ? currentPct / config.maxPct : 0;
 
-        if (balance > 0 || config.type === 'single_name') {
+      // Aggregate by subcategory
+      const sectorBalances = new Map<string, number>();
+      for (const item of assets) {
+        const sector = this.normalizeSectorName(item.subcategory);
+        sectorBalances.set(
+          sector,
+          (sectorBalances.get(sector) ?? 0) + item.balance,
+        );
+      }
+
+      // Build exposure list from custom limits or defaults
+      const exposures: ConcentrationExposure[] = [];
+
+      if (customLimits.length > 0) {
+        for (const limit of customLimits) {
+          const balance =
+            sectorBalances.get(this.normalizeSectorName(limit.limitName)) ?? 0;
+          const currentPct = totalAssets > 0 ? balance / totalAssets : 0;
+          const headroom = limit.maxPct - currentPct;
+          const utilization = limit.maxPct > 0 ? currentPct / limit.maxPct : 0;
+
           exposures.push({
-            limitName: name,
-            limitType: config.type,
-            maxPct: config.maxPct,
+            limitName: limit.limitName,
+            limitType: limit.limitType,
+            maxPct: limit.maxPct,
             currentPct,
             currentBalance: balance,
             headroom,
             status:
-              currentPct > config.maxPct
+              currentPct > limit.maxPct
                 ? 'breach'
                 : utilization > 0.8
                   ? 'warning'
@@ -122,31 +99,61 @@ export class ConcentrationService {
             utilizationPct: utilization * 100,
           });
         }
+      } else {
+        // Use defaults
+        for (const [name, config] of Object.entries(DEFAULT_LIMITS)) {
+          const balance = sectorBalances.get(this.normalizeSectorName(name)) ?? 0;
+          const currentPct = totalAssets > 0 ? balance / totalAssets : 0;
+          const headroom = config.maxPct - currentPct;
+          const utilization = config.maxPct > 0 ? currentPct / config.maxPct : 0;
+
+          if (balance > 0 || config.type === 'single_name') {
+            exposures.push({
+              limitName: name,
+              limitType: config.type,
+              maxPct: config.maxPct,
+              currentPct,
+              currentBalance: balance,
+              headroom,
+              status:
+                currentPct > config.maxPct
+                  ? 'breach'
+                  : utilization > 0.8
+                    ? 'warning'
+                    : 'compliant',
+              utilizationPct: utilization * 100,
+            });
+          }
+        }
       }
+
+      // HHI calculation
+      const shares = Array.from(sectorBalances.values()).map(
+        (b) => (b / totalAssets) * 100,
+      );
+      const hhi = shares.reduce((sum, s) => sum + s * s, 0);
+      const hhiInterpretation =
+        hhi < 1500
+          ? 'Well diversified'
+          : hhi < 2500
+            ? 'Moderate concentration'
+            : 'Highly concentrated';
+      const diversificationScore = Math.max(0, Math.min(100, 100 - hhi / 100));
+
+      return {
+        exposures: exposures.sort((a, b) => b.utilizationPct - a.utilizationPct),
+        hhi: Math.round(hhi),
+        hhiInterpretation,
+        diversificationScore: Math.round(diversificationScore),
+        breachCount: exposures.filter((e) => e.status === 'breach').length,
+        warningCount: exposures.filter((e) => e.status === 'warning').length,
+        totalAssets,
+      };
+    } catch (error: any) {
+      this.logger.error(`Computation failed: ${error.message}`, error.stack);
+      Sentry.captureException(error);
+      throw new InternalServerErrorException('Computation failed. Please try again.');
     }
-
-    // HHI calculation
-    const shares = Array.from(sectorBalances.values()).map(
-      (b) => (b / totalAssets) * 100,
-    );
-    const hhi = shares.reduce((sum, s) => sum + s * s, 0);
-    const hhiInterpretation =
-      hhi < 1500
-        ? 'Well diversified'
-        : hhi < 2500
-          ? 'Moderate concentration'
-          : 'Highly concentrated';
-    const diversificationScore = Math.max(0, Math.min(100, 100 - hhi / 100));
-
-    return {
-      exposures: exposures.sort((a, b) => b.utilizationPct - a.utilizationPct),
-      hhi: Math.round(hhi),
-      hhiInterpretation,
-      diversificationScore: Math.round(diversificationScore),
-      breachCount: exposures.filter((e) => e.status === 'breach').length,
-      warningCount: exposures.filter((e) => e.status === 'warning').length,
-      totalAssets,
-    };
   }
 
   async saveConcentrationLimits(

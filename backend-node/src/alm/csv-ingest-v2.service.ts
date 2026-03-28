@@ -180,6 +180,7 @@ export class CsvIngestV2Service {
     // Load saved mappings for this institution
     const savedMappings = await this.prisma.columnMappingMemory.findMany({
       where: { institutionId },
+      take: 100,
     });
     const savedMap = new Map<string, string>(
       savedMappings

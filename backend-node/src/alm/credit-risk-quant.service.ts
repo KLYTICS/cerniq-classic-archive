@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import * as Sentry from '@sentry/nestjs';
 
 // ─── PD Logistic Regression Coefficients (calibrated on NCUA PR data) ──
 

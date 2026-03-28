@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { YieldCurveService, TenorRate } from './yield-curve.service';
+import * as Sentry from '@sentry/nestjs';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -50,102 +51,108 @@ export class OASCalculatorService {
   // ─── Full Portfolio OAS Analysis ──────────────────────────
 
   async analyzePortfolio(institutionId: string): Promise<OASPortfolioResult> {
-    const items = await this.prisma.balanceSheetItem.findMany({
-      where: { institutionId },
-    });
+    try {
+      const items = await this.prisma.balanceSheetItem.findMany({
+        where: { institutionId },
+      });
 
-    let baseCurve: TenorRate[];
-    const saved = await this.prisma.yieldCurve.findFirst({
-      where: { institutionId, isBase: true },
-      orderBy: { asOfDate: 'desc' },
-    });
-    baseCurve = saved
-      ? (saved.tenors as unknown as TenorRate[])
-      : this.getDefaultCurve();
+      let baseCurve: TenorRate[];
+      const saved = await this.prisma.yieldCurve.findFirst({
+        where: { institutionId, isBase: true },
+        orderBy: { asOfDate: 'desc' },
+      });
+      baseCurve = saved
+        ? (saved.tenors as unknown as TenorRate[])
+        : this.getDefaultCurve();
 
-    if (items.length === 0) return this.getDemoPortfolio();
+      if (items.length === 0) return this.getDemoPortfolio();
 
-    const instruments: OASResult[] = [];
+      const instruments: OASResult[] = [];
 
-    for (const item of items) {
-      if (item.category !== 'asset') continue;
+      for (const item of items) {
+        if (item.category !== 'asset') continue;
 
-      const hasOption = this.hasEmbeddedOption(item);
-      const tenor = Math.max(item.duration || 1, 0.25);
-      const couponRate = item.rate;
-      const benchmarkRate = this.interpolateRate(baseCurve, tenor);
+        const hasOption = this.hasEmbeddedOption(item);
+        const tenor = Math.max(item.duration || 1, 0.25);
+        const couponRate = item.rate;
+        const benchmarkRate = this.interpolateRate(baseCurve, tenor);
 
-      // Nominal spread
-      const nominalSpread = (couponRate - benchmarkRate) * 10000;
+        // Nominal spread
+        const nominalSpread = (couponRate - benchmarkRate) * 10000;
 
-      // Z-Spread: constant spread over entire curve that prices the bond at par
-      const zSpread = this.computeZSpread(item, baseCurve);
+        // Z-Spread: constant spread over entire curve that prices the bond at par
+        const zSpread = this.computeZSpread(item, baseCurve);
 
-      let oas: number;
-      let effectiveDuration: number;
-      let effectiveConvexity: number;
+        let oas: number;
+        let effectiveDuration: number;
+        let effectiveConvexity: number;
 
-      if (hasOption) {
-        // Build BDT tree and compute OAS via backward induction
-        const treeResult = this.computeOASBinomialTree(item, baseCurve);
-        oas = treeResult.oas;
-        effectiveDuration = treeResult.effectiveDuration;
-        effectiveConvexity = treeResult.effectiveConvexity;
-      } else {
-        // No optionality: OAS ≈ Z-Spread
-        oas = zSpread;
-        effectiveDuration = this.computeModifiedDuration(item);
-        effectiveConvexity = this.computeConvexity(item);
+        if (hasOption) {
+          // Build BDT tree and compute OAS via backward induction
+          const treeResult = this.computeOASBinomialTree(item, baseCurve);
+          oas = treeResult.oas;
+          effectiveDuration = treeResult.effectiveDuration;
+          effectiveConvexity = treeResult.effectiveConvexity;
+        } else {
+          // No optionality: OAS ≈ Z-Spread
+          oas = zSpread;
+          effectiveDuration = this.computeModifiedDuration(item);
+          effectiveConvexity = this.computeConvexity(item);
+        }
+
+        const optionCost = zSpread - oas;
+        const modifiedDuration = this.computeModifiedDuration(item);
+
+        instruments.push({
+          instrumentId: item.id,
+          instrumentName: item.name,
+          category: item.category,
+          balance: item.balance,
+          nominalSpread: Math.round(nominalSpread * 10) / 10,
+          zSpread: Math.round(zSpread * 10) / 10,
+          oas: Math.round(oas * 10) / 10,
+          optionCost: Math.round(optionCost * 10) / 10,
+          effectiveDuration: Math.round(effectiveDuration * 100) / 100,
+          effectiveConvexity: Math.round(effectiveConvexity * 100) / 100,
+          modifiedDuration: Math.round(modifiedDuration * 100) / 100,
+        });
       }
 
-      const optionCost = zSpread - oas;
-      const modifiedDuration = this.computeModifiedDuration(item);
+      const totalBalance = instruments.reduce((s, i) => s + i.balance, 0);
+      const portfolioOAS =
+        totalBalance > 0
+          ? instruments.reduce((s, i) => s + i.oas * i.balance, 0) / totalBalance
+          : 0;
+      const portfolioEffDuration =
+        totalBalance > 0
+          ? instruments.reduce((s, i) => s + i.effectiveDuration * i.balance, 0) /
+            totalBalance
+          : 0;
+      const portfolioEffConvexity =
+        totalBalance > 0
+          ? instruments.reduce(
+              (s, i) => s + i.effectiveConvexity * i.balance,
+              0,
+            ) / totalBalance
+          : 0;
+      const totalOptionCost = instruments.reduce(
+        (s, i) => s + (i.optionCost / 10000) * i.balance,
+        0,
+      );
 
-      instruments.push({
-        instrumentId: item.id,
-        instrumentName: item.name,
-        category: item.category,
-        balance: item.balance,
-        nominalSpread: Math.round(nominalSpread * 10) / 10,
-        zSpread: Math.round(zSpread * 10) / 10,
-        oas: Math.round(oas * 10) / 10,
-        optionCost: Math.round(optionCost * 10) / 10,
-        effectiveDuration: Math.round(effectiveDuration * 100) / 100,
-        effectiveConvexity: Math.round(effectiveConvexity * 100) / 100,
-        modifiedDuration: Math.round(modifiedDuration * 100) / 100,
-      });
+      return {
+        instruments,
+        portfolioOAS: Math.round(portfolioOAS * 10) / 10,
+        portfolioEffDuration: Math.round(portfolioEffDuration * 100) / 100,
+        portfolioEffConvexity: Math.round(portfolioEffConvexity * 100) / 100,
+        totalOptionCost: Math.round(totalOptionCost * 100) / 100,
+        totalBalance,
+      };
+    } catch (error: any) {
+      this.logger.error(`Computation failed: ${error.message}`, error.stack);
+      Sentry.captureException(error);
+      throw new InternalServerErrorException('Computation failed. Please try again.');
     }
-
-    const totalBalance = instruments.reduce((s, i) => s + i.balance, 0);
-    const portfolioOAS =
-      totalBalance > 0
-        ? instruments.reduce((s, i) => s + i.oas * i.balance, 0) / totalBalance
-        : 0;
-    const portfolioEffDuration =
-      totalBalance > 0
-        ? instruments.reduce((s, i) => s + i.effectiveDuration * i.balance, 0) /
-          totalBalance
-        : 0;
-    const portfolioEffConvexity =
-      totalBalance > 0
-        ? instruments.reduce(
-            (s, i) => s + i.effectiveConvexity * i.balance,
-            0,
-          ) / totalBalance
-        : 0;
-    const totalOptionCost = instruments.reduce(
-      (s, i) => s + (i.optionCost / 10000) * i.balance,
-      0,
-    );
-
-    return {
-      instruments,
-      portfolioOAS: Math.round(portfolioOAS * 10) / 10,
-      portfolioEffDuration: Math.round(portfolioEffDuration * 100) / 100,
-      portfolioEffConvexity: Math.round(portfolioEffConvexity * 100) / 100,
-      totalOptionCost: Math.round(totalOptionCost * 100) / 100,
-      totalBalance,
-    };
   }
 
   // ─── BDT Binomial Tree OAS Computation ────────────────────

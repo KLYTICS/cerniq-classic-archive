@@ -96,6 +96,7 @@ export class IngestionLogsService {
         createdByUserId: userId,
       },
       orderBy: { createdAt: 'desc' },
+      take: 100,
     });
   }
 

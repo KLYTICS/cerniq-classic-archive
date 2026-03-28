@@ -179,6 +179,7 @@ export class DataPrivacyService {
             ipAddress: true,
             createdAt: true,
           },
+          take: 100,
         }),
         this.prisma.institution.findMany({
           where: { members: { some: { userId } } },
@@ -189,6 +190,7 @@ export class DataPrivacyService {
             totalAssets: true,
             createdAt: true,
           },
+          take: 100,
         }),
         this.prisma.subscription.findMany({
           where: { userId },
@@ -199,6 +201,7 @@ export class DataPrivacyService {
             currentPeriodEnd: true,
             createdAt: true,
           },
+          take: 100,
         }),
         this.prisma.expense
           .findMany({
@@ -210,6 +213,7 @@ export class DataPrivacyService {
               currency: true,
               createdAt: true,
             },
+            take: 500,
           })
           .catch(() => []),
       ]);
@@ -232,6 +236,7 @@ export class DataPrivacyService {
     return this.prisma.dataDeletionRequest.findMany({
       where: { institutionId },
       orderBy: { createdAt: 'desc' },
+      take: 100,
     });
   }
 }

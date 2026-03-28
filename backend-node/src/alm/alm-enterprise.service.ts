@@ -240,6 +240,7 @@ export class AlmEnterpriseService {
     const workspaces = await this.prisma.workspace.findMany({
       where: { ownerId: userId },
       select: { id: true },
+      take: 100,
     });
     const workspaceIds = workspaces.map((w: any) => w.id);
     if (workspaceIds.length === 0) {
