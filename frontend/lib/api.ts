@@ -1,6 +1,18 @@
 import axios, { AxiosInstance } from 'axios';
 import { getMarketApiBase } from './marketTransport';
 
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    _retry401?: boolean;
+    skipAuthRedirect?: boolean;
+  }
+
+  interface InternalAxiosRequestConfig {
+    _retry401?: boolean;
+    skipAuthRedirect?: boolean;
+  }
+}
+
 const API_URL = (
   process.env.NEXT_PUBLIC_API_URL || ''
 ).trim().replace(/\/+$/, '');
@@ -136,8 +148,13 @@ class APIClient {
         const status = error.response?.status;
         const originalRequest = error.config;
 
+        if (status === 401 && originalRequest?.skipAuthRedirect) {
+          clearAccessToken();
+          return Promise.reject(error);
+        }
+
         // Only handle 401s; don't retry refresh calls themselves
-        if (status === 401 && !originalRequest._retry401) {
+        if (status === 401 && originalRequest && !originalRequest._retry401) {
           originalRequest._retry401 = true;
           try {
             // Attempt silent token refresh via HttpOnly cookie
@@ -158,6 +175,10 @@ class APIClient {
           }
           clearAccessToken();
           if (typeof window !== 'undefined') {
+            const currentPath = window.location.pathname;
+            if (currentPath === '/login' || currentPath === '/portal/login') {
+              return Promise.reject(error);
+            }
             const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
             window.location.href = `/login?returnUrl=${returnUrl}`;
           }
@@ -248,7 +269,9 @@ class APIClient {
   }
 
   async getCurrentUser() {
-    const response = await this.client.get(`${NODE_API_URL}/api/auth/profile`);
+    const response = await this.client.get(`${NODE_API_URL}/api/auth/profile`, {
+      skipAuthRedirect: true,
+    });
     return response.data;
   }
 

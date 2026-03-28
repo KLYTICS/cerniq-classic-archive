@@ -70,6 +70,19 @@ describe('APIClient', () => {
     expect(typeof apiClient.getAdminStats).toBe('function');
   });
 
+  it('marks passive profile checks to skip auth redirects', async () => {
+    const { apiClient } = await import('./api');
+    const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;
+    mockInstance.get.mockResolvedValueOnce({ data: { id: 'u_1', email: 'test@cerniq.io' } });
+
+    await apiClient.getCurrentUser();
+
+    expect(mockInstance.get).toHaveBeenCalledWith(
+      expect.stringContaining('/api/auth/profile'),
+      expect.objectContaining({ skipAuthRedirect: true })
+    );
+  });
+
   it('exports apiClient as a singleton', async () => {
     const mod1 = await import('./api');
     const mod2 = await import('./api');
