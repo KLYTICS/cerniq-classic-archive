@@ -68,8 +68,27 @@ interface DepositTierResult {
   month12Loss: number;
 }
 
+export interface HQLABreakdown {
+  level1: number;
+  level2a: number;
+  level2aAdjusted: number;
+  level2b: number;
+  level2bAdjusted: number;
+  level2Cap: number;
+  level2Applied: number;
+}
+
+export interface LCRDetail {
+  lcr: number;
+  hqlaTotal: number;
+  hqlaBreakdown: HQLABreakdown;
+  totalNetOutflows: number;
+  status: 'compliant' | 'warning' | 'breach';
+}
+
 export interface AdvancedLiquidityResult {
   lcr: number;
+  lcrDetail: LCRDetail;
   nsfr: NSFRResult;
   depositFlight: DepositFlightSimulation;
 }
@@ -95,15 +114,16 @@ export class LiquidityAdvancedService {
     });
 
     const nsfr = this.calculateNSFR(items);
+    const lcrDetail = this.calculateLCR(items);
     const tiers =
       depositTiers.length > 0 ? depositTiers : this.getDefaultTiers(items);
-    const depositFlight = this.simulateDepositFlight(
-      tiers,
-      liquidityPos?.hqlaLevel1 ?? 0 + (liquidityPos?.hqlaLevel2 ?? 0),
-    );
+    const totalHQLA =
+      (liquidityPos?.hqlaLevel1 ?? 0) + (liquidityPos?.hqlaLevel2 ?? 0);
+    const depositFlight = this.simulateDepositFlight(tiers, totalHQLA);
 
     return {
-      lcr: liquidityPos?.lcr ?? 115,
+      lcr: lcrDetail.lcr,
+      lcrDetail,
       nsfr,
       depositFlight,
     };

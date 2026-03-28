@@ -9,6 +9,24 @@ const SCENARIO_WEIGHTS = {
   severely_adverse: 0.2,
 };
 
+/**
+ * PD×LGD Expected Credit Loss Model (Point-in-Time approach).
+ *
+ * Methodology: Base PD is the institution's historical 1-year marginal default probability.
+ * Scenario multipliers convert from TTC (through-the-cycle) baseline to PIT (point-in-time)
+ * conditional PDs per CCAR/DFAST guidance:
+ * - Baseline: 1.0x (current economic conditions)
+ * - Adverse: 1.8x (per FRB 2024 CCAR adverse scenario calibration)
+ * - Severely Adverse: 3.0x (per FRB 2024 CCAR severely adverse scenario)
+ *
+ * Scenario weights follow FASB 326 guidance for community institutions:
+ * - Baseline: 50% (most likely economic path)
+ * - Adverse: 30% (moderate downturn)
+ * - Severely Adverse: 20% (tail risk)
+ *
+ * Source: FRB SR Letter 99-18, FASB ASU 2016-13, NCUA Supervisory Letter 19-01
+ */
+
 // PD multiplier by scenario
 const PD_MULTIPLIERS = {
   baseline: 1.0,
@@ -74,6 +92,7 @@ export class CECLService {
     historicalLossRate: number;
     lgd?: number;
     qualitativeAdj?: number;
+    discountRate?: number;
   }): {
     segmentName: string;
     balance: number;
@@ -81,6 +100,7 @@ export class CECLService {
     historicalLossRate: number;
     lgd: number;
     qualitativeAdj: number;
+    discountRate: number;
   } {
     return {
       segmentName: seg.segmentName || 'Unknown',

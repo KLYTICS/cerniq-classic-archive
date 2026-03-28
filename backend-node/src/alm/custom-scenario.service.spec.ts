@@ -76,13 +76,13 @@ describe('CustomScenarioService', () => {
     expect(result.narrative.length).toBeGreaterThan(0);
   });
 
-  it('clamps rate shift to [-300, +300]', async () => {
-    const result = await service.runCustomScenario('inst-1', {
-      name: 'Extreme',
-      rateShiftBps: 500,
-    });
-    // Should not crash — clamped internally to 300
-    expect(result.scenario.params.rateShiftBps).toBeDefined();
+  it('rejects rate shift outside [-300, +300] range', async () => {
+    await expect(
+      service.runCustomScenario('inst-1', {
+        name: 'Extreme',
+        rateShiftBps: 500,
+      }),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('negative rate shift produces negative NII impact for asset-sensitive institution', async () => {
