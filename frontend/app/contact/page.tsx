@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Send, CheckCircle2, Calendar, Mail, Building2 } from 'lucide-react';
+import { analytics, EVENTS } from '@/lib/analytics';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
 
 export default function ContactPage() {
@@ -39,6 +40,7 @@ export default function ContactPage() {
       if (!response.ok) {
         throw new Error('submit_failed');
       }
+      analytics.track(EVENTS.LEAD_FORM_SUBMITTED, { source: 'contact_page', institution: form.institution, assets: form.assets });
       setSubmitted(true);
     } catch {
       setSubmitError(
