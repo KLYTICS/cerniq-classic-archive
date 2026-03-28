@@ -26,8 +26,8 @@ export function isWeekend(date: Date): boolean {
  * Check if a date is a PR holiday.
  */
 export function isPRHoliday(date: Date): boolean {
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
+  const month = date.getUTCMonth() + 1;
+  const day = date.getUTCDate();
   return PR_HOLIDAYS.some((h) => h.month === month && h.day === day);
 }
 
@@ -47,7 +47,7 @@ export function addBusinessDays(startDate: Date, days: number): Date {
   const direction = days >= 0 ? 1 : -1;
 
   while (remaining > 0) {
-    result.setDate(result.getDate() + direction);
+    result.setUTCDate(result.getUTCDate() + direction);
     if (isBusinessDay(result)) {
       remaining--;
     }
@@ -68,7 +68,7 @@ export function countBusinessDays(start: Date, end: Date): number {
     if (isBusinessDay(current)) {
       count++;
     }
-    current.setDate(current.getDate() + 1);
+    current.setUTCDate(current.getUTCDate() + 1);
   }
 
   return count;

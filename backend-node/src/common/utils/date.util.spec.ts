@@ -1,8 +1,8 @@
 import { isWeekend, isPRHoliday, isBusinessDay, addBusinessDays, countBusinessDays } from './date.util';
 
-// Use T16:00:00Z (noon AST = UTC-4) to ensure consistent day-of-week across all timezones
+// Use UTC noon to ensure consistent day-of-week regardless of runner timezone
 function noon(dateStr: string): Date {
-  return new Date(`${dateStr}T16:00:00Z`);
+  return new Date(`${dateStr}T12:00:00Z`);
 }
 
 describe('date.util', () => {
