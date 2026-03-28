@@ -23,6 +23,7 @@ export class PeerSynthesisService {
   async generateMonthlySynthesis(): Promise<PeerSynthesisReport> {
     const institutions = await this.prisma.institution.findMany({
       include: { balanceSheetItems: true },
+      take: 100,
     });
 
     const now = new Date();

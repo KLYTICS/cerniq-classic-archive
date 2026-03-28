@@ -59,6 +59,7 @@ export class NetworkIntelligenceService {
     const institutions = await this.prisma.institution.findMany({
       include: { balanceSheetItems: true },
       orderBy: { totalAssets: 'desc' },
+      take: 100,
     });
 
     if (institutions.length === 0) return this.getDemoResult();

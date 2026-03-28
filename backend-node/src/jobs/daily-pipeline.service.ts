@@ -142,6 +142,7 @@ export class DailyPipelineService {
     const positions = await this.prisma.position.findMany({
       select: { ticker: true },
       distinct: ['ticker'],
+      take: 1000,
     });
     return positions.map((p: any) => p.ticker);
   }
@@ -270,6 +271,7 @@ export class DailyPipelineService {
   private async recomputePortfolioRisk(errors: string[]): Promise<void> {
     const portfolios = await this.prisma.portfolio.findMany({
       include: { positions: true },
+      take: 100,
     });
 
     this.logger.log(`Recomputing risk for ${portfolios.length} portfolios`);
@@ -368,6 +370,7 @@ export class DailyPipelineService {
     const result = await this.prisma.position.findMany({
       select: { ticker: true },
       distinct: ['ticker'],
+      take: 1000,
     });
     return result.length;
   }

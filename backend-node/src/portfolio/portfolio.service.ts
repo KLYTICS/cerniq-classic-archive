@@ -27,6 +27,7 @@ export class PortfolioService {
     const portfolios = await this.prisma.portfolio.findMany({
       where: { userId },
       include: { positions: true },
+      take: 100,
     });
 
     const results: PortfolioDto[] = [];

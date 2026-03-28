@@ -59,6 +59,7 @@ export class ResellerService {
     return this.prisma.reseller.findMany({
       where: { isActive: true },
       orderBy: { name: 'asc' },
+      take: 100,
     });
   }
 

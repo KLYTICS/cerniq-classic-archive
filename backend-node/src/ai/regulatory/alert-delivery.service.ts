@@ -24,6 +24,7 @@ export class AlertDeliveryService {
   ): Promise<number> {
     const institutions = await this.prisma.institution.findMany({
       include: { balanceSheetItems: { select: { subcategory: true } } },
+      take: 100,
     });
 
     let delivered = 0;

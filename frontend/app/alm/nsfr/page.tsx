@@ -119,7 +119,7 @@ export default function NSFRPage() {
             <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
             <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v: number) => `$${v.toFixed(0)}M`} />
             <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} width={140} />
-            <Tooltip formatter={(v: number) => `$${v.toFixed(0)}M`} />
+            <Tooltip formatter={(v) => `$${Number(v ?? 0).toFixed(0)}M`} />
             <Legend />
             <Bar dataKey="asf" name="ASF" fill={COLORS.cyan} radius={[0, 4, 4, 0]} />
             <Bar dataKey="rsf" name="RSF" fill={COLORS.slate} radius={[0, 4, 4, 0]} />

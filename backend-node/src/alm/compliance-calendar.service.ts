@@ -218,6 +218,7 @@ export class ComplianceCalendarService {
         contactEmail: true,
         contactName: true,
       },
+      take: 100,
     });
 
     const results: Array<{

@@ -121,6 +121,7 @@ export class WebhookService {
         failureCount: true,
         createdAt: true,
       },
+      take: 100,
     });
   }
 
@@ -144,6 +145,7 @@ export class WebhookService {
   ): Promise<WebhookDeliveryResult[]> {
     const subscriptions = await this.prisma.webhookSubscription.findMany({
       where: { institutionId, isActive: true, events: { has: eventType } },
+      take: 100,
     });
 
     const results: WebhookDeliveryResult[] = [];
