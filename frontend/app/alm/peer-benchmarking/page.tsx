@@ -13,13 +13,11 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-  ReferenceLine,
 } from 'recharts';
 import {
   Activity,
   AlertTriangle,
   TrendingUp,
-  TrendingDown,
   Shield,
   Users,
   Building2,
@@ -196,7 +194,7 @@ function ComparisonBarChart({
 }: {
   metrics: PeerMetric[];
   locale: string;
-  t: (typeof T)['en'];
+  t: PageStrings;
 }) {
   const chartData = useMemo(() => {
     return KEY_METRICS.map((name) => {
@@ -297,7 +295,7 @@ function PercentileCard({
 }: {
   metric: PeerMetric;
   locale: string;
-  t: (typeof T)['en'];
+  t: PageStrings;
 }) {
   const pct = metric.percentileRank;
   const barColor =
@@ -350,7 +348,7 @@ function PercentileRankings({
 }: {
   metrics: PeerMetric[];
   locale: string;
-  t: (typeof T)['en'];
+  t: PageStrings;
 }) {
   return (
     <div>
@@ -379,7 +377,7 @@ function RiskFlagsTable({
 }: {
   metrics: PeerMetric[];
   locale: string;
-  t: (typeof T)['en'];
+  t: PageStrings;
 }) {
   const outliers = useMemo<Outlier[]>(() => {
     return metrics
@@ -468,7 +466,7 @@ function SectorOverview({
   data: PeerResult;
   metrics: PeerMetric[];
   locale: string;
-  t: (typeof T)['en'];
+  t: PageStrings;
 }) {
   // Derive sector stats from peer data
   const capitalMetric = findMetricByPartialName(metrics, 'Capital');

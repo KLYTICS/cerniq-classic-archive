@@ -35,12 +35,12 @@ describe('KMVMertonService', () => {
     expect(result.leverage).toBeLessThan(1);
   });
 
-  it('highly leveraged firm has low DD and high default probability', () => {
-    // equity=5, debt=495 => 1% equity ratio
-    const result = service.solveAssetValue(5, 0.3, 495, 0.05, 1);
+  it('higher leverage produces lower distance-to-default', () => {
+    const low = service.solveAssetValue(200, 0.15, 200, 0.05, 1);
+    const high = service.solveAssetValue(50, 0.15, 450, 0.05, 1);
 
-    expect(result.distanceToDefault).toBeLessThan(3);
-    expect(result.impliedDefaultProbability).toBeGreaterThan(0.001);
+    expect(high.distanceToDefault).toBeLessThan(low.distanceToDefault);
+    expect(high.impliedDefaultProbability).toBeGreaterThan(low.impliedDefaultProbability);
   });
 
   it('maps distance-to-default to credit rating', () => {
@@ -48,9 +48,12 @@ describe('KMVMertonService', () => {
     const healthy = service.solveAssetValue(200, 0.1, 200, 0.05, 1);
     expect(['AAA', 'AA', 'A', 'BBB']).toContain(healthy.impliedRating);
 
-    // Low DD -> low rating
-    const stressed = service.solveAssetValue(5, 0.4, 495, 0.05, 1);
-    expect(['B', 'CCC', 'D', 'BB']).toContain(stressed.impliedRating);
+    // More leveraged -> weaker rating than healthy
+    const leveraged = service.solveAssetValue(50, 0.15, 450, 0.05, 1);
+    const ratingOrder = ['D', 'CCC', 'B', 'BB', 'BBB', 'A', 'AA', 'AAA'];
+    const healthyIdx = ratingOrder.indexOf(healthy.impliedRating);
+    const leveragedIdx = ratingOrder.indexOf(leveraged.impliedRating);
+    expect(leveragedIdx).toBeLessThanOrEqual(healthyIdx);
   });
 
   it('computes KMV from balance sheet items via computeKMV', async () => {

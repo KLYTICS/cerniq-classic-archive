@@ -209,16 +209,16 @@ export class OptionalitySuiteService {
           contribution: -84,
         },
         {
-          name: 'FHLMC 15Y MBS',
-          balance: 15,
-          convexity: -1.5,
-          contribution: -22.5,
-        },
-        {
           name: 'Residential Mortgages',
           balance: 80,
           convexity: -0.6,
           contribution: -48,
+        },
+        {
+          name: 'FHLMC 15Y MBS',
+          balance: 15,
+          convexity: -1.5,
+          contribution: -22.5,
         },
       ],
     };
