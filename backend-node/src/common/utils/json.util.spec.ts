@@ -17,12 +17,12 @@ describe('json.util', () => {
 
   describe('stringifyWithBigInt / parseWithBigInt', () => {
     it('round-trips BigInt values', () => {
-      const obj = { count: BigInt(9007199254740993) };
+      const obj = { count: 9007199254740993n };
       const json = stringifyWithBigInt(obj);
       expect(json).toContain('9007199254740993n');
 
       const parsed = parseWithBigInt<{ count: bigint }>(json);
-      expect(parsed.count).toBe(BigInt(9007199254740993));
+      expect(parsed.count).toBe(9007199254740993n);
     });
   });
 
