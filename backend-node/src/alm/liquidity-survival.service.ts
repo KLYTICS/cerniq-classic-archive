@@ -124,7 +124,9 @@ export class LiquiditySurvivalService {
    * Run a full day-by-day liquidity survival simulation.
    */
   analyzeSurvival(params: SurvivalParams): SurvivalResult {
-    const { liquidAssets, dailyCashFlows, stressAssumptions, contingencyTriggers } = params;
+    const { liquidAssets, dailyCashFlows, contingencyTriggers } = params;
+    // Clone so we can mutate newLoanHalt mid-simulation
+    const stressAssumptions = { ...params.stressAssumptions };
 
     // Mutable state for the simulation
     let cash = liquidAssets.cash + liquidAssets.fedFundsDeposits;
@@ -264,7 +266,7 @@ export class LiquiditySurvivalService {
 
         // ── Halt new lending if not already halted ──
         if (!stressAssumptions.newLoanHalt) {
-          stressAssumptions = { ...stressAssumptions, newLoanHalt: true };
+          stressAssumptions.newLoanHalt = true;
           actions.push({
             day,
             action: 'Halt all new loan originations',
