@@ -47,6 +47,7 @@ describe('CustomScenarioService', () => {
 
     scenarioPersistence = {
       persist: jest.fn().mockResolvedValue({ id: 'scen-1' }),
+      saveScenario: jest.fn().mockResolvedValue({ id: 'scen-1', name: 'Test' }),
     };
 
     service = new CustomScenarioService(
