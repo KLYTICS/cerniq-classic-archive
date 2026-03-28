@@ -6,7 +6,10 @@ import { ArrowLeft, ArrowRight, CheckCircle2, TrendingUp, Clock, DollarSign, Shi
 import { CerniqMark } from '@/components/brand/CerniqLogo';
 
 export default function CaseStudiesPage() {
-  const [lang, setLang] = useState<'en' | 'es'>('en');
+  const [lang, setLang] = useState<'en' | 'es'>(() => {
+    if (typeof window !== 'undefined') return (localStorage.getItem('cerniq_lang') as 'en' | 'es') || 'en';
+    return 'en';
+  });
   const t = (en: string, es: string) => lang === 'en' ? en : es;
 
   return (

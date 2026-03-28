@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, ChevronRight, HelpCircle } from 'lucide-react';
 import { createCheckoutSession } from '@/lib/billing';
+import { analytics, EVENTS } from '@/lib/analytics';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
 
 function getCtaLabel(tierId: string, lang: 'en' | 'es') {
@@ -28,7 +29,10 @@ function getCtaLabel(tierId: string, lang: 'en' | 'es') {
 
 export default function PricingPage() {
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
-  const [lang, setLang] = useState<'en' | 'es'>('en');
+  const [lang, setLang] = useState<'en' | 'es'>(() => {
+    if (typeof window !== 'undefined') return (localStorage.getItem('cerniq_lang') as 'en' | 'es') || 'en';
+    return 'en';
+  });
 
   const t = (en: string, es: string) => lang === 'en' ? en : es;
 
@@ -126,6 +130,7 @@ export default function PricingPage() {
   ];
 
   async function handleCheckout(tier: string) {
+    analytics.track(EVENTS.CHECKOUT_STARTED, { tier, source: 'pricing_page' });
     setLoadingTier(tier);
     try {
       const checkoutUrl = await createCheckoutSession({

@@ -6,7 +6,10 @@ import { ArrowLeft, Send, CheckCircle2, Calendar, Mail, Building2 } from 'lucide
 import { CerniqMark } from '@/components/brand/CerniqLogo';
 
 export default function ContactPage() {
-  const [lang, setLang] = useState<'en' | 'es'>('en');
+  const [lang, setLang] = useState<'en' | 'es'>(() => {
+    if (typeof window !== 'undefined') return (localStorage.getItem('cerniq_lang') as 'en' | 'es') || 'en';
+    return 'en';
+  });
   const [form, setForm] = useState({ name: '', email: '', institution: '', assets: '', message: '' });
   const [honeypot, setHoneypot] = useState('');
   const [submitted, setSubmitted] = useState(false);
