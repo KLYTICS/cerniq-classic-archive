@@ -277,6 +277,7 @@ export class OptionsService {
       riskFreeRate: r,
       volatility: sigma,
       optionType,
+      dividendYield: q = 0,
     } = params;
 
     // ── Edge case: at or past expiry ──
@@ -298,24 +299,25 @@ export class OptionsService {
     // ── Edge case: zero or near-zero volatility (deterministic limit) ──
     if (sigma < 1e-10) {
       const df = Math.exp(-r * T);
+      const dfq = Math.exp(-q * T);
       if (optionType === 'call') {
-        const price = Math.max(S - K * df, 0);
-        const isITM = S > K * df;
+        const price = Math.max(S * dfq - K * df, 0);
+        const isITM = S * dfq > K * df;
         return {
-          delta: isITM ? 1 : 0,
+          delta: isITM ? dfq : 0,
           gamma: 0,
-          theta: isITM ? (-r * K * df) / 365 : 0,
+          theta: isITM ? (-r * K * df + q * S * dfq) / 365 : 0,
           vega: 0,
           rho: isITM ? (K * T * df) / 100 : 0,
           price,
         };
       } else {
-        const price = Math.max(K * df - S, 0);
-        const isITM = K * df > S;
+        const price = Math.max(K * df - S * dfq, 0);
+        const isITM = K * df > S * dfq;
         return {
-          delta: isITM ? -1 : 0,
+          delta: isITM ? -dfq : 0,
           gamma: 0,
-          theta: isITM ? (r * K * df) / 365 : 0,
+          theta: isITM ? (r * K * df - q * S * dfq) / 365 : 0,
           vega: 0,
           rho: isITM ? (-K * T * df) / 100 : 0,
           price,
@@ -349,9 +351,11 @@ export class OptionsService {
       }
     }
 
+    // Generalized Black-Scholes-Merton with continuous dividend yield q
     const sqrtT = Math.sqrt(T);
+    const dfq = Math.exp(-q * T);
     const d1 =
-      (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * sqrtT);
+      (Math.log(S / K) + (r - q + 0.5 * sigma * sigma) * T) / (sigma * sqrtT);
     const d2 = d1 - sigma * sqrtT;
 
     // Clamp d1/d2 to avoid numerical issues in CDF for extreme ITM/OTM
@@ -366,23 +370,27 @@ export class OptionsService {
     let price: number, delta: number, theta: number, rho: number;
 
     if (optionType === 'call') {
-      price = S * Nd1 - K * df * Nd2;
-      delta = Nd1;
+      price = S * dfq * Nd1 - K * df * Nd2;
+      delta = dfq * Nd1;
       theta =
-        ((-S * npd1 * sigma) / (2 * sqrtT) - r * K * df * Nd2) / 365;
+        ((-S * dfq * npd1 * sigma) / (2 * sqrtT)
+         + q * S * dfq * Nd1
+         - r * K * df * Nd2) / 365;
       rho = (K * T * df * Nd2) / 100;
     } else {
       const Nmd1 = this.normalCDF(-d1c);
       const Nmd2 = this.normalCDF(-d2c);
-      price = K * df * Nmd2 - S * Nmd1;
-      delta = Nd1 - 1;
+      price = K * df * Nmd2 - S * dfq * Nmd1;
+      delta = -dfq * Nmd1;
       theta =
-        ((-S * npd1 * sigma) / (2 * sqrtT) + r * K * df * Nmd2) / 365;
+        ((-S * dfq * npd1 * sigma) / (2 * sqrtT)
+         - q * S * dfq * Nmd1
+         + r * K * df * Nmd2) / 365;
       rho = (-K * T * df * Nmd2) / 100;
     }
 
-    const gamma = npd1 / (S * sigma * sqrtT);
-    const vega = (S * sqrtT * npd1) / 100;
+    const gamma = (dfq * npd1) / (S * sigma * sqrtT);
+    const vega = (S * dfq * sqrtT * npd1) / 100;
 
     // Final NaN guard — should never trigger but protects downstream consumers
     const safeNum = (v: number) => (Number.isFinite(v) ? v : 0);

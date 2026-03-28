@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import * as crypto from 'crypto';
+import * as net from 'net';
 
 // ─── Webhook Event Types ────────────────────────────────────
 
@@ -23,6 +24,52 @@ export interface WebhookDeliveryResult {
   deliveredAt: string;
 }
 
+/**
+ * Validate a webhook URL is safe from SSRF attacks.
+ * Blocks: private IPs, localhost, cloud metadata endpoints, non-HTTPS in production.
+ */
+function validateWebhookUrl(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new BadRequestException('Invalid webhook URL');
+  }
+
+  // Must be HTTPS in production
+  if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:') {
+    throw new BadRequestException('Webhook URL must use HTTPS in production');
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new BadRequestException('Webhook URL must use HTTP or HTTPS');
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+
+  // Block localhost and loopback
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '0.0.0.0') {
+    throw new BadRequestException('Webhook URL cannot target localhost');
+  }
+
+  // Block cloud metadata endpoints
+  if (hostname === '169.254.169.254' || hostname === 'metadata.google.internal') {
+    throw new BadRequestException('Webhook URL cannot target cloud metadata services');
+  }
+
+  // Block private/internal IP ranges
+  if (net.isIP(hostname)) {
+    const parts = hostname.split('.').map(Number);
+    const isPrivate =
+      parts[0] === 10 ||
+      (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+      (parts[0] === 192 && parts[1] === 168) ||
+      (parts[0] === 169 && parts[1] === 254);
+    if (isPrivate) {
+      throw new BadRequestException('Webhook URL cannot target private IP addresses');
+    }
+  }
+}
+
 @Injectable()
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
@@ -38,6 +85,7 @@ export class WebhookService {
       events: WebhookEventType[];
     },
   ) {
+    validateWebhookUrl(data.url);
     const secretKey = crypto.randomBytes(32).toString('hex');
     return this.prisma.webhookSubscription.create({
       data: {
@@ -150,6 +198,14 @@ export class WebhookService {
     eventType: string,
     payload: Record<string, any>,
   ): Promise<WebhookDeliveryResult> {
+    // Defense in depth: re-validate URL before every delivery
+    try {
+      validateWebhookUrl(subscription.url);
+    } catch {
+      this.logger.warn({ event: 'webhook.ssrf_blocked', url: subscription.url, subscriptionId: subscription.id });
+      return { subscriptionId: subscription.id, url: subscription.url, eventType, statusCode: null, success: false, error: 'URL blocked by SSRF policy', deliveredAt: new Date().toISOString() };
+    }
+
     const body = JSON.stringify({
       event: eventType,
       institutionId: subscription.institutionId,
