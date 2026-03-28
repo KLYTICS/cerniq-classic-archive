@@ -53,6 +53,7 @@ model RefreshToken {
   expiresAt DateTime  @map("expires_at")
   revokedAt DateTime? @map("revoked_at")
   createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -69,6 +70,7 @@ model PasswordResetToken {
   expiresAt DateTime  @map("expires_at")
   usedAt    DateTime? @map("used_at")
   createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -299,6 +301,7 @@ model LiquidityPosition {
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
   @@index([institutionId])
+  @@unique([institutionId, date])
   @@map("liquidity_positions")
 }
 
@@ -499,6 +502,7 @@ model BoardReport {
 
   @@index([institutionId])
   @@index([reportMonth])
+  @@unique([institutionId, reportMonth])
   @@map("board_reports")
 }
 
@@ -934,6 +938,7 @@ model ReportJob {
   retryCount          Int             @default(0) @map("retry_count")
   triggeredBy         String          @default("payment") @map("triggered_by")
   createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1211,6 +1216,7 @@ model InstitutionAlert {
   readAt            DateTime? @map("read_at")
   dismissedAt       DateTime? @map("dismissed_at")
   createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   institution Institution          @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   publication RegulatoryPublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)

@@ -203,7 +203,7 @@ export class ApiV1Controller {
   @ApiResponse({ status: 429, description: 'Rate limit exceeded' })
   @UseInterceptors(
     FileInterceptor('file', {
-      limits: { fileSize: 10 * 1024 * 1024 }, // 2MB
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
       fileFilter: (_req, file, cb) => {
         if (!file.originalname.match(/\.csv$/i)) {
           return cb(

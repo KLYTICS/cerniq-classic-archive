@@ -362,7 +362,7 @@ export class AlmController {
   @UseGuards(AuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      limits: { fileSize: 10 * 1024 * 1024 }, // 2MB max
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
       fileFilter: (_req, file, cb) => {
         if (!file.originalname.match(/\.csv$/i)) {
           return cb(
