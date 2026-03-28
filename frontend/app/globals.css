@@ -1,5 +1,103 @@
 @import "tailwindcss";
 
+/* ─── Buttery Smooth Globals ─── */
+
+/* Smooth scrolling everywhere */
+html { scroll-behavior: smooth; }
+
+/* Subtle transition on all interactive elements */
+a, button, input, select, textarea, [role="button"] {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Consistent focus rings — accessible and beautiful */
+:focus-visible {
+  outline: 2px solid #0e7490;
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+/* Subtle press effect on buttons */
+button:active:not(:disabled), [role="button"]:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Shimmer animation for loading skeletons */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Fade-in animation for content appearing after load */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+/* Slide-in for toasts and modals */
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in {
+  animation: slideInRight 0.25s ease-out forwards;
+}
+
+/* Number count-up visual cue — subtle pulse on KPI cards */
+@keyframes kpiPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.kpi-enter {
+  animation: kpiPulse 0.4s ease-out;
+}
+
+/* Smooth chart container transitions */
+.recharts-wrapper {
+  transition: opacity 0.3s ease;
+}
+
+/* KPI card hover — subtle lift on hover for interactivity feel */
+.cerniq-card-hover {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.cerniq-card-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* Custom scrollbar — thin, unobtrusive */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.5); }
+
+/* Recharts tooltip — polished style */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  border-radius: 0.75rem !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+  padding: 0.75rem 1rem !important;
+  font-size: 0.8rem !important;
+}
+
 :root {
   --background: #f7fbff;
   --foreground: #08111f;
@@ -174,11 +272,21 @@ body::before {
 
 .cerniq-button-primary:hover,
 .cerniq-button-secondary:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+}
+
+.cerniq-button-primary:hover {
+  box-shadow: 0 20px 40px rgba(34, 211, 238, 0.25);
 }
 
 .cerniq-button-secondary:hover {
   border-color: rgba(127, 232, 255, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.cerniq-button-primary:active,
+.cerniq-button-secondary:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .cerniq-data-wave {

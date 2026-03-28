@@ -166,8 +166,10 @@ function ALMShell({ children }: { children: React.ReactNode }) {
         <ALMTopBar />
         <ALMBreadcrumb />
 
-        <main id="alm-report-content" className="flex-1 overflow-y-auto bg-transparent">
-          {children}
+        <main id="alm-report-content" className="flex-1 overflow-y-auto bg-transparent scroll-smooth">
+          <div className="animate-fade-in">
+            {children}
+          </div>
         </main>
       </div>
     </div>
