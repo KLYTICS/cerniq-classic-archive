@@ -12,7 +12,13 @@ export class PrismaService
   constructor() {
     const connectionString = process.env.DATABASE_URL;
     if (connectionString) {
-      const pool = new pg.Pool({ connectionString });
+      const poolSize = parseInt(process.env.DATABASE_POOL_SIZE || '20', 10);
+      const pool = new pg.Pool({
+        connectionString,
+        max: poolSize,
+        idleTimeoutMillis: 30_000, // Close idle connections after 30s
+        connectionTimeoutMillis: 5_000, // Fail fast if pool is saturated
+      });
       const adapter = new PrismaPg(pool);
       super({ adapter });
       return;

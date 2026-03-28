@@ -184,4 +184,19 @@ async function bootstrap() {
     `CERNIQ backend running on 0.0.0.0:${port} [${process.env.NODE_ENV || 'development'}]`,
   );
 }
+
+// --- Global crash handlers — catch everything Sentry + Pino can't ---
+process.on('unhandledRejection', (reason: unknown) => {
+  console.error('[FATAL] Unhandled Promise rejection:', reason);
+  Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason)));
+  // Give Sentry 2s to flush, then exit
+  setTimeout(() => process.exit(1), 2000);
+});
+
+process.on('uncaughtException', (error: Error) => {
+  console.error('[FATAL] Uncaught exception:', error);
+  Sentry.captureException(error);
+  setTimeout(() => process.exit(1), 2000);
+});
+
 bootstrap();

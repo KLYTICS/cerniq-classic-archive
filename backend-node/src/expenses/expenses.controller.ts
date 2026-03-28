@@ -24,7 +24,7 @@ import { ExpenseIngestionService } from './expense-ingestion.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { PrismaService } from '../prisma.service';
 import * as path from 'path';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 
 @Controller('api/expenses')
 @UseGuards(AuthGuard)
@@ -192,9 +192,9 @@ export class ExpensesController {
       'cerniq-spendcheck-template.csv',
     );
 
-    // If the file exists in the frontend directory, serve it
-    if (fs.existsSync(templatePath)) {
-      const content = fs.readFileSync(templatePath, 'utf-8');
+    // If the file exists in the frontend directory, serve it (async I/O)
+    try {
+      const content = await fs.readFile(templatePath, 'utf-8');
       res.set({
         'Content-Type': 'text/csv',
         'Content-Disposition':
@@ -202,6 +202,8 @@ export class ExpensesController {
       });
       res.send(content);
       return;
+    } catch {
+      // File doesn't exist — fall through to inline template
     }
 
     // Otherwise, generate an inline template

@@ -4,6 +4,7 @@ import {
   ExecutionContext,
   UnauthorizedException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
@@ -24,6 +25,8 @@ type AuthenticatedRequestUser = {
 
 @Injectable()
 export class AuthGuard implements CanActivate {
+  private readonly logger = new Logger(AuthGuard.name);
+
   constructor(
     private jwtService: JwtService,
     private prisma: PrismaService,
@@ -92,8 +95,9 @@ export class AuthGuard implements CanActivate {
         if (dbUser?.role) {
           resolvedRole = dbUser.role;
         }
-      } catch {
-        // Fall back to token-based role on DB error
+      } catch (dbError) {
+        // Fall back to token-based role on DB error — but log it
+        this.logger.warn(`DB role lookup failed for user ${user.userId}, using token role`, dbError);
       }
     }
 

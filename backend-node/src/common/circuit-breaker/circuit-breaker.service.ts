@@ -23,10 +23,36 @@ const CONFIGS: Record<string, { threshold: number; cooldownMs: number }> = {
   default: { threshold: 5, cooldownMs: 60000 },
 };
 
+// Evict stale circuits after 1 hour of inactivity
+const EVICTION_INTERVAL_MS = 300_000; // 5 min sweep
+const STALE_THRESHOLD_MS = 3_600_000; // 1 hour
+
 @Injectable()
 export class CircuitBreakerService {
   private readonly logger = new Logger(CircuitBreakerService.name);
   private circuits = new Map<string, CircuitState>();
+  private evictionTimer: ReturnType<typeof setInterval>;
+
+  constructor() {
+    // Periodic sweep to prevent unbounded memory growth
+    this.evictionTimer = setInterval(() => this.evictStale(), EVICTION_INTERVAL_MS);
+    // Don't let the timer keep the process alive during shutdown
+    if (this.evictionTimer.unref) this.evictionTimer.unref();
+  }
+
+  onModuleDestroy() {
+    clearInterval(this.evictionTimer);
+  }
+
+  private evictStale() {
+    const now = Date.now();
+    for (const [key, circuit] of this.circuits) {
+      const lastActivity = Math.max(circuit.lastFailure, circuit.openedAt);
+      if (circuit.state === 'closed' && lastActivity > 0 && now - lastActivity > STALE_THRESHOLD_MS) {
+        this.circuits.delete(key);
+      }
+    }
+  }
 
   async execute<T>(
     serviceKey: string,

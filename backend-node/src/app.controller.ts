@@ -82,19 +82,23 @@ function parseContainerMemoryLimit(raw: string): number | null {
   }
 }
 
+// Cache container memory limit at module load — cgroup limits don't change at runtime
+let _cachedMemoryLimit: number | null | undefined;
 function readContainerMemoryLimitBytes(): number | null {
-  for (const path of CGROUP_MEMORY_LIMIT_PATHS) {
+  if (_cachedMemoryLimit !== undefined) return _cachedMemoryLimit;
+  for (const p of CGROUP_MEMORY_LIMIT_PATHS) {
     try {
-      const raw = readFileSync(path, 'utf8');
+      const raw = readFileSync(p, 'utf8');
       const parsed = parseContainerMemoryLimit(raw);
       if (parsed !== null) {
+        _cachedMemoryLimit = parsed;
         return parsed;
       }
     } catch {
       // Best-effort only. Local dev and some hosts will not expose cgroups.
     }
   }
-
+  _cachedMemoryLimit = null;
   return null;
 }
 

@@ -14,11 +14,19 @@ node_modules/
 /frontend/.env*.local
 /frontend/.turbo
 
-# Environment files
+# Environment files — NEVER commit secrets
 .env
+.env.*
 .env.local
 .env.production.local
 .env.development.local
+!.env.example
+!.env.production.template
+backend-node/.env
+backend-node/.env.*
+!backend-node/.env.example
+frontend/.env.local
+frontend/.env*.local
 
 # Database
 *.db

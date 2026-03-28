@@ -1,5 +1,5 @@
 const CERNIQ_ORIGIN_PATTERN =
-  /^https?:\/\/([a-z0-9-]+\.)*cerniq\.io(?::\d+)?$/i;
+  /^https?:\/\/([a-z0-9-]+\.)*(cerniq\.io|cerniqtech\.com)(?::\d+)?$/i;
 const DEFAULT_VERCEL_PREVIEW_PATTERN =
   /^https:\/\/[a-z0-9-]+-ekiess-projects\.vercel\.app$/i;
 
@@ -38,7 +38,8 @@ function getPreviewRegex(): RegExp {
   }
   try {
     return new RegExp(configured, 'i');
-  } catch {
+  } catch (err) {
+    console.warn(`[CORS] Invalid VERCEL_PREVIEW_ORIGIN_REGEX: "${configured}", using default pattern`, err);
     return DEFAULT_VERCEL_PREVIEW_PATTERN;
   }
 }
