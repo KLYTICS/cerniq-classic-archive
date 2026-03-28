@@ -77,9 +77,9 @@ const TranslationContext = createContext<TranslationContextValue>({
 });
 
 export function TranslationProvider({ children }: { children: ReactNode }) {
-  const storedLocale = useSyncExternalStore(subscribeToLocaleStorage, detectLocale, () => 'en');
+  const storedLocale = useSyncExternalStore<Locale>(subscribeToLocaleStorage, detectLocale, () => 'en');
   const [localeOverride, setLocaleOverride] = useState<Locale | null>(null);
-  const locale = localeOverride ?? storedLocale;
+  const locale: Locale = localeOverride ?? storedLocale;
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleOverride(newLocale);

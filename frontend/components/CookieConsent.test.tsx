@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CookieConsent from './CookieConsent';
 
@@ -8,9 +8,9 @@ describe('CookieConsent', () => {
     localStorage.clear();
   });
 
-  it('renders the banner when no consent is stored', () => {
+  it('renders the banner when no consent is stored', async () => {
     render(<CookieConsent />);
-    expect(screen.getByRole('dialog', { name: /cookie consent/i })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: /cookie consent/i })).toBeInTheDocument();
     expect(screen.getByText(/essential cookies/i)).toBeInTheDocument();
   });
 
@@ -24,9 +24,11 @@ describe('CookieConsent', () => {
     const user = userEvent.setup();
     render(<CookieConsent />);
 
-    await user.click(screen.getByRole('button', { name: /accept/i }));
+    await user.click(await screen.findByRole('button', { name: /accept/i }));
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
     expect(localStorage.getItem('cerniq_cookie_consent')).toBe('accepted');
   });
 
@@ -34,9 +36,11 @@ describe('CookieConsent', () => {
     const user = userEvent.setup();
     render(<CookieConsent />);
 
-    await user.click(screen.getByRole('button', { name: /decline/i }));
+    await user.click(await screen.findByRole('button', { name: /decline/i }));
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
     expect(localStorage.getItem('cerniq_cookie_consent')).toBe('declined');
   });
 });
