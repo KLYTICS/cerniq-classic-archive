@@ -103,6 +103,13 @@ export class CSVIngestionService {
       );
     }
 
+    const MAX_CSV_ROWS = 50_000;
+    if (lines.length > MAX_CSV_ROWS + 1) {
+      return this.emptyResult(
+        `CSV exceeds maximum of ${MAX_CSV_ROWS.toLocaleString()} data rows (got ${(lines.length - 1).toLocaleString()})`,
+      );
+    }
+
     // Parse headers
     const headers = lines[0]
       .split(',')
