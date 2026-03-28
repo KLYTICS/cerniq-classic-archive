@@ -419,14 +419,16 @@ describe('Security Integration Tests (e2e)', () => {
 
   describe('Input validation', () => {
     it('should reject request body with unexpected fields (whitelist)', async () => {
+      // Use /api/v1/leads/submit which has a higher rate limit (20/hour)
       const res = await request(app.getHttpServer())
-        .post('/api/auth/register')
+        .post('/api/v1/leads/submit')
         .send({
-          email: 'extra@test.com',
-          password: 'SecurePass123!',
-          name: 'Test',
-          isAdmin: true, // Not allowed by DTO
-          role: 'admin', // Not allowed by DTO
+          name: 'Test Lead',
+          email: 'whitelist@test.com',
+          institutionName: 'Test Inst',
+          institutionType: 'cooperativa',
+          isAdmin: true, // Not in SubmitLeadDto — should be rejected
+          secretField: 'hack', // Not in SubmitLeadDto — should be rejected
         });
 
       // whitelist: true, forbidNonWhitelisted: true should reject unknown fields

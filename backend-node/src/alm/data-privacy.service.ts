@@ -155,30 +155,73 @@ export class DataPrivacyService {
   }
 
   async generateSAR(userId: string): Promise<SARExport> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
-        lastLoginAt: true,
-      },
-    });
-
-    const auditLogs = await this.prisma.auditLog.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-      select: { action: true, resource: true, createdAt: true },
-    });
+    const [user, auditLogs, institutions, subscriptions, expenses] =
+      await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            provider: true,
+            createdAt: true,
+            lastLoginAt: true,
+          },
+        }),
+        this.prisma.auditLog.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            action: true,
+            resource: true,
+            resourceId: true,
+            ipAddress: true,
+            createdAt: true,
+          },
+        }),
+        this.prisma.institution.findMany({
+          where: { members: { some: { userId } } },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            totalAssets: true,
+            createdAt: true,
+          },
+        }),
+        this.prisma.subscription.findMany({
+          where: { userId },
+          select: {
+            id: true,
+            tier: true,
+            status: true,
+            currentPeriodEnd: true,
+            createdAt: true,
+          },
+        }),
+        this.prisma.expense
+          .findMany({
+            where: { userId },
+            select: {
+              id: true,
+              vendor: true,
+              amount: true,
+              currency: true,
+              createdAt: true,
+            },
+          })
+          .catch(() => []),
+      ]);
 
     return {
       userId,
       exportedAt: new Date().toISOString(),
       data: {
         personalData: user,
+        institutions,
+        subscriptions,
+        expenses,
         activityLog: auditLogs,
         dataInventory: DATA_INVENTORY.filter((d) => d.category === 'PII'),
       },
