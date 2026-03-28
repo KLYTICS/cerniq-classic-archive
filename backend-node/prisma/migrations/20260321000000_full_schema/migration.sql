@@ -39,7 +39,7 @@ DO $$ BEGIN CREATE TYPE "ReportJobStatus" AS ENUM ('AWAITING_DATA', 'VALIDATING'
 DO $$ BEGIN CREATE TYPE "ProspectStage" AS ENUM ('lead', 'contacted', 'demo_scheduled', 'demo_done', 'proposal', 'closed_won', 'closed_lost'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateTable
-CREATE TABLE "users" (
+CREATE TABLE IF NOT EXISTS "users" (
     "id" UUID NOT NULL,
     "email" TEXT NOT NULL,
     "name" TEXT,
@@ -57,7 +57,7 @@ CREATE TABLE "users" (
 );
 
 -- CreateTable
-CREATE TABLE "refresh_tokens" (
+CREATE TABLE IF NOT EXISTS "refresh_tokens" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
     "token" TEXT NOT NULL,
@@ -69,7 +69,7 @@ CREATE TABLE "refresh_tokens" (
 );
 
 -- CreateTable
-CREATE TABLE "password_reset_tokens" (
+CREATE TABLE IF NOT EXISTS "password_reset_tokens" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
     "token_hash" TEXT NOT NULL,
@@ -81,7 +81,7 @@ CREATE TABLE "password_reset_tokens" (
 );
 
 -- CreateTable
-CREATE TABLE "api_keys" (
+CREATE TABLE IF NOT EXISTS "api_keys" (
     "id" TEXT NOT NULL,
     "user_id" UUID NOT NULL,
     "name" TEXT NOT NULL,
@@ -96,7 +96,7 @@ CREATE TABLE "api_keys" (
 );
 
 -- CreateTable
-CREATE TABLE "organizations" (
+CREATE TABLE IF NOT EXISTS "organizations" (
     "id" UUID NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -109,7 +109,7 @@ CREATE TABLE "organizations" (
 );
 
 -- CreateTable
-CREATE TABLE "organization_members" (
+CREATE TABLE IF NOT EXISTS "organization_members" (
     "id" UUID NOT NULL,
     "organization_id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
@@ -121,7 +121,7 @@ CREATE TABLE "organization_members" (
 );
 
 -- CreateTable
-CREATE TABLE "expenses" (
+CREATE TABLE IF NOT EXISTS "expenses" (
     "id" UUID NOT NULL,
     "organization_id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
@@ -149,7 +149,7 @@ CREATE TABLE "expenses" (
 );
 
 -- CreateTable
-CREATE TABLE "workspaces" (
+CREATE TABLE IF NOT EXISTS "workspaces" (
     "id" UUID NOT NULL,
     "name" TEXT NOT NULL,
     "owner_id" UUID,
@@ -159,7 +159,7 @@ CREATE TABLE "workspaces" (
 );
 
 -- CreateTable
-CREATE TABLE "institutions" (
+CREATE TABLE IF NOT EXISTS "institutions" (
     "id" TEXT NOT NULL,
     "workspace_id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -185,7 +185,7 @@ CREATE TABLE "institutions" (
 );
 
 -- CreateTable
-CREATE TABLE "balance_sheet_items" (
+CREATE TABLE IF NOT EXISTS "balance_sheet_items" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "category" TEXT NOT NULL,
@@ -204,7 +204,7 @@ CREATE TABLE "balance_sheet_items" (
 );
 
 -- CreateTable
-CREATE TABLE "interest_rate_scenarios" (
+CREATE TABLE IF NOT EXISTS "interest_rate_scenarios" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -218,7 +218,7 @@ CREATE TABLE "interest_rate_scenarios" (
 );
 
 -- CreateTable
-CREATE TABLE "liquidity_positions" (
+CREATE TABLE IF NOT EXISTS "liquidity_positions" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
@@ -234,7 +234,7 @@ CREATE TABLE "liquidity_positions" (
 );
 
 -- CreateTable
-CREATE TABLE "saved_scenarios" (
+CREATE TABLE IF NOT EXISTS "saved_scenarios" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "created_by" TEXT NOT NULL,
@@ -251,7 +251,7 @@ CREATE TABLE "saved_scenarios" (
 );
 
 -- CreateTable
-CREATE TABLE "yield_curves" (
+CREATE TABLE IF NOT EXISTS "yield_curves" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -265,7 +265,7 @@ CREATE TABLE "yield_curves" (
 );
 
 -- CreateTable
-CREATE TABLE "loan_segments" (
+CREATE TABLE IF NOT EXISTS "loan_segments" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "segment_name" TEXT NOT NULL,
@@ -282,7 +282,7 @@ CREATE TABLE "loan_segments" (
 );
 
 -- CreateTable
-CREATE TABLE "deposit_tiers" (
+CREATE TABLE IF NOT EXISTS "deposit_tiers" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "tier_name" TEXT NOT NULL,
@@ -296,7 +296,7 @@ CREATE TABLE "deposit_tiers" (
 );
 
 -- CreateTable
-CREATE TABLE "concentration_limits" (
+CREATE TABLE IF NOT EXISTS "concentration_limits" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "limit_type" TEXT NOT NULL,
@@ -312,7 +312,7 @@ CREATE TABLE "concentration_limits" (
 );
 
 -- CreateTable
-CREATE TABLE "loan_cohorts" (
+CREATE TABLE IF NOT EXISTS "loan_cohorts" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "loan_type" TEXT NOT NULL,
@@ -327,7 +327,7 @@ CREATE TABLE "loan_cohorts" (
 );
 
 -- CreateTable
-CREATE TABLE "cecl_vintage_allowances" (
+CREATE TABLE IF NOT EXISTS "cecl_vintage_allowances" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "run_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -342,7 +342,7 @@ CREATE TABLE "cecl_vintage_allowances" (
 );
 
 -- CreateTable
-CREATE TABLE "irr_policy_limits" (
+CREATE TABLE IF NOT EXISTS "irr_policy_limits" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "limit_type" TEXT NOT NULL,
@@ -357,7 +357,7 @@ CREATE TABLE "irr_policy_limits" (
 );
 
 -- CreateTable
-CREATE TABLE "policy_breach_logs" (
+CREATE TABLE IF NOT EXISTS "policy_breach_logs" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "limit_type" TEXT NOT NULL,
@@ -371,7 +371,7 @@ CREATE TABLE "policy_breach_logs" (
 );
 
 -- CreateTable
-CREATE TABLE "column_mapping_memories" (
+CREATE TABLE IF NOT EXISTS "column_mapping_memories" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "csv_column_name" TEXT NOT NULL,
@@ -382,7 +382,7 @@ CREATE TABLE "column_mapping_memories" (
 );
 
 -- CreateTable
-CREATE TABLE "board_reports" (
+CREATE TABLE IF NOT EXISTS "board_reports" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "report_month" TEXT NOT NULL,
@@ -398,7 +398,7 @@ CREATE TABLE "board_reports" (
 );
 
 -- CreateTable
-CREATE TABLE "uploads" (
+CREATE TABLE IF NOT EXISTS "uploads" (
     "id" UUID NOT NULL,
     "workspace_id" UUID NOT NULL,
     "file_name" TEXT NOT NULL,
@@ -412,7 +412,7 @@ CREATE TABLE "uploads" (
 );
 
 -- CreateTable
-CREATE TABLE "invoices" (
+CREATE TABLE IF NOT EXISTS "invoices" (
     "id" UUID NOT NULL,
     "workspace_id" UUID NOT NULL,
     "upload_id" UUID,
@@ -427,7 +427,7 @@ CREATE TABLE "invoices" (
 );
 
 -- CreateTable
-CREATE TABLE "findings" (
+CREATE TABLE IF NOT EXISTS "findings" (
     "id" UUID NOT NULL,
     "workspace_id" UUID NOT NULL,
     "invoice_id" UUID,
@@ -444,7 +444,7 @@ CREATE TABLE "findings" (
 );
 
 -- CreateTable
-CREATE TABLE "reports" (
+CREATE TABLE IF NOT EXISTS "reports" (
     "id" UUID NOT NULL,
     "workspace_id" UUID NOT NULL,
     "title" TEXT NOT NULL,
@@ -455,7 +455,7 @@ CREATE TABLE "reports" (
 );
 
 -- CreateTable
-CREATE TABLE "tickers" (
+CREATE TABLE IF NOT EXISTS "tickers" (
     "ticker" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "sector" TEXT NOT NULL,
@@ -473,7 +473,7 @@ CREATE TABLE "tickers" (
 );
 
 -- CreateTable
-CREATE TABLE "portfolios" (
+CREATE TABLE IF NOT EXISTS "portfolios" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
     "name" TEXT NOT NULL,
@@ -486,7 +486,7 @@ CREATE TABLE "portfolios" (
 );
 
 -- CreateTable
-CREATE TABLE "positions" (
+CREATE TABLE IF NOT EXISTS "positions" (
     "id" UUID NOT NULL,
     "portfolio_id" UUID NOT NULL,
     "ticker" TEXT NOT NULL,
@@ -499,7 +499,7 @@ CREATE TABLE "positions" (
 );
 
 -- CreateTable
-CREATE TABLE "pipeline_runs" (
+CREATE TABLE IF NOT EXISTS "pipeline_runs" (
     "id" UUID NOT NULL,
     "started_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completed_at" TIMESTAMP(3),
@@ -512,7 +512,7 @@ CREATE TABLE "pipeline_runs" (
 );
 
 -- CreateTable
-CREATE TABLE "market_prices" (
+CREATE TABLE IF NOT EXISTS "market_prices" (
     "id" UUID NOT NULL,
     "ticker" TEXT NOT NULL,
     "date" DATE NOT NULL,
@@ -527,7 +527,7 @@ CREATE TABLE "market_prices" (
 );
 
 -- CreateTable
-CREATE TABLE "demo_requests" (
+CREATE TABLE IF NOT EXISTS "demo_requests" (
     "id" UUID NOT NULL,
     "email" TEXT NOT NULL,
     "name" TEXT,
@@ -541,7 +541,7 @@ CREATE TABLE "demo_requests" (
 );
 
 -- CreateTable
-CREATE TABLE "leads" (
+CREATE TABLE IF NOT EXISTS "leads" (
     "id" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -572,7 +572,7 @@ CREATE TABLE "leads" (
 );
 
 -- CreateTable
-CREATE TABLE "prospect_institutions" (
+CREATE TABLE IF NOT EXISTS "prospect_institutions" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "institution_type" TEXT NOT NULL,
@@ -592,7 +592,7 @@ CREATE TABLE "prospect_institutions" (
 );
 
 -- CreateTable
-CREATE TABLE "cooperativa_benchmarks" (
+CREATE TABLE IF NOT EXISTS "cooperativa_benchmarks" (
     "id" TEXT NOT NULL,
     "period" TEXT NOT NULL,
     "total_assets_median" DOUBLE PRECISION,
@@ -609,7 +609,7 @@ CREATE TABLE "cooperativa_benchmarks" (
 );
 
 -- CreateTable
-CREATE TABLE "analysis_runs" (
+CREATE TABLE IF NOT EXISTS "analysis_runs" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "created_by_user_id" UUID NOT NULL,
@@ -631,7 +631,7 @@ CREATE TABLE "analysis_runs" (
 );
 
 -- CreateTable
-CREATE TABLE "ingestion_logs" (
+CREATE TABLE IF NOT EXISTS "ingestion_logs" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT,
     "created_by_user_id" UUID NOT NULL,
@@ -655,7 +655,7 @@ CREATE TABLE "ingestion_logs" (
 );
 
 -- CreateTable
-CREATE TABLE "subscriptions" (
+CREATE TABLE IF NOT EXISTS "subscriptions" (
     "id" TEXT NOT NULL,
     "user_id" UUID NOT NULL,
     "tier" "SubscriptionTier" NOT NULL DEFAULT 'free',
@@ -674,7 +674,7 @@ CREATE TABLE "subscriptions" (
 );
 
 -- CreateTable
-CREATE TABLE "report_jobs" (
+CREATE TABLE IF NOT EXISTS "report_jobs" (
     "id" TEXT NOT NULL,
     "user_id" UUID NOT NULL,
     "institution_id" TEXT,
@@ -699,7 +699,7 @@ CREATE TABLE "report_jobs" (
 );
 
 -- CreateTable
-CREATE TABLE "magic_links" (
+CREATE TABLE IF NOT EXISTS "magic_links" (
     "id" TEXT NOT NULL,
     "user_id" UUID NOT NULL,
     "token" TEXT NOT NULL,
@@ -711,7 +711,7 @@ CREATE TABLE "magic_links" (
 );
 
 -- CreateTable
-CREATE TABLE "email_sequences" (
+CREATE TABLE IF NOT EXISTS "email_sequences" (
     "id" TEXT NOT NULL,
     "user_id" UUID,
     "lead_id" TEXT,
@@ -726,7 +726,7 @@ CREATE TABLE "email_sequences" (
 );
 
 -- CreateTable
-CREATE TABLE "partner_configs" (
+CREATE TABLE IF NOT EXISTS "partner_configs" (
     "id" TEXT NOT NULL,
     "user_id" UUID NOT NULL,
     "firm_name" TEXT NOT NULL,
@@ -739,7 +739,7 @@ CREATE TABLE "partner_configs" (
 );
 
 -- CreateTable
-CREATE TABLE "prospects" (
+CREATE TABLE IF NOT EXISTS "prospects" (
     "id" UUID NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT,
@@ -755,7 +755,7 @@ CREATE TABLE "prospects" (
 );
 
 -- CreateTable
-CREATE TABLE "audit_logs" (
+CREATE TABLE IF NOT EXISTS "audit_logs" (
     "id" UUID NOT NULL,
     "user_id" UUID,
     "institution_id" TEXT,
@@ -774,7 +774,7 @@ CREATE TABLE "audit_logs" (
 );
 
 -- CreateTable
-CREATE TABLE "feedback" (
+CREATE TABLE IF NOT EXISTS "feedback" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT,
     "job_id" TEXT,
@@ -788,7 +788,7 @@ CREATE TABLE "feedback" (
 );
 
 -- CreateTable
-CREATE TABLE "webhook_subscriptions" (
+CREATE TABLE IF NOT EXISTS "webhook_subscriptions" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "url" TEXT NOT NULL,
@@ -803,7 +803,7 @@ CREATE TABLE "webhook_subscriptions" (
 );
 
 -- CreateTable
-CREATE TABLE "resellers" (
+CREATE TABLE IF NOT EXISTS "resellers" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -820,7 +820,7 @@ CREATE TABLE "resellers" (
 );
 
 -- CreateTable
-CREATE TABLE "prospect_analyses" (
+CREATE TABLE IF NOT EXISTS "prospect_analyses" (
     "id" TEXT NOT NULL,
     "charter_number" TEXT NOT NULL,
     "institution_name" TEXT NOT NULL,
@@ -838,7 +838,7 @@ CREATE TABLE "prospect_analyses" (
 );
 
 -- CreateTable
-CREATE TABLE "sso_configurations" (
+CREATE TABLE IF NOT EXISTS "sso_configurations" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "protocol" TEXT NOT NULL,
@@ -858,7 +858,7 @@ CREATE TABLE "sso_configurations" (
 );
 
 -- CreateTable
-CREATE TABLE "usage_meter_events" (
+CREATE TABLE IF NOT EXISTS "usage_meter_events" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "event_type" TEXT NOT NULL,
@@ -871,7 +871,7 @@ CREATE TABLE "usage_meter_events" (
 );
 
 -- CreateTable
-CREATE TABLE "data_deletion_requests" (
+CREATE TABLE IF NOT EXISTS "data_deletion_requests" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "requested_by" TEXT NOT NULL,
@@ -885,7 +885,7 @@ CREATE TABLE "data_deletion_requests" (
 );
 
 -- CreateTable
-CREATE TABLE "regulatory_publications" (
+CREATE TABLE IF NOT EXISTS "regulatory_publications" (
     "id" TEXT NOT NULL,
     "url" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -900,7 +900,7 @@ CREATE TABLE "regulatory_publications" (
 );
 
 -- CreateTable
-CREATE TABLE "institution_alerts" (
+CREATE TABLE IF NOT EXISTS "institution_alerts" (
     "id" TEXT NOT NULL,
     "institution_id" TEXT NOT NULL,
     "publication_id" TEXT NOT NULL,
