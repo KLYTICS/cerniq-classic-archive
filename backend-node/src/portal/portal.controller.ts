@@ -194,7 +194,7 @@ export class PortalController {
   @Roles('OWNER', 'ANALYST')
   @UseInterceptors(
     FileInterceptor('file', {
-      limits: { fileSize: 2 * 1024 * 1024 },
+      limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
         if (!file.originalname.match(/\.csv$/i)) {
           return cb(

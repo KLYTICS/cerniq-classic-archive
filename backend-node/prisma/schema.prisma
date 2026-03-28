@@ -1078,11 +1078,13 @@ model WebhookSubscription {
   lastDeliveredAt DateTime? @map("last_delivered_at")
   failureCount   Int      @default(0) @map("failure_count")
   createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
   @@index([institutionId])
   @@index([isActive])
+  @@unique([institutionId, url])
   @@map("webhook_subscriptions")
 }
 
@@ -1115,6 +1117,7 @@ model ProspectAnalysis {
   sentAt          DateTime? @map("sent_at")
   openedAt        DateTime? @map("opened_at")
   createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   @@unique([charterNumber])
   @@index([status])
@@ -1153,6 +1156,7 @@ model UsageMeterEvent {
   metadata        Json?
   billedAt        DateTime? @map("billed_at")
   createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@index([institutionId, eventType, createdAt])
   @@index([billedAt])
@@ -1168,6 +1172,7 @@ model DataDeletionRequest {
   dataScope       String    @map("data_scope") // full | member_pii_only
   completedAt     DateTime? @map("completed_at")
   createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   @@index([institutionId])
   @@index([status])
@@ -1187,6 +1192,7 @@ model RegulatoryPublication {
   impactJson  Json?     @map("impact_json")
   processedAt DateTime? @map("processed_at")
   createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   alerts InstitutionAlert[]
 
