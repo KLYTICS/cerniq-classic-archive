@@ -21,7 +21,7 @@ describe('FundingConcentrationService', () => {
       totalFunding: 100_000_000,
     });
 
-    expect(result.concentrationFlags).toHaveLength(2); // Big Corp 12%, Gov Fund 8%
+    expect(result.concentrationFlags).toHaveLength(3); // Retail 80%, Big Corp 12%, Gov Fund 8%
     const bigCorp = result.concentrationFlags.find((f) => f.source === 'Big Corp');
     expect(bigCorp).toBeDefined();
     expect(bigCorp!.pct).toBeCloseTo(12.0, 1);
