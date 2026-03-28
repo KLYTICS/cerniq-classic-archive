@@ -178,7 +178,7 @@ export default function InstitutionPreview() {
                 <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
                 <XAxis dataKey="scenario" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => `${v}%`} />
-                <Tooltip formatter={(v: number) => `${v}%`} />
+                <Tooltip formatter={(v: any) => `${v}%`} />
                 <Bar dataKey="niiChange" name="NII">
                   {inst.rateShock.map((entry, i) => (
                     <Cell key={i} fill={entry.niiChange < 0 ? COLORS.red : COLORS.green} />

@@ -258,6 +258,7 @@ model BalanceSheetItem {
   rateType      String    @map("rate_type") // fixed | variable | hybrid
   depositBeta   Decimal?  @map("deposit_beta") @db.Decimal(8, 6) // pass-through rate (0.0-1.0) for deposit beta calibration
   createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -274,6 +275,7 @@ model InterestRateScenario {
   mveImpact     Decimal  @map("mve_impact") @db.Decimal(18, 2)
   duration      Decimal  @db.Decimal(8, 4)
   createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -292,6 +294,7 @@ model LiquidityPosition {
   lcr           Decimal  @db.Decimal(10, 6)
   nsfr          Decimal  @db.Decimal(10, 6)
   createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -330,6 +333,7 @@ model YieldCurve {
   source          String   @default("manual") // manual | fed_h15 | interpolated
   isBase          Boolean  @default(false) @map("is_base") // marks the institution's current base curve
   createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -349,6 +353,7 @@ model LoanSegment {
   qualitativeAdj      Decimal  @default(0) @map("qualitative_adj") @db.Decimal(8, 6) // +/- adjustment to loss rate
   asOfDate            DateTime @map("as_of_date")
   createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
