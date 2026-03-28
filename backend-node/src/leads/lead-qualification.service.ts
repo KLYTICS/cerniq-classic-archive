@@ -127,7 +127,7 @@ export class LeadQualificationService {
     });
 
     const results = await Promise.all(
-      prospects.map(async (p) => ({
+      prospects.map(async (p: { id: string; name: string; estimatedAssets: any }) => ({
         prospectId: p.id,
         name: p.name,
         assets: p.estimatedAssets ?? 0,

@@ -1,7 +1,194 @@
 # CERNIQ API Reference
 
-> **Version:** 2.0.0  
+> **Version:** 2.0.0
 > **Base URL:** `http://localhost:3000/api`
+> **Auth:** Bearer token via `Authorization` header (obtain from `POST /api/auth/login`)
+> **Admin:** `x-admin-key` header for admin endpoints
+
+---
+
+## 🏦 ALM API (Core Product)
+
+### Create Institution
+```http
+POST /api/alm/institutions
+Authorization: Bearer <token>
+```
+
+**Body:**
+```json
+{
+  "name": "CoopAhorro San Juan",
+  "type": "cooperativa",
+  "totalAssets": 250000000,
+  "currency": "USD",
+  "regulatoryBody": "COSSEC"
+}
+```
+
+### List Institutions
+```http
+GET /api/alm/institutions
+Authorization: Bearer <token>
+```
+
+### Upload Balance Sheet CSV
+```http
+POST /api/alm/institutions/:institutionId/upload-csv
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| file | File | CSV file with balance sheet data (bilingual headers supported) |
+| framework | string | `cossec` or `ncua` |
+| analysisPeriod | string | e.g. `Q1-2026` |
+
+### Run Full ALM Analysis
+```http
+POST /api/alm/analysis/run
+Authorization: Bearer <token>
+```
+
+**Body:**
+```json
+{
+  "institutionId": "<uuid>"
+}
+```
+
+**Response:** Full analysis results including duration gap, NII sensitivity, EVE, LCR/NSFR, stress testing, and COSSEC compliance scores.
+
+### Get ALM Summary
+```http
+GET /api/alm/institutions/:institutionId/summary
+Authorization: Bearer <token>
+```
+
+### Duration Gap (Stateless)
+```http
+POST /api/alm/duration-gap
+Authorization: Bearer <token>
+```
+
+**Body:**
+```json
+{
+  "assets": [
+    { "balance": 100000000, "rate": 0.065, "maturityYears": 5, "isFixed": true }
+  ],
+  "liabilities": [
+    { "balance": 80000000, "rate": 0.025, "maturityYears": 1, "isFixed": false }
+  ]
+}
+```
+
+### NII Sensitivity
+```http
+POST /api/alm/nii-sensitivity
+Authorization: Bearer <token>
+```
+
+### Liquidity Coverage Ratio
+```http
+GET /api/alm/institutions/:institutionId/liquidity
+Authorization: Bearer <token>
+```
+
+### Stress Testing (Monte Carlo)
+```http
+POST /api/alm/institutions/:institutionId/stress-test
+Authorization: Bearer <token>
+```
+
+### Generate PDF Report
+```http
+POST /api/alm/institutions/:institutionId/report?lang=en
+Authorization: Bearer <token>
+```
+
+Returns bilingual (EN/ES) PDF report. Pass `lang=es` for Spanish-first.
+
+---
+
+## 🔐 Auth API
+
+### Register
+```http
+POST /api/auth/register
+```
+
+**Body:**
+```json
+{ "email": "user@example.com", "password": "SecurePass123!", "name": "User Name" }
+```
+
+### Login
+```http
+POST /api/auth/login
+```
+
+**Body:**
+```json
+{ "email": "user@example.com", "password": "SecurePass123!" }
+```
+
+**Response:** Sets `access_token` and `refresh_token` as HttpOnly cookies.
+
+### Refresh Token
+```http
+POST /api/auth/refresh
+```
+
+### Logout
+```http
+POST /api/auth/logout
+```
+
+### OAuth
+```http
+GET /api/auth/google          # Initiates Google OAuth
+GET /api/auth/github          # Initiates GitHub OAuth
+```
+
+---
+
+## 💳 Billing API
+
+### Create Checkout Session
+```http
+POST /api/billing/checkout
+Authorization: Bearer <token>
+```
+
+**Body:**
+```json
+{
+  "tier": "monthly",
+  "customerEmail": "cfo@cooperativa.pr",
+  "customerName": "Ana Rivera",
+  "institutionName": "CoopAhorro San Juan",
+  "successUrl": "/portal",
+  "cancelUrl": "/pricing"
+}
+```
+
+**Tiers:** `one_time` ($750), `monthly` ($299/mo), `annual` ($2,990/yr), `partner`
+
+### Get Subscription
+```http
+GET /api/billing/subscription
+Authorization: Bearer <token>
+```
+
+### Webhook (Stripe)
+```http
+POST /api/billing/webhook
+stripe-signature: <sig>
+```
+
+Handles: `checkout.session.completed`, `customer.subscription.*`, `invoice.payment_*`, `charge.dispute.created`. Idempotent (duplicate events are skipped).
 
 ---
 

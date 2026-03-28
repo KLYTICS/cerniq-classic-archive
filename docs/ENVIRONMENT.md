@@ -7,11 +7,17 @@
 ## Quick Start
 
 ```bash
-cp .env.example .env   # Copy template
-# Edit .env with your values
+# Backend
+cp backend-node/.env.example backend-node/.env
+
+# Frontend
+cp frontend/.env.example frontend/.env.local
+
+# Outbound engine (optional)
+cp services/outbound/.env.example services/outbound/.env
 ```
 
-The `.env.example` file contains all variables with sensible development defaults. Only a few **require** configuration for local dev.
+Each `.env.example` file contains all variables with sensible development defaults. Only a few **require** configuration for local dev. See the [Multi-Terminal Runbook](MULTI_TERMINAL_RUNBOOK.md) for full startup instructions.
 
 ---
 
@@ -27,7 +33,7 @@ The `.env.example` file contains all variables with sensible development default
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `REDIS_URL` | ✅ | `redis://localhost:6379` | Redis connection string |
+| `REDIS_URL` | ✅ | `redis://localhost:6380` | Redis connection string (port 6380 = Docker external mapping) |
 | `REDIS_POOL_SIZE` | ❌ | `10` | Redis connection pool size |
 
 ---
@@ -91,7 +97,7 @@ The `.env.example` file contains all variables with sensible development default
 | `NEXT_PUBLIC_NODE_API_URL` | ✅ | `http://localhost:3000` | Backend API URL |
 | `NEXT_PUBLIC_APP_URL` | ❌ | `http://localhost:3001` | Public app URL |
 | `NEXT_PUBLIC_API_URL` | ❌ | `http://localhost:3000` | Legacy API URL alias |
-| `API_URL` | ❌ | `http://localhost:8001` | Legacy backend URL |
+| `API_URL` | ❌ | — | **Deprecated** — was Rust backend (port 8001). Use `NEXT_PUBLIC_NODE_API_URL` instead |
 | `NEXT_PUBLIC_ENABLE_GOOGLE_OAUTH` | ❌ | `true` | Show Google OAuth button |
 | `NEXT_PUBLIC_ENABLE_GITHUB_OAUTH` | ❌ | `false` | Show GitHub OAuth button |
 
@@ -178,7 +184,7 @@ The `.env.example` file contains all variables with sensible development default
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `PORT` | ❌ | `3000` | Backend server port |
-| `BACKEND_PORT` | ❌ | `8001` | Legacy backend port |
+| `BACKEND_PORT` | ❌ | `3000` | Backend server port (alternative to PORT) |
 | `FRONTEND_PORT` | ❌ | `3001` | Frontend port |
 | `NODE_ENV` | ❌ | `development` | Environment |
 | `ALLOWED_ORIGINS` | ❌ | `http://localhost:3000,http://localhost:3001` | CORS allowed origins |
@@ -229,12 +235,35 @@ The `.env.example` file contains all variables with sensible development default
 
 ---
 
-## Logging
+## Logging & Observability
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `RUST_LOG` | ❌ | `info,backend=debug` | Legacy Rust log level |
-| `LOG_FORMAT` | ❌ | `json` | Log output format |
+| `LOG_LEVEL` | ❌ | `info` | Pino log level (debug, info, warn, error) |
+| `SENTRY_DSN` | ⚠️ | — | Sentry error tracking DSN (backend) |
+| `NEXT_PUBLIC_SENTRY_DSN` | ⚠️ | — | Sentry error tracking DSN (frontend) |
+| `SENTRY_ORG` | ❌ | — | Sentry organization slug |
+| `SENTRY_PROJECT` | ❌ | — | Sentry project slug |
+| `SENTRY_AUTH_TOKEN` | ❌ | — | Sentry auth token (for source maps) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | ❌ | — | OpenTelemetry OTLP endpoint |
+| `OTEL_EXPORTER_OTLP_HEADERS` | ❌ | — | OTLP auth headers |
+
+---
+
+## Data Encryption
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATA_ENCRYPTION_KEY` | ⚠️ | — | AES-256-GCM key for PII encryption at rest |
+
+---
+
+## Maintenance
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MAINTENANCE_MODE` | ❌ | `false` | Enable maintenance mode (returns 503) |
+| `MAINTENANCE_MESSAGE` | ❌ | `System maintenance in progress` | Custom maintenance message |
 
 ---
 

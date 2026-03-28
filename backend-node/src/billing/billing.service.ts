@@ -179,7 +179,25 @@ export class BillingService {
         });
     }
 
-    // 4. Create report job for one-time / first report
+    // 4. Auto-create workspace if none exists
+    const existingWorkspace = await this.prisma.workspace.findFirst({
+      where: { ownerId: user.id },
+    });
+    if (!existingWorkspace) {
+      await this.prisma.workspace.create({
+        data: {
+          name: metadata.institutionName || 'My Institution',
+          ownerId: user.id,
+        },
+      });
+      this.logger.log({
+        event: 'workspace.auto_created',
+        userId: user.id,
+        institutionName: metadata.institutionName || 'My Institution',
+      });
+    }
+
+    // 5. Create report job for one-time / first report
     await this.prisma.reportJob.create({
       data: {
         userId: user.id,
@@ -189,7 +207,7 @@ export class BillingService {
       },
     });
 
-    // 5. Generate magic link and send welcome email
+    // 6. Generate magic link and send welcome email
     const magicUrl = await this.generateMagicLink(user.id);
     await this.email.sendClientWelcome({
       email: customerEmail,
@@ -199,7 +217,7 @@ export class BillingService {
       institutionName: metadata.institutionName || '',
     });
 
-    // 6. Revenue alert to Erwin
+    // 7. Revenue alert to Erwin
     await this.email.sendRevenueAlert({
       amount: (amount_total || 0) / 100,
       tier,
@@ -207,7 +225,13 @@ export class BillingService {
       institutionName: metadata.institutionName || '',
     });
 
-    // 7. Schedule onboarding emails
+    // 8. Schedule onboarding emails (B1 immediate, B2 at 30 min, B3 at 48h)
+    await this.scheduleEmail(
+      user.id,
+      null,
+      'B1',
+      new Date(),
+    ); // immediate
     await this.scheduleEmail(
       user.id,
       null,
