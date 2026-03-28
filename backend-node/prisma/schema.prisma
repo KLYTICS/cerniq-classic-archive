@@ -789,6 +789,7 @@ model CooperativaBenchmark {
   memberCountTotal      Int?     @map("member_count_total")
   activeInstitutions    Int?     @map("active_institutions")
   createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
   @@unique([period])
   @@map("cooperativa_benchmarks")
@@ -950,6 +951,7 @@ model MagicLink {
   expiresAt DateTime  @map("expires_at")
   usedAt    DateTime? @map("used_at")
   createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -969,6 +971,7 @@ model EmailSequence {
   cancelled   Boolean   @default(false)
   metadata    Json?
   createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@index([userId, sequenceKey])
   @@index([scheduledAt, cancelled, sentAt])
@@ -1056,6 +1059,7 @@ model Feedback {
   contactOk     Boolean   @default(false) @map("contact_ok")
   respondedAt   DateTime? @map("responded_at")
   createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   @@index([institutionId])
   @@index([jobId])

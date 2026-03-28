@@ -133,6 +133,7 @@ export class CsvIngestV2Service {
     csvContent: string,
   ): Promise<IngestAnalysisResult> {
     const lines = csvContent.trim().split('\n');
+    const MAX_CSV_ROWS = 50_000;
     if (lines.length < 2) {
       return {
         mappings: [],
@@ -143,6 +144,22 @@ export class CsvIngestV2Service {
             row: 0,
             field: 'file',
             issue: 'CSV must have at least a header + 1 data row',
+          },
+        ],
+        warnings: [],
+        ready: false,
+      };
+    }
+    if (lines.length > MAX_CSV_ROWS + 1) {
+      return {
+        mappings: [],
+        sampleData: [],
+        unmappedColumns: [],
+        validationErrors: [
+          {
+            row: 0,
+            field: 'file',
+            issue: `CSV exceeds maximum of ${MAX_CSV_ROWS.toLocaleString()} data rows (got ${(lines.length - 1).toLocaleString()})`,
           },
         ],
         warnings: [],
