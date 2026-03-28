@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "CERNIQ — Institutional ALM Intelligence",
-    description: "62 modules, 34 quant models, COSSEC/NCUA/Basel III compliant. From $2,400/year.",
+    description: "70+ modules, 70 quant models, COSSEC/NCUA/Basel III compliant. From $750.",
   },
   robots: {
     index: true,
@@ -62,7 +62,7 @@ export default function RootLayout({
               name: 'CERNIQ',
               applicationCategory: 'FinanceApplication',
               operatingSystem: 'Web',
-              description: 'Institutional ALM intelligence platform with 62 analytical modules, 34 quant models, and COSSEC/NCUA/Basel III compliance.',
+              description: 'Institutional ALM intelligence platform with 70+ analytical modules, 70 quant models, and COSSEC/NCUA/Basel III compliance.',
               url: 'https://cerniq.io',
               offers: {
                 '@type': 'Offer',
