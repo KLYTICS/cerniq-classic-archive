@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import { analytics, EVENTS } from '@/lib/analytics';
 
-const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-
 export default function PortalLogin() {
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
@@ -21,7 +19,7 @@ export default function PortalLogin() {
     setError(null);
 
     try {
-      const res = await fetch(`${NODE_API_URL}/auth/magic/request`, {
+      const res = await fetch('/auth/magic/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),

@@ -1,6 +1,5 @@
 import type { PortalSubscription } from './subscription';
-
-const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+import { getPublicApiUrl } from './api-base';
 
 export type CheckoutTier = 'one_time' | 'monthly' | 'annual' | 'partner';
 
@@ -23,7 +22,7 @@ export async function createCheckoutSession({
   successUrl = '/portal?welcome=1',
   cancelUrl = '/pricing',
 }: CreateCheckoutSessionParams) {
-  const response = await fetch(`${NODE_API_URL}/api/billing/checkout`, {
+  const response = await fetch(getPublicApiUrl('/api/billing/checkout'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -57,7 +56,7 @@ export async function createCheckoutSession({
 }
 
 export async function getCurrentSubscription(): Promise<PortalSubscription> {
-  const response = await fetch(`${NODE_API_URL}/api/billing/subscription`, {
+  const response = await fetch(getPublicApiUrl('/api/billing/subscription'), {
     credentials: 'include',
   });
 

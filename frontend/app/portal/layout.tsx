@@ -8,6 +8,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { CerniqLockup } from '@/components/brand/CerniqLogo';
 import PortalPaywall from '@/components/portal/PortalPaywall';
 import { requiresPortalPaywall, type PortalSubscription } from '@/lib/subscription';
+import { getPublicApiUrl } from '@/lib/api-base';
 
 interface PortalUser {
   id: string;
@@ -23,8 +24,6 @@ interface PortalContextType {
 
 const PortalContext = createContext<PortalContextType>({ user: null, subscription: null, loading: true });
 export const usePortal = () => useContext(PortalContext);
-
-const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
 
 const NAV_ITEMS = [
   { href: '/portal', label: 'My Reports', icon: BarChart3 },
@@ -50,8 +49,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     async function loadUser() {
       try {
         const [profileRes, subRes] = await Promise.all([
-          fetch(`${NODE_API_URL}/api/auth/profile`, { credentials: 'include' }),
-          fetch(`${NODE_API_URL}/api/billing/subscription`, { credentials: 'include' }),
+          fetch(getPublicApiUrl('/api/auth/profile'), { credentials: 'include' }),
+          fetch(getPublicApiUrl('/api/billing/subscription'), { credentials: 'include' }),
         ]);
         if (profileRes.ok) {
           setUser(await profileRes.json());
@@ -69,7 +68,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   }, [router, pathname]);
 
   const logout = async () => {
-    await fetch(`${NODE_API_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+    await fetch(getPublicApiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' });
     router.push('/');
   };
 

@@ -3,11 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { usePortal } from '../../layout';
 import { FileText, Download, ArrowLeft, Clock, AlertTriangle, Globe } from 'lucide-react';
 import { analytics, EVENTS } from '@/lib/analytics';
-
-const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+import { getPublicApiUrl } from '@/lib/api-base';
 
 interface JobDetail {
   id: string;
@@ -23,7 +21,6 @@ interface JobDetail {
 
 export default function ReportViewer() {
   const params = useParams();
-  const { user } = usePortal();
   const [job, setJob] = useState<JobDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [pdfLang, setPdfLang] = useState<'es' | 'en'>('es');
@@ -31,7 +28,7 @@ export default function ReportViewer() {
   useEffect(() => {
     async function loadJob() {
       try {
-        const res = await fetch(`${NODE_API_URL}/api/portal/jobs/${params.id}`, { credentials: 'include' });
+        const res = await fetch(getPublicApiUrl(`/api/portal/jobs/${params.id}`), { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           setJob(data);

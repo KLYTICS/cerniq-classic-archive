@@ -7,8 +7,7 @@ import { SkeletonLoader, EmptyState, ErrorBanner } from '@/components/ui/cerniq'
 import { analytics, EVENTS } from '@/lib/analytics';
 import { useTranslation } from '@/lib/i18n';
 import ProgressTracker from '@/components/portal/ProgressTracker';
-
-const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+import { getPublicApiUrl } from '@/lib/api-base';
 
 interface ReportJob {
   id: string;
@@ -150,7 +149,7 @@ export default function PortalSubmit() {
     setLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch(`${NODE_API_URL}/api/portal/jobs`, { credentials: 'include' });
+      const res = await fetch(getPublicApiUrl('/api/portal/jobs'), { credentials: 'include' });
       if (res.ok) {
         const allJobs: ReportJob[] = await res.json();
         const awaitingJobs = allJobs.filter(j => j.status === 'AWAITING_DATA' || j.status === 'VALIDATION_FAILED');
@@ -163,7 +162,7 @@ export default function PortalSubmit() {
       setFetchError(t('Connection error. Check your internet and try again.', 'Error de conexion. Verifique su internet e intente de nuevo.'));
     }
     setLoading(false);
-  }, [locale]);
+  }, [t]);
 
   useEffect(() => {
     loadJobs();
@@ -208,7 +207,7 @@ export default function PortalSubmit() {
       formData.append('file', file);
       if (analysisPeriod) formData.append('analysisPeriod', analysisPeriod);
 
-      const res = await fetch(`${NODE_API_URL}/api/portal/jobs/${selectedJob}/submit`, {
+      const res = await fetch(getPublicApiUrl(`/api/portal/jobs/${selectedJob}/submit`), {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -293,7 +292,7 @@ export default function PortalSubmit() {
                   )}
                 </p>
                 <a
-                  href={`${NODE_API_URL}/api/alm/templates/cooperativa`}
+                  href={getPublicApiUrl('/api/alm/templates/cooperativa')}
                   className="cerniq-button-secondary px-4 py-2 text-sm"
                 >
                   <Download className="h-4 w-4" /> {t('Download template', 'Descargar plantilla')}

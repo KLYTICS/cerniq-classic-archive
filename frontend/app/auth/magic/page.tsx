@@ -4,10 +4,6 @@ import { Suspense, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { analytics, EVENTS } from '@/lib/analytics';
 
-const NODE_API_URL = (
-  process.env.NEXT_PUBLIC_NODE_API_URL || ''
-).trim().replace(/\/+$/, '');
-
 function MagicLinkInner() {
   const searchParams = useSearchParams();
 
@@ -15,7 +11,7 @@ function MagicLinkInner() {
     const token = searchParams.get('token');
     if (token) {
       analytics.track(EVENTS.MAGIC_LINK_CLICKED);
-      window.location.href = `${NODE_API_URL}/auth/magic?token=${encodeURIComponent(token)}`;
+      window.location.href = `/auth/magic?token=${encodeURIComponent(token)}`;
     } else {
       window.location.href = '/auth/expired';
     }

@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { getMarketApiBase } from './marketTransport';
+import { getPublicApiBase, getPublicApiUrl } from './api-base';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -13,12 +14,8 @@ declare module 'axios' {
   }
 }
 
-const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL || ''
-).trim().replace(/\/+$/, '');
-const NODE_API_URL = (
-  process.env.NEXT_PUBLIC_NODE_API_URL || ''
-).trim().replace(/\/+$/, '');
+const API_URL = getPublicApiBase();
+const NODE_API_URL = getPublicApiBase();
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const ACCESS_TOKEN_KEY = 'cerniq_access_token';
@@ -159,7 +156,7 @@ class APIClient {
           try {
             // Attempt silent token refresh via HttpOnly cookie
             const refreshRes = await axios.post(
-              `${NODE_API_URL}/api/auth/refresh`,
+              getPublicApiUrl('/api/auth/refresh'),
               {},
               { withCredentials: true }
             );

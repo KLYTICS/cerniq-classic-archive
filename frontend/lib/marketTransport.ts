@@ -1,16 +1,14 @@
+import { getConfiguredApiOrigin, getPublicApiUrl } from './api-base';
+
 function trimTrailingSlashes(value: string): string {
     return value.trim().replace(/\/+$/, '');
 }
 
-const NODE_API_URL = trimTrailingSlashes(process.env.NEXT_PUBLIC_NODE_API_URL || '');
+const NODE_API_URL = getConfiguredApiOrigin();
 const SOCKET_URL = trimTrailingSlashes(process.env.NEXT_PUBLIC_SOCKET_URL || '');
 
 export function getMarketApiBase(): string {
-    if (NODE_API_URL) {
-        return `${NODE_API_URL}/api/market-data`;
-    }
-
-    return '/api/market-data';
+    return getPublicApiUrl('/api/market-data');
 }
 
 export function getMarketSocketNamespaceUrl(): string {

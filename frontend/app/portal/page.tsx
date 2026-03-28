@@ -16,8 +16,7 @@ import ProgressTracker from '@/components/portal/ProgressTracker';
 import WorkspaceCommandCenter from '@/components/portal/WorkspaceCommandCenter';
 import ReportProgressWS from '@/components/portal/ReportProgressWS';
 import { rememberPortalUser } from '@/lib/subscription';
-
-const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+import { getPublicApiUrl } from '@/lib/api-base';
 
 interface ReportJob {
   id: string;
@@ -88,10 +87,11 @@ function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
   const { locale } = useTranslation();
   const t = (en: string, es: string) => locale === 'en' ? en : es;
 
-  // Mark this user as a portal/billing user so they skip retail onboarding
-  if (isWelcome && typeof window !== 'undefined') {
-    rememberPortalUser();
-  }
+  useEffect(() => {
+    if (isWelcome) {
+      rememberPortalUser();
+    }
+  }, [isWelcome]);
 
   if (!isWelcome) return null;
 
@@ -151,69 +151,6 @@ function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
   );
 }
 
-/* ---------- Processing State ---------- */
-function ProcessingState({ job }: { job: ReportJob }) {
-  const msg = useRotatingMessage();
-  const { locale } = useTranslation();
-  const t = (en: string, es: string) => locale === 'en' ? en : es;
-
-  const progressPercent =
-    job.status === 'VALIDATING' ? 20
-      : job.status === 'QUEUED' ? 30
-        : job.status === 'PROCESSING' ? 55
-          : job.status === 'GENERATING_PDF' ? 78
-            : 92; // UPLOADING
-
-  return (
-    <div className="cerniq-panel p-8 text-center">
-      {/* Pulsing spinner */}
-      <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center">
-        <div className="relative">
-          <div className="h-16 w-16 rounded-full border-4 border-[#1ABFFF]/20" />
-          <div className="absolute inset-0 h-16 w-16 animate-spin rounded-full border-4 border-transparent border-t-[#1ABFFF]" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="h-6 w-6 rounded-full bg-[#1ABFFF]/30 animate-pulse" />
-          </div>
-        </div>
-      </div>
-
-      <h2 className="text-lg font-semibold text-slate-900">
-        {t('Processing your ALM analysis...', 'Procesando su analisis ALM...')}
-      </h2>
-
-      {/* Rotating status message */}
-      <div className="mt-5 min-h-[3rem]" aria-live="polite">
-        <p className="text-sm font-medium text-[#1ABFFF] animate-pulse">
-          {t(msg.en, msg.es)}
-        </p>
-      </div>
-
-      {/* Progress bar */}
-      <div className="mt-6 max-w-md mx-auto">
-        <div className="cerniq-progress-track" role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100} aria-label={t('Report generation progress', 'Progreso de generacion del informe')}>
-          <div
-            className="cerniq-progress-bar"
-            style={{ width: `${progressPercent}%`, transition: 'width 1s ease' }}
-          />
-        </div>
-        <p className="mt-2 text-xs text-slate-400 capitalize">
-          {job.status.replace(/_/g, ' ').toLowerCase()} &middot; {job.institutionName}
-        </p>
-      </div>
-
-      <div className="mt-6 rounded-xl bg-slate-50 border border-slate-100 p-4 max-w-sm mx-auto">
-        <p className="text-xs text-slate-500">
-          <strong className="text-slate-700">{t('Estimated time', 'Tiempo estimado')}:</strong>{' '}
-          {t('30-60 minutes', '30-60 minutos')}
-        </p>
-        <p className="text-[10px] text-slate-400 mt-1">
-          {t('We will email you when it is ready.', 'Le enviaremos un email cuando este listo.')}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 /* ---------- ALCO Pack Button ---------- */
 function AlcoPackButton({ jobId, compact }: { jobId: string; compact?: boolean }) {
   const [loading, setLoading] = useState(false);
@@ -222,7 +159,7 @@ function AlcoPackButton({ jobId, compact }: { jobId: string; compact?: boolean }
     setLoading(true);
     try {
       const token = typeof window !== 'undefined' ? (sessionStorage.getItem('cerniq_access_token') || localStorage.getItem('cerniq_access_token')) : null;
-      const res = await fetch(`${NODE_API_URL}/api/portal/jobs/${jobId}/alco-pack?lang=es`, {
+      const res = await fetch(getPublicApiUrl(`/api/portal/jobs/${jobId}/alco-pack?lang=es`), {
         method: 'POST',
         credentials: 'include',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -303,7 +240,7 @@ function ReportReadyState({ job }: { job: ReportJob }) {
               {t('View report', 'Ver informe')}
             </Link>
             <a
-              href={`${NODE_API_URL}/api/portal/jobs/${job.id}/download`}
+              href={getPublicApiUrl(`/api/portal/jobs/${job.id}/download`)}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <Download className="h-4 w-4" />
@@ -405,7 +342,7 @@ export default function PortalHome() {
     setLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch(`${NODE_API_URL}/api/portal/jobs`, { credentials: 'include' });
+      const res = await fetch(getPublicApiUrl('/api/portal/jobs'), { credentials: 'include' });
       if (res.ok) {
         setJobs(await res.json());
       } else {
@@ -415,7 +352,7 @@ export default function PortalHome() {
       setFetchError(t('Connection error. Check your internet and try again.', 'Error de conexion. Verifique su internet e intente de nuevo.'));
     }
     setLoading(false);
-  }, [locale]);
+  }, [t]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -514,7 +451,7 @@ export default function PortalHome() {
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
-                  href={`${NODE_API_URL}/api/alm/templates/cooperativa`}
+                  href={getPublicApiUrl('/api/alm/templates/cooperativa')}
                   className="cerniq-button-secondary px-4 py-2.5 text-sm"
                 >
                   <Download className="h-4 w-4" /> {t('Download template', 'Descargar plantilla')}

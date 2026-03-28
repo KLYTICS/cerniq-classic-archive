@@ -10,9 +10,8 @@ import { CerniqMark } from '@/components/brand/CerniqLogo';
 import { useAuthStore } from '@/lib/store';
 import { useTranslation } from '@/lib/i18n';
 import { hasPaidPortalAccess, isRememberedPortalUser, rememberPortalUser } from '@/lib/subscription';
+import { getPublicApiUrl } from '@/lib/api-base';
 import { ArrowRight } from 'lucide-react';
-
-const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
 
 function parseBooleanEnv(raw: string | undefined, fallback: boolean): boolean {
   const normalized = (raw || '').trim().toLowerCase();
@@ -275,7 +274,7 @@ function LoginContent() {
             <div className={`grid gap-3 ${ENABLE_GOOGLE_OAUTH && ENABLE_GITHUB_OAUTH ? 'grid-cols-2' : 'grid-cols-1'}`}>
               {ENABLE_GOOGLE_OAUTH ? (
                 <a
-                  href={`${NODE_API_URL}/api/auth/google`}
+                  href={getPublicApiUrl('/api/auth/google')}
                   className="flex items-center justify-center gap-3 rounded-2xl border border-[#41577d] bg-[#202a43] px-4 py-4 text-base font-medium text-white transition hover:bg-[#27324e]"
                 >
                   <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -290,7 +289,7 @@ function LoginContent() {
 
               {ENABLE_GITHUB_OAUTH ? (
                 <a
-                  href={`${NODE_API_URL}/api/auth/github`}
+                  href={getPublicApiUrl('/api/auth/github')}
                   className="flex items-center justify-center gap-3 rounded-2xl border border-[#41577d] bg-[#202a43] px-4 py-4 text-base font-medium text-white transition hover:bg-[#27324e]"
                 >
                   <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">

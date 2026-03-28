@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { usePortal } from '../layout';
 import { CreditCard, ExternalLink, CheckCircle, Shield } from 'lucide-react';
 import { analytics, EVENTS } from '@/lib/analytics';
-
-const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+import { getPublicApiUrl } from '@/lib/api-base';
 
 const TIER_DETAILS: Record<string, { name: string; price: string; features: string[] }> = {
   free: {
@@ -46,7 +45,7 @@ export default function PortalBilling() {
     setLoadingPortal(true);
     try {
       analytics.track(EVENTS.PORTAL_BILLING_OPENED, { tier });
-      const res = await fetch(`${NODE_API_URL}/api/billing/portal`, {
+      const res = await fetch(getPublicApiUrl('/api/billing/portal'), {
         method: 'POST',
         credentials: 'include',
       });

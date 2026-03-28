@@ -13,10 +13,18 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     const backendUrl = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
+    if (!backendUrl) {
+      return [];
+    }
+
     return [
       {
         source: '/api/:path*',
         destination: `${backendUrl}/api/:path*`,
+      },
+      {
+        source: '/auth/:path*',
+        destination: `${backendUrl}/auth/:path*`,
       },
     ];
   },
