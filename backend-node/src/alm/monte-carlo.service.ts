@@ -123,7 +123,7 @@ export class MonteCarloService {
     const ratePaths = this.generateVasicekPaths(params, dt, quarters, paths);
 
     // Build a typed balance sheet for EVE revaluation
-    const balanceSheet = items.map((item) => ({
+    const balanceSheet = items.map((item: any) => ({
       isAsset: item.category === 'asset',
       balance: Number.isFinite(item.balance) ? item.balance : 0,
       duration: Number.isFinite(item.duration) ? item.duration : undefined,
