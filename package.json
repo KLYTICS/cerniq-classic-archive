@@ -15,10 +15,10 @@
   },
   "lint-staged": {
     "backend-node/src/**/*.ts": [
-      "eslint --fix --no-warn-ignored"
+      "bash -c 'cd backend-node && npx eslint --fix --no-warn-ignored \"$@\"' --"
     ],
     "frontend/**/*.{ts,tsx}": [
-      "eslint --fix --no-warn-ignored"
+      "bash -c 'cd frontend && npx eslint --fix --no-warn-ignored \"$@\"' --"
     ]
   }
 }
