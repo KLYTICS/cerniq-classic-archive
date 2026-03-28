@@ -108,6 +108,8 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
   --electric-bright: #0891b2;
   --line: rgba(146, 176, 214, 0.35);
   --panel: rgba(255, 255, 255, 0.94);
+  --font-manrope: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-space-grotesk: "Avenir Next", "Trebuchet MS", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
 }
 
 @theme inline {

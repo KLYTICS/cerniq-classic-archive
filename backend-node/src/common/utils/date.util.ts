@@ -18,7 +18,7 @@ const PR_HOLIDAYS: Array<{ month: number; day: number; name: string }> = [
  * Check if a date is a weekend (Saturday or Sunday).
  */
 export function isWeekend(date: Date): boolean {
-  const day = date.getDay();
+  const day = date.getUTCDay();
   return day === 0 || day === 6;
 }
 

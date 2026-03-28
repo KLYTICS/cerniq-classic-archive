@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Manrope, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -9,16 +8,6 @@ import CookieConsent from '@/components/CookieConsent';
 import SessionTimeoutWarning from '@/components/SessionTimeoutWarning';
 import { ToastProvider } from '@/components/Toast';
 import { WebVitals } from '@/components/WebVitals';
-
-const bodyFont = Manrope({
-  subsets: ['latin'],
-  variable: '--font-manrope',
-});
-
-const displayFont = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-space-grotesk',
-});
 
 export const metadata: Metadata = {
   title: "CERNIQ — Institutional ALM Intelligence | 70+ Modules, 50 Quant Models, COSSEC/NCUA Compliant",
@@ -93,7 +82,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${bodyFont.variable} ${displayFont.variable}`}>
+      <body>
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:rounded-lg focus:bg-cyan-700 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white">
           Skip to content
         </a>

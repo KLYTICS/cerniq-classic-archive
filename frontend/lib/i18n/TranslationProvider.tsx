@@ -89,12 +89,12 @@ export function TranslationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const t = useCallback(
-    (key: string): string => getNestedValue(translations[locale], key),
+    (key: string): string => getNestedValue(translations[locale] as unknown as TranslationValue, key),
     [locale],
   );
 
   const ta = useCallback(
-    (key: string): string[] => getNestedArray(translations[locale] as TranslationValue, key),
+    (key: string): string[] => getNestedArray(translations[locale] as unknown as TranslationValue, key),
     [locale],
   );
 
