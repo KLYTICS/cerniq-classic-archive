@@ -18,7 +18,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
-import { performance, monitorEventLoopDelay } from 'node:perf_hooks';
+import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import { CacheService } from './cache/cache.service';
@@ -283,6 +283,9 @@ export class AppController {
       memory,
     });
 
+    // Connection-pool metrics (pg.Pool)
+    const poolStats = this.prisma.getPoolStats();
+
     return {
       status,
       db: dbConnected ? 'connected' : 'error',
@@ -296,6 +299,14 @@ export class AppController {
         heapPercent: memory.heapPercent,
         rssPercent: memory.rssPercent,
       },
+      ...(poolStats && {
+        connectionPool: {
+          totalConnections: poolStats.totalCount,
+          idleConnections: poolStats.idleCount,
+          waitingRequests: poolStats.waitingCount,
+          maxSize: poolStats.maxSize,
+        },
+      }),
       version: '2.0.0',
       uptime: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
@@ -365,21 +376,16 @@ export class AppController {
       p99Ms: +(eventLoopHistogram.percentile(99) / 1e6).toFixed(2),
     };
 
-    // Connection pool stats (Prisma metrics are best-effort)
-    let connectionPool: Record<string, unknown> = { active: 1, idle: 4, max: 10 };
-    try {
-      // Prisma client engine exposes metrics when enabled; fall back to defaults
-      const engineMetrics = (this.prisma as any).$metrics;
-      if (typeof engineMetrics?.json === 'function') {
-        const m = await engineMetrics.json();
-        const pool = m.gauges?.find((g: any) => g.key === 'prisma_pool_connections_open');
-        if (pool) {
-          connectionPool = { open: pool.value, ...connectionPool };
+    // Connection pool stats from pg.Pool
+    const pgPoolStats = this.prisma.getPoolStats();
+    const connectionPool: Record<string, unknown> = pgPoolStats
+      ? {
+          total: pgPoolStats.totalCount,
+          idle: pgPoolStats.idleCount,
+          waiting: pgPoolStats.waitingCount,
+          max: pgPoolStats.maxSize,
         }
-      }
-    } catch {
-      // Prisma metrics not available — use defaults
-    }
+      : { active: 0, idle: 0, max: 10 };
 
     return {
       timestamp: new Date().toISOString(),
@@ -455,12 +461,22 @@ export class AppController {
       (s) => s.status === 'up' || s.status === 'healthy',
     );
 
+    const detailedPoolStats = this.prisma.getPoolStats();
+
     return {
       status: allUp ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
       version: '2.0.0',
       uptime: process.uptime(),
       memory,
+      ...(detailedPoolStats && {
+        connectionPool: {
+          totalConnections: detailedPoolStats.totalCount,
+          idleConnections: detailedPoolStats.idleCount,
+          waitingRequests: detailedPoolStats.waitingCount,
+          maxSize: detailedPoolStats.maxSize,
+        },
+      }),
       services,
       marketData: marketDataHealth,
     };

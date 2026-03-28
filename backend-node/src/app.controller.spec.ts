@@ -11,6 +11,7 @@ import { AuthGuard } from './auth/auth.guard';
 import { EmailService } from './email/email.service';
 import { MarketDataService } from './market-data/market-data.service';
 import { MarketStreamManagerService } from './market-data/market-stream-manager.service';
+import { CacheService } from './cache/cache.service';
 
 jest.mock('node:fs', () => {
   const actual = jest.requireActual('node:fs');
@@ -23,6 +24,7 @@ jest.mock('node:fs', () => {
 jest.mock('./prisma.service', () => ({
   PrismaService: jest.fn().mockImplementation(() => ({
     $queryRaw: jest.fn(),
+    getPoolStats: jest.fn().mockReturnValue(null),
     demoRequest: { create: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     institution: { count: jest.fn(), deleteMany: jest.fn() },
     balanceSheetItem: { deleteMany: jest.fn() },
@@ -71,6 +73,10 @@ describe('AppController', () => {
         {
           provide: MarketStreamManagerService,
           useValue: { getStreamStatus: jest.fn().mockReturnValue({}) },
+        },
+        {
+          provide: CacheService,
+          useValue: { get: jest.fn(), set: jest.fn(), redis: null },
         },
       ],
     })

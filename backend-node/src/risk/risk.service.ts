@@ -101,16 +101,17 @@ export class RiskService {
     // Sort returns in ascending order
     const sortedReturns = [...request.returns].sort((a, b) => a - b);
 
-    const varIndex = Math.floor(
-      (1 - request.confidenceLevel) * sortedReturns.length,
+    const varIndex = Math.max(
+      1,
+      Math.floor((1 - request.confidenceLevel) * sortedReturns.length),
     );
-    const varReturn = sortedReturns[varIndex];
+    const varReturn = sortedReturns[varIndex - 1];
     const var95 = -varReturn * request.portfolioValue;
 
-    // CVaR (Expected Shortfall)
+    // CVaR (Expected Shortfall): average of returns at or below VaR threshold
     const returnsAtRisk = sortedReturns.slice(0, varIndex);
     const cvarReturn =
-      returnsAtRisk.reduce((sum, r) => sum + r, 0) / returnsAtRisk.length;
+      returnsAtRisk.reduce((sum: number, r: number) => sum + r, 0) / returnsAtRisk.length;
     const cvar = -cvarReturn * request.portfolioValue;
 
     return {

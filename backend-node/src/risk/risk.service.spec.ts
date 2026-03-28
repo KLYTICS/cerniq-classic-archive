@@ -183,15 +183,15 @@ describe('RiskService', () => {
       expect(result.cvar).toBeGreaterThan(0);
     });
 
-    it('should handle all-positive returns (bull market)', async () => {
+    it('should handle all-positive returns (bull market) — VaR is negative (gains)', async () => {
       const bullReturns = [0.01, 0.02, 0.03, 0.015, 0.025, 0.005, 0.008, 0.012, 0.018, 0.022];
       const result = await service.calculateVaR({
         returns: bullReturns,
         confidenceLevel: 0.95,
         portfolioValue: 1_000_000,
       });
-      // VaR should be small or negative (gains scenario)
-      expect(result.var).toBeLessThan(50_000); // Less than 5% loss
+      // In a bull market, VaR is negative (no loss scenario at 95% confidence)
+      expect(result.var).toBeLessThan(0);
     });
   });
 });
