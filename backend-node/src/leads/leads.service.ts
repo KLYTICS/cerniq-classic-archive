@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { EmailService } from '../email/email.service';
+import { SlackService } from '../notifications/slack.service';
 import { SubmitLeadDto, UpdateLeadDto } from './leads.dto';
 import {
   COOPERATIVA_PROSPECTS,
@@ -14,6 +15,7 @@ export class LeadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
+    @Optional() private readonly slack?: SlackService,
   ) {}
 
   async submitLead(dto: SubmitLeadDto) {
@@ -72,10 +74,17 @@ export class LeadsService {
       `New lead created: ${lead.id} — ${dto.institutionName} (${priority})`,
     );
 
-    // Fire-and-forget: send notification emails
-    this.sendNotificationEmails(lead, dto).catch((err) => {
+    // Fire-and-forget: send notification emails + Slack alert
+    this.sendNotificationEmails(lead, dto).catch((err: any) => {
       this.logger.error(`Email notification failed: ${err.message}`);
     });
+    this.slack?.notifyNewLead({
+      name: dto.name,
+      email: dto.email,
+      institution: dto.institutionName,
+      type: dto.institutionType,
+      priority,
+    }).catch(() => {});
 
     return {
       leadId: lead.id,

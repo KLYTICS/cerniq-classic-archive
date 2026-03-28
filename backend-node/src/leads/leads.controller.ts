@@ -6,12 +6,16 @@ import {
   Param,
   Body,
   Query,
+  Req,
   Logger,
+  HttpCode,
   UseGuards,
 } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { LeadsService } from './leads.service';
 import { LeadQualificationService } from './lead-qualification.service';
+import { LeadScoringService } from './lead-scoring.service';
+import { OutreachExecutionService } from './outreach-execution.service';
 import { SubmitLeadDto, UpdateLeadDto } from './leads.dto';
 import { AdminGuard } from '../common/guards/admin.guard';
 
@@ -22,6 +26,8 @@ export class LeadsController {
   constructor(
     private readonly leads: LeadsService,
     private readonly qualification: LeadQualificationService,
+    private readonly scoring: LeadScoringService,
+    private readonly outreachExecution: OutreachExecutionService,
   ) {}
 
   // ── Public endpoint (rate-limited at app level) ──
@@ -126,5 +132,71 @@ export class LeadsController {
   @UseGuards(AdminGuard)
   async qualifyAllProspects() {
     return this.qualification.qualifyAllProspects();
+  }
+
+  // ── Lead Scoring ──
+
+  @Get('admin/api/leads/:id/score')
+  @UseGuards(AdminGuard)
+  async scoreLead(@Param('id') id: string) {
+    return this.scoring.scoreLead(id);
+  }
+
+  @Post('admin/api/leads/score-all')
+  @UseGuards(AdminGuard)
+  async scoreAllLeads() {
+    return this.scoring.scoreAllLeads();
+  }
+
+  // ── Outreach Execution ──
+
+  @Post('admin/api/prospects/:id/send-outreach')
+  @UseGuards(AdminGuard)
+  async sendOutreach(
+    @Param('id') id: string,
+    @Query('lang') lang?: string,
+  ) {
+    return this.outreachExecution.executeOutreach(
+      id,
+      lang === 'en' ? 'en' : 'es',
+    );
+  }
+
+  @Post('admin/api/prospects/bulk-outreach')
+  @UseGuards(AdminGuard)
+  async bulkOutreach(
+    @Query('lang') lang?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.outreachExecution.executeBulkOutreach(
+      lang === 'en' ? 'en' : 'es',
+      parseInt(limit || '10', 10),
+    );
+  }
+
+  // ── Demo Step Tracking ──
+
+  @Post('api/demo/track')
+  @SkipThrottle()
+  @HttpCode(200)
+  async trackDemoStep(
+    @Body() body: { step: number; timestamp: string },
+    @Req() req: any,
+  ) {
+    // Fire-and-forget -- don't block the demo experience
+    const sessionId = req.headers['x-request-id'] || 'anonymous';
+    this.logger.debug({
+      event: 'demo.step',
+      step: body.step,
+      sessionId,
+      timestamp: body.timestamp,
+    });
+
+    // If step 6 (Get Started) -- capture as a warm lead
+    if (body.step === 6) {
+      this.logger.log({ event: 'demo.completed', sessionId });
+    }
+
+    return { tracked: true };
   }
 }

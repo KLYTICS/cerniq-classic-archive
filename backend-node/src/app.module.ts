@@ -41,6 +41,7 @@ import { DataCryptoModule } from './crypto/data-crypto.module';
 import { AuditModule } from './audit/audit.module';
 import { ApiV1Module } from './api-v1/api-v1.module';
 import { ComplianceModule } from './compliance/compliance.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -101,6 +102,8 @@ import { ComplianceModule } from './compliance/compliance.module';
     ApiV1Module,
     // SOC 2 Type II compliance automation
     ComplianceModule,
+    // Slack/webhook notifications for sales alerts
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

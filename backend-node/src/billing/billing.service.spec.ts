@@ -71,6 +71,10 @@ describe('BillingService', () => {
         create: jest.fn(),
         updateMany: jest.fn(),
       },
+      workspace: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'ws-auto' }),
+      },
     };
 
     email = {

@@ -1108,6 +1108,32 @@ export class EmailService {
     }
   }
 
+  // ── Raw Email (for outreach & ad-hoc sends) ───────────
+
+  async sendRawEmail(data: {
+    to: string;
+    subject: string;
+    html: string;
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Raw email to: ${data.to} — ${data.subject}`);
+      return;
+    }
+    try {
+      await this.resend.emails.send({
+        from: 'Erwin Kiess <onboarding@resend.dev>',
+        replyTo: this.adminEmail(),
+        to: data.to,
+        subject: data.subject,
+        html: this.wrap(data.html),
+      });
+      this.logger.log(`Raw email sent to ${data.to}: ${data.subject}`);
+    } catch (err) {
+      this.logger.error(`Failed to send raw email to ${data.to}: ${err}`);
+      throw err;
+    }
+  }
+
   // ── Demo Confirmation (bilingual) ─────────────────────
 
   async sendDemoConfirmation(data: {
