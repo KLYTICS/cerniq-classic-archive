@@ -96,6 +96,12 @@ const almNav: NavItem[] = [
       { href: '/alm/stress-v2', icon: AlertOctagon, labelKey: 'sidebar.stressV2' },
       { href: '/alm/ews', icon: AlertOctagon, labelKey: 'sidebar.ews' },
       { href: '/alm/scenario-builder', icon: SlidersHorizontal, labelKey: 'sidebar.scenarioBuilder' },
+      { href: '/alm/scenario-compare', icon: SlidersHorizontal, labelKey: 'sidebar.scenarioCompare' },
+      { href: '/alm/deposit-beta', icon: TrendingUp, labelKey: 'sidebar.depositBeta' },
+      { href: '/alm/network', icon: Activity, labelKey: 'sidebar.network' },
+      { href: '/alm/stress-test', icon: AlertOctagon, labelKey: 'sidebar.stressTest' },
+      { href: '/alm/usvi', icon: Shield, labelKey: 'sidebar.usvi' },
+      { href: '/alm/reseller', icon: DollarSign, labelKey: 'sidebar.reseller' },
       // Quant Frontier
       { href: '/alm/black-litterman', icon: TrendingUp, labelKey: 'sidebar.blackLitterman' },
       { href: '/alm/cvar-optimizer', icon: AlertOctagon, labelKey: 'sidebar.cvarOptimizer' },
@@ -111,6 +117,8 @@ const almNav: NavItem[] = [
       { href: '/alm/rbc2', icon: Shield, labelKey: 'sidebar.rbc2' },
       { href: '/alm/macro-factors', icon: Activity, labelKey: 'sidebar.macroFactors' },
       { href: '/alm/garch', icon: Activity, labelKey: 'sidebar.garch' },
+      { href: '/alm/svensson', icon: TrendingUp, labelKey: 'sidebar.svensson' },
+      { href: '/alm/hull-white', icon: Activity, labelKey: 'sidebar.hullWhite' },
     ],
   },
 ];
