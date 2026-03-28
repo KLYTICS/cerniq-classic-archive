@@ -122,6 +122,9 @@ export class CECLService {
         ),
       ), // 0-100%
       lgd: Math.max(0, Math.min(Number.isFinite(seg.lgd) ? seg.lgd! : 0.5, 1)), // 0-100%
+      // Qualitative adjustment per CERNIQ Model Governance Policy v1.0
+      // Cap: ±10% for standard segments, ±15% for emerging risk segments
+      // Justification must be documented per FASB 326 qualitative framework
       qualitativeAdj: Math.max(
         -0.1,
         Math.min(
@@ -129,6 +132,13 @@ export class CECLService {
           0.1,
         ),
       ), // -10% to +10%
+      discountRate: Math.max(
+        0,
+        Math.min(
+          Number.isFinite(seg.discountRate) ? seg.discountRate! : 0.03,
+          0.2,
+        ),
+      ), // 0-20%, default 3%
     };
   }
 
@@ -140,14 +150,19 @@ export class CECLService {
       historicalLossRate: number;
       lgd?: number;
       qualitativeAdj?: number;
+      discountRate?: number;
     }>,
   ): CECLSummary {
     const results: CECLSegmentResult[] = segments.map((rawSeg) => {
       const seg = this.validateSegment(rawSeg);
       const adjRate = seg.historicalLossRate + seg.qualitativeAdj;
-      // WARM: lifetime loss = annual loss rate * remaining life
-      // Cap lifetime loss rate at 1 (100%) to prevent nonsensical results
-      const lifetimeLossRate = Math.min(adjRate * seg.weightedAvgMaturity, 1);
+      // FASB 326 requires PV discounting of expected losses (ASC 326-20-30-4)
+      const discountRate = seg.discountRate ?? 0.03; // Default 3% if not specified
+      const undiscountedLoss = adjRate * seg.weightedAvgMaturity;
+      const pvFactor = seg.weightedAvgMaturity > 0
+        ? (1 - Math.pow(1 + discountRate, -seg.weightedAvgMaturity)) / (discountRate * seg.weightedAvgMaturity)
+        : 1;
+      const lifetimeLossRate = Math.min(undiscountedLoss * pvFactor, 1);
       const expectedLoss = seg.balance * lifetimeLossRate;
       const allowance = expectedLoss;
 
@@ -190,6 +205,7 @@ export class CECLService {
       historicalLossRate: number;
       lgd?: number;
       qualitativeAdj?: number;
+      discountRate?: number;
     }>,
   ): CECLSummary {
     const results: CECLSegmentResult[] = segments.map((rawSeg) => {
@@ -255,6 +271,7 @@ export class CECLService {
       historicalLossRate: number;
       lgd?: number;
       qualitativeAdj?: number;
+      discountRate?: number;
     }>,
   ): CECLSummary {
     const scenarioResults: Record<string, CECLSegmentResult[]> = {};

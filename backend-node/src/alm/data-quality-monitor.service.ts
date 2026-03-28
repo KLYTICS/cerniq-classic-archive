@@ -76,12 +76,20 @@ export class DataQualityMonitorService {
     const plausibility = this.checkPlausibility(params, criticals, warnings, infos);
     const timeliness = this.checkTimeliness(params, criticals, warnings, infos);
 
-    const overallScore = Math.round(
+    // Base score from weighted components
+    let rawScore =
       completeness.score * 0.25 +
       consistency.score * 0.25 +
       plausibility.score * 0.25 +
-      timeliness.score * 0.25,
-    );
+      timeliness.score * 0.25;
+
+    // Critical issues impose an additional penalty — each critical drags
+    // the score down by 10 points. Bad data that triggers multiple criticals
+    // should fail hard, not hide behind healthy components.
+    const criticalPenalty = criticals.length * 10;
+    rawScore = Math.max(0, rawScore - criticalPenalty);
+
+    const overallScore = Math.round(rawScore);
 
     const grade = this.scoreToGrade(overallScore);
     const totalIssues = criticals.length + warnings.length + infos.length;
