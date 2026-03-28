@@ -418,6 +418,38 @@ export class AppController {
     };
   }
 
+  @Get('api/admin/webhook-delivery-logs')
+  @SkipThrottle()
+  @UseGuards(AdminGuard)
+  async getWebhookDeliveryLogs() {
+    const subscriptions = await this.prisma.webhookSubscription.findMany({
+      take: 100,
+      orderBy: { failureCount: 'desc' },
+      select: {
+        id: true,
+        url: true,
+        events: true,
+        isActive: true,
+        lastDeliveredAt: true,
+        failureCount: true,
+        createdAt: true,
+        institutionId: true,
+      },
+    });
+
+    const active = subscriptions.filter((s: any) => s.isActive);
+    const failing = subscriptions.filter((s: any) => s.failureCount > 0);
+    const disabled = subscriptions.filter((s: any) => !s.isActive);
+
+    return {
+      total: subscriptions.length,
+      active: active.length,
+      failing: failing.length,
+      disabled: disabled.length,
+      subscriptions,
+    };
+  }
+
   @Get('health/detailed')
   @SkipThrottle()
   async getHealthDetailed() {
