@@ -10,7 +10,10 @@ import {
   BadRequestException,
   HttpCode,
   Redirect,
+  UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { AdminGuard } from '../common/guards/admin.guard';
 import { PrismaService } from '../prisma.service';
 
 @Controller('api/feedback')

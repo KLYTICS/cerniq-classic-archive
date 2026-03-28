@@ -1,10 +1,13 @@
 {
   "name": "cerniq-api",
-  "version": "0.0.1",
-  "description": "",
-  "author": "",
+  "version": "1.0.0",
+  "description": "CerniQ ALM Reporting API — Asset-Liability Management for Puerto Rico Financial Institutions",
+  "author": "KLYTICS LLC <legal@cerniq.io>",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "SEE LICENSE IN LICENSE",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
