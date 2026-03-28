@@ -16,6 +16,7 @@ export interface OptionParams {
   riskFreeRate: number;
   volatility: number;
   optionType: OptionType;
+  dividendYield?: number; // Continuous dividend yield q (default 0)
 }
 
 export interface OptionsChain {

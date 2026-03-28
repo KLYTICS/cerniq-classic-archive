@@ -21,11 +21,16 @@ export class ComplianceCalendarService {
 
   async getUpcomingDeadlines(
     institutionId: string,
-  ): Promise<ComplianceDeadline[]> {
+  ): Promise<{ events: ComplianceDeadline[]; warning?: string }> {
     const institution = await this.prisma.institution.findUnique({
       where: { id: institutionId },
     });
-    if (!institution) return [];
+    if (!institution) {
+      return {
+        events: [],
+        warning: 'Institution not found — no compliance events generated',
+      };
+    }
 
     const deadlines: ComplianceDeadline[] = [];
     const now = new Date();

@@ -81,6 +81,8 @@ export class GreeksResponseDto {
   timeToExpiry: number;
   volatility: number;
   optionType: OptionType;
+  exercise?: ExerciseStyle;
+  earlyExercisePremium?: number; // Difference between American and European price
 }
 
 export class OptionChainRequestDto {

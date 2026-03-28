@@ -1,16 +1,30 @@
 import { Injectable } from '@nestjs/common';
 
+/** Array with an optional warning attached (serialises in JSON responses). */
+export type IndicatorResult = number[] & { warning?: string };
+
 /**
  * Technical Indicators Service
  * Implements common technical analysis indicators
  */
 @Injectable()
 export class TechnicalIndicatorsService {
+  /** Attach a warning to an empty array without changing the array type. */
+  private emptyWithWarning(message: string): IndicatorResult {
+    const arr: IndicatorResult = [] as unknown as IndicatorResult;
+    arr.warning = message;
+    return arr;
+  }
+
   /**
    * Simple Moving Average (SMA)
    */
-  calculateSMA(prices: number[], period: number): number[] {
-    if (prices.length < period) return [];
+  calculateSMA(prices: number[], period: number): IndicatorResult {
+    if (prices.length < period) {
+      return this.emptyWithWarning(
+        `Insufficient data for SMA: need ${period} data points, got ${prices.length}`,
+      );
+    }
 
     const sma: number[] = [];
     for (let i = period - 1; i < prices.length; i++) {
@@ -21,14 +35,18 @@ export class TechnicalIndicatorsService {
     }
 
     // Pad beginning with nulls to match price array length
-    return [...Array(period - 1).fill(null), ...sma];
+    return [...Array(period - 1).fill(null), ...sma] as IndicatorResult;
   }
 
   /**
    * Exponential Moving Average (EMA)
    */
-  calculateEMA(prices: number[], period: number): number[] {
-    if (prices.length < period) return [];
+  calculateEMA(prices: number[], period: number): IndicatorResult {
+    if (prices.length < period) {
+      return this.emptyWithWarning(
+        `Insufficient data for EMA: need ${period} data points, got ${prices.length}`,
+      );
+    }
 
     const ema: number[] = [];
     const multiplier = 2 / (period + 1);
@@ -46,14 +64,18 @@ export class TechnicalIndicatorsService {
     }
 
     // Pad beginning
-    return [...Array(period - 1).fill(null), ...ema];
+    return [...Array(period - 1).fill(null), ...ema] as IndicatorResult;
   }
 
   /**
    * Relative Strength Index (RSI)
    */
-  calculateRSI(prices: number[], period: number = 14): number[] {
-    if (prices.length < period + 1) return [];
+  calculateRSI(prices: number[], period: number = 14): IndicatorResult {
+    if (prices.length < period + 1) {
+      return this.emptyWithWarning(
+        `Insufficient data for RSI: need ${period + 1} data points, got ${prices.length}`,
+      );
+    }
 
     const rsi: number[] = [];
     const gains: number[] = [];
@@ -91,7 +113,7 @@ export class TechnicalIndicatorsService {
     }
 
     // Pad beginning (period + 1 because we start from index 1)
-    return [...Array(period).fill(null), ...rsi];
+    return [...Array(period).fill(null), ...rsi] as IndicatorResult;
   }
 
   /**

@@ -1,10 +1,10 @@
 /**
- * Options Pricing Engine — Black-Scholes with Greeks.
+ * Options Pricing Engine — Black-Scholes with Greeks + Barone-Adesi-Whaley American approximation.
  *
  * Known limitations (tracked):
  * - CERNIQ-PERF-001: JS-based pricing; WASM planned for batch workloads
  * - CERNIQ-DATA-001: Uses synthetic data for demo; real options chain integration pending
- * - CERNIQ-MATH-001: American options approximation via Barone-Adesi-Whaley not yet implemented
+ * - CERNIQ-MATH-001: RESOLVED — American options approximation via Barone-Adesi-Whaley implemented
  */
 
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
@@ -17,6 +17,7 @@ import {
   ImpliedVolatilityRequestDto,
   ImpliedVolatilityResponseDto,
   OptionType,
+  ExerciseStyle,
 } from './dto/options.dto';
 import {
   CalculateStrategyDto,
@@ -35,7 +36,34 @@ export class OptionsService {
     try {
       // PERF: WASM integration planned — see CERNIQ-PERF-001
 
-      // TypeScript fallback implementation
+      const exercise = dto.exercise ?? ExerciseStyle.EUROPEAN;
+      const dividendYield = dto.dividendYield ?? 0;
+
+      if (exercise === ExerciseStyle.AMERICAN) {
+        // Barone-Adesi-Whaley approximation for American options
+        const result = this.calculateAmericanPrice({
+          underlying: dto.underlying,
+          strike: dto.strike,
+          timeToExpiry: dto.timeToExpiry,
+          riskFreeRate: dto.riskFreeRate,
+          volatility: dto.volatility,
+          optionType: dto.optionType,
+          dividendYield,
+        });
+
+        return {
+          ...result.greeks,
+          underlying: dto.underlying,
+          strike: dto.strike,
+          timeToExpiry: dto.timeToExpiry,
+          volatility: dto.volatility,
+          optionType: dto.optionType,
+          exercise: ExerciseStyle.AMERICAN,
+          earlyExercisePremium: result.earlyExercisePremium,
+        };
+      }
+
+      // European: standard Black-Scholes
       const greeks = this.calculateBlackScholesGreeks({
         underlying: dto.underlying,
         strike: dto.strike,
@@ -43,6 +71,7 @@ export class OptionsService {
         riskFreeRate: dto.riskFreeRate,
         volatility: dto.volatility,
         optionType: dto.optionType,
+        dividendYield,
       });
 
       return {
@@ -52,6 +81,7 @@ export class OptionsService {
         timeToExpiry: dto.timeToExpiry,
         volatility: dto.volatility,
         optionType: dto.optionType,
+        exercise: ExerciseStyle.EUROPEAN,
       };
     } catch (error: any) {
       throw new HttpException(
