@@ -109,6 +109,7 @@ const almNav: NavItem[] = [
       { href: '/alm/cap-floor', icon: SlidersHorizontal, labelKey: 'sidebar.capFloor' },
       { href: '/alm/rbc2', icon: Shield, labelKey: 'sidebar.rbc2' },
       { href: '/alm/macro-factors', icon: Activity, labelKey: 'sidebar.macroFactors' },
+      { href: '/alm/garch', icon: Activity, labelKey: 'sidebar.garch' },
     ],
   },
 ];
