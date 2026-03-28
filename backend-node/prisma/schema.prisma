@@ -370,6 +370,7 @@ model DepositTier {
   flightRate      Decimal  @map("flight_rate") @db.Decimal(8, 6) // monthly runoff rate under stress (0.0-1.0)
   avgRate         Decimal  @map("avg_rate") @db.Decimal(8, 6) // current cost as decimal
   createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -407,6 +408,7 @@ model LoanCohort {
   defaults        Decimal  @db.Decimal(18, 2) // cumulative defaults to date
   ageMonths       Int      @map("age_months")
   createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -425,6 +427,7 @@ model CeclVintageAllowance {
   severeAllowance   Decimal  @map("severe_allowance") @db.Decimal(18, 2)
   segmentBreakdown  Json     @map("segment_breakdown")
   createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
