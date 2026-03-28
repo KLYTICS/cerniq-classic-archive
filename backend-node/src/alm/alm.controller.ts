@@ -97,7 +97,7 @@ import { IRCapFloorService } from './ir-cap-floor.service';
 import { NCUARBC2Service } from './ncua-rbc2.service';
 import { TrendAnalysisService } from './trend-analysis.service';
 import { DataExportService } from './data-export.service';
-import { CustomScenarioService, CustomScenarioParams } from './custom-scenario.service';
+import { CustomScenarioService } from './custom-scenario.service';
 import { ExcelExportService } from './excel-export.service';
 import {
   ApiTags,
@@ -224,6 +224,8 @@ export class AlmController {
     private readonly ncuaRBC2: NCUARBC2Service,
     private readonly trendAnalysis: TrendAnalysisService,
     private readonly dataExport: DataExportService,
+    private readonly customScenario: CustomScenarioService,
+    private readonly excelExport: ExcelExportService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -866,6 +868,75 @@ export class AlmController {
       `Custom stress scenario for institution ${institutionId}: rate=${params.rateShockBps}bps`,
     );
     return this.stressTesting.runCustomScenario(institutionId, params);
+  }
+
+  // ─── Custom Rate Shock Scenario Builder ─────────────────────────
+
+  @Post(':institutionId/scenario/custom')
+  @UseGuards(AuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({
+    summary:
+      'Run a custom rate-shock scenario with yield curve twist, deposit runoff, defaults, and prepayment multiplier',
+  })
+  @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
+  @ApiResponse({
+    status: 201,
+    description:
+      'Custom scenario results including NII impact, EVE change, LCR impact, capital impact, and narrative',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid scenario parameters' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({
+    status: 429,
+    description: 'Rate limit exceeded (max 10/min)',
+  })
+  async runCustomScenario(
+    @Param('institutionId') institutionId: string,
+    @Body()
+    params: {
+      name: string;
+      rateShiftBps: number;
+      yieldCurveTwist?: number;
+      depositRunoff?: number;
+      loanDefaultIncrease?: number;
+      prepaymentMultiplier?: number;
+    },
+  ) {
+    this.logger.log(
+      `Custom scenario "${params.name}" for institution ${institutionId}`,
+    );
+    return this.customScenario.runCustomScenario(institutionId, params);
+  }
+
+  // ─── Excel Export ───────────────────────────────────────────────
+
+  @Get(':institutionId/export/excel')
+  @UseGuards(AuthGuard)
+  @ApiOperation({
+    summary:
+      'Export ALM report as Excel workbook (XML SpreadsheetML format)',
+  })
+  @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Excel workbook binary stream',
+    content: { 'application/vnd.ms-excel': {} },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Institution not found' })
+  async exportExcel(
+    @Param('institutionId') id: string,
+    @Res() res: any,
+  ) {
+    this.logger.log(`Excel export requested for institution ${id}`);
+    const buffer = await this.excelExport.exportToExcel(id);
+    res.set({
+      'Content-Type': 'application/vnd.ms-excel',
+      'Content-Disposition': `attachment; filename="cerniq-alm-report-${id.slice(0, 8)}.xls"`,
+      'Content-Length': buffer.length,
+    });
+    res.send(buffer);
   }
 
   @Get(':institutionId/report')
