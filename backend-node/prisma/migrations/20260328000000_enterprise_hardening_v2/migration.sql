@@ -21,19 +21,19 @@ ALTER TABLE "uploads" DROP CONSTRAINT "uploads_workspace_id_fkey";
 
 -- AlterTable
 ALTER TABLE "balance_sheet_items" ADD COLUMN     "deposit_beta" DECIMAL(8,6),
-ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
+ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now(),
 ALTER COLUMN "balance" SET DATA TYPE DECIMAL(18,2),
 ALTER COLUMN "rate" SET DATA TYPE DECIMAL(8,6),
 ALTER COLUMN "duration" SET DATA TYPE DECIMAL(8,4);
 
 -- AlterTable
-ALTER TABLE "board_reports" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
+ALTER TABLE "board_reports" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now(),
 ALTER COLUMN "camel_composite" SET DATA TYPE DECIMAL(6,2),
 ALTER COLUMN "nim_snapshot" SET DATA TYPE DECIMAL(10,6),
 ALTER COLUMN "lcr_snapshot" SET DATA TYPE DECIMAL(10,6);
 
 -- AlterTable
-ALTER TABLE "cecl_vintage_allowances" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
+ALTER TABLE "cecl_vintage_allowances" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now(),
 ALTER COLUMN "base_allowance" SET DATA TYPE DECIMAL(18,2),
 ALTER COLUMN "adverse_allowance" SET DATA TYPE DECIMAL(18,2),
 ALTER COLUMN "severe_allowance" SET DATA TYPE DECIMAL(18,2);
@@ -44,7 +44,7 @@ ALTER COLUMN "current_pct" SET DATA TYPE DECIMAL(8,6),
 ALTER COLUMN "current_balance" SET DATA TYPE DECIMAL(18,2);
 
 -- AlterTable
-ALTER TABLE "cooperativa_benchmarks" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
+ALTER TABLE "cooperativa_benchmarks" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now(),
 ALTER COLUMN "total_assets_median" SET DATA TYPE DECIMAL(18,2),
 ALTER COLUMN "capital_ratio_median" SET DATA TYPE DECIMAL(10,6),
 ALTER COLUMN "loan_to_share_median" SET DATA TYPE DECIMAL(10,6),
@@ -53,50 +53,50 @@ ALTER COLUMN "nii_margin_median" SET DATA TYPE DECIMAL(10,6),
 ALTER COLUMN "asset_growth_yoy" SET DATA TYPE DECIMAL(10,6);
 
 -- AlterTable
-ALTER TABLE "data_deletion_requests" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "data_deletion_requests" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
-ALTER TABLE "demo_requests" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
+ALTER TABLE "demo_requests" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now(),
 ALTER COLUMN "id" DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE "deposit_tiers" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
+ALTER TABLE "deposit_tiers" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now(),
 ALTER COLUMN "balance" SET DATA TYPE DECIMAL(18,2),
 ALTER COLUMN "insured_pct" SET DATA TYPE DECIMAL(8,6),
 ALTER COLUMN "flight_rate" SET DATA TYPE DECIMAL(8,6),
 ALTER COLUMN "avg_rate" SET DATA TYPE DECIMAL(8,6);
 
 -- AlterTable
-ALTER TABLE "email_sequences" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "email_sequences" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
 ALTER TABLE "expenses" ALTER COLUMN "user_id" DROP NOT NULL;
 
 -- AlterTable
-ALTER TABLE "feedback" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "feedback" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
-ALTER TABLE "findings" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "findings" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
 ALTER TABLE "ingestion_logs" ALTER COLUMN "total_assets" SET DATA TYPE DECIMAL(18,2),
 ALTER COLUMN "total_liabilities" SET DATA TYPE DECIMAL(18,2);
 
 -- AlterTable
-ALTER TABLE "institution_alerts" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "institution_alerts" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
 ALTER TABLE "institutions" ALTER COLUMN "workspace_id" SET DATA TYPE TEXT,
 ALTER COLUMN "total_assets" SET DATA TYPE DECIMAL(18,2);
 
 -- AlterTable
-ALTER TABLE "interest_rate_scenarios" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
+ALTER TABLE "interest_rate_scenarios" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now(),
 ALTER COLUMN "ni_impact" SET DATA TYPE DECIMAL(18,2),
 ALTER COLUMN "mve_impact" SET DATA TYPE DECIMAL(18,2),
 ALTER COLUMN "duration" SET DATA TYPE DECIMAL(8,4);
 
 -- AlterTable
-ALTER TABLE "invoices" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "invoices" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
 ALTER TABLE "irr_policy_limits" ALTER COLUMN "watch_pct" SET DATA TYPE DECIMAL(8,6),
@@ -107,7 +107,7 @@ ALTER COLUMN "breach_pct" SET DATA TYPE DECIMAL(8,6);
 ALTER TABLE "leads" ALTER COLUMN "revenue_amount" SET DATA TYPE DECIMAL(18,2);
 
 -- AlterTable
-ALTER TABLE "liquidity_positions" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
+ALTER TABLE "liquidity_positions" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now(),
 ALTER COLUMN "hqla_level1" SET DATA TYPE DECIMAL(18,2),
 ALTER COLUMN "hqla_level2" SET DATA TYPE DECIMAL(18,2),
 ALTER COLUMN "cash_outflows" SET DATA TYPE DECIMAL(18,2),
@@ -116,13 +116,13 @@ ALTER COLUMN "lcr" SET DATA TYPE DECIMAL(10,6),
 ALTER COLUMN "nsfr" SET DATA TYPE DECIMAL(10,6);
 
 -- AlterTable
-ALTER TABLE "loan_cohorts" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
+ALTER TABLE "loan_cohorts" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now(),
 ALTER COLUMN "original_balance" SET DATA TYPE DECIMAL(18,2),
 ALTER COLUMN "current_balance" SET DATA TYPE DECIMAL(18,2),
 ALTER COLUMN "defaults" SET DATA TYPE DECIMAL(18,2);
 
 -- AlterTable
-ALTER TABLE "loan_segments" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
+ALTER TABLE "loan_segments" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now(),
 ALTER COLUMN "balance" SET DATA TYPE DECIMAL(18,2),
 ALTER COLUMN "weighted_avg_rate" SET DATA TYPE DECIMAL(8,6),
 ALTER COLUMN "weighted_avg_maturity" SET DATA TYPE DECIMAL(8,4),
@@ -131,20 +131,20 @@ ALTER COLUMN "lgd" SET DATA TYPE DECIMAL(8,6),
 ALTER COLUMN "qualitative_adj" SET DATA TYPE DECIMAL(8,6);
 
 -- AlterTable
-ALTER TABLE "magic_links" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "magic_links" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
-ALTER TABLE "market_prices" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "market_prices" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
-ALTER TABLE "password_reset_tokens" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
+ALTER TABLE "password_reset_tokens" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now(),
 ALTER COLUMN "id" DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE "pipeline_runs" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "pipeline_runs" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
-ALTER TABLE "policy_breach_logs" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
+ALTER TABLE "policy_breach_logs" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now(),
 ALTER COLUMN "actual_value" SET DATA TYPE DECIMAL(18,6),
 ALTER COLUMN "limit_value" SET DATA TYPE DECIMAL(18,6);
 
@@ -152,7 +152,7 @@ ALTER COLUMN "limit_value" SET DATA TYPE DECIMAL(18,6);
 ALTER TABLE "positions" ALTER COLUMN "ticker" DROP NOT NULL;
 
 -- AlterTable
-ALTER TABLE "prospect_analyses" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
+ALTER TABLE "prospect_analyses" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now(),
 ALTER COLUMN "total_assets" SET DATA TYPE DECIMAL(18,2);
 
 -- AlterTable
@@ -162,17 +162,17 @@ ALTER TABLE "prospect_institutions" ALTER COLUMN "estimated_assets" SET DATA TYP
 ALTER TABLE "prospects" ALTER COLUMN "id" DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE "refresh_tokens" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
+ALTER TABLE "refresh_tokens" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now(),
 ALTER COLUMN "id" DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE "regulatory_publications" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "regulatory_publications" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
-ALTER TABLE "report_jobs" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "report_jobs" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
-ALTER TABLE "reports" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "reports" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
 ALTER TABLE "resellers" ALTER COLUMN "revenue_share_pct" SET DATA TYPE DECIMAL(8,6);
@@ -181,16 +181,16 @@ ALTER TABLE "resellers" ALTER COLUMN "revenue_share_pct" SET DATA TYPE DECIMAL(8
 ALTER TABLE "tickers" ALTER COLUMN "market_cap" SET DATA TYPE DECIMAL(18,2);
 
 -- AlterTable
-ALTER TABLE "uploads" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "uploads" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
-ALTER TABLE "usage_meter_events" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "usage_meter_events" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
-ALTER TABLE "webhook_subscriptions" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "webhook_subscriptions" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- AlterTable
-ALTER TABLE "yield_curves" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "yield_curves" ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT now();
 
 -- CreateIndex
 CREATE INDEX "audit_logs_action_idx" ON "audit_logs"("action");
