@@ -27,7 +27,6 @@ export default function MarketTicker({ tickers }: MarketTickerProps) {
             setPrices((prev) => new Map(prev).set(update.ticker, update));
         } else if (message.type === 'subscribed') {
             setIsSubscribed(true);
-            console.log('Subscribed to:', message.data.tickers);
         } else if (message.type === 'error') {
             console.error('WebSocket error:', message.data.message);
         }

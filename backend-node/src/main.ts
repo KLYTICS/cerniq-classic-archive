@@ -187,12 +187,13 @@ async function bootstrap() {
       showRequestDuration: true,
     },
   });
-  console.log('Swagger UI available at /api/v1/docs');
+  const bootLogger = new NestLogger('Bootstrap');
+  bootLogger.log('Swagger UI available at /api/v1/docs');
 
   // --- Start server ---
   const port = process.env.PORT || process.env.BACKEND_PORT || 3000;
   await app.listen(port, '0.0.0.0');
-  console.log(
+  bootLogger.log(
     `CERNIQ backend running on 0.0.0.0:${port} [${process.env.NODE_ENV || 'development'}]`,
   );
 }

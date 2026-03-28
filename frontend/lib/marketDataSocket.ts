@@ -120,12 +120,10 @@ function getSharedSocket(): Socket {
     });
 
     sharedSocket.on('connect', () => {
-        console.log('✓ Socket.IO connected');
         notifyConnectionState(true);
     });
 
     sharedSocket.on('disconnect', () => {
-        console.log('✗ Socket.IO disconnected');
         notifyConnectionState(false);
     });
 

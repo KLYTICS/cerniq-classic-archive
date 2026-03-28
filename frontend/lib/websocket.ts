@@ -38,7 +38,6 @@ export function useWebSocket(onMessage: (message: WebSocketMessage) => void) {
                 ws.current = new WebSocket(WS_URL);
 
                 ws.current.onopen = () => {
-                    console.log('WebSocket connected');
                     setIsConnected(true);
                 };
 
@@ -56,7 +55,6 @@ export function useWebSocket(onMessage: (message: WebSocketMessage) => void) {
                 };
 
                 ws.current.onclose = () => {
-                    console.log('WebSocket disconnected');
                     setIsConnected(false);
 
                     // Attempt to reconnect after 3 seconds
