@@ -64,8 +64,13 @@ export default function GARCHPage() {
   }));
 
   const ljungBoxOk = data.diagnostics.ljungBoxPValue > 0.05;
-  const formatPercent = (value: number | string | undefined, digits = 1) =>
-    `${Number(value ?? 0).toFixed(digits)}%`;
+  const formatPercent = (
+    value: number | string | readonly (number | string)[] | undefined,
+    digits = 1,
+  ) => {
+    const normalized = Array.isArray(value) ? value[0] : value;
+    return `${Number(normalized ?? 0).toFixed(digits)}%`;
+  };
 
   return (
     <div className="p-6 space-y-5 max-w-[1400px] mx-auto animate-fade-in">
