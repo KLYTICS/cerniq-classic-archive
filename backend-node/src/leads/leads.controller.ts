@@ -40,7 +40,7 @@ export class LeadsController {
     @Query('priority') priority?: string,
   ) {
     this.verifyAdmin(adminKey);
-    return this.leads.listLeads('admin', { status, priority });
+    return this.leads.listLeads({ status, priority });
   }
 
   @Get('admin/api/leads/metrics')
@@ -55,7 +55,7 @@ export class LeadsController {
     @Param('id') id: string,
   ) {
     this.verifyAdmin(adminKey);
-    return this.leads.getLead(id);
+    return this.leads.getLead(id, 'admin');
   }
 
   @Put('admin/api/leads/:id')
@@ -66,7 +66,7 @@ export class LeadsController {
   ) {
     this.verifyAdmin(adminKey);
     this.logger.log(`Lead updated: ${id}`);
-    return this.leads.updateLead(id, dto);
+    return this.leads.updateLead(id, 'admin', dto);
   }
 
   @Post('admin/api/leads/:id/note')
@@ -76,7 +76,7 @@ export class LeadsController {
     @Body('note') note: string,
   ) {
     this.verifyAdmin(adminKey);
-    return this.leads.addNote(id, note);
+    return this.leads.addNote(id, 'admin', note);
   }
 
   @Post('admin/api/leads/:id/mark-report-sent')
@@ -85,7 +85,7 @@ export class LeadsController {
     @Param('id') id: string,
   ) {
     this.verifyAdmin(adminKey);
-    return this.leads.markReportSent(id);
+    return this.leads.markReportSent(id, 'admin');
   }
 
   @Post('admin/api/prospects/seed')

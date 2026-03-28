@@ -1,9 +1,21 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { CandlestickChart } from '@/components/charts/CandlestickChart';
 import { TrendingUp, BarChart3, Activity, Search } from 'lucide-react';
+
+const CandlestickChart = dynamic(
+  () => import('@/components/charts/CandlestickChart').then((mod) => mod.CandlestickChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-[400px] rounded-xl border border-slate-700 bg-slate-900/50 animate-pulse">
+        <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+      </div>
+    ),
+  }
+);
 
 export default function ChartsPage() {
     const [selectedTicker, setSelectedTicker] = useState('AAPL');

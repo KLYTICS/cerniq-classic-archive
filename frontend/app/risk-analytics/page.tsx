@@ -1,14 +1,29 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Briefcase, RefreshCw, Shield, TrendingDown, AlertTriangle, Search } from 'lucide-react';
-import { ComponentVaRChart } from '@/components/risk/ComponentVaRChart';
-import { VolatilityForecastChart } from '@/components/risk/VolatilityForecastChart';
 import { CorrelationHeatmap } from '@/components/risk/CorrelationHeatmap';
 import PlatformPage from '@/components/layout/PlatformPage';
 import { apiClient } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+
+const ChartSkeleton = () => (
+  <div className="flex items-center justify-center h-64 rounded-xl border border-slate-700 bg-slate-900/50 animate-pulse">
+    <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+  </div>
+);
+
+const ComponentVaRChart = dynamic(
+  () => import('@/components/risk/ComponentVaRChart').then((mod) => mod.ComponentVaRChart),
+  { ssr: false, loading: ChartSkeleton }
+);
+
+const VolatilityForecastChart = dynamic(
+  () => import('@/components/risk/VolatilityForecastChart').then((mod) => mod.VolatilityForecastChart),
+  { ssr: false, loading: ChartSkeleton }
+);
 
 interface Portfolio {
   id: string;
