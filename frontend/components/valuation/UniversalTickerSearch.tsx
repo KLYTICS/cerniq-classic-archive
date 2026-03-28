@@ -197,7 +197,7 @@ export default function UniversalTickerSearch({
                     {query && results.length === 0 && !isLoading && (
                         <div className="px-4 py-8 text-center text-gray-400">
                             <Search className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                            <p>No tickers found for "{query}"</p>
+                            <p>No tickers found for &quot;{query}&quot;</p>
                             <p className="text-sm text-gray-500 mt-1">Try a different search term</p>
                         </div>
                     )}

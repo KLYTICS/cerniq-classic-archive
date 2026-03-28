@@ -290,7 +290,7 @@ export function StrategyBuilder() {
                     {legs.length === 0 && (
                         <div className="text-center py-8 text-slate-500">
                             <div className="text-5xl mb-3">📊</div>
-                            <div>No legs added. Click "Add Leg" or load a preset.</div>
+                            <div>No legs added. Click &quot;Add Leg&quot; or load a preset.</div>
                         </div>
                     )}
                 </div>

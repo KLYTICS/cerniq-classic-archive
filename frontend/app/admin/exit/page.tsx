@@ -1,12 +1,46 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTranslation } from '@/lib/i18n';
-import { BarChart3, TrendingUp, DollarSign, Users, Check, Circle } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { BarChart3, TrendingUp, DollarSign, Users } from 'lucide-react';
+
+interface AcquirerScenario {
+  acquirer: string;
+  thesis: string;
+  valuationRange: string;
+}
+
+interface ExitMetricsData {
+  mrr: number;
+  arr: number;
+  activeInstitutions: number;
+  averageRevenuePerInstitution: number;
+  netRevenueRetention: number;
+  churnRate: number;
+  lifetimeValue: number;
+  ltvCacRatio: number;
+  impliedValuation: {
+    at8x: number;
+    at10x: number;
+    at12x: number;
+  };
+  acquirerScenarios: AcquirerScenario[];
+  totalServices: number;
+  totalEndpoints: number;
+  totalPages: number;
+  totalPrismaModels: number;
+}
+
+interface TileProps {
+  icon?: LucideIcon;
+  label: string;
+  value: string | number;
+  accent?: boolean;
+  good?: boolean;
+}
 
 export default function ExitDashboardPage() {
-  const { locale } = useTranslation();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ExitMetricsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -64,7 +98,7 @@ export default function ExitDashboardPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-4">Acquirer Scenarios</p>
         <div className="space-y-2">
-          {data.acquirerScenarios.map((a: any, i: number) => (
+          {data.acquirerScenarios.map((a, i) => (
             <div key={i} className="flex items-center gap-3 rounded-lg border border-slate-100 p-3">
               <span className="text-sm font-bold text-slate-800 w-28">{a.acquirer}</span>
               <span className="text-xs text-slate-600 flex-1">{a.thesis}</span>
@@ -85,7 +119,7 @@ export default function ExitDashboardPage() {
   );
 }
 
-function Tile({ icon: Icon, label, value, accent, good }: { icon?: any; label: string; value: any; accent?: boolean; good?: boolean }) {
+function Tile({ icon: Icon, label, value, accent, good }: TileProps) {
   return (
     <div className={`rounded-xl border p-3 ${accent ? 'border-emerald-200 bg-emerald-50' : good === true ? 'border-emerald-200 bg-emerald-50/50' : good === false ? 'border-rose-200 bg-rose-50/50' : 'border-slate-200 bg-white'}`}>
       <div className="flex items-center gap-1.5 mb-1">{Icon && <Icon className="h-3.5 w-3.5 text-slate-400" />}<p className="text-[10px] font-medium uppercase text-slate-400">{label}</p></div>
@@ -94,7 +128,7 @@ function Tile({ icon: Icon, label, value, accent, good }: { icon?: any; label: s
   );
 }
 
-function getDemoData() {
+function getDemoData(): ExitMetricsData {
   return {
     mrr: 0, arr: 0, activeInstitutions: 0, averageRevenuePerInstitution: 3500,
     netRevenueRetention: 1.12, churnRate: 0.05, lifetimeValue: 70000, ltvCacRatio: 28,

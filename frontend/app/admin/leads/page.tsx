@@ -39,6 +39,19 @@ interface Metrics {
   pipelineValue: number;
 }
 
+function getLeadPipelineError(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    (error as { message?: string }).message === 'Unauthorized'
+  ) {
+    return 'Invalid admin key';
+  }
+
+  return 'Failed to load pipeline data';
+}
+
 const STATUSES = ['NEW', 'CONTACTED', 'DEMO_SCHEDULED', 'DEMO_COMPLETED', 'PROPOSAL_SENT', 'NEGOTIATING', 'CLOSED_WON', 'CLOSED_LOST', 'UNQUALIFIED'];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -99,9 +112,9 @@ export default function LeadsPipelinePage() {
       setFetchError(null);
       setAuthenticated(true);
       sessionStorage.setItem(ADMIN_KEY_STORAGE, adminKey);
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (authenticated) setAuthenticated(false);
-      setFetchError(err?.message === 'Unauthorized' ? 'Invalid admin key' : 'Failed to load pipeline data');
+      setFetchError(getLeadPipelineError(err));
     } finally {
       setLoading(false);
     }

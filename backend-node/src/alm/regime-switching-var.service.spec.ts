@@ -10,10 +10,12 @@ function twoRegimeReturns(): number[] {
   const calm: number[] = [];
   const volatile: number[] = [];
   for (let i = 0; i < 200; i++) {
-    calm.push(0.0003 + Math.sin(i) * 0.005);
+    // Calm: very tight around 0 (vol ~ 0.003)
+    calm.push(0.001 + Math.sin(i) * 0.003);
   }
   for (let i = 0; i < 100; i++) {
-    volatile.push(-0.001 + Math.sin(i * 2) * 0.03);
+    // Volatile: wide swings (vol ~ 0.05)
+    volatile.push(-0.002 + Math.sin(i * 2) * 0.05);
   }
   return [...calm, ...volatile];
 }

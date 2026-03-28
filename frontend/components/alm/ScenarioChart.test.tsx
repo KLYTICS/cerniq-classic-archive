@@ -1,16 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import ScenarioChart from './ScenarioChart';
 
 // Mock recharts — ResponsiveContainer has issues in jsdom; stub all chart components
 vi.mock('recharts', () => ({
-  BarChart: ({ children }: any) => <div data-testid="bar-chart">{children}</div>,
+  BarChart: ({ children }: { children?: ReactNode }) => <div data-testid="bar-chart">{children}</div>,
   Bar: () => <div data-testid="bar" />,
   XAxis: () => <div />,
   YAxis: () => <div />,
   CartesianGrid: () => <div />,
   Tooltip: () => <div />,
-  ResponsiveContainer: ({ children }: any) => <div data-testid="responsive-container">{children}</div>,
+  ResponsiveContainer: ({ children }: { children?: ReactNode }) => <div data-testid="responsive-container">{children}</div>,
   Cell: () => <div />,
   ReferenceLine: () => <div />,
 }));

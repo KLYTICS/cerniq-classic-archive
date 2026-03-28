@@ -27,6 +27,21 @@ interface Stats {
   prospects: number;
 }
 
+function getErrorMessage(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof (error as { response?: { status?: number } }).response?.status === 'number'
+  ) {
+    return (error as { response?: { status?: number } }).response?.status === 401
+      ? 'Invalid admin key'
+      : 'Failed to load data';
+  }
+
+  return 'Failed to load data';
+}
+
 function AdminAuth({ onAuth }: { onAuth: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
@@ -108,8 +123,8 @@ export default function AdminPage() {
       ]);
       setRequests(reqs);
       setStats(st);
-    } catch (err: any) {
-      setFetchError(err?.response?.status === 401 ? 'Invalid admin key' : 'Failed to load data');
+    } catch (err: unknown) {
+      setFetchError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
