@@ -82,7 +82,7 @@ export default async function Image() {
 
         {/* Subheadline */}
         <div style={{ fontSize: '22px', color: '#94a3b8', marginBottom: '40px', maxWidth: '800px', lineHeight: 1.4 }}>
-          62 modules. 34 quant models. COSSEC/NCUA compliant. Bilingual EN/ES. From $750.
+          70+ modules. 70 quant models. COSSEC/NCUA compliant. Bilingual EN/ES. From $750.
         </div>
 
         {/* Stats row */}

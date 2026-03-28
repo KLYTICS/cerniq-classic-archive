@@ -15,7 +15,7 @@ const RELEASES = [
       { icon: Shield, text: 'Compliance Coverage Matrix — 20 requirements × COSSEC/NCUA/Basel III' },
       { icon: TrendingUp, text: 'Behavioral Duration (Hutchison-Pennacchi NMD) — corrects EVE overestimation' },
       { icon: Globe, text: 'All demo data updated to FirstBank Puerto Rico $18.9B (2025-2026)' },
-      { icon: Layers, text: 'ALM Module Index — browsable grid of all 62 modules in 9 domains' },
+      { icon: Layers, text: 'ALM Module Index — browsable grid of all 70+ modules in 9 domains' },
       { icon: DollarSign, text: 'Competitive comparison table vs Moody\'s Analytics and QRM/Empyrean on pricing page' },
     ],
   },
