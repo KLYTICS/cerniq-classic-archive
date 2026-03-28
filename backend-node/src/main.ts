@@ -13,6 +13,8 @@ const helmet = require('helmet');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const express = require('express');
 import { AppModule } from './app.module';
+import { PerformanceInterceptor } from './common/interceptors/performance.interceptor';
+import { MaintenanceModeGuard } from './common/guards/maintenance-mode.guard';
 import { corsOriginCallback } from './security/origin-allowlist';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
@@ -114,8 +116,6 @@ async function bootstrap() {
   app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
 
   // --- Enterprise interceptors & guards ---
-  const { PerformanceInterceptor } = await import('./common/interceptors/performance.interceptor');
-  const { MaintenanceModeGuard } = await import('./common/guards/maintenance-mode.guard');
   app.useGlobalInterceptors(new PerformanceInterceptor());
   app.useGlobalGuards(new MaintenanceModeGuard());
 
