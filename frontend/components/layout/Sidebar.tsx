@@ -89,7 +89,10 @@ const almNav: NavItem[] = [
       { href: '/alm/camel-forecast', icon: TrendingUp, labelKey: 'sidebar.camelForecast' },
       { href: '/alm/form-5300', icon: Shield, labelKey: 'sidebar.form5300' },
       { href: '/alm/board-report', icon: BarChart3, labelKey: 'sidebar.boardReport' },
-      // Intelligence
+      // Intelligence & Reporting
+      { href: '/alm/trends', icon: TrendingUp, labelKey: 'sidebar.trends' },
+      { href: '/alm/peer-benchmarking', icon: BarChart3, labelKey: 'sidebar.peerBenchmarking' },
+      { href: '/alm/compliance', icon: Shield, labelKey: 'sidebar.complianceCalendar' },
       { href: '/alm/peer-analytics', icon: Activity, labelKey: 'sidebar.peerAnalytics' },
       { href: '/alm/climate-risk', icon: AlertOctagon, labelKey: 'sidebar.climateRisk' },
       { href: '/alm/macro-regime', icon: Activity, labelKey: 'sidebar.macroRegime' },
