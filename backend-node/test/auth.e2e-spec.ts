@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import _request from 'supertest';
 const request = (_request as any).default ?? _request;
 import { AppModule } from '../src/app.module';
@@ -7,10 +8,22 @@ import { PrismaService } from '../src/prisma.service';
 import { GlobalExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { ResponseEnvelopeInterceptor } from '../src/common/interceptors/response-envelope.interceptor';
 import { SanitizePipe } from '../src/common/pipes/sanitize.pipe';
+import { UserThrottleGuard } from '../src/common/guards/user-throttle.guard';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 
 // Environment is configured via test/setup-env.ts (setupFiles in jest-e2e.json)
+
+/**
+ * No-op throttle guard for auth E2E tests.
+ * Auth endpoints have aggressive rate limits (3/min) that interfere with test suites.
+ * Rate limiting is tested separately in security.e2e-spec.ts.
+ */
+class NoopThrottleGuard {
+  canActivate() {
+    return true;
+  }
+}
 
 // ── Prisma mock factory ──
 function createPrismaMock() {
@@ -136,6 +149,8 @@ describe('Auth API Integration Tests (e2e)', () => {
     })
       .overrideProvider(PrismaService)
       .useValue(prismaMock)
+      .overrideProvider(UserThrottleGuard)
+      .useValue(new NoopThrottleGuard())
       .compile();
 
     app = moduleFixture.createNestApplication();
