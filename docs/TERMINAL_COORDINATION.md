@@ -1,77 +1,45 @@
-# CerniQ Enterprise Hardening — Final Report
+# CerniQ — Enterprise Hardening Complete
 ## March 28, 2026
 
----
+## Platform Status: PRODUCTION READY
 
-## FINAL METRICS
+| Metric | Value |
+|--------|-------|
+| **Tests** | **651 passing, 43 suites** |
+| **TypeScript** | **0 errors (strict mode)** |
+| **Services** | **159** |
+| **Quant Models** | **50+** |
+| **Prisma Schema** | **1,238 lines, 55 models, 20 migrations** |
+| **Git Commits** | **217** |
+| **Production** | **Live — cerniq.io + api.cerniq.io** |
+| **CISO Findings** | **0 HIGH/CRITICAL** |
 
-| Metric | Start | End |
-|--------|-------|-----|
-| **TypeScript errors** | 41+ | **0** |
-| **Test suite** | 248 tests | **355 tests** (+107) |
-| **Test suites** | 17 | **19** |
-| **ALM service coverage** | 4.25% | **95.6%** |
-| **Risk service coverage** | ~0% | **100%** |
-| **Options service coverage** | 60.7% | **81.2%** |
-| **Billing service coverage** | 67% | **80.4%** |
-| **Auth service coverage** | 42.9% | **73.8%** |
-| **CISO HIGH findings** | 2 | **0** (both fixed) |
-| **Prisma schema** | Valid | **Valid (1,238 lines)** |
-| **Frontend build** | Untested | **Clean (exit 0)** |
-| **E2E smoke test** | None | **Verified live** |
+## Coverage (Critical Files)
 
----
+| File | Coverage |
+|------|----------|
+| alm.service.ts | **95.6%** |
+| risk.service.ts | **100%** |
+| options.service.ts | **81.2%** |
+| billing.service.ts | **80.4%** |
+| auth.service.ts | **73.8%** |
 
-## SECURITY AUDIT — ALL CLEAR
+## What Was Built
 
-| Check | Status |
-|-------|--------|
-| SQL injection ($queryRawUnsafe) | **PASS** — none found |
-| Secrets in source code | **PASS** — all env vars |
-| Unsafe eval/exec | **PASS** — none found |
-| Error message leaking | **FIXED** — generic in production |
-| SSRF in webhooks | **FIXED** — validateWebhookUrl() blocks private IPs |
-| PII in logs | **MITIGATED** — Pino redacts password/token/cookie fields |
-| JWT secret strength | **PASS** — 32-char minimum enforced |
-| Cookie security | **PASS** — HttpOnly, Secure, SameSite |
-| File upload traversal | **PASS** — UUID-based keys |
-| XSS | **PASS** — SanitizePipe global |
+**51 tasks, 20+ waves across multiple terminals:**
+- Identity migration (capexcycle → cerniq)
+- Security hardening (SSRF, XSS, CORS, rate limiting, webhook idempotency)
+- Data integrity (Float→Decimal, indexes, cascades, updatedAt, uniques)
+- 400+ new tests (ALM, Risk, Options, Auth, Billing, utilities)
+- 3 new quant models (Hull-White, Nelson-Siegel, Risk Budgeting)
+- Production migration verified on fresh DB
+- Ops runbook, disaster recovery, CHANGELOG, LICENSE
+- Production endpoints verified live
 
----
+## Next Priorities
 
-## ALL COMPLETED WORK
-
-### Infrastructure (Waves 1-5)
-- capexcycle→cerniq identity migration with backward-compat auth key migration
-- TimescaleDB→postgres:15-alpine, env files aligned, dead code archived
-- docker-compose.prod.yml: all 20+ env vars added
-
-### Security (Waves 6-11)
-- Per-user rate limiting (UserThrottleGuard)
-- SSRF protection on webhook URLs
-- Stripe open redirect fixed, webhook idempotency added
-- API key expiry warning headers
-- Error message sanitization in production
-- Pino log redaction for sensitive fields
-- CORS locked to cerniq.io + cerniqtech.com
-
-### Data Integrity (Waves 12-17)
-- 46 Float→Decimal financial fields
-- 38 missing database indexes
-- 30 updatedAt audit trail fields
-- 8 cascade delete rules
-- 3 unique constraints
-- ALM domain error codes
-
-### Quality (Waves 18-20)
-- 182 implicit-any errors fixed, noImplicitAny enabled
-- 9 frontend error boundaries
-- 107 new tests written (ALM, Risk, Options, Auth, Billing)
-- VaR bug found and fixed (NaN on small samples)
-- Put-call parity mathematically verified
-
-### Enterprise (Fortune 500)
-- X-Request-ID + X-Response-Time headers
-- 503 graceful shutdown for load balancer draining
-- LICENSE, CHANGELOG.md, .nvmrc, engines field
-- v1.0.0 release
+1. **First cooperativa design partner** — demo + onboard
+2. **COSSEC regulatory report automation** — parser for public COSSEC PDFs
+3. **Model registry** — version tracking per analysis run
+4. **SSO (SAML/OIDC)** — enterprise customer requirement
+5. **BullMQ job queue** — replace cron polling for report pipeline
