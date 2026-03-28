@@ -16,33 +16,33 @@ describe('Spinner', () => {
   it('applies animate-spin class', () => {
     render(<Spinner />);
     const svg = screen.getByRole('status');
-    expect(svg.className).toContain('animate-spin');
+    expect(svg.getAttribute('class')).toContain('animate-spin');
   });
 
   it('applies medium size by default', () => {
     render(<Spinner />);
     const svg = screen.getByRole('status');
-    expect(svg.className).toContain('h-6');
-    expect(svg.className).toContain('w-6');
+    expect(svg.getAttribute('class')).toContain('h-6');
+    expect(svg.getAttribute('class')).toContain('w-6');
   });
 
   it('applies small size', () => {
     render(<Spinner size="sm" />);
     const svg = screen.getByRole('status');
-    expect(svg.className).toContain('h-4');
-    expect(svg.className).toContain('w-4');
+    expect(svg.getAttribute('class')).toContain('h-4');
+    expect(svg.getAttribute('class')).toContain('w-4');
   });
 
   it('applies large size', () => {
     render(<Spinner size="lg" />);
     const svg = screen.getByRole('status');
-    expect(svg.className).toContain('h-10');
-    expect(svg.className).toContain('w-10');
+    expect(svg.getAttribute('class')).toContain('h-10');
+    expect(svg.getAttribute('class')).toContain('w-10');
   });
 
   it('accepts custom className', () => {
     render(<Spinner className="text-blue-500" />);
     const svg = screen.getByRole('status');
-    expect(svg.className).toContain('text-blue-500');
+    expect(svg.getAttribute('class')).toContain('text-blue-500');
   });
 });

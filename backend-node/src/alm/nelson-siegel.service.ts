@@ -237,6 +237,12 @@ export class NelsonSiegelService {
       }
     }
 
+    // Add small Tikhonov regularization when rank-deficient (n < 3)
+    if (n < 3) {
+      const ridge = 1e-8;
+      for (let k = 0; k < 3; k++) XtX[k][k] += ridge;
+    }
+
     const betas = this.solve3x3(XtX, Xty);
     const beta0 = betas[0];
     const beta1 = betas[1];

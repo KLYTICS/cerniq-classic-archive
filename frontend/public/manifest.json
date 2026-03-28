@@ -1,36 +1,10 @@
 {
-  "name": "CERNIQ — Risk Intelligence Platform",
+  "name": "CERNIQ",
   "short_name": "CERNIQ",
-  "description": "62 ALM modules, 34 quant models, COSSEC/NCUA compliant. Enterprise risk analytics for credit unions and cooperativas.",
-  "start_url": "/alm",
+  "description": "Institutional ALM Intelligence",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#050C1C",
-  "theme_color": "#0e7490",
-  "orientation": "portrait-primary",
-  "categories": ["finance", "business"],
-  "lang": "en",
-  "dir": "ltr",
-  "scope": "/",
-  "id": "/",
-  "icons": [
-    { "src": "/favicon.ico", "sizes": "64x64", "type": "image/x-icon" },
-    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ],
-  "shortcuts": [
-    {
-      "name": "ALM Dashboard",
-      "short_name": "Dashboard",
-      "url": "/alm",
-      "description": "Open the main ALM analytics dashboard"
-    },
-    {
-      "name": "Generate Report",
-      "short_name": "Report",
-      "url": "/alm/board-report",
-      "description": "Generate a board-ready ALM report"
-    }
-  ],
-  "prefer_related_applications": false
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
 }
