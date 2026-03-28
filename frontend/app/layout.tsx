@@ -10,15 +10,15 @@ import { ToastProvider } from '@/components/Toast';
 import { WebVitals } from '@/components/WebVitals';
 
 export const metadata: Metadata = {
-  title: "CERNIQ — Institutional ALM Intelligence | 70+ Modules, 70 Quant Models, COSSEC/NCUA Compliant",
-  description: "Enterprise ALM platform with 70+ analytical modules, 70 quant models (Nelson-Siegel, Svensson, Hull-White, GARCH, CIR, SABR, Monte Carlo, CreditMetrics, Black-Litterman, CreditRisk+), COSSEC/NCUA/Basel III compliance, and bilingual EN/ES reporting. From $750.",
+  title: "CERNIQ — Institutional ALM Intelligence | 70+ Modules, 100 Quant Models, COSSEC/NCUA Compliant",
+  description: "Enterprise ALM platform with 100+ analytical modules, 100 quant models (Nelson-Siegel, Svensson, Hull-White, GARCH, CIR, SABR, Monte Carlo, CreditMetrics, Black-Litterman, CreditRisk+), COSSEC/NCUA/Basel III compliance, and bilingual EN/ES reporting. From $750.",
   keywords: "ALM software, asset liability management, credit union ALM, COSSEC compliance, NCUA ratios, Monte Carlo stress testing, NII sensitivity, EVE analysis, duration gap, CECL credit loss, yield curve modeling, bilingual ALM reports, Puerto Rico cooperativas, Basel IRRBB, CAMEL scoring, institutional risk intelligence, CERNIQ",
   metadataBase: new URL("https://cerniq.io"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "CERNIQ — 70+ ALM Modules, 70 Quant Models, From $750",
+    title: "CERNIQ — 70+ ALM Modules, 100 Quant Models, From $750",
     description: "Goldman Sachs-grade ALM intelligence at credit union pricing. COSSEC, NCUA, and Basel III compliant. Bilingual EN/ES reports. Try the interactive demo.",
     url: "https://cerniq.io",
     siteName: "CERNIQ",
@@ -62,7 +62,7 @@ export default function RootLayout({
               name: 'CERNIQ',
               applicationCategory: 'FinanceApplication',
               operatingSystem: 'Web',
-              description: 'Institutional ALM intelligence platform with 70+ analytical modules, 70 quant models, and COSSEC/NCUA/Basel III compliance.',
+              description: 'Institutional ALM intelligence platform with 100+ analytical modules, 100 quant models, and COSSEC/NCUA/Basel III compliance.',
               url: 'https://cerniq.io',
               offers: {
                 '@type': 'Offer',
