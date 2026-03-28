@@ -83,6 +83,19 @@ describe('APIClient', () => {
     );
   });
 
+  it('does not attempt token refresh for skipAuthRedirect requests', async () => {
+    await import('./api');
+    const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;
+    const [, handleRejected] = mockInstance.interceptors.response.use.mock.calls[0];
+    const error = {
+      response: { status: 401 },
+      config: { skipAuthRedirect: true },
+    };
+
+    await expect(handleRejected(error)).rejects.toBe(error);
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
   it('exports apiClient as a singleton', async () => {
     const mod1 = await import('./api');
     const mod2 = await import('./api');
