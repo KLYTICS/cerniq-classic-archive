@@ -195,24 +195,25 @@ describe('BillingService', () => {
       expect(callArgs.cancel_url).toBe('https://cerniq.io/billing/cancel');
     });
 
-    it('should keep absolute success and cancel URLs unchanged', async () => {
+    it('should keep absolute success and cancel URLs unchanged when host matches', async () => {
       const stripeMock = (service as any).stripe;
       stripeMock.checkout.sessions.create.mockResolvedValue({
         url: '',
         id: 'cs_abs',
       });
 
+      // Use same-origin URLs (matches default FRONTEND_URL=https://cerniq.io)
       await service.createCheckoutSession({
         tier: 'monthly',
-        successUrl: 'https://preview.cerniq.io/portal?welcome=1',
-        cancelUrl: 'https://preview.cerniq.io/pricing',
+        successUrl: 'https://cerniq.io/portal?welcome=1',
+        cancelUrl: 'https://cerniq.io/pricing',
       });
 
       const callArgs = stripeMock.checkout.sessions.create.mock.calls[0][0];
       expect(callArgs.success_url).toBe(
-        'https://preview.cerniq.io/portal?welcome=1',
+        'https://cerniq.io/portal?welcome=1',
       );
-      expect(callArgs.cancel_url).toBe('https://preview.cerniq.io/pricing');
+      expect(callArgs.cancel_url).toBe('https://cerniq.io/pricing');
     });
 
     it('should pass metadata including leadId and institutionName', async () => {

@@ -3,6 +3,7 @@ import {
   AppController,
   determineOverallHealthStatus,
   getHealthMemorySnapshot,
+  _resetCachedMemoryLimit,
 } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
@@ -79,6 +80,7 @@ describe('AppController', () => {
 
     controller = module.get<AppController>(AppController);
     readFileSync.mockReset();
+    _resetCachedMemoryLimit();
   });
 
   it('should return "Hello World!"', () => {
@@ -93,6 +95,7 @@ describe('AppController', () => {
   });
 
   it('uses cgroup memory limits when available', () => {
+    _resetCachedMemoryLimit();
     readFileSync.mockReturnValueOnce('536870912');
 
     const snapshot = getHealthMemorySnapshot({
@@ -110,6 +113,7 @@ describe('AppController', () => {
   });
 
   it('falls back to heap usage when no container limit is exposed', () => {
+    _resetCachedMemoryLimit();
     readFileSync.mockImplementation(() => {
       throw new Error('missing');
     });
