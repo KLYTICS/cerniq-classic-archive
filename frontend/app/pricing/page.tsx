@@ -237,10 +237,11 @@ export default function PricingPage() {
           </section>
 
           {/* -- TIER CARDS -- */}
-          <section className="grid gap-6 lg:grid-cols-4">
+          <section className="grid gap-6 lg:grid-cols-4" aria-label={t('Pricing tiers', 'Niveles de precios')}>
             {tiers.map((tier) => (
-              <div
+              <article
                 key={tier.id}
+                aria-label={tier.name}
                 className={`cerniq-panel cerniq-card-hover flex flex-col p-6 ${tier.featured ? 'border-cyan-300/25 shadow-[0_20px_60px_rgba(34,211,238,0.12)]' : ''}`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -282,7 +283,7 @@ export default function PricingPage() {
                     {loadingTier === tier.id ? t('Processing...', 'Procesando...') : getCtaLabel(tier.id, lang)}
                   </button>
                 )}
-              </div>
+              </article>
             ))}
           </section>
 

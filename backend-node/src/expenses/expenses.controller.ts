@@ -87,6 +87,11 @@ export class ExpensesController {
     let resolvedOrgId = orgId;
     const userId = req.user.userId;
 
+    // If orgId is a specific ID (not auto/default), verify membership
+    if (orgId !== 'auto' && orgId !== 'default') {
+      await this.verifyOrgMembership(orgId, userId);
+    }
+
     // If orgId is 'auto' or 'default', resolve the user's first org or create one
     if (orgId === 'auto' || orgId === 'default') {
       const membership = await this.prisma.organizationMember.findFirst({
@@ -388,5 +393,25 @@ export class ExpensesController {
       orgId,
       institutionId,
     );
+  }
+
+  /**
+   * Verify the requesting user is a member of the specified organization.
+   * Prevents cross-tenant data access via URL parameter manipulation.
+   */
+  private async verifyOrgMembership(orgId: string, userId: string) {
+    const member = await this.prisma.organizationMember.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId: orgId,
+          userId,
+        },
+      },
+    });
+    if (!member) {
+      throw new BadRequestException(
+        'You are not a member of this organization',
+      );
+    }
   }
 }

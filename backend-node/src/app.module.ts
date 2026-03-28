@@ -111,6 +111,10 @@ import { ApiV1Module } from './api-v1/api-v1.module';
       provide: APP_INTERCEPTOR,
       useClass: SlowRequestInterceptor,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TimeoutInterceptor,
+    },
   ],
 })
 export class AppModule implements NestModule {

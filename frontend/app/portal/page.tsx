@@ -182,7 +182,7 @@ function ProcessingState({ job }: { job: ReportJob }) {
       </h2>
 
       {/* Rotating status message */}
-      <div className="mt-5 min-h-[3rem]">
+      <div className="mt-5 min-h-[3rem]" aria-live="polite">
         <p className="text-sm font-medium text-[#1ABFFF] animate-pulse">
           {t(msg.en, msg.es)}
         </p>
@@ -190,7 +190,7 @@ function ProcessingState({ job }: { job: ReportJob }) {
 
       {/* Progress bar */}
       <div className="mt-6 max-w-md mx-auto">
-        <div className="cerniq-progress-track">
+        <div className="cerniq-progress-track" role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100} aria-label={t('Report generation progress', 'Progreso de generacion del informe')}>
           <div
             className="cerniq-progress-bar"
             style={{ width: `${progressPercent}%`, transition: 'width 1s ease' }}
@@ -250,6 +250,7 @@ function AlcoPackButton({ jobId, compact }: { jobId: string; compact?: boolean }
       <button
         onClick={handleDownload}
         disabled={loading}
+        aria-label={loading ? 'Generating ALCO Pack...' : 'Download ALCO Pack'}
         className="inline-flex items-center gap-1 text-xs font-medium text-[#1B3A6B] hover:underline disabled:opacity-50"
       >
         <Briefcase className="h-3 w-3" />
@@ -262,6 +263,7 @@ function AlcoPackButton({ jobId, compact }: { jobId: string; compact?: boolean }
     <button
       onClick={handleDownload}
       disabled={loading}
+      aria-label={loading ? 'Generating ALCO Pack...' : 'Download ALCO Pack'}
       className="inline-flex items-center gap-2 rounded-xl border border-[#1B3A6B]/20 bg-[#1B3A6B]/5 px-6 py-3 text-sm font-medium text-[#1B3A6B] hover:bg-[#1B3A6B]/10 transition-colors disabled:opacity-50"
     >
       <Briefcase className="h-4 w-4" />
@@ -461,7 +463,7 @@ export default function PortalHome() {
         <ProgressTracker currentStep={currentStep} completedSteps={completed} />
       </div>
 
-      {/* Processing State -- real-time WebSocket progress */}
+      {/* Processing State -- real-time WebSocket progress (aria-live for dynamic updates) */}
       {isProcessing && latestJob && (
         <ReportProgressWS
           jobId={latestJob.id}

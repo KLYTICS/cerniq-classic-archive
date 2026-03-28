@@ -236,6 +236,163 @@ describe('BillingController', () => {
 
       expect(billingService.handlePaymentComplete).not.toHaveBeenCalled();
     });
+
+    it('should process customer.subscription.created event', async () => {
+      const sub = { id: 'sub_1', status: 'active' };
+      const event = {
+        type: 'customer.subscription.created',
+        id: 'evt_sub_created',
+        data: { object: sub },
+      };
+      billingService.verifyWebhookSignature.mockReturnValue(event as any);
+      billingService.handleSubscriptionCreated.mockResolvedValue(undefined);
+
+      const req = { rawBody: Buffer.from('body') };
+      const result = await controller.handleWebhook('sig_valid', req);
+
+      expect(result).toEqual({ received: true });
+      expect(billingService.handleSubscriptionCreated).toHaveBeenCalledWith(sub);
+    });
+
+    it('should process customer.subscription.updated event', async () => {
+      const sub = { id: 'sub_2', status: 'past_due' };
+      const event = {
+        type: 'customer.subscription.updated',
+        id: 'evt_sub_updated',
+        data: { object: sub },
+      };
+      billingService.verifyWebhookSignature.mockReturnValue(event as any);
+      billingService.handleSubscriptionUpdated.mockResolvedValue(undefined);
+
+      const req = { rawBody: Buffer.from('body') };
+      const result = await controller.handleWebhook('sig_valid', req);
+
+      expect(result).toEqual({ received: true });
+      expect(billingService.handleSubscriptionUpdated).toHaveBeenCalledWith(sub);
+    });
+
+    it('should process customer.subscription.deleted event', async () => {
+      const sub = { id: 'sub_3', status: 'canceled' };
+      const event = {
+        type: 'customer.subscription.deleted',
+        id: 'evt_sub_deleted',
+        data: { object: sub },
+      };
+      billingService.verifyWebhookSignature.mockReturnValue(event as any);
+      billingService.handleSubscriptionCancelled.mockResolvedValue(undefined);
+
+      const req = { rawBody: Buffer.from('body') };
+      const result = await controller.handleWebhook('sig_valid', req);
+
+      expect(result).toEqual({ received: true });
+      expect(billingService.handleSubscriptionCancelled).toHaveBeenCalledWith(sub);
+    });
+
+    it('should process invoice.payment_succeeded event', async () => {
+      const invoice = { id: 'in_1', amount_paid: 29900 };
+      const event = {
+        type: 'invoice.payment_succeeded',
+        id: 'evt_inv_paid',
+        data: { object: invoice },
+      };
+      billingService.verifyWebhookSignature.mockReturnValue(event as any);
+      billingService.handleInvoicePaid.mockResolvedValue(undefined);
+
+      const req = { rawBody: Buffer.from('body') };
+      const result = await controller.handleWebhook('sig_valid', req);
+
+      expect(result).toEqual({ received: true });
+      expect(billingService.handleInvoicePaid).toHaveBeenCalledWith(invoice);
+    });
+
+    it('should process invoice.payment_failed event', async () => {
+      const invoice = { id: 'in_2', amount_due: 29900 };
+      const event = {
+        type: 'invoice.payment_failed',
+        id: 'evt_inv_failed',
+        data: { object: invoice },
+      };
+      billingService.verifyWebhookSignature.mockReturnValue(event as any);
+      billingService.handlePaymentFailed.mockResolvedValue(undefined);
+
+      const req = { rawBody: Buffer.from('body') };
+      const result = await controller.handleWebhook('sig_valid', req);
+
+      expect(result).toEqual({ received: true });
+      expect(billingService.handlePaymentFailed).toHaveBeenCalledWith(invoice);
+    });
+
+    it('should process charge.dispute.created event', async () => {
+      const dispute = { id: 'dp_1', charge: 'ch_123', reason: 'fraudulent' };
+      const event = {
+        type: 'charge.dispute.created',
+        id: 'evt_dispute',
+        data: { object: dispute },
+      };
+      billingService.verifyWebhookSignature.mockReturnValue(event as any);
+      billingService.handleDispute.mockResolvedValue(undefined);
+
+      const req = { rawBody: Buffer.from('body') };
+      const result = await controller.handleWebhook('sig_valid', req);
+
+      expect(result).toEqual({ received: true });
+      expect(billingService.handleDispute).toHaveBeenCalledWith(dispute);
+    });
+
+    it('should return received:true for unhandled event types', async () => {
+      const event = {
+        type: 'payment_intent.created',
+        id: 'evt_unhandled',
+        data: { object: {} },
+      };
+      billingService.verifyWebhookSignature.mockReturnValue(event as any);
+
+      const req = { rawBody: Buffer.from('body') };
+      const result = await controller.handleWebhook('sig_valid', req);
+
+      expect(result).toEqual({ received: true });
+    });
+
+    it('should skip duplicate events (idempotency)', async () => {
+      const event = {
+        type: 'checkout.session.completed',
+        id: 'evt_already_processed',
+        data: { object: { payment_status: 'paid' } },
+      };
+      billingService.verifyWebhookSignature.mockReturnValue(event as any);
+
+      // Simulate already-processed event
+      const prisma = controller['prisma'] as any;
+      prisma.processedWebhookEvent.findUnique.mockResolvedValue({
+        id: 'evt_already_processed',
+        eventType: 'checkout.session.completed',
+        processedAt: new Date(),
+      });
+
+      const req = { rawBody: Buffer.from('body') };
+      const result = await controller.handleWebhook('sig_valid', req);
+
+      expect(result).toEqual({ received: true, duplicate: true });
+      expect(billingService.handlePaymentComplete).not.toHaveBeenCalled();
+    });
+
+    it('should return received:true even when handler throws (prevents Stripe retry storms)', async () => {
+      const event = {
+        type: 'invoice.payment_succeeded',
+        id: 'evt_handler_error',
+        data: { object: { id: 'in_err' } },
+      };
+      billingService.verifyWebhookSignature.mockReturnValue(event as any);
+      billingService.handleInvoicePaid.mockRejectedValue(
+        new Error('DB connection lost'),
+      );
+
+      const req = { rawBody: Buffer.from('body') };
+      const result = await controller.handleWebhook('sig_valid', req);
+
+      // Should still return 200 to prevent Stripe retry storms
+      expect(result).toEqual({ received: true });
+    });
   });
 
   describe('GET /api/billing/subscription', () => {
