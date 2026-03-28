@@ -20,6 +20,7 @@ import { MaintenanceModeGuard } from './common/guards/maintenance-mode.guard';
 import { corsOriginCallback } from './security/origin-allowlist';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
+import { SensitiveFieldRedactorInterceptor } from './common/interceptors/sensitive-field-redactor.interceptor';
 import { SanitizePipe } from './common/pipes/sanitize.pipe';
 
 async function bootstrap() {
@@ -128,6 +129,7 @@ async function bootstrap() {
 
   // --- Enterprise interceptors & guards ---
   app.useGlobalInterceptors(new PerformanceInterceptor());
+  app.useGlobalInterceptors(new SensitiveFieldRedactorInterceptor());
   app.useGlobalGuards(new MaintenanceModeGuard());
 
   // --- Global validation pipe ---
