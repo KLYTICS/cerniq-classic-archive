@@ -240,32 +240,32 @@ export class CAMELScorerService {
 
     const totalAssets =
       items
-        .filter((i) => i.category === 'asset')
-        .reduce((s, i) => s + i.balance, 0) || 445;
+        .filter((i: any) => i.category === 'asset')
+        .reduce((s: number, i: any) => s + i.balance, 0) || 445;
     const totalLiabilities =
       items
-        .filter((i) => i.category === 'liability')
-        .reduce((s, i) => s + i.balance, 0) || 385;
+        .filter((i: any) => i.category === 'liability')
+        .reduce((s: number, i: any) => s + i.balance, 0) || 385;
     const equity = totalAssets - totalLiabilities;
     const nwr = totalAssets > 0 ? equity / totalAssets : 0.09;
 
     // Estimate metrics from available data
     const loans = items.filter(
-      (i) =>
+      (i: any) =>
         i.category === 'asset' &&
         !['cash', 'securities'].includes(i.subcategory),
     );
-    const totalLoans = loans.reduce((s, i) => s + i.balance, 0) || 300;
+    const totalLoans = loans.reduce((s: number, i: any) => s + i.balance, 0) || 300;
     const avgLossRate = 0.015; // approximate
     const nplRatio = avgLossRate * 1.2;
     const classifiedRatio = avgLossRate * 2;
 
     const assetIncome = items
-      .filter((i) => i.category === 'asset')
-      .reduce((s, i) => s + i.balance * i.rate, 0);
+      .filter((i: any) => i.category === 'asset')
+      .reduce((s: number, i: any) => s + i.balance * i.rate, 0);
     const liabCost = items
-      .filter((i) => i.category === 'liability')
-      .reduce((s, i) => s + i.balance * i.rate, 0);
+      .filter((i: any) => i.category === 'liability')
+      .reduce((s: number, i: any) => s + i.balance * i.rate, 0);
     const nii = assetIncome - liabCost;
     const roa = totalAssets > 0 ? nii / totalAssets : 0.008;
     const expenseRatio = 0.78; // approximate

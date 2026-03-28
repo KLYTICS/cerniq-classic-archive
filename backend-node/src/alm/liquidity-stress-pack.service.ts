@@ -123,11 +123,11 @@ export class LiquidityStressPackService {
     if (items.length === 0) return this.getDemoResults();
 
     const totalAssets = items
-      .filter((i) => i.category === 'asset')
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => i.category === 'asset')
+      .reduce((s: number, i: any) => s + i.balance, 0);
     const totalDeposits = items
-      .filter((i) => i.category === 'liability')
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => i.category === 'liability')
+      .reduce((s: number, i: any) => s + i.balance, 0);
     const hqla =
       (liquidityPos?.hqlaLevel1 ?? 0) + (liquidityPos?.hqlaLevel2 ?? 0) ||
       totalAssets * 0.15;

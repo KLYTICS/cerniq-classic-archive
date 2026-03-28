@@ -87,7 +87,7 @@ export class AnomalyDetectionService {
     });
 
     // Normalize Prisma Decimal → number and compute hashes
-    const expenses: NormalizedExpense[] = rawExpenses.map((e) => ({
+    const expenses: NormalizedExpense[] = rawExpenses.map((e: any) => ({
       id: e.id,
       merchantName: e.merchantName,
       amount: Number(e.amount),
@@ -719,7 +719,7 @@ export class AnomalyDetectionService {
     });
 
     const quarterlyAPTotal = recentExpenses.reduce(
-      (s, e) => s + Number(e.amount),
+      (s: number, e: any) => s + Number(e.amount),
       0,
     );
 
@@ -736,7 +736,7 @@ export class AnomalyDetectionService {
     });
 
     const priorQuarterlyTotal = priorExpenses.reduce(
-      (s, e) => s + Number(e.amount),
+      (s: number, e: any) => s + Number(e.amount),
       0,
     );
     const vsLastQuarter =

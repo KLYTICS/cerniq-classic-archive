@@ -43,7 +43,7 @@ export class AuditService {
           `Audit: ${event.action} ${event.resource} ${event.resourceId || '(no id)'} by ${event.userId || 'anonymous'}`,
         );
       })
-      .catch((err) => {
+      .catch((err: any) => {
         // Never throw from audit logging
         this.logger.error('Audit log failed:', err.message);
       });

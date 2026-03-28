@@ -45,11 +45,11 @@ export class SOFRMonitorService {
     const items = await this.prisma.balanceSheetItem.findMany({
       where: { institutionId },
     });
-    const totalPortfolio = items.reduce((s, i) => s + i.balance, 0) || 445;
+    const totalPortfolio = items.reduce((s: number, i: any) => s + i.balance, 0) || 445;
 
     // Identify LIBOR-referenced instruments
     const exposures: LIBORExposure[] = items
-      .filter((i) => {
+      .filter((i: any) => {
         const rt = (i.rateType || '').toLowerCase();
         const name = (i.name || '').toLowerCase();
         return (
@@ -57,7 +57,7 @@ export class SOFRMonitorService {
           (name.includes('libor') || name.includes('floating'))
         );
       })
-      .map((item) => {
+      .map((item: any) => {
         const tenor = item.duration > 0.5 ? '3M_LIBOR' : '1M_LIBOR';
         const spread =
           LIBOR_SOFR_SPREADS[tenor] ?? LIBOR_SOFR_SPREADS['3M_LIBOR'];
@@ -84,8 +84,8 @@ export class SOFRMonitorService {
     const totalLIBOR = exposures.reduce((s, e) => s + e.balance, 0);
     const totalTransfer = exposures.reduce((s, e) => s + e.valueTransfer, 0);
     const sofrExposure = items
-      .filter((i) => (i.name || '').toLowerCase().includes('sofr'))
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => (i.name || '').toLowerCase().includes('sofr'))
+      .reduce((s: number, i: any) => s + i.balance, 0);
 
     return {
       exposures,

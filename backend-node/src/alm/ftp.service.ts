@@ -105,7 +105,7 @@ export class FTPService {
     const adj = (spreadAdjBps ?? 0) / 10000;
 
     // Calculate FTP for each instrument
-    const instruments: FTPInstrument[] = items.map((item) => {
+    const instruments: FTPInstrument[] = items.map((item: any) => {
       const tenor = Math.max(item.duration || 1, 0.25);
       const ftpRate = this.interpolateRate(baseCurve, tenor) + adj;
       const isAsset = item.category === 'asset';

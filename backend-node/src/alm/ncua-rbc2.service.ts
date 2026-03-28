@@ -62,20 +62,20 @@ export class NCUARBC2Service {
 
     const totalAssets =
       items
-        .filter((i) => i.category === 'asset')
-        .reduce((s, i) => s + i.balance, 0) ||
+        .filter((i: any) => i.category === 'asset')
+        .reduce((s: number, i: any) => s + i.balance, 0) ||
       inst?.totalAssets ||
       445;
     const totalLiabilities =
       items
-        .filter((i) => i.category === 'liability')
-        .reduce((s, i) => s + i.balance, 0) || totalAssets * 0.87;
+        .filter((i: any) => i.category === 'liability')
+        .reduce((s: number, i: any) => s + i.balance, 0) || totalAssets * 0.87;
     const netWorth = totalAssets - totalLiabilities;
 
     // Map balance sheet items to RBC2 categories
     const components: RBC2Component[] = [];
     const bySub = new Map<string, number>();
-    for (const item of items.filter((i) => i.category === 'asset')) {
+    for (const item of items.filter((i: any) => i.category === 'asset')) {
       const sub = item.subcategory.toLowerCase();
       bySub.set(sub, (bySub.get(sub) ?? 0) + item.balance);
     }

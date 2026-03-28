@@ -31,17 +31,17 @@ export class CreditConcentrationVaRService {
 
     if (segments.length === 0) return this.getDemoResult();
 
-    const totalLoans = segments.reduce((s, seg) => s + seg.balance, 0);
+    const totalLoans = segments.reduce((s: number, seg: any) => s + seg.balance, 0);
     if (totalLoans === 0) return this.getDemoResult();
 
     // HHI = Σ(s_i²) where s_i = segment_i / total
     const H = segments.reduce(
-      (s, seg) => s + Math.pow(seg.balance / totalLoans, 2),
+      (s: number, seg: any) => s + Math.pow(seg.balance / totalLoans, 2),
       0,
     );
 
     // Per-segment EL and UL
-    const segmentRisk = segments.map((seg) => {
+    const segmentRisk = segments.map((seg: any) => {
       const pd = seg.historicalLossRate * 1.5;
       const lgd = seg.lgd;
       const ead = seg.balance;
@@ -52,9 +52,9 @@ export class CreditConcentrationVaRService {
       return { name: seg.segmentName, ead, el, ul, share: ead / totalLoans };
     });
 
-    const portfolioEL = segmentRisk.reduce((s, r) => s + r.el, 0);
+    const portfolioEL = segmentRisk.reduce((s: number, r: any) => s + r.el, 0);
     const portfolioUL = Math.sqrt(
-      segmentRisk.reduce((s, r) => s + r.ul ** 2, 0),
+      segmentRisk.reduce((s: number, r: any) => s + r.ul ** 2, 0),
     );
 
     // Gordy granularity adjustment: GA ≈ (H / (1-H)) × (UL²/EL)

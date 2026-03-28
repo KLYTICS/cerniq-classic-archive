@@ -197,7 +197,7 @@ export class BillingController {
       // Mark event as processed after successful handling
       await this.prisma.processedWebhookEvent.create({
         data: { id: event.id, eventType: event.type },
-      }).catch((err) => {
+      }).catch((err: any) => {
         // Unique constraint race — another instance processed it first
         this.logger.warn({ event: 'webhook.dedup_race', id: event.id, error: err.message });
       });

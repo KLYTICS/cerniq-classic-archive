@@ -93,7 +93,7 @@ export class ScenarioPersistenceService {
     });
 
     if (scenarios.length !== scenarioIds.length) {
-      const found = new Set(scenarios.map((s) => s.id));
+      const found = new Set(scenarios.map((s: any) => s.id));
       const missing = scenarioIds.filter((id) => !found.has(id));
       throw new NotFoundException(`Scenarios not found: ${missing.join(', ')}`);
     }
@@ -102,7 +102,7 @@ export class ScenarioPersistenceService {
     const metrics = this.extractComparisonMetrics(scenarios);
 
     return {
-      scenarios: scenarios.map((s) => ({
+      scenarios: scenarios.map((s: any) => ({
         id: s.id,
         name: s.name,
         scenarioType: s.scenarioType,

@@ -45,8 +45,8 @@ export class FRTBESService {
     if (items.length === 0) return this.getDemoResult();
 
     const totalAssets = items
-      .filter((i) => i.category === 'asset')
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => i.category === 'asset')
+      .reduce((s: number, i: any) => s + i.balance, 0);
 
     // Generate 250 daily returns (1 year of data)
     const rng = this.seededRNG(42);

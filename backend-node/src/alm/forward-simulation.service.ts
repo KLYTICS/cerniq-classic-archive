@@ -90,9 +90,9 @@ export class ForwardSimulationService {
 
     for (const path of paths) {
       const shockBps = RATE_PATHS[path] ?? 0;
-      let projectedAssets = [...items.filter((i) => i.category === 'asset')];
+      let projectedAssets = [...items.filter((i: any) => i.category === 'asset')];
       let projectedLiabilities = [
-        ...items.filter((i) => i.category === 'liability'),
+        ...items.filter((i: any) => i.category === 'liability'),
       ];
 
       for (let q = 1; q <= totalQuarters; q++) {
@@ -155,9 +155,9 @@ export class ForwardSimulationService {
 
         // Reset items for next path
         if (q === totalQuarters) {
-          projectedAssets = [...items.filter((i) => i.category === 'asset')];
+          projectedAssets = [...items.filter((i: any) => i.category === 'asset')];
           projectedLiabilities = [
-            ...items.filter((i) => i.category === 'liability'),
+            ...items.filter((i: any) => i.category === 'liability'),
           ];
         }
       }

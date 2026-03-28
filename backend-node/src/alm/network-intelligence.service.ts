@@ -64,16 +64,16 @@ export class NetworkIntelligenceService {
     if (institutions.length === 0) return this.getDemoResult();
 
     const networkInstitutions: NetworkInstitution[] = institutions.map(
-      (inst) => {
+      (inst: (typeof institutions)[number]) => {
         const assets = inst.balanceSheetItems.filter(
-          (i) => i.category === 'asset',
+          (i: (typeof inst.balanceSheetItems)[number]) => i.category === 'asset',
         );
         const liabilities = inst.balanceSheetItems.filter(
-          (i) => i.category === 'liability',
+          (i: (typeof inst.balanceSheetItems)[number]) => i.category === 'liability',
         );
         const totalA =
-          assets.reduce((s, i) => s + i.balance, 0) || inst.totalAssets;
-        const totalL = liabilities.reduce((s, i) => s + i.balance, 0);
+          assets.reduce((s: number, i: (typeof assets)[number]) => s + i.balance, 0) || inst.totalAssets;
+        const totalL = liabilities.reduce((s: number, i: (typeof liabilities)[number]) => s + i.balance, 0);
         const nwr = totalA > 0 ? ((totalA - totalL) / totalA) * 100 : 9;
 
         return {

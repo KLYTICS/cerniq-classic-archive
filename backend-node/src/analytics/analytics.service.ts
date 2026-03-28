@@ -185,11 +185,11 @@ export class AnalyticsService {
     });
 
     const grandTotal = categories.reduce(
-      (sum, c) => sum + Number(c._sum.amount || 0),
+      (sum: number, c: any) => sum + Number(c._sum.amount || 0),
       0,
     );
 
-    return categories.map((c) => ({
+    return categories.map((c: any) => ({
       category: c.category || 'Uncategorized',
       totalAmount: Number(c._sum.amount || 0),
       expenseCount: c._count,
@@ -284,7 +284,7 @@ export class AnalyticsService {
       orderBy: { transactionDate: 'desc' },
     });
 
-    return expenses.map((e) => ({
+    return expenses.map((e: any) => ({
       Date: new Date(e.transactionDate).toISOString().split('T')[0],
       Merchant: e.merchantName,
       Amount: Number(e.amount),

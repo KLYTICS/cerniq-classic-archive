@@ -143,7 +143,7 @@ export class DailyPipelineService {
       select: { ticker: true },
       distinct: ['ticker'],
     });
-    return positions.map((p) => p.ticker);
+    return positions.map((p: any) => p.ticker);
   }
 
   /**
@@ -277,7 +277,7 @@ export class DailyPipelineService {
     for (const portfolio of portfolios) {
       if (portfolio.positions.length === 0) continue;
 
-      const tickers = portfolio.positions.map((p) => p.ticker);
+      const tickers = portfolio.positions.map((p: any) => p.ticker);
 
       try {
         // Compute correlation matrix (90 days back)
@@ -295,13 +295,13 @@ export class DailyPipelineService {
         );
 
         // Compute VaR for the portfolio
-        const positions = portfolio.positions.map((p) => ({
+        const positions = portfolio.positions.map((p: any) => ({
           ticker: p.ticker,
           quantity: Number(p.quantity),
           price: Number(p.avgCost),
         }));
         const totalValue = positions.reduce(
-          (sum, p) => sum + p.quantity * p.price,
+          (sum: number, p: any) => sum + p.quantity * p.price,
           0,
         );
 

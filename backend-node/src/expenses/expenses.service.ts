@@ -61,8 +61,8 @@ export class ExpensesService {
     });
 
     const existingParsed = recentExpenses
-      .filter((e) => e.aiData)
-      .map((e) => e.aiData as ParsedReceipt);
+      .filter((e: any) => e.aiData)
+      .map((e: any) => e.aiData as ParsedReceipt);
 
     const isDuplicate = await this.receiptParser.checkDuplicate(
       parsed,

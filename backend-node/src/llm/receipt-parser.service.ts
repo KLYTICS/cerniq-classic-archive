@@ -78,7 +78,7 @@ If any field is not clearly visible, omit it or use null. Be precise with number
 
       // Categorize the expense based on merchant and items
       const categoryContext = `Merchant: ${parsed.merchantName}\nItems: ${
-        parsed.items?.map((i) => i.description).join(', ') || 'N/A'
+        parsed.items?.map((i: any) => i.description).join(', ') || 'N/A'
       }`;
 
       const category = await this.llmService.categorize(

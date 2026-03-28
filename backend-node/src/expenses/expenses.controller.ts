@@ -348,7 +348,7 @@ export class ExpensesController {
       },
     });
 
-    const expenses = rawExpenses.map((e) => ({
+    const expenses = rawExpenses.map((e: any) => ({
       merchantName: e.merchantName,
       amount: Number(e.amount),
       transactionDate: new Date(e.transactionDate),

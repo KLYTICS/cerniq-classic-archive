@@ -31,14 +31,14 @@ export class KMVMertonService {
 
     const totalAssets =
       items
-        .filter((i) => i.category === 'asset')
-        .reduce((s, i) => s + i.balance, 0) ||
+        .filter((i: any) => i.category === 'asset')
+        .reduce((s: number, i: any) => s + i.balance, 0) ||
       inst?.totalAssets ||
       445;
     const totalLiabilities =
       items
-        .filter((i) => i.category === 'liability')
-        .reduce((s, i) => s + i.balance, 0) || totalAssets * 0.87;
+        .filter((i: any) => i.category === 'liability')
+        .reduce((s: number, i: any) => s + i.balance, 0) || totalAssets * 0.87;
     const equity = totalAssets - totalLiabilities;
 
     // For cooperativas: use net worth as equity proxy, total deposits + borrowings as debt

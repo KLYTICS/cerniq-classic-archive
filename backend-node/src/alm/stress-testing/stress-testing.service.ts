@@ -144,51 +144,51 @@ export class StressTestingService {
 
     // Separate floating vs fixed items
     const floatingAssets = items.filter(
-      (i) => i.category === 'asset' && i.rateType === 'variable',
+      (i: any) => i.category === 'asset' && i.rateType === 'variable',
     );
     const floatingLiabilities = items.filter(
-      (i) => i.category === 'liability' && i.rateType === 'variable',
+      (i: any) => i.category === 'liability' && i.rateType === 'variable',
     );
     const fixedAssets = items.filter(
-      (i) => i.category === 'asset' && i.rateType === 'fixed',
+      (i: any) => i.category === 'asset' && i.rateType === 'fixed',
     );
     const fixedLiabilities = items.filter(
-      (i) => i.category === 'liability' && i.rateType === 'fixed',
+      (i: any) => i.category === 'liability' && i.rateType === 'fixed',
     );
 
     const totalFloatingAssets = floatingAssets.reduce(
-      (s, a) => s + a.balance,
+      (s: number, a: any) => s + a.balance,
       0,
     );
     const totalFloatingLiabilities = floatingLiabilities.reduce(
-      (s, l) => s + l.balance,
+      (s: number, l: any) => s + l.balance,
       0,
     );
-    const totalFixedAssets = fixedAssets.reduce((s, a) => s + a.balance, 0);
+    const totalFixedAssets = fixedAssets.reduce((s: number, a: any) => s + a.balance, 0);
     const totalFixedLiabilities = fixedLiabilities.reduce(
-      (s, l) => s + l.balance,
+      (s: number, l: any) => s + l.balance,
       0,
     );
 
     // Weighted average rates
     const avgFloatingAssetRate =
       totalFloatingAssets > 0
-        ? floatingAssets.reduce((s, a) => s + a.balance * a.rate, 0) /
+        ? floatingAssets.reduce((s: number, a: any) => s + a.balance * a.rate, 0) /
           totalFloatingAssets
         : 0;
     const avgFloatingLiabilityRate =
       totalFloatingLiabilities > 0
-        ? floatingLiabilities.reduce((s, l) => s + l.balance * l.rate, 0) /
+        ? floatingLiabilities.reduce((s: number, l: any) => s + l.balance * l.rate, 0) /
           totalFloatingLiabilities
         : 0;
     const avgFixedAssetRate =
       totalFixedAssets > 0
-        ? fixedAssets.reduce((s, a) => s + a.balance * a.rate, 0) /
+        ? fixedAssets.reduce((s: number, a: any) => s + a.balance * a.rate, 0) /
           totalFixedAssets
         : 0;
     const avgFixedLiabilityRate =
       totalFixedLiabilities > 0
-        ? fixedLiabilities.reduce((s, l) => s + l.balance * l.rate, 0) /
+        ? fixedLiabilities.reduce((s: number, l: any) => s + l.balance * l.rate, 0) /
           totalFixedLiabilities
         : 0;
 

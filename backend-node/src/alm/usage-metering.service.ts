@@ -88,7 +88,7 @@ export class UsageMeteringService {
 
     for (const eventType of Object.keys(limits)) {
       const used =
-        events.find((e) => e.eventType === eventType)?._sum?.quantity ?? 0;
+        events.find((e: any) => e.eventType === eventType)?._sum?.quantity ?? 0;
       const included = limits[eventType];
       const overage = Math.max(0, used - included);
       const overageCost = overage * (OVERAGE_RATES[eventType] ?? 0);

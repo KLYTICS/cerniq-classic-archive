@@ -167,11 +167,11 @@ export class CsvIngestV2Service {
     const savedMap = new Map<string, string>(
       savedMappings
         .filter(
-          (mapping): mapping is typeof mapping & { cerniqField: string } =>
+          (mapping: any): mapping is typeof mapping & { cerniqField: string } =>
             typeof mapping.cerniqField === 'string' &&
             mapping.cerniqField.length > 0,
         )
-        .map((m) => [m.csvColumnName.toLowerCase(), m.cerniqField]),
+        .map((m: any) => [m.csvColumnName.toLowerCase(), m.cerniqField]),
     );
 
     // Classify each column

@@ -205,19 +205,19 @@ export class IRRPolicyService {
 
     // Compute actual metrics from balance sheet
     const totalAssets = items
-      .filter((i) => i.category === 'asset')
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => i.category === 'asset')
+      .reduce((s: number, i: any) => s + i.balance, 0);
     const assetDuration =
       items
-        .filter((i) => i.category === 'asset')
-        .reduce((s, i) => s + i.balance * i.duration, 0) / (totalAssets || 1);
+        .filter((i: any) => i.category === 'asset')
+        .reduce((s: number, i: any) => s + i.balance * i.duration, 0) / (totalAssets || 1);
     const liabDuration =
       items
-        .filter((i) => i.category === 'liability')
-        .reduce((s, i) => s + i.balance * i.duration, 0) /
+        .filter((i: any) => i.category === 'liability')
+        .reduce((s: number, i: any) => s + i.balance * i.duration, 0) /
       (items
-        .filter((i) => i.category === 'liability')
-        .reduce((s, i) => s + i.balance, 0) || 1);
+        .filter((i: any) => i.category === 'liability')
+        .reduce((s: number, i: any) => s + i.balance, 0) || 1);
     const durationGap = assetDuration - liabDuration;
 
     // Simplified EVE/NII estimates

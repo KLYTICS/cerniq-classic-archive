@@ -36,8 +36,8 @@ export class RobustOptimizerService {
     const scenarios = this.stressV2.getPresetScenarios();
     const totalAssets =
       items
-        .filter((i) => i.category === 'asset')
-        .reduce((s, i) => s + i.balance, 0) || 445;
+        .filter((i: any) => i.category === 'asset')
+        .reduce((s: number, i: any) => s + i.balance, 0) || 445;
 
     const maxMovePct = { conservative: 0.03, moderate: 0.06, aggressive: 0.1 }[
       aggressiveness

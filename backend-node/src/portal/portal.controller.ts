@@ -544,7 +544,7 @@ export class PortalController {
 
     if (!user) throw new NotFoundException('User not found');
 
-    const workspaceIds = workspaces.map((workspace) => workspace.id);
+    const workspaceIds = workspaces.map((workspace: any) => workspace.id);
     const institutions =
       workspaceIds.length > 0
         ? await this.prisma.institution.findMany({
@@ -567,7 +567,7 @@ export class PortalController {
         : [];
 
     const totalInstitutionAssets = institutions.reduce(
-      (sum, institution) => sum + institution.totalAssets,
+      (sum: number, institution: any) => sum + institution.totalAssets,
       0,
     );
 

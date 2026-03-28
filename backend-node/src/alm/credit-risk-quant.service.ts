@@ -103,7 +103,7 @@ export class CreditRiskQuantService {
 
     const segments: CreditRiskSegment[] = (
       loanSegments.length > 0 ? loanSegments : this.getDemoSegments()
-    ).map((seg) => {
+    ).map((seg: any) => {
       const segType = this.normalizeType(seg.segmentName);
       const coeffs = PD_COEFFICIENTS[segType] ?? PD_COEFFICIENTS.consumer_loans;
 

@@ -59,7 +59,7 @@ export class PortfolioVaRService {
     });
 
     const portfolioValue =
-      items.length > 0 ? items.reduce((s, i) => s + i.balance, 0) : 445; // demo
+      items.length > 0 ? items.reduce((s: number, i: any) => s + i.balance, 0) : 445; // demo
 
     const historical = this.computeHistoricalVaR(
       items,

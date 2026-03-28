@@ -2864,7 +2864,7 @@ export class PipelineWorker {
         totalActive: activeSubs.length,
         newThisWeek,
         cancelledThisWeek,
-        upcomingRenewals: upcomingRenewals.map((r) => ({
+        upcomingRenewals: upcomingRenewals.map((r: any) => ({
           email: r.user?.email || 'unknown',
           tier: r.tier,
           renewsAt:

@@ -53,8 +53,8 @@ export class ConcentrationService {
       where: { institutionId },
     });
 
-    const assets = items.filter((i) => i.category === 'asset');
-    const totalAssets = assets.reduce((s, i) => s + i.balance, 0);
+    const assets = items.filter((i: any) => i.category === 'asset');
+    const totalAssets = assets.reduce((s: number, i: any) => s + i.balance, 0);
 
     if (totalAssets === 0) {
       return this.getDemoAnalysis();

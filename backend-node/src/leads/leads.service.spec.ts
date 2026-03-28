@@ -89,7 +89,7 @@ describe('LeadsService', () => {
 
     it('should assign HIGH priority for cooperativas and credit unions', async () => {
       prisma.lead.findFirst.mockResolvedValue(null);
-      prisma.lead.create.mockImplementation(({ data }) =>
+      prisma.lead.create.mockImplementation(({ data }: { data: any }) =>
         Promise.resolve({ id: 'l', ...data }),
       );
 
@@ -114,7 +114,7 @@ describe('LeadsService', () => {
 
     it('should assign MEDIUM priority for community banks', async () => {
       prisma.lead.findFirst.mockResolvedValue(null);
-      prisma.lead.create.mockImplementation(({ data }) =>
+      prisma.lead.create.mockImplementation(({ data }: { data: any }) =>
         Promise.resolve({ id: 'l', ...data }),
       );
 
@@ -127,7 +127,7 @@ describe('LeadsService', () => {
 
     it('should assign LOW priority for unknown institution types', async () => {
       prisma.lead.findFirst.mockResolvedValue(null);
-      prisma.lead.create.mockImplementation(({ data }) =>
+      prisma.lead.create.mockImplementation(({ data }: { data: any }) =>
         Promise.resolve({ id: 'l', ...data }),
       );
 
@@ -169,7 +169,7 @@ describe('LeadsService', () => {
 
     it('should set nextFollowUp to next business day at 9am AST', async () => {
       prisma.lead.findFirst.mockResolvedValue(null);
-      prisma.lead.create.mockImplementation(({ data }) =>
+      prisma.lead.create.mockImplementation(({ data }: { data: any }) =>
         Promise.resolve({ id: 'l', ...data }),
       );
 

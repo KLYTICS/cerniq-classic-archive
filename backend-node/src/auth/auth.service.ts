@@ -357,7 +357,7 @@ export class AuthService {
       avatarUrl: user.avatarUrl,
       provider: user.provider,
       emailVerified: user.emailVerified,
-      organizations: user.organizationMembers.map((m) => ({
+      organizations: user.organizationMembers.map((m: any) => ({
         ...m.organization,
         role: m.role,
       })),

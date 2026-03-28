@@ -59,44 +59,44 @@ export class RepricingGapService {
     if (items.length === 0) return this.getDemoResult();
 
     const totalAssets = items
-      .filter((i) => i.category === 'asset')
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => i.category === 'asset')
+      .reduce((s: number, i: any) => s + i.balance, 0);
     const totalLiabilities = items
-      .filter((i) => i.category === 'liability')
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => i.category === 'liability')
+      .reduce((s: number, i: any) => s + i.balance, 0);
 
     const assetDuration =
       totalAssets > 0
         ? items
-            .filter((i) => i.category === 'asset')
-            .reduce((s, i) => s + i.balance * i.duration, 0) / totalAssets
+            .filter((i: any) => i.category === 'asset')
+            .reduce((s: number, i: any) => s + i.balance * i.duration, 0) / totalAssets
         : 0;
     const liabDuration =
       totalLiabilities > 0
         ? items
-            .filter((i) => i.category === 'liability')
-            .reduce((s, i) => s + i.balance * i.duration, 0) / totalLiabilities
+            .filter((i: any) => i.category === 'liability')
+            .reduce((s: number, i: any) => s + i.balance * i.duration, 0) / totalLiabilities
         : 0;
 
     let cumulativeGap = 0;
     const buckets: RepricingBucket[] = BUCKETS.map((bucket) => {
       const assets = items
-        .filter((i) => i.category === 'asset')
+        .filter((i: any) => i.category === 'asset')
         .filter(
-          (i) =>
+          (i: any) =>
             this.getRepricingDays(i) >= bucket.minDays &&
             this.getRepricingDays(i) <= bucket.maxDays,
         )
-        .reduce((s, i) => s + i.balance, 0);
+        .reduce((s: number, i: any) => s + i.balance, 0);
 
       const liabilities = items
-        .filter((i) => i.category === 'liability')
+        .filter((i: any) => i.category === 'liability')
         .filter(
-          (i) =>
+          (i: any) =>
             this.getRepricingDays(i) >= bucket.minDays &&
             this.getRepricingDays(i) <= bucket.maxDays,
         )
-        .reduce((s, i) => s + i.balance, 0);
+        .reduce((s: number, i: any) => s + i.balance, 0);
 
       const gap = assets - liabilities;
       cumulativeGap += gap;

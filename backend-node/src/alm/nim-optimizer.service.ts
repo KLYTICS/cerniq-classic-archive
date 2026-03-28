@@ -49,12 +49,12 @@ export class NIMOptimizerService {
     });
     if (items.length === 0) return this.getDemoResult();
 
-    const assets = items.filter((i) => i.category === 'asset');
-    const liabilities = items.filter((i) => i.category === 'liability');
-    const totalAssets = assets.reduce((s, i) => s + i.balance, 0);
+    const assets = items.filter((i: any) => i.category === 'asset');
+    const liabilities = items.filter((i: any) => i.category === 'liability');
+    const totalAssets = assets.reduce((s: number, i: any) => s + i.balance, 0);
     const currentNII =
-      assets.reduce((s, i) => s + i.balance * i.rate, 0) -
-      liabilities.reduce((s, i) => s + i.balance * i.rate, 0);
+      assets.reduce((s: number, i: any) => s + i.balance * i.rate, 0) -
+      liabilities.reduce((s: number, i: any) => s + i.balance * i.rate, 0);
     const currentNIM = totalAssets > 0 ? (currentNII / totalAssets) * 100 : 3.5;
 
     const recommendations: RateRecommendation[] = [];

@@ -191,20 +191,20 @@ export class PeerAnalyticsService {
       };
     }
 
-    const assets = items.filter((i) => i.category === 'asset');
-    const liabs = items.filter((i) => i.category === 'liability');
-    const totalAssets = assets.reduce((s, i) => s + i.balance, 0);
-    const totalLiabs = liabs.reduce((s, i) => s + i.balance, 0);
+    const assets = items.filter((i: any) => i.category === 'asset');
+    const liabs = items.filter((i: any) => i.category === 'liability');
+    const totalAssets = assets.reduce((s: number, i: any) => s + i.balance, 0);
+    const totalLiabs = liabs.reduce((s: number, i: any) => s + i.balance, 0);
 
-    const assetIncome = assets.reduce((s, i) => s + i.balance * i.rate, 0);
-    const liabCost = liabs.reduce((s, i) => s + i.balance * i.rate, 0);
+    const assetIncome = assets.reduce((s: number, i: any) => s + i.balance * i.rate, 0);
+    const liabCost = liabs.reduce((s: number, i: any) => s + i.balance * i.rate, 0);
     const nim =
       totalAssets > 0 ? ((assetIncome - liabCost) / totalAssets) * 100 : 3.5;
 
     const loans = assets.filter(
-      (i) => !['cash', 'securities'].includes(i.subcategory.toLowerCase()),
+      (i: any) => !['cash', 'securities'].includes(i.subcategory.toLowerCase()),
     );
-    const totalLoans = loans.reduce((s, i) => s + i.balance, 0);
+    const totalLoans = loans.reduce((s: number, i: any) => s + i.balance, 0);
     const loanToShare = totalLiabs > 0 ? (totalLoans / totalLiabs) * 100 : 70;
 
     return {

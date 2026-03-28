@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma.service';
 
 // ─── Types ───────────────────────────────────────────────────
@@ -20,6 +21,8 @@ export interface MonteCarloResult {
   cvar99NII: number; // expected value of worst 1%
   meanEVE: number;
   var95EVE: number;
+  convergenceMet: boolean; // whether Monte Carlo standard error is acceptable
+  standardError: number; // standard error of the mean NII estimate
   fanChart: Array<{
     quarter: string;
     p5: number;
@@ -43,6 +46,11 @@ const DEFAULT_PARAMS: VasicekParams = {
   r0: 0.0475, // current Fed Funds rate
 };
 
+/** Maximum allowed paths to prevent memory exhaustion */
+const MAX_PATHS = 100_000;
+/** Maximum allowed quarters to prevent runaway simulations */
+const MAX_QUARTERS = 120; // 30 years
+
 @Injectable()
 export class MonteCarloService {
   private readonly logger = new Logger(MonteCarloService.name);
@@ -61,14 +69,27 @@ export class MonteCarloService {
       sigma?: number;
     },
   ): Promise<MonteCarloResult> {
-    const paths = opts?.paths ?? 10000;
-    const quarters = opts?.quarters ?? 12;
+    // ── Input validation & clamping ──
+    const paths = Math.min(
+      Math.max(Math.floor(opts?.paths ?? 10000), 100),
+      MAX_PATHS,
+    );
+    const quarters = Math.min(
+      Math.max(Math.floor(opts?.quarters ?? 12), 1),
+      MAX_QUARTERS,
+    );
     const dt = 0.25; // quarterly time step
 
     const params: VasicekParams = {
-      kappa: opts?.kappa ?? DEFAULT_PARAMS.kappa,
-      theta: opts?.theta ?? DEFAULT_PARAMS.theta,
-      sigma: opts?.sigma ?? DEFAULT_PARAMS.sigma,
+      kappa: Math.max(0, Math.min(opts?.kappa ?? DEFAULT_PARAMS.kappa, 5)),
+      theta: Math.max(
+        -0.05,
+        Math.min(opts?.theta ?? DEFAULT_PARAMS.theta, 0.3),
+      ),
+      sigma: Math.max(
+        0.0001,
+        Math.min(opts?.sigma ?? DEFAULT_PARAMS.sigma, 0.1),
+      ),
       r0: DEFAULT_PARAMS.r0,
     };
 
@@ -77,13 +98,13 @@ export class MonteCarloService {
     });
 
     this.logger.log(
-      `Monte Carlo: ${paths} paths × ${quarters}Q for institution ${institutionId}`,
+      `Monte Carlo: ${paths} paths x ${quarters}Q for institution ${institutionId}`,
     );
 
     // Generate rate paths (Vasicek discretization with antithetic variates)
     const ratePaths = this.generateVasicekPaths(params, dt, quarters, paths);
 
-    // Compute NII for each path
+    // Compute NII for each path using Kahan summation for numerical stability
     const niiByPath: number[] = new Array(paths);
     const niiByQuarter: number[][] = Array.from(
       { length: quarters },
@@ -92,26 +113,43 @@ export class MonteCarloService {
 
     for (let p = 0; p < paths; p++) {
       let totalNII = 0;
+      let kahanComp = 0; // Kahan summation compensator
       for (let q = 0; q < quarters; q++) {
         const r = ratePaths[p][q];
         const quarterNII = this.computeQuarterNII(items, r, q);
         niiByQuarter[q][p] = quarterNII;
-        totalNII += quarterNII;
+        // Kahan compensated summation for large portfolios
+        const y = quarterNII - kahanComp;
+        const t = totalNII + y;
+        kahanComp = t - totalNII - y;
+        totalNII = t;
       }
-      niiByPath[p] = totalNII;
+      niiByPath[p] = Number.isFinite(totalNII) ? totalNII : 0;
     }
 
     // Statistics
     niiByPath.sort((a, b) => a - b);
     const mean = niiByPath.reduce((a, b) => a + b, 0) / paths;
-    const variance = niiByPath.reduce((a, v) => a + (v - mean) ** 2, 0) / paths;
-    const std = Math.sqrt(variance);
-    const var95Index = Math.floor(paths * 0.05);
-    const var95 = niiByPath[var95Index];
-    const cvar99Index = Math.floor(paths * 0.01);
+    const variance =
+      niiByPath.reduce((a, v) => a + (v - mean) ** 2, 0) / paths;
+    const std = Math.sqrt(Math.max(variance, 0)); // guard against negative due to float error
+    const var95Index = Math.max(0, Math.floor(paths * 0.05));
+    const var95 = niiByPath[var95Index] ?? 0;
+    const cvar99Index = Math.max(1, Math.floor(paths * 0.01));
     const cvar99 =
       niiByPath.slice(0, cvar99Index).reduce((a, b) => a + b, 0) /
-      Math.max(cvar99Index, 1);
+      cvar99Index;
+
+    // ── Convergence check: standard error of the mean ──
+    const standardError = std / Math.sqrt(paths);
+    // Convergence criterion: SE < 1% of |mean| (or absolute floor of 0.001)
+    const convergenceThreshold = Math.max(Math.abs(mean) * 0.01, 0.001);
+    const convergenceMet = standardError < convergenceThreshold;
+    if (!convergenceMet) {
+      this.logger.warn(
+        `Monte Carlo convergence warning: SE=${standardError.toFixed(4)}, threshold=${convergenceThreshold.toFixed(4)}. Consider increasing paths.`,
+      );
+    }
 
     // Fan chart: percentiles by quarter
     const fanChart = Array.from({ length: quarters }, (_, q) => {
@@ -124,11 +162,11 @@ export class MonteCarloService {
       );
       return {
         quarter: `Q${Math.ceil((qDate.getMonth() + 1) / 3)} ${qDate.getFullYear()}`,
-        p5: qValues[Math.floor(paths * 0.05)],
-        p25: qValues[Math.floor(paths * 0.25)],
-        p50: qValues[Math.floor(paths * 0.5)],
-        p75: qValues[Math.floor(paths * 0.75)],
-        p95: qValues[Math.floor(paths * 0.95)],
+        p5: qValues[Math.max(0, Math.floor(paths * 0.05))] ?? 0,
+        p25: qValues[Math.max(0, Math.floor(paths * 0.25))] ?? 0,
+        p50: qValues[Math.max(0, Math.floor(paths * 0.5))] ?? 0,
+        p75: qValues[Math.max(0, Math.floor(paths * 0.75))] ?? 0,
+        p95: qValues[Math.max(0, Math.floor(paths * 0.95))] ?? 0,
       };
     });
 
@@ -156,6 +194,8 @@ export class MonteCarloService {
       cvar99NII: +cvar99.toFixed(3),
       meanEVE: 0, // simplified — full EVE MC is Phase V+
       var95EVE: 0,
+      convergenceMet,
+      standardError: +standardError.toFixed(6),
       fanChart: fanChart.map((f) => ({
         ...f,
         p5: +f.p5.toFixed(3),
@@ -180,6 +220,11 @@ export class MonteCarloService {
     const result: number[][] = [];
     const halfPaths = Math.floor(paths / 2);
 
+    // Precompute constant to avoid repeated sqrt
+    const sqrtDt = Math.sqrt(dt);
+    // Upper bound for rates to prevent overflow (30% — well above any modern precedent)
+    const RATE_CEILING = 0.3;
+
     for (let p = 0; p < halfPaths; p++) {
       const path1: number[] = new Array(quarters);
       const path2: number[] = new Array(quarters); // antithetic
@@ -188,13 +233,16 @@ export class MonteCarloService {
 
       for (let q = 0; q < quarters; q++) {
         const z = this.gaussianRandom();
-        const dW = sigma * Math.sqrt(dt) * z;
+        const dW = sigma * sqrtDt * z;
 
         r1 = r1 + kappa * (theta - r1) * dt + dW;
         r2 = r2 + kappa * (theta - r2) * dt - dW; // antithetic
 
-        path1[q] = Math.max(0, r1);
-        path2[q] = Math.max(0, r2);
+        // Floor at zero (ZLB) and ceiling to prevent overflow
+        path1[q] = Math.max(0, Math.min(r1, RATE_CEILING));
+        path2[q] = Math.max(0, Math.min(r2, RATE_CEILING));
+        r1 = path1[q];
+        r2 = path2[q];
       }
 
       result.push(path1, path2);
@@ -206,8 +254,9 @@ export class MonteCarloService {
       let r = r0;
       for (let q = 0; q < quarters; q++) {
         const z = this.gaussianRandom();
-        r = r + kappa * (theta - r) * dt + sigma * Math.sqrt(dt) * z;
-        path[q] = Math.max(0, r);
+        r = r + kappa * (theta - r) * dt + sigma * sqrtDt * z;
+        r = Math.max(0, Math.min(r, RATE_CEILING));
+        path[q] = r;
       }
       result.push(path);
     }
@@ -222,34 +271,42 @@ export class MonteCarloService {
     rate: number,
     quarter: number,
   ): number {
+    // Guard against NaN/Infinity rate inputs
+    const safeRate = Number.isFinite(rate) ? rate : DEFAULT_PARAMS.r0;
+
     if (items.length === 0) {
       // Demo: generate realistic NII based on rate level
       const baseNII = 3.2; // $3.2M quarterly
       const rateSensitivity = 0.5; // 50% asset-sensitive
-      const rateChange = rate - DEFAULT_PARAMS.r0;
+      const rateChange = safeRate - DEFAULT_PARAMS.r0;
       return baseNII + baseNII * rateChange * rateSensitivity;
     }
 
     let nii = 0;
     for (const item of items) {
       const isAsset = item.category === 'asset';
-      const balance = item.balance;
-      const baseRate = item.rate;
+      const balance = Number.isFinite(item.balance) ? item.balance : 0;
+      const baseRate = Number.isFinite(item.rate) ? item.rate : 0;
       const beta =
         item.depositBeta ??
         (isAsset ? 1.0 : this.getDefaultBeta(item.subcategory));
 
       // Variable-rate reprices immediately; fixed-rate reprices at maturity
+      const duration = Number.isFinite(item.duration) ? item.duration : 0;
       const repricingQuarter =
-        item.rateType === 'variable' ? 0 : Math.floor(item.duration * 4);
+        item.rateType === 'variable' ? 0 : Math.floor(duration * 4);
       const hasRepriced = quarter >= repricingQuarter;
 
       const effectiveRate = hasRepriced
-        ? baseRate + (rate - DEFAULT_PARAMS.r0) * beta
+        ? baseRate + (safeRate - DEFAULT_PARAMS.r0) * beta
         : baseRate;
 
       const quarterIncome = (balance * effectiveRate) / 4;
-      nii += isAsset ? quarterIncome : -quarterIncome;
+      const contribution = isAsset ? quarterIncome : -quarterIncome;
+      // Guard against NaN propagation from bad data
+      if (Number.isFinite(contribution)) {
+        nii += contribution;
+      }
     }
 
     return nii;
@@ -263,12 +320,30 @@ export class MonteCarloService {
     return 0.5;
   }
 
-  // Box-Muller transform
+  /**
+   * Cryptographically seeded Box-Muller transform.
+   * Uses crypto.randomBytes for uniform [0,1) inputs to avoid the
+   * well-known bias and predictability of Math.random() (V8 xorshift128+).
+   * Thread-safe: randomBytes is safe for concurrent calls.
+   */
   private gaussianRandom(): number {
     let u = 0,
       v = 0;
-    while (u === 0) u = Math.random();
-    while (v === 0) v = Math.random();
-    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    // Generate two crypto-quality uniform random numbers in (0, 1)
+    while (u === 0) u = this.cryptoUniform();
+    while (v === 0) v = this.cryptoUniform();
+    const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    // Guard against NaN from floating point edge cases
+    return Number.isFinite(z) ? z : 0;
+  }
+
+  /**
+   * Generate a uniform random number in [0, 1) using crypto.randomBytes.
+   * Uses 4 bytes (32 bits) for ~7 decimal digits of precision.
+   */
+  private cryptoUniform(): number {
+    const buf = randomBytes(4);
+    // Read as unsigned 32-bit integer, divide by 2^32
+    return buf.readUInt32BE(0) / 0x100000000;
   }
 }

@@ -84,7 +84,7 @@ export class ClimateRiskService {
       totalAssets > 0 ? (hurricaneAAL / totalAssets) * 100 : 0;
 
     // FEMA flood zone exposure
-    const floodZoneExposure = reLoans.reduce((sum, loan) => {
+    const floodZoneExposure = reLoans.reduce((sum: number, loan: any) => {
       const zone = loan.floodZone ?? 'UNKNOWN';
       return (
         sum + loan.balance * (FEMA_HAIRCUTS[zone] ?? FEMA_HAIRCUTS.UNKNOWN)
@@ -100,8 +100,8 @@ export class ClimateRiskService {
     // Mitigation score based on: insurance coverage, HQLA buffer, geographic diversification
     const hqlaPct =
       items
-        .filter((i) => ['cash', 'securities'].includes(i.subcategory))
-        .reduce((s, i) => s + i.balance, 0) / totalAssets;
+        .filter((i: any) => ['cash', 'securities'].includes(i.subcategory))
+        .reduce((s: number, i: any) => s + i.balance, 0) / totalAssets;
     const mitigationScore = Math.min(
       100,
       Math.round(

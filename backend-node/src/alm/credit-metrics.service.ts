@@ -115,11 +115,11 @@ export class CreditMetricsService {
       economicCapital: +(ul * 1.06).toFixed(2),
       migrationMatrix: TRANSITION_MATRIX,
       paths,
-      perSegmentContribution: segments.map((s) => ({
+      perSegmentContribution: segments.map((s: any) => ({
         name: s.segmentName,
         marginalVaR: +(s.balance * 0.02).toFixed(2),
         pctOfTotal: +(
-          (s.balance / segments.reduce((sum, seg) => sum + seg.balance, 0)) *
+          (s.balance / segments.reduce((sum: number, seg: any) => sum + seg.balance, 0)) *
           100
         ).toFixed(1),
       })),

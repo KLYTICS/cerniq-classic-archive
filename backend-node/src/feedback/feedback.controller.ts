@@ -195,11 +195,11 @@ export class FeedbackController {
         };
       }
 
-      const scores = allFeedback.map((f) => f.npsScore!);
-      const promoters = scores.filter((s) => s >= 9).length;
-      const passives = scores.filter((s) => s >= 7 && s <= 8).length;
-      const detractors = scores.filter((s) => s <= 6).length;
-      const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+      const scores = allFeedback.map((f: any) => f.npsScore!);
+      const promoters = scores.filter((s: number) => s >= 9).length;
+      const passives = scores.filter((s: number) => s >= 7 && s <= 8).length;
+      const detractors = scores.filter((s: number) => s <= 6).length;
+      const averageScore = scores.reduce((a: number, b: number) => a + b, 0) / scores.length;
       const npsScore = Math.round(
         ((promoters - detractors) / scores.length) * 100,
       );

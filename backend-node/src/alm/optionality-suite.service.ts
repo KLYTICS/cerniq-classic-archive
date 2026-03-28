@@ -55,7 +55,7 @@ export class OptionalitySuiteService {
     });
     if (items.length === 0) return this.getDemoResult();
 
-    const instruments: OptionAdjustedMetrics[] = items.map((item) => {
+    const instruments: OptionAdjustedMetrics[] = items.map((item: any) => {
       const optionType = this.classifyOptionType(item);
       const modDur = item.duration / (1 + item.rate);
       // Effective duration: shorter for callable/prepayable instruments

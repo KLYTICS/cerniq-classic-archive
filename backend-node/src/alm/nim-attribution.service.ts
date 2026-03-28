@@ -33,13 +33,13 @@ export class NIMAttributionService {
     });
     if (items.length === 0) return this.getDemoResult();
 
-    const assets = items.filter((i) => i.category === 'asset');
-    const liabs = items.filter((i) => i.category === 'liability');
-    const totalA = assets.reduce((s, i) => s + i.balance, 0);
-    const totalL = liabs.reduce((s, i) => s + i.balance, 0);
+    const assets = items.filter((i: any) => i.category === 'asset');
+    const liabs = items.filter((i: any) => i.category === 'liability');
+    const totalA = assets.reduce((s: number, i: any) => s + i.balance, 0);
+    const totalL = liabs.reduce((s: number, i: any) => s + i.balance, 0);
 
-    const assetIncome = assets.reduce((s, i) => s + i.balance * i.rate, 0);
-    const liabCost = liabs.reduce((s, i) => s + i.balance * i.rate, 0);
+    const assetIncome = assets.reduce((s: number, i: any) => s + i.balance * i.rate, 0);
+    const liabCost = liabs.reduce((s: number, i: any) => s + i.balance * i.rate, 0);
     const nimCurrent =
       totalA > 0 ? ((assetIncome - liabCost) / totalA) * 100 : 3.5;
 
@@ -52,12 +52,12 @@ export class NIMAttributionService {
     // Decompose into 7 factors
     const loanPct =
       assets
-        .filter((i) => !['cash', 'securities'].includes(i.subcategory))
-        .reduce((s, i) => s + i.balance, 0) / (totalA || 1);
+        .filter((i: any) => !['cash', 'securities'].includes(i.subcategory))
+        .reduce((s: number, i: any) => s + i.balance, 0) / (totalA || 1);
     const fixedPct =
       assets
-        .filter((i) => i.rateType === 'fixed')
-        .reduce((s, i) => s + i.balance, 0) / (totalA || 1);
+        .filter((i: any) => i.rateType === 'fixed')
+        .reduce((s: number, i: any) => s + i.balance, 0) / (totalA || 1);
 
     const factors: NIMFactor[] = [
       {
