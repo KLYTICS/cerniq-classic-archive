@@ -269,6 +269,11 @@ export class OptionsService {
    * - S ~= 0 or K ~= 0: degenerate cases
    * - Deep ITM/OTM: d1/d2 clamped to prevent CDF overflow
    */
+  /** American option pricing — falls back to European (lower bound) until BAW is implemented. */
+  private calculateAmericanPrice(params: OptionParams): Greeks {
+    return this.calculateBlackScholesGreeks(params);
+  }
+
   private calculateBlackScholesGreeks(params: OptionParams): Greeks {
     const {
       underlying: S,
@@ -395,6 +400,494 @@ export class OptionsService {
       rho: safeNum(rho),
       price: safeNum(Math.max(price, 0)),
     };
+  }
+
+  /**
+   * Barone-Adesi-Whaley (1987) quadratic approximation for American options.
+   *
+   * Key insight: The American option price can be decomposed as
+   *   C_am = C_eu + epsilon_c  (for calls)
+   *   P_am = P_eu + epsilon_p  (for puts)
+   * where epsilon is the early exercise premium.
+   *
+   * For American calls on non-dividend-paying assets, early exercise is never
+   * optimal, so C_am = C_eu. For American puts (and calls on dividend-paying
+   * assets), the method solves for the critical stock price S* at which
+   * early exercise becomes optimal, then computes the premium using a
+   * quadratic approximation.
+   *
+   * Returns both the Greeks and the early exercise premium.
+   */
+  private calculateAmericanPrice(params: OptionParams): {
+    greeks: Greeks;
+    earlyExercisePremium: number;
+  } {
+    const {
+      underlying: S,
+      strike: K,
+      timeToExpiry: T,
+      riskFreeRate: r,
+      volatility: sigma,
+      optionType,
+      dividendYield: q = 0,
+    } = params;
+
+    // European price as the baseline
+    const euroGreeks = this.calculateBlackScholesGreeks(params);
+
+    // Edge cases: at or past expiry, zero vol, zero S, zero K — European = American
+    if (T <= 0 || sigma < 1e-10 || S <= 0 || K <= 0) {
+      return { greeks: euroGreeks, earlyExercisePremium: 0 };
+    }
+
+    // For American calls on non-dividend-paying stock, early exercise is never optimal
+    if (optionType === 'call' && q <= 0) {
+      return { greeks: euroGreeks, earlyExercisePremium: 0 };
+    }
+
+    // ── BAW core computation ──
+    const sigSq = sigma * sigma;
+    const M = (2 * r) / sigSq;
+    const N = (2 * (r - q)) / sigSq;
+    const k = 1 - Math.exp(-r * T);
+
+    if (optionType === 'put') {
+      // q2 for puts: q2 = (-(N-1) - sqrt((N-1)^2 + 4*M/k)) / 2
+      const Nm1 = N - 1;
+      const discriminant = Nm1 * Nm1 + (4 * M) / k;
+      const q2 = (-Nm1 - Math.sqrt(discriminant)) / 2;
+
+      // Find critical price S* by Newton-Raphson iteration
+      // At S*, the put value equals the exercise value: K - S* = P_eu(S*) + A2*(S*/S*)^q2
+      // which simplifies to: K - S* = P_eu(S*) - (S*/q2)*(1 - e^(-qT)*N(-d1(S*)))
+      const SStar = this.findCriticalPricePut(S, K, T, r, q, sigma, q2);
+
+      // If S <= S* (deep ITM), early exercise is optimal: value = K - S
+      if (S <= SStar) {
+        const intrinsic = K - S;
+        return {
+          greeks: {
+            price: intrinsic,
+            delta: -1,
+            gamma: 0,
+            theta: 0,
+            vega: 0,
+            rho: 0,
+          },
+          earlyExercisePremium: intrinsic - euroGreeks.price,
+        };
+      }
+
+      // Compute A2: the early exercise premium coefficient
+      const d1Star = this.bsD1(SStar, K, T, r, q, sigma);
+      const A2 =
+        -(SStar / q2) * (1 - Math.exp(-q * T) * this.normalCDF(-d1Star));
+
+      // American put price = European put price + A2 * (S/S*)^q2
+      const earlyExercisePremium = A2 * Math.pow(S / SStar, q2);
+      const americanPrice = euroGreeks.price + earlyExercisePremium;
+
+      // Compute American Greeks via finite differences
+      const americanGreeks = this.computeAmericanGreeks(
+        params,
+        americanPrice,
+      );
+
+      return {
+        greeks: americanGreeks,
+        earlyExercisePremium: Math.max(earlyExercisePremium, 0),
+      };
+    } else {
+      // American call with dividends (q > 0)
+      // q1 for calls: q1 = (-(N-1) + sqrt((N-1)^2 + 4*M/k)) / 2
+      const Nm1 = N - 1;
+      const discriminant = Nm1 * Nm1 + (4 * M) / k;
+      const q1 = (-Nm1 + Math.sqrt(discriminant)) / 2;
+
+      // Find critical price S* for call
+      const SStar = this.findCriticalPriceCall(S, K, T, r, q, sigma, q1);
+
+      // If S >= S* (deep ITM), early exercise is optimal: value = S - K
+      if (S >= SStar) {
+        const intrinsic = S - K;
+        return {
+          greeks: {
+            price: intrinsic,
+            delta: 1,
+            gamma: 0,
+            theta: 0,
+            vega: 0,
+            rho: 0,
+          },
+          earlyExercisePremium: intrinsic - euroGreeks.price,
+        };
+      }
+
+      // Compute A1
+      const d1Star = this.bsD1(SStar, K, T, r, q, sigma);
+      const A1 =
+        (SStar / q1) * (1 - Math.exp(-q * T) * this.normalCDF(d1Star));
+
+      // American call price = European call price + A1 * (S/S*)^q1
+      const earlyExercisePremium = A1 * Math.pow(S / SStar, q1);
+      const americanPrice = euroGreeks.price + earlyExercisePremium;
+
+      const americanGreeks = this.computeAmericanGreeks(
+        params,
+        americanPrice,
+      );
+
+      return {
+        greeks: americanGreeks,
+        earlyExercisePremium: Math.max(earlyExercisePremium, 0),
+      };
+    }
+  }
+
+  /**
+   * Compute d1 for the generalized Black-Scholes formula (with dividends).
+   */
+  private bsD1(
+    S: number,
+    K: number,
+    T: number,
+    r: number,
+    q: number,
+    sigma: number,
+  ): number {
+    const sqrtT = Math.sqrt(T);
+    return (
+      (Math.log(S / K) + (r - q + 0.5 * sigma * sigma) * T) /
+      (sigma * sqrtT)
+    );
+  }
+
+  /**
+   * Compute the European option price with continuous dividend yield q.
+   * Uses the generalized Black-Scholes (Merton) formula.
+   */
+  private bsPrice(
+    S: number,
+    K: number,
+    T: number,
+    r: number,
+    q: number,
+    sigma: number,
+    optionType: OptionType,
+  ): number {
+    if (T <= 0) {
+      return optionType === 'call'
+        ? Math.max(S - K, 0)
+        : Math.max(K - S, 0);
+    }
+    if (sigma < 1e-10) {
+      const fwd = S * Math.exp((r - q) * T);
+      const df = Math.exp(-r * T);
+      return optionType === 'call'
+        ? Math.max(fwd - K, 0) * df
+        : Math.max(K - fwd, 0) * df;
+    }
+
+    const d1 = this.bsD1(S, K, T, r, q, sigma);
+    const d2 = d1 - sigma * Math.sqrt(T);
+    const d1c = Math.max(-30, Math.min(30, d1));
+    const d2c = Math.max(-30, Math.min(30, d2));
+    const dfq = Math.exp(-q * T);
+    const dfr = Math.exp(-r * T);
+
+    if (optionType === 'call') {
+      return S * dfq * this.normalCDF(d1c) - K * dfr * this.normalCDF(d2c);
+    } else {
+      return K * dfr * this.normalCDF(-d2c) - S * dfq * this.normalCDF(-d1c);
+    }
+  }
+
+  /**
+   * Find the critical stock price S* for American put using Newton-Raphson.
+   *
+   * At S*, the condition is:
+   *   K - S* = P_eu(S*) + A2(S*)
+   * where A2(S*) = -(S*/q2) * (1 - e^{-qT} * N(-d1(S*)))
+   *
+   * Rearranging: f(S*) = K - S* - P_eu(S*) + (S*/q2)*(1 - e^{-qT}*N(-d1(S*))) = 0
+   */
+  private findCriticalPricePut(
+    _S: number,
+    K: number,
+    T: number,
+    r: number,
+    q: number,
+    sigma: number,
+    q2: number,
+  ): number {
+    // Initial guess: start near K (put is at-the-money)
+    const dfr = Math.exp(-r * T);
+    const dfq = Math.exp(-q * T);
+
+    // Initial estimate: between 0 and K
+    let Si = K * (1 - 1 / q2); // BAW seed
+    // Clamp to a reasonable range
+    Si = Math.max(K * 0.01, Math.min(Si, K * 0.999));
+
+    const MAX_ITER = 100;
+    const TOL = 1e-6;
+
+    for (let i = 0; i < MAX_ITER; i++) {
+      const pEu = this.bsPrice(Si, K, T, r, q, sigma, OptionType.PUT);
+      const d1 = this.bsD1(Si, K, T, r, q, sigma);
+      const d1c = Math.max(-30, Math.min(30, d1));
+      const Nmd1 = this.normalCDF(-d1c);
+
+      // The exercise boundary condition:
+      // LHS = K - Si (exercise value)
+      // RHS = P_eu(Si) - (Si/q2)*(1 - e^{-qT}*Nmd1) (continuation value)
+      const LHS = K - Si;
+      const A2_at_star = -(Si / q2) * (1 - dfq * Nmd1);
+      const RHS = pEu + A2_at_star;
+
+      const diff = RHS - LHS;
+
+      if (Math.abs(diff) < TOL) {
+        return Si;
+      }
+
+      // Derivative of the difference w.r.t. Si (approximated)
+      // Use central finite difference for robustness
+      const h = Si * 1e-5;
+      const pEuUp = this.bsPrice(Si + h, K, T, r, q, sigma, OptionType.PUT);
+      const d1Up = this.bsD1(Si + h, K, T, r, q, sigma);
+      const d1Upc = Math.max(-30, Math.min(30, d1Up));
+      const NmD1Up = this.normalCDF(-d1Upc);
+      const A2Up = -((Si + h) / q2) * (1 - dfq * NmD1Up);
+      const RHSUp = pEuUp + A2Up;
+      const LHSUp = K - (Si + h);
+      const diffUp = RHSUp - LHSUp;
+
+      const dDiff = (diffUp - diff) / h;
+
+      if (Math.abs(dDiff) < 1e-14) {
+        // Gradient too small; nudge Si
+        Si = Si * 0.95;
+        continue;
+      }
+
+      let step = diff / dDiff;
+      // Dampen large steps
+      step = Math.max(-Si * 0.3, Math.min(step, Si * 0.3));
+      Si = Si - step;
+
+      // Keep Si positive and below K
+      Si = Math.max(K * 0.001, Math.min(Si, K * 0.999));
+    }
+
+    return Si;
+  }
+
+  /**
+   * Find the critical stock price S* for American call using Newton-Raphson.
+   *
+   * At S*, the condition is:
+   *   S* - K = C_eu(S*) + A1(S*)
+   * where A1(S*) = (S*/q1) * (1 - e^{-qT} * N(d1(S*)))
+   */
+  private findCriticalPriceCall(
+    _S: number,
+    K: number,
+    T: number,
+    r: number,
+    q: number,
+    sigma: number,
+    q1: number,
+  ): number {
+    const dfq = Math.exp(-q * T);
+
+    // Initial guess: start above K
+    let Si = K / (1 - 1 / q1);
+    Si = Math.max(K * 1.001, Math.min(Si, K * 10));
+
+    const MAX_ITER = 100;
+    const TOL = 1e-6;
+
+    for (let i = 0; i < MAX_ITER; i++) {
+      const cEu = this.bsPrice(Si, K, T, r, q, sigma, OptionType.CALL);
+      const d1 = this.bsD1(Si, K, T, r, q, sigma);
+      const d1c = Math.max(-30, Math.min(30, d1));
+      const Nd1 = this.normalCDF(d1c);
+
+      const LHS = Si - K;
+      const A1_at_star = (Si / q1) * (1 - dfq * Nd1);
+      const RHS = cEu + A1_at_star;
+
+      const diff = RHS - LHS;
+
+      if (Math.abs(diff) < TOL) {
+        return Si;
+      }
+
+      // Central finite difference for derivative
+      const h = Si * 1e-5;
+      const cEuUp = this.bsPrice(Si + h, K, T, r, q, sigma, OptionType.CALL);
+      const d1Up = this.bsD1(Si + h, K, T, r, q, sigma);
+      const d1Upc = Math.max(-30, Math.min(30, d1Up));
+      const Nd1Up = this.normalCDF(d1Upc);
+      const A1Up = ((Si + h) / q1) * (1 - dfq * Nd1Up);
+      const RHSUp = cEuUp + A1Up;
+      const LHSUp = Si + h - K;
+      const diffUp = RHSUp - LHSUp;
+
+      const dDiff = (diffUp - diff) / h;
+
+      if (Math.abs(dDiff) < 1e-14) {
+        Si = Si * 1.05;
+        continue;
+      }
+
+      let step = diff / dDiff;
+      step = Math.max(-Si * 0.3, Math.min(step, Si * 0.3));
+      Si = Si - step;
+
+      Si = Math.max(K * 1.001, Math.min(Si, K * 10));
+    }
+
+    return Si;
+  }
+
+  /**
+   * Compute American option Greeks via central finite differences.
+   *
+   * Since the BAW approximation does not have clean analytical Greeks,
+   * we bump each input by a small epsilon and re-price to get numerical
+   * derivatives. This is standard practice for approximate models.
+   */
+  private computeAmericanGreeks(
+    params: OptionParams,
+    _price: number,
+  ): Greeks {
+    const { underlying: S, strike: K, timeToExpiry: T, riskFreeRate: r, volatility: sigma, optionType, dividendYield: q = 0 } = params;
+
+    // Helper to get the full BAW price for a given parameter set
+    const bawPrice = (p: OptionParams): number => {
+      const result = this.calculateAmericanPrice(p);
+      return result.greeks.price;
+    };
+
+    // Use the analytical price as the center (avoid infinite recursion by
+    // computing the price directly here instead of calling calculateAmericanPrice)
+    const price = this.americanPriceDirect(S, K, T, r, q, sigma, optionType);
+
+    // Delta: dP/dS
+    const dS = S * 0.001;
+    const priceUp = this.americanPriceDirect(S + dS, K, T, r, q, sigma, optionType);
+    const priceDown = this.americanPriceDirect(S - dS, K, T, r, q, sigma, optionType);
+    const delta = (priceUp - priceDown) / (2 * dS);
+
+    // Gamma: d2P/dS2
+    const gamma = (priceUp - 2 * price + priceDown) / (dS * dS);
+
+    // Theta: dP/dT (per day, divide by 365)
+    const dT = T > 0.002 ? 0.001 : T * 0.1;
+    const priceTDown = this.americanPriceDirect(S, K, T - dT, r, q, sigma, optionType);
+    const theta = (dT > 0 ? -(price - priceTDown) / dT : 0) / 365;
+
+    // Vega: dP/dSigma (per 1% move, divide by 100)
+    const dSigma = 0.001;
+    const priceSigmaUp = this.americanPriceDirect(S, K, T, r, q, sigma + dSigma, optionType);
+    const priceSigmaDown = this.americanPriceDirect(S, K, T, r, q, sigma - dSigma, optionType);
+    const vega = (priceSigmaUp - priceSigmaDown) / (2 * dSigma) / 100;
+
+    // Rho: dP/dR (per 1% move, divide by 100)
+    const dR = 0.001;
+    const priceRUp = this.americanPriceDirect(S, K, T, r + dR, q, sigma, optionType);
+    const priceRDown = this.americanPriceDirect(S, K, T, r - dR, q, sigma, optionType);
+    const rho = (priceRUp - priceRDown) / (2 * dR) / 100;
+
+    const safeNum = (v: number) => (Number.isFinite(v) ? v : 0);
+
+    return {
+      price: safeNum(Math.max(price, 0)),
+      delta: safeNum(delta),
+      gamma: safeNum(gamma),
+      theta: safeNum(theta),
+      vega: safeNum(vega),
+      rho: safeNum(rho),
+    };
+  }
+
+  /**
+   * Direct BAW price computation (no Greeks, no recursion).
+   * Used internally by computeAmericanGreeks for finite-difference bumping.
+   */
+  private americanPriceDirect(
+    S: number,
+    K: number,
+    T: number,
+    r: number,
+    q: number,
+    sigma: number,
+    optionType: OptionType,
+  ): number {
+    // Edge cases
+    if (T <= 0) {
+      return optionType === 'call'
+        ? Math.max(S - K, 0)
+        : Math.max(K - S, 0);
+    }
+    if (sigma < 1e-10 || S <= 0 || K <= 0) {
+      return this.bsPrice(S, K, T, r, q, sigma, optionType);
+    }
+
+    // For calls with no dividends, American = European
+    if (optionType === 'call' && q <= 0) {
+      return this.bsPrice(S, K, T, r, q, sigma, optionType);
+    }
+
+    const sigSq = sigma * sigma;
+    const M = (2 * r) / sigSq;
+    const N_val = (2 * (r - q)) / sigSq;
+    const k = 1 - Math.exp(-r * T);
+
+    const euroPrice = this.bsPrice(S, K, T, r, q, sigma, optionType);
+
+    if (optionType === 'put') {
+      const Nm1 = N_val - 1;
+      const discriminant = Nm1 * Nm1 + (4 * M) / k;
+      const q2 = (-Nm1 - Math.sqrt(discriminant)) / 2;
+
+      const SStar = this.findCriticalPricePut(S, K, T, r, q, sigma, q2);
+
+      if (S <= SStar) {
+        return K - S;
+      }
+
+      const d1Star = this.bsD1(SStar, K, T, r, q, sigma);
+      const d1Starc = Math.max(-30, Math.min(30, d1Star));
+      const A2 =
+        -(SStar / q2) *
+        (1 - Math.exp(-q * T) * this.normalCDF(-d1Starc));
+
+      const premium = A2 * Math.pow(S / SStar, q2);
+      return Math.max(euroPrice + premium, Math.max(K - S, 0));
+    } else {
+      // Call with dividends
+      const Nm1 = N_val - 1;
+      const discriminant = Nm1 * Nm1 + (4 * M) / k;
+      const q1 = (-Nm1 + Math.sqrt(discriminant)) / 2;
+
+      const SStar = this.findCriticalPriceCall(S, K, T, r, q, sigma, q1);
+
+      if (S >= SStar) {
+        return S - K;
+      }
+
+      const d1Star = this.bsD1(SStar, K, T, r, q, sigma);
+      const d1Starc = Math.max(-30, Math.min(30, d1Star));
+      const A1 =
+        (SStar / q1) *
+        (1 - Math.exp(-q * T) * this.normalCDF(d1Starc));
+
+      const premium = A1 * Math.pow(S / SStar, q1);
+      return Math.max(euroPrice + premium, Math.max(S - K, 0));
+    }
   }
 
   /**
