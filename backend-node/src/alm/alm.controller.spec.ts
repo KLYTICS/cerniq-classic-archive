@@ -30,7 +30,9 @@ describe('AlmController — Core Revenue Path', () => {
     };
 
     // Build args array matching constructor parameter count
-    const args: any[] = Array.from({ length: 83 }, () => mockSvc());
+    // Dynamic: match constructor parameter count (grows as services are added)
+    const paramCount = AlmController.length || 90;
+    const args: any[] = Array.from({ length: paramCount }, () => mockSvc());
     args[1] = enterprise;
     controller = new (AlmController as any)(...args);
   });
