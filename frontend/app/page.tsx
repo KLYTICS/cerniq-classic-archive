@@ -383,7 +383,7 @@ export default function LandingPage() {
                 <p className="text-xs text-slate-500">{t('ALM Modules', 'Módulos ALM')}</p>
               </div>
               <div>
-                <p className="text-3xl font-bold tabular-nums text-slate-950">70</p>
+                <p className="text-3xl font-bold tabular-nums text-slate-950">100</p>
                 <p className="text-xs text-slate-500">{t('Quant Models', 'Modelos Cuantitativos')}</p>
               </div>
               <div>
