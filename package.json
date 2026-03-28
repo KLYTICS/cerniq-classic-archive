@@ -1,0 +1,24 @@
+{
+  "name": "cerniq",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "prepare": "husky",
+    "lint:backend": "cd backend-node && npm run lint",
+    "lint:frontend": "cd frontend && npm run lint",
+    "test:backend": "cd backend-node && npm run test -- --forceExit",
+    "test:frontend": "cd frontend && npx vitest run"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0"
+  },
+  "lint-staged": {
+    "backend-node/src/**/*.ts": [
+      "bash -c 'cd backend-node && npx eslint --fix'"
+    ],
+    "frontend/**/*.{ts,tsx}": [
+      "bash -c 'cd frontend && npx eslint --fix'"
+    ]
+  }
+}

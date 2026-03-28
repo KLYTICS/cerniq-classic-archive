@@ -30,29 +30,29 @@ export class PeerSynthesisService {
 
     // Compute NIM per institution
     const nims = institutions
-      .map((inst) => {
+      .map((inst: any) => {
         const assets = inst.balanceSheetItems.filter(
-          (i) => i.category === 'asset',
+          (i: any) => i.category === 'asset',
         );
         const liabs = inst.balanceSheetItems.filter(
-          (i) => i.category === 'liability',
+          (i: any) => i.category === 'liability',
         );
         const totalA =
-          assets.reduce((s, i) => s + i.balance, 0) || inst.totalAssets;
-        const income = assets.reduce((s, i) => s + i.balance * i.rate, 0);
-        const cost = liabs.reduce((s, i) => s + i.balance * i.rate, 0);
+          assets.reduce((s: any, i: any) => s + i.balance, 0) || inst.totalAssets;
+        const income = assets.reduce((s: any, i: any) => s + i.balance * i.rate, 0);
+        const cost = liabs.reduce((s: any, i: any) => s + i.balance * i.rate, 0);
         return {
           name: inst.name,
           nim: totalA > 0 ? ((income - cost) / totalA) * 100 : 3.5,
         };
       })
-      .sort((a, b) => b.nim - a.nim);
+      .sort((a: any, b: any) => b.nim - a.nim);
 
     const topQ = nims.slice(0, Math.max(1, Math.floor(nims.length / 4)));
     const bottomQ = nims.slice(-Math.max(1, Math.floor(nims.length / 4)));
-    const topAvg = topQ.reduce((s, n) => s + n.nim, 0) / (topQ.length || 1);
+    const topAvg = topQ.reduce((s: any, n: any) => s + n.nim, 0) / (topQ.length || 1);
     const bottomAvg =
-      bottomQ.reduce((s, n) => s + n.nim, 0) / (bottomQ.length || 1);
+      bottomQ.reduce((s: any, n: any) => s + n.nim, 0) / (bottomQ.length || 1);
 
     const analysis = {
       institutionCount: institutions.length || 94,

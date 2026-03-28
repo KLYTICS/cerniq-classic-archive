@@ -58,6 +58,7 @@ model RefreshToken {
 
   @@index([userId])
   @@index([token])
+  @@index([expiresAt])
   @@map("refresh_tokens")
 }
 
@@ -72,6 +73,7 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tokenHash])
+  @@index([userId])
   @@map("password_reset_tokens")
 }
 
@@ -160,6 +162,9 @@ model Expense {
   @@index([userId])
   @@index([status])
   @@index([invoiceHash])
+  @@index([transactionDate])
+  @@index([category])
+  @@index([reviewStatus])
   @@map("expenses")
 }
 
@@ -196,7 +201,7 @@ model Institution {
   workspaceId              String    @map("workspace_id")
   name                     String
   type                     String    // bank | credit_union | family_office | cooperativa
-  totalAssets              Float     @map("total_assets")
+  totalAssets              Decimal   @map("total_assets") @db.Decimal(18, 2)
   currency                 String    @default("USD")
   reportingDate            DateTime  @map("reporting_date")
   cossecRegistrationNumber String?   @map("cossec_registration_number")
@@ -235,6 +240,7 @@ model Institution {
   institutionAlerts     InstitutionAlert[]
 
   @@index([workspaceId])
+  @@index([type])
   @@map("institutions")
 }
 
@@ -244,13 +250,13 @@ model BalanceSheetItem {
   category      String    // asset | liability
   subcategory   String    // loans | securities | deposits | borrowings | equity | cash
   name          String
-  balance       Float     // in millions
-  rate          Float     // current yield/cost as decimal (0.055 = 5.5%)
-  duration      Float     // Macaulay duration in years
+  balance       Decimal   @db.Decimal(18, 2) // in millions
+  rate          Decimal   @db.Decimal(8, 6) // current yield/cost as decimal (0.055 = 5.5%)
+  duration      Decimal   @db.Decimal(8, 4) // Macaulay duration in years
   repriceDate   DateTime? @map("reprice_date")
   maturityDate  DateTime? @map("maturity_date")
   rateType      String    @map("rate_type") // fixed | variable | hybrid
-  depositBeta   Float?    @map("deposit_beta") // pass-through rate (0.0-1.0) for deposit beta calibration
+  depositBeta   Decimal?  @map("deposit_beta") @db.Decimal(8, 6) // pass-through rate (0.0-1.0) for deposit beta calibration
   createdAt     DateTime  @default(now()) @map("created_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
@@ -264,9 +270,9 @@ model InterestRateScenario {
   institutionId String   @map("institution_id")
   name          String
   shiftBps      Int      @map("shift_bps")
-  niImpact      Float    @map("ni_impact")
-  mveImpact     Float    @map("mve_impact")
-  duration      Float
+  niImpact      Decimal  @map("ni_impact") @db.Decimal(18, 2)
+  mveImpact     Decimal  @map("mve_impact") @db.Decimal(18, 2)
+  duration      Decimal  @db.Decimal(8, 4)
   createdAt     DateTime @default(now()) @map("created_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
@@ -279,12 +285,12 @@ model LiquidityPosition {
   id            String   @id @default(cuid())
   institutionId String   @map("institution_id")
   date          DateTime
-  hqlaLevel1    Float    @map("hqla_level1")
-  hqlaLevel2    Float    @map("hqla_level2")
-  cashOutflows  Float    @map("cash_outflows")
-  cashInflows   Float    @map("cash_inflows")
-  lcr           Float
-  nsfr          Float
+  hqlaLevel1    Decimal  @map("hqla_level1") @db.Decimal(18, 2)
+  hqlaLevel2    Decimal  @map("hqla_level2") @db.Decimal(18, 2)
+  cashOutflows  Decimal  @map("cash_outflows") @db.Decimal(18, 2)
+  cashInflows   Decimal  @map("cash_inflows") @db.Decimal(18, 2)
+  lcr           Decimal  @db.Decimal(10, 6)
+  nsfr          Decimal  @db.Decimal(10, 6)
   createdAt     DateTime @default(now()) @map("created_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
@@ -335,12 +341,12 @@ model LoanSegment {
   id                  String   @id @default(cuid())
   institutionId       String   @map("institution_id")
   segmentName         String   @map("segment_name") // e.g., "Auto Loans", "Commercial RE", "Consumer Unsecured"
-  balance             Float    // outstanding balance in millions
-  weightedAvgRate     Float    @map("weighted_avg_rate") // decimal (0.065 = 6.5%)
-  weightedAvgMaturity Float    @map("weighted_avg_maturity") // years
-  historicalLossRate  Float    @map("historical_loss_rate") // annualized (0.012 = 1.2%)
-  lgd                 Float    @default(0.5) // loss given default (0.0-1.0)
-  qualitativeAdj      Float    @default(0) @map("qualitative_adj") // +/- adjustment to loss rate
+  balance             Decimal  @db.Decimal(18, 2) // outstanding balance in millions
+  weightedAvgRate     Decimal  @map("weighted_avg_rate") @db.Decimal(8, 6) // decimal (0.065 = 6.5%)
+  weightedAvgMaturity Decimal  @map("weighted_avg_maturity") @db.Decimal(8, 4) // years
+  historicalLossRate  Decimal  @map("historical_loss_rate") @db.Decimal(8, 6) // annualized (0.012 = 1.2%)
+  lgd                 Decimal  @default(0.5) @db.Decimal(8, 6) // loss given default (0.0-1.0)
+  qualitativeAdj      Decimal  @default(0) @map("qualitative_adj") @db.Decimal(8, 6) // +/- adjustment to loss rate
   asOfDate            DateTime @map("as_of_date")
   createdAt           DateTime @default(now()) @map("created_at")
 
@@ -354,10 +360,10 @@ model DepositTier {
   id              String   @id @default(cuid())
   institutionId   String   @map("institution_id")
   tierName        String   @map("tier_name") // insured_core | uninsured | brokered | large_single
-  balance         Float    // in millions
-  insuredPct      Float    @map("insured_pct") // 0.0-1.0
-  flightRate      Float    @map("flight_rate") // monthly runoff rate under stress (0.0-1.0)
-  avgRate         Float    @map("avg_rate") // current cost as decimal
+  balance         Decimal  @db.Decimal(18, 2) // in millions
+  insuredPct      Decimal  @map("insured_pct") @db.Decimal(8, 6) // 0.0-1.0
+  flightRate      Decimal  @map("flight_rate") @db.Decimal(8, 6) // monthly runoff rate under stress (0.0-1.0)
+  avgRate         Decimal  @map("avg_rate") @db.Decimal(8, 6) // current cost as decimal
   createdAt       DateTime @default(now()) @map("created_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
@@ -371,9 +377,9 @@ model ConcentrationLimit {
   institutionId   String   @map("institution_id")
   limitType       String   @map("limit_type") // sector | single_name | geography | product
   limitName       String   @map("limit_name") // e.g., "Commercial RE", "Top 10 Borrowers"
-  maxPct          Float    @map("max_pct") // policy limit as decimal (0.25 = 25%)
-  currentPct      Float    @map("current_pct") // actual exposure as decimal
-  currentBalance  Float?   @map("current_balance") // actual $ exposure in millions
+  maxPct          Decimal  @map("max_pct") @db.Decimal(8, 6) // policy limit as decimal (0.25 = 25%)
+  currentPct      Decimal  @map("current_pct") @db.Decimal(8, 6) // actual exposure as decimal
+  currentBalance  Decimal? @map("current_balance") @db.Decimal(18, 2) // actual $ exposure in millions
   status          String   @default("compliant") // compliant | warning | breach
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -391,15 +397,16 @@ model LoanCohort {
   institutionId   String   @map("institution_id")
   loanType        String   @map("loan_type") // residential_mortgage | auto | consumer | commercial
   originationQtr  String   @map("origination_qtr") // "2022Q3"
-  originalBalance Float    @map("original_balance")
-  currentBalance  Float    @map("current_balance")
-  defaults        Float    // cumulative defaults to date
+  originalBalance Decimal  @map("original_balance") @db.Decimal(18, 2)
+  currentBalance  Decimal  @map("current_balance") @db.Decimal(18, 2)
+  defaults        Decimal  @db.Decimal(18, 2) // cumulative defaults to date
   ageMonths       Int      @map("age_months")
   createdAt       DateTime @default(now()) @map("created_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
   @@index([institutionId])
+  @@index([loanType])
   @@map("loan_cohorts")
 }
 
@@ -408,9 +415,9 @@ model CeclVintageAllowance {
   institutionId     String   @map("institution_id")
   runAt             DateTime @default(now()) @map("run_at")
   methodology       String   // "vintage" | "warm" | "pdlgd"
-  baseAllowance     Float    @map("base_allowance")
-  adverseAllowance  Float    @map("adverse_allowance")
-  severeAllowance   Float    @map("severe_allowance")
+  baseAllowance     Decimal  @map("base_allowance") @db.Decimal(18, 2)
+  adverseAllowance  Decimal  @map("adverse_allowance") @db.Decimal(18, 2)
+  severeAllowance   Decimal  @map("severe_allowance") @db.Decimal(18, 2)
   segmentBreakdown  Json     @map("segment_breakdown")
   createdAt         DateTime @default(now()) @map("created_at")
 
@@ -425,9 +432,9 @@ model IRRPolicyLimit {
   institutionId  String   @map("institution_id")
   limitType      String   @map("limit_type") // EVE_PCT | NII_AT_RISK | DURATION_GAP | REPRICING_GAP
   scenario       String   // "+200bps" | "-100bps" | "base"
-  watchPct       Float    @map("watch_pct") // e.g. 15.0
-  warningPct     Float    @map("warning_pct") // e.g. 18.0
-  breachPct      Float    @map("breach_pct") // e.g. 20.0
+  watchPct       Decimal  @map("watch_pct") @db.Decimal(8, 6) // e.g. 15.0
+  warningPct     Decimal  @map("warning_pct") @db.Decimal(8, 6) // e.g. 18.0
+  breachPct      Decimal  @map("breach_pct") @db.Decimal(8, 6) // e.g. 20.0
   regulatoryRef  String   @map("regulatory_ref") // "OCIF CC-2022-03 §IV.B"
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -442,8 +449,8 @@ model PolicyBreachLog {
   institutionId  String    @map("institution_id")
   limitType      String    @map("limit_type")
   breachLevel    String    @map("breach_level") // WATCH | WARNING | BREACH
-  actualValue    Float     @map("actual_value")
-  limitValue     Float     @map("limit_value")
+  actualValue    Decimal   @map("actual_value") @db.Decimal(18, 6)
+  limitValue     Decimal   @map("limit_value") @db.Decimal(18, 6)
   detectedAt     DateTime  @default(now()) @map("detected_at")
   resolvedAt     DateTime? @map("resolved_at")
 
@@ -473,14 +480,15 @@ model BoardReport {
   generatedAt    DateTime @default(now()) @map("generated_at")
   pdfUrl         String?  @map("pdf_url")
   emailsSent     Int      @default(0) @map("emails_sent")
-  camelComposite Float?   @map("camel_composite")
-  nimSnapshot    Float?   @map("nim_snapshot")
-  lcrSnapshot    Float?   @map("lcr_snapshot")
+  camelComposite Decimal? @map("camel_composite") @db.Decimal(6, 2)
+  nimSnapshot    Decimal? @map("nim_snapshot") @db.Decimal(10, 6)
+  lcrSnapshot    Decimal? @map("lcr_snapshot") @db.Decimal(10, 6)
   topRiskAlert   String?  @map("top_risk_alert")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
   @@index([institutionId])
+  @@index([reportMonth])
   @@map("board_reports")
 }
 
@@ -497,6 +505,7 @@ model Upload {
   workspace Workspace @relation(fields: [workspaceId], references: [id])
   invoices  Invoice[]
 
+  @@index([workspaceId])
   @@map("uploads")
 }
 
@@ -546,6 +555,7 @@ model Report {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id])
 
+  @@index([workspaceId])
   @@map("reports")
 }
 
@@ -559,7 +569,7 @@ model Ticker {
   assetType   String   @map("asset_type") // stock, crypto, etf, future
   exchange    String?
   country     String?
-  marketCap   Float?   @map("market_cap") @db.DoublePrecision
+  marketCap   Decimal? @map("market_cap") @db.Decimal(18, 2)
   isActive    Boolean  @default(true) @map("is_active")
   metadata    Json?
   firstAdded  DateTime @default(now()) @map("first_added") @db.Timestamptz(6)
@@ -584,6 +594,7 @@ model Portfolio {
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   positions Position[]
 
+  @@index([userId])
   @@map("portfolios")
 }
 
@@ -599,6 +610,7 @@ model Position {
   portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
   asset     Ticker?   @relation(fields: [ticker], references: [ticker])
 
+  @@index([ticker])
   @@map("positions")
   @@unique([portfolioId, ticker])
 }
@@ -620,6 +632,8 @@ model PipelineRun {
   errors           Json?
   durationMs       Int?           @map("duration_ms")
 
+  @@index([status])
+  @@index([startedAt])
   @@map("pipeline_runs")
 }
 
@@ -706,7 +720,7 @@ model Lead {
 
   // Outcome
   convertedAt     DateTime?    @map("converted_at")
-  revenueAmount   Float?       @map("revenue_amount")
+  revenueAmount   Decimal?     @map("revenue_amount") @db.Decimal(18, 2)
   dealType        String?      @map("deal_type") // one_time | monthly | partner | enterprise
 
   // Report job
@@ -729,7 +743,7 @@ model ProspectInstitution {
   name            String
   institutionType String   @map("institution_type")
   location        String?
-  estimatedAssets Float?   @map("estimated_assets")
+  estimatedAssets Decimal? @map("estimated_assets") @db.Decimal(18, 2)
   publicDataSource String? @map("public_data_source") // cossec | ncua | manual
   outreachStatus  String   @default("not_started") @map("outreach_status") // not_started | sample_generated | sent | replied | meeting_set | closed
   contactName     String?  @map("contact_name")
@@ -749,12 +763,12 @@ model ProspectInstitution {
 model CooperativaBenchmark {
   id                    String   @id @default(cuid())
   period                String   // Q3 2025
-  totalAssetsMedian     Float?   @map("total_assets_median")
-  capitalRatioMedian    Float?   @map("capital_ratio_median")
-  loanToShareMedian     Float?   @map("loan_to_share_median")
-  liquidityRatioMedian  Float?   @map("liquidity_ratio_median")
-  niiMarginMedian       Float?   @map("nii_margin_median")
-  assetGrowthYoy        Float?   @map("asset_growth_yoy")
+  totalAssetsMedian     Decimal? @map("total_assets_median") @db.Decimal(18, 2)
+  capitalRatioMedian    Decimal? @map("capital_ratio_median") @db.Decimal(10, 6)
+  loanToShareMedian     Decimal? @map("loan_to_share_median") @db.Decimal(10, 6)
+  liquidityRatioMedian  Decimal? @map("liquidity_ratio_median") @db.Decimal(10, 6)
+  niiMarginMedian       Decimal? @map("nii_margin_median") @db.Decimal(10, 6)
+  assetGrowthYoy        Decimal? @map("asset_growth_yoy") @db.Decimal(10, 6)
   memberCountTotal      Int?     @map("member_count_total")
   activeInstitutions    Int?     @map("active_institutions")
   createdAt             DateTime @default(now()) @map("created_at")
@@ -833,8 +847,8 @@ model IngestionLog {
   totalRows        Int                @default(0) @map("total_rows")
   validRows        Int                @default(0) @map("valid_rows")
   errorRows        Int                @default(0) @map("error_rows")
-  totalAssets      Float              @default(0) @map("total_assets")
-  totalLiabilities Float              @default(0) @map("total_liabilities")
+  totalAssets      Decimal            @default(0) @map("total_assets") @db.Decimal(18, 2)
+  totalLiabilities Decimal            @default(0) @map("total_liabilities") @db.Decimal(18, 2)
   importedCount    Int                @default(0) @map("imported_count")
   warnings         Json?
   errors           Json?
@@ -908,6 +922,7 @@ model ReportJob {
   @@index([userId, status])
   @@index([status])
   @@index([institutionId, status])
+  @@index([createdAt])
   @@map("report_jobs")
 }
 
@@ -922,6 +937,8 @@ model MagicLink {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
   @@map("magic_links")
 }
 
@@ -982,6 +999,7 @@ model Prospect {
   updatedAt DateTime      @updatedAt @map("updated_at")
 
   @@index([stage])
+  @@index([email])
   @@map("prospects")
 }
 
@@ -1005,6 +1023,8 @@ model AuditLog {
   @@index([resource, resourceId])
   @@index([userId, createdAt])
   @@index([institutionId, createdAt])
+  @@index([action])
+  @@index([tenantId])
   @@map("audit_logs")
 }
 
@@ -1021,6 +1041,7 @@ model Feedback {
   createdAt     DateTime  @default(now()) @map("created_at")
 
   @@index([institutionId])
+  @@index([jobId])
   @@map("feedback")
 }
 
@@ -1040,6 +1061,7 @@ model WebhookSubscription {
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
   @@index([institutionId])
+  @@index([isActive])
   @@map("webhook_subscriptions")
 }
 
@@ -1050,7 +1072,7 @@ model Reseller {
   logoUrl         String?  @map("logo_url")
   primaryColor    String   @default("#1B3A6B") @map("primary_color")
   domain          String?  // custom domain: alm.ey-pr.com
-  revenueSharePct Float    @map("revenue_share_pct") // 0.20 = 20%
+  revenueSharePct Decimal  @map("revenue_share_pct") @db.Decimal(8, 6) // 0.20 = 20%
   billingModel    String   @default("PASS_THROUGH") @map("billing_model") // PASS_THROUGH | RESELLER_BILLS
   isActive        Boolean  @default(true) @map("is_active")
   createdAt       DateTime @default(now()) @map("created_at")
@@ -1063,7 +1085,7 @@ model ProspectAnalysis {
   id              String    @id @default(cuid())
   charterNumber   String    @map("charter_number")
   institutionName String    @map("institution_name")
-  totalAssets     Float     @map("total_assets")
+  totalAssets     Decimal   @map("total_assets") @db.Decimal(18, 2)
   riskFlags       Json      @map("risk_flags")
   emailDraft      String?   @map("email_draft")
   emailDraftEs    String?   @map("email_draft_es")
@@ -1074,6 +1096,8 @@ model ProspectAnalysis {
   createdAt       DateTime  @default(now()) @map("created_at")
 
   @@unique([charterNumber])
+  @@index([status])
+  @@index([overallRisk])
   @@map("prospect_analyses")
 }
 
@@ -1110,6 +1134,7 @@ model UsageMeterEvent {
   createdAt       DateTime @default(now()) @map("created_at")
 
   @@index([institutionId, eventType, createdAt])
+  @@index([billedAt])
   @@map("usage_meter_events")
 }
 
@@ -1124,6 +1149,8 @@ model DataDeletionRequest {
   createdAt       DateTime  @default(now()) @map("created_at")
 
   @@index([institutionId])
+  @@index([status])
+  @@index([requestedBy])
   @@map("data_deletion_requests")
 }
 
@@ -1162,5 +1189,17 @@ model InstitutionAlert {
   publication RegulatoryPublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
 
   @@index([institutionId, createdAt(sort: Desc)])
+  @@index([publicationId])
   @@map("institution_alerts")
+}
+
+// ===== Webhook Idempotency =====
+
+model ProcessedWebhookEvent {
+  id          String   @id // Stripe event ID (evt_...)
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@index([processedAt])
+  @@map("processed_webhook_events")
 }

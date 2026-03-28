@@ -58,7 +58,7 @@ export class CECLVintageService {
 
     if (cohorts.length === 0) return this.getDemoCohortMatrix();
 
-    return cohorts.map((c) => ({
+    return cohorts.map((c: any) => ({
       originationQtr: c.originationQtr,
       ageMonths: c.ageMonths,
       cumulativeDefaultRate:

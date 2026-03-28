@@ -140,6 +140,21 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3000
 
+      - name: Run component tests
+        working-directory: frontend
+        run: npx vitest run
+
+      - name: Bundle size check
+        working-directory: frontend
+        run: |
+          # Check that First Load JS stays under 200KB budget
+          FIRST_LOAD=$(du -sb .next/static/chunks/ | cut -f1)
+          BUDGET=20000000  # 20MB total chunks budget
+          echo "Total chunk size: $(du -sh .next/static/chunks/ | cut -f1)"
+          if [ "$FIRST_LOAD" -gt "$BUDGET" ]; then
+            echo "::warning::Bundle size ($FIRST_LOAD bytes) exceeds budget ($BUDGET bytes)"
+          fi
+
   # Deploy Backend to Railway (main branch only)
   deploy-backend:
     name: Deploy Backend

@@ -241,7 +241,7 @@ export class AlmEnterpriseService {
       where: { ownerId: userId },
       select: { id: true },
     });
-    const workspaceIds = workspaces.map((w) => w.id);
+    const workspaceIds = workspaces.map((w: any) => w.id);
     if (workspaceIds.length === 0) {
       return { items: [], total: 0, page, pageSize, totalPages: 0 };
     }
@@ -433,14 +433,14 @@ export class AlmEnterpriseService {
     };
 
     const assets = items
-      .filter((i) => i.category === 'asset')
+      .filter((i: any) => i.category === 'asset')
       .map(toInstrument);
     const liabilities = items
-      .filter((i) => i.category === 'liability')
+      .filter((i: any) => i.category === 'liability')
       .map(toInstrument);
 
-    const totalAssets = assets.reduce((s, a) => s + a.amount, 0);
-    const totalLiabilities = liabilities.reduce((s, l) => s + l.amount, 0);
+    const totalAssets = assets.reduce((s: any, a: any) => s + a.amount, 0);
+    const totalLiabilities = liabilities.reduce((s: any, l: any) => s + l.amount, 0);
     const equity = totalAssets - totalLiabilities;
 
     return {
@@ -633,11 +633,11 @@ export class AlmEnterpriseService {
     });
 
     // ── Aggregate balance sheet ──
-    const assetItems = items.filter((i) => i.category === 'asset');
-    const liabilityItems = items.filter((i) => i.category === 'liability');
+    const assetItems = items.filter((i: any) => i.category === 'asset');
+    const liabilityItems = items.filter((i: any) => i.category === 'liability');
 
-    const totalAssets = assetItems.reduce((s, i) => s + i.balance, 0);
-    const totalLiabilities = liabilityItems.reduce((s, i) => s + i.balance, 0);
+    const totalAssets = assetItems.reduce((s: any, i: any) => s + i.balance, 0);
+    const totalLiabilities = liabilityItems.reduce((s: any, i: any) => s + i.balance, 0);
     const equity = totalAssets - totalLiabilities;
 
     const loanSubcats = [
@@ -654,32 +654,32 @@ export class AlmEnterpriseService {
     const earningSubcats = [...loanSubcats, 'investment_securities'];
 
     const totalLoans = assetItems
-      .filter((i) => loanSubcats.includes(i.subcategory))
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => loanSubcats.includes(i.subcategory))
+      .reduce((s: any, i: any) => s + i.balance, 0);
     const totalShares = liabilityItems
-      .filter((i) => depositSubcats.includes(i.subcategory))
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => depositSubcats.includes(i.subcategory))
+      .reduce((s: any, i: any) => s + i.balance, 0);
     const liquidAssets = assetItems
-      .filter((i) => liquidSubcats.includes(i.subcategory))
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => liquidSubcats.includes(i.subcategory))
+      .reduce((s: any, i: any) => s + i.balance, 0);
     const earningAssets = assetItems
-      .filter((i) => earningSubcats.includes(i.subcategory))
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => earningSubcats.includes(i.subcategory))
+      .reduce((s: any, i: any) => s + i.balance, 0);
     const interestBearingLiabilities = liabilityItems
-      .filter((i) => i.rate > 0)
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => i.rate > 0)
+      .reduce((s: any, i: any) => s + i.balance, 0);
 
     // Weighted interest income/expense (annualized, in $M)
     const interestIncome = assetItems
-      .filter((i) => earningSubcats.includes(i.subcategory))
+      .filter((i: any) => earningSubcats.includes(i.subcategory))
       .reduce(
-        (s, i) => s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
+        (s: any, i: any) => s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
         0,
       );
     const interestExpense = liabilityItems
-      .filter((i) => i.rate > 0)
+      .filter((i: any) => i.rate > 0)
       .reduce(
-        (s, i) => s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
+        (s: any, i: any) => s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
         0,
       );
 
@@ -702,7 +702,7 @@ export class AlmEnterpriseService {
 
     // Concentration risk: largest subcategory as % of total loans
     const sectorMap = new Map<string, number>();
-    for (const item of assetItems.filter((i) =>
+    for (const item of assetItems.filter((i: any) =>
       loanSubcats.includes(i.subcategory),
     )) {
       sectorMap.set(
@@ -1261,11 +1261,11 @@ export class AlmEnterpriseService {
     });
 
     // ── Aggregate balance sheet ──
-    const assetItems = items.filter((i) => i.category === 'asset');
-    const liabilityItems = items.filter((i) => i.category === 'liability');
+    const assetItems = items.filter((i: any) => i.category === 'asset');
+    const liabilityItems = items.filter((i: any) => i.category === 'liability');
 
-    const totalAssets = assetItems.reduce((s, i) => s + i.balance, 0);
-    const totalLiabilities = liabilityItems.reduce((s, i) => s + i.balance, 0);
+    const totalAssets = assetItems.reduce((s: any, i: any) => s + i.balance, 0);
+    const totalLiabilities = liabilityItems.reduce((s: any, i: any) => s + i.balance, 0);
     const equity = totalAssets - totalLiabilities;
 
     const loanSubcats = [
@@ -1282,32 +1282,32 @@ export class AlmEnterpriseService {
     const earningSubcats = [...loanSubcats, 'investment_securities'];
 
     const totalLoans = assetItems
-      .filter((i) => loanSubcats.includes(i.subcategory))
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => loanSubcats.includes(i.subcategory))
+      .reduce((s: any, i: any) => s + i.balance, 0);
     const totalShares = liabilityItems
-      .filter((i) => depositSubcats.includes(i.subcategory))
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => depositSubcats.includes(i.subcategory))
+      .reduce((s: any, i: any) => s + i.balance, 0);
     const liquidAssets = assetItems
-      .filter((i) => liquidSubcats.includes(i.subcategory))
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => liquidSubcats.includes(i.subcategory))
+      .reduce((s: any, i: any) => s + i.balance, 0);
     const earningAssets = assetItems
-      .filter((i) => earningSubcats.includes(i.subcategory))
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => earningSubcats.includes(i.subcategory))
+      .reduce((s: any, i: any) => s + i.balance, 0);
     const interestBearingLiabilities = liabilityItems
-      .filter((i) => i.rate > 0)
-      .reduce((s, i) => s + i.balance, 0);
+      .filter((i: any) => i.rate > 0)
+      .reduce((s: any, i: any) => s + i.balance, 0);
 
     // Weighted interest income/expense (annualized, in $M)
     const interestIncome = assetItems
-      .filter((i) => earningSubcats.includes(i.subcategory))
+      .filter((i: any) => earningSubcats.includes(i.subcategory))
       .reduce(
-        (s, i) => s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
+        (s: any, i: any) => s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
         0,
       );
     const interestExpense = liabilityItems
-      .filter((i) => i.rate > 0)
+      .filter((i: any) => i.rate > 0)
       .reduce(
-        (s, i) => s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
+        (s: any, i: any) => s + i.balance * (i.rate > 1 ? i.rate / 100 : i.rate),
         0,
       );
 
@@ -1377,7 +1377,7 @@ export class AlmEnterpriseService {
 
     // Concentration (for summary only)
     const sectorMap = new Map<string, number>();
-    for (const item of assetItems.filter((i) =>
+    for (const item of assetItems.filter((i: any) =>
       loanSubcats.includes(i.subcategory),
     )) {
       sectorMap.set(

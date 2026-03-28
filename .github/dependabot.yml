@@ -1,0 +1,56 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/backend-node"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "monykiss"
+    labels:
+      - "dependencies"
+      - "backend"
+    groups:
+      nestjs:
+        patterns:
+          - "@nestjs/*"
+      sentry:
+        patterns:
+          - "@sentry/*"
+      opentelemetry:
+        patterns:
+          - "@opentelemetry/*"
+
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "monykiss"
+    labels:
+      - "dependencies"
+      - "frontend"
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react*"
+      next:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+      sentry:
+        patterns:
+          - "@sentry/*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci"

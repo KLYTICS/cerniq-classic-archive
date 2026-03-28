@@ -31,12 +31,12 @@ export class AlertDeliveryService {
     for (const inst of institutions) {
       const instSubcategories = new Set<string>(
         inst.balanceSheetItems
-          .map((i) => i.subcategory)
+          .map((i: any) => i.subcategory)
           .filter(
-            (subcategory): subcategory is string =>
+            (subcategory: any): subcategory is string =>
               typeof subcategory === 'string' && subcategory.length > 0,
           )
-          .map((subcategory) => subcategory.toLowerCase()),
+          .map((subcategory: any) => subcategory.toLowerCase()),
       );
       const affected = impact.affectedSubcategories.filter((sub) => {
         const subLower = sub.toLowerCase();

@@ -208,7 +208,7 @@ export class AnalysisRunsService {
     ]);
 
     return {
-      items: runs.map((run) => this.serializeRun(run)),
+      items: runs.map((run: any) => this.serializeRun(run)),
       total,
       page,
       pageSize,

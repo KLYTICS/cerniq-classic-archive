@@ -72,19 +72,19 @@ export class CapitalOptimizerService {
 
     if (items.length === 0) return this.getDemoResult(aggressiveness);
 
-    const assets = items.filter((i) => i.category === 'asset');
-    const liabilities = items.filter((i) => i.category === 'liability');
-    const totalAssets = assets.reduce((s, i) => s + i.balance, 0);
-    const totalLiabilities = liabilities.reduce((s, i) => s + i.balance, 0);
+    const assets = items.filter((i: any) => i.category === 'asset');
+    const liabilities = items.filter((i: any) => i.category === 'liability');
+    const totalAssets = assets.reduce((s: any, i: any) => s + i.balance, 0);
+    const totalLiabilities = liabilities.reduce((s: any, i: any) => s + i.balance, 0);
     const equity = totalAssets - totalLiabilities;
 
     // Current NII
     const currentAssetIncome = assets.reduce(
-      (s, i) => s + i.balance * i.rate,
+      (s: any, i: any) => s + i.balance * i.rate,
       0,
     );
     const currentLiabCost = liabilities.reduce(
-      (s, i) => s + i.balance * i.rate,
+      (s: any, i: any) => s + i.balance * i.rate,
       0,
     );
     const currentNII = currentAssetIncome - currentLiabCost;
@@ -188,10 +188,10 @@ export class CapitalOptimizerService {
       entry.balance += item.balance;
     }
     for (const [sub, entry] of liabsBySubcategory) {
-      const items = liabilities.filter((i) => i.subcategory === sub);
+      const items = liabilities.filter((i: any) => i.subcategory === sub);
       entry.rate =
         entry.balance > 0
-          ? items.reduce((s, i) => s + i.rate * i.balance, 0) / entry.balance
+          ? items.reduce((s: any, i: any) => s + i.rate * i.balance, 0) / entry.balance
           : 0;
     }
 

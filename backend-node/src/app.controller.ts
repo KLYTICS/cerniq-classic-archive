@@ -84,6 +84,12 @@ function parseContainerMemoryLimit(raw: string): number | null {
 
 // Cache container memory limit at module load — cgroup limits don't change at runtime
 let _cachedMemoryLimit: number | null | undefined;
+
+/** @internal Reset cached cgroup limit — only for testing */
+export function _resetCachedMemoryLimit(): void {
+  _cachedMemoryLimit = undefined;
+}
+
 function readContainerMemoryLimitBytes(): number | null {
   if (_cachedMemoryLimit !== undefined) return _cachedMemoryLimit;
   for (const p of CGROUP_MEMORY_LIMIT_PATHS) {

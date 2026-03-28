@@ -9,6 +9,7 @@ import { PrismaModule } from './prisma.module';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
 import { SlowRequestInterceptor } from './common/interceptors/slow-query.interceptor';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { ApiVersionMiddleware } from './common/middleware/api-version.middleware';
 import { MarketDataModule } from './market-data/market-data.module';
 import { TickerModule } from './ticker/ticker.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
@@ -113,6 +114,6 @@ import { ApiV1Module } from './api-v1/api-v1.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RequestIdMiddleware).forRoutes('*');
+    consumer.apply(RequestIdMiddleware, ApiVersionMiddleware).forRoutes('*');
   }
 }

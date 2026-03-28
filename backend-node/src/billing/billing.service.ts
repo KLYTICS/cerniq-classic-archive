@@ -488,7 +488,25 @@ export class BillingService {
     }
 
     if (/^https?:\/\//i.test(trimmed)) {
-      return trimmed;
+      // Prevent open redirect — only allow URLs under cerniq.io / cerniqtech.com / FRONTEND_URL
+      try {
+        const allowed = new URL(baseUrl);
+        const provided = new URL(trimmed);
+        const isSameHost = provided.host === allowed.host;
+        const isCerniqDomain = /^([a-z0-9-]+\.)*(cerniq\.io|cerniqtech\.com)$/i.test(provided.host);
+        const isLocalDev = /^localhost(:\d+)?$/.test(provided.host);
+        if (isSameHost || isCerniqDomain || isLocalDev) {
+          return trimmed;
+        }
+        this.logger.warn({
+          event: 'checkout.url_rejected',
+          provided: trimmed,
+          allowed: allowed.host,
+        });
+      } catch {
+        // Invalid URL — fall through to baseUrl
+      }
+      return baseUrl;
     }
 
     return `${baseUrl}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`;

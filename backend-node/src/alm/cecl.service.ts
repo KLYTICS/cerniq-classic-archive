@@ -273,7 +273,7 @@ export class CECLService {
       return this.calculateWARM(this.getDemoSegments());
     }
 
-    const segmentData = segments.map((s) => ({
+    const segmentData = segments.map((s: any) => ({
       segmentName: s.segmentName,
       balance: s.balance,
       weightedAvgRate: s.weightedAvgRate,

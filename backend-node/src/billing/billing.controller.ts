@@ -18,6 +18,7 @@ import { BillingService } from './billing.service';
 import { CheckoutRequestDto } from './billing.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { AuditService } from '../audit/audit.service';
+import { PrismaService } from '../prisma.service';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -81,6 +82,7 @@ export class BillingController {
   constructor(
     private readonly billing: BillingService,
     private readonly audit: AuditService,
+    private readonly prisma: PrismaService,
   ) {}
 
   // ── Checkout ──────────────────────────────────────────
@@ -152,34 +154,62 @@ export class BillingController {
       id: event.id,
     });
 
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object;
-        if (session.payment_status === 'paid') {
-          await this.billing.handlePaymentComplete(session);
+    // Idempotency: skip already-processed events (Stripe can replay)
+    const existing = await this.prisma.processedWebhookEvent.findUnique({
+      where: { id: event.id },
+    });
+    if (existing) {
+      this.logger.log({ event: 'webhook.duplicate_skipped', id: event.id });
+      return { received: true, duplicate: true };
+    }
+
+    try {
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object;
+          if (session.payment_status === 'paid') {
+            await this.billing.handlePaymentComplete(session);
+          }
+          break;
         }
-        break;
+        case 'customer.subscription.created':
+          await this.billing.handleSubscriptionCreated(event.data.object);
+          break;
+        case 'customer.subscription.updated':
+          await this.billing.handleSubscriptionUpdated(event.data.object);
+          break;
+        case 'invoice.payment_succeeded':
+          await this.billing.handleInvoicePaid(event.data.object);
+          break;
+        case 'invoice.payment_failed':
+          await this.billing.handlePaymentFailed(event.data.object);
+          break;
+        case 'customer.subscription.deleted':
+          await this.billing.handleSubscriptionCancelled(event.data.object);
+          break;
+        case 'charge.dispute.created':
+          await this.billing.handleDispute(event.data.object);
+          break;
+        default:
+          this.logger.log({ event: 'webhook.unhandled', type: event.type });
       }
-      case 'customer.subscription.created':
-        await this.billing.handleSubscriptionCreated(event.data.object);
-        break;
-      case 'customer.subscription.updated':
-        await this.billing.handleSubscriptionUpdated(event.data.object);
-        break;
-      case 'invoice.payment_succeeded':
-        await this.billing.handleInvoicePaid(event.data.object);
-        break;
-      case 'invoice.payment_failed':
-        await this.billing.handlePaymentFailed(event.data.object);
-        break;
-      case 'customer.subscription.deleted':
-        await this.billing.handleSubscriptionCancelled(event.data.object);
-        break;
-      case 'charge.dispute.created':
-        await this.billing.handleDispute(event.data.object);
-        break;
-      default:
-        this.logger.log({ event: 'webhook.unhandled', type: event.type });
+
+      // Mark event as processed after successful handling
+      await this.prisma.processedWebhookEvent.create({
+        data: { id: event.id, eventType: event.type },
+      }).catch((err) => {
+        // Unique constraint race — another instance processed it first
+        this.logger.warn({ event: 'webhook.dedup_race', id: event.id, error: err.message });
+      });
+    } catch (err: any) {
+      // Log error but return 200 to prevent Stripe retry storms
+      this.logger.error({
+        event: 'webhook.processing_error',
+        type: event.type,
+        id: event.id,
+        error: err.message,
+        stack: err.stack,
+      });
     }
 
     return { received: true };

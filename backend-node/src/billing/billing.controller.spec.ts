@@ -4,6 +4,7 @@ import { BillingController } from './billing.controller';
 import { BillingService } from './billing.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthGuard } from '../auth/auth.guard';
+import { PrismaService } from '../prisma.service';
 
 describe('BillingController', () => {
   let controller: BillingController;
@@ -48,11 +49,19 @@ describe('BillingController', () => {
       log: jest.fn(),
     };
 
+    const mockPrismaService = {
+      processedWebhookEvent: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({}),
+      },
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BillingController],
       providers: [
         { provide: BillingService, useValue: mockBillingService },
         { provide: AuditService, useValue: mockAuditService },
+        { provide: PrismaService, useValue: mockPrismaService },
       ],
     })
       .overrideGuard(AuthGuard)
