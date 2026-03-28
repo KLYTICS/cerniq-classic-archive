@@ -40,7 +40,7 @@ export class LeadsController {
     @Query('priority') priority?: string,
   ) {
     this.verifyAdmin(adminKey);
-    return this.leads.listLeads({ status, priority });
+    return this.leads.listLeads('admin', { status, priority });
   }
 
   @Get('admin/api/leads/metrics')

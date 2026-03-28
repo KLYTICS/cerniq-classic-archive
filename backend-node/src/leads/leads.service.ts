@@ -135,8 +135,8 @@ export class LeadsService {
 
   // ── Admin Operations ──
 
-  async listLeads(userId: string, filters?: { status?: string; priority?: string }) {
-    const where: any = { createdByUserId: userId };
+  async listLeads(filters?: { status?: string; priority?: string }) {
+    const where: any = {};
     if (filters?.status) where.status = filters.status;
     if (filters?.priority) where.priority = filters.priority;
 
@@ -147,18 +147,11 @@ export class LeadsService {
     });
   }
 
-  async getLead(id: string, userId: string) {
-    return this.prisma.lead.findFirstOrThrow({
-      where: { id, createdByUserId: userId },
-    });
+  async getLead(id: string) {
+    return this.prisma.lead.findUniqueOrThrow({ where: { id } });
   }
 
-  async updateLead(id: string, userId: string, dto: UpdateLeadDto) {
-    // Verify ownership before updating
-    await this.prisma.lead.findFirstOrThrow({
-      where: { id, createdByUserId: userId },
-    });
-
+  async updateLead(id: string, dto: UpdateLeadDto) {
     const data: any = { ...dto };
 
     // If closing as won, set convertedAt
@@ -173,10 +166,8 @@ export class LeadsService {
     return this.prisma.lead.update({ where: { id }, data });
   }
 
-  async addNote(id: string, userId: string, note: string) {
-    const lead = await this.prisma.lead.findFirstOrThrow({
-      where: { id, createdByUserId: userId },
-    });
+  async addNote(id: string, note: string) {
+    const lead = await this.prisma.lead.findUniqueOrThrow({ where: { id } });
     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
     const newNotes = lead.notes
       ? `${lead.notes}\n[${timestamp}] ${note}`
@@ -187,11 +178,7 @@ export class LeadsService {
     });
   }
 
-  async markReportSent(id: string, userId: string) {
-    // Verify ownership before updating
-    await this.prisma.lead.findFirstOrThrow({
-      where: { id, createdByUserId: userId },
-    });
+  async markReportSent(id: string) {
     return this.prisma.lead.update({
       where: { id },
       data: { reportSentAt: new Date() },
@@ -200,13 +187,13 @@ export class LeadsService {
 
   // ── Pipeline Metrics ──
 
-  async getPipelineMetrics(userId: string) {
+  async getPipelineMetrics() {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const [allLeads, monthLeads] = await Promise.all([
-      this.prisma.lead.findMany({ where: { createdByUserId: userId } }),
-      this.prisma.lead.findMany({ where: { createdByUserId: userId, createdAt: { gte: monthStart } } }),
+      this.prisma.lead.findMany({ take: 1000 }),
+      this.prisma.lead.findMany({ where: { createdAt: { gte: monthStart } }, take: 1000 }),
     ]);
 
     const statusCounts: Record<string, number> = {};
