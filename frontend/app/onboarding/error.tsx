@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import * as Sentry from '@sentry/nextjs';
 import { AlertTriangle } from 'lucide-react';
 
@@ -22,12 +23,12 @@ export default function OnboardingError({ error, reset }: { error: Error; reset:
           >
             Try again
           </button>
-          <a
+          <Link
             href="/"
             className="rounded-lg border border-slate-600 px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-slate-400"
           >
             Home
-          </a>
+          </Link>
         </div>
       </div>
     </div>

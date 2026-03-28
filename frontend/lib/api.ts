@@ -115,6 +115,29 @@ export interface APAnalysisResult {
   apRiskScore: number;
 }
 
+interface AuthUser {
+  id: string;
+  email: string;
+  name?: string;
+}
+
+interface AuthResponse {
+  access_token?: string;
+  user?: AuthUser;
+  [key: string]: unknown;
+}
+
+type JsonObject = Record<string, unknown>;
+type JsonObjectArray = JsonObject[];
+
+interface PortfolioPositionInput {
+  ticker: string;
+  quantity: number | string;
+  price?: number | string;
+  currentPrice?: number | string;
+  [key: string]: unknown;
+}
+
 class APIClient {
   private client: AxiosInstance;
 
@@ -187,7 +210,7 @@ class APIClient {
   }
 
   // Authentication
-  async register(email: string, password: string, name?: string): Promise<any> {
+  async register(email: string, password: string, name?: string): Promise<AuthResponse> {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       const response = await this.client.post(`${NODE_API_URL}/api/auth/register`, {
         email,
@@ -227,7 +250,7 @@ class APIClient {
     };
   }
 
-  async login(email: string, password: string): Promise<any> {
+  async login(email: string, password: string): Promise<AuthResponse> {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       const response = await this.client.post(`${NODE_API_URL}/api/auth/login`, {
         email,
@@ -476,7 +499,7 @@ class APIClient {
     });
   }
 
-  async calculateComponentVaR(positions: any[], confidenceLevel: number = 0.95, horizon: number = 1) {
+  async calculateComponentVaR(positions: PortfolioPositionInput[], confidenceLevel: number = 0.95, horizon: number = 1) {
     let portfolioValue = 0;
     const components = positions.map(p => {
       const val = Number(p.quantity) * Number(p.price || p.currentPrice || 100);
@@ -535,7 +558,7 @@ class APIClient {
   }
 
   // Waitlist
-  async joinWaitlist(data: any) {
+  async joinWaitlist(data: JsonObject) {
     try {
       const response = await this.client.post('/api/waitlist', data);
       return response.data;
@@ -564,12 +587,12 @@ class APIClient {
     return response.data;
   }
 
-  async runAnalysis(data: any) {
+  async runAnalysis(data: JsonObject) {
     const response = await this.client.post('/analyze', data);
     return response.data;
   }
 
-  async generateReport(data: any) {
+  async generateReport(data: JsonObject) {
     const response = await this.client.post('/reports/generate', data);
     return response.data;
   }
@@ -661,7 +684,7 @@ class APIClient {
     }]);
   }
 
-  async createPortfolio(userId: string, data: any) {
+  async createPortfolio(userId: string, data: JsonObject) {
     try {
       const response = await this.client.post(`${NODE_API_URL}/api/portfolios`, data);
       return response.data;
@@ -676,7 +699,7 @@ class APIClient {
     }
   }
 
-  async addPosition(portfolioId: string, userId: string, position: any) {
+  async addPosition(portfolioId: string, userId: string, position: JsonObject) {
     try {
       const response = await this.client.post(`${NODE_API_URL}/api/portfolios/${portfolioId}/positions`, position);
       return response.data;
@@ -855,7 +878,7 @@ class APIClient {
     return this.calculateCorrelation(tickers);
   }
 
-  async getNodeComponentVaR(positions: any[], confidenceLevel: number = 0.95, horizon: number = 1) {
+  async getNodeComponentVaR(positions: PortfolioPositionInput[], confidenceLevel: number = 0.95, horizon: number = 1) {
     return this.calculateComponentVaR(positions, confidenceLevel, horizon);
   }
 
@@ -884,7 +907,7 @@ class APIClient {
     return response.data;
   }
 
-  async postAlmFullAnalysis(balanceSheet: any, rateShocks?: number[], lcr?: any) {
+  async postAlmFullAnalysis(balanceSheet: JsonObject, rateShocks?: number[], lcr?: JsonObject) {
     const response = await this.client.post(`${NODE_API_URL}/api/alm/full-analysis`, {
       balanceSheet,
       rateShocks,
@@ -1020,7 +1043,7 @@ class APIClient {
     }
   }
 
-  async importBalanceSheetItems(institutionId: string, items: any[]) {
+  async importBalanceSheetItems(institutionId: string, items: JsonObjectArray) {
     const response = await this.client.post(
       `${NODE_API_URL}/api/alm/institutions/${institutionId}/balance-sheet-items`,
       { items },
@@ -1212,7 +1235,7 @@ class APIClient {
   async uploadExpenseCSV(orgId: string, file: File): Promise<{
     ingested: number;
     orgId: string;
-    errors: any[];
+	    errors: unknown[];
     warnings: string[];
     summary: {
       totalRows: number;
@@ -1358,7 +1381,7 @@ class APIClient {
     return response.data;
   }
 
-  async importLoanSegments(institutionId: string, segments: any[]) {
+  async importLoanSegments(institutionId: string, segments: JsonObjectArray) {
     const response = await this.client.post(`${NODE_API_URL}/api/alm/${institutionId}/cecl/segments`, { segments });
     return response.data;
   }
@@ -1445,7 +1468,7 @@ class APIClient {
     return response.data;
   }
 
-  async saveIRRPolicyLimits(institutionId: string, limits: any[]) {
+  async saveIRRPolicyLimits(institutionId: string, limits: JsonObjectArray) {
     const response = await this.client.post(`${NODE_API_URL}/api/alm/${institutionId}/irr-policy/limits`, { limits });
     return response.data;
   }

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from 'next/link';
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_NODE_API_URL ||
   "https://api.cerniq.io";
@@ -63,9 +65,9 @@ export default function DevelopersPage() {
     <div className="min-h-screen bg-[#070B12] text-gray-200">
       {/* Nav */}
       <nav className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
-        <a href="/" className="text-xl font-bold tracking-tight text-white">
+        <Link href="/" className="text-xl font-bold tracking-tight text-white">
           CERNIQ
-        </a>
+        </Link>
         <div className="flex items-center gap-4">
           <a
             href={`${CLEAN_API_BASE}/api/v1/docs`}
@@ -75,18 +77,18 @@ export default function DevelopersPage() {
           >
             Swagger UI
           </a>
-          <a
+          <Link
             href="/pricing"
             className="text-sm text-gray-400 hover:text-white transition-colors"
           >
             Pricing
-          </a>
-          <a
+          </Link>
+          <Link
             href="/login"
             className="text-sm px-4 py-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 transition-colors"
           >
             Sign In
-          </a>
+          </Link>
         </div>
       </nav>
 

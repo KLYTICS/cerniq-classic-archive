@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import * as Sentry from '@sentry/nextjs';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
 
@@ -28,12 +29,12 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
           >
             Try again
           </button>
-          <a
+          <Link
             href="/"
             className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-slate-500"
           >
             Back to home
-          </a>
+          </Link>
         </div>
       </div>
     </div>

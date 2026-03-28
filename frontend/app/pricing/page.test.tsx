@@ -1,9 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import type { AnchorHTMLAttributes, ReactNode, SVGProps } from 'react';
 import PricingPage from './page';
 
 vi.mock('next/link', () => ({
-  default: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+  default: ({
+    children,
+    ...props
+  }: { children: ReactNode } & AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props}>{children}</a>,
 }));
 
 vi.mock('@/lib/billing', () => ({
@@ -20,10 +24,10 @@ vi.mock('@/components/brand/CerniqLogo', () => ({
 }));
 
 vi.mock('lucide-react', () => ({
-  ArrowLeft: (props: any) => <svg {...props} />,
-  CheckCircle2: (props: any) => <svg {...props} />,
-  ChevronRight: (props: any) => <svg {...props} />,
-  HelpCircle: (props: any) => <svg {...props} />,
+  ArrowLeft: (props: SVGProps<SVGSVGElement>) => <svg {...props} />,
+  CheckCircle2: (props: SVGProps<SVGSVGElement>) => <svg {...props} />,
+  ChevronRight: (props: SVGProps<SVGSVGElement>) => <svg {...props} />,
+  HelpCircle: (props: SVGProps<SVGSVGElement>) => <svg {...props} />,
 }));
 
 describe('PricingPage', () => {

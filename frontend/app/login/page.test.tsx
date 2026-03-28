@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import type { AnchorHTMLAttributes, ReactNode, SVGProps } from 'react';
 import LoginPage from './page';
 
 vi.mock('next/navigation', () => ({
@@ -9,7 +10,10 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('next/link', () => ({
-  default: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+  default: ({
+    children,
+    ...props
+  }: { children: ReactNode } & AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props}>{children}</a>,
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -78,7 +82,7 @@ vi.mock('@/lib/i18n', () => ({
 }));
 
 vi.mock('lucide-react', () => ({
-  ArrowRight: (props: any) => <svg {...props} />,
+  ArrowRight: (props: SVGProps<SVGSVGElement>) => <svg {...props} />,
 }));
 
 describe('LoginPage', () => {
