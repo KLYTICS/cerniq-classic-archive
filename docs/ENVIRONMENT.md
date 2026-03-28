@@ -116,7 +116,7 @@ The `.env.example` file contains all variables with sensible development default
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `RESEND_API_KEY` | ⚠️ | — | Resend API key |
-| `ERWIN_EMAIL` | ❌ | `erwin@klytics.io` | Admin notification email |
+| `ERWIN_EMAIL` | ❌ | `eskiessalfonso@gmail.com` | Admin notification email |
 
 ---
 

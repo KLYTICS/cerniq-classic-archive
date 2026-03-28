@@ -53,7 +53,7 @@ All variables sourced from `.env.example` at project root. Set these in Railway 
 | Variable | Example | Notes |
 |----------|---------|-------|
 | `RESEND_API_KEY` | `re_...` | Transactional email via Resend |
-| `ERWIN_EMAIL` | `erwin@klytics.io` | Notification recipient for demo requests |
+| `ERWIN_EMAIL` | `eskiessalfonso@gmail.com` | Notification recipient for demo requests |
 
 #### STORAGE
 

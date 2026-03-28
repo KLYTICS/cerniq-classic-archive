@@ -189,7 +189,7 @@ Before starting the E2E walk-through, confirm these infrastructure gates:
 
 ### Step 13 -- ERWIN OPERATOR ALERT
 
-| Action | Check Erwin's email (erwin@klytics.io) |
+| Action | Check Erwin's email (eskiessalfonso@gmail.com) |
 |--------|------|
 | **PASS** | Alert email received with job completion details |
 | **PASS** | Contains: institution name, job ID, completion time |

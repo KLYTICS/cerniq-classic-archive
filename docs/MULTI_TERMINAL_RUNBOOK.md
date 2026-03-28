@@ -71,7 +71,7 @@ docker compose up -d postgres redis
 
 # ─── STEP 3: Verify both services are healthy ───
 echo "Waiting for PostgreSQL..."
-until docker exec cerniq-db pg_isready -U cerniq 2>/dev/null; do sleep 1; done
+until docker exec cerniq-db pg_isready -U capexcycle 2>/dev/null; do sleep 1; done
 echo "✅ PostgreSQL ready"
 
 echo "Checking Redis..."
@@ -90,7 +90,7 @@ docker compose logs -f postgres redis
 **Verify:**
 ```bash
 # DB accessible
-docker exec cerniq-db psql -U cerniq -c "\dt" | head -20
+docker exec cerniq-db psql -U capexcycle -d capexcycle -c "\dt" | head -20
 
 # Redis accessible
 docker exec cerniq-redis redis-cli info server | grep redis_version
@@ -99,7 +99,7 @@ docker exec cerniq-redis redis-cli info server | grep redis_version
 **Common issues:**
 | Error | Cause | Fix |
 |---|---|---|
-| `password authentication failed for user "cerniq"` | DB name is `capexcycle` in compose | Edit docker-compose.yml: change `POSTGRES_USER` and `POSTGRES_DB` to `cerniq` |
+| `password authentication failed` | Wrong user in command | Dev compose uses `POSTGRES_USER=capexcycle` / `POSTGRES_DB=capexcycle` — use `-U capexcycle` in all psql/pg_isready commands |
 | `Error: connect ECONNREFUSED 127.0.0.1:6379` | Redis on 6380 but env says 6379 | Set `REDIS_URL=redis://localhost:6380` in backend .env |
 | `relation "users" does not exist` | Migrations not run | Run `npx prisma migrate deploy` from backend-node/ |
 
@@ -386,7 +386,7 @@ cd ~/Desktop/Cerniq/backend-node
 npx prisma migrate dev --name "add_model_registry_table"
 
 # ─── OR: Open database CLI ───
-docker exec -it cerniq-db psql -U cerniq
+docker exec -it cerniq-db psql -U capexcycle -d capexcycle
 ```
 
 ---

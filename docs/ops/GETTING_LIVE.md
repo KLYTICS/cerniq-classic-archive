@@ -85,7 +85,7 @@ Write down all three values. You will paste them into Railway.
 | `ADMIN_KEY` | Paste the `openssl rand -hex 16` output | `a1b2c3d4e5f6...` (32 chars) |
 | `NODE_ENV` | Type: `production` | `production` |
 | `FRONTEND_URL` | Type: `https://cerniq.io` | `https://cerniq.io` |
-| `ERWIN_EMAIL` | Your email for operator alerts | `erwin@klytics.io` |
+| `ERWIN_EMAIL` | Your email for operator alerts | `eskiessalfonso@gmail.com` |
 | `RESEND_API_KEY` | See Step 1D below | `re_xxxx...` |
 | `STRIPE_SECRET_KEY` | See Step 1E below | `sk_test_xxxx...` |
 | `STRIPE_WEBHOOK_SECRET` | See Step 1F below | `whsec_xxxx...` |
@@ -863,7 +863,7 @@ Create these 4 monitors:
 ### 10C. Set Alert Contacts
 
 1. Go to **My Settings** > **Alert Contacts**.
-2. Add your email (`erwin@klytics.io`).
+2. Add your email (`eskiessalfonso@gmail.com`).
 3. Assign this contact to all 4 monitors.
 
 > **What happens:** If any endpoint goes down for 2+ consecutive checks (10 minutes), you get an email. Free tier supports up to 50 monitors.
@@ -999,7 +999,7 @@ Before engaging any live client, confirm every item:
 - [ ] SPF, DKIM, and DMARC records in DNS
 - [ ] Welcome email delivers correctly
 - [ ] Report delivery email delivers correctly
-- [ ] Revenue alert email delivers to `erwin@klytics.io`
+- [ ] Revenue alert email delivers to `eskiessalfonso@gmail.com`
 
 ### Security
 
