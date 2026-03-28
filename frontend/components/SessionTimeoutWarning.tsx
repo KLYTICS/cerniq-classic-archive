@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import { useAuthStore } from '@/lib/store';
 import { Clock } from 'lucide-react';
 
 interface Props {
@@ -11,11 +12,15 @@ interface Props {
 }
 
 export default function SessionTimeoutWarning({ enabled = true, timeoutMinutes = 30 }: Props) {
-  const [showWarning, setShowWarning] = useState(false);
+  const [warningAuthRevision, setWarningAuthRevision] = useState<number | null>(null);
   const router = useRouter();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const authRevision = useAuthStore((state) => state.authRevision);
+  const sessionTimeoutEnabled = enabled && isAuthenticated;
 
   const handleTimeout = useCallback(() => {
     // Clear session and redirect to login
+    setWarningAuthRevision(null);
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('cerniq_access_token');
       localStorage.removeItem('cerniq_access_token');
@@ -24,18 +29,22 @@ export default function SessionTimeoutWarning({ enabled = true, timeoutMinutes =
   }, [router]);
 
   const handleWarning = useCallback(() => {
-    setShowWarning(true);
-  }, []);
+    if (sessionTimeoutEnabled) {
+      setWarningAuthRevision(authRevision);
+    }
+  }, [authRevision, sessionTimeoutEnabled]);
 
   const { resetTimers } = useSessionTimeout({
     timeoutMs: timeoutMinutes * 60 * 1000,
     warningMs: 5 * 60 * 1000,
     onTimeout: handleTimeout,
     onWarning: handleWarning,
-    enabled,
+    enabled: sessionTimeoutEnabled,
   });
 
-  if (!showWarning) return null;
+  const shouldShowWarning = sessionTimeoutEnabled && warningAuthRevision === authRevision;
+
+  if (!shouldShowWarning) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm" role="alertdialog" aria-label="Session timeout warning">
@@ -54,7 +63,7 @@ export default function SessionTimeoutWarning({ enabled = true, timeoutMinutes =
         </p>
         <div className="flex gap-2">
           <button
-            onClick={() => { setShowWarning(false); resetTimers(); }}
+            onClick={() => { setWarningAuthRevision(null); resetTimers(); }}
             className="flex-1 rounded-xl bg-cyan-700 py-2.5 text-sm font-semibold text-white hover:bg-cyan-800 transition"
           >
             Continue Working

@@ -52,6 +52,9 @@ export const metadata: Metadata = {
 };
 
 const SEGMENT_WRITE_KEY = process.env.NEXT_PUBLIC_SEGMENT_WRITE_KEY;
+const SHOULD_LOAD_VERCEL_INSIGHTS =
+  (process.env.VERCEL === '1' || Boolean(process.env.VERCEL_ENV)) &&
+  process.env.NODE_ENV === 'production';
 
 export default function RootLayout({
   children,
@@ -104,8 +107,8 @@ export default function RootLayout({
         <SessionTimeoutWarning timeoutMinutes={30} />
         </ToastProvider>
         </Providers>
-        <Analytics />
-        <SpeedInsights />
+        {SHOULD_LOAD_VERCEL_INSIGHTS && <Analytics />}
+        {SHOULD_LOAD_VERCEL_INSIGHTS && <SpeedInsights />}
         {SEGMENT_WRITE_KEY && (
           <Script id="segment-analytics" strategy="afterInteractive">
             {`

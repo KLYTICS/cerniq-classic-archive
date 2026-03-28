@@ -27,7 +27,7 @@ export function useSessionTimeout({
 }: SessionTimeoutOptions) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastActivityRef = useRef(Date.now());
+  const lastActivityRef = useRef(0);
 
   const resetTimers = useCallback(() => {
     lastActivityRef.current = Date.now();

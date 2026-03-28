@@ -6,7 +6,7 @@
     "dev": "next dev --port 3001",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "NODE_OPTIONS=--max-old-space-size=8192 eslint app components hooks lib types next.config.ts playwright.config.ts proxy.ts vitest.config.ts sentry.client.config.ts sentry.edge.config.ts sentry.server.config.ts eslint.config.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

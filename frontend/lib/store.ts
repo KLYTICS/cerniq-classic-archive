@@ -11,8 +11,10 @@ interface AuthState {
     user: User | null;
     initialized: boolean;
     isAuthenticated: boolean;
+    authRevision: number;
     onboardingComplete: boolean;
     hydrateFromStorage: () => Promise<void>;
+    initializeAnonymous: () => void;
     setUser: (user: User | null) => void;
     setOnboardingComplete: (complete: boolean) => void;
     logout: () => Promise<void>;
@@ -22,6 +24,32 @@ const AUTH_USER_STORAGE_KEY = 'cerniq_auth_user';
 const LEGACY_AUTH_USER_STORAGE_KEY = 'capex_auth_user';
 const onboardingKey = (userId: string) => `cerniq_onboarding_${userId}`;
 const legacyOnboardingKey = (userId: string) => `capex_onboarding_${userId}`;
+
+function shouldProbeServerSession() {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    const nodeApiUrl = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim();
+    if (!nodeApiUrl) {
+        return true;
+    }
+
+    try {
+        const apiUrl = new URL(nodeApiUrl, window.location.origin);
+        const localHosts = new Set(['localhost', '127.0.0.1']);
+        const isLocalFrontend = localHosts.has(window.location.hostname);
+        const isLocalBackend = localHosts.has(apiUrl.hostname);
+
+        if (isLocalFrontend && isLocalBackend && apiUrl.origin !== window.location.origin) {
+            return false;
+        }
+    } catch {
+        return true;
+    }
+
+    return true;
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
     return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : null;
@@ -52,6 +80,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     user: null,
     initialized: false,
     isAuthenticated: false,
+    authRevision: 0,
     onboardingComplete: false,
     hydrateFromStorage: async () => {
         if (typeof window === 'undefined') {
@@ -59,23 +88,27 @@ export const useAuthStore = create<AuthState>((set) => ({
             return;
         }
 
+        set({ initialized: false });
+
         const setUnauthenticated = () =>
-            set({
+            set((state) => ({
                 user: null,
                 isAuthenticated: false,
+                authRevision: state.authRevision + 1,
                 onboardingComplete: false,
                 initialized: true,
-            });
+            }));
 
         const setAuthenticated = (user: User) => {
             localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
             const onboardingComplete = localStorage.getItem(onboardingKey(user.id)) === 'true';
-            set({
+            set((state) => ({
                 user,
                 isAuthenticated: true,
+                authRevision: state.authRevision + 1,
                 onboardingComplete,
                 initialized: true,
-            });
+            }));
         };
 
         // Migrate legacy capex_ keys to cerniq_ keys
@@ -111,18 +144,29 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
 
         // OAuth/login may have a valid server-side cookie before localStorage is populated.
-        try {
-            const profile = await apiClient.getCurrentUser();
-            const profileUser = normalizeUser(profile);
-            if (profileUser) {
-                setAuthenticated(profileUser);
-                return;
+        if (shouldProbeServerSession()) {
+            try {
+                const profile = await apiClient.getCurrentUser();
+                const profileUser = normalizeUser(profile);
+                if (profileUser) {
+                    setAuthenticated(profileUser);
+                    return;
+                }
+            } catch {
+                // No active session or profile endpoint unavailable.
             }
-        } catch {
-            // No active session or profile endpoint unavailable.
         }
 
         setUnauthenticated();
+    },
+    initializeAnonymous: () => {
+        set((state) => ({
+            user: null,
+            isAuthenticated: false,
+            authRevision: state.authRevision + 1,
+            onboardingComplete: false,
+            initialized: true,
+        }));
     },
     setUser: (user) => {
         if (typeof window !== 'undefined') {
@@ -137,12 +181,13 @@ export const useAuthStore = create<AuthState>((set) => ({
             ? (typeof window !== 'undefined' && localStorage.getItem(onboardingKey(user.id)) === 'true')
             : false;
 
-        set({
+        set((state) => ({
             user,
             isAuthenticated: Boolean(user),
+            authRevision: state.authRevision + 1,
             onboardingComplete,
             initialized: true,
-        });
+        }));
     },
     setOnboardingComplete: (complete) => {
         set((state) => {
@@ -157,12 +202,13 @@ export const useAuthStore = create<AuthState>((set) => ({
         if (typeof window !== 'undefined') {
             localStorage.removeItem(AUTH_USER_STORAGE_KEY);
         }
-        set({
+        set((state) => ({
             user: null,
             isAuthenticated: false,
+            authRevision: state.authRevision + 1,
             onboardingComplete: false,
             initialized: true,
-        });
+        }));
     },
 }));
 
