@@ -22,11 +22,15 @@ ALTER TABLE "institutions" ADD COLUMN IF NOT EXISTS "contact_email" TEXT;
 ALTER TABLE "institutions" ADD COLUMN IF NOT EXISTS "contact_phone" TEXT;
 ALTER TABLE "institutions" ADD COLUMN IF NOT EXISTS "preferred_language" TEXT NOT NULL DEFAULT 'es';
 
--- Expand audit_logs for full compliance tracking
-ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "institution_id" TEXT;
-ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "outcome" TEXT NOT NULL DEFAULT 'success';
-ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "metadata" JSONB;
-CREATE INDEX IF NOT EXISTS "audit_logs_institution_id_created_at_idx" ON "audit_logs"("institution_id", "created_at");
+-- Expand audit_logs for full compliance tracking (skip if table not yet created)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'audit_logs') THEN
+    ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "institution_id" TEXT;
+    ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "outcome" TEXT NOT NULL DEFAULT 'success';
+    ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "metadata" JSONB;
+    CREATE INDEX IF NOT EXISTS "audit_logs_institution_id_created_at_idx" ON "audit_logs"("institution_id", "created_at");
+  END IF;
+END $$;
 
 -- Create feedback/NPS table
 CREATE TABLE IF NOT EXISTS "feedback" (

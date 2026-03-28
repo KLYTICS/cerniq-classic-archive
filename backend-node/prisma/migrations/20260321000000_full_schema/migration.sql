@@ -3,40 +3,40 @@
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
-CREATE TYPE "InstitutionRole" AS ENUM ('OWNER', 'ANALYST', 'VIEWER');
+DO $$ BEGIN CREATE TYPE "InstitutionRole" AS ENUM ('OWNER', 'ANALYST', 'VIEWER'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateEnum
-CREATE TYPE "MemberRole" AS ENUM ('ADMIN', 'MEMBER', 'VIEWER');
+DO $$ BEGIN CREATE TYPE "MemberRole" AS ENUM ('ADMIN', 'MEMBER', 'VIEWER'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateEnum
-CREATE TYPE "ExpenseStatus" AS ENUM ('DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'REIMBURSED');
+DO $$ BEGIN CREATE TYPE "ExpenseStatus" AS ENUM ('DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'REIMBURSED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateEnum
-CREATE TYPE "PipelineStatus" AS ENUM ('RUNNING', 'SUCCESS', 'FAILED');
+DO $$ BEGIN CREATE TYPE "PipelineStatus" AS ENUM ('RUNNING', 'SUCCESS', 'FAILED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateEnum
-CREATE TYPE "LeadStatus" AS ENUM ('NEW', 'CONTACTED', 'DEMO_SCHEDULED', 'DEMO_COMPLETED', 'PROPOSAL_SENT', 'NEGOTIATING', 'CLOSED_WON', 'CLOSED_LOST', 'UNQUALIFIED');
+DO $$ BEGIN CREATE TYPE "LeadStatus" AS ENUM ('NEW', 'CONTACTED', 'DEMO_SCHEDULED', 'DEMO_COMPLETED', 'PROPOSAL_SENT', 'NEGOTIATING', 'CLOSED_WON', 'CLOSED_LOST', 'UNQUALIFIED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateEnum
-CREATE TYPE "LeadPriority" AS ENUM ('HIGH', 'MEDIUM', 'LOW');
+DO $$ BEGIN CREATE TYPE "LeadPriority" AS ENUM ('HIGH', 'MEDIUM', 'LOW'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateEnum
-CREATE TYPE "SubscriptionTier" AS ENUM ('free', 'one_time', 'monthly', 'annual', 'partner');
+DO $$ BEGIN CREATE TYPE "SubscriptionTier" AS ENUM ('free', 'one_time', 'monthly', 'annual', 'partner'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateEnum
-CREATE TYPE "SubscriptionStatus" AS ENUM ('active', 'past_due', 'cancelled', 'grace_period');
+DO $$ BEGIN CREATE TYPE "SubscriptionStatus" AS ENUM ('active', 'past_due', 'cancelled', 'grace_period'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateEnum
-CREATE TYPE "AnalysisRunStatus" AS ENUM ('RUNNING', 'COMPLETED', 'FAILED');
+DO $$ BEGIN CREATE TYPE "AnalysisRunStatus" AS ENUM ('RUNNING', 'COMPLETED', 'FAILED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateEnum
-CREATE TYPE "IngestionLogStatus" AS ENUM ('VALIDATED', 'IMPORTED', 'FAILED', 'DRY_RUN');
+DO $$ BEGIN CREATE TYPE "IngestionLogStatus" AS ENUM ('VALIDATED', 'IMPORTED', 'FAILED', 'DRY_RUN'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateEnum
-CREATE TYPE "ReportJobStatus" AS ENUM ('AWAITING_DATA', 'VALIDATING', 'VALIDATION_FAILED', 'QUEUED', 'PROCESSING', 'GENERATING_PDF', 'UPLOADING', 'COMPLETE', 'FAILED');
+DO $$ BEGIN CREATE TYPE "ReportJobStatus" AS ENUM ('AWAITING_DATA', 'VALIDATING', 'VALIDATION_FAILED', 'QUEUED', 'PROCESSING', 'GENERATING_PDF', 'UPLOADING', 'COMPLETE', 'FAILED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateEnum
-CREATE TYPE "ProspectStage" AS ENUM ('lead', 'contacted', 'demo_scheduled', 'demo_done', 'proposal', 'closed_won', 'closed_lost');
+DO $$ BEGIN CREATE TYPE "ProspectStage" AS ENUM ('lead', 'contacted', 'demo_scheduled', 'demo_done', 'proposal', 'closed_won', 'closed_lost'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateTable
 CREATE TABLE "users" (

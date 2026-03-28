@@ -121,7 +121,7 @@ export default function HullWhitePage() {
             <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
             <XAxis dataKey="quarter" tick={{ fontSize: 10 }} />
             <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
-            <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} />
+            <Tooltip formatter={(v: any) => `${Number(v).toFixed(2)}%`} />
             <Legend />
             <Area type="monotone" dataKey="p95" name="P95" stroke="none" fill="#c4b5fd" fillOpacity={0.3} />
             <Area type="monotone" dataKey="p75" name="P75" stroke="none" fill="#a78bfa" fillOpacity={0.3} />
