@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
+import _request from 'supertest';
+const request = (_request as any).default ?? _request;
 import { AppModule } from '../src/app.module';
 
 describe('API Integration Tests (e2e)', () => {

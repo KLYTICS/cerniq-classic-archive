@@ -91,8 +91,8 @@ export class ClimateRiskService {
       );
     }, 0);
 
-    const cat3 = scenarios.find((s) => s.category.includes('3'));
-    const cat5 = scenarios.find((s) => s.category.includes('5'));
+    const cat3 = scenarios.find((s) => s.category.includes('3'))!;
+    const cat5 = scenarios.find((s) => s.category.includes('5'))!;
 
     const riskLevel =
       cat3.nwrImpact > 3 ? 'HIGH' : cat3.nwrImpact > 1.5 ? 'MEDIUM' : 'LOW';

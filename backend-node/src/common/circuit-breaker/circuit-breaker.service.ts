@@ -125,6 +125,6 @@ export class CircuitBreakerService {
         openedAt: 0,
       });
     }
-    return this.circuits.get(key);
+    return this.circuits.get(key)!;
   }
 }

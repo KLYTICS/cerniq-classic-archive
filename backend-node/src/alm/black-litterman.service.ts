@@ -48,7 +48,7 @@ export class BlackLittermanService {
     for (const item of items) {
       if (!bySub.has(item.subcategory))
         bySub.set(item.subcategory, { balance: 0, rate: 0 });
-      const e = bySub.get(item.subcategory);
+      const e = bySub.get(item.subcategory)!;
       e.balance += item.balance;
       e.rate += item.rate * item.balance;
     }

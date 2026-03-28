@@ -145,7 +145,7 @@ export class NCUADataPullService {
       charterNumber,
       institutionName: `${names[seed % names.length]} #${charterNumber}`,
       city: cities[seed % cities.length],
-      state: cities[seed % cities.length].split(' ').pop(),
+      state: cities[seed % cities.length].split(' ').pop()!,
       totalAssets: Math.round(totalAssets * 10) / 10,
       totalShares: Math.round((totalAssets - netWorth) * 0.85 * 10) / 10,
       netWorth: Math.round(netWorth * 10) / 10,

@@ -258,7 +258,7 @@ export class StressTestingService {
     };
 
     // Monthly NII bands (for fan chart)
-    const monthlyNIIBands = [];
+    const monthlyNIIBands: { month: number; p5: number; p25: number; median: number; p75: number; p95: number }[] = [];
     for (let month = 0; month <= p.horizon; month++) {
       const ratesAtMonth = allPaths.map((path) => path[month]);
       const sorted = [...ratesAtMonth].sort((a, b) => a - b);

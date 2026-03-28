@@ -202,7 +202,7 @@ export class DataQualityService {
   /**
    * Get quality metrics for a source
    */
-  getMetrics(source?: string): QualityMetric | Map<string, QualityMetric> {
+  getMetrics(source?: string): QualityMetric | Map<string, QualityMetric> | undefined {
     if (source) {
       return this.qualityMetrics.get(source);
     }

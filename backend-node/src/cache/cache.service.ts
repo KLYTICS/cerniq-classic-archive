@@ -8,7 +8,7 @@ import Redis from 'ioredis';
 @Injectable()
 export class CacheService implements OnModuleInit {
   private readonly logger = new Logger(CacheService.name);
-  private redis: Redis;
+  private redis: Redis | null;
   private readonly REDIS_URL =
     process.env.REDIS_URL || 'redis://localhost:6379';
 

@@ -107,7 +107,7 @@ export class CapitalOptimizerService {
       if (!assetsBySubcategory.has(sub)) {
         assetsBySubcategory.set(sub, { balance: 0, rate: 0, items: [] });
       }
-      const entry = assetsBySubcategory.get(sub);
+      const entry = assetsBySubcategory.get(sub)!;
       entry.balance += item.balance;
       entry.items.push(item);
     }
@@ -184,7 +184,7 @@ export class CapitalOptimizerService {
       if (!liabsBySubcategory.has(item.subcategory)) {
         liabsBySubcategory.set(item.subcategory, { balance: 0, rate: 0 });
       }
-      const entry = liabsBySubcategory.get(item.subcategory);
+      const entry = liabsBySubcategory.get(item.subcategory)!;
       entry.balance += item.balance;
     }
     for (const [sub, entry] of liabsBySubcategory) {

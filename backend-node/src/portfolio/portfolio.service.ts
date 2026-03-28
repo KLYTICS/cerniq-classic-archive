@@ -264,7 +264,7 @@ export class PortfolioService {
     const totalReturnPercent = dto.totalPnLPercent;
 
     // Find best/worst performers
-    const sortedPositions = [...dto.positions].sort(
+    const sortedPositions = [...(dto.positions ?? [])].sort(
       (a, b) => b.unrealizedPnLPercent - a.unrealizedPnLPercent,
     );
     const bestPerformer = sortedPositions[0]
@@ -292,8 +292,8 @@ export class PortfolioService {
       beta: 1.0,
       maxDrawdown: 0,
       winRate:
-        dto.positions.filter((p) => p.unrealizedPnL > 0).length /
-        (dto.positions.length || 1),
+        (dto.positions ?? []).filter((p) => p.unrealizedPnL > 0).length /
+        ((dto.positions ?? []).length || 1),
       bestPerformer,
       worstPerformer,
     };
@@ -341,7 +341,7 @@ export class PortfolioService {
     let totalPositionValue = 0;
     let totalCostBasis = 0;
 
-    for (const position of portfolio.positions) {
+    for (const position of portfolio.positions ?? []) {
       try {
         const quote = await this.marketDataService.getQuote(position.ticker);
         // If quote fails, use last known or avgCost safely
@@ -379,7 +379,7 @@ export class PortfolioService {
         : 0;
 
     // Update position weights
-    for (const position of portfolio.positions) {
+    for (const position of portfolio.positions ?? []) {
       position.weight =
         portfolio.totalValue > 0
           ? (position.marketValue / portfolio.totalValue) * 100

@@ -44,7 +44,7 @@ export class DepositBetaService {
       if (!seen.has(sub)) {
         seen.set(sub, { beta: item.depositBeta, balance: item.balance });
       } else {
-        const existing = seen.get(sub);
+        const existing = seen.get(sub)!;
         existing.balance += item.balance;
         if (item.depositBeta !== null) existing.beta = item.depositBeta;
       }

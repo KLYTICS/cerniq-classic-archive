@@ -109,7 +109,7 @@ export class LiquidityTransferPricingService {
           duration: 0,
         });
       }
-      const e = bySub.get(item.subcategory);
+      const e = bySub.get(item.subcategory)!;
       e.balance += item.balance;
       e.rate += item.rate * item.balance;
       e.duration += item.duration * item.balance;

@@ -128,7 +128,7 @@ export class CECLVintageService {
     for (const c of cohorts) {
       const type = this.inferLoanType(c.originationQtr);
       if (!byType.has(type)) byType.set(type, []);
-      byType.get(type).push(c);
+      byType.get(type)!.push(c);
     }
 
     // Fit Weibull per type

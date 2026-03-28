@@ -81,7 +81,7 @@ export class MetricsService {
     for (const r of recentRequests) {
       const key = `${r.method} ${r.endpoint}`;
       if (!byEndpoint.has(key)) byEndpoint.set(key, []);
-      byEndpoint.get(key).push(r);
+      byEndpoint.get(key)!.push(r);
     }
 
     const apiMetrics: APIMetrics[] = Array.from(byEndpoint.entries())

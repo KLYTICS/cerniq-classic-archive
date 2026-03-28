@@ -145,7 +145,7 @@ export class AnalyticsService {
         trends.set(period, { total: 0, count: 0 });
       }
 
-      const entry = trends.get(period);
+      const entry = trends.get(period)!;
       entry.total += Number(expense.amount);
       entry.count += 1;
     }
@@ -246,7 +246,7 @@ export class AnalyticsService {
         });
       }
 
-      const member = teamMap.get(expense.userId);
+      const member = teamMap.get(expense.userId)!;
       member.totalAmount += Number(expense.amount);
       member.expenseCount += 1;
       if (expense.status === 'APPROVED') member.approvedCount += 1;

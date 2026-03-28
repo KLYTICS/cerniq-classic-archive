@@ -103,15 +103,15 @@ export class TechnicalIndicatorsService {
     slowPeriod: number = 26,
     signalPeriod: number = 9,
   ): {
-    macd: number[];
-    signal: number[];
-    histogram: number[];
+    macd: (number | null)[];
+    signal: (number | null)[];
+    histogram: (number | null)[];
   } {
     const fastEMA = this.calculateEMA(prices, fastPeriod);
     const slowEMA = this.calculateEMA(prices, slowPeriod);
 
     // MACD line = fast EMA - slow EMA
-    const macdLine: number[] = [];
+    const macdLine: (number | null)[] = [];
     for (let i = 0; i < prices.length; i++) {
       if (fastEMA[i] !== null && slowEMA[i] !== null) {
         macdLine.push(fastEMA[i] - slowEMA[i]);
@@ -130,10 +130,10 @@ export class TechnicalIndicatorsService {
     const signalLine = [...Array(paddingLength).fill(null), ...signalEMA];
 
     // Histogram = MACD - Signal
-    const histogram: number[] = [];
+    const histogram: (number | null)[] = [];
     for (let i = 0; i < macdLine.length; i++) {
       if (macdLine[i] !== null && signalLine[i] !== null) {
-        histogram.push(macdLine[i] - signalLine[i]);
+        histogram.push(macdLine[i]! - signalLine[i]!);
       } else {
         histogram.push(null);
       }
@@ -192,7 +192,7 @@ export class TechnicalIndicatorsService {
     for (let i = 0; i < prices.length; i++) {
       cumulativePV += prices[i] * volumes[i];
       cumulativeVolume += volumes[i];
-      vwap.push(cumulativeVolume > 0 ? cumulativePV / cumulativeVolume : null);
+      vwap.push(cumulativeVolume > 0 ? cumulativePV / cumulativeVolume : 0);
     }
 
     return vwap;
@@ -226,7 +226,7 @@ export class TechnicalIndicatorsService {
     const atrValues = this.calculateEMA(trueRanges, period);
 
     // Pad to match original length
-    return [null, ...atrValues];
+    return [0, ...atrValues];
   }
 
   /**

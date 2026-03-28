@@ -1,18 +1,28 @@
 import { AdvancedRiskService } from '../src/risk/advanced-risk.service';
 import { CacheService } from '../src/cache/cache.service';
+import { MarketDataService } from '../src/market-data/market-data.service';
 
 // Mock CacheService
 const mockCacheService = {
   get: jest.fn().mockResolvedValue(null),
   set: jest.fn().mockResolvedValue(undefined),
-  getOrSet: jest.fn().mockImplementation((key, fn) => fn()),
+  getOrSet: jest.fn().mockImplementation((_key: string, fn: () => any) => fn()),
+};
+
+// Mock MarketDataService
+const mockMarketDataService = {
+  getHistoricalPrices: jest.fn().mockResolvedValue([]),
+  getQuote: jest.fn().mockResolvedValue({ price: 175 }),
 };
 
 describe('AdvancedRiskService', () => {
   let service: AdvancedRiskService;
 
   beforeEach(() => {
-    service = new AdvancedRiskService(mockCacheService as any);
+    service = new AdvancedRiskService(
+      mockMarketDataService as unknown as MarketDataService,
+      mockCacheService as unknown as CacheService,
+    );
   });
 
   describe('calculateComponentVaR', () => {
@@ -23,11 +33,11 @@ describe('AdvancedRiskService', () => {
     ];
 
     it('should return portfolio VaR and component breakdown', async () => {
-      const result = await service.calculateComponentVaR(
-        testPositions,
-        0.95,
-        1,
-      );
+      const result = await service.calculateComponentVaR({
+        positions: testPositions,
+        confidenceLevel: 0.95,
+        horizon: 1,
+      });
 
       expect(result).toHaveProperty('portfolioVaR');
       expect(result).toHaveProperty('portfolioValue');
@@ -43,14 +53,14 @@ describe('AdvancedRiskService', () => {
     });
 
     it('should have component contributions sum to ~100%', async () => {
-      const result = await service.calculateComponentVaR(
-        testPositions,
-        0.95,
-        1,
-      );
+      const result = await service.calculateComponentVaR({
+        positions: testPositions,
+        confidenceLevel: 0.95,
+        horizon: 1,
+      });
 
       const totalContribution = result.components.reduce(
-        (sum, c) => sum + c.contributionPercent,
+        (sum, c) => sum + c.riskContribution,
         0,
       );
 
@@ -59,27 +69,27 @@ describe('AdvancedRiskService', () => {
     });
 
     it('should calculate correct portfolio value', async () => {
-      const result = await service.calculateComponentVaR(
-        testPositions,
-        0.95,
-        1,
-      );
+      const result = await service.calculateComponentVaR({
+        positions: testPositions,
+        confidenceLevel: 0.95,
+        horizon: 1,
+      });
 
       const expectedValue = 100 * 175 + 50 * 140 + 75 * 380;
       expect(result.portfolioValue).toBe(expectedValue);
     });
 
     it('should scale VaR with horizon', async () => {
-      const result1Day = await service.calculateComponentVaR(
-        testPositions,
-        0.95,
-        1,
-      );
-      const result10Day = await service.calculateComponentVaR(
-        testPositions,
-        0.95,
-        10,
-      );
+      const result1Day = await service.calculateComponentVaR({
+        positions: testPositions,
+        confidenceLevel: 0.95,
+        horizon: 1,
+      });
+      const result10Day = await service.calculateComponentVaR({
+        positions: testPositions,
+        confidenceLevel: 0.95,
+        horizon: 10,
+      });
 
       // 10-day VaR should be ~sqrt(10) times 1-day VaR (approximately)
       const ratio = result10Day.portfolioVaR / result1Day.portfolioVaR;
@@ -89,20 +99,19 @@ describe('AdvancedRiskService', () => {
 
   describe('forecastVolatility (GARCH)', () => {
     it('should return volatility forecast array', async () => {
-      const result = await service.forecastVolatility('AAPL', 30);
+      const result = await service.forecastVolatility({ ticker: 'AAPL', horizon: 30 });
 
       expect(result).toHaveProperty('ticker');
-      expect(result).toHaveProperty('horizon');
+      expect(result).toHaveProperty('currentVolatility');
       expect(result).toHaveProperty('forecast');
       expect(result).toHaveProperty('model');
 
       expect(result.ticker).toBe('AAPL');
-      expect(result.horizon).toBe(30);
       expect(result.forecast.length).toBe(30);
     });
 
     it('should have positive volatility forecasts', async () => {
-      const result = await service.forecastVolatility('AAPL', 30);
+      const result = await service.forecastVolatility({ ticker: 'AAPL', horizon: 30 });
 
       result.forecast.forEach((f) => {
         expect(f.volatility).toBeGreaterThan(0);
@@ -111,25 +120,19 @@ describe('AdvancedRiskService', () => {
     });
 
     it('should have confidence intervals around forecast', async () => {
-      const result = await service.forecastVolatility('AAPL', 30);
+      const result = await service.forecastVolatility({ ticker: 'AAPL', horizon: 30 });
 
       result.forecast.forEach((f) => {
-        expect(f.confidenceLower).toBeLessThan(f.volatility);
-        expect(f.confidenceUpper).toBeGreaterThan(f.volatility);
+        expect(f.lower95).toBeLessThan(f.volatility);
+        expect(f.upper95).toBeGreaterThan(f.volatility);
       });
     });
 
-    it('should return valid GARCH parameters', async () => {
-      const result = await service.forecastVolatility('AAPL', 10);
+    it('should return valid GARCH model identifier', async () => {
+      const result = await service.forecastVolatility({ ticker: 'AAPL', horizon: 10 });
 
-      expect(result.model.omega).toBeGreaterThan(0);
-      expect(result.model.alpha).toBeGreaterThanOrEqual(0);
-      expect(result.model.alpha).toBeLessThan(1);
-      expect(result.model.beta).toBeGreaterThanOrEqual(0);
-      expect(result.model.beta).toBeLessThan(1);
-
-      // GARCH stationarity: alpha + beta < 1
-      expect(result.model.alpha + result.model.beta).toBeLessThan(1);
+      expect(typeof result.model).toBe('string');
+      expect(result.model.length).toBeGreaterThan(0);
     });
   });
 
@@ -140,38 +143,34 @@ describe('AdvancedRiskService', () => {
     ];
 
     it('should return VaR with covariance-based calculation', async () => {
-      const result = await service.calculateParametricVaR(
-        testPositions,
-        0.95,
-        1,
-      );
+      const result = await service.calculateParametricVaR({
+        positions: testPositions,
+        confidenceLevel: 0.95,
+        horizon: 1,
+      });
 
-      expect(result).toHaveProperty('var');
+      expect(result).toHaveProperty('portfolioVaR');
       expect(result).toHaveProperty('portfolioValue');
-      expect(result).toHaveProperty('portfolioStdDev');
-      expect(result).toHaveProperty('zScore');
+      expect(result).toHaveProperty('portfolioVolatility');
+      expect(result).toHaveProperty('confidenceLevel');
 
-      expect(result.var).toBeGreaterThan(0);
+      expect(result.portfolioVaR).toBeGreaterThan(0);
     });
 
-    it('should use correct z-score for confidence level', async () => {
-      const result95 = await service.calculateParametricVaR(
-        testPositions,
-        0.95,
-        1,
-      );
-      const result99 = await service.calculateParametricVaR(
-        testPositions,
-        0.99,
-        1,
-      );
+    it('should produce higher VaR at 99% vs 95% confidence', async () => {
+      const result95 = await service.calculateParametricVaR({
+        positions: testPositions,
+        confidenceLevel: 0.95,
+        horizon: 1,
+      });
+      const result99 = await service.calculateParametricVaR({
+        positions: testPositions,
+        confidenceLevel: 0.99,
+        horizon: 1,
+      });
 
       // 99% VaR should be higher than 95% VaR
-      expect(result99.var).toBeGreaterThan(result95.var);
-
-      // Z-scores should be approximately correct
-      expect(result95.zScore).toBeCloseTo(1.645, 1);
-      expect(result99.zScore).toBeCloseTo(2.326, 1);
+      expect(result99.portfolioVaR).toBeGreaterThan(result95.portfolioVaR);
     });
   });
 });

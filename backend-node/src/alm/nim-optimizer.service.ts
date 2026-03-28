@@ -73,7 +73,7 @@ export class NIMOptimizerService {
           weightedRate: 0,
           category: item.category,
         });
-      const entry = bySub.get(key);
+      const entry = bySub.get(key)!;
       entry.balance += item.balance;
       entry.weightedRate += item.rate * item.balance;
     }

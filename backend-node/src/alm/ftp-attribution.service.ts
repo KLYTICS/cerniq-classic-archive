@@ -128,7 +128,7 @@ export class FTPAttributionService {
       const key = `${d.category}:${d.subcategory}`;
       if (!rarocMap.has(key))
         rarocMap.set(key, { balance: 0, profit: 0, category: d.category });
-      const entry = rarocMap.get(key);
+      const entry = rarocMap.get(key)!;
       entry.balance += d.balance;
       entry.profit += d.economicProfit;
     }

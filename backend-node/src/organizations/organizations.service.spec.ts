@@ -87,8 +87,7 @@ describe('OrganizationsService', () => {
 
       const result = await service.addMember(
         'org-1',
-        'new-user',
-        'MEMBER',
+        { userId: 'new-user', role: 'MEMBER' } as any,
         'admin-user',
       );
 
@@ -102,7 +101,7 @@ describe('OrganizationsService', () => {
       });
 
       await expect(
-        service.addMember('org-1', 'new-user', 'MEMBER', 'member-user'),
+        service.addMember('org-1', { userId: 'new-user', role: 'MEMBER' } as any, 'member-user'),
       ).rejects.toThrow();
     });
   });

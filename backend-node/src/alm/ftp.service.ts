@@ -143,7 +143,7 @@ export class FTPService {
           instrumentCount: 0,
         });
       }
-      const seg = segmentMap.get(key);
+      const seg = segmentMap.get(key)!;
       seg.totalBalance += inst.balance;
       seg.weightedActualRate += inst.actualRate * inst.balance;
       seg.weightedFTPRate += inst.ftpRate * inst.balance;

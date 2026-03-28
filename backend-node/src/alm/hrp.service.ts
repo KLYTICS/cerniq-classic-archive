@@ -31,7 +31,7 @@ export class HRPService {
     for (const item of items) {
       if (!bySub.has(item.subcategory))
         bySub.set(item.subcategory, { balance: 0, rate: 0, vol: 0 });
-      const e = bySub.get(item.subcategory);
+      const e = bySub.get(item.subcategory)!;
       e.balance += item.balance;
       e.rate += item.rate * item.balance;
     }
@@ -115,8 +115,8 @@ export class HRPService {
       const ids = [...active];
       for (let a = 0; a < ids.length; a++) {
         for (let b = a + 1; b < ids.length; b++) {
-          const ci = clusters.get(ids[a]);
-          const cj = clusters.get(ids[b]);
+          const ci = clusters.get(ids[a])!;
+          const cj = clusters.get(ids[b])!;
           // Single-linkage: min distance between any pair
           let d = Infinity;
           for (const i of ci)

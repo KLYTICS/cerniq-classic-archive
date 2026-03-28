@@ -45,7 +45,7 @@ export function getMetricsSummary(): {
   for (const m of recent) {
     const key = `${m.method} ${m.route}`;
     if (!byRoute.has(key)) byRoute.set(key, { total: 0, sumMs: 0 });
-    const e = byRoute.get(key);
+    const e = byRoute.get(key)!;
     e.total++;
     e.sumMs += m.latencyMs;
   }

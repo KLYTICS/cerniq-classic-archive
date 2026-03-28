@@ -186,19 +186,19 @@ describe('AlmService', () => {
 
       // At 0 bps shock, NII should equal base
       const baseScenario = result.scenarios.find((s) => s.shockBps === 0);
-      expect(baseScenario.change).toBeCloseTo(0, 0);
+      expect(baseScenario!.change).toBeCloseTo(0, 0);
 
       // +200 bps: floating assets reprice up, floating liabilities reprice up
       // Floating assets: C&I (120M) + Fed Funds (60M) = 180M gain 2% = +$3.6M
       // Floating liabilities: FHLB (70M) + MMA (60M) = 130M cost 2% = -$2.6M
       // Net change ≈ +$1M (asset-sensitive from floating mismatch)
       const upScenario = result.scenarios.find((s) => s.shockBps === 200);
-      expect(upScenario.change).toBeGreaterThan(0);
-      expect(upScenario.nii).toBeGreaterThan(result.baseNII);
+      expect(upScenario!.change).toBeGreaterThan(0);
+      expect(upScenario!.nii).toBeGreaterThan(result.baseNII);
 
       // -200 bps: opposite direction
       const downScenario = result.scenarios.find((s) => s.shockBps === -200);
-      expect(downScenario.change).toBeLessThan(0);
+      expect(downScenario!.change).toBeLessThan(0);
     });
 
     it('should not change NII for an all-fixed balance sheet', () => {
@@ -237,7 +237,7 @@ describe('AlmService', () => {
 
       // 0 bps shock → low risk
       const zeroShock = result.scenarios.find((s) => s.shockBps === 0);
-      expect(zeroShock.riskLevel).toBe('low');
+      expect(zeroShock!.riskLevel).toBe('low');
 
       // Extreme shocks should have higher risk
       const extremeShocks = result.scenarios.filter(
@@ -272,7 +272,7 @@ describe('AlmService', () => {
 
       // Asset-sensitive bank: rising rates hurt more on assets than liabilities
       // EVE should decrease when rates rise
-      expect(upScenario.eve).toBeLessThan(baseScenario.eve);
+      expect(upScenario!.eve).toBeLessThan(baseScenario!.eve);
     });
 
     it('should show higher EVE when rates fall', () => {
@@ -282,7 +282,7 @@ describe('AlmService', () => {
       const baseScenario = result.scenarios.find((s) => s.shockBps === 0);
       const downScenario = result.scenarios.find((s) => s.shockBps === -300);
 
-      expect(downScenario.eve).toBeGreaterThan(baseScenario.eve);
+      expect(downScenario!.eve).toBeGreaterThan(baseScenario!.eve);
     });
   });
 
@@ -369,13 +369,13 @@ describe('AlmService', () => {
       const fedFunds = result.assetBPVs.find(
         (b) => b.name === 'Overnight Fed Funds',
       );
-      expect(fedFunds.bpv).toBeLessThan(100); // should be tiny relative to $60M
+      expect(fedFunds!.bpv).toBeLessThan(100); // should be tiny relative to $60M
 
       // "Commercial RE Loans" is fixed 7yr → meaningful BPV
       const creLoan = result.assetBPVs.find(
         (b) => b.name === 'Commercial RE Loans',
       );
-      expect(creLoan.bpv).toBeGreaterThan(5000);
+      expect(creLoan!.bpv).toBeGreaterThan(5000);
     });
   });
 
@@ -405,7 +405,7 @@ describe('AlmService', () => {
 
       // LCR should be derived from balance sheet
       expect(result.lcr).not.toBeNull();
-      expect(result.lcr.lcr).toBeGreaterThan(0);
+      expect(result.lcr!.lcr).toBeGreaterThan(0);
     });
 
     it('should use explicit LCR when provided', () => {
@@ -417,7 +417,7 @@ describe('AlmService', () => {
 
       const result = service.fullAnalysis(bs, undefined, lcrInput);
       expect(result.lcr).not.toBeNull();
-      expect(result.lcr.hqlaBreakdown.level1).toBe(60_000_000);
+      expect(result.lcr!.hqlaBreakdown.level1).toBe(60_000_000);
     });
 
     it('should accept custom rate shocks', () => {

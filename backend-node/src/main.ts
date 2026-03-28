@@ -141,9 +141,9 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   // Mark health endpoint as 503 during shutdown so load balancers drain
-  const { AppController: AppCtrl } = await import('./app.controller');
+  const appControllerModule = await import('./app.controller.js');
   process.on('SIGTERM', () => {
-    AppCtrl.markShuttingDown();
+    appControllerModule.AppController.markShuttingDown();
   });
 
   // --- Swagger / OpenAPI ---

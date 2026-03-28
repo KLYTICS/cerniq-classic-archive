@@ -474,7 +474,7 @@ export class AnomalyDetectionService {
         // Rolling average of all months except the latest
         const historicalMonths = sortedMonths.slice(0, -1);
         const historicalCounts = historicalMonths.map(
-          (m) => monthBuckets.get(m).length,
+          (m) => monthBuckets.get(m)!.length,
         );
         const rollingAvg =
           historicalCounts.reduce((a, b) => a + b, 0) / historicalCounts.length;
@@ -482,7 +482,7 @@ export class AnomalyDetectionService {
         if (rollingAvg === 0) continue;
 
         const latestMonth = sortedMonths[sortedMonths.length - 1];
-        const latestItems = monthBuckets.get(latestMonth);
+        const latestItems = monthBuckets.get(latestMonth)!;
         const latestCount = latestItems.length;
 
         if (latestCount > 2.5 * rollingAvg) {
@@ -597,7 +597,7 @@ export class AnomalyDetectionService {
         if (!e.category || !e.description) continue;
 
         const categoryKey = Object.keys(mismatchRules).find(
-          (k) => k.toLowerCase() === e.category.toLowerCase(),
+          (k) => k.toLowerCase() === e.category!.toLowerCase(),
         );
         if (!categoryKey) continue;
 
@@ -831,7 +831,7 @@ export class AnomalyDetectionService {
     for (const f of findings) {
       for (const eid of f.affectedInvoiceIds) {
         if (!flagMap.has(eid)) flagMap.set(eid, new Set());
-        flagMap.get(eid).add(f.findingType);
+        flagMap.get(eid)!.add(f.findingType);
       }
     }
 
