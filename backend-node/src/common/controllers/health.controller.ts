@@ -45,7 +45,7 @@ export class HealthController {
     const allHealthy = dependencies.every((d: DependencyStatus) => d.status === 'healthy');
     const anyUnhealthy = dependencies.some((d: DependencyStatus) => d.status === 'unhealthy');
 
-    const pool = this.prisma?.getPoolStats?.() || null;
+    const pool = (this.prisma?.getPoolStats?.() as HealthResponse['pool']) || null;
 
     return {
       status: anyUnhealthy ? 'unhealthy' : allHealthy ? 'ok' : 'degraded',
