@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OptionsService } from '../options.service';
-import { OptionType } from '../dto/options.dto';
+import { OptionType, ExerciseStyle } from '../dto/options.dto';
 
 describe('OptionsService', () => {
   let service: OptionsService;
