@@ -33,7 +33,24 @@ describe('AuthInitializer', () => {
   });
 
   it('hydrates on auth-relevant routes', () => {
-    mockUsePathname.mockReturnValue('/login');
+    mockUsePathname.mockReturnValue('/dashboard');
+
+    render(<AuthInitializer />);
+
+    expect(mockHydrateFromStorage).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips hydration on anonymous portal login without a stored auth hint', () => {
+    mockUsePathname.mockReturnValue('/portal/login');
+
+    render(<AuthInitializer />);
+
+    expect(mockHydrateFromStorage).not.toHaveBeenCalled();
+  });
+
+  it('hydrates on anonymous entry routes when a stored auth hint exists', () => {
+    mockUsePathname.mockReturnValue('/portal/login');
+    window.localStorage.setItem('cerniq_auth_user', JSON.stringify({ id: 'u_1', email: 'test@cerniq.io' }));
 
     render(<AuthInitializer />);
 

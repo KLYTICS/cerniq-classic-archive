@@ -18,7 +18,9 @@ interface ParsedReceipt {
 }
 
 interface ProcessReceiptResponse {
-    expense: any;
+    expense: {
+        id: string;
+    };
     parsed: ParsedReceipt;
     warnings: {
         policyViolations: string[];
@@ -27,7 +29,6 @@ interface ProcessReceiptResponse {
 }
 
 export default function NewExpensePage() {
-    const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
     const [result, setResult] = useState<ProcessReceiptResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -35,7 +36,6 @@ export default function NewExpensePage() {
     const organizationId = 'demo-org'; // Replace with actual org from context
 
     const handleUploadComplete = async (fileUrl: string) => {
-        setReceiptUrl(fileUrl);
         setProcessing(true);
         setError(null);
 
@@ -54,7 +54,7 @@ export default function NewExpensePage() {
                 throw new Error('Failed to process receipt');
             }
 
-            const data = await response.json();
+            const data = (await response.json()) as ProcessReceiptResponse;
             setResult(data);
         } catch (err) {
             console.error('Processing error:', err);
@@ -209,7 +209,6 @@ export default function NewExpensePage() {
                             <div className="flex gap-3 pt-4">
                                 <button
                                     onClick={() => {
-                                        setReceiptUrl(null);
                                         setResult(null);
                                     }}
                                     className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"

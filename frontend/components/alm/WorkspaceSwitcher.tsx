@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useRef, useEffect } from 'react';
 import { useALM } from './ALMProvider';
 import { Building2, ChevronDown, Plus, Check } from 'lucide-react';
@@ -17,7 +18,7 @@ export default function WorkspaceSwitcher() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const current = institutions.find((i: any) => i.id === selectedId);
+  const current = institutions.find((institution) => institution.id === selectedId);
   if (!institutions.length) return null;
 
   return (
@@ -38,7 +39,7 @@ export default function WorkspaceSwitcher() {
           <div className="px-3 py-2 border-b border-slate-100">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Institutions</p>
           </div>
-          {institutions.map((inst: any) => (
+          {institutions.map((inst) => (
             <button
               key={inst.id}
               onClick={() => { selectInstitution(inst.id); setOpen(false); }}
@@ -53,9 +54,9 @@ export default function WorkspaceSwitcher() {
             </button>
           ))}
           <div className="border-t border-slate-100 mt-1 pt-1">
-            <a href="/alm/balance-sheet" className="flex items-center gap-2 px-3 py-2 text-xs text-cyan-600 hover:bg-cyan-50 transition">
+            <Link href="/alm/balance-sheet" className="flex items-center gap-2 px-3 py-2 text-xs text-cyan-600 hover:bg-cyan-50 transition">
               <Plus className="h-3.5 w-3.5" /> Add Institution
-            </a>
+            </Link>
           </div>
         </div>
       )}

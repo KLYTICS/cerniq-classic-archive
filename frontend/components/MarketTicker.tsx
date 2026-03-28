@@ -17,6 +17,17 @@ interface MarketTickerProps {
     tickers: string[];
 }
 
+function getMarketTickerErrorMessage(data: unknown): string {
+    if (typeof data === 'object' && data !== null && 'message' in data) {
+        const message = (data as { message?: unknown }).message;
+        if (typeof message === 'string' && message.length > 0) {
+            return message;
+        }
+    }
+
+    return 'Unknown websocket error';
+}
+
 export default function MarketTicker({ tickers }: MarketTickerProps) {
     const [prices, setPrices] = useState<Map<string, PriceUpdate>>(new Map());
     const [isSubscribed, setIsSubscribed] = useState(false);
@@ -28,7 +39,7 @@ export default function MarketTicker({ tickers }: MarketTickerProps) {
         } else if (message.type === 'subscribed') {
             setIsSubscribed(true);
         } else if (message.type === 'error') {
-            console.error('WebSocket error:', message.data.message);
+            console.error('WebSocket error:', getMarketTickerErrorMessage(message.data));
         }
     });
 

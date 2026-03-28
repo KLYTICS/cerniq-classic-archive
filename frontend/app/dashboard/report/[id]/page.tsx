@@ -1,44 +1,34 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { apiClient } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 
-export default function ReportPage() {
-    const { id } = useParams();
-    const router = useRouter();
-    const [report, setReport] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+interface ReportFinding {
+    vendor: string;
+    amount: number;
+    type: string;
+    risk: string;
+    desc: string;
+}
 
-    useEffect(() => {
-        // Should actually fetch by ID, but for MVP local flow we might just use latest or props
-        // For now we simulate fetching if id is 'latest' or a real ID
-        if (id) {
-            // TODO: Implement getReport API properly in frontend
-            // For demo/hackathon speed we'll use a mocked structure if API update isn't ready
-            // but wait, we DID implement backend get_report.
+interface ReportData {
+    total_spend: number;
+    leaks_found: number;
+    leak_percentage: number;
+    findings: ReportFinding[];
+    memo_text: string;
+}
 
-            // Let's rely on apiClient
-            // In apiClient.ts we need to add getReport(id)
-            // The current apiClient has generateReport but maybe not getReportById
-            // We'll add it or assume it's there.
-        }
-    }, [id]);
-
-    // Mock report for the MVP viewer if API fetch isn't wired perfectly yet
-    // We'll replace this with real data fetch once fully connected
-    const mockReport = {
-        total_spend: 142050.00,
-        leaks_found: 47850.25,
-        leak_percentage: 33.6,
-        findings: [
-            { vendor: "Acme Cloud Services", amount: 12500.00, type: "Duplicate Payment", risk: "High", desc: "Invoice #INV-2938 paid twice on 2024-01-15 and 2024-01-16" },
-            { vendor: "SaaSify Inc", amount: 8400.00, type: "Auto-Renewal Risk", risk: "Medium", desc: "Contract auto-renews in 14 days with 15% price increase clause" },
-            { vendor: "DataStream LLC", amount: 4200.00, type: "Unit Price Drift", risk: "Medium", desc: "Unit price increased from $45 to $52 without contract amendment" },
-            { vendor: "Consulting Group X", amount: 22750.25, type: "Duplicate Payment", risk: "High", desc: "Same amount paid to 'Consulting Grp X' and 'Consulting Group X'" },
-        ],
-        memo_text: `EXECUTIVE LEAK AUDIT REPORT
+const mockReport: ReportData = {
+    total_spend: 142050.0,
+    leaks_found: 47850.25,
+    leak_percentage: 33.6,
+    findings: [
+        { vendor: 'Acme Cloud Services', amount: 12500.0, type: 'Duplicate Payment', risk: 'High', desc: 'Invoice #INV-2938 paid twice on 2024-01-15 and 2024-01-16' },
+        { vendor: 'SaaSify Inc', amount: 8400.0, type: 'Auto-Renewal Risk', risk: 'Medium', desc: 'Contract auto-renews in 14 days with 15% price increase clause' },
+        { vendor: 'DataStream LLC', amount: 4200.0, type: 'Unit Price Drift', risk: 'Medium', desc: 'Unit price increased from $45 to $52 without contract amendment' },
+        { vendor: 'Consulting Group X', amount: 22750.25, type: 'Duplicate Payment', risk: 'High', desc: "Same amount paid to 'Consulting Grp X' and 'Consulting Group X'" },
+    ],
+    memo_text: `EXECUTIVE LEAK AUDIT REPORT
 ===========================
 
 SUMMARY
@@ -64,10 +54,12 @@ RECOMMENDED ACTIONS
 -------------------
 1. Immediate: Contact vendors listed above for credit/refund.
 2. Process: Implement unique invoice number validation in AP.
-3. Review: Check auto-renewal clauses for upcoming contracts.`
-    };
+3. Review: Check auto-renewal clauses for upcoming contracts.`,
+};
 
-    const currentReport = mockReport; // Replace with state 'report' when fetching works
+export default function ReportPage() {
+    const router = useRouter();
+    const currentReport = mockReport;
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(currentReport.memo_text);
@@ -134,7 +126,7 @@ RECOMMENDED ACTIONS
                     {/* Left: Interactive Findings Findings List */}
                     <div className="flex flex-col gap-4">
                         <h2 className="text-xl font-bold mb-2">Leak Inventory</h2>
-                        {currentReport.findings.map((finding: any, idx: number) => (
+                        {currentReport.findings.map((finding, idx) => (
                             <div key={idx} className="bg-white/5 border border-white/5 p-4 rounded-xl hover:border-amber-500/30 transition">
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="font-bold text-lg">{finding.vendor}</div>

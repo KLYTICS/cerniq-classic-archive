@@ -46,6 +46,24 @@ function getAuthErrorMessage(error: unknown) {
   return 'Authentication failed';
 }
 
+function resolveAuthUser(
+  response: Awaited<ReturnType<typeof apiClient.login>>,
+  fallbackEmail: string,
+) {
+  if (response.user && typeof response.user.id === 'string' && typeof response.user.email === 'string') {
+    return {
+      id: response.user.id,
+      email: response.user.email,
+      name: response.user.name,
+    };
+  }
+
+  return {
+    id: typeof response.user_id === 'string' && response.user_id.length > 0 ? response.user_id : fallbackEmail,
+    email: typeof response.email === 'string' && response.email.length > 0 ? response.email : fallbackEmail,
+  };
+}
+
 async function resolvePostLoginDestination({
   returnUrl,
   userId,
@@ -158,10 +176,7 @@ function LoginContent() {
         ? await apiClient.login(email, password)
         : await apiClient.register(email, password);
 
-      const user = response.user || {
-        id: response.user_id || email,
-        email: response.email || email,
-      };
+      const user = resolveAuthUser(response, email);
 
       setUser(user);
 

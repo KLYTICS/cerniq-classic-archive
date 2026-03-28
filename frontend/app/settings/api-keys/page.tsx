@@ -30,6 +30,34 @@ function formatDate(raw?: string | null): string {
   }
 }
 
+function getApiKeyErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === 'object' && error !== null) {
+    const response = (error as {
+      response?: {
+        data?: {
+          message?: unknown;
+        };
+      };
+      message?: unknown;
+    }).response;
+
+    if (typeof response?.data?.message === 'string' && response.data.message.length > 0) {
+      return response.data.message;
+    }
+
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.length > 0) {
+      return message;
+    }
+  }
+
+  return fallback;
+}
+
 export default function ApiKeysPage() {
   const router = useRouter();
   const { initialized, isAuthenticated } = useAuthStore();
@@ -56,8 +84,8 @@ export default function ApiKeysPage() {
     try {
       const data = await apiClient.listApiKeys();
       setKeys(data.keys || []);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to load API keys');
+    } catch (err: unknown) {
+      setError(getApiKeyErrorMessage(err, 'Failed to load API keys'));
     } finally {
       setLoading(false);
     }
@@ -87,8 +115,8 @@ export default function ApiKeysPage() {
       setName('Read-only Integration');
       setExpiry('never');
       await loadKeys();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to create API key');
+    } catch (err: unknown) {
+      setError(getApiKeyErrorMessage(err, 'Failed to create API key'));
     } finally {
       setCreating(false);
     }
@@ -100,8 +128,8 @@ export default function ApiKeysPage() {
     try {
       await apiClient.revokeApiKey(keyId);
       await loadKeys();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to revoke API key');
+    } catch (err: unknown) {
+      setError(getApiKeyErrorMessage(err, 'Failed to revoke API key'));
     } finally {
       setRevokingId('');
     }

@@ -31,6 +31,22 @@ describe('billing API routing', () => {
     );
   });
 
+  it('supports checkout URLs nested under the backend data payload', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: {
+          checkoutUrl: 'https://checkout.stripe.test/nested-session',
+        },
+      }),
+    });
+
+    const checkoutUrl = await createCheckoutSession({ tier: 'one_time' });
+
+    expect(checkoutUrl).toBe('https://checkout.stripe.test/nested-session');
+  });
+
   it('loads subscriptions through the same-origin billing endpoint', async () => {
     fetchMock.mockResolvedValue({
       ok: true,

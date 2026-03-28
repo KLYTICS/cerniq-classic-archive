@@ -97,18 +97,15 @@ function CalendarMiniView({
   const monthName = new Date(year, month, 1).toLocaleDateString(locale === 'es' ? 'es-PR' : 'en-US', { month: 'long', year: 'numeric' });
 
   // Map deadline dates to statuses for this month
-  const dayStatusMap = useMemo(() => {
-    const map: Record<number, string[]> = {};
-    deadlines.forEach(d => {
-      const dDate = new Date(d.dueDate + 'T00:00:00');
-      if (dDate.getFullYear() === year && dDate.getMonth() === month) {
-        const day = dDate.getDate();
-        if (!map[day]) map[day] = [];
-        map[day].push(d.status);
-      }
-    });
+  const dayStatusMap = deadlines.reduce<Record<number, Deadline['status'][]>>((map, deadline) => {
+    const deadlineDate = new Date(deadline.dueDate + 'T00:00:00');
+    if (deadlineDate.getFullYear() === year && deadlineDate.getMonth() === month) {
+      const day = deadlineDate.getDate();
+      if (!map[day]) map[day] = [];
+      map[day].push(deadline.status);
+    }
     return map;
-  }, [deadlines, year, month]);
+  }, {});
 
   const prevMonth = () => onMonthChange(new Date(year, month - 1, 1));
   const nextMonth = () => onMonthChange(new Date(year, month + 1, 1));

@@ -90,6 +90,27 @@ interface NewsArticle {
     relatedTickers?: string[];
 }
 
+interface SnapshotData {
+    quote: QuoteData;
+    profile: InstrumentProfile | null;
+    news?: NewsArticle[];
+}
+
+function getTickerErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+
+    if (typeof error === 'object' && error !== null && 'message' in error) {
+        const message = (error as { message?: unknown }).message;
+        if (typeof message === 'string' && message.length > 0) {
+            return message;
+        }
+    }
+
+    return 'Failed to load ticker data';
+}
+
 export default function TickerDetailPage({ params }: TickerPageProps) {
     const router = useRouter();
     const symbol = params.symbol.toUpperCase();
@@ -110,16 +131,16 @@ export default function TickerDetailPage({ params }: TickerPageProps) {
             setError(null);
 
             try {
-                const snapshot = await apiClient.getNodeSnapshot(symbol, 8);
+                const snapshot = (await apiClient.getNodeSnapshot(symbol, 8)) as SnapshotData;
                 setQuote(snapshot.quote);
                 setProfile(snapshot.profile);
                 setNews(snapshot.news || []);
 
                 // Fetch fundamentals (stocks only)
                 try {
-                    const fundData = await apiClient.getNodeFundamentals(symbol);
+                    const fundData = (await apiClient.getNodeFundamentals(symbol)) as FundamentalsData;
                     setFundamentals(fundData);
-                } catch (err) {
+                } catch {
                     // Fundamentals not available for this ticker — non-critical
                 }
 
@@ -128,15 +149,15 @@ export default function TickerDetailPage({ params }: TickerPageProps) {
                 const startDate = new Date();
                 startDate.setDate(startDate.getDate() - 30);
 
-                const histData = await apiClient.getHistoricalPrices(
+                const histData = (await apiClient.getHistoricalPrices(
                     symbol,
                     startDate.toISOString().split('T')[0],
                     endDate.toISOString().split('T')[0]
-                );
+                )) as HistoricalData[];
                 setHistorical(histData);
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error(err);
-                setError(err.message || 'Failed to load ticker data');
+                setError(getTickerErrorMessage(err));
             } finally {
                 setLoading(false);
             }

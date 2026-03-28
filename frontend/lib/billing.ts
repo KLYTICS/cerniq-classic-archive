@@ -13,6 +13,10 @@ interface CreateCheckoutSessionParams {
   cancelUrl?: string;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+}
+
 export async function createCheckoutSession({
   tier,
   customerEmail,
@@ -37,17 +41,25 @@ export async function createCheckoutSession({
   });
 
   const data = await response.json().catch(() => ({}));
+  const payload = asRecord(data);
+  const nestedData = asRecord(payload?.data);
   const checkoutUrl =
-    typeof data.checkoutUrl === 'string'
-      ? data.checkoutUrl
-      : typeof data.url === 'string'
-        ? data.url
+    typeof payload?.checkoutUrl === 'string'
+      ? payload.checkoutUrl
+      : typeof payload?.url === 'string'
+        ? payload.url
+        : typeof nestedData?.checkoutUrl === 'string'
+          ? nestedData.checkoutUrl
+          : typeof nestedData?.url === 'string'
+            ? nestedData.url
         : '';
 
   if (!response.ok || !checkoutUrl) {
     throw new Error(
-      typeof data.message === 'string'
-        ? data.message
+      typeof payload?.message === 'string'
+        ? payload.message
+        : typeof nestedData?.message === 'string'
+          ? nestedData.message
         : 'Unable to start checkout.',
     );
   }

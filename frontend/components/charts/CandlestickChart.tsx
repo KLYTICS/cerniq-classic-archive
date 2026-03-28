@@ -52,11 +52,30 @@ interface CandlestickChartProps {
     initialTimeframe?: '1D' | '1W' | '1M' | '3M' | '1Y' | 'ALL';
 }
 
+type Timeframe = NonNullable<CandlestickChartProps['initialTimeframe']>;
+type IndicatorId = 'sma20' | 'sma50' | 'sma200' | 'bollinger';
+
+interface ChartPoint {
+    date: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+    candleColor: string;
+    sma20?: number;
+    sma50?: number;
+    sma200?: number;
+    bbUpper?: number;
+    bbMiddle?: number;
+    bbLower?: number;
+}
+
 export function CandlestickChart({ ticker, initialTimeframe = '1M' }: CandlestickChartProps) {
     const [data, setData] = useState<TechnicalData | null>(null);
     const [loading, setLoading] = useState(false);
-    const [timeframe, setTimeframe] = useState(initialTimeframe);
-    const [activeIndicators, setActiveIndicators] = useState<string[]>(['sma20', 'sma50']);
+    const [timeframe, setTimeframe] = useState<Timeframe>(initialTimeframe);
+    const [activeIndicators, setActiveIndicators] = useState<IndicatorId[]>(['sma20', 'sma50']);
     const [chartType, setChartType] = useState<'candlestick' | 'line' | 'area'>('candlestick');
 
     useEffect(() => {
@@ -99,8 +118,8 @@ export function CandlestickChart({ ticker, initialTimeframe = '1M' }: Candlestic
     }
 
     // Prepare chart data
-    const chartData = data.ohlcv.map((candle, idx) => {
-        const item: any = {
+    const chartData: ChartPoint[] = data.ohlcv.map((candle, idx) => {
+        const item: ChartPoint = {
             date: new Date(candle.date).toLocaleDateString(),
             open: candle.open,
             high: candle.high,
@@ -129,15 +148,15 @@ export function CandlestickChart({ ticker, initialTimeframe = '1M' }: Candlestic
         return item;
     });
 
-    const timeframes = ['1D', '1W', '1M', '3M', '1Y', 'ALL'];
-    const indicatorOptions = [
+    const timeframes: Timeframe[] = ['1D', '1W', '1M', '3M', '1Y', 'ALL'];
+    const indicatorOptions: Array<{ id: IndicatorId; label: string; color: string }> = [
         { id: 'sma20', label: 'SMA 20', color: '#3b82f6' },
         { id: 'sma50', label: 'SMA 50', color: '#f59e0b' },
         { id: 'sma200', label: 'SMA 200', color: '#8b5cf6' },
         { id: 'bollinger', label: 'Bollinger Bands', color: '#06b6d4' },
     ];
 
-    const toggleIndicator = (id: string) => {
+    const toggleIndicator = (id: IndicatorId) => {
         setActiveIndicators((prev) =>
             prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
         );
@@ -177,7 +196,7 @@ export function CandlestickChart({ ticker, initialTimeframe = '1M' }: Candlestic
                     {timeframes.map((tf) => (
                         <button
                             key={tf}
-                            onClick={() => setTimeframe(tf as any)}
+                            onClick={() => setTimeframe(tf)}
                             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${timeframe === tf
                                 ? 'bg-purple-500 text-white'
                                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700'

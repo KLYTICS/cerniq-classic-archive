@@ -4,11 +4,27 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 
+interface UploadResponse {
+    file_id?: string;
+}
+
+interface AnalysisResult {
+    invoices_parsed?: number;
+    findings_found?: number;
+}
+
+function getUploadErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+    return 'Upload failed. Please try a valid CSV export.';
+}
+
 export default function FileUploadPage() {
     const [file, setFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState<'idle' | 'uploading' | 'analyzing' | 'complete'>('idle');
-    const [analysisResult, setAnalysisResult] = useState<any>(null);
+    const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [error, setError] = useState('');
     const router = useRouter();
 
@@ -37,26 +53,29 @@ export default function FileUploadPage() {
 
             // We need to implement file upload in api.ts properly later, using axios directly for now
             // Assuming apiClient has a method or we'll add it
-            const uploadRes = await apiClient.uploadFile(formData);
+            const uploadRes = (await apiClient.uploadFile(formData)) as UploadResponse;
+            if (!uploadRes.file_id) {
+                throw new Error('Upload did not return a file id');
+            }
 
             // 2. Trigger Analysis
             setStatus('analyzing');
-            const analysisRes = await apiClient.runAnalysis({
+            const analysisRes = (await apiClient.runAnalysis({
                 upload_id: uploadRes.file_id,
-                workspace_id: "00000000-0000-0000-0000-000000000000" // Placeholder
-            });
+                workspace_id: '00000000-0000-0000-0000-000000000000', // Placeholder
+            })) as AnalysisResult;
 
             setAnalysisResult(analysisRes);
             setStatus('complete');
 
             // 3. Generate Report
             await apiClient.generateReport({
-                workspace_id: "00000000-0000-0000-0000-000000000000"
+                workspace_id: '00000000-0000-0000-0000-000000000000',
             });
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err);
-            setError('Upload failed. Please try a valid CSV export.');
+            setError(getUploadErrorMessage(err));
             setStatus('idle');
         } finally {
             setLoading(false);

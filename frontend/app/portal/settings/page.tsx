@@ -193,7 +193,7 @@ export default function PortalSettings() {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
     }
-    analytics.track(EVENTS.PORTAL_SETTINGS_SAVED, preferences);
+    analytics.track(EVENTS.PORTAL_SETTINGS_SAVED, { ...preferences });
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2500);
   };

@@ -1,12 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslation } from '@/lib/i18n';
-import { Building2, Users, DollarSign, BarChart3, Plus } from 'lucide-react';
+import { Building2, Plus } from 'lucide-react';
+
+interface ResellerClient {
+  id: string;
+  name: string;
+  totalAssets: number;
+  camelComposite: number;
+  healthScore: number;
+  openFindings: number;
+  mrr: number;
+}
 
 export default function ResellerPortalPage() {
   const { locale } = useTranslation();
-  const [clients, setClients] = useState<any[]>(getDemoClients());
+  const [clients] = useState<ResellerClient[]>(getDemoClients());
 
   const totalMRR = clients.reduce((s, c) => s + c.mrr, 0);
   const avgCAMEL = clients.length > 0 ? clients.reduce((s, c) => s + (c.camelComposite ?? 2), 0) / clients.length : 0;
@@ -68,7 +78,7 @@ export default function ResellerPortalPage() {
   );
 }
 
-function getDemoClients() {
+function getDemoClients(): ResellerClient[] {
   return [
     { id: '1', name: 'Coop. Oriental', totalAssets: 450, camelComposite: 2, healthScore: 78, openFindings: 1, mrr: 3500 },
     { id: '2', name: 'Coop. Bayamón', totalAssets: 380, camelComposite: 2, healthScore: 72, openFindings: 0, mrr: 3500 },
