@@ -16,6 +16,7 @@ export default function MacroRegimePage() {
   const { locale } = useTranslation();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -23,9 +24,9 @@ export default function MacroRegimePage() {
       try {
         const NODE = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
         const res = await fetch(`${NODE}/api/alm/market/macro-regime`);
-        if (res.ok) setData(await res.json());
-        else setData(getDemoData());
-      } catch { setData(getDemoData()); }
+        if (res.ok) { setData(await res.json()); setIsDemo(false); }
+        else { setData(getDemoData()); setIsDemo(true); }
+      } catch { setData(getDemoData()); setIsDemo(true); }
       finally { setLoading(false); }
     })();
   }, []);
@@ -40,6 +41,11 @@ export default function MacroRegimePage() {
 
   return (
     <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
+      {isDemo && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 mb-4">
+          <strong>Sample data</strong> — Connect your institution for live analysis.
+        </div>
+      )}
       <div className="flex items-center gap-3">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-violet-200 bg-violet-50">
           <Activity className="h-4 w-4 text-violet-700" />

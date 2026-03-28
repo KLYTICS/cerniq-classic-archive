@@ -43,6 +43,7 @@ export default function StressTestPage() {
     const [result, setResult] = useState<StressTestResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [scenarioType, setScenarioType] = useState<'historical' | 'hypothetical'>('historical');
+    const [isDemo, setIsDemo] = useState(false);
 
     const runStressTest = async () => {
         setLoading(true);
@@ -54,8 +55,10 @@ export default function StressTestPage() {
             });
             const data = await response.json();
             setResult(data);
+            setIsDemo(false);
         } catch (error) {
             console.error('Stress test failed:', error);
+            setIsDemo(true);
             // Mock data for demo
             setResult({
                 portfolioValue: 125000,
@@ -178,6 +181,12 @@ export default function StressTestPage() {
                     )}
                 </button>
             </motion.div>
+
+            {isDemo && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 mb-4">
+                    <strong>Sample data</strong> — Connect your institution for live analysis.
+                </div>
+            )}
 
             {result && (
                 <>

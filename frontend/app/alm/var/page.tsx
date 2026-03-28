@@ -34,12 +34,13 @@ export default function VaRPage() {
   const [loading, setLoading] = useState(true);
   const [confidence, setConfidence] = useState<95 | 99>(95);
   const [horizon, setHorizon] = useState<1 | 10>(1);
+  const [isDemo, setIsDemo] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!selectedId) return;
     setLoading(true);
-    try { setData(await apiClient.getVaRSuite(selectedId, confidence, horizon)); }
-    catch { setData(getDemoData(confidence, horizon)); }
+    try { setData(await apiClient.getVaRSuite(selectedId, confidence, horizon)); setIsDemo(false); }
+    catch { setData(getDemoData(confidence, horizon)); setIsDemo(true); }
     finally { setLoading(false); }
   }, [selectedId, confidence, horizon]);
 
@@ -59,6 +60,11 @@ export default function VaRPage() {
 
   return (
     <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
+      {isDemo && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 mb-4">
+          <strong>Sample data</strong> — Connect your institution for live analysis.
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-purple-200 bg-purple-50">

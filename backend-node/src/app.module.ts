@@ -52,7 +52,16 @@ import { NotificationsModule } from './notifications/notifications.module';
       pinoHttp: {
         level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
         transport: process.env.NODE_ENV !== 'production' ? { target: 'pino-pretty', options: { colorize: true } } : undefined,
-        redact: ['req.headers.authorization', 'req.headers.cookie', 'req.headers["x-admin-key"]'],
+        redact: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'req.headers["x-admin-key"]',
+          'req.body.password',
+          'req.body.newPassword',
+          'req.body.currentPassword',
+          'req.body.token',
+          'req.body.refreshToken',
+        ],
         serializers: {
           req: (req) => ({ method: req.method, url: req.url, id: req.id }),
           res: (res) => ({ statusCode: res.statusCode }),
