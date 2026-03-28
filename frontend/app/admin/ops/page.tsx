@@ -14,7 +14,7 @@ import {
   FileText,
 } from 'lucide-react';
 
-const ADMIN_KEY_STORAGE = 'capex_admin_key';
+const ADMIN_KEY_STORAGE = 'cerniq_admin_key';
 const NODE_API_URL = (
   typeof window !== 'undefined'
     ? (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '')

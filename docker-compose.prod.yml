@@ -1,10 +1,10 @@
 services:
   postgres:
-    image: timescale/timescaledb:latest-pg15
+    image: postgres:15-alpine
     container_name: cerniq-db
     environment:
-      POSTGRES_DB: capexcycle
-      POSTGRES_USER: capexcycle
+      POSTGRES_DB: cerniq
+      POSTGRES_USER: cerniq
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
     command:
       - "postgres"
@@ -34,7 +34,7 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U capexcycle"]
+      test: ["CMD-SHELL", "pg_isready -U cerniq"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -78,7 +78,7 @@ services:
     container_name: cerniq-backend-node
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://capexcycle:${DATABASE_PASSWORD}@postgres:5432/capexcycle
+      DATABASE_URL: postgresql://cerniq:${DATABASE_PASSWORD}@postgres:5432/cerniq
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
       YAHOO_FINANCE_API_KEY: ${YAHOO_FINANCE_API_KEY:-}

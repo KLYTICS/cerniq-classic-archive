@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { apiClient } from '@/lib/api';
 import { Landmark, RefreshCw, Copy, Check, Trash2, ExternalLink, Users, Building2, FileText, ClipboardCheck, UserSearch, Activity } from 'lucide-react';
 
-const ADMIN_KEY_STORAGE = 'capex_admin_key';
+const ADMIN_KEY_STORAGE = 'cerniq_admin_key';
 const VERCEL_URL = typeof window !== 'undefined' ? window.location.origin : '';
 
 interface DemoRequest {

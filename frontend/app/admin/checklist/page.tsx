@@ -62,7 +62,7 @@ const SECTIONS: CheckSection[] = [
   },
 ];
 
-const STORAGE_KEY = 'capex_wednesday_checklist';
+const STORAGE_KEY = 'cerniq_wednesday_checklist';
 
 export default function ChecklistPage() {
   const [checked, setChecked] = useState<Record<string, boolean>>({});

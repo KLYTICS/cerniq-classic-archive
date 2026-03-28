@@ -137,7 +137,7 @@ export default function OnboardingPage() {
       }
 
       localStorage.setItem(
-        `capex_profile_${user.id}`,
+        `cerniq_profile_${user.id}`,
         JSON.stringify({
           companyName: companyName.trim() || null,
           role,

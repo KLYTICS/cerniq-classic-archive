@@ -72,7 +72,7 @@ async function resolvePostLoginDestination({
     // Fall back to the retail app flow when billing lookup is unavailable.
   }
 
-  const onboardingComplete = localStorage.getItem(`capex_onboarding_${userId}`) === 'true';
+  const onboardingComplete = localStorage.getItem(`cerniq_onboarding_${userId}`) === 'true';
   return onboardingComplete ? '/dashboard' : '/onboarding';
 }
 

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-const ADMIN_KEY_STORAGE = 'capex_admin_key';
+const ADMIN_KEY_STORAGE = 'cerniq_admin_key';
 
 interface Lead {
   id: string;

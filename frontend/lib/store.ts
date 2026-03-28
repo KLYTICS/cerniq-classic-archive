@@ -18,8 +18,10 @@ interface AuthState {
     logout: () => Promise<void>;
 }
 
-const AUTH_USER_STORAGE_KEY = 'capex_auth_user';
-const onboardingKey = (userId: string) => `capex_onboarding_${userId}`;
+const AUTH_USER_STORAGE_KEY = 'cerniq_auth_user';
+const LEGACY_AUTH_USER_STORAGE_KEY = 'capex_auth_user';
+const onboardingKey = (userId: string) => `cerniq_onboarding_${userId}`;
+const legacyOnboardingKey = (userId: string) => `capex_onboarding_${userId}`;
 
 function asRecord(value: unknown): Record<string, unknown> | null {
     return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : null;
@@ -75,6 +77,24 @@ export const useAuthStore = create<AuthState>((set) => ({
                 initialized: true,
             });
         };
+
+        // Migrate legacy capex_ keys to cerniq_ keys
+        const legacyRaw = localStorage.getItem(LEGACY_AUTH_USER_STORAGE_KEY);
+        if (legacyRaw) {
+            localStorage.setItem(AUTH_USER_STORAGE_KEY, legacyRaw);
+            localStorage.removeItem(LEGACY_AUTH_USER_STORAGE_KEY);
+            // Also migrate onboarding key for this user
+            try {
+                const legacyUser = normalizeUser(JSON.parse(legacyRaw));
+                if (legacyUser) {
+                    const legacyOnboarding = localStorage.getItem(legacyOnboardingKey(legacyUser.id));
+                    if (legacyOnboarding) {
+                        localStorage.setItem(onboardingKey(legacyUser.id), legacyOnboarding);
+                        localStorage.removeItem(legacyOnboardingKey(legacyUser.id));
+                    }
+                }
+            } catch { /* best-effort migration */ }
+        }
 
         const storedUserRaw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
         if (storedUserRaw) {

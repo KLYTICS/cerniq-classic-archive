@@ -9,7 +9,8 @@ const NODE_API_URL = (
 ).trim().replace(/\/+$/, '');
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const CAPEX_ACCESS_TOKEN_KEY = 'capex_access_token';
+const ACCESS_TOKEN_KEY = 'cerniq_access_token';
+const LEGACY_ACCESS_TOKEN_KEY = 'capex_access_token';
 const MARKET_API_BASE = getMarketApiBase();
 
 function getAccessToken(): string {
@@ -17,16 +18,25 @@ function getAccessToken(): string {
     return '';
   }
 
-  const sessionToken = sessionStorage.getItem(CAPEX_ACCESS_TOKEN_KEY);
+  const sessionToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
   if (sessionToken) {
     return sessionToken;
   }
 
+  // Migrate legacy capex_ token to cerniq_ key
+  const legacySession = sessionStorage.getItem(LEGACY_ACCESS_TOKEN_KEY) || '';
+  if (legacySession) {
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, legacySession);
+    sessionStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+    return legacySession;
+  }
+
   // Migrate any legacy persisted token to session scope.
-  const legacyToken = localStorage.getItem(CAPEX_ACCESS_TOKEN_KEY) || '';
+  const legacyToken = localStorage.getItem(LEGACY_ACCESS_TOKEN_KEY) || localStorage.getItem(ACCESS_TOKEN_KEY) || '';
   if (legacyToken) {
-    sessionStorage.setItem(CAPEX_ACCESS_TOKEN_KEY, legacyToken);
-    localStorage.removeItem(CAPEX_ACCESS_TOKEN_KEY);
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, legacyToken);
+    localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
   }
   return legacyToken;
 }
@@ -35,16 +45,19 @@ function setAccessToken(token: string): void {
   if (typeof window === 'undefined') {
     return;
   }
-  sessionStorage.setItem(CAPEX_ACCESS_TOKEN_KEY, token);
-  localStorage.removeItem(CAPEX_ACCESS_TOKEN_KEY);
+  sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+  localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
 }
 
 function clearAccessToken(): void {
   if (typeof window === 'undefined') {
     return;
   }
-  sessionStorage.removeItem(CAPEX_ACCESS_TOKEN_KEY);
-  localStorage.removeItem(CAPEX_ACCESS_TOKEN_KEY);
+  sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+  sessionStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
 }
 
 export interface ManagedApiKey {
@@ -306,7 +319,7 @@ class APIClient {
 
   // Admin (all admin endpoints require x-admin-key header)
   private adminHeaders() {
-    const key = typeof window !== 'undefined' ? sessionStorage.getItem('capex_admin_key') || '' : '';
+    const key = typeof window !== 'undefined' ? sessionStorage.getItem('cerniq_admin_key') || '' : '';
     return { 'x-admin-key': key };
   }
 

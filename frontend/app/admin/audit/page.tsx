@@ -37,7 +37,7 @@ export default function AuditTrailPage() {
       setLoading(true);
       try {
         const NODE = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-        const key = typeof window !== 'undefined' ? sessionStorage.getItem('capex_admin_key') || '' : '';
+        const key = typeof window !== 'undefined' ? sessionStorage.getItem('cerniq_admin_key') || '' : '';
         const res = await fetch(`${NODE}/api/audit/logs?limit=100`, {
           headers: { 'x-admin-key': key },
         });
