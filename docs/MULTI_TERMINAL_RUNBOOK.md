@@ -451,14 +451,22 @@ curl -s -X POST http://localhost:3000/api/auth/register \
   -d '{"email":"erwin@cerniq.io","password":"SecurePass123!","name":"Erwin"}' \
   | python3 -m json.tool
 
-# Login and capture token
-TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
+# Login and capture token from Set-Cookie header
+# Auth response sets HttpOnly cookies; extract access_token from cookie jar
+COOKIE_JAR="/tmp/cerniq-cookies.txt"
+curl -s -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"erwin@cerniq.io","password":"SecurePass123!"}' \
-  | python3 -c "import sys,json; print(json.load(sys.stdin).get('accessToken','NO_TOKEN'))")
+  -c "$COOKIE_JAR" | python3 -m json.tool
 
+TOKEN=$(grep "access_token" "$COOKIE_JAR" 2>/dev/null | awk '{print $NF}')
 echo "Token captured: ${TOKEN:0:40}..."
 export TOKEN=$TOKEN
+export COOKIE_JAR=$COOKIE_JAR
+
+# For subsequent requests, use either -b cookie jar or -H Authorization:
+# Option A (cookies): curl -b "$COOKIE_JAR" ...
+# Option B (bearer):  curl -H "Authorization: Bearer $TOKEN" ...
 
 # ─── Test ALM: Duration Gap ───
 curl -s -X POST http://localhost:3000/api/alm/duration-gap \
@@ -704,11 +712,13 @@ echo $ADMIN_KEY    # Should be set
 # Check: RESEND_API_KEY if email notification fails
 
 # ─── "Token expired / 401 on authenticated calls" ───
-# Re-login and capture new token:
-TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
+# Re-login and capture new token from cookie:
+COOKIE_JAR="/tmp/cerniq-cookies.txt"
+curl -s -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"your@email.com","password":"yourpassword"}' \
-  | python3 -c "import sys,json; print(json.load(sys.stdin).get('accessToken',''))")
+  -c "$COOKIE_JAR" > /dev/null
+TOKEN=$(grep "access_token" "$COOKIE_JAR" 2>/dev/null | awk '{print $NF}')
 ```
 
 ---

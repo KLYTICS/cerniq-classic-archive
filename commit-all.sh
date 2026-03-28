@@ -23,21 +23,21 @@ HUSKY=0 git commit -m "security: add noopener noreferrer to external links on pr
 git add backend-node/src/common/constants/index.ts
 HUSKY=0 git commit -m "feat: centralized constants module for shared config values"
 
-# 6. Public decorator
-git add backend-node/src/common/decorators/public.decorator.ts
-HUSKY=0 git commit -m "feat: @Public() decorator to skip auth on open endpoints"
+# 6. Roles decorator
+git add backend-node/src/common/decorators/roles.decorator.ts
+HUSKY=0 git commit -m "feat: @Roles() decorator for role-based route access control"
 
 # 7. Path traversal sanitizer
 git add backend-node/src/common/middleware/path-traversal.middleware.ts
 HUSKY=0 git commit -m "security: path traversal sanitization middleware"
 
-# 8. Skip-to-main improvements
+# 8. Skip-to-content component
 git add frontend/components/SkipToContent.tsx
 HUSKY=0 git commit -m "a11y: enhanced skip-to-main-content link component"
 
-# 9. Response time histogram interceptor
-git add backend-node/src/common/interceptors/response-time.interceptor.ts
-HUSKY=0 git commit -m "observability: response time histogram interceptor"
+# 9. Response histogram interceptor
+git add backend-node/src/common/interceptors/response-histogram.interceptor.ts
+HUSKY=0 git commit -m "observability: response time histogram interceptor with p50/p95/p99"
 
 # 10. Password complexity validator
 git add backend-node/src/common/validators/password-complexity.validator.ts
@@ -53,7 +53,7 @@ HUSKY=0 git commit -m "perf: CORS preflight response caching middleware"
 
 # 13. manifest.json improvements
 git add frontend/public/manifest.json
-HUSKY=0 git commit -m "pwa: enhanced manifest.json with screenshots and shortcuts"
+HUSKY=0 git commit -m "pwa: enhanced manifest.json with shortcuts and scope"
 
 # 14. Request deduplication middleware
 git add backend-node/src/common/middleware/request-dedup.middleware.ts
@@ -75,11 +75,11 @@ HUSKY=0 git commit -m "ops: graceful queue drain on shutdown service"
 git add backend-node/src/common/middleware/security-headers.middleware.ts
 HUSKY=0 git commit -m "security: strict security headers middleware (CSP, HSTS, X-Frame)"
 
-# 19. Frontend error boundary
-git add frontend/components/ErrorBoundary.tsx
-HUSKY=0 git commit -m "resilience: reusable error boundary component with retry"
+# 19. Focus trap component
+git add frontend/components/FocusTrap.tsx
+HUSKY=0 git commit -m "a11y: focus trap component for modals and drawers"
 
-# 20. Backend health check enrichment
+# 20. Health check endpoint
 git add backend-node/src/common/controllers/health.controller.ts
 HUSKY=0 git commit -m "ops: enriched health check endpoint with dependency status"
 
