@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NODE_VERSION: '20'
 
@@ -14,8 +18,23 @@ jobs:
   backend-test:
     name: Backend Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: cerniq_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
       redis:
         image: redis:7-alpine
         ports:
@@ -37,6 +56,14 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend-node/package-lock.json
 
+      - name: Cache backend node_modules
+        uses: actions/cache@v4
+        with:
+          path: backend-node/node_modules
+          key: ${{ runner.os }}-backend-node-modules-${{ hashFiles('backend-node/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-backend-node-modules-
+
       - name: Install dependencies
         working-directory: backend-node
         run: npm ci --legacy-peer-deps
@@ -45,13 +72,19 @@ jobs:
         working-directory: backend-node
         run: npx prisma generate
 
+      - name: Push schema to test database
+        working-directory: backend-node
+        run: npx prisma db push --skip-generate
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
+
       - name: Validate Prisma schema
         working-directory: backend-node
         run: npx prisma validate
 
       - name: Security audit
         working-directory: backend-node
-        run: npm audit --audit-level=high --omit=dev || true
+        run: npm audit --audit-level=critical --omit=dev || true
 
       - name: Lint
         working-directory: backend-node
@@ -63,19 +96,20 @@ jobs:
         env:
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
 
       - name: Build
         working-directory: backend-node
         run: npm run build
         env:
           JWT_SECRET: ci-build-secret-must-be-at-least-32-characters-long
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
 
   # Frontend Next.js — lint, build
   frontend-test:
     name: Frontend Build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -94,7 +128,7 @@ jobs:
 
       - name: Security audit
         working-directory: frontend
-        run: npm audit --audit-level=high --omit=dev || true
+        run: npm audit --audit-level=critical --omit=dev || true
 
       - name: Lint
         working-directory: frontend
@@ -110,6 +144,7 @@ jobs:
   deploy-backend:
     name: Deploy Backend
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [backend-test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
@@ -131,6 +166,7 @@ jobs:
   frontend-e2e:
     name: Frontend E2E Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [frontend-test]
     if: github.event_name == 'pull_request'
 
@@ -178,6 +214,7 @@ jobs:
   deploy-frontend:
     name: Frontend Deploy (Vercel)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [frontend-test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 

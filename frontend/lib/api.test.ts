@@ -1,0 +1,79 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import axios from 'axios';
+
+// Mock axios before importing apiClient
+vi.mock('axios', async () => {
+  const mockAxiosInstance = {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    interceptors: {
+      request: { use: vi.fn() },
+      response: { use: vi.fn() },
+    },
+  };
+
+  return {
+    default: {
+      create: vi.fn(() => mockAxiosInstance),
+      post: vi.fn(),
+    },
+  };
+});
+
+// Mock the marketTransport dependency
+vi.mock('./marketTransport', () => ({
+  getMarketApiBase: vi.fn(() => 'https://market-api.test'),
+}));
+
+describe('APIClient', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.restoreAllMocks();
+  });
+
+  it('creates an axios instance with correct baseURL config', async () => {
+    // Re-import to trigger constructor
+    await import('./api');
+
+    expect(axios.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: { 'Content-Type': 'application/json' },
+        withCredentials: true,
+      })
+    );
+  });
+
+  it('sets up request and response interceptors', async () => {
+    await import('./api');
+
+    const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;
+    expect(mockInstance.interceptors.request.use).toHaveBeenCalled();
+    expect(mockInstance.interceptors.response.use).toHaveBeenCalled();
+  });
+
+  it('exports apiClient with expected methods', async () => {
+    const { apiClient } = await import('./api');
+
+    // Core authentication methods
+    expect(typeof apiClient.register).toBe('function');
+    expect(typeof apiClient.login).toBe('function');
+    expect(typeof apiClient.logout).toBe('function');
+    expect(typeof apiClient.getCurrentUser).toBe('function');
+
+    // Risk analysis
+    expect(typeof apiClient.getRiskAnalysis).toBe('function');
+
+    // Admin methods
+    expect(typeof apiClient.getDemoRequests).toBe('function');
+    expect(typeof apiClient.getAdminStats).toBe('function');
+  });
+
+  it('exports apiClient as a singleton', async () => {
+    const mod1 = await import('./api');
+    const mod2 = await import('./api');
+
+    expect(mod1.apiClient).toBe(mod2.apiClient);
+  });
+});

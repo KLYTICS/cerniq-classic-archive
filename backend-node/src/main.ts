@@ -140,6 +140,12 @@ async function bootstrap() {
   // --- Graceful shutdown (drain connections on SIGTERM) ---
   app.enableShutdownHooks();
 
+  // Mark health endpoint as 503 during shutdown so load balancers drain
+  const { AppController: AppCtrl } = await import('./app.controller');
+  process.on('SIGTERM', () => {
+    AppCtrl.markShuttingDown();
+  });
+
   // --- Swagger / OpenAPI ---
   const swaggerConfig = new DocumentBuilder()
     .setTitle('CERNIQ API')

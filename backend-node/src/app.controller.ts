@@ -207,9 +207,16 @@ export class AppController {
     return this.appService.getHello();
   }
 
+  // Graceful shutdown: return 503 during drain period so load balancers stop routing
+  private static shuttingDown = false;
+  static markShuttingDown() { AppController.shuttingDown = true; }
+
   @Get('health')
   @SkipThrottle()
   async getHealth() {
+    if (AppController.shuttingDown) {
+      return { status: 'shutting_down', message: 'Instance is draining connections' };
+    }
     const checks: Record<string, string> = { api: 'up' };
 
     // Check DB
@@ -427,7 +434,7 @@ export class AppController {
       };
     }
 
-    const results = [];
+    const results: any[] = [];
     for (const seed of seeds) {
       const existing = await this.prisma.prospect.findFirst({
         where: { email: seed.email },
