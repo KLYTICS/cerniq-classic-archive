@@ -917,214 +917,214 @@ CREATE TABLE IF NOT EXISTS "institution_alerts" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+CREATE UNIQUE INDEX IF NOT EXISTS "users_email_key" ON "users"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_provider_provider_id_key" ON "users"("provider", "provider_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "users_provider_provider_id_key" ON "users"("provider", "provider_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "refresh_tokens_token_key" ON "refresh_tokens"("token");
+CREATE UNIQUE INDEX IF NOT EXISTS "refresh_tokens_token_key" ON "refresh_tokens"("token");
 
 -- CreateIndex
-CREATE INDEX "refresh_tokens_user_id_idx" ON "refresh_tokens"("user_id");
+CREATE INDEX IF NOT EXISTS "refresh_tokens_user_id_idx" ON "refresh_tokens"("user_id");
 
 -- CreateIndex
-CREATE INDEX "refresh_tokens_token_idx" ON "refresh_tokens"("token");
+CREATE INDEX IF NOT EXISTS "refresh_tokens_token_idx" ON "refresh_tokens"("token");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "password_reset_tokens_token_hash_key" ON "password_reset_tokens"("token_hash");
+CREATE UNIQUE INDEX IF NOT EXISTS "password_reset_tokens_token_hash_key" ON "password_reset_tokens"("token_hash");
 
 -- CreateIndex
-CREATE INDEX "password_reset_tokens_token_hash_idx" ON "password_reset_tokens"("token_hash");
+CREATE INDEX IF NOT EXISTS "password_reset_tokens_token_hash_idx" ON "password_reset_tokens"("token_hash");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "api_keys_key_hash_key" ON "api_keys"("key_hash");
+CREATE UNIQUE INDEX IF NOT EXISTS "api_keys_key_hash_key" ON "api_keys"("key_hash");
 
 -- CreateIndex
-CREATE INDEX "api_keys_user_id_revoked_at_idx" ON "api_keys"("user_id", "revoked_at");
+CREATE INDEX IF NOT EXISTS "api_keys_user_id_revoked_at_idx" ON "api_keys"("user_id", "revoked_at");
 
 -- CreateIndex
-CREATE INDEX "api_keys_expires_at_idx" ON "api_keys"("expires_at");
+CREATE INDEX IF NOT EXISTS "api_keys_expires_at_idx" ON "api_keys"("expires_at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "organizations_slug_key" ON "organizations"("slug");
+CREATE UNIQUE INDEX IF NOT EXISTS "organizations_slug_key" ON "organizations"("slug");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "organization_members_organization_id_user_id_key" ON "organization_members"("organization_id", "user_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "organization_members_organization_id_user_id_key" ON "organization_members"("organization_id", "user_id");
 
 -- CreateIndex
-CREATE INDEX "expenses_organization_id_idx" ON "expenses"("organization_id");
+CREATE INDEX IF NOT EXISTS "expenses_organization_id_idx" ON "expenses"("organization_id");
 
 -- CreateIndex
-CREATE INDEX "expenses_user_id_idx" ON "expenses"("user_id");
+CREATE INDEX IF NOT EXISTS "expenses_user_id_idx" ON "expenses"("user_id");
 
 -- CreateIndex
-CREATE INDEX "expenses_status_idx" ON "expenses"("status");
+CREATE INDEX IF NOT EXISTS "expenses_status_idx" ON "expenses"("status");
 
 -- CreateIndex
-CREATE INDEX "expenses_invoice_hash_idx" ON "expenses"("invoice_hash");
+CREATE INDEX IF NOT EXISTS "expenses_invoice_hash_idx" ON "expenses"("invoice_hash");
 
 -- CreateIndex
-CREATE INDEX "institutions_workspace_id_idx" ON "institutions"("workspace_id");
+CREATE INDEX IF NOT EXISTS "institutions_workspace_id_idx" ON "institutions"("workspace_id");
 
 -- CreateIndex
-CREATE INDEX "balance_sheet_items_institution_id_idx" ON "balance_sheet_items"("institution_id");
+CREATE INDEX IF NOT EXISTS "balance_sheet_items_institution_id_idx" ON "balance_sheet_items"("institution_id");
 
 -- CreateIndex
-CREATE INDEX "interest_rate_scenarios_institution_id_idx" ON "interest_rate_scenarios"("institution_id");
+CREATE INDEX IF NOT EXISTS "interest_rate_scenarios_institution_id_idx" ON "interest_rate_scenarios"("institution_id");
 
 -- CreateIndex
-CREATE INDEX "liquidity_positions_institution_id_idx" ON "liquidity_positions"("institution_id");
+CREATE INDEX IF NOT EXISTS "liquidity_positions_institution_id_idx" ON "liquidity_positions"("institution_id");
 
 -- CreateIndex
-CREATE INDEX "saved_scenarios_institution_id_created_at_idx" ON "saved_scenarios"("institution_id", "created_at");
+CREATE INDEX IF NOT EXISTS "saved_scenarios_institution_id_created_at_idx" ON "saved_scenarios"("institution_id", "created_at");
 
 -- CreateIndex
-CREATE INDEX "saved_scenarios_created_by_idx" ON "saved_scenarios"("created_by");
+CREATE INDEX IF NOT EXISTS "saved_scenarios_created_by_idx" ON "saved_scenarios"("created_by");
 
 -- CreateIndex
-CREATE INDEX "yield_curves_institution_id_as_of_date_idx" ON "yield_curves"("institution_id", "as_of_date");
+CREATE INDEX IF NOT EXISTS "yield_curves_institution_id_as_of_date_idx" ON "yield_curves"("institution_id", "as_of_date");
 
 -- CreateIndex
-CREATE INDEX "loan_segments_institution_id_as_of_date_idx" ON "loan_segments"("institution_id", "as_of_date");
+CREATE INDEX IF NOT EXISTS "loan_segments_institution_id_as_of_date_idx" ON "loan_segments"("institution_id", "as_of_date");
 
 -- CreateIndex
-CREATE INDEX "deposit_tiers_institution_id_idx" ON "deposit_tiers"("institution_id");
+CREATE INDEX IF NOT EXISTS "deposit_tiers_institution_id_idx" ON "deposit_tiers"("institution_id");
 
 -- CreateIndex
-CREATE INDEX "concentration_limits_institution_id_idx" ON "concentration_limits"("institution_id");
+CREATE INDEX IF NOT EXISTS "concentration_limits_institution_id_idx" ON "concentration_limits"("institution_id");
 
 -- CreateIndex
-CREATE INDEX "loan_cohorts_institution_id_idx" ON "loan_cohorts"("institution_id");
+CREATE INDEX IF NOT EXISTS "loan_cohorts_institution_id_idx" ON "loan_cohorts"("institution_id");
 
 -- CreateIndex
-CREATE INDEX "cecl_vintage_allowances_institution_id_idx" ON "cecl_vintage_allowances"("institution_id");
+CREATE INDEX IF NOT EXISTS "cecl_vintage_allowances_institution_id_idx" ON "cecl_vintage_allowances"("institution_id");
 
 -- CreateIndex
-CREATE INDEX "irr_policy_limits_institution_id_idx" ON "irr_policy_limits"("institution_id");
+CREATE INDEX IF NOT EXISTS "irr_policy_limits_institution_id_idx" ON "irr_policy_limits"("institution_id");
 
 -- CreateIndex
-CREATE INDEX "policy_breach_logs_institution_id_detected_at_idx" ON "policy_breach_logs"("institution_id", "detected_at");
+CREATE INDEX IF NOT EXISTS "policy_breach_logs_institution_id_detected_at_idx" ON "policy_breach_logs"("institution_id", "detected_at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "column_mapping_memories_institution_id_csv_column_name_key" ON "column_mapping_memories"("institution_id", "csv_column_name");
+CREATE UNIQUE INDEX IF NOT EXISTS "column_mapping_memories_institution_id_csv_column_name_key" ON "column_mapping_memories"("institution_id", "csv_column_name");
 
 -- CreateIndex
-CREATE INDEX "board_reports_institution_id_idx" ON "board_reports"("institution_id");
+CREATE INDEX IF NOT EXISTS "board_reports_institution_id_idx" ON "board_reports"("institution_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "positions_portfolio_id_ticker_key" ON "positions"("portfolio_id", "ticker");
+CREATE UNIQUE INDEX IF NOT EXISTS "positions_portfolio_id_ticker_key" ON "positions"("portfolio_id", "ticker");
 
 -- CreateIndex
-CREATE INDEX "market_prices_ticker_idx" ON "market_prices"("ticker");
+CREATE INDEX IF NOT EXISTS "market_prices_ticker_idx" ON "market_prices"("ticker");
 
 -- CreateIndex
-CREATE INDEX "market_prices_date_idx" ON "market_prices"("date");
+CREATE INDEX IF NOT EXISTS "market_prices_date_idx" ON "market_prices"("date");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "market_prices_ticker_date_key" ON "market_prices"("ticker", "date");
+CREATE UNIQUE INDEX IF NOT EXISTS "market_prices_ticker_date_key" ON "market_prices"("ticker", "date");
 
 -- CreateIndex
-CREATE INDEX "leads_status_idx" ON "leads"("status");
+CREATE INDEX IF NOT EXISTS "leads_status_idx" ON "leads"("status");
 
 -- CreateIndex
-CREATE INDEX "leads_priority_idx" ON "leads"("priority");
+CREATE INDEX IF NOT EXISTS "leads_priority_idx" ON "leads"("priority");
 
 -- CreateIndex
-CREATE INDEX "leads_email_idx" ON "leads"("email");
+CREATE INDEX IF NOT EXISTS "leads_email_idx" ON "leads"("email");
 
 -- CreateIndex
-CREATE INDEX "prospect_institutions_outreach_status_idx" ON "prospect_institutions"("outreach_status");
+CREATE INDEX IF NOT EXISTS "prospect_institutions_outreach_status_idx" ON "prospect_institutions"("outreach_status");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "cooperativa_benchmarks_period_key" ON "cooperativa_benchmarks"("period");
+CREATE UNIQUE INDEX IF NOT EXISTS "cooperativa_benchmarks_period_key" ON "cooperativa_benchmarks"("period");
 
 -- CreateIndex
-CREATE INDEX "analysis_runs_institution_id_created_at_idx" ON "analysis_runs"("institution_id", "created_at");
+CREATE INDEX IF NOT EXISTS "analysis_runs_institution_id_created_at_idx" ON "analysis_runs"("institution_id", "created_at");
 
 -- CreateIndex
-CREATE INDEX "analysis_runs_created_by_user_id_created_at_idx" ON "analysis_runs"("created_by_user_id", "created_at");
+CREATE INDEX IF NOT EXISTS "analysis_runs_created_by_user_id_created_at_idx" ON "analysis_runs"("created_by_user_id", "created_at");
 
 -- CreateIndex
-CREATE INDEX "analysis_runs_status_idx" ON "analysis_runs"("status");
+CREATE INDEX IF NOT EXISTS "analysis_runs_status_idx" ON "analysis_runs"("status");
 
 -- CreateIndex
-CREATE INDEX "ingestion_logs_institution_id_created_at_idx" ON "ingestion_logs"("institution_id", "created_at");
+CREATE INDEX IF NOT EXISTS "ingestion_logs_institution_id_created_at_idx" ON "ingestion_logs"("institution_id", "created_at");
 
 -- CreateIndex
-CREATE INDEX "ingestion_logs_created_by_user_id_created_at_idx" ON "ingestion_logs"("created_by_user_id", "created_at");
+CREATE INDEX IF NOT EXISTS "ingestion_logs_created_by_user_id_created_at_idx" ON "ingestion_logs"("created_by_user_id", "created_at");
 
 -- CreateIndex
-CREATE INDEX "ingestion_logs_report_job_id_created_at_idx" ON "ingestion_logs"("report_job_id", "created_at");
+CREATE INDEX IF NOT EXISTS "ingestion_logs_report_job_id_created_at_idx" ON "ingestion_logs"("report_job_id", "created_at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "subscriptions_user_id_key" ON "subscriptions"("user_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "subscriptions_user_id_key" ON "subscriptions"("user_id");
 
 -- CreateIndex
-CREATE INDEX "subscriptions_stripe_customer_id_idx" ON "subscriptions"("stripe_customer_id");
+CREATE INDEX IF NOT EXISTS "subscriptions_stripe_customer_id_idx" ON "subscriptions"("stripe_customer_id");
 
 -- CreateIndex
-CREATE INDEX "report_jobs_user_id_status_idx" ON "report_jobs"("user_id", "status");
+CREATE INDEX IF NOT EXISTS "report_jobs_user_id_status_idx" ON "report_jobs"("user_id", "status");
 
 -- CreateIndex
-CREATE INDEX "report_jobs_status_idx" ON "report_jobs"("status");
+CREATE INDEX IF NOT EXISTS "report_jobs_status_idx" ON "report_jobs"("status");
 
 -- CreateIndex
-CREATE INDEX "report_jobs_institution_id_status_idx" ON "report_jobs"("institution_id", "status");
+CREATE INDEX IF NOT EXISTS "report_jobs_institution_id_status_idx" ON "report_jobs"("institution_id", "status");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "magic_links_token_key" ON "magic_links"("token");
+CREATE UNIQUE INDEX IF NOT EXISTS "magic_links_token_key" ON "magic_links"("token");
 
 -- CreateIndex
-CREATE INDEX "magic_links_token_idx" ON "magic_links"("token");
+CREATE INDEX IF NOT EXISTS "magic_links_token_idx" ON "magic_links"("token");
 
 -- CreateIndex
-CREATE INDEX "email_sequences_user_id_sequence_key_idx" ON "email_sequences"("user_id", "sequence_key");
+CREATE INDEX IF NOT EXISTS "email_sequences_user_id_sequence_key_idx" ON "email_sequences"("user_id", "sequence_key");
 
 -- CreateIndex
-CREATE INDEX "email_sequences_scheduled_at_cancelled_sent_at_idx" ON "email_sequences"("scheduled_at", "cancelled", "sent_at");
+CREATE INDEX IF NOT EXISTS "email_sequences_scheduled_at_cancelled_sent_at_idx" ON "email_sequences"("scheduled_at", "cancelled", "sent_at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "partner_configs_user_id_key" ON "partner_configs"("user_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "partner_configs_user_id_key" ON "partner_configs"("user_id");
 
 -- CreateIndex
-CREATE INDEX "prospects_stage_idx" ON "prospects"("stage");
+CREATE INDEX IF NOT EXISTS "prospects_stage_idx" ON "prospects"("stage");
 
 -- CreateIndex
-CREATE INDEX "audit_logs_resource_resource_id_idx" ON "audit_logs"("resource", "resource_id");
+CREATE INDEX IF NOT EXISTS "audit_logs_resource_resource_id_idx" ON "audit_logs"("resource", "resource_id");
 
 -- CreateIndex
-CREATE INDEX "audit_logs_user_id_created_at_idx" ON "audit_logs"("user_id", "created_at");
+CREATE INDEX IF NOT EXISTS "audit_logs_user_id_created_at_idx" ON "audit_logs"("user_id", "created_at");
 
 -- CreateIndex
-CREATE INDEX "audit_logs_institution_id_created_at_idx" ON "audit_logs"("institution_id", "created_at");
+CREATE INDEX IF NOT EXISTS "audit_logs_institution_id_created_at_idx" ON "audit_logs"("institution_id", "created_at");
 
 -- CreateIndex
-CREATE INDEX "feedback_institution_id_idx" ON "feedback"("institution_id");
+CREATE INDEX IF NOT EXISTS "feedback_institution_id_idx" ON "feedback"("institution_id");
 
 -- CreateIndex
-CREATE INDEX "webhook_subscriptions_institution_id_idx" ON "webhook_subscriptions"("institution_id");
+CREATE INDEX IF NOT EXISTS "webhook_subscriptions_institution_id_idx" ON "webhook_subscriptions"("institution_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "resellers_slug_key" ON "resellers"("slug");
+CREATE UNIQUE INDEX IF NOT EXISTS "resellers_slug_key" ON "resellers"("slug");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "prospect_analyses_charter_number_key" ON "prospect_analyses"("charter_number");
+CREATE UNIQUE INDEX IF NOT EXISTS "prospect_analyses_charter_number_key" ON "prospect_analyses"("charter_number");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "sso_configurations_institution_id_key" ON "sso_configurations"("institution_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "sso_configurations_institution_id_key" ON "sso_configurations"("institution_id");
 
 -- CreateIndex
-CREATE INDEX "usage_meter_events_institution_id_event_type_created_at_idx" ON "usage_meter_events"("institution_id", "event_type", "created_at");
+CREATE INDEX IF NOT EXISTS "usage_meter_events_institution_id_event_type_created_at_idx" ON "usage_meter_events"("institution_id", "event_type", "created_at");
 
 -- CreateIndex
-CREATE INDEX "data_deletion_requests_institution_id_idx" ON "data_deletion_requests"("institution_id");
+CREATE INDEX IF NOT EXISTS "data_deletion_requests_institution_id_idx" ON "data_deletion_requests"("institution_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "regulatory_publications_url_key" ON "regulatory_publications"("url");
+CREATE UNIQUE INDEX IF NOT EXISTS "regulatory_publications_url_key" ON "regulatory_publications"("url");
 
 -- CreateIndex
-CREATE INDEX "institution_alerts_institution_id_created_at_idx" ON "institution_alerts"("institution_id", "created_at" DESC);
+CREATE INDEX IF NOT EXISTS "institution_alerts_institution_id_created_at_idx" ON "institution_alerts"("institution_id", "created_at" DESC);
 
 -- AddForeignKey
 ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
