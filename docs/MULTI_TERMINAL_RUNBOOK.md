@@ -465,15 +465,18 @@ curl -s -X POST http://localhost:3000/api/alm/duration-gap \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "assets": [
-      {"balance": 100000000, "rate": 0.065, "maturityYears": 5, "isFixed": true},
-      {"balance": 50000000,  "rate": 0.072, "maturityYears": 10, "isFixed": true},
-      {"balance": 30000000,  "rate": 0.045, "maturityYears": 0.5, "isFixed": false}
-    ],
-    "liabilities": [
-      {"balance": 80000000,  "rate": 0.025, "maturityYears": 1, "isFixed": false},
-      {"balance": 60000000,  "rate": 0.032, "maturityYears": 3, "isFixed": false}
-    ]
+    "balanceSheet": {
+      "assets": [
+        {"balance": 100000000, "rate": 0.065, "maturityYears": 5, "isFixed": true},
+        {"balance": 50000000,  "rate": 0.072, "maturityYears": 10, "isFixed": true},
+        {"balance": 30000000,  "rate": 0.045, "maturityYears": 0.5, "isFixed": false}
+      ],
+      "liabilities": [
+        {"balance": 80000000,  "rate": 0.025, "maturityYears": 1, "isFixed": false},
+        {"balance": 60000000,  "rate": 0.032, "maturityYears": 3, "isFixed": false}
+      ],
+      "equity": 40000000
+    }
   }' | python3 -m json.tool
 
 # ─── Test Risk: Monte Carlo VaR ───

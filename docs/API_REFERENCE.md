@@ -72,15 +72,18 @@ POST /api/alm/duration-gap
 Authorization: Bearer <token>
 ```
 
-**Body:**
+**Body:** (wrapped in `balanceSheet` with required `equity`)
 ```json
 {
-  "assets": [
-    { "balance": 100000000, "rate": 0.065, "maturityYears": 5, "isFixed": true }
-  ],
-  "liabilities": [
-    { "balance": 80000000, "rate": 0.025, "maturityYears": 1, "isFixed": false }
-  ]
+  "balanceSheet": {
+    "assets": [
+      { "balance": 100000000, "rate": 0.065, "maturityYears": 5, "isFixed": true }
+    ],
+    "liabilities": [
+      { "balance": 80000000, "rate": 0.025, "maturityYears": 1, "isFixed": false }
+    ],
+    "equity": 20000000
+  }
 }
 ```
 
