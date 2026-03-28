@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma.service.js';
-import { SOC2EvidenceService } from './soc2-evidence.service.js';
+import { PrismaService } from '../prisma.service';
+import { SOC2EvidenceService } from './soc2-evidence.service';
 import {
   DataClassification,
   FIELD_CLASSIFICATIONS,
   getClassificationSummary,
-} from './data-classification.js';
+} from './data-classification';
 
 // ─── Report Shape ─────────────────────────────────────────
 
@@ -242,7 +242,7 @@ export class ComplianceReportService {
       },
     });
 
-    const recentDeployments = deploymentLogs.map((log) => {
+    const recentDeployments = deploymentLogs.map((log: any) => {
       const meta = (log.metadata as Record<string, unknown>) || {};
       return {
         commitSha: (meta.commitSha as string) || null,
@@ -325,7 +325,7 @@ export class ComplianceReportService {
       newestEntry: newest?.createdAt?.toISOString() || null,
       gapDetected,
       gapDetails,
-      distinctActions: distinctActions.map((a) => a.action),
+      distinctActions: distinctActions.map((a: any) => a.action),
     };
   }
 

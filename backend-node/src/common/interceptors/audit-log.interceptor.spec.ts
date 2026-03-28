@@ -1,5 +1,5 @@
 import { CallHandler, ExecutionContext } from '@nestjs/common';
-import { of, lastValueFrom } from 'rxjs';
+import { of, lastValueFrom, throwError } from 'rxjs';
 import { AuditLogInterceptor } from './audit-log.interceptor';
 import { PrismaService } from '../../prisma.service';
 
@@ -206,7 +206,7 @@ describe('AuditLogInterceptor', () => {
     });
   });
 
-  it('should persist audit log via PrismaService (fire-and-forget)', async () => {
+  it('should persist audit log with success outcome', async () => {
     const context = createMockContext({
       method: 'POST',
       routePath: '/api/leads',
@@ -226,7 +226,10 @@ describe('AuditLogInterceptor', () => {
         action: 'CREATE',
         resource: 'leads',
         resourceId: null,
-        changes: { email: 'lead@test.com' },
+        changes: expect.objectContaining({
+          email: 'lead@test.com',
+          _audit_outcome: 'success',
+        }),
         ipAddress: '10.0.0.1',
         userAgent: 'Jest/1.0',
         tenantId: 'org-2',
@@ -247,26 +250,42 @@ describe('AuditLogInterceptor', () => {
     await lastValueFrom(obs);
 
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ changes: null }),
+      data: expect.objectContaining({
+        changes: expect.objectContaining({ _audit_outcome: 'success' }),
+      }),
     });
   });
 
-  it('should not log when the handler throws an error', async () => {
+  it('should log failed operations with error details', async () => {
     const failingHandler: CallHandler = {
-      handle: () => {
-        throw new Error('Handler failed');
-      },
+      handle: () => throwError(() => ({ message: 'Forbidden', status: 403 })),
     };
 
     const context = createMockContext({
       method: 'POST',
       routePath: '/api/reports',
+      body: { title: 'Test' },
       user: { userId: 'user-10' },
     });
 
-    expect(() => interceptor.intercept(context, failingHandler)).toThrow(
-      'Handler failed',
-    );
-    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+    const obs = interceptor.intercept(context, failingHandler);
+    try {
+      await lastValueFrom(obs);
+    } catch {
+      // Expected — the error propagates
+    }
+
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: 'CREATE',
+        resource: 'reports',
+        userId: 'user-10',
+        changes: expect.objectContaining({
+          _audit_outcome: 'failure',
+          _audit_error: 'Forbidden',
+          _audit_error_status: 403,
+        }),
+      }),
+    });
   });
 });

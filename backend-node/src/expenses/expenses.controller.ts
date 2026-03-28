@@ -16,6 +16,16 @@ import {
   Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiConsumes,
+  ApiBody,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { ExpensesService } from './expenses.service';
 import { AnomalyDetectionService } from './anomaly-detection.service';
 import { ApReportService } from './ap-report.service';
@@ -26,6 +36,8 @@ import { PrismaService } from '../prisma.service';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 
+@ApiTags('SpendCheck')
+@ApiBearerAuth('BearerAuth')
 @Controller('api/expenses')
 @UseGuards(AuthGuard)
 export class ExpensesController {
@@ -43,6 +55,13 @@ export class ExpensesController {
   // ── CSV Upload Endpoint ──────────────────────────────────────────
 
   @Post(':orgId/upload')
+  @ApiOperation({ summary: 'Upload a CSV file of expenses for anomaly detection and analysis' })
+  @ApiParam({ name: 'orgId', description: 'Organization ID (or "auto" for default org)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ description: 'CSV file with expense records', schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiResponse({ status: 201, description: 'Expenses ingested and anomaly detection triggered' })
+  @ApiResponse({ status: 400, description: 'Invalid CSV file or format' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
@@ -232,12 +251,22 @@ export class ExpensesController {
   // ── Existing Endpoints ────────────────────────────────────────────
 
   @Post(':orgId/analyze')
+  @ApiOperation({ summary: 'Trigger anomaly detection analysis for an organization' })
+  @ApiParam({ name: 'orgId', description: 'Organization UUID' })
+  @ApiResponse({ status: 201, description: 'Anomaly detection results' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async analyzeOrganization(@Param('orgId') orgId: string, @Req() req: any) {
     await this.verifyOrgMembership(orgId, req.user.userId);
     return this.anomalyDetectionService.analyzeOrganization(orgId);
   }
 
   @Post(':orgId/report')
+  @ApiOperation({ summary: 'Generate AP intelligence report as PDF' })
+  @ApiParam({ name: 'orgId', description: 'Organization UUID' })
+  @ApiQuery({ name: 'lang', required: false, description: 'Report language (en or es)' })
+  @ApiQuery({ name: 'institutionId', required: false, description: 'Optional institution ID for LCR context' })
+  @ApiResponse({ status: 201, description: 'PDF report binary stream', content: { 'application/pdf': {} } })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async generateAPReport(
     @Param('orgId') orgId: string,
     @Query('lang') lang: string,
@@ -311,6 +340,10 @@ export class ExpensesController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'List all expenses for the authenticated user and organization' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by expense status (DRAFT, SUBMITTED, APPROVED, REJECTED)' })
+  @ApiResponse({ status: 200, description: 'List of expense records' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAll(@Query('status') status: string, @Req() req: any) {
     const organizationId = this.resolveOrgId(req);
     return this.expensesService.findAll(
@@ -362,6 +395,10 @@ export class ExpensesController {
   }
 
   @Get(':orgId/vendor-report')
+  @ApiOperation({ summary: 'Generate vendor intelligence report with spend concentration analysis' })
+  @ApiParam({ name: 'orgId', description: 'Organization UUID' })
+  @ApiResponse({ status: 200, description: 'Vendor report with spend analysis and risk indicators' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getVendorReport(@Param('orgId') orgId: string, @Req() req: any) {
     await this.verifyOrgMembership(orgId, req.user.userId);
     const rawExpenses = await this.prisma.expense.findMany({

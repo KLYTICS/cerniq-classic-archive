@@ -5,7 +5,7 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ComplianceReportService } from './compliance-report.service.js';
+import { ComplianceReportService } from './compliance-report.service';
 
 @Controller('api/admin/compliance')
 export class ComplianceController {

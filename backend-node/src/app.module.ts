@@ -40,6 +40,7 @@ import { FeedbackModule } from './feedback/feedback.module';
 import { DataCryptoModule } from './crypto/data-crypto.module';
 import { AuditModule } from './audit/audit.module';
 import { ApiV1Module } from './api-v1/api-v1.module';
+import { ComplianceModule } from './compliance/compliance.module';
 
 @Module({
   imports: [
@@ -98,6 +99,8 @@ import { ApiV1Module } from './api-v1/api-v1.module';
     FeedbackModule,
     // Public API v1 (Swagger-documented, API key auth)
     ApiV1Module,
+    // SOC 2 Type II compliance automation
+    ComplianceModule,
   ],
   controllers: [AppController],
   providers: [

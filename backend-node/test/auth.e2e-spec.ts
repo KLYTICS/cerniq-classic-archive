@@ -10,11 +10,7 @@ import { SanitizePipe } from '../src/common/pipes/sanitize.pipe';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 
-// ── Environment ──
-process.env.JWT_SECRET =
-  process.env.JWT_SECRET || 'test-secret-must-be-at-least-32-characters-long';
-process.env.ADMIN_KEY = process.env.ADMIN_KEY || 'test-admin-key-e2e';
-process.env.NODE_ENV = 'test';
+// Environment is configured via test/setup-env.ts (setupFiles in jest-e2e.json)
 
 // ── Prisma mock factory ──
 function createPrismaMock() {
@@ -82,6 +78,7 @@ function createPrismaMock() {
           refreshTokens.find((t) => t.token === where.token) || null,
         );
       }),
+      findMany: jest.fn().mockResolvedValue([]),
       update: jest.fn().mockImplementation(({ where, data }: any) => {
         const token = refreshTokens.find((t) => t.id === where.id);
         if (token) Object.assign(token, data);
@@ -176,8 +173,12 @@ describe('Auth API Integration Tests (e2e)', () => {
 
       const res = await request(app.getHttpServer())
         .post('/api/auth/register')
-        .send(dto)
-        .expect(201);
+        .send(dto);
+
+      if (res.status !== 201) {
+        console.log('REGISTER FAILED:', JSON.stringify(res.body, null, 2));
+      }
+      expect(res.status).toBe(201);
 
       // Response envelope wraps the data
       expect(res.body).toHaveProperty('success', true);

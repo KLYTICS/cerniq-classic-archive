@@ -20,6 +20,7 @@ describe('AuthService', () => {
     };
     refreshToken: {
       create: jest.Mock;
+      findMany: jest.Mock;
       findUnique: jest.Mock;
       update: jest.Mock;
       updateMany: jest.Mock;
@@ -47,6 +48,7 @@ describe('AuthService', () => {
       },
       refreshToken: {
         create: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
         findUnique: jest.fn(),
         update: jest.fn(),
         updateMany: jest.fn(),

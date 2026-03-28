@@ -21,6 +21,7 @@ type AuthenticatedRequestUser = {
   claims: Record<string, any>;
   orgId?: string | null;
   authMethod?: 'token' | 'api_key';
+  keyExpiresAt?: Date;
 };
 
 @Injectable()

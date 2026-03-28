@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { SOC2EvidenceService } from './soc2-evidence.service.js';
-import { ComplianceReportService } from './compliance-report.service.js';
-import { ComplianceController } from './compliance.controller.js';
+import { SOC2EvidenceService } from './soc2-evidence.service';
+import { ComplianceReportService } from './compliance-report.service';
+import { ComplianceController } from './compliance.controller';
 
 @Module({
   controllers: [ComplianceController],

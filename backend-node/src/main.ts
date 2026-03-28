@@ -177,6 +177,10 @@ async function bootstrap() {
       'BearerAuth',
     )
     .addTag('ALM Analysis', 'Balance sheet analysis and regulatory compliance')
+    .addTag('Authentication', 'User registration, login, OAuth, and API key management')
+    .addTag('Billing', 'Subscription checkout, Stripe webhooks, and billing portal')
+    .addTag('Client Portal', 'Report jobs, data submission, ALCO packs, and team management')
+    .addTag('SpendCheck', 'Expense management, anomaly detection, and AP intelligence')
     .addTag('Benchmarks', 'Sector benchmarks and comparison data')
     .addTag('Reference Data', 'Supported frameworks and configuration')
     .addTag('System', 'Health checks and diagnostics')

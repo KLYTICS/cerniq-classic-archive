@@ -13,6 +13,13 @@ import {
 } from '@nestjs/common';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
 import {
@@ -100,6 +107,7 @@ function clearAuthCookies(res: any) {
   res.clearCookie('refresh_token', COOKIE_OPTIONS);
 }
 
+@ApiTags('Authentication')
 @Controller('api/auth')
 export class AuthController {
   constructor(
@@ -109,6 +117,10 @@ export class AuthController {
 
   @Post('register')
   @Throttle({ default: { ttl: 60000, limit: 3 } })
+  @ApiOperation({ summary: 'Register a new user account' })
+  @ApiResponse({ status: 201, description: 'User registered and authentication cookies set' })
+  @ApiResponse({ status: 400, description: 'Invalid registration data or email already exists' })
+  @ApiResponse({ status: 429, description: 'Rate limit exceeded (max 3/min)' })
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: any,
@@ -121,6 +133,10 @@ export class AuthController {
   @Post('login')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Authenticate with email and password' })
+  @ApiResponse({ status: 200, description: 'Login successful, authentication cookies set' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 429, description: 'Rate limit exceeded (max 5/min)' })
   async login(
     @Body() dto: LoginDto,
     @Req() req: any,
@@ -144,6 +160,9 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh access and refresh tokens' })
+  @ApiResponse({ status: 200, description: 'New tokens issued and cookies set' })
+  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   async refresh(
     @Body() body: RefreshTokenDto,
     @Req() req: any,
@@ -171,6 +190,10 @@ export class AuthController {
 
   @Get('profile')
   @UseGuards(AuthGuard)
+  @ApiBearerAuth('BearerAuth')
+  @ApiOperation({ summary: 'Get the authenticated user profile' })
+  @ApiResponse({ status: 200, description: 'User profile with subscription and workspace data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   getProfile(@Req() req: any) {
     return this.authService.getUserProfile(req.user.userId);
   }
@@ -221,6 +244,10 @@ export class AuthController {
   @Post('api-keys')
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @UseGuards(AuthGuard)
+  @ApiBearerAuth('BearerAuth')
+  @ApiOperation({ summary: 'Create a new API key for programmatic access' })
+  @ApiResponse({ status: 201, description: 'API key created (secret shown only once)' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createApiKey(@Req() req: any, @Body() dto: CreateApiKeyDto) {
     const created = await this.authService.createApiKey(
       req.user.userId,

@@ -97,6 +97,10 @@ export class BillingController {
 
   @Post('api/billing/checkout')
   @Throttle({ default: { limit: 10, ttl: 3600000 } })
+  @ApiOperation({ summary: 'Create a Stripe checkout session for subscription purchase' })
+  @ApiResponse({ status: 201, description: 'Checkout session URL returned' })
+  @ApiResponse({ status: 400, description: 'Invalid checkout parameters' })
+  @ApiResponse({ status: 429, description: 'Rate limit exceeded (max 10/hr)' })
   async createCheckout(@Body() body: CheckoutRequestDto, @Req() req: any) {
     const result = await this.billing.createCheckoutSession({
       tier: body.tier,
@@ -127,6 +131,10 @@ export class BillingController {
 
   @Post('api/billing/portal')
   @UseGuards(AuthGuard)
+  @ApiBearerAuth('BearerAuth')
+  @ApiOperation({ summary: 'Create a Stripe billing portal session for subscription management' })
+  @ApiResponse({ status: 201, description: 'Billing portal URL returned' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getBillingPortal(@Req() req: any) {
     return this.billing.createBillingPortalSession(req.user.userId);
   }
@@ -136,6 +144,10 @@ export class BillingController {
   @Post('api/billing/webhook')
   @SkipThrottle()
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Handle incoming Stripe webhook events (signature-verified)' })
+  @ApiHeader({ name: 'stripe-signature', description: 'Stripe webhook signature header', required: true })
+  @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
+  @ApiResponse({ status: 400, description: 'Missing or invalid webhook signature' })
   async handleWebhook(
     @Headers('stripe-signature') sig: string,
     @Req() req: any,
@@ -227,6 +239,8 @@ export class BillingController {
 
   @Get('auth/magic')
   @Throttle({ default: { limit: 10, ttl: 900000 } })
+  @ApiOperation({ summary: 'Verify a magic link token and set authentication cookies' })
+  @ApiResponse({ status: 302, description: 'Redirects to portal on success or auth/expired on failure' })
   async verifyMagicLink(
     @Query('token') token: string,
     @Req() req: any,
@@ -293,6 +307,10 @@ export class BillingController {
 
   @Get('api/billing/subscription')
   @UseGuards(AuthGuard)
+  @ApiBearerAuth('BearerAuth')
+  @ApiOperation({ summary: 'Get current subscription details for the authenticated user' })
+  @ApiResponse({ status: 200, description: 'Subscription tier and status' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getSubscription(@Req() req: any) {
     const sub = await this.billing.getSubscription(req.user.userId);
     return sub || { tier: 'free', status: 'active' };
