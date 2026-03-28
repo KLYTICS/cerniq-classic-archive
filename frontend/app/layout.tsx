@@ -21,7 +21,7 @@ const displayFont = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "CERNIQ — Institutional ALM Intelligence | 64 Modules, 36 Quant Models, COSSEC/NCUA Compliant",
+  title: "CERNIQ — Institutional ALM Intelligence | 70+ Modules, 50 Quant Models, COSSEC/NCUA Compliant",
   description: "Enterprise ALM platform with 64 analytical modules, 36 quant models (Nelson-Siegel, Svensson, Hull-White, Monte Carlo, CreditMetrics, Black-Litterman), COSSEC/NCUA/Basel III compliance, and bilingual EN/ES reporting. From $750.",
   keywords: "ALM software, asset liability management, credit union ALM, COSSEC compliance, NCUA ratios, Monte Carlo stress testing, NII sensitivity, EVE analysis, duration gap, CECL credit loss, yield curve modeling, bilingual ALM reports, Puerto Rico cooperativas, Basel IRRBB, CAMEL scoring, institutional risk intelligence, CERNIQ",
   metadataBase: new URL("https://cerniq.io"),
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   openGraph: {
-    title: "CERNIQ — 62 ALM Modules, 34 Quant Models, From $2,400/year",
+    title: "CERNIQ — 70+ ALM Modules, 50 Quant Models, From $750",
     description: "Goldman Sachs-grade ALM intelligence at credit union pricing. COSSEC, NCUA, and Basel III compliant. Bilingual EN/ES reports. Try the interactive demo.",
     url: "https://cerniq.io",
     siteName: "CERNIQ",
