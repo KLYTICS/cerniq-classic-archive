@@ -211,7 +211,10 @@ describe('AuthController', () => {
 
   describe('POST /api/auth/password-reset', () => {
     it('should request password reset', async () => {
-      authService.requestPasswordReset.mockResolvedValue(undefined);
+      const serviceResult = {
+        message: 'If the email exists, a reset link has been sent',
+      };
+      authService.requestPasswordReset.mockResolvedValue(serviceResult);
 
       const result = await controller.requestPasswordReset({
         email: 'reset@test.com',
@@ -220,9 +223,20 @@ describe('AuthController', () => {
       expect(authService.requestPasswordReset).toHaveBeenCalledWith(
         'reset@test.com',
       );
-      expect(result).toEqual({
+      expect(result).toEqual(serviceResult);
+    });
+
+    it('should not leak whether email exists (constant response)', async () => {
+      authService.requestPasswordReset.mockResolvedValue({
         message: 'If the email exists, a reset link has been sent',
       });
+
+      const result = await controller.requestPasswordReset({
+        email: 'nonexistent@test.com',
+      } as any);
+
+      // Should always return the same message regardless of email existence
+      expect(result.message).toContain('If the email exists');
     });
   });
 
@@ -234,7 +248,7 @@ describe('AuthController', () => {
       const req = { user: { userId: 'u6' } };
       const result = await controller.listApiKeys(req);
 
-      expect(result).toEqual(keys);
+      expect(result).toEqual({ keys });
     });
 
     it('should create a new API key', async () => {
@@ -247,21 +261,25 @@ describe('AuthController', () => {
 
       const req = { user: { userId: 'u7' } };
       const result = await controller.createApiKey(
-        { name: 'production' } as any,
         req,
+        { name: 'production' } as any,
       );
 
+      expect(authService.createApiKey).toHaveBeenCalledWith(
+        'u7',
+        'production',
+        undefined,
+      );
       expect(result).toEqual(newKey);
     });
 
     it('should revoke an API key', async () => {
-      authService.revokeApiKey.mockResolvedValue(undefined);
+      authService.revokeApiKey.mockResolvedValue({ message: 'Key revoked' });
 
       const req = { user: { userId: 'u8' } };
-      const result = await controller.revokeApiKey('k3', req);
+      const result = await controller.revokeApiKey(req, 'k3');
 
-      expect(authService.revokeApiKey).toHaveBeenCalledWith('k3', 'u8');
-      expect(result).toEqual({ message: 'API key revoked' });
+      expect(authService.revokeApiKey).toHaveBeenCalledWith('u8', 'k3');
     });
   });
 });

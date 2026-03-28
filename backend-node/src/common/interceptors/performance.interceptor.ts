@@ -67,9 +67,12 @@ export class PerformanceInterceptor implements NestInterceptor {
     const req = context.switchToHttp().getRequest();
     const start = Date.now();
 
+    const res = context.switchToHttp().getResponse();
+
     return next.handle().pipe(
       tap(() => {
         const elapsed = Date.now() - start;
+        res.setHeader('X-Response-Time', `${elapsed}ms`);
         const routeKey = `${req.method} ${req.route?.path || req.url}`;
 
         let metric = routeMetrics.get(routeKey);

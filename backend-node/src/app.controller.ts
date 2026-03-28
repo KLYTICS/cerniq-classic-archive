@@ -221,7 +221,7 @@ export class AppController {
   @SkipThrottle()
   async getHealth() {
     if (AppController.shuttingDown) {
-      return { status: 'shutting_down', message: 'Instance is draining connections' };
+      throw new ServiceUnavailableException('Instance is draining connections');
     }
     const checks: Record<string, string> = { api: 'up' };
 
