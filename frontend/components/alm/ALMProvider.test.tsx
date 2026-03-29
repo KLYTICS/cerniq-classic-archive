@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ALMProvider, { useALM } from './ALMProvider';
 
@@ -16,6 +16,7 @@ vi.mock('@/lib/api', () => ({
   apiClient: {
     getInstitutions: vi.fn().mockResolvedValue([
       { id: 'inst-1', name: 'Test CU', type: 'credit_union', totalAssets: 100_000_000 },
+      { id: 'inst-2', name: 'Second CU', type: 'bank', totalAssets: 250_000_000 },
     ]),
   },
 }));
@@ -49,7 +50,7 @@ describe('ALMProvider', () => {
 
     // After fetch resolves, loading becomes false and institutions are available
     await screen.findByText('false');
-    expect(screen.getByTestId('count').textContent).toBe('1');
+    expect(screen.getByTestId('count').textContent).toBe('2');
   });
 
   it('selects the first institution by default when none specified in URL', async () => {
@@ -74,7 +75,9 @@ describe('ALMProvider', () => {
     await screen.findByText('false');
     await user.click(screen.getByRole('button', { name: /change/i }));
 
-    expect(screen.getByTestId('selectedId').textContent).toBe('inst-2');
+    await waitFor(() => {
+      expect(screen.getByTestId('selectedId').textContent).toBe('inst-2');
+    });
     expect(replaceMock).toHaveBeenCalled();
   });
 });

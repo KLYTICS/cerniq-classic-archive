@@ -8,7 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   AreaChart, Area, Cell,
 } from 'recharts';
-import { Shield, AlertTriangle, RefreshCw, Upload, Calculator } from 'lucide-react';
+import { Shield, AlertTriangle, Calculator } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────
 

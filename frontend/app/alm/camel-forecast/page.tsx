@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, ErrorBar } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, AlertTriangle, TrendingDown, Minus } from 'lucide-react';
 
 interface Forecast { dimension: string; currentScore: number; q2Forecast: number; q4Forecast: number; q2CI: [number, number]; q4CI: [number, number]; trend: string; ar2Params: { phi1: number; phi2: number; intercept: number; r2: number } }

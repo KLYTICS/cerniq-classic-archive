@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image, { type ImageLoaderProps } from 'next/image';
 
 export interface AvatarProps {
   /** Full name used for initials fallback */
@@ -13,6 +14,10 @@ export interface AvatarProps {
 }
 
 const sizeMap = { sm: 'h-8 w-8 text-xs', md: 'h-10 w-10 text-sm', lg: 'h-14 w-14 text-lg' } as const;
+
+function passthroughImageLoader({ src }: ImageLoaderProps): string {
+  return src;
+}
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -30,14 +35,18 @@ export function Avatar({ name, src, size = 'md', className = '' }: AvatarProps) 
 
   return (
     <div
-      className={`inline-flex flex-shrink-0 items-center justify-center rounded-full bg-[#1B3A6B] font-semibold text-white ${sizeMap[size]} ${className}`}
+      className={`relative inline-flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#1B3A6B] font-semibold text-white ${sizeMap[size]} ${className}`}
       title={name}
     >
       {showImage ? (
-        <img
+        <Image
           src={src}
           alt={name}
-          className="h-full w-full rounded-full object-cover"
+          fill
+          unoptimized
+          loader={passthroughImageLoader}
+          sizes={size === 'sm' ? '32px' : size === 'md' ? '40px' : '56px'}
+          className="rounded-full object-cover"
           onError={() => setImgError(true)}
         />
       ) : (

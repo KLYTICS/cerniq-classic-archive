@@ -52,7 +52,9 @@ export class YieldSpreadDecompositionService {
    * exceeding the swap spread.  Liquidity premium is derived from the swap
    * spread scaled by a liquidity factor (default 0.4).
    */
-  decomposeSpread(params: SpreadDecompositionParams): SpreadDecompositionResult {
+  decomposeSpread(
+    params: SpreadDecompositionParams,
+  ): SpreadDecompositionResult {
     const {
       bondYield,
       treasuryYield,
@@ -90,9 +92,11 @@ export class YieldSpreadDecompositionService {
   /**
    * Decompose spreads for multiple bonds and return a summary.
    */
-  decomposeMultiple(
-    bonds: SpreadDecompositionParams[],
-  ): { decompositions: SpreadDecompositionResult[]; averageCreditSpread: number; averageTotalSpread: number } {
+  decomposeMultiple(bonds: SpreadDecompositionParams[]): {
+    decompositions: SpreadDecompositionResult[];
+    averageCreditSpread: number;
+    averageTotalSpread: number;
+  } {
     if (bonds.length === 0) {
       throw new Error('At least one bond is required');
     }
@@ -100,9 +104,11 @@ export class YieldSpreadDecompositionService {
     const decompositions = bonds.map((b) => this.decomposeSpread(b));
 
     const averageCreditSpread =
-      decompositions.reduce((s, d) => s + d.creditSpread, 0) / decompositions.length;
+      decompositions.reduce((s, d) => s + d.creditSpread, 0) /
+      decompositions.length;
     const averageTotalSpread =
-      decompositions.reduce((s, d) => s + d.totalSpread, 0) / decompositions.length;
+      decompositions.reduce((s, d) => s + d.totalSpread, 0) /
+      decompositions.length;
 
     return {
       decompositions,

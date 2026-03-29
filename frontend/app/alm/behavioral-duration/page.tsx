@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from 'recharts';
 import { Timer, AlertTriangle } from 'lucide-react';
 
 interface BehavioralDurationResult {

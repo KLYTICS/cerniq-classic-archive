@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { apiClient } from '@/lib/api';
+import { apiClient, type StressScenarioParams, type StressScenarioResult } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
@@ -24,39 +24,19 @@ import Link from 'next/link';
 
 // ─── Types ──────────────────────────────────────────────────────
 
-interface ScenarioParams {
-  rateShockBps: number;
-  depositRunoffPct: number;
-  defaultRateIncreasePct: number;
-  energyCostShockPct: number;
-}
-
-interface ScenarioResult {
-  nimImpactBps: number;
-  nimBefore: number;
-  nimAfter: number;
-  lcrBefore: number;
-  lcrAfter: number;
-  capitalBefore: number;
-  capitalAfter: number;
-  examReadinessBefore: number;
-  examReadinessAfter: number;
-  verdict: 'RESILIENT' | 'ADEQUATE' | 'VULNERABLE' | 'CRITICAL';
-  narrative: string;
-  narrativeEs: string;
-}
-
 interface SavedScenario {
   id: string;
   name: string;
-  params: ScenarioParams;
+  params: StressScenarioParams;
   scenarioType: string;
   savedAt: string;
 }
 
+type PresetKey = 'hurricane' | 'liquidityCrisis' | 'recession';
+
 // ─── Presets ────────────────────────────────────────────────────
 
-const PRESETS: { key: string; params: ScenarioParams }[] = [
+const PRESETS: Array<{ key: PresetKey; params: StressScenarioParams }> = [
   {
     key: 'hurricane',
     params: { rateShockBps: 150, depositRunoffPct: 10, defaultRateIncreasePct: 5, energyCostShockPct: 20 },
@@ -71,7 +51,7 @@ const PRESETS: { key: string; params: ScenarioParams }[] = [
   },
 ];
 
-const DEFAULT_PARAMS: ScenarioParams = {
+const DEFAULT_PARAMS: StressScenarioParams = {
   rateShockBps: 0,
   depositRunoffPct: 0,
   defaultRateIncreasePct: 0,
@@ -97,6 +77,27 @@ function getChangeArrow(before: number, after: number): string {
   if (after > before) return '\u2191';
   if (after < before) return '\u2193';
   return '\u2192';
+}
+
+function isSavedScenario(value: unknown): value is SavedScenario {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<SavedScenario>;
+  const params = candidate.params as Partial<StressScenarioParams> | undefined;
+
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.name === 'string' &&
+    typeof candidate.scenarioType === 'string' &&
+    typeof candidate.savedAt === 'string' &&
+    !!params &&
+    typeof params.rateShockBps === 'number' &&
+    typeof params.depositRunoffPct === 'number' &&
+    typeof params.defaultRateIncreasePct === 'number' &&
+    typeof params.energyCostShockPct === 'number'
+  );
 }
 
 // ─── Slider Component ───────────────────────────────────────────
@@ -209,8 +210,8 @@ export default function ScenarioBuilderPage() {
   const { selectedId } = useALM();
   const { t, locale } = useTranslation();
 
-  const [params, setParams] = useState<ScenarioParams>({ ...DEFAULT_PARAMS });
-  const [result, setResult] = useState<ScenarioResult | null>(null);
+  const [params, setParams] = useState<StressScenarioParams>({ ...DEFAULT_PARAMS });
+  const [result, setResult] = useState<StressScenarioResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -223,10 +224,10 @@ export default function ScenarioBuilderPage() {
       try {
         const data = await apiClient.listScenarios(selectedId);
         if (data.items?.length > 0) {
-          setSavedScenarios(data.items.map((s: any) => ({
+          setSavedScenarios(data.items.map((s) => ({
             id: s.id,
             name: s.name,
-            params: s.parameters as ScenarioParams,
+            params: s.parameters,
             scenarioType: s.scenarioType,
             savedAt: s.createdAt,
           })));
@@ -235,17 +236,26 @@ export default function ScenarioBuilderPage() {
       } catch { /* API unavailable, fall back */ }
       try {
         const stored = localStorage.getItem('cerniq_saved_scenarios');
-        if (stored) setSavedScenarios(JSON.parse(stored).map((s: any) => ({ ...s, id: `local-${Date.now()}` })));
+        if (stored) {
+          const parsed: unknown = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setSavedScenarios(
+              parsed
+                .filter(isSavedScenario)
+                .map((scenario, index) => ({ ...scenario, id: `local-${Date.now()}-${index}` })),
+            );
+          }
+        }
       } catch { /* ignore */ }
     })();
   }, [selectedId]);
 
-  const updateParam = useCallback((key: keyof ScenarioParams, value: number) => {
+  const updateParam = useCallback((key: keyof StressScenarioParams, value: number) => {
     setParams((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
   }, []);
 
-  const applyPreset = useCallback((preset: ScenarioParams) => {
+  const applyPreset = useCallback((preset: StressScenarioParams) => {
     setParams({ ...preset });
     setResult(null);
     setSaved(false);
@@ -288,8 +298,8 @@ export default function ScenarioBuilderPage() {
         institutionId: selectedId,
         name,
         scenarioType: 'custom',
-        parameters: params as any,
-        results: result as any ?? undefined,
+        parameters: params,
+        results: result ?? undefined,
         tags: [],
       });
       const entry: SavedScenario = {
@@ -376,10 +386,10 @@ export default function ScenarioBuilderPage() {
               </span>
               <div className="text-left">
                 <p className="text-sm font-medium text-slate-950">
-                  {t(`scenarioBuilder.${preset.key}` as any)}
+                  {t(`scenarioBuilder.${preset.key}`)}
                 </p>
                 <p className="text-[10px] text-slate-500">
-                  {t(`scenarioBuilder.${preset.key}Desc` as any)}
+                  {t(`scenarioBuilder.${preset.key}Desc`)}
                 </p>
               </div>
             </button>
@@ -509,7 +519,7 @@ export default function ScenarioBuilderPage() {
             <div>
               <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500 mb-1">{t('scenarioBuilder.verdict')}</p>
               <p className={`text-2xl font-bold ${verdictStyle?.text}`}>
-                {t(`scenarioBuilder.${result.verdict.toLowerCase()}` as any)}
+                {t(`scenarioBuilder.${result.verdict.toLowerCase()}`)}
               </p>
             </div>
             <div className={`flex h-14 w-14 items-center justify-center rounded-2xl border ${verdictStyle?.border} ${verdictStyle?.bg}`}>

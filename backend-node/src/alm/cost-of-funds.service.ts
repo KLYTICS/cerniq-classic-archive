@@ -52,7 +52,9 @@ export class CostOfFundsService {
   }): CostOfFundsResult {
     const { fundingSources } = params;
 
-    this.logger.log(`Computing cost of funds for ${fundingSources.length} sources`);
+    this.logger.log(
+      `Computing cost of funds for ${fundingSources.length} sources`,
+    );
 
     // Total funding and weighted cost
     let totalFunding = 0;
@@ -67,18 +69,24 @@ export class CostOfFundsService {
       }
     }
 
-    const weightedAvgCOF = totalFunding > 0
-      ? totalInterestCost / totalFunding
-      : 0;
+    const weightedAvgCOF =
+      totalFunding > 0 ? totalInterestCost / totalFunding : 0;
 
     // Marginal COF: cost of the most expensive available funding
     const marginalCOF = maxRate;
 
     // Group by type
-    const typeMap = new Map<string, { totalBalance: number; totalInterest: number; count: number }>();
+    const typeMap = new Map<
+      string,
+      { totalBalance: number; totalInterest: number; count: number }
+    >();
     for (const source of fundingSources) {
       if (!typeMap.has(source.type)) {
-        typeMap.set(source.type, { totalBalance: 0, totalInterest: 0, count: 0 });
+        typeMap.set(source.type, {
+          totalBalance: 0,
+          totalInterest: 0,
+          count: 0,
+        });
       }
       const entry = typeMap.get(source.type)!;
       entry.totalBalance += source.balance;
@@ -91,12 +99,14 @@ export class CostOfFundsService {
       byType.push({
         type,
         totalBalance: +data.totalBalance.toFixed(2),
-        weightedRate: data.totalBalance > 0
-          ? +(data.totalInterest / data.totalBalance).toFixed(6)
-          : 0,
-        pctOfTotal: totalFunding > 0
-          ? +((data.totalBalance / totalFunding) * 100).toFixed(2)
-          : 0,
+        weightedRate:
+          data.totalBalance > 0
+            ? +(data.totalInterest / data.totalBalance).toFixed(6)
+            : 0,
+        pctOfTotal:
+          totalFunding > 0
+            ? +((data.totalBalance / totalFunding) * 100).toFixed(2)
+            : 0,
         sourceCount: data.count,
       });
     }
@@ -119,8 +129,15 @@ export class CostOfFundsService {
   computeFundingImpact(params: {
     existingSources: FundingSource[];
     newSource: FundingSource;
-  }): { beforeCOF: number; afterCOF: number; change: number; changeBps: number } {
-    const before = this.calculateCostOfFunds({ fundingSources: params.existingSources });
+  }): {
+    beforeCOF: number;
+    afterCOF: number;
+    change: number;
+    changeBps: number;
+  } {
+    const before = this.calculateCostOfFunds({
+      fundingSources: params.existingSources,
+    });
     const after = this.calculateCostOfFunds({
       fundingSources: [...params.existingSources, params.newSource],
     });
@@ -142,7 +159,11 @@ export class CostOfFundsService {
   optimizeFundingMix(params: {
     availableSources: Array<FundingSource & { maxCapacity: number }>;
     targetFunding: number;
-  }): { allocations: Array<{ name: string; allocated: number; rate: number }>; achievedCOF: number; shortfall: number } {
+  }): {
+    allocations: Array<{ name: string; allocated: number; rate: number }>;
+    achievedCOF: number;
+    shortfall: number;
+  } {
     const { availableSources, targetFunding } = params;
 
     // Sort by rate ascending (cheapest first)
@@ -151,7 +172,11 @@ export class CostOfFundsService {
     let remaining = targetFunding;
     let totalInterest = 0;
     let totalAllocated = 0;
-    const allocations: Array<{ name: string; allocated: number; rate: number }> = [];
+    const allocations: Array<{
+      name: string;
+      allocated: number;
+      rate: number;
+    }> = [];
 
     for (const source of sorted) {
       if (remaining <= 0) break;

@@ -15,12 +15,32 @@ const BASE_PARAMS: TransferPricingParams = {
   ],
   assets: [
     { name: 'Auto Loans', balance: 20_000_000, yield: 0.065, maturityYears: 3 },
-    { name: 'Fixed Mortgages', balance: 50_000_000, yield: 0.045, maturityYears: 7 },
-    { name: 'Commercial Lines', balance: 30_000_000, yield: 0.07, maturityYears: 1 },
+    {
+      name: 'Fixed Mortgages',
+      balance: 50_000_000,
+      yield: 0.045,
+      maturityYears: 7,
+    },
+    {
+      name: 'Commercial Lines',
+      balance: 30_000_000,
+      yield: 0.07,
+      maturityYears: 1,
+    },
   ],
   liabilities: [
-    { name: 'Core Savings', balance: 40_000_000, cost: 0.004, maturityYears: 2 },
-    { name: 'Money Market', balance: 20_000_000, cost: 0.012, maturityYears: 0.5 },
+    {
+      name: 'Core Savings',
+      balance: 40_000_000,
+      cost: 0.004,
+      maturityYears: 2,
+    },
+    {
+      name: 'Money Market',
+      balance: 20_000_000,
+      cost: 0.012,
+      maturityYears: 0.5,
+    },
     { name: 'CDs', balance: 25_000_000, cost: 0.025, maturityYears: 1 },
   ],
   targetNIM: 0.035,
@@ -45,7 +65,9 @@ describe('TransferPricingOptimizationService', () => {
 
   it('should interpolate FTP rates from the funding curve at maturity', () => {
     const result = svc.optimizeTransferPricing(BASE_PARAMS);
-    const autoLoans = result.optimalFTPRates.find((r) => r.instrument === 'Auto Loans')!;
+    const autoLoans = result.optimalFTPRates.find(
+      (r) => r.instrument === 'Auto Loans',
+    )!;
     // 3-year maturity: between 2y (0.038) and 5y (0.042) → interpolated
     expect(autoLoans.ftpRate).toBeGreaterThan(0.038);
     expect(autoLoans.ftpRate).toBeLessThan(0.042);
@@ -55,7 +77,9 @@ describe('TransferPricingOptimizationService', () => {
 
   it('should compute asset spread as yield minus FTP rate', () => {
     const result = svc.optimizeTransferPricing(BASE_PARAMS);
-    const autoLoans = result.optimalFTPRates.find((r) => r.instrument === 'Auto Loans')!;
+    const autoLoans = result.optimalFTPRates.find(
+      (r) => r.instrument === 'Auto Loans',
+    )!;
     expect(autoLoans.spread).toBeCloseTo(0.065 - autoLoans.ftpRate, 4);
   });
 
@@ -64,7 +88,8 @@ describe('TransferPricingOptimizationService', () => {
   it('should compute projected NIM as net interest income / total assets', () => {
     const result = svc.optimizeTransferPricing(BASE_PARAMS);
     const totalAssets = 20_000_000 + 50_000_000 + 30_000_000;
-    const expectedNIM = (result.totalInterestIncome - result.totalInterestExpense) / totalAssets;
+    const expectedNIM =
+      (result.totalInterestIncome - result.totalInterestExpense) / totalAssets;
     expect(result.projectedNIM).toBeCloseTo(expectedNIM, 4);
   });
 
@@ -79,7 +104,10 @@ describe('TransferPricingOptimizationService', () => {
 
   it('should use the shortest curve rate for maturities below curve start', () => {
     const rate = svc.interpolateRate(
-      [{ tenor: 1, rate: 0.03 }, { tenor: 5, rate: 0.04 }],
+      [
+        { tenor: 1, rate: 0.03 },
+        { tenor: 5, rate: 0.04 },
+      ],
       0.25,
     );
     expect(rate).toBe(0.03);
@@ -89,7 +117,10 @@ describe('TransferPricingOptimizationService', () => {
 
   it('should use the longest curve rate for maturities above curve end', () => {
     const rate = svc.interpolateRate(
-      [{ tenor: 1, rate: 0.03 }, { tenor: 5, rate: 0.04 }],
+      [
+        { tenor: 1, rate: 0.03 },
+        { tenor: 5, rate: 0.04 },
+      ],
       20,
     );
     expect(rate).toBe(0.04);
@@ -102,7 +133,9 @@ describe('TransferPricingOptimizationService', () => {
       ...BASE_PARAMS,
       fundingCurve: [],
     };
-    expect(() => svc.optimizeTransferPricing(params)).toThrow('Funding curve must have at least one point');
+    expect(() => svc.optimizeTransferPricing(params)).toThrow(
+      'Funding curve must have at least one point',
+    );
   });
 
   // ─── Test 9: Interest income and expense are positive ────────────

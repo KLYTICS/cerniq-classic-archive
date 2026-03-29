@@ -1,6 +1,7 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
+import Image, { type ImageLoaderProps } from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -47,6 +48,10 @@ const categoryIcons: Record<string, string> = {
     'Other': '📋',
 };
 
+function passthroughImageLoader({ src }: ImageLoaderProps): string {
+    return src;
+}
+
 function ExpensesListContent() {
     const searchParams = useSearchParams();
     const orgId = searchParams.get('org') || 'default-org';
@@ -57,11 +62,7 @@ function ExpensesListContent() {
     const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchExpenses();
-    }, [activeTab]);
-
-    async function fetchExpenses() {
+    const fetchExpenses = useCallback(async () => {
         setLoading(true);
         try {
             const statusParam = activeTab !== 'all' ? `?status=${activeTab}` : '';
@@ -78,7 +79,11 @@ function ExpensesListContent() {
         } finally {
             setLoading(false);
         }
-    }
+    }, [activeTab, orgId]);
+
+    useEffect(() => {
+        fetchExpenses();
+    }, [fetchExpenses]);
 
     async function performAction(expenseId: string, action: 'submit' | 'approve' | 'reject') {
         setActionLoading(expenseId);
@@ -294,11 +299,15 @@ function ExpensesListContent() {
                                 <div className="bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden">
                                     {/* Receipt Image */}
                                     {selectedExpense.receiptUrl ? (
-                                        <div className="h-52 bg-gray-800 flex items-center justify-center overflow-hidden">
-                                            <img
+                                        <div className="relative h-52 bg-gray-800 flex items-center justify-center overflow-hidden">
+                                            <Image
                                                 src={selectedExpense.receiptUrl}
                                                 alt="Receipt"
-                                                className="max-h-full object-contain"
+                                                fill
+                                                unoptimized
+                                                loader={passthroughImageLoader}
+                                                className="object-contain"
+                                                sizes="384px"
                                             />
                                         </div>
                                     ) : (

@@ -7,10 +7,30 @@ import {
 
 const BASE_PARAMS: EncumberedAssetsParams = {
   assets: [
-    { name: 'MBS Portfolio', balance: 50_000_000, encumbered: 30_000_000, pledgedTo: 'FHLB' },
-    { name: 'Treasury Securities', balance: 30_000_000, encumbered: 10_000_000, pledgedTo: 'Fed Discount Window' },
-    { name: 'Commercial Loans', balance: 40_000_000, encumbered: 0, pledgedTo: '' },
-    { name: 'Auto Loan Pool', balance: 20_000_000, encumbered: 15_000_000, pledgedTo: 'FHLB' },
+    {
+      name: 'MBS Portfolio',
+      balance: 50_000_000,
+      encumbered: 30_000_000,
+      pledgedTo: 'FHLB',
+    },
+    {
+      name: 'Treasury Securities',
+      balance: 30_000_000,
+      encumbered: 10_000_000,
+      pledgedTo: 'Fed Discount Window',
+    },
+    {
+      name: 'Commercial Loans',
+      balance: 40_000_000,
+      encumbered: 0,
+      pledgedTo: '',
+    },
+    {
+      name: 'Auto Loan Pool',
+      balance: 20_000_000,
+      encumbered: 15_000_000,
+      pledgedTo: 'FHLB',
+    },
     { name: 'Cash', balance: 10_000_000, encumbered: 0, pledgedTo: '' },
   ],
 };
@@ -58,7 +78,9 @@ describe('EncumberedAssetsService', () => {
     expect(result.byPledgee).toHaveLength(2);
     const fhlb = result.byPledgee.find((p) => p.pledgee === 'FHLB')!;
     expect(fhlb.encumberedAmount).toBe(45_000_000); // 30M + 15M
-    const fed = result.byPledgee.find((p) => p.pledgee === 'Fed Discount Window')!;
+    const fed = result.byPledgee.find(
+      (p) => p.pledgee === 'Fed Discount Window',
+    )!;
     expect(fed.encumberedAmount).toBe(10_000_000);
   });
 
@@ -83,7 +105,9 @@ describe('EncumberedAssetsService', () => {
   // ─── Test 8: Throws on empty assets ──────────────────────────────
 
   it('should throw when no assets are provided', () => {
-    expect(() => svc.analyzeEncumbrance({ assets: [] })).toThrow('At least one asset entry');
+    expect(() => svc.analyzeEncumbrance({ assets: [] })).toThrow(
+      'At least one asset entry',
+    );
   });
 
   // ─── Test 9: Validation detects over-encumbrance ─────────────────
@@ -91,7 +115,12 @@ describe('EncumberedAssetsService', () => {
   it('should detect when encumbered exceeds balance', () => {
     const params: EncumberedAssetsParams = {
       assets: [
-        { name: 'Bad Asset', balance: 10_000_000, encumbered: 15_000_000, pledgedTo: 'FHLB' },
+        {
+          name: 'Bad Asset',
+          balance: 10_000_000,
+          encumbered: 15_000_000,
+          pledgedTo: 'FHLB',
+        },
       ],
     };
     const result = svc.validateEncumbrance(params);

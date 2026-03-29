@@ -184,8 +184,6 @@ function TimelineView({ deadlines, locale }: { deadlines: Deadline[]; locale: st
       {sorted.map((d, idx) => {
         const style = STATUS_STYLES[d.status] || STATUS_STYLES.pending;
         const Icon = STATUS_ICONS[d.status] || Clock;
-        const days = daysUntil(d.dueDate);
-
         return (
           <div key={d.id} className="flex gap-3">
             {/* Timeline line */}

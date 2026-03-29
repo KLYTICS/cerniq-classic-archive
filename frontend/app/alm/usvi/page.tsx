@@ -2,11 +2,50 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from '@/lib/i18n';
-import { Globe, AlertTriangle, Check, ArrowRight } from 'lucide-react';
+import { Globe, Check } from 'lucide-react';
+
+type USVIPeerBenchmarkKey = 'nim' | 'lcr' | 'nwr' | 'loanToShare';
+
+interface USVIDifference {
+  area: string;
+  pr: string;
+  usvi: string;
+}
+
+interface USVIComplianceEvent {
+  event: string;
+  eventEs: string;
+  frequency: string;
+  nextDueDate: string;
+  regulatoryRef: string;
+}
+
+interface USVIBenchmarkStats {
+  p25: number;
+  p50: number;
+  p75: number;
+}
+
+interface USVIEconomicParams {
+  tourismSeasonalityPeak: number[];
+  dominantSector: string;
+  populationEstimate: number;
+  creditUnionCount: number;
+  avgHurricaneCPRSpike: number;
+}
+
+interface USVIFrameworkData {
+  jurisdiction: string;
+  regulator: string;
+  complianceCalendar: USVIComplianceEvent[];
+  economicParams: USVIEconomicParams;
+  peerBenchmarks: Record<USVIPeerBenchmarkKey, USVIBenchmarkStats>;
+  differences: USVIDifference[];
+}
 
 export default function USVIPage() {
   const { locale } = useTranslation();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<USVIFrameworkData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,7 +54,7 @@ export default function USVIPage() {
       try {
         const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
         const res = await fetch(`${NODE_API_URL}/api/alm/usvi/framework`);
-        if (res.ok) setData(await res.json());
+        if (res.ok) setData(await res.json() as USVIFrameworkData);
         else setData(getDemoData());
       } catch { setData(getDemoData()); }
       finally { setLoading(false); }
@@ -45,11 +84,11 @@ export default function USVIPage() {
           <thead><tr className="border-b border-slate-50 bg-slate-50/50">
             {[locale === 'es' ? 'Área' : 'Area', 'Puerto Rico', 'USVI'].map(h => <th key={h} className="px-4 py-2 text-left text-[10px] font-medium text-slate-500">{h}</th>)}
           </tr></thead>
-          <tbody>{data.differences.map((d: any, i: number) => (
+          <tbody>{data.differences.map((difference, i) => (
             <tr key={i} className="border-b border-slate-50 last:border-0">
-              <td className="px-4 py-2.5 text-xs font-medium text-slate-700">{d.area}</td>
-              <td className="px-4 py-2.5 text-xs text-slate-600">{d.pr}</td>
-              <td className="px-4 py-2.5 text-xs text-sky-700 font-medium">{d.usvi}</td>
+              <td className="px-4 py-2.5 text-xs font-medium text-slate-700">{difference.area}</td>
+              <td className="px-4 py-2.5 text-xs text-slate-600">{difference.pr}</td>
+              <td className="px-4 py-2.5 text-xs text-sky-700 font-medium">{difference.usvi}</td>
             </tr>
           ))}</tbody>
         </table>
@@ -58,12 +97,12 @@ export default function USVIPage() {
       {/* Compliance Calendar */}
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">{locale === 'es' ? 'Calendario de Cumplimiento FSC' : 'FSC Compliance Calendar'}</p>
-        {data.complianceCalendar.map((c: any, i: number) => (
+        {data.complianceCalendar.map((event, i) => (
           <div key={i} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
             <Check className="h-3.5 w-3.5 text-sky-500" />
-            <span className="text-xs text-slate-700 flex-1">{locale === 'es' ? c.eventEs : c.event}</span>
-            <span className="text-[10px] text-slate-500">{c.frequency}</span>
-            <span className="text-[10px] tabular-nums text-slate-400">{c.nextDueDate}</span>
+            <span className="text-xs text-slate-700 flex-1">{locale === 'es' ? event.eventEs : event.event}</span>
+            <span className="text-[10px] text-slate-500">{event.frequency}</span>
+            <span className="text-[10px] tabular-nums text-slate-400">{event.nextDueDate}</span>
           </div>
         ))}
       </div>
@@ -72,11 +111,11 @@ export default function USVIPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">{locale === 'es' ? 'Benchmarks Pares USVI' : 'USVI Peer Benchmarks'}</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {Object.entries(data.peerBenchmarks).map(([key, vals]: [string, any]) => (
+          {(Object.entries(data.peerBenchmarks) as Array<[USVIPeerBenchmarkKey, USVIBenchmarkStats]>).map(([key, stats]) => (
             <div key={key} className="rounded-lg border border-slate-100 p-3 text-center">
               <p className="text-[10px] font-medium uppercase text-slate-400">{key.toUpperCase()}</p>
-              <p className="text-sm font-bold tabular-nums text-slate-950">{vals.p50}{key === 'nim' || key === 'nwr' ? '%' : key === 'lcr' || key === 'loanToShare' ? '%' : ''}</p>
-              <p className="text-[9px] text-slate-400">p25: {vals.p25} | p75: {vals.p75}</p>
+              <p className="text-sm font-bold tabular-nums text-slate-950">{stats.p50}{key === 'nim' || key === 'nwr' ? '%' : key === 'lcr' || key === 'loanToShare' ? '%' : ''}</p>
+              <p className="text-[9px] text-slate-400">p25: {stats.p25} | p75: {stats.p75}</p>
             </div>
           ))}
         </div>
@@ -96,7 +135,7 @@ export default function USVIPage() {
   );
 }
 
-function getDemoData() {
+function getDemoData(): USVIFrameworkData {
   return {
     jurisdiction: 'USVI', regulator: 'USVI Financial Services Commission (FSC)',
     complianceCalendar: [

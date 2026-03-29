@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
-import { Activity, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Activity, AlertTriangle } from 'lucide-react';
 
 interface PeerMetric {
   metricName: string; metricNameEs: string;

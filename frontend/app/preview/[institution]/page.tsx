@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from 'recharts';
-import { Shield, TrendingUp, AlertTriangle, CheckCircle2, Download } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle2, Download } from 'lucide-react';
 import { usePDFExport } from '@/hooks/usePDFExport';
 
 // Pre-built institution previews for top prospects
@@ -178,7 +178,7 @@ export default function InstitutionPreview() {
                 <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
                 <XAxis dataKey="scenario" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => `${v}%`} />
-                <Tooltip formatter={(v: any) => `${v}%`} />
+                <Tooltip formatter={(value: number | string | undefined) => `${value ?? 0}%`} />
                 <Bar dataKey="niiChange" name="NII">
                   {inst.rateShock.map((entry, i) => (
                     <Cell key={i} fill={entry.niiChange < 0 ? COLORS.red : COLORS.green} />

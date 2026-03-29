@@ -10,8 +10,18 @@ const BASE_PARAMS: DynamicHedgingParams = {
   portfolioValue: 100_000_000,
   targetDuration: 3.0,
   hedgeInstruments: [
-    { name: '10Y Treasury Future', duration: 8.5, price: 110, contractSize: 100_000 },
-    { name: '5Y Interest Rate Swap', duration: 4.8, price: 100, contractSize: 100_000 },
+    {
+      name: '10Y Treasury Future',
+      duration: 8.5,
+      price: 110,
+      contractSize: 100_000,
+    },
+    {
+      name: '5Y Interest Rate Swap',
+      duration: 4.8,
+      price: 100,
+      contractSize: 100_000,
+    },
   ],
 };
 
@@ -83,7 +93,9 @@ describe('DynamicHedgingService', () => {
       ...BASE_PARAMS,
       hedgeInstruments: [],
     };
-    expect(() => svc.calculateHedge(params)).toThrow('At least one hedge instrument');
+    expect(() => svc.calculateHedge(params)).toThrow(
+      'At least one hedge instrument',
+    );
   });
 
   // ─── Test 8: Throws on zero portfolio value ──────────────────────
@@ -93,7 +105,9 @@ describe('DynamicHedgingService', () => {
       ...BASE_PARAMS,
       portfolioValue: 0,
     };
-    expect(() => svc.calculateHedge(params)).toThrow('portfolioValue must be positive');
+    expect(() => svc.calculateHedge(params)).toThrow(
+      'portfolioValue must be positive',
+    );
   });
 
   // ─── Test 9: Zero gap needs no hedge ─────────────────────────────

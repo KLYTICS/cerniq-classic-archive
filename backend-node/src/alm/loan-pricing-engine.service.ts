@@ -68,13 +68,16 @@ export class LoanPricingEngineService {
       capitalRequirement,
     } = params;
 
-    this.logger.log(`Pricing loan: principal=${principal}, maturity=${maturityYears}y, COF=${(costOfFunds * 100).toFixed(2)}%`);
+    this.logger.log(
+      `Pricing loan: principal=${principal}, maturity=${maturityYears}y, COF=${(costOfFunds * 100).toFixed(2)}%`,
+    );
 
     // Capital charge: required return on allocated capital
     const capitalCharge = targetROE * capitalRequirement;
 
     // Minimum acceptable rate
-    const minimumRate = costOfFunds + creditSpread + operatingCost + capitalCharge;
+    const minimumRate =
+      costOfFunds + creditSpread + operatingCost + capitalCharge;
 
     // Monthly payment calculation (amortizing loan)
     const n = maturityYears * 12;
@@ -83,7 +86,7 @@ export class LoanPricingEngineService {
 
     if (monthlyRate > 0) {
       const factor = Math.pow(1 + monthlyRate, n);
-      monthlyPayment = principal * (monthlyRate * factor) / (factor - 1);
+      monthlyPayment = (principal * (monthlyRate * factor)) / (factor - 1);
     } else {
       monthlyPayment = principal / n;
     }
@@ -121,7 +124,12 @@ export class LoanPricingEngineService {
       targetROE: number;
       capitalRequirement: number;
     }>;
-  }): Array<{ name: string; minimumRate: number; monthlyPayment: number; totalInterest: number }> {
+  }): Array<{
+    name: string;
+    minimumRate: number;
+    monthlyPayment: number;
+    totalInterest: number;
+  }> {
     const { principal, maturityYears, scenarios } = params;
 
     return scenarios.map((scenario) => {
@@ -152,7 +160,14 @@ export class LoanPricingEngineService {
     expectedLossRate: number;
     capitalRequirement: number;
   }): { raroc: number; economicProfit: number; acceptable: boolean } {
-    const { principal, loanRate, costOfFunds, operatingCost, expectedLossRate, capitalRequirement } = params;
+    const {
+      principal,
+      loanRate,
+      costOfFunds,
+      operatingCost,
+      expectedLossRate,
+      capitalRequirement,
+    } = params;
 
     const revenue = principal * loanRate;
     const fundingCost = principal * costOfFunds;
@@ -162,12 +177,12 @@ export class LoanPricingEngineService {
 
     const netIncome = revenue - fundingCost - opCost - expectedLoss;
     const raroc = economicCapital > 0 ? netIncome / economicCapital : 0;
-    const economicProfit = netIncome - economicCapital * 0.10; // hurdle rate 10%
+    const economicProfit = netIncome - economicCapital * 0.1; // hurdle rate 10%
 
     return {
       raroc: +raroc.toFixed(4),
       economicProfit: +economicProfit.toFixed(2),
-      acceptable: raroc >= 0.10,
+      acceptable: raroc >= 0.1,
     };
   }
 }

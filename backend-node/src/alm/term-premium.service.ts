@@ -123,9 +123,11 @@ export class TermPremiumService {
   /**
    * Check whether the term premium structure indicates curve inversion risk.
    */
-  assessInversionRisk(
-    params: TermPremiumParams,
-  ): { inverted: boolean; inversionPoints: number[]; flatteningZones: number[] } {
+  assessInversionRisk(params: TermPremiumParams): {
+    inverted: boolean;
+    inversionPoints: number[];
+    flatteningZones: number[];
+  } {
     const result = this.estimateTermPremium(params);
     const sorted = [...params.yields].sort((a, b) => a.maturity - b.maturity);
 

@@ -62,15 +62,17 @@ describe('FundsAvailabilityService', () => {
     const params = strongParams();
     const result = service.analyzeFundsAvailability(params);
     expect(result.tier2Available).toBeLessThan(params.liquidSecurities);
-    expect(result.tier2Available).toBeCloseTo(params.liquidSecurities * 0.95, 0);
+    expect(result.tier2Available).toBeCloseTo(
+      params.liquidSecurities * 0.95,
+      0,
+    );
   });
 
   // 4. Uncommitted lines receive a larger haircut
   it('tier 3 applies a 50% haircut to uncommitted lines', () => {
     const params = strongParams();
     const result = service.analyzeFundsAvailability(params);
-    const expected =
-      params.uncommittedLines * 0.5 + params.expectedInflows30d;
+    const expected = params.uncommittedLines * 0.5 + params.expectedInflows30d;
     expect(result.tier3Available).toBeCloseTo(expected, 2);
   });
 

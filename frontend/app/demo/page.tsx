@@ -9,7 +9,6 @@ import {
   XCircle,
   FileText,
   Shield,
-  TrendingUp,
   MessageSquare,
   Send,
   ChevronRight,
@@ -17,8 +16,6 @@ import {
   Receipt,
   Eye,
   Building2,
-  BarChart3,
-  Search,
 } from 'lucide-react';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
 

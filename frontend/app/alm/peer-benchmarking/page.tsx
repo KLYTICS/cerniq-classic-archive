@@ -631,7 +631,6 @@ export default function PeerBenchmarkingPage() {
   const { locale } = useTranslation();
   const [data, setData] = useState<PeerResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const t = locale === 'es' ? T.es : T.en;
 
@@ -641,7 +640,6 @@ export default function PeerBenchmarkingPage() {
 
     (async () => {
       setLoading(true);
-      setError(null);
       try {
         const result = await apiClient.getPeerAnalytics(selectedId);
         if (!cancelled) setData(result);

@@ -5,8 +5,7 @@ import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
 import {
   ClipboardCheck, AlertTriangle, Check, X, Clock, FileText,
-  Download, Shield, ChevronDown, ChevronUp, Target, TrendingUp,
-  BookOpen, Lightbulb, Activity,
+  Download, ChevronDown, ChevronUp, BookOpen, Lightbulb,
 } from 'lucide-react';
 
 /* ─── Types ─── */

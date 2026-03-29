@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Users, DollarSign, TrendingUp, Clock, RefreshCw,
-  Pencil, FileText, Check, ArrowLeft, ChevronRight,
+  Pencil, FileText, Check, ArrowLeft,
 } from 'lucide-react';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');

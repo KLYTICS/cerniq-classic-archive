@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
-import { Treemap, ResponsiveContainer, Tooltip } from 'recharts';
+import { Treemap, ResponsiveContainer } from 'recharts';
 import { GitBranch, AlertTriangle } from 'lucide-react';
 
 interface HRPResult {
@@ -13,6 +13,15 @@ interface HRPResult {
   maxDrawdown: number;
   clusters: Array<{ name: string; children: Array<{ name: string; weight: number; ret: number }> }>;
   flatWeights: Array<{ asset: string; cluster: string; weight: number }>;
+}
+
+interface TreemapContentProps {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  name?: string | number;
+  index?: number;
 }
 
 export default function HRPPage() {
@@ -74,12 +83,12 @@ export default function HRPPage() {
             dataKey="size"
             aspectRatio={4 / 3}
             stroke="#fff"
-            content={({ x, y, width, height, name, index }: any) => (
+            content={({ x = 0, y = 0, width = 0, height = 0, name, index = 0 }: TreemapContentProps) => (
               <g>
                 <rect x={x} y={y} width={width} height={height} fill={COLORS[index % COLORS.length]} rx={4} opacity={0.85} />
                 {width > 50 && height > 25 && (
                   <text x={x + width / 2} y={y + height / 2} textAnchor="middle" dominantBaseline="middle"
-                    fill="#fff" fontSize={10} fontWeight={600}>{name}</text>
+                    fill="#fff" fontSize={10} fontWeight={600}>{name ?? ''}</text>
                 )}
               </g>
             )}

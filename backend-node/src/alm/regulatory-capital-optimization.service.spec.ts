@@ -7,9 +7,9 @@ import {
 
 const WELL_CAPITALIZED: CapitalOptimizationParams = {
   riskWeightedAssets: [
-    { category: 'Residential Mortgages', balance: 80_000_000, riskWeight: 0.50 },
-    { category: 'Commercial Loans', balance: 50_000_000, riskWeight: 1.00 },
-    { category: 'Government Securities', balance: 30_000_000, riskWeight: 0.00 },
+    { category: 'Residential Mortgages', balance: 80_000_000, riskWeight: 0.5 },
+    { category: 'Commercial Loans', balance: 50_000_000, riskWeight: 1.0 },
+    { category: 'Government Securities', balance: 30_000_000, riskWeight: 0.0 },
     { category: 'Consumer Loans', balance: 20_000_000, riskWeight: 0.75 },
   ],
   currentCapital: {
@@ -23,7 +23,7 @@ const WELL_CAPITALIZED: CapitalOptimizationParams = {
     minLeverage: 0.04,
   },
   constraints: {
-    maxRWAGrowth: 0.10,
+    maxRWAGrowth: 0.1,
     maxConcentration: 0.25,
   },
 };
@@ -79,7 +79,11 @@ describe('RegulatoryCapitalOptimizationService', () => {
   it('should flag as not well-capitalized when tier1 is insufficient', () => {
     const params: CapitalOptimizationParams = {
       ...WELL_CAPITALIZED,
-      currentCapital: { tier1: 3_000_000, tier2: 1_000_000, totalAssets: 200_000_000 },
+      currentCapital: {
+        tier1: 3_000_000,
+        tier2: 1_000_000,
+        totalAssets: 200_000_000,
+      },
     };
     const result = svc.optimizeCapital(params);
     expect(result.wellCapitalized).toBe(false);
@@ -90,15 +94,21 @@ describe('RegulatoryCapitalOptimizationService', () => {
   it('should return an allocation entry for each asset category', () => {
     const result = svc.optimizeCapital(WELL_CAPITALIZED);
     expect(result.optimalAllocation).toHaveLength(4);
-    expect(result.optimalAllocation.map((a) => a.category)).toContain('Residential Mortgages');
-    expect(result.optimalAllocation.map((a) => a.category)).toContain('Government Securities');
+    expect(result.optimalAllocation.map((a) => a.category)).toContain(
+      'Residential Mortgages',
+    );
+    expect(result.optimalAllocation.map((a) => a.category)).toContain(
+      'Government Securities',
+    );
   });
 
   // ─── Test 8: Zero risk-weight assets have zero RWA ───────────────
 
   it('should assign zero RWA to government securities (0% risk weight)', () => {
     const result = svc.optimizeCapital(WELL_CAPITALIZED);
-    const govtAlloc = result.optimalAllocation.find((a) => a.category === 'Government Securities')!;
+    const govtAlloc = result.optimalAllocation.find(
+      (a) => a.category === 'Government Securities',
+    )!;
     expect(govtAlloc.rwa).toBe(0);
     expect(govtAlloc.capitalCharge).toBe(0);
   });
@@ -118,7 +128,9 @@ describe('RegulatoryCapitalOptimizationService', () => {
     // Loss = 105M × 0.15 = 15.75M, stressed T1 = 18M - 15.75M = 2.25M
     // Stressed T1 ratio = 2.25M / 105M ≈ 0.0214 < 0.06
     expect(result.breachesMinimum).toBe(true);
-    expect(result.stressedTier1Ratio).toBeLessThan(WELL_CAPITALIZED.targetRatios.minTier1);
+    expect(result.stressedTier1Ratio).toBeLessThan(
+      WELL_CAPITALIZED.targetRatios.minTier1,
+    );
   });
 
   // ─── Test 11: Throws on empty RWA ───────────────────────────────
@@ -128,6 +140,8 @@ describe('RegulatoryCapitalOptimizationService', () => {
       ...WELL_CAPITALIZED,
       riskWeightedAssets: [],
     };
-    expect(() => svc.optimizeCapital(params)).toThrow('At least one risk-weighted asset');
+    expect(() => svc.optimizeCapital(params)).toThrow(
+      'At least one risk-weighted asset',
+    );
   });
 });

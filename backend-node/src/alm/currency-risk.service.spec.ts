@@ -56,7 +56,11 @@ describe('CurrencyRiskService', () => {
   // 4. Base-currency positions are excluded from risk
   it('ignores positions denominated in the base currency', () => {
     const params = baseParams();
-    params.positions.push({ currency: 'USD', balance: 5_000_000, hedgedPct: 0 });
+    params.positions.push({
+      currency: 'USD',
+      balance: 5_000_000,
+      hedgedPct: 0,
+    });
     const result = service.assessCurrencyRisk(params);
     // USD position should NOT appear in byCurrency
     expect(result.byCurrency.find((c) => c.currency === 'USD')).toBeUndefined();

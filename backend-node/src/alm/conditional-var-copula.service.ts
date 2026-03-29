@@ -78,9 +78,7 @@ export class ConditionalVaRCopulaService {
 
     // ── Stress multiplier ──
     const stressMultiplier =
-      unconditionalVaR !== 0
-        ? round4(conditionalVaR / unconditionalVaR)
-        : 1;
+      unconditionalVaR !== 0 ? round4(conditionalVaR / unconditionalVaR) : 1;
 
     // ── Empirical tail dependence ──
     const tailDependence = computeTailDependence(

@@ -70,7 +70,7 @@ export default function AIAdvisorChat({ institutionId, onClose }: AIAdvisorChatP
           ...prev,
           { role: 'assistant', content: result.response },
         ]);
-      } catch (err) {
+      } catch {
         const errorMsg =
           locale === 'es'
             ? 'Error al conectar con el asesor IA. Verifica tu conexion.'

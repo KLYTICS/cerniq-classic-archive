@@ -84,7 +84,10 @@ describe('RegimeSwitchingVaRService', () => {
   // 6. Throws with too few observations
   it('throws if fewer than 10 observations provided', () => {
     expect(() =>
-      service.calculateRegimeVaR({ returns: [0.01, -0.01, 0.005], confidence: 0.95 }),
+      service.calculateRegimeVaR({
+        returns: [0.01, -0.01, 0.005],
+        confidence: 0.95,
+      }),
     ).toThrow(/at least 10/i);
   });
 

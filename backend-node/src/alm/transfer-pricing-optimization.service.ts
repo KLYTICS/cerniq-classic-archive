@@ -72,7 +72,9 @@ export class TransferPricingOptimizationService {
    * at the instrument's maturity.  The spread is the difference between the
    * instrument's yield/cost and the FTP rate.
    */
-  optimizeTransferPricing(params: TransferPricingParams): TransferPricingResult {
+  optimizeTransferPricing(
+    params: TransferPricingParams,
+  ): TransferPricingResult {
     const { fundingCurve, assets, liabilities, targetNIM } = params;
 
     if (fundingCurve.length === 0) {
@@ -103,7 +105,10 @@ export class TransferPricingOptimizationService {
     let totalInterestExpense = 0;
     let totalFTPCredit = 0;
     for (const liability of liabilities) {
-      const ftpRate = this.interpolateRate(sortedCurve, liability.maturityYears);
+      const ftpRate = this.interpolateRate(
+        sortedCurve,
+        liability.maturityYears,
+      );
       const spread = ftpRate - liability.cost;
       totalInterestExpense += liability.balance * liability.cost;
       totalFTPCredit += liability.balance * ftpRate;
@@ -146,12 +151,14 @@ export class TransferPricingOptimizationService {
 
     // Clamp to curve boundaries
     if (maturity <= curve[0].tenor) return curve[0].rate;
-    if (maturity >= curve[curve.length - 1].tenor) return curve[curve.length - 1].rate;
+    if (maturity >= curve[curve.length - 1].tenor)
+      return curve[curve.length - 1].rate;
 
     // Find bracketing points
     for (let i = 0; i < curve.length - 1; i++) {
       if (maturity >= curve[i].tenor && maturity <= curve[i + 1].tenor) {
-        const t = (maturity - curve[i].tenor) / (curve[i + 1].tenor - curve[i].tenor);
+        const t =
+          (maturity - curve[i].tenor) / (curve[i + 1].tenor - curve[i].tenor);
         return curve[i].rate + t * (curve[i + 1].rate - curve[i].rate);
       }
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 
@@ -24,7 +24,7 @@ export function VolatilitySurface3D() {
     const [loading, setLoading] = useState(false);
     const [surfaceType, setSurfaceType] = useState<'iv' | 'vega'>('iv');
 
-    const fetchSurface = async () => {
+    const fetchSurface = useCallback(async () => {
         setLoading(true);
         try {
             const response = await fetch(`${NODE_API_URL}/api/risk/volatility/heatmap/${ticker}`);
@@ -35,11 +35,11 @@ export function VolatilitySurface3D() {
         } finally {
             setLoading(false);
         };
-    };
+    }, [ticker]);
 
     useEffect(() => {
         fetchSurface();
-    }, [ticker]);
+    }, [fetchSurface]);
 
     if (!data) {
         return (
@@ -50,7 +50,7 @@ export function VolatilitySurface3D() {
     }
 
     // Prepare data for Plotly 3D surface
-    const plotData: any[] = [{
+    const plotData: Record<string, unknown>[] = [{
         type: 'surface',
         x: data.strikes,
         y: data.maturities,
@@ -76,7 +76,7 @@ export function VolatilitySurface3D() {
             '<extra></extra>',
     }];
 
-    const layout = {
+    const layout: Record<string, unknown> = {
         title: {
             text: `${data.ticker} Volatility Surface`,
             font: { color: '#f1f5f9', size: 24 },
@@ -113,9 +113,9 @@ export function VolatilitySurface3D() {
         plot_bgcolor: '#0f172a',
         margin: { l: 0, r: 0, t: 50, b: 0 },
         autosize: true,
-    } as any;
+    };
 
-    const config = {
+    const config: Record<string, unknown> = {
         displayModeBar: true,
         displaylogo: false,
         toImageButtonOptions: {
@@ -124,7 +124,7 @@ export function VolatilitySurface3D() {
             height: 1200,
             width: 1600,
         },
-    } as any;
+    };
 
     return (
         <motion.div

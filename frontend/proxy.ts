@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 function isAdminEnabled(): boolean {
   const raw = (
@@ -16,7 +16,7 @@ function isAdminEnabled(): boolean {
   return process.env.NODE_ENV !== 'production';
 }
 
-export function proxy(request: NextRequest) {
+export function proxy() {
   if (!isAdminEnabled()) {
     return new NextResponse('Not Found', {
       status: 404,

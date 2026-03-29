@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Shield, Clock, User, FileText, Download, RefreshCw, Filter } from 'lucide-react';
+import { ArrowLeft, Shield, Clock, RefreshCw, Filter } from 'lucide-react';
 
 interface AuditEntry {
   id: string;

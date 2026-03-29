@@ -6,10 +6,39 @@ import { useTranslation } from '@/lib/i18n';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { Banknote, AlertTriangle } from 'lucide-react';
 
+interface LTPSegment {
+  segment: string;
+  category: 'asset' | 'liability';
+  balance: number;
+  matchedBucket: string;
+  liquidityPremium: number;
+  liquidityCharge: number;
+  beforeLTP_NIM: number;
+  afterLTP_NIM: number;
+  isLiquidityConsumer: boolean;
+}
+
+interface FundingCurveBucket {
+  bucket: string;
+  fundingCost: number;
+  riskFreeRate: number;
+  liquidityPremium: number;
+}
+
+interface LiquidityTransferPricingData {
+  segments: LTPSegment[];
+  internalFundingCurve: FundingCurveBucket[];
+  totalLiquidityCharge: number;
+  totalLiquidityCredit: number;
+  netLTPTransfer: number;
+  topConsumers: string[];
+  topProviders: string[];
+}
+
 export default function LTPPage() {
   const { selectedId } = useALM();
   const { locale } = useTranslation();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<LiquidityTransferPricingData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,7 +48,7 @@ export default function LTPPage() {
       try {
         const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
         const res = await fetch(`${NODE_API_URL}/api/alm/${selectedId}/ltp`);
-        if (res.ok) setData(await res.json());
+        if (res.ok) setData(await res.json() as LiquidityTransferPricingData);
         else setData(getDemoData());
       } catch { setData(getDemoData()); }
       finally { setLoading(false); }
@@ -29,7 +58,7 @@ export default function LTPPage() {
   if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
   if (loading || !data) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
 
-  const chartData = data.segments.map((s: any) => ({ name: s.segment, charge: s.liquidityCharge }));
+  const chartData = data.segments.map((segment) => ({ name: segment.segment, charge: segment.liquidityCharge }));
 
   return (
     <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
@@ -55,8 +84,8 @@ export default function LTPPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead><tr className="border-b border-slate-100">{[locale === 'es' ? 'Segmento' : 'Bucket', locale === 'es' ? 'Costo Fondeo' : 'Funding Cost', locale === 'es' ? 'Tasa Libre' : 'Risk-Free', locale === 'es' ? 'Prima Liquidez' : 'Liq. Premium'].map(h => <th key={h} className="px-3 py-1.5 text-left text-[10px] text-slate-500">{h}</th>)}</tr></thead>
-            <tbody>{data.internalFundingCurve.map((b: any) => (
-              <tr key={b.bucket} className="border-b border-slate-50"><td className="px-3 py-1.5 font-medium">{b.bucket}</td><td className="px-3 py-1.5 tabular-nums">{(b.fundingCost * 100).toFixed(2)}%</td><td className="px-3 py-1.5 tabular-nums">{(b.riskFreeRate * 100).toFixed(2)}%</td><td className="px-3 py-1.5 tabular-nums font-medium text-blue-700">{(b.liquidityPremium * 10000).toFixed(0)} bps</td></tr>
+            <tbody>{data.internalFundingCurve.map((bucket) => (
+              <tr key={bucket.bucket} className="border-b border-slate-50"><td className="px-3 py-1.5 font-medium">{bucket.bucket}</td><td className="px-3 py-1.5 tabular-nums">{(bucket.fundingCost * 100).toFixed(2)}%</td><td className="px-3 py-1.5 tabular-nums">{(bucket.riskFreeRate * 100).toFixed(2)}%</td><td className="px-3 py-1.5 tabular-nums font-medium text-blue-700">{(bucket.liquidityPremium * 10000).toFixed(0)} bps</td></tr>
             ))}</tbody>
           </table>
         </div>
@@ -71,7 +100,7 @@ export default function LTPPage() {
             <YAxis tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
             <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} />
             <ReferenceLine y={0} stroke="#94a3b8" />
-            <Bar dataKey="charge" radius={[4, 4, 0, 0]}>{chartData.map((e: any, i: number) => <Cell key={i} fill={e.charge >= 0 ? '#ef4444' : '#10b981'} />)}</Bar>
+            <Bar dataKey="charge" radius={[4, 4, 0, 0]}>{chartData.map((entry, i) => <Cell key={i} fill={entry.charge >= 0 ? '#ef4444' : '#10b981'} />)}</Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -90,7 +119,7 @@ export default function LTPPage() {
   );
 }
 
-function getDemoData() {
+function getDemoData(): LiquidityTransferPricingData {
   return {
     segments: [
       { segment: 'commercial re', category: 'asset', balance: 120, matchedBucket: '5-10Y', liquidityPremium: 60, liquidityCharge: 0.72, beforeLTP_NIM: 5.80, afterLTP_NIM: 5.20, isLiquidityConsumer: true },

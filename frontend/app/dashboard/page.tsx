@@ -22,7 +22,7 @@ import {
   Upload,
   Users,
 } from 'lucide-react';
-import { SkeletonLoader, EmptyState, ErrorBanner } from '@/components/ui/cerniq';
+import { SkeletonLoader, EmptyState } from '@/components/ui/cerniq';
 
 /* --- Helpers --- */
 

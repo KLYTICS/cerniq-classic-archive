@@ -16,7 +16,7 @@ interface HealthScore {
   rateRisk: number;
   credit: number;
   concentration: number;
-  label: string;
+  label: 'STRONG' | 'SATISFACTORY' | 'FAIR' | 'MARGINAL' | 'UNSATISFACTORY';
 }
 
 interface RiskAlert {
@@ -29,6 +29,8 @@ interface RiskAlert {
   remediation: string;
   remediationEs: string;
 }
+
+type HealthDimensionKey = 'capital' | 'liquidity' | 'rateRisk' | 'credit' | 'concentration';
 
 const SCORE_COLORS: Record<string, { ring: string; text: string; bg: string }> = {
   STRONG: { ring: 'stroke-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50' },
@@ -44,7 +46,7 @@ const SEVERITY_STYLES: Record<string, string> = {
   LOW: 'border-cyan-200 bg-cyan-50 text-cyan-700',
 };
 
-const DIMENSION_ICONS = [
+const DIMENSION_ICONS: Array<{ key: HealthDimensionKey; icon: typeof Wallet; label: string; labelEs: string }> = [
   { key: 'capital', icon: Wallet, label: 'Capital', labelEs: 'Capital' },
   { key: 'liquidity', icon: Shield, label: 'Liquidity', labelEs: 'Liquidez' },
   { key: 'rateRisk', icon: TrendingUp, label: 'Rate Risk', labelEs: 'Riesgo Tasa' },
@@ -170,7 +172,7 @@ export default function AdvisorV2Page() {
                   <div key={key} className="text-center">
                     <Icon className="h-4 w-4 mx-auto text-slate-500 mb-1" />
                     <p className="text-[10px] text-slate-500">{locale === 'es' ? labelEs : label}</p>
-                    <p className="text-sm font-bold tabular-nums text-slate-800">{(health as any)[key]}/20</p>
+                    <p className="text-sm font-bold tabular-nums text-slate-800">{health[key]}/20</p>
                   </div>
                 ))}
               </div>

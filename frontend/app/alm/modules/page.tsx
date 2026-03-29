@@ -6,7 +6,7 @@ import {
   BarChart3, TrendingUp, Shield, DollarSign, Activity, AlertOctagon, Zap,
   Landmark, SlidersHorizontal, Target, Cpu, Brain, GitBranch, Gauge,
   Layers, ShieldCheck, TrendingDown, Link2, ArrowDownUp, ArrowUpDown,
-  Timer, CloudLightning, FileText, Calculator, Search,
+  Timer, CloudLightning, FileText, Search,
 } from 'lucide-react';
 
 const CATEGORIES = [

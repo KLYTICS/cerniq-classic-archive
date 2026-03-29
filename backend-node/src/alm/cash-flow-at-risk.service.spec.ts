@@ -44,7 +44,7 @@ describe('CashFlowAtRiskService', () => {
   });
 
   it('higher confidence should produce higher CFaR', () => {
-    const cfar90 = service.calculateCFaR({ cashFlows, confidence: 0.90 });
+    const cfar90 = service.calculateCFaR({ cashFlows, confidence: 0.9 });
     const cfar99 = service.calculateCFaR({ cashFlows, confidence: 0.99 });
     expect(cfar99.cfar).toBeGreaterThan(cfar90.cfar);
   });
@@ -71,7 +71,11 @@ describe('CashFlowAtRiskService', () => {
 
   it('horizon parameter should limit periods included', () => {
     const full = service.calculateCFaR({ cashFlows, confidence: 0.95 });
-    const partial = service.calculateCFaR({ cashFlows, confidence: 0.95, horizon: 2 });
+    const partial = service.calculateCFaR({
+      cashFlows,
+      confidence: 0.95,
+      horizon: 2,
+    });
     expect(partial.periods).toHaveLength(2);
     expect(partial.expectedCF).toBeLessThan(full.expectedCF);
     expect(partial.cfar).toBeLessThan(full.cfar);

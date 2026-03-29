@@ -2,11 +2,55 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from '@/lib/i18n';
-import { Globe, AlertTriangle, Check, X } from 'lucide-react';
+import { Globe, AlertTriangle } from 'lucide-react';
+
+type NetworkRiskLevel = 'low' | 'medium' | 'high';
+type ContagionSeverity = 'LOW' | 'MEDIUM' | 'HIGH';
+
+interface NetworkRiskDistribution {
+  rating1: number;
+  rating2: number;
+  rating3: number;
+  rating4: number;
+  rating5: number;
+}
+
+interface NetworkAggregates {
+  totalInstitutions: number;
+  totalSystemAssets: number;
+  avgCAMEL: number;
+  avgNIM: number;
+  avgLCR: number;
+  avgNWR: number;
+  systemicRiskScore: number;
+  riskDistribution: NetworkRiskDistribution;
+}
+
+interface NetworkInstitution {
+  id: string;
+  name: string;
+  totalAssets: number;
+  camelComposite: number;
+  riskLevel: NetworkRiskLevel;
+  topRisk: string;
+}
+
+interface NetworkContagionRisk {
+  risk: string;
+  riskEs: string;
+  affectedInstitutions: number;
+  severity: ContagionSeverity;
+}
+
+interface NetworkOverviewData {
+  aggregates: NetworkAggregates;
+  institutions: NetworkInstitution[];
+  contagionRisks: NetworkContagionRisk[];
+}
 
 export default function NetworkPage() {
   const { locale } = useTranslation();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<NetworkOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,7 +59,7 @@ export default function NetworkPage() {
       try {
         const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
         const res = await fetch(`${NODE_API_URL}/api/alm/network/overview`);
-        if (res.ok) setData(await res.json());
+        if (res.ok) setData(await res.json() as NetworkOverviewData);
         else setData(getDemoData());
       } catch { setData(getDemoData()); }
       finally { setLoading(false); }
@@ -82,7 +126,7 @@ export default function NetworkPage() {
             </tr>
           </thead>
           <tbody>
-            {data.institutions.slice(0, 15).map((inst: any) => (
+            {data.institutions.slice(0, 15).map((inst) => (
               <tr key={inst.id} className="border-b border-slate-50 last:border-0">
                 <td className="px-4 py-2.5 font-medium text-slate-700 text-xs">{inst.name}</td>
                 <td className="px-4 py-2.5 tabular-nums text-xs text-slate-600">{inst.totalAssets}</td>
@@ -99,11 +143,11 @@ export default function NetworkPage() {
       {data.contagionRisks.length > 0 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 mb-3">{locale === 'es' ? 'Riesgos de Contagio' : 'Contagion Risks'}</p>
-          {data.contagionRisks.map((r: any, i: number) => (
+          {data.contagionRisks.map((risk, i) => (
             <div key={i} className="flex items-center gap-2 py-1.5">
-              <AlertTriangle className={`h-3.5 w-3.5 shrink-0 ${r.severity === 'HIGH' ? 'text-rose-600' : 'text-amber-600'}`} />
-              <span className="text-xs text-slate-700 flex-1">{locale === 'es' ? r.riskEs : r.risk}</span>
-              <span className="text-[10px] text-slate-500">{r.affectedInstitutions} {locale === 'es' ? 'inst.' : 'inst.'}</span>
+              <AlertTriangle className={`h-3.5 w-3.5 shrink-0 ${risk.severity === 'HIGH' ? 'text-rose-600' : 'text-amber-600'}`} />
+              <span className="text-xs text-slate-700 flex-1">{locale === 'es' ? risk.riskEs : risk.risk}</span>
+              <span className="text-[10px] text-slate-500">{risk.affectedInstitutions} {locale === 'es' ? 'inst.' : 'inst.'}</span>
             </div>
           ))}
         </div>
@@ -112,7 +156,7 @@ export default function NetworkPage() {
   );
 }
 
-function KPI({ label, value, warn }: { label: string; value: any; warn?: boolean }) {
+function KPI({ label, value, warn }: { label: string; value: string | number; warn?: boolean }) {
   return (
     <div className={`rounded-xl border p-3 ${warn ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
       <p className="text-[10px] font-medium uppercase text-slate-400">{label}</p>
@@ -121,7 +165,7 @@ function KPI({ label, value, warn }: { label: string; value: any; warn?: boolean
   );
 }
 
-function getDemoData() {
+function getDemoData(): NetworkOverviewData {
   return {
     aggregates: { totalInstitutions: 94, totalSystemAssets: 18500, avgCAMEL: 2.1, avgNIM: 3.6, avgLCR: 118, avgNWR: 9.2, systemicRiskScore: 35, riskDistribution: { rating1: 14, rating2: 42, rating3: 24, rating4: 10, rating5: 4 } },
     institutions: Array.from({ length: 15 }, (_, i) => ({

@@ -104,7 +104,9 @@ export class ImmunizationStrategyService {
     if (Math.abs(currentGap) > 0.1) {
       if (currentGap > 0) {
         // Asset duration too long — sell long-duration assets or buy short liabilities
-        const longestAsset = [...assets].sort((a, b) => b.duration - a.duration)[0];
+        const longestAsset = [...assets].sort(
+          (a, b) => b.duration - a.duration,
+        )[0];
         const reductionNeeded = currentGap * totalAssetMV;
         const amount = Math.abs(reductionNeeded / longestAsset.duration);
         rebalancing.push({
@@ -115,9 +117,13 @@ export class ImmunizationStrategyService {
         });
       } else {
         // Asset duration too short — buy longer-duration assets
-        const shortestDurAsset = [...assets].sort((a, b) => a.duration - b.duration)[0];
+        const shortestDurAsset = [...assets].sort(
+          (a, b) => a.duration - b.duration,
+        )[0];
         const extensionNeeded = Math.abs(currentGap) * totalAssetMV;
-        const longestAvailable = [...assets].sort((a, b) => b.duration - a.duration)[0];
+        const longestAvailable = [...assets].sort(
+          (a, b) => b.duration - a.duration,
+        )[0];
         const amount = extensionNeeded / longestAvailable.duration;
         rebalancing.push({
           action: 'buy',
@@ -130,8 +136,11 @@ export class ImmunizationStrategyService {
 
     if (!convexityMatch) {
       const convexityGap = liabilityConvexity - assetConvexity;
-      const highestConvexityAsset = [...assets].sort((a, b) => b.convexity - a.convexity)[0];
-      const amount = (convexityGap * totalAssetMV) / highestConvexityAsset.convexity;
+      const highestConvexityAsset = [...assets].sort(
+        (a, b) => b.convexity - a.convexity,
+      )[0];
+      const amount =
+        (convexityGap * totalAssetMV) / highestConvexityAsset.convexity;
       rebalancing.push({
         action: 'buy',
         instrument: highestConvexityAsset.name,
@@ -140,7 +149,8 @@ export class ImmunizationStrategyService {
       });
     }
 
-    const immunizedDuration = rebalancing.length === 0 ? assetDuration : targetHorizon;
+    const immunizedDuration =
+      rebalancing.length === 0 ? assetDuration : targetHorizon;
 
     this.logger.log(
       `Immunization analysis: durationGap=${this.round6(currentGap)}, convexityMatch=${convexityMatch}, actions=${rebalancing.length}`,
@@ -165,9 +175,16 @@ export class ImmunizationStrategyService {
   surplusAtRisk(
     params: ImmunizationParams,
     shockBps: number,
-  ): { currentSurplus: number; surplusAfterShock: number; surplusAtRisk: number } {
+  ): {
+    currentSurplus: number;
+    surplusAfterShock: number;
+    surplusAtRisk: number;
+  } {
     const totalAssetMV = params.assets.reduce((s, a) => s + a.marketValue, 0);
-    const totalLiabilityMV = params.liabilities.reduce((s, l) => s + l.marketValue, 0);
+    const totalLiabilityMV = params.liabilities.reduce(
+      (s, l) => s + l.marketValue,
+      0,
+    );
     const currentSurplus = totalAssetMV - totalLiabilityMV;
 
     const shockDecimal = shockBps / 10_000;

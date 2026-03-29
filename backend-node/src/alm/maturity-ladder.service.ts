@@ -78,7 +78,9 @@ export class MaturityLadderService {
     const { assets, liabilities } = params;
     const asOf = params.asOfDate ? new Date(params.asOfDate) : new Date();
 
-    this.logger.log(`Building maturity ladder: ${assets.length} assets, ${liabilities.length} liabilities`);
+    this.logger.log(
+      `Building maturity ladder: ${assets.length} assets, ${liabilities.length} liabilities`,
+    );
 
     // Initialize buckets
     const buckets: MaturityBucket[] = BUCKET_DEFINITIONS.map((def) => ({
@@ -93,7 +95,10 @@ export class MaturityLadderService {
     // Assign assets to buckets
     let totalAssets = 0;
     for (const asset of assets) {
-      const daysToMaturity = this.daysBetween(asOf, new Date(asset.maturityDate));
+      const daysToMaturity = this.daysBetween(
+        asOf,
+        new Date(asset.maturityDate),
+      );
       const bucketIdx = this.findBucket(daysToMaturity);
       buckets[bucketIdx].assetTotal += asset.balance;
       totalAssets += asset.balance;
@@ -102,7 +107,10 @@ export class MaturityLadderService {
     // Assign liabilities to buckets
     let totalLiabilities = 0;
     for (const liability of liabilities) {
-      const daysToMaturity = this.daysBetween(asOf, new Date(liability.maturityDate));
+      const daysToMaturity = this.daysBetween(
+        asOf,
+        new Date(liability.maturityDate),
+      );
       const bucketIdx = this.findBucket(daysToMaturity);
       buckets[bucketIdx].liabilityTotal += liability.balance;
       totalLiabilities += liability.balance;
@@ -135,9 +143,8 @@ export class MaturityLadderService {
         maxBucketBalance = bucketBalance;
       }
     }
-    const concentrationRisk = totalBalance > 0
-      ? +(maxBucketBalance / totalBalance).toFixed(4)
-      : 0;
+    const concentrationRisk =
+      totalBalance > 0 ? +(maxBucketBalance / totalBalance).toFixed(4) : 0;
 
     return {
       buckets,
@@ -161,12 +168,10 @@ export class MaturityLadderService {
     const { buckets, totalAssets } = params;
 
     return buckets.map((b) => {
-      const gapRatio = totalAssets > 0
-        ? b.cumulativeGap / totalAssets
-        : 0;
+      const gapRatio = totalAssets > 0 ? b.cumulativeGap / totalAssets : 0;
 
       let status: string;
-      if (gapRatio < -0.10) {
+      if (gapRatio < -0.1) {
         status = 'Critical';
       } else if (gapRatio < -0.05) {
         status = 'Warning';

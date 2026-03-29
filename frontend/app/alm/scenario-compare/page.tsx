@@ -1,39 +1,18 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { apiClient } from '@/lib/api';
+import { apiClient, type ScenarioComparisonResponse, type SavedStressScenario, type StressScenarioParams } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { GitCompare, AlertTriangle, Check, X, Minus, ChevronDown } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { GitCompare, AlertTriangle, Check, X } from 'lucide-react';
 import Link from 'next/link';
 
 // ─── Types ────────────────────────────────────────────────────
 
-interface SavedScenario {
-  id: string;
-  name: string;
-  scenarioType: string;
-  parameters: Record<string, any>;
-  results: Record<string, any> | null;
-  tags: string[];
-  createdAt: string;
-}
-
-interface ComparisonResult {
-  scenarios: SavedScenario[];
-  comparison: {
-    rows: Array<{
-      metric: string;
-      key: string;
-      higherIsBetter: boolean;
-      values: (number | null)[];
-      best: number | null;
-      worst: number | null;
-    }>;
-    verdicts: string[];
-  };
-}
+type SavedScenario = SavedStressScenario;
+type ComparisonResult = ScenarioComparisonResponse;
+type ScenarioParameterKey = keyof StressScenarioParams;
 
 const VERDICT_COLORS: Record<string, string> = {
   RESILIENT: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -44,6 +23,7 @@ const VERDICT_COLORS: Record<string, string> = {
 };
 
 const CHART_COLORS = ['#06b6d4', '#f59e0b', '#8b5cf6', '#10b981'];
+const PARAMETER_KEYS: ScenarioParameterKey[] = ['rateShockBps', 'depositRunoffPct', 'defaultRateIncreasePct', 'energyCostShockPct'];
 
 // ─── Main Page ────────────────────────────────────────────────
 
@@ -153,8 +133,8 @@ export default function ScenarioComparePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {scenarios.map((s) => {
               const isSelected = selected.includes(s.id);
-              const params = s.parameters as any;
-              const verdict = (s.results as any)?.verdict;
+              const params = s.parameters;
+              const verdict = s.results?.verdict;
               return (
                 <button
                   key={s.id}
@@ -311,7 +291,7 @@ export default function ScenarioComparePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {['rateShockBps', 'depositRunoffPct', 'defaultRateIncreasePct', 'energyCostShockPct'].map((key) => (
+                  {PARAMETER_KEYS.map((key) => (
                     <tr key={key} className="border-b border-slate-50 last:border-0">
                       <td className="px-3 py-2 text-xs font-medium text-slate-600">
                         {key === 'rateShockBps' ? (locale === 'es' ? 'Choque de Tasa (bps)' : 'Rate Shock (bps)') :
@@ -321,7 +301,7 @@ export default function ScenarioComparePage() {
                       </td>
                       {comparison.scenarios.map((s) => (
                         <td key={s.id} className="px-3 py-2 text-center text-xs tabular-nums text-slate-700">
-                          {(s.parameters as any)?.[key] ?? 0}
+                          {s.parameters[key] ?? 0}
                         </td>
                       ))}
                     </tr>
@@ -338,11 +318,11 @@ export default function ScenarioComparePage() {
 
 // ─── Helpers ────────────────────────────────────────────────────
 
-function buildBarChartData(comparison: ComparisonResult) {
+function buildBarChartData(comparison: ComparisonResult): Array<{ metric: string } & Record<string, number | string | null>> {
   return comparison.comparison.rows
     .filter((r) => r.values.some((v) => v !== null))
     .map((row) => {
-      const entry: Record<string, any> = { metric: row.metric };
+      const entry: { metric: string } & Record<string, number | string | null> = { metric: row.metric };
       comparison.scenarios.forEach((s, i) => {
         entry[s.name] = row.values[i];
       });
@@ -375,7 +355,7 @@ function buildClientComparison(scenarios: SavedScenario[]): ComparisonResult {
     };
   });
 
-  const verdicts = scenarios.map((s) => ((s.results as any)?.verdict as string) ?? 'N/A');
+  const verdicts = scenarios.map((s) => s.results?.verdict ?? 'N/A');
 
   return {
     scenarios,

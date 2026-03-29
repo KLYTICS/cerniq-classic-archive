@@ -68,7 +68,8 @@ export class EncumberedAssetsService {
     const totalAssets = assets.reduce((s, a) => s + a.balance, 0);
     const encumberedAssets = assets.reduce((s, a) => s + a.encumbered, 0);
     const unencumberedAssets = totalAssets - encumberedAssets;
-    const encumbranceRatio = totalAssets > 0 ? encumberedAssets / totalAssets : 0;
+    const encumbranceRatio =
+      totalAssets > 0 ? encumberedAssets / totalAssets : 0;
 
     // Group by pledgee
     const pledgeeMap = new Map<string, number>();
@@ -83,7 +84,9 @@ export class EncumberedAssetsService {
       .map(([pledgee, amount]) => ({
         pledgee,
         encumberedAmount: this.round2(amount),
-        percentage: this.round6(encumberedAssets > 0 ? amount / encumberedAssets : 0),
+        percentage: this.round6(
+          encumberedAssets > 0 ? amount / encumberedAssets : 0,
+        ),
       }))
       .sort((a, b) => b.encumberedAmount - a.encumberedAmount);
 
@@ -105,9 +108,10 @@ export class EncumberedAssetsService {
    * Validate that encumbered amounts do not exceed asset balances
    * and flag any inconsistencies.
    */
-  validateEncumbrance(
-    params: EncumberedAssetsParams,
-  ): { valid: boolean; errors: string[] } {
+  validateEncumbrance(params: EncumberedAssetsParams): {
+    valid: boolean;
+    errors: string[];
+  } {
     const errors: string[] = [];
 
     for (const asset of params.assets) {

@@ -63,7 +63,9 @@ export class IntradayLiquidityService {
    * Processes inflows and outflows chronologically, computing the running
    * balance at each hour.  Identifies shortfall periods and peak usage.
    */
-  simulateIntradayLiquidity(params: IntradayLiquidityParams): IntradayLiquidityResult {
+  simulateIntradayLiquidity(
+    params: IntradayLiquidityParams,
+  ): IntradayLiquidityResult {
     const { openingBalance, expectedInflows, expectedOutflows } = params;
 
     // Build hourly timeline (08:00 through 17:00 business hours)

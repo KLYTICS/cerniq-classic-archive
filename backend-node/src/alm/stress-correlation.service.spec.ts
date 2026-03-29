@@ -50,9 +50,7 @@ describe('StressCorrelationService', () => {
   // 1. Stress correlation is higher than normal
   it('stress correlation exceeds normal correlation', () => {
     const result = service.analyzeStressCorrelation(baseParams());
-    expect(result.stressCorrelation).toBeGreaterThan(
-      result.normalCorrelation,
-    );
+    expect(result.stressCorrelation).toBeGreaterThan(result.normalCorrelation);
   });
 
   // 2. Correlation increase is positive

@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { motion } from 'framer-motion';
 
 interface IVSurfacePoint {
     strike: number;
@@ -21,6 +20,11 @@ interface VolatilitySurface {
     timestamp: Date;
 }
 
+type SmileChartPoint = {
+    strike: number;
+    moneyness: string;
+} & Record<string, string | number | undefined>;
+
 const MATURITY_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#10b981', '#eab308'];
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
@@ -31,7 +35,7 @@ export function VolatilitySmile() {
     const [loading, setLoading] = useState(false);
     const [selectedMaturity, setSelectedMaturity] = useState<number | 'all'>(30);
 
-    const fetchSurface = async () => {
+    const fetchSurface = useCallback(async () => {
         setLoading(true);
         try {
             const response = await fetch(`${NODE_API_URL}/api/options/surface/${ticker}`);
@@ -42,11 +46,11 @@ export function VolatilitySmile() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [ticker]);
 
     useEffect(() => {
         fetchSurface();
-    }, [ticker]);
+    }, [fetchSurface]);
 
     if (!data) {
         return (
@@ -57,8 +61,8 @@ export function VolatilitySmile() {
     }
 
     // Prepare data for volatility smile chart
-    const smileData = data.strikes.map((strike) => {
-        const point: any = { strike, moneyness: ((strike / data.underlyingPrice - 1) * 100).toFixed(1) + '%' };
+    const smileData: SmileChartPoint[] = data.strikes.map((strike) => {
+        const point: SmileChartPoint = { strike, moneyness: ((strike / data.underlyingPrice - 1) * 100).toFixed(1) + '%' };
 
         data.maturities.forEach((maturity) => {
             const surfacePoint = data.surface.find(
@@ -169,7 +173,7 @@ export function VolatilitySmile() {
                         <Tooltip
                             contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }}
                             labelStyle={{ color: '#e2e8f0' }}
-                            formatter={(value: any) => `${value}%`}
+                            formatter={(value: number | string | undefined) => `${value ?? 0}%`}
                         />
                         <Legend />
                         {visibleMaturities.map((maturity, index) => (

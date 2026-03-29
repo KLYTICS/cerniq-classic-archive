@@ -312,7 +312,7 @@ export default function OrganizationsPage() {
                                 <label className="block text-sm font-medium text-gray-400 mb-1">Role</label>
                                 <select
                                     value={inviteRole}
-                                    onChange={e => setInviteRole(e.target.value as any)}
+                                    onChange={e => setInviteRole(e.target.value as OrganizationMember['role'])}
                                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                                 >
                                     <option value="ADMIN">Admin — Full access, can manage members</option>

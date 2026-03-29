@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
-import { AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Activity, AlertTriangle, TrendingUp } from 'lucide-react';
+import { AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Activity, AlertTriangle } from 'lucide-react';
 
 interface GARCHResult {
   params: { omega: number; alpha: number; beta: number; persistence: number; longRunVol: number; halfLife: number };

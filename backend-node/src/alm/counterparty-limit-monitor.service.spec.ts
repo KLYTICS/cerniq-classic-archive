@@ -8,10 +8,30 @@ import {
 function mixedParams(): CounterpartyLimitParams {
   return {
     exposures: [
-      { counterparty: 'Bank A', amount: 12_000_000, limit: 10_000_000, rating: 'AA' },  // breach
-      { counterparty: 'Bank B', amount: 8_500_000, limit: 10_000_000, rating: 'A' },     // warning
-      { counterparty: 'Bank C', amount: 5_000_000, limit: 10_000_000, rating: 'AAA' },   // OK
-      { counterparty: 'Bank D', amount: 9_200_000, limit: 10_000_000, rating: 'BBB' },   // warning
+      {
+        counterparty: 'Bank A',
+        amount: 12_000_000,
+        limit: 10_000_000,
+        rating: 'AA',
+      }, // breach
+      {
+        counterparty: 'Bank B',
+        amount: 8_500_000,
+        limit: 10_000_000,
+        rating: 'A',
+      }, // warning
+      {
+        counterparty: 'Bank C',
+        amount: 5_000_000,
+        limit: 10_000_000,
+        rating: 'AAA',
+      }, // OK
+      {
+        counterparty: 'Bank D',
+        amount: 9_200_000,
+        limit: 10_000_000,
+        rating: 'BBB',
+      }, // warning
     ],
   };
 }
@@ -19,8 +39,18 @@ function mixedParams(): CounterpartyLimitParams {
 function compliantParams(): CounterpartyLimitParams {
   return {
     exposures: [
-      { counterparty: 'Bank X', amount: 3_000_000, limit: 10_000_000, rating: 'AA' },
-      { counterparty: 'Bank Y', amount: 2_000_000, limit: 10_000_000, rating: 'A' },
+      {
+        counterparty: 'Bank X',
+        amount: 3_000_000,
+        limit: 10_000_000,
+        rating: 'AA',
+      },
+      {
+        counterparty: 'Bank Y',
+        amount: 2_000_000,
+        limit: 10_000_000,
+        rating: 'A',
+      },
     ],
   };
 }
@@ -80,8 +110,18 @@ describe('CounterpartyLimitMonitorService', () => {
   it('sorts breaches by utilisation descending', () => {
     const params: CounterpartyLimitParams = {
       exposures: [
-        { counterparty: 'A', amount: 15_000_000, limit: 10_000_000, rating: 'BB' },
-        { counterparty: 'B', amount: 20_000_000, limit: 10_000_000, rating: 'B' },
+        {
+          counterparty: 'A',
+          amount: 15_000_000,
+          limit: 10_000_000,
+          rating: 'BB',
+        },
+        {
+          counterparty: 'B',
+          amount: 20_000_000,
+          limit: 10_000_000,
+          rating: 'B',
+        },
       ],
     };
     const result = service.checkLimits(params);

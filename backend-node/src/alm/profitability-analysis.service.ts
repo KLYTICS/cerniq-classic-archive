@@ -70,9 +70,11 @@ export class ProfitabilityAnalysisService {
     products: ProductInput[];
     hurdleRate?: number;
   }): ProfitabilityResult {
-    const { products, hurdleRate = 0.10 } = params;
+    const { products, hurdleRate = 0.1 } = params;
 
-    this.logger.log(`Analyzing profitability for ${products.length} products, hurdle rate=${(hurdleRate * 100).toFixed(1)}%`);
+    this.logger.log(
+      `Analyzing profitability for ${products.length} products, hurdle rate=${(hurdleRate * 100).toFixed(1)}%`,
+    );
 
     let totalRevenue = 0;
     let totalCosts = 0;
@@ -119,9 +121,8 @@ export class ProfitabilityAnalysisService {
       if (match) match.ranking = idx + 1;
     });
 
-    const portfolioRAROC = totalEconomicCapital > 0
-      ? totalNetIncome / totalEconomicCapital
-      : 0;
+    const portfolioRAROC =
+      totalEconomicCapital > 0 ? totalNetIncome / totalEconomicCapital : 0;
 
     const profitableCount = results.filter((r) => r.raroc >= hurdleRate).length;
     const unprofitableCount = results.length - profitableCount;
@@ -148,10 +149,18 @@ export class ProfitabilityAnalysisService {
     existingProducts: ProductInput[];
     newProduct: ProductInput;
     hurdleRate?: number;
-  }): { beforeRAROC: number; afterRAROC: number; marginalRAROC: number; worthAdding: boolean } {
-    const { existingProducts, newProduct, hurdleRate = 0.10 } = params;
+  }): {
+    beforeRAROC: number;
+    afterRAROC: number;
+    marginalRAROC: number;
+    worthAdding: boolean;
+  } {
+    const { existingProducts, newProduct, hurdleRate = 0.1 } = params;
 
-    const before = this.analyzeProductProfitability({ products: existingProducts, hurdleRate });
+    const before = this.analyzeProductProfitability({
+      products: existingProducts,
+      hurdleRate,
+    });
     const after = this.analyzeProductProfitability({
       products: [...existingProducts, newProduct],
       hurdleRate,
@@ -160,8 +169,11 @@ export class ProfitabilityAnalysisService {
     return {
       beforeRAROC: before.summary.portfolioRAROC,
       afterRAROC: after.summary.portfolioRAROC,
-      marginalRAROC: +(after.summary.portfolioRAROC - before.summary.portfolioRAROC).toFixed(4),
-      worthAdding: after.summary.portfolioRAROC >= before.summary.portfolioRAROC,
+      marginalRAROC: +(
+        after.summary.portfolioRAROC - before.summary.portfolioRAROC
+      ).toFixed(4),
+      worthAdding:
+        after.summary.portfolioRAROC >= before.summary.portfolioRAROC,
     };
   }
 }

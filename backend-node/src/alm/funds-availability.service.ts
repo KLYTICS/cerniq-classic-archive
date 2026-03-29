@@ -42,7 +42,7 @@ export interface FundsAvailabilityResult {
 const SECURITIES_HAIRCUT = 0.95;
 
 /** Haircut on uncommitted lines (may not be honoured under stress) */
-const UNCOMMITTED_HAIRCUT = 0.50;
+const UNCOMMITTED_HAIRCUT = 0.5;
 
 /** Assumed daily operating burn as fraction of Tier 1 for coverage calc */
 const DAILY_BURN_FRACTION = 0.01;

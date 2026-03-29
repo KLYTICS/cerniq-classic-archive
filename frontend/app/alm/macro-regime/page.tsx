@@ -3,7 +3,22 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from '@/lib/i18n';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Activity, AlertTriangle } from 'lucide-react';
+import { Activity } from 'lucide-react';
+
+type MacroRegime = 'RISING_RATES' | 'PLATEAU' | 'EASING' | 'CRISIS';
+
+interface MacroRegimeProbability {
+  regime: MacroRegime;
+  probability: number;
+}
+
+interface MacroRegimeData {
+  currentRegime: MacroRegime;
+  currentProbabilities: MacroRegimeProbability[];
+  regimePersistence: number;
+  almImplications: string;
+  almImplicationsEs: string;
+}
 
 const REGIME_STYLES: Record<string, { bg: string; text: string; border: string }> = {
   RISING_RATES: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
@@ -14,7 +29,7 @@ const REGIME_STYLES: Record<string, { bg: string; text: string; border: string }
 
 export default function MacroRegimePage() {
   const { locale } = useTranslation();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<MacroRegimeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDemo, setIsDemo] = useState(false);
 
@@ -24,7 +39,7 @@ export default function MacroRegimePage() {
       try {
         const NODE = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
         const res = await fetch(`${NODE}/api/alm/market/macro-regime`);
-        if (res.ok) { setData(await res.json()); setIsDemo(false); }
+        if (res.ok) { setData(await res.json() as MacroRegimeData); setIsDemo(false); }
         else { setData(getDemoData()); setIsDemo(true); }
       } catch { setData(getDemoData()); setIsDemo(true); }
       finally { setLoading(false); }
@@ -34,9 +49,9 @@ export default function MacroRegimePage() {
   if (loading || !data) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
 
   const style = REGIME_STYLES[data.currentRegime] ?? REGIME_STYLES.PLATEAU;
-  const chartData = data.currentProbabilities.map((p: any) => ({
-    regime: p.regime.replace(/_/g, ' '),
-    probability: +(p.probability * 100).toFixed(1),
+  const chartData = data.currentProbabilities.map((probability) => ({
+    regime: probability.regime.replace(/_/g, ' '),
+    probability: +(probability.probability * 100).toFixed(1),
   }));
 
   return (
@@ -73,7 +88,7 @@ export default function MacroRegimePage() {
             <YAxis tickFormatter={v => `${v}%`} tick={{ fontSize: 11 }} />
             <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} />
             <Bar dataKey="probability" radius={[4, 4, 0, 0]}>
-              {chartData.map((e: any, i: number) => <Cell key={i} fill={['#ef4444', '#06b6d4', '#10b981', '#1e293b'][i]} />)}
+              {chartData.map((_, i) => <Cell key={i} fill={['#ef4444', '#06b6d4', '#10b981', '#1e293b'][i]} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -88,7 +103,7 @@ export default function MacroRegimePage() {
   );
 }
 
-function getDemoData() {
+function getDemoData(): MacroRegimeData {
   return {
     currentRegime: 'PLATEAU',
     currentProbabilities: [

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
     ComposedChart,
@@ -12,7 +12,6 @@ import {
     Tooltip,
     ResponsiveContainer,
     Area,
-    ReferenceLine,
 } from 'recharts';
 import { apiClient } from '@/lib/api';
 
@@ -78,11 +77,7 @@ export function CandlestickChart({ ticker, initialTimeframe = '1M' }: Candlestic
     const [activeIndicators, setActiveIndicators] = useState<IndicatorId[]>(['sma20', 'sma50']);
     const [chartType, setChartType] = useState<'candlestick' | 'line' | 'area'>('candlestick');
 
-    useEffect(() => {
-        fetchChartData();
-    }, [ticker, timeframe, activeIndicators]);
-
-    const fetchChartData = async () => {
+    const fetchChartData = useCallback(async () => {
         setLoading(true);
         try {
             const indicators = ['sma20', 'sma50', 'bollinger', ...activeIndicators].join(',');
@@ -96,7 +91,11 @@ export function CandlestickChart({ ticker, initialTimeframe = '1M' }: Candlestic
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeIndicators, ticker, timeframe]);
+
+    useEffect(() => {
+        fetchChartData();
+    }, [fetchChartData]);
 
     if (loading) {
         return (

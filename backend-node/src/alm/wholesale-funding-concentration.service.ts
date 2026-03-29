@@ -58,7 +58,9 @@ export interface WholesaleFundingResult {
 
 @Injectable()
 export class WholesaleFundingConcentrationService {
-  private readonly logger = new Logger(WholesaleFundingConcentrationService.name);
+  private readonly logger = new Logger(
+    WholesaleFundingConcentrationService.name,
+  );
 
   /**
    * Analyze concentration risk in wholesale funding sources.
@@ -94,7 +96,8 @@ export class WholesaleFundingConcentrationService {
       }
     }
 
-    const topCounterpartyPct = totalFunding > 0 ? maxCounterpartyAmount / totalFunding : 0;
+    const topCounterpartyPct =
+      totalFunding > 0 ? maxCounterpartyAmount / totalFunding : 0;
 
     // Rollover risk — percentage of funding maturing within 30 days
     const shortTermFunding = fundingSources
@@ -118,7 +121,9 @@ export class WholesaleFundingConcentrationService {
       // Special case for 0-1m bucket
       const bucketSources =
         mb.minMonths === 0
-          ? fundingSources.filter((f) => f.maturity >= 0 && f.maturity <= mb.maxMonths)
+          ? fundingSources.filter(
+              (f) => f.maturity >= 0 && f.maturity <= mb.maxMonths,
+            )
           : sources;
       const amount = bucketSources.reduce((s, f) => s + f.amount, 0);
 
@@ -153,8 +158,13 @@ export class WholesaleFundingConcentrationService {
   identifyBreaches(
     params: WholesaleFundingParams,
     thresholdPct: number,
-  ): { breaches: { counterparty: string; amount: number; percentage: number }[] } {
-    const totalFunding = params.fundingSources.reduce((s, f) => s + f.amount, 0);
+  ): {
+    breaches: { counterparty: string; amount: number; percentage: number }[];
+  } {
+    const totalFunding = params.fundingSources.reduce(
+      (s, f) => s + f.amount,
+      0,
+    );
 
     const counterpartyTotals = new Map<string, number>();
     for (const source of params.fundingSources) {
@@ -162,7 +172,11 @@ export class WholesaleFundingConcentrationService {
       counterpartyTotals.set(source.counterparty, current + source.amount);
     }
 
-    const breaches: { counterparty: string; amount: number; percentage: number }[] = [];
+    const breaches: {
+      counterparty: string;
+      amount: number;
+      percentage: number;
+    }[] = [];
     for (const [counterparty, amount] of counterpartyTotals) {
       const pct = totalFunding > 0 ? amount / totalFunding : 0;
       if (pct > thresholdPct) {

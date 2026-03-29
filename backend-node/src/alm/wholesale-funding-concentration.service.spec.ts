@@ -7,18 +7,43 @@ import {
 
 const DIVERSIFIED: WholesaleFundingParams = {
   fundingSources: [
-    { counterparty: 'FHLB Dallas', amount: 10_000_000, maturity: 6, type: 'advance' },
+    {
+      counterparty: 'FHLB Dallas',
+      amount: 10_000_000,
+      maturity: 6,
+      type: 'advance',
+    },
     { counterparty: 'JP Morgan', amount: 8_000_000, maturity: 3, type: 'repo' },
-    { counterparty: 'Bank of NY', amount: 7_000_000, maturity: 12, type: 'fed_funds' },
+    {
+      counterparty: 'Bank of NY',
+      amount: 7_000_000,
+      maturity: 12,
+      type: 'fed_funds',
+    },
     { counterparty: 'Citi', amount: 6_000_000, maturity: 1, type: 'repo' },
-    { counterparty: 'Goldman', amount: 5_000_000, maturity: 24, type: 'term_deposit' },
-    { counterparty: 'Wells Fargo', amount: 4_000_000, maturity: 9, type: 'advance' },
+    {
+      counterparty: 'Goldman',
+      amount: 5_000_000,
+      maturity: 24,
+      type: 'term_deposit',
+    },
+    {
+      counterparty: 'Wells Fargo',
+      amount: 4_000_000,
+      maturity: 9,
+      type: 'advance',
+    },
   ],
 };
 
 const CONCENTRATED: WholesaleFundingParams = {
   fundingSources: [
-    { counterparty: 'FHLB Dallas', amount: 40_000_000, maturity: 3, type: 'advance' },
+    {
+      counterparty: 'FHLB Dallas',
+      amount: 40_000_000,
+      maturity: 3,
+      type: 'advance',
+    },
     { counterparty: 'JP Morgan', amount: 5_000_000, maturity: 6, type: 'repo' },
     { counterparty: 'Citi', amount: 5_000_000, maturity: 12, type: 'repo' },
   ],
@@ -102,7 +127,12 @@ describe('WholesaleFundingConcentrationService', () => {
   it('should produce HHI of 10000 for a single counterparty', () => {
     const params: WholesaleFundingParams = {
       fundingSources: [
-        { counterparty: 'Only Bank', amount: 50_000_000, maturity: 6, type: 'advance' },
+        {
+          counterparty: 'Only Bank',
+          amount: 50_000_000,
+          maturity: 6,
+          type: 'advance',
+        },
       ],
     };
     const result = svc.analyzeConcentration(params);
@@ -124,7 +154,7 @@ describe('WholesaleFundingConcentrationService', () => {
   // ─── Test 11: No breaches when below threshold ──────────────────
 
   it('should find no breaches when all counterparties are below threshold', () => {
-    const result = svc.identifyBreaches(DIVERSIFIED, 0.30);
+    const result = svc.identifyBreaches(DIVERSIFIED, 0.3);
     // Largest is FHLB Dallas at 25% < 30% threshold
     expect(result.breaches).toHaveLength(0);
   });

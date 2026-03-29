@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Shield, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 interface NSFRCategory {

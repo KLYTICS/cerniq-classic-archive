@@ -60,7 +60,7 @@ describe('LoanPricingEngineService', () => {
 
   it('higher target ROE should increase minimum rate', () => {
     const lowROE = service.priceLoan({ ...baseParams, targetROE: 0.08 });
-    const highROE = service.priceLoan({ ...baseParams, targetROE: 0.20 });
+    const highROE = service.priceLoan({ ...baseParams, targetROE: 0.2 });
     expect(highROE.minimumRate).toBeGreaterThan(lowROE.minimumRate);
   });
 
@@ -69,8 +69,22 @@ describe('LoanPricingEngineService', () => {
       principal: 500_000,
       maturityYears: 5,
       scenarios: [
-        { name: 'Base', costOfFunds: 0.035, creditSpread: 0.015, operatingCost: 0.005, targetROE: 0.12, capitalRequirement: 0.08 },
-        { name: 'Stress', costOfFunds: 0.05, creditSpread: 0.03, operatingCost: 0.005, targetROE: 0.12, capitalRequirement: 0.08 },
+        {
+          name: 'Base',
+          costOfFunds: 0.035,
+          creditSpread: 0.015,
+          operatingCost: 0.005,
+          targetROE: 0.12,
+          capitalRequirement: 0.08,
+        },
+        {
+          name: 'Stress',
+          costOfFunds: 0.05,
+          creditSpread: 0.03,
+          operatingCost: 0.005,
+          targetROE: 0.12,
+          capitalRequirement: 0.08,
+        },
       ],
     });
     expect(results).toHaveLength(2);

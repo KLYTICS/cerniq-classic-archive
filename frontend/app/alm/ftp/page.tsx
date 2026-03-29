@@ -5,7 +5,7 @@ import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Cell, ReferenceLine,
 } from 'recharts';
 import { DollarSign, AlertTriangle, RefreshCw } from 'lucide-react';

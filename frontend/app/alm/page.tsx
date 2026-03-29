@@ -7,9 +7,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   RefreshCw, TrendingUp, TrendingDown, Shield, DollarSign, ChevronRight,
-  Zap, ArrowUpRight, ArrowDownRight, Building2, Download, Sparkles,
-  SlidersHorizontal, MessageCircle, Bell, Activity, Layers, CloudLightning,
-  BarChart3, AlertTriangle, Clock, Check, X, Brain, Target, Cpu,
+  Zap, Building2, Download, Sparkles,
+  Activity, Layers, CloudLightning,
+  BarChart3, AlertTriangle, Clock, Brain, Target, Cpu,
   FileText, Calculator, GitBranch, ArrowUpDown, Link2, ArrowDownUp, Gauge,
   ShieldCheck,
 } from 'lucide-react';
@@ -26,7 +26,6 @@ const RiskScoreGauge = dynamic(
     ),
   }
 );
-import RiskBadge from '@/components/alm/RiskBadge';
 import AIAdvisorChat from '@/components/alm/AIAdvisorChat';
 import AlertBanner from '@/components/alm/AlertBanner';
 import ExportCSVButton from '@/components/alm/ExportCSVButton';
@@ -98,7 +97,7 @@ function ModuleCard({ href, icon: Icon, title, value, status, iconColor }: {
   );
 }
 
-function DeadlineItem({ label, date, urgency }: { label: string; date: string; urgency: string }) {
+function DeadlineItem({ label, date }: { label: string; date: string }) {
   const [todayMs] = useState(() => Date.now());
   const days = Math.ceil((new Date(date).getTime() - todayMs) / 86400000);
   return (
@@ -177,7 +176,6 @@ export default function ALMDashboardPage() {
 
   // Compute derived metrics for display
   const nwr = 9.2; // from institution data
-  const nsfr = 108;
   const camelComposite = score >= 80 ? 1 : score >= 60 ? 2 : score >= 40 ? 3 : score >= 20 ? 4 : 5;
   const eve200 = Math.abs(gap) * 4.5; // simplified EVE sensitivity
   const nplRatio = 1.8;
@@ -371,10 +369,10 @@ export default function ALMDashboardPage() {
               <Link href="/alm/exam-prep" className="text-[10px] text-cyan-600 hover:text-cyan-700">{locale === 'es' ? 'Pack COSSEC' : 'Exam Pack'}</Link>
             </div>
             <div className="space-y-0.5">
-              <DeadlineItem label={locale === 'es' ? 'Informe Trimestral COSSEC' : 'COSSEC Quarterly Report'} date="2026-04-15" urgency="HIGH" />
-              <DeadlineItem label="NCUA 5300 Filing" date="2026-04-30" urgency="HIGH" />
-              <DeadlineItem label={locale === 'es' ? 'Reunión ALCO' : 'ALCO Meeting'} date="2026-04-01" urgency="MEDIUM" />
-              <DeadlineItem label={locale === 'es' ? 'Auditoría BSA Anual' : 'Annual BSA Audit'} date="2026-06-30" urgency="LOW" />
+              <DeadlineItem label={locale === 'es' ? 'Informe Trimestral COSSEC' : 'COSSEC Quarterly Report'} date="2026-04-15" />
+              <DeadlineItem label="NCUA 5300 Filing" date="2026-04-30" />
+              <DeadlineItem label={locale === 'es' ? 'Reunión ALCO' : 'ALCO Meeting'} date="2026-04-01" />
+              <DeadlineItem label={locale === 'es' ? 'Auditoría BSA Anual' : 'Annual BSA Audit'} date="2026-06-30" />
             </div>
           </div>
 

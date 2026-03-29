@@ -4,7 +4,7 @@ describe('IncrementalVarService', () => {
   let service: IncrementalVarService;
 
   const positions = [
-    { name: 'Equities', weight: 0.5, volatility: 0.20 },
+    { name: 'Equities', weight: 0.5, volatility: 0.2 },
     { name: 'Bonds', weight: 0.3, volatility: 0.05 },
     { name: 'Commodities', weight: 0.2, volatility: 0.25 },
   ];
@@ -70,7 +70,10 @@ describe('IncrementalVarService', () => {
       positions: singlePos,
       correlationMatrix: singleCorr,
     });
-    expect(result.positions[0].incrementalVaR).toBeCloseTo(result.portfolioVaR, 4);
+    expect(result.positions[0].incrementalVaR).toBeCloseTo(
+      result.portfolioVaR,
+      4,
+    );
     expect(result.positions[0].pctContribution).toBeCloseTo(100, 0);
   });
 
@@ -78,7 +81,7 @@ describe('IncrementalVarService', () => {
     const var90 = service.calculateIncrementalVaR({
       positions,
       correlationMatrix,
-      confidence: 0.90,
+      confidence: 0.9,
     });
     const var99 = service.calculateIncrementalVaR({
       positions,

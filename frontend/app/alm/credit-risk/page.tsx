@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ShieldAlert, AlertTriangle, Check, X } from 'lucide-react';
 
 interface CreditRiskSegment {
@@ -18,8 +18,6 @@ interface CreditRiskPortfolio {
   totalUL: number; totalEC: number; portfolioElPct: number; portfolioEcPct: number;
   capitalAdequacy: { actualCapital: number; requiredEconomicCapital: number; capitalSurplus: number; isAdequate: boolean };
 }
-
-const RISK_COLORS = ['#06b6d4', '#f59e0b', '#8b5cf6', '#10b981', '#ef4444', '#ec4899'];
 
 export default function CreditRiskPage() {
   const { selectedId } = useALM();
@@ -127,7 +125,7 @@ export default function CreditRiskPage() {
               </tr>
             </thead>
             <tbody>
-              {data.segments.map((s, i) => (
+              {data.segments.map((s) => (
                 <tr key={s.segmentName} className="border-b border-slate-50 last:border-0">
                   <td className="px-3 py-2.5 font-medium text-slate-700 text-xs">{s.segmentName}</td>
                   <td className="px-3 py-2.5 tabular-nums text-xs">{s.balance.toFixed(1)}</td>

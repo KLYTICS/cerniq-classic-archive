@@ -1,8 +1,13 @@
 'use client';
 
+import { useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 export default function DashboardError({ error, reset }: { error: Error; reset: () => void }) {
+  useEffect(() => {
+    console.error('Dashboard error', error);
+  }, [error]);
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
       <AlertTriangle className="h-12 w-12 text-amber-500" />

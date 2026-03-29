@@ -1,7 +1,4 @@
-import {
-  CountryRiskService,
-  CountryRiskParams,
-} from './country-risk.service';
+import { CountryRiskService, CountryRiskParams } from './country-risk.service';
 
 // ─── Helpers ────────────────────────────────────────────────────
 

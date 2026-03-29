@@ -85,8 +85,7 @@ export class CountryRiskService {
         // Weighted-average rating when aggregating
         const combinedBalance = existing.balance + e.balance;
         existing.riskRating =
-          (existing.riskRating * existing.balance +
-            e.riskRating * e.balance) /
+          (existing.riskRating * existing.balance + e.riskRating * e.balance) /
           combinedBalance;
         existing.balance = combinedBalance;
       } else {

@@ -7,8 +7,18 @@ describe('CostOfFundsService', () => {
     { name: 'Savings', balance: 30_000_000, rate: 0.02, type: 'deposits' },
     { name: 'CDs', balance: 20_000_000, rate: 0.045, type: 'deposits' },
     { name: 'Checking', balance: 25_000_000, rate: 0.005, type: 'deposits' },
-    { name: 'FHLB Advance', balance: 15_000_000, rate: 0.05, type: 'borrowings' },
-    { name: 'Subordinated Debt', balance: 5_000_000, rate: 0.065, type: 'capital_markets' },
+    {
+      name: 'FHLB Advance',
+      balance: 15_000_000,
+      rate: 0.05,
+      type: 'borrowings',
+    },
+    {
+      name: 'Subordinated Debt',
+      balance: 5_000_000,
+      rate: 0.065,
+      type: 'capital_markets',
+    },
   ];
 
   beforeEach(() => {
@@ -59,7 +69,12 @@ describe('CostOfFundsService', () => {
   it('adding expensive source should increase WACOF', () => {
     const result = service.computeFundingImpact({
       existingSources: fundingSources,
-      newSource: { name: 'Expensive', balance: 10_000_000, rate: 0.08, type: 'borrowings' },
+      newSource: {
+        name: 'Expensive',
+        balance: 10_000_000,
+        rate: 0.08,
+        type: 'borrowings',
+      },
     });
     expect(result.afterCOF).toBeGreaterThan(result.beforeCOF);
     expect(result.changeBps).toBeGreaterThan(0);
@@ -68,9 +83,27 @@ describe('CostOfFundsService', () => {
   it('funding mix optimizer should allocate cheapest first', () => {
     const result = service.optimizeFundingMix({
       availableSources: [
-        { name: 'Cheap', balance: 0, rate: 0.02, type: 'deposits', maxCapacity: 50_000_000 },
-        { name: 'Medium', balance: 0, rate: 0.04, type: 'deposits', maxCapacity: 30_000_000 },
-        { name: 'Expensive', balance: 0, rate: 0.06, type: 'borrowings', maxCapacity: 20_000_000 },
+        {
+          name: 'Cheap',
+          balance: 0,
+          rate: 0.02,
+          type: 'deposits',
+          maxCapacity: 50_000_000,
+        },
+        {
+          name: 'Medium',
+          balance: 0,
+          rate: 0.04,
+          type: 'deposits',
+          maxCapacity: 30_000_000,
+        },
+        {
+          name: 'Expensive',
+          balance: 0,
+          rate: 0.06,
+          type: 'borrowings',
+          maxCapacity: 20_000_000,
+        },
       ],
       targetFunding: 60_000_000,
     });

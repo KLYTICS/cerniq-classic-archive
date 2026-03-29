@@ -5,7 +5,7 @@ import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Shield, AlertTriangle, Check, X, RefreshCw } from 'lucide-react';
+import { Shield, AlertTriangle, Check, X } from 'lucide-react';
 
 interface VaRResult {
   method: string; confidenceLevel: number; horizon: number;

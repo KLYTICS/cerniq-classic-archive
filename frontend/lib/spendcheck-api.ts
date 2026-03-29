@@ -150,13 +150,14 @@ class SpendCheckAPI {
     }
 
     async deleteWorkspace(id: string): Promise<void> {
+        void id;
         return Promise.resolve();
     }
 
     // Upload APIs
     async uploadFile(workspaceId: string, file: File): Promise<{ id: string; file_name: string }> {
         return Promise.resolve({
-            id: `upload-${Date.now()}`,
+            id: `upload-${workspaceId}-${Date.now()}`,
             file_name: file.name,
         });
     }
@@ -164,13 +165,13 @@ class SpendCheckAPI {
     // Analysis APIs
     async runAnalysis(uploadId: string, workspaceId: string): Promise<AnalysisResult> {
         return Promise.resolve({
-            message: 'Analysis completed successfully',
+            message: `Analysis completed successfully for ${workspaceId}`,
             invoices_parsed: 152,
             vendors_created: 14,
             findings_found: 8,
             findings_by_type: { 'duplicate_invoice': 3, 'overcharge': 5 },
             total_potential_savings: 12500,
-            status: 'completed'
+            status: `completed:${uploadId}`
         });
     }
 
@@ -242,10 +243,15 @@ class SpendCheckAPI {
     }
 
     async updateFinding(id: string, status: string): Promise<void> {
+        void id;
+        void status;
         return Promise.resolve();
     }
 
     async submitFeedback(findingId: string, isTruePositive: boolean, notes?: string): Promise<void> {
+        void findingId;
+        void isTruePositive;
+        void notes;
         return Promise.resolve();
     }
 
@@ -260,14 +266,14 @@ class SpendCheckAPI {
                 { status: 'open', count: 10 },
                 { status: 'resolved', count: 4 }
             ],
-            total_potential_savings: 45000,
+            total_potential_savings: workspaceId ? 45000 : 0,
             resolved_savings: 12000
         });
     }
 
     // Report APIs
     async generateReport(workspaceId: string): Promise<{ id: string }> {
-        return Promise.resolve({ id: `report-${Date.now()}` });
+        return Promise.resolve({ id: `report-${workspaceId}-${Date.now()}` });
     }
 
     async getReport(id: string): Promise<Record<string, unknown>> {

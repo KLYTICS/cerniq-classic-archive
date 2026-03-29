@@ -115,6 +115,89 @@ export interface APAnalysisResult {
   apRiskScore: number;
 }
 
+export interface ExpenseUploadSummary {
+  totalRows: number;
+  validRows: number;
+  errorRows: number;
+  totalAmount: number;
+  uniqueVendors: number;
+  dateRange: { from: string; to: string } | null;
+}
+
+export interface ExpenseUploadError {
+  row?: number;
+  message: string;
+  [key: string]: unknown;
+}
+
+export interface ExpenseUploadResult {
+  ingested: number;
+  orgId: string;
+  errors: ExpenseUploadError[];
+  warnings: string[];
+  summary: ExpenseUploadSummary;
+  analysisTriggered: boolean;
+}
+
+export interface StressScenarioParams {
+  rateShockBps: number;
+  depositRunoffPct: number;
+  defaultRateIncreasePct: number;
+  energyCostShockPct: number;
+}
+
+export type StressScenarioVerdict = 'RESILIENT' | 'ADEQUATE' | 'VULNERABLE' | 'CRITICAL';
+
+export interface StressScenarioResult {
+  nimImpactBps: number;
+  nimBefore: number;
+  nimAfter: number;
+  lcrBefore: number;
+  lcrAfter: number;
+  capitalBefore: number;
+  capitalAfter: number;
+  examReadinessBefore: number;
+  examReadinessAfter: number;
+  verdict: StressScenarioVerdict;
+  narrative: string;
+  narrativeEs: string;
+}
+
+export interface SavedStressScenario {
+  id: string;
+  name: string;
+  description?: string;
+  scenarioType: string;
+  parameters: StressScenarioParams;
+  results: StressScenarioResult | null;
+  tags: string[];
+  createdAt: string;
+}
+
+export interface ScenarioListResponse {
+  items: SavedStressScenario[];
+  page?: number;
+  total?: number;
+  totalPages?: number;
+}
+
+export interface ScenarioComparisonRow {
+  metric: string;
+  key: string;
+  higherIsBetter: boolean;
+  values: Array<number | null>;
+  best: number | null;
+  worst: number | null;
+}
+
+export interface ScenarioComparisonResponse {
+  scenarios: SavedStressScenario[];
+  comparison: {
+    rows: ScenarioComparisonRow[];
+    verdicts: string[];
+  };
+}
+
 interface AuthUser {
   id: string;
   email: string;
@@ -548,11 +631,12 @@ class APIClient {
 
   // AI Insights
   async getInsights(ticker?: string) {
+    const scope = ticker?.toUpperCase() || 'MARKET';
     return {
       insights: [
-        { id: '1', title: 'Tech Sector Valuation Premium', source: 'AI Macro Engine', summary: 'AI infrastructure spend continues to accelerate, sustaining high multiples for semiconductor firms despite rising real yields.', sentiment: 'bullish', confidence: 0.88, timestamp: new Date().toISOString() },
-        { id: '2', title: 'Consumer Discretionary Weakness', source: 'Consumer Data Feed', summary: 'Excess savings depletion is leading to softer guidance in retail. Defensive rotation recommended.', sentiment: 'bearish', confidence: 0.75, timestamp: new Date(Date.now() - 3600000).toISOString() },
-        { id: '3', title: 'Energy Market Contango', source: 'Commodities Desk', summary: 'Geopolitical risk premium is evaporating, putting downward pressure on near-term futures.', sentiment: 'neutral', confidence: 0.65, timestamp: new Date(Date.now() - 7200000).toISOString() }
+        { id: '1', title: `${scope}: Tech Sector Valuation Premium`, source: 'AI Macro Engine', summary: 'AI infrastructure spend continues to accelerate, sustaining high multiples for semiconductor firms despite rising real yields.', sentiment: 'bullish', confidence: 0.88, timestamp: new Date().toISOString() },
+        { id: '2', title: `${scope}: Consumer Discretionary Weakness`, source: 'Consumer Data Feed', summary: 'Excess savings depletion is leading to softer guidance in retail. Defensive rotation recommended.', sentiment: 'bearish', confidence: 0.75, timestamp: new Date(Date.now() - 3600000).toISOString() },
+        { id: '3', title: `${scope}: Energy Market Contango`, source: 'Commodities Desk', summary: 'Geopolitical risk premium is evaporating, putting downward pressure on near-term futures.', sentiment: 'neutral', confidence: 0.65, timestamp: new Date(Date.now() - 7200000).toISOString() }
       ]
     };
   }
@@ -599,7 +683,7 @@ class APIClient {
 
   // Cyclical Valuation
   async computeCyclicalValuation(ticker: string) {
-    return Promise.resolve({ status: 'computed' });
+    return Promise.resolve({ status: 'computed', ticker: ticker.toUpperCase() });
   }
 
   async getCyclicalValuation(ticker: string) {
@@ -688,7 +772,7 @@ class APIClient {
     try {
       const response = await this.client.post(`${NODE_API_URL}/api/portfolios`, data);
       return response.data;
-    } catch (e) {
+    } catch {
       try {
         const response = await this.client.post('/portfolios', data);
         return response.data;
@@ -703,7 +787,7 @@ class APIClient {
     try {
       const response = await this.client.post(`${NODE_API_URL}/api/portfolios/${portfolioId}/positions`, position);
       return response.data;
-    } catch (e) {
+    } catch {
       try {
         const response = await this.client.post(`/portfolios/${portfolioId}/positions`, position);
         return response.data;
@@ -716,6 +800,7 @@ class APIClient {
 
   async getPortfolioAnalytics(portfolioId: string) {
     return {
+      portfolio_id: portfolioId,
       cvar: 15420.50,
       var_95: 12100.25,
       var_99: 18500.75,
@@ -849,17 +934,25 @@ class APIClient {
   }
 
   async getNodeValuationScreener(params?: { sector?: string; minScore?: number }) {
-    return Promise.resolve([
+    const results = [
       { ticker: 'NVDA', score: 98, sector: 'Technology', fair_value_base: 145.00, current_price: 120.00, upside_downside_pct: 20.8 },
       { ticker: 'AMD', score: 85, sector: 'Technology', fair_value_base: 180.00, current_price: 155.00, upside_downside_pct: 16.1 },
       { ticker: 'TSM', score: 92, sector: 'Technology', fair_value_base: 195.00, current_price: 175.00, upside_downside_pct: 11.4 },
-    ]);
+    ];
+    return Promise.resolve(
+      results.filter((item) => {
+        const sectorMatches = !params?.sector || item.sector === params.sector;
+        const scoreMatches = params?.minScore === undefined || item.score >= params.minScore;
+        return sectorMatches && scoreMatches;
+      }),
+    );
   }
 
   async getNodeValuation(ticker: string, type: 'cyclical' | 'compounder' | 'frontier' = 'cyclical') {
     const basePrice = this.getBasePrice(ticker);
     return Promise.resolve({
       ticker: ticker.toUpperCase(),
+      valuation_type: type,
       cycles_detected: 3,
       mid_cycle_revenue: basePrice * 10000000,
       mid_cycle_eps: basePrice / 20,
@@ -1137,12 +1230,7 @@ class APIClient {
 
   // --- Custom Stress Scenario Builder ---
 
-  async runCustomStressTest(institutionId: string, params: {
-    rateShockBps: number;
-    depositRunoffPct: number;
-    defaultRateIncreasePct: number;
-    energyCostShockPct: number;
-  }) {
+  async runCustomStressTest(institutionId: string, params: StressScenarioParams): Promise<StressScenarioResult> {
     const response = await this.client.post(
       `${NODE_API_URL}/api/alm/${institutionId}/stress/custom`,
       params,
@@ -1232,21 +1320,7 @@ class APIClient {
     return response.data;
   }
 
-  async uploadExpenseCSV(orgId: string, file: File): Promise<{
-    ingested: number;
-    orgId: string;
-	    errors: unknown[];
-    warnings: string[];
-    summary: {
-      totalRows: number;
-      validRows: number;
-      errorRows: number;
-      totalAmount: number;
-      uniqueVendors: number;
-      dateRange: { from: string; to: string } | null;
-    };
-    analysisTriggered: boolean;
-  }> {
+  async uploadExpenseCSV(orgId: string, file: File): Promise<ExpenseUploadResult> {
     const formData = new FormData();
     formData.append('file', file);
     const response = await this.client.post(
@@ -1315,15 +1389,15 @@ class APIClient {
     name: string;
     description?: string;
     scenarioType: string;
-    parameters: Record<string, unknown>;
-    results?: Record<string, unknown>;
+    parameters: StressScenarioParams;
+    results?: StressScenarioResult;
     tags?: string[];
-  }) {
+  }): Promise<SavedStressScenario> {
     const response = await this.client.post(`${NODE_API_URL}/api/alm/scenarios/save`, data);
     return response.data;
   }
 
-  async listScenarios(institutionId: string, opts?: { page?: number; tag?: string }) {
+  async listScenarios(institutionId: string, opts?: { page?: number; tag?: string }): Promise<ScenarioListResponse> {
     const params = new URLSearchParams();
     if (opts?.page) params.set('page', String(opts.page));
     if (opts?.tag) params.set('tag', opts.tag);
@@ -1337,7 +1411,7 @@ class APIClient {
     return response.data;
   }
 
-  async compareScenarios(scenarioIds: string[]) {
+  async compareScenarios(scenarioIds: string[]): Promise<ScenarioComparisonResponse> {
     const response = await this.client.post(`${NODE_API_URL}/api/alm/scenarios/compare`, { scenarioIds });
     return response.data;
   }

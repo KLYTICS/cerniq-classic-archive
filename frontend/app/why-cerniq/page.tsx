@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft, ArrowRight, CheckCircle2, Shield, Zap, DollarSign,
-  Brain, Layers, Globe, ChevronRight, TrendingUp, Cpu, Users,
+  ArrowLeft, ArrowRight, Shield, Zap, DollarSign,
+  Brain, Layers, Globe, ChevronRight, TrendingUp, Cpu,
 } from 'lucide-react';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
 

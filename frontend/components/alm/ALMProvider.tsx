@@ -41,6 +41,7 @@ export default function ALMProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const searchParamsString = searchParams.toString();
   const urlId = searchParams.get('id') || '';
 
   const [institutions, setInstitutions] = useState<Institution[]>([]);
@@ -50,11 +51,11 @@ export default function ALMProvider({ children }: { children: ReactNode }) {
   const setSelectedId = useCallback(
     (id: string) => {
       setSelectedIdState(id);
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParamsString);
       params.set('id', id);
       router.replace(`${pathname}?${params.toString()}`);
     },
-    [pathname, router, searchParams],
+    [pathname, router, searchParamsString],
   );
 
   const fetchInstitutions = useCallback(async () => {
@@ -66,11 +67,16 @@ export default function ALMProvider({ children }: { children: ReactNode }) {
         if (match) {
           setSelectedIdState(match.id);
         } else if (!urlId) {
-          setSelectedIdState(data[0].id);
-          // Update URL silently
-          const params = new URLSearchParams(searchParams.toString());
-          params.set('id', data[0].id);
-          router.replace(`${pathname}?${params.toString()}`);
+          setSelectedIdState((currentSelectedId) => {
+            if (currentSelectedId) {
+              return currentSelectedId;
+            }
+
+            const params = new URLSearchParams(searchParamsString);
+            params.set('id', data[0].id);
+            router.replace(`${pathname}?${params.toString()}`);
+            return data[0].id;
+          });
         }
       }
     } catch {
@@ -78,11 +84,11 @@ export default function ALMProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [urlId, pathname, router, searchParams]);
+  }, [urlId, pathname, router, searchParamsString]);
 
   useEffect(() => {
     fetchInstitutions();
-  }, []); // Only fetch once on mount
+  }, [fetchInstitutions]);
 
   const institution = institutions.find((i) => i.id === selectedId) || null;
 

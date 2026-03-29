@@ -1,17 +1,44 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Layers, AlertTriangle } from 'lucide-react';
+
+type VintageScenario = 'base' | 'adverse' | 'severe';
+
+interface VintageSegmentAllowance {
+  base: number;
+  adverse: number;
+  severe: number;
+  balance: number;
+}
+
+interface VintageWeibullParam {
+  loanType: string;
+  shape: number;
+  scale: number;
+  r2: number;
+}
+
+interface CECLVintageData {
+  methodology: string;
+  totalBalance: number;
+  baseAllowance: number;
+  adverseAllowance: number;
+  severeAllowance: number;
+  segmentBreakdown: Record<string, VintageSegmentAllowance>;
+  cohortMatrix: unknown[];
+  weibullParams: VintageWeibullParam[];
+}
 
 export default function CECLVintagePage() {
   const { selectedId } = useALM();
   const { locale } = useTranslation();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<CECLVintageData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [scenario, setScenario] = useState<'base' | 'adverse' | 'severe'>('base');
+  const [scenario, setScenario] = useState<VintageScenario>('base');
 
   useEffect(() => {
     if (!selectedId) return;
@@ -20,7 +47,7 @@ export default function CECLVintagePage() {
       try {
         const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
         const res = await fetch(`${NODE_API_URL}/api/alm/${selectedId}/cecl/vintage?scenario=${scenario}`);
-        if (res.ok) setData(await res.json());
+        if (res.ok) setData(await res.json() as CECLVintageData);
         else setData(getDemoData());
       } catch { setData(getDemoData()); }
       finally { setLoading(false); }
@@ -30,8 +57,11 @@ export default function CECLVintagePage() {
   if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
   if (loading || !data) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
 
-  const allowanceChart = Object.entries(data.segmentBreakdown).map(([name, vals]: [string, any]) => ({
-    name, base: vals.base, adverse: vals.adverse, severe: vals.severe,
+  const allowanceChart = Object.entries(data.segmentBreakdown).map(([name, values]) => ({
+    name,
+    base: values.base,
+    adverse: values.adverse,
+    severe: values.severe,
   }));
 
   return (
@@ -98,10 +128,10 @@ export default function CECLVintagePage() {
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">{locale === 'es' ? 'Parámetros Weibull por Tipo' : 'Weibull Parameters by Type'}</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {data.weibullParams.map((w: any) => (
-              <div key={w.loanType} className="rounded-lg border border-slate-100 p-3">
-                <p className="text-xs font-medium text-slate-700 capitalize">{w.loanType.replace(/_/g, ' ')}</p>
-                <p className="text-[10px] text-slate-500 mt-1">k={w.shape.toFixed(2)} | λ={w.scale.toFixed(0)} | R²={w.r2.toFixed(2)}</p>
+            {data.weibullParams.map((parameter) => (
+              <div key={parameter.loanType} className="rounded-lg border border-slate-100 p-3">
+                <p className="text-xs font-medium text-slate-700 capitalize">{parameter.loanType.replace(/_/g, ' ')}</p>
+                <p className="text-[10px] text-slate-500 mt-1">k={parameter.shape.toFixed(2)} | λ={parameter.scale.toFixed(0)} | R²={parameter.r2.toFixed(2)}</p>
               </div>
             ))}
           </div>
@@ -111,7 +141,7 @@ export default function CECLVintagePage() {
   );
 }
 
-function getDemoData() {
+function getDemoData(): CECLVintageData {
   return {
     methodology: 'vintage', totalBalance: 445,
     baseAllowance: 8.2, adverseAllowance: 14.8, severeAllowance: 24.5,

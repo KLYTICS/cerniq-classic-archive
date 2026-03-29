@@ -4,20 +4,45 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Layers, AlertTriangle } from 'lucide-react';
+
+interface DurationMismatchBucket {
+  bucket: string;
+  assetDuration: number;
+  liabDuration: number;
+  mismatch: number;
+}
+
+interface ConvexityContributor {
+  name: string;
+  balance: number;
+  convexity: number;
+  contribution: number;
+}
+
+interface OptionalityData {
+  portfolioModDuration: number;
+  portfolioEffDuration: number;
+  portfolioConvexity: number;
+  durationGap: number;
+  negConvexityBalance: number;
+  negConvexityPct: number;
+  durationMismatchHeatmap: DurationMismatchBucket[];
+  convexityContributors: ConvexityContributor[];
+}
 
 export default function OptionalityPage() {
   const { selectedId } = useALM();
   const { locale } = useTranslation();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<OptionalityData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!selectedId) return;
     (async () => {
       setLoading(true);
-      try { setData(await apiClient.getOptionality(selectedId)); }
+      try { setData(await apiClient.getOptionality(selectedId) as OptionalityData); }
       catch { setData(getDemoData()); }
       finally { setLoading(false); }
     })();
@@ -75,12 +100,12 @@ export default function OptionalityPage() {
               ))}
             </tr></thead>
             <tbody>
-              {data.convexityContributors.map((c: any, i: number) => (
+              {data.convexityContributors.map((contributor, i) => (
                 <tr key={i} className="border-b border-slate-50 last:border-0">
-                  <td className="px-4 py-2.5 text-xs font-medium text-slate-700">{c.name}</td>
-                  <td className="px-4 py-2.5 text-xs tabular-nums">${c.balance}M</td>
-                  <td className={`px-4 py-2.5 text-xs tabular-nums font-medium ${c.convexity < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{c.convexity.toFixed(2)}</td>
-                  <td className={`px-4 py-2.5 text-xs tabular-nums ${c.contribution < 0 ? 'text-rose-700 font-bold' : ''}`}>{c.contribution}</td>
+                  <td className="px-4 py-2.5 text-xs font-medium text-slate-700">{contributor.name}</td>
+                  <td className="px-4 py-2.5 text-xs tabular-nums">${contributor.balance}M</td>
+                  <td className={`px-4 py-2.5 text-xs tabular-nums font-medium ${contributor.convexity < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{contributor.convexity.toFixed(2)}</td>
+                  <td className={`px-4 py-2.5 text-xs tabular-nums ${contributor.contribution < 0 ? 'text-rose-700 font-bold' : ''}`}>{contributor.contribution}</td>
                 </tr>
               ))}
             </tbody>
@@ -100,7 +125,7 @@ function KPI({ label, value, accent, warn }: { label: string; value: string; acc
   );
 }
 
-function getDemoData() {
+function getDemoData(): OptionalityData {
   return {
     portfolioModDuration: 4.2, portfolioEffDuration: 3.6, portfolioConvexity: -0.8,
     durationGap: 1.8, negConvexityBalance: 130, negConvexityPct: 29.2,

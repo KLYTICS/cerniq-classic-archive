@@ -51,14 +51,23 @@ export class DepositPricingEngineService {
     elasticity: number;
     currentBalance: number;
   }): DepositPricingResult {
-    const { competitorRates, costOfFunds, targetSpread, elasticity, currentBalance } = params;
+    const {
+      competitorRates,
+      costOfFunds,
+      targetSpread,
+      elasticity,
+      currentBalance,
+    } = params;
 
-    this.logger.log(`Pricing deposit: COF=${(costOfFunds * 100).toFixed(2)}%, balance=${currentBalance}`);
+    this.logger.log(
+      `Pricing deposit: COF=${(costOfFunds * 100).toFixed(2)}%, balance=${currentBalance}`,
+    );
 
     // Competitor average
-    const competitorAvg = competitorRates.length > 0
-      ? competitorRates.reduce((s, r) => s + r, 0) / competitorRates.length
-      : 0;
+    const competitorAvg =
+      competitorRates.length > 0
+        ? competitorRates.reduce((s, r) => s + r, 0) / competitorRates.length
+        : 0;
 
     // Two pricing anchors
     const costBasedRate = costOfFunds - targetSpread;
@@ -69,7 +78,8 @@ export class DepositPricingEngineService {
 
     // Retention probability (logistic model)
     const k = 100; // Elasticity scaling factor
-    const retentionProbability = 1 / (1 + Math.exp(-k * (optimalRate - competitorAvg)));
+    const retentionProbability =
+      1 / (1 + Math.exp(-k * (optimalRate - competitorAvg)));
 
     // Projected balance based on retention
     const projectedBalance = currentBalance * retentionProbability;
@@ -98,14 +108,31 @@ export class DepositPricingEngineService {
     costOfFunds: number;
     currentBalance: number;
     rateRange: { min: number; max: number; step: number };
-  }): Array<{ rate: number; retentionProbability: number; projectedBalance: number; nim: number; netRevenue: number }> {
+  }): Array<{
+    rate: number;
+    retentionProbability: number;
+    projectedBalance: number;
+    nim: number;
+    netRevenue: number;
+  }> {
     const { competitorRates, costOfFunds, currentBalance, rateRange } = params;
-    const competitorAvg = competitorRates.reduce((s, r) => s + r, 0) / competitorRates.length;
+    const competitorAvg =
+      competitorRates.reduce((s, r) => s + r, 0) / competitorRates.length;
     const k = 100;
 
-    const results: Array<{ rate: number; retentionProbability: number; projectedBalance: number; nim: number; netRevenue: number }> = [];
+    const results: Array<{
+      rate: number;
+      retentionProbability: number;
+      projectedBalance: number;
+      nim: number;
+      netRevenue: number;
+    }> = [];
 
-    for (let rate = rateRange.min; rate <= rateRange.max; rate += rateRange.step) {
+    for (
+      let rate = rateRange.min;
+      rate <= rateRange.max;
+      rate += rateRange.step
+    ) {
       const retention = 1 / (1 + Math.exp(-k * (rate - competitorAvg)));
       const projBalance = currentBalance * retention;
       const nim = costOfFunds - rate;
@@ -132,7 +159,8 @@ export class DepositPricingEngineService {
     currentBalance: number;
   }): { optimalRate: number; maxNetRevenue: number } {
     const { competitorRates, costOfFunds, currentBalance } = params;
-    const competitorAvg = competitorRates.reduce((s, r) => s + r, 0) / competitorRates.length;
+    const competitorAvg =
+      competitorRates.reduce((s, r) => s + r, 0) / competitorRates.length;
     const k = 100;
 
     let bestRate = 0;

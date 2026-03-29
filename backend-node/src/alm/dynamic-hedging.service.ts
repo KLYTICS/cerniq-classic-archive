@@ -62,7 +62,12 @@ export class DynamicHedgingService {
    * reflects any rounding error.
    */
   calculateHedge(params: DynamicHedgingParams): DynamicHedgingResult {
-    const { portfolioDuration, portfolioValue, targetDuration, hedgeInstruments } = params;
+    const {
+      portfolioDuration,
+      portfolioValue,
+      targetDuration,
+      hedgeInstruments,
+    } = params;
 
     if (hedgeInstruments.length === 0) {
       throw new Error('At least one hedge instrument is required');
@@ -83,9 +88,11 @@ export class DynamicHedgingService {
     const hedgePositions: HedgePosition[] = hedgeInstruments.map((inst) => {
       const notional = perInstrumentDD / inst.duration;
       const contractSize = inst.contractSize ?? 100_000;
-      const contracts = Math.round(Math.abs(notional) / contractSize) * Math.sign(notional);
+      const contracts =
+        Math.round(Math.abs(notional) / contractSize) * Math.sign(notional);
       const actualNotional = contracts * contractSize;
-      const durationContribution = (actualNotional * inst.duration) / portfolioValue;
+      const durationContribution =
+        (actualNotional * inst.duration) / portfolioValue;
 
       achievedDollarDuration += actualNotional * inst.duration;
       totalCost += Math.abs(actualNotional) * inst.price * 0.0001; // 1 bp transaction cost
@@ -127,17 +134,22 @@ export class DynamicHedgingService {
     const shockDecimal = shockBps / 10_000;
 
     // Approximate portfolio P&L via duration
-    const portfolioPnL = -params.portfolioDuration * params.portfolioValue * shockDecimal;
+    const portfolioPnL =
+      -params.portfolioDuration * params.portfolioValue * shockDecimal;
 
     // Hedge P&L
     let hedgePnL = 0;
     for (const pos of hedgeResult.hedgePositions) {
-      const inst = params.hedgeInstruments.find((i) => i.name === pos.instrument)!;
+      const inst = params.hedgeInstruments.find(
+        (i) => i.name === pos.instrument,
+      )!;
       hedgePnL += -inst.duration * pos.notional * shockDecimal;
     }
 
     const effectiveness =
-      portfolioPnL !== 0 ? Math.abs((portfolioPnL + hedgePnL) / portfolioPnL) : 0;
+      portfolioPnL !== 0
+        ? Math.abs((portfolioPnL + hedgePnL) / portfolioPnL)
+        : 0;
 
     return {
       effectiveness: this.round6(1 - effectiveness),

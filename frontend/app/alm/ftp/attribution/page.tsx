@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
-import { DollarSign, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
+import { DollarSign, AlertTriangle } from 'lucide-react';
 
 interface RarocRanking {
   subcategory: string; category: string; totalBalance: number;
@@ -46,12 +46,6 @@ export default function FTPAttributionPage() {
 
   if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
   if (loading || !data) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
-
-  const rarocChart = data.rarocRanking.map(r => ({
-    name: r.subcategory.replace(/_/g, ' '),
-    raroc: +(r.raroc * 100).toFixed(1),
-    verdict: r.verdict,
-  }));
 
   // Waterfall data
   const waterfall = [

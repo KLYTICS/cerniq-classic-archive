@@ -13,6 +13,13 @@ interface GreeksResult {
     price: number;
 }
 
+function getGreeksErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+    return 'An error occurred';
+}
+
 export function GreeksCalculator() {
     const [ticker, setTicker] = useState('');
     const [underlying, setUnderlying] = useState(100);
@@ -56,8 +63,8 @@ export function GreeksCalculator() {
                 optionType,
             });
             setResult(data);
-        } catch (err: any) {
-            setError(err.message || 'An error occurred');
+        } catch (err: unknown) {
+            setError(getGreeksErrorMessage(err));
         } finally {
             setLoading(false);
         }

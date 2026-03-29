@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { apiClient } from '@/lib/api';
+import { useState, useCallback } from 'react';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, ReferenceLine, Cell,
 } from 'recharts';
-import { Zap, AlertTriangle, Play, RotateCcw, Save } from 'lucide-react';
+import { Zap, AlertTriangle, Play, RotateCcw } from 'lucide-react';
 
 const TENORS = [
   { key: '0.25', label: '3M' }, { key: '0.5', label: '6M' }, { key: '1', label: '1Y' },

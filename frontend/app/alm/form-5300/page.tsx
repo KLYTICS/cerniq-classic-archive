@@ -5,10 +5,43 @@ import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
 import { FileSpreadsheet, AlertTriangle, Check, X, Download } from 'lucide-react';
 
+interface Form5300Field {
+  accountCode: string;
+  label: string;
+  value: number;
+  schedule: string;
+  sourceField: string;
+}
+
+interface Form5300ValidationNotice {
+  code: string;
+  description: string;
+}
+
+interface Form5300Data {
+  quarter: string;
+  charterNumber: string;
+  fields: Form5300Field[];
+  validationResult: {
+    valid: boolean;
+    errors: Form5300ValidationNotice[];
+    warnings: Form5300ValidationNotice[];
+  };
+  summary: {
+    totalAssets: number;
+    totalLiabilities: number;
+    netWorth: number;
+    netWorthRatio: number;
+    totalLoans: number;
+    totalShares: number;
+    totalInvestments: number;
+  };
+}
+
 export default function Form5300Page() {
   const { selectedId } = useALM();
   const { locale } = useTranslation();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<Form5300Data | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,7 +51,7 @@ export default function Form5300Page() {
       try {
         const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
         const res = await fetch(`${NODE_API_URL}/api/alm/${selectedId}/form-5300`);
-        if (res.ok) setData(await res.json());
+        if (res.ok) setData(await res.json() as Form5300Data);
         else setData(getDemoData());
       } catch { setData(getDemoData()); }
       finally { setLoading(false); }
@@ -89,13 +122,13 @@ export default function Form5300Page() {
               </tr>
             </thead>
             <tbody>
-              {data.fields.map((f: any, i: number) => (
+              {data.fields.map((field, i) => (
                 <tr key={i} className="border-b border-slate-50 last:border-0">
-                  <td className="px-3 py-2 text-xs font-mono text-slate-600">{f.accountCode}</td>
-                  <td className="px-3 py-2 text-xs text-slate-700">{f.label}</td>
-                  <td className="px-3 py-2 text-xs tabular-nums font-medium text-slate-800">{f.value.toFixed(1)}</td>
-                  <td className="px-3 py-2 text-xs text-slate-500">{f.schedule}</td>
-                  <td className="px-3 py-2 text-[10px] text-slate-400">{f.sourceField}</td>
+                  <td className="px-3 py-2 text-xs font-mono text-slate-600">{field.accountCode}</td>
+                  <td className="px-3 py-2 text-xs text-slate-700">{field.label}</td>
+                  <td className="px-3 py-2 text-xs tabular-nums font-medium text-slate-800">{field.value.toFixed(1)}</td>
+                  <td className="px-3 py-2 text-xs text-slate-500">{field.schedule}</td>
+                  <td className="px-3 py-2 text-[10px] text-slate-400">{field.sourceField}</td>
                 </tr>
               ))}
             </tbody>
@@ -106,7 +139,7 @@ export default function Form5300Page() {
   );
 }
 
-function getDemoData() {
+function getDemoData(): Form5300Data {
   return {
     quarter: '2026Q1', charterNumber: '12345',
     fields: [

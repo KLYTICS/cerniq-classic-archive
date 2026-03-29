@@ -8,10 +8,34 @@ import {
 function baseParams(): SectorRotationParams {
   return {
     sectors: [
-      { name: 'Treasuries', currentWeight: 0.40, targetWeight: 0.35, yield: 0.04, duration: 5.0 },
-      { name: 'Corporates', currentWeight: 0.25, targetWeight: 0.30, yield: 0.055, duration: 6.5 },
-      { name: 'MBS',        currentWeight: 0.20, targetWeight: 0.20, yield: 0.045, duration: 4.0 },
-      { name: 'Munis',      currentWeight: 0.15, targetWeight: 0.15, yield: 0.035, duration: 7.0 },
+      {
+        name: 'Treasuries',
+        currentWeight: 0.4,
+        targetWeight: 0.35,
+        yield: 0.04,
+        duration: 5.0,
+      },
+      {
+        name: 'Corporates',
+        currentWeight: 0.25,
+        targetWeight: 0.3,
+        yield: 0.055,
+        duration: 6.5,
+      },
+      {
+        name: 'MBS',
+        currentWeight: 0.2,
+        targetWeight: 0.2,
+        yield: 0.045,
+        duration: 4.0,
+      },
+      {
+        name: 'Munis',
+        currentWeight: 0.15,
+        targetWeight: 0.15,
+        yield: 0.035,
+        duration: 7.0,
+      },
     ],
   };
 }

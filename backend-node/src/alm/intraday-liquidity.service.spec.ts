@@ -52,7 +52,9 @@ describe('IntradayLiquidityService', () => {
     const result = svc.simulateIntradayLiquidity(BASE_PARAMS);
     expect(result.peakUsage).toBeGreaterThanOrEqual(0);
     // The balance drops from 10M, so peak usage should reflect the lowest point
-    const minBalance = Math.min(...result.hourlyPositions.map((p) => p.balance));
+    const minBalance = Math.min(
+      ...result.hourlyPositions.map((p) => p.balance),
+    );
     expect(result.peakUsage).toBeCloseTo(10_000_000 - minBalance, 0);
   });
 
@@ -96,7 +98,10 @@ describe('IntradayLiquidityService', () => {
   it('should track cumulative inflows across the day', () => {
     const result = svc.simulateIntradayLiquidity(BASE_PARAMS);
     const lastPos = result.hourlyPositions[result.hourlyPositions.length - 1];
-    const totalInflows = BASE_PARAMS.expectedInflows.reduce((s, f) => s + f.amount, 0);
+    const totalInflows = BASE_PARAMS.expectedInflows.reduce(
+      (s, f) => s + f.amount,
+      0,
+    );
     expect(lastPos.cumulativeInflows).toBe(totalInflows);
   });
 
@@ -105,7 +110,10 @@ describe('IntradayLiquidityService', () => {
   it('should track cumulative outflows across the day', () => {
     const result = svc.simulateIntradayLiquidity(BASE_PARAMS);
     const lastPos = result.hourlyPositions[result.hourlyPositions.length - 1];
-    const totalOutflows = BASE_PARAMS.expectedOutflows.reduce((s, f) => s + f.amount, 0);
+    const totalOutflows = BASE_PARAMS.expectedOutflows.reduce(
+      (s, f) => s + f.amount,
+      0,
+    );
     expect(lastPos.cumulativeOutflows).toBe(totalOutflows);
   });
 
@@ -113,8 +121,14 @@ describe('IntradayLiquidityService', () => {
 
   it('should compute closing balance as opening plus net flows', () => {
     const result = svc.simulateIntradayLiquidity(BASE_PARAMS);
-    const totalInflows = BASE_PARAMS.expectedInflows.reduce((s, f) => s + f.amount, 0);
-    const totalOutflows = BASE_PARAMS.expectedOutflows.reduce((s, f) => s + f.amount, 0);
+    const totalInflows = BASE_PARAMS.expectedInflows.reduce(
+      (s, f) => s + f.amount,
+      0,
+    );
+    const totalOutflows = BASE_PARAMS.expectedOutflows.reduce(
+      (s, f) => s + f.amount,
+      0,
+    );
     expect(result.closingBalance).toBeCloseTo(
       BASE_PARAMS.openingBalance + totalInflows - totalOutflows,
       0,

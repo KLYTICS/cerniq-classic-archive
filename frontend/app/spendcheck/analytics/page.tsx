@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -67,11 +67,12 @@ function AnalyticsDashboardContent() {
     const [dateRange, setDateRange] = useState('12m');
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchAll();
-    }, [dateRange]);
-
-    const getDateRange = () => {
+    const fetchAll = useCallback(async () => {
+        setLoading(true);
+        const headers: Record<string, string> = {
+            'x-organization-id': orgId,
+            'x-user-id': localStorage.getItem('userId') || 'demo-user',
+        };
         const end = new Date();
         const start = new Date();
         switch (dateRange) {
@@ -80,16 +81,7 @@ function AnalyticsDashboardContent() {
             case '6m': start.setMonth(start.getMonth() - 6); break;
             case '12m': start.setFullYear(start.getFullYear() - 1); break;
         }
-        return { startDate: start.toISOString(), endDate: end.toISOString() };
-    };
-
-    async function fetchAll() {
-        setLoading(true);
-        const headers: Record<string, string> = {
-            'x-organization-id': orgId,
-            'x-user-id': localStorage.getItem('userId') || 'demo-user',
-        };
-        const range = getDateRange();
+        const range = { startDate: start.toISOString(), endDate: end.toISOString() };
 
         try {
             const [summaryRes, trendsRes, catsRes, teamRes] = await Promise.all([
@@ -108,10 +100,26 @@ function AnalyticsDashboardContent() {
         } finally {
             setLoading(false);
         }
-    }
+    }, [dateRange, orgId]);
+
+    useEffect(() => {
+        fetchAll();
+    }, [fetchAll]);
 
     const formatCurrency = (amount: number) =>
         new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount);
+
+    const exportRange = (() => {
+        const end = new Date();
+        const start = new Date();
+        switch (dateRange) {
+            case '1m': start.setMonth(start.getMonth() - 1); break;
+            case '3m': start.setMonth(start.getMonth() - 3); break;
+            case '6m': start.setMonth(start.getMonth() - 6); break;
+            case '12m': start.setFullYear(start.getFullYear() - 1); break;
+        }
+        return { startDate: start.toISOString(), endDate: end.toISOString() };
+    })();
 
     const maxTrend = Math.max(...trends.map(t => t.totalAmount), 1);
     const maxTeamSpend = Math.max(...team.map(t => t.totalAmount), 1);
@@ -141,7 +149,7 @@ function AnalyticsDashboardContent() {
                             </button>
                         ))}
                         <a
-                            href={`${API_URL}/api/analytics/export?format=csv&startDate=${getDateRange().startDate}&endDate=${getDateRange().endDate}`}
+                            href={`${API_URL}/api/analytics/export?format=csv&startDate=${exportRange.startDate}&endDate=${exportRange.endDate}`}
                             className="bg-gray-800 hover:bg-gray-700 px-3 py-1.5 text-sm rounded-lg transition ml-2"
                         >
                             📥 Export CSV
@@ -236,7 +244,7 @@ function AnalyticsDashboardContent() {
                             <h3 className="text-lg font-semibold mb-6">By Team Member</h3>
                             {team.length > 0 ? (
                                 <div className="space-y-4">
-                                    {team.map((member, i) => (
+                                    {team.map((member) => (
                                         <div key={member.userId} className="flex items-center gap-4">
                                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-sm font-bold shrink-0">
                                                 {(member.userName || member.userEmail)[0].toUpperCase()}

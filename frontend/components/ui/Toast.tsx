@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, createContext, useContext } from 'react';
+import React, { useState, useCallback, createContext, useContext, useRef } from 'react';
 
 type ToastVariant = 'success' | 'error' | 'warning' | 'info';
 
@@ -44,10 +44,11 @@ const variantIcons: Record<ToastVariant, string> = {
  */
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  let nextId = 0;
+  const nextIdRef = useRef(0);
 
   const addToast = useCallback((message: string, variant: ToastVariant = 'info') => {
-    const id = ++nextId;
+    nextIdRef.current += 1;
+    const id = nextIdRef.current;
     setToasts((prev) => [...prev, { id, message, variant }]);
 
     setTimeout(() => {

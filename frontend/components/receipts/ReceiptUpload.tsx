@@ -1,12 +1,17 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import Image, { type ImageLoaderProps } from 'next/image';
 import { useDropzone } from 'react-dropzone';
 import { Upload, X, Loader2, Check } from 'lucide-react';
 
 interface ReceiptUploadProps {
     organizationId: string;
     onUploadComplete: (fileUrl: string) => void;
+}
+
+function passthroughImageLoader({ src }: ImageLoaderProps): string {
+    return src;
 }
 
 export function ReceiptUpload({ organizationId, onUploadComplete }: ReceiptUploadProps) {
@@ -115,10 +120,14 @@ export function ReceiptUpload({ organizationId, onUploadComplete }: ReceiptUploa
                 </div>
             ) : (
                 <div className="relative">
-                    <img
+                    <Image
                         src={preview}
                         alt="Receipt preview"
-                        className="w-full h-64 object-contain rounded-lg bg-gray-100"
+                        width={1200}
+                        height={800}
+                        unoptimized
+                        loader={passthroughImageLoader}
+                        className="h-64 w-full rounded-lg bg-gray-100 object-contain"
                     />
                     {uploading && (
                         <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex flex-col items-center justify-center">

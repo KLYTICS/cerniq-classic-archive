@@ -44,13 +44,17 @@ describe('DepositPricingEngineService', () => {
 
   it('projected balance should not exceed current balance', () => {
     const result = service.priceDeposit(baseParams);
-    expect(result.projectedBalance).toBeLessThanOrEqual(baseParams.currentBalance);
+    expect(result.projectedBalance).toBeLessThanOrEqual(
+      baseParams.currentBalance,
+    );
   });
 
   it('higher rate should produce higher retention', () => {
     const low = service.priceDeposit({ ...baseParams, targetSpread: 0.02 });
     const high = service.priceDeposit({ ...baseParams, targetSpread: 0.001 });
-    expect(high.retentionProbability).toBeGreaterThanOrEqual(low.retentionProbability);
+    expect(high.retentionProbability).toBeGreaterThanOrEqual(
+      low.retentionProbability,
+    );
   });
 
   it('rate sensitivity should return ordered results', () => {
@@ -62,7 +66,9 @@ describe('DepositPricingEngineService', () => {
     });
     expect(results.length).toBeGreaterThanOrEqual(3);
     // Higher rate => higher retention
-    expect(results[results.length - 1].retentionProbability).toBeGreaterThan(results[0].retentionProbability);
+    expect(results[results.length - 1].retentionProbability).toBeGreaterThan(
+      results[0].retentionProbability,
+    );
   });
 
   it('revenue maximizing rate should produce positive revenue', () => {

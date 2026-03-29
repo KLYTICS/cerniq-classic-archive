@@ -53,7 +53,9 @@ export class StressCorrelationService {
     );
 
     if (assets.length < 2) {
-      throw new Error('At least 2 assets are required for correlation analysis');
+      throw new Error(
+        'At least 2 assets are required for correlation analysis',
+      );
     }
 
     const marketKey = assets[0];

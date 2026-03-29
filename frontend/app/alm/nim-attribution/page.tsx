@@ -6,10 +6,27 @@ import { useTranslation } from '@/lib/i18n';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { TrendingDown, AlertTriangle } from 'lucide-react';
 
+interface NIMAttributionFactor {
+  factor: string;
+  factorEs: string;
+  bps: number;
+  explanation: string;
+  explanationEs: string;
+}
+
+interface NIMAttributionData {
+  nimCurrent: number;
+  nimPrior: number;
+  nimDeltaBps: number;
+  attribution: NIMAttributionFactor[];
+  totalExplainedBps: number;
+  residualBps: number;
+}
+
 export default function NIMAttributionPage() {
   const { selectedId } = useALM();
   const { locale } = useTranslation();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<NIMAttributionData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,7 +36,7 @@ export default function NIMAttributionPage() {
       try {
         const NODE = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
         const res = await fetch(`${NODE}/api/alm/${selectedId}/nim-attribution`);
-        if (res.ok) setData(await res.json());
+        if (res.ok) setData(await res.json() as NIMAttributionData);
         else setData(getDemoData());
       } catch { setData(getDemoData()); }
       finally { setLoading(false); }
@@ -29,9 +46,9 @@ export default function NIMAttributionPage() {
   if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
   if (loading || !data) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
 
-  const chartData = data.attribution.map((f: any) => ({
-    name: locale === 'es' ? f.factorEs : f.factor,
-    bps: f.bps,
+  const chartData = data.attribution.map((factor) => ({
+    name: locale === 'es' ? factor.factorEs : factor.factor,
+    bps: factor.bps,
   }));
 
   return (
@@ -72,7 +89,7 @@ export default function NIMAttributionPage() {
             <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} />
             <ReferenceLine y={0} stroke="#94a3b8" />
             <Bar dataKey="bps" radius={[4, 4, 0, 0]}>
-              {chartData.map((e: any, i: number) => <Cell key={i} fill={e.bps >= 0 ? '#10b981' : '#ef4444'} />)}
+              {chartData.map((entry, i) => <Cell key={i} fill={entry.bps >= 0 ? '#10b981' : '#ef4444'} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -80,12 +97,12 @@ export default function NIMAttributionPage() {
 
       {/* Factor Detail */}
       <div className="space-y-2">
-        {data.attribution.map((f: any, i: number) => (
-          <div key={i} className={`flex items-center gap-3 rounded-xl border p-3 ${f.bps >= 0 ? 'border-emerald-100 bg-emerald-50/30' : 'border-rose-100 bg-rose-50/30'}`}>
-            <span className={`text-sm font-bold tabular-nums w-16 text-right ${f.bps >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{f.bps >= 0 ? '+' : ''}{f.bps}</span>
+        {data.attribution.map((factor, i) => (
+          <div key={i} className={`flex items-center gap-3 rounded-xl border p-3 ${factor.bps >= 0 ? 'border-emerald-100 bg-emerald-50/30' : 'border-rose-100 bg-rose-50/30'}`}>
+            <span className={`text-sm font-bold tabular-nums w-16 text-right ${factor.bps >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{factor.bps >= 0 ? '+' : ''}{factor.bps}</span>
             <div className="flex-1">
-              <p className="text-sm font-medium text-slate-800">{locale === 'es' ? f.factorEs : f.factor}</p>
-              <p className="text-[10px] text-slate-500">{locale === 'es' ? f.explanationEs : f.explanation}</p>
+              <p className="text-sm font-medium text-slate-800">{locale === 'es' ? factor.factorEs : factor.factor}</p>
+              <p className="text-[10px] text-slate-500">{locale === 'es' ? factor.explanationEs : factor.explanation}</p>
             </div>
           </div>
         ))}
@@ -94,7 +111,7 @@ export default function NIMAttributionPage() {
   );
 }
 
-function getDemoData() {
+function getDemoData(): NIMAttributionData {
   return {
     nimCurrent: 3.42, nimPrior: 3.68, nimDeltaBps: -26,
     attribution: [

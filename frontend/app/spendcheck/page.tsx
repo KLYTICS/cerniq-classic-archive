@@ -8,7 +8,6 @@ import {
   Receipt,
   Search,
   FileSpreadsheet,
-  AlertTriangle,
   TrendingUp,
   Shield,
   Download,
@@ -16,7 +15,6 @@ import {
   X,
   Info,
   CheckCircle2,
-  Eye,
   Upload,
 } from 'lucide-react';
 import PlatformPage from '@/components/layout/PlatformPage';
@@ -24,7 +22,7 @@ import { SkeletonLoader } from '@/components/ui/cerniq';
 import { EmptyState } from '@/components/ui/cerniq';
 import { ErrorBanner } from '@/components/ui/cerniq';
 import { spendcheckApi, Workspace } from '@/lib/spendcheck-api';
-import { apiClient, APAnalysisResult, APFinding, APVendorStat } from '@/lib/api';
+import { apiClient, type APAnalysisResult, type APFinding, type ExpenseUploadResult } from '@/lib/api';
 
 // ─── Language toggle ───
 type Lang = 'en' | 'es';
@@ -113,6 +111,24 @@ function findingTypeLabelFn(type: string, lang: Lang): string {
   const entry = names[type];
   if (!entry) return type.replace(/_/g, ' ');
   return lang === 'en' ? entry.en : entry.es;
+}
+
+function getUploadErrorMessage(error: unknown): string | null {
+  if (!error || typeof error !== 'object' || !('response' in error)) {
+    return error instanceof Error ? error.message : null;
+  }
+
+  const response = error.response;
+  if (!response || typeof response !== 'object' || !('data' in response)) {
+    return error instanceof Error ? error.message : null;
+  }
+
+  const data = response.data;
+  if (!data || typeof data !== 'object' || !('message' in data)) {
+    return error instanceof Error ? error.message : null;
+  }
+
+  return typeof data.message === 'string' ? data.message : null;
 }
 
 // ─── Demo fallback data ───
@@ -269,13 +285,7 @@ export default function SpendCheckPage() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadDragging, setUploadDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState<{
-    ingested: number;
-    errors: any[];
-    warnings: string[];
-    summary: any;
-    analysisTriggered: boolean;
-  } | null>(null);
+  const [uploadResult, setUploadResult] = useState<ExpenseUploadResult | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
@@ -370,10 +380,10 @@ export default function SpendCheckPage() {
         const resolvedOrgId = result.orgId || orgId;
         await loadAnalysis(resolvedOrgId);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('CSV upload failed:', err);
       setUploadError(
-        err?.response?.data?.message ||
+        getUploadErrorMessage(err) ||
         t('Failed to upload CSV. Please check the file format and try again.',
           'Error al subir el CSV. Verifique el formato y vuelva a intentar.'),
       );
@@ -528,10 +538,10 @@ export default function SpendCheckPage() {
                 {activeTab === 'anomalies' && (
                   <AnomaliesTab analysis={analysis} lang={lang} t={t} onSelectFinding={setSelectedFinding} />
                 )}
-                {activeTab === 'vendors' && <VendorsTab analysis={analysis} lang={lang} t={t} />}
-                {activeTab === 'liquidity' && <LiquidityTab lang={lang} t={t} />}
+                {activeTab === 'vendors' && <VendorsTab analysis={analysis} t={t} />}
+                {activeTab === 'liquidity' && <LiquidityTab t={t} />}
                 {activeTab === 'report' && (
-                  <ReportTab analysis={analysis} lang={lang} t={t} workspaceName={selectedWorkspace?.name || ''} onDownloadJSON={downloadAnalysisJSON} onDownloadPDF={downloadAPReportPDF} />
+                  <ReportTab analysis={analysis} t={t} workspaceName={selectedWorkspace?.name || ''} onDownloadJSON={downloadAnalysisJSON} onDownloadPDF={downloadAPReportPDF} />
                 )}
               </>
             )}
@@ -705,7 +715,7 @@ export default function SpendCheckPage() {
                   <ul className="mt-2 max-h-40 overflow-y-auto space-y-1">
                     {uploadResult.errors.map((err, i) => (
                       <li key={i} className="text-xs text-red-700">
-                        {err.row > 0 ? `Row ${err.row}: ` : ''}{err.message}
+                        {typeof err.row === 'number' && err.row > 0 ? `Row ${err.row}: ` : ''}{err.message}
                       </li>
                     ))}
                   </ul>
@@ -1016,7 +1026,7 @@ function AnomaliesTab({
 // Tab 3: Vendor Intelligence
 // ─────────────────────────────────────────────────────────
 
-function VendorsTab({ analysis, lang, t }: { analysis: APAnalysisResult; lang: Lang; t: (en: string, es: string) => string }) {
+function VendorsTab({ analysis, t }: { analysis: APAnalysisResult; t: (en: string, es: string) => string }) {
   const sorted = [...analysis.vendorStats].sort((a, b) => b.percentOfTotal - a.percentOfTotal);
 
   return (
@@ -1072,7 +1082,7 @@ function VendorsTab({ analysis, lang, t }: { analysis: APAnalysisResult; lang: L
 // Tab 4: Liquidity
 // ─────────────────────────────────────────────────────────
 
-function LiquidityTab({ lang, t }: { lang: Lang; t: (en: string, es: string) => string }) {
+function LiquidityTab({ t }: { t: (en: string, es: string) => string }) {
   // For now: show info card since ALM integration is optional
   return (
     <div className="mx-auto max-w-2xl">
@@ -1121,14 +1131,12 @@ function LiquidityTab({ lang, t }: { lang: Lang; t: (en: string, es: string) => 
 
 function ReportTab({
   analysis,
-  lang,
   t,
   workspaceName,
   onDownloadJSON,
   onDownloadPDF,
 }: {
   analysis: APAnalysisResult;
-  lang: Lang;
   t: (en: string, es: string) => string;
   workspaceName: string;
   onDownloadJSON: () => void;

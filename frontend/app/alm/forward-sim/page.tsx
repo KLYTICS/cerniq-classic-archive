@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, AlertTriangle, Play, RefreshCw } from 'lucide-react';
 
 interface ForwardQuarter {
@@ -23,6 +23,8 @@ interface ForwardSimResult {
     worstCaseNWR: number; worstCaseLCR: number;
   };
 }
+
+type ForwardChartEntry = Record<string, string | number> & { quarter: string };
 
 const PATH_COLORS: Record<string, string> = { base: '#0f172a', up200: '#ef4444', down100: '#3b82f6' };
 const PATH_LABELS: Record<string, { en: string; es: string }> = {
@@ -55,7 +57,7 @@ export default function ForwardSimPage() {
 
   // Build chart data: one entry per quarter, keys = path names
   const chartData = baseQuarters.map(bq => {
-    const entry: Record<string, any> = { quarter: bq.quarter };
+    const entry: ForwardChartEntry = { quarter: bq.quarter };
     for (const path of paths) {
       const pq = data?.quarters.find(q => q.quarter === bq.quarter && q.ratePath === path);
       if (pq) {

@@ -15,6 +15,10 @@ interface CreditMetricsResult {
   migrationMatrix: Array<{ from: string; AAA: number; AA: number; A: number; BBB: number; BB: number; B: number; Default: number }>;
 }
 
+type RatingColumn = 'AAA' | 'AA' | 'A' | 'BBB' | 'BB' | 'B' | 'Default';
+
+const RATING_COLUMNS: RatingColumn[] = ['AAA', 'AA', 'A', 'BBB', 'BB', 'B', 'Default'];
+
 export default function CreditMetricsPage() {
   const { selectedId } = useALM();
   const { locale } = useTranslation();
@@ -88,7 +92,7 @@ export default function CreditMetricsPage() {
           <thead>
             <tr className="border-b border-slate-200">
               <th className="py-2 text-left text-slate-500">From ↓</th>
-              {['AAA', 'AA', 'A', 'BBB', 'BB', 'B', 'Default'].map(r => (
+              {RATING_COLUMNS.map(r => (
                 <th key={r} className="py-2 text-right text-slate-500">{r}</th>
               ))}
             </tr>
@@ -97,9 +101,9 @@ export default function CreditMetricsPage() {
             {data.migrationMatrix.map((row, i) => (
               <tr key={i} className="border-b border-slate-100">
                 <td className="py-1.5 font-medium text-slate-700">{row.from}</td>
-                {['AAA', 'AA', 'A', 'BBB', 'BB', 'B', 'Default'].map(r => (
-                  <td key={r} className={`py-1.5 text-right tabular-nums ${(row as any)[r] > 0.5 ? 'font-bold text-slate-900' : 'text-slate-400'}`}>
-                    {((row as any)[r] * 100).toFixed(1)}%
+                {RATING_COLUMNS.map((rating) => (
+                  <td key={rating} className={`py-1.5 text-right tabular-nums ${row[rating] > 0.5 ? 'font-bold text-slate-900' : 'text-slate-400'}`}>
+                    {(row[rating] * 100).toFixed(1)}%
                   </td>
                 ))}
               </tr>

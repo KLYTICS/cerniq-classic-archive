@@ -71,7 +71,9 @@ export interface CapitalOptimizationResult {
 
 @Injectable()
 export class RegulatoryCapitalOptimizationService {
-  private readonly logger = new Logger(RegulatoryCapitalOptimizationService.name);
+  private readonly logger = new Logger(
+    RegulatoryCapitalOptimizationService.name,
+  );
 
   /**
    * Optimize capital allocation and compute regulatory ratios.
@@ -80,7 +82,9 @@ export class RegulatoryCapitalOptimizationService {
    * and determines whether the institution is well-capitalized under
    * current regulatory thresholds.
    */
-  optimizeCapital(params: CapitalOptimizationParams): CapitalOptimizationResult {
+  optimizeCapital(
+    params: CapitalOptimizationParams,
+  ): CapitalOptimizationResult {
     const { riskWeightedAssets, currentCapital, targetRatios } = params;
 
     if (riskWeightedAssets.length === 0) {
@@ -91,25 +95,25 @@ export class RegulatoryCapitalOptimizationService {
 
     // Compute RWA and capital charges per category
     let totalRWA = 0;
-    const optimalAllocation: OptimalAllocation[] = riskWeightedAssets.map((rwa) => {
-      const categoryRWA = rwa.balance * rwa.riskWeight;
-      totalRWA += categoryRWA;
-      const capitalCharge = categoryRWA * targetRatios.minTotalCapital;
-      // Risk-adjusted return — simplified as spread / capital charge
-      const assumedSpread = 0.03; // 3% average spread
-      const rorac =
-        capitalCharge > 0
-          ? (rwa.balance * assumedSpread) / capitalCharge
-          : 0;
+    const optimalAllocation: OptimalAllocation[] = riskWeightedAssets.map(
+      (rwa) => {
+        const categoryRWA = rwa.balance * rwa.riskWeight;
+        totalRWA += categoryRWA;
+        const capitalCharge = categoryRWA * targetRatios.minTotalCapital;
+        // Risk-adjusted return — simplified as spread / capital charge
+        const assumedSpread = 0.03; // 3% average spread
+        const rorac =
+          capitalCharge > 0 ? (rwa.balance * assumedSpread) / capitalCharge : 0;
 
-      return {
-        category: rwa.category,
-        currentBalance: this.round2(rwa.balance),
-        rwa: this.round2(categoryRWA),
-        capitalCharge: this.round2(capitalCharge),
-        rorac: this.round6(rorac),
-      };
-    });
+        return {
+          category: rwa.category,
+          currentBalance: this.round2(rwa.balance),
+          rwa: this.round2(categoryRWA),
+          capitalCharge: this.round2(capitalCharge),
+          rorac: this.round6(rorac),
+        };
+      },
+    );
 
     const tier1Ratio = totalRWA > 0 ? currentCapital.tier1 / totalRWA : 0;
     const totalCapitalRatio = totalRWA > 0 ? totalCapital / totalRWA : 0;
@@ -118,7 +122,8 @@ export class RegulatoryCapitalOptimizationService {
         ? currentCapital.tier1 / currentCapital.totalAssets
         : 0;
 
-    const capitalSurplus = totalCapital - totalRWA * targetRatios.minTotalCapital;
+    const capitalSurplus =
+      totalCapital - totalRWA * targetRatios.minTotalCapital;
 
     const wellCapitalized =
       tier1Ratio >= targetRatios.minTier1 &&
@@ -146,7 +151,11 @@ export class RegulatoryCapitalOptimizationService {
   stressTestCapital(
     params: CapitalOptimizationParams,
     stressLossPct: number,
-  ): { stressedTier1Ratio: number; stressedTotalCapitalRatio: number; breachesMinimum: boolean } {
+  ): {
+    stressedTier1Ratio: number;
+    stressedTotalCapitalRatio: number;
+    breachesMinimum: boolean;
+  } {
     const result = this.optimizeCapital(params);
     const stressLoss = result.totalRWA * stressLossPct;
 
@@ -154,7 +163,8 @@ export class RegulatoryCapitalOptimizationService {
     const stressedTotal =
       params.currentCapital.tier1 + params.currentCapital.tier2 - stressLoss;
 
-    const stressedTier1Ratio = result.totalRWA > 0 ? stressedTier1 / result.totalRWA : 0;
+    const stressedTier1Ratio =
+      result.totalRWA > 0 ? stressedTier1 / result.totalRWA : 0;
     const stressedTotalCapitalRatio =
       result.totalRWA > 0 ? stressedTotal / result.totalRWA : 0;
 

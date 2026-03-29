@@ -7,10 +7,29 @@ import { useTranslation } from '@/lib/i18n';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { ShieldAlert, AlertTriangle } from 'lucide-react';
 
+interface ConcentrationSegment {
+  segment: string;
+  shareOfPortfolio: number;
+  el: number;
+  ul: number;
+}
+
+interface ConcentrationVaRData {
+  herfindahlIndex: number;
+  granularityAdjustment: number;
+  diversifiedVaR: number;
+  concentrationVaR: number;
+  concentrationPremium: number;
+  concentrationPremiumPct: number;
+  topConcentrations: ConcentrationSegment[];
+  narrativeEs: string;
+  narrativeEn: string;
+}
+
 export default function ConcVaRPage() {
   const { selectedId } = useALM();
   const { locale } = useTranslation();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ConcentrationVaRData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,8 +45,9 @@ export default function ConcVaRPage() {
   if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
   if (loading || !data) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
 
-  const chartData = data.topConcentrations.map((c: any) => ({
-    name: c.segment, share: +(c.shareOfPortfolio * 100).toFixed(1),
+  const chartData = data.topConcentrations.map((concentration) => ({
+    name: concentration.segment,
+    share: +(concentration.shareOfPortfolio * 100).toFixed(1),
   }));
 
   return (
@@ -60,7 +80,7 @@ export default function ConcVaRPage() {
             <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={130} />
             <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} />
             <Bar dataKey="share" radius={[0, 4, 4, 0]}>
-              {chartData.map((e: any, i: number) => <Cell key={i} fill={e.share > 25 ? '#ef4444' : e.share > 15 ? '#f59e0b' : '#10b981'} />)}
+              {chartData.map((entry, i) => <Cell key={i} fill={entry.share > 25 ? '#ef4444' : entry.share > 15 ? '#f59e0b' : '#10b981'} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -79,12 +99,12 @@ export default function ConcVaRPage() {
             ))}
           </tr></thead>
           <tbody>
-            {data.topConcentrations.map((c: any) => (
-              <tr key={c.segment} className="border-b border-slate-50 last:border-0">
-                <td className="px-4 py-2.5 font-medium text-slate-700 text-xs">{c.segment}</td>
-                <td className="px-4 py-2.5 tabular-nums text-xs">{(c.shareOfPortfolio * 100).toFixed(1)}%</td>
-                <td className="px-4 py-2.5 tabular-nums text-xs text-amber-700">{c.el.toFixed(2)}</td>
-                <td className="px-4 py-2.5 tabular-nums text-xs text-rose-700 font-medium">{c.ul.toFixed(2)}</td>
+            {data.topConcentrations.map((concentration) => (
+              <tr key={concentration.segment} className="border-b border-slate-50 last:border-0">
+                <td className="px-4 py-2.5 font-medium text-slate-700 text-xs">{concentration.segment}</td>
+                <td className="px-4 py-2.5 tabular-nums text-xs">{(concentration.shareOfPortfolio * 100).toFixed(1)}%</td>
+                <td className="px-4 py-2.5 tabular-nums text-xs text-amber-700">{concentration.el.toFixed(2)}</td>
+                <td className="px-4 py-2.5 tabular-nums text-xs text-rose-700 font-medium">{concentration.ul.toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
@@ -103,7 +123,7 @@ function KPI({ label, value, accent, warn }: { label: string; value: string; acc
   );
 }
 
-function getDemoData() {
+function getDemoData(): ConcentrationVaRData {
   return {
     herfindahlIndex: 0.185, granularityAdjustment: 1.8, diversifiedVaR: 28.5, concentrationVaR: 30.3,
     concentrationPremium: 1.8, concentrationPremiumPct: 0.063,

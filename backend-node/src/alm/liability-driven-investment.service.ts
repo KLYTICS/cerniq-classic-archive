@@ -85,7 +85,8 @@ export class LiabilityDrivenInvestmentService {
     for (const a of availableAssets) {
       const distancePenalty = Math.abs(a.duration - targetDuration) + 0.1;
       // Favour higher yield and convexity
-      const score = (1 / distancePenalty) * (1 + a.yield) * (1 + a.convexity * 0.01);
+      const score =
+        (1 / distancePenalty) * (1 + a.yield) * (1 + a.convexity * 0.01);
       scores.push({ asset: a, score });
     }
 

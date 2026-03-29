@@ -5,19 +5,22 @@ describe('TailRiskDecompositionService', () => {
 
   // Generate pseudo-random returns with known properties
   const normalReturns = [
-    -0.02, 0.01, 0.005, -0.01, 0.015, 0.003, -0.005, 0.008,
-    -0.012, 0.007, -0.003, 0.011, 0.002, -0.008, 0.006,
-    -0.004, 0.009, -0.007, 0.004, -0.001, 0.01, -0.006,
-    0.003, -0.002, 0.005, -0.009, 0.012, -0.011, 0.008,
-    -0.015, 0.002, -0.003, 0.007, -0.004, 0.006, -0.01,
-    0.004, -0.008, 0.011, -0.005, 0.009, -0.002, 0.003,
-    -0.006, 0.001, -0.007, 0.005, -0.003, 0.008, -0.004,
+    -0.02, 0.01, 0.005, -0.01, 0.015, 0.003, -0.005, 0.008, -0.012, 0.007,
+    -0.003, 0.011, 0.002, -0.008, 0.006, -0.004, 0.009, -0.007, 0.004, -0.001,
+    0.01, -0.006, 0.003, -0.002, 0.005, -0.009, 0.012, -0.011, 0.008, -0.015,
+    0.002, -0.003, 0.007, -0.004, 0.006, -0.01, 0.004, -0.008, 0.011, -0.005,
+    0.009, -0.002, 0.003, -0.006, 0.001, -0.007, 0.005, -0.003, 0.008, -0.004,
   ];
 
   // Fat-tailed returns (includes extreme observations)
   const fatTailReturns = [
     ...normalReturns,
-    -0.15, 0.12, -0.10, 0.08, -0.18, 0.14,
+    -0.15,
+    0.12,
+    -0.1,
+    0.08,
+    -0.18,
+    0.14,
   ];
 
   beforeEach(() => {
@@ -46,14 +49,18 @@ describe('TailRiskDecompositionService', () => {
   it('fat-tailed returns should have higher fat-tail probability', () => {
     const normalResult = service.decomposeTailRisk({ returns: normalReturns });
     const fatResult = service.decomposeTailRisk({ returns: fatTailReturns });
-    expect(fatResult.fatTailProbability).toBeGreaterThanOrEqual(normalResult.fatTailProbability);
+    expect(fatResult.fatTailProbability).toBeGreaterThanOrEqual(
+      normalResult.fatTailProbability,
+    );
   });
 
   it('systematic + idiosyncratic tail risk should sum to 1', () => {
     const result = service.decomposeTailRisk({
       returns: fatTailReturns,
     });
-    expect(result.systematicTailRisk + result.idiosyncraticTailRisk).toBeCloseTo(1.0, 4);
+    expect(
+      result.systematicTailRisk + result.idiosyncraticTailRisk,
+    ).toBeCloseTo(1.0, 4);
   });
 
   it('tail index should be non-negative for absolute returns', () => {

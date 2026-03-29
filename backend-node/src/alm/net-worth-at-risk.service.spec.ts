@@ -31,8 +31,14 @@ describe('NetWorthAtRiskService', () => {
   });
 
   it('higher rate volatility should produce higher NWaR', () => {
-    const lowVol = service.calculateNWaR({ ...baseParams, rateVolatility: 0.005 });
-    const highVol = service.calculateNWaR({ ...baseParams, rateVolatility: 0.02 });
+    const lowVol = service.calculateNWaR({
+      ...baseParams,
+      rateVolatility: 0.005,
+    });
+    const highVol = service.calculateNWaR({
+      ...baseParams,
+      rateVolatility: 0.02,
+    });
     expect(highVol.nwar).toBeGreaterThan(lowVol.nwar);
   });
 
@@ -50,11 +56,19 @@ describe('NetWorthAtRiskService', () => {
 
   it('should assign correct risk rating', () => {
     // Low risk: small duration gap
-    const low = service.calculateNWaR({ ...baseParams, durationGap: 0.1, rateVolatility: 0.005 });
+    const low = service.calculateNWaR({
+      ...baseParams,
+      durationGap: 0.1,
+      rateVolatility: 0.005,
+    });
     expect(low.riskRating).toBe('Low');
 
     // High risk: large duration gap
-    const high = service.calculateNWaR({ ...baseParams, durationGap: 5.0, rateVolatility: 0.03 });
+    const high = service.calculateNWaR({
+      ...baseParams,
+      durationGap: 5.0,
+      rateVolatility: 0.03,
+    });
     expect(['High', 'Critical']).toContain(high.riskRating);
   });
 

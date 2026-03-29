@@ -97,7 +97,7 @@ export default function SvenssonPage() {
             <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
             <XAxis dataKey="tenor" tick={{ fontSize: 11 }} />
             <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
-            <Tooltip formatter={(v: any) => `${Number(v).toFixed(3)}%`} />
+            <Tooltip formatter={(value: number | string | undefined) => `${Number(value ?? 0).toFixed(3)}%`} />
             <Legend />
             <Line type="monotone" dataKey="market" name={locale === 'es' ? 'Mercado' : 'Market'} stroke="#475569" strokeWidth={2} dot={{ r: 4 }} />
             <Line type="monotone" dataKey="svensson" name="Svensson" stroke="#6366f1" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3 }} />

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Line, LineChart } from 'recharts';
+import { useState, useEffect, useCallback } from 'react';
+import { Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Line, LineChart } from 'recharts';
 import { motion } from 'framer-motion';
 
 interface VolatilityConePoint {
@@ -29,7 +29,7 @@ export function VolatilityCone() {
     const [data, setData] = useState<VolatilityConeData | null>(null);
     const [loading, setLoading] = useState(false);
 
-    const fetchCone = async () => {
+    const fetchCone = useCallback(async () => {
         setLoading(true);
         try {
             const response = await fetch(`${NODE_API_URL}/api/risk/volatility/cone/${ticker}`);
@@ -40,11 +40,11 @@ export function VolatilityCone() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [ticker]);
 
     useEffect(() => {
         fetchCone();
-    }, [ticker]);
+    }, [fetchCone]);
 
     if (!data) {
         return (
@@ -149,7 +149,7 @@ export function VolatilityCone() {
                         <Tooltip
                             contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }}
                             labelStyle={{ color: '#e2e8f0' }}
-                            formatter={(value: any) => `${Number(value).toFixed(1)}%`}
+                            formatter={(value: number | string | undefined) => `${Number(value ?? 0).toFixed(1)}%`}
                         />
                         <Legend />
 

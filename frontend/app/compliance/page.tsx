@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, Shield, AlertTriangle, XCircle, ChevronRight } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, ChevronRight } from 'lucide-react';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
 
 type Status = 'full' | 'partial' | 'none';

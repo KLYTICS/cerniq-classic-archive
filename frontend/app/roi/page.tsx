@@ -6,7 +6,6 @@ import { ArrowLeft, ArrowRight, Calculator, TrendingUp, Clock, DollarSign } from
 import { CerniqMark } from '@/components/brand/CerniqLogo';
 
 const CERNIQ_MONTHLY = 299;
-const CERNIQ_PILOT = 750;
 
 export default function ROICalculatorPage() {
   const [hoursPerQuarter, setHoursPerQuarter] = useState(60);

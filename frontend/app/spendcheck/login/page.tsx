@@ -11,6 +11,25 @@ const API_URL = (
 const AUTH_TOKEN_STORAGE = 'auth_token';
 const REFRESH_TOKEN_STORAGE = 'refresh_token';
 
+interface SpendcheckAuthUser {
+    id: string;
+    email: string;
+    name?: string;
+}
+
+interface SpendcheckAuthResponse {
+    accessToken: string;
+    refreshToken: string;
+    user: SpendcheckAuthUser;
+}
+
+function getSpendcheckLoginErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+    return 'Something went wrong';
+}
+
 export default function LoginPage() {
     const router = useRouter();
     const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -27,7 +46,7 @@ export default function LoginPage() {
 
         try {
             const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
-            const body: any = { email, password };
+            const body: { email: string; password: string; name?: string } = { email, password };
             if (mode === 'register' && name) body.name = name;
 
             const res = await fetch(`${API_URL}${endpoint}`, {
@@ -37,11 +56,11 @@ export default function LoginPage() {
             });
 
             if (!res.ok) {
-                const data = await res.json();
+                const data = await res.json().catch(() => ({}));
                 throw new Error(data.message || 'Authentication failed');
             }
 
-            const data = await res.json();
+            const data = (await res.json()) as SpendcheckAuthResponse;
 
             // Keep bearer tokens session-scoped to reduce XSS persistence risk.
             sessionStorage.setItem(AUTH_TOKEN_STORAGE, data.accessToken);
@@ -53,8 +72,8 @@ export default function LoginPage() {
             if (data.user.name) localStorage.setItem('userName', data.user.name);
 
             router.push('/spendcheck');
-        } catch (err: any) {
-            setError(err.message || 'Something went wrong');
+        } catch (err: unknown) {
+            setError(getSpendcheckLoginErrorMessage(err));
         } finally {
             setLoading(false);
         }

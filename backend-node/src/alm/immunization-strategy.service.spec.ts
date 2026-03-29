@@ -7,24 +7,72 @@ import {
 
 const MATCHED_PARAMS: ImmunizationParams = {
   assets: [
-    { name: 'Fixed Mortgages', marketValue: 50_000_000, duration: 5.0, convexity: 30, yield: 0.045 },
-    { name: 'Commercial Loans', marketValue: 30_000_000, duration: 3.0, convexity: 12, yield: 0.06 },
+    {
+      name: 'Fixed Mortgages',
+      marketValue: 50_000_000,
+      duration: 5.0,
+      convexity: 30,
+      yield: 0.045,
+    },
+    {
+      name: 'Commercial Loans',
+      marketValue: 30_000_000,
+      duration: 3.0,
+      convexity: 12,
+      yield: 0.06,
+    },
   ],
   liabilities: [
-    { name: 'Core Deposits', marketValue: 40_000_000, duration: 2.0, convexity: 5, yield: 0.01 },
-    { name: 'Term CDs', marketValue: 25_000_000, duration: 3.0, convexity: 10, yield: 0.025 },
+    {
+      name: 'Core Deposits',
+      marketValue: 40_000_000,
+      duration: 2.0,
+      convexity: 5,
+      yield: 0.01,
+    },
+    {
+      name: 'Term CDs',
+      marketValue: 25_000_000,
+      duration: 3.0,
+      convexity: 10,
+      yield: 0.025,
+    },
   ],
   targetHorizon: 4.0,
 };
 
 const MISMATCHED_PARAMS: ImmunizationParams = {
   assets: [
-    { name: 'Long Bonds', marketValue: 60_000_000, duration: 8.0, convexity: 80, yield: 0.05 },
-    { name: 'Short Bills', marketValue: 20_000_000, duration: 0.5, convexity: 0.5, yield: 0.03 },
+    {
+      name: 'Long Bonds',
+      marketValue: 60_000_000,
+      duration: 8.0,
+      convexity: 80,
+      yield: 0.05,
+    },
+    {
+      name: 'Short Bills',
+      marketValue: 20_000_000,
+      duration: 0.5,
+      convexity: 0.5,
+      yield: 0.03,
+    },
   ],
   liabilities: [
-    { name: 'Demand Deposits', marketValue: 50_000_000, duration: 1.5, convexity: 3, yield: 0.005 },
-    { name: 'Borrowings', marketValue: 15_000_000, duration: 2.0, convexity: 5, yield: 0.04 },
+    {
+      name: 'Demand Deposits',
+      marketValue: 50_000_000,
+      duration: 1.5,
+      convexity: 3,
+      yield: 0.005,
+    },
+    {
+      name: 'Borrowings',
+      marketValue: 15_000_000,
+      duration: 2.0,
+      convexity: 5,
+      yield: 0.04,
+    },
   ],
   targetHorizon: 5.0,
 };
@@ -78,10 +126,22 @@ describe('ImmunizationStrategyService', () => {
   it('should recommend buying when asset convexity is below liability convexity', () => {
     const params: ImmunizationParams = {
       assets: [
-        { name: 'Low Convexity Bond', marketValue: 50_000_000, duration: 3.0, convexity: 2, yield: 0.04 },
+        {
+          name: 'Low Convexity Bond',
+          marketValue: 50_000_000,
+          duration: 3.0,
+          convexity: 2,
+          yield: 0.04,
+        },
       ],
       liabilities: [
-        { name: 'High Convexity Liability', marketValue: 40_000_000, duration: 3.0, convexity: 20, yield: 0.02 },
+        {
+          name: 'High Convexity Liability',
+          marketValue: 40_000_000,
+          duration: 3.0,
+          convexity: 20,
+          yield: 0.02,
+        },
       ],
       targetHorizon: 3.0,
     };
@@ -127,17 +187,29 @@ describe('ImmunizationStrategyService', () => {
   it('should not recommend rebalancing when duration gap is negligible', () => {
     const params: ImmunizationParams = {
       assets: [
-        { name: 'Bond A', marketValue: 50_000_000, duration: 3.0, convexity: 15, yield: 0.04 },
+        {
+          name: 'Bond A',
+          marketValue: 50_000_000,
+          duration: 3.0,
+          convexity: 15,
+          yield: 0.04,
+        },
       ],
       liabilities: [
-        { name: 'Liability A', marketValue: 40_000_000, duration: 3.0, convexity: 10, yield: 0.02 },
+        {
+          name: 'Liability A',
+          marketValue: 40_000_000,
+          duration: 3.0,
+          convexity: 10,
+          yield: 0.02,
+        },
       ],
       targetHorizon: 3.0,
     };
     const result = svc.immunize(params);
     expect(Math.abs(result.currentGap)).toBeLessThanOrEqual(0.1);
-    const durationActions = result.rebalancing.filter(
-      (r) => r.rationale.includes('duration'),
+    const durationActions = result.rebalancing.filter((r) =>
+      r.rationale.includes('duration'),
     );
     expect(durationActions.length).toBe(0);
   });

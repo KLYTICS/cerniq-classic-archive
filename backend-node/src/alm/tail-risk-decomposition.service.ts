@@ -47,7 +47,9 @@ export class TailRiskDecompositionService {
   }): TailRiskResult {
     const { returns, confidence = 0.95, marketReturns } = params;
 
-    this.logger.log(`Decomposing tail risk for ${returns.length} return observations`);
+    this.logger.log(
+      `Decomposing tail risk for ${returns.length} return observations`,
+    );
 
     const n = returns.length;
     const mean = returns.reduce((s, r) => s + r, 0) / n;
@@ -70,7 +72,9 @@ export class TailRiskDecompositionService {
 
     // Fat tail probability: P(|X| > 3*sigma)
     const threshold = 3 * sigma;
-    const fatTailCount = returns.filter((r) => Math.abs(r - mean) > threshold).length;
+    const fatTailCount = returns.filter(
+      (r) => Math.abs(r - mean) > threshold,
+    ).length;
     const fatTailProbability = fatTailCount / n;
 
     // Systematic vs idiosyncratic tail risk decomposition
@@ -85,7 +89,9 @@ export class TailRiskDecompositionService {
       // Heuristic: use kurtosis to estimate tail decomposition
       // Higher kurtosis => more idiosyncratic tail events
       const kurtRatio = Math.abs(kurtosis) / (Math.abs(kurtosis) + 3);
-      idiosyncraticTailRisk = +Math.min(0.9, Math.max(0.1, kurtRatio)).toFixed(4);
+      idiosyncraticTailRisk = +Math.min(0.9, Math.max(0.1, kurtRatio)).toFixed(
+        4,
+      );
       systematicTailRisk = +(1 - idiosyncraticTailRisk).toFixed(4);
     }
 
@@ -161,7 +167,9 @@ export class TailRiskDecompositionService {
     const beta = varM > 0 ? covRM / varM : 0;
 
     // Residuals
-    const residuals = returns.map((r, i) => r - (meanR + beta * (marketReturns[i] - meanM)));
+    const residuals = returns.map(
+      (r, i) => r - (meanR + beta * (marketReturns[i] - meanM)),
+    );
 
     // Tail events (beyond confidence quantile)
     const threshold = 1 - confidence;
@@ -185,9 +193,10 @@ export class TailRiskDecompositionService {
       }
     }
 
-    const systematic = totalTailEvents > 0
-      ? +(systematicTailEvents / totalTailEvents).toFixed(4)
-      : 0.5;
+    const systematic =
+      totalTailEvents > 0
+        ? +(systematicTailEvents / totalTailEvents).toFixed(4)
+        : 0.5;
     const idiosyncratic = +(1 - systematic).toFixed(4);
 
     return { systematic, idiosyncratic };

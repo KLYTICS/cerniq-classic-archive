@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
-import { Bell, AlertTriangle, Check, X, ExternalLink } from 'lucide-react';
+import { Bell, AlertTriangle, Check, X } from 'lucide-react';
 
 interface Alert {
   id: string; severity: string; alertTextEs: string; alertTextEn: string;

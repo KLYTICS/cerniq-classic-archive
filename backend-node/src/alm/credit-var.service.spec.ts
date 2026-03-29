@@ -5,7 +5,7 @@ describe('CreditVarService', () => {
 
   const sampleExposures = [
     { name: 'Loan A', balance: 1_000_000, pd: 0.02, lgd: 0.45 },
-    { name: 'Loan B', balance: 500_000, pd: 0.05, lgd: 0.60 },
+    { name: 'Loan B', balance: 500_000, pd: 0.05, lgd: 0.6 },
     { name: 'Loan C', balance: 750_000, pd: 0.01, lgd: 0.35 },
   ];
 
@@ -32,9 +32,7 @@ describe('CreditVarService', () => {
       confidence: 0.99,
     });
     const manualEL =
-      1_000_000 * 0.45 * 0.02 +
-      500_000 * 0.60 * 0.05 +
-      750_000 * 0.35 * 0.01;
+      1_000_000 * 0.45 * 0.02 + 500_000 * 0.6 * 0.05 + 750_000 * 0.35 * 0.01;
     expect(result.expectedLoss).toBeCloseTo(manualEL, 0);
   });
 
@@ -55,14 +53,15 @@ describe('CreditVarService', () => {
       exposures: sampleExposures,
       confidence: 0.99,
     });
-    const sumContributions = result.contributions.reduce((s, c) => s + c.contribution, 0);
+    const sumContributions = result.contributions.reduce(
+      (s, c) => s + c.contribution,
+      0,
+    );
     expect(sumContributions).toBeCloseTo(result.creditVaR, 0);
   });
 
   it('zero PD exposures should have zero contribution', () => {
-    const zeroRisk = [
-      { name: 'Safe', balance: 1_000_000, pd: 0, lgd: 0.45 },
-    ];
+    const zeroRisk = [{ name: 'Safe', balance: 1_000_000, pd: 0, lgd: 0.45 }];
     const result = service.calculateCreditVaR({
       exposures: zeroRisk,
       confidence: 0.99,

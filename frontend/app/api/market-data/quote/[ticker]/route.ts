@@ -87,7 +87,7 @@ export async function GET(
             }
         }
     } catch (error) {
-        // Backend not available or not configured, fall through to mock data
+        console.error(`Quote proxy failed for ${symbol}`, error);
     }
 
     if (!allowMockQuoteFallback()) {

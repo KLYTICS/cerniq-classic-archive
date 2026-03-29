@@ -1,7 +1,4 @@
-import {
-  TermPremiumService,
-  TermPremiumParams,
-} from './term-premium.service';
+import { TermPremiumService, TermPremiumParams } from './term-premium.service';
 
 // ─── Test fixtures ──────────────────────────────────────────────────
 
@@ -75,7 +72,8 @@ describe('TermPremiumService', () => {
   it('should compute average term premium across all maturities', () => {
     const result = svc.estimateTermPremium(NORMAL_CURVE);
     const manualAvg =
-      result.termPremiums.reduce((s, tp) => s + tp.premium, 0) / result.termPremiums.length;
+      result.termPremiums.reduce((s, tp) => s + tp.premium, 0) /
+      result.termPremiums.length;
     expect(result.averagePremium).toBeCloseTo(manualAvg, 5);
   });
 
@@ -93,7 +91,7 @@ describe('TermPremiumService', () => {
     const result = svc.estimateTermPremium(NORMAL_CURVE);
     for (const erc of result.expectedRateComponent) {
       expect(erc.expectedRate).toBeGreaterThan(0);
-      expect(erc.expectedRate).toBeLessThan(0.10);
+      expect(erc.expectedRate).toBeLessThan(0.1);
     }
   });
 

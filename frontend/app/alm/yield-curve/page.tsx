@@ -6,9 +6,8 @@ import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  BarChart, Bar,
 } from 'recharts';
-import { TrendingUp, AlertTriangle, RefreshCw, Save, Zap } from 'lucide-react';
+import { TrendingUp, AlertTriangle, RefreshCw, Save } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -31,6 +30,8 @@ interface YieldCurveAnalysis {
   shockedCurves: ShockedCurve[];
   niiImpact: Array<{ shockType: string; label: string; niiChangePct: number; eveChangePct: number }>;
 }
+
+type YieldCurveChartEntry = Record<string, string | number> & { tenor: string; base: number; forward?: number };
 
 const TENOR_LABELS: Record<number, string> = {
   0.25: '3M', 0.5: '6M', 1: '1Y', 2: '2Y', 3: '3Y',
@@ -133,7 +134,7 @@ export default function YieldCurvePage() {
 
   // Build chart data
   const chartData = analysis.baseCurve.map((point) => {
-    const entry: Record<string, any> = {
+    const entry: YieldCurveChartEntry = {
       tenor: TENOR_LABELS[point.tenor] || `${point.tenor}Y`,
       base: +(point.rate * 100).toFixed(3),
     };

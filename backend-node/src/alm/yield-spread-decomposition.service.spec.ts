@@ -53,7 +53,10 @@ describe('YieldSpreadDecompositionService', () => {
   it('should have components that sum to the total spread', () => {
     const result = svc.decomposeSpread(CORPORATE_BOND);
     const sum =
-      result.creditSpread + result.liquidityPremium + result.optionCost + result.residual;
+      result.creditSpread +
+      result.liquidityPremium +
+      result.optionCost +
+      result.residual;
     expect(sum).toBeCloseTo(result.totalSpread, 6);
   });
 

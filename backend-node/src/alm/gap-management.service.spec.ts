@@ -5,13 +5,25 @@ import {
 
 // ─── Test fixtures ──────────────────────────────────────────────────
 
-const BUCKETS = ['0-30d', '31-90d', '91-180d', '181d-1y', '1-3y', '3-5y', '5y+'];
+const BUCKETS = [
+  '0-30d',
+  '31-90d',
+  '91-180d',
+  '181d-1y',
+  '1-3y',
+  '3-5y',
+  '5y+',
+];
 
 const BASE_PARAMS: GapManagementParams = {
   assets: [
     { name: 'Cash', balance: 10_000_000, repricingBucket: '0-30d' },
     { name: 'Fed Funds', balance: 5_000_000, repricingBucket: '0-30d' },
-    { name: 'Commercial Loans', balance: 30_000_000, repricingBucket: '31-90d' },
+    {
+      name: 'Commercial Loans',
+      balance: 30_000_000,
+      repricingBucket: '31-90d',
+    },
     { name: 'Auto Loans', balance: 20_000_000, repricingBucket: '1-3y' },
     { name: 'Fixed Mortgages', balance: 50_000_000, repricingBucket: '5y+' },
   ],
@@ -105,7 +117,9 @@ describe('GapManagementService', () => {
       ...BASE_PARAMS,
       repricingBuckets: [],
     };
-    expect(() => svc.analyzeGap(params)).toThrow('At least one repricing bucket');
+    expect(() => svc.analyzeGap(params)).toThrow(
+      'At least one repricing bucket',
+    );
   });
 
   // ─── Test 9: Standard buckets returns 7 ──────────────────────────

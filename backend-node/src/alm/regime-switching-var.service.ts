@@ -163,7 +163,8 @@ function normalQuantile(p: number): number {
   const d2 = 0.189269;
   const d3 = 0.001308;
   const x = Math.sqrt(-2 * Math.log(1 - t));
-  const z = x - (c0 + c1 * x + c2 * x * x) / (1 + d1 * x + d2 * x * x + d3 * x * x * x);
+  const z =
+    x - (c0 + c1 * x + c2 * x * x) / (1 + d1 * x + d2 * x * x + d3 * x * x * x);
   return z;
 }
 

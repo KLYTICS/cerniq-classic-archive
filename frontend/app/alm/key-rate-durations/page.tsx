@@ -1,16 +1,39 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Ruler, AlertTriangle } from 'lucide-react';
+
+interface PortfolioKRDPoint {
+  tenor: string;
+  tenorYears: number;
+  krd: number;
+}
+
+interface InstrumentKRDDetail {
+  instrumentName: string;
+  balance: number;
+  modifiedDuration: number;
+  effectiveDuration: number;
+  convexity: number;
+}
+
+interface KeyRateDurationData {
+  instruments: InstrumentKRDDetail[];
+  portfolioModifiedDuration: number;
+  portfolioEffectiveDuration: number;
+  portfolioConvexity: number;
+  durationGap: number;
+  negativeConvexityExposure: number;
+  portfolioKRDs: PortfolioKRDPoint[];
+}
 
 export default function KRDPage() {
   const { selectedId } = useALM();
   const { locale } = useTranslation();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<KeyRateDurationData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,7 +43,7 @@ export default function KRDPage() {
       try {
         const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
         const res = await fetch(`${NODE_API_URL}/api/alm/${selectedId}/key-rate-durations`);
-        if (res.ok) setData(await res.json());
+        if (res.ok) setData(await res.json() as KeyRateDurationData);
         else setData(getDemoData());
       } catch { setData(getDemoData()); }
       finally { setLoading(false); }
@@ -77,7 +100,7 @@ export default function KRDPage() {
               </tr>
             </thead>
             <tbody>
-              {data.instruments.map((inst: any, i: number) => (
+              {data.instruments.map((inst, i) => (
                 <tr key={i} className="border-b border-slate-50 last:border-0">
                   <td className="px-4 py-2.5 text-xs font-medium text-slate-700">{inst.instrumentName}</td>
                   <td className="px-4 py-2.5 text-xs tabular-nums">${inst.balance}M</td>
@@ -103,7 +126,7 @@ function KPI({ label, value, accent, warn }: { label: string; value: string; acc
   );
 }
 
-function getDemoData() {
+function getDemoData(): KeyRateDurationData {
   return {
     instruments: [], portfolioModifiedDuration: 4.2, portfolioEffectiveDuration: 3.8,
     portfolioConvexity: -0.6, durationGap: 2.1, negativeConvexityExposure: 50,

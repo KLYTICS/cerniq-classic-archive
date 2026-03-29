@@ -1,16 +1,37 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { CloudLightning, AlertTriangle } from 'lucide-react';
 
+interface ClimateScenario {
+  category: string;
+  probability: number;
+  portfolioLoss: number;
+  nwrImpact: number;
+}
+
+interface ClimateRiskData {
+  totalREExposure: number;
+  hurricaneAAL: number;
+  hurricaneAALPct: number;
+  floodZoneExposure: number;
+  cat3ScenarioLoss: number;
+  cat3NWRImpact: number;
+  cat5ScenarioLoss: number;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  mitigationScore: number;
+  scenarios: ClimateScenario[];
+  narrativeEs: string;
+  narrativeEn: string;
+}
+
 export default function ClimateRiskPage() {
   const { selectedId } = useALM();
   const { locale } = useTranslation();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ClimateRiskData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,7 +41,7 @@ export default function ClimateRiskPage() {
       try {
         const NODE = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
         const res = await fetch(`${NODE}/api/alm/${selectedId}/climate-risk`);
-        if (res.ok) setData(await res.json());
+        if (res.ok) setData(await res.json() as ClimateRiskData);
         else setData(getDemoData());
       } catch { setData(getDemoData()); }
       finally { setLoading(false); }
@@ -59,7 +80,7 @@ export default function ClimateRiskPage() {
             <YAxis tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
             <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} />
             <Bar dataKey="portfolioLoss" name={locale === 'es' ? 'Pérdida ($M)' : 'Loss ($M)'} radius={[4, 4, 0, 0]}>
-              {data.scenarios.map((_: any, i: number) => <Cell key={i} fill={['#f59e0b', '#ea580c', '#dc2626', '#991b1b', '#450a0a'][i]} />)}
+              {data.scenarios.map((_, i) => <Cell key={i} fill={['#f59e0b', '#ea580c', '#dc2626', '#991b1b', '#450a0a'][i]} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -82,7 +103,7 @@ function KPI({ label, value, accent, warn }: { label: string; value: string; acc
   );
 }
 
-function getDemoData() {
+function getDemoData(): ClimateRiskData {
   return {
     totalREExposure: 215, hurricaneAAL: 3.8, hurricaneAALPct: 0.85, floodZoneExposure: 26,
     cat3ScenarioLoss: 38.7, cat3NWRImpact: 8.7, cat5ScenarioLoss: 129, riskLevel: 'HIGH', mitigationScore: 45,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
@@ -9,10 +9,32 @@ import { ShieldAlert, AlertTriangle, Play, RefreshCw, Check, X } from 'lucide-re
 
 const SCENARIO_COLORS = ['#ef4444', '#f59e0b', '#8b5cf6'];
 
+interface StressQuarterPoint {
+  quarter: string;
+  nii: number;
+  nwr: number;
+  lcr: number;
+  eve: number;
+  nsfr: number;
+  el: number;
+}
+
+interface StressScenarioResult {
+  scenarioId: string;
+  scenarioName: string;
+  quarters: StressQuarterPoint[];
+  minNWR: number;
+  minLCR: number;
+  cumulativeNIILoss: number;
+  isCapitalAdequate: boolean;
+  narrativeEs: string;
+  narrativeEn: string;
+}
+
 export default function StressV2Page() {
   const { selectedId } = useALM();
   const { locale } = useTranslation();
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<StressScenarioResult[]>([]);
   const [loading, setLoading] = useState(false);
 
   const runAll = useCallback(async () => {
@@ -98,7 +120,7 @@ export default function StressV2Page() {
   );
 }
 
-function getDemoResults() {
+function getDemoResults(): StressScenarioResult[] {
   const mkQuarters = (base: number, trend: number) => Array.from({ length: 9 }, (_, q) => ({
     quarter: `Q${(q % 4) + 1} ${2026 + Math.floor(q / 4)}`, nii: +(3.2 + trend * q * 0.1).toFixed(2),
     nwr: +(base + trend * q * 0.3).toFixed(1), lcr: +(115 + trend * q * 2).toFixed(0), eve: 50, nsfr: 108, el: 0.5,

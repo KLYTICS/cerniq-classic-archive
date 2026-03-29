@@ -42,8 +42,8 @@ export interface CounterpartyLimitResult {
 
 // ─── Constants ──────────────────────────────────────────────────
 
-const BREACH_THRESHOLD = 1.0;    // 100 % utilisation
-const WARNING_THRESHOLD = 0.8;   // 80 % utilisation
+const BREACH_THRESHOLD = 1.0; // 100 % utilisation
+const WARNING_THRESHOLD = 0.8; // 80 % utilisation
 
 // ─── Service ────────────────────────────────────────────────────
 
@@ -59,9 +59,7 @@ export class CounterpartyLimitMonitorService {
    */
   checkLimits(params: CounterpartyLimitParams): CounterpartyLimitResult {
     const { exposures } = params;
-    this.logger.log(
-      `Checking limits for ${exposures.length} counterparties`,
-    );
+    this.logger.log(`Checking limits for ${exposures.length} counterparties`);
 
     const breaches: LimitBreach[] = [];
     const warnings: LimitBreach[] = [];
@@ -70,7 +68,11 @@ export class CounterpartyLimitMonitorService {
     for (const cp of exposures) {
       totalExposure += cp.amount;
       const utilization =
-        cp.limit > 0 ? round4(cp.amount / cp.limit) : cp.amount > 0 ? Infinity : 0;
+        cp.limit > 0
+          ? round4(cp.amount / cp.limit)
+          : cp.amount > 0
+            ? Infinity
+            : 0;
 
       const entry: LimitBreach = {
         counterparty: cp.counterparty,
@@ -102,10 +104,7 @@ export class CounterpartyLimitMonitorService {
    * Compute the aggregate utilisation across all counterparties.
    */
   aggregateUtilization(params: CounterpartyLimitParams): number {
-    const totalExposure = params.exposures.reduce(
-      (s, e) => s + e.amount,
-      0,
-    );
+    const totalExposure = params.exposures.reduce((s, e) => s + e.amount, 0);
     const totalLimit = params.exposures.reduce((s, e) => s + e.limit, 0);
     return totalLimit > 0 ? round4(totalExposure / totalLimit) : 0;
   }

@@ -395,7 +395,6 @@ export default function ReportProgressWS({
         {PIPELINE_STEPS.map((step, idx) => {
           const isDone = idx < currentStepIndex || (isComplete && idx <= currentStepIndex);
           const isCurrent = idx === currentStepIndex;
-          const isPending = idx > currentStepIndex;
 
           return (
             <div

@@ -6,11 +6,16 @@ import { useTranslation } from '@/lib/i18n';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { MessageSquare, AlertTriangle, Send } from 'lucide-react';
 
+interface AnalystChartDatum {
+  metric: string;
+  value: number;
+}
+
 interface AnalystMessage {
   role: 'user' | 'assistant';
   content: string;
   chartType?: string;
-  chartData?: any;
+  chartData?: AnalystChartDatum[];
 }
 
 const QUICK_PROMPTS_EN = [
@@ -52,7 +57,7 @@ export default function AnalystPage() {
         body: JSON.stringify({ message: text, sessionId: `session-${selectedId}`, lang: locale }),
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json() as { message: AnalystMessage };
         setMessages(prev => [...prev, data.message]);
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: locale === 'es' ? 'Error al procesar la consulta. Intente de nuevo.' : 'Error processing query. Please try again.' }]);
@@ -111,8 +116,8 @@ export default function AnalystPage() {
                       <YAxis tick={{ fontSize: 10 }} />
                       <Tooltip contentStyle={{ borderRadius: 8, fontSize: 11 }} />
                       <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                        {(msg.chartData as any[]).map((e: any, j: number) => (
-                          <Cell key={j} fill={e.value >= 0 ? '#10b981' : '#ef4444'} />
+                        {msg.chartData.map((entry, j) => (
+                          <Cell key={j} fill={entry.value >= 0 ? '#10b981' : '#ef4444'} />
                         ))}
                       </Bar>
                     </BarChart>
