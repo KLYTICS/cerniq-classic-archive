@@ -36,7 +36,7 @@ describe('RateLockExposureService', () => {
       currentMarketRate: 0.06,
     });
 
-    expect(result.locks[0].gapBps).toBe(1000); // (0.07 - 0.06) * 10000
+    expect(result.locks[0].gapBps).toBe(100); // (0.07 - 0.06) * 10000 = 100 bps
     expect(result.locks[0].expectedAmount).toBe(100_000);
   });
 

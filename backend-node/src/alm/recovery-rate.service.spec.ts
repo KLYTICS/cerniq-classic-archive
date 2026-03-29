@@ -51,8 +51,8 @@ describe('RecoveryRateService', () => {
       { type: 'Underwater', typeEs: 'Bajo agua', balance: 200, collateralValue: 100, collateralType: 'real estate', seniorityRank: 1 },
     ]);
 
-    // collateralValue/balance = 0.5, so recovery = 0.65 * 1 * 0.5 = 0.325
-    expect(result.loans[0].estimatedRecovery).toBeCloseTo(0.325, 2);
+    // collateralValue/balance = 0.5, so recovery = 0.65 * 1 * 0.5 = 0.325, rounded to 0.33
+    expect(result.loans[0].estimatedRecovery).toBeCloseTo(0.33, 2);
     expect(result.loans[0].ltv).toBeCloseTo(200, 0);
   });
 

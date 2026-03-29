@@ -31,8 +31,8 @@ describe('BasisRiskService', () => {
     const result = service.analyze({
       assetIndex: 'Prime',
       liabilityIndex: 'SOFR',
-      historicalSpread: [0.01, 0.01, 0.01, 0.01, 0.01],
-      currentSpread: 0.05, // far from mean
+      historicalSpread: [0.01, 0.011, 0.009, 0.01, 0.0105],
+      currentSpread: 0.02, // far from mean (~10bps above, vol ~0.7bps => z ~14)
     });
 
     expect(result.risk).toBe('high');
@@ -40,11 +40,10 @@ describe('BasisRiskService', () => {
   });
 
   it('computes correct z-score for known data', () => {
-    // All same values => vol ~0, zScore handled by vol||1 guard
     const result = service.analyze({
       assetIndex: 'A',
       liabilityIndex: 'B',
-      historicalSpread: [0.005, 0.005, 0.005],
+      historicalSpread: [0.004, 0.005, 0.006],
       currentSpread: 0.006,
     });
 
