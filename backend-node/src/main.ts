@@ -6,13 +6,13 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, Logger as NestLogger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+
 const cookieParser = require('cookie-parser');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+
 const helmet = require('helmet');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+
 const express = require('express');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+
 const compression = require('compression');
 import { AppModule } from './app.module';
 import { PerformanceInterceptor } from './common/interceptors/performance.interceptor';

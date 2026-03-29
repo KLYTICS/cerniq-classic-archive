@@ -265,7 +265,6 @@ export class AppController {
 
     // Check Redis (best-effort)
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const Redis = require('ioredis');
       const redis = new Redis(
         process.env.REDIS_URL || 'redis://localhost:6379',
@@ -471,7 +470,6 @@ export class AppController {
     // Redis check with timing
     const redisStart = Date.now();
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const Redis = require('ioredis');
       const redis = new Redis(
         process.env.REDIS_URL || 'redis://localhost:6379',

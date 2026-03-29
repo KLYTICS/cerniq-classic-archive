@@ -7,7 +7,7 @@ import {
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as Sentry from '@sentry/nestjs';
 import pg from 'pg';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+
 const { PrismaClient } = require('@prisma/client');
 
 /** Queries exceeding this threshold are logged as warnings. */

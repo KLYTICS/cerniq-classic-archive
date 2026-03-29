@@ -518,7 +518,6 @@ export class AuthService {
     const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { Resend } = require('resend');
       const apiKey = process.env.RESEND_API_KEY;
       if (!apiKey) {
