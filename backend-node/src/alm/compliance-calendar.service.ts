@@ -279,10 +279,8 @@ export class ComplianceCalendarService {
     d.setDate(d.getDate() + 14);
     // If already past, go to next month
     if (d <= from) {
-      const next = new Date(from.getFullYear(), from.getMonth() + 1, 1);
-      return this.getNextThirdWednesday(
-        new Date(next.getFullYear(), next.getMonth(), 0),
-      );
+      const nextMonth = new Date(from.getFullYear(), from.getMonth() + 1, 1);
+      return this.getNextThirdWednesday(nextMonth);
     }
     return d;
   }
