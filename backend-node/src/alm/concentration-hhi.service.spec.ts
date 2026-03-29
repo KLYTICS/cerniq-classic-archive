@@ -22,10 +22,11 @@ describe('ConcentrationHHIService', () => {
     ]);
 
     // 4 equal segments: HHI = 4 * (0.25)^2 = 0.25 => scaled 2500
+    // Boundary: hhiScaled >= 2500 => "Highly concentrated"
     expect(result.hhiScaled).toBe(2500);
     expect(result.effectiveSegments).toBe(4);
-    expect(result.classification).toBe('Moderately concentrated');
-    expect(result.classificationEs).toBe('Moderadamente concentrado');
+    expect(result.classification).toBe('Highly concentrated');
+    expect(result.classificationEs).toBe('Altamente concentrado');
   });
 
   // ── Highly concentrated portfolio ───────────────────────────
