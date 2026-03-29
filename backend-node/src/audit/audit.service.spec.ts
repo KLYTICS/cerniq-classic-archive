@@ -6,7 +6,12 @@ describe('AuditService', () => {
     auditLog: {
       create: jest.fn().mockResolvedValue({ id: 'log-1' }),
       findMany: jest.fn().mockResolvedValue([
-        { id: 'log-1', action: 'login', resource: 'auth', createdAt: new Date() },
+        {
+          id: 'log-1',
+          action: 'login',
+          resource: 'auth',
+          createdAt: new Date(),
+        },
       ]),
       count: jest.fn().mockResolvedValue(1),
     },
@@ -68,7 +73,11 @@ describe('AuditService', () => {
   });
 
   it('queryByUser respects custom limit and offset', async () => {
-    await service.queryByUser('user-1', { limit: 50, offset: 10, daysBack: 30 });
+    await service.queryByUser('user-1', {
+      limit: 50,
+      offset: 10,
+      daysBack: 30,
+    });
     expect(mockPrisma.auditLog.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         take: 50,
@@ -78,7 +87,10 @@ describe('AuditService', () => {
   });
 
   it('adminQuery returns data and total count', async () => {
-    const result = await service.adminQuery({ institutionId: 'inst-1', limit: 20 });
+    const result = await service.adminQuery({
+      institutionId: 'inst-1',
+      limit: 20,
+    });
     expect(result).toHaveProperty('data');
     expect(result).toHaveProperty('total');
     expect(result.limit).toBe(20);

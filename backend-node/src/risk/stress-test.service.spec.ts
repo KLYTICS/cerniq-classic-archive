@@ -8,7 +8,10 @@ describe('StressTestService', () => {
   const mockCacheService = {} as any;
 
   beforeEach(() => {
-    service = new StressTestService(mockMarketDataService as any, mockCacheService);
+    service = new StressTestService(
+      mockMarketDataService as any,
+      mockCacheService,
+    );
     jest.clearAllMocks();
   });
 
@@ -42,7 +45,13 @@ describe('StressTestService', () => {
     const positions = [{ ticker: 'AAPL', quantity: 100 }];
     const result = await service.runStressTest(positions, 'historical');
     const severities = new Set(result.scenarios.map((s) => s.severity));
-    const validSeverities = ['LOW', 'MODERATE', 'HIGH', 'SEVERE', 'CATASTROPHIC'];
+    const validSeverities = [
+      'LOW',
+      'MODERATE',
+      'HIGH',
+      'SEVERE',
+      'CATASTROPHIC',
+    ];
     for (const sev of severities) {
       expect(validSeverities).toContain(sev);
     }

@@ -27,7 +27,9 @@ describe('ExitMetricsService', () => {
   it('getExitMetrics computes LTV/CAC ratio', async () => {
     const result = await service.getExitMetrics();
     expect(result.ltvCacRatio).toBeGreaterThan(0);
-    expect(result.lifetimeValue).toBeGreaterThan(result.customerAcquisitionCost);
+    expect(result.lifetimeValue).toBeGreaterThan(
+      result.customerAcquisitionCost,
+    );
     expect(typeof result.paybackPeriodMonths).toBe('number');
   });
 

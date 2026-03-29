@@ -44,7 +44,9 @@ describe('CircuitBreakerService', () => {
       };
 
       for (let i = 0; i < 5; i++) {
-        await service.execute('default', failFn, () => 'fallback').catch(() => {});
+        await service
+          .execute('default', failFn, () => 'fallback')
+          .catch(() => {});
       }
 
       const result = await service.execute(

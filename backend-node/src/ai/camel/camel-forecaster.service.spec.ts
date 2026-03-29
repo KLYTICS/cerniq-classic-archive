@@ -50,11 +50,36 @@ describe('CamelForecasterService', () => {
 
     it('should compute AR(2) parameters from historical data', async () => {
       mockPrisma.boardReport.findMany.mockResolvedValue([
-        { camelComposite: 2.0, nimSnapshot: 3.5, lcrSnapshot: 120, generatedAt: new Date('2024-01-01') },
-        { camelComposite: 2.2, nimSnapshot: 3.4, lcrSnapshot: 118, generatedAt: new Date('2024-04-01') },
-        { camelComposite: 2.1, nimSnapshot: 3.6, lcrSnapshot: 122, generatedAt: new Date('2024-07-01') },
-        { camelComposite: 2.3, nimSnapshot: 3.5, lcrSnapshot: 119, generatedAt: new Date('2024-10-01') },
-        { camelComposite: 2.2, nimSnapshot: 3.4, lcrSnapshot: 121, generatedAt: new Date('2025-01-01') },
+        {
+          camelComposite: 2.0,
+          nimSnapshot: 3.5,
+          lcrSnapshot: 120,
+          generatedAt: new Date('2024-01-01'),
+        },
+        {
+          camelComposite: 2.2,
+          nimSnapshot: 3.4,
+          lcrSnapshot: 118,
+          generatedAt: new Date('2024-04-01'),
+        },
+        {
+          camelComposite: 2.1,
+          nimSnapshot: 3.6,
+          lcrSnapshot: 122,
+          generatedAt: new Date('2024-07-01'),
+        },
+        {
+          camelComposite: 2.3,
+          nimSnapshot: 3.5,
+          lcrSnapshot: 119,
+          generatedAt: new Date('2024-10-01'),
+        },
+        {
+          camelComposite: 2.2,
+          nimSnapshot: 3.4,
+          lcrSnapshot: 121,
+          generatedAt: new Date('2025-01-01'),
+        },
       ]);
 
       const forecasts = await service.forecastForInstitution('inst-123');

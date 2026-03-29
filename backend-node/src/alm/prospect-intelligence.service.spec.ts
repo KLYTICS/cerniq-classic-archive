@@ -18,10 +18,30 @@ describe('ProspectIntelligenceService', () => {
         institutionName: 'Cooperativa Test',
         items: [
           { category: 'asset', subcategory: 'cash', balance: 30, rate: 0 },
-          { category: 'asset', subcategory: 'residential_mortgage', balance: 150, rate: 0.055 },
-          { category: 'asset', subcategory: 'consumer_loans', balance: 70, rate: 0.08 },
-          { category: 'liability', subcategory: 'savings', balance: 180, rate: 0.02 },
-          { category: 'liability', subcategory: 'time_deposits', balance: 50, rate: 0.035 },
+          {
+            category: 'asset',
+            subcategory: 'residential_mortgage',
+            balance: 150,
+            rate: 0.055,
+          },
+          {
+            category: 'asset',
+            subcategory: 'consumer_loans',
+            balance: 70,
+            rate: 0.08,
+          },
+          {
+            category: 'liability',
+            subcategory: 'savings',
+            balance: 180,
+            rate: 0.02,
+          },
+          {
+            category: 'liability',
+            subcategory: 'time_deposits',
+            balance: 50,
+            rate: 0.035,
+          },
         ],
       }),
     };
@@ -52,12 +72,19 @@ describe('ProspectIntelligenceService', () => {
       institutionName: 'Low Capital CU',
       items: [
         { category: 'asset', subcategory: 'cash', balance: 250, rate: 0 },
-        { category: 'liability', subcategory: 'savings', balance: 230, rate: 0.02 },
+        {
+          category: 'liability',
+          subcategory: 'savings',
+          balance: 230,
+          rate: 0.02,
+        },
       ],
     });
 
     const result = await service.analyzeProspect('99999');
-    const nwrFlag = result.riskFlags.find((f) => f.metric === 'Net Worth Ratio');
+    const nwrFlag = result.riskFlags.find(
+      (f) => f.metric === 'Net Worth Ratio',
+    );
     expect(nwrFlag).toBeDefined();
     expect(nwrFlag!.actual).toBeLessThan(9.2);
     expect(nwrFlag!.gap).toBeLessThan(0);
@@ -69,8 +96,18 @@ describe('ProspectIntelligenceService', () => {
       institutionName: 'Healthy CU',
       items: [
         { category: 'asset', subcategory: 'cash', balance: 50, rate: 0 },
-        { category: 'asset', subcategory: 'consumer_loans', balance: 100, rate: 0.07 },
-        { category: 'liability', subcategory: 'savings', balance: 130, rate: 0.015 },
+        {
+          category: 'asset',
+          subcategory: 'consumer_loans',
+          balance: 100,
+          rate: 0.07,
+        },
+        {
+          category: 'liability',
+          subcategory: 'savings',
+          balance: 130,
+          rate: 0.015,
+        },
       ],
     });
 
@@ -83,7 +120,12 @@ describe('ProspectIntelligenceService', () => {
       institutionName: 'Small CU',
       items: [
         { category: 'asset', subcategory: 'cash', balance: 30, rate: 0 },
-        { category: 'liability', subcategory: 'savings', balance: 25, rate: 0.01 },
+        {
+          category: 'liability',
+          subcategory: 'savings',
+          balance: 25,
+          rate: 0.01,
+        },
       ],
     });
 

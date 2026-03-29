@@ -14,8 +14,20 @@ describe('RateLockExposureService', () => {
   it('computes pipeline and exposure from rate locks', () => {
     const result = service.analyze({
       locks: [
-        { type: 'mortgage', amount: 500_000, rate: 0.065, daysToClose: 30, pullThroughPct: 80 },
-        { type: 'auto', amount: 30_000, rate: 0.055, daysToClose: 15, pullThroughPct: 90 },
+        {
+          type: 'mortgage',
+          amount: 500_000,
+          rate: 0.065,
+          daysToClose: 30,
+          pullThroughPct: 80,
+        },
+        {
+          type: 'auto',
+          amount: 30_000,
+          rate: 0.055,
+          daysToClose: 15,
+          pullThroughPct: 90,
+        },
       ],
       currentMarketRate: 0.06,
     });
@@ -31,7 +43,13 @@ describe('RateLockExposureService', () => {
   it('gap bps reflects rate vs market difference', () => {
     const result = service.analyze({
       locks: [
-        { type: 'mortgage', amount: 100_000, rate: 0.07, daysToClose: 30, pullThroughPct: 100 },
+        {
+          type: 'mortgage',
+          amount: 100_000,
+          rate: 0.07,
+          daysToClose: 30,
+          pullThroughPct: 100,
+        },
       ],
       currentMarketRate: 0.06,
     });
@@ -43,7 +61,13 @@ describe('RateLockExposureService', () => {
   it('returns zero exposure when rate matches market', () => {
     const result = service.analyze({
       locks: [
-        { type: 'mortgage', amount: 200_000, rate: 0.06, daysToClose: 30, pullThroughPct: 100 },
+        {
+          type: 'mortgage',
+          amount: 200_000,
+          rate: 0.06,
+          daysToClose: 30,
+          pullThroughPct: 100,
+        },
       ],
       currentMarketRate: 0.06,
     });
@@ -68,7 +92,13 @@ describe('RateLockExposureService', () => {
   it('pull-through percentage reduces expected funding', () => {
     const result = service.analyze({
       locks: [
-        { type: 'mortgage', amount: 1_000_000, rate: 0.065, daysToClose: 45, pullThroughPct: 50 },
+        {
+          type: 'mortgage',
+          amount: 1_000_000,
+          rate: 0.065,
+          daysToClose: 45,
+          pullThroughPct: 50,
+        },
       ],
       currentMarketRate: 0.06,
     });

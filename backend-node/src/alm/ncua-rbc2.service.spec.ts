@@ -24,7 +24,10 @@ describe('NCUARBC2Service', () => {
       { category: 'asset', subcategory: 'commercial_loans', balance: 100 },
       { category: 'liability', subcategory: 'deposits', balance: 380 },
     ]);
-    prisma.institution.findUnique.mockResolvedValue({ id: 'inst_1', totalAssets: 450 });
+    prisma.institution.findUnique.mockResolvedValue({
+      id: 'inst_1',
+      totalAssets: 450,
+    });
 
     const result = await service.computeRBC2('inst_1');
 
@@ -42,7 +45,10 @@ describe('NCUARBC2Service', () => {
       { category: 'asset', subcategory: 'cash', balance: 400 },
       { category: 'liability', subcategory: 'deposits', balance: 200 },
     ]);
-    prisma.institution.findUnique.mockResolvedValue({ id: 'inst_1', totalAssets: 400 });
+    prisma.institution.findUnique.mockResolvedValue({
+      id: 'inst_1',
+      totalAssets: 400,
+    });
 
     const result = await service.computeRBC2('inst_1');
     // Cash has 0% risk weight -> charges come from IRR + concentration only
@@ -53,7 +59,10 @@ describe('NCUARBC2Service', () => {
 
   it('handles empty balance sheet with fallback values', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([]);
-    prisma.institution.findUnique.mockResolvedValue({ id: 'inst_1', totalAssets: 445 });
+    prisma.institution.findUnique.mockResolvedValue({
+      id: 'inst_1',
+      totalAssets: 445,
+    });
 
     const result = await service.computeRBC2('inst_1');
     expect(result.totalRiskWeightedAssets).toBeGreaterThanOrEqual(0);

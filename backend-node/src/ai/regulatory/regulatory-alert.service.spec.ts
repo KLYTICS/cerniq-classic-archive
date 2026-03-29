@@ -63,7 +63,9 @@ describe('RegulatoryAlertService', () => {
       expect(result.newPublications).toBe(2);
       expect(result.alertsDelivered).toBe(6); // 3 per pub x 2 pubs
       expect(mockExtractor.extract).toHaveBeenCalledTimes(2);
-      expect(mockDelivery.mapAndDeliverToAllInstitutions).toHaveBeenCalledTimes(2);
+      expect(mockDelivery.mapAndDeliverToAllInstitutions).toHaveBeenCalledTimes(
+        2,
+      );
     });
 
     it('should handle extractor errors gracefully within pipeline', async () => {

@@ -27,7 +27,9 @@ describe('CsvIngestV2Service', () => {
     const result = await service.analyzeCSV('inst_1', csv);
 
     expect(result.mappings).toHaveLength(4);
-    const balanceMapping = result.mappings.find((m) => m.csvColumn === 'balance');
+    const balanceMapping = result.mappings.find(
+      (m) => m.csvColumn === 'balance',
+    );
     expect(balanceMapping!.cerniqField).toBe('balance');
     expect(balanceMapping!.confidence).toBeGreaterThanOrEqual(0.85);
 

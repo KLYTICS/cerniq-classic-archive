@@ -47,8 +47,8 @@ describe('ReferralService', () => {
   });
 
   it('applyCode throws BadRequestException for invalid code', async () => {
-    await expect(
-      service.applyCode('inst-2', 'INVALID-CODE'),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.applyCode('inst-2', 'INVALID-CODE')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 });

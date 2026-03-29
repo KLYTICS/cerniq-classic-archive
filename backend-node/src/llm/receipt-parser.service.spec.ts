@@ -24,14 +24,18 @@ describe('ReceiptParserService', () => {
       );
       mockLlmService.categorize.mockResolvedValue('Meals & Entertainment');
 
-      const result = await service.parseReceipt('https://example.com/receipt.jpg');
+      const result = await service.parseReceipt(
+        'https://example.com/receipt.jpg',
+      );
       expect(result.merchantName).toBe('Starbucks');
       expect(result.amount).toBe(12.5);
       expect(result.category).toBe('Meals & Entertainment');
     });
 
     it('should throw when LLM returns unparseable response', async () => {
-      mockLlmService.analyzeImage.mockResolvedValue('I cannot process this image');
+      mockLlmService.analyzeImage.mockResolvedValue(
+        'I cannot process this image',
+      );
 
       await expect(
         service.parseReceipt('https://example.com/bad.jpg'),

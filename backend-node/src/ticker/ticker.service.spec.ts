@@ -46,9 +46,10 @@ describe('TickerService', () => {
         from: jest.fn().mockReturnValue({
           select: jest.fn().mockReturnValue({
             eq: jest.fn().mockReturnValue({
-              single: jest
-                .fn()
-                .mockResolvedValue({ data: null, error: { message: 'Not found' } }),
+              single: jest.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'Not found' },
+              }),
             }),
           }),
         }),
@@ -79,7 +80,9 @@ describe('TickerService', () => {
         from: jest.fn().mockReturnValue({
           select: jest.fn().mockReturnValue({
             eq: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({ data: mockRow, error: null }),
+              single: jest
+                .fn()
+                .mockResolvedValue({ data: mockRow, error: null }),
             }),
           }),
         }),

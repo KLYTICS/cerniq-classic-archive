@@ -32,8 +32,24 @@ describe('SampleReportFactoryService', () => {
         totalAssets: 200,
         asOfDate: '2026-03-01',
         items: [
-          { category: 'asset', subcategory: 'cash', name: 'Cash', balance: 50, rate: 0, duration: 0, rateType: 'fixed' },
-          { category: 'liability', subcategory: 'deposits', name: 'Deposits', balance: 45, rate: 0.02, duration: 1, rateType: 'fixed' },
+          {
+            category: 'asset',
+            subcategory: 'cash',
+            name: 'Cash',
+            balance: 50,
+            rate: 0,
+            duration: 0,
+            rateType: 'fixed',
+          },
+          {
+            category: 'liability',
+            subcategory: 'deposits',
+            name: 'Deposits',
+            balance: 45,
+            rate: 0.02,
+            duration: 1,
+            rateType: 'fixed',
+          },
         ],
       }),
     };
@@ -41,7 +57,12 @@ describe('SampleReportFactoryService', () => {
     reportsService = {
       generateALMReport: jest.fn().mockResolvedValue(Buffer.from('PDF')),
     };
-    service = new SampleReportFactoryService(prisma, ncuaDataPull, almService, reportsService);
+    service = new SampleReportFactoryService(
+      prisma,
+      ncuaDataPull,
+      almService,
+      reportsService,
+    );
   });
 
   it('should be defined', () => {
@@ -72,7 +93,9 @@ describe('SampleReportFactoryService', () => {
   it('cleans up even when report generation fails', async () => {
     reportsService.generateALMReport.mockRejectedValue(new Error('PDF fail'));
 
-    await expect(service.generateSampleReport('12345')).rejects.toThrow('PDF fail');
+    await expect(service.generateSampleReport('12345')).rejects.toThrow(
+      'PDF fail',
+    );
     expect(prisma.balanceSheetItem.deleteMany).toHaveBeenCalled();
     expect(prisma.institution.delete).toHaveBeenCalled();
   });

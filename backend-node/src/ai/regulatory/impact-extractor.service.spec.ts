@@ -41,7 +41,8 @@ describe('ImpactExtractorService', () => {
         id: 'pub-2',
         regulator: 'NCUA',
         title: 'Net Worth Ratio Requirements Update',
-        rawText: 'The minimum net worth ratio for well-capitalized credit unions is updated to 7%...',
+        rawText:
+          'The minimum net worth ratio for well-capitalized credit unions is updated to 7%...',
       });
       mockPrisma.regulatoryPublication.update.mockResolvedValue({});
 
@@ -67,7 +68,8 @@ describe('ImpactExtractorService', () => {
         id: 'pub-4',
         regulator: 'NCUA',
         title: 'Best Practices Guideline for Risk Management',
-        rawText: 'NCUA recommends credit unions review their guideline for ALM...',
+        rawText:
+          'NCUA recommends credit unions review their guideline for ALM...',
       });
       mockPrisma.regulatoryPublication.update.mockResolvedValue({});
 

@@ -13,9 +13,24 @@ describe('BaselCapitalChargeService', () => {
 
   it('calculates RWA and capital charge for typical exposures', () => {
     const result = service.calculate([
-      { assetClass: 'Sovereign', assetClassEs: 'Soberano', balance: 1000000, riskWeight: 0 },
-      { assetClass: 'Corporate', assetClassEs: 'Corporativo', balance: 500000, riskWeight: 100 },
-      { assetClass: 'Retail', assetClassEs: 'Minorista', balance: 300000, riskWeight: 75 },
+      {
+        assetClass: 'Sovereign',
+        assetClassEs: 'Soberano',
+        balance: 1000000,
+        riskWeight: 0,
+      },
+      {
+        assetClass: 'Corporate',
+        assetClassEs: 'Corporativo',
+        balance: 500000,
+        riskWeight: 100,
+      },
+      {
+        assetClass: 'Retail',
+        assetClassEs: 'Minorista',
+        balance: 300000,
+        riskWeight: 75,
+      },
     ]);
 
     expect(result.rwa).toBe(500000 + 225000); // 0 + 500000 + 225000
@@ -27,7 +42,12 @@ describe('BaselCapitalChargeService', () => {
 
   it('zero risk-weight sovereign produces no charge', () => {
     const result = service.calculate([
-      { assetClass: 'Sovereign', assetClassEs: 'Soberano', balance: 1_000_000_000, riskWeight: 0 },
+      {
+        assetClass: 'Sovereign',
+        assetClassEs: 'Soberano',
+        balance: 1_000_000_000,
+        riskWeight: 0,
+      },
     ]);
 
     expect(result.rwa).toBe(0);

@@ -16,13 +16,20 @@ describe('BoardReportService', () => {
       getALMSummary: jest.fn().mockResolvedValue(null),
     };
     advisorV2 = {
-      computeHealthScore: jest.fn().mockResolvedValue({ overall: 78, label: 'Good' }),
+      computeHealthScore: jest
+        .fn()
+        .mockResolvedValue({ overall: 78, label: 'Good' }),
       rankAlerts: jest.fn().mockResolvedValue([]),
     };
     camelScorer = {
       scoreInstitution: jest.fn().mockResolvedValue({ composite: 2 }),
     };
-    service = new BoardReportService(prisma, almEnterprise, advisorV2, camelScorer);
+    service = new BoardReportService(
+      prisma,
+      almEnterprise,
+      advisorV2,
+      camelScorer,
+    );
   });
 
   it('should be defined', () => {
@@ -30,7 +37,10 @@ describe('BoardReportService', () => {
   });
 
   it('generates board report with all required sections', async () => {
-    prisma.institution.findUnique.mockResolvedValue({ name: 'Test CU', totalAssets: 400 });
+    prisma.institution.findUnique.mockResolvedValue({
+      name: 'Test CU',
+      totalAssets: 400,
+    });
     prisma.boardReport.create.mockResolvedValue({});
 
     const result = await service.generateBoardReportData('inst_1');
@@ -49,7 +59,10 @@ describe('BoardReportService', () => {
   });
 
   it('report sections have bilingual titles', async () => {
-    prisma.institution.findUnique.mockResolvedValue({ name: 'CU', totalAssets: 200 });
+    prisma.institution.findUnique.mockResolvedValue({
+      name: 'CU',
+      totalAssets: 200,
+    });
     prisma.boardReport.create.mockResolvedValue({});
 
     const result = await service.generateBoardReportData('inst_1');
@@ -62,7 +75,10 @@ describe('BoardReportService', () => {
   });
 
   it('handles ALM enterprise failure gracefully', async () => {
-    prisma.institution.findUnique.mockResolvedValue({ name: 'CU', totalAssets: 300 });
+    prisma.institution.findUnique.mockResolvedValue({
+      name: 'CU',
+      totalAssets: 300,
+    });
     prisma.boardReport.create.mockResolvedValue({});
     almEnterprise.getALMSummary.mockRejectedValue(new Error('DB down'));
 
@@ -72,7 +88,10 @@ describe('BoardReportService', () => {
   });
 
   it('handles boardReport persist failure silently', async () => {
-    prisma.institution.findUnique.mockResolvedValue({ name: 'CU', totalAssets: 200 });
+    prisma.institution.findUnique.mockResolvedValue({
+      name: 'CU',
+      totalAssets: 200,
+    });
     prisma.boardReport.create.mockRejectedValue(new Error('write fail'));
 
     const result = await service.generateBoardReportData('inst_1');
@@ -80,7 +99,10 @@ describe('BoardReportService', () => {
   });
 
   it('reportMonth matches current year-month format', async () => {
-    prisma.institution.findUnique.mockResolvedValue({ name: 'CU', totalAssets: 200 });
+    prisma.institution.findUnique.mockResolvedValue({
+      name: 'CU',
+      totalAssets: 200,
+    });
     prisma.boardReport.create.mockResolvedValue({});
 
     const result = await service.generateBoardReportData('inst_1');

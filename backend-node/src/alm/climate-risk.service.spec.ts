@@ -17,8 +17,18 @@ describe('ClimateRiskService', () => {
 
   it('computes climate risk with RE exposure items', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { category: 'asset', subcategory: 'residential_mortgage', balance: 150, floodZone: 'AE' },
-      { category: 'asset', subcategory: 'commercial_re', balance: 100, floodZone: 'VE' },
+      {
+        category: 'asset',
+        subcategory: 'residential_mortgage',
+        balance: 150,
+        floodZone: 'AE',
+      },
+      {
+        category: 'asset',
+        subcategory: 'commercial_re',
+        balance: 100,
+        floodZone: 'VE',
+      },
       { category: 'asset', subcategory: 'cash', balance: 50 },
       { category: 'asset', subcategory: 'securities', balance: 100 },
       { category: 'liability', subcategory: 'deposits', balance: 350 },
@@ -49,7 +59,12 @@ describe('ClimateRiskService', () => {
 
   it('scenario probabilities sum to expected range', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { category: 'asset', subcategory: 'residential_mortgage', balance: 200, floodZone: 'X' },
+      {
+        category: 'asset',
+        subcategory: 'residential_mortgage',
+        balance: 200,
+        floodZone: 'X',
+      },
     ]);
     const result = await service.computeClimateRisk('inst_1');
 
@@ -59,7 +74,12 @@ describe('ClimateRiskService', () => {
 
   it('flood zone exposure uses correct FEMA haircuts', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { category: 'asset', subcategory: 'residential_mortgage', balance: 100, floodZone: 'VE' },
+      {
+        category: 'asset',
+        subcategory: 'residential_mortgage',
+        balance: 100,
+        floodZone: 'VE',
+      },
     ]);
     const result = await service.computeClimateRisk('inst_1');
     // VE haircut = 0.4 * 100 = 40

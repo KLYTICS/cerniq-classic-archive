@@ -4,7 +4,9 @@ describe('ApReportService', () => {
   let service: ApReportService;
   const mockPrisma = {
     organization: {
-      findUnique: jest.fn().mockResolvedValue({ id: 'org-1', name: 'Test Org' }),
+      findUnique: jest
+        .fn()
+        .mockResolvedValue({ id: 'org-1', name: 'Test Org' }),
     },
   };
   const mockAnomalyDetection = {
@@ -14,7 +16,12 @@ describe('ApReportService', () => {
       topVendors: [],
       categoryBreakdown: {},
       findings: [
-        { type: 'duplicate', vendor: 'Test', amount: 500, estimatedRecovery: 500 },
+        {
+          type: 'duplicate',
+          vendor: 'Test',
+          amount: 500,
+          estimatedRecovery: 500,
+        },
       ],
       estimatedTotalRecovery: 500,
       vendorRiskScores: [],

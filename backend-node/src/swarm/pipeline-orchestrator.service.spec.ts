@@ -1,4 +1,7 @@
-import { PipelineOrchestratorService, PipelineStep } from './pipeline-orchestrator.service';
+import {
+  PipelineOrchestratorService,
+  PipelineStep,
+} from './pipeline-orchestrator.service';
 
 describe('PipelineOrchestratorService', () => {
   let service: PipelineOrchestratorService;
@@ -45,7 +48,10 @@ describe('PipelineOrchestratorService', () => {
         id: 'first',
         name: 'First',
         dependencies: [],
-        execute: async () => { order.push('first'); return 1; },
+        execute: async () => {
+          order.push('first');
+          return 1;
+        },
         timeoutMs: 5000,
         critical: false,
       },
@@ -53,14 +59,19 @@ describe('PipelineOrchestratorService', () => {
         id: 'second',
         name: 'Second',
         dependencies: ['first'],
-        execute: async () => { order.push('second'); return 2; },
+        execute: async () => {
+          order.push('second');
+          return 2;
+        },
         timeoutMs: 5000,
         critical: false,
       },
     ];
     const result = await service.execute(steps);
     expect(order).toEqual(['first', 'second']);
-    expect(result.completedSteps).toEqual(expect.arrayContaining(['first', 'second']));
+    expect(result.completedSteps).toEqual(
+      expect.arrayContaining(['first', 'second']),
+    );
   });
 
   it('handles step failure gracefully', async () => {
@@ -69,7 +80,9 @@ describe('PipelineOrchestratorService', () => {
         id: 'fail',
         name: 'Failing Step',
         dependencies: [],
-        execute: async () => { throw new Error('boom'); },
+        execute: async () => {
+          throw new Error('boom');
+        },
         timeoutMs: 5000,
         critical: false,
       },
@@ -85,7 +98,9 @@ describe('PipelineOrchestratorService', () => {
         id: 'critical',
         name: 'Critical Step',
         dependencies: [],
-        execute: async () => { throw new Error('critical failure'); },
+        execute: async () => {
+          throw new Error('critical failure');
+        },
         timeoutMs: 5000,
         critical: true,
       },

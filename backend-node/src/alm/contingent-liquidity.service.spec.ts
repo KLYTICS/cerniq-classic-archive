@@ -22,7 +22,8 @@ describe('ContingentLiquidityService', () => {
     });
 
     // Cash + FHLB + Fed + Repo(150M*0.95) + Asset Sale(300M*0.85)
-    const expectedTotal = 50_000_000 + 200_000_000 + 100_000_000 + 142_500_000 + 255_000_000;
+    const expectedTotal =
+      50_000_000 + 200_000_000 + 100_000_000 + 142_500_000 + 255_000_000;
     expect(result.totalContingentFunding).toBe(expectedTotal);
     expect(result.sources).toHaveLength(5);
     expect(result.coverageDays).toBeGreaterThan(0);
@@ -41,7 +42,8 @@ describe('ContingentLiquidityService', () => {
     });
 
     const dailyOutflow = 1_000_000 * 0.02;
-    const totalFunding = 20_000 + 50_000 + 30_000 + 40_000 * 0.95 + 100_000 * 0.85;
+    const totalFunding =
+      20_000 + 50_000 + 30_000 + 40_000 * 0.95 + 100_000 * 0.85;
     expect(result.coverageDays).toBe(Math.floor(totalFunding / dailyOutflow));
   });
 

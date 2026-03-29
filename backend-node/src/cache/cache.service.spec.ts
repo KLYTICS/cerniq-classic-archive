@@ -9,7 +9,9 @@ jest.mock('ioredis', () => {
     del: jest.fn().mockResolvedValue(1),
     exists: jest.fn().mockResolvedValue(0),
     keys: jest.fn().mockResolvedValue([]),
-    info: jest.fn().mockResolvedValue('keyspace_hits:100\r\nkeyspace_misses:20'),
+    info: jest
+      .fn()
+      .mockResolvedValue('keyspace_hits:100\r\nkeyspace_misses:20'),
     dbsize: jest.fn().mockResolvedValue(50),
     flushall: jest.fn().mockResolvedValue('OK'),
     quit: jest.fn().mockResolvedValue('OK'),

@@ -17,10 +17,23 @@ describe('DepositBetaLibraryService', () => {
   });
 
   it('returns benchmark data with correct shape', async () => {
-    prisma.institution.findUnique.mockResolvedValue({ id: 'inst_1', totalAssets: 200 });
+    prisma.institution.findUnique.mockResolvedValue({
+      id: 'inst_1',
+      totalAssets: 200,
+    });
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { category: 'liability', subcategory: 'savings', balance: 50, depositBeta: 0.2 },
-      { category: 'liability', subcategory: 'time_deposits', balance: 80, depositBeta: 0.8 },
+      {
+        category: 'liability',
+        subcategory: 'savings',
+        balance: 50,
+        depositBeta: 0.2,
+      },
+      {
+        category: 'liability',
+        subcategory: 'time_deposits',
+        balance: 80,
+        depositBeta: 0.8,
+      },
     ]);
 
     const result = await service.getBenchmark('inst_1');
@@ -75,7 +88,12 @@ describe('DepositBetaLibraryService', () => {
   it('elevated beta produces recalibration recommendation', async () => {
     prisma.institution.findUnique.mockResolvedValue({ totalAssets: 200 });
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { category: 'liability', subcategory: 'savings', balance: 100, depositBeta: 0.99 },
+      {
+        category: 'liability',
+        subcategory: 'savings',
+        balance: 100,
+        depositBeta: 0.99,
+      },
     ]);
 
     const result = await service.getBenchmark('inst_1');

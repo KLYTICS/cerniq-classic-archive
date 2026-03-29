@@ -49,7 +49,9 @@ describe('QuantSwarmService', () => {
     const mockSvc = makeMockService({ score: 80 });
     const failingSvc = {
       ...mockSvc,
-      getYieldCurveAnalysis: jest.fn().mockRejectedValue(new Error('rate shock failed')),
+      getYieldCurveAnalysis: jest
+        .fn()
+        .mockRejectedValue(new Error('rate shock failed')),
     };
     const result = await service.runFullSwarm('inst-1', {
       yieldCurve: failingSvc,
@@ -71,7 +73,9 @@ describe('QuantSwarmService', () => {
     const mockSvc = makeMockService({ score: 80 });
     const failingAdvisor = {
       ...mockSvc,
-      computeHealthScore: jest.fn().mockRejectedValue(new Error('advisor down')),
+      computeHealthScore: jest
+        .fn()
+        .mockRejectedValue(new Error('advisor down')),
     };
     const result = await service.runFullSwarm('inst-1', {
       yieldCurve: mockSvc,
