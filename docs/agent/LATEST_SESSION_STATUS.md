@@ -42,7 +42,7 @@ Backend results:
 
 - TypeScript check passed
 - Prisma schema valid
-- ESLint passed with `6` warnings and `0` errors
+- ESLint passed with `0` warnings and `0` errors
 - Backend E2E/security passed: `4` suites, `64` tests
 - Jest passed cleanly with open-handle diagnostics: `367` suites, `2643` tests
 - Jest passed with CI-style force exit: `367` suites, `2643` tests
@@ -85,7 +85,7 @@ What must be rechecked immediately after Actions billing is restored:
 
 ## Notes For Next Session
 
-- The current branch is `codex/enterprise-green-recovery` with a validated but still-uncommitted backend hardening batch; treat the worktree as live session state and avoid blind resets.
+- The current branch is `codex/enterprise-green-recovery` and the worktree is clean after the enterprise hardening pass.
 - Lint commands in this repo run with `--fix`, so some formatting or autofix changes may already be folded into the current modified set.
 - If GitHub Actions billing is restored, the next high-value step is to push or re-run the workflows immediately to verify remote green status.
 - Current local acceptance state: all planned backend, frontend, and outbound validations pass; remaining non-green status is operational, not code-related.
