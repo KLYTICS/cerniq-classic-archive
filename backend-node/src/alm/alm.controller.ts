@@ -78,6 +78,7 @@ import { CreditConcentrationVaRService } from './credit-conc-var.service';
 import { DemoWorkspaceService } from './demo-workspace.service';
 import { OnboardingOrchestratorService } from './onboarding-orchestrator.service';
 import { ClimateRiskService } from './climate-risk.service';
+import { AuditAction } from '../common/decorators/audit-action.decorator';
 import { NIMAttributionService } from './nim-attribution.service';
 import { BehavioralDurationService } from './behavioral-duration.service';
 import { ReferralService } from '../growth/referral.service';
@@ -935,6 +936,7 @@ export class AlmController {
 
   @Get(':institutionId/report')
   @UseGuards(AuthGuard)
+  @AuditAction('report_download')
   @ApiOperation({ summary: 'Download a full ALM analysis report as PDF' })
   @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
   @ApiQuery({

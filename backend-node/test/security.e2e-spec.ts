@@ -23,6 +23,7 @@ function createPrismaMock() {
     $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
     onModuleInit: jest.fn(),
     onModuleDestroy: jest.fn(),
+    getPoolStats: jest.fn().mockReturnValue(null),
 
     user: {
       findUnique: jest.fn().mockImplementation(({ where }: any) => {
@@ -274,6 +275,22 @@ describe('Security Integration Tests (e2e)', () => {
       if (rateLimitedRes) {
         expect(rateLimitedRes.status).toBe(429);
       }
+    });
+
+    it('demo tracking endpoint should be bounded by an explicit throttle', async () => {
+      const statuses: number[] = [];
+
+      for (let i = 0; i < 70; i++) {
+        const res = await request(app.getHttpServer())
+          .post('/api/demo/track')
+          .send({
+            step: (i % 6) + 1,
+            timestamp: new Date().toISOString(),
+          });
+        statuses.push(res.status);
+      }
+
+      expect(statuses).toContain(429);
     });
   });
 

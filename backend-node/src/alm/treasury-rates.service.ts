@@ -63,7 +63,10 @@ export class TreasuryRatesService {
       }
     }
 
-    return this.getApproximation();
+    const approximation = this.getApproximation();
+    this.cachedSnapshot = approximation;
+    this.cacheTimestamp = Date.now();
+    return approximation;
   }
 
   async getYieldCurvePoints(): Promise<Array<{ tenor: number; rate: number }>> {

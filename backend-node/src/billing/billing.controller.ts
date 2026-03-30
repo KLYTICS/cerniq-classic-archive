@@ -26,6 +26,7 @@ import { CheckoutRequestDto } from './billing.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma.service';
+import { SkipAuditLog } from '../common/decorators/audit-action.decorator';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -97,6 +98,7 @@ export class BillingController {
 
   @Post('api/billing/checkout')
   @Throttle({ default: { limit: 10, ttl: 3600000 } })
+  @SkipAuditLog()
   @ApiOperation({
     summary: 'Create a Stripe checkout session for subscription purchase',
   })

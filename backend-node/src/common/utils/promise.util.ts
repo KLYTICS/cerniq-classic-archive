@@ -14,6 +14,9 @@ export function withTimeout<T>(
   let timer: NodeJS.Timeout;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error(message)), ms);
+    if (timer.unref) {
+      timer.unref();
+    }
   });
 
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));

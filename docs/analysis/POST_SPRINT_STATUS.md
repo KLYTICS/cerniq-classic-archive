@@ -100,9 +100,9 @@
 
 The `README.md` is the first thing investors, customers, and developers see. It currently describes a different product. Rewrite it to match the CERNIQ ALM positioning. Archive CapexCycleOS-era docs to `docs/archive/`. This is zero-code-risk and high-perception-impact.
 
-### 2. Register AuditLogInterceptor Globally (Impact: Compliance readiness)
+### 2. Harden AuditLogInterceptor Behavior (Impact: Compliance readiness)
 
-The `AuditLogInterceptor` was built during this sprint but is not wired into `main.ts` as a global interceptor. Adding `app.useGlobalInterceptors(new AuditLogInterceptor(prismaService))` would activate audit logging for all mutating endpoints. For an ALM platform selling to regulated financial institutions, having a complete audit trail is a differentiator.
+The `AuditLogInterceptor` is now registered globally through `APP_INTERCEPTOR` in `app.module.ts`, so the next compliance step is not wiring but correctness: redact sensitive request fields, honor explicit audit actions, avoid duplicate generic/business audit rows, and cover sensitive read/download events such as report access.
 
 ### 3. Fix docker-compose.yml / .env.example Alignment (Impact: Developer onboarding)
 

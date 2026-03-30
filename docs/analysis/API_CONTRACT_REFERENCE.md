@@ -18,7 +18,7 @@ The CERNIQ backend exposes **113 confirmed HTTP endpoints** across **22 controll
 **Global middleware:**
 - `GlobalExceptionFilter` -- Standardized `{ success: false, error: { code, message, details, timestamp, path } }` envelope
 - `ResponseEnvelopeInterceptor` -- Wraps successful responses in `{ success: true, data, meta? }`
-- `AuditLogInterceptor` -- Applied to ALM controller; persists POST/PUT/PATCH/DELETE operations to `audit_logs` table
+- `AuditLogInterceptor` -- Registered globally via `APP_INTERCEPTOR`; persists write operations to `audit_logs` and supports explicit audit actions for sensitive reads
 - `DataValidationMiddleware` -- Ticker format, date range, numerical parameter validation (applied to market-data routes)
 - `ThrottlerGuard` -- Rate limiting via `@nestjs/throttler` (configured per-endpoint where applied)
 
@@ -28,13 +28,13 @@ The CERNIQ backend exposes **113 confirmed HTTP endpoints** across **22 controll
 |--------|----------------|-----------|----------------|------------|
 | Root / App | `app.controller.ts` | `/` | 15 | Mixed (AuthGuard, AdminKey, None) |
 | Auth | `auth/auth.controller.ts` | `/api/auth` | 14 | Mixed (None, AuthGuard, PassportAuthGuard) |
-| Ticker | `ticker/ticker.controller.ts` | `/api/tickers` | 6 | **None** |
-| Valuation | `valuation/valuation.controller.ts` | `/api/valuation` | 5 | **None** |
-| Options | `options/options.controller.ts` | `/api/options` | 7 | **None** |
+| Ticker | `ticker/ticker.controller.ts` | `/api/tickers` | 6 | AuthGuard (class-level) |
+| Valuation | `valuation/valuation.controller.ts` | `/api/valuation` | 5 | AuthGuard (class-level) |
+| Options | `options/options.controller.ts` | `/api/options` | 7 | AuthGuard (class-level) |
 | Volatility | `risk/volatility.controller.ts` | `/api/risk/volatility` | 5 | **None** |
 | Risk | `risk/risk.controller.ts` | `/risk` | 7 | AuthGuard (class-level) |
-| Storage | `storage/storage.controller.ts` | `/api/storage` | 3 | **None** |
-| Execution | `execution/execution.controller.ts` | `/api/execution` | 6 | **None** |
+| Storage | `storage/storage.controller.ts` | `/api/storage` | 3 | AuthGuard (class-level) |
+| Execution | `execution/execution.controller.ts` | `/api/execution` | 6 | AuthGuard (class-level) |
 | Charts | `market-data/charts.controller.ts` | `/api/charts` | 2 | **None** |
 | Market Data | `market-data/market-data.controller.ts` | `/api/market-data` | 11 | Mixed (None, AdminKey) |
 | Pipeline Health | `jobs/pipeline-health.controller.ts` | `/api/health` | 1 | None |
@@ -131,12 +131,12 @@ Base path: `/api/tickers`
 
 | Method | Path | Purpose | Auth | Request | Response |
 |--------|------|---------|------|---------|----------|
-| GET | `/api/tickers` | List tickers with pagination/filters | **None** | `TickerListQueryDto { assetType?, sector?, isActive?, page?, limit?, search? }` | `{ items: TickerDto[], total, page, pageSize }` |
-| GET | `/api/tickers/:symbol` | Get single ticker by symbol | **None** | -- | `TickerDto` |
-| POST | `/api/tickers` | Create ticker | **None** | `CreateTickerDto { ticker, name, assetType, sector?, ... }` | `TickerDto` |
-| PUT | `/api/tickers/:symbol` | Update ticker | **None** | `UpdateTickerDto { name?, sector?, isActive?, ... }` | `TickerDto` |
-| DELETE | `/api/tickers/:symbol` | Soft-delete ticker | **None** | -- | `{ message }` |
-| POST | `/api/tickers/:symbol/enrich` | Enrich from external sources | **None** | -- | `TickerDto` |
+| GET | `/api/tickers` | List tickers with pagination/filters | AuthGuard | `TickerListQueryDto { assetType?, sector?, isActive?, page?, limit?, search? }` | `{ items: TickerDto[], total, page, pageSize }` |
+| GET | `/api/tickers/:symbol` | Get single ticker by symbol | AuthGuard | -- | `TickerDto` |
+| POST | `/api/tickers` | Create ticker | AuthGuard | `CreateTickerDto { ticker, name, assetType, sector?, ... }` | `TickerDto` |
+| PUT | `/api/tickers/:symbol` | Update ticker | AuthGuard | `UpdateTickerDto { name?, sector?, isActive?, ... }` | `TickerDto` |
+| DELETE | `/api/tickers/:symbol` | Soft-delete ticker | AuthGuard | -- | `{ message }` |
+| POST | `/api/tickers/:symbol/enrich` | Enrich from external sources | AuthGuard | -- | `TickerDto` |
 
 ### Valuation (`valuation/valuation.controller.ts`)
 
@@ -144,12 +144,12 @@ Base path: `/api/valuation`
 
 | Method | Path | Purpose | Auth | Request | Response |
 |--------|------|---------|------|---------|----------|
-| POST | `/api/valuation/calculate` | Calculate valuation for ticker | **None** | `ValuationRequestDto { ticker, valuationType? }` | `CyclicalValuationDto \| CompounderValuationDto \| FrontierValuationDto` |
-| GET | `/api/valuation/kpi/:ticker` | KPI score for ticker | **None** | -- | `KPIScoreDto` |
-| GET | `/api/valuation/screener` | Run valuation screener | **None** | `ScreenerRequestDto { assetType?, sector?, minScore?, sortBy?, limit? }` | `ScreenerResultDto[]` |
-| GET | `/api/valuation/cyclical/:ticker` | Cyclical valuation shortcut | **None** | -- | `CyclicalValuationDto` |
-| GET | `/api/valuation/compounder/:ticker` | Compounder valuation shortcut | **None** | -- | `CompounderValuationDto` |
-| GET | `/api/valuation/frontier/:ticker` | Frontier valuation shortcut | **None** | -- | `FrontierValuationDto` |
+| POST | `/api/valuation/calculate` | Calculate valuation for ticker | AuthGuard | `ValuationRequestDto { ticker, valuationType? }` | `CyclicalValuationDto \| CompounderValuationDto \| FrontierValuationDto` |
+| GET | `/api/valuation/kpi/:ticker` | KPI score for ticker | AuthGuard | -- | `KPIScoreDto` |
+| GET | `/api/valuation/screener` | Run valuation screener | AuthGuard | `ScreenerRequestDto { assetType?, sector?, minScore?, sortBy?, limit? }` | `ScreenerResultDto[]` |
+| GET | `/api/valuation/cyclical/:ticker` | Cyclical valuation shortcut | AuthGuard | -- | `CyclicalValuationDto` |
+| GET | `/api/valuation/compounder/:ticker` | Compounder valuation shortcut | AuthGuard | -- | `CompounderValuationDto` |
+| GET | `/api/valuation/frontier/:ticker` | Frontier valuation shortcut | AuthGuard | -- | `FrontierValuationDto` |
 
 ### Options (`options/options.controller.ts`)
 
@@ -157,13 +157,13 @@ Base path: `/api/options`
 
 | Method | Path | Purpose | Auth | Request | Response |
 |--------|------|---------|------|---------|----------|
-| POST | `/api/options/calculate` | Calculate Black-Scholes Greeks | **None** | `CalculateGreeksDto { underlying, strike, timeToExpiry, riskFreeRate, volatility, optionType }` | `GreeksResponseDto` |
-| GET | `/api/options/chain/:ticker` | Get options chain | **None** | `?maturity=YYYY-MM-DD` | `OptionsChainResponseDto` |
-| POST | `/api/options/implied-volatility` | Calculate implied volatility | **None** | `ImpliedVolatilityRequestDto { ticker, strike, expiration, optionType, marketPrice }` | `ImpliedVolatilityResponseDto` |
-| POST | `/api/options/strategy` | Calculate multi-leg strategy | **None** | `CalculateStrategyDto { legs[], underlyingPrice, volatility, riskFreeRate }` | `StrategyResponseDto` |
-| GET | `/api/options/strategy-presets` | List strategy presets | **None** | -- | `{ presets: StrategyPresetDto[], count }` |
-| GET | `/api/options/health` | Options service health | **None** | -- | `{ status, service, features, timestamp }` |
-| GET | `/api/options/surface/:ticker` | Volatility surface | **None** | -- | Volatility surface data |
+| POST | `/api/options/calculate` | Calculate Black-Scholes Greeks | AuthGuard | `CalculateGreeksDto { underlying, strike, timeToExpiry, riskFreeRate, volatility, optionType }` | `GreeksResponseDto` |
+| GET | `/api/options/chain/:ticker` | Get options chain | AuthGuard | `?maturity=YYYY-MM-DD` | `OptionsChainResponseDto` |
+| POST | `/api/options/implied-volatility` | Calculate implied volatility | AuthGuard | `ImpliedVolatilityRequestDto { ticker, strike, expiration, optionType, marketPrice }` | `ImpliedVolatilityResponseDto` |
+| POST | `/api/options/strategy` | Calculate multi-leg strategy | AuthGuard | `CalculateStrategyDto { legs[], underlyingPrice, volatility, riskFreeRate }` | `StrategyResponseDto` |
+| GET | `/api/options/strategy-presets` | List strategy presets | AuthGuard | -- | `{ presets: StrategyPresetDto[], count }` |
+| GET | `/api/options/health` | Options service health | AuthGuard | -- | `{ status, service, features, timestamp }` |
+| GET | `/api/options/surface/:ticker` | Volatility surface | AuthGuard | -- | Volatility surface data |
 
 ### Volatility Analytics (`risk/volatility.controller.ts`)
 
@@ -198,9 +198,9 @@ Base path: `/api/storage`
 
 | Method | Path | Purpose | Auth | Request | Response |
 |--------|------|---------|------|---------|----------|
-| POST | `/api/storage/upload-url` | Generate pre-signed upload URL | **None** | `{ filename, contentType }` | `{ uploadUrl, fileKey }` |
-| GET | `/api/storage/download-url/:fileKey` | Generate download URL | **None** | -- | `{ downloadUrl }` |
-| DELETE | `/api/storage/file/:fileKey` | Delete file | **None** | -- | `{ message }` |
+| POST | `/api/storage/upload-url` | Generate pre-signed upload URL | AuthGuard | `{ filename, contentType }` | `{ uploadUrl, fileKey }` |
+| GET | `/api/storage/download-url/:fileKey` | Generate download URL | AuthGuard | -- | `{ downloadUrl }` |
+| DELETE | `/api/storage/file/:fileKey` | Delete file | AuthGuard | -- | `{ message }` |
 
 ### Execution Quality (`execution/execution.controller.ts`)
 
@@ -208,12 +208,12 @@ Base path: `/api/execution`
 
 | Method | Path | Purpose | Auth | Request | Response |
 |--------|------|---------|------|---------|----------|
-| POST | `/api/execution/slippage` | Analyze trade slippage | **None** | `any` (untyped) | Slippage analysis |
-| POST | `/api/execution/vwap` | VWAP analysis | **None** | `any` (untyped) + `?period=60` | VWAP analysis |
-| POST | `/api/execution/best-execution-report` | Best execution report | **None** | `{ executions[], startDate, endDate }` (untyped) | Best execution report |
-| POST | `/api/execution/implementation-shortfall` | Implementation shortfall | **None** | `any` (untyped) | Implementation shortfall |
-| POST | `/api/execution/backtest` | Run backtest | **None** | `any` (untyped) | Backtest results |
-| GET | `/api/execution/strategies` | List available backtest strategies | **None** | -- | Strategy definitions array |
+| POST | `/api/execution/slippage` | Analyze trade slippage | AuthGuard | `any` (untyped) | Slippage analysis |
+| POST | `/api/execution/vwap` | VWAP analysis | AuthGuard | `any` (untyped) + `?period=60` | VWAP analysis |
+| POST | `/api/execution/best-execution-report` | Best execution report | AuthGuard | `{ executions[], startDate, endDate }` (untyped) | Best execution report |
+| POST | `/api/execution/implementation-shortfall` | Implementation shortfall | AuthGuard | `any` (untyped) | Implementation shortfall |
+| POST | `/api/execution/backtest` | Run backtest | AuthGuard | `any` (untyped) | Backtest results |
+| GET | `/api/execution/strategies` | List available backtest strategies | AuthGuard | -- | Strategy definitions array |
 
 ### Charts (`market-data/charts.controller.ts`)
 
@@ -487,18 +487,18 @@ This is confusing for consumers and breaks proxy/gateway assumptions.
 
 | Module | Auth | Risk Level |
 |--------|------|------------|
-| Tickers (CRUD including create/delete) | **None** | **HIGH** -- write operations unprotected |
-| Valuation | None | Medium -- read-only analytics |
-| Options | None | Low -- pure computation |
+| Tickers (CRUD including create/delete) | AuthGuard | Medium -- auth-gated, still worth DTO hardening |
+| Valuation | AuthGuard | Low -- authenticated analytics surface |
+| Options | AuthGuard | Low -- authenticated compute surface |
 | Volatility Analytics | None | Low -- read-only |
 | Risk Analytics | AuthGuard | Correct |
-| Execution | None | Medium -- no PII but unprotected |
+| Execution | AuthGuard | Low -- authenticated analytics surface |
 | Charts | None | Low -- read-only |
 | Market Data | None | Low -- read-only |
-| Storage (upload/delete) | **None** | **HIGH** -- file operations unprotected |
+| Storage (upload/delete) | AuthGuard | Medium -- signed URL/file operations remain sensitive |
 | Portfolios | AuthGuard | Correct |
 
-**Recommendation:** Ticker write endpoints (POST, PUT, DELETE) and all Storage endpoints should require AuthGuard at minimum. The execution POST endpoints process user-submitted data and should be auth-gated.
+**Recommendation:** Keep the current auth gates, then focus the next hardening wave on public demo/computation exceptions, endpoint-level throttles, and doc drift rather than broad class-level auth rewiring.
 
 ### 3. Admin Path Inconsistency
 
@@ -527,11 +527,11 @@ Legacy naming persists:
 
 Product has been renamed to CERNIQ but these internal references remain.
 
-### 6. Response Envelope Inconsistency
+### 6. Response Envelope And Audit Drift
 
 The `ResponseEnvelopeInterceptor` exists but is **not applied globally** or consistently. Some controllers return raw data, others return enveloped data. The `GlobalExceptionFilter` wraps errors in `{ success: false, error: {...} }` but success responses vary.
 
-The `AuditLogInterceptor` is only applied to the ALM controller (`@UseInterceptors(AuditLogInterceptor)`), meaning write operations in other controllers (portfolios, expenses, organizations) are not audit-logged.
+The `AuditLogInterceptor` is registered globally via `APP_INTERCEPTOR`, so write operations across controllers are audit-logged. The current audit work should focus on explicit action naming, payload redaction, and sensitive read/download coverage rather than on registration.
 
 ### 7. Rate Limiting Gaps
 
@@ -573,7 +573,7 @@ The `RolesGuard` and `@Roles()` decorator are implemented in `auth.guard.ts` but
 
 5. **Apply ResponseEnvelopeInterceptor globally.** Register it in `main.ts` as a global interceptor so all endpoints return consistent `{ success, data, meta? }` shape.
 
-6. **Extend AuditLogInterceptor.** Apply to portfolio, expense, organization, and auth controllers -- any module that performs write operations on user data.
+6. **Harden AuditLogInterceptor behavior.** Keep the global registration, but improve explicit action naming, payload redaction, and sensitive read/download coverage.
 
 7. **Rename KLYTICS/CAPEX references.** Update header names, env vars, and storage keys to use CERNIQ naming.
 

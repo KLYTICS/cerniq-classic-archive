@@ -11,5 +11,7 @@ import { SetMetadata } from '@nestjs/common';
  *   async generateReport() { ... }
  */
 export const AUDIT_ACTION_KEY = 'audit_action';
+export const SKIP_AUDIT_LOG_KEY = 'skip_audit_log';
 export const AuditAction = (action: string) =>
   SetMetadata(AUDIT_ACTION_KEY, action);
+export const SkipAuditLog = () => SetMetadata(SKIP_AUDIT_LOG_KEY, true);

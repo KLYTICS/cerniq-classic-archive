@@ -155,6 +155,70 @@ jobs:
             echo "::warning::Bundle size ($FIRST_LOAD bytes) exceeds budget ($BUDGET bytes)"
           fi
 
+  backend-e2e:
+    name: Backend E2E & Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [backend-test]
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: cerniq_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend-node/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend-node
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: backend-node
+        run: npx prisma generate
+
+      - name: Push schema to test database
+        working-directory: backend-node
+        run: npx prisma db push --skip-generate
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
+
+      - name: Run backend E2E & security suites
+        working-directory: backend-node
+        run: npx jest --config ./test/jest-e2e.json --runInBand
+        env:
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
+          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
+
   # Outbound Python engine — lint, test
   outbound-test:
     name: Outbound Engine Tests
@@ -185,7 +249,7 @@ jobs:
     name: Deploy Backend
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [backend-test]
+    needs: [backend-test, backend-e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
 
@@ -255,7 +319,7 @@ jobs:
     name: Frontend Deploy (Vercel)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [frontend-test]
+    needs: [frontend-test, backend-e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:

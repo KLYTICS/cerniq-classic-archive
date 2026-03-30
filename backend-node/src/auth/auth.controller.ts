@@ -31,6 +31,7 @@ import {
 } from './dto/auth.dto';
 import { CreateApiKeyDto } from './dto/api-key.dto';
 import { AuditService } from '../audit/audit.service';
+import { SkipAuditLog } from '../common/decorators/audit-action.decorator';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -137,6 +138,7 @@ export class AuthController {
 
   @Post('login')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @SkipAuditLog()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Authenticate with email and password' })
   @ApiResponse({

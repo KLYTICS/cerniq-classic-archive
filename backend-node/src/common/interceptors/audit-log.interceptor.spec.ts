@@ -1,7 +1,12 @@
 import { CallHandler, ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { of, lastValueFrom, throwError } from 'rxjs';
 import { AuditLogInterceptor } from './audit-log.interceptor';
 import { PrismaService } from '../../prisma.service';
+import {
+  AUDIT_ACTION_KEY,
+  SKIP_AUDIT_LOG_KEY,
+} from '../decorators/audit-action.decorator';
 
 describe('AuditLogInterceptor', () => {
   let interceptor: AuditLogInterceptor;
@@ -52,7 +57,10 @@ describe('AuditLogInterceptor', () => {
       },
     };
 
-    interceptor = new AuditLogInterceptor(prisma as unknown as PrismaService);
+    interceptor = new AuditLogInterceptor(
+      prisma as unknown as PrismaService,
+      new Reflector(),
+    );
     callHandler = { handle: () => of({ success: true }) };
   });
 
@@ -223,12 +231,17 @@ describe('AuditLogInterceptor', () => {
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
       data: {
         userId: 'user-8',
+        institutionId: null,
         action: 'CREATE',
         resource: 'leads',
         resourceId: null,
+        outcome: 'success',
         changes: expect.objectContaining({
           email: 'lead@test.com',
-          _audit_outcome: 'success',
+        }),
+        metadata: expect.objectContaining({
+          method: 'POST',
+          route: '/api/leads',
         }),
         ipAddress: '10.0.0.1',
         userAgent: 'Jest/1.0',
@@ -251,7 +264,8 @@ describe('AuditLogInterceptor', () => {
 
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        changes: expect.objectContaining({ _audit_outcome: 'success' }),
+        outcome: 'success',
+        changes: null,
       }),
     });
   });
@@ -280,11 +294,87 @@ describe('AuditLogInterceptor', () => {
         action: 'CREATE',
         resource: 'reports',
         userId: 'user-10',
+        outcome: 'failure',
         changes: expect.objectContaining({
-          _audit_outcome: 'failure',
+          title: 'Test',
+        }),
+        metadata: expect.objectContaining({
           _audit_error: 'Forbidden',
           _audit_error_status: 403,
         }),
+      }),
+    });
+  });
+
+  it('should honor explicit audit action metadata for GET requests', async () => {
+    const handler = jest.fn();
+    Reflect.defineMetadata(AUDIT_ACTION_KEY, 'report_download', handler);
+    const context = createMockContext({
+      method: 'GET',
+      routePath: '/api/alm/:institutionId/report',
+      params: { institutionId: 'inst-77' },
+    }) as any;
+    context.getHandler = () => handler;
+
+    const obs = interceptor.intercept(context, callHandler);
+    await lastValueFrom(obs);
+
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: 'report_download',
+        institutionId: 'inst-77',
+        resource: 'alm_report',
+        resourceId: 'inst-77',
+        outcome: 'success',
+        changes: null,
+        metadata: expect.objectContaining({
+          explicitAction: true,
+          method: 'GET',
+        }),
+      }),
+    });
+  });
+
+  it('should skip audit logging when skip metadata is present', async () => {
+    const handler = jest.fn();
+    Reflect.defineMetadata(SKIP_AUDIT_LOG_KEY, true, handler);
+    const context = createMockContext({
+      method: 'POST',
+      routePath: '/api/auth/login',
+      body: { email: 'a@b.com', password: 'secret' },
+    }) as any;
+    context.getHandler = () => handler;
+
+    const obs = interceptor.intercept(context, callHandler);
+    await lastValueFrom(obs);
+
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it('should redact sensitive fields from persisted changes', async () => {
+    const context = createMockContext({
+      method: 'POST',
+      routePath: '/api/auth/register',
+      body: {
+        email: 'audit@test.com',
+        password: 'super-secret',
+        refreshToken: 'refresh-token',
+        nested: { apiKey: 'abc123' },
+      },
+      user: { userId: 'user-11' },
+    });
+
+    const obs = interceptor.intercept(context, callHandler);
+    await lastValueFrom(obs);
+
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        changes: {
+          email: 'audit@test.com',
+          password: '[REDACTED]',
+          refreshToken: '[REDACTED]',
+          nested: { apiKey: '[REDACTED]' },
+        },
       }),
     });
   });

@@ -39,6 +39,7 @@ import { BillingService } from '../billing/billing.service';
 import { AuditService } from '../audit/audit.service';
 import { AlcoPackService } from '../pipeline/alco-pack.service';
 import { IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
+import { SkipAuditLog } from '../common/decorators/audit-action.decorator';
 
 class InviteDto {
   @IsEmail()
@@ -150,6 +151,7 @@ export class PortalController {
   // All roles can generate ALCO packs for completed jobs
 
   @Post('jobs/:jobId/alco-pack')
+  @SkipAuditLog()
   @Roles('OWNER', 'ANALYST', 'VIEWER')
   @ApiOperation({
     summary: 'Generate an 8-page board-ready ALCO meeting pack PDF',
@@ -235,6 +237,7 @@ export class PortalController {
   // Only OWNER and ANALYST can upload/submit data
 
   @Post('jobs/:jobId/submit')
+  @SkipAuditLog()
   @Roles('OWNER', 'ANALYST')
   @ApiOperation({ summary: 'Submit balance sheet CSV data for a report job' })
   @ApiParam({ name: 'jobId', description: 'Report job UUID' })
@@ -441,6 +444,7 @@ export class PortalController {
   // Only OWNER can invite new users
 
   @Post('invite')
+  @SkipAuditLog()
   @Roles('OWNER')
   @ApiOperation({
     summary: 'Invite a team member to the portal via magic link email',

@@ -25,6 +25,7 @@ function createPrismaMock() {
     $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
     onModuleInit: jest.fn(),
     onModuleDestroy: jest.fn(),
+    getPoolStats: jest.fn().mockReturnValue(null),
 
     user: {
       findUnique: jest.fn().mockImplementation(({ where }: any) => {

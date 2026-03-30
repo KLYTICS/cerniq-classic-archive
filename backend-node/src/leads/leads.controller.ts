@@ -11,7 +11,7 @@ import {
   HttpCode,
   UseGuards,
 } from '@nestjs/common';
-import { Throttle, SkipThrottle } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { LeadsService } from './leads.service';
 import { LeadQualificationService } from './lead-qualification.service';
 import { LeadScoringService } from './lead-scoring.service';
@@ -164,7 +164,7 @@ export class LeadsController {
   // ── Demo Step Tracking ──
 
   @Post('api/demo/track')
-  @SkipThrottle()
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
   @HttpCode(200)
   async trackDemoStep(
     @Body() body: { step: number; timestamp: string },
