@@ -9,6 +9,7 @@ import { CerniqLockup } from '@/components/brand/CerniqLogo';
 import PortalPaywall from '@/components/portal/PortalPaywall';
 import { requiresPortalPaywall, type PortalSubscription } from '@/lib/subscription';
 import { getPublicApiUrl } from '@/lib/api-base';
+import { unwrapApiData } from '@/lib/api-response';
 
 interface PortalUser {
   id: string;
@@ -46,25 +47,67 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       return;
     }
 
+    let cancelled = false;
+
     async function loadUser() {
       try {
         const [profileRes, subRes] = await Promise.all([
           fetch(getPublicApiUrl('/api/auth/profile'), { credentials: 'include' }),
           fetch(getPublicApiUrl('/api/billing/subscription'), { credentials: 'include' }),
         ]);
-        if (profileRes.ok) {
-          setUser(await profileRes.json());
-          if (subRes.ok) setSubscription(await subRes.json());
-        } else {
-          router.push('/portal/login');
+
+        if (!profileRes.ok) {
+          if (!cancelled) {
+            setUser(null);
+            setSubscription(null);
+            router.replace('/portal/login');
+          }
+          return;
+        }
+
+        const profilePayload = unwrapApiData<PortalUser | null>(
+          await profileRes.json().catch(() => null),
+        );
+
+        if (!profilePayload?.id || !profilePayload.email) {
+          if (!cancelled) {
+            setUser(null);
+            setSubscription(null);
+            router.replace('/portal/login');
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          setUser(profilePayload);
+        }
+
+        if (subRes.ok) {
+          const subscriptionPayload = unwrapApiData<PortalSubscription | null>(
+            await subRes.json().catch(() => null),
+          );
+          if (!cancelled) {
+            setSubscription(subscriptionPayload);
+          }
         }
       } catch {
-        router.push('/portal/login');
+        if (!cancelled) {
+          setUser(null);
+          setSubscription(null);
+          router.replace('/portal/login');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
+
     loadUser();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router, pathname]);
 
   const logout = async () => {

@@ -1,5 +1,6 @@
 import type { PortalSubscription } from './subscription';
 import { getPublicApiUrl } from './api-base';
+import { asRecord, unwrapApiData } from './api-response';
 
 export type CheckoutTier = 'one_time' | 'monthly' | 'annual' | 'partner';
 
@@ -11,10 +12,6 @@ interface CreateCheckoutSessionParams {
   leadId?: string;
   successUrl?: string;
   cancelUrl?: string;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : null;
 }
 
 export async function createCheckoutSession({
@@ -42,25 +39,25 @@ export async function createCheckoutSession({
 
   const data = await response.json().catch(() => ({}));
   const payload = asRecord(data);
-  const nestedData = asRecord(payload?.data);
+  const normalizedPayload = asRecord(unwrapApiData<Record<string, unknown>>(data));
   const checkoutUrl =
     typeof payload?.checkoutUrl === 'string'
       ? payload.checkoutUrl
       : typeof payload?.url === 'string'
         ? payload.url
-        : typeof nestedData?.checkoutUrl === 'string'
-          ? nestedData.checkoutUrl
-          : typeof nestedData?.url === 'string'
-            ? nestedData.url
-        : '';
+        : typeof normalizedPayload?.checkoutUrl === 'string'
+          ? normalizedPayload.checkoutUrl
+          : typeof normalizedPayload?.url === 'string'
+            ? normalizedPayload.url
+            : '';
 
   if (!response.ok || !checkoutUrl) {
     throw new Error(
       typeof payload?.message === 'string'
         ? payload.message
-        : typeof nestedData?.message === 'string'
-          ? nestedData.message
-        : 'Unable to start checkout.',
+        : typeof normalizedPayload?.message === 'string'
+          ? normalizedPayload.message
+          : 'Unable to start checkout.',
     );
   }
 
@@ -73,13 +70,14 @@ export async function getCurrentSubscription(): Promise<PortalSubscription> {
   });
 
   const data = await response.json().catch(() => ({}));
+  const payload = unwrapApiData<PortalSubscription>(data);
   if (!response.ok) {
     throw new Error(
-      typeof data.message === 'string'
-        ? data.message
+      typeof asRecord(data)?.message === 'string'
+        ? (asRecord(data)?.message as string)
         : 'Unable to load subscription.',
     );
   }
 
-  return data as PortalSubscription;
+  return payload;
 }
