@@ -22,7 +22,11 @@ describe('ResellerService', () => {
   });
 
   it('should create a reseller with defaults', async () => {
-    mockPrisma.reseller.create.mockResolvedValue({ id: 'r1', name: 'Partner', slug: 'partner' });
+    mockPrisma.reseller.create.mockResolvedValue({
+      id: 'r1',
+      name: 'Partner',
+      slug: 'partner',
+    });
     const result = await service.createReseller({
       name: 'Partner',
       slug: 'partner',
@@ -52,11 +56,16 @@ describe('ResellerService', () => {
 
   it('should throw NotFoundException for missing reseller', async () => {
     mockPrisma.reseller.findUnique.mockResolvedValue(null);
-    await expect(service.getReseller('missing')).rejects.toThrow(NotFoundException);
+    await expect(service.getReseller('missing')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should list active resellers', async () => {
-    mockPrisma.reseller.findMany.mockResolvedValue([{ id: 'r1' }, { id: 'r2' }]);
+    mockPrisma.reseller.findMany.mockResolvedValue([
+      { id: 'r1' },
+      { id: 'r2' },
+    ]);
     const result = await service.listResellers();
     expect(result.length).toBe(2);
   });

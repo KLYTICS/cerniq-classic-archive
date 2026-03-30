@@ -1,72 +1,108 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import StockInsightsPopup from './StockInsightsPopup';
+
+const mocks = vi.hoisted(() => ({
+  getInsights: vi.fn(),
+}));
 
 vi.mock('@/lib/api', () => ({
   apiClient: {
-    getInsights: vi.fn().mockResolvedValue({
-      insights: [
-        { title: 'Strong Earnings', summary: 'Q4 beat expectations by 12%.' },
-      ],
-    }),
+    getInsights: mocks.getInsights,
   },
 }));
 
 describe('StockInsightsPopup', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    mocks.getInsights.mockReset();
   });
 
-  it('renders the trigger element', () => {
-    render(
-      <StockInsightsPopup
-        ticker="AAPL"
-        trigger={<button>View Insights</button>}
-      />,
-    );
-
-    expect(screen.getByRole('button', { name: /view insights/i })).toBeInTheDocument();
-  });
-
-  it('does not show the popup initially', () => {
-    render(
-      <StockInsightsPopup
-        ticker="AAPL"
-        trigger={<button>View Insights</button>}
-      />,
-    );
-
-    expect(screen.queryByText(/AI Analysis/i)).not.toBeInTheDocument();
-  });
-
-  it('opens the popup when trigger is clicked', async () => {
+  it('fetches and renders insights when opened, then reuses the cached insight', async () => {
     const user = userEvent.setup();
+    mocks.getInsights.mockResolvedValue({
+      insights: [
+        { title: 'Momentum', summary: 'Trend remains constructive.' },
+        { title: 'Risk', summary: 'Watch support at 190.' },
+      ],
+    });
+
     render(
       <StockInsightsPopup
         ticker="AAPL"
-        trigger={<button>View Insights</button>}
+        trigger={<button type="button">Open insight</button>}
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: /view insights/i }));
+    await user.click(screen.getByRole('button', { name: /open insight/i }));
 
-    expect(screen.getByText(/AI Analysis: AAPL/i)).toBeInTheDocument();
+    expect(await screen.findByText(/momentum/i)).toBeInTheDocument();
+    expect(screen.getByText(/powered by gpt-4/i)).toBeInTheDocument();
+    expect(mocks.getInsights).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: '✕' }));
+    await user.click(screen.getByRole('button', { name: /open insight/i }));
+
+    expect(mocks.getInsights).toHaveBeenCalledTimes(1);
   });
 
-  it('displays fetched insight data after loading', async () => {
+  it('shows the loading skeleton and falls back when no insights are returned', async () => {
     const user = userEvent.setup();
+    let resolveInsights: ((value: unknown) => void) | undefined;
+    mocks.getInsights.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveInsights = resolve;
+        }),
+    );
+
     render(
       <StockInsightsPopup
-        ticker="AAPL"
-        trigger={<button>View Insights</button>}
+        ticker="MSFT"
+        trigger={<button type="button">Open insight</button>}
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: /view insights/i }));
+    await user.click(screen.getByRole('button', { name: /open insight/i }));
+    expect(document.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
 
-    // Wait for the insight text to appear (after async fetch resolves)
-    await screen.findByText(/Strong Earnings/);
-    expect(screen.getByText(/Q4 beat expectations/)).toBeInTheDocument();
+    resolveInsights?.({ insights: [] });
+
+    expect(
+      await screen.findByText(/unable to generate insights at this time/i),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the fallback message when insight retrieval fails and closes from the backdrop', async () => {
+    const user = userEvent.setup();
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    mocks.getInsights.mockRejectedValue(new Error('provider unavailable'));
+
+    render(
+      <StockInsightsPopup
+        ticker="NVDA"
+        trigger={<button type="button">Open insight</button>}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /open insight/i }));
+
+    expect(
+      await screen.findByText(/unable to generate insights at this time/i),
+    ).toBeInTheDocument();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+
+    const backdrop = document.querySelector('.fixed.inset-0.z-40') as HTMLElement;
+    await user.click(backdrop);
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText(/unable to generate insights at this time/i),
+      ).toBeNull();
+    });
+
+    consoleErrorSpy.mockRestore();
   });
 });

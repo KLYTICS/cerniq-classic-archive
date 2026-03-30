@@ -59,6 +59,7 @@ export async function enqueueComputeJob(
       const progressInterval = setInterval(() => {
         if (job.progress < 90) job.progress += 10;
       }, 500);
+      progressInterval.unref?.();
 
       const result = await executeFn();
 
@@ -78,7 +79,8 @@ export async function enqueueComputeJob(
     }
 
     // Cleanup old jobs after 1 hour
-    setTimeout(() => activeJobs.delete(jobId), 3600000);
+    const cleanupTimer = setTimeout(() => activeJobs.delete(jobId), 3600000);
+    cleanupTimer.unref?.();
   });
 
   return jobId;

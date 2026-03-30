@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import AuthInitializer from './AuthInitializer';
+import AuthInitializer, { isAnonymousEntryRoute, isAuthRelevantPath } from './AuthInitializer';
 
 const mockHydrateFromStorage = vi.fn();
 const mockUsePathname = vi.fn();
@@ -40,21 +40,21 @@ describe('AuthInitializer', () => {
     expect(mockHydrateFromStorage).toHaveBeenCalledTimes(1);
   });
 
-  it('skips hydration on anonymous portal login without a stored auth hint', () => {
+  it('hydrates on anonymous portal login so cookie-backed sessions can recover', () => {
     mockUsePathname.mockReturnValue('/portal/login');
-
-    render(<AuthInitializer />);
-
-    expect(mockHydrateFromStorage).not.toHaveBeenCalled();
-  });
-
-  it('hydrates on anonymous entry routes when a stored auth hint exists', () => {
-    mockUsePathname.mockReturnValue('/portal/login');
-    window.localStorage.setItem('cerniq_auth_user', JSON.stringify({ id: 'u_1', email: 'test@cerniq.io' }));
 
     render(<AuthInitializer />);
 
     expect(mockHydrateFromStorage).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not treat durable local auth metadata as a public-route hydration hint', () => {
+    mockUsePathname.mockReturnValue('/pricing');
+    window.localStorage.setItem('cerniq_auth_user', JSON.stringify({ id: 'u_1', email: 'test@cerniq.io' }));
+
+    render(<AuthInitializer />);
+
+    expect(mockHydrateFromStorage).not.toHaveBeenCalled();
   });
 
   it('skips hydration on anonymous public routes', () => {
@@ -67,7 +67,7 @@ describe('AuthInitializer', () => {
 
   it('hydrates once when entering auth scope and does not repeat inside it', () => {
     mockUsePathname.mockReturnValue('/pricing');
-    window.localStorage.setItem('cerniq_auth_user', JSON.stringify({ id: 'u_1', email: 'test@cerniq.io' }));
+    window.sessionStorage.setItem('cerniq_access_token', 'desk-token');
 
     const { rerender } = render(<AuthInitializer />);
 
@@ -79,5 +79,18 @@ describe('AuthInitializer', () => {
     rerender(<AuthInitializer />);
 
     expect(mockHydrateFromStorage).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats null pathnames as non-auth routes in helper checks', () => {
+    expect(isAuthRelevantPath(null)).toBe(false);
+    expect(isAnonymousEntryRoute(null)).toBe(false);
+  });
+
+  it('does not hydrate on null pathnames without a session hint', () => {
+    mockUsePathname.mockReturnValue(null);
+
+    render(<AuthInitializer />);
+
+    expect(mockHydrateFromStorage).not.toHaveBeenCalled();
   });
 });

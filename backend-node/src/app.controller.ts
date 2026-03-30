@@ -31,7 +31,7 @@ import { MarketDataService } from './market-data/market-data.service';
 import { MarketStreamManagerService } from './market-data/market-stream-manager.service';
 import type { Response } from 'express';
 
-function shouldExposeDetailedHealth(): boolean {
+export function shouldExposeDetailedHealth(): boolean {
   const raw = (process.env.HEALTH_DETAILS_PUBLIC || '').trim().toLowerCase();
   if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on') {
     return true;
@@ -148,10 +148,13 @@ export function incrementActiveRequests(): void {
   _activeRequestCount++;
 }
 export function decrementActiveRequests(): void {
-  _activeRequestCount--;
+  _activeRequestCount = Math.max(0, _activeRequestCount - 1);
 }
 export function getActiveRequestCount(): number {
   return _activeRequestCount;
+}
+export function _resetActiveRequestCount(): void {
+  _activeRequestCount = 0;
 }
 
 function isDependencyDegraded(status: string | undefined): boolean {
@@ -243,6 +246,9 @@ export class AppController {
   private static shuttingDown = false;
   static markShuttingDown() {
     AppController.shuttingDown = true;
+  }
+  static resetShuttingDownForTests() {
+    AppController.shuttingDown = false;
   }
 
   @Get('health')

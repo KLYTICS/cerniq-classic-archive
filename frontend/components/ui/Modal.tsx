@@ -16,6 +16,15 @@ export interface ModalProps {
   className?: string;
 }
 
+export function getFocusableElements(dialog: HTMLDivElement | null): HTMLElement[] {
+  if (!dialog) return [];
+  return Array.from(
+    dialog.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+    ),
+  );
+}
+
 /**
  * Accessible modal dialog with backdrop, Escape key handling, and focus trap.
  */
@@ -41,12 +50,7 @@ export function Modal({
 
       // Simple focus trap
       if (e.key === 'Tab') {
-        const dialog = dialogRef.current;
-        if (!dialog) return;
-
-        const focusable = dialog.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
-        );
+        const focusable = getFocusableElements(dialogRef.current);
         if (focusable.length === 0) return;
 
         const first = focusable[0];
@@ -68,9 +72,7 @@ export function Modal({
 
     // Auto-focus first focusable element
     const timer = setTimeout(() => {
-      const first = dialogRef.current?.querySelector<HTMLElement>(
-        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
-      );
+      const first = getFocusableElements(dialogRef.current)[0];
       first?.focus();
     }, 50);
 

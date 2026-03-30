@@ -8,12 +8,10 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 
 const cookieParser = require('cookie-parser');
-
 const helmet = require('helmet');
-
 const express = require('express');
-
 const compression = require('compression');
+
 import { AppModule } from './app.module';
 import { PerformanceInterceptor } from './common/interceptors/performance.interceptor';
 import { MaintenanceModeGuard } from './common/guards/maintenance-mode.guard';
@@ -23,61 +21,113 @@ import { ResponseEnvelopeInterceptor } from './common/interceptors/response-enve
 import { SensitiveFieldRedactorInterceptor } from './common/interceptors/sensitive-field-redactor.interceptor';
 import { SanitizePipe } from './common/pipes/sanitize.pipe';
 
-async function bootstrap() {
-  // --- Env var validation ---
-  const jwtSecret = process.env.JWT_SECRET;
+export function validateBootstrapEnv(env: NodeJS.ProcessEnv): string[] {
+  const jwtSecret = env.JWT_SECRET;
   if (!jwtSecret || jwtSecret.length < 32) {
-    console.error(
-      'FATAL: JWT_SECRET must be set and at least 32 characters. Exiting.',
+    throw new Error(
+      'FATAL: JWT_SECRET must be set and at least 32 characters.',
     );
-    process.exit(1);
   }
-  if (!process.env.DATABASE_URL) {
-    console.error('FATAL: DATABASE_URL must be set. Exiting.');
-    process.exit(1);
+  if (!env.DATABASE_URL) {
+    throw new Error('FATAL: DATABASE_URL must be set.');
   }
-  // Warn on missing but non-fatal integrations
-  const isProd = process.env.NODE_ENV === 'production';
-  if (isProd && !process.env.ADMIN_KEY)
-    console.warn('WARN: ADMIN_KEY not set — admin endpoints disabled.');
-  if (isProd && !process.env.STRIPE_SECRET_KEY)
-    console.warn('WARN: STRIPE_SECRET_KEY not set — billing disabled.');
-  if (isProd && !process.env.RESEND_API_KEY)
-    console.warn('WARN: RESEND_API_KEY not set — email delivery disabled.');
-  if (isProd && !process.env.DATA_ENCRYPTION_KEY)
-    console.warn(
-      'WARN: DATA_ENCRYPTION_KEY not set — PII encryption disabled.',
-    );
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    rawBody: true, // Required for Stripe webhook signature verification
-    bufferLogs: true, // Buffer logs until Pino is attached
+  if (env.NODE_ENV !== 'production') {
+    return [];
+  }
+
+  return [
+    !env.ADMIN_KEY
+      ? 'WARN: ADMIN_KEY not set — admin endpoints disabled.'
+      : null,
+    !env.STRIPE_SECRET_KEY
+      ? 'WARN: STRIPE_SECRET_KEY not set — billing disabled.'
+      : null,
+    !env.RESEND_API_KEY
+      ? 'WARN: RESEND_API_KEY not set — email delivery disabled.'
+      : null,
+    !env.DATA_ENCRYPTION_KEY
+      ? 'WARN: DATA_ENCRYPTION_KEY not set — PII encryption disabled.'
+      : null,
+  ].filter((warning): warning is string => warning !== null);
+}
+
+export function registerGlobalCrashHandlers(
+  processRef: Pick<NodeJS.Process, 'on' | 'exit'> = process,
+  sentryRef: Pick<typeof Sentry, 'captureException'> = Sentry,
+  errorLogger: (
+    message?: any,
+    ...optionalParams: any[]
+  ) => void = console.error,
+  scheduleExit: typeof setTimeout = setTimeout,
+) {
+  processRef.on('unhandledRejection', (reason: unknown) => {
+    errorLogger('[FATAL] Unhandled Promise rejection:', reason);
+    sentryRef.captureException(
+      reason instanceof Error ? reason : new Error(String(reason)),
+    );
+    scheduleExit(() => processRef.exit(1), 2000);
   });
 
-  // Use Pino structured logger as the application logger
+  processRef.on('uncaughtException', (error: Error) => {
+    errorLogger('[FATAL] Uncaught exception:', error);
+    sentryRef.captureException(error);
+    scheduleExit(() => processRef.exit(1), 2000);
+  });
+}
+
+export async function bridgeShutdownToHealth(
+  processRef: Pick<NodeJS.Process, 'on'> = process,
+  loadControllerModule: () => Promise<{
+    AppController: { markShuttingDown: () => void };
+  }> = () => import('./app.controller.js'),
+  warnLogger: (message?: any, ...optionalParams: any[]) => void = console.warn,
+) {
+  processRef.on('SIGTERM', () => {
+    void loadControllerModule()
+      .then((mod) => mod.AppController.markShuttingDown())
+      .catch((error) => {
+        warnLogger(
+          '[WARN] Failed to bridge SIGTERM into AppController shutdown state:',
+          error,
+        );
+      });
+  });
+}
+
+export async function bootstrap() {
+  try {
+    validateBootstrapEnv(process.env).forEach((warning) =>
+      console.warn(warning),
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`${message} Exiting.`);
+    process.exit(1);
+    return;
+  }
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+    bufferLogs: true,
+  });
+
   try {
     app.useLogger(app.get(Logger));
   } catch {
-    // Fallback to default NestJS logger if Pino module not loaded
     new NestLogger('Bootstrap').warn(
       'Pino logger not available, using default',
     );
   }
 
-  // Trust Railway/Vercel proxy for correct client IP in rate limiting
   app.set('trust proxy', 1);
 
-  // --- Request body size limits ---
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(compression({ threshold: 1024 }));
 
-  // --- Response compression (gzip/br) — reduces ALM report payloads by 70-90% ---
-  app.use(compression({ threshold: 1024 })); // Only compress responses > 1KB
-
-  // --- Security middleware ---
   app.use(cookieParser());
   app.use((_req: any, res: any, next: any) => {
-    // Generate a per-request nonce for inline scripts
     const nonce = require('crypto').randomBytes(16).toString('base64');
     res.locals.cspNonce = nonce;
     next();
@@ -104,7 +154,7 @@ async function bootstrap() {
             'wss:',
           ],
           imgSrc: ["'self'", 'data:', 'https:'],
-          styleSrc: ["'self'", "'unsafe-inline'"], // Styles need unsafe-inline for Tailwind
+          styleSrc: ["'self'", "'unsafe-inline'"],
           fontSrc: ["'self'", 'https://fonts.gstatic.com'],
           frameSrc: ["'none'"],
           objectSrc: ["'none'"],
@@ -116,8 +166,6 @@ async function bootstrap() {
     }),
   );
 
-  // --- Global exception filter & response envelope ---
-  // Sentry filter must be registered first so it captures before our custom filter formats
   if (
     process.env.SENTRY_DSN &&
     typeof (Sentry as any).SentryGlobalFilter === 'function'
@@ -127,12 +175,10 @@ async function bootstrap() {
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
 
-  // --- Enterprise interceptors & guards ---
   app.useGlobalInterceptors(new PerformanceInterceptor());
   app.useGlobalInterceptors(new SensitiveFieldRedactorInterceptor());
   app.useGlobalGuards(new MaintenanceModeGuard());
 
-  // --- Global validation pipe ---
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -140,11 +186,8 @@ async function bootstrap() {
       transform: true,
     }),
   );
-
-  // --- Input sanitization (XSS prevention) ---
   app.useGlobalPipes(new SanitizePipe());
 
-  // --- CORS ---
   app.enableCors({
     origin: corsOriginCallback,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
@@ -160,16 +203,9 @@ async function bootstrap() {
     maxAge: 86400,
   });
 
-  // --- Graceful shutdown (drain connections on SIGTERM) ---
   app.enableShutdownHooks();
+  await bridgeShutdownToHealth();
 
-  // Mark health endpoint as 503 during shutdown so load balancers drain
-  const appControllerModule = await import('./app.controller.js');
-  process.on('SIGTERM', () => {
-    appControllerModule.AppController.markShuttingDown();
-  });
-
-  // --- Swagger / OpenAPI ---
   const swaggerConfig = new DocumentBuilder()
     .setTitle('CERNIQ API')
     .setDescription(
@@ -209,6 +245,7 @@ async function bootstrap() {
     .addTag('Reference Data', 'Supported frameworks and configuration')
     .addTag('System', 'Health checks and diagnostics')
     .build();
+
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/v1/docs', app, swaggerDocument, {
     customSiteTitle: 'CERNIQ API Documentation',
@@ -220,10 +257,10 @@ async function bootstrap() {
       showRequestDuration: true,
     },
   });
+
   const bootLogger = new NestLogger('Bootstrap');
   bootLogger.log('Swagger UI available at /api/v1/docs');
 
-  // --- Start server ---
   const port = process.env.PORT || process.env.BACKEND_PORT || 3000;
   await app.listen(port, '0.0.0.0');
   bootLogger.log(
@@ -231,20 +268,7 @@ async function bootstrap() {
   );
 }
 
-// --- Global crash handlers — catch everything Sentry + Pino can't ---
-process.on('unhandledRejection', (reason: unknown) => {
-  console.error('[FATAL] Unhandled Promise rejection:', reason);
-  Sentry.captureException(
-    reason instanceof Error ? reason : new Error(String(reason)),
-  );
-  // Give Sentry 2s to flush, then exit
-  setTimeout(() => process.exit(1), 2000);
-});
-
-process.on('uncaughtException', (error: Error) => {
-  console.error('[FATAL] Uncaught exception:', error);
-  Sentry.captureException(error);
-  setTimeout(() => process.exit(1), 2000);
-});
-
-bootstrap();
+if (require.main === module) {
+  registerGlobalCrashHandlers();
+  void bootstrap();
+}

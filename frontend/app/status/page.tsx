@@ -10,6 +10,25 @@ interface HealthData {
   services: Record<string, string>;
 }
 
+interface Envelope<T> {
+  success?: boolean;
+  data?: T;
+}
+
+export function isEnvelope<T>(payload: Envelope<T> | T): payload is Envelope<T> {
+  return payload != null && typeof payload === 'object' && 'data' in payload;
+}
+
+export function isOperationalStatus(status: string) {
+  return status === 'ok' || status === 'up' || status === 'healthy';
+}
+
+export function getStatusHeading(status: string) {
+  if (isOperationalStatus(status)) return 'All Systems Operational';
+  if (status === 'degraded') return 'Partial Degradation';
+  return 'Major Service Disruption';
+}
+
 export default function StatusPage() {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
@@ -22,7 +41,13 @@ export default function StatusPage() {
         process.env.NEXT_PUBLIC_NODE_API_URL || ''
       ).trim().replace(/\/+$/, '');
       const res = await fetch(`${NODE_API_URL}/health`);
-      const data = await res.json();
+      const payload = (await res.json()) as Envelope<HealthData> | HealthData;
+      const data: HealthData | null = isEnvelope<HealthData>(payload)
+        ? payload.data ?? null
+        : payload;
+      if (!data) {
+        throw new Error('Health payload missing data');
+      }
       setHealth(data);
       setLastChecked(new Date());
       setError(false);
@@ -53,13 +78,13 @@ export default function StatusPage() {
   }, [lastChecked]);
 
   const statusColor = (status: string) => {
-    if (status === 'up' || status === 'healthy') return 'bg-emerald-400';
+    if (isOperationalStatus(status)) return 'bg-emerald-400';
     if (status === 'degraded') return 'bg-amber-400';
     return 'bg-red-400';
   };
 
   const statusLabel = (status: string) => {
-    if (status === 'up' || status === 'healthy') return 'Operational';
+    if (isOperationalStatus(status)) return 'Operational';
     if (status === 'degraded') return 'Degraded';
     return 'Down';
   };
@@ -95,7 +120,7 @@ export default function StatusPage() {
               <div className={`w-3 h-3 ${statusColor(health.status)} rounded-full`} />
               <div>
                 <h2 className="text-lg font-bold">
-                  {health.status === 'healthy' ? 'All Systems Operational' : 'Partial Degradation'}
+                  {getStatusHeading(health.status)}
                 </h2>
                 <p className="text-sm text-slate-400">Version {health.version}</p>
               </div>

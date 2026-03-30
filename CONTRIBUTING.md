@@ -27,14 +27,14 @@ docker compose up -d postgres redis
 
 # 4. Backend
 cd backend-node
-npm install --legacy-peer-deps
+npm ci
 npx prisma migrate dev
 npm run start:dev
 
 # 5. Frontend (new terminal)
 cd frontend
-bun install
-bun run dev
+npm ci
+npm run dev
 ```
 
 ---
@@ -71,19 +71,35 @@ refactor(auth): consolidate JWT validation logic
 
 ---
 
-## Pull Request Process
+## Mainline Process
 
-1. Create a feature branch from `main`
+1. Coordinate your lane in the terminal command center before touching shared-state files
 2. Make your changes with appropriate tests
-3. Ensure CI passes: `make lint && make test`
-4. Open a PR with a clear description of what/why
-5. Request review from a team member
+3. Run the repo release gate: `make release-gate`
+4. Commit, push, and open a PR from the captain release branch with `make release-pr`
+5. After merge to `main` and green GitHub Actions, run `make verify-production`
 
-### PR Checklist
-- [ ] Tests pass (`npm test` in backend-node)
-- [ ] Types compile (`npx tsc --noEmit`)
-- [ ] Prisma schema validates (`npx prisma validate`)
+### Release Policy
+
+- `main` remains the only production deployment branch, but hardening work ships through a PR branch
+- local coverage gates must match the ratcheted minimums already verified in `.github/workflows/ci-cd.yml`
+- `make release-gate` is the authoritative local ship gate
+- `make release-pr` is the authoritative captain command for commit-plus-push-plus-PR work
+- Railway and Vercel production deploys are triggered from `main`
+- schema changes require the explicit migration flow in [docs/ops/schema_migration_policy.md](/Users/automation/Desktop/CERNIQ%20III-XXIX/docs/ops/schema_migration_policy.md)
+- if backend full coverage still shows the generic async-exit warning, it must be triaged and called out as residual risk in the PR before merge
+
+### Release Checklist
+- [ ] `make release-gate` passes locally
+- [ ] Coverage floors in `.github/workflows/ci-cd.yml` are met locally
+- [ ] `CI Quick Check` passes in GitHub on the PR
+- [ ] `CERNIQ CI/CD` passes in GitHub on the PR
+- [ ] Types compile (`cd backend-node && npx tsc --noEmit`)
+- [ ] Prisma schema validates (`cd backend-node && npx prisma validate`)
 - [ ] Lint passes (`make lint`)
+- [ ] Shared-state risks are called out in terminal updates if auth/session, coverage config, or coordination docs changed
+- [ ] `make verify-production` is queued for post-merge verification
+- [ ] If schema changed, explicit production migration steps are documented
 - [ ] Breaking changes documented
 
 ---
@@ -92,20 +108,26 @@ refactor(auth): consolidate JWT validation logic
 
 ### Backend Unit Tests
 ```bash
-cd backend-node && npm test           # Run tests
-cd backend-node && npm run test:cov   # With coverage
+cd backend-node && npm test           # Auto-generates Prisma client, then runs unit tests
+cd backend-node && npm run test:cov   # Auto-generates Prisma client, then writes coverage to backend-node/coverage
 cd backend-node && npm run test:watch # Watch mode
+cd backend-node && npm run test:e2e   # Auto-generates Prisma client, then runs e2e tests
 ```
 
-### E2E Tests
+### Frontend Tests
 ```bash
-cd frontend && bun run test:e2e       # Headless
-cd frontend && bun run test:e2e:ui    # With UI
+cd frontend && npm test               # Unit/component tests
+cd frontend && npm run test:cov       # Coverage report in frontend/coverage
+cd frontend && npm run test:e2e       # Playwright headless
+cd frontend && npm run test:e2e:ui    # Playwright UI
 ```
 
 ### Test Files
 - Backend: `*.spec.ts` files next to source
-- E2E: `frontend/e2e/*.spec.ts` (5 specs, 38 tests)
+- Frontend unit/component: `*.test.ts` / `*.test.tsx`
+- E2E: `frontend/e2e/*.spec.ts`
+
+Use `make first-gate-status` for the current verified cross-repo totals instead of copying stale counts into docs or PRs.
 
 ---
 

@@ -6,11 +6,13 @@ import { ArrowLeft, Send, CheckCircle2, Calendar, Mail, Building2 } from 'lucide
 import { analytics, EVENTS } from '@/lib/analytics';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
 
+export function getInitialContactLanguage() {
+  if (typeof window !== 'undefined') return (localStorage.getItem('cerniq_lang') as 'en' | 'es') || 'en';
+  return 'en';
+}
+
 export default function ContactPage() {
-  const [lang, setLang] = useState<'en' | 'es'>(() => {
-    if (typeof window !== 'undefined') return (localStorage.getItem('cerniq_lang') as 'en' | 'es') || 'en';
-    return 'en';
-  });
+  const [lang, setLang] = useState<'en' | 'es'>(getInitialContactLanguage);
   const [form, setForm] = useState({ name: '', email: '', institution: '', assets: '', message: '' });
   const [honeypot, setHoneypot] = useState('');
   const [submitted, setSubmitted] = useState(false);

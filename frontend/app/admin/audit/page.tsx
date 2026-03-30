@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getAdminAccessKey } from '@/lib/auth-session';
 import { ArrowLeft, Shield, Clock, RefreshCw, Filter } from 'lucide-react';
 
 interface AuditEntry {
@@ -37,7 +38,7 @@ export default function AuditTrailPage() {
       setLoading(true);
       try {
         const NODE = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-        const key = typeof window !== 'undefined' ? sessionStorage.getItem('cerniq_admin_key') || '' : '';
+        const key = getAdminAccessKey();
         const res = await fetch(`${NODE}/api/audit/logs?limit=100`, {
           headers: { 'x-admin-key': key },
         });

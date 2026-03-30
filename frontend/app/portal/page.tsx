@@ -15,6 +15,7 @@ import type { SubscriptionTier } from '@/lib/features';
 import ProgressTracker from '@/components/portal/ProgressTracker';
 import WorkspaceCommandCenter from '@/components/portal/WorkspaceCommandCenter';
 import ReportProgressWS from '@/components/portal/ReportProgressWS';
+import { getAccessToken } from '@/lib/auth-session';
 import { rememberPortalUser } from '@/lib/subscription';
 import { getPublicApiUrl } from '@/lib/api-base';
 
@@ -132,7 +133,7 @@ function AlcoPackButton({ jobId, compact }: { jobId: string; compact?: boolean }
   const handleDownload = async () => {
     setLoading(true);
     try {
-      const token = typeof window !== 'undefined' ? (sessionStorage.getItem('cerniq_access_token') || localStorage.getItem('cerniq_access_token')) : null;
+      const token = getAccessToken() || null;
       const res = await fetch(getPublicApiUrl(`/api/portal/jobs/${jobId}/alco-pack?lang=es`), {
         method: 'POST',
         credentials: 'include',

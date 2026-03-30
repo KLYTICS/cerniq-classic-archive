@@ -86,7 +86,11 @@ describe('MarketDataController', () => {
 
       const result = await controller.getInsights('AAPL');
       expect(result).toEqual({ ticker: 'AAPL', insight: 'Fallback insight' });
-      expect(llmService.generateStockInsight).toHaveBeenCalledWith('AAPL', 0, 0);
+      expect(llmService.generateStockInsight).toHaveBeenCalledWith(
+        'AAPL',
+        0,
+        0,
+      );
     });
 
     it('should throw HttpException when both quote and fallback fail', async () => {
@@ -151,9 +155,9 @@ describe('MarketDataController', () => {
         message: 'fail',
       });
 
-      await expect(
-        controller.getHistoricalPrices('BAD'),
-      ).rejects.toThrow(HttpException);
+      await expect(controller.getHistoricalPrices('BAD')).rejects.toThrow(
+        HttpException,
+      );
     });
   });
 
@@ -191,9 +195,9 @@ describe('MarketDataController', () => {
         message: 'fail',
       });
 
-      await expect(
-        controller.getInstrumentProfile('BAD'),
-      ).rejects.toThrow(HttpException);
+      await expect(controller.getInstrumentProfile('BAD')).rejects.toThrow(
+        HttpException,
+      );
     });
   });
 

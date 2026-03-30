@@ -49,4 +49,21 @@ describe('StressV2Service', () => {
     expect(result.narrativeEn).toContain('Severe Adverse');
     expect(result.narrativeEs).toContain('Severamente Adverso');
   });
+
+  it('keeps narrative, capital, and liquidity verdicts aligned under severe stress', async () => {
+    const scenarios = service.getPresetScenarios();
+    const result = await service.runStressTest('inst-1', scenarios[0]);
+
+    expect(result.minNWR).toBe(
+      Math.min(...result.quarters.map((quarter) => quarter.nwr)),
+    );
+    expect(result.minLCR).toBe(
+      Math.min(...result.quarters.map((quarter) => quarter.lcr)),
+    );
+    expect(result.isCapitalAdequate).toBe(result.minNWR >= 7);
+    expect(result.narrativeEn).toContain(`${result.minNWR.toFixed(1)}%`);
+    expect(result.narrativeEn).toContain(`${result.minLCR.toFixed(0)}%`);
+    expect(result.narrativeEs).toContain(`${result.minNWR.toFixed(1)}%`);
+    expect(result.narrativeEs).toContain(`${result.minLCR.toFixed(0)}%`);
+  });
 });

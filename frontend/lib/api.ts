@@ -1,6 +1,12 @@
 import axios, { AxiosInstance } from 'axios';
 import { getMarketApiBase } from './marketTransport';
 import { getPublicApiBase, getPublicApiUrl } from './api-base';
+import {
+  clearAuthBrowserState,
+  getAccessToken,
+  getAdminAccessKey,
+  setAccessToken,
+} from './auth-session';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -18,56 +24,7 @@ const API_URL = getPublicApiBase();
 const NODE_API_URL = getPublicApiBase();
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const ACCESS_TOKEN_KEY = 'cerniq_access_token';
-const LEGACY_ACCESS_TOKEN_KEY = 'capex_access_token';
 const MARKET_API_BASE = getMarketApiBase();
-
-function getAccessToken(): string {
-  if (typeof window === 'undefined') {
-    return '';
-  }
-
-  const sessionToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
-  if (sessionToken) {
-    return sessionToken;
-  }
-
-  // Migrate legacy capex_ token to cerniq_ key
-  const legacySession = sessionStorage.getItem(LEGACY_ACCESS_TOKEN_KEY) || '';
-  if (legacySession) {
-    sessionStorage.setItem(ACCESS_TOKEN_KEY, legacySession);
-    sessionStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
-    return legacySession;
-  }
-
-  // Migrate any legacy persisted token to session scope.
-  const legacyToken = localStorage.getItem(LEGACY_ACCESS_TOKEN_KEY) || localStorage.getItem(ACCESS_TOKEN_KEY) || '';
-  if (legacyToken) {
-    sessionStorage.setItem(ACCESS_TOKEN_KEY, legacyToken);
-    localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-  }
-  return legacyToken;
-}
-
-function setAccessToken(token: string): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
-  localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-}
-
-function clearAccessToken(): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-  sessionStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
-}
 
 export interface ManagedApiKey {
   id: string;
@@ -252,7 +209,7 @@ class APIClient {
         const originalRequest = error.config;
 
         if (status === 401 && originalRequest?.skipAuthRedirect) {
-          clearAccessToken();
+          clearAuthBrowserState();
           return Promise.reject(error);
         }
 
@@ -276,7 +233,7 @@ class APIClient {
           } catch {
             // Refresh failed — clear session and redirect to login
           }
-          clearAccessToken();
+          clearAuthBrowserState();
           if (typeof window !== 'undefined') {
             const currentPath = window.location.pathname;
             if (currentPath === '/login' || currentPath === '/portal/login') {
@@ -384,7 +341,7 @@ class APIClient {
     } catch {
       // Best-effort server-side logout
     }
-    clearAccessToken();
+    clearAuthBrowserState();
   }
 
   async refreshTokens() {
@@ -475,7 +432,7 @@ class APIClient {
 
   // Admin (all admin endpoints require x-admin-key header)
   private adminHeaders() {
-    const key = typeof window !== 'undefined' ? sessionStorage.getItem('cerniq_admin_key') || '' : '';
+    const key = getAdminAccessKey();
     return { 'x-admin-key': key };
   }
 
@@ -510,11 +467,12 @@ class APIClient {
   }
 
   async getVolatilityForecast(ticker: string, horizon: number = 30) {
+    const normalizedHorizon = Number.isFinite(horizon) && horizon > 0 ? Math.floor(horizon) : 30;
     const baseVol = 0.15 + (ticker.charCodeAt(0) % 10) / 100; // e.g., 0.15 to 0.24
     const forecast = [];
     let currentVol = baseVol;
 
-    for (let i = 1; i <= horizon; i++) {
+    for (let i = 1; i <= normalizedHorizon; i++) {
       // Mean reversion towards slightly higher long-term vol
       const drift = (0.20 - currentVol) * 0.05;
       const shock = (Math.random() - 0.4) * 0.01;
@@ -584,23 +542,42 @@ class APIClient {
 
   async calculateComponentVaR(positions: PortfolioPositionInput[], confidenceLevel: number = 0.95, horizon: number = 1) {
     let portfolioValue = 0;
+    let grossExposure = 0;
     const components = positions.map(p => {
       const val = Number(p.quantity) * Number(p.price || p.currentPrice || 100);
       portfolioValue += val;
-      return { ticker: p.ticker, value: val };
+      const exposure = Math.abs(val);
+      grossExposure += exposure;
+      return { ticker: p.ticker, value: val, exposure };
     });
 
-    const portfolioVaR = portfolioValue * 0.05; // 5% total VaR roughly
+    if (grossExposure === 0) {
+      return Promise.resolve({
+        portfolioVaR: 0,
+        portfolioValue,
+        confidenceLevel,
+        horizon,
+        components: components.map((component) => ({
+          ticker: component.ticker,
+          position: component.value,
+          marginalVaR: 0,
+          componentVaR: 0,
+          riskContribution: 0,
+        })),
+      });
+    }
+
+    const portfolioVaR = grossExposure * 0.05; // 5% total VaR roughly
 
     let totalRiskContrib = 0;
     const resultComponents = components.map(c => {
-      const weight = c.value / portfolioValue;
+      const weight = c.exposure / grossExposure;
       const compVaR = portfolioVaR * weight * (0.8 + Math.random() * 0.4); // Randomize risk a bit
       totalRiskContrib += compVaR;
       return {
         ticker: c.ticker,
         position: c.value,
-        marginalVaR: compVaR / c.value,
+        marginalVaR: c.exposure > 0 ? compVaR / c.exposure : 0,
         componentVaR: compVaR,
         riskContribution: 0 // Will normalize
       };

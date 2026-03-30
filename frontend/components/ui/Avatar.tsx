@@ -15,14 +15,19 @@ export interface AvatarProps {
 
 const sizeMap = { sm: 'h-8 w-8 text-xs', md: 'h-10 w-10 text-sm', lg: 'h-14 w-14 text-lg' } as const;
 
-function passthroughImageLoader({ src }: ImageLoaderProps): string {
+export function getAvatarImageSizes(size: NonNullable<AvatarProps['size']>) {
+  return size === 'sm' ? '32px' : size === 'md' ? '40px' : '56px';
+}
+
+export function passthroughImageLoader({ src }: ImageLoaderProps): string {
   return src;
 }
 
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? '?';
+export function getInitials(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return '?';
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 1) return parts[0][0].toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
@@ -45,7 +50,7 @@ export function Avatar({ name, src, size = 'md', className = '' }: AvatarProps) 
           fill
           unoptimized
           loader={passthroughImageLoader}
-          sizes={size === 'sm' ? '32px' : size === 'md' ? '40px' : '56px'}
+          sizes={getAvatarImageSizes(size)}
           className="rounded-full object-cover"
           onError={() => setImgError(true)}
         />

@@ -1,32 +1,61 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { throttle } from './throttle';
 
 describe('throttle', () => {
-  beforeEach(() => { vi.useFakeTimers(); });
-  afterEach(() => { vi.useRealTimers(); });
-
-  it('calls the function immediately on first invocation', () => {
-    const fn = vi.fn();
-    const throttled = throttle(fn, 200);
-    throttled();
-    expect(fn).toHaveBeenCalledTimes(1);
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-30T12:00:00.000Z'));
   });
 
-  it('throttles subsequent calls within the interval', () => {
-    const fn = vi.fn();
-    const throttled = throttle(fn, 200);
-    throttled();
-    throttled();
-    throttled();
-    expect(fn).toHaveBeenCalledTimes(1);
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
-  it('fires trailing call after the interval', () => {
+  it('runs immediately on the first call and schedules a trailing call inside the interval', () => {
     const fn = vi.fn();
-    const throttled = throttle(fn, 200);
-    throttled();
-    throttled();
-    vi.advanceTimersByTime(200);
+    const throttled = throttle(fn, 100);
+
+    throttled('first');
+    throttled('second');
+
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(fn).toHaveBeenCalledWith('first');
+
+    vi.advanceTimersByTime(100);
+
     expect(fn).toHaveBeenCalledTimes(2);
+    expect(fn).toHaveBeenLastCalledWith('second');
+  });
+
+  it('clears a pending timer when a fresh immediate execution becomes available', () => {
+    const fn = vi.fn();
+    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+    const throttled = throttle(fn, 100);
+
+    throttled('first');
+    throttled('second');
+
+    vi.setSystemTime(new Date('2026-03-30T12:00:00.250Z'));
+    throttled('third');
+
+    expect(fn).toHaveBeenLastCalledWith('third');
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+  });
+
+  it('does not create duplicate trailing timers while one is already pending', () => {
+    const fn = vi.fn();
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+    const throttled = throttle(fn, 100);
+
+    throttled('first');
+    throttled('second');
+    throttled('third');
+
+    expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(100);
+
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(fn).toHaveBeenLastCalledWith('second');
   });
 });

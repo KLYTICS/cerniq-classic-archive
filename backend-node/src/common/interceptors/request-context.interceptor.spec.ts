@@ -13,7 +13,9 @@ describe('RequestContextInterceptor', () => {
     interceptor = new RequestContextInterceptor();
   });
 
-  const createMockContext = (overrides: Record<string, any> = {}): ExecutionContext => {
+  const createMockContext = (
+    overrides: Record<string, any> = {},
+  ): ExecutionContext => {
     const req = {
       headers: { 'x-request-id': 'req-abc' },
       method: 'GET',

@@ -52,9 +52,7 @@ describe('ModifiedDurationMatchingService', () => {
 
   it('generates EVE impact for standard shock scenarios', () => {
     const result = service.immunize({
-      assets: [
-        { name: 'Bonds', mv: 500000, duration: 5.0, convexity: 30 },
-      ],
+      assets: [{ name: 'Bonds', mv: 500000, duration: 5.0, convexity: 30 }],
       liabilities: [
         { name: 'Deposits', mv: 400000, duration: 1.0, convexity: 2 },
       ],

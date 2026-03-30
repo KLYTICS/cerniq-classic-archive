@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import path from "path";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['127.0.0.1'],
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
   async rewrites() {
     const backendUrl = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
     if (!backendUrl) {

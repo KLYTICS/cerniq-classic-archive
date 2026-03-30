@@ -85,5 +85,23 @@ describe('DegradationService', () => {
       expect(result.level).toBe('cached');
       expect(result.data.name).toBe('Alpha');
     });
+
+    it('should unref the cache cleanup timeout after a live result', async () => {
+      const timer = { unref: jest.fn() } as unknown as NodeJS.Timeout;
+      const setTimeoutSpy = jest
+        .spyOn(global, 'setTimeout')
+        .mockReturnValue(timer);
+
+      await service.resolve(
+        'timer-key',
+        async () => ({ value: 7 }),
+        () => ({ value: 0 }),
+      );
+
+      expect(setTimeoutSpy).toHaveBeenCalled();
+      expect((timer as any).unref).toHaveBeenCalled();
+
+      setTimeoutSpy.mockRestore();
+    });
   });
 });

@@ -4,7 +4,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 
 const LOCAL_STORAGE_CHANGE_EVENT = 'cerniq:local-storage-change';
 
-function readStoredValue<T>(key: string, initialValue: T): T {
+export function readStoredValue<T>(key: string, initialValue: T): T {
   if (typeof window === 'undefined') {
     return initialValue;
   }
@@ -18,7 +18,7 @@ function readStoredValue<T>(key: string, initialValue: T): T {
   }
 }
 
-function notifyLocalStorageChange(key: string) {
+export function notifyLocalStorageChange(key: string) {
   if (typeof window === 'undefined') {
     return;
   }
@@ -30,7 +30,7 @@ function notifyLocalStorageChange(key: string) {
   );
 }
 
-function readStoredValueRaw(key: string): string | null {
+export function readStoredValueRaw(key: string): string | null {
   if (typeof window === 'undefined') {
     return null;
   }
@@ -43,6 +43,40 @@ function readStoredValueRaw(key: string): string | null {
   }
 }
 
+export function createLocalStorageSubscription(
+  key: string,
+  onStoreChange: () => void,
+) {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.storageArea === window.localStorage && event.key === key) {
+      onStoreChange();
+    }
+  };
+
+  const handleLocalChange = (event: Event) => {
+    const customEvent = event as CustomEvent<{ key?: string }>;
+    if (!customEvent.detail?.key || customEvent.detail.key === key) {
+      onStoreChange();
+    }
+  };
+
+  window.addEventListener('storage', handleStorage);
+  window.addEventListener(LOCAL_STORAGE_CHANGE_EVENT, handleLocalChange);
+
+  return () => {
+    window.removeEventListener('storage', handleStorage);
+    window.removeEventListener(LOCAL_STORAGE_CHANGE_EVENT, handleLocalChange);
+  };
+}
+
+export function getLocalStorageServerSnapshot() {
+  return null;
+}
+
 /**
  * Type-safe localStorage hook with SSR support.
  *
@@ -51,39 +85,14 @@ function readStoredValueRaw(key: string): string | null {
  */
 export function useLocalStorage<T>(key: string, initialValue: T) {
   const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      if (typeof window === 'undefined') {
-        return () => {};
-      }
-
-      const handleStorage = (event: StorageEvent) => {
-        if (event.storageArea === window.localStorage && event.key === key) {
-          onStoreChange();
-        }
-      };
-
-      const handleLocalChange = (event: Event) => {
-        const customEvent = event as CustomEvent<{ key?: string }>;
-        if (!customEvent.detail?.key || customEvent.detail.key === key) {
-          onStoreChange();
-        }
-      };
-
-      window.addEventListener('storage', handleStorage);
-      window.addEventListener(LOCAL_STORAGE_CHANGE_EVENT, handleLocalChange);
-
-      return () => {
-        window.removeEventListener('storage', handleStorage);
-        window.removeEventListener(LOCAL_STORAGE_CHANGE_EVENT, handleLocalChange);
-      };
-    },
+    (onStoreChange: () => void) => createLocalStorageSubscription(key, onStoreChange),
     [key],
   );
 
   const rawValue = useSyncExternalStore(
     subscribe,
     () => readStoredValueRaw(key),
-    () => null,
+    getLocalStorageServerSnapshot,
   );
   const storedValue =
     rawValue === null

@@ -5,25 +5,12 @@ import {
   Clock, CheckCircle, AlertTriangle, Loader2, XCircle,
   RefreshCw, Play, RotateCcw,
 } from 'lucide-react';
+import {
+  getAdminAccessKey,
+  setAdminAccessKey,
+} from '@/lib/auth-session';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-const ADMIN_KEY_STORAGE = 'cerniq_admin_key';
-
-function loadAdminKey(): string {
-  if (typeof window === 'undefined') {
-    return '';
-  }
-  const sessionKey = sessionStorage.getItem(ADMIN_KEY_STORAGE) || '';
-  if (sessionKey) {
-    return sessionKey;
-  }
-  const legacyKey = localStorage.getItem('admin_key') || '';
-  if (legacyKey) {
-    sessionStorage.setItem(ADMIN_KEY_STORAGE, legacyKey);
-    localStorage.removeItem('admin_key');
-  }
-  return legacyKey;
-}
 
 interface PipelineJob {
   id: string;
@@ -56,7 +43,7 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function AdminPipeline() {
-  const initialAdminKey = loadAdminKey();
+  const initialAdminKey = getAdminAccessKey();
   const [jobs, setJobs] = useState<PipelineJob[]>([]);
   const [health, setHealth] = useState<PipelineHealth | null>(null);
   const [loading, setLoading] = useState(Boolean(initialAdminKey));
@@ -95,8 +82,7 @@ export default function AdminPipeline() {
   }, [adminKey, fetchJobs]);
 
   const handleLogin = () => {
-    sessionStorage.setItem(ADMIN_KEY_STORAGE, adminKey);
-    localStorage.removeItem('admin_key');
+    setAdminAccessKey(adminKey);
     setLoading(true);
     fetchJobs(adminKey);
   };

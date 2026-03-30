@@ -54,7 +54,9 @@ describe('WebhookService', () => {
   });
 
   it('should soft-delete subscription by marking inactive', async () => {
-    mockPrisma.webhookSubscription.update.mockResolvedValue({ isActive: false });
+    mockPrisma.webhookSubscription.update.mockResolvedValue({
+      isActive: false,
+    });
     const result = await service.deleteSubscription('wh-1');
     expect(result.deleted).toBe(true);
     expect(mockPrisma.webhookSubscription.update).toHaveBeenCalledWith(

@@ -93,7 +93,12 @@ describe('OutreachExecutionService', () => {
   describe('executeBulkOutreach', () => {
     it('sends outreach to uncontacted prospects ordered by assets', async () => {
       mockPrisma.prospectInstitution.findMany.mockResolvedValue([
-        { id: 'p1', name: 'Big Coop', contactEmail: 'a@b.com', estimatedAssets: 500 },
+        {
+          id: 'p1',
+          name: 'Big Coop',
+          contactEmail: 'a@b.com',
+          estimatedAssets: 500,
+        },
       ]);
       mockPrisma.prospectInstitution.findUnique.mockResolvedValue({
         id: 'p1',

@@ -200,14 +200,14 @@ describe('TickerService', () => {
       const service = new TickerService();
       (service as any).supabase = null;
 
-      await expect(service.listTickers({ page: 2, limit: 20 })).resolves.toEqual(
-        {
-          tickers: [],
-          total: 0,
-          page: 1,
-          limit: 10,
-        },
-      );
+      await expect(
+        service.listTickers({ page: 2, limit: 20 }),
+      ).resolves.toEqual({
+        tickers: [],
+        total: 0,
+        page: 1,
+        limit: 10,
+      });
     });
 
     it('applies filters, pagination, sorting, and maps ticker rows', async () => {
@@ -266,13 +266,17 @@ describe('TickerService', () => {
         })),
       };
 
-      await expect(service.listTickers({ page: 3, limit: 7 })).resolves.toEqual({
-        tickers: [],
-        total: 0,
-        page: 3,
-        limit: 7,
-      });
-      expect(errorSpy).toHaveBeenCalledWith('Failed to list tickers: query failed');
+      await expect(service.listTickers({ page: 3, limit: 7 })).resolves.toEqual(
+        {
+          tickers: [],
+          total: 0,
+          page: 3,
+          limit: 7,
+        },
+      );
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to list tickers: query failed',
+      );
     });
   });
 

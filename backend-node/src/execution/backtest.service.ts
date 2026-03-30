@@ -74,7 +74,7 @@ export class BacktestService {
 
       // Execute signals
       for (const signal of signals) {
-        this.executeSignal(signal, prices, state, commission);
+        this.executeSignal(signal, prices, state, commission, dateStr);
       }
 
       // Record equity
@@ -208,6 +208,7 @@ export class BacktestService {
     prices: Map<string, number>,
     state: PortfolioState,
     commission: number,
+    tradeDate: string,
   ): void {
     const price = prices.get(signal.ticker);
     if (!price) return;
@@ -231,7 +232,7 @@ export class BacktestService {
         shares,
         price,
         commission,
-        date: new Date().toISOString(),
+        date: tradeDate,
         reason: signal.reason,
       });
     } else if (signal.action === 'SELL') {
@@ -248,7 +249,7 @@ export class BacktestService {
         shares,
         price,
         commission,
-        date: new Date().toISOString(),
+        date: tradeDate,
         reason: signal.reason,
       });
     }

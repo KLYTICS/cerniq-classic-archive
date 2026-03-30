@@ -51,16 +51,27 @@ describe('PortfolioService', () => {
 
   it('should throw NotFoundException when getting missing portfolio', async () => {
     mockPrisma.portfolio.findUnique.mockResolvedValue(null);
-    await expect(service.getPortfolio('missing', 'u1')).rejects.toThrow(NotFoundException);
+    await expect(service.getPortfolio('missing', 'u1')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should throw NotFoundException for wrong user', async () => {
-    mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'other-user', positions: [] });
-    await expect(service.getPortfolio('p1', 'u1')).rejects.toThrow(NotFoundException);
+    mockPrisma.portfolio.findUnique.mockResolvedValue({
+      id: 'p1',
+      userId: 'other-user',
+      positions: [],
+    });
+    await expect(service.getPortfolio('p1', 'u1')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should add a new position to portfolio', async () => {
-    mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1' });
+    mockPrisma.portfolio.findUnique.mockResolvedValue({
+      id: 'p1',
+      userId: 'u1',
+    });
     mockPrisma.position.findUnique.mockResolvedValue(null);
     mockPrisma.position.create.mockResolvedValue({
       id: 'pos-1',
@@ -82,7 +93,10 @@ describe('PortfolioService', () => {
   });
 
   it('should delete portfolio for correct user', async () => {
-    mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1' });
+    mockPrisma.portfolio.findUnique.mockResolvedValue({
+      id: 'p1',
+      userId: 'u1',
+    });
     mockPrisma.portfolio.delete.mockResolvedValue({});
     await expect(service.deletePortfolio('p1', 'u1')).resolves.not.toThrow();
   });

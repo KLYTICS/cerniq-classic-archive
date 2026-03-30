@@ -8,6 +8,8 @@
 
 ## OVERVIEW
 
+For the current first-gate push, pair this runbook with [docs/TERMINAL_COORDINATION.md](/Users/automation/Desktop/CERNIQ%20III-XXIX/docs/TERMINAL_COORDINATION.md) and [docs/FIRST_GATE_COMMAND_CENTER.md](/Users/automation/Desktop/CERNIQ%20III-XXIX/docs/FIRST_GATE_COMMAND_CENTER.md). Those documents define terminal ownership, handoff rules, and the verified coverage baseline.
+
 Running CERNIQ enterprise-quality requires 5+ dedicated terminal windows. Each terminal has a single responsibility. This ensures clean separation, easy debugging, and the ability to restart any layer independently.
 
 ```
@@ -126,7 +128,7 @@ docker exec cerniq-redis redis-cli info server | grep redis_version
 cd ~/Desktop/Cerniq/backend-node
 
 # ─── STEP 2: Install dependencies (first time) ───
-npm ci --legacy-peer-deps
+npm ci
 
 # ─── STEP 3: Generate Prisma client ───
 npx prisma generate
@@ -204,8 +206,7 @@ curl -s http://localhost:3000/ready | python3 -m json.tool
 cd ~/Desktop/Cerniq/frontend
 
 # ─── STEP 2: Install dependencies (first time) ───
-bun install
-# OR: npm ci
+npm ci
 
 # ─── STEP 3: Configure environment ───
 # Verify .env.local has:
@@ -248,6 +249,35 @@ open http://localhost:3001/admin
 | `NEXT_PUBLIC_NODE_API_URL is undefined` | Missing env.local | Copy .env.example → .env.local |
 | API calls returning 404 | Wrong API URL in .env.local | Set to `http://localhost:3000` |
 | Build fails on TypeScript | Type errors | Run `npx tsc --noEmit` to see errors |
+
+---
+
+## FIRST-GATE STATUS LOOP
+
+Use this loop when multiple terminals are actively pushing coverage and enterprise quality:
+
+```bash
+# shared snapshot
+make first-gate-status
+
+# backend + frontend tests
+make test-all
+
+# backend + frontend coverage
+make test-cov-all
+```
+
+Each terminal should post:
+
+```text
+[terminal-X]
+Scope:
+Command:
+Result:
+Risk:
+Next:
+Handoff:
+```
 
 ---
 

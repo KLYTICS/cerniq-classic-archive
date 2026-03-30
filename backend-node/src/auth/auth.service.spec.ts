@@ -10,6 +10,13 @@ import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
+jest.mock('bcrypt', () => ({
+  hash: jest.fn(async (value: string) => `mock-hash:${value}`),
+  compare: jest.fn(async (value: string, hashedValue: string) => {
+    return hashedValue === `mock-hash:${value}`;
+  }),
+}));
+
 describe('AuthService', () => {
   let service: AuthService;
   let prisma: {

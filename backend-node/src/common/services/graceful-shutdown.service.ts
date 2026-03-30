@@ -38,19 +38,24 @@ export class GracefulShutdownService implements OnApplicationShutdown {
       return;
     }
 
+    let timeoutHandle: NodeJS.Timeout | undefined;
     await Promise.race([
       new Promise<void>((resolve) => {
         this.drainResolve = resolve;
       }),
-      new Promise<void>((resolve) =>
-        setTimeout(() => {
+      new Promise<void>((resolve) => {
+        timeoutHandle = setTimeout(() => {
           this.logger.warn(
             `Drain timeout (${this.DRAIN_TIMEOUT_MS}ms) reached with ${this.activeTasks} task(s) remaining`,
           );
           resolve();
-        }, this.DRAIN_TIMEOUT_MS),
-      ),
+        }, this.DRAIN_TIMEOUT_MS);
+        timeoutHandle.unref?.();
+      }),
     ]);
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
 
     this.logger.log('Shutdown drain complete');
   }

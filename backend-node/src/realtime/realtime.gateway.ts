@@ -108,6 +108,14 @@ export class RealtimeGateway
   }
 
   onModuleDestroy() {
+    for (const interval of this.greeksIntervals.values()) {
+      clearInterval(interval);
+    }
+    this.greeksIntervals.clear();
+    for (const interval of this.pnlIntervals.values()) {
+      clearInterval(interval);
+    }
+    this.pnlIntervals.clear();
     this.streamCleanupFns.forEach((cleanup) => cleanup());
     this.streamCleanupFns.length = 0;
   }
@@ -368,6 +376,7 @@ export class RealtimeGateway
         this.logger.error(`Error in Greeks stream for ${greeksKey}:`, error);
       }
     }, this.UPDATE_INTERVAL_MS);
+    interval.unref?.();
 
     this.greeksIntervals.set(greeksKey, interval);
     this.logger.log(`Started Greeks stream for ${greeksKey}`);
@@ -435,6 +444,7 @@ export class RealtimeGateway
         this.logger.error(`Error in P&L stream for ${pnlKey}:`, error);
       }
     }, this.UPDATE_INTERVAL_MS);
+    interval.unref?.();
 
     this.pnlIntervals.set(pnlKey, interval);
     this.logger.log(`Started P&L stream for portfolio ${portfolioId}`);

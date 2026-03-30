@@ -105,4 +105,30 @@ describe('BacktestService', () => {
       expect(trade.commission).toBe(0);
     }
   });
+
+  it('stamps trades with simulated market dates instead of wall-clock time', async () => {
+    const config = {
+      strategy: {
+        name: 'Audit Trail Momentum',
+        type: 'MOMENTUM' as const,
+        lookbackPeriod: 10,
+        params: { momentumThreshold: 2 },
+      },
+      tickers: ['AAPL'],
+      startDate: '2025-01-01',
+      endDate: '2025-04-01',
+      initialCapital: 100000,
+      commission: 0,
+    };
+
+    const result = await service.runBacktest(config);
+
+    expect(result.trades.length).toBeGreaterThan(0);
+    for (const trade of result.trades) {
+      expect(trade.date).toMatch(/^2025-\d{2}-\d{2}$/);
+      expect(
+        historicalPrices.some((bar) => bar.date === trade.date),
+      ).toBeTruthy();
+    }
+  });
 });

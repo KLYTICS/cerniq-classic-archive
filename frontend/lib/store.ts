@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 import { apiClient } from './api';
+import {
+    clearAuthBrowserState,
+    clearPersistentAuthArtifacts,
+} from './auth-session';
 
 interface User {
     id: string;
@@ -7,11 +11,17 @@ interface User {
     name?: string;
 }
 
+export type AuthBootstrapState =
+    | 'authenticated_from_server'
+    | 'authenticated_from_login'
+    | 'unauthenticated';
+
 interface AuthState {
     user: User | null;
     initialized: boolean;
     isAuthenticated: boolean;
     authRevision: number;
+    authBootstrapState: AuthBootstrapState;
     onboardingComplete: boolean;
     hydrateFromStorage: () => Promise<void>;
     initializeAnonymous: () => void;
@@ -19,13 +29,9 @@ interface AuthState {
     setOnboardingComplete: (complete: boolean) => void;
     logout: () => Promise<void>;
 }
-
-const AUTH_USER_STORAGE_KEY = 'cerniq_auth_user';
-const LEGACY_AUTH_USER_STORAGE_KEY = 'capex_auth_user';
 const onboardingKey = (userId: string) => `cerniq_onboarding_${userId}`;
-const legacyOnboardingKey = (userId: string) => `capex_onboarding_${userId}`;
 
-function shouldProbeServerSession() {
+export function shouldProbeServerSession() {
     if (typeof window === 'undefined') {
         return false;
     }
@@ -55,7 +61,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : null;
 }
 
-function normalizeUser(payload: unknown): User | null {
+export function normalizeUser(payload: unknown): User | null {
     const payloadRecord = asRecord(payload);
     const maybeNestedUser = payloadRecord?.user;
     const candidate = asRecord(maybeNestedUser) ?? payloadRecord;
@@ -81,10 +87,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     initialized: false,
     isAuthenticated: false,
     authRevision: 0,
+    authBootstrapState: 'unauthenticated',
     onboardingComplete: false,
     hydrateFromStorage: async () => {
         if (typeof window === 'undefined') {
-            set({ initialized: true });
+            set({ initialized: true, authBootstrapState: 'unauthenticated' });
             return;
         }
 
@@ -95,53 +102,27 @@ export const useAuthStore = create<AuthState>((set) => ({
                 user: null,
                 isAuthenticated: false,
                 authRevision: state.authRevision + 1,
+                authBootstrapState: 'unauthenticated',
                 onboardingComplete: false,
                 initialized: true,
             }));
 
-        const setAuthenticated = (user: User) => {
-            localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
+        const setAuthenticated = (
+            user: User,
+            authBootstrapState: Exclude<AuthBootstrapState, 'unauthenticated'>,
+        ) => {
             const onboardingComplete = localStorage.getItem(onboardingKey(user.id)) === 'true';
             set((state) => ({
                 user,
                 isAuthenticated: true,
                 authRevision: state.authRevision + 1,
+                authBootstrapState,
                 onboardingComplete,
                 initialized: true,
             }));
         };
 
-        // Migrate legacy capex_ keys to cerniq_ keys
-        const legacyRaw = localStorage.getItem(LEGACY_AUTH_USER_STORAGE_KEY);
-        if (legacyRaw) {
-            localStorage.setItem(AUTH_USER_STORAGE_KEY, legacyRaw);
-            localStorage.removeItem(LEGACY_AUTH_USER_STORAGE_KEY);
-            // Also migrate onboarding key for this user
-            try {
-                const legacyUser = normalizeUser(JSON.parse(legacyRaw));
-                if (legacyUser) {
-                    const legacyOnboarding = localStorage.getItem(legacyOnboardingKey(legacyUser.id));
-                    if (legacyOnboarding) {
-                        localStorage.setItem(onboardingKey(legacyUser.id), legacyOnboarding);
-                        localStorage.removeItem(legacyOnboardingKey(legacyUser.id));
-                    }
-                }
-            } catch { /* best-effort migration */ }
-        }
-
-        const storedUserRaw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
-        if (storedUserRaw) {
-            try {
-                const parsedUser = normalizeUser(JSON.parse(storedUserRaw));
-                if (parsedUser) {
-                    setAuthenticated(parsedUser);
-                    return;
-                }
-                localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-            } catch {
-                localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-            }
-        }
+        clearPersistentAuthArtifacts();
 
         // OAuth/login may have a valid server-side cookie before localStorage is populated.
         if (shouldProbeServerSession()) {
@@ -149,7 +130,7 @@ export const useAuthStore = create<AuthState>((set) => ({
                 const profile = await apiClient.getCurrentUser();
                 const profileUser = normalizeUser(profile);
                 if (profileUser) {
-                    setAuthenticated(profileUser);
+                    setAuthenticated(profileUser, 'authenticated_from_server');
                     return;
                 }
             } catch {
@@ -164,18 +145,13 @@ export const useAuthStore = create<AuthState>((set) => ({
             user: null,
             isAuthenticated: false,
             authRevision: state.authRevision + 1,
+            authBootstrapState: 'unauthenticated',
             onboardingComplete: false,
             initialized: true,
         }));
     },
     setUser: (user) => {
-        if (typeof window !== 'undefined') {
-            if (user) {
-                localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
-            } else {
-                localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-            }
-        }
+        clearPersistentAuthArtifacts();
 
         const onboardingComplete = user
             ? (typeof window !== 'undefined' && localStorage.getItem(onboardingKey(user.id)) === 'true')
@@ -185,6 +161,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             user,
             isAuthenticated: Boolean(user),
             authRevision: state.authRevision + 1,
+            authBootstrapState: user ? 'authenticated_from_login' : 'unauthenticated',
             onboardingComplete,
             initialized: true,
         }));
@@ -199,13 +176,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     },
     logout: async () => {
         await apiClient.logout();
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-        }
+        clearAuthBrowserState();
         set((state) => ({
             user: null,
             isAuthenticated: false,
             authRevision: state.authRevision + 1,
+            authBootstrapState: 'unauthenticated',
             onboardingComplete: false,
             initialized: true,
         }));

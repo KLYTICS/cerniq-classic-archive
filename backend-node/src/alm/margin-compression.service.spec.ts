@@ -32,7 +32,7 @@ describe('MarginCompressionService', () => {
   it('should detect expanding NIM trend', () => {
     const result = service.analyze({
       historicalNIM: [
-        { quarter: '2025-Q1', nim: 0.030 },
+        { quarter: '2025-Q1', nim: 0.03 },
         { quarter: '2025-Q2', nim: 0.031 },
         { quarter: '2025-Q3', nim: 0.033 },
         { quarter: '2025-Q4', nim: 0.035 },

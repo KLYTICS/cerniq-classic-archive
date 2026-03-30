@@ -127,6 +127,24 @@ describe('useSSEStream', () => {
     expect(es.close).toHaveBeenCalled();
   });
 
+  it('uses the default error message when the stream omits one', () => {
+    const { result } = renderHook(() => useSSEStream());
+
+    act(() => {
+      result.current.start('https://api.test/stream');
+    });
+
+    const es = MockEventSource.instances[0];
+
+    act(() => {
+      es.simulateMessage(JSON.stringify({ type: 'error' }));
+    });
+
+    expect(result.current.error).toBe('Stream error');
+    expect(result.current.isStreaming).toBe(false);
+    expect(es.close).toHaveBeenCalled();
+  });
+
   it('handles EventSource connection errors', () => {
     const { result } = renderHook(() => useSSEStream());
 
@@ -181,6 +199,22 @@ describe('useSSEStream', () => {
     expect(result.current.isStreaming).toBe(false);
     expect(result.current.error).toBeNull();
     expect(es.close).toHaveBeenCalled();
+  });
+
+  it('closes the active EventSource when reset is called during an open stream', () => {
+    const { result } = renderHook(() => useSSEStream());
+
+    act(() => {
+      result.current.start('https://api.test/live');
+    });
+
+    const es = MockEventSource.instances[0];
+
+    act(() => {
+      result.current.reset();
+    });
+
+    expect(es.close).toHaveBeenCalledTimes(1);
   });
 
   it('closes previous EventSource when start is called again', () => {

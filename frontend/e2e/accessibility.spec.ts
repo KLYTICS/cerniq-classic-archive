@@ -55,8 +55,8 @@ test.describe('Accessibility Basics', () => {
 
   test('pricing page has descriptive headings', async ({ page }) => {
     await page.goto('/pricing');
-    const headings = await page.getByRole('heading').all();
-    expect(headings.length).toBeGreaterThan(0);
+    const pricingHeading = page.getByRole('heading', { level: 1, name: /plans & pricing|planes y precios/i });
+    await expect(pricingHeading).toBeVisible();
   });
 
   test('color scheme uses sufficient contrast tokens', async ({ page }) => {

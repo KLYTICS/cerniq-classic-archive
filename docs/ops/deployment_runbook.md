@@ -25,11 +25,16 @@ Complete every item before deploying. Do not skip items even for "small" changes
 
 ### Code Readiness
 
-- [ ] All changes committed and pushed to `main`
+- [ ] All lane work has been coordinated in the command center before touching shared-state files
+- [ ] `make release-gate` passes locally on the captain release branch
+- [ ] Backend and frontend both meet or exceed the current ratcheted coverage floors from `.github/workflows/ci-cd.yml`
+- [ ] `CI Quick Check` passes on the push
+- [ ] `CERNIQ CI/CD` passes on the push
 - [ ] No TypeScript compilation errors: `cd backend-node && npx tsc --noEmit`
 - [ ] No frontend build errors: `cd frontend && npm run build`
 - [ ] Prisma schema matches migrations: `cd backend-node && DATABASE_URL="postgresql://..." npm run prisma:status`
 - [ ] If schema changed: new migration created with `npx prisma migrate dev --name <description>`
+- [ ] If backend full coverage still reports the generic async-exit warning, the release log explicitly documents the triage result and why release is still acceptable
 
 ### Environment Variables
 
@@ -56,10 +61,17 @@ Complete every item before deploying. Do not skip items even for "small" changes
 
 ### Option A: Auto-Deploy (Recommended)
 
-Railway is configured to auto-deploy on push to `main`.
+Railway is configured to auto-deploy after code reaches `main`. The standard path is the captain PR flow: open a PR from the release branch after `make release-gate` passes, merge after GitHub checks go green, then run post-merge production verification.
 
 ```bash
-git push origin main
+# 1. Run the local gate on the release branch
+make release-gate
+
+# 2. Commit, push, and open the PR
+make release-pr
+
+# 3. After merge to main, verify production
+make verify-production
 ```
 
 Monitor in the Railway dashboard: https://railway.app/dashboard
@@ -93,7 +105,7 @@ The `backend-node/Dockerfile` executes:
 4. On container start: `node dist/src/main.js` -- starts the NestJS server
 
 Schema migrations are not run automatically at boot. Run them explicitly before
-deploying schema-dependent code. See [schema migration policy](/Users/money/Desktop/Cerniq/docs/ops/schema_migration_policy.md).
+deploying schema-dependent code. See [schema migration policy](/Users/automation/Desktop/CERNIQ%20III-XXIX/docs/ops/schema_migration_policy.md).
 
 ### Monitoring the Deploy
 
@@ -114,10 +126,11 @@ Typical deploy time: 2-4 minutes.
 
 ### Option A: Auto-Deploy (Recommended)
 
-Vercel is connected to the repo and auto-deploys on push to `main`.
+Vercel is connected to the repo and auto-deploys after code reaches `main`. The standard path is PR merge, not direct terminal pushes.
 
 ```bash
-git push origin main
+# Same release path as backend:
+# run `make release-gate`, merge a green PR to main, and monitor the deployment
 ```
 
 Monitor at: https://vercel.com/dashboard
@@ -172,6 +185,15 @@ DATABASE_URL="postgresql://..." npm run prisma:status
 
 Do not run schema changes during app startup. The backend must boot against an
 already-prepared database.
+
+Release order for schema-dependent changes:
+
+1. get the PR green
+2. run the explicit migration step
+3. verify migration success
+4. merge to `main`
+5. monitor Railway backend deploy
+6. verify Vercel frontend deploy
 
 ### Before Destructive Migrations
 

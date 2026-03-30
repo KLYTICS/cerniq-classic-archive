@@ -69,7 +69,7 @@ It automates the ALM analysis process that institutions currently perform manual
 | **Storage** | Cloudflare R2 (report PDFs, presigned URLs) |
 | **AI/LLM** | OpenAI (insights), Ollama (local fallback) |
 | **Deploy** | Railway (backend) + Vercel (frontend) |
-| **CI/CD** | GitHub Actions (typecheck, Prisma validate, build) |
+| **CI/CD** | GitHub Actions (tests, coverage, build, Railway deploy) + Vercel GitHub integration |
 | **Sales Engine** | Python 3, FastAPI, YAML-orchestrated agents |
 
 ---
@@ -243,14 +243,32 @@ Full API contract: [docs/analysis/API_CONTRACT_REFERENCE.md](docs/analysis/API_C
 ## Testing
 
 ```bash
+# Shared live status snapshot
+make first-gate-status
+
+# Full PR-gated release gate
+make release-gate
+
+# Captain branch commit/push/PR helper
+make release-pr
+
+# Production verification
+make verify-production
+
 # Backend unit tests
 cd backend-node && npm test
 
-# E2E tests (Playwright — 5 spec files, 38 tests)
-cd frontend && bun run test:e2e
-
-# Coverage report
+# Backend coverage
 cd backend-node && npm run test:cov
+
+# Frontend unit/component tests
+cd frontend && npm test
+
+# Frontend coverage
+cd frontend && npm run test:cov
+
+# E2E tests (Playwright)
+cd frontend && npm run test:e2e
 ```
 
 ---
@@ -260,10 +278,17 @@ cd backend-node && npm run test:cov
 See [docs/DEPLOYMENT_CHECKLIST.md](docs/DEPLOYMENT_CHECKLIST.md) for the full production deploy guide.
 
 ```bash
-# Backend → Railway
+# PR-gated release path
+make release-gate
+make release-pr
+# release-pr runs the gate, stages changes, commits the captain branch,
+# pushes the branch, and opens a PR to main.
+# Railway and Vercel deploy from main only after merge and green GitHub Actions.
+
+# Manual fallback only: Backend → Railway
 cd backend-node && railway up
 
-# Frontend → Vercel
+# Manual fallback only: Frontend → Vercel
 cd frontend && vercel --prod
 ```
 

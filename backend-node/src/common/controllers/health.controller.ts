@@ -70,10 +70,10 @@ export class HealthController {
   ): Promise<DependencyStatus> {
     const start = performance.now();
     try {
-      await probe();
+      const isHealthy = await probe();
       return {
         name,
-        status: 'healthy',
+        status: isHealthy ? 'healthy' : 'degraded',
         latencyMs: Math.round(performance.now() - start),
       };
     } catch {

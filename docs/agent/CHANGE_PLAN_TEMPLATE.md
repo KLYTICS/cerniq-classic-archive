@@ -4,6 +4,12 @@
 
 What is being changed and why.
 
+## Owner / Terminal
+
+- Terminal owner:
+- Backup owner:
+- Shared files requiring handoff:
+
 ## Current State
 
 What exists today in code.
@@ -26,6 +32,11 @@ What prevents the desired behavior.
 | Area | Change | Risk |
 |---|---|---|
 
+## Handoffs
+
+| From | To | File / Area | Reason |
+|---|---|---|---|
+
 ## File Touch List
 
 | File | Purpose |
@@ -40,6 +51,12 @@ What prevents the desired behavior.
 ## Config / Env Impact
 
 ## Tests
+
+## Verification Commands
+
+```bash
+# Add the exact commands used to validate this change
+```
 
 ## Deployment Plan
 

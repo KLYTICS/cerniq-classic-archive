@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { getAdminAccessKey, setAdminAccessKey } from '@/lib/auth-session';
 import {
   Activity,
   ArrowLeft,
@@ -14,7 +15,6 @@ import {
   FileText,
 } from 'lucide-react';
 
-const ADMIN_KEY_STORAGE = 'cerniq_admin_key';
 const NODE_API_URL = (
   typeof window !== 'undefined'
     ? (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '')
@@ -60,7 +60,7 @@ function AdminAuth({ onAuth }: { onAuth: () => void }) {
         headers: { 'x-admin-key': password },
       });
       if (res.ok) {
-        sessionStorage.setItem(ADMIN_KEY_STORAGE, password);
+        setAdminAccessKey(password);
         onAuth();
       } else {
         setError(true);
@@ -151,7 +151,7 @@ export default function OpsPage() {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   useEffect(() => {
-    if (sessionStorage.getItem(ADMIN_KEY_STORAGE)) {
+    if (getAdminAccessKey()) {
       setAuthed(true);
     }
   }, []);
@@ -165,8 +165,7 @@ export default function OpsPage() {
         fetch(`${NODE_API_URL}/health`).then((r) => r.json()),
         fetch(`${NODE_API_URL}/api/admin/ops`, {
           headers: {
-            'x-admin-key':
-              sessionStorage.getItem(ADMIN_KEY_STORAGE) || '',
+            'x-admin-key': getAdminAccessKey(),
           },
         }).then((r) => {
           if (!r.ok) throw new Error('Admin ops fetch failed');

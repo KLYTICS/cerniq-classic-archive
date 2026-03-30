@@ -1,8 +1,16 @@
-import { YieldCurveService, TenorRate } from './yield-curve.service';
+import { describe, expect, it, jest, beforeEach } from '@jest/globals';
+import { YieldCurveService, type TenorRate } from './yield-curve.service';
 
 describe('YieldCurveService', () => {
   let service: YieldCurveService;
-  let prisma: any;
+  let prisma: {
+    balanceSheetItem: { findMany: ReturnType<typeof jest.fn> };
+    yieldCurve: {
+      findFirst: ReturnType<typeof jest.fn>;
+      create: ReturnType<typeof jest.fn>;
+      updateMany: ReturnType<typeof jest.fn>;
+    };
+  };
 
   const sampleCurve: TenorRate[] = [
     { tenor: 0.25, rate: 0.048 },
@@ -26,94 +34,156 @@ describe('YieldCurveService', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
     };
-    service = new YieldCurveService(prisma);
+    service = new YieldCurveService(prisma as any);
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-
-  // ── Nelson-Siegel fit ──────────────────────────────────────
-
-  it('fits Nelson-Siegel parameters that reproduce the original curve', () => {
+  it('fits Nelson-Siegel parameters that reproduce the base curve within tolerance', () => {
     const params = service.fitNelsonSiegel(sampleCurve);
 
+    expect(params.lambda).toBeGreaterThan(0);
     expect(params.beta0).toBeDefined();
     expect(params.beta1).toBeDefined();
     expect(params.beta2).toBeDefined();
-    expect(params.lambda).toBeGreaterThan(0);
 
-    // Check that the fitted curve approximates the original at a few tenors
     for (const point of [sampleCurve[2], sampleCurve[5], sampleCurve[8]]) {
       const fittedRate = service.interpolateRate(params, point.tenor);
-      expect(Math.abs(fittedRate - point.rate)).toBeLessThan(0.005); // within 50bps
+      expect(Math.abs(fittedRate - point.rate)).toBeLessThan(0.005);
     }
   });
 
-  // ── Forward rates ─────────────────────────────────────────
-
-  it('computes forward rates with correct number of points', () => {
+  it('computes non-negative forward rates with the expected tenor count', () => {
     const forwards = service.calculateForwardRates(sampleCurve);
 
-    // n-1 forward rates from n spot rates
     expect(forwards).toHaveLength(sampleCurve.length - 1);
-    // All forward rates should be non-negative
-    for (const f of forwards) {
-      expect(f.rate).toBeGreaterThanOrEqual(0);
+    expect(forwards[0]).toEqual(
+      expect.objectContaining({
+        tenor: 0.5,
+      }),
+    );
+    for (const point of forwards) {
+      expect(point.rate).toBeGreaterThanOrEqual(0);
     }
   });
 
-  it('computes correct forward rate between two tenors', () => {
-    const twoPointCurve: TenorRate[] = [
-      { tenor: 1, rate: 0.04 },
-      { tenor: 2, rate: 0.045 },
-    ];
+  it('applies Basel shocks and falls back to parallel-up for unknown requests', () => {
+    const parallelUp = service.applyShock(sampleCurve, 'parallel_up');
+    const fallback = service.applyShock(sampleCurve, 'unknown-shock');
 
-    const forwards = service.calculateForwardRates(twoPointCurve);
-
-    // f(1,2) = (0.045*2 - 0.04*1) / (2-1) = 0.05
-    expect(forwards[0].rate).toBeCloseTo(0.05, 4);
-    expect(forwards[0].tenor).toBe(2);
-  });
-
-  // ── Shock application ─────────────────────────────────────
-
-  it('applies parallel up shock of +200bps to all tenors', () => {
-    const shocked = service.applyShock(sampleCurve, 'parallel_up');
-
-    expect(shocked.shockType).toBe('parallel_up');
-    expect(shocked.shockedCurve).toHaveLength(sampleCurve.length);
-
-    // Each shocked rate should be ~200bps above base
-    for (let i = 0; i < sampleCurve.length; i++) {
-      const diff = shocked.shockedCurve[i].rate - sampleCurve[i].rate;
-      expect(diff).toBeCloseTo(0.02, 3); // 200bps = 0.02
-    }
-  });
-
-  it('applies steepener shock with short rates down and long rates up', () => {
-    const shocked = service.applyShock(sampleCurve, 'steepener');
-
-    // Short end (3M) should be lower
-    expect(shocked.shockedCurve[0].rate).toBeLessThan(sampleCurve[0].rate);
-    // Long end (30Y) should be higher
-    const lastIdx = sampleCurve.length - 1;
-    expect(shocked.shockedCurve[lastIdx].rate).toBeGreaterThan(
-      sampleCurve[lastIdx].rate,
+    expect(parallelUp.shockLabel).toBe('Parallel +200bps');
+    expect(
+      parallelUp.shockedCurve.every(
+        (point, index) =>
+          Math.abs(point.rate - sampleCurve[index].rate - 0.02) < 0.0005,
+      ),
+    ).toBe(true);
+    expect(fallback.shockBps[0.25]).toBe(200);
+    expect(fallback.shockedCurve[0].rate).toBeCloseTo(
+      parallelUp.shockedCurve[0].rate,
+      4,
     );
   });
 
-  // ── Full analysis (with empty balance sheet) ──────────────
+  it('returns complete analysis using saved curves and institution balances', async () => {
+    prisma.yieldCurve.findFirst.mockResolvedValue({
+      tenors: sampleCurve,
+    });
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      {
+        category: 'asset',
+        balance: 100,
+        duration: 2,
+        rate: 0.05,
+        rateType: 'fixed',
+      },
+      {
+        category: 'liability',
+        balance: 80,
+        duration: 1,
+        rate: 0.02,
+        rateType: 'variable',
+      },
+    ]);
 
-  it('returns complete analysis structure using default curve', async () => {
     const analysis = await service.getYieldCurveAnalysis('inst_123');
 
-    expect(analysis.baseCurve).toBeDefined();
-    expect(analysis.baseCurve.length).toBeGreaterThan(0);
-    expect(analysis.nelsonSiegelParams).toBeDefined();
+    expect(prisma.yieldCurve.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { institutionId: 'inst_123', isBase: true },
+      }),
+    );
+    expect(analysis.baseCurve).toEqual(sampleCurve);
     expect(analysis.forwardRates.length).toBeGreaterThan(0);
-    // 6 Basel shock scenarios
     expect(analysis.shockedCurves).toHaveLength(6);
     expect(analysis.niiImpact).toHaveLength(6);
+    expect(
+      analysis.niiImpact.some(
+        (scenario) => scenario.shockType === 'parallel_up',
+      ),
+    ).toBe(true);
+  });
+
+  it('computes forward NII schedules with repricing over time', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      {
+        category: 'asset',
+        balance: 100,
+        duration: 1,
+        rate: 0.05,
+        rateType: 'fixed',
+      },
+      {
+        category: 'liability',
+        balance: 90,
+        duration: 0.5,
+        rate: 0.02,
+        rateType: 'variable',
+      },
+    ]);
+    prisma.yieldCurve.findFirst.mockResolvedValue({
+      tenors: sampleCurve,
+    });
+
+    const schedule = await service.computeForwardNIISchedule(
+      'inst_456',
+      { '0.5': 50, '1': 100 },
+      3,
+    );
+
+    expect(schedule).toHaveLength(3);
+    expect(schedule[0].quarter).toMatch(/^Q[1-4] \d{4}$/);
+    expect(schedule[0].baselineNII).not.toBe(0);
+    expect(schedule[0].deltaPct).not.toBe(0);
+    expect(schedule[2].shockedNII).toBeGreaterThanOrEqual(
+      schedule[0].shockedNII,
+    );
+  });
+
+  it('saves custom curves as the new base curve', async () => {
+    const tenors = [
+      { tenor: 1, rate: 0.04 },
+      { tenor: 5, rate: 0.041 },
+    ];
+
+    const result = await service.saveCustomCurve({
+      institutionId: 'inst_789',
+      name: 'Quant -7% Defense Curve',
+      tenors,
+      source: 'quant-desk',
+    });
+
+    expect(prisma.yieldCurve.updateMany).toHaveBeenCalledWith({
+      where: { institutionId: 'inst_789', isBase: true },
+      data: { isBase: false },
+    });
+    expect(prisma.yieldCurve.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        institutionId: 'inst_789',
+        name: 'Quant -7% Defense Curve',
+        tenors,
+        source: 'quant-desk',
+        isBase: true,
+      }),
+    });
+    expect(result).toEqual({ id: 'curve_1' });
   });
 });

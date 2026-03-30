@@ -26,7 +26,8 @@ export class DegradationService {
     try {
       const data = await computeFn();
       cache.set(key, { data, cachedAt: new Date().toISOString() });
-      setTimeout(() => cache.delete(key), cacheTtlMs * 24); // keep cache longer than TTL for degradation
+      const cleanupTimer = setTimeout(() => cache.delete(key), cacheTtlMs * 24); // keep cache longer than TTL for degradation
+      cleanupTimer.unref?.();
       return { data, level: 'live' };
     } catch (liveError: any) {
       this.logger.warn(

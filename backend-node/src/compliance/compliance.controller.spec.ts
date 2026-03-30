@@ -45,17 +45,17 @@ describe('ComplianceController', () => {
     });
 
     it('should throw UnauthorizedException for invalid admin key', async () => {
-      await expect(
-        controller.getSOC2Evidence('wrong-key'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(controller.getSOC2Evidence('wrong-key')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException when ADMIN_KEY not set', async () => {
       delete process.env.ADMIN_KEY;
 
-      await expect(
-        controller.getSOC2Evidence('any-key'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(controller.getSOC2Evidence('any-key')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should propagate service errors', async () => {

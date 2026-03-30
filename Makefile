@@ -1,4 +1,4 @@
-.PHONY: dev prod build test deploy-backend deploy-frontend migrate health lint
+.PHONY: dev prod build test deploy-backend deploy-frontend migrate health lint test-all test-cov-all first-gate-status release-gate release-pr release-main verify-production
 
 # ─── Development ───────────────────────────────
 dev:
@@ -20,7 +20,7 @@ prod-down:
 
 # ─── Build ─────────────────────────────────────
 build-backend:
-	cd backend-node && npm ci --legacy-peer-deps && npm run build
+	cd backend-node && npm ci --legacy-peer-deps && npm run prisma:generate && npm run build
 
 build-frontend:
 	cd frontend && npm ci && npm run build
@@ -49,6 +49,29 @@ test-e2e:
 
 test-cov:
 	cd backend-node && npm run test:cov
+
+test-all:
+	cd backend-node && npm test
+	cd frontend && npm test
+
+test-cov-all:
+	cd backend-node && npm run test:cov -- --runInBand
+	cd frontend && npm run test:cov
+
+first-gate-status:
+	./scripts/first-gate-status.sh
+
+release-gate:
+	./scripts/release-gate.sh
+
+release-pr:
+	./scripts/release-pr.sh
+
+release-main:
+	./scripts/release-main.sh
+
+verify-production:
+	./scripts/verify-production.sh
 
 # ─── Deploy ────────────────────────────────────
 deploy-backend:

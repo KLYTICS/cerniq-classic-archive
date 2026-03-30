@@ -186,7 +186,9 @@ Bilingual internationalization (Spanish/English)
 
 ## E2E Tests (`e2e/`)
 
-5 Playwright spec files covering 38 tests:
+Playwright coverage lives in `frontend/e2e/*.spec.ts`. Use the command below or
+`make first-gate-status` for the current verified totals instead of relying on
+hard-coded counts in docs.
 
 | Spec | Tests |
 |------|-------|
@@ -196,7 +198,7 @@ Bilingual internationalization (Spanish/English)
 | `api-health.spec.ts` | API health check verification |
 | `accessibility.spec.ts` | a11y compliance checks |
 
-Run: `bun run test:e2e` or `bun run test:e2e:ui`
+Run: `npm run test:e2e` or `npm run test:e2e:ui`
 
 ---
 

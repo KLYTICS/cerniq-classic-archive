@@ -128,6 +128,9 @@ export class MarketStreamManagerService implements OnModuleDestroy {
     state.newsTimer = setInterval(() => {
       void this.publishNews(ticker);
     }, this.newsPollIntervalMs);
+    state.quoteTimer.unref?.();
+    state.profileTimer.unref?.();
+    state.newsTimer.unref?.();
 
     this.logger.log(`Started managed market stream for ${ticker}`);
     return { ticker, subscribers: 1 };

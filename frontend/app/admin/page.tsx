@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api';
+import { getAdminAccessKey, setAdminAccessKey } from '@/lib/auth-session';
 import { Landmark, RefreshCw, Copy, Check, Trash2, ExternalLink, Users, Building2, FileText, ClipboardCheck, UserSearch, Activity } from 'lucide-react';
 
-const ADMIN_KEY_STORAGE = 'cerniq_admin_key';
 const VERCEL_URL = typeof window !== 'undefined' ? window.location.origin : '';
 
 interface DemoRequest {
@@ -57,7 +57,7 @@ function AdminAuth({ onAuth }: { onAuth: () => void }) {
         headers: { 'x-admin-key': password },
       });
       if (res.ok) {
-        sessionStorage.setItem(ADMIN_KEY_STORAGE, password);
+        setAdminAccessKey(password);
         onAuth();
       } else {
         setError(true);
@@ -109,7 +109,7 @@ export default function AdminPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (sessionStorage.getItem(ADMIN_KEY_STORAGE)) {
+    if (getAdminAccessKey()) {
       setAuthed(true);
     }
   }, []);

@@ -78,7 +78,8 @@ describe('WorkspaceOnboardingService', () => {
 
   it('seedDemoData creates balance sheet items with correct institutionId', async () => {
     await service.seedDemoData('ws-2', 'bank');
-    const createManyCall = mockPrisma.balanceSheetItem.createMany.mock.calls[0][0];
+    const createManyCall =
+      mockPrisma.balanceSheetItem.createMany.mock.calls[0][0];
     expect(createManyCall.data.length).toBeGreaterThan(0);
     createManyCall.data.forEach((item: any) => {
       expect(item.institutionId).toBe('inst-1');

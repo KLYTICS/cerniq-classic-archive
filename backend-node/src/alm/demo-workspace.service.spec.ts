@@ -28,7 +28,17 @@ describe('DemoWorkspaceService', () => {
       institutionName: 'Test CU',
       totalAssets: 200,
       netWorthRatio: 10.5,
-      items: [{ category: 'asset', subcategory: 'cash', name: 'Cash', balance: 50, rate: 0.05, duration: 0.1, rateType: 'variable' }],
+      items: [
+        {
+          category: 'asset',
+          subcategory: 'cash',
+          name: 'Cash',
+          balance: 50,
+          rate: 0.05,
+          duration: 0.1,
+          rateType: 'variable',
+        },
+      ],
     });
     mockPrisma.workspace.findFirst.mockResolvedValue({ id: 'ws-1' });
     mockPrisma.institution.create.mockResolvedValue({ id: 'inst-1' });

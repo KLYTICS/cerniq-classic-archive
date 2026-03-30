@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { getAdminAccessKey, setAdminAccessKey } from '@/lib/auth-session';
 import {
   Users, DollarSign, TrendingUp, Clock, RefreshCw,
   Pencil, FileText, Check, ArrowLeft,
 } from 'lucide-react';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-const ADMIN_KEY_STORAGE = 'cerniq_admin_key';
 
 interface Lead {
   id: string;
@@ -85,7 +85,7 @@ export default function LeadsPipelinePage() {
 
   // Restore admin key from session
   useEffect(() => {
-    const stored = sessionStorage.getItem(ADMIN_KEY_STORAGE);
+    const stored = getAdminAccessKey();
     if (stored) {
       setAdminKey(stored);
       setAuthenticated(true);
@@ -111,7 +111,7 @@ export default function LeadsPipelinePage() {
       setMetrics(await metricsRes.json());
       setFetchError(null);
       setAuthenticated(true);
-      sessionStorage.setItem(ADMIN_KEY_STORAGE, adminKey);
+      setAdminAccessKey(adminKey);
     } catch (err: unknown) {
       if (authenticated) setAuthenticated(false);
       setFetchError(getLeadPipelineError(err));

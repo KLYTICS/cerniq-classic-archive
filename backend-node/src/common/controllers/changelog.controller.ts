@@ -44,7 +44,8 @@ const CHANGELOG: ChangelogEntry[] = [
 export class ChangelogController {
   @Get()
   getChangelog(@Query('limit') limit?: string): ChangelogEntry[] {
-    const n = Math.min(Math.max(parseInt(limit ?? '10', 10) || 10, 1), 50);
+    const parsed = Number.parseInt(limit ?? '', 10);
+    const n = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 50) : 10;
     return CHANGELOG.slice(0, n);
   }
 }

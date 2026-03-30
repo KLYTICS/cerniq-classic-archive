@@ -22,11 +22,13 @@ export class IdempotencyResponseInterceptor implements NestInterceptor {
     { data: any; status: number; expiry: number }
   >();
   private readonly ttlMs: number;
+  private readonly cleanupTimer: NodeJS.Timeout;
 
   constructor(ttlMinutes = 60) {
     this.ttlMs = ttlMinutes * 60 * 1000;
     // Cleanup expired entries every 10 minutes
-    setInterval(() => this.cleanup(), 10 * 60 * 1000);
+    this.cleanupTimer = setInterval(() => this.cleanup(), 10 * 60 * 1000);
+    this.cleanupTimer.unref?.();
   }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {

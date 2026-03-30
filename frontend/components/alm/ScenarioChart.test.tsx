@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import ScenarioChart from './ScenarioChart';
+import ScenarioChart, { formatScenarioValue } from './ScenarioChart';
 
 // Mock recharts — ResponsiveContainer has issues in jsdom; stub all chart components
 vi.mock('recharts', () => ({
@@ -10,7 +10,9 @@ vi.mock('recharts', () => ({
   XAxis: () => <div />,
   YAxis: () => <div />,
   CartesianGrid: () => <div />,
-  Tooltip: () => <div />,
+  Tooltip: ({ formatter }: { formatter?: (value: unknown) => unknown }) => (
+    <div data-testid="tooltip">{JSON.stringify(formatter?.(-1.25))}</div>
+  ),
   ResponsiveContainer: ({ children }: { children?: ReactNode }) => <div data-testid="responsive-container">{children}</div>,
   Cell: () => <div />,
   ReferenceLine: () => <div />,
@@ -37,6 +39,7 @@ describe('ScenarioChart', () => {
     render(<ScenarioChart scenarios={mockScenarios} />);
     expect(screen.getByTestId('responsive-container')).toBeInTheDocument();
     expect(screen.getByTestId('bar-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('tooltip')).toHaveTextContent('NII Impact');
   });
 
   it('renders with custom title and dataKey', () => {
@@ -49,5 +52,10 @@ describe('ScenarioChart', () => {
       />,
     );
     expect(screen.getByText('MVE Impact')).toBeInTheDocument();
+  });
+
+  it('formats tooltip values for both NII and MVE series', () => {
+    expect(formatScenarioValue(undefined, 'niImpact')).toEqual(['$0.00M', 'NII Impact']);
+    expect(formatScenarioValue(-2.345, 'mveImpact')).toEqual(['$-2.35M', 'MVE Impact']);
   });
 });

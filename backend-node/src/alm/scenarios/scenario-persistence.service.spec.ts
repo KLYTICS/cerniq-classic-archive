@@ -24,7 +24,10 @@ describe('ScenarioPersistenceService', () => {
   });
 
   it('should save a scenario', async () => {
-    mockPrisma.savedScenario.create.mockResolvedValue({ id: 'sc-1', name: 'Rate Shock +200' });
+    mockPrisma.savedScenario.create.mockResolvedValue({
+      id: 'sc-1',
+      name: 'Rate Shock +200',
+    });
     const result = await service.saveScenario('user-1', {
       institutionId: 'inst-1',
       name: 'Rate Shock +200',
@@ -37,7 +40,10 @@ describe('ScenarioPersistenceService', () => {
   it('should list scenarios with pagination', async () => {
     mockPrisma.savedScenario.findMany.mockResolvedValue([{ id: 'sc-1' }]);
     mockPrisma.savedScenario.count.mockResolvedValue(1);
-    const result = await service.listScenarios('inst-1', { page: 1, pageSize: 10 });
+    const result = await service.listScenarios('inst-1', {
+      page: 1,
+      pageSize: 10,
+    });
     expect(result.items.length).toBe(1);
     expect(result.total).toBe(1);
     expect(result.page).toBe(1);
@@ -45,11 +51,15 @@ describe('ScenarioPersistenceService', () => {
 
   it('should throw NotFoundException for missing scenario', async () => {
     mockPrisma.savedScenario.findUnique.mockResolvedValue(null);
-    await expect(service.getScenario('missing')).rejects.toThrow(NotFoundException);
+    await expect(service.getScenario('missing')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should throw BadRequestException for invalid compare count', async () => {
-    await expect(service.compareScenarios(['sc-1'])).rejects.toThrow(BadRequestException);
+    await expect(service.compareScenarios(['sc-1'])).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('should delete scenario and return confirmation', async () => {

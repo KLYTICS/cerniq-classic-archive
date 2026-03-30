@@ -16,7 +16,11 @@ describe('CollateralHaircutService', () => {
   it('applies 0% haircut to cash and treasury bills', () => {
     const result = service.calculate([
       { type: 'Cash', typeEs: 'Efectivo', marketValue: 5000000 },
-      { type: 'Treasury Bill', typeEs: 'Letra del Tesoro', marketValue: 3000000 },
+      {
+        type: 'Treasury Bill',
+        typeEs: 'Letra del Tesoro',
+        marketValue: 3000000,
+      },
     ]);
 
     expect(result.assets[0].haircut).toBe(0);
@@ -31,8 +35,18 @@ describe('CollateralHaircutService', () => {
 
   it('applies higher haircut to long-maturity government bonds', () => {
     const result = service.calculate([
-      { type: 'Treasury Bond', typeEs: 'Bono del Tesoro', marketValue: 1000000, maturityYears: 5 },
-      { type: 'Government Bond', typeEs: 'Bono Gobierno', marketValue: 1000000, maturityYears: 15 },
+      {
+        type: 'Treasury Bond',
+        typeEs: 'Bono del Tesoro',
+        marketValue: 1000000,
+        maturityYears: 5,
+      },
+      {
+        type: 'Government Bond',
+        typeEs: 'Bono Gobierno',
+        marketValue: 1000000,
+        maturityYears: 15,
+      },
     ]);
 
     expect(result.assets[0].haircut).toBe(2); // short maturity
@@ -43,12 +57,27 @@ describe('CollateralHaircutService', () => {
 
   it('applies rating-based haircuts to corporate bonds', () => {
     const result = service.calculate([
-      { type: 'Corporate Bond', typeEs: 'Bono Corporativo', marketValue: 1000000, creditRating: 'AAA' },
-      { type: 'Corporate Bond', typeEs: 'Bono Corporativo', marketValue: 1000000, creditRating: 'AA' },
-      { type: 'Corporate Bond', typeEs: 'Bono Corporativo', marketValue: 1000000, creditRating: 'BBB' },
+      {
+        type: 'Corporate Bond',
+        typeEs: 'Bono Corporativo',
+        marketValue: 1000000,
+        creditRating: 'AAA',
+      },
+      {
+        type: 'Corporate Bond',
+        typeEs: 'Bono Corporativo',
+        marketValue: 1000000,
+        creditRating: 'AA',
+      },
+      {
+        type: 'Corporate Bond',
+        typeEs: 'Bono Corporativo',
+        marketValue: 1000000,
+        creditRating: 'BBB',
+      },
     ]);
 
-    expect(result.assets[0].haircut).toBe(8);  // AAA
+    expect(result.assets[0].haircut).toBe(8); // AAA
     expect(result.assets[1].haircut).toBe(12); // AA
     expect(result.assets[2].haircut).toBe(20); // BBB (default)
   });
@@ -69,7 +98,12 @@ describe('CollateralHaircutService', () => {
   it('computes correct totals and weighted average haircut', () => {
     const result = service.calculate([
       { type: 'Cash', typeEs: 'Efectivo', marketValue: 5000000 },
-      { type: 'Agency MBS', typeEs: 'MBS Agencia', marketValue: 5000000, maturityYears: 7 },
+      {
+        type: 'Agency MBS',
+        typeEs: 'MBS Agencia',
+        marketValue: 5000000,
+        maturityYears: 7,
+      },
     ]);
 
     expect(result.totalMarketValue).toBe(10000000);

@@ -1,7 +1,16 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { AnchorHTMLAttributes, ReactNode, SVGProps } from 'react';
-import PricingPage from './page';
+import PricingPage, {
+  getCtaLabel,
+  getInitialPricingLanguage,
+} from './page';
+
+const mocks = vi.hoisted(() => ({
+  createCheckoutSession: vi.fn(),
+  analyticsTrack: vi.fn(),
+}));
 
 vi.mock('next/link', () => ({
   default: ({
@@ -11,11 +20,11 @@ vi.mock('next/link', () => ({
 }));
 
 vi.mock('@/lib/billing', () => ({
-  createCheckoutSession: vi.fn(),
+  createCheckoutSession: mocks.createCheckoutSession,
 }));
 
 vi.mock('@/lib/analytics', () => ({
-  analytics: { track: vi.fn() },
+  analytics: { track: mocks.analyticsTrack },
   EVENTS: { CHECKOUT_STARTED: 'Checkout Started' },
 }));
 
@@ -31,46 +40,123 @@ vi.mock('lucide-react', () => ({
 }));
 
 describe('PricingPage', () => {
-  it('renders all four pricing tiers', () => {
+  beforeEach(() => {
+    mocks.createCheckoutSession.mockReset();
+    mocks.analyticsTrack.mockReset();
+    localStorage.clear();
+  });
+
+  it('renders all pricing tiers, pricing labels, and FAQ content', () => {
     render(<PricingPage />);
 
     expect(screen.getByText('ALM Report')).toBeInTheDocument();
     expect(screen.getByText('Monthly ALM Platform')).toBeInTheDocument();
     expect(screen.getByText('Annual ALM Platform')).toBeInTheDocument();
     expect(screen.getByText('CPA Partner')).toBeInTheDocument();
-  });
-
-  it('displays prices for each tier', () => {
-    render(<PricingPage />);
-
-    // Prices appear in both the tier cards and CTA buttons, so use getAllByText
-    expect(screen.getAllByText('$750').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('$299').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('$2,400').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('$499').length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('renders CTA buttons for checkout tiers and contact link for partner', () => {
-    render(<PricingPage />);
-
-    // The "Start — $750" button appears in tier card AND bottom CTA, so use getAllByRole
-    const startButtons = screen.getAllByRole('button', { name: /Start — \$750/i });
-    expect(startButtons.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByRole('button', { name: /Subscribe — \$299\/mo/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Buy Annual — \$2,400/i })).toBeInTheDocument();
-
-    // Partner tier has a Contact Sales link
-    expect(screen.getByRole('link', { name: /Contact Sales/i })).toBeInTheDocument();
-  });
-
-  it('renders the pricing tiers section with proper aria-label', () => {
-    render(<PricingPage />);
     expect(screen.getByLabelText('Pricing tiers')).toBeInTheDocument();
+    expect(screen.getByText('FAQ')).toBeInTheDocument();
+    expect(screen.getByText(/why start with a pilot/i)).toBeInTheDocument();
   });
 
-  it('renders the FAQ section', () => {
+  it('renders checkout actions plus the partner contact link', () => {
     render(<PricingPage />);
-    expect(screen.getByText('FAQ')).toBeInTheDocument();
-    expect(screen.getByText(/Why start with a pilot/i)).toBeInTheDocument();
+
+    expect(screen.getAllByRole('button', { name: /start — \$750/i }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('button', { name: /subscribe — \$299\/mo/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /buy annual — \$2,400/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /contact sales/i })).toHaveAttribute('href', '/contact');
+  });
+
+  it('starts in Spanish when the saved language preference is es and toggles labels', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('cerniq_lang', 'es');
+
+    render(<PricingPage />);
+
+    expect(screen.getByRole('heading', { name: /planes y precios/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cambiar a Espanol' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('link', { name: /contactar ventas/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Switch to English' }));
+
+    expect(screen.getByRole('heading', { name: /plans & pricing/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Switch to English' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('exposes safe CTA defaults and defaults language to English without storage', async () => {
+    const user = userEvent.setup();
+
+    expect(getCtaLabel('unknown', 'en')).toBe('Get Started');
+    expect(getCtaLabel('unknown', 'es')).toBe('Comenzar');
+    expect(getInitialPricingLanguage(null)).toBe('en');
+
+    render(<PricingPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Cambiar a Espanol' }));
+    expect(screen.getByRole('button', { name: 'Cambiar a Espanol' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('starts checkout, shows processing state, and tracks analytics', async () => {
+    const user = userEvent.setup();
+    let resolveCheckout: ((value: string) => void) | undefined;
+    mocks.createCheckoutSession.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveCheckout = resolve;
+        }),
+    );
+
+    render(<PricingPage />);
+
+    await user.click(screen.getByRole('button', { name: /subscribe — \$299\/mo/i }));
+
+    expect(mocks.analyticsTrack).toHaveBeenCalledWith('Checkout Started', {
+      tier: 'monthly',
+      source: 'pricing_page',
+    });
+    expect(mocks.createCheckoutSession).toHaveBeenCalledWith({
+      tier: 'monthly',
+      successUrl: '/portal?welcome=1',
+      cancelUrl: '/pricing',
+    });
+    expect(screen.getByRole('button', { name: /processing/i })).toBeDisabled();
+
+    resolveCheckout?.('https://checkout.stripe.test/session');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /subscribe — \$299\/mo/i })).toBeInTheDocument();
+    });
+  });
+
+  it('recovers back to the normal CTA when checkout creation fails', async () => {
+    const user = userEvent.setup();
+    mocks.createCheckoutSession.mockRejectedValue(new Error('checkout unavailable'));
+
+    render(<PricingPage />);
+
+    await user.click(screen.getByRole('button', { name: /buy annual — \$2,400/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /buy annual — \$2,400/i })).toBeInTheDocument();
+    });
+  });
+
+  it('starts one-time checkout from the footer CTA', async () => {
+    const user = userEvent.setup();
+    mocks.createCheckoutSession.mockRejectedValue(new Error('checkout unavailable'));
+
+    render(<PricingPage />);
+
+    const footerButtons = screen.getAllByRole('button', { name: /start — \$750/i });
+    await user.click(footerButtons[footerButtons.length - 1]);
+
+    expect(mocks.createCheckoutSession).toHaveBeenCalledWith({
+      tier: 'one_time',
+      successUrl: '/portal?welcome=1',
+      cancelUrl: '/pricing',
+    });
   });
 });

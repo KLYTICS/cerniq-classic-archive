@@ -3,6 +3,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
+import { hasSessionAuthHint } from '@/lib/auth-session';
 
 const AUTH_ROUTE_PREFIXES = [
   '/auth',
@@ -20,22 +21,7 @@ const ANONYMOUS_ENTRY_ROUTES = new Set([
   '/signup',
 ]);
 
-function hasStoredAuthHint() {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  return [
-    sessionStorage.getItem('cerniq_access_token'),
-    sessionStorage.getItem('capex_access_token'),
-    localStorage.getItem('cerniq_access_token'),
-    localStorage.getItem('capex_access_token'),
-    localStorage.getItem('cerniq_auth_user'),
-    localStorage.getItem('capex_auth_user'),
-  ].some(Boolean);
-}
-
-function isAuthRelevantPath(pathname: string | null) {
+export function isAuthRelevantPath(pathname: string | null) {
   if (!pathname) {
     return false;
   }
@@ -43,7 +29,7 @@ function isAuthRelevantPath(pathname: string | null) {
   return AUTH_ROUTE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
-function isAnonymousEntryRoute(pathname: string | null) {
+export function isAnonymousEntryRoute(pathname: string | null) {
   return pathname ? ANONYMOUS_ENTRY_ROUTES.has(pathname) : false;
 }
 
@@ -54,9 +40,11 @@ export default function AuthInitializer() {
   const scopeRef = useRef<'auth' | 'public' | null>(null);
 
   useLayoutEffect(() => {
-    const hasStoredAuth = hasStoredAuthHint();
+    const hasStoredAuth = hasSessionAuthHint();
     const shouldHydrate =
-      (isAuthRelevantPath(pathname) && !isAnonymousEntryRoute(pathname)) || hasStoredAuth;
+      isAuthRelevantPath(pathname) ||
+      isAnonymousEntryRoute(pathname) ||
+      hasStoredAuth;
     const nextScope = shouldHydrate ? 'auth' : 'public';
     const enteringNewScope = scopeRef.current !== nextScope;
     scopeRef.current = nextScope;

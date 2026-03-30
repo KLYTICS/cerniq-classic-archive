@@ -47,4 +47,51 @@ describe('useKeyPress', () => {
     });
     expect(handler).not.toHaveBeenCalled();
   });
+
+  it('supports shift and alt modifiers and prevents default when requested', () => {
+    const handler = vi.fn();
+    const event = new KeyboardEvent('keydown', {
+      key: 'K',
+      shiftKey: true,
+      altKey: true,
+      cancelable: true,
+    });
+
+    renderHook(() => useKeyPress('K', handler, { shift: true, alt: true, preventDefault: true }));
+
+    act(() => {
+      window.dispatchEvent(event);
+    });
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('does not fire when required shift or alt modifiers are missing', () => {
+    const shiftHandler = vi.fn();
+    const altHandler = vi.fn();
+
+    renderHook(() => useKeyPress('K', shiftHandler, { shift: true }));
+    renderHook(() => useKeyPress('K', altHandler, { alt: true }));
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'K' }));
+    });
+
+    expect(shiftHandler).not.toHaveBeenCalled();
+    expect(altHandler).not.toHaveBeenCalled();
+  });
+
+  it('stops listening after unmount', () => {
+    const handler = vi.fn();
+    const { unmount } = renderHook(() => useKeyPress('Escape', handler));
+
+    unmount();
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+
+    expect(handler).not.toHaveBeenCalled();
+  });
 });

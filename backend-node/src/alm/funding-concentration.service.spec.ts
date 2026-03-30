@@ -16,9 +16,24 @@ describe('FundingConcentrationService', () => {
   it('flags funding sources above 5% of total funding', () => {
     const result = service.analyze({
       fundingSources: [
-        { name: 'Core Deposits', nameEs: 'Depositos Base', amount: 600000, type: 'retail' },
-        { name: 'FHLB Borrowing', nameEs: 'Prestamo FHLB', amount: 250000, type: 'wholesale' },
-        { name: 'Brokered CDs', nameEs: 'CDs Intermediados', amount: 150000, type: 'brokered' },
+        {
+          name: 'Core Deposits',
+          nameEs: 'Depositos Base',
+          amount: 600000,
+          type: 'retail',
+        },
+        {
+          name: 'FHLB Borrowing',
+          nameEs: 'Prestamo FHLB',
+          amount: 250000,
+          type: 'wholesale',
+        },
+        {
+          name: 'Brokered CDs',
+          nameEs: 'CDs Intermediados',
+          amount: 150000,
+          type: 'brokered',
+        },
       ],
       totalFunding: 1000000,
     });
@@ -26,7 +41,9 @@ describe('FundingConcentrationService', () => {
     // All three sources are >5%, so all should be flagged
     expect(result.concentrationFlags).toHaveLength(3);
     // Core Deposits at 60% should be HIGH concentration risk
-    const coreFlag = result.concentrationFlags.find((f) => f.source === 'Core Deposits');
+    const coreFlag = result.concentrationFlags.find(
+      (f) => f.source === 'Core Deposits',
+    );
     expect(coreFlag).toBeDefined();
     expect(coreFlag!.flag).toContain('HIGH');
     expect(coreFlag!.pct).toBe(60);
@@ -37,9 +54,24 @@ describe('FundingConcentrationService', () => {
   it('does not flag sources at or below 5%', () => {
     const result = service.analyze({
       fundingSources: [
-        { name: 'Large Source', nameEs: 'Fuente Grande', amount: 900000, type: 'retail' },
-        { name: 'Small Source', nameEs: 'Fuente Pequena', amount: 40000, type: 'wholesale' },
-        { name: 'Tiny Source', nameEs: 'Fuente Minima', amount: 10000, type: 'brokered' },
+        {
+          name: 'Large Source',
+          nameEs: 'Fuente Grande',
+          amount: 900000,
+          type: 'retail',
+        },
+        {
+          name: 'Small Source',
+          nameEs: 'Fuente Pequena',
+          amount: 40000,
+          type: 'wholesale',
+        },
+        {
+          name: 'Tiny Source',
+          nameEs: 'Fuente Minima',
+          amount: 10000,
+          type: 'brokered',
+        },
       ],
       totalFunding: 1000000,
     });
@@ -54,10 +86,30 @@ describe('FundingConcentrationService', () => {
   it('computes correct funding type breakdown', () => {
     const result = service.analyze({
       fundingSources: [
-        { name: 'Retail A', nameEs: 'Minorista A', amount: 400000, type: 'retail' },
-        { name: 'Retail B', nameEs: 'Minorista B', amount: 200000, type: 'retail' },
-        { name: 'Wholesale', nameEs: 'Mayorista', amount: 300000, type: 'wholesale' },
-        { name: 'Brokered', nameEs: 'Intermediado', amount: 100000, type: 'brokered' },
+        {
+          name: 'Retail A',
+          nameEs: 'Minorista A',
+          amount: 400000,
+          type: 'retail',
+        },
+        {
+          name: 'Retail B',
+          nameEs: 'Minorista B',
+          amount: 200000,
+          type: 'retail',
+        },
+        {
+          name: 'Wholesale',
+          nameEs: 'Mayorista',
+          amount: 300000,
+          type: 'wholesale',
+        },
+        {
+          name: 'Brokered',
+          nameEs: 'Intermediado',
+          amount: 100000,
+          type: 'brokered',
+        },
       ],
       totalFunding: 1000000,
     });
@@ -83,13 +135,20 @@ describe('FundingConcentrationService', () => {
 
     const concentrated = service.analyze({
       fundingSources: [
-        { name: 'Dominant', nameEs: 'Dominante', amount: 950000, type: 'retail' },
+        {
+          name: 'Dominant',
+          nameEs: 'Dominante',
+          amount: 950000,
+          type: 'retail',
+        },
         { name: 'Minor', nameEs: 'Menor', amount: 50000, type: 'wholesale' },
       ],
       totalFunding: 1000000,
     });
 
-    expect(diversified.diversificationScore).toBeGreaterThan(concentrated.diversificationScore);
+    expect(diversified.diversificationScore).toBeGreaterThan(
+      concentrated.diversificationScore,
+    );
   });
 
   // ── Bilingual output ────────────────────────────────────────
@@ -98,7 +157,12 @@ describe('FundingConcentrationService', () => {
     const result = service.analyze({
       fundingSources: [
         { name: 'Core', nameEs: 'Base', amount: 800000, type: 'retail' },
-        { name: 'Wholesale', nameEs: 'Mayorista', amount: 200000, type: 'wholesale' },
+        {
+          name: 'Wholesale',
+          nameEs: 'Mayorista',
+          amount: 200000,
+          type: 'wholesale',
+        },
       ],
       totalFunding: 1000000,
     });

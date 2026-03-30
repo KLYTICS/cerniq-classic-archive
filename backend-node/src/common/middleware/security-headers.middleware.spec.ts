@@ -74,10 +74,7 @@ describe('SecurityHeadersMiddleware', () => {
   it('should set X-DNS-Prefetch-Control header', () => {
     const { req, res, next } = createMocks();
     middleware.use(req, res, next);
-    expect(res.setHeader).toHaveBeenCalledWith(
-      'X-DNS-Prefetch-Control',
-      'off',
-    );
+    expect(res.setHeader).toHaveBeenCalledWith('X-DNS-Prefetch-Control', 'off');
   });
 
   it('should set all 7 security headers', () => {

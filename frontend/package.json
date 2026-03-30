@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "NODE_OPTIONS=--max-old-space-size=8192 eslint app components hooks lib types next.config.ts playwright.config.ts proxy.ts vitest.config.ts sentry.client.config.ts sentry.edge.config.ts sentry.server.config.ts eslint.config.mjs",
     "test": "vitest run",
+    "test:cov": "bash ../scripts/run-frontend-coverage.sh",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
@@ -44,6 +45,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "jsdom": "^29.0.1",

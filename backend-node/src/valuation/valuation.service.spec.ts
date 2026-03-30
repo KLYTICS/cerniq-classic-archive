@@ -155,14 +155,23 @@ describe('ValuationService', () => {
 
     await service.getKPIScore('AAPL');
 
-    expect(kpiEngine.calculate).toHaveBeenCalledWith('AAPL', {}, { price: 150 });
+    expect(kpiEngine.calculate).toHaveBeenCalledWith(
+      'AAPL',
+      {},
+      { price: 150 },
+    );
   });
 
   it('runs the screener, filters by minimum score, and passes query filters to the ticker service', async () => {
     tickerService.listTickers.mockResolvedValueOnce({
       tickers: [
         { ticker: 'AAPL', name: 'Apple', sector: 'Technology', marketCap: 100 },
-        { ticker: 'NVDA', name: 'NVIDIA', sector: 'Technology', marketCap: 200 },
+        {
+          ticker: 'NVDA',
+          name: 'NVIDIA',
+          sector: 'Technology',
+          marketCap: 200,
+        },
       ],
     });
     marketDataService.getQuote
@@ -203,7 +212,12 @@ describe('ValuationService', () => {
     tickerService.listTickers.mockResolvedValueOnce({
       tickers: [
         { ticker: 'AAPL', name: 'Apple', sector: 'Technology', marketCap: 10 },
-        { ticker: 'MSFT', name: 'Microsoft', sector: 'Technology', marketCap: 30 },
+        {
+          ticker: 'MSFT',
+          name: 'Microsoft',
+          sector: 'Technology',
+          marketCap: 30,
+        },
       ],
     });
     marketDataService.getQuote
@@ -229,7 +243,12 @@ describe('ValuationService', () => {
     tickerService.listTickers.mockResolvedValueOnce({
       tickers: [
         { ticker: 'AAPL', name: 'Apple', sector: 'Technology', marketCap: 10 },
-        { ticker: 'MSFT', name: 'Microsoft', sector: 'Technology', marketCap: 30 },
+        {
+          ticker: 'MSFT',
+          name: 'Microsoft',
+          sector: 'Technology',
+          marketCap: 30,
+        },
       ],
     });
     marketDataService.getQuote

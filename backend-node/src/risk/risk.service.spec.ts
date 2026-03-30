@@ -190,6 +190,22 @@ describe('RiskService', () => {
       expect(result.cvar).toBeGreaterThan(0);
     });
 
+    it('should reflect a same-day -7% shock in tail risk metrics', async () => {
+      const shockReturns = [
+        -0.07, -0.012, 0.004, -0.006, 0.008, -0.003, 0.005, -0.002, 0.006,
+        -0.001, 0.004, -0.005,
+      ];
+
+      const result = await service.calculateVaR({
+        returns: shockReturns,
+        confidenceLevel: 0.95,
+        portfolioValue: 1_000_000,
+      });
+
+      expect(result.var).toBeGreaterThanOrEqual(70_000);
+      expect(result.cvar).toBeGreaterThanOrEqual(result.var);
+    });
+
     it('should handle all-positive returns (bull market) — VaR is negative (gains)', async () => {
       const bullReturns = [
         0.01, 0.02, 0.03, 0.015, 0.025, 0.005, 0.008, 0.012, 0.018, 0.022,
@@ -426,6 +442,31 @@ describe('RiskService', () => {
 
       expect(results[0].portfolioLoss).toBe(0);
       expect(results[0].portfolioValue).toBe(500_000);
+    });
+
+    it('should preserve exact same-day -7% portfolio loss correspondence', async () => {
+      mockPortfolioService.getPortfolio.mockResolvedValue({
+        totalValue: 1_000_000,
+        positions: [
+          { ticker: 'AAPL', marketValue: 550_000 },
+          { ticker: 'MSFT', marketValue: 450_000 },
+        ],
+      });
+
+      const results = await service.runStressTest('port-1', 'user-1', [
+        {
+          name: 'Same-Day -7%',
+          description: 'Single-session equity shock',
+          marketShock: -0.07,
+        },
+      ]);
+
+      expect(results[0].scenario).toBe('Same-Day -7%');
+      expect(results[0].portfolioLoss).toBeCloseTo(70_000, 2);
+      expect(results[0].portfolioLossPercent).toBeCloseTo(7, 2);
+      expect(results[0].portfolioValue).toBeCloseTo(930_000, 2);
+      expect(results[0].worstPosition.ticker).toBe('AAPL');
+      expect(results[0].worstPosition.loss).toBeCloseTo(38_500, 2);
     });
   });
 });

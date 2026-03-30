@@ -31,7 +31,9 @@ describe('AlmAdvisorService', () => {
   });
 
   it('should build fallback system prompt when data loading fails (ES)', async () => {
-    mockAlmEnterprise.getCOSSECCompliance.mockRejectedValue(new Error('DB error'));
+    mockAlmEnterprise.getCOSSECCompliance.mockRejectedValue(
+      new Error('DB error'),
+    );
     mockAlmEnterprise.getALMSummary.mockRejectedValue(new Error('DB error'));
 
     const prompt = await service.buildSystemPrompt('inst-1', 'es');
@@ -40,7 +42,9 @@ describe('AlmAdvisorService', () => {
   });
 
   it('should build fallback system prompt when data loading fails (EN)', async () => {
-    mockAlmEnterprise.getCOSSECCompliance.mockRejectedValue(new Error('DB error'));
+    mockAlmEnterprise.getCOSSECCompliance.mockRejectedValue(
+      new Error('DB error'),
+    );
     mockAlmEnterprise.getALMSummary.mockRejectedValue(new Error('DB error'));
 
     const prompt = await service.buildSystemPrompt('inst-1', 'en');

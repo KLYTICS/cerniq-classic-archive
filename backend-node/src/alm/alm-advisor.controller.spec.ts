@@ -14,9 +14,7 @@ describe('AlmAdvisorController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AlmAdvisorController],
-      providers: [
-        { provide: AlmAdvisorService, useValue: advisorService },
-      ],
+      providers: [{ provide: AlmAdvisorService, useValue: advisorService }],
     })
       .overrideGuard(AuthGuard)
       .useValue({ canActivate: () => true })
@@ -36,9 +34,7 @@ describe('AlmAdvisorController', () => {
 
       const dto = {
         message: 'What is the risk?',
-        conversationHistory: [
-          { role: 'user' as const, content: 'Hello' },
-        ],
+        conversationHistory: [{ role: 'user' as const, content: 'Hello' }],
         language: 'en' as const,
       };
 

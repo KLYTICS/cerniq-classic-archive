@@ -63,8 +63,8 @@ describe('ParseUUIDSafePipe', () => {
 
   it('should reject UUIDs without dashes', () => {
     const pipe = new ParseUUIDSafePipe();
-    expect(() =>
-      pipe.transform('a1b2c3d4e5f67890abcdef1234567890'),
-    ).toThrow(BadRequestException);
+    expect(() => pipe.transform('a1b2c3d4e5f67890abcdef1234567890')).toThrow(
+      BadRequestException,
+    );
   });
 });

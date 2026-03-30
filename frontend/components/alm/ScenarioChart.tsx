@@ -28,6 +28,13 @@ interface ScenarioChartProps {
   yAxisLabel?: string;
 }
 
+export function formatScenarioValue(
+  value: unknown,
+  dataKey: 'niImpact' | 'mveImpact',
+) {
+  return [`$${Number(value ?? 0).toFixed(2)}M`, dataKey === 'niImpact' ? 'NII Impact' : 'MVE Impact'];
+}
+
 export default function ScenarioChart({
   scenarios,
   dataKey = 'niImpact',
@@ -59,7 +66,7 @@ export default function ScenarioChart({
               borderRadius: 8,
               color: '#f1f5f9',
             }}
-            formatter={(value) => [`$${Number(value ?? 0).toFixed(2)}M`, dataKey === 'niImpact' ? 'NII Impact' : 'MVE Impact']}
+            formatter={(value) => formatScenarioValue(value, dataKey)}
           />
           <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
           <Bar dataKey={dataKey} radius={[4, 4, 0, 0]}>

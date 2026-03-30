@@ -16,6 +16,10 @@ describe('url-params', () => {
     it('returns first element of array param', () => {
       expect(paramString(params, 'arr')).toBe('a');
     });
+
+    it('falls back when the array param is empty', () => {
+      expect(paramString({ arr: [] }, 'arr', 'fallback')).toBe('fallback');
+    });
   });
 
   describe('paramInt', () => {
@@ -31,6 +35,10 @@ describe('url-params', () => {
   describe('paramBool', () => {
     it('parses true values', () => {
       expect(paramBool(params, 'active')).toBe(true);
+    });
+
+    it('parses false values', () => {
+      expect(paramBool({ active: 'no' }, 'active', true)).toBe(false);
     });
 
     it('returns fallback for missing', () => {

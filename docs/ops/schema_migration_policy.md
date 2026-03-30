@@ -20,6 +20,8 @@ That means automatic `prisma migrate deploy` on container startup is risky:
 
 ## Production Workflow
 
+Schema releases still follow the repo-wide PR-gated `main` policy: get the PR green first, run the explicit migration step from a controlled release action, then merge/deploy application code.
+
 1. Create and review migrations locally:
 
 ```bash

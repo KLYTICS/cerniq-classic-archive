@@ -7,7 +7,7 @@ import { createCheckoutSession } from '@/lib/billing';
 import { analytics, EVENTS } from '@/lib/analytics';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
 
-function getCtaLabel(tierId: string, lang: 'en' | 'es') {
+export function getCtaLabel(tierId: string, lang: 'en' | 'es') {
   if (lang === 'en') {
     switch (tierId) {
       case 'one_time': return 'Start — $750';
@@ -27,12 +27,19 @@ function getCtaLabel(tierId: string, lang: 'en' | 'es') {
   }
 }
 
+export function getInitialPricingLanguage(
+  storage: Pick<Storage, 'getItem'> | null,
+): 'en' | 'es' {
+  return (storage?.getItem('cerniq_lang') as 'en' | 'es') || 'en';
+}
+
 export default function PricingPage() {
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
-  const [lang, setLang] = useState<'en' | 'es'>(() => {
-    if (typeof window !== 'undefined') return (localStorage.getItem('cerniq_lang') as 'en' | 'es') || 'en';
-    return 'en';
-  });
+  const [lang, setLang] = useState<'en' | 'es'>(() =>
+    getInitialPricingLanguage(
+      typeof window !== 'undefined' ? window.localStorage : null,
+    ),
+  );
 
   const t = (en: string, es: string) => lang === 'en' ? en : es;
 

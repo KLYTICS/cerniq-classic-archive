@@ -16,17 +16,16 @@ export default function SessionTimeoutWarning({ enabled = true, timeoutMinutes =
   const router = useRouter();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const authRevision = useAuthStore((state) => state.authRevision);
+  const logout = useAuthStore((state) => state.logout);
   const sessionTimeoutEnabled = enabled && isAuthenticated;
 
   const handleTimeout = useCallback(() => {
     // Clear session and redirect to login
     setWarningAuthRevision(null);
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('cerniq_access_token');
-      localStorage.removeItem('cerniq_access_token');
-    }
-    router.push('/login?reason=timeout');
-  }, [router]);
+    void logout().finally(() => {
+      router.push('/login?reason=timeout');
+    });
+  }, [logout, router]);
 
   const handleWarning = useCallback(() => {
     if (sessionTimeoutEnabled) {

@@ -15,8 +15,20 @@ describe('WeightedAverageCouponService', () => {
 
   it('computes balance-weighted average coupon correctly', () => {
     const result = service.calculate([
-      { name: 'High Rate Loan', balance: 500000, couponRate: 0.06, remainingTermMonths: 120, originalTermMonths: 360 },
-      { name: 'Low Rate Loan', balance: 500000, couponRate: 0.04, remainingTermMonths: 60, originalTermMonths: 120 },
+      {
+        name: 'High Rate Loan',
+        balance: 500000,
+        couponRate: 0.06,
+        remainingTermMonths: 120,
+        originalTermMonths: 360,
+      },
+      {
+        name: 'Low Rate Loan',
+        balance: 500000,
+        couponRate: 0.04,
+        remainingTermMonths: 60,
+        originalTermMonths: 120,
+      },
     ]);
 
     // Equal balances: WAC = (0.06 + 0.04) / 2 = 0.05
@@ -28,8 +40,20 @@ describe('WeightedAverageCouponService', () => {
 
   it('computes WAM weighted by balance, not equal-weighted', () => {
     const result = service.calculate([
-      { name: 'Short Loan', balance: 100000, couponRate: 0.05, remainingTermMonths: 12, originalTermMonths: 60 },
-      { name: 'Long Loan', balance: 900000, couponRate: 0.05, remainingTermMonths: 240, originalTermMonths: 360 },
+      {
+        name: 'Short Loan',
+        balance: 100000,
+        couponRate: 0.05,
+        remainingTermMonths: 12,
+        originalTermMonths: 60,
+      },
+      {
+        name: 'Long Loan',
+        balance: 900000,
+        couponRate: 0.05,
+        remainingTermMonths: 240,
+        originalTermMonths: 360,
+      },
     ]);
 
     // WAM should be heavily weighted toward 240 months: (100k*12 + 900k*240) / 1M = 217.2
@@ -40,7 +64,13 @@ describe('WeightedAverageCouponService', () => {
 
   it('computes seasoning as WAOL minus WAM', () => {
     const result = service.calculate([
-      { name: 'Loan A', balance: 1000000, couponRate: 0.05, remainingTermMonths: 200, originalTermMonths: 360 },
+      {
+        name: 'Loan A',
+        balance: 1000000,
+        couponRate: 0.05,
+        remainingTermMonths: 200,
+        originalTermMonths: 360,
+      },
     ]);
 
     // WAOL = 360, WAM = 200, seasoning = 160
@@ -53,9 +83,27 @@ describe('WeightedAverageCouponService', () => {
 
   it('returns segments with weights summing to 100%', () => {
     const result = service.calculate([
-      { name: 'Loan A', balance: 300000, couponRate: 0.055, remainingTermMonths: 120, originalTermMonths: 240 },
-      { name: 'Loan B', balance: 500000, couponRate: 0.045, remainingTermMonths: 180, originalTermMonths: 300 },
-      { name: 'Loan C', balance: 200000, couponRate: 0.065, remainingTermMonths: 60, originalTermMonths: 120 },
+      {
+        name: 'Loan A',
+        balance: 300000,
+        couponRate: 0.055,
+        remainingTermMonths: 120,
+        originalTermMonths: 240,
+      },
+      {
+        name: 'Loan B',
+        balance: 500000,
+        couponRate: 0.045,
+        remainingTermMonths: 180,
+        originalTermMonths: 300,
+      },
+      {
+        name: 'Loan C',
+        balance: 200000,
+        couponRate: 0.065,
+        remainingTermMonths: 60,
+        originalTermMonths: 120,
+      },
     ]);
 
     const totalWeight = result.segments.reduce((s, seg) => s + seg.weight, 0);
@@ -67,7 +115,13 @@ describe('WeightedAverageCouponService', () => {
 
   it('produces interpretation with WAC as percentage and WAM in years', () => {
     const result = service.calculate([
-      { name: 'Mortgage', balance: 1000000, couponRate: 0.055, remainingTermMonths: 300, originalTermMonths: 360 },
+      {
+        name: 'Mortgage',
+        balance: 1000000,
+        couponRate: 0.055,
+        remainingTermMonths: 300,
+        originalTermMonths: 360,
+      },
     ]);
 
     // WAC: 5.50%, WAM: 25.0 years, seasoning: 5.0 years

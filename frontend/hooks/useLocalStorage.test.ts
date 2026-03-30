@@ -1,6 +1,20 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useLocalStorage } from './useLocalStorage';
+import {
+  createLocalStorageSubscription,
+  getLocalStorageServerSnapshot,
+  notifyLocalStorageChange,
+  readStoredValue,
+  readStoredValueRaw,
+  useLocalStorage,
+} from './useLocalStorage';
+
+function createStorageEvent(key: string) {
+  const event = new Event('storage') as StorageEvent;
+  Object.defineProperty(event, 'key', { value: key });
+  Object.defineProperty(event, 'storageArea', { value: window.localStorage });
+  return event;
+}
 
 describe('useLocalStorage', () => {
   beforeEach(() => {
@@ -67,6 +81,79 @@ describe('useLocalStorage', () => {
     expect(JSON.parse(localStorage.getItem('config')!)).toEqual(updated);
   });
 
+  it('updates when the browser storage event changes the same key', () => {
+    localStorage.setItem('desk', JSON.stringify('initial'));
+    const { result } = renderHook(() => useLocalStorage('desk', 'default'));
+
+    act(() => {
+      localStorage.setItem('desk', JSON.stringify('updated'));
+      window.dispatchEvent(createStorageEvent('desk'));
+    });
+
+    expect(result.current[0]).toBe('updated');
+  });
+
+  it('updates when the app dispatches a matching custom local-storage event', () => {
+    const { result } = renderHook(() => useLocalStorage('desk', 'default'));
+
+    act(() => {
+      localStorage.setItem('desk', JSON.stringify('coordinated'));
+      window.dispatchEvent(
+        new CustomEvent('cerniq:local-storage-change', {
+          detail: { key: 'desk' },
+        }),
+      );
+    });
+
+    expect(result.current[0]).toBe('coordinated');
+  });
+
+  it('updates when the app dispatches a custom event without a key detail', () => {
+    const { result } = renderHook(() => useLocalStorage('desk', 'default'));
+
+    act(() => {
+      localStorage.setItem('desk', JSON.stringify('broadcast'));
+      window.dispatchEvent(new CustomEvent('cerniq:local-storage-change'));
+    });
+
+    expect(result.current[0]).toBe('broadcast');
+  });
+
+  it('ignores storage updates for different keys', () => {
+    const { result } = renderHook(() => useLocalStorage('desk', 'default'));
+
+    act(() => {
+      localStorage.setItem('other', JSON.stringify('changed'));
+      window.dispatchEvent(createStorageEvent('other'));
+    });
+
+    expect(result.current[0]).toBe('default');
+  });
+
+  it('ignores storage updates from a different storage area', () => {
+    const { result } = renderHook(() => useLocalStorage('desk', 'default'));
+    const event = new Event('storage') as StorageEvent;
+    Object.defineProperty(event, 'key', { value: 'desk' });
+    Object.defineProperty(event, 'storageArea', { value: sessionStorage });
+
+    act(() => {
+      localStorage.setItem('desk', JSON.stringify('changed'));
+      window.dispatchEvent(event);
+    });
+
+    expect(result.current[0]).toBe('default');
+  });
+
+  it('falls back to the initial value when stored JSON is invalid', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    localStorage.setItem('broken', '{not-json');
+
+    const { result } = renderHook(() => useLocalStorage('broken', 'fallback'));
+
+    expect(result.current[0]).toBe('fallback');
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
   it('handles localStorage errors gracefully', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
@@ -80,5 +167,80 @@ describe('useLocalStorage', () => {
     });
 
     expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('handles localStorage read errors gracefully', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('read failed');
+    });
+
+    const { result } = renderHook(() => useLocalStorage('key', 'default'));
+
+    expect(result.current[0]).toBe('default');
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('covers direct helper read failures in readStoredValue', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('read failed');
+    });
+
+    expect(readStoredValue('desk', 'fallback')).toBe('fallback');
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('handles localStorage remove errors gracefully', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('remove failed');
+    });
+
+    const { result } = renderHook(() => useLocalStorage('key', 'default'));
+
+    act(() => {
+      result.current[2]();
+    });
+
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('exposes helper fallbacks when browser storage is unavailable', () => {
+    const originalWindow = globalThis.window;
+    Reflect.deleteProperty(globalThis, 'window');
+
+    try {
+      expect(readStoredValue('desk', 'fallback')).toBe('fallback');
+      expect(readStoredValueRaw('desk')).toBeNull();
+      expect(() => notifyLocalStorageChange('desk')).not.toThrow();
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: originalWindow,
+      });
+    }
+  });
+
+  it('parses helper reads when valid JSON is present', () => {
+    localStorage.setItem('desk', JSON.stringify({ live: true }));
+
+    expect(readStoredValue('desk', { live: false })).toEqual({ live: true });
+    expect(readStoredValueRaw('desk')).toBe('{"live":true}');
+  });
+  it('returns a noop unsubscribe and null server snapshot without window access', () => {
+    const originalWindow = globalThis.window;
+    Reflect.deleteProperty(globalThis, 'window');
+
+    try {
+      const unsubscribe = createLocalStorageSubscription('desk', vi.fn());
+      expect(getLocalStorageServerSnapshot()).toBeNull();
+      expect(() => unsubscribe()).not.toThrow();
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: originalWindow,
+      });
+    }
   });
 });

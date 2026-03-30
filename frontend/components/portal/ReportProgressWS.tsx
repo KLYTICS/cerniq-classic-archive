@@ -7,6 +7,7 @@ import {
   CheckCircle, Circle, Loader2, AlertTriangle,
   Download, Eye, RefreshCw, Wifi, WifiOff,
 } from 'lucide-react';
+import { getAccessToken } from '@/lib/auth-session';
 import { useTranslation } from '@/lib/i18n';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
@@ -92,7 +93,7 @@ function usePollFallback(
     if (!enabled) return;
     const interval = setInterval(async () => {
       try {
-        const token = typeof window !== 'undefined' ? (sessionStorage.getItem('cerniq_access_token') || localStorage.getItem('cerniq_access_token')) : null;
+        const token = getAccessToken() || null;
         const res = await fetch(`${NODE_API_URL}/api/portal/jobs/${jobId}`, {
           credentials: 'include',
           headers: token ? { Authorization: `Bearer ${token}` } : {},

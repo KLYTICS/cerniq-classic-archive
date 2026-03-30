@@ -12,11 +12,19 @@ concurrency:
 
 env:
   NODE_VERSION: '20'
+  BACKEND_COVERAGE_MIN_STATEMENTS: '80.94'
+  BACKEND_COVERAGE_MIN_BRANCHES: '61.67'
+  BACKEND_COVERAGE_MIN_FUNCTIONS: '81.84'
+  BACKEND_COVERAGE_MIN_LINES: '81.03'
+  FRONTEND_COVERAGE_MIN_STATEMENTS: '98.67'
+  FRONTEND_COVERAGE_MIN_BRANCHES: '90.53'
+  FRONTEND_COVERAGE_MIN_FUNCTIONS: '98.89'
+  FRONTEND_COVERAGE_MIN_LINES: '98.77'
 
 jobs:
   # Backend NestJS — lint, test, build
   backend-test:
-    name: Backend Tests
+    name: Backend Tests and Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -90,13 +98,31 @@ jobs:
         working-directory: backend-node
         run: npm run lint
 
-      - name: Unit tests
+      - name: Unit tests with coverage
         working-directory: backend-node
-        run: npm run test -- --forceExit
+        run: npm run test:cov -- --runInBand --coverageReporters=text-summary --coverageReporters=json-summary --forceExit
         env:
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
           DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
+
+      - name: Enforce backend coverage floor
+        run: >
+          node scripts/check-coverage-thresholds.mjs
+          backend-node/coverage/coverage-summary.json
+          backend
+          "${{ env.BACKEND_COVERAGE_MIN_STATEMENTS }}"
+          "${{ env.BACKEND_COVERAGE_MIN_BRANCHES }}"
+          "${{ env.BACKEND_COVERAGE_MIN_FUNCTIONS }}"
+          "${{ env.BACKEND_COVERAGE_MIN_LINES }}"
+
+      - name: Upload backend coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: backend-node/coverage/
+          retention-days: 14
 
       - name: Build
         working-directory: backend-node
@@ -107,7 +133,7 @@ jobs:
 
   # Frontend Next.js — lint, build
   frontend-test:
-    name: Frontend Build
+    name: Frontend Build and Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -140,9 +166,27 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3000
 
-      - name: Run component tests
+      - name: Run component tests with coverage
         working-directory: frontend
-        run: npx vitest run
+        run: npm run test:cov
+
+      - name: Enforce frontend coverage floor
+        run: >
+          node scripts/check-coverage-thresholds.mjs
+          frontend/coverage/coverage-summary.json
+          frontend
+          "${{ env.FRONTEND_COVERAGE_MIN_STATEMENTS }}"
+          "${{ env.FRONTEND_COVERAGE_MIN_BRANCHES }}"
+          "${{ env.FRONTEND_COVERAGE_MIN_FUNCTIONS }}"
+          "${{ env.FRONTEND_COVERAGE_MIN_LINES }}"
+
+      - name: Upload frontend coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          retention-days: 14
 
       - name: Bundle size check
         working-directory: frontend

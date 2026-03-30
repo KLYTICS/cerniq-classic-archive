@@ -8,7 +8,12 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import * as Sentry from '@sentry/nestjs';
 import pg from 'pg';
 
-const { PrismaClient } = require('@prisma/client');
+const prismaModule = require('@prisma/client');
+const PrismaClientBase =
+  prismaModule?.PrismaClient ??
+  class {
+    constructor(..._args: any[]) {}
+  };
 
 /** Queries exceeding this threshold are logged as warnings. */
 const SLOW_QUERY_WARN_MS = parseInt(
@@ -28,9 +33,14 @@ export interface PoolStats {
   maxSize: number;
 }
 
+function parsePoolSize(raw: string | undefined): number {
+  const parsed = parseInt(raw || '20', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 20;
+}
+
 @Injectable()
 export class PrismaService
-  extends PrismaClient
+  extends PrismaClientBase
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger('PrismaService');
@@ -44,7 +54,7 @@ export class PrismaService
   constructor() {
     const connectionString = process.env.DATABASE_URL;
     if (connectionString) {
-      const poolSize = parseInt(process.env.DATABASE_POOL_SIZE || '20', 10);
+      const poolSize = parsePoolSize(process.env.DATABASE_POOL_SIZE);
       const pool = new pg.Pool({
         connectionString,
         max: poolSize,
@@ -117,7 +127,7 @@ export class PrismaService
     (this as any)._request = async function (internalParams: any) {
       const model: string | undefined = internalParams.model;
       const action: string | undefined = internalParams.action;
-      const label = model ? `${model}.${action}` : (action ?? 'unknown');
+      const label = model && action ? `${model}.${action}` : 'unknown';
 
       const start = Date.now();
       try {
@@ -125,7 +135,7 @@ export class PrismaService
       } finally {
         const duration = Date.now() - start;
 
-        if (duration > SLOW_QUERY_ERROR_MS) {
+        if (duration >= SLOW_QUERY_ERROR_MS) {
           logger.error(`Slow query: ${label} took ${duration}ms`);
           Sentry.captureMessage(`Slow DB query: ${label} (${duration}ms)`, {
             level: 'warning',
@@ -136,7 +146,7 @@ export class PrismaService
             },
             extra: { durationMs: duration, threshold: SLOW_QUERY_ERROR_MS },
           });
-        } else if (duration > SLOW_QUERY_WARN_MS) {
+        } else if (duration >= SLOW_QUERY_WARN_MS) {
           logger.warn(`Slow query: ${label} took ${duration}ms`);
         }
       }

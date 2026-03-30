@@ -20,9 +20,7 @@ describe('TickerController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TickerController],
-      providers: [
-        { provide: TickerService, useValue: tickerService },
-      ],
+      providers: [{ provide: TickerService, useValue: tickerService }],
     })
       .overrideGuard(AuthGuard)
       .useValue({ canActivate: () => true })
@@ -77,7 +75,11 @@ describe('TickerController', () => {
 
   describe('createTicker', () => {
     it('should create a new ticker', async () => {
-      const createDto = { symbol: 'TSLA', name: 'Tesla Inc', assetType: 'stock' };
+      const createDto = {
+        symbol: 'TSLA',
+        name: 'Tesla Inc',
+        assetType: 'stock',
+      };
       const mockTicker = { ...createDto, id: 't1' };
       tickerService.createTicker.mockResolvedValue(mockTicker);
 
@@ -114,9 +116,9 @@ describe('TickerController', () => {
     it('should throw HttpException on error', async () => {
       tickerService.updateTicker.mockRejectedValue(new Error('Not found'));
 
-      await expect(
-        controller.updateTicker('BAD', {} as any),
-      ).rejects.toThrow(HttpException);
+      await expect(controller.updateTicker('BAD', {} as any)).rejects.toThrow(
+        HttpException,
+      );
     });
   });
 

@@ -2,7 +2,10 @@
 
 import { useCallback, useSyncExternalStore } from 'react';
 
-function subscribeToMediaQuery(query: string, onStoreChange: () => void) {
+export function subscribeToMediaQuery(
+  query: string,
+  onStoreChange: () => void,
+) {
   if (typeof window === 'undefined') {
     return () => {};
   }
@@ -13,7 +16,7 @@ function subscribeToMediaQuery(query: string, onStoreChange: () => void) {
   return () => mql.removeEventListener('change', handler);
 }
 
-function getMediaQuerySnapshot(query: string): boolean {
+export function getMediaQuerySnapshot(query: string): boolean {
   if (typeof window === 'undefined') {
     return false;
   }

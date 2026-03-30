@@ -7,22 +7,28 @@ test.describe('API Health & Contracts', () => {
     const response = await request.get(`${API_BASE}/health`);
     expect(response.ok()).toBeTruthy();
     const body = await response.json();
-    // Health endpoint returns { status, timestamp, version, services }
-    expect(body).toHaveProperty('status');
-    expect(body).toHaveProperty('timestamp');
-    expect(body).toHaveProperty('version');
-    expect(body).toHaveProperty('services');
-    expect(body.services).toHaveProperty('api', 'up');
-    expect(['healthy', 'degraded']).toContain(body.status);
+    expect(body).toHaveProperty('success', true);
+    expect(body).toHaveProperty('data');
+    const payload = body.data;
+    // Health endpoint returns { status, timestamp, version, services } where
+    // status is ok/degraded/down for the public surface.
+    expect(payload).toHaveProperty('status');
+    expect(payload).toHaveProperty('timestamp');
+    expect(payload).toHaveProperty('version');
+    expect(payload).toHaveProperty('services');
+    expect(payload.services).toHaveProperty('api', 'up');
+    expect(['ok', 'degraded', 'down']).toContain(payload.status);
   });
 
   test('API status endpoint returns service metadata', async ({ request }) => {
     const response = await request.get(`${API_BASE}/api/status`);
     expect(response.ok()).toBeTruthy();
     const body = await response.json();
-    expect(body).toHaveProperty('name', 'CERNIQ API');
-    expect(body).toHaveProperty('version');
-    expect(body).toHaveProperty('endpoints');
+    expect(body).toHaveProperty('success', true);
+    expect(body).toHaveProperty('data');
+    expect(body.data).toHaveProperty('name', 'CERNIQ API');
+    expect(body.data).toHaveProperty('version');
+    expect(body.data).toHaveProperty('endpoints');
   });
 
   test('API returns standard error envelope for invalid routes', async ({ request }) => {

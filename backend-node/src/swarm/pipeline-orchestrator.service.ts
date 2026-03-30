@@ -60,16 +60,18 @@ export class PipelineOrchestratorService {
         ready.map(async (step) => {
           pending.delete(step.id);
           onProgress?.(step.id, 'running');
+          let timeoutHandle: NodeJS.Timeout | undefined;
 
           try {
             const result = await Promise.race([
               step.execute(results),
-              new Promise<never>((_, reject) =>
-                setTimeout(
+              new Promise<never>((_, reject) => {
+                timeoutHandle = setTimeout(
                   () => reject(new Error(`Timeout after ${step.timeoutMs}ms`)),
                   step.timeoutMs,
-                ),
-              ),
+                );
+                timeoutHandle.unref?.();
+              }),
             ]);
             results[step.id] = result;
             completed.add(step.id);
@@ -81,6 +83,10 @@ export class PipelineOrchestratorService {
             this.logger.warn(
               `Pipeline step ${step.name} failed: ${err.message}`,
             );
+          } finally {
+            if (timeoutHandle) {
+              clearTimeout(timeoutHandle);
+            }
           }
         }),
       );

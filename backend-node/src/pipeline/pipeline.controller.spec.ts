@@ -44,8 +44,8 @@ describe('PipelineController', () => {
       const mockJobs = [{ id: 'job-1', status: 'COMPLETE' }];
       prismaService.reportJob.findMany.mockResolvedValue(mockJobs);
       prismaService.reportJob.count
-        .mockResolvedValueOnce(5)  // awaitingData
-        .mockResolvedValueOnce(2)  // processing
+        .mockResolvedValueOnce(5) // awaitingData
+        .mockResolvedValueOnce(2) // processing
         .mockResolvedValueOnce(10) // complete
         .mockResolvedValueOnce(1); // failed
 
@@ -151,16 +151,16 @@ describe('PipelineController', () => {
   describe('getRevenueMetrics', () => {
     it('should return revenue metrics', async () => {
       prismaService.lead.aggregate
-        .mockResolvedValueOnce({ _sum: { revenueAmount: 500 } })   // today
-        .mockResolvedValueOnce({ _sum: { revenueAmount: 5000 } })  // month
+        .mockResolvedValueOnce({ _sum: { revenueAmount: 500 } }) // today
+        .mockResolvedValueOnce({ _sum: { revenueAmount: 5000 } }) // month
         .mockResolvedValueOnce({ _sum: { revenueAmount: 50000 } }); // year
 
       prismaService.subscription.count
-        .mockResolvedValueOnce(10)  // active subscriptions (not one_time)
-        .mockResolvedValueOnce(15)  // total subscriptions
-        .mockResolvedValueOnce(5)   // monthly
-        .mockResolvedValueOnce(3)   // annual
-        .mockResolvedValueOnce(2);  // partner
+        .mockResolvedValueOnce(10) // active subscriptions (not one_time)
+        .mockResolvedValueOnce(15) // total subscriptions
+        .mockResolvedValueOnce(5) // monthly
+        .mockResolvedValueOnce(3) // annual
+        .mockResolvedValueOnce(2); // partner
 
       const result = await controller.getRevenueMetrics();
       expect(result.revenueToday).toBe(500);

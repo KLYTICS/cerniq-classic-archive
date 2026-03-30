@@ -10,6 +10,7 @@ describe('RateLimitByUserGuard', () => {
   });
 
   afterEach(() => {
+    guard?.onModuleDestroy();
     jest.useRealTimers();
   });
 
@@ -132,5 +133,26 @@ describe('RateLimitByUserGuard', () => {
 
     const { ctx } = createMockContext(userId);
     expect(guard.canActivate(ctx)).toBe(true);
+  });
+
+  it('unrefs and clears the background cleanup timer', () => {
+    jest.useRealTimers();
+    const timer = { unref: jest.fn() } as unknown as NodeJS.Timeout;
+    const setIntervalSpy = jest
+      .spyOn(global, 'setInterval')
+      .mockReturnValue(timer);
+    const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+
+    const testGuard = new RateLimitByUserGuard(3, 60_000);
+
+    expect((timer as any).unref).toHaveBeenCalled();
+
+    testGuard.onModuleDestroy();
+
+    expect(clearIntervalSpy).toHaveBeenCalledWith(timer);
+
+    setIntervalSpy.mockRestore();
+    clearIntervalSpy.mockRestore();
+    jest.useFakeTimers();
   });
 });
