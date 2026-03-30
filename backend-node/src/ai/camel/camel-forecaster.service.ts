@@ -76,7 +76,7 @@ export class CamelForecasterService {
     return forecasts;
   }
 
-  private getDimensionSeries(reports: any[], dim: string): number[] {
+  private getDimensionSeries(reports: any[], _dim: string): number[] {
     if (reports.length >= 4) {
       // Derive from composite (simplified — production would store per-dimension)
       return reports.map((r) => r.camelComposite ?? 2.5);

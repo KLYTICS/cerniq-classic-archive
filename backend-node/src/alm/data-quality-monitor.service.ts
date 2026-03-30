@@ -155,7 +155,7 @@ export class DataQualityMonitorService {
     params: BalanceSheetInput,
     criticals: DataQualityIssue[],
     warnings: DataQualityIssue[],
-    infos: DataQualityIssue[],
+    _infos: DataQualityIssue[],
   ): CheckResult {
     const issues: string[] = [];
     let deductions = 0;
@@ -344,7 +344,7 @@ export class DataQualityMonitorService {
     params: BalanceSheetInput,
     criticals: DataQualityIssue[],
     warnings: DataQualityIssue[],
-    infos: DataQualityIssue[],
+    _infos: DataQualityIssue[],
   ): CheckResult {
     const issues: string[] = [];
     let deductions = 0;
@@ -754,7 +754,7 @@ export class DataQualityMonitorService {
     params: BalanceSheetInput,
     criticals: DataQualityIssue[],
     warnings: DataQualityIssue[],
-    infos: DataQualityIssue[],
+    _infos: DataQualityIssue[],
   ): CheckResult {
     const issues: string[] = [];
     let deductions = 0;

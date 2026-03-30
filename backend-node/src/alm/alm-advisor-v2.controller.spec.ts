@@ -16,9 +16,7 @@ describe('AlmAdvisorV2Controller', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AlmAdvisorV2Controller],
-      providers: [
-        { provide: AlmAdvisorV2Service, useValue: advisorV2Service },
-      ],
+      providers: [{ provide: AlmAdvisorV2Service, useValue: advisorV2Service }],
     })
       .overrideGuard(AuthGuard)
       .useValue({ canActivate: () => true })
@@ -67,7 +65,9 @@ describe('AlmAdvisorV2Controller', () => {
 
       const result = await controller.getHealthScore('inst-1');
       expect(result).toEqual(mockScore);
-      expect(advisorV2Service.computeHealthScore).toHaveBeenCalledWith('inst-1');
+      expect(advisorV2Service.computeHealthScore).toHaveBeenCalledWith(
+        'inst-1',
+      );
     });
 
     it('should propagate errors from service', async () => {

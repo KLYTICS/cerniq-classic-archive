@@ -27,26 +27,6 @@ export interface OptimizationResult {
   narrativeEs: string;
 }
 
-// Rates by subcategory (average current market rates)
-const ASSET_RATES: Record<string, number> = {
-  cash: 0.048,
-  securities: 0.042,
-  consumer_loans: 0.072,
-  auto_loans: 0.065,
-  residential_mortgage: 0.055,
-  commercial_re: 0.058,
-  commercial_loans: 0.068,
-  credit_cards: 0.145,
-};
-
-const LIABILITY_RATES: Record<string, number> = {
-  demand_deposits: 0.005,
-  savings: 0.015,
-  time_deposits: 0.04,
-  money_market: 0.025,
-  borrowings: 0.052,
-};
-
 // Constraint limits
 const CONSTRAINTS = {
   LCR_MIN: 100,

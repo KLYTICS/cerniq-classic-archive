@@ -3,17 +3,34 @@ import { ValuationService } from './valuation.service';
 
 describe('ValuationService', () => {
   let service: ValuationService;
-  const mockCyclicalEngine = { calculate: jest.fn().mockReturnValue({ fairValue: 100, upside: 15 }) };
-  const mockCompounderEngine = { calculate: jest.fn().mockReturnValue({ fairValue: 200, upside: 20 }) };
-  const mockFrontierEngine = { calculate: jest.fn().mockReturnValue({ probabilityWeightedValue: 300, upside: 50 }) };
-  const mockKpiEngine = { calculate: jest.fn().mockReturnValue({ overallScore: 85 }) };
+  const mockCyclicalEngine = {
+    calculate: jest.fn().mockReturnValue({ fairValue: 100, upside: 15 }),
+  };
+  const mockCompounderEngine = {
+    calculate: jest.fn().mockReturnValue({ fairValue: 200, upside: 20 }),
+  };
+  const mockFrontierEngine = {
+    calculate: jest
+      .fn()
+      .mockReturnValue({ probabilityWeightedValue: 300, upside: 50 }),
+  };
+  const mockKpiEngine = {
+    calculate: jest.fn().mockReturnValue({ overallScore: 85 }),
+  };
   const mockMarketDataService = {
     getQuote: jest.fn().mockResolvedValue({ price: 150 }),
     getFundamentals: jest.fn().mockResolvedValue({ sector: 'Technology' }),
   };
   const mockTickerService = {
     listTickers: jest.fn().mockResolvedValue({
-      tickers: [{ ticker: 'AAPL', name: 'Apple', sector: 'Technology', marketCap: 3000000 }],
+      tickers: [
+        {
+          ticker: 'AAPL',
+          name: 'Apple',
+          sector: 'Technology',
+          marketCap: 3000000,
+        },
+      ],
     }),
   };
 
@@ -40,7 +57,10 @@ describe('ValuationService', () => {
   });
 
   it('should use cyclical engine when explicitly requested', async () => {
-    const result = await service.getValuation({ ticker: 'CLF', valuationType: 'cyclical' });
+    const result = await service.getValuation({
+      ticker: 'CLF',
+      valuationType: 'cyclical',
+    });
     expect(mockCyclicalEngine.calculate).toHaveBeenCalled();
   });
 

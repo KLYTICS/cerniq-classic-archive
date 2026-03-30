@@ -130,7 +130,7 @@ export class DataPrivacyService {
 
     if (scope === 'member_pii_only') {
       // Anonymize PII fields only
-      const result = await this.prisma.institution.update({
+      await this.prisma.institution.update({
         where: { id: institutionId },
         data: {
           contactName: 'REDACTED',

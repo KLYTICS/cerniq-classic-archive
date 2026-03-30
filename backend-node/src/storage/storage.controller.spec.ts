@@ -16,9 +16,7 @@ describe('StorageController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [StorageController],
-      providers: [
-        { provide: StorageService, useValue: storageService },
-      ],
+      providers: [{ provide: StorageService, useValue: storageService }],
     })
       .overrideGuard(AuthGuard)
       .useValue({ canActivate: () => true })
@@ -33,7 +31,10 @@ describe('StorageController', () => {
 
   describe('generateUploadUrl', () => {
     it('should generate upload URL with org from header', async () => {
-      const mockResult = { url: 'https://s3.example.com/upload', key: 'file-key' };
+      const mockResult = {
+        url: 'https://s3.example.com/upload',
+        key: 'file-key',
+      };
       storageService.generateUploadUrl.mockResolvedValue(mockResult);
 
       const dto = { filename: 'report.pdf', contentType: 'application/pdf' };

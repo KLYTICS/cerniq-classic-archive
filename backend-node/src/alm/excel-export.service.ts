@@ -8,24 +8,6 @@ function round(value: number, decimals: number): number {
   return Math.round(value * factor) / factor;
 }
 
-/**
- * Escape a value for inclusion in a TSV cell.
- * Wraps strings containing tabs, newlines, or quotes in double-quotes.
- */
-function escapeCell(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  const str = String(value);
-  if (str.includes('\t') || str.includes('\n') || str.includes('"')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-/** Build a single TSV row from an array of values */
-function tsvRow(values: unknown[]): string {
-  return values.map(escapeCell).join('\t');
-}
-
 @Injectable()
 export class ExcelExportService {
   private readonly logger = new Logger(ExcelExportService.name);

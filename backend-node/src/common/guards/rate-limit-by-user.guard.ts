@@ -5,6 +5,7 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  OnModuleDestroy,
 } from '@nestjs/common';
 
 /**
@@ -13,18 +14,24 @@ import {
  * For production, replace with Redis-backed implementation.
  */
 @Injectable()
-export class RateLimitByUserGuard implements CanActivate {
+export class RateLimitByUserGuard implements CanActivate, OnModuleDestroy {
   private readonly logger = new Logger(RateLimitByUserGuard.name);
   private readonly windowMs: number;
   private readonly maxRequests: number;
   private readonly store = new Map<string, number[]>();
+  private readonly cleanupTimer: ReturnType<typeof setInterval>;
 
   constructor(maxRequests = 100, windowMs = 60_000) {
     this.maxRequests = maxRequests;
     this.windowMs = windowMs;
 
     // Cleanup stale entries every 5 minutes
-    setInterval(() => this.cleanup(), 5 * 60_000);
+    this.cleanupTimer = setInterval(() => this.cleanup(), 5 * 60_000);
+    if (this.cleanupTimer.unref) this.cleanupTimer.unref();
+  }
+
+  onModuleDestroy(): void {
+    clearInterval(this.cleanupTimer);
   }
 
   canActivate(context: ExecutionContext): boolean {

@@ -49,10 +49,7 @@ describe('CorrelationIdMiddleware', () => {
     middleware.use(req, res, next);
 
     expect(req.correlationId).toBe('trace-456');
-    expect(res.setHeader).toHaveBeenCalledWith(
-      'X-Correlation-ID',
-      'trace-456',
-    );
+    expect(res.setHeader).toHaveBeenCalledWith('X-Correlation-ID', 'trace-456');
   });
 
   it('should prefer x-correlation-id over x-trace-id', () => {

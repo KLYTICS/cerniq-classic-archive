@@ -17,9 +17,7 @@ describe('VolatilityController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [VolatilityController],
-      providers: [
-        { provide: VolatilityService, useValue: volatilityService },
-      ],
+      providers: [{ provide: VolatilityService, useValue: volatilityService }],
     }).compile();
 
     controller = module.get<VolatilityController>(VolatilityController);
@@ -101,9 +99,9 @@ describe('VolatilityController', () => {
         new Error('fail'),
       );
 
-      await expect(
-        controller.getRealizedVsImplied('BAD'),
-      ).rejects.toThrow(HttpException);
+      await expect(controller.getRealizedVsImplied('BAD')).rejects.toThrow(
+        HttpException,
+      );
     });
   });
 
@@ -131,9 +129,7 @@ describe('VolatilityController', () => {
     });
 
     it('should throw HttpException on error', async () => {
-      volatilityService.getVolatilityStats.mockRejectedValue(
-        new Error('fail'),
-      );
+      volatilityService.getVolatilityStats.mockRejectedValue(new Error('fail'));
 
       await expect(controller.getVolatilityStats('BAD')).rejects.toThrow(
         HttpException,

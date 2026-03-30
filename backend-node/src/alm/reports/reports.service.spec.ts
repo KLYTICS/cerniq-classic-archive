@@ -16,13 +16,33 @@ describe('ReportsService', () => {
     service = new ReportsService(mockAlmEnterprise, mockStressTesting);
 
     mockAlmEnterprise.getALMSummary.mockResolvedValue({
-      institution: { name: 'Test Cooperativa', type: 'cooperativa', totalAssets: 250 },
+      institution: {
+        name: 'Test Cooperativa',
+        type: 'cooperativa',
+        totalAssets: 250,
+      },
       durationGap: { assetDuration: 3.5, liabilityDuration: 1.2, gap: 2.3 },
       niiSensitivity: { up100: -2.1, down100: 1.8 },
       liquidity: { lcr: 118, hqla: 23, netOutflows: 19.5 },
       balanceSheet: {
-        assets: [{ name: 'Loans', balance: 150, rate: 7.5, duration: 4.0, rateType: 'fixed' }],
-        liabilities: [{ name: 'Deposits', balance: 200, rate: 2.0, duration: 0.5, rateType: 'variable' }],
+        assets: [
+          {
+            name: 'Loans',
+            balance: 150,
+            rate: 7.5,
+            duration: 4.0,
+            rateType: 'fixed',
+          },
+        ],
+        liabilities: [
+          {
+            name: 'Deposits',
+            balance: 200,
+            rate: 2.0,
+            duration: 0.5,
+            rateType: 'variable',
+          },
+        ],
         totalAssets: 250,
         totalLiabilities: 225,
         equity: 25,
@@ -35,7 +55,9 @@ describe('ReportsService', () => {
     });
     mockAlmEnterprise.getRegulatoryCompliance.mockResolvedValue({
       framework: 'cossec',
-      ratios: [{ name: 'Capital Ratio', value: 10.5, threshold: 6.0, status: 'PASS' }],
+      ratios: [
+        { name: 'Capital Ratio', value: 10.5, threshold: 6.0, status: 'PASS' },
+      ],
       overallStatus: 'PASS',
     });
     mockAlmEnterprise.getInstitution.mockResolvedValue({
@@ -62,7 +84,9 @@ describe('ReportsService', () => {
       paths: 500,
       horizon: 12,
     });
-    expect(mockAlmEnterprise.getRegulatoryCompliance).toHaveBeenCalledWith('inst-1');
+    expect(mockAlmEnterprise.getRegulatoryCompliance).toHaveBeenCalledWith(
+      'inst-1',
+    );
     expect(mockAlmEnterprise.getInstitution).toHaveBeenCalledWith('inst-1');
   });
 
@@ -101,8 +125,17 @@ describe('ReportsService', () => {
     mockAlmEnterprise.getALMSummary.mockImplementation(() => {
       callOrder.push('summary');
       return Promise.resolve({
-        institution: { name: 'T' }, durationGap: {}, niiSensitivity: {}, liquidity: {},
-        balanceSheet: { assets: [], liabilities: [], totalAssets: 0, totalLiabilities: 0, equity: 0 },
+        institution: { name: 'T' },
+        durationGap: {},
+        niiSensitivity: {},
+        liquidity: {},
+        balanceSheet: {
+          assets: [],
+          liabilities: [],
+          totalAssets: 0,
+          totalLiabilities: 0,
+          equity: 0,
+        },
         recommendations: [],
       });
     });

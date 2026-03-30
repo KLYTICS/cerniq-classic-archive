@@ -42,7 +42,11 @@ describe('PerformanceInterceptor', () => {
   });
 
   it('should record route metrics', async () => {
-    const { ctx } = createMockContext('GET', '/api/perf-test', '/api/perf-test');
+    const { ctx } = createMockContext(
+      'GET',
+      '/api/perf-test',
+      '/api/perf-test',
+    );
     const handler: CallHandler = { handle: () => of('ok') };
 
     await lastValueFrom(interceptor.intercept(ctx, handler));
@@ -90,9 +94,7 @@ describe('PerformanceInterceptor', () => {
     }
 
     const metrics = getRouteMetrics();
-    const routeMetric = metrics.find(
-      (m) => m.route === `GET ${routePath}`,
-    );
+    const routeMetric = metrics.find((m) => m.route === `GET ${routePath}`);
     expect(routeMetric).toBeDefined();
     expect(routeMetric!.count).toBeGreaterThanOrEqual(5);
   });

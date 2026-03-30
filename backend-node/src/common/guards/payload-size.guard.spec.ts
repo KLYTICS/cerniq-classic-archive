@@ -1,8 +1,5 @@
 import { PayloadSizeGuard } from './payload-size.guard';
-import {
-  PayloadTooLargeException,
-  ExecutionContext,
-} from '@nestjs/common';
+import { PayloadTooLargeException, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 describe('PayloadSizeGuard', () => {
@@ -14,9 +11,7 @@ describe('PayloadSizeGuard', () => {
     guard = new PayloadSizeGuard(reflector);
   });
 
-  const createMockContext = (
-    contentLength: string = '0',
-  ): ExecutionContext =>
+  const createMockContext = (contentLength: string = '0'): ExecutionContext =>
     ({
       getHandler: jest.fn(),
       getClass: jest.fn(),

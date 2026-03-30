@@ -220,7 +220,7 @@ export class CreditRiskQuantService {
     lgd: number,
     ead: number,
     rho: number,
-    maturity: number,
+    _maturity: number,
   ): number {
     // UL(99.9%) = [Φ(Φ⁻¹(PD) + √ρ·Φ⁻¹(0.999)) / √(1-ρ)] × LGD × EAD - EL
     const alpha = 0.999;

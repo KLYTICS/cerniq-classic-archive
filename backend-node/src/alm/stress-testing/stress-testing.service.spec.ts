@@ -56,8 +56,12 @@ describe('StressTestingService', () => {
     expect(result.ratePaths.length).toBeLessThanOrEqual(50);
 
     // NII distribution should have valid percentiles
-    expect(result.niiDistribution.p5).toBeLessThanOrEqual(result.niiDistribution.median);
-    expect(result.niiDistribution.median).toBeLessThanOrEqual(result.niiDistribution.p95);
+    expect(result.niiDistribution.p5).toBeLessThanOrEqual(
+      result.niiDistribution.median,
+    );
+    expect(result.niiDistribution.median).toBeLessThanOrEqual(
+      result.niiDistribution.p95,
+    );
   });
 
   it('clamps paths to MAX_MC_PATHS (50000)', async () => {

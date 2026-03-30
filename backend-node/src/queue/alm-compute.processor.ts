@@ -53,16 +53,16 @@ export async function enqueueComputeJob(
   setImmediate(async () => {
     job.status = 'running';
     job.startedAt = new Date().toISOString();
+    const progressInterval = setInterval(() => {
+      if (job.progress < 90) job.progress += 10;
+    }, 500);
+    if (progressInterval.unref) {
+      progressInterval.unref();
+    }
 
     try {
-      // Simulate progress updates for long-running jobs
-      const progressInterval = setInterval(() => {
-        if (job.progress < 90) job.progress += 10;
-      }, 500);
-
       const result = await executeFn();
 
-      clearInterval(progressInterval);
       job.progress = 100;
       job.status = 'completed';
       job.result = result;
@@ -75,10 +75,15 @@ export async function enqueueComputeJob(
       job.error = err.message;
       job.completedAt = new Date().toISOString();
       logger.error(`Job ${jobId} (${jobType}) failed: ${err.message}`);
+    } finally {
+      clearInterval(progressInterval);
     }
 
     // Cleanup old jobs after 1 hour
-    setTimeout(() => activeJobs.delete(jobId), 3600000);
+    const cleanupTimer = setTimeout(() => activeJobs.delete(jobId), 3600000);
+    if (cleanupTimer.unref) {
+      cleanupTimer.unref();
+    }
   });
 
   return jobId;

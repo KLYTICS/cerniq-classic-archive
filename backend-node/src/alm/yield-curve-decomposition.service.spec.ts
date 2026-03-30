@@ -48,11 +48,11 @@ describe('YieldCurveDecompositionService', () => {
       { tenor: 30, rate: 0.05 },
     ];
     const currCurve = [
-      { tenor: 1, rate: 0.035 },   // short end falls 50bps
-      { tenor: 2, rate: 0.038 },   // short end falls 40bps
-      { tenor: 5, rate: 0.045 },   // mid stays flat
-      { tenor: 10, rate: 0.052 },  // long end rises 50bps
-      { tenor: 30, rate: 0.06 },   // long end rises 100bps
+      { tenor: 1, rate: 0.035 }, // short end falls 50bps
+      { tenor: 2, rate: 0.038 }, // short end falls 40bps
+      { tenor: 5, rate: 0.045 }, // mid stays flat
+      { tenor: 10, rate: 0.052 }, // long end rises 50bps
+      { tenor: 30, rate: 0.06 }, // long end rises 100bps
     ];
 
     const result = service.decompose(prevCurve, currCurve);

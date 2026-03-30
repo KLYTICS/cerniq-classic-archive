@@ -231,9 +231,6 @@ export class CAMELScorerService {
   constructor(private readonly prisma: PrismaService) {}
 
   async scoreInstitution(institutionId: string): Promise<CAMELResult> {
-    const institution = await this.prisma.institution.findUnique({
-      where: { id: institutionId },
-    });
     const items = await this.prisma.balanceSheetItem.findMany({
       where: { institutionId },
     });
@@ -250,13 +247,6 @@ export class CAMELScorerService {
     const nwr = totalAssets > 0 ? equity / totalAssets : 0.09;
 
     // Estimate metrics from available data
-    const loans = items.filter(
-      (i: any) =>
-        i.category === 'asset' &&
-        !['cash', 'securities'].includes(i.subcategory),
-    );
-    const totalLoans =
-      loans.reduce((s: number, i: any) => s + i.balance, 0) || 300;
     const avgLossRate = 0.015; // approximate
     const nplRatio = avgLossRate * 1.2;
     const classifiedRatio = avgLossRate * 2;

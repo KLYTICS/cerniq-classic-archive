@@ -46,7 +46,7 @@ export class DepositDecayService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async analyzeDecay(institutionId: string): Promise<DepositDecayResult> {
+  async analyzeDecay(_institutionId: string): Promise<DepositDecayResult> {
     return this.getDemoDecay();
   }
 

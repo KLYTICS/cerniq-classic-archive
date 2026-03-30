@@ -23,14 +23,19 @@ export class RequestDeduplicationMiddleware implements NestMiddleware {
 
     if (!existing) {
       const promise = new Promise<void>((resolve) => {
-        _res.on('finish', () => {
-          this.inflight.delete(key);
-          resolve();
-        });
-        setTimeout(() => {
+        const ttlTimer = setTimeout(() => {
           this.inflight.delete(key);
           resolve();
         }, this.TTL_MS);
+        if (ttlTimer.unref) {
+          ttlTimer.unref();
+        }
+
+        _res.on('finish', () => {
+          clearTimeout(ttlTimer);
+          this.inflight.delete(key);
+          resolve();
+        });
       });
       this.inflight.set(key, promise);
     }

@@ -108,7 +108,7 @@ export class BoardReportService {
         title: 'Risk Trend Analysis',
         titleEs: 'Análisis de Tendencia de Riesgo',
         pageRange: '5-7',
-        content: { alerts: await this.advisorV2.rankAlerts(healthScore) },
+        content: { alerts: this.advisorV2.rankAlerts(healthScore) },
       },
       {
         title: 'Peer Comparison',

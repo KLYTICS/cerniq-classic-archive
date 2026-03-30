@@ -47,7 +47,6 @@ export class EconomicCapitalService {
       marketRiskCapital,
       operationalRiskCapital,
       concentrationAddOn,
-      totalAssets,
       regulatoryCapital,
     } = params;
     const correlation = params.correlationMatrix ?? [

@@ -1,41 +1,5 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 
-// ─── NCUA Call Report Account Code Mapping ──────────────────
-
-const NCUA_ASSET_MAPPING: Record<
-  string,
-  { subcategory: string; name: string }
-> = {
-  '010': { subcategory: 'cash', name: 'Cash & Equivalents' },
-  '799B': { subcategory: 'securities', name: 'Total Investments' },
-  '025A': { subcategory: 'consumer_loans', name: 'Personal Loans' },
-  '025B': { subcategory: 'auto_loans', name: 'Vehicle Loans' },
-  '703': {
-    subcategory: 'residential_mortgage',
-    name: 'First Mortgage RE Loans',
-  },
-  '385': {
-    subcategory: 'commercial_re',
-    name: 'Member Business Loans - RE Secured',
-  },
-  '386': {
-    subcategory: 'commercial_industrial',
-    name: 'Member Business Loans - Other',
-  },
-  '696': { subcategory: 'credit_cards', name: 'Credit Card Loans' },
-};
-
-const NCUA_LIABILITY_MAPPING: Record<
-  string,
-  { subcategory: string; name: string }
-> = {
-  '018': { subcategory: 'shares', name: 'Total Shares & Deposits' },
-  '657A': { subcategory: 'demand_deposits', name: 'Regular Shares' },
-  '657B': { subcategory: 'savings', name: 'Share Savings' },
-  '045': { subcategory: 'time_deposits', name: 'Share Certificates' },
-  '550': { subcategory: 'borrowings', name: 'Total Borrowings' },
-};
-
 // ─── Types ───────────────────────────────────────────────────
 
 export interface NCUAPullResult {

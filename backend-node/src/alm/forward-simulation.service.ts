@@ -98,7 +98,6 @@ export class ForwardSimulationService {
       ];
 
       for (let q = 1; q <= totalQuarters; q++) {
-        const year = Math.ceil(q / 4);
         const quarterLabel = `Q${((q - 1) % 4) + 1} ${new Date().getFullYear() + Math.ceil(q / 4) - 1}`;
         const quarterlyGrowth = (growthFactor: number) =>
           Math.pow(1 + growthFactor, 1 / 4);

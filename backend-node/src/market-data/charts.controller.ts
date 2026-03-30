@@ -9,7 +9,6 @@ import {
 import { MarketDataService } from './market-data.service';
 import { TechnicalIndicatorsService } from './technical-indicators.service';
 import { CacheService } from '../cache/cache.service';
-import { TechnicalDataDto, ChartDataRequestDto } from './dto/chart.dto';
 
 @Controller('api/charts')
 export class ChartsController {

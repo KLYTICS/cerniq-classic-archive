@@ -22,7 +22,7 @@ export class TickerService {
       try {
         this.supabase = createClient(supabaseUrl, supabaseKey);
         this.logger.log('Supabase client initialized');
-      } catch (err) {
+      } catch (_err) {
         this.logger.warn(
           'Supabase client initialization failed — ticker service will use fallback',
         );

@@ -162,7 +162,7 @@ export class ChatAnalystService {
 
   private detectTools(
     message: string,
-    lang: string,
+    _lang: string,
   ): Array<{ name: string; params: any }> {
     const m = message.toLowerCase();
     const tools: Array<{ name: string; params: any }> = [];
@@ -379,8 +379,6 @@ export class ChatAnalystService {
     lang: string,
   ): AnalystResponse {
     const isEs = lang === 'es';
-    const toolSummaries = toolResults.map((t) => t.content).join(' ');
-
     // Build natural language response from tool results
     let responseText = '';
     for (const tr of toolResults) {

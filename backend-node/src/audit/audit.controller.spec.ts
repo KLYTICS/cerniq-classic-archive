@@ -68,17 +68,17 @@ describe('AdminAuditController', () => {
     });
 
     it('should throw UnauthorizedException for invalid admin key', async () => {
-      await expect(
-        controller.getAuditLogs('wrong-key'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(controller.getAuditLogs('wrong-key')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException when ADMIN_KEY not set', async () => {
       delete process.env.ADMIN_KEY;
 
-      await expect(
-        controller.getAuditLogs('any-key'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(controller.getAuditLogs('any-key')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 });

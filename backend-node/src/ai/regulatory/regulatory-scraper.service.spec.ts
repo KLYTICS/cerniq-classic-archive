@@ -57,7 +57,9 @@ describe('RegulatoryScraperService', () => {
           '<h2>Circular 2026-01 Capital Requirements Update</h2><h2>Circular 2026-02 Liquidity Standards Review</h2>',
         ),
     });
-    mockPrisma.regulatoryPublication.findUnique.mockResolvedValue({ id: 'existing' });
+    mockPrisma.regulatoryPublication.findUnique.mockResolvedValue({
+      id: 'existing',
+    });
 
     const result = await service.runDailyScan();
     expect(result.newFound).toBe(0);

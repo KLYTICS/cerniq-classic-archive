@@ -33,7 +33,10 @@ describe('AlertDeliveryService', () => {
       keyQuote: 'test quote',
     };
 
-    const count = await service.mapAndDeliverToAllInstitutions('pub-1', impact as any);
+    const count = await service.mapAndDeliverToAllInstitutions(
+      'pub-1',
+      impact as any,
+    );
     expect(count).toBe(1);
     expect(mockPrisma.institutionAlert.create).toHaveBeenCalledTimes(1);
   });
@@ -50,7 +53,10 @@ describe('AlertDeliveryService', () => {
       keyQuote: 'test',
     };
 
-    const count = await service.mapAndDeliverToAllInstitutions('pub-2', impact as any);
+    const count = await service.mapAndDeliverToAllInstitutions(
+      'pub-2',
+      impact as any,
+    );
     expect(count).toBe(0);
     expect(mockPrisma.institutionAlert.create).not.toHaveBeenCalled();
   });
@@ -62,13 +68,19 @@ describe('AlertDeliveryService', () => {
   });
 
   it('should mark alert as read', async () => {
-    mockPrisma.institutionAlert.update.mockResolvedValue({ id: 'a1', readAt: new Date() });
+    mockPrisma.institutionAlert.update.mockResolvedValue({
+      id: 'a1',
+      readAt: new Date(),
+    });
     const result = await service.markRead('a1');
     expect(result.readAt).toBeDefined();
   });
 
   it('should dismiss an alert', async () => {
-    mockPrisma.institutionAlert.update.mockResolvedValue({ id: 'a1', dismissedAt: new Date() });
+    mockPrisma.institutionAlert.update.mockResolvedValue({
+      id: 'a1',
+      dismissedAt: new Date(),
+    });
     const result = await service.dismiss('a1');
     expect(result.dismissedAt).toBeDefined();
   });

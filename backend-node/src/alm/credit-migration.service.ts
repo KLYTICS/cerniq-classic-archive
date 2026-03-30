@@ -301,7 +301,7 @@ export class CreditMigrationService {
         continue;
       }
 
-      const stayProb = baseMatrix[i][i];
+      const _stayProb = baseMatrix[i][i];
 
       // Separate upgrade (j < i), stay (j == i), downgrade (j > i)
       let upgradeSum = 0;

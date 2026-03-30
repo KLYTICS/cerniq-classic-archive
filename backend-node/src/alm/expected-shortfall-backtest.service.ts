@@ -158,7 +158,7 @@ export class ExpectedShortfallBacktestService {
    * An esRatio < 1 indicates the model is conservative.
    */
   backtestES(params: ESBacktestParams): ESBacktestResult {
-    const { returns, esEstimates, varEstimates, confidenceLevel } = params;
+    const { returns, esEstimates, varEstimates } = params;
 
     if (
       returns.length !== esEstimates.length ||

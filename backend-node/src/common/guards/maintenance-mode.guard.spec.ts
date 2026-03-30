@@ -1,8 +1,5 @@
 import { MaintenanceModeGuard } from './maintenance-mode.guard';
-import {
-  ServiceUnavailableException,
-  ExecutionContext,
-} from '@nestjs/common';
+import { ServiceUnavailableException, ExecutionContext } from '@nestjs/common';
 
 describe('MaintenanceModeGuard', () => {
   let guard: MaintenanceModeGuard;

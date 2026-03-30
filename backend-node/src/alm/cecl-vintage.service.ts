@@ -237,7 +237,7 @@ export class CECLVintageService {
 
   // ─── Private ──────────────────────────────────────────────
 
-  private inferLoanType(originationQtr: string): string {
+  private inferLoanType(_originationQtr: string): string {
     // In real implementation, this comes from the cohort data
     return 'consumer';
   }

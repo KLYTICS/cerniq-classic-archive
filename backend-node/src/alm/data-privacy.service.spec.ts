@@ -36,7 +36,12 @@ describe('DataPrivacyService', () => {
     mockPrisma.dataDeletionRequest.update.mockResolvedValue({});
     mockPrisma.institution.update.mockResolvedValue({});
 
-    const result = await service.requestDeletion('inst-1', 'user-1', 'GDPR', 'member_pii_only');
+    const result = await service.requestDeletion(
+      'inst-1',
+      'user-1',
+      'GDPR',
+      'member_pii_only',
+    );
     expect(result.requestId).toBe('del-1');
     expect(result.status).toBe('completed');
     expect(result.regulation).toBe('GDPR');
@@ -44,7 +49,11 @@ describe('DataPrivacyService', () => {
   });
 
   it('should generate SAR export with all personal data', async () => {
-    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', email: 'test@test.com', name: 'Test' });
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: 'u1',
+      email: 'test@test.com',
+      name: 'Test',
+    });
     mockPrisma.auditLog.findMany.mockResolvedValue([]);
     mockPrisma.institution.findMany.mockResolvedValue([]);
     mockPrisma.subscription.findMany.mockResolvedValue([]);

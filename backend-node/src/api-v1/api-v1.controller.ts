@@ -9,7 +9,6 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
-  Query,
   Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -21,7 +20,6 @@ import {
   ApiConsumes,
   ApiBody,
   ApiParam,
-  ApiQuery,
 } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ApiV1Service } from './api-v1.service';

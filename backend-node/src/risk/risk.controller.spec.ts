@@ -70,7 +70,12 @@ describe('RiskController', () => {
 
   describe('calculateCorrelationMatrix', () => {
     it('should calculate correlation matrix', async () => {
-      const mockResult = { matrix: [[1, 0.5], [0.5, 1]] };
+      const mockResult = {
+        matrix: [
+          [1, 0.5],
+          [0.5, 1],
+        ],
+      };
       riskService.calculateCorrelationMatrix.mockResolvedValue(mockResult);
 
       const request = { tickers: ['AAPL', 'MSFT'] };
@@ -91,10 +96,7 @@ describe('RiskController', () => {
 
       const result = await controller.getPortfolioRisk('p1', mockReq);
       expect(result).toEqual(mockResult);
-      expect(riskService.getPortfolioRisk).toHaveBeenCalledWith(
-        'p1',
-        'user-1',
-      );
+      expect(riskService.getPortfolioRisk).toHaveBeenCalledWith('p1', 'user-1');
     });
   });
 

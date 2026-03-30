@@ -119,6 +119,8 @@
     "typescript-eslint": "^8.20.0"
   },
   "overrides": {
+    "path-to-regexp": "8.4.0",
+    "picomatch": "4.0.4",
     "qs": "6.15.0",
     "socket.io-parser": "4.2.6"
   },

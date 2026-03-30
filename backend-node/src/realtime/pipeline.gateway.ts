@@ -64,9 +64,12 @@ export class PipelineGateway
    * Client joins a job room to receive progress updates for that job.
    */
   @SubscribeMessage('join')
-  handleJoin(@ConnectedSocket() client: Socket, @MessageBody() jobId: string) {
+  async handleJoin(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() jobId: string,
+  ) {
     const room = `job:${jobId}`;
-    client.join(room);
+    await client.join(room);
     this.logger.log(`Client ${client.id} joined room ${room}`);
     return { success: true, room };
   }
@@ -75,9 +78,12 @@ export class PipelineGateway
    * Client leaves a job room.
    */
   @SubscribeMessage('leave')
-  handleLeave(@ConnectedSocket() client: Socket, @MessageBody() jobId: string) {
+  async handleLeave(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() jobId: string,
+  ) {
     const room = `job:${jobId}`;
-    client.leave(room);
+    await client.leave(room);
     this.logger.log(`Client ${client.id} left room ${room}`);
     return { success: true, room };
   }

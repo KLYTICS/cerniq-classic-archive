@@ -92,11 +92,6 @@ export class DurationConvexityService {
       conv /= price * (1 + y) * (1 + y);
 
       // Effective duration for callable (approximation)
-      const effective =
-        inst.callable && inst.callDate
-          ? Math.min(mod, inst.callDate * 0.8)
-          : mod;
-
       const weight = inst.marketValue / totalMV;
       return {
         name: inst.name,

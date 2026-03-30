@@ -150,7 +150,7 @@ export class RiskService {
           end,
         );
         priceData[ticker] = history.map((h) => h.close);
-      } catch (error) {
+      } catch (_error) {
         this.logger.warn(`Failed to fetch data for ${ticker}`);
         priceData[ticker] = [];
       }

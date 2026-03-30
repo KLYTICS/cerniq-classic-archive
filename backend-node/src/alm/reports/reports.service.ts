@@ -206,7 +206,7 @@ export class ReportsService {
 
         doc.end();
       } catch (err) {
-        reject(err);
+        reject(err instanceof Error ? err : new Error(String(err)));
       }
     });
   }

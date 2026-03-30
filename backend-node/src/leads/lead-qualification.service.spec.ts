@@ -79,7 +79,9 @@ describe('LeadQualificationService', () => {
 
       const result = await service.qualifyProspect('p3');
 
-      const instSignal = result.signals.find(s => s.name === 'institution_type');
+      const instSignal = result.signals.find(
+        (s) => s.name === 'institution_type',
+      );
       expect(instSignal?.score).toBe(15);
     });
 
@@ -97,7 +99,7 @@ describe('LeadQualificationService', () => {
 
       const result = await service.qualifyProspect('p4');
 
-      const locSignal = result.signals.find(s => s.name === 'location');
+      const locSignal = result.signals.find((s) => s.name === 'location');
       expect(locSignal?.score).toBe(15);
     });
 
@@ -130,12 +132,24 @@ describe('LeadQualificationService', () => {
       ]);
       mockPrisma.prospectInstitution.findUnique
         .mockResolvedValueOnce({
-          id: 'p1', name: 'Big', institutionType: 'cooperativa', estimatedAssets: 500_000_000,
-          contactRole: 'CFO', publicDataSource: 'cossec', outreachSentAt: new Date(), location: 'PR',
+          id: 'p1',
+          name: 'Big',
+          institutionType: 'cooperativa',
+          estimatedAssets: 500_000_000,
+          contactRole: 'CFO',
+          publicDataSource: 'cossec',
+          outreachSentAt: new Date(),
+          location: 'PR',
         })
         .mockResolvedValueOnce({
-          id: 'p2', name: 'Small', institutionType: 'other', estimatedAssets: 10_000_000,
-          contactRole: 'Analyst', publicDataSource: '', outreachSentAt: null, location: 'CA',
+          id: 'p2',
+          name: 'Small',
+          institutionType: 'other',
+          estimatedAssets: 10_000_000,
+          contactRole: 'Analyst',
+          publicDataSource: '',
+          outreachSentAt: null,
+          location: 'CA',
         });
 
       const results = await service.qualifyAllProspects();

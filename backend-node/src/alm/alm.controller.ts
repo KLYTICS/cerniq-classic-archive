@@ -666,9 +666,7 @@ export class AlmController {
   @UseGuards(AuthGuard)
   async applyYieldCurveShocks(@Body() dto: YieldCurveShockDto) {
     // If curveId provided, load that curve; otherwise use default
-    const baseCurve = dto.curveId
-      ? ((await this.yieldCurve.saveCustomCurve) as any) // loaded internally
-      : undefined;
+    const baseCurve = undefined;
     return this.yieldCurve.applyShock(
       baseCurve ?? [
         { tenor: 0.25, rate: 0.048 },
@@ -1719,7 +1717,7 @@ export class AlmController {
 
   @Get(':institutionId/pca-factors')
   @UseGuards(AuthGuard)
-  async getPCAFactors(@Param('institutionId') id: string) {
+  async getPCAFactors(@Param('institutionId') _id: string) {
     const baseRates = [
       0.048, 0.0465, 0.044, 0.042, 0.041, 0.0405, 0.041, 0.042, 0.0455, 0.0465,
     ];

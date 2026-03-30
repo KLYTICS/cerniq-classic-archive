@@ -1,9 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   ValuationRequestDto,
-  CyclicalValuationDto,
-  CompounderValuationDto,
-  FrontierValuationDto,
   KPIScoreDto,
   ScreenerRequestDto,
   ScreenerResultDto,
@@ -40,7 +37,7 @@ export class ValuationService {
 
     try {
       fundamentals = await this.marketDataService.getFundamentals(ticker);
-    } catch (error) {
+    } catch (_error) {
       this.logger.warn(
         `Fundamentals not available for ${ticker}, using defaults`,
       );
@@ -80,7 +77,7 @@ export class ValuationService {
 
     try {
       fundamentals = await this.marketDataService.getFundamentals(ticker);
-    } catch (error) {
+    } catch (_error) {
       fundamentals = {};
     }
 
@@ -166,13 +163,6 @@ export class ValuationService {
     fundamentals: any,
   ): 'cyclical' | 'compounder' | 'frontier' {
     // Industry-based detection (simplified)
-    const cyclicalSectors = ['Materials', 'Energy', 'Industrials'];
-    const compounderSectors = [
-      'Technology',
-      'Consumer Discretionary',
-      'Healthcare',
-    ];
-
     // Check ticker patterns
     if (
       ticker.includes('SEMI') ||

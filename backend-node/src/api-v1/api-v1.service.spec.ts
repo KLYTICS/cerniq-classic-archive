@@ -87,7 +87,14 @@ describe('ApiV1Service', () => {
       items: [],
     });
     await expect(
-      service.analyzeFromCSV('user-1', 'bad,csv', 'Test', 'cooperativa', 'cossec', 'Q1-2026'),
+      service.analyzeFromCSV(
+        'user-1',
+        'bad,csv',
+        'Test',
+        'cooperativa',
+        'cossec',
+        'Q1-2026',
+      ),
     ).rejects.toThrow();
   });
 });

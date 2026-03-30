@@ -41,7 +41,13 @@ describe('AlmAdvisorV2Service', () => {
     const result = await service.computeHealthScore('inst-1');
     expect(result.overall).toBeGreaterThan(0);
     expect(result.overall).toBeLessThanOrEqual(100);
-    expect(['STRONG', 'SATISFACTORY', 'FAIR', 'MARGINAL', 'UNSATISFACTORY']).toContain(result.label);
+    expect([
+      'STRONG',
+      'SATISFACTORY',
+      'FAIR',
+      'MARGINAL',
+      'UNSATISFACTORY',
+    ]).toContain(result.label);
   });
 
   it('rankAlerts returns top 3 alerts sorted by lowest score', () => {
@@ -80,10 +86,14 @@ describe('AlmAdvisorV2Service', () => {
   });
 
   it('buildRegPulse returns default messages when calendar throws', async () => {
-    mockComplianceCalendar.getUpcomingDeadlines.mockRejectedValue(new Error('fail'));
+    mockComplianceCalendar.getUpcomingDeadlines.mockRejectedValue(
+      new Error('fail'),
+    );
     const pulse = await service.buildRegPulse('inst-1');
     expect(pulse.next30).toBe('No deadlines in this period.');
-    expect(pulse.next30Es).toBe('Sin fechas límite pendientes en este período.');
+    expect(pulse.next30Es).toBe(
+      'Sin fechas límite pendientes en este período.',
+    );
     expect(pulse.criticalDeadlines).toEqual([]);
   });
 
@@ -91,9 +101,21 @@ describe('AlmAdvisorV2Service', () => {
     const now = Date.now();
     mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({
       events: [
-        { title: 'Filing A', deadlineDate: new Date(now + 10 * 86400000).toISOString(), urgency: 'CRITICAL' },
-        { title: 'Filing B', deadlineDate: new Date(now + 45 * 86400000).toISOString(), urgency: 'HIGH' },
-        { title: 'Filing C', deadlineDate: new Date(now + 75 * 86400000).toISOString(), urgency: 'MEDIUM' },
+        {
+          title: 'Filing A',
+          deadlineDate: new Date(now + 10 * 86400000).toISOString(),
+          urgency: 'CRITICAL',
+        },
+        {
+          title: 'Filing B',
+          deadlineDate: new Date(now + 45 * 86400000).toISOString(),
+          urgency: 'HIGH',
+        },
+        {
+          title: 'Filing C',
+          deadlineDate: new Date(now + 75 * 86400000).toISOString(),
+          urgency: 'MEDIUM',
+        },
       ],
     });
     const pulse = await service.buildRegPulse('inst-1');

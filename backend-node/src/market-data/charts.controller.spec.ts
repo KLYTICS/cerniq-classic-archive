@@ -74,7 +74,14 @@ describe('ChartsController', () => {
 
     it('should execute the factory function with historical data', async () => {
       const historicalData = [
-        { date: '2025-01-01', open: 100, high: 110, low: 95, close: 105, volume: 1000 },
+        {
+          date: '2025-01-01',
+          open: 100,
+          high: 110,
+          low: 95,
+          close: 105,
+          volume: 1000,
+        },
       ];
       marketDataService.getHistoricalPrices.mockResolvedValue(historicalData);
 
@@ -95,7 +102,14 @@ describe('ChartsController', () => {
 
     it('should handle all timeframe options in factory', async () => {
       const historicalData = [
-        { date: '2025-01-01', open: 100, high: 110, low: 95, close: 105, volume: 1000 },
+        {
+          date: '2025-01-01',
+          open: 100,
+          high: 110,
+          low: 95,
+          close: 105,
+          volume: 1000,
+        },
       ];
       marketDataService.getHistoricalPrices.mockResolvedValue(historicalData);
 
@@ -111,7 +125,14 @@ describe('ChartsController', () => {
 
     it('should calculate all indicator types', async () => {
       const historicalData = [
-        { date: '2025-01-01', open: 100, high: 110, low: 95, close: 105, volume: 1000 },
+        {
+          date: '2025-01-01',
+          open: 100,
+          high: 110,
+          low: 95,
+          close: 105,
+          volume: 1000,
+        },
       ];
       marketDataService.getHistoricalPrices.mockResolvedValue(historicalData);
 
@@ -132,9 +153,18 @@ describe('ChartsController', () => {
       expect(technicalService.calculateEMA).toHaveBeenCalledWith([105], 26);
       expect(technicalService.calculateRSI).toHaveBeenCalledWith([105]);
       expect(technicalService.calculateMACD).toHaveBeenCalledWith([105]);
-      expect(technicalService.calculateBollingerBands).toHaveBeenCalledWith([105]);
-      expect(technicalService.calculateVWAP).toHaveBeenCalledWith([105], [1000]);
-      expect(technicalService.calculateATR).toHaveBeenCalledWith([110], [95], [105]);
+      expect(technicalService.calculateBollingerBands).toHaveBeenCalledWith([
+        105,
+      ]);
+      expect(technicalService.calculateVWAP).toHaveBeenCalledWith(
+        [105],
+        [1000],
+      );
+      expect(technicalService.calculateATR).toHaveBeenCalledWith(
+        [110],
+        [95],
+        [105],
+      );
       expect(technicalService.calculateStochastic).toHaveBeenCalledWith(
         [110],
         [95],
@@ -179,7 +209,14 @@ describe('ChartsController', () => {
 
     it('should execute the factory function correctly', async () => {
       const historicalData = [
-        { date: '2025-01-01', open: 100, high: 110, low: 95, close: 105, volume: 1000 },
+        {
+          date: '2025-01-01',
+          open: 100,
+          high: 110,
+          low: 95,
+          close: 105,
+          volume: 1000,
+        },
       ];
       marketDataService.getHistoricalPrices.mockResolvedValue(historicalData);
 
@@ -195,7 +232,14 @@ describe('ChartsController', () => {
 
     it('should handle all timeframe options', async () => {
       const historicalData = [
-        { date: '2025-01-01', open: 100, high: 110, low: 95, close: 105, volume: 1000 },
+        {
+          date: '2025-01-01',
+          open: 100,
+          high: 110,
+          low: 95,
+          close: 105,
+          volume: 1000,
+        },
       ];
       marketDataService.getHistoricalPrices.mockResolvedValue(historicalData);
 

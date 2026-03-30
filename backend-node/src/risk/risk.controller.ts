@@ -18,7 +18,6 @@ import {
 } from './dto/risk.dto';
 import {
   ComponentVaRRequestDto,
-  VolatilityForecastRequestDto,
   ParametricVaRRequestDto,
 } from './dto/advanced-risk.dto';
 import { AuthGuard } from '../auth/auth.guard';

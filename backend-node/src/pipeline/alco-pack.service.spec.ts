@@ -14,7 +14,11 @@ describe('AlcoPackService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AlcoPackService(mockAlmEnterprise, mockStressTesting, mockPrisma);
+    service = new AlcoPackService(
+      mockAlmEnterprise,
+      mockStressTesting,
+      mockPrisma,
+    );
 
     mockAlmEnterprise.getCOSSECCompliance.mockResolvedValue({
       ratios: [],
@@ -54,7 +58,9 @@ describe('AlcoPackService', () => {
       // PDF generation may fail in test env — that's OK
     }
 
-    expect(mockAlmEnterprise.getCOSSECCompliance).toHaveBeenCalledWith('inst-1');
+    expect(mockAlmEnterprise.getCOSSECCompliance).toHaveBeenCalledWith(
+      'inst-1',
+    );
     expect(mockAlmEnterprise.getALMSummary).toHaveBeenCalledWith('inst-1');
     expect(mockStressTesting.runFullStressTest).toHaveBeenCalledWith('inst-1', {
       paths: 500,
@@ -88,11 +94,22 @@ describe('AlcoPackService', () => {
     const callOrder: string[] = [];
     mockAlmEnterprise.getCOSSECCompliance.mockImplementation(() => {
       callOrder.push('cossec');
-      return Promise.resolve({ ratios: [], overallStatus: 'PASS', examReadinessScore: 80, summary: {} });
+      return Promise.resolve({
+        ratios: [],
+        overallStatus: 'PASS',
+        examReadinessScore: 80,
+        summary: {},
+      });
     });
     mockAlmEnterprise.getALMSummary.mockImplementation(() => {
       callOrder.push('summary');
-      return Promise.resolve({ institution: { name: 'T' }, durationGap: {}, niiSensitivity: {}, liquidity: {}, recommendations: [] });
+      return Promise.resolve({
+        institution: { name: 'T' },
+        durationGap: {},
+        niiSensitivity: {},
+        liquidity: {},
+        recommendations: [],
+      });
     });
     mockStressTesting.runFullStressTest.mockImplementation(() => {
       callOrder.push('stress');
@@ -100,7 +117,12 @@ describe('AlcoPackService', () => {
     });
     mockAlmEnterprise.getInstitution.mockImplementation(() => {
       callOrder.push('institution');
-      return Promise.resolve({ id: 'i', name: 'T', type: 'cooperativa', totalAssets: 100 });
+      return Promise.resolve({
+        id: 'i',
+        name: 'T',
+        type: 'cooperativa',
+        totalAssets: 100,
+      });
     });
 
     try {

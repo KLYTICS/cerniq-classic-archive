@@ -4,6 +4,7 @@ import {
   ExecutionContext,
   CallHandler,
   Logger,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
@@ -15,18 +16,26 @@ import { tap } from 'rxjs/operators';
  * Prevents double charges, duplicate records, and race conditions.
  */
 @Injectable()
-export class IdempotencyResponseInterceptor implements NestInterceptor {
+export class IdempotencyResponseInterceptor
+  implements NestInterceptor, OnModuleDestroy
+{
   private readonly logger = new Logger(IdempotencyResponseInterceptor.name);
   private readonly cache = new Map<
     string,
     { data: any; status: number; expiry: number }
   >();
   private readonly ttlMs: number;
+  private readonly cleanupTimer: ReturnType<typeof setInterval>;
 
   constructor(ttlMinutes = 60) {
     this.ttlMs = ttlMinutes * 60 * 1000;
     // Cleanup expired entries every 10 minutes
-    setInterval(() => this.cleanup(), 10 * 60 * 1000);
+    this.cleanupTimer = setInterval(() => this.cleanup(), 10 * 60 * 1000);
+    if (this.cleanupTimer.unref) this.cleanupTimer.unref();
+  }
+
+  onModuleDestroy(): void {
+    clearInterval(this.cleanupTimer);
   }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {

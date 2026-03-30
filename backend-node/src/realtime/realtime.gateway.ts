@@ -108,8 +108,15 @@ export class RealtimeGateway
   }
 
   onModuleDestroy() {
+    for (const greeksKey of [...this.greeksIntervals.keys()]) {
+      this.stopGreeksStream(greeksKey);
+    }
+    for (const pnlKey of [...this.pnlIntervals.keys()]) {
+      this.stopPnLStream(pnlKey);
+    }
     this.streamCleanupFns.forEach((cleanup) => cleanup());
     this.streamCleanupFns.length = 0;
+    this.clientTickerSubscriptions.clear();
   }
 
   handleConnection(client: Socket) {
@@ -179,7 +186,7 @@ export class RealtimeGateway
       this.clientTickerSubscriptions.get(client.id) || new Set<string>();
 
     this.logger.log(`Client ${client.id} subscribing to ${ticker}`);
-    client.join(roomName);
+    await client.join(roomName);
 
     if (!subscribedTickers.has(ticker)) {
       await this.marketStreamManager.subscribe(ticker);
@@ -217,7 +224,7 @@ export class RealtimeGateway
    * Unsubscribe from ticker updates
    */
   @SubscribeMessage('unsubscribe-ticker')
-  handleTickerUnsubscription(
+  async handleTickerUnsubscription(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: SubscriptionPayload,
   ) {
@@ -226,7 +233,7 @@ export class RealtimeGateway
     const subscribedTickers = this.clientTickerSubscriptions.get(client.id);
 
     this.logger.log(`Client ${client.id} unsubscribing from ${ticker}`);
-    client.leave(roomName);
+    await client.leave(roomName);
 
     if (subscribedTickers?.has(ticker)) {
       subscribedTickers.delete(ticker);
@@ -256,7 +263,7 @@ export class RealtimeGateway
     this.logger.log(
       `Client ${client.id} subscribing to Greeks for ${greeksKey}`,
     );
-    client.join(greeksKey);
+    await client.join(greeksKey);
 
     // Start Greeks calculation stream
     if (!this.greeksIntervals.has(greeksKey)) {
@@ -314,7 +321,7 @@ export class RealtimeGateway
     this.logger.log(
       `Client ${client.id} subscribing to P&L for portfolio ${portfolioId}`,
     );
-    client.join(pnlKey);
+    await client.join(pnlKey);
 
     // Start P&L calculation stream
     if (!this.pnlIntervals.has(pnlKey)) {
@@ -336,38 +343,19 @@ export class RealtimeGateway
   ) {
     const greeksKey = `greeks:${ticker}:${strike}:${maturity}:${optionType}`;
 
-    const interval = setInterval(async () => {
-      try {
-        if (this.getRoomSize(greeksKey) === 0) {
-          this.stopGreeksStream(greeksKey);
-          return;
-        }
-
-        const quote = await this.marketDataService.getRealtimeQuote(ticker);
-        const timeToMaturity = this.calculateTimeToMaturity(maturity);
-
-        const greeks = await this.optionsService.calculateGreeks({
-          underlying: quote.price,
-          strike,
-          timeToExpiry: timeToMaturity,
-          volatility: 0.25,
-          riskFreeRate,
-          optionType,
-        });
-
-        this.server.to(greeksKey).emit('greeks-update', {
-          ticker,
-          strike,
-          maturity,
-          optionType,
-          underlyingPrice: quote.price,
-          greeks,
-          timestamp: quote.timestamp,
-        });
-      } catch (error) {
-        this.logger.error(`Error in Greeks stream for ${greeksKey}:`, error);
-      }
+    const interval = setInterval(() => {
+      void this.refreshGreeksStream(
+        greeksKey,
+        ticker,
+        strike,
+        maturity,
+        optionType,
+        riskFreeRate,
+      );
     }, this.UPDATE_INTERVAL_MS);
+    if (interval.unref) {
+      interval.unref();
+    }
 
     this.greeksIntervals.set(greeksKey, interval);
     this.logger.log(`Started Greeks stream for ${greeksKey}`);
@@ -379,62 +367,12 @@ export class RealtimeGateway
   private async startPnLStream(portfolioId: string, userId: string) {
     const pnlKey = `pnl:${portfolioId}`;
 
-    const interval = setInterval(async () => {
-      try {
-        if (this.getRoomSize(pnlKey) === 0) {
-          this.stopPnLStream(pnlKey);
-          return;
-        }
-
-        const portfolio = await this.portfolioService.getPortfolio(
-          portfolioId,
-          userId,
-        );
-
-        if (
-          !portfolio ||
-          !portfolio.positions ||
-          portfolio.positions.length === 0
-        ) {
-          return;
-        }
-
-        let totalValue = 0;
-        let totalCost = 0;
-
-        // Calculate P&L for each position
-        const liveQuotes = await Promise.all(
-          portfolio.positions.map(async (position) => ({
-            position,
-            quote: await this.marketDataService.getRealtimeQuote(
-              position.ticker,
-            ),
-          })),
-        );
-
-        for (const { position, quote } of liveQuotes) {
-          const positionValue = position.quantity * quote.price;
-          const positionCost = position.quantity * position.avgCost;
-
-          totalValue += positionValue;
-          totalCost += positionCost;
-        }
-
-        const totalPnL = totalValue - totalCost;
-        const totalPnLPercent = (totalPnL / totalCost) * 100;
-
-        this.server.to(pnlKey).emit('pnl-update', {
-          portfolioId,
-          totalValue: Number(totalValue.toFixed(2)),
-          totalCost: Number(totalCost.toFixed(2)),
-          totalPnL: Number(totalPnL.toFixed(2)),
-          totalPnLPercent: Number(totalPnLPercent.toFixed(2)),
-          timestamp: new Date(),
-        });
-      } catch (error) {
-        this.logger.error(`Error in P&L stream for ${pnlKey}:`, error);
-      }
+    const interval = setInterval(() => {
+      void this.refreshPnLStream(pnlKey, portfolioId, userId);
     }, this.UPDATE_INTERVAL_MS);
+    if (interval.unref) {
+      interval.unref();
+    }
 
     this.pnlIntervals.set(pnlKey, interval);
     this.logger.log(`Started P&L stream for portfolio ${portfolioId}`);
@@ -466,6 +404,104 @@ export class RealtimeGateway
       clearInterval(interval);
       this.pnlIntervals.delete(pnlKey);
       this.logger.log(`Stopped P&L stream for ${pnlKey}`);
+    }
+  }
+
+  private async refreshGreeksStream(
+    greeksKey: string,
+    ticker: string,
+    strike: number,
+    maturity: string,
+    optionType: OptionType,
+    riskFreeRate: number,
+  ) {
+    try {
+      if (this.getRoomSize(greeksKey) === 0) {
+        this.stopGreeksStream(greeksKey);
+        return;
+      }
+
+      const quote = await this.marketDataService.getRealtimeQuote(ticker);
+      const timeToMaturity = this.calculateTimeToMaturity(maturity);
+
+      const greeks = await this.optionsService.calculateGreeks({
+        underlying: quote.price,
+        strike,
+        timeToExpiry: timeToMaturity,
+        volatility: 0.25,
+        riskFreeRate,
+        optionType,
+      });
+
+      this.server.to(greeksKey).emit('greeks-update', {
+        ticker,
+        strike,
+        maturity,
+        optionType,
+        underlyingPrice: quote.price,
+        greeks,
+        timestamp: quote.timestamp,
+      });
+    } catch (error) {
+      this.logger.error(`Error in Greeks stream for ${greeksKey}:`, error);
+    }
+  }
+
+  private async refreshPnLStream(
+    pnlKey: string,
+    portfolioId: string,
+    userId: string,
+  ) {
+    try {
+      if (this.getRoomSize(pnlKey) === 0) {
+        this.stopPnLStream(pnlKey);
+        return;
+      }
+
+      const portfolio = await this.portfolioService.getPortfolio(
+        portfolioId,
+        userId,
+      );
+
+      if (
+        !portfolio ||
+        !portfolio.positions ||
+        portfolio.positions.length === 0
+      ) {
+        return;
+      }
+
+      let totalValue = 0;
+      let totalCost = 0;
+
+      const liveQuotes = await Promise.all(
+        portfolio.positions.map(async (position) => ({
+          position,
+          quote: await this.marketDataService.getRealtimeQuote(position.ticker),
+        })),
+      );
+
+      for (const { position, quote } of liveQuotes) {
+        const positionValue = position.quantity * quote.price;
+        const positionCost = position.quantity * position.avgCost;
+
+        totalValue += positionValue;
+        totalCost += positionCost;
+      }
+
+      const totalPnL = totalValue - totalCost;
+      const totalPnLPercent = (totalPnL / totalCost) * 100;
+
+      this.server.to(pnlKey).emit('pnl-update', {
+        portfolioId,
+        totalValue: Number(totalValue.toFixed(2)),
+        totalCost: Number(totalCost.toFixed(2)),
+        totalPnL: Number(totalPnL.toFixed(2)),
+        totalPnLPercent: Number(totalPnLPercent.toFixed(2)),
+        timestamp: new Date(),
+      });
+    } catch (error) {
+      this.logger.error(`Error in P&L stream for ${pnlKey}:`, error);
     }
   }
 

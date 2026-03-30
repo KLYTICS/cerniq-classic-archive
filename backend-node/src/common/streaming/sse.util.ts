@@ -14,7 +14,7 @@ export function createSSEStream(
   generator: AsyncGenerator<string>,
 ): Observable<MessageEvent> {
   return new Observable((subscriber) => {
-    (async () => {
+    void (async () => {
       try {
         for await (const token of generator) {
           subscriber.next({ data: { token, type: 'token' } } as any);

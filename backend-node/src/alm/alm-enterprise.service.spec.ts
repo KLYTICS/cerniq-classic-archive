@@ -35,7 +35,11 @@ describe('AlmEnterpriseService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AlmEnterpriseService(mockPrisma, mockAlmService, mockDurationService);
+    service = new AlmEnterpriseService(
+      mockPrisma,
+      mockAlmService,
+      mockDurationService,
+    );
   });
 
   it('should be defined', () => {
@@ -66,7 +70,9 @@ describe('AlmEnterpriseService', () => {
   // ── getInstitution ──────────────────────────────────────────
   it('getInstitution throws NotFoundException when not found', async () => {
     mockPrisma.institution.findUnique.mockResolvedValue(null);
-    await expect(service.getInstitution('bad-id')).rejects.toThrow(NotFoundException);
+    await expect(service.getInstitution('bad-id')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('getInstitution returns institution with balance sheet items', async () => {
@@ -110,9 +116,33 @@ describe('AlmEnterpriseService', () => {
     mockPrisma.institution.update.mockResolvedValue({});
 
     const items = [
-      { category: 'asset', subcategory: 'loans', name: 'Auto Loans', balance: 100, rate: 0.06, duration: 3, rateType: 'fixed' },
-      { category: 'asset', subcategory: 'cash', name: 'Cash', balance: 50, rate: 0.02, duration: 0.1, rateType: 'variable' },
-      { category: 'liability', subcategory: 'deposits', name: 'Savings', balance: 80, rate: 0.01, duration: 0.5, rateType: 'variable' },
+      {
+        category: 'asset',
+        subcategory: 'loans',
+        name: 'Auto Loans',
+        balance: 100,
+        rate: 0.06,
+        duration: 3,
+        rateType: 'fixed',
+      },
+      {
+        category: 'asset',
+        subcategory: 'cash',
+        name: 'Cash',
+        balance: 50,
+        rate: 0.02,
+        duration: 0.1,
+        rateType: 'variable',
+      },
+      {
+        category: 'liability',
+        subcategory: 'deposits',
+        name: 'Savings',
+        balance: 80,
+        rate: 0.01,
+        duration: 0.5,
+        rateType: 'variable',
+      },
     ];
 
     const result = await service.importBalanceSheetItems('inst-1', items);

@@ -3,38 +3,6 @@ import { PrismaService } from '../prisma.service';
 
 // ─── CERNIQ Target Schema Fields ────────────────────────────
 
-const CERNIQ_FIELDS = [
-  'subcategory',
-  'name',
-  'balance',
-  'rate',
-  'duration',
-  'maturityDate',
-  'repriceDate',
-  'rateType',
-  'category',
-];
-
-const SUBCATEGORY_VALUES = [
-  'cash',
-  'securities',
-  'consumer_loans',
-  'auto_loans',
-  'residential_mortgage',
-  'commercial_re',
-  'commercial_loans',
-  'other_assets',
-  'credit_cards',
-  'demand_deposits',
-  'savings_deposits',
-  'share_drafts',
-  'iras',
-  'time_deposits',
-  'money_market',
-  'fhlb_advances',
-  'other_borrowings',
-];
-
 // ─── Column Classification Heuristics ───────────────────────
 
 const HEADER_PATTERNS: Record<string, string[]> = {
@@ -182,14 +150,26 @@ export class CsvIngestV2Service {
       where: { institutionId },
       take: 100,
     });
+    type SavedMapping = {
+      csvColumnName: string;
+      cerniqField: string | null;
+    };
+    type SavedMappingWithField = {
+      csvColumnName: string;
+      cerniqField: string;
+    };
+
     const savedMap = new Map<string, string>(
-      savedMappings
+      (savedMappings as SavedMapping[])
         .filter(
-          (mapping: any): mapping is typeof mapping & { cerniqField: string } =>
+          (mapping): mapping is SavedMappingWithField =>
             typeof mapping.cerniqField === 'string' &&
             mapping.cerniqField.length > 0,
         )
-        .map((m: any) => [m.csvColumnName.toLowerCase(), m.cerniqField]),
+        .map((mapping) => [
+          mapping.csvColumnName.toLowerCase(),
+          mapping.cerniqField,
+        ]),
     );
 
     // Classify each column

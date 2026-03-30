@@ -6,7 +6,6 @@ import {
   Req,
   UseGuards,
   UnauthorizedException,
-  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { AuditService } from './audit.service';

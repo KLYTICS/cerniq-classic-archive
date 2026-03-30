@@ -23,7 +23,11 @@ describe('VendorIntelligenceService', () => {
       // If no match, this is fine — profile depends on vendor-profiles data
       if (result) {
         expect(result.assessment).toBeDefined();
-        expect(['BELOW_BENCHMARK', 'WITHIN_BENCHMARK', 'ABOVE_BENCHMARK']).toContain(result.assessment);
+        expect([
+          'BELOW_BENCHMARK',
+          'WITHIN_BENCHMARK',
+          'ABOVE_BENCHMARK',
+        ]).toContain(result.assessment);
         expect(result.profile).toBeDefined();
         expect(typeof result.percentileRank).toBe('number');
       }
@@ -46,9 +50,21 @@ describe('VendorIntelligenceService', () => {
 
     it('should group expenses by vendor and calculate totals', () => {
       const expenses = [
-        { merchantName: 'Acme Corp', amount: 1000, transactionDate: new Date('2026-01-15') },
-        { merchantName: 'Acme Corp', amount: 2000, transactionDate: new Date('2026-02-15') },
-        { merchantName: 'Beta Inc', amount: 500, transactionDate: new Date('2026-01-20') },
+        {
+          merchantName: 'Acme Corp',
+          amount: 1000,
+          transactionDate: new Date('2026-01-15'),
+        },
+        {
+          merchantName: 'Acme Corp',
+          amount: 2000,
+          transactionDate: new Date('2026-02-15'),
+        },
+        {
+          merchantName: 'Beta Inc',
+          amount: 500,
+          transactionDate: new Date('2026-01-20'),
+        },
       ];
 
       const result = service.generateVendorReport(expenses);
@@ -64,8 +80,16 @@ describe('VendorIntelligenceService', () => {
 
     it('should calculate percent of total spend', () => {
       const expenses = [
-        { merchantName: 'Vendor A', amount: 750, transactionDate: new Date('2026-01-01') },
-        { merchantName: 'Vendor B', amount: 250, transactionDate: new Date('2026-01-02') },
+        {
+          merchantName: 'Vendor A',
+          amount: 750,
+          transactionDate: new Date('2026-01-01'),
+        },
+        {
+          merchantName: 'Vendor B',
+          amount: 250,
+          transactionDate: new Date('2026-01-02'),
+        },
       ];
 
       const result = service.generateVendorReport(expenses);
@@ -76,9 +100,21 @@ describe('VendorIntelligenceService', () => {
 
     it('should track the latest transaction date per vendor', () => {
       const expenses = [
-        { merchantName: 'Vendor A', amount: 100, transactionDate: new Date('2026-01-01') },
-        { merchantName: 'Vendor A', amount: 200, transactionDate: new Date('2026-03-01') },
-        { merchantName: 'Vendor A', amount: 150, transactionDate: new Date('2026-02-01') },
+        {
+          merchantName: 'Vendor A',
+          amount: 100,
+          transactionDate: new Date('2026-01-01'),
+        },
+        {
+          merchantName: 'Vendor A',
+          amount: 200,
+          transactionDate: new Date('2026-03-01'),
+        },
+        {
+          merchantName: 'Vendor A',
+          amount: 150,
+          transactionDate: new Date('2026-02-01'),
+        },
       ];
 
       const result = service.generateVendorReport(expenses);
@@ -87,8 +123,16 @@ describe('VendorIntelligenceService', () => {
 
     it('should normalize vendor names case-insensitively', () => {
       const expenses = [
-        { merchantName: 'ACME CORP', amount: 100, transactionDate: new Date('2026-01-01') },
-        { merchantName: 'acme corp', amount: 200, transactionDate: new Date('2026-01-02') },
+        {
+          merchantName: 'ACME CORP',
+          amount: 100,
+          transactionDate: new Date('2026-01-01'),
+        },
+        {
+          merchantName: 'acme corp',
+          amount: 200,
+          transactionDate: new Date('2026-01-02'),
+        },
       ];
 
       const result = service.generateVendorReport(expenses);

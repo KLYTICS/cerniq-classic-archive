@@ -501,7 +501,7 @@ export class AlmAdvisorV2Service {
     return 4;
   }
 
-  private scoreConcentration(summary: any): number {
+  private scoreConcentration(_summary: any): number {
     // Default to moderate if no data
     return 14; // Placeholder — upgraded when ConcentrationService data is available
   }

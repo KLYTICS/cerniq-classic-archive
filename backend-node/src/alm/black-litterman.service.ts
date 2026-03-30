@@ -114,7 +114,6 @@ export class BlackLittermanService {
     }
 
     // Step 2: Build P matrix (k × n) and Q vector
-    const k = views.length;
     const P: number[][] = views.map((v) => {
       const row = new Array(n).fill(0);
       v.assets.forEach((a, i) => {
@@ -165,7 +164,7 @@ export class BlackLittermanService {
       posteriorReturns: posteriorReturns.map((r) => +r.toFixed(6)),
       optimalWeights: optWeights.map((w) => +w.toFixed(4)),
       assetNames,
-      viewContributions: views.map((v, i) => ({
+      viewContributions: views.map((v) => ({
         view: v.description,
         priorReturn:
           +equilibriumReturns[assetNames.indexOf(v.assets[0]) ?? 0]?.toFixed(4),

@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 // ─── Cooperativa subcategory mapping (ES → system key) ─────────────
 const SUBCATEGORY_ALIASES: Record<string, string> = {

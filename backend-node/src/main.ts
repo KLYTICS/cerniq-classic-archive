@@ -247,4 +247,4 @@ process.on('uncaughtException', (error: Error) => {
   setTimeout(() => process.exit(1), 2000);
 });
 
-bootstrap();
+void bootstrap();

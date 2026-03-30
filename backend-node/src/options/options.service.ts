@@ -13,7 +13,6 @@ import {
   GreeksResponseDto,
   OptionChainRequestDto,
   OptionsChainResponseDto,
-  OptionQuoteDto,
   ImpliedVolatilityRequestDto,
   ImpliedVolatilityResponseDto,
   OptionType,
@@ -96,7 +95,7 @@ export class OptionsService {
    * Will integrate with data provider in next phase
    */
   async getOptionsChain(
-    dto: OptionChainRequestDto,
+    _dto: OptionChainRequestDto,
   ): Promise<OptionsChainResponseDto> {
     try {
       // DATA: Options chain provider integration pending — see CERNIQ-DATA-001

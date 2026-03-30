@@ -47,10 +47,6 @@ export class CVaROptimizerService {
     const n = assetNames.length;
     if (n === 0) return this.getDemoResult(alpha);
 
-    const totalBal = Array.from(bySub.values()).reduce(
-      (s, v) => s + v.balance,
-      0,
-    );
     const expectedReturns = assetNames.map((name) => {
       const e = bySub.get(name)!;
       return e.balance > 0 ? e.rate / e.balance : 0;

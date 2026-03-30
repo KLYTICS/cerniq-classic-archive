@@ -14,11 +14,6 @@ import {
 } from '../alm/benchmarks/pr-cooperativa-benchmarks';
 import type { AnalyzeRequestDto } from './dto/analyze-request.dto';
 
-function round(value: number, decimals: number): number {
-  const factor = Math.pow(10, decimals);
-  return Math.round(value * factor) / factor;
-}
-
 export interface ApiAnalysisResult {
   analysisId: string;
   institutionName: string;

@@ -52,7 +52,7 @@ export class MarketDataController {
       );
 
       return { ticker, insight };
-    } catch (error) {
+    } catch (_error) {
       // Fallback if quote fails
       try {
         const insight = await this.llmService.generateStockInsight(
@@ -61,7 +61,7 @@ export class MarketDataController {
           0,
         );
         return { ticker, insight };
-      } catch (e) {
+      } catch (_e) {
         throw new HttpException(
           'Failed to generate insights',
           HttpStatus.INTERNAL_SERVER_ERROR,

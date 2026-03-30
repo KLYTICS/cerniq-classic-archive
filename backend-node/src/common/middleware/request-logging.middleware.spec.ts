@@ -7,10 +7,7 @@ describe('RequestLoggingMiddleware', () => {
     middleware = new RequestLoggingMiddleware();
   });
 
-  const createMocks = (
-    url: string,
-    overrides: Record<string, any> = {},
-  ) => {
+  const createMocks = (url: string, overrides: Record<string, any> = {}) => {
     const req = {
       method: 'GET',
       url,

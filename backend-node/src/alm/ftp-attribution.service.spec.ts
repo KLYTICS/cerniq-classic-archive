@@ -1,8 +1,4 @@
-import {
-  FTPAttributionService,
-  SpreadDecomposition,
-  RarocRanking,
-} from './ftp-attribution.service';
+import { FTPAttributionService } from './ftp-attribution.service';
 
 describe('FTPAttributionService', () => {
   let service: FTPAttributionService;

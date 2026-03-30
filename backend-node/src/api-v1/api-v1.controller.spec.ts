@@ -20,9 +20,7 @@ describe('ApiV1Controller', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ApiV1Controller],
-      providers: [
-        { provide: ApiV1Service, useValue: apiV1Service },
-      ],
+      providers: [{ provide: ApiV1Service, useValue: apiV1Service }],
     })
       .overrideGuard(ApiKeyAuthGuard)
       .useValue({ canActivate: () => true })

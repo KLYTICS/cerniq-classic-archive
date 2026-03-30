@@ -6,24 +6,14 @@ import {
   PortfolioDurationMetrics,
   EVESensitivityPoint,
 } from './duration.service';
-import {
-  BalanceSheetDto,
-  InstrumentDto,
-  FullAnalysisResult,
-  DurationGapResult,
-  NIIResult,
-  LCRResult,
-} from './alm.dto';
+import { BalanceSheetDto, InstrumentDto, FullAnalysisResult } from './alm.dto';
 import {
   PR_COOP_BENCHMARKS,
   getPercentileRank,
   SectorBenchmark,
 } from './benchmarks/pr-cooperativa-benchmarks';
 import { getFramework, IRegulatoryFramework } from './frameworks';
-import {
-  PaginationQueryDto,
-  PaginatedResult,
-} from '../common/dto/pagination.dto';
+import { PaginationQueryDto } from '../common/dto/pagination.dto';
 
 /** Round to n decimal places */
 function round(value: number, decimals: number): number {
@@ -1012,7 +1002,7 @@ export class AlmEnterpriseService {
         name: r.name,
         nameEs: r.nameEs,
         value: round(r.value, 2),
-        threshold: parseFloat(r.threshold.replace(/[^0-9.\-]/g, '')) || 0,
+        threshold: parseFloat(r.threshold.replace(/[^0-9.-]/g, '')) || 0,
         unit: r.unit,
         status: r.status === 'info' ? 'pass' : r.status,
         description: r.description,
@@ -1562,7 +1552,7 @@ export class AlmEnterpriseService {
         name: r.name,
         nameEs: r.nameEs,
         value: round(r.value, 2),
-        threshold: parseFloat(r.threshold.replace(/[^0-9.\-]/g, '')) || 0,
+        threshold: parseFloat(r.threshold.replace(/[^0-9.-]/g, '')) || 0,
         unit: r.unit,
         status: r.status === 'info' ? 'pass' : r.status,
         description: r.description,

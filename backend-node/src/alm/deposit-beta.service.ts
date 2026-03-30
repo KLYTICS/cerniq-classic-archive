@@ -121,7 +121,6 @@ export class DepositBetaService {
       return 0.5; // insufficient data
     }
 
-    const n = marketRates.length;
     const dMarket = marketRates.slice(1).map((r, i) => r - marketRates[i]);
     const dDeposit = depositRates.slice(1).map((r, i) => r - depositRates[i]);
 

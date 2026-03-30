@@ -48,7 +48,9 @@ describe('ExecutionController', () => {
       const execution = { ticker: 'AAPL', price: 150, quantity: 100 };
       const result = await controller.analyzeSlippage(execution);
       expect(result).toEqual(mockResult);
-      expect(executionService.calculateSlippage).toHaveBeenCalledWith(execution);
+      expect(executionService.calculateSlippage).toHaveBeenCalledWith(
+        execution,
+      );
     });
 
     it('should throw HttpException on error', async () => {
@@ -103,12 +105,13 @@ describe('ExecutionController', () => {
       };
       const result = await controller.generateBestExecutionReport(body);
       expect(result).toEqual(mockReport);
-      expect(
-        executionService.generateBestExecutionReport,
-      ).toHaveBeenCalledWith([{ ticker: 'AAPL' }], {
-        start: new Date('2025-01-01'),
-        end: new Date('2025-12-31'),
-      });
+      expect(executionService.generateBestExecutionReport).toHaveBeenCalledWith(
+        [{ ticker: 'AAPL' }],
+        {
+          start: new Date('2025-01-01'),
+          end: new Date('2025-12-31'),
+        },
+      );
     });
 
     it('should throw HttpException on error', async () => {

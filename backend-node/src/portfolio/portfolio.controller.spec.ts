@@ -24,9 +24,7 @@ describe('PortfolioController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PortfolioController],
-      providers: [
-        { provide: PortfolioService, useValue: portfolioService },
-      ],
+      providers: [{ provide: PortfolioService, useValue: portfolioService }],
     })
       .overrideGuard(AuthGuard)
       .useValue({ canActivate: () => true })
@@ -91,7 +89,10 @@ describe('PortfolioController', () => {
       const mockPortfolio = { id: 'p2', name: 'New Portfolio' };
       portfolioService.createPortfolio.mockResolvedValue(mockPortfolio);
 
-      const result = await controller.createPortfolio(mockReq, createDto as any);
+      const result = await controller.createPortfolio(
+        mockReq,
+        createDto as any,
+      );
       expect(result).toEqual(mockPortfolio);
       expect(portfolioService.createPortfolio).toHaveBeenCalledWith(
         'user-1',
@@ -159,9 +160,9 @@ describe('PortfolioController', () => {
         new Error('Delete failed'),
       );
 
-      await expect(
-        controller.deletePortfolio('p1', mockReq),
-      ).rejects.toThrow(HttpException);
+      await expect(controller.deletePortfolio('p1', mockReq)).rejects.toThrow(
+        HttpException,
+      );
     });
   });
 
@@ -195,12 +196,10 @@ describe('PortfolioController', () => {
     it('should remove a position from portfolio', async () => {
       portfolioService.removePosition.mockResolvedValue(undefined);
 
-      const result = await controller.removePosition(
-        'p1',
-        'AAPL',
-        mockReq,
-        { quantity: 5, sellPrice: 155 },
-      );
+      const result = await controller.removePosition('p1', 'AAPL', mockReq, {
+        quantity: 5,
+        sellPrice: 155,
+      });
       expect(result).toEqual({
         message: 'Position AAPL updated successfully',
       });

@@ -99,12 +99,36 @@ describe('LeadScoringService', () => {
   describe('scoreAllLeads', () => {
     it('scores all active leads and updates priorities', async () => {
       mockPrisma.lead.findMany.mockResolvedValue([
-        { id: 'l1', institutionType: 'cooperativa', source: 'demo_completion', notes: 'X', reportSentAt: new Date() },
-        { id: 'l2', institutionType: 'other', source: 'contact_form', notes: null, reportSentAt: null },
+        {
+          id: 'l1',
+          institutionType: 'cooperativa',
+          source: 'demo_completion',
+          notes: 'X',
+          reportSentAt: new Date(),
+        },
+        {
+          id: 'l2',
+          institutionType: 'other',
+          source: 'contact_form',
+          notes: null,
+          reportSentAt: null,
+        },
       ]);
       mockPrisma.lead.findUnique
-        .mockResolvedValueOnce({ id: 'l1', institutionType: 'cooperativa', source: 'demo_completion', notes: 'X', reportSentAt: new Date() })
-        .mockResolvedValueOnce({ id: 'l2', institutionType: 'other', source: 'contact_form', notes: null, reportSentAt: null });
+        .mockResolvedValueOnce({
+          id: 'l1',
+          institutionType: 'cooperativa',
+          source: 'demo_completion',
+          notes: 'X',
+          reportSentAt: new Date(),
+        })
+        .mockResolvedValueOnce({
+          id: 'l2',
+          institutionType: 'other',
+          source: 'contact_form',
+          notes: null,
+          reportSentAt: null,
+        });
 
       const result = await service.scoreAllLeads();
 

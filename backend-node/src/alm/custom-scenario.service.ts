@@ -1,10 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
-import {
-  StressTestingService,
-  CustomScenarioParams as StressCustomParams,
-} from './stress-testing/stress-testing.service';
+import { StressTestingService } from './stress-testing/stress-testing.service';
 import { ScenarioPersistenceService } from './scenarios/scenario-persistence.service';
 
 /** Round to n decimal places with NaN guard */

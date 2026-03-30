@@ -7,7 +7,9 @@ describe('ChatAnalystService', () => {
   } as any;
   const mockAlmEnterprise = {} as any;
   const mockAdvisorV2 = {
-    computeHealthScore: jest.fn().mockResolvedValue({ overall: 75, label: 'SATISFACTORY' }),
+    computeHealthScore: jest
+      .fn()
+      .mockResolvedValue({ overall: 75, label: 'SATISFACTORY' }),
   } as any;
   const mockCamelScorer = {
     scoreInstitution: jest.fn().mockResolvedValue({
@@ -40,19 +42,34 @@ describe('ChatAnalystService', () => {
   });
 
   it('should detect LCR tool from liquidity message', async () => {
-    const result = await service.processMessage('inst-1', 'sess-1', 'What is our LCR?', 'en');
+    const result = await service.processMessage(
+      'inst-1',
+      'sess-1',
+      'What is our LCR?',
+      'en',
+    );
     expect(result.message.role).toBe('assistant');
     expect(result.message.content).toContain('LCR');
   });
 
   it('should detect CAMEL tool from exam message', async () => {
-    const result = await service.processMessage('inst-1', 'sess-2', 'Are we ready for the COSSEC exam?', 'en');
+    const result = await service.processMessage(
+      'inst-1',
+      'sess-2',
+      'Are we ready for the COSSEC exam?',
+      'en',
+    );
     expect(result.message.role).toBe('assistant');
     expect(result.message.content).toContain('CAMEL');
   });
 
   it('should return suggested follow-ups', async () => {
-    const result = await service.processMessage('inst-1', 'sess-3', 'How are we doing?', 'en');
+    const result = await service.processMessage(
+      'inst-1',
+      'sess-3',
+      'How are we doing?',
+      'en',
+    );
     expect(result.suggestedFollowups.length).toBeGreaterThan(0);
     expect(result.suggestedFollowupsEs.length).toBeGreaterThan(0);
   });

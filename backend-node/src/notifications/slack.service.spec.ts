@@ -58,7 +58,7 @@ describe('SlackService', () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: true });
 
     const svc = new (SlackService as any)();
-    (svc as any).webhookUrl = 'https://hooks.slack.com/test';
+    svc.webhookUrl = 'https://hooks.slack.com/test';
 
     const result = await svc.sendAlert({
       type: 'new_lead',

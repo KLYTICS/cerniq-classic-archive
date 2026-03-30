@@ -32,7 +32,11 @@ describe('ResponseTimeHistogramInterceptor', () => {
   });
 
   it('should record route stats after request completes', async () => {
-    const ctx = createMockContext('GET', '/api/histogram-test', '/api/histogram-test');
+    const ctx = createMockContext(
+      'GET',
+      '/api/histogram-test',
+      '/api/histogram-test',
+    );
     const handler: CallHandler = { handle: () => of('ok') };
 
     await lastValueFrom(interceptor.intercept(ctx, handler));
@@ -45,7 +49,11 @@ describe('ResponseTimeHistogramInterceptor', () => {
   it('should accumulate stats for multiple requests', async () => {
     const routeKey = 'POST /api/hist-multi';
     for (let i = 0; i < 5; i++) {
-      const ctx = createMockContext('POST', '/api/hist-multi', '/api/hist-multi');
+      const ctx = createMockContext(
+        'POST',
+        '/api/hist-multi',
+        '/api/hist-multi',
+      );
       await lastValueFrom(
         interceptor.intercept(ctx, { handle: () => of('ok') }),
       );
@@ -58,7 +66,11 @@ describe('ResponseTimeHistogramInterceptor', () => {
   it('should return percentile data in getStats', async () => {
     const routeKey = 'GET /api/hist-percentile';
     for (let i = 0; i < 10; i++) {
-      const ctx = createMockContext('GET', '/api/hist-percentile', '/api/hist-percentile');
+      const ctx = createMockContext(
+        'GET',
+        '/api/hist-percentile',
+        '/api/hist-percentile',
+      );
       await lastValueFrom(
         interceptor.intercept(ctx, { handle: () => of('ok') }),
       );

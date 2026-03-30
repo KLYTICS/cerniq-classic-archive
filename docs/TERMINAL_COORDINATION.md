@@ -33,3 +33,43 @@
 3. COSSEC regulatory report parser
 4. Model registry for version tracking
 5. Additional E2E Playwright tests
+
+---
+
+## Cross-Session Handoff
+### March 30, 2026
+
+**Verified locally against workflow-equivalent gates**
+
+- Backend TypeScript: `npx tsc --noEmit` — pass
+- Backend Prisma schema: `npx prisma validate` — pass
+- Backend lint: `npm run lint` — pass with warnings only, no errors
+- Backend build: `npm run build` — pass
+- Backend tests: `npm run test -- --forceExit` — **2,640 tests, 367 suites passing**
+- Frontend lint: `npm run lint` — pass
+- Frontend build: `npm run build` — pass
+- Frontend component tests: `npx vitest run` — **249 tests passing**
+- Outbound tests: isolated temp venv in `/tmp/cerniq-outbound-ci`, `pytest tests/ -q` — **82 tests passing**
+
+**Current blocker to GitHub greens**
+
+- GitHub Actions is not executing jobs because repository Actions billing is suspended.
+- Latest failed runs on `main` do **not** indicate code regressions; they fail before jobs start with:
+  `The job was not started because recent account payments have failed or your spending limit needs to be increased.`
+
+**Operator notes**
+
+- Current branch is still `main` with a large pre-existing dirty worktree. Treat those edits as active session state; do not reset blindly.
+- Local Docker services available during verification:
+  - Postgres: `localhost:5433`
+  - Redis: `localhost:6380`
+- For backend local verification, the passing env was:
+  - `DATABASE_URL=postgresql://cerniq:cerniq@localhost:5433/cerniq`
+  - `REDIS_URL=redis://localhost:6380`
+  - `JWT_SECRET=ci-test-secret-must-be-at-least-32-characters-long`
+
+**Next action once billing is restored**
+
+1. Push or commit the intended worktree state.
+2. Re-run GitHub Actions on `main`.
+3. If any workflow still fails after billing is fixed, reproduce only the failing job locally using the command list above.

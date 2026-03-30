@@ -17,11 +17,24 @@ describe('CAMELScorerService', () => {
   });
 
   it('should score a well-capitalized institution', async () => {
-    mockPrisma.institution.findUnique.mockResolvedValue({ id: 'inst-1', name: 'Test CU' });
+    mockPrisma.institution.findUnique.mockResolvedValue({
+      id: 'inst-1',
+      name: 'Test CU',
+    });
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
-      { category: 'asset', subcategory: 'commercial_loans', balance: 300, rate: 0.06 },
+      {
+        category: 'asset',
+        subcategory: 'commercial_loans',
+        balance: 300,
+        rate: 0.06,
+      },
       { category: 'asset', subcategory: 'cash', balance: 145, rate: 0.04 },
-      { category: 'liability', subcategory: 'deposits', balance: 355, rate: 0.02 },
+      {
+        category: 'liability',
+        subcategory: 'deposits',
+        balance: 355,
+        rate: 0.02,
+      },
     ]);
 
     const result = await service.scoreInstitution('inst-1');
@@ -63,7 +76,12 @@ describe('CAMELScorerService', () => {
     mockPrisma.institution.findUnique.mockResolvedValue({ id: 'inst-1' });
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
       { category: 'asset', subcategory: 'cash', balance: 500, rate: 0.05 },
-      { category: 'liability', subcategory: 'deposits', balance: 400, rate: 0.01 },
+      {
+        category: 'liability',
+        subcategory: 'deposits',
+        balance: 400,
+        rate: 0.01,
+      },
     ]);
 
     const result = await service.scoreInstitution('inst-1');

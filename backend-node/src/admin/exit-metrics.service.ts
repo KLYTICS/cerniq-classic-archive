@@ -57,7 +57,6 @@ export class ExitMetricsService {
 
   async getExitMetrics(): Promise<ExitMetrics> {
     const institutions = await this.prisma.institution.count();
-    const users = await this.prisma.user.count();
 
     // Revenue estimates (based on tier pricing)
     const avgRevenuePerInstitution = 3500; // Silver tier default

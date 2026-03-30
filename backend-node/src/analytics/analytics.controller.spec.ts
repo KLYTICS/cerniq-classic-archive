@@ -24,9 +24,7 @@ describe('AnalyticsController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AnalyticsController],
-      providers: [
-        { provide: AnalyticsService, useValue: analyticsService },
-      ],
+      providers: [{ provide: AnalyticsService, useValue: analyticsService }],
     })
       .overrideGuard(AuthGuard)
       .useValue({ canActivate: () => true })
@@ -225,7 +223,11 @@ describe('AnalyticsController', () => {
     it('should pass undefined range when dates not provided', async () => {
       analyticsService.exportExpenses.mockResolvedValue([]);
 
-      const mockRes = { setHeader: jest.fn(), send: jest.fn(), json: jest.fn() };
+      const mockRes = {
+        setHeader: jest.fn(),
+        send: jest.fn(),
+        json: jest.fn(),
+      };
 
       await controller.exportExpenses(
         undefined as any,

@@ -16,6 +16,13 @@ const cache = new Map<string, { data: any; cachedAt: string }>();
 export class DegradationService {
   private readonly logger = new Logger(DegradationService.name);
 
+  private scheduleCacheEviction(key: string, delayMs: number): void {
+    const evictionTimer = setTimeout(() => cache.delete(key), delayMs);
+    if (evictionTimer.unref) {
+      evictionTimer.unref();
+    }
+  }
+
   async resolve<T>(
     key: string,
     computeFn: () => Promise<T>,
@@ -26,7 +33,7 @@ export class DegradationService {
     try {
       const data = await computeFn();
       cache.set(key, { data, cachedAt: new Date().toISOString() });
-      setTimeout(() => cache.delete(key), cacheTtlMs * 24); // keep cache longer than TTL for degradation
+      this.scheduleCacheEviction(key, cacheTtlMs * 24);
       return { data, level: 'live' };
     } catch (liveError: any) {
       this.logger.warn(
