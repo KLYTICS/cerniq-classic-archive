@@ -19,7 +19,6 @@ export class CompounderValuationEngine {
     // Extract metrics
     const eps = fundamentals?.eps || 10.0;
     const fcf = fundamentals?.fcf || 8.0;
-    const revenue = fundamentals?.revenue || 100.0;
 
     // Calculate quality metrics
     const roic = this.calculateROIC(fundamentals);
@@ -69,7 +68,7 @@ export class CompounderValuationEngine {
   /**
    * Calculate Return on Invested Capital
    */
-  private calculateROIC(fundamentals: any): number {
+  private calculateROIC(_fundamentals: any): number {
     // Simplified - would use: NOPAT / (Debt + Equity - Cash)
     return 0.15 + Math.random() * 0.15; // Random between 15-30%
   }
@@ -77,7 +76,7 @@ export class CompounderValuationEngine {
   /**
    * Calculate 3-year revenue CAGR
    */
-  private calculateRevenueCGR(fundamentals: any): number {
+  private calculateRevenueCGR(_fundamentals: any): number {
     // Placeholder - would calculate from historical revenue
     return 10 + Math.random() * 15; // Random between 10-25%
   }
@@ -85,7 +84,7 @@ export class CompounderValuationEngine {
   /**
    * Assess margin stability (score 0-100)
    */
-  private assessMarginStability(fundamentals: any): number {
+  private assessMarginStability(_fundamentals: any): number {
     // Placeholder - would analyze margin variance over time
     return 60 + Math.random() * 40; // Random between 60-100
   }

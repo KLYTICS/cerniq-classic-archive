@@ -53,7 +53,6 @@ export class NetWorthAtRiskService {
   }): NWaRResult {
     const {
       assets,
-      liabilities,
       equity,
       durationGap,
       rateVolatility,
@@ -139,7 +138,7 @@ export class NetWorthAtRiskService {
     residualEquity: number;
     solvent: boolean;
   }> {
-    const { assets, liabilities, equity, durationGap, rateShocks } = params;
+    const { assets, equity, durationGap, rateShocks } = params;
 
     return rateShocks.map((shock) => {
       const equityImpact = -assets * durationGap * shock;

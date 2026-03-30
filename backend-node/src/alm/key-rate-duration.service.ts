@@ -49,12 +49,11 @@ export class KeyRateDurationService {
       where: { institutionId },
     });
 
-    let baseCurve: TenorRate[];
     const saved = await this.prisma.yieldCurve.findFirst({
       where: { institutionId, isBase: true },
       orderBy: { asOfDate: 'desc' },
     });
-    baseCurve = saved
+    const baseCurve = saved
       ? (saved.tenors as unknown as TenorRate[])
       : this.getDefaultCurve();
 

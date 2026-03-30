@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { NCUADataPullService } from './data-pull/ncua-data-pull.service';
 import { AlmService } from './alm.service';
-import { StressTestingService } from './stress-testing/stress-testing.service';
 import { ReportsService } from './reports/reports.service';
 
 @Injectable()
@@ -78,7 +77,7 @@ export class SampleReportFactoryService {
     prospectId: string,
   ): Promise<{ success: boolean; reportUrl?: string }> {
     try {
-      const buffer = await this.generateSampleReport(charterNumber);
+      await this.generateSampleReport(charterNumber);
 
       // In production, upload to blob storage; for now, store as base64 in prospect notes
       const prospect = await this.prisma.prospectInstitution.findUnique({

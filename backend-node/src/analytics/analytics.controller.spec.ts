@@ -50,10 +50,10 @@ describe('AnalyticsController', () => {
       );
     });
 
-    it('should default to default-org when header missing', () => {
+    it('should default to default-org when header missing', async () => {
       analyticsService.getSummary.mockReturnValue({});
 
-      controller.getSummary(mockReq({ headers: {} }));
+      await controller.getSummary(mockReq({ headers: {} }));
       expect(analyticsService.getSummary).toHaveBeenCalledWith(
         'default-org',
         'user-1',
@@ -62,11 +62,11 @@ describe('AnalyticsController', () => {
   });
 
   describe('getSpendingTrends', () => {
-    it('should pass date range to service', () => {
+    it('should pass date range to service', async () => {
       analyticsService.getSpendingTrends.mockReturnValue([]);
 
       const req = mockReq();
-      controller.getSpendingTrends('2025-01-01', '2025-12-31', req);
+      await controller.getSpendingTrends('2025-01-01', '2025-12-31', req);
 
       expect(analyticsService.getSpendingTrends).toHaveBeenCalledWith(
         'org-1',
@@ -75,11 +75,15 @@ describe('AnalyticsController', () => {
       );
     });
 
-    it('should use defaults when dates not provided', () => {
+    it('should use defaults when dates not provided', async () => {
       analyticsService.getSpendingTrends.mockReturnValue([]);
 
       const req = mockReq();
-      controller.getSpendingTrends(undefined as any, undefined as any, req);
+      await controller.getSpendingTrends(
+        undefined as any,
+        undefined as any,
+        req,
+      );
 
       const call = analyticsService.getSpendingTrends.mock.calls[0];
       expect(call[0]).toBe('org-1');
@@ -90,10 +94,14 @@ describe('AnalyticsController', () => {
   });
 
   describe('getCategoryBreakdown', () => {
-    it('should pass date range when both provided', () => {
+    it('should pass date range when both provided', async () => {
       analyticsService.getCategoryBreakdown.mockReturnValue([]);
 
-      controller.getCategoryBreakdown('2025-01-01', '2025-12-31', mockReq());
+      await controller.getCategoryBreakdown(
+        '2025-01-01',
+        '2025-12-31',
+        mockReq(),
+      );
       expect(analyticsService.getCategoryBreakdown).toHaveBeenCalledWith(
         'org-1',
         'user-1',
@@ -101,10 +109,10 @@ describe('AnalyticsController', () => {
       );
     });
 
-    it('should pass undefined range when dates not provided', () => {
+    it('should pass undefined range when dates not provided', async () => {
       analyticsService.getCategoryBreakdown.mockReturnValue([]);
 
-      controller.getCategoryBreakdown(
+      await controller.getCategoryBreakdown(
         undefined as any,
         undefined as any,
         mockReq(),
@@ -118,10 +126,10 @@ describe('AnalyticsController', () => {
   });
 
   describe('getTeamComparison', () => {
-    it('should pass date range when both provided', () => {
+    it('should pass date range when both provided', async () => {
       analyticsService.getTeamComparison.mockReturnValue([]);
 
-      controller.getTeamComparison('2025-01-01', '2025-12-31', mockReq());
+      await controller.getTeamComparison('2025-01-01', '2025-12-31', mockReq());
       expect(analyticsService.getTeamComparison).toHaveBeenCalledWith(
         'org-1',
         'user-1',
@@ -129,10 +137,10 @@ describe('AnalyticsController', () => {
       );
     });
 
-    it('should pass undefined range when dates not provided', () => {
+    it('should pass undefined range when dates not provided', async () => {
       analyticsService.getTeamComparison.mockReturnValue([]);
 
-      controller.getTeamComparison(
+      await controller.getTeamComparison(
         undefined as any,
         undefined as any,
         mockReq(),

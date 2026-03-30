@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { StressV2Service, DFASTScenario } from './stress-v2.service';
+import { StressV2Service } from './stress-v2.service';
 
 export interface RobustOptResult {
   strategy: 'minimax-regret';

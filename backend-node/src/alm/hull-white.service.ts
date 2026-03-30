@@ -222,7 +222,7 @@ export class HullWhiteService {
    * P^M(0,T) = market discount factor, f^M(0,t) = instantaneous forward rate
    */
   priceZeroCouponBond(params: HullWhiteBondParams): HullWhiteBondResult {
-    const { currentRate, kappa, sigma, maturity, termStructure } = params;
+    const { currentRate, kappa, maturity, termStructure } = params;
 
     // Edge case: zero maturity
     if (maturity <= 0) {

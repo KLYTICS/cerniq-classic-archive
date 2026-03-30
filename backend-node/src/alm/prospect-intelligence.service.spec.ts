@@ -135,7 +135,6 @@ describe('ProspectIntelligenceService', () => {
 
   it('email drafts reference the top risk flag', async () => {
     const result = await service.analyzeProspect('12345');
-    const topMetric = result.riskFlags[0].metric;
     // Email should reference the institution name
     expect(result.emailDraft).toContain('Cooperativa Test');
     expect(result.emailDraftEs).toContain('Cooperativa Test');

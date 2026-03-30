@@ -32,13 +32,6 @@ export interface OASPortfolioResult {
   totalBalance: number;
 }
 
-// ─── BDT Tree Node ───────────────────────────────────────────
-
-interface TreeNode {
-  rate: number;
-  price: number;
-}
-
 // PSA Prepayment Speeds
 const PSA_BASE_CPR = 0.06; // 6% base CPR (100% PSA)
 const PR_LOYALTY_DISCOUNT = 0.8; // PR cooperatives 20% less likely to prepay
@@ -60,12 +53,11 @@ export class OASCalculatorService {
         where: { institutionId },
       });
 
-      let baseCurve: TenorRate[];
       const saved = await this.prisma.yieldCurve.findFirst({
         where: { institutionId, isBase: true },
         orderBy: { asOfDate: 'desc' },
       });
-      baseCurve = saved
+      const baseCurve = saved
         ? (saved.tenors as unknown as TenorRate[])
         : this.getDefaultCurve();
 

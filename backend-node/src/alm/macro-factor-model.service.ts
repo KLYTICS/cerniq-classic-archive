@@ -114,7 +114,7 @@ export class MacroFactorModelService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async computeMacroImpact(institutionId: string): Promise<MacroFactorResult> {
+  async computeMacroImpact(_institutionId: string): Promise<MacroFactorResult> {
     const baseline = PR_MACRO_SCENARIOS[0];
 
     const scenarios: MacroImpact[] = PR_MACRO_SCENARIOS.map((scenario) => {

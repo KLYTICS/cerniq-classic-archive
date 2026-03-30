@@ -1,7 +1,4 @@
-import {
-  SubscriptionTierGuard,
-  SUBSCRIPTION_TIER_KEY,
-} from './subscription-tier.guard';
+import { SubscriptionTierGuard } from './subscription-tier.guard';
 import { Reflector } from '@nestjs/core';
 import { ForbiddenException, ExecutionContext } from '@nestjs/common';
 

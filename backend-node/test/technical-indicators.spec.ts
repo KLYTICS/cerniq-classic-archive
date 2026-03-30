@@ -115,10 +115,7 @@ describe('TechnicalIndicatorsService', () => {
 
   describe('calculateBollingerBands', () => {
     it('should return upper, middle, lower bands', () => {
-      const prices = Array.from(
-        { length: 30 },
-        (_, i) => 100 + Math.random() * 10,
-      );
+      const prices = Array.from({ length: 30 }, () => 100 + Math.random() * 10);
       const result = service.calculateBollingerBands(prices, 20, 2);
 
       expect(result).toHaveProperty('upper');
@@ -170,15 +167,9 @@ describe('TechnicalIndicatorsService', () => {
 
   describe('calculateStochastic', () => {
     it('should return k and d values between 0 and 100', () => {
-      const highs = Array.from(
-        { length: 20 },
-        (_, i) => 105 + Math.random() * 5,
-      );
-      const lows = Array.from({ length: 20 }, (_, i) => 95 + Math.random() * 5);
-      const closes = Array.from(
-        { length: 20 },
-        (_, i) => 100 + Math.random() * 5,
-      );
+      const highs = Array.from({ length: 20 }, () => 105 + Math.random() * 5);
+      const lows = Array.from({ length: 20 }, () => 95 + Math.random() * 5);
+      const closes = Array.from({ length: 20 }, () => 100 + Math.random() * 5);
 
       const result = service.calculateStochastic(highs, lows, closes, 14);
 

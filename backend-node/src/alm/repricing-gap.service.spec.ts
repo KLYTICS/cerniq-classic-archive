@@ -32,7 +32,6 @@ describe('RepricingGapService', () => {
   // ── Real items bucketed correctly ──────────────────────────
 
   it('distributes fixed-rate items into correct buckets based on duration', async () => {
-    const now = Date.now();
     prisma.balanceSheetItem.findMany.mockResolvedValue([
       {
         category: 'asset',

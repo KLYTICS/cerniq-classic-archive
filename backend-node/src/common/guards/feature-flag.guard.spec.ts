@@ -1,4 +1,4 @@
-import { FeatureFlagGuard, FEATURE_FLAG_KEY } from './feature-flag.guard';
+import { FeatureFlagGuard } from './feature-flag.guard';
 import { Reflector } from '@nestjs/core';
 import { ForbiddenException, ExecutionContext } from '@nestjs/common';
 

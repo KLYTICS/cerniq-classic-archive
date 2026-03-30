@@ -48,9 +48,6 @@ const VALID_CATEGORIES = new Set([
   'other',
 ]);
 
-// Valid statuses
-const VALID_STATUSES = new Set(['PAID', 'PENDING', 'CANCELLED']);
-
 // Status aliases (Spanish → English)
 const STATUS_ALIASES: Record<string, string> = {
   paid: 'PAID',

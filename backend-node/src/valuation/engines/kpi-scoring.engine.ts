@@ -58,7 +58,7 @@ export class KPIScoringEngine {
     return (revenueGrowth + marginTrend + roic) / 3;
   }
 
-  private scoreMomentum(marketData: any): number {
+  private scoreMomentum(_marketData: any): number {
     // Placeholder - would analyze price momentum, volume, relative strength
     return 50 + Math.random() * 50;
   }
@@ -78,26 +78,26 @@ export class KPIScoringEngine {
   }
 
   // Individual metric scorers (0-100)
-  private scoreRevenueGrowth(fundamentals: any): number {
+  private scoreRevenueGrowth(_fundamentals: any): number {
     const growth = 15; // Placeholder %
     return Math.min((growth / 30) * 100, 100);
   }
 
-  private scoreMarginTrend(fundamentals: any): number {
+  private scoreMarginTrend(_fundamentals: any): number {
     return 60 + Math.random() * 40;
   }
 
-  private scoreROIC(fundamentals: any): number {
+  private scoreROIC(_fundamentals: any): number {
     const roic = 0.2; // 20% placeholder
     return Math.min((roic / 0.3) * 100, 100);
   }
 
-  private scoreDebtLevel(fundamentals: any): number {
+  private scoreDebtLevel(_fundamentals: any): number {
     const debtToEquity = 0.5; // Placeholder
     return Math.max(0, 100 - debtToEquity * 100);
   }
 
-  private scoreFCFYield(fundamentals: any): number {
+  private scoreFCFYield(_fundamentals: any): number {
     const fcfYield = 0.05; // 5% placeholder
     return Math.min((fcfYield / 0.1) * 100, 100);
   }
@@ -108,7 +108,7 @@ export class KPIScoringEngine {
     return Math.max(0, 100 - Math.abs(pe - idealPE) * 5);
   }
 
-  private scorePriceToSales(fundamentals: any): number {
+  private scorePriceToSales(_fundamentals: any): number {
     const ps = 3; // Placeholder
     return Math.max(0, 100 - ps * 10);
   }

@@ -76,7 +76,7 @@ export class ExecutionService {
     execution: ExecutionDto,
     periodMinutes: number = 60,
   ): Promise<VWAPAnalysis> {
-    const { ticker, executionPrice, executionTime, side, quantity } = execution;
+    const { ticker, executionPrice, side, quantity } = execution;
 
     // Calculate estimated VWAP (using historical close as approximation)
     const quote = await this.marketDataService.getQuote(ticker);

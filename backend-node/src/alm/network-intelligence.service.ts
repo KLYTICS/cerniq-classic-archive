@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { CAMELScorerService } from './exam-prep/camel-scorer.service';
 
 // ─── Types ───────────────────────────────────────────────────
 

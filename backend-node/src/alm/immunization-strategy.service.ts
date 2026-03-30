@@ -117,9 +117,6 @@ export class ImmunizationStrategyService {
         });
       } else {
         // Asset duration too short — buy longer-duration assets
-        const shortestDurAsset = [...assets].sort(
-          (a, b) => a.duration - b.duration,
-        )[0];
         const extensionNeeded = Math.abs(currentGap) * totalAssetMV;
         const longestAvailable = [...assets].sort(
           (a, b) => b.duration - a.duration,

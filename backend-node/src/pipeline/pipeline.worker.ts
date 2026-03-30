@@ -89,7 +89,7 @@ export class PipelineWorker {
 
       // Step 3: Run ALM calculations via enterprise service (with trend data)
       await this.transitionJob(job.id, 'GENERATING_PDF');
-      const [summary, stressTest, cossec] = await Promise.all([
+      await Promise.all([
         this.almEnterprise.getALMSummary(institution.id),
         this.stressTesting.runFullStressTest(institution.id, {
           paths: 500,
@@ -3120,17 +3120,6 @@ export class PipelineWorker {
 
       for (const inst of results) {
         if (!inst.contactEmail) continue;
-
-        const deadlineList = inst.deadlines
-          .map((d) => {
-            const days = Math.floor(
-              (new Date(d.deadlineDate).getTime() - Date.now()) / 86_400_000,
-            );
-            const daysLabel =
-              days < 0 ? `VENCIDO (${Math.abs(days)}d)` : `${days} dias`;
-            return `- [${d.urgency}] ${d.titleEs} / ${d.title}: ${daysLabel}`;
-          })
-          .join('\n');
 
         try {
           await this.email.sendDailyOperationsReport({

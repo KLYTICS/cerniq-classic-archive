@@ -44,12 +44,13 @@
 - Backend TypeScript: `npx tsc --noEmit` — pass
 - Backend Prisma schema: `npx prisma validate` — pass
 - Backend lint: `npm run lint` — pass with warnings only, no errors
+- Backend E2E/security: `REDIS_URL=redis://localhost:6380 npx jest --config ./test/jest-e2e.json --runInBand` — **64 tests, 4 suites passing**
 - Backend build: `npm run build` — pass
-- Backend tests: `npm run test -- --forceExit` — **2,640 tests, 367 suites passing**
+- Backend tests: `npm run test -- --forceExit` — **2,643 tests, 367 suites passing**
 - Frontend lint: `npm run lint` — pass
 - Frontend build: `npm run build` — pass
 - Frontend component tests: `npx vitest run` — **249 tests passing**
-- Outbound tests: isolated temp venv in `/tmp/cerniq-outbound-ci`, `pytest tests/ -q` — **82 tests passing**
+- Outbound tests: isolated temp venv in `/tmp/cerniq-outbound-ci`, `pytest services/outbound/tests -q` — **82 tests passing**
 
 **Current blocker to GitHub greens**
 

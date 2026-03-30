@@ -16,7 +16,9 @@ Current validated state on this branch:
 
 - Backend Prisma validation: pass
 - Backend TypeScript: pass
+- Backend lint: pass with warnings only
 - Backend build: pass
+- Backend E2E/security: pass (`4` suites, `64` tests)
 - Backend tests: pass (`367` suites, `2643` tests)
 - Frontend build: pass
 - Frontend tests: pass (`45` files, `249` tests)
@@ -26,7 +28,7 @@ Current validated state on this branch:
 ## Gaps
 
 - GitHub Actions is still blocked from reaching green because recent runs on PR `#24` are not starting due to repository/account Actions billing or spending-limit issues.
-- `jest --detectOpenHandles` completes the full suite successfully but the process remains alive afterward without printing a concrete handle report, which currently looks like a Jest/Node tooling quirk rather than a repo code failure.
+- The branch now contains a broad backend `eslint --fix` hardening wave across touched/test-adjacent files. It is locally validated, but still pending commit/push in the current session.
 
 ## Affected Areas
 
@@ -41,7 +43,10 @@ Validated locally on 2026-03-30:
 ```bash
 cd backend-node && npx prisma validate
 cd backend-node && npx tsc --noEmit
+cd backend-node && npm run lint
 cd backend-node && npm run build
+cd backend-node && npx jest --config ./test/jest-e2e.json --runInBand
+cd backend-node && npm run test -- --detectOpenHandles --runInBand
 cd backend-node && npm run test -- --forceExit
 cd frontend && npx next build
 cd frontend && npx vitest run
@@ -49,6 +54,8 @@ cd frontend && npx vitest run
 
 Observed results:
 
+- Backend lint: `6` warnings, `0` errors
+- Backend E2E/security: `4` suites passed, `64` tests passed
 - Backend tests: `367` suites passed, `2643` tests passed
 - Frontend tests: `45` files passed, `249` tests passed
 - Frontend coverage: `47.07%` statements, `48.24%` branches, `46.25%` functions, `46.76%` lines
@@ -57,7 +64,7 @@ Additional validation:
 
 - Changed backend TypeScript files pass `eslint --no-warn-ignored`
 - Changed frontend TypeScript files pass `eslint --no-warn-ignored`
-- `npm run test -- --detectOpenHandles` reached `367/367` suites passed after removing an empty local `backend-node/node_modules/micromatch/node_modules` directory, but the Jest process did not exit cleanly and produced no handle-specific report
+- `npm run test -- --detectOpenHandles --runInBand` completed successfully with `367/367` suites passed
 
 ## Planned Changes
 
@@ -108,7 +115,7 @@ Additional validation:
 ## Unresolved Risks
 
 - GitHub Actions cannot be made green until Actions billing/spending is restored
-- The detect-open-handles hang still lacks a concrete repo-level culprit even though the suite itself passes fully
+- The current worktree is intentionally dirty until this validation batch is committed and pushed
 
 ## Remote GitHub Status
 
@@ -160,7 +167,10 @@ git status --short --branch
 cd backend-node
 npx prisma validate
 npx tsc --noEmit
+npm run lint
 npm run build
+npx jest --config ./test/jest-e2e.json --runInBand
+npm run test -- --detectOpenHandles --runInBand
 npm run test -- --forceExit
 
 cd ../frontend

@@ -4,7 +4,6 @@ import { PrismaService } from '../../prisma.service';
 import { AlmEnterpriseService } from '../alm-enterprise.service';
 import {
   COSSEC_SCENARIOS,
-  NamedScenario,
   NamedScenarioResult,
 } from '../scenarios/cossec-scenarios';
 
@@ -411,7 +410,7 @@ export class StressTestingService {
   ): Promise<NamedScenarioResult[]> {
     this.logger.log(`COSSEC named scenarios for institution ${institutionId}`);
 
-    const [niiSensitivity, liquidity, cossec] = await Promise.all([
+    const [niiSensitivity, _liquidity, cossec] = await Promise.all([
       this.almEnterprise.calculateNIISensitivity(institutionId),
       this.almEnterprise.calculateLCR(institutionId),
       this.almEnterprise.getCOSSECCompliance(institutionId),
@@ -671,7 +670,7 @@ export class StressTestingService {
         this.almEnterprise.calculateLCR(institutionId),
         this.almEnterprise.getCOSSECCompliance(institutionId),
       ]);
-    } catch (err) {
+    } catch (_err) {
       this.logger.warn(
         `Custom scenario: could not load institution data — returning empty result`,
       );
@@ -702,11 +701,6 @@ export class StressTestingService {
         ? rateShockBps / closestScenario.shiftBps
         : 1;
     const niiImpact = closestScenario.niImpact * scaleFactor; // in $M
-    const niiImpactPct = baseNII !== 0 ? (niiImpact / baseNII) * 100 : 0;
-
-    // NIM change: approximate as proportional to NII change
-    const nimImpactBps = round(niiImpactPct * 3, 0); // ~3bps per 1% NII change
-    const nimAfter = round(Math.max(0, nimBefore + nimImpactBps / 100), 2);
 
     // ── 2. Deposit Runoff → LCR Impact ──
     // Deposit outflow reduces HQLA and increases net outflows
@@ -738,8 +732,13 @@ export class StressTestingService {
     const baseOpex = baseNII * 0.4;
     const energyBaseCost = baseOpex * 0.03;
     const energyIncrease = energyBaseCost * (energyCostShockPct / 100);
-    // Reduces effective NII
-    const effectiveNIIImpact = niiImpact - depositFundingCost - energyIncrease;
+    const combinedNiiImpact = niiImpact - depositFundingCost - energyIncrease;
+    const combinedNiiImpactPct =
+      baseNII !== 0 ? (combinedNiiImpact / baseNII) * 100 : 0;
+
+    // NIM change: approximate as proportional to combined NII change
+    const nimImpactBps = round(combinedNiiImpactPct * 3, 0); // ~3bps per 1% NII change
+    const nimAfter = round(Math.max(0, nimBefore + nimImpactBps / 100), 2);
 
     // ── 5. Combined Exam Readiness Score ──
     let examDeductions = 0;

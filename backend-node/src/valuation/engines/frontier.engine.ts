@@ -93,7 +93,7 @@ export class FrontierValuationEngine {
   /**
    * Identify potential catalysts
    */
-  private identifyCatalysts(ticker: string, fundamentals: any): string[] {
+  private identifyCatalysts(_ticker: string, _fundamentals: any): string[] {
     // Placeholder - would analyze news, earnings, product launches
     return [
       'Product launch in 6 months',

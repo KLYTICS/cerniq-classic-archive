@@ -614,7 +614,6 @@ describe('AlmService', () => {
     it('should compute changePct relative to base EVE', () => {
       const result = service.eveAnalysis(SAMPLE_COOPERATIVA, [0, 100]);
 
-      const base = result.scenarios.find((s) => s.shockBps === 0)!;
       const shocked = result.scenarios.find((s) => s.shockBps === 100)!;
 
       // changePct = change / |baseEVE|

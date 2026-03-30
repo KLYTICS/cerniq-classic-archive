@@ -283,7 +283,7 @@ describe('AuthController', () => {
       authService.revokeApiKey.mockResolvedValue({ message: 'Key revoked' });
 
       const req = { user: { userId: 'u8' } };
-      const result = await controller.revokeApiKey(req, 'k3');
+      await controller.revokeApiKey(req, 'k3');
 
       expect(authService.revokeApiKey).toHaveBeenCalledWith('u8', 'k3');
     });

@@ -128,7 +128,7 @@ export class TermPremiumService {
     inversionPoints: number[];
     flatteningZones: number[];
   } {
-    const result = this.estimateTermPremium(params);
+    this.estimateTermPremium(params);
     const sorted = [...params.yields].sort((a, b) => a.maturity - b.maturity);
 
     const inversionPoints: number[] = [];

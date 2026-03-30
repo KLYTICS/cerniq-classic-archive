@@ -28,12 +28,12 @@ cd frontend && npm run lint
 cd frontend && npm run build
 cd frontend && npx vitest run
 
-cd services/outbound && python -m pytest tests/ -q
+python -m pytest services/outbound/tests -q
 ```
 
 Observed results:
 
-- Backend tests: `367` suites passed, `2640` tests passed.
+- Backend tests: `367` suites passed, `2643` tests passed.
 - Frontend tests: `45` files passed, `249` tests passed.
 - Outbound tests: `82` tests passed.
 - Backend production audit: `0` vulnerabilities after overrides were applied.

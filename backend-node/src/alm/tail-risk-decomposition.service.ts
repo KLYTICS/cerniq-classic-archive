@@ -152,25 +152,6 @@ export class TailRiskDecompositionService {
     confidence: number,
   ): { systematic: number; idiosyncratic: number } {
     const n = returns.length;
-    const meanR = returns.reduce((s, r) => s + r, 0) / n;
-    const meanM = marketReturns.reduce((s, r) => s + r, 0) / n;
-
-    // Compute beta via OLS
-    let covRM = 0;
-    let varM = 0;
-    for (let i = 0; i < n; i++) {
-      const dr = returns[i] - meanR;
-      const dm = marketReturns[i] - meanM;
-      covRM += dr * dm;
-      varM += dm * dm;
-    }
-    const beta = varM > 0 ? covRM / varM : 0;
-
-    // Residuals
-    const residuals = returns.map(
-      (r, i) => r - (meanR + beta * (marketReturns[i] - meanM)),
-    );
-
     // Tail events (beyond confidence quantile)
     const threshold = 1 - confidence;
     const tailSize = Math.max(1, Math.floor(n * threshold));

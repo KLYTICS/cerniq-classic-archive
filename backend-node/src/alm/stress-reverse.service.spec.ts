@@ -1,6 +1,5 @@
 import {
   StressReverseService,
-  InstrumentInput,
   BalanceSheetInput,
 } from './stress-reverse.service';
 

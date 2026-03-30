@@ -9,7 +9,6 @@ import {
 } from './dto/portfolio.dto';
 import { MarketDataService } from '../market-data/market-data.service';
 import { PrismaService } from '../prisma.service';
-import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class PortfolioService {
@@ -208,7 +207,7 @@ export class PortfolioService {
     userId: string,
     ticker: string,
     quantity: number,
-    sellPrice: number,
+    _sellPrice: number,
   ): Promise<void> {
     const portfolio = await this.prisma.portfolio.findUnique({
       where: { id: portfolioId },
@@ -259,8 +258,6 @@ export class PortfolioService {
     // Note: For real implementation we should store Cash Balance in DB.
     // usage of initialCash and currentCash in DTO is currently mocked/transient for 'totalValue' calculation
 
-    const totalInvested = 0; // Needs Cash model
-    const totalValue = dto.totalValue;
     const totalReturn = dto.totalPnL;
     const totalReturnPercent = dto.totalPnLPercent;
 
@@ -361,7 +358,7 @@ export class PortfolioService {
 
         totalPositionValue += position.marketValue;
         totalCostBasis += position.avgCost * position.quantity;
-      } catch (error) {
+      } catch (_error) {
         this.logger.warn(`Failed to update price for ${position.ticker}`);
       }
     }

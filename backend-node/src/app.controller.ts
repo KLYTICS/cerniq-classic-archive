@@ -193,6 +193,14 @@ export class AppController {
     private readonly marketStreamManager: MarketStreamManagerService,
   ) {}
 
+  private async isCacheReachable(): Promise<boolean> {
+    try {
+      return await this.cacheService.ping();
+    } catch {
+      return false;
+    }
+  }
+
   @Post('api/demo-request')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(HttpStatus.CREATED)
@@ -263,23 +271,7 @@ export class AppController {
       dbConnected = false;
     }
 
-    // Check Redis (best-effort)
-    try {
-      const Redis = require('ioredis');
-      const redis = new Redis(
-        process.env.REDIS_URL || 'redis://localhost:6379',
-        {
-          connectTimeout: 2000,
-          lazyConnect: true,
-        },
-      );
-      await redis.connect();
-      await redis.ping();
-      checks.cache = 'up';
-      await redis.quit();
-    } catch {
-      checks.cache = 'degraded';
-    }
+    checks.cache = (await this.isCacheReachable()) ? 'up' : 'degraded';
 
     const marketDataHealth = this.marketDataService.getHealth(
       this.marketStreamManager.getStreamStatus(),
@@ -467,27 +459,12 @@ export class AppController {
       services.database = { status: 'down', latencyMs: Date.now() - dbStart };
     }
 
-    // Redis check with timing
+    // Cache check with timing
     const redisStart = Date.now();
-    try {
-      const Redis = require('ioredis');
-      const redis = new Redis(
-        process.env.REDIS_URL || 'redis://localhost:6379',
-        {
-          connectTimeout: 2000,
-          lazyConnect: true,
-        },
-      );
-      await redis.connect();
-      await redis.ping();
-      services.cache = { status: 'up', latencyMs: Date.now() - redisStart };
-      await redis.quit();
-    } catch {
-      services.cache = {
-        status: 'degraded',
-        latencyMs: Date.now() - redisStart,
-      };
-    }
+    services.cache = {
+      status: (await this.isCacheReachable()) ? 'up' : 'degraded',
+      latencyMs: Date.now() - redisStart,
+    };
 
     const marketDataHealth = this.marketDataService.getHealth(
       this.marketStreamManager.getStreamStatus(),

@@ -399,8 +399,8 @@ export class NSFRService {
 
   private getRecommendations(
     nsfr: number,
-    asf: NSFRCategory[],
-    rsf: NSFRCategory[],
+    _asf: NSFRCategory[],
+    _rsf: NSFRCategory[],
   ) {
     const recs: Array<{
       action: string;

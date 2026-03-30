@@ -4,6 +4,7 @@ import _request from 'supertest';
 const request = (_request as any).default ?? _request;
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma.service';
+import { CacheService } from '../src/cache/cache.service';
 import { GlobalExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { ResponseEnvelopeInterceptor } from '../src/common/interceptors/response-envelope.interceptor';
 import { SanitizePipe } from '../src/common/pipes/sanitize.pipe';
@@ -141,18 +142,37 @@ function createPrismaMock() {
   };
 }
 
+function createCacheMock() {
+  return {
+    onModuleInit: jest.fn(),
+    onModuleDestroy: jest.fn(),
+    ping: jest.fn().mockResolvedValue(true),
+    get: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue(undefined),
+    delete: jest.fn().mockResolvedValue(undefined),
+    deletePattern: jest.fn().mockResolvedValue(undefined),
+    exists: jest.fn().mockResolvedValue(false),
+    getStats: jest.fn().mockResolvedValue({ hits: 0, misses: 0, keys: 0 }),
+    flushAll: jest.fn().mockResolvedValue(undefined),
+    getOrSet: jest.fn().mockImplementation(async (_key, fetchFn) => fetchFn()),
+  };
+}
+
 describe('Security Integration Tests (e2e)', () => {
   let app: INestApplication;
   let prismaMock: ReturnType<typeof createPrismaMock>;
 
   beforeAll(async () => {
     prismaMock = createPrismaMock();
+    const cacheServiceMock = createCacheMock();
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideProvider(PrismaService)
       .useValue(prismaMock)
+      .overrideProvider(CacheService)
+      .useValue(cacheServiceMock)
       .compile();
 
     app = moduleFixture.createNestApplication();

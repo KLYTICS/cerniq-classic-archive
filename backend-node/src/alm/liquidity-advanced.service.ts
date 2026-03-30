@@ -1,29 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
-// ─── Basel III NSFR Factors ──────────────────────────────────
-
-const ASF_FACTORS: Record<string, number> = {
-  equity: 1.0,
-  long_term_borrowings: 1.0,
-  stable_deposits: 0.95,
-  less_stable_deposits: 0.9,
-  wholesale_funding: 0.5,
-  short_term_borrowings: 0.0,
-};
-
-const RSF_FACTORS: Record<string, number> = {
-  cash: 0.0,
-  treasuries: 0.05,
-  agency_securities: 0.15,
-  investment_grade_bonds: 0.5,
-  performing_loans_lt1y: 0.5,
-  performing_loans_gt1y: 0.65,
-  residential_mortgage: 0.65,
-  commercial_re: 0.85,
-  other_assets: 1.0,
-};
-
 // ─── Types ───────────────────────────────────────────────────
 
 export interface NSFRResult {

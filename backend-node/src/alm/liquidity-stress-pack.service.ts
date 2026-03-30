@@ -175,10 +175,6 @@ export class LiquidityStressPackService {
       totalOutflow += totalAssets * 0.05 * params.loanCommitmentsDrawn; // 5% of assets as commitments
     }
 
-    const assetImpairment = (params as any).assetImpairmentPct
-      ? totalAssets * (params as any).assetImpairmentPct
-      : 0;
-
     const availableHQLA = hqla * (1 - params.hqlaSelldown);
     const netOutflow = totalOutflow;
     const surplus = availableHQLA - netOutflow;

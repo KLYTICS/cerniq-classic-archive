@@ -36,8 +36,6 @@ export class NIMForecastService {
     const {
       currentNIM,
       earningAssets,
-      interestIncome,
-      interestExpense,
       assetBeta,
       liabilityBeta,
       rateScenarios,

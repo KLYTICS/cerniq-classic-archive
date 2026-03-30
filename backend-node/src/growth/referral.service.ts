@@ -87,7 +87,7 @@ export class ReferralService {
     };
   }
 
-  async getStats(institutionId: string): Promise<ReferralStats> {
+  async getStats(_institutionId: string): Promise<ReferralStats> {
     // Demo stats — in production, query ReferralCode model
     return {
       totalCodes: 3,

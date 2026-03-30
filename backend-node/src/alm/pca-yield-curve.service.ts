@@ -126,7 +126,6 @@ export class PCAYieldCurveService {
   }
 
   private powerIteration(M: number[][], maxIter: number): [number[], number] {
-    const n = M.length;
     let v: number[] = M.map((_, i) => (i === 0 ? 1 : 0));
     for (let iter = 0; iter < maxIter; iter++) {
       const Mv = M.map((row) => row.reduce((s, a, j) => s + a * v[j], 0));

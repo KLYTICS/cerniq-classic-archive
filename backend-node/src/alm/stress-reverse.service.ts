@@ -71,11 +71,6 @@ function approxDuration(maturityYears: number, rate: number): number {
   // Macaulay duration approximation for par bond
   const y = rate;
   const n = maturityYears;
-  const pvAnnuity = (1 - Math.pow(1 + y, -n)) / y;
-  const macaulay = pvAnnuity - (n * (y - y)) / (y * (Math.pow(1 + y, n) - 1));
-  // Simplified: weighted average time of cash flows
-  const mac =
-    (1 + y) / y - (1 + y + n * y) / (y * (Math.pow(1 + y, n) - 1) + y);
   // Use simpler approximation that's robust
   const simpleDuration = (1 - Math.pow(1 + y, -n)) / y;
   return simpleDuration / (1 + y); // modified duration
@@ -182,17 +177,18 @@ export class StressReverseService {
       (s, l) => s + l.amount,
       0,
     );
+    if (totalAssets <= 0) return 0;
 
     const baseEquity = totalAssets - totalLiabilities;
-    const baseRatio = currentCapitalRatio ?? (baseEquity / totalAssets) * 100;
+    const baseCapitalRatio =
+      currentCapitalRatio ?? (baseEquity / totalAssets) * 100;
 
     const baseEVE = this.calculateEVE(balanceSheet, 0);
     const stressedEVE = this.calculateEVE(balanceSheet, shockBps);
     const eveLoss = baseEVE - stressedEVE;
 
-    const stressedEquity = baseEquity - eveLoss;
-    if (totalAssets <= 0) return 0;
-    return (stressedEquity / totalAssets) * 100;
+    const capitalImpactPct = (eveLoss / totalAssets) * 100;
+    return Math.max(0, baseCapitalRatio - capitalImpactPct);
   }
 
   /**
@@ -265,14 +261,6 @@ export class StressReverseService {
 
     // Binary search in downward direction
     if (minShockBps < 0) {
-      const result = this.binarySearchBreach(
-        balanceSheet,
-        metric,
-        Math.max(-maxShockBps, minShockBps),
-        Math.min(-Math.max(minShockBps, -maxShockBps), 0),
-        stepBps,
-        breaches,
-      );
       // Also scan negative shocks linearly for simplicity
       for (let shock = -stepBps; shock >= minShockBps; shock -= stepBps) {
         const val = this.evaluateMetric(balanceSheet, metric, shock);
@@ -556,7 +544,6 @@ export class StressReverseService {
     // Find the implied rate shock that would cause this EVE loss
     // Using weighted average duration of the balance sheet
     const avgDuration = this.weightedAverageDuration(balanceSheet);
-    const baseEVE = this.calculateEVE(balanceSheet, 0);
 
     // DeltaEVE ~ -Duration * DeltaRate * TotalAssets
     // maxTolerableLoss = Duration * DeltaRate * TotalAssets

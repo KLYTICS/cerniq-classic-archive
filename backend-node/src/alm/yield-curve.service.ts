@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
 // ─── Standard Tenors (years) ─────────────────────────────────
@@ -177,8 +177,6 @@ export class YieldCurveService {
           )
         : (BASEL_SHOCKS[shockType] ?? BASEL_SHOCKS['parallel_up']);
 
-    const nsParams = this.fitNelsonSiegel(baseCurve);
-
     const shockedCurve = baseCurve.map((point) => {
       // Find closest tenor shock or interpolate
       const bpsShift = this.interpolateShock(point.tenor, shockBps);
@@ -348,15 +346,6 @@ export class YieldCurveService {
     const items = await this.prisma.balanceSheetItem.findMany({
       where: { institutionId },
     });
-
-    let baseCurve: TenorRate[];
-    const savedCurve = await this.prisma.yieldCurve.findFirst({
-      where: { institutionId, isBase: true },
-      orderBy: { asOfDate: 'desc' },
-    });
-    baseCurve = savedCurve
-      ? (savedCurve.tenors as unknown as TenorRate[])
-      : DEFAULT_BASE_CURVE;
 
     // Build shocked curve from per-tenor shocks
     const shockBps: Record<number, number> = {};

@@ -99,7 +99,7 @@ export class CyclicalValuationEngine {
   /**
    * Estimate revenue growth trend
    */
-  private estimateRevenueGrowth(fundamentals: any): number {
+  private estimateRevenueGrowth(_fundamentals: any): number {
     // Placeholder - would calculate from historical data
     return Math.random() * 30 - 10; // Random between -10% and +20%
   }
@@ -108,7 +108,7 @@ export class CyclicalValuationEngine {
    * Analyze margin trend
    */
   private analyzeMarginTrend(
-    fundamentals: any,
+    _fundamentals: any,
   ): 'expanding' | 'stable' | 'contracting' {
     const marginChange = Math.random() - 0.5;
     if (marginChange > 0.2) return 'expanding';

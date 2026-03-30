@@ -294,7 +294,7 @@ export class VolatilityService {
   /**
    * Calculate annualized volatility from returns
    */
-  private calculateVolatility(returns: number[], windowDays: number): number {
+  private calculateVolatility(returns: number[], _windowDays: number): number {
     if (returns.length === 0) return 0;
 
     // Calculate mean

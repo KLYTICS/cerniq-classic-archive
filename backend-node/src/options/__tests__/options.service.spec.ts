@@ -936,7 +936,7 @@ describe('OptionsService', () => {
         dividendYield: 0.03, // 3% dividend yield
       };
 
-      const european = await service.calculateGreeks({
+      await service.calculateGreeks({
         ...params,
         exercise: ExerciseStyle.EUROPEAN,
       });

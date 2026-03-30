@@ -62,7 +62,7 @@ export function formatBilingual(amount: number): string {
 export function parseCurrency(value: string): number {
   if (!value) return 0;
   // Remove currency symbols and whitespace
-  let cleaned = value.replace(/[^0-9.,\-]/g, '');
+  let cleaned = value.replace(/[^0-9.,-]/g, '');
   // Detect ES format (dot as thousands separator, comma as decimal)
   if (/^\d{1,3}(\.\d{3})+(,\d{2})?$/.test(cleaned)) {
     cleaned = cleaned.replace(/\./g, '').replace(',', '.');

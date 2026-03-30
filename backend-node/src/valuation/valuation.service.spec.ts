@@ -1,4 +1,3 @@
-import { NotFoundException } from '@nestjs/common';
 import { ValuationService } from './valuation.service';
 
 describe('ValuationService', () => {
@@ -57,7 +56,7 @@ describe('ValuationService', () => {
   });
 
   it('should use cyclical engine when explicitly requested', async () => {
-    const result = await service.getValuation({
+    await service.getValuation({
       ticker: 'CLF',
       valuationType: 'cyclical',
     });
@@ -65,7 +64,7 @@ describe('ValuationService', () => {
   });
 
   it('should use frontier engine for AI tickers', async () => {
-    const result = await service.getValuation({ ticker: 'NVDA' });
+    await service.getValuation({ ticker: 'NVDA' });
     expect(mockFrontierEngine.calculate).toHaveBeenCalled();
   });
 

@@ -39,7 +39,16 @@ export function buildCacheKey(
  */
 export function stableStringify(obj: unknown): string {
   if (obj === null || obj === undefined) return '';
-  if (typeof obj !== 'object') return String(obj);
+  if (typeof obj === 'string') return obj;
+  if (
+    typeof obj === 'number' ||
+    typeof obj === 'boolean' ||
+    typeof obj === 'bigint'
+  ) {
+    return `${obj}`;
+  }
+  if (typeof obj === 'symbol') return obj.toString();
+  if (typeof obj === 'function') return obj.toString();
   if (Array.isArray(obj)) {
     return '[' + obj.map(stableStringify).join(',') + ']';
   }

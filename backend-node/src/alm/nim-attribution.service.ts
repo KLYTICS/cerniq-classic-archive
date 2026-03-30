@@ -36,7 +36,6 @@ export class NIMAttributionService {
     const assets = items.filter((i: any) => i.category === 'asset');
     const liabs = items.filter((i: any) => i.category === 'liability');
     const totalA = assets.reduce((s: number, i: any) => s + i.balance, 0);
-    const totalL = liabs.reduce((s: number, i: any) => s + i.balance, 0);
 
     const assetIncome = assets.reduce(
       (s: number, i: any) => s + i.balance * i.rate,

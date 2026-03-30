@@ -148,12 +148,6 @@ export class ApReportService {
         );
       };
 
-      const statusClr = (s: string) =>
-        s === 'pass' ? '#16A34A' : s === 'warning' ? '#D97706' : '#DC2626';
-
-      const severityClr = (s: string) =>
-        s === 'HIGH' ? '#DC2626' : s === 'MEDIUM' ? '#D97706' : '#64748B';
-
       const tblRow = (
         y: number,
         cols: string[],
@@ -181,8 +175,6 @@ export class ApReportService {
         score >= 80 ? '#16A34A' : score >= 50 ? '#D97706' : '#DC2626';
 
       // Compute derived data
-      const totalSpend =
-        analysis.findings.reduce((s, f) => s + f.estimatedRecovery, 0) || 0;
       const invoiceCount = analysis.totalExpenses;
       const activeFindings = analysis.findings.length;
       const totalRecovery = analysis.estimatedTotalRecovery;

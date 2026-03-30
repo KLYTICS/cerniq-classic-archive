@@ -1,10 +1,4 @@
 import { Logger } from '@nestjs/common';
-import {
-  QUEUE_NAMES,
-  JOB_TYPES,
-  QueueJobData,
-  QueueJobResult,
-} from './queue.config';
 
 // ─── ALM Compute Queue Processor ────────────────────────────
 // In production: @Processor(QUEUE_NAMES.ALM_COMPUTE) with @nestjs/bull
@@ -50,40 +44,42 @@ export async function enqueueComputeJob(
   activeJobs.set(jobId, job);
 
   // Execute asynchronously
-  setImmediate(async () => {
-    job.status = 'running';
-    job.startedAt = new Date().toISOString();
-    const progressInterval = setInterval(() => {
-      if (job.progress < 90) job.progress += 10;
-    }, 500);
-    if (progressInterval.unref) {
-      progressInterval.unref();
-    }
+  setImmediate(() => {
+    void (async () => {
+      job.status = 'running';
+      job.startedAt = new Date().toISOString();
+      const progressInterval = setInterval(() => {
+        if (job.progress < 90) job.progress += 10;
+      }, 500);
+      if (progressInterval.unref) {
+        progressInterval.unref();
+      }
 
-    try {
-      const result = await executeFn();
+      try {
+        const result = await executeFn();
 
-      job.progress = 100;
-      job.status = 'completed';
-      job.result = result;
-      job.completedAt = new Date().toISOString();
-      logger.log(
-        `Job ${jobId} (${jobType}) completed in ${Date.now() - new Date(job.startedAt).getTime()}ms`,
-      );
-    } catch (err: any) {
-      job.status = 'failed';
-      job.error = err.message;
-      job.completedAt = new Date().toISOString();
-      logger.error(`Job ${jobId} (${jobType}) failed: ${err.message}`);
-    } finally {
-      clearInterval(progressInterval);
-    }
+        job.progress = 100;
+        job.status = 'completed';
+        job.result = result;
+        job.completedAt = new Date().toISOString();
+        logger.log(
+          `Job ${jobId} (${jobType}) completed in ${Date.now() - new Date(job.startedAt).getTime()}ms`,
+        );
+      } catch (err: any) {
+        job.status = 'failed';
+        job.error = err.message;
+        job.completedAt = new Date().toISOString();
+        logger.error(`Job ${jobId} (${jobType}) failed: ${err.message}`);
+      } finally {
+        clearInterval(progressInterval);
+      }
 
-    // Cleanup old jobs after 1 hour
-    const cleanupTimer = setTimeout(() => activeJobs.delete(jobId), 3600000);
-    if (cleanupTimer.unref) {
-      cleanupTimer.unref();
-    }
+      // Cleanup old jobs after 1 hour
+      const cleanupTimer = setTimeout(() => activeJobs.delete(jobId), 3600000);
+      if (cleanupTimer.unref) {
+        cleanupTimer.unref();
+      }
+    })();
   });
 
   return jobId;

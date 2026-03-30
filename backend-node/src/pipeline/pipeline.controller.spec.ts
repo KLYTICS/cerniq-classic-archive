@@ -124,7 +124,7 @@ describe('PipelineController', () => {
     it('should use default reason when not provided', async () => {
       prismaService.reportJob.update.mockResolvedValue({});
 
-      const result = await controller.forceFail('job-1', {} as any);
+      await controller.forceFail('job-1', {} as any);
       expect(prismaService.reportJob.update).toHaveBeenCalledWith({
         where: { id: 'job-1' },
         data: {

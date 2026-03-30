@@ -152,7 +152,6 @@ describe('EarningsSimulationService', () => {
     // First quarter vs. last: assets should be larger at end (net of amort + growth)
     // With 3% growth and amortization, the net direction depends on the mix,
     // but new originations should keep total assets from collapsing.
-    const firstQ = base.quarters[0];
     const lastQ = base.quarters[base.quarters.length - 1];
     // At minimum total assets should stay above 50% of starting (no catastrophic collapse)
     const startingAssets = COOPERATIVA.assets.reduce(
