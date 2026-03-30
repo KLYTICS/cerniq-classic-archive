@@ -62,4 +62,19 @@ describe('billing API routing', () => {
       }),
     );
   });
+
+  it('unwraps subscriptions returned in the standard response envelope', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: { tier: 'monthly', status: 'active' },
+      }),
+    });
+
+    await expect(getCurrentSubscription()).resolves.toEqual({
+      tier: 'monthly',
+      status: 'active',
+    });
+  });
 });

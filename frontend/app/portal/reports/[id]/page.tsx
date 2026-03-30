@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { FileText, Download, ArrowLeft, Clock, AlertTriangle, Globe } from 'lucide-react';
 import { analytics, EVENTS } from '@/lib/analytics';
 import { getPublicApiUrl } from '@/lib/api-base';
+import { unwrapApiData } from '@/lib/api-response';
 
 interface JobDetail {
   id: string;
@@ -30,7 +31,10 @@ export default function ReportViewer() {
       try {
         const res = await fetch(getPublicApiUrl(`/api/portal/jobs/${params.id}`), { credentials: 'include' });
         if (res.ok) {
-          const data = await res.json();
+          const data = unwrapApiData<JobDetail | null>(await res.json().catch(() => null));
+          if (!data) {
+            return;
+          }
           setJob(data);
           if (data.reportLang === 'en') setPdfLang('en');
           analytics.track(EVENTS.PORTAL_REPORT_VIEWED, { jobId: data.id, status: data.status });

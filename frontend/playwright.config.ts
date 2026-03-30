@@ -1,5 +1,35 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const frontendBaseUrl =
+  process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3001';
+const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEBSERVER === '1';
+const backendBaseUrl =
+  process.env.PLAYWRIGHT_BACKEND_URL ||
+  process.env.NEXT_PUBLIC_NODE_API_URL ||
+  'http://localhost:3000';
+const backendCommand =
+  process.env.PLAYWRIGHT_BACKEND_COMMAND ||
+  'cd ../backend-node && npm run start:dev';
+const frontendCommand =
+  process.env.PLAYWRIGHT_FRONTEND_COMMAND || 'npm run dev';
+
+const webServer = skipWebServer
+  ? undefined
+  : [
+      {
+        command: backendCommand,
+        url: `${backendBaseUrl}/health`,
+        reuseExistingServer: !process.env.CI,
+        timeout: 30000,
+      },
+      {
+        command: frontendCommand,
+        url: frontendBaseUrl,
+        reuseExistingServer: !process.env.CI,
+        timeout: 30000,
+      },
+    ];
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -8,7 +38,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:3001',
+    baseURL: frontendBaseUrl,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -18,18 +48,5 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: [
-    {
-      command: 'cd ../backend-node && npm run start:dev',
-      url: 'http://localhost:3000/health',
-      reuseExistingServer: !process.env.CI,
-      timeout: 30000,
-    },
-    {
-      command: 'npm run dev',
-      url: 'http://localhost:3001',
-      reuseExistingServer: !process.env.CI,
-      timeout: 30000,
-    },
-  ],
+  webServer,
 });

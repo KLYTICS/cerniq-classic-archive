@@ -8,6 +8,7 @@ import {
   Download, Eye, RefreshCw, Wifi, WifiOff,
 } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
+import { unwrapApiData } from '@/lib/api-response';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
 
@@ -98,7 +99,9 @@ function usePollFallback(
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (res.ok) {
-          const data = await res.json();
+          const data = unwrapApiData<{ status?: string }>(
+            await res.json().catch(() => ({})),
+          );
           if (data?.status) {
             onStatusChange(data.status);
           }
