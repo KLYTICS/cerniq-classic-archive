@@ -51,24 +51,29 @@ export default function AuthInitializer() {
   const pathname = usePathname();
   const initialized = useAuthStore((state) => state.initialized);
   const hydrateFromStorage = useAuthStore((state) => state.hydrateFromStorage);
+  const initializeAnonymous = useAuthStore((state) => state.initializeAnonymous);
   const scopeRef = useRef<'auth' | 'public' | null>(null);
 
   useLayoutEffect(() => {
     const hasStoredAuth = hasStoredAuthHint();
+    const anonymousEntry = isAnonymousEntryRoute(pathname);
     const shouldHydrate =
-      (isAuthRelevantPath(pathname) && !isAnonymousEntryRoute(pathname)) || hasStoredAuth;
+      (isAuthRelevantPath(pathname) && !anonymousEntry) || hasStoredAuth;
     const nextScope = shouldHydrate ? 'auth' : 'public';
     const enteringNewScope = scopeRef.current !== nextScope;
     scopeRef.current = nextScope;
 
     if (!shouldHydrate) {
+      if (anonymousEntry && !initialized) {
+        initializeAnonymous();
+      }
       return;
     }
 
     if (enteringNewScope || !initialized) {
       void hydrateFromStorage();
     }
-  }, [pathname, initialized, hydrateFromStorage]);
+  }, [pathname, initialized, hydrateFromStorage, initializeAnonymous]);
 
   return null;
 }

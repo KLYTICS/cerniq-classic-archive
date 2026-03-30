@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Authentication', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('cerniq_cookie_consent', 'accepted');
+    });
+  });
+
   test('should display login page with Cerniq branding', async ({ page }) => {
     await page.goto('/login');
     await expect(page).toHaveURL(/login/);
@@ -26,6 +32,7 @@ test.describe('Authentication', () => {
     // triggers native browser validation — the form should NOT navigate away
     const submitButton = page.getByRole('button', { name: /sign in|iniciar/i });
     await expect(submitButton).toBeVisible();
+    await expect(submitButton).toBeEnabled();
     await submitButton.click();
     // We should still be on the login page (native validation prevented submit)
     await expect(page).toHaveURL(/login/);
@@ -34,13 +41,14 @@ test.describe('Authentication', () => {
   test('should toggle between sign-in and sign-up modes', async ({ page }) => {
     await page.goto('/login');
     // The bottom toggle text switches between login and register
-    const toggleButton = page.locator('button').filter({ hasText: /account/i });
+    const toggleButton = page
+      .locator('button')
+      .filter({ hasText: /account|cuenta|sign up|registr/i });
     await expect(toggleButton).toBeVisible();
     await toggleButton.click();
     // After clicking, the heading should now mention "Create" or sign-up language
     const heading = page.getByRole('heading', { level: 1 });
-    const headingText = await heading.textContent();
-    expect(headingText).toBeTruthy();
+    await expect(heading).toContainText(/create|crear|sign up|registr/i);
   });
 
   test('should redirect /signup to /login?mode=signup', async ({ page }) => {
@@ -53,8 +61,8 @@ test.describe('Authentication', () => {
   test('should include language toggle on login page', async ({ page }) => {
     await page.goto('/login');
     // EN/ES language toggle buttons
-    const enButton = page.getByRole('button', { name: 'EN' });
-    const esButton = page.getByRole('button', { name: 'ES' });
+    const enButton = page.getByRole('button', { name: 'Switch to English' });
+    const esButton = page.getByRole('button', { name: 'Cambiar a Espanol' });
     await expect(enButton).toBeVisible();
     await expect(esButton).toBeVisible();
   });

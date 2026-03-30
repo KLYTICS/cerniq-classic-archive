@@ -1,28 +1,46 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('API Health & Contracts', () => {
-  const API_BASE = 'http://localhost:3000';
+const API_BASE = (
+  process.env.PLAYWRIGHT_BACKEND_URL ||
+  process.env.NEXT_PUBLIC_NODE_API_URL ||
+  'http://localhost:3000'
+)
+  .trim()
+  .replace(/\/+$/, '');
 
+function unwrapData<T>(body: T | { data: T }): T {
+  if (body && typeof body === 'object' && 'data' in body) {
+    return body.data;
+  }
+
+  return body as T;
+}
+
+test.describe('API Health & Contracts', () => {
   test('backend health check responds with structured payload', async ({ request }) => {
     const response = await request.get(`${API_BASE}/health`);
     expect(response.ok()).toBeTruthy();
     const body = await response.json();
+    expect(body).toHaveProperty('success', true);
+    const payload = unwrapData(body);
     // Health endpoint returns { status, timestamp, version, services }
-    expect(body).toHaveProperty('status');
-    expect(body).toHaveProperty('timestamp');
-    expect(body).toHaveProperty('version');
-    expect(body).toHaveProperty('services');
-    expect(body.services).toHaveProperty('api', 'up');
-    expect(['healthy', 'degraded']).toContain(body.status);
+    expect(payload).toHaveProperty('status');
+    expect(payload).toHaveProperty('timestamp');
+    expect(payload).toHaveProperty('version');
+    expect(payload).toHaveProperty('services');
+    expect(payload.services).toHaveProperty('api', 'up');
+    expect(['ok', 'healthy', 'degraded']).toContain(payload.status);
   });
 
   test('API status endpoint returns service metadata', async ({ request }) => {
     const response = await request.get(`${API_BASE}/api/status`);
     expect(response.ok()).toBeTruthy();
     const body = await response.json();
-    expect(body).toHaveProperty('name', 'CERNIQ API');
-    expect(body).toHaveProperty('version');
-    expect(body).toHaveProperty('endpoints');
+    expect(body).toHaveProperty('success', true);
+    const payload = unwrapData(body);
+    expect(payload).toHaveProperty('name', 'CERNIQ API');
+    expect(payload).toHaveProperty('version');
+    expect(payload).toHaveProperty('endpoints');
   });
 
   test('API returns standard error envelope for invalid routes', async ({ request }) => {
@@ -68,6 +86,6 @@ test.describe('API Health & Contracts', () => {
     // Should return 400 (validation) or 422, not 500
     expect(response.status()).not.toBe(500);
     const body = await response.json();
-    expect(body.success).toBe(false);
+    expect(body).toHaveProperty('success', false);
   });
 });

@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import AuthInitializer from './AuthInitializer';
 
 const mockHydrateFromStorage = vi.fn();
+const mockInitializeAnonymous = vi.fn();
 const mockUsePathname = vi.fn();
 const mockState = {
   initialized: false,
@@ -16,10 +17,12 @@ vi.mock('@/lib/store', () => ({
   useAuthStore: (selector: (state: {
     initialized: boolean;
     hydrateFromStorage: typeof mockHydrateFromStorage;
+    initializeAnonymous: typeof mockInitializeAnonymous;
   }) => unknown) =>
     selector({
       initialized: mockState.initialized,
       hydrateFromStorage: mockHydrateFromStorage,
+      initializeAnonymous: mockInitializeAnonymous,
     }),
 }));
 
@@ -28,6 +31,7 @@ describe('AuthInitializer', () => {
     mockState.initialized = false;
     mockUsePathname.mockReturnValue('/');
     mockHydrateFromStorage.mockReset();
+    mockInitializeAnonymous.mockReset();
     window.localStorage.clear();
     window.sessionStorage.clear();
   });
@@ -40,12 +44,13 @@ describe('AuthInitializer', () => {
     expect(mockHydrateFromStorage).toHaveBeenCalledTimes(1);
   });
 
-  it('skips hydration on anonymous portal login without a stored auth hint', () => {
+  it('initializes anonymous auth state on portal login without a stored auth hint', () => {
     mockUsePathname.mockReturnValue('/portal/login');
 
     render(<AuthInitializer />);
 
     expect(mockHydrateFromStorage).not.toHaveBeenCalled();
+    expect(mockInitializeAnonymous).toHaveBeenCalledTimes(1);
   });
 
   it('hydrates on anonymous entry routes when a stored auth hint exists', () => {
@@ -63,6 +68,7 @@ describe('AuthInitializer', () => {
     render(<AuthInitializer />);
 
     expect(mockHydrateFromStorage).not.toHaveBeenCalled();
+    expect(mockInitializeAnonymous).not.toHaveBeenCalled();
   });
 
   it('hydrates once when entering auth scope and does not repeat inside it', () => {

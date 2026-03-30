@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Accessibility Basics', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('cerniq_cookie_consent', 'accepted');
+    });
+  });
+
   test('root layout has proper lang attribute', async ({ page }) => {
     await page.goto('/');
     const lang = await page.getAttribute('html', 'lang');
@@ -55,8 +61,9 @@ test.describe('Accessibility Basics', () => {
 
   test('pricing page has descriptive headings', async ({ page }) => {
     await page.goto('/pricing');
-    const headings = await page.getByRole('heading').all();
-    expect(headings.length).toBeGreaterThan(0);
+    await expect(
+      page.getByRole('heading', { name: /plans & pricing|planes y precios/i }),
+    ).toBeVisible();
   });
 
   test('color scheme uses sufficient contrast tokens', async ({ page }) => {
