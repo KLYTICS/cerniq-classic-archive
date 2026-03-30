@@ -1,6 +1,14 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+  startTransition,
+} from 'react';
 import { apiClient } from '@/lib/api';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 
@@ -51,11 +59,8 @@ export default function ALMProvider({ children }: { children: ReactNode }) {
   const setSelectedId = useCallback(
     (id: string) => {
       setSelectedIdState(id);
-      const params = new URLSearchParams(searchParamsString);
-      params.set('id', id);
-      router.replace(`${pathname}?${params.toString()}`);
     },
-    [pathname, router, searchParamsString],
+    [],
   );
 
   const fetchInstitutions = useCallback(async () => {
@@ -71,10 +76,6 @@ export default function ALMProvider({ children }: { children: ReactNode }) {
             if (currentSelectedId) {
               return currentSelectedId;
             }
-
-            const params = new URLSearchParams(searchParamsString);
-            params.set('id', data[0].id);
-            router.replace(`${pathname}?${params.toString()}`);
             return data[0].id;
           });
         }
@@ -84,11 +85,24 @@ export default function ALMProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [urlId, pathname, router, searchParamsString]);
+  }, [urlId]);
 
   useEffect(() => {
     fetchInstitutions();
   }, [fetchInstitutions]);
+
+  useEffect(() => {
+    if (!selectedId || selectedId === urlId) {
+      return;
+    }
+
+    const params = new URLSearchParams(searchParamsString);
+    params.set('id', selectedId);
+
+    startTransition(() => {
+      router.replace(`${pathname}?${params.toString()}`);
+    });
+  }, [pathname, router, searchParamsString, selectedId, urlId]);
 
   const institution = institutions.find((i) => i.id === selectedId) || null;
 
