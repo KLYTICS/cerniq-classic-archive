@@ -2,14 +2,14 @@
 
 Date: 2026-03-30
 Workspace: `/Users/money/Desktop/Cerniq`
-Branch: `main`
+Branch: `codex/enterprise-green-recovery`
 Head at pickup: `7d2c55731fe54d7944316050fc27bfa435eeb48f`
 
 ## Current State
 
-- The worktree is intentionally dirty with broad backend test/service edits plus a few frontend config/package changes.
-- No reset or revert was performed in this session.
-- Local CI-equivalent validation is green against the current dirty worktree.
+- The enterprise recovery now lives on `codex/enterprise-green-recovery` and has been pushed to PR `#24`.
+- No reset or wholesale revert was performed; the inherited dirty worktree was hardened in place and committed incrementally.
+- Local CI-equivalent validation is green against the current branch state.
 
 ## Local Validation Completed
 
@@ -46,12 +46,15 @@ Notes:
 
 ## Remote GitHub Status
 
-- There is no PR associated with `main` at the moment.
+- Active PR: `#24` on `codex/enterprise-green-recovery`
 - Latest failed runs inspected:
-  - `CI Quick Check` run `23710831271`
-  - `CERNIQ CI/CD` run `23710831274`
-  - `CodeQL Security Analysis` also shows failed recent runs
+  - `CI Quick Check` run `23759443881`
+  - `CERNIQ CI/CD` run `23759443957`
+  - `CodeQL Security Analysis` run `23759443864`
 - The failure mode is external to the codebase: GitHub Actions reports that jobs were not started because account payments failed or the spending limit must be increased.
+- Job metadata confirms GitHub never started the work:
+  - `steps: []`
+  - `runner_id: 0`
 
 This means code changes alone cannot make GitHub turn green until billing is fixed in the repository/account settings.
 
@@ -80,5 +83,5 @@ There are many more modified backend files already in progress; consult `git sta
 ## Best Next Actions
 
 1. Fix GitHub Actions billing/spending so jobs can actually start.
-2. After billing is restored, push the current validated worktree and re-run Actions.
+2. After billing is restored, re-run the blocked PR workflows on `codex/enterprise-green-recovery`.
 3. If GitHub still reports failures after jobs begin executing, start with workflow logs rather than re-running broad local exploration.

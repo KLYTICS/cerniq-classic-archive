@@ -28,7 +28,7 @@ Current validated state on this branch:
 ## Gaps
 
 - GitHub Actions is still blocked from reaching green because recent runs on PR `#24` are not starting due to repository/account Actions billing or spending-limit issues.
-- The branch now contains a broad backend `eslint --fix` hardening wave across touched/test-adjacent files. It is locally validated, but still pending commit/push in the current session.
+- The remaining non-green state is operational, not code-related; the branch itself is locally validated and pushed.
 
 ## Affected Areas
 
@@ -115,17 +115,20 @@ Additional validation:
 ## Unresolved Risks
 
 - GitHub Actions cannot be made green until Actions billing/spending is restored
-- The current worktree is intentionally dirty until this validation batch is committed and pushed
+- Once billing is restored, remote-only environment drift is still possible and should be checked before any additional broad cleanup
 
 ## Remote GitHub Status
 
 - Branch/PR context: `codex/enterprise-green-recovery`, PR `#24`
 - Latest blocked runs:
-  - `CERNIQ CI/CD` run `23758642053`
-  - `CI Quick Check` run `23758642096`
-  - `CodeQL Security Analysis` run `23758642065`
+  - `CERNIQ CI/CD` run `23759443957`
+  - `CI Quick Check` run `23759443881`
+  - `CodeQL Security Analysis` run `23759443864`
 - Each run reports the same annotation:
   - `The job was not started because recent account payments have failed or your spending limit needs to be increased.`
+- Additional evidence:
+  - Actions job metadata shows `steps: []`
+  - Actions job metadata shows `runner_id: 0`
 
 ## Tests
 
@@ -179,6 +182,9 @@ npx vitest run
 
 cd ..
 gh run list --limit 10
+gh run rerun 23759443881
+gh run rerun 23759443957
+gh run rerun 23759443864
 ```
 
 ## Open Questions

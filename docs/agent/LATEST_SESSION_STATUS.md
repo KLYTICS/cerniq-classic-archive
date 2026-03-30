@@ -12,19 +12,17 @@ Date: 2026-03-30
 
 ## GitHub Actions Blocker
 
-Recent failed runs on `main`:
-
 Recent blocked runs on PR `#24` / branch `codex/enterprise-green-recovery`:
 
-- `CodeQL Security Analysis` run `23758895661`
-- `CERNIQ CI/CD` run `23758895631`
-- `CI Quick Check` run `23758895636`
+- `CodeQL Security Analysis` run `23759443864`
+- `CERNIQ CI/CD` run `23759443957`
+- `CI Quick Check` run `23759443881`
 
 Each run reports the same annotation:
 
 `The job was not started because recent account payments have failed or your spending limit needs to be increased.`
 
-That means repository code changes alone cannot turn GitHub green until Actions billing is restored.
+Job metadata also shows `steps: []` and `runner_id: 0`, which means GitHub never assigned a runner. Repository code changes alone cannot turn GitHub green until Actions billing is restored.
 
 ## Local Validation Completed
 
@@ -85,7 +83,7 @@ What must be rechecked immediately after Actions billing is restored:
 
 ## Notes For Next Session
 
-- The current branch is `codex/enterprise-green-recovery` and the worktree is clean after the enterprise hardening pass.
+- The current branch is `codex/enterprise-green-recovery` and the worktree should be clean after this handoff sync is committed.
 - Lint commands in this repo run with `--fix`, so some formatting or autofix changes may already be folded into the current modified set.
-- If GitHub Actions billing is restored, the next high-value step is to push or re-run the workflows immediately to verify remote green status.
+- If GitHub Actions billing is restored, the next high-value step is to re-run the blocked workflows immediately to verify remote green status.
 - Current local acceptance state: all planned backend, frontend, and outbound validations pass; remaining non-green status is operational, not code-related.
