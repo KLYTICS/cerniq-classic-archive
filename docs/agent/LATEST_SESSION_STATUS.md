@@ -12,11 +12,11 @@ Date: 2026-03-30
 
 ## GitHub Actions Blocker
 
-Recent blocked runs on PR `#24` / branch `codex/enterprise-green-recovery`:
+Recent blocked runs on PR `#24` / branch `codex/enterprise-green-recovery` continue to affect all three GitHub Actions workflows:
 
-- `CodeQL Security Analysis` run `23759443864`
-- `CERNIQ CI/CD` run `23759443957`
-- `CI Quick Check` run `23759443881`
+- `CodeQL Security Analysis`
+- `CERNIQ CI/CD`
+- `CI Quick Check`
 
 Each run reports the same annotation:
 

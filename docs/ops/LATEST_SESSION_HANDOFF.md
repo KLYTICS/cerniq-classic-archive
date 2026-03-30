@@ -47,10 +47,10 @@ Notes:
 ## Remote GitHub Status
 
 - Active PR: `#24` on `codex/enterprise-green-recovery`
-- Latest failed runs inspected:
-  - `CI Quick Check` run `23759443881`
-  - `CERNIQ CI/CD` run `23759443957`
-  - `CodeQL Security Analysis` run `23759443864`
+- The latest failed runs inspected affect:
+  - `CI Quick Check`
+  - `CERNIQ CI/CD`
+  - `CodeQL Security Analysis`
 - The failure mode is external to the codebase: GitHub Actions reports that jobs were not started because account payments failed or the spending limit must be increased.
 - Job metadata confirms GitHub never started the work:
   - `steps: []`

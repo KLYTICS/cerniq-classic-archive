@@ -120,10 +120,10 @@ Additional validation:
 ## Remote GitHub Status
 
 - Branch/PR context: `codex/enterprise-green-recovery`, PR `#24`
-- Latest blocked runs:
-  - `CERNIQ CI/CD` run `23759443957`
-  - `CI Quick Check` run `23759443881`
-  - `CodeQL Security Analysis` run `23759443864`
+- The most recent push-triggered runs continue to fail across:
+  - `CERNIQ CI/CD`
+  - `CI Quick Check`
+  - `CodeQL Security Analysis`
 - Each run reports the same annotation:
   - `The job was not started because recent account payments have failed or your spending limit needs to be increased.`
 - Additional evidence:
@@ -181,10 +181,8 @@ npx next build
 npx vitest run
 
 cd ..
-gh run list --limit 10
-gh run rerun 23759443881
-gh run rerun 23759443957
-gh run rerun 23759443864
+gh run list --branch codex/enterprise-green-recovery --limit 10
+# After billing is restored, rerun the newest blocked runs shown above
 ```
 
 ## Open Questions
