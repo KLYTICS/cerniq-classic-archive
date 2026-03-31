@@ -1,4 +1,5 @@
-// Sentry must be imported before everything else
+// Load env before instrumentation so telemetry and Sentry can read startup configuration.
+import 'dotenv/config';
 import './instrument';
 import * as Sentry from '@sentry/nestjs';
 import { NestFactory } from '@nestjs/core';

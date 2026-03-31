@@ -138,6 +138,7 @@ jobs:
         working-directory: frontend
         run: npm run build
         env:
+          NEXT_PUBLIC_NODE_API_URL: http://localhost:3000
           NEXT_PUBLIC_API_URL: http://localhost:3000
 
       - name: Run component tests
@@ -249,7 +250,7 @@ jobs:
     name: Deploy Backend
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [backend-test, backend-e2e]
+    needs: [release-gate]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
 
@@ -272,7 +273,32 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [frontend-test]
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: cerniq_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout
@@ -283,11 +309,27 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend-node/package-lock.json
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
+
+      - name: Install backend dependencies
+        working-directory: backend-node
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: backend-node
+        run: npx prisma generate
+
+      - name: Push schema to test database
+        working-directory: backend-node
+        run: npx prisma db push --skip-generate
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
 
       - name: Install Playwright browsers
         working-directory: frontend
@@ -297,14 +339,20 @@ jobs:
         working-directory: frontend
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:3000
+          NEXT_PUBLIC_NODE_API_URL: http://localhost:43100
+          NEXT_PUBLIC_API_URL: http://localhost:43100
 
       - name: Run Playwright tests
         working-directory: frontend
         run: npx playwright test --reporter=github
         env:
           CI: true
-          NEXT_PUBLIC_API_URL: http://localhost:3000
+          PLAYWRIGHT_BACKEND_URL: http://localhost:43100
+          NEXT_PUBLIC_NODE_API_URL: http://localhost:43100
+          NEXT_PUBLIC_API_URL: http://localhost:43100
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
+          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -314,12 +362,30 @@ jobs:
           path: frontend/playwright-report/
           retention-days: 14
 
+  release-gate:
+    name: Release Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - backend-test
+      - backend-e2e
+      - frontend-test
+      - frontend-e2e
+      - outbound-test
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Confirm release baseline
+        run: |
+          echo "Release integrity baseline passed."
+          echo "If GitHub Actions billing is suspended, remote runs may still remain red before jobs start."
+
   # Frontend deploys via Vercel GitHub integration
   deploy-frontend:
     name: Frontend Deploy (Vercel)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [frontend-test, backend-e2e]
+    needs: [release-gate]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:

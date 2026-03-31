@@ -8,6 +8,7 @@ import { analytics, EVENTS } from '@/lib/analytics';
 import { useTranslation } from '@/lib/i18n';
 import ProgressTracker from '@/components/portal/ProgressTracker';
 import { getPublicApiUrl } from '@/lib/api-base';
+import { unwrapApiArray, unwrapApiData } from '@/lib/api-response';
 
 interface ReportJob {
   id: string;
@@ -151,7 +152,7 @@ export default function PortalSubmit() {
     try {
       const res = await fetch(getPublicApiUrl('/api/portal/jobs'), { credentials: 'include' });
       if (res.ok) {
-        const allJobs: ReportJob[] = await res.json();
+        const allJobs = unwrapApiArray<ReportJob>(await res.json().catch(() => []));
         const awaitingJobs = allJobs.filter(j => j.status === 'AWAITING_DATA' || j.status === 'VALIDATION_FAILED');
         setJobs(awaitingJobs);
         if (awaitingJobs.length === 1) setSelectedJob(awaitingJobs[0].id);
@@ -213,7 +214,9 @@ export default function PortalSubmit() {
         body: formData,
       });
 
-      const data = await res.json();
+      const data = unwrapApiData<{ valid: boolean; status: string; errors?: string[]; itemsImported?: number }>(
+        await res.json().catch(() => ({})),
+      );
       setResult(data);
 
       if (data.valid) {

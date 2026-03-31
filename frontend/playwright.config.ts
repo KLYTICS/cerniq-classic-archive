@@ -1,16 +1,37 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const isDeployedRun = process.env.PLAYWRIGHT_SKIP_WEBSERVER === '1';
 const frontendBaseUrl =
-  process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3001';
+  process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:43101';
+const skipWebServer = isDeployedRun;
+const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === '1';
 const backendBaseUrl =
   process.env.PLAYWRIGHT_BACKEND_URL ||
-  process.env.NEXT_PUBLIC_NODE_API_URL ||
-  'http://localhost:3000';
+  (isDeployedRun ? process.env.NEXT_PUBLIC_NODE_API_URL : '') ||
+  'http://localhost:43100';
 const backendCommand =
   process.env.PLAYWRIGHT_BACKEND_COMMAND ||
-  'cd ../backend-node && npm run start:dev';
+  'cd ../backend-node && PORT=43100 npm run start:dev';
 const frontendCommand =
-  process.env.PLAYWRIGHT_FRONTEND_COMMAND || 'npm run dev';
+  process.env.PLAYWRIGHT_FRONTEND_COMMAND ||
+  'NEXT_PUBLIC_NODE_API_URL=http://localhost:43100 npx next dev --port 43101';
+
+const webServer = skipWebServer
+  ? undefined
+  : [
+      {
+        command: backendCommand,
+        url: `${backendBaseUrl}/health`,
+        reuseExistingServer,
+        timeout: 120000,
+      },
+      {
+        command: frontendCommand,
+        url: frontendBaseUrl,
+        reuseExistingServer,
+        timeout: 120000,
+      },
+    ];
 
 export default defineConfig({
   testDir: './e2e',
@@ -30,18 +51,5 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: [
-    {
-      command: backendCommand,
-      url: `${backendBaseUrl}/health`,
-      reuseExistingServer: !process.env.CI,
-      timeout: 30000,
-    },
-    {
-      command: frontendCommand,
-      url: frontendBaseUrl,
-      reuseExistingServer: !process.env.CI,
-      timeout: 30000,
-    },
-  ],
+  webServer,
 });

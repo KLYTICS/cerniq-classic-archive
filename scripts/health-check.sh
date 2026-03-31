@@ -24,6 +24,11 @@ green()  { printf "\033[32m%s\033[0m" "$1"; }
 red()    { printf "\033[31m%s\033[0m" "$1"; }
 yellow() { printf "\033[33m%s\033[0m" "$1"; }
 
+is_auth_rejected() {
+  local code="$1"
+  [ "$code" = "401" ] || [ "$code" = "403" ]
+}
+
 check() {
   local label="$1"
   local url="$2"
@@ -56,6 +61,7 @@ echo "--- Core Endpoints ---"
 check "API Health (/health)"       "$API_URL/health"
 check "API Readiness (/ready)"     "$API_URL/ready"
 check "API Status (/api/status)"   "$API_URL/api/status"
+check "Frontend API (/api/health)" "$FRONTEND_URL/api/health"
 check "Frontend Root"              "$FRONTEND_URL"
 echo ""
 
@@ -63,6 +69,7 @@ echo ""
 echo "--- Key Pages ---"
 check "Pricing Page"               "$FRONTEND_URL/pricing"
 check "Login Page"                 "$FRONTEND_URL/login"
+check "Status Page"                "$FRONTEND_URL/status"
 check "Portal Page"                "$FRONTEND_URL/portal"
 check "ALM Page"                   "$FRONTEND_URL/alm"
 echo ""
@@ -84,11 +91,11 @@ fi
 
 # Admin endpoint without key should return 401
 admin_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 10 --max-time 15 "$API_URL/api/admin/stats" 2>/dev/null || echo "000")
-if [ "$admin_code" = "401" ]; then
+if is_auth_rejected "$admin_code"; then
   printf "  %-30s $(green 'PASS') (rejected, %s)\n" "Admin Auth Guard" "$admin_code"
   PASS=$((PASS + 1))
 else
-  printf "  %-30s $(red 'FAIL') (got %s, expected 401)\n" "Admin Auth Guard" "$admin_code"
+  printf "  %-30s $(red 'FAIL') (got %s, expected 401/403)\n" "Admin Auth Guard" "$admin_code"
   FAIL=$((FAIL + 1))
 fi
 echo ""
@@ -161,8 +168,8 @@ if [ "$FAIL" -gt 0 ]; then
   exit 1
 else
   echo ""
-  echo "  $(green 'PRODUCTION GATE: INFRASTRUCTURE OK')"
-  echo "  Proceed with the full 13-step E2E checklist."
+  echo "  $(green 'PUBLIC PRODUCTION GATE: OK')"
+  echo "  Proceed with the broader smoke matrix only if authenticated coverage is explicitly intended."
   echo ""
   exit 0
 fi

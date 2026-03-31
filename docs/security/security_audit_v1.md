@@ -265,4 +265,4 @@ TypeScript compilation (`npx tsc --noEmit`) passes with zero errors in source fi
 3. **OAuth credentials:** Set GOOGLE_CLIENT_ID/SECRET and GITHUB_CLIENT_ID/SECRET in Railway, or remove OAuth strategies if unused.
 4. **OPENAI_API_KEY:** Set in Railway if AI insights feature is needed, or disable the `/api/market-data/insights` endpoint.
 5. **CSP refinement:** Consider removing `'unsafe-inline'` from `scriptSrc` and `styleSrc` when frontend supports nonce-based CSP.
-6. **Audit logging:** The `AuditLogInterceptor` is applied to ALM routes. Consider extending to all admin routes.
+6. **Audit logging:** The `AuditLogInterceptor` is already registered globally via `APP_INTERCEPTOR`. Future compliance work should focus on explicit `@AuditAction(...)` coverage for sensitive reads, payload redaction, and using `@SkipAuditLog()` where business-specific audit events would otherwise duplicate generic write logs.

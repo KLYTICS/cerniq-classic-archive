@@ -9,6 +9,7 @@ import { CerniqLockup } from '@/components/brand/CerniqLogo';
 import PortalPaywall from '@/components/portal/PortalPaywall';
 import { requiresPortalPaywall, type PortalSubscription } from '@/lib/subscription';
 import { getPublicApiUrl } from '@/lib/api-base';
+import { unwrapApiData } from '@/lib/api-response';
 
 interface PortalUser {
   id: string;
@@ -38,13 +39,16 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
+  const isPortalLoginRoute = pathname === '/portal/login';
 
   useEffect(() => {
     // Skip auth check for login page to avoid redirect loop
-    if (pathname === '/portal/login') {
+    if (isPortalLoginRoute) {
       setLoading(false);
       return;
     }
+
+    let cancelled = false;
 
     async function loadUser() {
       try {
@@ -52,27 +56,67 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           fetch(getPublicApiUrl('/api/auth/profile'), { credentials: 'include' }),
           fetch(getPublicApiUrl('/api/billing/subscription'), { credentials: 'include' }),
         ]);
-        if (profileRes.ok) {
-          setUser(await profileRes.json());
-          if (subRes.ok) setSubscription(await subRes.json());
-        } else {
-          router.push('/portal/login');
+
+        if (!profileRes.ok) {
+          if (!cancelled) {
+            setUser(null);
+            setSubscription(null);
+            router.replace('/portal/login');
+          }
+          return;
+        }
+
+        const profilePayload = unwrapApiData<PortalUser | null>(
+          await profileRes.json().catch(() => null),
+        );
+
+        if (!profilePayload?.id || !profilePayload.email) {
+          if (!cancelled) {
+            setUser(null);
+            setSubscription(null);
+            router.replace('/portal/login');
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          setUser(profilePayload);
+        }
+
+        if (subRes.ok) {
+          const subscriptionPayload = unwrapApiData<PortalSubscription | null>(
+            await subRes.json().catch(() => null),
+          );
+          if (!cancelled) {
+            setSubscription(subscriptionPayload);
+          }
         }
       } catch {
-        router.push('/portal/login');
+        if (!cancelled) {
+          setUser(null);
+          setSubscription(null);
+          router.replace('/portal/login');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
+
     loadUser();
-  }, [router, pathname]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router, pathname, isPortalLoginRoute]);
 
   const logout = async () => {
     await fetch(getPublicApiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' });
     router.push('/');
   };
 
-  if (loading) {
+  if (loading || (!isPortalLoginRoute && !user)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f7fbff]">
         <div className="flex flex-col items-center gap-3">
@@ -84,7 +128,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   }
 
   // Login page renders without sidebar chrome
-  if (pathname === '/portal/login') {
+  if (isPortalLoginRoute) {
     return (
       <PortalContext.Provider value={{ user, subscription, loading }}>
         <ErrorBoundary context="portal">

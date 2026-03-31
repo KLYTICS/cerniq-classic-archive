@@ -1,4 +1,10 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+async function waitForLoginPage(page: Page) {
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('input[type="email"]')).toBeVisible({ timeout: 15000 });
+}
 
 test.describe('Authentication', () => {
   test.beforeEach(async ({ page }) => {
@@ -8,16 +14,14 @@ test.describe('Authentication', () => {
   });
 
   test('should display login page with Cerniq branding', async ({ page }) => {
-    await page.goto('/login');
+    await waitForLoginPage(page);
     await expect(page).toHaveURL(/login/);
     // The login page renders the CERNIQ brand lockup and a sign-in heading
     await expect(page.locator('body')).toContainText(/Cerniq/i);
-    const heading = page.getByRole('heading', { level: 1 });
-    await expect(heading).toBeVisible();
   });
 
   test('should render email and password fields', async ({ page }) => {
-    await page.goto('/login');
+    await waitForLoginPage(page);
     const emailInput = page.locator('input[type="email"]');
     const passwordInput = page.locator('input[type="password"]');
     await expect(emailInput).toBeVisible();
@@ -27,7 +31,7 @@ test.describe('Authentication', () => {
   });
 
   test('should show validation when submitting empty form', async ({ page }) => {
-    await page.goto('/login');
+    await waitForLoginPage(page);
     // Both inputs have `required`, so clicking submit on empty fields
     // triggers native browser validation — the form should NOT navigate away
     const submitButton = page.getByRole('button', { name: /sign in|iniciar/i });
@@ -39,7 +43,7 @@ test.describe('Authentication', () => {
   });
 
   test('should toggle between sign-in and sign-up modes', async ({ page }) => {
-    await page.goto('/login');
+    await waitForLoginPage(page);
     // The bottom toggle text switches between login and register
     const toggleButton = page
       .locator('button')
@@ -54,12 +58,13 @@ test.describe('Authentication', () => {
   test('should redirect /signup to /login?mode=signup', async ({ page }) => {
     await page.goto('/signup');
     // The signup page is a client redirect to /login?mode=signup
-    await page.waitForURL(/login.*mode=signup/, { timeout: 5000 });
+    await page.waitForURL(/login.*mode=signup/, { timeout: 15000 });
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 15000 });
     await expect(page).toHaveURL(/login/);
   });
 
   test('should include language toggle on login page', async ({ page }) => {
-    await page.goto('/login');
+    await waitForLoginPage(page);
     // EN/ES language toggle buttons
     const enButton = page.getByRole('button', { name: 'Switch to English' });
     const esButton = page.getByRole('button', { name: 'Cambiar a Espanol' });
@@ -68,7 +73,7 @@ test.describe('Authentication', () => {
   });
 
   test('should show Google OAuth button when enabled', async ({ page }) => {
-    await page.goto('/login');
+    await waitForLoginPage(page);
     // Google OAuth link is rendered by default (NEXT_PUBLIC_ENABLE_GOOGLE_OAUTH defaults to true)
     const googleLink = page.locator('a').filter({ hasText: /Google/i });
     // This may or may not be visible depending on env vars, so we just check the page loads

@@ -5,10 +5,16 @@
   "scripts": {
     "prepare": "husky",
     "build": "rm -f frontend/.next/lock && cd frontend && npm run build",
+    "deploy:prepare": "rm -rf .vercel/output frontend/.next frontend/playwright-report frontend/test-results",
     "lint:backend": "cd backend-node && npm run lint",
     "lint:frontend": "cd frontend && npm run lint",
-    "test:backend": "cd backend-node && npm run test -- --forceExit",
-    "test:frontend": "cd frontend && npx vitest run"
+    "test:backend": "cd backend-node && npm run test",
+    "test:frontend": "cd frontend && npx vitest run",
+    "verify:frontend": "cd frontend && npm run lint && npm run test && npm run test:coverage && npm run build",
+    "verify:backend": "cd backend-node && npx eslint \"{src,apps,libs,test}/**/*.ts\" && npx eslint \"{src,apps,libs,test}/**/*.ts\" --quiet && npx tsc --noEmit && npx prisma validate && npm run test && npm run build",
+    "verify:local:critical": "npm run deploy:prepare && npm run verify:frontend && npm run verify:backend && cd frontend && npm run test:e2e:critical",
+    "smoke:preview": "node scripts/run-preview-smoke.mjs",
+    "smoke:production": "curl -fsS https://cerniq.io >/dev/null && curl -fsS https://cerniq.io/login >/dev/null && curl -fsS https://cerniq.io/pricing >/dev/null && curl -fsS https://cerniq.io/portal/login >/dev/null && curl -fsS https://api.cerniq.io/health >/dev/null && cd frontend && npm run test:e2e:production"
   },
   "devDependencies": {
     "husky": "^9.1.7",

@@ -8,9 +8,13 @@ if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 1.0,
     beforeSend(event) {
-      // Don't report errors from demo page (expected for unauthenticated users)
-      if (event.request?.url?.includes('/demo/embed')) return null;
+      if (event.request?.url?.includes('/demo/embed')) {
+        return null;
+      }
+
       return event;
     },
   });
 }
+
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

@@ -1,17 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
 import { Activity, Newspaper } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import StockInsightsPopup from '@/components/dashboard/StockInsightsPopup';
 import { useMarketDataSocket } from '@/lib/marketDataSocket';
-
-interface TickerPageProps {
-    params: { symbol: string };
-}
 
 interface QuoteData {
     ticker: string;
@@ -111,9 +107,10 @@ function getTickerErrorMessage(error: unknown): string {
     return 'Failed to load ticker data';
 }
 
-export default function TickerDetailPage({ params }: TickerPageProps) {
+export default function TickerDetailPage() {
     const router = useRouter();
-    const symbol = params.symbol.toUpperCase();
+    const params = useParams<{ symbol: string }>();
+    const symbol = (params.symbol || '').toUpperCase();
 
     const [quote, setQuote] = useState<QuoteData | null>(null);
     const [fundamentals, setFundamentals] = useState<FundamentalsData | null>(null);

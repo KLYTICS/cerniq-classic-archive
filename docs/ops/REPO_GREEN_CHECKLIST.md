@@ -1,0 +1,83 @@
+# Repo Green Checklist
+
+Date validated locally: 2026-03-31
+
+## Purpose
+
+This is the canonical release-integrity checklist for the CERNIQ repository. Use it as the source of truth for whether the repo is locally green and rerun-ready.
+
+Remote GitHub Actions may still appear red when billing is suspended. If a workflow reports:
+
+`The job was not started because recent account payments have failed or your spending limit needs to be increased.`
+
+that is an operational blocker, not a code regression.
+
+## Required Validation
+
+Backend:
+
+- `cd backend-node && npx tsc --noEmit`
+- `cd backend-node && npx prisma validate`
+- `cd backend-node && npx eslint "{src,apps,libs,test}/**/*.ts"`
+- `cd backend-node && npm run test -- --forceExit`
+- `cd backend-node && npm run test -- --detectOpenHandles --runInBand`
+- `cd backend-node && npm run build`
+
+Backend E2E and security:
+
+- `cd backend-node && REDIS_URL=redis://localhost:6380 npx jest --config ./test/jest-e2e.json --runInBand`
+
+Frontend:
+
+- `cd frontend && npm run lint`
+- `cd frontend && npm run build`
+- `cd frontend && npx vitest run`
+
+Frontend browser validation:
+
+- `cd frontend && npx playwright test --reporter=github`
+- `cd frontend && npm run test:e2e:production`
+
+Outbound:
+
+- `python -m pytest services/outbound/tests -q`
+
+Public production verification:
+
+- `bash scripts/health-check.sh https://api.cerniq.io https://cerniq.io`
+- `bash scripts/smoke-test.sh https://api.cerniq.io`
+
+Production-authenticated or mutating smoke:
+
+- Only run with explicit intent and safe credentials
+- Use `ALLOW_PRODUCTION_MUTATIONS=1 bash scripts/smoke-test.sh https://api.cerniq.io`
+- Success means public routes return `200`, while protected routes correctly reject with `401/403`
+
+## Current Baseline
+
+- Backend unit/build gates: pass
+- Backend Prisma validation: pass
+- Backend TypeScript: pass
+- Backend non-mutating ESLint: pass
+- Backend unit tests: `367` suites / `2643` tests
+- Backend E2E/security: `4` suites / `64` tests
+- Frontend lint/build/Vitest: pass
+- Frontend Vitest: `47` files / `257` tests
+- Frontend default Playwright: `55` passed / `2` preview-only skips
+- Frontend production-critical Playwright: `5` tests
+- Outbound pytest: `82` tests
+- Public production gate (`scripts/health-check.sh`): `12/12` passed
+- Public production smoke (`scripts/smoke-test.sh https://api.cerniq.io`): `31` passed, `0` failed, `4` intentional skips
+
+## Release Gate Expectations
+
+- CI release integrity requires `backend-test`, `backend-e2e`, `frontend-test`, `frontend-e2e`, and `outbound-test`.
+- `frontend-e2e` must run on pull requests and on pushes to `main`.
+- `deploy-backend` and `deploy-frontend` must both depend on `release-gate`.
+- Public production validation is green when read-only public endpoints return `200` and protected/admin routes reject unauthenticated access with `401/403`.
+- Repo-level wrapper checks `npm run verify:backend`, `npm run verify:frontend`, and `npm run smoke:production` should all execute cleanly on a locally green worktree.
+
+## Known Non-Blocking Debt
+
+- `backend-node/package.json` still defines `npm run lint` with `--fix`; prefer the non-mutating command above when preserving a dirty worktree.
+- GitHub Actions can remain red until repository/account billing is restored, even when the repo is locally green.

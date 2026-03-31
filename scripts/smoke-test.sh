@@ -21,8 +21,24 @@ set -uo pipefail
 
 API="${1:-http://localhost:3000}"
 ADMIN_KEY="${ADMIN_KEY:-}"
+ALLOW_PRODUCTION_MUTATIONS="${ALLOW_PRODUCTION_MUTATIONS:-0}"
 TEST_EMAIL="${TEST_EMAIL:-smoke_$(date +%s)@cerniq-test.io}"
 TEST_PASS="${TEST_PASS:-SmokeTest_$(date +%s)!}"
+AUTH_TOKEN=""
+AUTH_BEARER_TOKEN=""
+AUTH_COOKIE_JAR=""
+AUTH_CURL_ARGS=()
+AUTH_ARGS_RESULT=()
+
+IS_PRODUCTION=0
+if [ "$API" = "https://api.cerniq.io" ] || [ "$API" = "https://api.cerniq.io/" ]; then
+  IS_PRODUCTION=1
+fi
+
+READ_ONLY_MODE=0
+if [ "$IS_PRODUCTION" -eq 1 ] && [ "$ALLOW_PRODUCTION_MUTATIONS" != "1" ]; then
+  READ_ONLY_MODE=1
+fi
 
 # ─── Counters ───
 PASS=0
@@ -37,14 +53,50 @@ yellow() { printf "\033[33m⚠️  %-55s SKIP (%s)\033[0m\n" "$1" "$2"; }
 blue()   { printf "\033[34m%s\033[0m\n" "$1"; }
 dim()    { printf "\033[2m%s\033[0m\n" "$1"; }
 
+build_auth_args() {
+  local auth_ref="${2:-}"
+
+  if [ "$#" -gt 0 ]; then
+    auth_ref="${1:-}"
+  fi
+
+  AUTH_ARGS_RESULT=()
+
+  if [ -z "$auth_ref" ]; then
+    return
+  fi
+
+  if [ "$auth_ref" = "__AUTH__" ]; then
+    [ -n "$AUTH_BEARER_TOKEN" ] && AUTH_ARGS_RESULT+=(-H "Authorization: Bearer $AUTH_BEARER_TOKEN")
+    [ -n "$AUTH_COOKIE_JAR" ] && AUTH_ARGS_RESULT+=(-b "$AUTH_COOKIE_JAR")
+    return
+  fi
+
+  AUTH_ARGS_RESULT+=(-H "Authorization: Bearer $auth_ref")
+}
+
+is_auth_rejected() {
+  local code="$1"
+  [ "$code" = "401" ] || [ "$code" = "403" ]
+}
+
+skip_read_only_section() {
+  local label="$1"
+  yellow "$label" "production read-only mode (set ALLOW_PRODUCTION_MUTATIONS=1 to enable)"
+  SKIP=$((SKIP+1))
+}
+
 # ─── HTTP helpers ───
 GET() {
   local label="$1"; local path="$2"; local token="${3:-}"
   local expected="${4:-200}"
-  local headers=()
-  [ -n "$token" ] && headers+=(-H "Authorization: Bearer $token")
   local code
-  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "${headers[@]}" "$API$path" 2>/dev/null || echo "000")
+  build_auth_args "$token"
+  if [ "${#AUTH_ARGS_RESULT[@]}" -gt 0 ]; then
+    code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "${AUTH_ARGS_RESULT[@]}" "$API$path" 2>/dev/null || echo "000")
+  else
+    code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$API$path" 2>/dev/null || echo "000")
+  fi
   if [ "$code" = "$expected" ]; then green "$label"; PASS=$((PASS+1));
   else red "$label" "$code"; FAIL=$((FAIL+1)); fi
 }
@@ -52,10 +104,13 @@ GET() {
 POST() {
   local label="$1"; local path="$2"; local body="$3"; local token="${4:-}"
   local expected="${5:-200}"
-  local headers=(-H "Content-Type: application/json")
-  [ -n "$token" ] && headers+=(-H "Authorization: Bearer $token")
   local code
-  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "${headers[@]}" -d "$body" "$API$path" 2>/dev/null || echo "000")
+  build_auth_args "$token"
+  if [ "${#AUTH_ARGS_RESULT[@]}" -gt 0 ]; then
+    code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 -H "Content-Type: application/json" "${AUTH_ARGS_RESULT[@]}" -d "$body" "$API$path" 2>/dev/null || echo "000")
+  else
+    code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 -H "Content-Type: application/json" -d "$body" "$API$path" 2>/dev/null || echo "000")
+  fi
   if [ "$code" = "$expected" ] || [ "$code" = "201" ] && [ "$expected" = "200" ]; then
     green "$label"; PASS=$((PASS+1));
   elif [ "$code" = "201" ] && [ "$expected" = "201" ]; then
@@ -65,10 +120,13 @@ POST() {
 
 POST_EXPECT_2XX() {
   local label="$1"; local path="$2"; local body="$3"; local token="${4:-}"
-  local headers=(-H "Content-Type: application/json")
-  [ -n "$token" ] && headers+=(-H "Authorization: Bearer $token")
   local code
-  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "${headers[@]}" -d "$body" "$API$path" 2>/dev/null || echo "000")
+  build_auth_args "$token"
+  if [ "${#AUTH_ARGS_RESULT[@]}" -gt 0 ]; then
+    code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 -H "Content-Type: application/json" "${AUTH_ARGS_RESULT[@]}" -d "$body" "$API$path" 2>/dev/null || echo "000")
+  else
+    code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 -H "Content-Type: application/json" -d "$body" "$API$path" 2>/dev/null || echo "000")
+  fi
   if [[ "$code" =~ ^2 ]]; then green "$label"; PASS=$((PASS+1));
   else red "$label" "$code"; FAIL=$((FAIL+1)); fi
 }
@@ -82,12 +140,20 @@ ADMIN_GET() {
   else red "$label" "$code"; FAIL=$((FAIL+1)); fi
 }
 
-EXPECT_401() {
+EXPECT_AUTH_REJECTED() {
   local label="$1"; local path="$2"
+  local method="${3:-GET}"
+  local body="${4:-}"
+  local headers=()
+  [ "$method" = "POST" ] && headers+=(-H "Content-Type: application/json")
   local code
-  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$API$path" 2>/dev/null || echo "000")
-  if [ "$code" = "401" ]; then green "$label (correctly rejected)"; PASS=$((PASS+1));
-  else red "$label (should be 401)" "$code"; FAIL=$((FAIL+1)); fi
+  if [ "$method" = "POST" ]; then
+    code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${headers[@]}" -d "$body" "$API$path" 2>/dev/null || echo "000")
+  else
+    code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$API$path" 2>/dev/null || echo "000")
+  fi
+  if is_auth_rejected "$code"; then green "$label (correctly rejected)"; PASS=$((PASS+1));
+  else red "$label (should be 401/403)" "$code"; FAIL=$((FAIL+1)); fi
 }
 
 GET_BODY() {
@@ -105,6 +171,11 @@ blue "  CERNIQ Complete API Smoke Test"
 blue "══════════════════════════════════════════════════════════"
 echo "  Target:  $API"
 echo "  Time:    $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+if [ "$READ_ONLY_MODE" -eq 1 ]; then
+  echo "  Mode:    🔒 read-only public-production"
+else
+  echo "  Mode:    🧪 full smoke"
+fi
 [ -n "$ADMIN_KEY" ] && echo "  Admin:   ✅ ADMIN_KEY provided" || echo "  Admin:   ⚠️  ADMIN_KEY not set (admin tests skipped)"
 blue "══════════════════════════════════════════════════════════"
 echo ""
@@ -120,9 +191,9 @@ echo ""
 
 # Inspect health payload
 HEALTH=$(GET_BODY "/health")
-STATUS=$(echo "$HEALTH" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','?'))" 2>/dev/null || echo "?")
-DB=$(echo "$HEALTH" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('db','?'))" 2>/dev/null || echo "?")
-MEM=$(echo "$HEALTH" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('memoryPercent','?'))" 2>/dev/null || echo "?")
+STATUS=$(echo "$HEALTH" | python3 -c "import sys,json; r=json.load(sys.stdin); d=r.get('data',r); print(d.get('status','?'))" 2>/dev/null || echo "?")
+DB=$(echo "$HEALTH" | python3 -c "import sys,json; r=json.load(sys.stdin); d=r.get('data',r); print(d.get('db','?'))" 2>/dev/null || echo "?")
+MEM=$(echo "$HEALTH" | python3 -c "import sys,json; r=json.load(sys.stdin); d=r.get('data',r); print(d.get('memoryPercent','?'))" 2>/dev/null || echo "?")
 dim "  Health payload: status=$STATUS db=$DB memory=${MEM}%"
 echo ""
 
@@ -130,18 +201,28 @@ echo ""
 # SECTION 2: AUTH SECURITY
 # ════════════════════════════════════════════
 blue "──── 2. Auth Security (unauthenticated rejection) ────"
-EXPECT_401 "ALM institutions (no token)"     "/api/alm/institutions"
-EXPECT_401 "Portfolio (no token)"            "/api/portfolios"
-EXPECT_401 "Risk engine (no token)"          "/api/risk/var"
-EXPECT_401 "Options (no token)"              "/api/options/calculate"
-EXPECT_401 "Execution (no token)"            "/api/execution/slippage"
-EXPECT_401 "Auth/me (no token)"              "/api/auth/me"
+EXPECT_AUTH_REJECTED "ALM institutions (no token)"     "/api/alm/institutions"
+EXPECT_AUTH_REJECTED "Portfolio (no token)"            "/api/portfolios"
+EXPECT_AUTH_REJECTED "Risk engine (POST, no token)"    "/api/risk/var" "POST" '{"returns":[0.01,-0.02],"confidence":0.95,"method":"historical"}'
+EXPECT_AUTH_REJECTED "Options (POST, no token)"        "/api/options/calculate" "POST" '{"underlying":100,"strike":105,"timeToExpiry":0.25,"riskFreeRate":0.05,"volatility":0.25,"optionType":"call"}'
+EXPECT_AUTH_REJECTED "Execution (POST, no token)"      "/api/execution/slippage" "POST" '{"executions":[{"ticker":"AAPL","executionPrice":150.25,"midPrice":150.1,"side":"buy","quantity":100}]}'
+EXPECT_AUTH_REJECTED "Auth profile (no token)"         "/api/auth/profile"
+EXPECT_AUTH_REJECTED "ALM beta library (no token)"     "/api/alm/deposit-beta/library"
+EXPECT_AUTH_REJECTED "ALM treasury rates (no token)"   "/api/alm/treasury/rates"
+EXPECT_AUTH_REJECTED "ALM treasury curve (no token)"   "/api/alm/treasury/curve"
+EXPECT_AUTH_REJECTED "ALM stress presets (no token)"   "/api/alm/stress-v2/presets"
+EXPECT_AUTH_REJECTED "ALM USVI framework (no token)"   "/api/alm/usvi/framework"
+EXPECT_AUTH_REJECTED "ALM macro regime (no token)"     "/api/alm/market/macro-regime"
+EXPECT_AUTH_REJECTED "ALM fed futures (no token)"      "/api/alm/market/fed-futures"
+EXPECT_AUTH_REJECTED "ALM publications (no token)"     "/api/alm/regulatory/publications"
+EXPECT_AUTH_REJECTED "ALM analyst tools (no token)"    "/api/alm/analyst/tools"
+EXPECT_AUTH_REJECTED "ALM peer synthesis (no token)"   "/api/alm/peer-synthesis/latest"
 echo ""
 
 # Admin endpoint rejection without key
 ADMIN_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$API/api/admin/stats" 2>/dev/null || echo "000")
-if [ "$ADMIN_CODE" = "401" ]; then green "GET /api/admin/stats (no key — correctly rejected)"; PASS=$((PASS+1));
-else red "GET /api/admin/stats (no key — should 401)" "$ADMIN_CODE"; FAIL=$((FAIL+1)); fi
+if is_auth_rejected "$ADMIN_CODE"; then green "GET /api/admin/stats (no key — correctly rejected)"; PASS=$((PASS+1));
+else red "GET /api/admin/stats (no key — should 401/403)" "$ADMIN_CODE"; FAIL=$((FAIL+1)); fi
 echo ""
 
 # ════════════════════════════════════════════
@@ -150,74 +231,84 @@ echo ""
 blue "──── 3. Public Endpoints (no auth required) ────"
 GET "GET /api/market-data/quote/AAPL"        "/api/market-data/quote/AAPL"
 GET "GET /api/market-data/quote/SPY"         "/api/market-data/quote/SPY"
-GET "GET /api/alm/deposit-beta/library"      "/api/alm/deposit-beta/library"
-GET "GET /api/alm/treasury/rates"            "/api/alm/treasury/rates"
-GET "GET /api/alm/treasury/curve"            "/api/alm/treasury/curve"
 GET "GET /api/alm/demo-balance-sheet"        "/api/alm/demo-balance-sheet"
 GET "GET /api/alm/demo-analysis"             "/api/alm/demo-analysis"
-GET "GET /api/alm/stress-v2/presets"         "/api/alm/stress-v2/presets"
-GET "GET /api/alm/usvi/framework"            "/api/alm/usvi/framework"
-GET "GET /api/alm/market/macro-regime"       "/api/alm/market/macro-regime"
-GET "GET /api/alm/market/fed-futures"        "/api/alm/market/fed-futures"
-GET "GET /api/alm/regulatory/publications"   "/api/alm/regulatory/publications"
-GET "GET /api/alm/analyst/tools"             "/api/alm/analyst/tools"
-GET "GET /api/alm/peer-synthesis/latest"     "/api/alm/peer-synthesis/latest"
 GET "GET /api/alm/templates/cooperativa"     "/api/alm/templates/cooperativa"
 echo ""
 
 # ════════════════════════════════════════════
 # SECTION 4: REGISTER & LOGIN
 # ════════════════════════════════════════════
-blue "──── 4. Auth: Register & Login ────"
-
-# Register
-REG_BODY="{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASS\",\"name\":\"Smoke Test\"}"
-REG_RESP=$(POST_BODY "/api/auth/register" "$REG_BODY")
-REG_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
-  -H "Content-Type: application/json" -d "$REG_BODY" "$API/api/auth/register" 2>/dev/null || echo "000")
-
-if [[ "$REG_CODE" =~ ^2 ]]; then
-  green "POST /api/auth/register"
-  PASS=$((PASS+1))
-  AUTH_TOKEN=$(echo "$REG_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('accessToken', d.get('access_token','')))" 2>/dev/null || echo "")
+if [ "$READ_ONLY_MODE" -eq 1 ]; then
+  skip_read_only_section "4. Authenticated and mutating smoke coverage"
+  echo ""
 else
-  # Maybe user already exists — try login
-  if [ "$REG_CODE" = "409" ]; then
-    dim "  (User exists, will try login)"
-    PASS=$((PASS+1))  # 409 is expected for existing user
+  blue "──── 4. Auth: Register & Login ────"
+
+  AUTH_COOKIE_JAR=$(mktemp "${TMPDIR:-/tmp}/cerniq-smoke-cookies.XXXXXX")
+  trap 'rm -f "$AUTH_COOKIE_JAR"' EXIT
+
+  # Register
+  REG_BODY="{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASS\",\"name\":\"Smoke Test\"}"
+  REG_RESP=$(curl -s --max-time 15 \
+    -c "$AUTH_COOKIE_JAR" -b "$AUTH_COOKIE_JAR" \
+    -H "Content-Type: application/json" -d "$REG_BODY" "$API/api/auth/register" 2>/dev/null || echo "{}")
+  REG_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+    -c "$AUTH_COOKIE_JAR" -b "$AUTH_COOKIE_JAR" \
+    -H "Content-Type: application/json" -d "$REG_BODY" "$API/api/auth/register" 2>/dev/null || echo "000")
+
+  if [[ "$REG_CODE" =~ ^2 ]]; then
+    green "POST /api/auth/register"
+    PASS=$((PASS+1))
   else
-    red "POST /api/auth/register" "$REG_CODE"
-    FAIL=$((FAIL+1))
+    # Maybe user already exists — try login
+    if [ "$REG_CODE" = "409" ]; then
+      dim "  (User exists, will try login)"
+      PASS=$((PASS+1))
+    else
+      red "POST /api/auth/register" "$REG_CODE"
+      FAIL=$((FAIL+1))
+    fi
   fi
-  AUTH_TOKEN=""
+
+  # Login (always try — may have registered above or using existing user)
+  LOGIN_BODY="{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASS\"}"
+  LOGIN_RESP=$(curl -s --max-time 15 \
+    -c "$AUTH_COOKIE_JAR" -b "$AUTH_COOKIE_JAR" \
+    -H "Content-Type: application/json" -d "$LOGIN_BODY" "$API/api/auth/login" 2>/dev/null || echo "{}")
+  LOGIN_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+    -c "$AUTH_COOKIE_JAR" -b "$AUTH_COOKIE_JAR" \
+    -H "Content-Type: application/json" -d "$LOGIN_BODY" "$API/api/auth/login" 2>/dev/null || echo "000")
+
+  if [[ "$LOGIN_CODE" =~ ^2 ]]; then
+    green "POST /api/auth/login"
+    PASS=$((PASS+1))
+    AUTH_BEARER_TOKEN=$(echo "$LOGIN_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('accessToken', d.get('access_token','')))" 2>/dev/null || echo "")
+    AUTH_TOKEN="__AUTH__"
+    AUTH_CURL_ARGS=()
+    [ -n "$AUTH_BEARER_TOKEN" ] && AUTH_CURL_ARGS+=(-H "Authorization: Bearer $AUTH_BEARER_TOKEN")
+    [ -n "$AUTH_COOKIE_JAR" ] && AUTH_CURL_ARGS+=(-b "$AUTH_COOKIE_JAR")
+    if [ -n "$AUTH_BEARER_TOKEN" ]; then
+      dim "  Token: ${AUTH_BEARER_TOKEN:0:40}..."
+    else
+      dim "  Auth established via HTTP-only cookie"
+    fi
+  else
+    red "POST /api/auth/login" "$LOGIN_CODE"
+    FAIL=$((FAIL+1))
+    AUTH_TOKEN=""
+    AUTH_CURL_ARGS=()
+  fi
+
+  echo ""
 fi
-
-# Login (always try — may have registered above or using existing user)
-LOGIN_BODY="{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASS\"}"
-LOGIN_RESP=$(curl -s --max-time 15 \
-  -H "Content-Type: application/json" -d "$LOGIN_BODY" "$API/api/auth/login" 2>/dev/null || echo "{}")
-LOGIN_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
-  -H "Content-Type: application/json" -d "$LOGIN_BODY" "$API/api/auth/login" 2>/dev/null || echo "000")
-
-if [[ "$LOGIN_CODE" =~ ^2 ]]; then
-  green "POST /api/auth/login"
-  PASS=$((PASS+1))
-  AUTH_TOKEN=$(echo "$LOGIN_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('accessToken', d.get('access_token','')))" 2>/dev/null || echo "")
-  dim "  Token: ${AUTH_TOKEN:0:40}..."
-else
-  red "POST /api/auth/login" "$LOGIN_CODE"
-  FAIL=$((FAIL+1))
-  AUTH_TOKEN=""
-fi
-
-echo ""
 
 # ════════════════════════════════════════════
 # SECTION 5: AUTH PROFILE & API KEYS
 # ════════════════════════════════════════════
-if [ -n "$AUTH_TOKEN" ]; then
+if [ "$READ_ONLY_MODE" -eq 0 ] && [ -n "$AUTH_TOKEN" ]; then
   blue "──── 5. Auth: Profile & API Keys ────"
-  GET "GET /api/auth/me"              "/api/auth/me"              "$AUTH_TOKEN"
+  GET "GET /api/auth/profile"         "/api/auth/profile"         "$AUTH_TOKEN"
   GET "GET /api/auth/api-keys"        "/api/auth/api-keys"        "$AUTH_TOKEN"
   POST_EXPECT_2XX "POST /api/auth/api-keys" "/api/auth/api-keys" \
     '{"name":"Smoke Test Key","expiresInDays":1}' "$AUTH_TOKEN"
@@ -227,7 +318,7 @@ fi
 # ════════════════════════════════════════════
 # SECTION 6: WORKSPACES
 # ════════════════════════════════════════════
-if [ -n "$AUTH_TOKEN" ]; then
+if [ "$READ_ONLY_MODE" -eq 0 ] && [ -n "$AUTH_TOKEN" ]; then
   blue "──── 6. Workspaces ────"
   GET "GET /api/workspaces"           "/api/workspaces"           "$AUTH_TOKEN"
   POST_EXPECT_2XX "POST /api/workspaces" "/api/workspaces" \
@@ -239,19 +330,28 @@ fi
 # SECTION 7: ALM — INSTITUTION CRUD
 # ════════════════════════════════════════════
 INSTITUTION_ID=""
-if [ -n "$AUTH_TOKEN" ]; then
+if [ "$READ_ONLY_MODE" -eq 0 ] && [ -n "$AUTH_TOKEN" ]; then
   blue "──── 7. ALM: Institution Management ────"
 
   # Create institution
   INST_BODY='{"name":"Smoke Test CoopAhorro","type":"cooperativa","totalAssets":250000000,"currency":"USD","regulatoryBody":"COSSEC"}'
-  INST_RESP=$(curl -s --max-time 15 \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer $AUTH_TOKEN" \
-    -d "$INST_BODY" "$API/api/alm/institutions" 2>/dev/null || echo "{}")
-  INST_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer $AUTH_TOKEN" \
-    -d "$INST_BODY" "$API/api/alm/institutions" 2>/dev/null || echo "000")
+  if [ "${#AUTH_CURL_ARGS[@]}" -gt 0 ]; then
+    INST_RESP=$(curl -s --max-time 15 \
+      -H "Content-Type: application/json" \
+      "${AUTH_CURL_ARGS[@]}" \
+      -d "$INST_BODY" "$API/api/alm/institutions" 2>/dev/null || echo "{}")
+    INST_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+      -H "Content-Type: application/json" \
+      "${AUTH_CURL_ARGS[@]}" \
+      -d "$INST_BODY" "$API/api/alm/institutions" 2>/dev/null || echo "000")
+  else
+    INST_RESP=$(curl -s --max-time 15 \
+      -H "Content-Type: application/json" \
+      -d "$INST_BODY" "$API/api/alm/institutions" 2>/dev/null || echo "{}")
+    INST_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+      -H "Content-Type: application/json" \
+      -d "$INST_BODY" "$API/api/alm/institutions" 2>/dev/null || echo "000")
+  fi
 
   if [[ "$INST_CODE" =~ ^2 ]]; then
     green "POST /api/alm/institutions"
@@ -274,7 +374,7 @@ fi
 # ════════════════════════════════════════════
 # SECTION 8: ALM — STATELESS CALCULATIONS
 # ════════════════════════════════════════════
-if [ -n "$AUTH_TOKEN" ]; then
+if [ "$READ_ONLY_MODE" -eq 0 ] && [ -n "$AUTH_TOKEN" ]; then
   blue "──── 8. ALM: Stateless Calculations ────"
 
   DG_BODY='{"assets":[{"balance":100000000,"rate":0.065,"maturityYears":5,"isFixed":true},{"balance":50000000,"rate":0.055,"maturityYears":7,"isFixed":true}],"liabilities":[{"balance":80000000,"rate":0.025,"maturityYears":1,"isFixed":false},{"balance":40000000,"rate":0.03,"maturityYears":3,"isFixed":false}]}'
@@ -297,7 +397,7 @@ fi
 # ════════════════════════════════════════════
 # SECTION 9: ALM — INSTITUTION ANALYSIS
 # ════════════════════════════════════════════
-if [ -n "$AUTH_TOKEN" ] && [ -n "$INSTITUTION_ID" ]; then
+if [ "$READ_ONLY_MODE" -eq 0 ] && [ -n "$AUTH_TOKEN" ] && [ -n "$INSTITUTION_ID" ]; then
   blue "──── 9. ALM: Institution-Scoped Analysis ────"
 
   # First seed some balance sheet items
@@ -354,7 +454,7 @@ fi
 # ════════════════════════════════════════════
 # SECTION 10: ALM — STRESS TESTING
 # ════════════════════════════════════════════
-if [ -n "$AUTH_TOKEN" ] && [ -n "$INSTITUTION_ID" ]; then
+if [ "$READ_ONLY_MODE" -eq 0 ] && [ -n "$AUTH_TOKEN" ] && [ -n "$INSTITUTION_ID" ]; then
   blue "──── 10. ALM: Stress Testing ────"
 
   MC_BODY="{\"institutionId\":\"$INSTITUTION_ID\"}"
@@ -378,7 +478,7 @@ fi
 # ════════════════════════════════════════════
 # SECTION 11: RISK ENGINE
 # ════════════════════════════════════════════
-if [ -n "$AUTH_TOKEN" ]; then
+if [ "$READ_ONLY_MODE" -eq 0 ] && [ -n "$AUTH_TOKEN" ]; then
   blue "──── 11. Risk Engine ────"
 
   VAR_BODY='{"returns":[-0.02,0.01,-0.015,0.008,-0.03,0.025,-0.01,0.005,-0.012,0.018,0.003,-0.008],"confidence":0.95,"method":"historical"}'
@@ -398,16 +498,16 @@ fi
 # ════════════════════════════════════════════
 # SECTION 12: OPTIONS ENGINE
 # ════════════════════════════════════════════
-if [ -n "$AUTH_TOKEN" ]; then
+if [ "$READ_ONLY_MODE" -eq 0 ] && [ -n "$AUTH_TOKEN" ]; then
   blue "──── 12. Options Engine ────"
 
   GREEKS_BODY='{"underlying":450.00,"strike":460.00,"timeToExpiry":0.0833,"riskFreeRate":0.045,"volatility":0.22,"optionType":"call"}'
   POST_EXPECT_2XX "POST /api/options/calculate"         "/api/options/calculate"         "$GREEKS_BODY" "$AUTH_TOKEN"
 
-  IV_BODY='{"underlying":450.00,"strike":460.00,"timeToExpiry":0.0833,"riskFreeRate":0.045,"marketPrice":8.50,"optionType":"call"}'
+  IV_BODY='{"ticker":"SPY","strike":460.00,"expiration":"2026-06-19","marketPrice":8.50,"optionType":"call"}'
   POST_EXPECT_2XX "POST /api/options/implied-volatility" "/api/options/implied-volatility" "$IV_BODY"    "$AUTH_TOKEN"
 
-  GET "GET /api/options/presets"                        "/api/options/presets"                         "$AUTH_TOKEN"
+  GET "GET /api/options/strategy-presets"               "/api/options/strategy-presets"                "$AUTH_TOKEN"
   GET "GET /api/options/chain/SPY"                      "/api/options/chain/SPY"                       "$AUTH_TOKEN"
   echo ""
 fi
@@ -415,7 +515,7 @@ fi
 # ════════════════════════════════════════════
 # SECTION 13: EXECUTION QUALITY
 # ════════════════════════════════════════════
-if [ -n "$AUTH_TOKEN" ]; then
+if [ "$READ_ONLY_MODE" -eq 0 ] && [ -n "$AUTH_TOKEN" ]; then
   blue "──── 13. Execution Quality ────"
 
   SLIP_BODY='{"executions":[{"ticker":"AAPL","executionPrice":150.25,"midPrice":150.10,"side":"buy","quantity":100},{"ticker":"MSFT","executionPrice":310.50,"midPrice":310.75,"side":"sell","quantity":50}]}'
@@ -437,27 +537,37 @@ fi
 blue "──── 14. Market Data ────"
 GET "GET /api/market-data/quote/AAPL"         "/api/market-data/quote/AAPL"
 GET "GET /api/market-data/quote/SPY"          "/api/market-data/quote/SPY"
-GET "GET /api/market-data/snapshot"           "/api/market-data/snapshot"
-GET "GET /api/market-data/stream-status"      "/api/market-data/stream-status"
+GET "GET /api/market-data/snapshot/AAPL"      "/api/market-data/snapshot/AAPL"
+GET "GET /api/market-data/health"             "/api/market-data/health"
+GET "GET /api/market-data/streams"            "/api/market-data/streams"
 echo ""
 
 # ════════════════════════════════════════════
 # SECTION 15: PORTFOLIO
 # ════════════════════════════════════════════
 PORTFOLIO_ID=""
-if [ -n "$AUTH_TOKEN" ]; then
+if [ "$READ_ONLY_MODE" -eq 0 ] && [ -n "$AUTH_TOKEN" ]; then
   blue "──── 15. Portfolio ────"
   GET "GET /api/portfolios" "/api/portfolios" "$AUTH_TOKEN"
 
   P_BODY='{"name":"Smoke Test Portfolio","description":"Test","currency":"USD"}'
-  P_RESP=$(curl -s --max-time 15 \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer $AUTH_TOKEN" \
-    -d "$P_BODY" "$API/api/portfolios" 2>/dev/null || echo "{}")
-  P_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer $AUTH_TOKEN" \
-    -d "$P_BODY" "$API/api/portfolios" 2>/dev/null || echo "000")
+  if [ "${#AUTH_CURL_ARGS[@]}" -gt 0 ]; then
+    P_RESP=$(curl -s --max-time 15 \
+      -H "Content-Type: application/json" \
+      "${AUTH_CURL_ARGS[@]}" \
+      -d "$P_BODY" "$API/api/portfolios" 2>/dev/null || echo "{}")
+    P_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+      -H "Content-Type: application/json" \
+      "${AUTH_CURL_ARGS[@]}" \
+      -d "$P_BODY" "$API/api/portfolios" 2>/dev/null || echo "000")
+  else
+    P_RESP=$(curl -s --max-time 15 \
+      -H "Content-Type: application/json" \
+      -d "$P_BODY" "$API/api/portfolios" 2>/dev/null || echo "{}")
+    P_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+      -H "Content-Type: application/json" \
+      -d "$P_BODY" "$API/api/portfolios" 2>/dev/null || echo "000")
+  fi
 
   if [[ "$P_CODE" =~ ^2 ]]; then
     green "POST /api/portfolios"
@@ -479,41 +589,53 @@ fi
 # SECTION 16: LEADS (PUBLIC)
 # ════════════════════════════════════════════
 blue "──── 16. Leads (Public Submit) ────"
-LEAD_BODY='{"email":"smoke_lead@test.io","name":"Smoke Tester","institutionName":"Test Cooperativa","phone":"+1-787-555-0100","message":"Smoke test lead submission"}'
-POST_EXPECT_2XX "POST /api/v1/leads/submit (public)" "/api/v1/leads/submit" "$LEAD_BODY"
+if [ "$READ_ONLY_MODE" -eq 1 ]; then
+  skip_read_only_section "16. Public submit endpoints"
+else
+  LEAD_BODY='{"email":"smoke_lead@test.io","name":"Smoke Tester","institutionName":"Test Cooperativa","institutionType":"cooperativa","phone":"+1-787-555-0100","message":"Smoke test lead submission"}'
+  POST_EXPECT_2XX "POST /api/v1/leads/submit (public)" "/api/v1/leads/submit" "$LEAD_BODY"
 
-DEMO_BODY='{"name":"Smoke Tester","email":"smoke_demo@test.io","institution":"Test Cooperativa","message":"Smoke test demo request"}'
-POST_EXPECT_2XX "POST /api/demo-request (public)" "/api/demo-request" "$DEMO_BODY"
+  DEMO_BODY='{"name":"Smoke Tester","email":"smoke_demo@test.io","institutionName":"Test Cooperativa","institutionType":"cooperativa","message":"Smoke test demo request"}'
+  POST_EXPECT_2XX "POST /api/demo-request (public)" "/api/demo-request" "$DEMO_BODY"
+fi
 echo ""
 
 # ════════════════════════════════════════════
 # SECTION 17: ADMIN ENDPOINTS
 # ════════════════════════════════════════════
 blue "──── 17. Admin Endpoints (ADMIN_KEY required) ────"
-ADMIN_GET "GET /api/admin/stats"              "/api/admin/stats"
-ADMIN_GET "GET /api/admin/demo-requests"      "/api/admin/demo-requests"
-ADMIN_GET "GET /api/admin/prospects"          "/api/admin/prospects"
-ADMIN_GET "GET /admin/api/leads"              "/admin/api/leads"
-ADMIN_GET "GET /admin/api/leads/metrics"      "/admin/api/leads/metrics"
-ADMIN_GET "GET /admin/api/pipeline"           "/admin/api/pipeline"
+if [ "$READ_ONLY_MODE" -eq 1 ]; then
+  skip_read_only_section "17. Admin endpoint coverage"
+else
+  ADMIN_GET "GET /api/admin/stats"              "/api/admin/stats"
+  ADMIN_GET "GET /api/admin/demo-requests"      "/api/admin/demo-requests"
+  ADMIN_GET "GET /api/admin/prospects"          "/api/admin/prospects"
+  ADMIN_GET "GET /admin/api/leads"              "/admin/api/leads"
+  ADMIN_GET "GET /admin/api/leads/metrics"      "/admin/api/leads/metrics"
+  ADMIN_GET "GET /admin/api/pipeline"           "/admin/api/pipeline"
+fi
 echo ""
 
 # ════════════════════════════════════════════
 # SECTION 18: SAMPLE REPORT (Public)
 # ════════════════════════════════════════════
 blue "──── 18. Sample Report & Templates ────"
-SAMPLE_BODY='{"institutionName":"CoopAhorro Demo","totalAssets":250000000,"language":"es"}'
-POST_EXPECT_2XX "POST /api/alm/sample-report (public)" "/api/alm/sample-report" "$SAMPLE_BODY"
+if [ "$READ_ONLY_MODE" -eq 1 ]; then
+  skip_read_only_section "18. Sample report generation"
+else
+  SAMPLE_BODY='{"institutionName":"CoopAhorro Demo","totalAssets":250000000,"language":"es"}'
+  POST_EXPECT_2XX "POST /api/alm/sample-report (public)" "/api/alm/sample-report" "$SAMPLE_BODY"
+fi
 GET "GET /api/alm/templates/cooperativa" "/api/alm/templates/cooperativa"
 echo ""
 
 # ════════════════════════════════════════════
 # SECTION 19: ORGANIZATIONS
 # ════════════════════════════════════════════
-if [ -n "$AUTH_TOKEN" ]; then
+if [ "$READ_ONLY_MODE" -eq 0 ] && [ -n "$AUTH_TOKEN" ]; then
   blue "──── 19. Organizations ────"
   GET "GET /api/organizations" "/api/organizations" "$AUTH_TOKEN"
-  ORG_BODY='{"name":"Smoke Test Org","description":"Test organization"}'
+  ORG_BODY='{"name":"Smoke Test Org","slug":"smoke-test-org","description":"Test organization"}'
   POST_EXPECT_2XX "POST /api/organizations" "/api/organizations" "$ORG_BODY" "$AUTH_TOKEN"
   echo ""
 fi

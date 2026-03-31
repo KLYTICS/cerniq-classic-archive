@@ -4,13 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3001",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
-    "lint": "NODE_OPTIONS=--max-old-space-size=8192 eslint app components hooks lib types next.config.ts playwright.config.ts proxy.ts vitest.config.ts sentry.client.config.ts sentry.edge.config.ts sentry.server.config.ts eslint.config.mjs",
+    "lint": "NODE_OPTIONS=--max-old-space-size=8192 eslint app components hooks lib types instrumentation.ts instrumentation-client.ts next.config.ts playwright.config.ts proxy.ts vitest.config.ts eslint.config.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage --maxWorkers=1",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:critical": "playwright test e2e/production-critical.spec.ts",
+    "test:e2e:preview": "sh -c 'test -n \"$PLAYWRIGHT_BASE_URL\" || { echo \"PLAYWRIGHT_BASE_URL is required\" >&2; exit 1; }; PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_ENABLE_CHECKOUT_SMOKE=1 PLAYWRIGHT_MOCK_CHECKOUT=1 PLAYWRIGHT_BACKEND_URL=\"${PLAYWRIGHT_BACKEND_URL:-https://api.cerniq.io}\" playwright test e2e/production-critical.spec.ts'",
+    "test:e2e:production": "PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL=https://cerniq.io PLAYWRIGHT_BACKEND_URL=https://api.cerniq.io playwright test e2e/production-critical.spec.ts --grep-invert @preview-only",
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {

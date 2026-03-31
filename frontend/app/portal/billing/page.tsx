@@ -5,6 +5,7 @@ import { usePortal } from '../layout';
 import { CreditCard, ExternalLink, CheckCircle, Shield } from 'lucide-react';
 import { analytics, EVENTS } from '@/lib/analytics';
 import { getPublicApiUrl } from '@/lib/api-base';
+import { unwrapApiData } from '@/lib/api-response';
 
 const TIER_DETAILS: Record<string, { name: string; price: string; features: string[] }> = {
   free: {
@@ -50,7 +51,12 @@ export default function PortalBilling() {
         credentials: 'include',
       });
       if (res.ok) {
-        const { portalUrl } = await res.json();
+        const { portalUrl } = unwrapApiData<{ portalUrl?: string }>(
+          await res.json().catch(() => ({})),
+        );
+        if (!portalUrl) {
+          throw new Error('Billing portal URL missing');
+        }
         window.location.href = portalUrl;
       }
     } catch { /* silent */ }

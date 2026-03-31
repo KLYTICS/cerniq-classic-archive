@@ -1,4 +1,10 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+async function waitForHydratedLogin(page: Page) {
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('label')).toHaveCount(2, { timeout: 15000 });
+}
 
 test.describe('Accessibility Basics', () => {
   test.beforeEach(async ({ page }) => {
@@ -14,7 +20,7 @@ test.describe('Accessibility Basics', () => {
   });
 
   test('login page has heading hierarchy', async ({ page }) => {
-    await page.goto('/login');
+    await waitForHydratedLogin(page);
     // Should have at least one heading element
     const headings = await page.getByRole('heading').all();
     expect(headings.length).toBeGreaterThan(0);
@@ -34,14 +40,14 @@ test.describe('Accessibility Basics', () => {
   });
 
   test('form inputs have associated labels on login page', async ({ page }) => {
-    await page.goto('/login');
+    await waitForHydratedLogin(page);
     // The login form uses <label> elements above each input
     const labels = await page.locator('label').all();
     expect(labels.length).toBeGreaterThanOrEqual(2); // email + password
   });
 
   test('interactive elements are keyboard-reachable', async ({ page }) => {
-    await page.goto('/login');
+    await waitForHydratedLogin(page);
     // Tab into the page and verify focus lands on something meaningful
     await page.keyboard.press('Tab');
     const focusedTag = await page.evaluate(() => document.activeElement?.tagName);
@@ -67,7 +73,7 @@ test.describe('Accessibility Basics', () => {
   });
 
   test('color scheme uses sufficient contrast tokens', async ({ page }) => {
-    await page.goto('/login');
+    await waitForHydratedLogin(page);
     // Verify the page is not all-white or all-black (basic visual sanity)
     const bgColor = await page.evaluate(() => {
       return getComputedStyle(document.body).backgroundColor;
