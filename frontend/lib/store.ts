@@ -1,5 +1,11 @@
 import { create } from 'zustand';
 import { apiClient } from './api';
+import {
+    AUTH_USER_STORAGE_KEY,
+    LEGACY_AUTH_USER_STORAGE_KEY,
+    clearClientAuthState,
+    hasStoredAuthHint,
+} from './auth-storage';
 
 interface User {
     id: string;
@@ -20,35 +26,11 @@ interface AuthState {
     logout: () => Promise<void>;
 }
 
-const AUTH_USER_STORAGE_KEY = 'cerniq_auth_user';
-const LEGACY_AUTH_USER_STORAGE_KEY = 'capex_auth_user';
 const onboardingKey = (userId: string) => `cerniq_onboarding_${userId}`;
 const legacyOnboardingKey = (userId: string) => `capex_onboarding_${userId}`;
 
 function shouldProbeServerSession() {
-    if (typeof window === 'undefined') {
-        return false;
-    }
-
-    const nodeApiUrl = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim();
-    if (!nodeApiUrl) {
-        return true;
-    }
-
-    try {
-        const apiUrl = new URL(nodeApiUrl, window.location.origin);
-        const localHosts = new Set(['localhost', '127.0.0.1']);
-        const isLocalFrontend = localHosts.has(window.location.hostname);
-        const isLocalBackend = localHosts.has(apiUrl.hostname);
-
-        if (isLocalFrontend && isLocalBackend && apiUrl.origin !== window.location.origin) {
-            return false;
-        }
-    } catch {
-        return true;
-    }
-
-    return true;
+    return typeof window !== 'undefined';
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -89,6 +71,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
 
         set({ initialized: false });
+        const storedAuthHint = hasStoredAuthHint();
 
         const setUnauthenticated = () =>
             set((state) => ({
@@ -129,21 +112,19 @@ export const useAuthStore = create<AuthState>((set) => ({
             } catch { /* best-effort migration */ }
         }
 
+        let storedUser: User | null = null;
         const storedUserRaw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
         if (storedUserRaw) {
             try {
-                const parsedUser = normalizeUser(JSON.parse(storedUserRaw));
-                if (parsedUser) {
-                    setAuthenticated(parsedUser);
-                    return;
+                storedUser = normalizeUser(JSON.parse(storedUserRaw));
+                if (!storedUser) {
+                    localStorage.removeItem(AUTH_USER_STORAGE_KEY);
                 }
-                localStorage.removeItem(AUTH_USER_STORAGE_KEY);
             } catch {
                 localStorage.removeItem(AUTH_USER_STORAGE_KEY);
             }
         }
 
-        // OAuth/login may have a valid server-side cookie before localStorage is populated.
         if (shouldProbeServerSession()) {
             try {
                 const profile = await apiClient.getCurrentUser();
@@ -153,8 +134,20 @@ export const useAuthStore = create<AuthState>((set) => ({
                     return;
                 }
             } catch {
-                // No active session or profile endpoint unavailable.
+                // Server session missing or unavailable — fall through to a clean unauthenticated state.
             }
+
+            if (storedAuthHint) {
+                clearClientAuthState();
+            }
+
+            setUnauthenticated();
+            return;
+        }
+
+        if (storedUser) {
+            setAuthenticated(storedUser);
+            return;
         }
 
         setUnauthenticated();
@@ -173,7 +166,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             if (user) {
                 localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
             } else {
-                localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+                clearClientAuthState();
             }
         }
 
@@ -199,9 +192,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     },
     logout: async () => {
         await apiClient.logout();
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-        }
+        clearClientAuthState();
         set((state) => ({
             user: null,
             isAuthenticated: false,

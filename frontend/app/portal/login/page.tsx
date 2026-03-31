@@ -1,15 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import { analytics, EVENTS } from '@/lib/analytics';
+import { useAuthStore } from '@/lib/store';
 
 export default function PortalLogin() {
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const initialized = useAuthStore((state) => state.initialized);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  useEffect(() => {
+    if (initialized && isAuthenticated) {
+      router.replace('/portal');
+    }
+  }, [initialized, isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

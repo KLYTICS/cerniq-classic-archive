@@ -1,6 +1,11 @@
 import axios, { AxiosInstance } from 'axios';
 import { getMarketApiBase } from './marketTransport';
 import { getPublicApiBase, getPublicApiUrl } from './api-base';
+import {
+  ACCESS_TOKEN_KEY,
+  LEGACY_ACCESS_TOKEN_KEY,
+  clearClientAuthState,
+} from './auth-storage';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -18,8 +23,6 @@ const API_URL = getPublicApiBase();
 const NODE_API_URL = getPublicApiBase();
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const ACCESS_TOKEN_KEY = 'cerniq_access_token';
-const LEGACY_ACCESS_TOKEN_KEY = 'capex_access_token';
 const MARKET_API_BASE = getMarketApiBase();
 
 function getAccessToken(): string {
@@ -60,13 +63,7 @@ function setAccessToken(token: string): void {
 }
 
 function clearAccessToken(): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-  sessionStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+  clearClientAuthState();
 }
 
 export interface ManagedApiKey {

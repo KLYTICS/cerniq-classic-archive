@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { BarChart3, Upload, CreditCard, Settings, LogOut, HelpCircle } from 'lucide-react';
@@ -10,6 +10,7 @@ import PortalPaywall from '@/components/portal/PortalPaywall';
 import { requiresPortalPaywall, type PortalSubscription } from '@/lib/subscription';
 import { getPublicApiUrl } from '@/lib/api-base';
 import { unwrapApiData } from '@/lib/api-response';
+import { clearClientAuthState } from '@/lib/auth-storage';
 
 interface PortalUser {
   id: string;
@@ -39,15 +40,24 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
+  const redirectIssuedRef = useRef(false);
 
   useEffect(() => {
     // Skip auth check for login page to avoid redirect loop
     if (pathname === '/portal/login') {
+      redirectIssuedRef.current = false;
       setLoading(false);
       return;
     }
 
-    let cancelled = false;
+    let active = true;
+    const redirectToPortalLogin = () => {
+      clearClientAuthState();
+      if (!redirectIssuedRef.current) {
+        redirectIssuedRef.current = true;
+        router.replace('/portal/login');
+      }
+    };
 
     async function loadUser() {
       try {
@@ -57,11 +67,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         ]);
 
         if (!profileRes.ok) {
-          if (!cancelled) {
+          if (active) {
             setUser(null);
             setSubscription(null);
-            router.replace('/portal/login');
           }
+          redirectToPortalLogin();
           return;
         }
 
@@ -70,15 +80,16 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         );
 
         if (!profilePayload?.id || !profilePayload.email) {
-          if (!cancelled) {
+          if (active) {
             setUser(null);
             setSubscription(null);
-            router.replace('/portal/login');
           }
+          redirectToPortalLogin();
           return;
         }
 
-        if (!cancelled) {
+        if (active) {
+          redirectIssuedRef.current = false;
           setUser(profilePayload);
         }
 
@@ -86,18 +97,18 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           const subscriptionPayload = unwrapApiData<PortalSubscription | null>(
             await subRes.json().catch(() => null),
           );
-          if (!cancelled) {
+          if (active) {
             setSubscription(subscriptionPayload);
           }
         }
       } catch {
-        if (!cancelled) {
+        if (active) {
           setUser(null);
           setSubscription(null);
-          router.replace('/portal/login');
         }
+        redirectToPortalLogin();
       } finally {
-        if (!cancelled) {
+        if (active) {
           setLoading(false);
         }
       }
@@ -106,13 +117,14 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     loadUser();
 
     return () => {
-      cancelled = true;
+      active = false;
     };
   }, [router, pathname]);
 
   const logout = async () => {
     await fetch(getPublicApiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' });
-    router.push('/');
+    clearClientAuthState();
+    router.replace('/');
   };
 
   if (loading) {

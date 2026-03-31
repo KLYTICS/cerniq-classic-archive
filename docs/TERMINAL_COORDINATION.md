@@ -1,6 +1,21 @@
 # CerniQ — Platform Status
 ## March 29, 2026
 
+## March 30, 2026 — Runtime Terminal Ownership
+
+- Active implementation branch for production-stability work: `main`
+- Runtime owner terminal:
+  - frontend dev/build verification
+  - backend health verification
+  - browser smoke checks for `/login`, `/portal/login`, and `/portal`
+- Secondary terminals:
+  - may run read-only inspection, unit tests, or targeted build commands
+  - must not run file-watching dev servers or file-rewriting loops against `frontend/` while the runtime owner terminal is verifying refresh behavior
+- Live auth-loop verification baseline:
+  - expired or stale browser auth state must leave `/login` stable
+  - `/portal` with stale auth must redirect once to `/portal/login`
+  - valid session may auto-advance, but only after a successful server session check
+
 ## PRODUCTION READY — 150+ Quant Models
 
 | Metric | Value |
