@@ -1,13 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
-import { request as httpRequest } from 'node:http';
-import { request as httpsRequest } from 'node:https';
 
 const backendBaseUrl = (
   process.env.PLAYWRIGHT_BACKEND_URL ||
-  (process.env.PLAYWRIGHT_SKIP_WEBSERVER === '1'
-    ? process.env.NEXT_PUBLIC_NODE_API_URL
-    : '') ||
-  'http://localhost:43100'
+  process.env.NEXT_PUBLIC_NODE_API_URL ||
+  'http://localhost:3000'
 )
   .trim()
   .replace(/\/+$/, '');
@@ -17,62 +13,6 @@ const useMockCheckout = process.env.PLAYWRIGHT_MOCK_CHECKOUT !== '0';
 const mockStripeCheckoutUrl =
   process.env.PLAYWRIGHT_MOCK_STRIPE_CHECKOUT_URL ||
   'https://checkout.stripe.com/c/pay/test_preview_session';
-const vercelBypassCookie = process.env.PLAYWRIGHT_VERCEL_BYPASS_COOKIE?.trim();
-const frontendHostname = process.env.PLAYWRIGHT_BASE_URL
-  ? new URL(process.env.PLAYWRIGHT_BASE_URL).hostname
-  : undefined;
-
-async function fetchJsonDirect(url: string): Promise<{
-  statusCode: number;
-  contentType: string;
-  body: unknown;
-}> {
-  const target = new URL(url);
-  const requestImpl = target.protocol === 'https:' ? httpsRequest : httpRequest;
-
-  return await new Promise((resolve, reject) => {
-    const req = requestImpl(
-      target,
-      {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          ...(vercelBypassCookie
-            ? {
-                Cookie: `_vercel_jwt=${vercelBypassCookie}`,
-              }
-            : {}),
-        },
-      },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on('data', (chunk) => {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        });
-        res.on('end', () => {
-          const text = Buffer.concat(chunks).toString('utf8');
-          try {
-            resolve({
-              statusCode: res.statusCode ?? 0,
-              contentType: String(res.headers['content-type'] || ''),
-              body: JSON.parse(text),
-            });
-          } catch (error) {
-            reject(
-              new Error(
-                `Expected JSON from ${url}, received ${String(res.headers['content-type'] || 'unknown')}: ${text.slice(0, 200)}`,
-                { cause: error instanceof Error ? error : undefined },
-              ),
-            );
-          }
-        });
-      },
-    );
-
-    req.on('error', reject);
-    req.end();
-  });
-}
 
 function attachErrorTracker(page: Page) {
   const errors: string[] = [];
@@ -87,7 +27,7 @@ function attachErrorTracker(page: Page) {
     }
 
     const text = message.text();
-    if (/favicon\.ico|ERR_NETWORK_IO_SUSPENDED/i.test(text)) {
+    if (/favicon\.ico/i.test(text)) {
       return;
     }
 
@@ -98,7 +38,6 @@ function attachErrorTracker(page: Page) {
     if (page.url().includes('checkout.stripe.com')) {
       return;
     }
-
     errors.push(`pageerror: ${error.message}`);
   });
 
@@ -108,20 +47,6 @@ function attachErrorTracker(page: Page) {
 }
 
 async function seedStableBrowserState(page: Page) {
-  if (vercelBypassCookie && frontendHostname) {
-    await page.context().addCookies([
-      {
-        name: '_vercel_jwt',
-        value: vercelBypassCookie,
-        domain: frontendHostname,
-        path: '/',
-        httpOnly: true,
-        secure: true,
-        sameSite: 'Lax',
-      },
-    ]);
-  }
-
   await page.addInitScript(() => {
     window.localStorage.setItem('cerniq_cookie_consent', 'accepted');
   });
@@ -245,26 +170,14 @@ test.describe('Production-critical paths', () => {
     await assertNoErrors();
   });
 
-  test('API health responds with a healthy payload', async () => {
-    const response = await fetchJsonDirect(`${backendBaseUrl}/health`);
-    expect(response.statusCode).toBe(200);
-    expect(response.contentType).toContain('application/json');
-    const body = response.body;
+  test('API health responds with a healthy payload', async ({ request }) => {
+    const response = await request.get(`${backendBaseUrl}/health`);
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json();
 
-    if (
-      typeof body === 'object' &&
-      body !== null &&
-      'success' in body &&
-      'data' in body
-    ) {
-      expect(body).toHaveProperty('success', true);
-      expect(body).toHaveProperty('data.status');
-      expect(body).toHaveProperty('data.services.api', 'up');
-      return;
-    }
-
-    expect(body).toHaveProperty('status', 'healthy');
-    expect(body).toHaveProperty('service', 'frontend');
+    expect(body).toHaveProperty('success', true);
+    expect(body).toHaveProperty('data.status');
+    expect(body).toHaveProperty('data.services.api', 'up');
   });
 
   test('pricing checkout handoff reaches Stripe @preview-only', async ({ page }) => {

@@ -17,7 +17,7 @@ import WorkspaceCommandCenter from '@/components/portal/WorkspaceCommandCenter';
 import ReportProgressWS from '@/components/portal/ReportProgressWS';
 import { rememberPortalUser } from '@/lib/subscription';
 import { getPublicApiUrl } from '@/lib/api-base';
-import { unwrapApiArray } from '@/lib/api-response';
+import { unwrapApiData } from '@/lib/api-response';
 
 interface ReportJob {
   id: string;
@@ -319,7 +319,7 @@ export default function PortalHome() {
     try {
       const res = await fetch(getPublicApiUrl('/api/portal/jobs'), { credentials: 'include' });
       if (res.ok) {
-        setJobs(unwrapApiArray<ReportJob>(await res.json().catch(() => [])));
+        setJobs(unwrapApiData<ReportJob[]>(await res.json().catch(() => [])));
       } else {
         setFetchError(t('Could not load reports. Please try again.', 'No se pudo cargar los informes. Intente de nuevo.'));
       }

@@ -1,20 +1,17 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const isDeployedRun = process.env.PLAYWRIGHT_SKIP_WEBSERVER === '1';
 const frontendBaseUrl =
-  process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:43101';
-const skipWebServer = isDeployedRun;
-const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === '1';
+  process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3001';
+const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEBSERVER === '1';
 const backendBaseUrl =
   process.env.PLAYWRIGHT_BACKEND_URL ||
-  (isDeployedRun ? process.env.NEXT_PUBLIC_NODE_API_URL : '') ||
-  'http://localhost:43100';
+  process.env.NEXT_PUBLIC_NODE_API_URL ||
+  'http://localhost:3000';
 const backendCommand =
   process.env.PLAYWRIGHT_BACKEND_COMMAND ||
-  'cd ../backend-node && PORT=43100 npm run start:dev';
+  'cd ../backend-node && npm run start:dev';
 const frontendCommand =
-  process.env.PLAYWRIGHT_FRONTEND_COMMAND ||
-  'NEXT_PUBLIC_NODE_API_URL=http://localhost:43100 npx next dev --port 43101';
+  process.env.PLAYWRIGHT_FRONTEND_COMMAND || 'npm run dev';
 
 const webServer = skipWebServer
   ? undefined
@@ -22,14 +19,14 @@ const webServer = skipWebServer
       {
         command: backendCommand,
         url: `${backendBaseUrl}/health`,
-        reuseExistingServer,
-        timeout: 120000,
+        reuseExistingServer: !process.env.CI,
+        timeout: 30000,
       },
       {
         command: frontendCommand,
         url: frontendBaseUrl,
-        reuseExistingServer,
-        timeout: 120000,
+        reuseExistingServer: !process.env.CI,
+        timeout: 30000,
       },
     ];
 

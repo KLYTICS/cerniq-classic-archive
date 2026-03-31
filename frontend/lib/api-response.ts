@@ -1,7 +1,9 @@
 type JsonRecord = Record<string, unknown>;
 
 export function asRecord(value: unknown): JsonRecord | null {
-  return value !== null && typeof value === 'object' ? (value as JsonRecord) : null;
+  return value !== null && typeof value === 'object'
+    ? (value as JsonRecord)
+    : null;
 }
 
 export function unwrapApiData<T>(payload: unknown): T {
@@ -12,9 +14,4 @@ export function unwrapApiData<T>(payload: unknown): T {
   }
 
   return payload as T;
-}
-
-export function unwrapApiArray<T>(payload: unknown): T[] {
-  const data = unwrapApiData<unknown>(payload);
-  return Array.isArray(data) ? (data as T[]) : [];
 }

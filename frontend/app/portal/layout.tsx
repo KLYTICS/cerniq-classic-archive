@@ -39,11 +39,10 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
-  const isPortalLoginRoute = pathname === '/portal/login';
 
   useEffect(() => {
     // Skip auth check for login page to avoid redirect loop
-    if (isPortalLoginRoute) {
+    if (pathname === '/portal/login') {
       setLoading(false);
       return;
     }
@@ -109,14 +108,14 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     return () => {
       cancelled = true;
     };
-  }, [router, pathname, isPortalLoginRoute]);
+  }, [router, pathname]);
 
   const logout = async () => {
     await fetch(getPublicApiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' });
     router.push('/');
   };
 
-  if (loading || (!isPortalLoginRoute && !user)) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f7fbff]">
         <div className="flex flex-col items-center gap-3">
@@ -128,7 +127,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   }
 
   // Login page renders without sidebar chrome
-  if (isPortalLoginRoute) {
+  if (pathname === '/portal/login') {
     return (
       <PortalContext.Provider value={{ user, subscription, loading }}>
         <ErrorBoundary context="portal">
