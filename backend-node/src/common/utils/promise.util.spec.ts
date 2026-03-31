@@ -21,7 +21,10 @@ describe('promise.util', () => {
     });
 
     it('rejects if promise exceeds timeout', async () => {
-      const slow = new Promise((resolve) => setTimeout(resolve, 5000));
+      const slow = new Promise((resolve) => {
+        const timer = setTimeout(resolve, 5000);
+        timer.unref?.();
+      });
       await expect(withTimeout(slow, 10)).rejects.toThrow(
         'Operation timed out',
       );

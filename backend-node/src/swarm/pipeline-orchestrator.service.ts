@@ -60,16 +60,22 @@ export class PipelineOrchestratorService {
         ready.map(async (step) => {
           pending.delete(step.id);
           onProgress?.(step.id, 'running');
+          let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 
           try {
+            const timeoutPromise = new Promise<never>((_, reject) => {
+              timeoutHandle = setTimeout(
+                () => reject(new Error(`Timeout after ${step.timeoutMs}ms`)),
+                step.timeoutMs,
+              );
+              if (timeoutHandle.unref) {
+                timeoutHandle.unref();
+              }
+            });
+
             const result = await Promise.race([
               step.execute(results),
-              new Promise<never>((_, reject) =>
-                setTimeout(
-                  () => reject(new Error(`Timeout after ${step.timeoutMs}ms`)),
-                  step.timeoutMs,
-                ),
-              ),
+              timeoutPromise,
             ]);
             results[step.id] = result;
             completed.add(step.id);
@@ -81,6 +87,11 @@ export class PipelineOrchestratorService {
             this.logger.warn(
               `Pipeline step ${step.name} failed: ${err.message}`,
             );
+          } finally {
+            // Clear per-step timeout so successful/failed branches do not leak handles.
+            if (typeof timeoutHandle !== 'undefined') {
+              clearTimeout(timeoutHandle);
+            }
           }
         }),
       );

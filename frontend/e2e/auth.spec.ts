@@ -1,5 +1,16 @@
 import { test, expect } from '@playwright/test';
 
+async function seedStaleAuth(page: import('@playwright/test').Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'cerniq_auth_user',
+      JSON.stringify({ id: 'stale-user', email: 'stale@cerniq.io' }),
+    );
+    localStorage.setItem('cerniq_portal_user', 'true');
+    sessionStorage.setItem('cerniq_access_token', 'stale-token');
+  });
+}
+
 test.describe('Authentication', () => {
   test('should display login page with Cerniq branding', async ({ page }) => {
     await page.goto('/login');
@@ -66,5 +77,23 @@ test.describe('Authentication', () => {
     // This may or may not be visible depending on env vars, so we just check the page loads
     const bodyText = await page.locator('body').textContent();
     expect(bodyText).toBeTruthy();
+  });
+
+  test('stale stored auth on login stays on login instead of looping away', async ({ page }) => {
+    await seedStaleAuth(page);
+    await page.goto('/login');
+
+    await expect(page).toHaveURL(/\/login/);
+    await page.waitForTimeout(2500);
+    await expect(page).toHaveURL(/\/login/);
+  });
+
+  test('stale stored auth on portal redirects once to portal login and stays there', async ({ page }) => {
+    await seedStaleAuth(page);
+    await page.goto('/portal');
+
+    await page.waitForURL(/\/portal\/login/, { timeout: 15000 });
+    await page.waitForTimeout(2500);
+    await expect(page).toHaveURL(/\/portal\/login/);
   });
 });

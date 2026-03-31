@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
+import {
+  ACCESS_TOKEN_KEY,
+  AUTH_USER_STORAGE_KEY,
+  PORTAL_USER_STORAGE_KEY,
+} from './auth-storage';
 
 // Mock axios before importing apiClient
 vi.mock('axios', async () => {
@@ -31,6 +36,9 @@ describe('APIClient', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.restoreAllMocks();
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    history.replaceState({}, '', '/login');
   });
 
   it('creates an axios instance with correct baseURL config', async () => {
@@ -94,6 +102,30 @@ describe('APIClient', () => {
 
     await expect(handleRejected(error)).rejects.toBe(error);
     expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  it('clears persisted auth hints when refresh fails on a 401', async () => {
+    await import('./api');
+    const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;
+    const [, handleRejected] = mockInstance.interceptors.response.use.mock.calls[0];
+    const error = {
+      response: { status: 401 },
+      config: { headers: {} },
+    };
+
+    window.localStorage.setItem(
+      AUTH_USER_STORAGE_KEY,
+      JSON.stringify({ id: 'stale-user', email: 'stale@cerniq.io' }),
+    );
+    window.localStorage.setItem(PORTAL_USER_STORAGE_KEY, 'true');
+    window.sessionStorage.setItem(ACCESS_TOKEN_KEY, 'stale-token');
+    (axios.post as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('refresh failed'));
+
+    await expect(handleRejected(error)).rejects.toBe(error);
+
+    expect(window.localStorage.getItem(AUTH_USER_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.getItem(PORTAL_USER_STORAGE_KEY)).toBeNull();
+    expect(window.sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull();
   });
 
   it('exports apiClient as a singleton', async () => {

@@ -157,7 +157,7 @@ function LoginContent() {
       (async () => {
         const destination = await resolvePostLoginDestination({ returnUrl, userId: currentUserId });
         if (!cancelled) {
-          router.push(destination);
+          router.replace(destination);
         }
       })();
       return () => {
@@ -186,7 +186,7 @@ function LoginContent() {
       });
 
       const destination = await resolvePostLoginDestination({ returnUrl, userId: user.id });
-      router.push(destination);
+      router.replace(destination);
     } catch (err: unknown) {
       setError(getAuthErrorMessage(err));
     } finally {
