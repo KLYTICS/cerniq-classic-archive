@@ -42,7 +42,9 @@ case "${command}" in
     fi
 
     echo "Checking migration status..."
-    npx prisma migrate status
+    if ! npx prisma migrate status; then
+      echo "Prisma reported pending migrations or schema drift; continuing with deploy." >&2
+    fi
     echo "Applying pending migrations..."
     npx prisma migrate deploy
     echo "Refreshing Prisma client..."

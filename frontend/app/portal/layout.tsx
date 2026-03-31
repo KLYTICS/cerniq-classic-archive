@@ -115,7 +115,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     router.push('/');
   };
 
-  if (loading) {
+  if (loading || (!user && pathname !== '/portal/login')) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f7fbff]">
         <div className="flex flex-col items-center gap-3">
