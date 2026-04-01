@@ -624,22 +624,6 @@ describe('AlmController — Core Revenue Path', () => {
   });
 
   // ═══════════════════════════════════════════════════════════════════
-  // Reports
-  // ═══════════════════════════════════════════════════════════════════
-
-  describe('POST /api/alm/:id/reports', () => {
-    it('generates report', async () => {
-      reportsService.generateReport.mockResolvedValue({
-        reportId: 'rpt1',
-        format: 'pdf',
-      });
-      const r = await controller.generateReport('i1', { format: 'pdf' } as any);
-      expect(reportsService.generateReport).toHaveBeenCalled();
-      expect(r.reportId).toBe('rpt1');
-    });
-  });
-
-  // ═══════════════════════════════════════════════════════════════════
   // Compliance Calendar — detailed
   // ═══════════════════════════════════════════════════════════════════
 

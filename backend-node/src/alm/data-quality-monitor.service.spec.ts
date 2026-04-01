@@ -384,4 +384,135 @@ describe('DataQualityMonitorService', () => {
     const result = service.validateBalanceSheet(bs);
     expect(result.warnings.some((w) => w.rule === 'HIGH_LEVERAGE')).toBe(true);
   });
+
+  // ── 25. Low leverage → warning ──────────────────────────────
+  it('flags leverage below 50% as warning', () => {
+    const bs = perfectBS();
+    bs.assets = [makeAsset({ balance: 100_000_000 })];
+    bs.liabilities = [makeLiability({ balance: 30_000_000 })];
+    bs.equity = 70_000_000;
+    const result = service.validateBalanceSheet(bs);
+    expect(result.warnings.some((w) => w.rule === 'LOW_LEVERAGE')).toBe(true);
+  });
+
+  // ── 26. High NIM → warning ─────────────────────────────────
+  it('flags implied NIM above 8% as warning', () => {
+    const bs = perfectBS();
+    bs.assets = [makeAsset({ rate: 0.12, balance: 50_000_000 })];
+    bs.liabilities = [makeLiability({ rate: 0.005, balance: 40_000_000 })];
+    bs.equity = 10_000_000;
+    const result = service.validateBalanceSheet(bs);
+    expect(result.warnings.some((w) => w.rule === 'HIGH_NIM')).toBe(true);
+  });
+
+  // ── 27. High total assets → warning ────────────────────────
+  it('flags total assets above $100B as warning', () => {
+    const bs = perfectBS();
+    bs.assets = [makeAsset({ balance: 200_000_000_000 })];
+    bs.liabilities = [makeLiability({ balance: 180_000_000_000 })];
+    bs.equity = 20_000_000_000;
+    const result = service.validateBalanceSheet(bs);
+    expect(result.warnings.some((w) => w.rule === 'HIGH_TOTAL_ASSETS')).toBe(true);
+  });
+
+  // ── 28. Missing equity → critical ──────────────────────────
+  it('flags null equity as critical', () => {
+    const bs = perfectBS();
+    bs.equity = undefined as any;
+    const result = service.validateBalanceSheet(bs);
+    expect(result.critical.some((c) => c.rule === 'MISSING_EQUITY')).toBe(true);
+  });
+
+  // ── 29. Missing instrument name → warning ──────────────────
+  it('flags instrument with empty name as warning', () => {
+    const bs = perfectBS();
+    bs.assets.push(makeAsset({ name: '', balance: 1_000_000 }));
+    const result = service.validateBalanceSheet(bs);
+    expect(result.warnings.some((w) => w.rule === 'MISSING_NAME')).toBe(true);
+  });
+
+  // ── 30. Missing instrument balance → critical ─────────────
+  it('flags instrument with null balance as critical', () => {
+    const bs = perfectBS();
+    bs.assets.push(makeAsset({ name: 'NullBal', balance: null as any }));
+    const result = service.validateBalanceSheet(bs);
+    expect(result.critical.some((c) => c.rule === 'MISSING_BALANCE')).toBe(true);
+  });
+
+  // ── 31. Missing instrument rate → warning ─────────────────
+  it('flags instrument with null rate as warning', () => {
+    const bs = perfectBS();
+    bs.assets.push(makeAsset({ name: 'NullRate', rate: null as any }));
+    const result = service.validateBalanceSheet(bs);
+    expect(result.warnings.some((w) => w.rule === 'MISSING_RATE')).toBe(true);
+  });
+
+  // ── 32. Missing instrument maturity → warning ─────────────
+  it('flags instrument with null maturity as warning', () => {
+    const bs = perfectBS();
+    bs.assets.push(makeAsset({ name: 'NullMat', maturityYears: null as any }));
+    const result = service.validateBalanceSheet(bs);
+    expect(result.warnings.some((w) => w.rule === 'MISSING_MATURITY')).toBe(true);
+  });
+
+  // ── 33. Missing liabilities → critical ────────────────────
+  it('flags missing liabilities as critical', () => {
+    const bs = perfectBS();
+    bs.liabilities = [];
+    const result = service.validateBalanceSheet(bs);
+    expect(result.critical.some((c) => c.rule === 'MIN_LIABILITIES')).toBe(true);
+  });
+
+  // ── 34. Extreme duration gap → warning ────────────────────
+  it('flags duration gap exceeding 10 years as warning', () => {
+    const bs = perfectBS();
+    bs.assets = [makeAsset({ balance: 50_000_000, maturityYears: 25 })];
+    bs.liabilities = [makeLiability({ balance: 40_000_000, maturityYears: 1 })];
+    bs.equity = 10_000_000;
+    const result = service.validateBalanceSheet(bs);
+    expect(result.warnings.some((w) => w.rule === 'EXTREME_DURATION_GAP')).toBe(true);
+  });
+
+  // ── 35. Zero total assets with instruments → critical ─────
+  it('flags zero total asset balance as critical', () => {
+    const bs = perfectBS();
+    bs.assets = [makeAsset({ balance: 0 })];
+    const result = service.validateBalanceSheet(bs);
+    expect(result.critical.some((c) => c.rule === 'ZERO_TOTAL_ASSETS')).toBe(true);
+  });
+
+  // ── 36. Zero total liabilities with instruments → critical ─
+  it('flags zero total liability balance as critical', () => {
+    const bs = perfectBS();
+    bs.liabilities = [makeLiability({ balance: 0 })];
+    const result = service.validateBalanceSheet(bs);
+    expect(result.critical.some((c) => c.rule === 'ZERO_TOTAL_LIABILITIES')).toBe(true);
+  });
+
+  // ── 37. Negative repricing months → warning ───────────────
+  it('flags negative repricing months as warning', () => {
+    const bs = perfectBS();
+    bs.assets.push(makeAsset({ name: 'ARM', isFloating: true, repricingMonths: -5, balance: 5_000_000 }));
+    const result = service.validateBalanceSheet(bs);
+    expect(result.warnings.some((w) => w.rule === 'REPRICING_OUT_OF_RANGE')).toBe(true);
+  });
+
+  // ── 38. Missing asOfDate → critical ───────────────────────
+  it('flags missing asOfDate as critical', () => {
+    const bs = perfectBS();
+    bs.asOfDate = '';
+    const result = service.validateBalanceSheet(bs);
+    expect(result.critical.some((c) => c.rule === 'MISSING_DATE')).toBe(true);
+  });
+
+  // ── 39. Critical penalty reduces score ────────────────────
+  it('critical issues impose an additional 10-point penalty each', () => {
+    const cleanResult = service.validateBalanceSheet(perfectBS());
+
+    const bs = perfectBS();
+    bs.assets[0] = makeAsset({ name: 'Bad', balance: -5_000_000 });
+    const badResult = service.validateBalanceSheet(bs);
+
+    expect(badResult.overallScore).toBeLessThan(cleanResult.overallScore);
+  });
 });

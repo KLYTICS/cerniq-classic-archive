@@ -47,16 +47,94 @@ describe('classifyField', () => {
     );
   });
 
+  it('should return RESTRICTED for magicLink.token', () => {
+    expect(classifyField('magicLink.token')).toBe(
+      DataClassification.RESTRICTED,
+    );
+  });
+
+  it('should return RESTRICTED for passwordResetToken.token', () => {
+    expect(classifyField('passwordResetToken.token')).toBe(
+      DataClassification.RESTRICTED,
+    );
+  });
+
   it('should return RESTRICTED for env.JWT_SECRET', () => {
     expect(classifyField('env.JWT_SECRET')).toBe(
       DataClassification.RESTRICTED,
     );
   });
 
+  it('should return RESTRICTED for env.DATABASE_URL', () => {
+    expect(classifyField('env.DATABASE_URL')).toBe(
+      DataClassification.RESTRICTED,
+    );
+  });
+
+  it('should return RESTRICTED for apiKey.keyHash', () => {
+    expect(classifyField('apiKey.keyHash')).toBe(
+      DataClassification.RESTRICTED,
+    );
+  });
+
+  it('should return CONFIDENTIAL for apiKey.keyPrefix', () => {
+    expect(classifyField('apiKey.keyPrefix')).toBe(
+      DataClassification.CONFIDENTIAL,
+    );
+  });
+
+  it('should return INTERNAL for apiKey.name', () => {
+    expect(classifyField('apiKey.name')).toBe(DataClassification.INTERNAL);
+  });
+
   it('should return RESTRICTED for subscription.stripeCustomerId', () => {
     expect(classifyField('subscription.stripeCustomerId')).toBe(
       DataClassification.RESTRICTED,
     );
+  });
+
+  it('should return RESTRICTED for subscription.stripeSubscriptionId', () => {
+    expect(classifyField('subscription.stripeSubscriptionId')).toBe(
+      DataClassification.RESTRICTED,
+    );
+  });
+
+  it('should return CONFIDENTIAL for institution.contactEmail', () => {
+    expect(classifyField('institution.contactEmail')).toBe(
+      DataClassification.CONFIDENTIAL,
+    );
+  });
+
+  it('should return CONFIDENTIAL for institution.contactPhone', () => {
+    expect(classifyField('institution.contactPhone')).toBe(
+      DataClassification.CONFIDENTIAL,
+    );
+  });
+
+  it('should return INTERNAL for institution.type', () => {
+    expect(classifyField('institution.type')).toBe(
+      DataClassification.INTERNAL,
+    );
+  });
+
+  it('should return INTERNAL for user.role', () => {
+    expect(classifyField('user.role')).toBe(DataClassification.INTERNAL);
+  });
+
+  it('should return INTERNAL for user.lastLoginAt', () => {
+    expect(classifyField('user.lastLoginAt')).toBe(
+      DataClassification.INTERNAL,
+    );
+  });
+
+  it('should return RESTRICTED for user.providerId', () => {
+    expect(classifyField('user.providerId')).toBe(
+      DataClassification.RESTRICTED,
+    );
+  });
+
+  it('should return INTERNAL for env.SENTRY_DSN', () => {
+    expect(classifyField('env.SENTRY_DSN')).toBe(DataClassification.INTERNAL);
   });
 
   // ── Wildcard matches ──
@@ -67,7 +145,7 @@ describe('classifyField', () => {
     );
   });
 
-  it('should match wildcard for auditLog.createdAt', () => {
+  it('should match wildcard for auditLog.createdAt (INTERNAL)', () => {
     expect(classifyField('auditLog.createdAt')).toBe(
       DataClassification.INTERNAL,
     );
@@ -91,23 +169,44 @@ describe('classifyField', () => {
     );
   });
 
+  it('should match wildcard for loanSegment.balance', () => {
+    expect(classifyField('loanSegment.balance')).toBe(
+      DataClassification.CONFIDENTIAL,
+    );
+  });
+
+  it('should match wildcard for depositTier.rate', () => {
+    expect(classifyField('depositTier.rate')).toBe(
+      DataClassification.CONFIDENTIAL,
+    );
+  });
+
+  it('should match wildcard for loanCohort.lossRate', () => {
+    expect(classifyField('loanCohort.lossRate')).toBe(
+      DataClassification.CONFIDENTIAL,
+    );
+  });
+
+  it('should match wildcard for yieldCurve.tenor', () => {
+    expect(classifyField('yieldCurve.tenor')).toBe(
+      DataClassification.CONFIDENTIAL,
+    );
+  });
+
   // ── Default fallback ──
 
-  it('should default to CONFIDENTIAL for completely unknown fields', () => {
+  it('should default to CONFIDENTIAL for unknown model.field', () => {
     expect(classifyField('unknownModel.unknownField')).toBe(
       DataClassification.CONFIDENTIAL,
     );
   });
 
-  it('should default to CONFIDENTIAL for unknown model with no wildcard', () => {
-    expect(classifyField('newModel.newField')).toBe(
-      DataClassification.CONFIDENTIAL,
-    );
+  it('should default to CONFIDENTIAL for single-part paths', () => {
+    expect(classifyField('something')).toBe(DataClassification.CONFIDENTIAL);
   });
 
-  it('should default to CONFIDENTIAL for single-part paths', () => {
-    // No dot, modelName='something', wildcard='something.*' -> not found -> default
-    expect(classifyField('something')).toBe(DataClassification.CONFIDENTIAL);
+  it('should default to CONFIDENTIAL for deeply nested unknown path', () => {
+    expect(classifyField('a.b.c.d')).toBe(DataClassification.CONFIDENTIAL);
   });
 });
 
@@ -156,5 +255,11 @@ describe('getClassificationSummary', () => {
   it('should have at least one CONFIDENTIAL field', () => {
     const summary = getClassificationSummary();
     expect(summary[DataClassification.CONFIDENTIAL]).toBeGreaterThan(0);
+  });
+
+  it('should return consistent results on multiple calls', () => {
+    const s1 = getClassificationSummary();
+    const s2 = getClassificationSummary();
+    expect(s1).toEqual(s2);
   });
 });
