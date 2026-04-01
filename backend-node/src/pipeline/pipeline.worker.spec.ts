@@ -72,8 +72,8 @@ describe('PipelineWorker', () => {
         niiSensitivity: {
           baseNII: 12.5, riskRating: 'moderate',
           scenarios: [
-            { name: 'Up 100', niiChange: -1.5, niiChangePercent: -12 },
-            { name: 'Down 100', niiChange: 1.2, niiChangePercent: 9.6 },
+            { name: 'Up 100', shiftBps: 100, niImpact: -1.5, niImpactPct: -12, mveImpact: -2.0, mveImpactPct: -8.5 },
+            { name: 'Down 100', shiftBps: -100, niImpact: 1.2, niImpactPct: 9.6, mveImpact: 1.5, mveImpactPct: 6.0 },
           ],
         },
         liquidity: { lcr: 115, status: 'compliant', buffer: 5, hqla: 80, netOutflows: 60 },
