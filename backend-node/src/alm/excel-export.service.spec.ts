@@ -61,7 +61,7 @@ describe('Excel Export Service', () => {
       }),
     };
 
-    const service = new ExcelExportService(almEnterprise as any);
+    const service = new ExcelExportService(almEnterprise);
     const workbook = await service.exportToExcel('inst-1234567890');
     const xml = workbook.toString('utf8');
 
@@ -90,7 +90,7 @@ describe('Excel Export Service', () => {
         .mockRejectedValue(new Error('nii down')),
     };
 
-    const service = new ExcelExportService(almEnterprise as any);
+    const service = new ExcelExportService(almEnterprise);
     const xml = (await service.exportToExcel('inst-1')).toString('utf8');
 
     expect(xml).toContain('Unknown Institution');

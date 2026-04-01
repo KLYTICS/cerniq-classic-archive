@@ -221,9 +221,9 @@ describe('main bootstrap', () => {
       on: jest.fn(),
     };
     processRef.on.mockImplementation((event: string, handler: () => void) => {
-        listeners[event] = handler;
-        return processRef;
-      });
+      listeners[event] = handler;
+      return processRef;
+    });
     const markShuttingDown = jest.fn();
 
     const { bridgeShutdownToHealth } = require('./main');
@@ -246,9 +246,9 @@ describe('main bootstrap', () => {
       on: jest.fn(),
     };
     processRef.on.mockImplementation((event: string, handler: () => void) => {
-        listeners[event] = handler;
-        return processRef;
-      });
+      listeners[event] = handler;
+      return processRef;
+    });
     const warnLogger = jest.fn();
 
     const { bridgeShutdownToHealth } = require('./main');

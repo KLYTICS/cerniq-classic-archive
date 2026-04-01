@@ -42,7 +42,7 @@ describe('Data Export Service', () => {
       },
     };
 
-    const service = new DataExportService(prisma as any);
+    const service = new DataExportService(prisma);
     const result = await service.exportMetrics('inst-1', 'json');
 
     expect(prisma.analysisRun.findFirst).toHaveBeenCalledWith(
@@ -79,7 +79,7 @@ describe('Data Export Service', () => {
       },
     };
 
-    const service = new DataExportService(prisma as any);
+    const service = new DataExportService(prisma);
     const result = await service.exportMetrics('inst-1', 'csv');
 
     expect(typeof result).toBe('string');
@@ -95,7 +95,7 @@ describe('Data Export Service', () => {
       },
     };
 
-    const service = new DataExportService(prisma as any);
+    const service = new DataExportService(prisma);
 
     await expect(service.exportMetrics('missing-inst', 'json')).rejects.toThrow(
       NotFoundException,

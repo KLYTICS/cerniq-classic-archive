@@ -19,6 +19,10 @@ jest.mock('bcrypt', () => ({
 
 describe('AuthService', () => {
   let service: AuthService;
+  const originalEnv = {
+    supabaseUrl: process.env.SUPABASE_URL,
+    supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  };
   let prisma: {
     user: {
       findUnique: jest.Mock;
@@ -97,6 +101,12 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
+  });
+
+  afterEach(() => {
+    process.env.SUPABASE_URL = originalEnv.supabaseUrl;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = originalEnv.supabaseServiceRoleKey;
+    jest.restoreAllMocks();
   });
 
   // ── register ────────────────────────────────────────────
@@ -935,6 +945,56 @@ describe('AuthService', () => {
       await expect(
         service.revokeApiKey('user-rev3', 'ak-nonexistent'),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getUserOrgs', () => {
+    it('returns an empty list when the Supabase service role key is missing', async () => {
+      process.env.SUPABASE_URL = 'https://example.supabase.co';
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const fetchSpy = jest.spyOn(global, 'fetch');
+
+      await expect(service.getUserOrgs('user-1')).resolves.toEqual([]);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('uses the Supabase service role key to resolve memberships and enabled apps', async () => {
+      process.env.SUPABASE_URL = 'https://example.supabase.co';
+      process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+      const fetchSpy = jest.spyOn(global, 'fetch');
+      fetchSpy
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [{ org_id: 'org-1', role: 'admin' }],
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [{ app_id: 'cerniq' }, { app_id: 'stress' }],
+        } as Response);
+
+      await expect(service.getUserOrgs('user-1')).resolves.toEqual([
+        { org_id: 'org-1', role: 'admin', apps: ['cerniq', 'stress'] },
+      ]);
+      expect(fetchSpy).toHaveBeenNthCalledWith(
+        1,
+        'https://example.supabase.co/rest/v1/memberships?select=org_id,role&user_id=eq.user-1',
+        {
+          headers: {
+            apikey: 'service-role-key',
+            Authorization: 'Bearer service-role-key',
+          },
+        },
+      );
+      expect(fetchSpy).toHaveBeenNthCalledWith(
+        2,
+        'https://example.supabase.co/rest/v1/org_apps?select=app_id&org_id=eq.org-1&enabled=is.true',
+        {
+          headers: {
+            apikey: 'service-role-key',
+            Authorization: 'Bearer service-role-key',
+          },
+        },
+      );
     });
   });
 });

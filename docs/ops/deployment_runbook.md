@@ -35,6 +35,7 @@ Complete every item before deploying. Do not skip items even for "small" changes
 - [ ] Prisma schema matches migrations: `cd backend-node && DATABASE_URL="postgresql://..." npm run prisma:status`
 - [ ] If schema changed: new migration created with `npx prisma migrate dev --name <description>`
 - [ ] If backend full coverage still reports the generic async-exit warning, the release log explicitly documents the triage result and why release is still acceptable
+- [ ] If Supabase raw SQL migrations changed: the release notes include the required dashboard SQL step and the expected Advisor outcome
 
 ### Environment Variables
 
@@ -48,6 +49,8 @@ Complete every item before deploying. Do not skip items even for "small" changes
 - [ ] Check pending migrations: `DATABASE_URL="..." npx prisma migrate status`
 - [ ] If destructive migration: take a database backup first
 - [ ] Connection pool size appropriate for Railway plan (`DATABASE_POOL_SIZE`)
+- [ ] If Supabase `public` tables were touched: confirm `SUPABASE_SERVICE_ROLE_KEY` is set server-side and not exposed in any `NEXT_PUBLIC_*` variable
+- [ ] If the release includes RLS hardening: run the Supabase SQL editor step before or immediately after merge, then re-run Advisor
 
 ### Third-Party Services
 
@@ -195,6 +198,16 @@ Release order for schema-dependent changes:
 5. monitor Railway backend deploy
 6. verify Vercel frontend deploy
 
+### Supabase RLS Hardening Step
+
+If the release includes `migrations/022_enable_public_rls.sql` or any follow-up RLS work:
+
+1. Open the Supabase SQL editor for project `ahjaxqtomakzkrekoyqv`
+2. Run [`scripts/supabase_emergency_rls_lockdown.sql`](/Users/automation/Desktop/CERNIQ%20III-XXIX/scripts/supabase_emergency_rls_lockdown.sql)
+3. Re-run Supabase Advisor
+4. Confirm the `rls_disabled_in_public` finding is cleared
+5. Confirm the backend still has a valid `SUPABASE_SERVICE_ROLE_KEY` for server-side table access
+
 ### Before Destructive Migrations
 
 If a migration drops columns, tables, or changes types:
@@ -247,6 +260,12 @@ curl -s -o /dev/null -w "%{http_code}" https://api.cerniq.io/api/admin/stats
 curl -H "x-admin-key: YOUR_ADMIN_KEY" https://api.cerniq.io/api/admin/stats
 # Expected: 200 with JSON payload
 ```
+
+### Supabase Security Checks
+
+- Re-run Supabase Advisor and confirm there are no unintended `rls_disabled_in_public` findings
+- Probe one previously exposed table with anon credentials and confirm reads/writes are denied after RLS enablement
+- Confirm backend-only Supabase flows still work with `SUPABASE_SERVICE_ROLE_KEY`
 
 ### Stripe Webhook Verification
 

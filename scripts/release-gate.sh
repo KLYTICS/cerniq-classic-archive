@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_COVERAGE_DIR="$ROOT_DIR/backend-node/coverage"
 FRONTEND_COVERAGE_DIR="$ROOT_DIR/frontend/coverage"

@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELEASE_DATE="$(date '+%Y-%m-%d')"
 DEFAULT_LABEL="first-gate release captain ${RELEASE_DATE}"

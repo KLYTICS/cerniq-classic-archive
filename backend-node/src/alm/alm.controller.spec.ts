@@ -597,7 +597,8 @@ describe('AlmController — Core Revenue Path', () => {
           scenarios: [
             {
               name: 'Same-Day -7%',
-              description: 'Capital remains above floor under a same-day -7% shock.',
+              description:
+                'Capital remains above floor under a same-day -7% shock.',
               rateShock: [-700],
               niImpact: -4.9,
               mveImpact: -7.2,
@@ -1617,7 +1618,8 @@ describe('AlmController — Core Revenue Path', () => {
         surplus: -12,
         regulatoryStatus: 'WATCH',
         narrative: 'Liquidity stays above zero but drops below policy buffer.',
-        narrativeEs: 'La liquidez permanece positiva pero por debajo del buffer.',
+        narrativeEs:
+          'La liquidez permanece positiva pero por debajo del buffer.',
       });
 
       const r = await controller.runStressPackScenario('i1', 'same-day-7');

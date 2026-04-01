@@ -16,6 +16,32 @@
 | P2 (Medium) | 1 | PASS (acceptable) |
 | PASS | 11 | -- |
 
+## 2026-04-01 Addendum -- Supabase Emergency Hardening
+
+### J1. Public-schema tables without RLS -- FAIL (P0) -> FIXED IN REPO / MANUAL PROD STEP REQUIRED
+
+**Surface:** Legacy raw SQL migrations under `migrations/` and `services/outbound/database/schema.sql`
+
+**Risk:** Supabase Data API exposes `public` schema tables to `anon`/authenticated clients unless Row-Level Security is enabled. Legacy application tables had no RLS statements in repo migrations, which can allow unintended read/write access from any client holding the project URL and anon key.
+
+**Repo Fix:**
+- Added `migrations/022_enable_public_rls.sql` to enable RLS across the legacy `public` application tables
+- Added `scripts/supabase_emergency_rls_lockdown.sql` as the operator-ready SQL script for immediate dashboard execution
+
+**Operational Requirement:** Run the SQL script in the Supabase dashboard for project `ahjaxqtomakzkrekoyqv`, then re-run Supabase Advisor and confirm the `rls_disabled_in_public` finding clears.
+
+**Posture:** Default-deny. No broad `CREATE POLICY` statements were added in the emergency pass. Any browser-visible regression must be fixed later with explicit policies, not by disabling RLS.
+
+### J2. Backend Supabase table access must use service role -- FAIL (P1) -> FIXED
+
+**File:** `backend-node/src/ticker/ticker.service.ts`
+
+**Before:** Backend ticker CRUD could initialize a Supabase client with a legacy non-service key path.
+
+**Risk:** Once RLS is enabled, backend table reads/writes should use the service role intentionally. Falling back to anon-style credentials creates breakage at best and weakens the security model at worst.
+
+**Fix:** The ticker service now requires `SUPABASE_SERVICE_ROLE_KEY` for backend table access and fails closed when that key is missing. Tests were added to prove both the service-role path and the fail-closed path.
+
 ---
 
 ## A. SECRET SCANNING
@@ -249,6 +275,9 @@
 | `backend-node/src/billing/billing.controller.ts` | Added `@Throttle` to checkout (10/hour) and magic link verification (10/15min) |
 | `backend-node/src/leads/leads.controller.ts` | Added `@Throttle` to lead submission (20/hour) |
 | `backend-node/src/jobs/admin.controller.ts` | Replaced weak Bearer check with `verifyAdmin()` using `x-admin-key` header |
+| `migrations/022_enable_public_rls.sql` | Enables RLS on legacy `public` tables created by raw SQL migrations |
+| `scripts/supabase_emergency_rls_lockdown.sql` | Ready-to-run Supabase dashboard script for immediate RLS containment |
+| `backend-node/src/ticker/ticker.service.ts` | Requires `SUPABASE_SERVICE_ROLE_KEY` for backend Supabase table access |
 
 ---
 

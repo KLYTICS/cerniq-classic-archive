@@ -21,6 +21,12 @@ function createPrismaMock() {
     $connect: jest.fn(),
     $disconnect: jest.fn(),
     $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
+    getPoolStats: jest.fn().mockReturnValue({
+      totalCount: 4,
+      idleCount: 2,
+      waitingCount: 0,
+      maxSize: 20,
+    }),
     onModuleInit: jest.fn(),
     onModuleDestroy: jest.fn(),
 

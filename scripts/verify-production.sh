@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_URL="${1:-https://api.cerniq.io}"
 FRONTEND_URL="${2:-https://cerniq.io}"

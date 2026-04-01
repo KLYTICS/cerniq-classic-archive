@@ -12,6 +12,7 @@ describe('TickerService', () => {
     url: process.env.SUPABASE_URL,
     key: process.env.SUPABASE_KEY,
     anonKey: process.env.SUPABASE_ANON_KEY,
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   };
 
   const tickerRow = {
@@ -31,7 +32,8 @@ describe('TickerService', () => {
 
   const setConfiguredEnv = () => {
     process.env.SUPABASE_URL = 'https://test.supabase.co';
-    process.env.SUPABASE_KEY = 'test-key';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+    process.env.SUPABASE_KEY = 'legacy-key';
     delete process.env.SUPABASE_ANON_KEY;
   };
 
@@ -39,6 +41,7 @@ describe('TickerService', () => {
     process.env.SUPABASE_URL = originalEnv.url;
     process.env.SUPABASE_KEY = originalEnv.key;
     process.env.SUPABASE_ANON_KEY = originalEnv.anonKey;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = originalEnv.serviceRoleKey;
   };
 
   const buildAwaitable = (result: any) => {
@@ -123,9 +126,24 @@ describe('TickerService', () => {
     expect(service).toBeDefined();
     expect(mockCreateClient).toHaveBeenCalledWith(
       'https://test.supabase.co',
-      'test-key',
+      'service-role-key',
     );
     expect(logSpy).toHaveBeenCalledWith('Supabase client initialized');
+  });
+
+  it('falls back cleanly when the service role key is missing', () => {
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const warnSpy = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+
+    const service = new TickerService();
+
+    expect(service).toBeDefined();
+    expect(mockCreateClient).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      'No Supabase service role key configured — ticker service will use fallback',
+    );
   });
 
   it('falls back cleanly when no valid Supabase URL is configured', () => {

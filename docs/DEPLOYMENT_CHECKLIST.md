@@ -196,9 +196,11 @@ All variables sourced from `.env.example` at project root. Set these in Railway 
 - [ ] `HEALTH_DETAILS_PUBLIC=false` — `/health/detailed` returns 404 in production
 - [ ] `ALLOW_DEMO_MOCKS=false` — no synthetic data served to users
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` is set only in backend, never in frontend env vars
+- [ ] Backend Supabase table access uses `SUPABASE_SERVICE_ROLE_KEY`; no server-side path relies on `SUPABASE_ANON_KEY` for table CRUD
 - [ ] `NEXT_PUBLIC_*` vars do not contain any secrets (they are bundled into client JS)
 - [ ] Stripe webhook endpoint uses raw body parsing (already configured via `rawBody: true` in `main.ts`)
 - [ ] `trust proxy` is set to `1` (already configured — correct for Railway single-proxy setup)
+- [ ] Supabase Advisor is clean for `rls_disabled_in_public`, or the release log explicitly documents the remaining intentional exception
 
 ---
 
@@ -333,6 +335,8 @@ DATABASE_URL="postgresql://..." npm run prisma:status
 - [ ] PDF report generation (verify R2 upload)
 - [ ] Stripe checkout flow — use `4242 4242 4242 4242` test card first if in test mode
 - [ ] Webhook delivery confirmed in Stripe dashboard (no failures)
+- [ ] Supabase Advisor recheck passes after the release SQL step
+- [ ] An anonymous probe against a previously exposed Supabase table is denied by RLS
 
 ### Secondary
 

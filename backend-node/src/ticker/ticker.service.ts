@@ -15,18 +15,27 @@ export class TickerService {
   constructor() {
     // Initialize Supabase client — only if a real Supabase URL is provided
     const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey =
-      process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || '';
+    const supabaseServiceRoleKey = (
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    ).trim();
 
-    if (supabaseUrl && supabaseUrl.startsWith('http')) {
+    if (
+      supabaseUrl &&
+      supabaseUrl.startsWith('http') &&
+      supabaseServiceRoleKey
+    ) {
       try {
-        this.supabase = createClient(supabaseUrl, supabaseKey);
+        this.supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
         this.logger.log('Supabase client initialized');
       } catch (err) {
         this.logger.warn(
           'Supabase client initialization failed — ticker service will use fallback',
         );
       }
+    } else if (supabaseUrl && supabaseUrl.startsWith('http')) {
+      this.logger.warn(
+        'No Supabase service role key configured — ticker service will use fallback',
+      );
     } else {
       this.logger.warn(
         'No Supabase URL configured — ticker service will use fallback',
