@@ -19,118 +19,41 @@ describe('AlmAdvisorV2Service', () => {
     );
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
+  // ─── computeHealthScore ─────────────────────────────────
 
-  it('computeHealthScore returns demo score when enterprise throws', async () => {
-    mockAlmEnterprise.getALMSummary.mockRejectedValue(new Error('fail'));
-    const result = await service.computeHealthScore('inst-1');
-    expect(result.overall).toBe(72);
-    expect(result.label).toBe('SATISFACTORY');
-    expect(result.capital).toBe(16);
-    expect(result.liquidity).toBe(16);
-  });
-
-  it('computeHealthScore calculates from summary data', async () => {
-    mockAlmEnterprise.getALMSummary.mockResolvedValue({
-      riskScore: 30,
-      liquidity: { lcr: 135 },
-      durationGap: { durationGap: 1.5 },
+  describe('computeHealthScore', () => {
+    it('returns demo score when enterprise service throws', async () => {
+      mockAlmEnterprise.getALMSummary.mockRejectedValue(new Error('fail'));
+      const result = await service.computeHealthScore('inst-1');
+      expect(result).toEqual({
+        overall: 72,
+        capital: 16,
+        liquidity: 16,
+        rateRisk: 12,
+        credit: 14,
+        concentration: 14,
+        label: 'SATISFACTORY',
+      });
     });
-    const result = await service.computeHealthScore('inst-1');
-    expect(result.overall).toBeGreaterThan(0);
-    expect(result.overall).toBeLessThanOrEqual(100);
-    expect([
-      'STRONG',
-      'SATISFACTORY',
-      'FAIR',
-      'MARGINAL',
-      'UNSATISFACTORY',
-    ]).toContain(result.label);
-  });
 
-  it('rankAlerts returns top 3 alerts sorted by lowest score', () => {
-    const health = {
-      overall: 50,
-      capital: 4,
-      liquidity: 16,
-      rateRisk: 8,
-      credit: 12,
-      concentration: 14,
-      label: 'FAIR' as const,
-    };
-    const alerts = service.rankAlerts(health);
-    expect(alerts).toHaveLength(3);
-    expect(alerts[0].rank).toBe(1);
-    expect(alerts[0].domain).toBe('Capital Adequacy');
-    expect(alerts[0].severity).toBe('HIGH');
-    expect(alerts[1].rank).toBe(2);
-  });
-
-  it('rankAlerts assigns severity based on threshold', () => {
-    const health = {
-      overall: 80,
-      capital: 16,
-      liquidity: 16,
-      rateRisk: 16,
-      credit: 16,
-      concentration: 16,
-      label: 'STRONG' as const,
-    };
-    const alerts = service.rankAlerts(health);
-    expect(alerts).toHaveLength(3);
-    alerts.forEach((a) => {
-      expect(['HIGH', 'MEDIUM', 'LOW']).toContain(a.severity);
+    it('calculates from summary data with all sub-scores', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 30,
+        liquidity: { lcr: 135 },
+        durationGap: { durationGap: 1.5 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.overall).toBeGreaterThan(0);
+      expect(result.overall).toBeLessThanOrEqual(100);
+      expect(result.capital + result.liquidity + result.rateRisk + result.credit + result.concentration).toBe(result.overall);
     });
-  });
 
-  it('buildRegPulse returns default messages when calendar throws', async () => {
-    mockComplianceCalendar.getUpcomingDeadlines.mockRejectedValue(
-      new Error('fail'),
-    );
-    const pulse = await service.buildRegPulse('inst-1');
-    expect(pulse.next30).toBe('No deadlines in this period.');
-    expect(pulse.next30Es).toBe(
-      'Sin fechas límite pendientes en este período.',
-    );
-    expect(pulse.criticalDeadlines).toEqual([]);
-  });
+    // ── Label assignments ──
 
-  it('buildRegPulse categorizes events into 30/60/90 day windows', async () => {
-    const now = Date.now();
-    mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({
-      events: [
-        {
-          title: 'Filing A',
-          deadlineDate: new Date(now + 10 * 86400000).toISOString(),
-          urgency: 'CRITICAL',
-        },
-        {
-          title: 'Filing B',
-          deadlineDate: new Date(now + 45 * 86400000).toISOString(),
-          urgency: 'HIGH',
-        },
-        {
-          title: 'Filing C',
-          deadlineDate: new Date(now + 75 * 86400000).toISOString(),
-          urgency: 'MEDIUM',
-        },
-      ],
-    });
-    const pulse = await service.buildRegPulse('inst-1');
-    expect(pulse.next30).toContain('Filing A');
-    expect(pulse.next60).toContain('Filing B');
-    expect(pulse.next90).toContain('Filing C');
-    expect(pulse.criticalDeadlines).toContain('Filing A');
-  });
-
-  // ── Additional coverage: scoring sub-functions, labels, narrative ──
-
-  describe('computeHealthScore labels', () => {
-    it('assigns STRONG for score >= 80', async () => {
+    it('assigns STRONG for overall >= 80', async () => {
       mockAlmEnterprise.getALMSummary.mockResolvedValue({
         riskScore: 10,
+        capitalRatio: 0.12,
         liquidity: { lcr: 140 },
         durationGap: { durationGap: 0.5 },
       });
@@ -138,17 +61,18 @@ describe('AlmAdvisorV2Service', () => {
       expect(result.label).toBe('STRONG');
     });
 
-    it('assigns UNSATISFACTORY for very low scores', async () => {
+    it('assigns SATISFACTORY for overall 60-79', async () => {
       mockAlmEnterprise.getALMSummary.mockResolvedValue({
-        riskScore: 95,
-        liquidity: { lcr: 50 },
-        durationGap: { durationGap: 6.0 },
+        riskScore: 30,
+        liquidity: { lcr: 120 },
+        durationGap: { durationGap: 2.5 },
       });
       const result = await service.computeHealthScore('inst-1');
-      expect(result.overall).toBeLessThan(40);
+      expect(result.overall).toBeGreaterThanOrEqual(60);
+      expect(result.label).toBe('SATISFACTORY');
     });
 
-    it('assigns FAIR for score 40-59', async () => {
+    it('assigns FAIR for overall 40-59', async () => {
       mockAlmEnterprise.getALMSummary.mockResolvedValue({
         riskScore: 60,
         liquidity: { lcr: 95 },
@@ -157,10 +81,237 @@ describe('AlmAdvisorV2Service', () => {
       const result = await service.computeHealthScore('inst-1');
       expect(['FAIR', 'MARGINAL']).toContain(result.label);
     });
+
+    it('assigns MARGINAL for overall 20-39', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 85,
+        liquidity: { lcr: 80 },
+        durationGap: { durationGap: 5.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(['MARGINAL', 'UNSATISFACTORY', 'FAIR']).toContain(result.label);
+    });
+
+    it('assigns UNSATISFACTORY for very low scores', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 99,
+        liquidity: { lcr: 50 },
+        durationGap: { durationGap: 8.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.overall).toBeLessThan(40);
+    });
+
+    // ── Scoring sub-functions edge cases ──
+
+    it('scoreCapital: handles missing capitalRatio and riskScore', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        liquidity: { lcr: 120 },
+        durationGap: { durationGap: 2.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      // With no riskScore, nwr = 0.09 => >= 0.08 => 16
+      expect(result.capital).toBe(16);
+    });
+
+    it('scoreCapital: high riskScore => low capital score', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 95,
+        liquidity: { lcr: 120 },
+        durationGap: { durationGap: 2.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      // nwr = ((100 - 95) / 100) * 0.12 = 0.006 < 0.04 => 0
+      expect(result.capital).toBe(0);
+    });
+
+    it('scoreCapital: riskScore 50 yields nwr = 0.06', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 50,
+        liquidity: { lcr: 120 },
+        durationGap: { durationGap: 2.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      // nwr = ((100-50)/100)*0.12 = 0.06 => >= 0.06 => 8
+      expect(result.capital).toBe(8);
+    });
+
+    it('scoreLiquidity: very high LCR >= 130 => 20', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 30,
+        liquidity: { lcr: 150 },
+        durationGap: { durationGap: 1.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.liquidity).toBe(20);
+    });
+
+    it('scoreLiquidity: LCR 100-114 => 12', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 30,
+        liquidity: { lcr: 105 },
+        durationGap: { durationGap: 1.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.liquidity).toBe(12);
+    });
+
+    it('scoreLiquidity: LCR 90-99 => 8', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 30,
+        liquidity: { lcr: 92 },
+        durationGap: { durationGap: 1.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.liquidity).toBe(8);
+    });
+
+    it('scoreLiquidity: LCR < 90 => 4', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 30,
+        liquidity: { lcr: 70 },
+        durationGap: { durationGap: 1.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.liquidity).toBe(4);
+    });
+
+    it('scoreRateRisk: gap <= 1.0 => 20', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 30,
+        liquidity: { lcr: 120 },
+        durationGap: { durationGap: 0.5 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.rateRisk).toBe(20);
+    });
+
+    it('scoreRateRisk: gap > 4 => 4', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 30,
+        liquidity: { lcr: 120 },
+        durationGap: { durationGap: 5.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.rateRisk).toBe(4);
+    });
+
+    it('scoreCredit: riskScore <= 30 => 20', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 25,
+        liquidity: { lcr: 120 },
+        durationGap: { durationGap: 2.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.credit).toBe(20);
+    });
+
+    it('scoreCredit: riskScore > 80 => 4', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 85,
+        liquidity: { lcr: 120 },
+        durationGap: { durationGap: 2.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.credit).toBe(4);
+    });
+
+    it('scoreConcentration always returns 14', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 30,
+        liquidity: { lcr: 120 },
+        durationGap: { durationGap: 2.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.concentration).toBe(14);
+    });
+
+    it('uses default LCR 115 when missing', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 30,
+        liquidity: {},
+        durationGap: { durationGap: 2.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.liquidity).toBe(16); // default lcr 115 => >=115 => 16
+    });
+
+    it('uses default durationGap 2.0 when missing', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 30,
+        liquidity: { lcr: 120 },
+        durationGap: {},
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.rateRisk).toBe(16); // default gap 2.0 => <= 2.0 => 16
+    });
   });
 
-  describe('rankAlerts detail', () => {
-    it('includes regulatoryRef for each alert', () => {
+  // ─── rankAlerts ─────────────────────────────────────────
+
+  describe('rankAlerts', () => {
+    it('returns top 3 alerts sorted by lowest score', () => {
+      const health = {
+        overall: 50,
+        capital: 4,
+        liquidity: 16,
+        rateRisk: 8,
+        credit: 12,
+        concentration: 14,
+        label: 'FAIR' as const,
+      };
+      const alerts = service.rankAlerts(health);
+      expect(alerts).toHaveLength(3);
+      expect(alerts[0].rank).toBe(1);
+      expect(alerts[0].domain).toBe('Capital Adequacy'); // lowest=4
+      expect(alerts[1].rank).toBe(2);
+      expect(alerts[2].rank).toBe(3);
+    });
+
+    it('assigns HIGH severity for score < 30% of maxScore', () => {
+      const health = {
+        overall: 40,
+        capital: 4, // 4 < 20*0.3=6 => HIGH
+        liquidity: 4,
+        rateRisk: 4,
+        credit: 14,
+        concentration: 14,
+        label: 'FAIR' as const,
+      };
+      const alerts = service.rankAlerts(health);
+      expect(alerts[0].severity).toBe('HIGH');
+    });
+
+    it('assigns MEDIUM severity for score >= 30% and < 60% of maxScore', () => {
+      const health = {
+        overall: 60,
+        capital: 10, // 10 >= 6, < 12 => MEDIUM
+        liquidity: 10,
+        rateRisk: 10,
+        credit: 16,
+        concentration: 14,
+        label: 'SATISFACTORY' as const,
+      };
+      const alerts = service.rankAlerts(health);
+      const mediums = alerts.filter((a) => a.severity === 'MEDIUM');
+      expect(mediums.length).toBeGreaterThan(0);
+    });
+
+    it('assigns LOW severity for score >= 60% of maxScore', () => {
+      const health = {
+        overall: 80,
+        capital: 16, // 16 >= 12 => LOW
+        liquidity: 16,
+        rateRisk: 16,
+        credit: 16,
+        concentration: 16,
+        label: 'STRONG' as const,
+      };
+      const alerts = service.rankAlerts(health);
+      alerts.forEach((a) => expect(a.severity).toBe('LOW'));
+    });
+
+    it('includes bilingual messages and remediation', () => {
       const health = {
         overall: 50,
         capital: 8,
@@ -172,26 +323,111 @@ describe('AlmAdvisorV2Service', () => {
       };
       const alerts = service.rankAlerts(health);
       alerts.forEach((a) => {
-        expect(a.regulatoryRef).toBeDefined();
+        expect(a.message.length).toBeGreaterThan(0);
+        expect(a.messageEs.length).toBeGreaterThan(0);
+        expect(a.remediation.length).toBeGreaterThan(0);
+        expect(a.remediationEs.length).toBeGreaterThan(0);
         expect(a.regulatoryRef.length).toBeGreaterThan(0);
       });
     });
+  });
 
-    it('assigns MEDIUM severity for mid-range scores', () => {
-      const health = {
-        overall: 60,
-        capital: 10,
-        liquidity: 10,
-        rateRisk: 10,
-        credit: 16,
-        concentration: 14,
-        label: 'SATISFACTORY' as const,
-      };
-      const alerts = service.rankAlerts(health);
-      const mediumAlerts = alerts.filter((a) => a.severity === 'MEDIUM');
-      expect(mediumAlerts.length).toBeGreaterThan(0);
+  // ─── buildRegPulse ──────────────────────────────────────
+
+  describe('buildRegPulse', () => {
+    it('returns default messages when calendar service throws', async () => {
+      mockComplianceCalendar.getUpcomingDeadlines.mockRejectedValue(new Error('fail'));
+      const pulse = await service.buildRegPulse('inst-1');
+      expect(pulse.next30).toBe('No deadlines in this period.');
+      expect(pulse.next30Es).toBe('Sin fechas l\u00edmite pendientes en este per\u00edodo.');
+      expect(pulse.criticalDeadlines).toEqual([]);
+    });
+
+    it('categorizes events into 30/60/90 day windows', async () => {
+      const now = Date.now();
+      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({
+        events: [
+          { title: 'Filing A', titleEs: 'Informe A', deadlineDate: new Date(now + 10 * 86400000).toISOString(), urgency: 'CRITICAL' },
+          { title: 'Filing B', deadlineDate: new Date(now + 45 * 86400000).toISOString(), urgency: 'HIGH' },
+          { title: 'Filing C', deadlineDate: new Date(now + 75 * 86400000).toISOString(), urgency: 'MEDIUM' },
+        ],
+      });
+      const pulse = await service.buildRegPulse('inst-1');
+      expect(pulse.next30).toContain('Filing A');
+      expect(pulse.next60).toContain('Filing B');
+      expect(pulse.next90).toContain('Filing C');
+      expect(pulse.criticalDeadlines).toContain('Filing A');
+    });
+
+    it('uses titleEs for Spanish formatting when available', async () => {
+      const now = Date.now();
+      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({
+        events: [
+          { title: 'Filing A', titleEs: 'Informe A', deadlineDate: new Date(now + 5 * 86400000).toISOString(), urgency: 'LOW' },
+        ],
+      });
+      const pulse = await service.buildRegPulse('inst-1');
+      expect(pulse.next30Es).toContain('Informe A');
+    });
+
+    it('collects OVERDUE urgency items into criticalDeadlines', async () => {
+      const now = Date.now();
+      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({
+        events: [
+          { title: 'Overdue X', deadlineDate: new Date(now + 5 * 86400000).toISOString(), urgency: 'OVERDUE' },
+        ],
+      });
+      const pulse = await service.buildRegPulse('inst-1');
+      expect(pulse.criticalDeadlines).toContain('Overdue X');
+    });
+
+    it('returns empty strings for windows with no events', async () => {
+      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({ events: [] });
+      const pulse = await service.buildRegPulse('inst-1');
+      expect(pulse.next30).toBe('No deadlines in this period.');
+      expect(pulse.next60).toBe('No deadlines in this period.');
+      expect(pulse.next90).toBe('No deadlines in this period.');
     });
   });
+
+  // ─── streamNarrative ────────────────────────────────────
+
+  describe('streamNarrative', () => {
+    beforeEach(() => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 40,
+        liquidity: { lcr: 120 },
+        durationGap: { durationGap: 1.5 },
+      });
+      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({ events: [] });
+      delete process.env.ANTHROPIC_API_KEY;
+      delete process.env.OPENAI_API_KEY;
+    });
+
+    it('generates local narrative when no API key is set', async () => {
+      const chunks: string[] = [];
+      for await (const chunk of service.streamNarrative('inst-1', 'en')) {
+        chunks.push(chunk);
+      }
+      const full = chunks.join('');
+      expect(full).toContain('Health Score');
+      expect(full).toContain('Risk Alerts');
+      expect(full).toContain('Regulatory Pulse');
+    });
+
+    it('generates Spanish local narrative', async () => {
+      const chunks: string[] = [];
+      for await (const chunk of service.streamNarrative('inst-1', 'es')) {
+        chunks.push(chunk);
+      }
+      const full = chunks.join('');
+      expect(full).toContain('Puntuaci');
+      expect(full).toContain('Alertas');
+      expect(full).toContain('Regulatorio');
+    });
+  });
+
+  // ─── getStaticNarrative ─────────────────────────────────
 
   describe('getStaticNarrative', () => {
     beforeEach(() => {
@@ -203,28 +439,30 @@ describe('AlmAdvisorV2Service', () => {
       mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({ events: [] });
     });
 
-    it('returns a narrative containing health score section', async () => {
+    it('returns a complete AdvisorNarrative object in English', async () => {
       const result = await service.getStaticNarrative('inst-1', 'en');
-      expect(result.narrative).toContain('Health Score');
       expect(result.healthScore).toBeDefined();
+      expect(result.alerts).toHaveLength(3);
+      expect(result.pulse).toBeDefined();
+      expect(result.narrative).toContain('Health Score');
     });
 
-    it('returns a Spanish narrative', async () => {
+    it('returns a complete AdvisorNarrative object in Spanish', async () => {
       const result = await service.getStaticNarrative('inst-1', 'es');
       expect(result.narrative).toContain('Puntuaci');
       expect(result.narrative).toContain('Alertas');
     });
 
-    it('includes alerts in narrative', async () => {
+    it('includes critical deadlines text when present', async () => {
+      const now = Date.now();
+      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({
+        events: [
+          { title: 'Urgent Filing', deadlineDate: new Date(now + 5 * 86400000).toISOString(), urgency: 'CRITICAL' },
+        ],
+      });
       const result = await service.getStaticNarrative('inst-1', 'en');
-      expect(result.narrative).toContain('Risk Alerts');
-      expect(result.alerts).toHaveLength(3);
-    });
-
-    it('includes regulatory pulse in narrative', async () => {
-      const result = await service.getStaticNarrative('inst-1', 'en');
-      expect(result.narrative).toContain('Regulatory Pulse');
-      expect(result.pulse).toBeDefined();
+      expect(result.narrative).toContain('Critical deadlines');
+      expect(result.narrative).toContain('Urgent Filing');
     });
   });
 });
