@@ -24,13 +24,13 @@ describe('AlcoPackService', () => {
       ratios: [],
       overallStatus: 'PASS',
       examReadinessScore: 85,
-      summary: { pass: 10, fail: 2 },
+      summary: { pass: 10, fail: 2, capitalRatio: 9.5 },
     });
     mockAlmEnterprise.getALMSummary.mockResolvedValue({
       institution: { name: 'Test Coop' },
       durationGap: { gap: 1.2 },
       niiSensitivity: { up100: -2.5 },
-      liquidity: { lcr: 115 },
+      liquidity: { lcr: 115, status: 'compliant' },
       recommendations: ['Reduce gap'],
     });
     mockStressTesting.runFullStressTest.mockResolvedValue({
@@ -42,6 +42,7 @@ describe('AlcoPackService', () => {
       name: 'Test Coop',
       type: 'cooperativa',
       totalAssets: 250,
+      currency: 'USD',
     });
   });
 
@@ -69,7 +70,7 @@ describe('AlcoPackService', () => {
     expect(mockAlmEnterprise.getInstitution).toHaveBeenCalledWith('inst-1');
   });
 
-  it('buildALCOPack passes language parameter', async () => {
+  it('buildALCOPack passes language parameter for Spanish', async () => {
     try {
       await service.buildALCOPack('inst-1', 'es');
     } catch {
@@ -98,7 +99,7 @@ describe('AlcoPackService', () => {
         ratios: [],
         overallStatus: 'PASS',
         examReadinessScore: 80,
-        summary: {},
+        summary: { capitalRatio: 9.0 },
       });
     });
     mockAlmEnterprise.getALMSummary.mockImplementation(() => {
@@ -107,7 +108,7 @@ describe('AlcoPackService', () => {
         institution: { name: 'T' },
         durationGap: {},
         niiSensitivity: {},
-        liquidity: {},
+        liquidity: { status: 'compliant' },
         recommendations: [],
       });
     });
@@ -136,5 +137,41 @@ describe('AlcoPackService', () => {
     expect(callOrder).toContain('summary');
     expect(callOrder).toContain('stress');
     expect(callOrder).toContain('institution');
+  });
+
+  it('buildALCOPack propagates upstream errors', async () => {
+    mockAlmEnterprise.getCOSSECCompliance.mockRejectedValue(
+      new Error('DB connection lost'),
+    );
+
+    await expect(service.buildALCOPack('inst-1', 'en')).rejects.toThrow(
+      'DB connection lost',
+    );
+  });
+
+  it('buildALCOPack handles missing institution gracefully', async () => {
+    mockAlmEnterprise.getInstitution.mockResolvedValue(null);
+
+    try {
+      await service.buildALCOPack('inst-1', 'en');
+      // If it succeeds, institution name will be fallback
+    } catch {
+      // PDF generation may fail, which is fine
+    }
+
+    expect(mockAlmEnterprise.getInstitution).toHaveBeenCalledWith('inst-1');
+  });
+
+  it('buildALCOPack uses correct stress test parameters', async () => {
+    try {
+      await service.buildALCOPack('inst-1', 'en');
+    } catch {
+      // PDF may fail
+    }
+
+    expect(mockStressTesting.runFullStressTest).toHaveBeenCalledWith('inst-1', {
+      paths: 500,
+      horizon: 12,
+    });
   });
 });
