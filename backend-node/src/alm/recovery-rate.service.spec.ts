@@ -121,4 +121,61 @@ describe('RecoveryRateService', () => {
 
     expect(result.loans[0].estimatedRecovery).toBeCloseTo(0.25, 1);
   });
+
+  it('returns default recovery rate of 0.4 for unknown collateral type', () => {
+    const result = service.estimate([
+      {
+        type: 'Unknown',
+        typeEs: 'Desconocido',
+        balance: 100000,
+        collateralValue: 100000,
+        collateralType: 'alien_artifacts',
+        seniorityRank: 1,
+      },
+    ]);
+    // getBaseRecovery default branch returns 0.4
+    expect(result.loans[0].estimatedRecovery).toBeCloseTo(0.4, 1);
+  });
+
+  it('equipment collateral gets 0.45 base recovery', () => {
+    const result = service.estimate([
+      {
+        type: 'Equipment',
+        typeEs: 'Equipo',
+        balance: 100,
+        collateralValue: 120,
+        collateralType: 'equipment',
+        seniorityRank: 1,
+      },
+    ]);
+    expect(result.loans[0].estimatedRecovery).toBeCloseTo(0.45, 1);
+  });
+
+  it('vehicle collateral maps to auto recovery rate (0.55)', () => {
+    const result = service.estimate([
+      {
+        type: 'Vehicle',
+        typeEs: 'Vehiculo',
+        balance: 80,
+        collateralValue: 100,
+        collateralType: 'vehicle_loan',
+        seniorityRank: 1,
+      },
+    ]);
+    expect(result.loans[0].estimatedRecovery).toBeCloseTo(0.55, 1);
+  });
+
+  it('mortgage collateral maps to real estate recovery rate (0.65)', () => {
+    const result = service.estimate([
+      {
+        type: 'Mortgage',
+        typeEs: 'Hipoteca',
+        balance: 100,
+        collateralValue: 150,
+        collateralType: 'mortgage_backed',
+        seniorityRank: 1,
+      },
+    ]);
+    expect(result.loans[0].estimatedRecovery).toBeCloseTo(0.65, 1);
+  });
 });

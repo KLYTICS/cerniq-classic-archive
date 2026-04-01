@@ -61,4 +61,157 @@ describe('CSVIngestionService', () => {
     expect(result.valid).toBe(false);
     expect(result.errors[0].field).toBe('category');
   });
+
+  // ── Coverage boost: edge cases ──
+
+  it('rejects CSV with only header row (no data)', () => {
+    const csv = 'category,subcategory,name,balance,rate,duration,rateType';
+    const result = service.parseCSV(csv);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0].message).toContain('header row');
+  });
+
+  it('rejects CSV exceeding MAX_CSV_ROWS', () => {
+    const header = 'category,subcategory,name,balance,rate,duration,rateType';
+    const rows = Array.from({ length: 50002 }, () =>
+      'asset,commercial_loans,CRE,10,5.25,4.5,fixed',
+    );
+    const csv = [header, ...rows].join('\n');
+    const result = service.parseCSV(csv);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0].message).toContain('maximum');
+  });
+
+  it('handles Spanish headers (categoria, subcategoria, nombre, saldo, tasa, duracion, tipotasa)', () => {
+    const csv = [
+      'categoria,subcategoria,nombre,saldo,tasa,duracion,tipotasa',
+      'activo,commercial_loans,Prestamos CRE,10,5.25,4.5,fijo',
+    ].join('\n');
+    const result = service.parseCSV(csv);
+    expect(result.valid).toBe(true);
+    expect(result.items[0].category).toBe('asset');
+    expect(result.items[0].rateType).toBe('fixed');
+  });
+
+  it('handles "pasivo" as liability category', () => {
+    const csv = [
+      'category,subcategory,name,balance,rate,duration,rateType',
+      'pasivo,demand_deposits,Checking,8,0.50,0.1,variable',
+    ].join('\n');
+    const result = service.parseCSV(csv);
+    expect(result.valid).toBe(true);
+    expect(result.items[0].category).toBe('liability');
+  });
+
+  it('warns when liabilities exceed assets (negative equity)', () => {
+    const csv = [
+      'category,subcategory,name,balance,rate,duration,rateType',
+      'asset,commercial_loans,Loans,5,5,3,fixed',
+      'liability,demand_deposits,Deposits,10,1,0.1,variable',
+    ].join('\n');
+    const result = service.parseCSV(csv);
+    expect(result.warnings.some((w) => w.includes('negative equity'))).toBe(true);
+  });
+
+  it('errors when liability subcategory used with asset category', () => {
+    const csv = [
+      'category,subcategory,name,balance,rate,duration,rateType',
+      'asset,demand_deposits,Bad Row,10,5,3,fixed',
+    ].join('\n');
+    const result = service.parseCSV(csv);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0].message).toContain('liability subcategory');
+  });
+
+  it('errors when asset subcategory used with liability category', () => {
+    const csv = [
+      'category,subcategory,name,balance,rate,duration,rateType',
+      'liability,commercial_loans,Bad Row,10,5,3,fixed',
+    ].join('\n');
+    const result = service.parseCSV(csv);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0].message).toContain('asset subcategory');
+  });
+
+  it('validates negative balance as error', () => {
+    const csv = [
+      'category,subcategory,name,balance,rate,duration,rateType',
+      'asset,commercial_loans,Loans,-10,5,3,fixed',
+    ].join('\n');
+    const result = service.parseCSV(csv);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0].field).toBe('balance');
+  });
+
+  it('validates out-of-range rate (>100)', () => {
+    const csv = [
+      'category,subcategory,name,balance,rate,duration,rateType',
+      'asset,commercial_loans,Loans,10,150,3,fixed',
+    ].join('\n');
+    const result = service.parseCSV(csv);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0].field).toBe('rate');
+  });
+
+  it('validates out-of-range duration (>50)', () => {
+    const csv = [
+      'category,subcategory,name,balance,rate,duration,rateType',
+      'asset,commercial_loans,Loans,10,5,55,fixed',
+    ].join('\n');
+    const result = service.parseCSV(csv);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0].field).toBe('duration');
+  });
+
+  it('validates invalid rateType', () => {
+    const csv = [
+      'category,subcategory,name,balance,rate,duration,rateType',
+      'asset,commercial_loans,Loans,10,5,3,floating',
+    ].join('\n');
+    const result = service.parseCSV(csv);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0].field).toBe('rateType');
+  });
+
+  it('validates missing name', () => {
+    const csv = [
+      'category,subcategory,name,balance,rate,duration,rateType',
+      'asset,commercial_loans,,10,5,3,fixed',
+    ].join('\n');
+    const result = service.parseCSV(csv);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0].field).toBe('name');
+  });
+
+  it('handles quoted CSV fields with commas', () => {
+    const csv = [
+      'category,subcategory,name,balance,rate,duration,rateType',
+      'asset,commercial_loans,"CRE Loans, Phase 1",10,5,3,fixed',
+    ].join('\n');
+    const result = service.parseCSV(csv);
+    expect(result.valid).toBe(true);
+    expect(result.items[0].name).toBe('CRE Loans, Phase 1');
+  });
+
+  it('getGenericTemplate returns parseable CSV', () => {
+    const template = service.getGenericTemplate();
+    const result = service.parseCSV(template);
+    expect(result.valid).toBe(true);
+    expect(result.items.length).toBeGreaterThan(0);
+  });
+
+  it('handles \\r\\n line endings', () => {
+    const csv = 'category,subcategory,name,balance,rate,duration,rateType\r\nasset,commercial_loans,Loans,10,5.25,4.5,fixed\r\n';
+    const result = service.parseCSV(csv);
+    expect(result.valid).toBe(true);
+  });
+
+  it('warns for unknown asset subcategory', () => {
+    const csv = [
+      'category,subcategory,name,balance,rate,duration,rateType',
+      'asset,unknown_sub,Test,10,5,3,fixed',
+    ].join('\n');
+    const result = service.parseCSV(csv);
+    expect(result.warnings.some((w) => w.includes('Unknown subcategory'))).toBe(true);
+  });
 });

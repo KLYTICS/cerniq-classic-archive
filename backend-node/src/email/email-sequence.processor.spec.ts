@@ -265,5 +265,27 @@ describe('EmailSequenceProcessor', () => {
         name: 'OK',
       });
     });
+
+    it('handles unknown sequence key gracefully', async () => {
+      prisma.emailSequence.findMany.mockResolvedValue([
+        {
+          id: 'seq-unknown',
+          userId: 'u1',
+          sequenceKey: 'UNKNOWN_KEY',
+          step: 1,
+          scheduledAt: new Date(Date.now() - 1000),
+          status: 'pending',
+        },
+      ]);
+      prisma.user.findUnique.mockResolvedValue({ email: 'a@b.com', name: 'Test' });
+
+      await processor.processDueSequences();
+
+      expect(prisma.emailSequence.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'seq-unknown' },
+        }),
+      );
+    });
   });
 });

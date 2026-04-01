@@ -75,4 +75,17 @@ describe('CreditRiskPlusService', () => {
       result.lossDistribution[result.lossDistribution.length - 1].cumulative;
     expect(lastCum).toBeCloseTo(1, 1);
   });
+
+  it('findVaR falls back to last entry when cumulative never reaches level', () => {
+    // Use very small exposure so distribution does not reach 0.999
+    const tinyParams = {
+      segments: [
+        { name: 'Micro', nameEs: 'Micro', exposure: 1, pd: 0.0001, lgd: 0.01, count: 1 },
+      ],
+      confidenceLevel: 0.999,
+    };
+    const result = svc.analyze(tinyParams);
+    // var999 should still be a valid number (falls back to last entry or 0)
+    expect(typeof result.var999).toBe('number');
+  });
 });

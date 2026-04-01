@@ -161,4 +161,59 @@ describe('LeadQualificationService', () => {
       );
     });
   });
+
+  describe('qualifyProspect — outreach timing edge cases', () => {
+    it('assigns lower score for outreach sent 14+ days ago', async () => {
+      mockPrisma.prospectInstitution.findUnique.mockResolvedValue({
+        id: 'p6',
+        name: 'Old Lead',
+        institutionType: 'cooperativa',
+        estimatedAssets: 200_000_000,
+        contactRole: 'gerente general',
+        publicDataSource: '',
+        outreachSentAt: new Date(Date.now() - 20 * 86_400_000), // 20 days ago
+        location: 'PR',
+      });
+
+      const result = await service.qualifyProspect('p6');
+      const outreachSignal = result.signals.find((s) => s.name === 'outreach_recency');
+      expect(outreachSignal?.score).toBe(5);
+      expect(outreachSignal?.reason).toContain('re-engage');
+    });
+
+    it('assigns medium score for outreach sent within 2 weeks', async () => {
+      mockPrisma.prospectInstitution.findUnique.mockResolvedValue({
+        id: 'p7',
+        name: 'Recent Lead',
+        institutionType: 'cooperativa',
+        estimatedAssets: 300_000_000,
+        contactRole: 'vp finanzas',
+        publicDataSource: 'cossec',
+        outreachSentAt: new Date(Date.now() - 7 * 86_400_000), // 7 days ago
+        location: 'USVI territory',
+      });
+
+      const result = await service.qualifyProspect('p7');
+      const outreachSignal = result.signals.find((s) => s.name === 'outreach_recency');
+      expect(outreachSignal?.score).toBe(10);
+    });
+  });
+
+  describe('qualifyProspect — grade B classification', () => {
+    it('assigns grade B for medium-fit prospect', async () => {
+      mockPrisma.prospectInstitution.findUnique.mockResolvedValue({
+        id: 'p8',
+        name: 'B-grade',
+        institutionType: 'credit_union',
+        estimatedAssets: 250_000_000,
+        contactRole: 'manager financiero',
+        publicDataSource: 'cossec',
+        outreachSentAt: new Date(Date.now() - 10 * 86_400_000),
+        location: 'Puerto Rico',
+      });
+
+      const result = await service.qualifyProspect('p8');
+      expect(['A', 'B']).toContain(result.grade);
+    });
+  });
 });

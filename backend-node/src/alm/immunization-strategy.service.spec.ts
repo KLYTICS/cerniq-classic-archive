@@ -213,4 +213,27 @@ describe('ImmunizationStrategyService', () => {
     );
     expect(durationActions.length).toBe(0);
   });
+
+  it('should recommend buying when asset duration is shorter than liability duration', () => {
+    const params: ImmunizationParams = {
+      assets: [
+        { name: 'Short Bond', marketValue: 50_000_000, duration: 1.0, convexity: 5, yield: 0.03 },
+      ],
+      liabilities: [
+        { name: 'Long Liability', marketValue: 40_000_000, duration: 5.0, convexity: 3, yield: 0.02 },
+      ],
+      targetHorizon: 3.0,
+    };
+    const result = svc.immunize(params);
+    expect(result.currentGap).toBeLessThan(-0.1);
+    const buyActions = result.rebalancing.filter((r) => r.action === 'buy');
+    expect(buyActions.length).toBeGreaterThan(0);
+    expect(buyActions[0].rationale).toContain('Extend');
+  });
+
+  it('should set immunizedDuration to targetHorizon when rebalancing is needed', () => {
+    const result = svc.immunize(MISMATCHED_PARAMS);
+    expect(result.rebalancing.length).toBeGreaterThan(0);
+    expect(result.immunizedDuration).toBe(MISMATCHED_PARAMS.targetHorizon);
+  });
 });

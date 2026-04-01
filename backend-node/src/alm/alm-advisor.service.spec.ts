@@ -320,4 +320,45 @@ describe('AlmAdvisorService', () => {
       ).resolves.toBeUndefined();
     });
   });
+
+  describe('buildSystemPrompt — LCR status labels', () => {
+    const fullCossec = {
+      examReadinessScore: 85,
+      overallStatus: 'GOOD',
+      summary: {
+        totalAssets: 500, nim: 3.5, capitalRatio: 10.2,
+        loanToShareRatio: 65, liquidityRatio: 22,
+        earningAssetsYield: 4.5, costOfFunds: 1.2,
+        largestSectorName: 'Real Estate', largestSectorPct: 35,
+      },
+      ratios: [{ name: 'Capital', nameEs: 'Capital', value: 10.2, unit: '%', status: 'pass' }],
+    };
+    const fullSummary = {
+      institution: { name: 'Test CU', type: 'credit_union' },
+      durationGap: { durationGap: -0.5, assetDuration: 1.5, liabilityDuration: 2.0, riskProfile: 'low' },
+      niiSensitivity: { baseNII: 12.5, riskRating: 'moderate' },
+      liquidity: { lcr: 120, buffer: -2, hqla: 80, netOutflows: 60, status: 'warning' },
+      riskScore: 45,
+      topRisks: ['Rate risk'],
+      recommendations: ['Increase duration'],
+    };
+
+    it('handles negative buffer and negative duration gap in EN prompt', async () => {
+      mockAlmEnterprise.getCOSSECCompliance.mockResolvedValue(fullCossec);
+      mockAlmEnterprise.getALMSummary.mockResolvedValue(fullSummary);
+      const prompt = await service.buildSystemPrompt('inst-1', 'en');
+      expect(prompt).toContain('-0.5yr');
+      expect(prompt).toContain('warning');
+    });
+
+    it('handles breach status label in Spanish', async () => {
+      mockAlmEnterprise.getCOSSECCompliance.mockResolvedValue(fullCossec);
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        ...fullSummary,
+        liquidity: { ...fullSummary.liquidity, status: 'breach' },
+      });
+      const prompt = await service.buildSystemPrompt('inst-1', 'es');
+      expect(prompt).toContain('incumplimiento');
+    });
+  });
 });

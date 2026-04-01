@@ -57,4 +57,12 @@ describe('IpAllowlistGuard', () => {
     const ctx = createMockContext('203.0.113.50');
     expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
   });
+
+  it('extracts IP from X-Forwarded-For header', () => {
+    process.env.IP_ALLOWLIST = '10.0.0.5';
+    const ctx = createMockContext('192.168.1.1', {
+      'x-forwarded-for': '10.0.0.5, 192.168.1.1',
+    });
+    expect(guard.canActivate(ctx)).toBe(true);
+  });
 });

@@ -167,4 +167,84 @@ describe('RepricingGapService', () => {
     // Duration gap = asset weighted dur (4) - liability weighted dur (1) = 3
     expect(result.durationGap).toBeCloseTo(3.0, 1);
   });
+
+  it('handles variable-rate items with repriceDate', async () => {
+    const futureDate = new Date(Date.now() + 60 * 86400000).toISOString(); // 60 days
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      {
+        category: 'asset',
+        subcategory: 'loans',
+        name: 'Variable Loan',
+        balance: 100,
+        rate: 0.05,
+        duration: 3,
+        rateType: 'variable',
+        maturityDate: null,
+        repriceDate: futureDate,
+      },
+      {
+        category: 'liability',
+        subcategory: 'checking_accounts',
+        name: 'Checking',
+        balance: 80,
+        rate: 0.01,
+        duration: 0.1,
+        rateType: 'variable',
+        maturityDate: null,
+        repriceDate: null,
+      },
+    ]);
+
+    const result = await service.getRepricingGap('inst_123');
+    // Variable asset with repriceDate ~60 days goes into 31-90 bucket
+    const bucket31_90 = result.buckets.find((b) => b.label === '31–90 Days');
+    expect(bucket31_90).toBeDefined();
+    expect(bucket31_90!.assets).toBeCloseTo(100, 0);
+    // Checking deposit (demand) reprices in 1 day → 0-30 bucket
+    const bucket0_30 = result.buckets.find((b) => b.label === '0–30 Days');
+    expect(bucket0_30!.liabilities).toBeCloseTo(80, 0);
+  });
+
+  it('handles fixed-rate items with maturityDate', async () => {
+    const futureDate = new Date(Date.now() + 180 * 86400000).toISOString();
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      {
+        category: 'asset',
+        subcategory: 'bonds',
+        name: 'Bond',
+        balance: 100,
+        rate: 0.04,
+        duration: 0.5,
+        rateType: 'fixed',
+        maturityDate: futureDate,
+        repriceDate: null,
+      },
+    ]);
+
+    const result = await service.getRepricingGap('inst_123');
+    // ~180 days maturity → 91-180 bucket
+    const bucket = result.buckets.find((b) => b.label === '91–180 Days');
+    expect(bucket).toBeDefined();
+    expect(bucket!.assets).toBeCloseTo(100, 0);
+  });
+
+  it('uses default 90 days for variable-rate non-demand items', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      {
+        category: 'asset',
+        subcategory: 'other_variable',
+        name: 'Var Loan',
+        balance: 50,
+        rate: 0.04,
+        duration: 2,
+        rateType: 'variable',
+        maturityDate: null,
+        repriceDate: null,
+      },
+    ]);
+
+    const result = await service.getRepricingGap('inst_123');
+    const bucket = result.buckets.find((b) => b.label === '31–90 Days');
+    expect(bucket!.assets).toBeCloseTo(50, 0);
+  });
 });

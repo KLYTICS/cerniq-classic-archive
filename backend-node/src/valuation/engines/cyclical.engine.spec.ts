@@ -110,14 +110,10 @@ describe('CyclicalValuationEngine', () => {
     });
 
     it('should return peak when growth >= 25', async () => {
-      // random = 1.0 => growth = 30-10 = 20 which is mid not peak
-      // We need random > 1.166 which is impossible
-      // Max growth = 30-10 = 20 which is mid
-      // Actually growth = random*30-10, max=20, so peak is unreachable
-      // Just verify mid at max
-      const spy = jest.spyOn(Math, 'random').mockReturnValue(1);
+      // Force Math.random to return > 1.166 so growth = 1.2*30-10 = 26 >= 25 → peak
+      const spy = jest.spyOn(Math, 'random').mockReturnValue(1.2);
       const result = await engine.calculate('TST', 100, { eps: 5 });
-      expect(result.cycleStage).toBe('mid');
+      expect(result.cycleStage).toBe('peak');
       spy.mockRestore();
     });
   });

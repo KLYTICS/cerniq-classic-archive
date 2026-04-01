@@ -124,5 +124,21 @@ describe('OutreachExecutionService', () => {
       expect(result.total).toBe(0);
       expect(result.sent).toBe(0);
     });
+
+    it('counts failed outreach when executeOutreach returns sent=false', async () => {
+      mockPrisma.prospectInstitution.findMany.mockResolvedValue([
+        { id: 'p-fail', name: 'Failing Coop', contactEmail: null, estimatedAssets: 100 },
+      ]);
+      // executeOutreach will return { sent: false } because no contactEmail
+      mockPrisma.prospectInstitution.findUnique.mockResolvedValue({
+        id: 'p-fail',
+        name: 'Failing Coop',
+        contactEmail: null,
+      });
+
+      const result = await service.executeBulkOutreach('en', 1);
+      expect(result.failed).toBe(1);
+      expect(result.sent).toBe(0);
+    }, 10000);
   });
 });

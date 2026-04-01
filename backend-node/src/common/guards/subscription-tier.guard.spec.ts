@@ -1,4 +1,4 @@
-import { SubscriptionTierGuard } from './subscription-tier.guard';
+import { SubscriptionTierGuard, RequiresTier } from './subscription-tier.guard';
 import { Reflector } from '@nestjs/core';
 import { ForbiddenException, ExecutionContext } from '@nestjs/common';
 
@@ -46,5 +46,10 @@ describe('SubscriptionTierGuard', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['starter']);
     const ctx = createMockContext({});
     expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
+  });
+
+  it('RequiresTier decorator returns a function', () => {
+    const decorator = RequiresTier('professional', 'enterprise');
+    expect(typeof decorator).toBe('function');
   });
 });

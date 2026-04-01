@@ -187,4 +187,20 @@ describe('RateLimitByUserGuard', () => {
     expect(defaultGuard.canActivate(ctx)).toBe(true);
     defaultGuard.onModuleDestroy();
   });
+
+  it('cleanup retains recent entries within window', () => {
+    // Use a large window (600s) so entries survive cleanup
+    const longGuard = new RateLimitByUserGuard(10, 600_000);
+    const { ctx } = createMockContext('user-retain');
+    longGuard.canActivate(ctx);
+
+    // Trigger cleanup (300s interval) - entries still within 600s window
+    jest.advanceTimersByTime(300_000);
+
+    // Entry should still be tracked (recent.length > 0 path → store.set)
+    const { ctx: ctx2, res: res2 } = createMockContext('user-retain');
+    longGuard.canActivate(ctx2);
+    expect(res2.setHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', '8');
+    longGuard.onModuleDestroy();
+  });
 });

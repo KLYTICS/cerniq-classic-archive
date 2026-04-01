@@ -192,5 +192,111 @@ describe('ImpactExtractorService', () => {
       mockPrisma.regulatoryPublication.update.mockResolvedValue({});
       expect((await service.extract('pub-lcr')).affectedSubcategories).toContain('liquidity');
     });
+
+    it('assigns HIGH severity for inmediato keyword', async () => {
+      mockPrisma.regulatoryPublication.findUniqueOrThrow.mockResolvedValue({
+        id: 'pub-inm', regulator: 'COSSEC', title: 'Circular Urgente',
+        rawText: 'Se requiere cumplimiento inmediato de las nuevas disposiciones...',
+      });
+      mockPrisma.regulatoryPublication.update.mockResolvedValue({});
+      expect((await service.extract('pub-inm')).severity).toBe('HIGH');
+    });
+
+    it('assigns LOW severity for recomend keyword', async () => {
+      mockPrisma.regulatoryPublication.findUniqueOrThrow.mockResolvedValue({
+        id: 'pub-rec', regulator: 'OCIF', title: 'Nota de Recomendación',
+        rawText: 'Se emite la siguiente recomendación general para las cooperativas...',
+      });
+      mockPrisma.regulatoryPublication.update.mockResolvedValue({});
+      expect((await service.extract('pub-rec')).severity).toBe('LOW');
+    });
+
+    it('falls back to heuristic when ANTHROPIC_API_KEY is set but API call fails', async () => {
+      process.env.ANTHROPIC_API_KEY = 'sk-fake-key';
+      mockPrisma.regulatoryPublication.findUniqueOrThrow.mockResolvedValue({
+        id: 'pub-api', regulator: 'NCUA', title: 'Capital Requirements',
+        rawText: 'New capital adequacy standards for credit unions...',
+      });
+      mockPrisma.regulatoryPublication.update.mockResolvedValue({});
+      const impact = await service.extract('pub-api');
+      // Should still return a valid impact via heuristic fallback
+      expect(impact.severity).toBeDefined();
+      expect(impact.affectedSubcategories).toContain('capital');
+      delete process.env.ANTHROPIC_API_KEY;
+    });
+
+    it('detects "liquidity" in English text', async () => {
+      mockPrisma.regulatoryPublication.findUniqueOrThrow.mockResolvedValue({
+        id: 'pub-liq-en', regulator: 'NCUA', title: 'Liquidity Standards',
+        rawText: 'Updated liquidity risk management framework...',
+      });
+      mockPrisma.regulatoryPublication.update.mockResolvedValue({});
+      expect((await service.extract('pub-liq-en')).affectedSubcategories).toContain('liquidity');
+    });
+
+    it('detects "rate" keyword for interest_rate', async () => {
+      mockPrisma.regulatoryPublication.findUniqueOrThrow.mockResolvedValue({
+        id: 'pub-rate2', regulator: 'NCUA', title: 'Interest Rate Risk',
+        rawText: 'Management of interest rate risk in the current environment...',
+      });
+      mockPrisma.regulatoryPublication.update.mockResolvedValue({});
+      expect((await service.extract('pub-rate2')).affectedSubcategories).toContain('interest_rate');
+    });
+
+    it('detects "préstamo" as credit', async () => {
+      mockPrisma.regulatoryPublication.findUniqueOrThrow.mockResolvedValue({
+        id: 'pub-prest', regulator: 'COSSEC', title: 'Préstamos Comerciales',
+        rawText: 'Revisión de la cartera de préstamos comerciales...',
+      });
+      mockPrisma.regulatoryPublication.update.mockResolvedValue({});
+      expect((await service.extract('pub-prest')).affectedSubcategories).toContain('credit');
+    });
+
+    it('detects "concentración" in Spanish text', async () => {
+      mockPrisma.regulatoryPublication.findUniqueOrThrow.mockResolvedValue({
+        id: 'pub-conc-es', regulator: 'OCIF', title: 'Concentración de Riesgo',
+        rawText: 'Límites de concentración por sector económico...',
+      });
+      mockPrisma.regulatoryPublication.update.mockResolvedValue({});
+      expect((await service.extract('pub-conc-es')).affectedSubcategories).toContain('concentration');
+    });
+
+    it('detects "nwr" keyword as capital subcategory', async () => {
+      mockPrisma.regulatoryPublication.findUniqueOrThrow.mockResolvedValue({
+        id: 'pub-nwr', regulator: 'NCUA', title: 'NWR Minimum Update',
+        rawText: 'The NWR minimum for well-capitalized institutions...',
+      });
+      mockPrisma.regulatoryPublication.update.mockResolvedValue({});
+      expect((await service.extract('pub-nwr')).affectedSubcategories).toContain('capital');
+    });
+
+    it('detects "loan" keyword as credit subcategory', async () => {
+      mockPrisma.regulatoryPublication.findUniqueOrThrow.mockResolvedValue({
+        id: 'pub-loan', regulator: 'COSSEC', title: 'Loan Quality Standards',
+        rawText: 'Review standards for loan portfolio quality...',
+      });
+      mockPrisma.regulatoryPublication.update.mockResolvedValue({});
+      expect((await service.extract('pub-loan')).affectedSubcategories).toContain('credit');
+    });
+
+    it('detects "interés" keyword as interest_rate subcategory', async () => {
+      mockPrisma.regulatoryPublication.findUniqueOrThrow.mockResolvedValue({
+        id: 'pub-int-es', regulator: 'COSSEC', title: 'Tasas de Interés',
+        rawText: 'Regulación sobre el manejo de tasas de interés...',
+      });
+      mockPrisma.regulatoryPublication.update.mockResolvedValue({});
+      expect((await service.extract('pub-int-es')).affectedSubcategories).toContain('interest_rate');
+    });
+
+    it('returns empty affectedSubcategories for generic text', async () => {
+      mockPrisma.regulatoryPublication.findUniqueOrThrow.mockResolvedValue({
+        id: 'pub-gen', regulator: 'OCIF', title: 'General Notice',
+        rawText: 'Administrative update about office hours...',
+      });
+      mockPrisma.regulatoryPublication.update.mockResolvedValue({});
+      const impact = await service.extract('pub-gen');
+      expect(impact.affectedSubcategories).toEqual([]);
+      expect(impact.severity).toBe('MEDIUM');
+    });
   });
 });

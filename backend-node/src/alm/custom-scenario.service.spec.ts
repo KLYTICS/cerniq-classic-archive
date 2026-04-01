@@ -150,4 +150,119 @@ describe('CustomScenarioService', () => {
       }),
     ).rejects.toThrow();
   });
+
+  // ── Coverage boost: validation branches ──
+
+  it('rejects scenario name longer than 200 characters', async () => {
+    await expect(
+      service.runCustomScenario('inst-1', {
+        name: 'A'.repeat(201),
+        rateShiftBps: 100,
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects non-finite rateShiftBps (NaN)', async () => {
+    await expect(
+      service.runCustomScenario('inst-1', {
+        name: 'Test',
+        rateShiftBps: NaN,
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects yieldCurveTwist outside [-200, +200]', async () => {
+    await expect(
+      service.runCustomScenario('inst-1', {
+        name: 'Test',
+        rateShiftBps: 100,
+        yieldCurveTwist: 250,
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects depositRunoff outside [0, 30]', async () => {
+    await expect(
+      service.runCustomScenario('inst-1', {
+        name: 'Test',
+        rateShiftBps: 100,
+        depositRunoff: 35,
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects loanDefaultIncrease outside [0, 15]', async () => {
+    await expect(
+      service.runCustomScenario('inst-1', {
+        name: 'Test',
+        rateShiftBps: 100,
+        loanDefaultIncrease: 20,
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects prepaymentMultiplier outside [0.5, 3]', async () => {
+    await expect(
+      service.runCustomScenario('inst-1', {
+        name: 'Test',
+        rateShiftBps: 100,
+        prepaymentMultiplier: 0.1,
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('yield curve twist affects NII and EVE', async () => {
+    const withTwist = await service.runCustomScenario('inst-1', {
+      name: 'Twist Test',
+      rateShiftBps: 100,
+      yieldCurveTwist: 100,
+    });
+    const noTwist = await service.runCustomScenario('inst-1', {
+      name: 'No Twist',
+      rateShiftBps: 100,
+      yieldCurveTwist: 0,
+    });
+    // With twist, NII and EVE should differ
+    expect(withTwist.niiImpact).not.toBe(noTwist.niiImpact);
+    expect(withTwist.eveChange).not.toBe(noTwist.eveChange);
+  });
+
+  it('prepayment multiplier affects NII in falling-rate environment', async () => {
+    const noPrepay = await service.runCustomScenario('inst-1', {
+      name: 'No Prepay',
+      rateShiftBps: -200,
+      prepaymentMultiplier: 1,
+    });
+    const highPrepay = await service.runCustomScenario('inst-1', {
+      name: 'High Prepay',
+      rateShiftBps: -200,
+      prepaymentMultiplier: 2.5,
+    });
+    expect(highPrepay.niiImpact).toBeLessThan(noPrepay.niiImpact);
+  });
+
+  it('narrative contains scenario name and shock description', async () => {
+    const result = await service.runCustomScenario('inst-1', {
+      name: 'Rate Shock Plus',
+      rateShiftBps: 200,
+      depositRunoff: 10,
+      loanDefaultIncrease: 5,
+    });
+    expect(result.narrative).toContain('Rate Shock Plus');
+    expect(result.narrative).toContain('+200bps');
+    expect(result.narrative).toContain('10% deposit runoff');
+    expect(result.narrative).toContain('5% increase in loan defaults');
+  });
+
+  it('rate shock > 100bps triggers additional LCR impact', async () => {
+    const low = await service.runCustomScenario('inst-1', {
+      name: 'Low',
+      rateShiftBps: 50,
+    });
+    const high = await service.runCustomScenario('inst-1', {
+      name: 'High',
+      rateShiftBps: 250,
+    });
+    expect(high.lcrImpact).toBeLessThan(low.lcrImpact);
+  });
 });

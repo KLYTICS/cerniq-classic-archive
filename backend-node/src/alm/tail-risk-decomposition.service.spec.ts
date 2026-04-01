@@ -159,4 +159,12 @@ describe('TailRiskDecompositionService', () => {
     const result = service.decomposeTailRisk({ returns, marketReturns });
     expect(result.systematicTailRisk).toBeGreaterThan(0);
   });
+
+  it('handles very few returns where hillEstimator returns 0', () => {
+    // With only 3 returns, k = max(2, floor(3*0.05)) = 2 which = absReturns.length => returns 0
+    const returns = [0, 0, 0];
+    const marketReturns = [0, 0, 0];
+    const result = service.decomposeTailRisk({ returns, marketReturns });
+    expect(result.tailIndex).toBeDefined();
+  });
 });

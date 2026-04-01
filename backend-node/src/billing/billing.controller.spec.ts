@@ -538,4 +538,71 @@ describe('BillingController', () => {
       expect(result.message).toContain('If this email has an account');
     });
   });
+
+  // ── Webhook: dedup race condition ────────────────────────────────
+  describe('POST /api/billing/webhook — edge cases', () => {
+    it('should handle dedup race condition (create throws unique constraint)', async () => {
+      const event = {
+        type: 'customer.subscription.created',
+        id: 'evt_race',
+        data: { object: { id: 'sub_race', status: 'active' } },
+      };
+      billingService.verifyWebhookSignature.mockReturnValue(event as any);
+      billingService.handleSubscriptionCreated.mockResolvedValue(undefined);
+
+      // Simulate unique constraint violation on create
+      const prisma = controller['prisma'] as any;
+      prisma.processedWebhookEvent.create.mockRejectedValue(
+        new Error('Unique constraint violation'),
+      );
+
+      const req = { rawBody: Buffer.from('body') };
+      const result = await controller.handleWebhook('sig_valid', req);
+
+      // Should still return success (race condition is handled gracefully)
+      expect(result).toEqual({ received: true });
+    });
+
+    it('should handle checkout.session.completed with non-paid status gracefully', async () => {
+      const session = { payment_status: 'no_payment_required', id: 'sess_np' };
+      const event = {
+        type: 'checkout.session.completed',
+        id: 'evt_np',
+        data: { object: session },
+      };
+      billingService.verifyWebhookSignature.mockReturnValue(event as any);
+
+      const req = { rawBody: Buffer.from('body') };
+      const result = await controller.handleWebhook('sig_valid', req);
+
+      expect(result).toEqual({ received: true });
+      expect(billingService.handlePaymentComplete).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Checkout with leadId ─────────────────────────────────────────
+  describe('POST /api/billing/checkout — with leadId', () => {
+    it('should pass leadId through to service', async () => {
+      const dto = {
+        tier: 'monthly' as const,
+        customerEmail: 'lead@test.com',
+        customerName: 'Lead User',
+        institutionName: 'Lead Uni',
+        leadId: 'lead-123',
+        successUrl: '/success',
+        cancelUrl: '/cancel',
+      };
+      billingService.createCheckoutSession.mockResolvedValue({
+        checkoutUrl: 'https://checkout.stripe.com/yyy',
+        sessionId: 'sess_lead',
+      });
+
+      const req = { ip: '1.2.3.4', headers: {} };
+      await controller.createCheckout(dto, req);
+
+      expect(billingService.createCheckoutSession).toHaveBeenCalledWith(
+        expect.objectContaining({ leadId: 'lead-123' }),
+      );
+    });
+  });
 });

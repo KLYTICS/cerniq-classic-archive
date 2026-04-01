@@ -447,4 +447,23 @@ describe('CECLService', () => {
       expect(result.institutionId).toBe('inst-1');
     });
   });
+
+  describe('getCECLAnalysis default methodology', () => {
+    it('uses WARM when methodology is not vintage or pdlgd', async () => {
+      const mockPrisma = {
+        loanSegment: {
+          findMany: jest.fn().mockResolvedValue([
+            { segmentName: 'Consumer', balance: 100000, weightedAvgMaturity: 3, historicalLossRate: 0.02, lgd: 0.5, qualitativeAdj: 0.005 },
+          ]),
+          createMany: jest.fn(),
+          deleteMany: jest.fn(),
+        },
+        institution: { findFirst: jest.fn().mockResolvedValue(null) },
+      } as any;
+      const service = new CECLService(mockPrisma);
+      const result = await service.getCECLAnalysis('inst-1', 'unknown_method');
+      expect(result).toHaveProperty('totalBalance');
+      expect(result).toHaveProperty('totalAllowance');
+    });
+  });
 });

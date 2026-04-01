@@ -90,4 +90,28 @@ describe('CountryRiskService', () => {
       );
     }
   });
+
+  // 8. Multiple exposures to same country are aggregated
+  it('aggregates multiple exposures to the same country', () => {
+    const result = service.assessCountryRisk({
+      exposures: [
+        { country: 'US', balance: 50_000_000, riskRating: 1 },
+        { country: 'US', balance: 30_000_000, riskRating: 3 },
+      ],
+    });
+    expect(result.concentrationByCountry).toHaveLength(1);
+    expect(result.concentrationByCountry[0].country).toBe('US');
+    expect(result.concentrationByCountry[0].balance).toBeCloseTo(80_000_000, 0);
+    // Weighted-average rating: (50*1 + 30*3)/80 = 140/80 = 1.75
+    expect(result.concentrationByCountry[0].riskRating).toBeCloseTo(1.75, 1);
+  });
+
+  // 9. Zero balance returns zero result
+  it('returns zero result when total balance is 0', () => {
+    const result = service.assessCountryRisk({
+      exposures: [{ country: 'US', balance: 0, riskRating: 1 }],
+    });
+    expect(result.weightedRiskScore).toBe(0);
+    expect(result.diversificationIndex).toBe(0);
+  });
 });

@@ -182,6 +182,124 @@ describe('ExecutionService', () => {
       expect(result.shortfall).toHaveProperty('totalDollars');
     });
   });
+
+  describe('calculateSlippage — SELL side', () => {
+    it('should handle SELL side slippage correctly', async () => {
+      const execution = {
+        ticker: 'AAPL',
+        executionPrice: 174.8,
+        executionTime: new Date(),
+        side: 'SELL' as const,
+        quantity: 100,
+      };
+      const result = await service.calculateSlippage(execution);
+      // For sells, effective slippage = -slippageBps
+      expect(typeof result.slippageBps).toBe('number');
+      expect(result.side).toBe('SELL');
+    });
+
+    it('should rate GOOD when slippage is within half spread for BUY', async () => {
+      // midPrice=175, spread=0.1, half spread=0.05 => spreadBps ~2.86
+      // executionPrice just above mid but within half spread
+      const execution = {
+        ticker: 'AAPL',
+        executionPrice: 175.02,
+        executionTime: new Date(),
+        side: 'BUY' as const,
+        quantity: 100,
+      };
+      const result = await service.calculateSlippage(execution);
+      expect(result.quality).toBe('GOOD');
+    });
+
+    it('should rate FAIR when slippage is within full spread', async () => {
+      // midPrice=175, spreadBps~5.71, need effective slippage between half and full spread
+      const execution = {
+        ticker: 'AAPL',
+        executionPrice: 175.08,
+        executionTime: new Date(),
+        side: 'BUY' as const,
+        quantity: 100,
+      };
+      const result = await service.calculateSlippage(execution);
+      expect(['FAIR', 'POOR']).toContain(result.quality);
+    });
+  });
+
+  describe('compliance flags', () => {
+    it('should flag high slippage detected', async () => {
+      // Create execution with >50bps slippage
+      mockMarketDataService.getQuote.mockResolvedValue({
+        price: 100.0,
+        bid: 99.95,
+        ask: 100.05,
+      });
+      const executions = [{
+        ticker: 'TEST',
+        executionPrice: 101.0, // 100bps above mid
+        executionTime: new Date(),
+        side: 'BUY' as const,
+        quantity: 100,
+      }];
+      const result = await service.generateBestExecutionReport(executions, {
+        start: new Date('2023-01-01'),
+        end: new Date('2023-12-31'),
+      });
+      expect(result.complianceFlags.some((f) => f.includes('HIGH_SLIPPAGE_DETECTED'))).toBe(true);
+    });
+
+    it('should flag large order poor fill', async () => {
+      mockMarketDataService.getQuote.mockResolvedValue({
+        price: 100.0,
+        bid: 99.95,
+        ask: 100.05,
+      });
+      const executions = [{
+        ticker: 'BIG',
+        executionPrice: 101.0,
+        executionTime: new Date(),
+        side: 'BUY' as const,
+        quantity: 20000, // notional > $1M
+      }];
+      const result = await service.generateBestExecutionReport(executions, {
+        start: new Date('2023-01-01'),
+        end: new Date('2023-12-31'),
+      });
+      expect(result.complianceFlags.some((f) => f.includes('LARGE_ORDER_POOR_FILL'))).toBe(true);
+    });
+  });
+
+  describe('analyzeVWAP — SELL side', () => {
+    it('should calculate VWAP for SELL side', async () => {
+      mockMarketDataService.getQuote.mockResolvedValue({
+        price: 175.0,
+        bid: 174.95,
+        ask: 175.05,
+      });
+      const execution = {
+        ticker: 'AAPL',
+        executionPrice: 176.0,
+        executionTime: new Date(),
+        side: 'SELL' as const,
+        quantity: 100,
+      };
+      const result = await service.analyzeVWAP(execution);
+      expect(result.side).toBe('SELL');
+      expect(typeof result.beatsVwap).toBe('boolean');
+    });
+  });
+
+  describe('generateBestExecutionReport — empty', () => {
+    it('should handle empty executions array', async () => {
+      const result = await service.generateBestExecutionReport([], {
+        start: new Date('2023-01-01'),
+        end: new Date('2023-12-31'),
+      });
+      expect(result.totalExecutions).toBe(0);
+      expect(result.summary.averageSlippageBps).toBe(0);
+      expect(result.complianceFlags).toHaveLength(0);
+    });
+  });
 });
 
 describe('BacktestService', () => {

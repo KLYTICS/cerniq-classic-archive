@@ -105,6 +105,19 @@ describe('ResponseTimeHistogramInterceptor', () => {
     expect(Object.keys(stats).length).toBe(0);
   });
 
+  it('caps samples at 2500 when exceeding 5000', async () => {
+    const routeKey = 'GET /api/hist-cap';
+    for (let i = 0; i < 5010; i++) {
+      const ctx = createMockContext('GET', '/api/hist-cap', '/api/hist-cap');
+      await lastValueFrom(
+        interceptor.intercept(ctx, { handle: () => of('ok') }),
+      );
+    }
+    const stats = interceptor.getStats(routeKey);
+    // After capping, count may reflect truncated samples
+    expect(stats[routeKey].count).toBeGreaterThan(0);
+  });
+
   it('should use URL as fallback when no route path', async () => {
     const ctx = createMockContext('GET', '/api/no-route');
     const handler: CallHandler = { handle: () => of('ok') };

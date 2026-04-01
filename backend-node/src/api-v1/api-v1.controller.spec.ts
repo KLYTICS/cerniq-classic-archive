@@ -156,4 +156,45 @@ describe('ApiV1Controller', () => {
       expect(apiV1Service.getAnalysis).toHaveBeenCalledWith('u1', 'abc');
     });
   });
+
+  describe('analyzeCSV — missing individual fields', () => {
+    it('should throw when institutionType is empty', async () => {
+      const req = { apiUser: { userId: 'u1', email: 'test@test.com' } };
+      const file = { buffer: Buffer.from('data'), size: 4, originalname: 'data.csv' } as Express.Multer.File;
+      await expect(
+        controller.analyzeCSV(req, file, {
+          institutionName: 'Test',
+          institutionType: '',
+          framework: 'cossec',
+          period: 'Q1-2026',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw when framework is empty', async () => {
+      const req = { apiUser: { userId: 'u1', email: 'test@test.com' } };
+      const file = { buffer: Buffer.from('data'), size: 4, originalname: 'data.csv' } as Express.Multer.File;
+      await expect(
+        controller.analyzeCSV(req, file, {
+          institutionName: 'Test',
+          institutionType: 'cooperativa',
+          framework: '',
+          period: 'Q1-2026',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw when period is empty', async () => {
+      const req = { apiUser: { userId: 'u1', email: 'test@test.com' } };
+      const file = { buffer: Buffer.from('data'), size: 4, originalname: 'data.csv' } as Express.Multer.File;
+      await expect(
+        controller.analyzeCSV(req, file, {
+          institutionName: 'Test',
+          institutionType: 'cooperativa',
+          framework: 'cossec',
+          period: '',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
 });

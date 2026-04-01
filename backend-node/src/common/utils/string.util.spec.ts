@@ -68,4 +68,10 @@ describe('string.util', () => {
       expect(isBlank('hello')).toBe(false);
     });
   });
+
+  describe('toCamelCase edge cases', () => {
+    it('lowercases the first character when input starts with uppercase', () => {
+      expect(toCamelCase('Hello world')).toBe('helloWorld');
+    });
+  });
 });

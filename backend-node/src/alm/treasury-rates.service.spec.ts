@@ -167,4 +167,14 @@ describe('TreasuryRatesService', () => {
     expect(snapshot.source).toBe('approximation');
     expect(snapshot.fedFunds).toBe(0.0475);
   });
+
+  it('falls back to approximation when FRED fetch throws', async () => {
+    process.env.FRED_API_KEY = 'test-key';
+    const freshService = new TreasuryRatesService();
+    // Override the private fetchFromFRED method to throw
+    (freshService as any).fetchFromFRED = jest.fn().mockRejectedValue(new Error('FRED down'));
+    const snapshot = await freshService.getLatestSnapshot();
+    expect(snapshot.source).toBe('approximation');
+    delete process.env.FRED_API_KEY;
+  });
 });

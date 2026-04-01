@@ -170,4 +170,10 @@ describe('ExcelExportService', () => {
       expect(xml).not.toContain('& <');
     });
   });
+
+  it('handles listBalanceSheetItems rejection gracefully', async () => {
+    almEnterprise.listBalanceSheetItems.mockRejectedValue(new Error('DB error'));
+    const result = await service.exportToExcel('inst_005');
+    expect(result).toBeInstanceOf(Buffer);
+  });
 });

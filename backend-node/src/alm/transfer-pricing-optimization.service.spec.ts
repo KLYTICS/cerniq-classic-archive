@@ -152,4 +152,16 @@ describe('TransferPricingOptimizationService', () => {
     const rate = svc.interpolateRate([{ tenor: 2, rate: 0.05 }], 5);
     expect(rate).toBe(0.05);
   });
+
+  it('returns last curve rate when maturity exceeds all tenors', () => {
+    const rate = svc.interpolateRate(
+      [
+        { tenor: 1, rate: 0.03 },
+        { tenor: 5, rate: 0.04 },
+        { tenor: 10, rate: 0.045 },
+      ],
+      30, // exceeds all tenors
+    );
+    expect(rate).toBe(0.045);
+  });
 });

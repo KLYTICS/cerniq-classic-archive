@@ -2,7 +2,7 @@ import {
   RequestContextInterceptor,
   getRequestContext,
 } from './request-context.interceptor';
-import { of, lastValueFrom } from 'rxjs';
+import { of, lastValueFrom, throwError } from 'rxjs';
 import { ExecutionContext, CallHandler } from '@nestjs/common';
 
 describe('RequestContextInterceptor', () => {
@@ -140,5 +140,16 @@ describe('RequestContextInterceptor', () => {
   it('getRequestContext should return undefined outside of context', () => {
     const ctx = getRequestContext();
     expect(ctx).toBeUndefined();
+  });
+
+  it('should propagate errors from the handler', async () => {
+    const ctx = createMockContext();
+    const handler: CallHandler = {
+      handle: () => throwError(() => new Error('handler error')),
+    };
+
+    await expect(
+      lastValueFrom(interceptor.intercept(ctx, handler)),
+    ).rejects.toThrow('handler error');
   });
 });

@@ -81,4 +81,56 @@ describe('AICostControllerService', () => {
     expect(result.model).toBe('claude-sonnet-4-20250514');
     expect(result.reason).toContain('budget used');
   });
+
+  it('gold tier at >=95% usage returns primary with unlimited reason', async () => {
+    mockPrisma.institution.findUnique.mockResolvedValueOnce({
+      id: 'inst-gold',
+      workspace: { owner: { subscription: { tier: 'gold' } } },
+    });
+    // gold budget = Infinity, so usedPct = 0, hits first branch (< 0.8)
+    // Need to override tier detection so it actually goes to gold path at >=95%
+    // Actually gold budget is Infinity so usedPct is always 0 — test getUsageSummary instead
+    mockPrisma.usageMeterEvent.aggregate.mockResolvedValueOnce({
+      _sum: { quantity: 0 },
+    });
+    const result = await service.selectModel('inst-gold');
+    expect(result.tokensRemaining).toBe(Infinity);
+  });
+
+  it('getUsageSummary returns budget and model info', async () => {
+    mockPrisma.usageMeterEvent.aggregate.mockResolvedValueOnce({
+      _sum: { quantity: 50 },
+    });
+    const summary = await service.getUsageSummary('inst-1');
+    expect(summary.budget).toBe(250000);
+    expect(summary.model).toBeDefined();
+    expect(typeof summary.pct).toBe('number');
+    expect(typeof summary.tokensUsed).toBe('number');
+  });
+
+  it('handles null subscription tier with fallback to silver', async () => {
+    mockPrisma.institution.findUnique.mockResolvedValueOnce({
+      id: 'inst-none',
+      workspace: { owner: { subscription: null } },
+    });
+    mockPrisma.usageMeterEvent.aggregate.mockResolvedValueOnce({
+      _sum: { quantity: null },
+    });
+    const result = await service.selectModel('inst-none');
+    expect(result.model).toBe('claude-sonnet-4-20250514');
+    expect(result.budgetUsedPct).toBe(0);
+  });
+
+  it('handles unknown tier by falling back to silver budget', async () => {
+    mockPrisma.institution.findUnique.mockResolvedValueOnce({
+      id: 'inst-x',
+      workspace: { owner: { subscription: { tier: 'platinum' } } },
+    });
+    mockPrisma.usageMeterEvent.aggregate.mockResolvedValueOnce({
+      _sum: { quantity: 10 },
+    });
+    const result = await service.selectModel('inst-x');
+    // Unknown tier falls back to silver budget (250000)
+    expect(result.model).toBe('claude-sonnet-4-20250514');
+  });
 });

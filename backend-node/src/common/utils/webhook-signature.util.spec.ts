@@ -109,5 +109,18 @@ describe('webhook-signature.util', () => {
       });
       expect(valid).toBe(false);
     });
+
+    it('returns false when non-hex signature causes timingSafeEqual to throw', () => {
+      const crypto = require('crypto');
+      const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+      // Same string length but all non-hex chars → buffer size mismatch → timingSafeEqual throws
+      const badSig = 'z'.repeat(expected.length);
+      const valid = verifyWebhookSignature({
+        payload,
+        signature: badSig,
+        secret,
+      });
+      expect(valid).toBe(false);
+    });
   });
 });

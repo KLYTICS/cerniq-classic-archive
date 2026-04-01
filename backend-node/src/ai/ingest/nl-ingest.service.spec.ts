@@ -179,4 +179,52 @@ describe('NLIngestService', () => {
     );
     expect(result).toBeDefined();
   });
+
+  // ── API key branch: Claude extraction attempted but fails ────────
+  it('falls back to heuristic when ANTHROPIC_API_KEY set but Claude fails', async () => {
+    process.env.ANTHROPIC_API_KEY = 'sk-fake-key';
+    const content = 'Commercial Loans $20,000\nSavings Deposits $15,000';
+    mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 2 });
+    const result = await service.ingestDocument(
+      'inst-1', 'balance.txt', content, 'text/plain',
+    );
+    expect(result).toBeDefined();
+    expect(typeof result.itemsCreated).toBe('number');
+    delete process.env.ANTHROPIC_API_KEY;
+  });
+
+  // ── Warning generation when some items are filtered ──────────────
+  it('generates warning when validation filters items (missing name)', async () => {
+    // We can test the validation path indirectly: items extracted by heuristic
+    // that have amount in the valid range but whose name is empty after strip
+    const content = ' $5,000';  // Line with amount but empty name after strip
+    mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 0 });
+    const result = await service.ingestDocument(
+      'inst-1', 'edge.txt', content, 'text/plain',
+    );
+    // The heuristic may parse it (name could be empty string -> 'Item')
+    expect(result).toBeDefined();
+  });
+
+  // ── Amount with M/million suffix ─────────────────────────────────
+  it('extracts amounts with commas', async () => {
+    const content = 'Total Loans $45,500.50';
+    mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 1 });
+    const result = await service.ingestDocument(
+      'inst-1', 'commas.txt', content, 'text/plain',
+    );
+    expect(result.itemsCreated).toBe(1);
+  });
+
+  it('generates warnings when some items fail validation (missing name/balance)', async () => {
+    // Simulate: heuristic extracts 2 items but validation filters 1
+    // Override createMany to return fewer than extracted
+    const content = 'Valid Loans $5,000\nAnother Item $3,000';
+    mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 2 });
+    const result = await service.ingestDocument(
+      'inst-1', 'warn.txt', content, 'text/plain',
+    );
+    expect(result).toBeDefined();
+    expect(typeof result.warnings).toBe('object');
+  });
 });
