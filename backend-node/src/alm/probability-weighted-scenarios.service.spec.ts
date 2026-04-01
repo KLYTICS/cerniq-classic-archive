@@ -1,6 +1,12 @@
-import { describe, it, expect } from '@jest/globals';
-describe('probability weighted scenarios spec', () => {
-  it('should produce valid output', () => {
-    expect(true).toBe(true);
+import { UprobabilityUweightedUscenariosService } from './probability-weighted-scenarios.service';
+
+describe('UprobabilityUweightedUscenariosService', () => {
+  const svc = new UprobabilityUweightedUscenariosService();
+
+  it('analyze returns result with interpretation', () => {
+    const r = svc.analyze({ test: 1 });
+    expect(r.result).toEqual({ test: 1 });
+    expect(r.interpretation).toBeTruthy();
+    expect(r.interpretationEs).toBeTruthy();
   });
 });

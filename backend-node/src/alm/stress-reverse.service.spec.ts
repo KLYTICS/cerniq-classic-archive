@@ -206,7 +206,7 @@ describe('StressReverseService', () => {
         floatingResult.breachShock === null
       ) {
         // Floating doesn't breach at all = even more resilient
-        expect(true).toBe(true);
+        expect(floatingResult.breachShock).toBeNull();
       }
     });
 

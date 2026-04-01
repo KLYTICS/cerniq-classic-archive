@@ -143,7 +143,7 @@ describe('ReportsService', () => {
       expect(Buffer.isBuffer(result)).toBe(true);
     } catch {
       // PDF rendering may fail in unit test environment
-      expect(true).toBe(true);
+      expect(mockAlmEnterprise.getALMSummary).toHaveBeenCalled();
     }
   });
 

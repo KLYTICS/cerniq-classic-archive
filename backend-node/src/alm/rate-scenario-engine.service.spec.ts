@@ -1,6 +1,12 @@
-import { describe, it, expect } from '@jest/globals';
-describe('rate scenario engine', () => {
-  it('should analyze', () => {
-    expect(true).toBe(true);
+import { UrateUscenarioUengineService } from './rate-scenario-engine.service';
+
+describe('UrateUscenarioUengineService', () => {
+  const svc = new UrateUscenarioUengineService();
+
+  it('analyze returns result with interpretation', () => {
+    const r = svc.analyze({ test: 1 });
+    expect(r.result).toEqual({ test: 1 });
+    expect(r.interpretation).toBeTruthy();
+    expect(r.interpretationEs).toBeTruthy();
   });
 });

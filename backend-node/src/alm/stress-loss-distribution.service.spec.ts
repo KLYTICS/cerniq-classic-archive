@@ -1,9 +1,12 @@
-import { describe, it, expect } from '@jest/globals';
-describe('stress loss distribution spec', () => {
-  it('should analyze correctly', () => {
-    expect(true).toBe(true);
-  });
-  it('should provide bilingual interpretation', () => {
-    expect(true).toBe(true);
+import { UstressUlossUdistributionService } from './stress-loss-distribution.service';
+
+describe('UstressUlossUdistributionService', () => {
+  const svc = new UstressUlossUdistributionService();
+
+  it('analyze returns result with interpretation', () => {
+    const r = svc.analyze({ test: 1 });
+    expect(r.result).toEqual({ test: 1 });
+    expect(r.interpretation).toBeTruthy();
+    expect(r.interpretationEs).toBeTruthy();
   });
 });
