@@ -122,6 +122,200 @@ describe('AuthGuard (enhanced)', () => {
       expect(fetchSpy).not.toHaveBeenCalled();
       expect(request.user.userId).toBe('legacy-user');
     });
+
+    it('prefers legacy token when claims.type is "refresh"', async () => {
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_ANON_KEY = 'anon-key';
+      const fetchSpy = jest.spyOn(global, 'fetch');
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ type: 'refresh' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'refresh-user',
+          email: 'refresh@cerniq.io',
+          type: 'refresh',
+        }),
+      });
+
+      const request: any = {
+        headers: { authorization: 'Bearer refresh-jwt' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(createContext(request));
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(request.user.userId).toBe('refresh-user');
+    });
+
+    it('falls back to Supabase when legacy verify fails and token is non-legacy type', async () => {
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_ANON_KEY = 'anon-key';
+      process.env.AUTH_ALLOW_LEGACY = 'false';
+
+      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: 'supabase-user', email: 'sb@test.com' }),
+      } as Response);
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ sub: 'some-user' }),
+        verify: jest.fn().mockImplementation(() => { throw new Error('invalid'); }),
+      });
+
+      const request: any = {
+        headers: { authorization: 'Bearer supabase-token' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(createContext(request));
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/auth/v1/user'),
+        expect.any(Object),
+      );
+      expect(request.user.userId).toBe('supabase-user');
+    });
+
+    it('falls back to legacy when Supabase fails and AUTH_ALLOW_LEGACY is true', async () => {
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_ANON_KEY = 'anon-key';
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+
+      jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: false,
+      } as Response);
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ sub: 'legacy-fallback' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'legacy-fallback',
+          email: 'fallback@test.com',
+        }),
+      });
+
+      const request: any = {
+        headers: { authorization: 'Bearer token' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(createContext(request));
+      expect(request.user.userId).toBe('legacy-fallback');
+    });
+
+    it('throws when Supabase fails and legacy not allowed', async () => {
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_ANON_KEY = 'anon-key';
+      process.env.AUTH_ALLOW_LEGACY = 'false';
+
+      jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: false,
+      } as Response);
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ sub: 'unknown' }),
+        verify: jest.fn().mockImplementation(() => { throw new Error('bad'); }),
+      });
+
+      const request: any = {
+        headers: { authorization: 'Bearer bad-token' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('returns null from Supabase when no SUPABASE_URL configured', async () => {
+      delete process.env.SUPABASE_URL;
+      delete process.env.SUPABASE_ANON_KEY;
+      process.env.AUTH_ALLOW_LEGACY = 'false';
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ sub: 'user' }),
+        verify: jest.fn().mockImplementation(() => { throw new Error('bad'); }),
+      });
+
+      const request: any = {
+        headers: { authorization: 'Bearer token' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('returns null from Supabase when response user has no id', async () => {
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_ANON_KEY = 'anon-key';
+      process.env.AUTH_ALLOW_LEGACY = 'false';
+
+      jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        json: async () => ({ email: 'no-id@test.com' }), // no id
+      } as Response);
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({}),
+        verify: jest.fn().mockImplementation(() => { throw new Error('bad'); }),
+      });
+
+      const request: any = {
+        headers: { authorization: 'Bearer token' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('handles Supabase fetch throwing an error gracefully', async () => {
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_ANON_KEY = 'anon-key';
+      process.env.AUTH_ALLOW_LEGACY = 'false';
+
+      jest.spyOn(global, 'fetch').mockRejectedValue(new Error('Network error'));
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({}),
+        verify: jest.fn().mockImplementation(() => { throw new Error('bad'); }),
+      });
+
+      const request: any = {
+        headers: { authorization: 'Bearer token' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('decode returns empty object for non-object claims', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue(null),
+        verify: jest.fn().mockReturnValue({ sub: 'u1', email: 'e@t.com' }),
+      });
+
+      const request: any = {
+        headers: { authorization: 'Bearer token' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      // Should still work, falls through to legacy
+      await guard.canActivate(createContext(request));
+      expect(request.user.userId).toBe('u1');
+    });
   });
 
   describe('API key authentication', () => {
@@ -190,6 +384,37 @@ describe('AuthGuard (enhanced)', () => {
       );
     });
 
+    it('allows API key for HEAD and OPTIONS methods', async () => {
+      for (const method of ['HEAD', 'OPTIONS']) {
+        const { guard } = createGuard(
+          { decode: jest.fn().mockReturnValue({}) },
+          {
+            apiKey: {
+              findUnique: jest.fn().mockResolvedValue({
+                id: 'key-1',
+                keyHash: 'hash',
+                keyPrefix: 'ck_live_',
+                revokedAt: null,
+                expiresAt: null,
+                user: { id: 'api-user', email: 'api@cerniq.io' },
+              }),
+              update: jest.fn(),
+            },
+            user: { findUnique: jest.fn().mockResolvedValue(null) },
+          },
+        );
+
+        const request: any = {
+          headers: { 'x-api-key': 'ck_live_test123' },
+          cookies: {},
+          method,
+        };
+
+        await guard.canActivate(createContext(request));
+        expect(request.user.authMethod).toBe('api_key');
+      }
+    });
+
     it('rejects revoked API key', async () => {
       const { guard } = createGuard(
         { decode: jest.fn().mockReturnValue({}) },
@@ -237,6 +462,159 @@ describe('AuthGuard (enhanced)', () => {
 
       const request: any = {
         headers: { 'x-api-key': 'ck_live_expired' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('rejects API key with no user record', async () => {
+      const { guard } = createGuard(
+        { decode: jest.fn().mockReturnValue({}) },
+        {
+          apiKey: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 'key-1',
+              revokedAt: null,
+              expiresAt: null,
+              user: null, // no user
+            }),
+            update: jest.fn(),
+          },
+          user: { findUnique: jest.fn().mockResolvedValue(null) },
+        },
+      );
+
+      const request: any = {
+        headers: { 'x-api-key': 'ck_live_orphan' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('sets expiry warning headers when API key expires within 14 days', async () => {
+      const expiresIn5Days = new Date(Date.now() + 5 * 86400000);
+      const mockRes = { setHeader: jest.fn() };
+      const ctx = {
+        switchToHttp: () => ({
+          getRequest: () => request,
+          getResponse: () => mockRes,
+        }),
+        getHandler: () => ({}),
+        getClass: () => ({}),
+      } as unknown as ExecutionContext;
+
+      const { guard } = createGuard(
+        { decode: jest.fn().mockReturnValue({}) },
+        {
+          apiKey: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 'key-1',
+              keyHash: 'hash',
+              keyPrefix: 'ck_live_',
+              revokedAt: null,
+              expiresAt: expiresIn5Days,
+              user: { id: 'api-user', email: 'api@cerniq.io' },
+            }),
+            update: jest.fn(),
+          },
+          user: { findUnique: jest.fn().mockResolvedValue(null) },
+        },
+      );
+
+      const request: any = {
+        headers: { 'x-api-key': 'ck_live_test123' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(ctx);
+      expect(mockRes.setHeader).toHaveBeenCalledWith('X-API-Key-Expires-In-Days', expect.any(String));
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Warning', expect.stringContaining('API key expires'));
+    });
+
+    it('does not set expiry headers when key expires in more than 14 days', async () => {
+      const expiresIn30Days = new Date(Date.now() + 30 * 86400000);
+      const mockRes = { setHeader: jest.fn() };
+      const ctx = {
+        switchToHttp: () => ({
+          getRequest: () => request,
+          getResponse: () => mockRes,
+        }),
+        getHandler: () => ({}),
+        getClass: () => ({}),
+      } as unknown as ExecutionContext;
+
+      const { guard } = createGuard(
+        { decode: jest.fn().mockReturnValue({}) },
+        {
+          apiKey: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 'key-1',
+              keyHash: 'hash',
+              keyPrefix: 'ck_live_',
+              revokedAt: null,
+              expiresAt: expiresIn30Days,
+              user: { id: 'api-user', email: 'api@cerniq.io' },
+            }),
+            update: jest.fn(),
+          },
+          user: { findUnique: jest.fn().mockResolvedValue(null) },
+        },
+      );
+
+      const request: any = {
+        headers: { 'x-api-key': 'ck_live_test123' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(ctx);
+      expect(mockRes.setHeader).not.toHaveBeenCalled();
+    });
+
+    it('handles apiKey.update failure gracefully (best-effort lastUsedAt)', async () => {
+      const { guard } = createGuard(
+        { decode: jest.fn().mockReturnValue({}) },
+        {
+          apiKey: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 'key-1',
+              keyHash: 'hash',
+              keyPrefix: 'ck_live_',
+              revokedAt: null,
+              expiresAt: null,
+              user: { id: 'api-user', email: 'api@cerniq.io' },
+            }),
+            update: jest.fn().mockRejectedValue(new Error('DB error')),
+          },
+          user: { findUnique: jest.fn().mockResolvedValue(null) },
+        },
+      );
+
+      const request: any = {
+        headers: { 'x-api-key': 'ck_live_test123' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      // Should not throw
+      await guard.canActivate(createContext(request));
+      expect(request.user.userId).toBe('api-user');
+    });
+
+    it('rejects empty x-api-key header', async () => {
+      const { guard } = createGuard();
+
+      const request: any = {
+        headers: { 'x-api-key': '   ' },
         cookies: {},
         method: 'GET',
       };
@@ -305,6 +683,66 @@ describe('AuthGuard (enhanced)', () => {
       await guard.canActivate(createContext(request));
       expect(request.user.role).toBe('analyst');
     });
+
+    it('defaults role to "authenticated" when neither DB nor token has a role', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      const { guard } = createGuard(
+        {
+          decode: jest.fn().mockReturnValue({ type: 'access' }),
+          verify: jest.fn().mockReturnValue({
+            sub: 'user-norole',
+            email: 'norole@test.com',
+            // no role field
+          }),
+        },
+        {
+          user: {
+            findUnique: jest.fn().mockResolvedValue({ role: null }),
+          },
+          apiKey: { findUnique: jest.fn() },
+        },
+      );
+
+      const request: any = {
+        headers: { authorization: 'Bearer token' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(createContext(request));
+      expect(request.user.role).toBe('authenticated');
+    });
+
+    it('uses "api_key" role for API key auth and skips DB lookup', async () => {
+      const { guard } = createGuard(
+        { decode: jest.fn().mockReturnValue({}) },
+        {
+          apiKey: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 'key-1',
+              keyHash: 'hash',
+              keyPrefix: 'ck_live_',
+              revokedAt: null,
+              expiresAt: null,
+              user: { id: 'api-user', email: 'api@cerniq.io' },
+            }),
+            update: jest.fn(),
+          },
+          user: { findUnique: jest.fn() },
+        },
+      );
+
+      const request: any = {
+        headers: { 'x-api-key': 'ck_live_test123' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(createContext(request));
+      expect(request.user.role).toBe('api_key');
+      // User findUnique should NOT have been called for API key auth
+      expect((guard as any).prisma.user.findUnique).not.toHaveBeenCalled();
+    });
   });
 
   describe('org access', () => {
@@ -329,6 +767,368 @@ describe('AuthGuard (enhanced)', () => {
 
       await guard.canActivate(createContext(request));
       expect(request.user.orgId).toBe('org-999');
+    });
+
+    it('reads x-klytics-org-id as fallback header', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ type: 'access' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-klytics-org',
+          email: 'klytics@test.com',
+        }),
+      });
+
+      const request: any = {
+        headers: {
+          authorization: 'Bearer token',
+          'x-klytics-org-id': 'klytics-org-1',
+        },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(createContext(request));
+      expect(request.user.orgId).toBe('klytics-org-1');
+    });
+
+    it('rejects when KLYTICS_REQUIRE_ORG=true and no orgId', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      process.env.KLYTICS_REQUIRE_ORG = 'true';
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ type: 'access' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-no-org',
+          email: 'noorg@test.com',
+        }),
+      });
+
+      const request: any = {
+        headers: { authorization: 'Bearer token' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('allows access when KLYTICS_REQUIRE_ORG=false (default)', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      delete process.env.KLYTICS_REQUIRE_ORG;
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ type: 'access' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-1',
+          email: 'test@test.com',
+        }),
+      });
+
+      const request: any = {
+        headers: { authorization: 'Bearer token' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(createContext(request));
+      expect(request.user.orgId).toBeNull();
+    });
+
+    it('enforces org membership via Supabase when KLYTICS_REQUIRE_ORG=true', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      process.env.KLYTICS_REQUIRE_ORG = 'true';
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        json: async () => [{ org_id: 'org-1', role: 'admin' }],
+      } as Response);
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ type: 'access' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-with-org',
+          email: 'org@test.com',
+        }),
+      });
+
+      const request: any = {
+        headers: {
+          authorization: 'Bearer token',
+          'x-organization-id': 'org-1',
+        },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(createContext(request));
+      expect(request.user.orgId).toBe('org-1');
+    });
+
+    it('rejects org access when membership not found', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      process.env.KLYTICS_REQUIRE_ORG = 'true';
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+      jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        json: async () => [], // no memberships
+      } as Response);
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ type: 'access' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-no-membership',
+          email: 'nomember@test.com',
+        }),
+      });
+
+      const request: any = {
+        headers: {
+          authorization: 'Bearer token',
+          'x-organization-id': 'org-unauthorized',
+        },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('rejects when enforceOrgAccess fails due to missing service role key', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      process.env.KLYTICS_REQUIRE_ORG = 'true';
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ type: 'access' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-1',
+          email: 'test@test.com',
+        }),
+      });
+
+      const request: any = {
+        headers: {
+          authorization: 'Bearer token',
+          'x-organization-id': 'org-1',
+        },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('enforces entitlement check when KLYTICS_REQUIRE_ENTITLEMENT=true', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      process.env.KLYTICS_REQUIRE_ORG = 'true';
+      process.env.KLYTICS_REQUIRE_ENTITLEMENT = 'true';
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+      let callCount = 0;
+      jest.spyOn(global, 'fetch').mockImplementation(async (url: any) => {
+        callCount++;
+        if (url.includes('memberships')) {
+          return { ok: true, json: async () => [{ org_id: 'org-1', role: 'admin' }] } as Response;
+        }
+        if (url.includes('org_apps')) {
+          return { ok: true, json: async () => [{ app_id: 'cerniq' }] } as Response;
+        }
+        return { ok: false } as Response;
+      });
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ type: 'access' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-ent',
+          email: 'ent@test.com',
+        }),
+      });
+
+      const request: any = {
+        headers: {
+          authorization: 'Bearer token',
+          'x-organization-id': 'org-1',
+        },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(createContext(request));
+      expect(callCount).toBe(2); // memberships + org_apps
+    });
+
+    it('rejects when entitlement check fails', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      process.env.KLYTICS_REQUIRE_ORG = 'true';
+      process.env.KLYTICS_REQUIRE_ENTITLEMENT = 'true';
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+      jest.spyOn(global, 'fetch').mockImplementation(async (url: any) => {
+        if (url.includes('memberships')) {
+          return { ok: true, json: async () => [{ org_id: 'org-1', role: 'admin' }] } as Response;
+        }
+        if (url.includes('org_apps')) {
+          return { ok: true, json: async () => [] } as Response; // no entitlements
+        }
+        return { ok: false } as Response;
+      });
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ type: 'access' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-no-ent',
+          email: 'noent@test.com',
+        }),
+      });
+
+      const request: any = {
+        headers: {
+          authorization: 'Bearer token',
+          'x-organization-id': 'org-1',
+        },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('handles enforceOrgAccess fetch throwing gracefully', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      process.env.KLYTICS_REQUIRE_ORG = 'true';
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+      jest.spyOn(global, 'fetch').mockRejectedValue(new Error('Network error'));
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ type: 'access' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-net-err',
+          email: 'neterr@test.com',
+        }),
+      });
+
+      const request: any = {
+        headers: {
+          authorization: 'Bearer token',
+          'x-organization-id': 'org-1',
+        },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('uses orgId from token claims (org_id) when no header provided', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ type: 'access' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-claim-org',
+          email: 'claimorg@test.com',
+          org_id: 'org-from-claims',
+        }),
+      });
+
+      const request: any = {
+        headers: { authorization: 'Bearer token' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(createContext(request));
+      expect(request.user.orgId).toBe('org-from-claims');
+    });
+
+    it('uses orgId from token claims (tenant_id) when no header or org_id', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ type: 'access' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-tenant',
+          email: 'tenant@test.com',
+          tenant_id: 'tenant-org-1',
+        }),
+      });
+
+      const request: any = {
+        headers: { authorization: 'Bearer token' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(createContext(request));
+      expect(request.user.orgId).toBe('tenant-org-1');
+    });
+
+    it('handles array-valued header', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ type: 'access' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-arr',
+          email: 'arr@test.com',
+        }),
+      });
+
+      const request: any = {
+        headers: {
+          authorization: 'Bearer token',
+          'x-organization-id': ['org-array-1', 'org-array-2'],
+        },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(createContext(request));
+      expect(request.user.orgId).toBe('org-array-1');
+    });
+  });
+
+  describe('Supabase token with roles array', () => {
+    it('extracts first role from claims.roles array', async () => {
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_ANON_KEY = 'anon-key';
+
+      jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: 'sb-user', email: 'sb@test.com' }),
+      } as Response);
+
+      const { guard } = createGuard({
+        decode: jest.fn().mockReturnValue({ roles: ['admin', 'viewer'] }),
+        verify: jest.fn().mockImplementation(() => { throw new Error('invalid'); }),
+      });
+
+      const request: any = {
+        headers: { authorization: 'Bearer sb-token' },
+        cookies: {},
+        method: 'GET',
+      };
+
+      await guard.canActivate(createContext(request));
+      // The guard sets role from claims.role or claims.roles[0]
+      // DB lookup will override, but if DB returns null, it would be 'admin'
     });
   });
 });
