@@ -72,4 +72,51 @@ describe('KMVMertonService', () => {
     expect(result.distanceToDefault).toBeGreaterThan(0);
     expect(result.leverage).toBeCloseTo(435 / result.assetValue, 1);
   });
+
+  it('uses institution totalAssets when no balance sheet items', async () => {
+    prisma.institution.findUnique.mockResolvedValue({
+      id: 'inst_2',
+      totalAssets: 600,
+    });
+    prisma.balanceSheetItem.findMany.mockResolvedValue([]);
+
+    const result = await service.computeKMV('inst_2');
+    expect(result.assetValue).toBeGreaterThan(0);
+    expect(result.debtFaceValue).toBeGreaterThan(0);
+  });
+
+  it('falls back to default 445 when no institution or items', async () => {
+    prisma.institution.findUnique.mockResolvedValue(null);
+    prisma.balanceSheetItem.findMany.mockResolvedValue([]);
+
+    const result = await service.computeKMV('inst_missing');
+    expect(result.assetValue).toBeGreaterThan(0);
+    // Default totalAssets = 445, liabilities = 445 * 0.87
+    expect(result.debtFaceValue).toBeCloseTo(445 * 0.87, 0);
+  });
+
+  it('covers all rating categories from ddToRating', () => {
+    // Test rating thresholds by solving with different equity/debt ratios
+    const highDD = service.solveAssetValue(300, 0.05, 200, 0.05, 1);
+    const ratingOrder = ['D', 'CCC', 'B', 'BB', 'BBB', 'A', 'AA', 'AAA'];
+    expect(ratingOrder).toContain(highDD.impliedRating);
+
+    // Very leveraged -> D or CCC
+    const veryLow = service.solveAssetValue(5, 0.3, 500, 0.05, 1);
+    expect(['D', 'CCC', 'B']).toContain(veryLow.impliedRating);
+  });
+
+  it('handles convergence with very high leverage', () => {
+    const result = service.solveAssetValue(10, 0.25, 490, 0.05, 1);
+    expect(result.assetValue).toBeGreaterThan(0);
+    expect(result.leverage).toBeGreaterThan(0.9);
+    expect(result.impliedDefaultProbability).toBeGreaterThan(0);
+  });
+
+  it('Newton-Raphson converges for moderate parameters', () => {
+    const result = service.solveAssetValue(100, 0.2, 350, 0.04, 1);
+    expect(result.assetValue).toBeGreaterThan(100);
+    expect(result.assetVol).toBeGreaterThan(0);
+    expect(result.assetVol).toBeLessThan(1);
+  });
 });

@@ -206,4 +206,100 @@ describe('AnalysisRunsService', () => {
       }),
     );
   });
+
+  it('uses default rate shocks when none provided', async () => {
+    await service.createRun('user_123', {
+      institutionId: 'inst_123',
+    });
+
+    expect(almEnterprise.getALMSummary).toHaveBeenCalledWith(
+      'inst_123',
+      [-300, -200, -100, -50, 0, 50, 100, 200, 300],
+    );
+  });
+
+  it('deduplicates and sorts custom rate shocks', async () => {
+    await service.createRun('user_123', {
+      institutionId: 'inst_123',
+      rateShocks: [200, -100, 200, 0, -100],
+    });
+
+    expect(almEnterprise.getALMSummary).toHaveBeenCalledWith(
+      'inst_123',
+      [-100, 0, 200],
+    );
+  });
+
+  it('derives base_parallel_shocks scenario set for default shocks', async () => {
+    await service.createRun('user_123', {
+      institutionId: 'inst_123',
+      rateShocks: [-300, -200, -100, -50, 0, 50, 100, 200, 300],
+    });
+
+    expect(prisma.analysisRun.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          scenarioSet: 'base_parallel_shocks',
+        }),
+      }),
+    );
+  });
+
+  it('getRun throws NotFoundException when run not found', async () => {
+    prisma.analysisRun.findFirst.mockResolvedValue(null);
+    await expect(service.getRun('user_123', 'bad-id')).rejects.toThrow(
+      'Analysis run not found',
+    );
+  });
+
+  it('listRuns returns paginated results', async () => {
+    prisma.analysisRun.findMany.mockResolvedValue([
+      {
+        id: 'run_1',
+        institutionId: 'inst_123',
+        createdByUserId: 'user_123',
+        status: 'COMPLETED',
+        analysisType: 'full_analysis',
+        triggeredBy: 'manual_api',
+        modelVersion: 'alm-v1',
+        scenarioSet: 'base_parallel_shocks',
+        assumptions: {},
+        parameterSnapshot: {},
+        balanceSheetSnapshot: {},
+        resultSummary: null,
+        errorMessage: null,
+        createdAt: new Date(),
+        completedAt: new Date(),
+        updatedAt: new Date(),
+        institution: {
+          id: 'inst_123',
+          name: 'Test',
+          type: 'cooperativa',
+          totalAssets: 100,
+          currency: 'USD',
+          reportingDate: new Date('2026-01-31'),
+        },
+      },
+    ]);
+    prisma.analysisRun.count = jest.fn().mockResolvedValue(1);
+
+    const result = await service.listRuns('user_123', 'inst_123', {
+      page: 1,
+      pageSize: 10,
+    });
+    expect(result.items).toHaveLength(1);
+    expect(result.total).toBe(1);
+    expect(result.page).toBe(1);
+  });
+
+  it('handles non-Error thrown from analysis', async () => {
+    almEnterprise.getALMSummary.mockRejectedValueOnce('string error');
+
+    const result = await service.createRun('user_123', {
+      institutionId: 'inst_123',
+    });
+
+    expect(result.status).toBe('FAILED');
+    expect(result.errorMessage).toBe('Analysis run failed');
+  });
 });

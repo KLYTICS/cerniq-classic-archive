@@ -24,7 +24,9 @@ describe('KPIScoringEngine', () => {
       const result = await engine.calculate('MSFT', {}, {});
 
       expect(result.overallScore).toBe(Math.round(result.overallScore));
-      expect(result.fundamentalScore).toBe(Math.round(result.fundamentalScore));
+      expect(result.fundamentalScore).toBe(
+        Math.round(result.fundamentalScore),
+      );
       expect(result.momentumScore).toBe(Math.round(result.momentumScore));
       expect(result.valuationScore).toBe(Math.round(result.valuationScore));
       expect(result.qualityScore).toBe(Math.round(result.qualityScore));
@@ -44,70 +46,166 @@ describe('KPIScoringEngine', () => {
 
     it('should compute revenueGrowth score deterministically', async () => {
       const result = await engine.calculate('TST', {}, {});
-      // growth = 15, score = min(15/30 * 100, 100) = 50
       expect(result.breakdown.revenueGrowth).toBe(50);
     });
 
     it('should compute PE score based on fundamentals.peRatio', async () => {
-      // Default PE = 20. Score = max(0, 100 - |20 - 15| * 5) = max(0, 100 - 25) = 75
       const result = await engine.calculate('DEF', {}, {});
       expect(result.breakdown.peRatio).toBe(75);
 
-      // PE exactly 15 => score 100
       const result2 = await engine.calculate('IDEAL', { peRatio: 15 }, {});
       expect(result2.breakdown.peRatio).toBe(100);
     });
 
     it('should compute PE score of 0 for extreme PE ratios', async () => {
-      // PE = 50 => score = max(0, 100 - |50-15|*5) = max(0, 100-175) = 0
       const result = await engine.calculate('EXP', { peRatio: 50 }, {});
       expect(result.breakdown.peRatio).toBe(0);
     });
 
     it('should score debtToEquity at 50 for placeholder value', async () => {
       const result = await engine.calculate('DTE', {}, {});
-      // debtToEquity = 0.5, score = max(0, 100 - 0.5*100) = 50
       expect(result.breakdown.debtToEquity).toBe(50);
     });
 
     it('should score fcfYield at 50 for placeholder value', async () => {
       const result = await engine.calculate('FCF', {}, {});
-      // fcfYield = 0.05, score = min(0.05/0.1 * 100, 100) = 50
       expect(result.breakdown.fcfYield).toBe(50);
     });
 
     it('should score priceToSales at 70 for placeholder value', async () => {
       const result = await engine.calculate('PS', {}, {});
-      // ps = 3, score = max(0, 100 - 3*10) = 70
       expect(result.breakdown.priceToSales).toBe(70);
     });
 
     it('should weight overall score correctly (0.3 + 0.2 + 0.25 + 0.25)', async () => {
-      // Mock random to get deterministic momentum and margin scores
       const spy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
       const result = await engine.calculate('WGT', {}, {});
-
-      // With random=0.5:
-      // marginTrend = 60 + 0.5*40 = 80
-      // momentum = 50 + 0.5*50 = 75
-      // roic = min(0.2/0.3 * 100, 100) = 66.67
-      // revenueGrowth = 50
-      // fundamentalScore = (50 + 80 + 66.67) / 3
-      // debtToEquity = 50
-      // fcfYield = 50
-      // peRatio = 75 (default)
-      // priceToSales = 70
-      // valuationScore = (75 + 70 + 50) / 3
-      // qualityScore = (66.67 + 50 + 80) / 3
 
       const fs = (50 + 80 + 66.66666666666667) / 3;
       const ms = 75;
       const vs = (75 + 70 + 50) / 3;
       const qs = (66.66666666666667 + 50 + 80) / 3;
-      const expected = Math.round(fs * 0.3 + ms * 0.2 + vs * 0.25 + qs * 0.25);
+      const expected = Math.round(
+        fs * 0.3 + ms * 0.2 + vs * 0.25 + qs * 0.25,
+      );
 
       expect(result.overallScore).toBe(expected);
       spy.mockRestore();
+    });
+  });
+
+  // ── Individual scorer coverage ─────────────────────────────
+
+  describe('scoreFundamentals (private)', () => {
+    it('should average revenueGrowth, marginTrend, and roic', async () => {
+      const spy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+      const result = await engine.calculate('FND', {}, {});
+      // marginTrend = 60 + 0.5*40 = 80
+      // roic = min(0.2/0.3*100, 100) = 66.67
+      // revenueGrowth = 50
+      // avg = (50 + 80 + 66.67) / 3
+      const expected = Math.round((50 + 80 + 66.67) / 3);
+      expect(result.fundamentalScore).toBe(expected);
+      spy.mockRestore();
+    });
+  });
+
+  describe('scoreMomentum (private)', () => {
+    it('should produce value between 50 and 100', async () => {
+      const result = await engine.calculate('MOM', {}, {});
+      expect(result.momentumScore).toBeGreaterThanOrEqual(50);
+      expect(result.momentumScore).toBeLessThanOrEqual(100);
+    });
+
+    it('should produce 75 when random is 0.5', async () => {
+      const spy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+      const result = await engine.calculate('MOM2', {}, {});
+      expect(result.momentumScore).toBe(75);
+      spy.mockRestore();
+    });
+  });
+
+  describe('scoreValuation (private)', () => {
+    it('should average peScore, psScore, and fcfYieldScore', async () => {
+      const spy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+      const result = await engine.calculate('VAL', {}, {});
+      const expected = Math.round((75 + 70 + 50) / 3);
+      expect(result.valuationScore).toBe(expected);
+      spy.mockRestore();
+    });
+  });
+
+  describe('scoreQuality (private)', () => {
+    it('should average roicScore, debtScore, and marginScore', async () => {
+      const spy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+      const result = await engine.calculate('QL', {}, {});
+      const expected = Math.round((66.67 + 50 + 80) / 3);
+      expect(result.qualityScore).toBe(expected);
+      spy.mockRestore();
+    });
+  });
+
+  describe('scorePE edge cases', () => {
+    it('should score 0 for PE ratio of 35 (|35-15|*5 = 100)', async () => {
+      const result = await engine.calculate('PE35', { peRatio: 35 }, {});
+      expect(result.breakdown.peRatio).toBe(0);
+    });
+
+    it('should score 100 for PE ratio of 15 (ideal)', async () => {
+      const result = await engine.calculate('PE15', { peRatio: 15 }, {});
+      expect(result.breakdown.peRatio).toBe(100);
+    });
+
+    it('should score 50 for PE ratio of 25', async () => {
+      // |25-15|*5 = 50, score = 100 - 50 = 50
+      const result = await engine.calculate('PE25', { peRatio: 25 }, {});
+      expect(result.breakdown.peRatio).toBe(50);
+    });
+
+    it('should score based on distance from ideal 15 for PE of 5', async () => {
+      // |5-15|*5 = 50, score = 100-50 = 50
+      const result = await engine.calculate('PE5', { peRatio: 5 }, {});
+      expect(result.breakdown.peRatio).toBe(50);
+    });
+  });
+
+  describe('scoreROIC (private)', () => {
+    it('should produce deterministic score of ~67 for placeholder ROIC=0.2', () => {
+      const fn = (engine as any).scoreROIC.bind(engine);
+      const score = fn({});
+      expect(score).toBeCloseTo((0.2 / 0.3) * 100, 0);
+    });
+  });
+
+  describe('scoreDebtLevel edge', () => {
+    it('should produce 50 for placeholder debtToEquity=0.5', () => {
+      const fn = (engine as any).scoreDebtLevel.bind(engine);
+      const score = fn({});
+      expect(score).toBe(50);
+    });
+  });
+
+  describe('scoreFCFYield', () => {
+    it('should produce 50 for placeholder fcfYield=0.05', () => {
+      const fn = (engine as any).scoreFCFYield.bind(engine);
+      const score = fn({});
+      expect(score).toBe(50);
+    });
+  });
+
+  describe('scorePriceToSales', () => {
+    it('should produce 70 for placeholder ps=3', () => {
+      const fn = (engine as any).scorePriceToSales.bind(engine);
+      const score = fn({});
+      expect(score).toBe(70);
+    });
+  });
+
+  describe('scoreRevenueGrowth', () => {
+    it('should produce 50 for placeholder growth=15', () => {
+      const fn = (engine as any).scoreRevenueGrowth.bind(engine);
+      const score = fn({});
+      expect(score).toBe(50);
     });
   });
 });

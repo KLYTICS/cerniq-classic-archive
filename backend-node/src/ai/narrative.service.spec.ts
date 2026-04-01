@@ -55,4 +55,48 @@ describe('NarrativeService', () => {
     expect(result.nim).toContain('NIM');
     expect(result.lcr).toContain('LCR');
   });
+
+  it('generateNarrative uses fallback prompt for unknown metric', async () => {
+    const result = await service.generateNarrative(
+      'Cooperativa Y',
+      'unknown_metric',
+      0.05,
+      0.04,
+    );
+    expect(result).toContain('UNKNOWN_METRIC');
+    expect(result).toContain('Cooperativa Y');
+  });
+
+  it('generateNarrative includes citation for known metrics', async () => {
+    const result = await service.generateNarrative(
+      'Test CU',
+      'nwr',
+      0.09,
+      0.092,
+    );
+    expect(result).toContain('NCUA 12 C.F.R.');
+    expect(result).toContain('por debajo');
+  });
+
+  it('generateNarrative returns favorable message when value >= peerMedian', async () => {
+    const result = await service.generateNarrative(
+      'Test CU',
+      'eve',
+      0.05,
+      0.03,
+    );
+    expect(result).toContain('favorable');
+    expect(result).toContain('por encima');
+  });
+
+  it('generateNarrative handles zero peerMedian without division by zero', async () => {
+    const result = await service.generateNarrative(
+      'Zero Peer CU',
+      'nim',
+      0.05,
+      0,
+    );
+    expect(result).toBeDefined();
+    expect(result.length).toBeGreaterThan(0);
+  });
 });

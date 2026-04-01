@@ -75,4 +75,54 @@ describe('ResellerService', () => {
     const result = await service.updateReseller('r1', { name: 'Updated' });
     expect(result.name).toBe('Updated');
   });
+
+  it('should get reseller by slug', async () => {
+    mockPrisma.reseller.findUnique.mockResolvedValue({
+      id: 'r1',
+      name: 'Partner',
+      slug: 'partner',
+      isActive: true,
+    });
+    const result = await service.getResellerBySlug('partner');
+    expect(result.name).toBe('Partner');
+    expect(result.clientCount).toBe(0);
+    expect(result.totalMRR).toBe(0);
+  });
+
+  it('should throw NotFoundException for missing slug', async () => {
+    mockPrisma.reseller.findUnique.mockResolvedValue(null);
+    await expect(service.getResellerBySlug('missing')).rejects.toThrow(
+      'Reseller not found',
+    );
+  });
+
+  it('should create reseller with custom options', async () => {
+    mockPrisma.reseller.create.mockResolvedValue({
+      id: 'r2',
+      name: 'Custom',
+      slug: 'custom',
+      primaryColor: '#FF0000',
+      billingModel: 'WHOLESALE',
+    });
+    const result = await service.createReseller({
+      name: 'Custom',
+      slug: 'custom',
+      revenueSharePct: 30,
+      primaryColor: '#FF0000',
+      billingModel: 'WHOLESALE',
+      logoUrl: 'https://example.com/logo.png',
+      domain: 'custom.cerniq.io',
+    });
+    expect(result.id).toBe('r2');
+    expect(mockPrisma.reseller.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          primaryColor: '#FF0000',
+          billingModel: 'WHOLESALE',
+          logoUrl: 'https://example.com/logo.png',
+          domain: 'custom.cerniq.io',
+        }),
+      }),
+    );
+  });
 });

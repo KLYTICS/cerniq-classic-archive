@@ -133,4 +133,128 @@ describe('DepositBetaService', () => {
     const beta = service.calibrateBeta([0.02, 0.03], [0.01, 0.015]);
     expect(beta).toBe(0.5);
   });
+
+  it('returns 0.5 when arrays are different lengths', () => {
+    const beta = service.calibrateBeta([0.02, 0.03, 0.04], [0.01, 0.015]);
+    expect(beta).toBe(0.5);
+  });
+
+  it('clamps calibrated beta to [0, 1]', () => {
+    // If deposit rates move more than market rates, beta > 1, should clamp
+    const marketRates = [0.01, 0.02, 0.03, 0.04, 0.05];
+    const depositRates = [0.01, 0.03, 0.05, 0.07, 0.09]; // 2x market
+    const beta = service.calibrateBeta(marketRates, depositRates);
+    expect(beta).toBeLessThanOrEqual(1);
+  });
+
+  it('returns 0.5 when sumXX is 0 (no market rate changes)', () => {
+    const marketRates = [0.03, 0.03, 0.03, 0.03];
+    const depositRates = [0.01, 0.02, 0.03, 0.04];
+    const beta = service.calibrateBeta(marketRates, depositRates);
+    expect(beta).toBe(0.5);
+  });
+
+  it('calibrates beta close to 1 for matching changes', () => {
+    const marketRates = [0.02, 0.03, 0.04, 0.05, 0.06];
+    const depositRates = [0.01, 0.02, 0.03, 0.04, 0.05];
+    const beta = service.calibrateBeta(marketRates, depositRates);
+    expect(beta).toBeCloseTo(1.0, 2);
+  });
+
+  // ── getDefaultBeta: heuristic matching ──────────────────────
+
+  it('returns correct beta for checking subcategory', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { subcategory: 'checking', balance: 100, depositBeta: null },
+    ]);
+    const betas = await service.getDepositBetas('inst_123');
+    expect(betas[0].currentBeta).toBe(0.1);
+  });
+
+  it('returns correct beta for ahorro (savings) subcategory', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { subcategory: 'ahorro', balance: 100, depositBeta: null },
+    ]);
+    const betas = await service.getDepositBetas('inst_123');
+    expect(betas[0].currentBeta).toBe(0.4);
+  });
+
+  it('returns correct beta for CD subcategory', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { subcategory: 'cd_12month', balance: 100, depositBeta: null },
+    ]);
+    const betas = await service.getDepositBetas('inst_123');
+    expect(betas[0].currentBeta).toBe(0.8);
+  });
+
+  it('returns correct beta for plazo subcategory', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { subcategory: 'plazo_fijo', balance: 100, depositBeta: null },
+    ]);
+    const betas = await service.getDepositBetas('inst_123');
+    expect(betas[0].currentBeta).toBe(0.8);
+  });
+
+  it('returns default 0.6 for unknown subcategory', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { subcategory: 'special_product', balance: 100, depositBeta: null },
+    ]);
+    const betas = await service.getDepositBetas('inst_123');
+    expect(betas[0].currentBeta).toBe(0.6);
+  });
+
+  it('aggregates same subcategory items', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { subcategory: 'savings', balance: 100, depositBeta: null },
+      { subcategory: 'savings', balance: 50, depositBeta: 0.55 },
+    ]);
+    const betas = await service.getDepositBetas('inst_123');
+    // Should have one entry for savings with beta from second item
+    expect(betas).toHaveLength(1);
+    expect(betas[0].currentBeta).toBe(0.55);
+    expect(betas[0].source).toBe('manual');
+  });
+
+  // ── updateDepositBetas ─────────────────────────────────────
+
+  it('clamps negative beta to 0', async () => {
+    await service.updateDepositBetas('inst_123', [
+      { subcategory: 'savings', beta: -0.5 },
+    ]);
+    expect(prisma.balanceSheetItem.updateMany).toHaveBeenCalledWith({
+      where: {
+        institutionId: 'inst_123',
+        subcategory: 'savings',
+        category: 'liability',
+      },
+      data: { depositBeta: 0 },
+    });
+  });
+
+  it('updates multiple subcategories', async () => {
+    await service.updateDepositBetas('inst_123', [
+      { subcategory: 'savings', beta: 0.5 },
+      { subcategory: 'demand_deposits', beta: 0.15 },
+    ]);
+    expect(prisma.balanceSheetItem.updateMany).toHaveBeenCalledTimes(2);
+  });
+
+  // ── calculateBetaImpact with zero baseNII ──────────────────
+
+  it('returns 0 niiDeltaPct when baseNII is 0', async () => {
+    prisma.balanceSheetItem.findMany
+      .mockResolvedValueOnce([
+        {
+          category: 'asset',
+          subcategory: 'loans',
+          balance: 0,
+          rate: 0,
+          depositBeta: null,
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const impact = await service.calculateBetaImpact('inst_zero', 100);
+    expect(impact.niiDeltaPct).toBe(0);
+  });
 });

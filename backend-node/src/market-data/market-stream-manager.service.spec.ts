@@ -290,17 +290,38 @@ describe('MarketStreamManagerService', () => {
   // ── parseInterval (private, tested via constructor behavior) ───────
 
   describe('interval configuration', () => {
-    it('uses default intervals when env vars are not set', () => {
-      const statuses: any[] = [];
-      // Subscribe and immediately check status to see intervals
-      service.subscribe('AAPL').then(() => {
-        const s = service.getStreamStatus();
-        if (s.length > 0) {
-          expect(s[0].quotePollIntervalMs).toBe(5000);
-          expect(s[0].profilePollIntervalMs).toBe(15 * 60 * 1000);
-          expect(s[0].newsPollIntervalMs).toBe(5 * 60 * 1000);
-        }
-      });
+    it('uses default intervals when env vars are not set', async () => {
+      await service.subscribe('AAPL');
+      const s = service.getStreamStatus();
+      expect(s[0].quotePollIntervalMs).toBe(5000);
+      expect(s[0].profilePollIntervalMs).toBe(15 * 60 * 1000);
+      expect(s[0].newsPollIntervalMs).toBe(5 * 60 * 1000);
+    });
+  });
+
+  describe('subscribe-unsubscribe-resubscribe cycle', () => {
+    it('allows resubscription after full unsubscribe', async () => {
+      await service.subscribe('TSLA');
+      service.unsubscribe('TSLA');
+      expect(service.getStreamStatus()).toHaveLength(0);
+
+      await service.subscribe('TSLA');
+      expect(service.getStreamStatus()).toHaveLength(1);
+      expect(service.getStreamStatus()[0].subscribers).toBe(1);
+    });
+  });
+
+  describe('error state tracking', () => {
+    it('records error when quote fetch fails during subscribe', async () => {
+      mockMarketDataService.getRealtimeQuote.mockRejectedValue(
+        new Error('API down'),
+      );
+      // subscribe uses Promise.allSettled, so it won't throw
+      await service.subscribe('ERR');
+      const statuses = service.getStreamStatus();
+      expect(statuses).toHaveLength(1);
+      // The quote failed but profile/news may succeed
+      expect(statuses[0].ticker).toBe('ERR');
     });
   });
 });

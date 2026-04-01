@@ -304,4 +304,84 @@ describe('DataQualityMonitorService', () => {
       result.warnings.some((w) => w.rule === 'REPRICING_OUT_OF_RANGE'),
     ).toBe(true);
   });
+
+  // ── 16. Negative asset rate → critical ─────────────────────────
+  it('flags negative asset rate as critical', () => {
+    const bs = perfectBS();
+    bs.assets[0] = makeAsset({ name: 'Bad Rate', rate: -0.02 });
+    const result = service.validateBalanceSheet(bs);
+    expect(result.critical.some((c) => c.rule === 'NEGATIVE_ASSET_RATE')).toBe(true);
+  });
+
+  // ── 17. Extremely negative liability rate → warning ────────────
+  it('flags extremely negative liability rate as warning', () => {
+    const bs = perfectBS();
+    bs.liabilities[0] = makeLiability({ name: 'Negative Liab', rate: -0.05 });
+    const result = service.validateBalanceSheet(bs);
+    expect(result.warnings.some((w) => w.rule === 'EXTREME_NEGATIVE_RATE')).toBe(true);
+  });
+
+  // ── 18. High liability rate → warning ──────────────────────────
+  it('flags liability rate above 15% as warning', () => {
+    const bs = perfectBS();
+    bs.liabilities.push(makeLiability({ name: 'Expensive Deposit', rate: 0.20, balance: 1_000_000 }));
+    const result = service.validateBalanceSheet(bs);
+    expect(result.warnings.some((w) => w.rule === 'HIGH_LIABILITY_RATE')).toBe(true);
+  });
+
+  // ── 19. Long maturity 30-40 years → info ──────────────────────
+  it('flags maturity between 30-40 years as info', () => {
+    const bs = perfectBS();
+    bs.assets.push(makeAsset({ name: 'Long Bond', maturityYears: 35, balance: 1_000_000 }));
+    const result = service.validateBalanceSheet(bs);
+    expect(result.info.some((i) => i.rule === 'LONG_MATURITY')).toBe(true);
+  });
+
+  // ── 20. Low total assets → warning ────────────────────────────
+  it('flags total assets below $1M as warning', () => {
+    const bs = perfectBS();
+    bs.assets = [makeAsset({ balance: 500_000 })];
+    bs.liabilities = [makeLiability({ balance: 400_000 })];
+    bs.equity = 100_000;
+    const result = service.validateBalanceSheet(bs);
+    expect(result.warnings.some((w) => w.rule === 'LOW_TOTAL_ASSETS')).toBe(true);
+  });
+
+  // ── 21. Invalid asOfDate → critical ───────────────────────────
+  it('flags invalid asOfDate string as critical', () => {
+    const bs = perfectBS();
+    bs.asOfDate = 'not-a-date';
+    const result = service.validateBalanceSheet(bs);
+    expect(result.critical.some((c) => c.rule === 'INVALID_DATE')).toBe(true);
+  });
+
+  // ── 22. Stale data 60-90 days → warning ──────────────────────
+  it('flags data 60-90 days old as warning', () => {
+    const bs = perfectBS();
+    const staleDate = new Date(Date.now() - 75 * 24 * 60 * 60 * 1000);
+    bs.asOfDate = staleDate.toISOString().split('T')[0];
+    const result = service.validateBalanceSheet(bs);
+    expect(result.warnings.some((w) => w.rule === 'STALE_DATA_WARNING')).toBe(true);
+  });
+
+  // ── 23. Low NIM → warning ─────────────────────────────────────
+  it('flags implied NIM below 0.5% as warning', () => {
+    const bs = perfectBS();
+    // Set asset rates very close to liability rates
+    bs.assets = [makeAsset({ rate: 0.026, balance: 50_000_000 })];
+    bs.liabilities = [makeLiability({ rate: 0.025, balance: 40_000_000 })];
+    bs.equity = 10_000_000;
+    const result = service.validateBalanceSheet(bs);
+    expect(result.warnings.some((w) => w.rule === 'LOW_NIM')).toBe(true);
+  });
+
+  // ── 24. High leverage → warning ───────────────────────────────
+  it('flags leverage above 98% as warning', () => {
+    const bs = perfectBS();
+    bs.assets = [makeAsset({ balance: 100_000_000 })];
+    bs.liabilities = [makeLiability({ balance: 99_000_000 })];
+    bs.equity = 1_000_000;
+    const result = service.validateBalanceSheet(bs);
+    expect(result.warnings.some((w) => w.rule === 'HIGH_LEVERAGE')).toBe(true);
+  });
 });

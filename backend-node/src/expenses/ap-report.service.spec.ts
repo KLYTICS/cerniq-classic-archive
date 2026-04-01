@@ -77,4 +77,41 @@ describe('ApReportService', () => {
     const result = await service.generateAPReport('org-1', 'inst-1', 'es');
     expect(Buffer.isBuffer(result)).toBe(true);
   });
+
+  it('generateAPReport generates Spanish PDF', async () => {
+    const result = await service.generateAPReport('org-1', null, 'es');
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('generateAPReport renders with findings and vendor report', async () => {
+    mockAnomalyDetection.analyzeOrganization.mockResolvedValueOnce({
+      totalExpenses: 250000,
+      anomalyCount: 5,
+      topVendors: [],
+      categoryBreakdown: {},
+      findings: [
+        { type: 'duplicate', vendor: 'V1', amount: 1000, estimatedRecovery: 1000, severity: 'HIGH' },
+        { type: 'unusual_amount', vendor: 'V2', amount: 500, estimatedRecovery: 250, severity: 'MEDIUM' },
+      ],
+      estimatedTotalRecovery: 1250,
+      vendorRiskScores: [],
+      expensesByCategory: [],
+      monthlyTrend: [],
+      healthScore: 72,
+      topVendorName: 'V1',
+      vendorReport: [
+        { vendorName: 'V1', transactionCount: 5, quarterlyTotal: 50000, percentOfTotalSpend: 30, match: null, latestTransactionDate: new Date() },
+      ],
+    });
+    const result = await service.generateAPReport('org-1', null, 'en');
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('generateAPReport handles null organization gracefully', async () => {
+    mockPrisma.organization.findUnique.mockResolvedValueOnce(null);
+    const result = await service.generateAPReport('org-missing', null, 'en');
+    expect(Buffer.isBuffer(result)).toBe(true);
+  });
 });

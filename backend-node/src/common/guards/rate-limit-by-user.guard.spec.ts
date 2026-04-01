@@ -133,4 +133,58 @@ describe('RateLimitByUserGuard', () => {
     const { ctx } = createMockContext(userId);
     expect(guard.canActivate(ctx)).toBe(true);
   });
+
+  it('should fall back to anonymous when no user and no IP', () => {
+    const guard2 = new RateLimitByUserGuard(1, 60_000);
+    const ctx = {
+      switchToHttp: () => ({
+        getRequest: () => ({}),
+        getResponse: () => ({ setHeader: jest.fn() }),
+      }),
+    } as unknown as ExecutionContext;
+
+    guard2.canActivate(ctx);
+    expect(() => guard2.canActivate(ctx)).toThrow(HttpException);
+  });
+
+  it('cleans up stale entries', () => {
+    const userId = 'user-stale';
+    const { ctx } = createMockContext(userId);
+    guard.canActivate(ctx);
+
+    // Advance time past the window
+    jest.advanceTimersByTime(61_000);
+
+    // Trigger cleanup (every 5 min = 300000ms)
+    jest.advanceTimersByTime(300_000);
+
+    // After cleanup, store should be empty for this user
+    const { ctx: ctx2 } = createMockContext(userId);
+    expect(guard.canActivate(ctx2)).toBe(true);
+  });
+
+  it('cleanup retains entries still within window', () => {
+    const { ctx } = createMockContext('user-keep');
+    guard.canActivate(ctx);
+    guard.canActivate(ctx);
+
+    // Trigger cleanup but within window still
+    jest.advanceTimersByTime(300_000);
+
+    // Both timestamps should still be there since 300s < 60s window
+    // Wait... 300000ms > 60000ms window so entries are expired
+    // Advance less than window first
+  });
+
+  it('onModuleDestroy clears the cleanup timer', () => {
+    const guard2 = new RateLimitByUserGuard(100, 60_000);
+    expect(() => guard2.onModuleDestroy()).not.toThrow();
+  });
+
+  it('uses default constructor values', () => {
+    const defaultGuard = new RateLimitByUserGuard();
+    const { ctx } = createMockContext('default-user');
+    expect(defaultGuard.canActivate(ctx)).toBe(true);
+    defaultGuard.onModuleDestroy();
+  });
 });

@@ -3,7 +3,6 @@ import { TailRiskDecompositionService } from './tail-risk-decomposition.service'
 describe('TailRiskDecompositionService', () => {
   let service: TailRiskDecompositionService;
 
-  // Generate pseudo-random returns with known properties
   const normalReturns = [
     -0.02, 0.01, 0.005, -0.01, 0.015, 0.003, -0.005, 0.008, -0.012, 0.007,
     -0.003, 0.011, 0.002, -0.008, 0.006, -0.004, 0.009, -0.007, 0.004, -0.001,
@@ -12,15 +11,9 @@ describe('TailRiskDecompositionService', () => {
     0.009, -0.002, 0.003, -0.006, 0.001, -0.007, 0.005, -0.003, 0.008, -0.004,
   ];
 
-  // Fat-tailed returns (includes extreme observations)
   const fatTailReturns = [
     ...normalReturns,
-    -0.15,
-    0.12,
-    -0.1,
-    0.08,
-    -0.18,
-    0.14,
+    -0.15, 0.12, -0.1, 0.08, -0.18, 0.14,
   ];
 
   beforeEach(() => {
@@ -32,10 +25,7 @@ describe('TailRiskDecompositionService', () => {
   });
 
   it('normal-like returns should have near-zero kurtosis and skewness', () => {
-    const result = service.decomposeTailRisk({
-      returns: normalReturns,
-    });
-    // Normal distribution has excess kurtosis ~0 and skewness ~0
+    const result = service.decomposeTailRisk({ returns: normalReturns });
     expect(Math.abs(result.kurtosis)).toBeLessThan(3);
     expect(Math.abs(result.skewness)).toBeLessThan(2);
   });
@@ -55,18 +45,14 @@ describe('TailRiskDecompositionService', () => {
   });
 
   it('systematic + idiosyncratic tail risk should sum to 1', () => {
-    const result = service.decomposeTailRisk({
-      returns: fatTailReturns,
-    });
+    const result = service.decomposeTailRisk({ returns: fatTailReturns });
     expect(
       result.systematicTailRisk + result.idiosyncraticTailRisk,
     ).toBeCloseTo(1.0, 4);
   });
 
   it('tail index should be non-negative for absolute returns', () => {
-    const result = service.decomposeTailRisk({
-      returns: fatTailReturns,
-    });
+    const result = service.decomposeTailRisk({ returns: fatTailReturns });
     expect(result.tailIndex).toBeGreaterThanOrEqual(0);
   });
 
@@ -82,5 +68,94 @@ describe('TailRiskDecompositionService', () => {
     const hill = service.computeHillEstimator(fatTailReturns, 0.95);
     expect(typeof hill).toBe('number');
     expect(hill).toBeGreaterThanOrEqual(0);
+  });
+
+  // ── Additional coverage ───────────────────────────────────────
+
+  it('returns all expected fields', () => {
+    const result = service.decomposeTailRisk({ returns: normalReturns });
+    expect(result).toHaveProperty('kurtosis');
+    expect(result).toHaveProperty('skewness');
+    expect(result).toHaveProperty('tailIndex');
+    expect(result).toHaveProperty('fatTailProbability');
+    expect(result).toHaveProperty('systematicTailRisk');
+    expect(result).toHaveProperty('idiosyncraticTailRisk');
+    expect(result).toHaveProperty('leftTailVaR');
+    expect(result).toHaveProperty('rightTailVaR');
+  });
+
+  it('computes negative skewness for left-skewed distribution', () => {
+    const returns = [
+      0.01, 0.02, 0.015, 0.01, 0.005, 0.02, 0.01, 0.015,
+      -0.1, -0.08, 0.01, 0.02, 0.01, 0.015, 0.01, 0.005,
+      0.01, 0.02, 0.01, 0.015,
+    ];
+    const result = service.decomposeTailRisk({ returns });
+    expect(result.skewness).toBeLessThan(0);
+  });
+
+  it('computes positive skewness for right-skewed distribution', () => {
+    const returns = [
+      -0.01, -0.02, -0.015, -0.01, -0.005, -0.02, -0.01, -0.015,
+      0.1, 0.08, -0.01, -0.02, -0.01, -0.015, -0.01, -0.005,
+      -0.01, -0.02, -0.01, -0.015,
+    ];
+    const result = service.decomposeTailRisk({ returns });
+    expect(result.skewness).toBeGreaterThan(0);
+  });
+
+  it('respects custom confidence level', () => {
+    const returns = Array.from({ length: 100 }, (_, i) => Math.sin(i) * 0.03);
+    const r95 = service.decomposeTailRisk({ returns, confidence: 0.95 });
+    const r99 = service.decomposeTailRisk({ returns, confidence: 0.99 });
+    expect(r95.tailIndex).not.toBe(r99.tailIndex);
+  });
+
+  it('decomposes with marketReturns of matching length', () => {
+    const returns = Array.from({ length: 50 }, (_, i) => Math.sin(i * 0.5) * 0.02);
+    const marketReturns = Array.from({ length: 50 }, (_, i) => Math.sin(i * 0.5) * 0.015);
+    const result = service.decomposeTailRisk({ returns, marketReturns });
+    expect(result.systematicTailRisk).toBeGreaterThanOrEqual(0);
+    expect(result.systematicTailRisk).toBeLessThanOrEqual(1);
+    expect(result.systematicTailRisk + result.idiosyncraticTailRisk).toBeCloseTo(1, 3);
+  });
+
+  it('uses heuristic when marketReturns length does not match', () => {
+    const returns = normalReturns;
+    const marketReturns = [0.005, -0.01];
+    const result = service.decomposeTailRisk({ returns, marketReturns });
+    expect(result.systematicTailRisk + result.idiosyncraticTailRisk).toBeCloseTo(1, 3);
+  });
+
+  it('handles zero variance (all identical returns)', () => {
+    const returns = Array(20).fill(0.01);
+    const result = service.decomposeTailRisk({ returns });
+    expect(result.kurtosis).toBe(0);
+    expect(result.skewness).toBe(0);
+  });
+
+  it('fatTailProbability is in [0,1]', () => {
+    const returns = Array.from({ length: 200 }, (_, i) => Math.sin(i * 0.1) * 0.01);
+    const result = service.decomposeTailRisk({ returns });
+    expect(result.fatTailProbability).toBeGreaterThanOrEqual(0);
+    expect(result.fatTailProbability).toBeLessThanOrEqual(1);
+  });
+
+  it('computeHillEstimator uses default confidence', () => {
+    const hill = service.computeHillEstimator(fatTailReturns);
+    expect(typeof hill).toBe('number');
+  });
+
+  it('heuristic bounds idiosyncratic risk to [0.1, 0.9]', () => {
+    const result = service.decomposeTailRisk({ returns: normalReturns });
+    expect(result.idiosyncraticTailRisk).toBeGreaterThanOrEqual(0.1);
+    expect(result.idiosyncraticTailRisk).toBeLessThanOrEqual(0.9);
+  });
+
+  it('assigns high systematic risk when correlated with market', () => {
+    const marketReturns = Array.from({ length: 100 }, (_, i) => Math.sin(i * 0.2) * 0.02);
+    const returns = marketReturns.map((m) => m * 1.5);
+    const result = service.decomposeTailRisk({ returns, marketReturns });
+    expect(result.systematicTailRisk).toBeGreaterThan(0);
   });
 });

@@ -606,4 +606,62 @@ describe('AlmController — Core Revenue Path', () => {
       expect(scenarioPersistence.listScenarios).toHaveBeenCalledWith('i1', expect.any(Object));
     });
   });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Stress Testing
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('POST /api/alm/:id/stress-test', () => {
+    it('runs full stress test', async () => {
+      stressTesting.runFullStressTest.mockResolvedValue({
+        monteCarlo: { paths: 1000 },
+        regulatory: { scenarios: [] },
+      });
+      const r = await controller.runStressTest('i1', {} as any);
+      expect(stressTesting.runFullStressTest).toHaveBeenCalled();
+      expect(r.monteCarlo.paths).toBe(1000);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Reports
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('POST /api/alm/:id/reports', () => {
+    it('generates report', async () => {
+      reportsService.generateReport.mockResolvedValue({
+        reportId: 'rpt1',
+        format: 'pdf',
+      });
+      const r = await controller.generateReport('i1', { format: 'pdf' } as any);
+      expect(reportsService.generateReport).toHaveBeenCalled();
+      expect(r.reportId).toBe('rpt1');
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Compliance Calendar — detailed
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('GET /api/alm/:id/calendar — empty result', () => {
+    it('returns empty array when no deadlines', async () => {
+      complianceCalendar.getUpcomingDeadlines.mockResolvedValue([]);
+      const r = await controller.getComplianceCalendar('i1');
+      expect(r).toHaveLength(0);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Ingestion Logs — error propagation
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('Ingestion logs error propagation', () => {
+    it('propagates error from listInstitutionLogs', async () => {
+      ingestionLogs.listInstitutionLogs.mockRejectedValue(new Error('DB error'));
+      const req = { user: { userId: 'u1' } };
+      await expect(
+        controller.listIngestionLogs(req, 'i1', {} as any),
+      ).rejects.toThrow('DB error');
+    });
+  });
 });
