@@ -199,11 +199,16 @@ describe('ExecutionService', () => {
     });
 
     it('should rate GOOD when slippage is within half spread for BUY', async () => {
-      // midPrice=175, spread=0.1, half spread=0.05 => spreadBps ~2.86
-      // executionPrice just above mid but within half spread
+      // midPrice=175, spread=0.1, spreadBps~5.71, half=~2.86
+      // execPrice=175.025 → slippage = 1.43bps (< 2.86 = half spread)
+      mockMarketDataService.getQuote.mockResolvedValueOnce({
+        price: 175.0,
+        bid: 174.95,
+        ask: 175.05,
+      });
       const execution = {
         ticker: 'AAPL',
-        executionPrice: 175.02,
+        executionPrice: 175.025,
         executionTime: new Date(),
         side: 'BUY' as const,
         quantity: 100,
@@ -213,16 +218,22 @@ describe('ExecutionService', () => {
     });
 
     it('should rate FAIR when slippage is within full spread', async () => {
-      // midPrice=175, spreadBps~5.71, need effective slippage between half and full spread
+      // midPrice=175, spreadBps~5.71, half=~2.86
+      // execPrice=175.06 → slippage = 3.43bps (between 2.86 and 5.71)
+      mockMarketDataService.getQuote.mockResolvedValueOnce({
+        price: 175.0,
+        bid: 174.95,
+        ask: 175.05,
+      });
       const execution = {
         ticker: 'AAPL',
-        executionPrice: 175.08,
+        executionPrice: 175.06,
         executionTime: new Date(),
         side: 'BUY' as const,
         quantity: 100,
       };
       const result = await service.calculateSlippage(execution);
-      expect(['FAIR', 'POOR']).toContain(result.quality);
+      expect(result.quality).toBe('FAIR');
     });
   });
 
