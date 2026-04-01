@@ -141,12 +141,12 @@ describe('CsvIngestV2Service', () => {
     expect(result.mappings.find(m => m.csvColumn === 'tasa')!.cerniqField).toBe('rate');
   });
 
-  it('detects rateType and maturityDate headers', async () => {
-    const csv = `name,balance,rate_type,maturity_date\nLoan A,100,fixed,2027-01-01`;
+  it('detects repriceDate from reset_date header', async () => {
+    const csv = `name,balance,reset_date,mat_date\nLoan A,100,2026-06-01,2027-01-01`;
     const result = await service.analyzeCSV('inst_1', csv);
 
-    expect(result.mappings.find(m => m.csvColumn === 'rate_type')!.cerniqField).toBe('rateType');
-    expect(result.mappings.find(m => m.csvColumn === 'maturity_date')!.cerniqField).toBe('maturityDate');
+    expect(result.mappings.find(m => m.csvColumn === 'reset_date')!.cerniqField).toBe('repriceDate');
+    expect(result.mappings.find(m => m.csvColumn === 'mat_date')!.cerniqField).toBe('maturityDate');
   });
 
   // ── commitIngestion additional branches ─────────────

@@ -249,7 +249,7 @@ describe('TickerService', () => {
       const result = await service.createTicker({
         ticker: 'tsla',
         name: 'Tesla',
-        assetType: 'equity',
+        assetType: 'stock',
       } as any);
       expect(result.ticker).toBe('TSLA');
     });
@@ -260,7 +260,7 @@ describe('TickerService', () => {
         service.createTicker({
           ticker: 'FAIL',
           name: 'Fail Co',
-          assetType: 'equity',
+          assetType: 'stock',
         } as any),
       ).rejects.toThrow('Database not configured');
     });
@@ -284,7 +284,7 @@ describe('TickerService', () => {
         service.createTicker({
           ticker: 'AAPL',
           name: 'Apple',
-          assetType: 'equity',
+          assetType: 'stock',
         } as any),
       ).rejects.toThrow('Failed to create ticker');
     });
@@ -447,7 +447,7 @@ describe('TickerService', () => {
       await service.listTickers({
         page: 2,
         limit: 25,
-        assetType: 'equity',
+        assetType: 'stock',
         sector: 'Technology',
         isActive: true,
       });

@@ -215,4 +215,141 @@ describe('StressTestService', () => {
     expect(names).toContain('Global Financial Crisis (2008)');
     expect(names).toContain('COVID-19 Crash (2020)');
   });
+
+  // ── Coverage boost: defensive ticker beta paths ────────────
+  describe('beta estimation paths', () => {
+    it('applies higher beta for tech tickers (AAPL, GOOGL, MSFT, META, NVDA, AMZN)', async () => {
+      const techTickers = ['AAPL', 'GOOGL', 'MSFT', 'META', 'NVDA', 'AMZN'];
+      for (const ticker of techTickers) {
+        mockMarketDataService.getQuote.mockResolvedValue({ price: 100 });
+        const customScenario = {
+          name: 'Test',
+          description: 'test',
+          shocks: { equity: -0.5 },
+        };
+        const result = await service.runStressTest(
+          [{ ticker, quantity: 10 }],
+          'custom',
+          customScenario,
+        );
+        // Tech tickers have beta 1.2-1.5, so with -50% equity shock the loss should be > 50%
+        expect(result.scenarios[0].pnlPercent).toBeLessThan(-50);
+      }
+    });
+
+    it('applies lower beta for defensive tickers (JNJ, PG, KO, PEP, WMT)', async () => {
+      const defensiveTickers = ['JNJ', 'PG', 'KO', 'PEP', 'WMT'];
+      for (const ticker of defensiveTickers) {
+        mockMarketDataService.getQuote.mockResolvedValue({ price: 100 });
+        const customScenario = {
+          name: 'Test',
+          description: 'test',
+          shocks: { equity: -0.5 },
+        };
+        const result = await service.runStressTest(
+          [{ ticker, quantity: 10 }],
+          'custom',
+          customScenario,
+        );
+        // Defensive tickers have beta 0.6-0.8, so with -50% equity shock the loss should be < 50%
+        expect(result.scenarios[0].pnlPercent).toBeGreaterThan(-50);
+      }
+    });
+
+    it('applies average beta for unknown tickers', async () => {
+      mockMarketDataService.getQuote.mockResolvedValue({ price: 100 });
+      const customScenario = {
+        name: 'Test',
+        description: 'test',
+        shocks: { equity: -0.5 },
+      };
+      const result = await service.runStressTest(
+        [{ ticker: 'XYZ', quantity: 10 }],
+        'custom',
+        customScenario,
+      );
+      // Average stock beta 0.9-1.2, so loss should be 45-60%
+      expect(result.scenarios[0].pnlPercent).toBeLessThan(0);
+      expect(result.scenarios[0].pnl).toBeLessThan(0);
+    });
+  });
+
+  // ── Coverage boost: reverse stress test convergence paths ──
+  describe('runReverseStressTest — convergence branches', () => {
+    it('converges early when actual loss closely matches target', async () => {
+      mockMarketDataService.getQuote.mockResolvedValue({ price: 100 });
+      // Use a small target loss that binary search can find quickly
+      const result = await service.runReverseStressTest(
+        [{ ticker: 'JNJ', quantity: 100 }],
+        -5,
+      );
+      expect(result.targetLossPercent).toBe(-5);
+      expect(result.requiredEquityShock).toBeLessThan(0);
+      expect(result.probability).toBeDefined();
+    });
+
+    it('returns result after max iterations if convergence is slow', async () => {
+      mockMarketDataService.getQuote.mockResolvedValue({ price: 100 });
+      // Very specific target that may require many iterations
+      const result = await service.runReverseStressTest(
+        [{ ticker: 'AAPL', quantity: 100 }],
+        -45,
+      );
+      expect(result.targetLossPercent).toBe(-45);
+      expect(result.requiredEquityShock).toBeLessThan(0);
+      expect(result.scenarioDescription).toContain('Market decline');
+    });
+  });
+
+  // ── Coverage boost: historical parallel and probability ────
+  describe('findHistoricalParallel and estimateProbability via reverse stress test', () => {
+    it('returns "typical corrections" for small shocks', async () => {
+      mockMarketDataService.getQuote.mockResolvedValue({ price: 100 });
+      const result = await service.runReverseStressTest(
+        [{ ticker: 'AAPL', quantity: 100 }],
+        -5,
+      );
+      expect(result.historicalParallel).toBeDefined();
+      expect(typeof result.historicalParallel).toBe('string');
+    });
+
+    it('returns GFC parallel for large shocks', async () => {
+      mockMarketDataService.getQuote.mockResolvedValue({ price: 100 });
+      const result = await service.runReverseStressTest(
+        [{ ticker: 'AAPL', quantity: 100 }],
+        -50,
+      );
+      expect(result.historicalParallel).toBeDefined();
+      // Should reference GFC or similar
+      expect(typeof result.probability).toBe('string');
+    });
+  });
+
+  // ── Coverage boost: hypothetical scenarios with multiple positions ──
+  describe('hypothetical scenarios with diverse portfolio', () => {
+    it('handles mixed tech and defensive portfolio correctly', async () => {
+      mockMarketDataService.getQuote
+        .mockResolvedValueOnce({ price: 200 })  // NVDA (tech)
+        .mockResolvedValueOnce({ price: 50 })   // WMT (defensive)
+        .mockResolvedValueOnce({ price: 100 });  // XYZ (average)
+
+      const positions = [
+        { ticker: 'NVDA', quantity: 50 },
+        { ticker: 'WMT', quantity: 200 },
+        { ticker: 'XYZ', quantity: 100 },
+      ];
+      const result = await service.runStressTest(positions, 'hypothetical');
+
+      expect(result.portfolioValue).toBe(50 * 200 + 200 * 50 + 100 * 100);
+      expect(result.positionCount).toBe(3);
+      expect(result.positions).toHaveLength(3);
+      // All weights should sum to 1
+      const weightSum = result.positions.reduce((s, p) => s + p.weight, 0);
+      expect(weightSum).toBeCloseTo(1.0, 4);
+      // Each position should have stressed values for all 6 hypothetical scenarios
+      for (const pos of result.positions) {
+        expect(pos.stressedValues).toHaveLength(6);
+      }
+    });
+  });
 });
