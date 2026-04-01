@@ -162,5 +162,60 @@ describe('CacheService', () => {
       expect(fetchFn).toHaveBeenCalled();
       expect(result).toEqual({ fresh: true });
     });
+
+    it('getStats returns zeros', async () => {
+      const stats = await nullService.getStats();
+      expect(stats).toEqual({ hits: 0, misses: 0, keys: 0 });
+    });
+
+    it('delete is a no-op', async () => {
+      await expect(nullService.delete('key')).resolves.not.toThrow();
+    });
+  });
+
+  describe('error handling', () => {
+    it('get returns null on JSON parse error', async () => {
+      const redis = (service as any).redis;
+      redis.get.mockResolvedValueOnce('not-valid-json{{{');
+      const result = await service.get('bad-json');
+      expect(result).toBeNull();
+    });
+
+    it('set handles Redis write error gracefully', async () => {
+      const redis = (service as any).redis;
+      redis.setex.mockRejectedValueOnce(new Error('Write failed'));
+      await expect(service.set('key', 'val', 60)).resolves.toBeUndefined();
+    });
+
+    it('delete handles Redis del error gracefully', async () => {
+      const redis = (service as any).redis;
+      redis.del.mockRejectedValueOnce(new Error('Del failed'));
+      await expect(service.delete('key')).resolves.toBeUndefined();
+    });
+
+    it('exists handles Redis error gracefully', async () => {
+      const redis = (service as any).redis;
+      redis.exists.mockRejectedValueOnce(new Error('Exists failed'));
+      expect(await service.exists('key')).toBe(false);
+    });
+
+    it('ping returns false on Redis error', async () => {
+      const redis = (service as any).redis;
+      redis.ping.mockRejectedValueOnce(new Error('timeout'));
+      expect(await service.ping()).toBe(false);
+    });
+
+    it('deletePattern handles Redis error gracefully', async () => {
+      const redis = (service as any).redis;
+      redis.keys.mockRejectedValueOnce(new Error('Keys failed'));
+      await expect(service.deletePattern('pattern:*')).resolves.toBeUndefined();
+    });
+
+    it('getStats handles Redis info error gracefully', async () => {
+      const redis = (service as any).redis;
+      redis.info.mockRejectedValueOnce(new Error('Info failed'));
+      const stats = await service.getStats();
+      expect(stats).toEqual({ hits: 0, misses: 0, keys: 0 });
+    });
   });
 });
