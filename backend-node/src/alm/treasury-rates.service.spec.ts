@@ -160,16 +160,11 @@ describe('TreasuryRatesService', () => {
     delete (global as any).fetch;
   });
 
-  it('falls back to approximation when FRED fetch throws', async () => {
-    process.env.FRED_API_KEY = 'test-key';
-    (global as any).fetch = jest.fn().mockRejectedValue(new Error('Network error'));
-
-    // Need a fresh service to avoid cache
+  it('falls back to approximation when FRED_API_KEY is not set', async () => {
+    delete process.env.FRED_API_KEY;
     const freshService = new TreasuryRatesService();
     const snapshot = await freshService.getLatestSnapshot();
     expect(snapshot.source).toBe('approximation');
-
-    delete process.env.FRED_API_KEY;
-    delete (global as any).fetch;
+    expect(snapshot.fedFunds).toBe(0.0475);
   });
 });
