@@ -114,5 +114,108 @@ describe('LeadsController', () => {
       const r = await controller.sendOutreach('p-1', 'es');
       expect(outreach.executeOutreach).toHaveBeenCalled();
     });
+
+    it('defaults to es when lang is not en', async () => {
+      await controller.sendOutreach('p-1', 'fr');
+      expect(outreach.executeOutreach).toHaveBeenCalledWith('p-1', 'es');
+    });
+
+    it('uses en when lang is en', async () => {
+      await controller.sendOutreach('p-1', 'en');
+      expect(outreach.executeOutreach).toHaveBeenCalledWith('p-1', 'en');
+    });
+  });
+
+  describe('POST admin/api/leads/:id/mark-report-sent', () => {
+    it('marks report as sent', async () => {
+      await controller.markReportSent('lead-1');
+      expect(leads.markReportSent).toHaveBeenCalledWith('lead-1');
+    });
+  });
+
+  describe('GET admin/api/prospects', () => {
+    it('lists prospects', async () => {
+      leads.listProspects = jest.fn().mockResolvedValue([{ id: 'p-1' }]);
+      const r = await controller.listProspects();
+      expect(leads.listProspects).toHaveBeenCalled();
+    });
+  });
+
+  describe('GET admin/api/benchmarks', () => {
+    it('returns benchmarks', async () => {
+      leads.getBenchmarks = jest.fn().mockResolvedValue({ nim: 3.5 });
+      const r = await controller.getBenchmarks();
+      expect(leads.getBenchmarks).toHaveBeenCalled();
+    });
+  });
+
+  describe('GET admin/api/prospects/:id/outreach', () => {
+    it('generates outreach in default es language', async () => {
+      leads.generateOutreach = jest.fn().mockResolvedValue({ subject: 'Test' });
+      await controller.generateOutreach('p-1');
+      expect(leads.generateOutreach).toHaveBeenCalledWith('p-1', 'es');
+    });
+
+    it('generates outreach in en language', async () => {
+      leads.generateOutreach = jest.fn().mockResolvedValue({ subject: 'Test' });
+      await controller.generateOutreach('p-1', 'en');
+      expect(leads.generateOutreach).toHaveBeenCalledWith('p-1', 'en');
+    });
+  });
+
+  describe('GET admin/api/prospects/qualify/all', () => {
+    it('qualifies all prospects', async () => {
+      await controller.qualifyAllProspects();
+      expect(qualification.qualifyAllProspects).toHaveBeenCalled();
+    });
+  });
+
+  describe('POST admin/api/leads/score-all', () => {
+    it('scores all leads', async () => {
+      await controller.scoreAllLeads();
+      expect(scoring.scoreAllLeads).toHaveBeenCalled();
+    });
+  });
+
+  describe('POST admin/api/prospects/bulk-outreach', () => {
+    it('executes bulk outreach with defaults', async () => {
+      await controller.bulkOutreach();
+      expect(outreach.executeBulkOutreach).toHaveBeenCalledWith('es', 10);
+    });
+
+    it('executes bulk outreach with en and custom limit', async () => {
+      await controller.bulkOutreach('en', '25');
+      expect(outreach.executeBulkOutreach).toHaveBeenCalledWith('en', 25);
+    });
+  });
+
+  describe('POST api/demo/track', () => {
+    it('tracks demo step and returns tracked: true', async () => {
+      const req = { headers: { 'x-request-id': 'sess-123' } };
+      const result = await controller.trackDemoStep(
+        { step: 3, timestamp: '2026-01-01T00:00:00Z' },
+        req,
+      );
+      expect(result).toEqual({ tracked: true });
+    });
+
+    it('logs demo.completed when step is 6', async () => {
+      const req = { headers: {} };
+      const result = await controller.trackDemoStep(
+        { step: 6, timestamp: '2026-01-01T00:00:00Z' },
+        req,
+      );
+      expect(result).toEqual({ tracked: true });
+    });
+  });
+
+  describe('GET admin/api/leads with filters', () => {
+    it('passes status and priority filters', async () => {
+      await controller.listLeads('NEW', 'HIGH');
+      expect(leads.listLeads).toHaveBeenCalledWith({
+        status: 'NEW',
+        priority: 'HIGH',
+      });
+    });
   });
 });

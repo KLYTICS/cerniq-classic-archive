@@ -41,7 +41,7 @@ describe('OrganizationsService', () => {
 
   describe('create', () => {
     it('creates an organization with the creator as ADMIN', async () => {
-      prisma.organization.findUnique.mockResolvedValue(null); // no duplicate
+      prisma.organization.findUnique.mockResolvedValue(null);
       prisma.organization.create.mockResolvedValue({
         id: 'org-1',
         name: 'Test Org',
@@ -94,6 +94,32 @@ describe('OrganizationsService', () => {
         service.create({ name: 'Dup', slug: 'existing-slug' }, 'user-1'),
       ).rejects.toThrow(ConflictException);
     });
+
+    it('includes members with user relation in the response', async () => {
+      prisma.organization.findUnique.mockResolvedValue(null);
+      prisma.organization.create.mockResolvedValue({
+        id: 'org-3',
+        name: 'Inc Org',
+        slug: 'inc-org',
+        members: [{ role: 'ADMIN', userId: 'u-1', user: { id: 'u-1', email: 'a@b.c' } }],
+      });
+
+      const result = await service.create(
+        { name: 'Inc Org', slug: 'inc-org' },
+        'u-1',
+      );
+
+      expect(prisma.organization.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            members: expect.objectContaining({
+              include: { user: true },
+            }),
+          }),
+        }),
+      );
+      expect(result.members[0].user.email).toBe('a@b.c');
+    });
   });
 
   // ─── findAll ────────────────────────────────────────────
@@ -119,6 +145,19 @@ describe('OrganizationsService', () => {
       prisma.organization.findMany.mockResolvedValue([]);
       const result = await service.findAll('user-nobody');
       expect(result).toHaveLength(0);
+    });
+
+    it('includes _count of expenses', async () => {
+      prisma.organization.findMany.mockResolvedValue([]);
+      await service.findAll('user-1');
+
+      expect(prisma.organization.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            _count: { select: { expenses: true } },
+          }),
+        }),
+      );
     });
   });
 
@@ -157,6 +196,18 @@ describe('OrganizationsService', () => {
         ForbiddenException,
       );
     });
+
+    it('includes recent expenses in the response', async () => {
+      prisma.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        members: [{ userId: 'user-1', role: 'MEMBER' }],
+        expenses: [{ id: 'exp-1', amount: 100 }],
+      });
+
+      const result = await service.findOne('org-1', 'user-1');
+      expect(result.expenses).toHaveLength(1);
+      expect(result.expenses[0].id).toBe('exp-1');
+    });
   });
 
   // ─── addMember ──────────────────────────────────────────
@@ -164,8 +215,8 @@ describe('OrganizationsService', () => {
   describe('addMember', () => {
     it('adds a member when requester is ADMIN and target is not already a member', async () => {
       prisma.organizationMember.findUnique
-        .mockResolvedValueOnce({ id: '1', role: 'ADMIN' }) // requester
-        .mockResolvedValueOnce(null); // target not member
+        .mockResolvedValueOnce({ id: '1', role: 'ADMIN' })
+        .mockResolvedValueOnce(null);
       prisma.organizationMember.create.mockResolvedValue({
         id: 'mem-1',
         role: 'MEMBER',
@@ -220,8 +271,8 @@ describe('OrganizationsService', () => {
 
     it('throws ConflictException when target is already a member', async () => {
       prisma.organizationMember.findUnique
-        .mockResolvedValueOnce({ id: '1', role: 'ADMIN' }) // requester
-        .mockResolvedValueOnce({ id: '2', role: 'MEMBER' }); // already member
+        .mockResolvedValueOnce({ id: '1', role: 'ADMIN' })
+        .mockResolvedValueOnce({ id: '2', role: 'MEMBER' });
 
       await expect(
         service.addMember(
@@ -230,6 +281,24 @@ describe('OrganizationsService', () => {
           'admin-user',
         ),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('includes user select in create response', async () => {
+      prisma.organizationMember.findUnique
+        .mockResolvedValueOnce({ id: '1', role: 'ADMIN' })
+        .mockResolvedValueOnce(null);
+      prisma.organizationMember.create.mockResolvedValue({
+        id: 'mem-1',
+        role: 'ADMIN',
+        user: { id: 'u-new', email: 'new@test.com', name: 'New', avatarUrl: null },
+      });
+
+      const result = await service.addMember(
+        'org-1',
+        { userId: 'u-new', role: 'ADMIN' as any },
+        'admin-user',
+      );
+      expect(result.user.email).toBe('new@test.com');
     });
   });
 
@@ -244,11 +313,18 @@ describe('OrganizationsService', () => {
       });
       prisma.organizationMember.delete.mockResolvedValue({});
 
-      const result = await service.removeMember('org-1', 'target-user', 'admin-user');
+      const result = await service.removeMember(
+        'org-1',
+        'target-user',
+        'admin-user',
+      );
       expect(result).toEqual({ message: 'Member removed successfully' });
       expect(prisma.organizationMember.delete).toHaveBeenCalledWith({
         where: {
-          organizationId_userId: { organizationId: 'org-1', userId: 'target-user' },
+          organizationId_userId: {
+            organizationId: 'org-1',
+            userId: 'target-user',
+          },
         },
       });
     });
@@ -295,7 +371,11 @@ describe('OrganizationsService', () => {
       prisma.organizationMember.count.mockResolvedValue(2);
       prisma.organizationMember.delete.mockResolvedValue({});
 
-      const result = await service.removeMember('org-1', 'admin-user', 'admin-user');
+      const result = await service.removeMember(
+        'org-1',
+        'admin-user',
+        'admin-user',
+      );
       expect(result).toEqual({ message: 'Member removed successfully' });
     });
 
@@ -337,7 +417,10 @@ describe('OrganizationsService', () => {
       expect(prisma.organizationMember.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
-            organizationId_userId: { organizationId: 'org-1', userId: 'target-user' },
+            organizationId_userId: {
+              organizationId: 'org-1',
+              userId: 'target-user',
+            },
           },
           data: { role: 'ADMIN' },
         }),
@@ -348,7 +431,12 @@ describe('OrganizationsService', () => {
       prisma.organizationMember.findUnique.mockResolvedValueOnce(null);
 
       await expect(
-        service.updateMemberRole('org-1', 'target', 'ADMIN' as any, 'nobody'),
+        service.updateMemberRole(
+          'org-1',
+          'target',
+          'ADMIN' as any,
+          'nobody',
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -359,8 +447,58 @@ describe('OrganizationsService', () => {
       });
 
       await expect(
-        service.updateMemberRole('org-1', 'target', 'ADMIN' as any, 'member'),
+        service.updateMemberRole(
+          'org-1',
+          'target',
+          'ADMIN' as any,
+          'member',
+        ),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('updates role to MEMBER', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValueOnce({
+        id: '1',
+        role: 'ADMIN',
+      });
+      prisma.organizationMember.update.mockResolvedValue({
+        id: 'mem-1',
+        role: 'MEMBER',
+        userId: 'target-user',
+      });
+
+      const result = await service.updateMemberRole(
+        'org-1',
+        'target-user',
+        'MEMBER' as any,
+        'admin-user',
+      );
+      expect(result.role).toBe('MEMBER');
+    });
+
+    it('includes user select in update response', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValueOnce({
+        id: '1',
+        role: 'ADMIN',
+      });
+      prisma.organizationMember.update.mockResolvedValue({
+        id: 'mem-1',
+        role: 'ADMIN',
+        userId: 'target',
+        user: { id: 'target', email: 't@test.com', name: 'T', avatarUrl: null },
+      });
+
+      await service.updateMemberRole('org-1', 'target', 'ADMIN' as any, 'admin');
+
+      expect(prisma.organizationMember.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            user: {
+              select: { id: true, email: true, name: true, avatarUrl: true },
+            },
+          }),
+        }),
+      );
     });
   });
 });
