@@ -159,5 +159,67 @@ describe('TrendAnalysisService', () => {
       const result = await service.getHistoricalTrend('inst_001');
       expect(result.periods[0].eveSensitivity).toBe(7);
     });
+
+    // Coverage: line 125 — summary is not an object
+    it('returns null metrics when summary is not an object', async () => {
+      prisma.analysisRun.findMany.mockResolvedValue([
+        makeRun('run_1', new Date('2026-01-01'), {
+          summary: 'not-an-object',
+        }),
+      ]);
+
+      const result = await service.getHistoricalTrend('inst_001');
+      expect(result.periods[0].riskScore).toBeNull();
+    });
+
+    // Coverage: line 160 — niiSensitivity with empty scenarios array
+    it('returns null niiSensitivity when scenarios array is empty', async () => {
+      prisma.analysisRun.findMany.mockResolvedValue([
+        makeRun('run_1', new Date('2026-01-01'), {
+          summary: {
+            niiSensitivity: { scenarios: [] },
+          },
+        }),
+      ]);
+
+      const result = await service.getHistoricalTrend('inst_001');
+      expect(result.periods[0].niiSensitivity).toBeNull();
+    });
+
+    // Coverage: lines 186-194 — eveSensitivity from fullAnalysis.eve.scenarios
+    it('extracts eveSensitivity from fullAnalysis.eve.scenarios', async () => {
+      prisma.analysisRun.findMany.mockResolvedValue([
+        makeRun('run_1', new Date('2026-02-01'), {
+          summary: {
+            fullAnalysis: {
+              eve: {
+                scenarios: [
+                  { changePct: -3 },
+                  { changePct: 8 },
+                  { changePct: -10 },
+                ],
+              },
+            },
+          },
+        }),
+      ]);
+
+      const result = await service.getHistoricalTrend('inst_001');
+      expect(result.periods[0].eveSensitivity).toBe(10);
+    });
+
+    // Coverage: eve missing from fullAnalysis
+    it('returns null eveSensitivity when fullAnalysis has no eve', async () => {
+      prisma.analysisRun.findMany.mockResolvedValue([
+        makeRun('run_1', new Date('2026-02-01'), {
+          summary: {
+            fullAnalysis: { summary: {} },
+          },
+        }),
+      ]);
+
+      const result = await service.getHistoricalTrend('inst_001');
+      expect(result.periods[0].eveSensitivity).toBeNull();
+    });
   });
 });

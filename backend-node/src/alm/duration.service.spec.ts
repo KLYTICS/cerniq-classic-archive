@@ -196,4 +196,63 @@ describe('DurationService', () => {
     expect(result.portfolio.totalAssets).toBe(500);
     expect(result.portfolio.totalLiabilities).toBe(400);
   });
+
+  // ── Coverage: Macaulay duration (lines 114-121) ──────────────
+
+  describe('calculateMacaulayDuration', () => {
+    it('returns 0 for zero/negative price', () => {
+      expect(service.calculateMacaulayDuration([100, 1100], 0.05, 0)).toBe(0);
+      expect(service.calculateMacaulayDuration([100, 1100], 0.05, -10)).toBe(0);
+    });
+
+    it('returns 0 for empty cash flows', () => {
+      expect(service.calculateMacaulayDuration([], 0.05, 1000)).toBe(0);
+    });
+
+    it('clamps negative yield to 0', () => {
+      const result = service.calculateMacaulayDuration([100, 1100], -0.02, 1000);
+      expect(result).toBeGreaterThan(0);
+    });
+
+    it('computes Macaulay duration for a 2-year bond', () => {
+      const result = service.calculateMacaulayDuration([50, 1050], 0.05, 1000);
+      expect(result).toBeGreaterThan(1);
+      expect(result).toBeLessThan(2);
+    });
+  });
+
+  // ── Coverage: maturityDate branch (line 170) and price edge case (line 204) ──
+
+  it('uses maturityDate when provided to determine maturity years', () => {
+    const futureDate = new Date(Date.now() + 3 * 365.25 * 24 * 3600 * 1000);
+    const item: BalanceSheetItem = {
+      category: 'asset',
+      subcategory: 'loans',
+      name: 'Dated Loan',
+      balance: 100,
+      rate: 0.05,
+      duration: 5, // should be overridden by maturityDate
+      rateType: 'fixed',
+      maturityDate: futureDate,
+    };
+
+    const cf = service.generateCashFlows(item);
+    // Maturity determined by maturityDate, not duration
+    expect(cf.maturityYears).toBeGreaterThanOrEqual(2);
+  });
+
+  it('handles zero-rate edge case where price fallback to balance', () => {
+    const item: BalanceSheetItem = {
+      category: 'asset',
+      subcategory: 'loans',
+      name: 'Zero Rate Loan',
+      balance: 100,
+      rate: 0,
+      duration: 3,
+      rateType: 'fixed',
+    };
+
+    const cf = service.generateCashFlows(item);
+    expect(cf.price).toBeGreaterThan(0);
+  });
 });

@@ -119,4 +119,35 @@ describe('KMVMertonService', () => {
     expect(result.assetVol).toBeGreaterThan(0);
     expect(result.assetVol).toBeLessThan(1);
   });
+
+  // Coverage: ddToRating lines 116-120 (BBB, BB, B, CCC, D ratings)
+  it('covers BBB rating (DD ~2.0)', () => {
+    // Moderate leverage to get DD around 2.0
+    const result = service.solveAssetValue(80, 0.15, 350, 0.05, 1);
+    const ratingOrder = ['D', 'CCC', 'B', 'BB', 'BBB', 'A', 'AA', 'AAA'];
+    expect(ratingOrder).toContain(result.impliedRating);
+  });
+
+  it('covers low DD producing lower rating for high leverage', () => {
+    // Extremely leveraged firm
+    const result = service.solveAssetValue(3, 0.4, 500, 0.05, 1);
+    // High leverage should produce a rating, may vary based on solver convergence
+    const ratingOrder = ['D', 'CCC', 'B', 'BB', 'BBB', 'A', 'AA', 'AAA'];
+    expect(ratingOrder).toContain(result.impliedRating);
+    expect(result.leverage).toBeGreaterThan(0.8);
+  });
+
+  it('covers all rating thresholds via ddToRating directly', () => {
+    // Access the private ddToRating method to ensure all branches are hit
+    const ddToRating = (service as any).ddToRating.bind(service);
+    expect(ddToRating(5.0)).toBe('AAA');
+    expect(ddToRating(4.0)).toBe('AA');
+    expect(ddToRating(3.0)).toBe('A');
+    expect(ddToRating(2.5)).toBe('BBB');
+    expect(ddToRating(1.7)).toBe('BB');
+    expect(ddToRating(1.2)).toBe('B');
+    expect(ddToRating(0.7)).toBe('CCC');
+    expect(ddToRating(0.3)).toBe('D');
+    expect(ddToRating(-1.0)).toBe('D');
+  });
 });

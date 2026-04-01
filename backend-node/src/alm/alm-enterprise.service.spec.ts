@@ -728,4 +728,147 @@ describe('AlmEnterpriseService', () => {
       expect(result.equity).toBe(20_000_000);
     });
   });
+
+  // ── Coverage: scoreDurationGap (lines 1693-1695), scoreNII (lines 1702-1708), scoreLCR (lines 1717-1719) ──
+  // These are exercised through getALMSummary which calls the scoring functions.
+
+  describe('getALMSummary scoring paths', () => {
+    beforeEach(() => {
+      mockPrisma.institution.findUnique.mockResolvedValue({
+        id: 'inst-1',
+        name: 'Test CU',
+        type: 'cooperativa',
+        totalAssets: 200,
+        currency: 'USD',
+        reportingDate: new Date('2026-03-31'),
+      });
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+        {
+          category: 'asset', subcategory: 'loans', name: 'Loans',
+          balance: 150, rate: 0.06, duration: 5, rateType: 'fixed',
+          maturityDate: null, repriceDate: null,
+        },
+        {
+          category: 'liability', subcategory: 'deposits', name: 'Deposits',
+          balance: 130, rate: 0.02, duration: 1, rateType: 'variable',
+          maturityDate: null, repriceDate: null,
+        },
+      ]);
+      mockPrisma.liquidityPosition.findFirst.mockResolvedValue(null);
+    });
+
+    it('covers large duration gap scoring', async () => {
+      mockDurationService.calculatePortfolioMetrics.mockReturnValueOnce({
+        assetDuration: 6.0, liabilityDuration: 2.0,
+        assetConvexity: 0.02, liabilityConvexity: 0.005,
+        leverageAdjustedDurationGap: 4.0,
+      });
+      const result = await service.getALMSummary('inst-1');
+      expect(result.durationGap.durationGap).toBe(4);
+    });
+
+    it('covers very large duration gap scoring', async () => {
+      mockDurationService.calculatePortfolioMetrics.mockReturnValueOnce({
+        assetDuration: 8.0, liabilityDuration: 1.5,
+        assetConvexity: 0.02, liabilityConvexity: 0.005,
+        leverageAdjustedDurationGap: 6.5,
+      });
+      const result = await service.getALMSummary('inst-1');
+      expect(result).toBeDefined();
+    });
+
+    it('covers neutral risk profile (gap < 0.5)', async () => {
+      mockDurationService.calculatePortfolioMetrics.mockReturnValueOnce({
+        assetDuration: 2.0, liabilityDuration: 1.8,
+        assetConvexity: 0.02, liabilityConvexity: 0.005,
+        leverageAdjustedDurationGap: 0.2,
+      });
+      const result = await service.getALMSummary('inst-1');
+      expect(result.durationGap.riskProfile).toBe('neutral');
+    });
+
+    it('covers liability-sensitive risk profile (gap < 0)', async () => {
+      mockDurationService.calculatePortfolioMetrics.mockReturnValueOnce({
+        assetDuration: 1.0, liabilityDuration: 3.0,
+        assetConvexity: 0.02, liabilityConvexity: 0.005,
+        leverageAdjustedDurationGap: -2.0,
+      });
+      const result = await service.getALMSummary('inst-1');
+      expect(result.durationGap.riskProfile).toBe('liability-sensitive');
+    });
+
+    it('covers NII critical risk rating', async () => {
+      mockAlmService.niiSimulation.mockReturnValueOnce({
+        baseNII: 5_000_000,
+        scenarios: [{ shockBps: 200, change: -2000000, changePct: -0.25 }],
+      });
+      const result = await service.getALMSummary('inst-1');
+      expect(result.niiSensitivity.riskRating).toBe('critical');
+    });
+
+    it('covers NII high risk rating', async () => {
+      mockAlmService.niiSimulation.mockReturnValueOnce({
+        baseNII: 5_000_000,
+        scenarios: [{ shockBps: 200, change: -750000, changePct: -0.15 }],
+      });
+      const result = await service.getALMSummary('inst-1');
+      expect(result.niiSensitivity.riskRating).toBe('high');
+    });
+
+    it('covers low LCR scoring', async () => {
+      mockAlmService.fullAnalysis.mockReturnValue({
+        lcr: { lcr: 70, hqlaTotal: 10_000_000, totalNetOutflows: 15_000_000, status: 'breach' },
+        durationGap: { durationGap: 1.5 },
+      });
+      const result = await service.getALMSummary('inst-1');
+      expect(result.liquidity.lcr).toBe(70);
+    });
+
+    it('covers warning LCR scoring', async () => {
+      mockAlmService.fullAnalysis.mockReturnValue({
+        lcr: { lcr: 85, hqlaTotal: 15_000_000, totalNetOutflows: 18_000_000, status: 'warning' },
+        durationGap: { durationGap: 1.5 },
+      });
+      const result = await service.getALMSummary('inst-1');
+      expect(result.liquidity.lcr).toBe(85);
+    });
+
+    it('covers moderate LCR scoring', async () => {
+      mockAlmService.fullAnalysis.mockReturnValue({
+        lcr: { lcr: 95, hqlaTotal: 18_000_000, totalNetOutflows: 19_000_000, status: 'warning' },
+        durationGap: { durationGap: 1.5 },
+      });
+      const result = await service.getALMSummary('inst-1');
+      expect(result.liquidity.lcr).toBe(95);
+    });
+  });
+
+  // ── Coverage: duration service error path (lines 1621-1629) ──
+  describe('duration analysis error handling', () => {
+    it('handles duration service errors gracefully', async () => {
+      mockPrisma.institution.findUnique.mockResolvedValue({
+        id: 'inst-1',
+        name: 'Test CU',
+        type: 'cooperativa',
+        totalAssets: 200,
+        currency: 'USD',
+        reportingDate: new Date('2026-03-31'),
+      });
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+        {
+          category: 'asset', subcategory: 'loans', name: 'Loans',
+          balance: 150, rate: 0.06, duration: 5, rateType: 'fixed',
+          maturityDate: null, repriceDate: null,
+        },
+      ]);
+      mockPrisma.liquidityPosition.findFirst.mockResolvedValue(null);
+      mockDurationService.fullDurationAnalysis.mockImplementation(() => {
+        throw new Error('Duration calculation failed');
+      });
+
+      const result = await service.getALMSummary('inst-1');
+      // Should still return a result, just without duration convexity data
+      expect(result).toBeDefined();
+    });
+  });
 });

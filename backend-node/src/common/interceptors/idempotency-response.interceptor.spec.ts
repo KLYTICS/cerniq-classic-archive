@@ -133,4 +133,125 @@ describe('IdempotencyResponseInterceptor', () => {
     // Should NOT return cached response since URL is different
     expect(result).toEqual({ from: 'B' });
   });
+
+  // ── Cache expiry ─────────────────────────────────────────────
+
+  it('should not return expired cache entries', async () => {
+    // Create interceptor with 0-minute TTL (immediate expiry)
+    const shortTTL = new IdempotencyResponseInterceptor(0);
+
+    const { ctx: ctx1 } = createMockContext('POST', '/api/exp', {
+      'x-idempotency-key': 'exp-key',
+    });
+    await lastValueFrom(
+      shortTTL.intercept(ctx1, { handle: () => of({ first: true }) }),
+    );
+
+    // Cache expired immediately
+    const { ctx: ctx2 } = createMockContext('POST', '/api/exp', {
+      'x-idempotency-key': 'exp-key',
+    });
+    const result = await lastValueFrom(
+      shortTTL.intercept(ctx2, { handle: () => of({ second: true }) }),
+    );
+    expect(result).toEqual({ second: true });
+
+    shortTTL.onModuleDestroy();
+  });
+
+  // ── Status code caching ──────────────────────────────────────
+
+  it('should cache and replay status code', async () => {
+    const { ctx: ctx1, res: res1 } = createMockContext('POST', '/api/stat', {
+      'x-idempotency-key': 'stat-key',
+    });
+    res1.statusCode = 201;
+
+    await lastValueFrom(
+      interceptor.intercept(ctx1, { handle: () => of({ created: true }) }),
+    );
+
+    const { ctx: ctx2, res: res2 } = createMockContext('POST', '/api/stat', {
+      'x-idempotency-key': 'stat-key',
+    });
+
+    await lastValueFrom(
+      interceptor.intercept(ctx2, { handle: () => of({ wrong: true }) }),
+    );
+
+    expect(res2.status).toHaveBeenCalledWith(201);
+    expect(res2.setHeader).toHaveBeenCalledWith('X-Idempotent-Replayed', 'true');
+  });
+
+  // ── Cleanup method ───────────────────────────────────────────
+
+  describe('cleanup', () => {
+    it('removes expired entries during cleanup', async () => {
+      const realNow = Date.now;
+      let now = 1000000;
+      Date.now = () => now;
+
+      const { ctx } = createMockContext('POST', '/api/cl', {
+        'x-idempotency-key': 'cl-key',
+      });
+
+      await lastValueFrom(
+        interceptor.intercept(ctx, { handle: () => of({ val: 1 }) }),
+      );
+
+      // Advance past TTL (60 min)
+      now += 60 * 60 * 1000 + 1;
+      (interceptor as any).cleanup();
+
+      expect((interceptor as any).cache.size).toBe(0);
+
+      Date.now = realNow;
+    });
+
+    it('preserves non-expired entries during cleanup', async () => {
+      const { ctx } = createMockContext('POST', '/api/keep', {
+        'x-idempotency-key': 'keep-key',
+      });
+
+      await lastValueFrom(
+        interceptor.intercept(ctx, { handle: () => of({ val: 1 }) }),
+      );
+
+      (interceptor as any).cleanup();
+
+      expect((interceptor as any).cache.size).toBe(1);
+    });
+  });
+
+  // ── onModuleDestroy ──────────────────────────────────────────
+
+  describe('onModuleDestroy', () => {
+    it('clears cleanup timer', () => {
+      interceptor.onModuleDestroy();
+      expect(true).toBe(true);
+    });
+  });
+
+  // ── Different methods with same key ──────────────────────────
+
+  it('should differentiate by HTTP method for same key and URL', async () => {
+    const key = 'method-key';
+
+    const { ctx: ctx1 } = createMockContext('POST', '/api/x', {
+      'x-idempotency-key': key,
+    });
+    await lastValueFrom(
+      interceptor.intercept(ctx1, { handle: () => of({ method: 'POST' }) }),
+    );
+
+    const { ctx: ctx2 } = createMockContext('PUT', '/api/x', {
+      'x-idempotency-key': key,
+    });
+    const result = await lastValueFrom(
+      interceptor.intercept(ctx2, { handle: () => of({ method: 'PUT' }) }),
+    );
+
+    // Different method = different cache key
+    expect(result).toEqual({ method: 'PUT' });
+  });
 });

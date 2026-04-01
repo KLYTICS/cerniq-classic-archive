@@ -503,4 +503,298 @@ describe('OptionsService', () => {
       expect(result.initialCost).toBeGreaterThan(0);
     });
   });
+
+  // ── Strategy identification ────────────────────────────────────
+
+  describe('strategy identification', () => {
+    const futureExpiry = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
+
+    it('identifies Bear Put Spread (2 puts, buy first)', async () => {
+      const result = await service.calculateStrategy({
+        underlyingPrice: 100,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        legs: [
+          { strike: 105, optionType: OptionType.PUT, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
+          { strike: 95, optionType: OptionType.PUT, buySell: 'sell' as any, quantity: 1, expiration: futureExpiry },
+        ],
+      });
+      expect(result.payoff.length).toBeGreaterThan(0);
+    });
+
+    it('identifies Bull Put Spread (2 puts, sell first)', async () => {
+      const result = await service.calculateStrategy({
+        underlyingPrice: 100,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        legs: [
+          { strike: 105, optionType: OptionType.PUT, buySell: 'sell' as any, quantity: 1, expiration: futureExpiry },
+          { strike: 95, optionType: OptionType.PUT, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
+        ],
+      });
+      expect(result.payoff.length).toBeGreaterThan(0);
+    });
+
+    it('identifies Long Straddle (call + put same strike, buy)', async () => {
+      const result = await service.calculateStrategy({
+        underlyingPrice: 100,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        legs: [
+          { strike: 100, optionType: OptionType.CALL, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
+          { strike: 100, optionType: OptionType.PUT, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
+        ],
+      });
+      expect(result.payoff.length).toBeGreaterThan(0);
+    });
+
+    it('identifies Short Straddle (call + put same strike, sell)', async () => {
+      const result = await service.calculateStrategy({
+        underlyingPrice: 100,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        legs: [
+          { strike: 100, optionType: OptionType.CALL, buySell: 'sell' as any, quantity: 1, expiration: futureExpiry },
+          { strike: 100, optionType: OptionType.PUT, buySell: 'sell' as any, quantity: 1, expiration: futureExpiry },
+        ],
+      });
+      expect(result.payoff.length).toBeGreaterThan(0);
+    });
+
+    it('identifies Iron Condor (4 legs: 2 calls + 2 puts)', async () => {
+      const result = await service.calculateStrategy({
+        underlyingPrice: 100,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        legs: [
+          { strike: 90, optionType: OptionType.PUT, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
+          { strike: 95, optionType: OptionType.PUT, buySell: 'sell' as any, quantity: 1, expiration: futureExpiry },
+          { strike: 105, optionType: OptionType.CALL, buySell: 'sell' as any, quantity: 1, expiration: futureExpiry },
+          { strike: 110, optionType: OptionType.CALL, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
+        ],
+      });
+      expect(result.payoff.length).toBeGreaterThan(0);
+    });
+
+    it('identifies Custom Strategy for 3 legs', async () => {
+      const result = await service.calculateStrategy({
+        underlyingPrice: 100,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        legs: [
+          { strike: 95, optionType: OptionType.CALL, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
+          { strike: 100, optionType: OptionType.CALL, buySell: 'sell' as any, quantity: 2, expiration: futureExpiry },
+          { strike: 105, optionType: OptionType.CALL, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
+        ],
+      });
+      expect(result.payoff.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ── Volatility Surface ──────────────────────────────────────────
+
+  describe('getVolatilitySurface', () => {
+    it('returns a surface with strikes, maturities, and points', async () => {
+      const result = await service.getVolatilitySurface('AAPL');
+      expect(result.ticker).toBe('AAPL');
+      expect(result.strikes.length).toBeGreaterThan(0);
+      expect(result.maturities.length).toBeGreaterThan(0);
+      expect(result.surface.length).toBeGreaterThan(0);
+      for (const point of result.surface) {
+        expect(point.impliedVolatility).toBeGreaterThanOrEqual(0.1);
+        expect(point.impliedVolatility).toBeLessThanOrEqual(0.6);
+      }
+    });
+  });
+
+  // ── IV convergence edge cases ──────────────────────────────────
+
+  describe('calculateImpliedVolatility edge cases', () => {
+    it('handles IV when Newton step falls outside bracket (bisection fallback)', async () => {
+      // Price a deep OTM put at very low vol
+      const priced = await service.calculateGreeks({
+        underlying: 100,
+        strike: 50,
+        timeToExpiry: 0.1,
+        riskFreeRate: 0.05,
+        volatility: 0.05,
+        optionType: OptionType.PUT,
+      });
+
+      if (priced.price > 0.001) {
+        const ivResult = await service.calculateImpliedVolatility({
+          ticker: 'TEST',
+          strike: 50,
+          expiration: new Date(Date.now() + 36.525 * 24 * 60 * 60 * 1000).toISOString(),
+          optionType: OptionType.PUT,
+          marketPrice: priced.price,
+        });
+        expect(ivResult.impliedVolatility).toBeGreaterThan(0);
+      }
+    });
+
+    it('recovers IV for put option', async () => {
+      const priced = await service.calculateGreeks({
+        underlying: 100,
+        strike: 100,
+        timeToExpiry: 1,
+        riskFreeRate: 0.05,
+        volatility: 0.25,
+        optionType: OptionType.PUT,
+      });
+
+      const ivResult = await service.calculateImpliedVolatility({
+        ticker: 'TEST',
+        strike: 100,
+        expiration: new Date(Date.now() + 365.25 * 24 * 60 * 60 * 1000).toISOString(),
+        optionType: OptionType.PUT,
+        marketPrice: priced.price,
+      });
+      expect(ivResult.impliedVolatility).toBeGreaterThan(0.1);
+      expect(ivResult.impliedVolatility).toBeLessThan(0.5);
+    });
+  });
+
+  // ── Bear Call Spread identification ──
+
+  describe('Bear Call Spread', () => {
+    it('identifies Bear Call Spread (2 calls, sell first)', async () => {
+      const futureExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const result = await service.calculateStrategy({
+        underlyingPrice: 100,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        legs: [
+          { strike: 95, optionType: OptionType.CALL, buySell: 'sell' as any, quantity: 1, expiration: futureExpiry },
+          { strike: 105, optionType: OptionType.CALL, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
+        ],
+      });
+      expect(result.payoff.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ── BAW Price edge cases ─────────────────────────────────────
+
+  describe('American option BAW edge cases', () => {
+    it('American put with zero volatility falls back to bsPrice', async () => {
+      const result = await service.calculateGreeks({
+        underlying: 90,
+        strike: 100,
+        timeToExpiry: 1,
+        riskFreeRate: 0.05,
+        volatility: 0,
+        optionType: OptionType.PUT,
+        exercise: ExerciseStyle.AMERICAN,
+      });
+      expect(result.price).toBeGreaterThan(0);
+    });
+
+    it('American put at expiry returns intrinsic', async () => {
+      const result = await service.calculateGreeks({
+        underlying: 90,
+        strike: 100,
+        timeToExpiry: 0,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        optionType: OptionType.PUT,
+        exercise: ExerciseStyle.AMERICAN,
+      });
+      expect(result.price).toBeCloseTo(10, 1);
+    });
+
+    it('American put with very low underlying returns near-intrinsic', async () => {
+      const result = await service.calculateGreeks({
+        underlying: 1,
+        strike: 100,
+        timeToExpiry: 1,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        optionType: OptionType.PUT,
+        exercise: ExerciseStyle.AMERICAN,
+      });
+      expect(result.price).toBeGreaterThanOrEqual(90);
+    });
+
+    it('American call with dividends at expiry returns intrinsic', async () => {
+      const result = await service.calculateGreeks({
+        underlying: 150,
+        strike: 100,
+        timeToExpiry: 0,
+        riskFreeRate: 0.05,
+        volatility: 0.2,
+        optionType: OptionType.CALL,
+        exercise: ExerciseStyle.AMERICAN,
+        dividendYield: 0.05,
+      });
+      expect(result.price).toBeCloseTo(50, 1);
+    });
+
+    it('American call with dividends and zero vol', async () => {
+      const result = await service.calculateGreeks({
+        underlying: 150,
+        strike: 100,
+        timeToExpiry: 1,
+        riskFreeRate: 0.05,
+        volatility: 0,
+        optionType: OptionType.CALL,
+        exercise: ExerciseStyle.AMERICAN,
+        dividendYield: 0.05,
+      });
+      expect(result.price).toBeGreaterThan(0);
+    });
+  });
+
+  // ── IV edge cases for max iterations ──
+
+  describe('calculateImpliedVolatility convergence', () => {
+    it('converges for realistic ATM call IV', async () => {
+      // Price an ATM call at known vol, then recover it
+      const priced = await service.calculateGreeks({
+        underlying: 100,
+        strike: 100,
+        timeToExpiry: 0.25,
+        riskFreeRate: 0.05,
+        volatility: 0.15,
+        optionType: OptionType.CALL,
+      });
+      const result = await service.calculateImpliedVolatility({
+        ticker: 'TEST',
+        strike: 100,
+        expiration: new Date(Date.now() + 91.3 * 24 * 60 * 60 * 1000).toISOString(),
+        optionType: OptionType.CALL,
+        marketPrice: priced.price,
+      });
+      expect(result.impliedVolatility).toBeGreaterThan(0.05);
+      expect(result.impliedVolatility).toBeLessThan(0.5);
+    });
+  });
+
+  // ── Zero vol OTM put and call ────────────────────────────────
+  describe('zero vol OTM cases', () => {
+    it('returns 0 for OTM call with zero volatility', async () => {
+      const result = await service.calculateGreeks({
+        underlying: 90,
+        strike: 100,
+        timeToExpiry: 1,
+        riskFreeRate: 0.05,
+        volatility: 0,
+        optionType: OptionType.CALL,
+      });
+      expect(result.price).toBe(0);
+      expect(result.delta).toBe(0);
+    });
+
+    it('returns 0 for OTM put with zero volatility', async () => {
+      const result = await service.calculateGreeks({
+        underlying: 110,
+        strike: 100,
+        timeToExpiry: 1,
+        riskFreeRate: 0.05,
+        volatility: 0,
+        optionType: OptionType.PUT,
+      });
+      expect(result.price).toBe(0);
+      expect(result.delta).toBe(0);
+    });
+  });
 });

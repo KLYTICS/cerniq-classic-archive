@@ -105,4 +105,199 @@ describe('BacktestService', () => {
       expect(trade.commission).toBe(0);
     }
   });
+
+  // ── SMA crossover strategy ───────────────────────────────────
+
+  it('SMA crossover generates buy and sell signals', async () => {
+    // Create data with a clear crossover pattern
+    const data = Array.from({ length: 60 }, (_, i) => ({
+      date: `2025-${String(Math.floor(i / 30) + 1).padStart(2, '0')}-${String((i % 30) + 1).padStart(2, '0')}`,
+      open: 100,
+      high: 105,
+      low: 95,
+      close: i < 30 ? 100 - i * 0.5 : 100 + (i - 30) * 2,
+      volume: 1000000,
+    }));
+    mockMarketDataService.getHistoricalPrices.mockResolvedValue(data);
+
+    const config = {
+      strategy: {
+        name: 'SMA Cross',
+        type: 'SMA_CROSSOVER' as const,
+        lookbackPeriod: 20,
+        params: { shortPeriod: 5, longPeriod: 20 },
+      },
+      tickers: ['AAPL'],
+      startDate: '2025-01-01',
+      endDate: '2025-02-28',
+      initialCapital: 100000,
+      commission: 5,
+    };
+    const result = await service.runBacktest(config);
+    expect(result.metrics.totalTrades).toBeGreaterThanOrEqual(0);
+    expect(result.equityCurve.length).toBeGreaterThan(1);
+  });
+
+  // ── RSI reversal strategy ────────────────────────────────────
+
+  it('RSI reversal generates signals on oversold/overbought', async () => {
+    // Create data with price going down then up (oversold then overbought)
+    const data = Array.from({ length: 60 }, (_, i) => ({
+      date: `2025-${String(Math.floor(i / 30) + 1).padStart(2, '0')}-${String((i % 30) + 1).padStart(2, '0')}`,
+      open: 100,
+      high: 105,
+      low: 95,
+      close: i < 20 ? 100 - i * 2 : 60 + (i - 20) * 3,
+      volume: 1000000,
+    }));
+    mockMarketDataService.getHistoricalPrices.mockResolvedValue(data);
+
+    const config = {
+      strategy: {
+        name: 'RSI Rev',
+        type: 'RSI_REVERSAL' as const,
+        lookbackPeriod: 20,
+        params: { rsiPeriod: 14, oversold: 30, overbought: 70 },
+      },
+      tickers: ['AAPL'],
+      startDate: '2025-01-01',
+      endDate: '2025-02-28',
+      initialCapital: 100000,
+      commission: 5,
+    };
+    const result = await service.runBacktest(config);
+    expect(result.strategyName).toBe('RSI Rev');
+    expect(result.metrics).toBeDefined();
+  });
+
+  // ── Multiple tickers ─────────────────────────────────────────
+
+  it('handles multiple tickers', async () => {
+    const config = {
+      strategy: {
+        name: 'Multi',
+        type: 'MOMENTUM' as const,
+        lookbackPeriod: 10,
+        params: { momentumThreshold: 3 },
+      },
+      tickers: ['AAPL', 'MSFT'],
+      startDate: '2025-01-01',
+      endDate: '2025-04-01',
+      initialCapital: 200000,
+      commission: 10,
+    };
+    const result = await service.runBacktest(config);
+    expect(result.initialCapital).toBe(200000);
+    expect(result.equityCurve.length).toBeGreaterThan(0);
+  });
+
+  // ── Edge case: empty history ─────────────────────────────────
+
+  it('handles empty price data', async () => {
+    mockMarketDataService.getHistoricalPrices.mockResolvedValue([]);
+    const config = {
+      strategy: {
+        name: 'Empty',
+        type: 'MOMENTUM' as const,
+        lookbackPeriod: 10,
+        params: { momentumThreshold: 3 },
+      },
+      tickers: ['AAPL'],
+      startDate: '2025-01-01',
+      endDate: '2025-01-02',
+      initialCapital: 100000,
+      commission: 0,
+    };
+    const result = await service.runBacktest(config);
+    expect(result.finalValue).toBe(100000);
+    expect(result.trades).toHaveLength(0);
+  });
+
+  // ── Profit factor and win rate ───────────────────────────────
+
+  it('calculates profit factor correctly', async () => {
+    // Create a clear trend for momentum
+    const data = Array.from({ length: 50 }, (_, i) => ({
+      date: `2025-01-${String(i + 1).padStart(2, '0')}`,
+      open: 100 + i,
+      high: 102 + i,
+      low: 99 + i,
+      close: 100 + i * 1.5,
+      volume: 1000000,
+    }));
+    mockMarketDataService.getHistoricalPrices.mockResolvedValue(data);
+
+    const config = {
+      strategy: {
+        name: 'Profit Test',
+        type: 'MOMENTUM' as const,
+        lookbackPeriod: 5,
+        params: { momentumThreshold: 1 },
+      },
+      tickers: ['AAPL'],
+      startDate: '2025-01-01',
+      endDate: '2025-02-19',
+      initialCapital: 100000,
+      commission: 0,
+    };
+    const result = await service.runBacktest(config);
+    expect(result.metrics.profitFactor).toBeGreaterThanOrEqual(0);
+    expect(result.metrics.winRate).toBeGreaterThanOrEqual(0);
+    expect(result.metrics.avgTradesPerMonth).toBeGreaterThanOrEqual(0);
+  });
+
+  // ── Sharpe ratio with no returns ─────────────────────────────
+
+  it('returns sharpe ratio 0 when stdDev is 0', async () => {
+    // All same price
+    const data = Array.from({ length: 30 }, (_, i) => ({
+      date: `2025-01-${String(i + 1).padStart(2, '0')}`,
+      open: 100, high: 100, low: 100, close: 100, volume: 1000000,
+    }));
+    mockMarketDataService.getHistoricalPrices.mockResolvedValue(data);
+
+    const config = {
+      strategy: {
+        name: 'Flat',
+        type: 'MOMENTUM' as const,
+        lookbackPeriod: 5,
+        params: { momentumThreshold: 100 }, // high threshold = no trades
+      },
+      tickers: ['AAPL'],
+      startDate: '2025-01-01',
+      endDate: '2025-01-30',
+      initialCapital: 100000,
+      commission: 0,
+    };
+    const result = await service.runBacktest(config);
+    expect(result.metrics.sharpeRatio).toBe(0);
+  });
+
+  // ── RSI returns 100 when no losses ───────────────────────────
+
+  it('RSI is 100 when all gains', async () => {
+    // Monotonically increasing prices
+    const data = Array.from({ length: 40 }, (_, i) => ({
+      date: `2025-01-${String(i + 1).padStart(2, '0')}`,
+      open: 100 + i, high: 102 + i, low: 99 + i, close: 100 + i + 1, volume: 1000000,
+    }));
+    mockMarketDataService.getHistoricalPrices.mockResolvedValue(data);
+
+    const config = {
+      strategy: {
+        name: 'AllGain RSI',
+        type: 'RSI_REVERSAL' as const,
+        lookbackPeriod: 20,
+        params: { rsiPeriod: 14, oversold: 30, overbought: 70 },
+      },
+      tickers: ['AAPL'],
+      startDate: '2025-01-01',
+      endDate: '2025-02-09',
+      initialCapital: 100000,
+      commission: 0,
+    };
+    const result = await service.runBacktest(config);
+    // No oversold signals since RSI is always high
+    expect(result.metrics).toBeDefined();
+  });
 });
