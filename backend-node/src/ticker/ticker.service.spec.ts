@@ -453,7 +453,7 @@ describe('TickerService', () => {
       });
 
       // eq should be called for assetType, sector, and isActive
-      expect(mockQueryBuilder.eq).toHaveBeenCalledWith('asset_type', 'equity');
+      expect(mockQueryBuilder.eq).toHaveBeenCalledWith('asset_type', 'stock');
       expect(mockQueryBuilder.eq).toHaveBeenCalledWith('sector', 'Technology');
       expect(mockQueryBuilder.eq).toHaveBeenCalledWith('is_active', true);
     });

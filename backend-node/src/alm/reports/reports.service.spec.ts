@@ -24,13 +24,13 @@ describe('ReportsService', () => {
       baseNII: 5.2,
       riskRating: 'moderate',
       scenarios: [
-        { shiftBps: -200, niImpact: 1.8, niImpactPct: 34.6 },
-        { shiftBps: -100, niImpact: 0.9, niImpactPct: 17.3 },
-        { shiftBps: 100, niImpact: -0.8, niImpactPct: -15.4 },
-        { shiftBps: 200, niImpact: -2.1, niImpactPct: -40.4, mveImpact: -3.5, mveImpactPct: -5.2 },
+        { name: 'Parallel -200bp', shiftBps: -200, niImpact: 1.8, niImpactPct: 34.6, mveImpact: 2.5, mveImpactPct: 3.7 },
+        { name: 'Parallel -100bp', shiftBps: -100, niImpact: 0.9, niImpactPct: 17.3, mveImpact: 1.2, mveImpactPct: 1.8 },
+        { name: 'Parallel +100bp', shiftBps: 100, niImpact: -0.8, niImpactPct: -15.4, mveImpact: -1.0, mveImpactPct: -1.5 },
+        { name: 'Parallel +200bp', shiftBps: 200, niImpact: -2.1, niImpactPct: -40.4, mveImpact: -3.5, mveImpactPct: -5.2 },
       ],
     },
-    liquidity: { lcr: 118, hqla: 23, netOutflows: 19.5, status: 'compliant' },
+    liquidity: { lcr: 118, hqla: 23, netOutflows: 19.5, status: 'compliant', buffer: 18.0 },
     fullAnalysis: {
       durationGap: { durationGap: 2.3 },
       balanceSheet: {
@@ -55,7 +55,7 @@ describe('ReportsService', () => {
         institutionType: 'cooperativa',
         reportingDate: '2026-01-31T00:00:00.000Z',
         checks: [
-          { name: 'Capital Ratio', value: 10.5, threshold: 6.0, status: 'pass', unit: '%' },
+          { name: 'Capital Ratio', nameEs: 'Razón de Capital', value: 10.5, threshold: 6.0, status: 'pass', unit: '%', description: 'Capital adequacy check', descriptionEs: 'Verificación de adecuación de capital' },
         ],
         ratios: [
           { id: 1, name: 'Capital Adequacy', value: 10.5, threshold: '>= 8%', status: 'pass', unit: '%' },
@@ -70,6 +70,12 @@ describe('ReportsService', () => {
         type: 'cooperativa',
         totalAssets: 250,
         primaryRegulator: 'COSSEC',
+        balanceSheetItems: [
+          { category: 'asset', name: 'Loans', balance: 150, rate: 0.075, duration: 4.0, rateType: 'fixed' },
+          { category: 'asset', name: 'Securities', balance: 60, rate: 0.045, duration: 2.5, rateType: 'fixed' },
+          { category: 'liability', name: 'Deposits', balance: 180, rate: 0.02, duration: 0.5, rateType: 'variable' },
+          { category: 'liability', name: 'Borrowings', balance: 30, rate: 0.035, duration: 1.0, rateType: 'fixed' },
+        ],
       }),
     } as any;
     mockStressTesting = {
@@ -78,7 +84,24 @@ describe('ReportsService', () => {
           { name: 'Parallel +200bp', niiImpact: -4.2, eveImpact: -6.1 },
           { name: 'Parallel -100bp', niiImpact: 2.1, eveImpact: 3.0 },
         ],
-        monteCarlo: { var95: -5.1, var99: -8.2, expectedShortfall: -6.8, paths: 500 },
+        monteCarlo: {
+          var95: -5.1,
+          var99: -8.2,
+          expectedShortfall: -6.8,
+          paths: 500,
+          horizon: 12,
+          niiAtRisk: 3.2,
+          expectedNII: 5.0,
+          worstCaseNII: 1.8,
+          niiDistribution: { p5: 1.8, p25: 3.5, median: 5.0, p75: 6.5, p95: 8.0 },
+        },
+        regulatory: {
+          scenarios: [
+            { name: 'Parallel +200bp', description: 'Rate rise', niImpact: -4.0, mveImpact: -5.0, lcrImpact: -10, capitalImpact: -1.0, passFailStatus: 'pass' },
+            { name: 'Parallel -100bp', description: 'Rate decline', niImpact: 2.1, mveImpact: 3.0, lcrImpact: 5, capitalImpact: 0.5, passFailStatus: 'pass' },
+          ],
+          overallRating: 'resilient',
+        },
       }),
     } as any;
     service = new ReportsService(mockAlmEnterprise, mockStressTesting);
