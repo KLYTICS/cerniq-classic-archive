@@ -156,4 +156,131 @@ describe('AlmEnterpriseService', () => {
       data: { totalAssets: 150 },
     });
   });
+
+  // ── importBalanceSheetItems edge cases ─────────────────────
+  describe('importBalanceSheetItems — liability-only import', () => {
+    it('sets totalAssets to 0 when only liabilities are imported', async () => {
+      mockPrisma.balanceSheetItem.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrisma.balanceSheetItem.createMany.mockResolvedValue({ count: 1 });
+      mockPrisma.institution.update.mockResolvedValue({});
+
+      const items = [
+        {
+          category: 'liability',
+          subcategory: 'deposits',
+          name: 'Savings',
+          balance: 500,
+          rate: 0.01,
+          duration: 0.5,
+          rateType: 'variable',
+        },
+      ];
+      await service.importBalanceSheetItems('inst-1', items);
+      expect(mockPrisma.institution.update).toHaveBeenCalledWith({
+        where: { id: 'inst-1' },
+        data: { totalAssets: 0 },
+      });
+    });
+  });
+
+  // ── calculateDurationGap ───────────────────────────────────
+  describe('calculateDurationGap', () => {
+    it('returns asset-sensitive profile when gap > 0.5', async () => {
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+        { category: 'asset', balance: 1000, rate: 0.05, duration: 4, rateType: 'fixed' },
+        { category: 'liability', balance: 800, rate: 0.02, duration: 1, rateType: 'variable' },
+      ]);
+      mockDurationService.calculatePortfolioMetrics = jest.fn().mockReturnValue({
+        assetDuration: 4.0,
+        liabilityDuration: 1.0,
+        assetConvexity: 0.02,
+        liabilityConvexity: 0.005,
+        leverageAdjustedDurationGap: 3.2,
+      });
+
+      const result = await service.calculateDurationGap('inst-1');
+      expect(result.riskProfile).toBe('asset-sensitive');
+      expect(result.durationGap).toBeGreaterThan(0);
+    });
+
+    it('returns neutral profile when |gap| < 0.5', async () => {
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+        { category: 'asset', balance: 1000, rate: 0.05, duration: 2, rateType: 'fixed' },
+        { category: 'liability', balance: 900, rate: 0.03, duration: 1.8, rateType: 'fixed' },
+      ]);
+      mockDurationService.calculatePortfolioMetrics = jest.fn().mockReturnValue({
+        assetDuration: 2.0,
+        liabilityDuration: 1.8,
+        assetConvexity: 0.01,
+        liabilityConvexity: 0.009,
+        leverageAdjustedDurationGap: 0.2,
+      });
+
+      const result = await service.calculateDurationGap('inst-1');
+      expect(result.riskProfile).toBe('neutral');
+    });
+
+    it('returns liability-sensitive profile when gap < -0.5', async () => {
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+        { category: 'asset', balance: 500, rate: 0.04, duration: 1, rateType: 'variable' },
+        { category: 'liability', balance: 800, rate: 0.03, duration: 5, rateType: 'fixed' },
+      ]);
+      mockDurationService.calculatePortfolioMetrics = jest.fn().mockReturnValue({
+        assetDuration: 1.0,
+        liabilityDuration: 5.0,
+        assetConvexity: 0.005,
+        liabilityConvexity: 0.03,
+        leverageAdjustedDurationGap: -7.0,
+      });
+
+      const result = await service.calculateDurationGap('inst-1');
+      expect(result.riskProfile).toBe('liability-sensitive');
+      expect(result.durationGap).toBeLessThan(0);
+    });
+  });
+
+  // ── calculateLCR ───────────────────────────────────────────
+  describe('calculateLCR', () => {
+    it('returns compliant status when LCR >= 100 from stored position', async () => {
+      mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue({
+        hqlaLevel1: 500,
+        hqlaLevel2: 200,
+        cashOutflows: 400,
+        cashInflows: 100,
+        lcr: 233.33,
+      });
+
+      const result = await service.calculateLCR('inst-1');
+      expect(result.status).toBe('compliant');
+      expect(result.lcr).toBeGreaterThanOrEqual(100);
+      expect(result.hqla).toBe(700);
+    });
+
+    it('returns warning status when LCR is between 90 and 100', async () => {
+      mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue({
+        hqlaLevel1: 80,
+        hqlaLevel2: 10,
+        cashOutflows: 100,
+        cashInflows: 5,
+        lcr: 94.74,
+      });
+
+      const result = await service.calculateLCR('inst-1');
+      expect(result.status).toBe('warning');
+    });
+
+    it('returns breach status when LCR < 90', async () => {
+      mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue({
+        hqlaLevel1: 30,
+        hqlaLevel2: 5,
+        cashOutflows: 100,
+        cashInflows: 10,
+        lcr: 38.89,
+      });
+
+      const result = await service.calculateLCR('inst-1');
+      expect(result.status).toBe('breach');
+      expect(result.buffer).toBeLessThan(0);
+    });
+  });
 });

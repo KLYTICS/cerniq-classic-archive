@@ -90,4 +90,77 @@ describe('EmailService', () => {
       expect(url).toBe('https://cerniq.io');
     });
   });
+
+  // ── adminEmail ─────────────────────────────────────────────
+  describe('adminEmail', () => {
+    it('returns ERWIN_EMAIL env var when set', () => {
+      process.env.ERWIN_EMAIL = 'custom@example.com';
+      const email = (service as any).adminEmail();
+      expect(email).toBe('custom@example.com');
+      delete process.env.ERWIN_EMAIL;
+    });
+
+    it('returns default email when ERWIN_EMAIL is not set', () => {
+      delete process.env.ERWIN_EMAIL;
+      const email = (service as any).adminEmail();
+      expect(email).toBe('eskiessalfonso@gmail.com');
+    });
+  });
+
+  // ── wrap() HTML helper ─────────────────────────────────────
+  describe('wrap', () => {
+    it('returns valid HTML with CERNIQ branding', () => {
+      const html = (service as any).wrap('<p>Hello</p>');
+      expect(html).toContain('CERNIQ');
+      expect(html).toContain('<p>Hello</p>');
+      expect(html).toContain('<!DOCTYPE html>');
+    });
+
+    it('includes CTA button when ctaUrl and ctaText are provided', () => {
+      const html = (service as any).wrap(
+        '<p>Body</p>',
+        'https://example.com/action',
+        'Click Me',
+      );
+      expect(html).toContain('https://example.com/action');
+      expect(html).toContain('Click Me');
+    });
+
+    it('omits CTA button when ctaUrl is not provided', () => {
+      const html = (service as any).wrap('<p>No CTA</p>');
+      expect(html).not.toContain('#E8A020'); // CTA button background color absent from body
+      // The CTA block should not contain an <a> with the button style
+      expect(html).not.toContain('padding: 16px 36px');
+    });
+  });
+
+  // ── dry-run logging when RESEND_API_KEY missing ────────────
+  describe('dry-run behavior', () => {
+    it('sendReportReady does not throw in dry-run mode', async () => {
+      (service as any).resend = null;
+      await expect(
+        service.sendReportReady({
+          email: 'test@example.com',
+          name: 'Test',
+          institutionName: 'Coop Demo',
+          portalUrl: 'https://cerniq.io/portal/123',
+        }),
+      ).resolves.not.toThrow();
+    });
+
+    it('sendClientWelcome logs dry-run when resend is null', async () => {
+      (service as any).resend = null;
+      const logSpy = jest.spyOn((service as any).logger, 'log');
+      await service.sendClientWelcome({
+        email: 'dry@example.com',
+        name: 'Dry',
+        tier: 'Bronze',
+        magicUrl: 'https://cerniq.io/magic/abc',
+        institutionName: 'Dry Coop',
+      });
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[DRY RUN]'),
+      );
+    });
+  });
 });
