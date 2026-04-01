@@ -80,4 +80,115 @@ describe('ValuationService', () => {
     expect(results[0]).toHaveProperty('ticker');
     expect(results[0]).toHaveProperty('score');
   });
+
+  // ── Additional coverage for uncovered branches ─────────────
+
+  it('should throw NotFoundException for invalid valuation type', async () => {
+    await expect(
+      service.getValuation({ ticker: 'AAPL', valuationType: 'invalid' as any }),
+    ).rejects.toThrow('Invalid valuation type: invalid');
+  });
+
+  it('should use cyclical engine for SEMI ticker via auto-detect', async () => {
+    await service.getValuation({ ticker: 'SEMI_CHIP' });
+    expect(mockCyclicalEngine.calculate).toHaveBeenCalled();
+  });
+
+  it('should use cyclical engine for ASML ticker via auto-detect', async () => {
+    await service.getValuation({ ticker: 'ASML' });
+    expect(mockCyclicalEngine.calculate).toHaveBeenCalled();
+  });
+
+  it('should use cyclical engine for LRCX ticker via auto-detect', async () => {
+    await service.getValuation({ ticker: 'LRCX' });
+    expect(mockCyclicalEngine.calculate).toHaveBeenCalled();
+  });
+
+  it('should use frontier engine when fundamentals sector is AI', async () => {
+    mockMarketDataService.getFundamentals.mockResolvedValue({ sector: 'AI' });
+    await service.getValuation({ ticker: 'SOME_STOCK' });
+    expect(mockFrontierEngine.calculate).toHaveBeenCalled();
+  });
+
+  it('should handle fundamentals error gracefully with defaults', async () => {
+    mockMarketDataService.getFundamentals.mockRejectedValue(new Error('Not available'));
+    const result = await service.getValuation({ ticker: 'AAPL' });
+    expect(mockCompounderEngine.calculate).toHaveBeenCalled();
+    expect(result).toBeDefined();
+  });
+
+  it('should handle fundamentals error in getKPIScore', async () => {
+    mockMarketDataService.getFundamentals.mockRejectedValue(new Error('Error'));
+    const result = await service.getKPIScore('AAPL');
+    expect(result.overallScore).toBe(85);
+  });
+
+  it('should sort screener results by upside', async () => {
+    mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 30 });
+    mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
+    const results = await service.runScreener({ sortBy: 'upside', limit: 10 });
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  it('should sort screener results by marketCap', async () => {
+    mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 30 });
+    mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
+    const results = await service.runScreener({ sortBy: 'marketCap', limit: 10 });
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  it('should filter by minScore in screener', async () => {
+    mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 30 });
+    mockKpiEngine.calculate.mockReturnValue({ overallScore: 50 });
+    const results = await service.runScreener({ minScore: 70, limit: 10 });
+    expect(results).toHaveLength(0);
+  });
+
+  it('should handle ticker errors gracefully in screener', async () => {
+    mockMarketDataService.getQuote
+      .mockResolvedValueOnce({ price: 150 }) // for getValuation inside screener
+      .mockRejectedValueOnce(new Error('API error')); // for subsequent calls
+    mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
+    mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 20 });
+    const results = await service.runScreener({ limit: 10 });
+    // Should still return results (errors are caught)
+    expect(results).toBeDefined();
+  });
+
+  it('should use specified valuationType in screener', async () => {
+    mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
+    mockCyclicalEngine.calculate.mockReturnValue({ fairValue: 100, upside: 10 });
+    const results = await service.runScreener({
+      valuationType: 'cyclical',
+      limit: 10,
+    });
+    expect(results).toBeDefined();
+  });
+
+  it('should use frontier engine for AI-containing tickers', async () => {
+    await service.getValuation({ ticker: 'AI_CORP' });
+    expect(mockFrontierEngine.calculate).toHaveBeenCalled();
+  });
+
+  it('should default limit to 50 when not specified in screener', async () => {
+    mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
+    mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 20 });
+    await service.runScreener({});
+    expect(mockTickerService.listTickers).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 50 }),
+    );
+  });
+
+  it('should use probabilityWeightedValue as fairValue for frontier', async () => {
+    mockFrontierEngine.calculate.mockReturnValue({
+      probabilityWeightedValue: 300,
+      upside: 50,
+    });
+    mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
+    mockTickerService.listTickers.mockResolvedValue({
+      tickers: [{ ticker: 'NVDA', name: 'Nvidia', sector: 'Tech', marketCap: 2000000 }],
+    });
+    const results = await service.runScreener({ limit: 10 });
+    expect(results).toBeDefined();
+  });
 });

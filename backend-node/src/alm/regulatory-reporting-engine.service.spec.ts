@@ -1,6 +1,12 @@
-import { describe, it, expect } from '@jest/globals';
-describe('Regulatory Reporting Engine spec', () => {
-  it('should aggregate data', () => {
-    expect(true).toBe(true);
+import { UregulatoryUreportingUengineService } from './regulatory-reporting-engine.service';
+
+describe('UregulatoryUreportingUengineService', () => {
+  const svc = new UregulatoryUreportingUengineService();
+
+  it('analyze returns result with interpretation', () => {
+    const r = svc.analyze({ test: 1 });
+    expect(r.result).toEqual({ test: 1 });
+    expect(r.interpretation).toBeTruthy();
+    expect(r.interpretationEs).toBeTruthy();
   });
 });

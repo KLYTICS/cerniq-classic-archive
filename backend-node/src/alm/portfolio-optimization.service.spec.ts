@@ -1,6 +1,12 @@
-import { describe, it, expect } from '@jest/globals';
-describe('portfolio optimization', () => {
-  it('should analyze', () => {
-    expect(true).toBe(true);
+import { UportfolioUoptimizationService } from './portfolio-optimization.service';
+
+describe('UportfolioUoptimizationService', () => {
+  const svc = new UportfolioUoptimizationService();
+
+  it('analyze returns result with interpretation', () => {
+    const r = svc.analyze({ test: 1 });
+    expect(r.result).toEqual({ test: 1 });
+    expect(r.interpretation).toBeTruthy();
+    expect(r.interpretationEs).toBeTruthy();
   });
 });
