@@ -97,4 +97,79 @@ describe('TreasuryRatesService', () => {
     const snap2 = await service.getLatestSnapshot();
     expect(snap1.capturedAt).toBe(snap2.capturedAt);
   });
+
+  it('detectRateMoves returns DOWN direction for negative delta', () => {
+    const previous = {
+      capturedAt: '2026-03-01T00:00:00Z',
+      fedFunds: 0.0475,
+      sofr: 0.047,
+      treasury3M: 0.048,
+      treasury1Y: 0.044,
+      treasury2Y: 0.042,
+      treasury5Y: 0.0405,
+      treasury10Y: 0.042,
+      treasury30Y: 0.0465,
+      prMuniSpread: 0.0185,
+      source: 'approximation',
+    };
+    const current = {
+      ...previous,
+      capturedAt: '2026-03-02T00:00:00Z',
+      sofr: 0.0455, // -15 bps
+    };
+    const alerts = service.detectRateMoves(previous, current);
+    const sofrAlert = alerts.find((a) => a.rate === 'sofr');
+    expect(sofrAlert).toBeDefined();
+    expect(sofrAlert!.direction).toBe('DOWN');
+    expect(sofrAlert!.deltaBps).toBeLessThan(0);
+  });
+
+  it('detectRateMoves skips non-numeric values gracefully', () => {
+    const previous = {
+      capturedAt: '2026-03-01T00:00:00Z',
+      fedFunds: 0.0475,
+      sofr: 0.047,
+      treasury3M: 0.048,
+      treasury1Y: 0.044,
+      treasury2Y: 0.042,
+      treasury5Y: 0.0405,
+      treasury10Y: 0.042,
+      treasury30Y: 0.0465,
+      prMuniSpread: 0.0185,
+      source: 'approximation',
+    };
+    // capturedAt and source are non-numeric, but they are not in the monitored keys
+    const alerts = service.detectRateMoves(previous, { ...previous });
+    expect(alerts).toHaveLength(0);
+  });
+
+  it('getLatestSnapshot uses FRED API when FRED_API_KEY is set', async () => {
+    process.env.FRED_API_KEY = 'test-key';
+    const mockFetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ observations: [{ value: '4.75' }] }),
+    });
+    (global as any).fetch = mockFetch;
+
+    const snapshot = await service.getLatestSnapshot();
+    expect(snapshot.source).toBe('FRED');
+    expect(mockFetch).toHaveBeenCalled();
+
+    delete process.env.FRED_API_KEY;
+    delete (global as any).fetch;
+  });
+
+  it('falls back to approximation when FRED fetch throws', async () => {
+    process.env.FRED_API_KEY = 'test-key';
+    (global as any).fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+
+    // Need a fresh service to avoid cache
+    const freshService = new TreasuryRatesService();
+    const snapshot = await freshService.getLatestSnapshot();
+    expect(snapshot.source).toBe('approximation');
+
+    delete process.env.FRED_API_KEY;
+    delete (global as any).fetch;
+  });
 });

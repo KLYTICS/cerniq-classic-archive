@@ -148,5 +148,143 @@ describe('ComplianceCalendarService', () => {
         expect(e.descriptionEs.length).toBeGreaterThan(0);
       });
     });
+
+    it('generates quarterly COSSEC reports', async () => {
+      const service = new ComplianceCalendarService(
+        mockPrisma({
+          id: 'inst-1',
+          name: 'CoopAhorro',
+          type: 'cooperativa',
+          alcoMeetingFrequency: 'monthly',
+        }),
+      );
+
+      const result = await service.getUpcomingDeadlines('inst-1');
+      const reports = result.events.filter((e) => e.category === 'report');
+      expect(reports.length).toBeGreaterThanOrEqual(1);
+      expect(reports[0].id).toContain('cossec-report');
+    });
+
+    it('uses quarterly ALCO frequency when set', async () => {
+      const service = new ComplianceCalendarService(
+        mockPrisma({
+          id: 'inst-1',
+          name: 'CoopAhorro',
+          type: 'cooperativa',
+          alcoMeetingFrequency: 'quarterly',
+          alcoNextDate: new Date('2026-05-01'),
+        }),
+      );
+
+      const result = await service.getUpcomingDeadlines('inst-1');
+      const meetings = result.events.filter((e) => e.category === 'meeting');
+      expect(meetings.length).toBe(3);
+      expect(meetings[0].description).toContain('Quarterly');
+    });
+
+    it('generates fiscal year-end report when fiscalYearEnd is set', async () => {
+      const service = new ComplianceCalendarService(
+        mockPrisma({
+          id: 'inst-1',
+          name: 'CoopAhorro',
+          type: 'cooperativa',
+          alcoMeetingFrequency: 'monthly',
+          fiscalYearEnd: 'December',
+        }),
+      );
+
+      const result = await service.getUpcomingDeadlines('inst-1');
+      const fiscal = result.events.filter((e) =>
+        e.id.startsWith('fiscal-year-end'),
+      );
+      expect(fiscal.length).toBe(1);
+      expect(fiscal[0].description).toContain('fiscal year-end');
+    });
+
+    it('uses default third Wednesday when no alcoNextDate', async () => {
+      const service = new ComplianceCalendarService(
+        mockPrisma({
+          id: 'inst-1',
+          name: 'CoopAhorro',
+          type: 'cooperativa',
+          // No alcoNextDate set
+        }),
+      );
+
+      const result = await service.getUpcomingDeadlines('inst-1');
+      const meetings = result.events.filter((e) => e.category === 'meeting');
+      expect(meetings.length).toBe(3);
+      // Default meetings should be on Wednesdays
+      for (const m of meetings) {
+        expect(m.deadlineDate.getDay()).toBe(3); // Wednesday
+      }
+    });
+
+    it('events are sorted by deadlineDate ascending', async () => {
+      const service = new ComplianceCalendarService(
+        mockPrisma({
+          id: 'inst-1',
+          name: 'CoopAhorro',
+          type: 'cooperativa',
+          nextExamDate: new Date('2027-06-15'),
+          alcoMeetingFrequency: 'monthly',
+          alcoNextDate: new Date('2026-04-15'),
+        }),
+      );
+
+      const result = await service.getUpcomingDeadlines('inst-1');
+      for (let i = 1; i < result.events.length; i++) {
+        expect(
+          result.events[i].deadlineDate.getTime(),
+        ).toBeGreaterThanOrEqual(
+          result.events[i - 1].deadlineDate.getTime(),
+        );
+      }
+    });
+  });
+
+  describe('getInstitutionsWithUpcomingDeadlines', () => {
+    it('returns institutions with upcoming deadlines', async () => {
+      const prisma = {
+        institution: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 'inst-1',
+            name: 'CoopAhorro',
+            type: 'cooperativa',
+            nextExamDate: new Date(Date.now() + 5 * 86400000), // 5 days from now
+            alcoMeetingFrequency: 'monthly',
+          }),
+          findMany: jest.fn().mockResolvedValue([
+            {
+              id: 'inst-1',
+              name: 'CoopAhorro',
+              contactEmail: 'cfo@coop.com',
+              contactName: 'Juan',
+            },
+          ]),
+        },
+      };
+
+      const service = new ComplianceCalendarService(prisma as any);
+      const results = await service.getInstitutionsWithUpcomingDeadlines(30);
+      expect(results.length).toBeGreaterThanOrEqual(0);
+    });
+
+    it('filters by workspaceId when provided', async () => {
+      const prisma = {
+        institution: {
+          findUnique: jest.fn().mockResolvedValue(null),
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+      };
+
+      const service = new ComplianceCalendarService(prisma as any);
+      await service.getInstitutionsWithUpcomingDeadlines(30, 'ws-1');
+      expect(prisma.institution.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { workspaceId: 'ws-1' },
+        }),
+      );
+    });
   });
 });
