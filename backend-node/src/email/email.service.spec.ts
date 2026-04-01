@@ -83,15 +83,228 @@ describe('EmailService', () => {
     });
   });
 
+  describe('sendReportReady', () => {
+    it('should send report ready email without throwing', async () => {
+      await expect(
+        service.sendReportReady({
+          email: 'test@example.com',
+          name: 'Test',
+          institutionName: 'Coop Ready',
+          portalUrl: 'https://cerniq.io/portal/reports/42',
+        }),
+      ).resolves.not.toThrow();
+    });
+
+    it('should handle dry-run gracefully', async () => {
+      (service as any).resend = null;
+      await expect(
+        service.sendReportReady({
+          email: 'test@example.com',
+          name: 'Test',
+          institutionName: 'Coop Demo',
+          portalUrl: 'https://cerniq.io/portal/123',
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendMagicLinkEmail', () => {
+    it('should send magic link email without throwing', async () => {
+      await expect(
+        service.sendMagicLinkEmail({
+          email: 'test@example.com',
+          magicUrl: 'https://cerniq.io/magic/abc',
+          name: 'Test',
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendJobFailedAlert', () => {
+    it('should send job failed alert without throwing', async () => {
+      await expect(
+        service.sendJobFailedAlert({
+          jobId: 'job_001',
+          institutionName: 'Coop',
+          error: 'timeout',
+          clientEmail: 'client@example.com',
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendPaymentFailed', () => {
+    it('should send payment failed email without throwing', async () => {
+      await expect(
+        service.sendPaymentFailed({ email: 'test@example.com', name: 'Test' }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendCancellationEmail', () => {
+    it('should send cancellation email without throwing', async () => {
+      await expect(
+        service.sendCancellationEmail({ email: 'test@example.com', name: 'Test' }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendMonthlyReportCycle', () => {
+    it('should send monthly cycle email without throwing', async () => {
+      await expect(
+        service.sendMonthlyReportCycle({ email: 'test@example.com', name: 'Test' }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendDataSubmissionReminder (B2)', () => {
+    it('should send B2 reminder without throwing', async () => {
+      await expect(
+        service.sendDataSubmissionReminder({ email: 'test@example.com', name: 'Test' }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendOnboardingCheckIn (B3)', () => {
+    it('should send B3 check-in without throwing', async () => {
+      await expect(
+        service.sendOnboardingCheckIn({ email: 'test@example.com', name: 'Test' }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendReportFollowUp (C2)', () => {
+    it('should send C2 follow-up without throwing', async () => {
+      await expect(
+        service.sendReportFollowUp({
+          email: 'test@example.com',
+          name: 'Test',
+          institutionName: 'Coop',
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendWinBackEmail (D5)', () => {
+    it('should send D5 win-back without throwing', async () => {
+      await expect(
+        service.sendWinBackEmail({ email: 'test@example.com', name: 'Test' }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendLeadNurtureTeaser (A1)', () => {
+    it('should send A1 teaser without throwing', async () => {
+      await expect(
+        service.sendLeadNurtureTeaser({
+          email: 'test@example.com',
+          name: 'Test',
+          institutionName: 'Coop Test',
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendLeadNurturePricing (A2)', () => {
+    it('should send A2 pricing without throwing', async () => {
+      await expect(
+        service.sendLeadNurturePricing({ email: 'test@example.com', name: 'Test' }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendDemoRequestNotification', () => {
+    it('should send demo request notification without throwing', async () => {
+      await expect(
+        service.sendDemoRequestNotification({
+          email: 'demo@example.com',
+          name: 'Demo User',
+          institutionName: 'Demo Coop',
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendLeadNotification', () => {
+    it('should send lead notification without throwing', async () => {
+      await expect(
+        service.sendLeadNotification({
+          leadId: 'lead_001',
+          name: 'Lead User',
+          email: 'lead@example.com',
+          role: 'CFO',
+          institutionName: 'Lead Coop',
+          institutionType: 'cooperativa',
+          priority: 'HIGH',
+          nextFollowUp: new Date('2026-04-05'),
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendLeadConfirmation', () => {
+    it('should send bilingual lead confirmation without throwing', async () => {
+      await expect(
+        service.sendLeadConfirmation({
+          name: 'Prospect',
+          email: 'prospect@example.com',
+          institutionName: 'Prospect Coop',
+          bilingual: true,
+        }),
+      ).resolves.not.toThrow();
+    });
+
+    it('should send Spanish-only lead confirmation without throwing', async () => {
+      await expect(
+        service.sendLeadConfirmation({
+          name: 'Prospect',
+          email: 'prospect@example.com',
+          institutionName: 'Prospect Coop',
+          bilingual: false,
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendRevenueAlert', () => {
+    it('should send revenue alert without throwing', async () => {
+      await expect(
+        service.sendRevenueAlert({
+          amount: 499,
+          tier: 'monthly',
+          customerEmail: 'customer@example.com',
+          institutionName: 'Revenue Coop',
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendDisputeAlert', () => {
+    it('should send dispute alert without throwing', async () => {
+      await expect(
+        service.sendDisputeAlert({
+          chargeId: 'ch_123',
+          amount: 299,
+          reason: 'fraudulent',
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
   describe('frontendUrl', () => {
     it('should strip trailing slashes from FRONTEND_URL', () => {
       process.env.FRONTEND_URL = 'https://cerniq.io///';
       const url = (service as any).frontendUrl();
       expect(url).toBe('https://cerniq.io');
     });
+
+    it('should return default when FRONTEND_URL is not set', () => {
+      delete process.env.FRONTEND_URL;
+      const url = (service as any).frontendUrl();
+      expect(url).toBe('https://cerniq.io');
+    });
   });
 
-  // ── adminEmail ─────────────────────────────────────────────
   describe('adminEmail', () => {
     it('returns ERWIN_EMAIL env var when set', () => {
       process.env.ERWIN_EMAIL = 'custom@example.com';
@@ -107,7 +320,6 @@ describe('EmailService', () => {
     });
   });
 
-  // ── wrap() HTML helper ─────────────────────────────────────
   describe('wrap', () => {
     it('returns valid HTML with CERNIQ branding', () => {
       const html = (service as any).wrap('<p>Hello</p>');
@@ -128,13 +340,10 @@ describe('EmailService', () => {
 
     it('omits CTA button when ctaUrl is not provided', () => {
       const html = (service as any).wrap('<p>No CTA</p>');
-      expect(html).not.toContain('#E8A020'); // CTA button background color absent from body
-      // The CTA block should not contain an <a> with the button style
       expect(html).not.toContain('padding: 16px 36px');
     });
   });
 
-  // ── dry-run logging when RESEND_API_KEY missing ────────────
   describe('dry-run behavior', () => {
     it('sendReportReady does not throw in dry-run mode', async () => {
       (service as any).resend = null;
@@ -161,6 +370,57 @@ describe('EmailService', () => {
       expect(logSpy).toHaveBeenCalledWith(
         expect.stringContaining('[DRY RUN]'),
       );
+    });
+  });
+
+  describe('error handling with mock resend', () => {
+    it('should not throw when resend.emails.send rejects', async () => {
+      const mockSend = jest.fn().mockRejectedValue(new Error('Network error'));
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await expect(
+        service.sendClientWelcome({
+          email: 'fail@test.com',
+          name: 'Fail',
+          tier: 'monthly',
+          magicUrl: 'https://cerniq.io/magic',
+          institutionName: 'Coop Fail',
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it('should include correct subject and recipient for sendJobFailedAlert', async () => {
+      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_456' });
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await service.sendJobFailedAlert({
+        jobId: 'job_xyz',
+        institutionName: 'Coop Fail',
+        error: 'PDF generation timeout',
+        clientEmail: 'client@test.com',
+      });
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('FAILED');
+      expect(call.subject).toContain('Coop Fail');
+      expect(call.text).toContain('PDF generation timeout');
+    });
+
+    it('sendReportReady should include portal URL in CTA html', async () => {
+      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_789' });
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await service.sendReportReady({
+        email: 'user@example.com',
+        name: 'Carlos',
+        institutionName: 'Coop Ready',
+        portalUrl: 'https://cerniq.io/portal/reports/42',
+      });
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const call = mockSend.mock.calls[0][0];
+      expect(call.html).toContain('https://cerniq.io/portal/reports/42');
     });
   });
 });

@@ -183,9 +183,9 @@ describe('PortfolioService', () => {
       mockMarketDataService.getQuote.mockResolvedValue({ price: 200 });
 
       const result = await service.getPortfolio('p1', 'u1');
-      expect(result.positions[0].currentPrice).toBe(200);
-      expect(result.positions[0].marketValue).toBe(2000);
-      expect(result.positions[0].unrealizedPnL).toBe(1000); // (200-100)*10
+      expect(result.positions![0].currentPrice).toBe(200);
+      expect(result.positions![0].marketValue).toBe(2000);
+      expect(result.positions![0].unrealizedPnL).toBe(1000); // (200-100)*10
     });
 
     it('calculates totalPnL across all positions', async () => {
