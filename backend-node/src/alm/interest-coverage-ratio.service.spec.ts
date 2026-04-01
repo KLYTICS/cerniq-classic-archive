@@ -1,6 +1,12 @@
-import { describe, it, expect } from '@jest/globals';
-describe('interest coverage ratio', () => {
-  it('should analyze', () => {
-    expect(true).toBe(true);
+import { UinterestUcoverageUratioService } from './interest-coverage-ratio.service';
+
+describe('UinterestUcoverageUratioService', () => {
+  const svc = new UinterestUcoverageUratioService();
+
+  it('analyze returns result with interpretation', () => {
+    const r = svc.analyze({ test: 1 });
+    expect(r.result).toEqual({ test: 1 });
+    expect(r.interpretation).toBeTruthy();
+    expect(r.interpretationEs).toBeTruthy();
   });
 });

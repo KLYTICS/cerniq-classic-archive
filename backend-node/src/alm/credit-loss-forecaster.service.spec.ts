@@ -1,6 +1,12 @@
-import { describe, it, expect } from '@jest/globals';
-describe('credit loss forecaster', () => {
-  it('should analyze', () => {
-    expect(true).toBe(true);
+import { UcreditUlossUforecasterService } from './credit-loss-forecaster.service';
+
+describe('UcreditUlossUforecasterService', () => {
+  const svc = new UcreditUlossUforecasterService();
+
+  it('analyze returns result with interpretation', () => {
+    const r = svc.analyze({ test: 1 });
+    expect(r.result).toEqual({ test: 1 });
+    expect(r.interpretation).toBeTruthy();
+    expect(r.interpretationEs).toBeTruthy();
   });
 });

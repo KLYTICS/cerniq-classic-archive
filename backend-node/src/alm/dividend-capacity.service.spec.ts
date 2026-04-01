@@ -1,6 +1,12 @@
-import { describe, it, expect } from '@jest/globals';
-describe('dividend capacity spec', () => {
-  it('should produce valid output', () => {
-    expect(true).toBe(true);
+import { UdividendUcapacityService } from './dividend-capacity.service';
+
+describe('UdividendUcapacityService', () => {
+  const svc = new UdividendUcapacityService();
+
+  it('analyze returns result with interpretation', () => {
+    const r = svc.analyze({ test: 1 });
+    expect(r.result).toEqual({ test: 1 });
+    expect(r.interpretation).toBeTruthy();
+    expect(r.interpretationEs).toBeTruthy();
   });
 });

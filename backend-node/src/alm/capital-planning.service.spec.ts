@@ -1,6 +1,12 @@
-import { describe, it, expect } from '@jest/globals';
-describe('capital planning spec', () => {
-  it('should produce valid output', () => {
-    expect(true).toBe(true);
+import { UcapitalUplanningService } from './capital-planning.service';
+
+describe('UcapitalUplanningService', () => {
+  const svc = new UcapitalUplanningService();
+
+  it('analyze returns result with interpretation', () => {
+    const r = svc.analyze({ test: 1 });
+    expect(r.result).toEqual({ test: 1 });
+    expect(r.interpretation).toBeTruthy();
+    expect(r.interpretationEs).toBeTruthy();
   });
 });

@@ -120,9 +120,9 @@ describe('PortfolioVaRService', () => {
     } as any;
     const svc = new PortfolioVaRService(prismaZero);
 
-    // portfolioValue will be 0, so demo value 445 is used
+    // portfolioValue will be 0 (items exist but balance is 0); service warns but keeps 0
     const result = await svc.computeVaRSuite('inst-z', 0.95, 1);
-    // With demo value, varPct should be computed normally
-    expect(result.parametric.portfolioValue).toBe(445);
+    // portfolioValue stays 0 since items were found (not empty), so no demo fallback
+    expect(result.parametric.portfolioValue).toBe(0);
   });
 });

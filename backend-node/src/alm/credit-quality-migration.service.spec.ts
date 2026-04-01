@@ -1,9 +1,12 @@
-import { describe, it, expect } from '@jest/globals';
-describe('credit quality migration spec', () => {
-  it('should analyze correctly', () => {
-    expect(true).toBe(true);
-  });
-  it('should provide bilingual interpretation', () => {
-    expect(true).toBe(true);
+import { UcreditUqualityUmigrationService } from './credit-quality-migration.service';
+
+describe('UcreditUqualityUmigrationService', () => {
+  const svc = new UcreditUqualityUmigrationService();
+
+  it('analyze returns result with interpretation', () => {
+    const r = svc.analyze({ test: 1 });
+    expect(r.result).toEqual({ test: 1 });
+    expect(r.interpretation).toBeTruthy();
+    expect(r.interpretationEs).toBeTruthy();
   });
 });
