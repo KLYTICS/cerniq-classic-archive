@@ -140,4 +140,105 @@ describe('WebhookService', () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
+
+  // ── Coverage boost: dispatchEvent, deliverWebhook, retry ───
+  describe('dispatchEvent', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ advanceTimers: true });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('dispatches to matching subscriptions and updates success status', async () => {
+      const sub = {
+        id: 'wh-1',
+        url: 'https://hooks.example.com/webhook',
+        secretKey: 'abc123',
+        institutionId: 'inst-1',
+        failureCount: 0,
+        events: ['policy.breach'],
+        isActive: true,
+      };
+      mockPrisma.webhookSubscription.findMany.mockResolvedValue([sub]);
+      mockPrisma.webhookSubscription.update.mockResolvedValue({});
+
+      // Mock fetch globally
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue({ status: 200 }) as any;
+
+      const results = await service.dispatchEvent('inst-1', 'policy.breach', { detail: 'test' });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].success).toBe(true);
+      expect(results[0].statusCode).toBe(200);
+      expect(mockPrisma.webhookSubscription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ failureCount: 0 }),
+        }),
+      );
+
+      global.fetch = originalFetch;
+    });
+
+    it('returns empty results when no subscriptions match', async () => {
+      mockPrisma.webhookSubscription.findMany.mockResolvedValue([]);
+      const results = await service.dispatchEvent('inst-1', 'rate.move', {});
+      expect(results).toEqual([]);
+    });
+
+    it('increments failureCount on delivery failure and disables after 10', async () => {
+      const sub = {
+        id: 'wh-fail',
+        url: 'https://hooks.example.com/webhook',
+        secretKey: 'secret',
+        institutionId: 'inst-1',
+        failureCount: 9,
+        events: ['ews.alert'],
+        isActive: true,
+      };
+      mockPrisma.webhookSubscription.findMany.mockResolvedValue([sub]);
+      mockPrisma.webhookSubscription.update.mockResolvedValue({});
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue({ status: 500 }) as any;
+
+      const results = await service.dispatchEvent('inst-1', 'ews.alert', {});
+
+      expect(results).toHaveLength(1);
+      expect(results[0].success).toBe(false);
+      // After failure, failureCount increments to 10, subscription should be disabled
+      expect(mockPrisma.webhookSubscription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            failureCount: 10,
+            isActive: false,
+          }),
+        }),
+      );
+
+      global.fetch = originalFetch;
+    });
+
+    it('blocks SSRF URL during delivery and returns error result', async () => {
+      const sub = {
+        id: 'wh-ssrf',
+        url: 'http://169.254.169.254/latest/meta-data',
+        secretKey: 'secret',
+        institutionId: 'inst-1',
+        failureCount: 0,
+        events: ['report.ready'],
+        isActive: true,
+      };
+      mockPrisma.webhookSubscription.findMany.mockResolvedValue([sub]);
+      mockPrisma.webhookSubscription.update.mockResolvedValue({});
+
+      const results = await service.dispatchEvent('inst-1', 'report.ready', {});
+
+      expect(results).toHaveLength(1);
+      expect(results[0].success).toBe(false);
+      expect(results[0].error).toContain('SSRF');
+    });
+  });
 });

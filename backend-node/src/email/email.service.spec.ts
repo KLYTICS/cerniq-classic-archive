@@ -423,4 +423,105 @@ describe('EmailService', () => {
       expect(call.html).toContain('https://cerniq.io/portal/reports/42');
     });
   });
+
+  // ── Coverage boost: additional email method tests ──────────
+  describe('sendDailyOperationsReport', () => {
+    it('should send ops report with correct metrics in subject', async () => {
+      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_ops' });
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await service.sendDailyOperationsReport({
+        pendingJobs: 3,
+        failedJobs: 1,
+        newLeads: 5,
+        pendingFollowUps: 2,
+      });
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('5 leads');
+      expect(call.subject).toContain('3 pending');
+      expect(call.subject).toContain('1 failed');
+      expect(call.text).toContain('Overdue Follow-ups: 2');
+    });
+
+    it('handles dry-run when resend is null', async () => {
+      (service as any).resend = null;
+      await expect(
+        service.sendDailyOperationsReport({
+          pendingJobs: 0,
+          failedJobs: 0,
+          newLeads: 0,
+          pendingFollowUps: 0,
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendDemoRequestNotification', () => {
+    it('includes institution name and email in notification text', async () => {
+      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_demo' });
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await service.sendDemoRequestNotification({
+        email: 'prospect@coop.com',
+        name: 'Maria',
+        institutionName: 'Coop Progreso',
+        institutionType: 'cooperativa',
+        totalAssets: '$100-500M',
+      });
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('Coop Progreso');
+      expect(call.text).toContain('prospect@coop.com');
+      expect(call.text).toContain('$100-500M');
+    });
+  });
+
+  describe('sendLeadNotification with phone and message', () => {
+    it('includes phone and message fields when provided', async () => {
+      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_lead' });
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await service.sendLeadNotification({
+        leadId: 'lead_002',
+        name: 'Juan',
+        email: 'juan@coop.com',
+        phone: '787-555-1234',
+        role: 'CEO',
+        institutionName: 'Coop Unidos',
+        institutionType: 'cooperativa',
+        message: 'Interested in quarterly reporting',
+        priority: 'MEDIUM',
+        nextFollowUp: new Date('2026-04-10'),
+      });
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const call = mockSend.mock.calls[0][0];
+      expect(call.text).toContain('787-555-1234');
+      expect(call.text).toContain('Interested in quarterly reporting');
+      expect(call.subject).toContain('MEDIUM');
+    });
+  });
+
+  describe('sendRevenueAlert with correct formatting', () => {
+    it('includes amount and tier in the subject', async () => {
+      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_rev' });
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await service.sendRevenueAlert({
+        amount: 1299,
+        tier: 'annual',
+        customerEmail: 'customer@coop.com',
+        institutionName: 'Coop Premium',
+      });
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('$1299');
+      expect(call.subject).toContain('annual');
+      expect(call.text).toContain('customer@coop.com');
+    });
+  });
 });

@@ -198,4 +198,76 @@ describe('StressTestingService', () => {
       1,
     );
   });
+
+  // ── Coverage boost: runRegulatoryStress ─────────────────────
+  describe('runRegulatoryStress', () => {
+    beforeEach(() => {
+      mockAlmEnterprise.calculateNIISensitivity = jest.fn().mockResolvedValue({
+        baseNII: 10,
+        scenarios: [
+          { shiftBps: 100, niImpact: 0.5, mveImpact: -1, niImpactPct: 5 },
+          { shiftBps: 200, niImpact: 1.0, mveImpact: -2, niImpactPct: 10 },
+          { shiftBps: 300, niImpact: 1.5, mveImpact: -3, niImpactPct: 15 },
+          { shiftBps: -200, niImpact: -0.8, mveImpact: 1.5, niImpactPct: -8 },
+        ],
+      });
+      mockAlmEnterprise.calculateLCR = jest.fn().mockResolvedValue({ lcr: 120 });
+      mockAlmEnterprise.calculateDurationGap = jest.fn().mockResolvedValue({ durationGap: 1.5 });
+    });
+
+    it('returns 4 regulatory scenarios', async () => {
+      const result = await service.runRegulatoryStress('inst-1');
+      expect(result.scenarios).toHaveLength(4);
+      const names = result.scenarios.map(s => s.name);
+      expect(names).toContain('Rapid Rise');
+      expect(names).toContain('Gradual Rise');
+      expect(names).toContain('Yield Curve Inversion');
+      expect(names).toContain('Shock Down');
+    });
+
+    it('assigns overall rating based on fail/warn counts', async () => {
+      const result = await service.runRegulatoryStress('inst-1');
+      expect(['resilient', 'adequate', 'vulnerable', 'critical']).toContain(result.overallRating);
+    });
+
+    it('each scenario has valid rateShock array of 12 months', async () => {
+      const result = await service.runRegulatoryStress('inst-1');
+      for (const scenario of result.scenarios) {
+        expect(scenario.rateShock).toHaveLength(12);
+        expect(scenario.passFailStatus).toBeDefined();
+      }
+    });
+  });
+
+  // ── Coverage boost: runFullStressTest ───────────────────────
+  describe('runFullStressTest', () => {
+    beforeEach(() => {
+      mockAlmEnterprise.calculateNIISensitivity = jest.fn().mockResolvedValue({
+        baseNII: 10,
+        scenarios: [
+          { shiftBps: 100, niImpact: 0.5, mveImpact: -1, niImpactPct: 5 },
+          { shiftBps: 200, niImpact: 1.0, mveImpact: -2, niImpactPct: 10 },
+          { shiftBps: 300, niImpact: 1.5, mveImpact: -3, niImpactPct: 15 },
+          { shiftBps: -200, niImpact: -0.8, mveImpact: 1.5, niImpactPct: -8 },
+        ],
+      });
+      mockAlmEnterprise.calculateLCR = jest.fn().mockResolvedValue({ lcr: 120 });
+      mockAlmEnterprise.calculateDurationGap = jest.fn().mockResolvedValue({ durationGap: 1.5 });
+      mockAlmEnterprise.getCOSSECCompliance = jest.fn().mockResolvedValue({
+        summary: { totalShares: 200, totalLoans: 150 },
+      });
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+        { category: 'asset', rateType: 'variable', balance: 100, rate: 0.05 },
+        { category: 'liability', rateType: 'fixed', balance: 80, rate: 0.03 },
+      ]);
+    });
+
+    it('returns monteCarlo, regulatory, and cossecScenarios', async () => {
+      const result = await service.runFullStressTest('inst-1', { paths: 100, horizon: 6 });
+      expect(result).toHaveProperty('monteCarlo');
+      expect(result).toHaveProperty('regulatory');
+      expect(result).toHaveProperty('cossecScenarios');
+      expect(result.monteCarlo.paths).toBe(100);
+    });
+  });
 });
