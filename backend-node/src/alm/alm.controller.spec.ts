@@ -648,4 +648,113 @@ describe('AlmController — Core Revenue Path', () => {
       ).rejects.toThrow('DB error');
     });
   });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Scenario Operations — getScenario, compareScenarios, duplicateScenario, deleteScenario
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('GET /api/alm/scenarios/:scenarioId', () => {
+    it('returns scenario by id', async () => {
+      scenarioPersistence.getScenario = jest.fn().mockResolvedValue({ id: 'sc1', name: 'Base' });
+      const r = await controller.getScenario('sc1');
+      expect(scenarioPersistence.getScenario).toHaveBeenCalledWith('sc1');
+      expect(r.name).toBe('Base');
+    });
+  });
+
+  describe('POST /api/alm/scenarios/compare', () => {
+    it('compares scenarios', async () => {
+      scenarioPersistence.compareScenarios = jest.fn().mockResolvedValue({ delta: 0.5 });
+      const dto = { scenarioIds: ['sc1', 'sc2'] };
+      const r = await controller.compareScenarios(dto as any);
+      expect(scenarioPersistence.compareScenarios).toHaveBeenCalledWith(['sc1', 'sc2']);
+      expect(r.delta).toBe(0.5);
+    });
+  });
+
+  describe('POST /api/alm/scenarios/:scenarioId/duplicate', () => {
+    it('duplicates scenario', async () => {
+      scenarioPersistence.duplicateScenario = jest.fn().mockResolvedValue({ id: 'sc-dup' });
+      const req = { user: { userId: 'u1' } };
+      const r = await controller.duplicateScenario(req, 'sc1', { name: 'Copy' });
+      expect(scenarioPersistence.duplicateScenario).toHaveBeenCalledWith('sc1', 'u1', 'Copy');
+      expect(r.id).toBe('sc-dup');
+    });
+  });
+
+  describe('POST /api/alm/scenarios/:scenarioId/delete', () => {
+    it('deletes scenario', async () => {
+      scenarioPersistence.deleteScenario = jest.fn().mockResolvedValue({ deleted: true });
+      const r = await controller.deleteScenario('sc1');
+      expect(scenarioPersistence.deleteScenario).toHaveBeenCalledWith('sc1');
+      expect(r.deleted).toBe(true);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Deposit Beta
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('GET /api/alm/:id/deposit-betas', () => {
+    it('returns deposit betas', async () => {
+      depositBeta.getDepositBetas = jest.fn().mockResolvedValue([{ subcategory: 'savings', beta: 0.4 }]);
+      const r = await controller.getDepositBetas('i1');
+      expect(depositBeta.getDepositBetas).toHaveBeenCalledWith('i1');
+      expect(r).toHaveLength(1);
+    });
+  });
+
+  describe('POST /api/alm/:id/deposit-betas', () => {
+    it('updates deposit betas', async () => {
+      depositBeta.updateDepositBetas = jest.fn().mockResolvedValue({ updated: 2 });
+      const body = { betas: [{ subcategory: 'savings', beta: 0.5 }] };
+      const r = await controller.updateDepositBetas('i1', body);
+      expect(depositBeta.updateDepositBetas).toHaveBeenCalledWith('i1', body.betas);
+    });
+  });
+
+  describe('GET /api/alm/:id/deposit-beta-impact', () => {
+    it('calculates impact with default shock', async () => {
+      depositBeta.calculateBetaImpact = jest.fn().mockResolvedValue({ impact: -1.2 });
+      const r = await controller.getDepositBetaImpact('i1');
+      expect(depositBeta.calculateBetaImpact).toHaveBeenCalledWith('i1', 100);
+    });
+
+    it('calculates impact with custom shock', async () => {
+      depositBeta.calculateBetaImpact = jest.fn().mockResolvedValue({ impact: -2.4 });
+      const r = await controller.getDepositBetaImpact('i1', '200');
+      expect(depositBeta.calculateBetaImpact).toHaveBeenCalledWith('i1', 200);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Advanced Liquidity & Concentration
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('GET /api/alm/:id/liquidity-advanced', () => {
+    it('returns advanced liquidity', async () => {
+      liquidityAdvanced.getAdvancedLiquidity = jest.fn().mockResolvedValue({ nsfr: 112, lcr: 135 });
+      const r = await controller.getAdvancedLiquidity('i1');
+      expect(liquidityAdvanced.getAdvancedLiquidity).toHaveBeenCalledWith('i1');
+      expect(r.nsfr).toBe(112);
+    });
+  });
+
+  describe('GET /api/alm/:id/concentration', () => {
+    it('returns concentration analysis', async () => {
+      concentration.getConcentrationAnalysis = jest.fn().mockResolvedValue({ hhi: 0.15 });
+      const r = await controller.getConcentrationAnalysis('i1');
+      expect(concentration.getConcentrationAnalysis).toHaveBeenCalledWith('i1');
+      expect(r.hhi).toBe(0.15);
+    });
+  });
+
+  describe('POST /api/alm/:id/concentration/limits', () => {
+    it('saves concentration limits', async () => {
+      concentration.saveConcentrationLimits = jest.fn().mockResolvedValue({ saved: 1 });
+      const body = { limits: [{ limitType: 'sector', limitName: 'RE', maxPct: 30 }] };
+      const r = await controller.saveConcentrationLimits('i1', body);
+      expect(concentration.saveConcentrationLimits).toHaveBeenCalledWith('i1', body.limits);
+    });
+  });
 });
