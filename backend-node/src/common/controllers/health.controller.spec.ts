@@ -57,4 +57,61 @@ describe('HealthController', () => {
       expect(dep.latencyMs).toBeGreaterThanOrEqual(0);
     }
   });
+
+  // ── Coverage: degraded status (one healthy, one unhealthy) ────
+  it('returns degraded when cache fails but database is healthy', async () => {
+    mockCache.ping.mockRejectedValueOnce(new Error('Cache down'));
+
+    const result = await controller.check();
+    expect(result.status).toBe('unhealthy');
+    const cacheDep = result.dependencies.find(d => d.name === 'cache');
+    expect(cacheDep!.status).toBe('unhealthy');
+  });
+
+  // ── Coverage: cache without ping method ───────────────────────
+  it('returns healthy when cache has no ping method', async () => {
+    const module2 = await Test.createTestingModule({
+      controllers: [HealthController],
+      providers: [
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: CacheService, useValue: {} }, // No ping method
+      ],
+    }).compile();
+
+    const ctrl2 = module2.get<HealthController>(HealthController);
+    const result = await ctrl2.check();
+    expect(result.dependencies.find(d => d.name === 'cache')!.status).toBe('healthy');
+  });
+
+  // ── Coverage: no prisma / no cache (optional deps) ────────────
+  it('handles undefined prisma gracefully', async () => {
+    const module3 = await Test.createTestingModule({
+      controllers: [HealthController],
+      providers: [
+        { provide: PrismaService, useValue: undefined },
+        { provide: CacheService, useValue: undefined },
+      ],
+    }).compile();
+
+    const ctrl3 = module3.get<HealthController>(HealthController);
+    const result = await ctrl3.check();
+    // Both probes return false (no providers) -> unhealthy
+    expect(result.dependencies).toHaveLength(2);
+  });
+
+  // ── Coverage: pool stats ─────────────────────────────────────
+  it('includes pool stats when prisma provides them', async () => {
+    mockPrisma.getPoolStats.mockReturnValue({ total: 10, idle: 5, waiting: 0, max: 20 });
+    const result = await controller.check();
+    expect(result.pool).toEqual({ total: 10, idle: 5, waiting: 0, max: 20 });
+  });
+
+  // ── Coverage: APP_VERSION env var ─────────────────────────────
+  it('uses APP_VERSION env var when set', async () => {
+    const orig = process.env.APP_VERSION;
+    process.env.APP_VERSION = '2.5.0';
+    const result = await controller.check();
+    expect(result.version).toBe('2.5.0');
+    process.env.APP_VERSION = orig;
+  });
 });

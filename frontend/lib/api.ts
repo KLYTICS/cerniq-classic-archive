@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { getMarketApiBase } from './marketTransport';
 import { getPublicApiBase, getPublicApiUrl } from './api-base';
+import { asRecord, unwrapApiData } from './api-response';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -266,13 +267,25 @@ class APIClient {
               {},
               { withCredentials: true }
             );
-            const newToken: string = refreshRes.data?.accessToken ?? '';
+            const refreshPayload = asRecord(
+              unwrapApiData<Record<string, unknown>>(refreshRes.data)
+            );
+            const newToken =
+              typeof refreshPayload?.accessToken === 'string'
+                ? refreshPayload.accessToken
+                : '';
             if (newToken) {
               setAccessToken(newToken);
               originalRequest.headers = originalRequest.headers || {};
               originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
-              return this.client(originalRequest);
             }
+
+            if (!newToken && originalRequest.headers?.Authorization) {
+              clearAccessToken();
+              delete originalRequest.headers.Authorization;
+            }
+
+            return this.client(originalRequest);
           } catch {
             // Refresh failed — clear session and redirect to login
           }
@@ -300,7 +313,7 @@ class APIClient {
         password,
         name,
       });
-      return response.data;
+      return unwrapApiData<AuthResponse>(response.data);
     }
 
     const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
@@ -339,7 +352,7 @@ class APIClient {
         email,
         password,
       });
-      return response.data;
+      return unwrapApiData<AuthResponse>(response.data);
     }
 
     const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
@@ -375,7 +388,7 @@ class APIClient {
     const response = await this.client.get(`${NODE_API_URL}/api/auth/profile`, {
       skipAuthRedirect: true,
     });
-    return response.data;
+    return unwrapApiData(response.data);
   }
 
   async logout() {
@@ -389,7 +402,7 @@ class APIClient {
 
   async refreshTokens() {
     const response = await this.client.post(`${NODE_API_URL}/api/auth/refresh`, {});
-    return response.data;
+    return unwrapApiData(response.data);
   }
 
   async changePassword(currentPassword: string, newPassword: string) {

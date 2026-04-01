@@ -24,36 +24,10 @@ import {
 import { BillingService } from './billing.service';
 import { CheckoutRequestDto } from './billing.dto';
 import { AuthGuard } from '../auth/auth.guard';
+import { getAuthCookieOptions } from '../auth/auth-cookie.util';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma.service';
 import { SkipAuditLog } from '../common/decorators/audit-action.decorator';
-
-const isProduction = process.env.NODE_ENV === 'production';
-
-function parseBoolean(raw: string | undefined, fallback: boolean): boolean {
-  const normalized = (raw || '').trim().toLowerCase();
-  if (!normalized) return fallback;
-  return (
-    normalized === '1' ||
-    normalized === 'true' ||
-    normalized === 'yes' ||
-    normalized === 'on'
-  );
-}
-
-function resolveCookieSameSite(): 'lax' | 'strict' | 'none' {
-  const configured = (process.env.AUTH_COOKIE_SAMESITE || '')
-    .trim()
-    .toLowerCase();
-  if (
-    configured === 'strict' ||
-    configured === 'none' ||
-    configured === 'lax'
-  ) {
-    return configured;
-  }
-  return 'lax';
-}
 
 function resolveFrontendUrl(): string {
   const configured = (process.env.FRONTEND_URL || '')
@@ -62,26 +36,13 @@ function resolveFrontendUrl(): string {
   if (configured) {
     return configured;
   }
-  if (!isProduction) {
+  if (process.env.NODE_ENV !== 'production') {
     return 'http://localhost:3001';
   }
   return 'https://cerniq.io';
 }
 
-const COOKIE_SECURE = parseBoolean(
-  process.env.AUTH_COOKIE_SECURE,
-  isProduction,
-);
-const COOKIE_SAME_SITE = resolveCookieSameSite();
-const COOKIE_DOMAIN = (process.env.AUTH_COOKIE_DOMAIN || '').trim();
-
-const AUTH_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: COOKIE_SECURE,
-  sameSite: COOKIE_SAME_SITE,
-  path: '/',
-  ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
-};
+const AUTH_COOKIE_OPTIONS = getAuthCookieOptions();
 
 @ApiTags('Billing')
 @Controller()

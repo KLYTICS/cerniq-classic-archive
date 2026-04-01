@@ -236,4 +236,40 @@ describe('PipelineController', () => {
       );
     });
   });
+
+  // ── SSE endpoint — Observable emission ───────────────────────
+  describe('jobStatus — SSE emission', () => {
+    it('emits job data from the observable when subscribed', (done) => {
+      prismaService.reportJob.findFirst.mockResolvedValue({
+        status: 'COMPLETE',
+        completedAt: new Date(),
+        errorMessage: null,
+      });
+
+      const obs = controller.jobStatus('job-sse', 'user-sse');
+      const sub = obs.subscribe({
+        next: (event) => {
+          expect(event.data).toBeDefined();
+          expect(event.data.status).toBe('COMPLETE');
+          sub.unsubscribe();
+          done();
+        },
+        error: done,
+      });
+    });
+
+    it('emits null data when userId is not provided (tenant guard)', (done) => {
+      prismaService.reportJob.findFirst.mockResolvedValue(null);
+
+      const obs = controller.jobStatus('job-no-user');
+      const sub = obs.subscribe({
+        next: (event) => {
+          expect(event.data).toBeNull();
+          sub.unsubscribe();
+          done();
+        },
+        error: done,
+      });
+    });
+  });
 });

@@ -871,4 +871,7 @@ describe('AlmEnterpriseService', () => {
       expect(result).toBeDefined();
     });
   });
+
+  // Note: neutral and liability-sensitive risk profiles are already
+  // covered by tests in the 'calculateDurationGap' describe block above.
 });

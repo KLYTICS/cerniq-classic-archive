@@ -127,4 +127,36 @@ describe('IdempotencyMiddleware', () => {
     expect(next).toHaveBeenCalled();
     expect(mockCache.get).not.toHaveBeenCalled();
   });
+
+  // ── Coverage boost: intercepted res.json actually caches and calls original ──
+  it('intercepted res.json caches response and calls original json', async () => {
+    mockCache.get.mockResolvedValue(null);
+
+    const { req, res, next } = createMocks('POST', {
+      'x-idempotency-key': 'key-cache-write',
+    });
+    await middleware.use(req, res, next);
+
+    // Now call the intercepted res.json
+    res.json({ result: 'ok' });
+
+    expect(mockCache.set).toHaveBeenCalledWith(
+      'idempotency:key-cache-write',
+      { status: 200, body: { result: 'ok' } },
+      86400,
+    );
+  });
+
+  it('intercepted res.json handles cache.set failure silently', async () => {
+    mockCache.get.mockResolvedValue(null);
+    mockCache.set.mockRejectedValue(new Error('Redis unavailable'));
+
+    const { req, res, next } = createMocks('PATCH', {
+      'x-idempotency-key': 'key-set-fail',
+    });
+    await middleware.use(req, res, next);
+
+    // Should not throw when res.json triggers cache.set failure
+    expect(() => res.json({ data: 'test' })).not.toThrow();
+  });
 });

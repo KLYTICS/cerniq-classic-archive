@@ -123,4 +123,47 @@ describe('SampleReportFactoryService', () => {
     const result = await service.generateAndSaveForProspect('99999', 'p1');
     expect(result.success).toBe(false);
   });
+
+  // ── Coverage: generates report with custom language ────────────
+  it('generates sample report with es language', async () => {
+    const buffer = await service.generateSampleReport('12345', 'es');
+    expect(buffer).toBeInstanceOf(Buffer);
+    expect(reportsService.generateALMReport).toHaveBeenCalledWith(
+      'temp-inst', 'es', expect.any(Object),
+    );
+  });
+
+  // ── Coverage: getOrCreateSystemWorkspaceId creates new workspace ──
+  it('creates system workspace when it does not exist', async () => {
+    prisma.workspace.findFirst.mockResolvedValueOnce(null);
+    prisma.workspace.create.mockResolvedValue({ id: 'ws-new' });
+
+    const buffer = await service.generateSampleReport('12345');
+    expect(buffer).toBeInstanceOf(Buffer);
+    expect(prisma.workspace.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { name: '__SYSTEM_SAMPLE_REPORTS__' } }),
+    );
+  });
+
+  // ── Coverage: prospect not found path ──────────────────────────
+  it('generateAndSaveForProspect handles null prospect', async () => {
+    prisma.prospectInstitution.findUnique.mockResolvedValue(null);
+
+    const result = await service.generateAndSaveForProspect('12345', 'p-missing');
+    expect(result.success).toBe(true);
+    // update should NOT be called since prospect is null
+    expect(prisma.prospectInstitution.update).not.toHaveBeenCalled();
+  });
+
+  // ── Coverage: prospect with null notes ────────────────────────
+  it('generateAndSaveForProspect handles prospect with null notes', async () => {
+    prisma.prospectInstitution.findUnique.mockResolvedValue({
+      id: 'p2', notes: null,
+    });
+    prisma.prospectInstitution.update.mockResolvedValue({});
+
+    const result = await service.generateAndSaveForProspect('12345', 'p2');
+    expect(result.success).toBe(true);
+    expect(prisma.prospectInstitution.update).toHaveBeenCalled();
+  });
 });

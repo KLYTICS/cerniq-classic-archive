@@ -151,4 +151,36 @@ describe('EncumberedAssetsService', () => {
     expect(result.unencumberedAssets).toBe(80_000_000);
     expect(result.byPledgee).toHaveLength(0);
   });
+
+  // ── Coverage: empty assets throws error ────────────────────────
+  it('throws when assets array is empty', () => {
+    expect(() => svc.analyzeEncumbrance({ assets: [] })).toThrow(
+      'At least one asset entry is required',
+    );
+  });
+
+  // ── Coverage: validation edge cases ────────────────────────────
+  it('validates encumbered exceeds balance', () => {
+    const result = svc.validateEncumbrance({
+      assets: [{ name: 'OverEncumbered', balance: 100, encumbered: 200, pledgedTo: 'Bank' }],
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('exceeds balance');
+  });
+
+  it('validates negative encumbered amount', () => {
+    const result = svc.validateEncumbrance({
+      assets: [{ name: 'Negative', balance: 100, encumbered: -10, pledgedTo: 'Bank' }],
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('negative');
+  });
+
+  it('validates encumbered without pledgee', () => {
+    const result = svc.validateEncumbrance({
+      assets: [{ name: 'NoPledgee', balance: 100, encumbered: 50, pledgedTo: '' }],
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('no pledgee');
+  });
 });

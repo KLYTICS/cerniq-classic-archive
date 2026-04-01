@@ -21,6 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
+import { getAuthCookieOptions, resolveFrontendUrl } from './auth-cookie.util';
 import {
   RegisterDto,
   LoginDto,
@@ -33,60 +34,7 @@ import { CreateApiKeyDto } from './dto/api-key.dto';
 import { AuditService } from '../audit/audit.service';
 import { SkipAuditLog } from '../common/decorators/audit-action.decorator';
 
-const isProduction = process.env.NODE_ENV === 'production';
-
-function parseBoolean(raw: string | undefined, fallback: boolean): boolean {
-  const normalized = (raw || '').trim().toLowerCase();
-  if (!normalized) return fallback;
-  return (
-    normalized === '1' ||
-    normalized === 'true' ||
-    normalized === 'yes' ||
-    normalized === 'on'
-  );
-}
-
-function resolveCookieSameSite(): 'lax' | 'strict' | 'none' {
-  const configured = (process.env.AUTH_COOKIE_SAMESITE || '')
-    .trim()
-    .toLowerCase();
-  if (
-    configured === 'strict' ||
-    configured === 'none' ||
-    configured === 'lax'
-  ) {
-    return configured;
-  }
-  return 'lax';
-}
-
-function resolveFrontendUrl(): string {
-  const configured = (process.env.FRONTEND_URL || '')
-    .trim()
-    .replace(/\/+$/, '');
-  if (configured) {
-    return configured;
-  }
-  if (!isProduction) {
-    return 'http://localhost:3001';
-  }
-  return 'https://cerniq.io';
-}
-
-const COOKIE_SECURE = parseBoolean(
-  process.env.AUTH_COOKIE_SECURE,
-  isProduction,
-);
-const COOKIE_SAME_SITE = resolveCookieSameSite();
-const COOKIE_DOMAIN = (process.env.AUTH_COOKIE_DOMAIN || '').trim();
-
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: COOKIE_SECURE,
-  sameSite: COOKIE_SAME_SITE,
-  path: '/',
-  ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
-};
+const COOKIE_OPTIONS = getAuthCookieOptions();
 
 const ACCESS_TOKEN_MAX_AGE = 24 * 60 * 60 * 1000; // 24h
 const REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7d

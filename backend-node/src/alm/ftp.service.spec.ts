@@ -168,4 +168,66 @@ describe('FTPService', () => {
       resultBase.instruments[0].spread,
     );
   });
+
+  // ── getFTPSegments (delegates to getFTPAnalysis) ──────────────
+  it('getFTPSegments returns segments from analysis', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { id: '1', name: 'Loan', category: 'asset', subcategory: 'loans', balance: 100, rate: 0.06, duration: 5 },
+    ]);
+    const segments = await service.getFTPSegments('inst-seg');
+    expect(segments).toBeDefined();
+    expect(segments.length).toBeGreaterThan(0);
+  });
+
+  // ── interpolateRate edge cases ──────────────────────────────
+  it('uses first rate for tenor below minimum', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { id: '1', name: 'Short', category: 'asset', subcategory: 'cash', balance: 100, rate: 0.05, duration: 0.1 },
+    ]);
+    const result = await service.getFTPAnalysis('inst-short');
+    // duration clamped to 0.25, so should use short end of curve
+    expect(result.instruments[0].ftpRate).toBeGreaterThan(0);
+  });
+
+  it('uses last rate for tenor above maximum', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { id: '1', name: 'Long', category: 'asset', subcategory: 'bonds', balance: 100, rate: 0.05, duration: 50 },
+    ]);
+    const result = await service.getFTPAnalysis('inst-long');
+    expect(result.instruments[0].ftpRate).toBeCloseTo(0.0465, 3);
+  });
+
+  // ── Saved yield curve path ──────────────────────────────────
+  it('uses saved yield curve when available', async () => {
+    prisma.yieldCurve.findFirst.mockResolvedValueOnce({
+      name: 'Custom Curve',
+      tenors: [{ tenor: 1, rate: 0.05 }, { tenor: 5, rate: 0.06 }, { tenor: 10, rate: 0.065 }],
+    });
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { id: '1', name: 'Loan', category: 'asset', subcategory: 'loans', balance: 100, rate: 0.08, duration: 5 },
+    ]);
+    const result = await service.getFTPAnalysis('inst-custom');
+    expect(result.curveUsed).toBe('Custom Curve');
+    expect(result.instruments[0].ftpRate).toBeCloseTo(0.06, 3);
+  });
+
+  // ── Empty balance sheet ──────────────────────────────────────
+  it('handles empty balance sheet gracefully', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([]);
+    const result = await service.getFTPAnalysis('inst-empty');
+    expect(result.instruments).toHaveLength(0);
+    expect(result.summary.netFTPMargin).toBe(0);
+    expect(result.summary.netFTPMarginPct).toBe(0);
+  });
+
+  // ── getNewProductPricing with default tenors ─────────────────
+  it('uses default tenors when none provided', () => {
+    const baseCurve = [
+      { tenor: 1, rate: 0.044 },
+      { tenor: 5, rate: 0.0405 },
+      { tenor: 10, rate: 0.042 },
+    ];
+    const pricing = service.getNewProductPricing(baseCurve);
+    expect(pricing).toHaveLength(6); // default: [1, 2, 3, 5, 7, 10]
+  });
 });

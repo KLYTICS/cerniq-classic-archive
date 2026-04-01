@@ -536,10 +536,37 @@ describe('MarketStreamManagerService', () => {
 
   describe('parseInterval via env vars', () => {
     it('uses fallback for invalid env var values', () => {
-      // The constructor already ran with default env, so the intervals are defaults
       const status = service.getStreamStatus();
-      // No streams yet, but the intervals are set on the service
       expect((service as any).quotePollIntervalMs).toBe(5000);
+    });
+
+    it('uses custom env var values when valid', () => {
+      const origQuote = process.env.MARKET_STREAM_INTERVAL_MS;
+      const origProfile = process.env.MARKET_PROFILE_STREAM_INTERVAL_MS;
+      const origNews = process.env.MARKET_NEWS_STREAM_INTERVAL_MS;
+
+      process.env.MARKET_STREAM_INTERVAL_MS = '10000';
+      process.env.MARKET_PROFILE_STREAM_INTERVAL_MS = '30000';
+      process.env.MARKET_NEWS_STREAM_INTERVAL_MS = '60000';
+
+      const customService = new MarketStreamManagerService(mockMarketDataService as any);
+      expect((customService as any).quotePollIntervalMs).toBe(10000);
+      expect((customService as any).profilePollIntervalMs).toBe(30000);
+      expect((customService as any).newsPollIntervalMs).toBe(60000);
+      customService.onModuleDestroy();
+
+      process.env.MARKET_STREAM_INTERVAL_MS = origQuote;
+      process.env.MARKET_PROFILE_STREAM_INTERVAL_MS = origProfile;
+      process.env.MARKET_NEWS_STREAM_INTERVAL_MS = origNews;
+    });
+
+    it('uses fallback for negative env var values', () => {
+      const orig = process.env.MARKET_STREAM_INTERVAL_MS;
+      process.env.MARKET_STREAM_INTERVAL_MS = '-100';
+      const customService = new MarketStreamManagerService(mockMarketDataService as any);
+      expect((customService as any).quotePollIntervalMs).toBe(5000);
+      customService.onModuleDestroy();
+      process.env.MARKET_STREAM_INTERVAL_MS = orig;
     });
   });
 });

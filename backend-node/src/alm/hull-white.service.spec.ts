@@ -342,4 +342,43 @@ describe('HullWhiteService', () => {
     expect(result.price).toBeGreaterThan(0);
     expect(result.price).toBeLessThan(1);
   });
+
+  // ── Coverage: interpolateRate for maturity before first point ──
+  it('interpolateRate returns first rate for very short maturity', () => {
+    const result = service.priceZeroCouponBond({
+      currentRate: 0.04,
+      kappa: 0.15,
+      sigma: 0.01,
+      maturity: 0.01, // shorter than the first term structure point
+      termStructure,
+    });
+    expect(result.price).toBeGreaterThan(0.99);
+  });
+
+  // ── Coverage: simulation with very few paths ──────────────────
+  it('simulates with minimal paths and steps', () => {
+    const result = service.simulate({
+      initialRate: 0.04,
+      kappa: 0.15,
+      sigma: 0.01,
+      termStructure,
+      numPaths: 3,
+      horizon: 0.5,
+      timeSteps: 5,
+    });
+    expect(result.paths).toHaveLength(3);
+    expect(result.meanPath.length).toBe(6); // timeSteps + 1
+    expect(result.statistics.meanFinalRate).toBeGreaterThan(0);
+  });
+
+  // ── Coverage: calibration with default kappa ──────────────────
+  it('calibrates with auto-detected kappa range', () => {
+    const marketPrices = termStructure.map(p => ({
+      maturity: p.maturity,
+      price: Math.exp(-p.rate * p.maturity),
+    }));
+    const result = service.calibrate({ marketPrices });
+    expect(result.kappa).toBeGreaterThan(0);
+    expect(result.sigma).toBeGreaterThan(0);
+  });
 });

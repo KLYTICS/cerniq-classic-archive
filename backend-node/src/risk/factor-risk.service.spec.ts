@@ -66,4 +66,52 @@ describe('FactorRiskService', () => {
     );
     expect(Math.abs(total - 100)).toBeLessThan(5);
   });
+
+  // ── Coverage: all ticker categories ──────────────────────────
+  it('estimates factor exposures for techSmall stocks', async () => {
+    const positions = [{ ticker: 'PLTR', quantity: 100 }];
+    const result = await service.calculateFactorExposures(positions);
+    expect(result.exposures.SMB).toBeGreaterThan(0); // small cap = positive SMB
+    expect(result.exposures.MKT).toBeGreaterThan(1); // high beta
+  });
+
+  it('estimates factor exposures for value stocks', async () => {
+    const positions = [{ ticker: 'JPM', quantity: 100 }];
+    const result = await service.calculateFactorExposures(positions);
+    expect(result.exposures.HML).toBeGreaterThan(0); // value = positive HML
+  });
+
+  it('estimates factor exposures for growth stocks', async () => {
+    const positions = [{ ticker: 'TSLA', quantity: 100 }];
+    const result = await service.calculateFactorExposures(positions);
+    expect(result.exposures.HML).toBeLessThan(0); // growth = negative HML
+    expect(result.exposures.MOM).toBeGreaterThan(0); // momentum
+  });
+
+  it('estimates factor exposures for smallCap stocks', async () => {
+    const positions = [{ ticker: 'GME', quantity: 100 }];
+    const result = await service.calculateFactorExposures(positions);
+    expect(result.exposures.SMB).toBeGreaterThan(0.5);
+  });
+
+  it('decomposes returns for weekly and monthly periods', async () => {
+    const positions = [{ ticker: 'AAPL', quantity: 100 }];
+    const weekly = await service.decomposeReturns(positions, 'weekly');
+    expect(weekly.period).toBe('weekly');
+    expect(weekly.factorContributions).toHaveProperty('MKT');
+
+    const monthly = await service.decomposeReturns(positions, 'monthly');
+    expect(monthly.period).toBe('monthly');
+    expect(monthly.totalReturn).toBeGreaterThan(weekly.totalReturn);
+  });
+
+  it('includes idiosyncratic risk in results', async () => {
+    const positions = [
+      { ticker: 'AAPL', quantity: 100 },
+      { ticker: 'MSFT', quantity: 100 },
+    ];
+    const result = await service.calculateFactorExposures(positions);
+    expect(result.idiosyncraticRisk).toBeGreaterThan(0);
+    expect(result.factorDescriptions).toHaveProperty('MKT');
+  });
 });

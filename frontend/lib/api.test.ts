@@ -83,6 +83,22 @@ describe('APIClient', () => {
     );
   });
 
+  it('unwraps enveloped profile responses', async () => {
+    const { apiClient } = await import('./api');
+    const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;
+    mockInstance.get.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: { id: 'u_1', email: 'test@cerniq.io' },
+      },
+    });
+
+    await expect(apiClient.getCurrentUser()).resolves.toEqual({
+      id: 'u_1',
+      email: 'test@cerniq.io',
+    });
+  });
+
   it('does not attempt token refresh for skipAuthRedirect requests', async () => {
     await import('./api');
     const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;

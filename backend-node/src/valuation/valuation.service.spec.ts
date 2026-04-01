@@ -206,4 +206,37 @@ describe('ValuationService', () => {
     await service.getValuation({ ticker: 'AI_STARTUP' });
     expect(mockFrontierEngine.calculate).toHaveBeenCalled();
   });
+
+  // ── Coverage boost: screener default sortBy (score) ──────────
+  it('should default sortBy to score in screener', async () => {
+    mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 20 });
+    mockKpiEngine.calculate.mockReturnValue({ overallScore: 80 });
+    const results = await service.runScreener({ limit: 10 });
+    expect(results).toBeDefined();
+    if (results.length > 1) {
+      expect(results[0].score).toBeGreaterThanOrEqual(results[1].score);
+    }
+  });
+
+  // ── Coverage: screener with no tickers returned ──────────────
+  it('should return empty results when no tickers match', async () => {
+    mockTickerService.listTickers.mockResolvedValue({ tickers: [] });
+    const results = await service.runScreener({ limit: 10 });
+    expect(results).toEqual([]);
+  });
+
+  // ── Coverage: screener uses 0 for missing fairValue ──────────
+  it('should use 0 fairValue when valuation returns neither', async () => {
+    mockCompounderEngine.calculate.mockReturnValue({ upside: 10 });
+    mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
+    mockTickerService.listTickers.mockResolvedValue({
+      tickers: [{ ticker: 'NOVALUE', name: 'No Value Corp', sector: null, marketCap: null }],
+    });
+    const results = await service.runScreener({ limit: 10 });
+    if (results.length > 0) {
+      expect(results[0].fairValue).toBe(0);
+      expect(results[0].sector).toBe('Unknown');
+      expect(results[0].marketCap).toBe(0);
+    }
+  });
 });

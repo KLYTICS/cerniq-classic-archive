@@ -769,6 +769,28 @@ describe('OptionsService', () => {
     });
   });
 
+  // ── IV non-convergence for extreme prices ─────────────────────
+  describe('calculateImpliedVolatility — extreme cases', () => {
+    it('handles very high volatility ATM put IV recovery', async () => {
+      const priced = await service.calculateGreeks({
+        underlying: 100,
+        strike: 100,
+        timeToExpiry: 1,
+        riskFreeRate: 0.05,
+        volatility: 0.5,
+        optionType: OptionType.PUT,
+      });
+      const ivResult = await service.calculateImpliedVolatility({
+        ticker: 'TEST',
+        strike: 100,
+        expiration: new Date(Date.now() + 365.25 * 24 * 60 * 60 * 1000).toISOString(),
+        optionType: OptionType.PUT,
+        marketPrice: priced.price,
+      });
+      expect(ivResult.impliedVolatility).toBeGreaterThan(0.3);
+    });
+  });
+
   // ── Zero vol OTM put and call ────────────────────────────────
   describe('zero vol OTM cases', () => {
     it('returns 0 for OTM call with zero volatility', async () => {
