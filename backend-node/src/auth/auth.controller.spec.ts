@@ -287,5 +287,83 @@ describe('AuthController', () => {
 
       expect(authService.revokeApiKey).toHaveBeenCalledWith('u8', 'k3');
     });
+
+    it('should create API key with expiresInDays', async () => {
+      authService.createApiKey.mockResolvedValue({ id: 'k4', key: 'ck_live_xxx' });
+
+      const req = { user: { userId: 'u9' } };
+      const result = await controller.createApiKey(req, { name: 'expiring', expiresInDays: 30 } as any);
+
+      expect(authService.createApiKey).toHaveBeenCalledWith('u9', 'expiring', 30);
+    });
+  });
+
+  describe('PUT /api/auth/password', () => {
+    it('should change password for authenticated user', async () => {
+      authService.changePassword.mockResolvedValue({ message: 'Password changed' });
+      const req = { user: { userId: 'u10' } };
+      const dto = { currentPassword: 'old', newPassword: 'new' };
+
+      const result = await controller.changePassword(req, dto as any);
+
+      expect(authService.changePassword).toHaveBeenCalledWith('u10', 'old', 'new');
+    });
+  });
+
+  describe('POST /api/auth/password-reset/confirm', () => {
+    it('should confirm password reset', async () => {
+      authService.resetPassword = jest.fn().mockResolvedValue({ message: 'Password reset' });
+      const dto = { token: 'reset-token', newPassword: 'newPass123' };
+
+      const result = await controller.resetPassword(dto as any);
+
+      expect(authService.resetPassword).toHaveBeenCalledWith('reset-token', 'newPass123');
+    });
+  });
+
+  describe('GET /api/auth/whoami', () => {
+    it('should return whoami info with orgs', async () => {
+      authService.getUserOrgs = jest.fn().mockResolvedValue([{ org_id: 'org-1', role: 'admin', apps: ['cerniq'] }]);
+      const req = {
+        user: { userId: 'u-who', email: 'who@test.com', claims: { iss: 'test', aud: 'test' } },
+      };
+
+      const result = await controller.whoami(req);
+
+      expect(result.user_id).toBe('u-who');
+      expect(result.email).toBe('who@test.com');
+      expect(result.orgs).toHaveLength(1);
+    });
+
+    it('should check issuer and audience from env vars', async () => {
+      process.env.SUPABASE_JWT_ISSUER = 'test-issuer';
+      process.env.SUPABASE_JWT_AUDIENCE = 'test-audience';
+      authService.getUserOrgs = jest.fn().mockResolvedValue([]);
+
+      const req = {
+        user: { userId: 'u-iss', email: 'iss@test.com', claims: { iss: 'test-issuer', aud: 'test-audience' } },
+      };
+
+      const result = await controller.whoami(req);
+      expect(result.issuer_ok).toBe(true);
+      expect(result.aud_ok).toBe(true);
+
+      delete process.env.SUPABASE_JWT_ISSUER;
+      delete process.env.SUPABASE_JWT_AUDIENCE;
+    });
+
+    it('detects mismatched audience array', async () => {
+      process.env.SUPABASE_JWT_AUDIENCE = 'expected-aud';
+      authService.getUserOrgs = jest.fn().mockResolvedValue([]);
+
+      const req = {
+        user: { userId: 'u-aud', email: 'aud@test.com', claims: { aud: ['other-aud', 'expected-aud'] } },
+      };
+
+      const result = await controller.whoami(req);
+      expect(result.aud_ok).toBe(true);
+
+      delete process.env.SUPABASE_JWT_AUDIENCE;
+    });
   });
 });

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EmailService } from './email.service';
 
-// Mock Resend
+// Mock Resend so no real emails are sent
 jest.mock('resend', () => ({
   Resend: jest.fn().mockImplementation(() => ({
     emails: {
@@ -12,6 +12,7 @@ jest.mock('resend', () => ({
 
 describe('EmailService', () => {
   let service: EmailService;
+  let mockSend: jest.Mock;
 
   beforeEach(async () => {
     process.env.RESEND_API_KEY = 'test-resend-key';
@@ -22,306 +23,46 @@ describe('EmailService', () => {
     }).compile();
 
     service = module.get<EmailService>(EmailService);
+
+    // Replace the internal Resend instance with a controllable mock
+    mockSend = jest.fn().mockResolvedValue({ id: 'msg-ok' });
+    (service as any).resend = { emails: { send: mockSend } };
   });
 
   afterEach(() => {
     delete process.env.RESEND_API_KEY;
     delete process.env.FRONTEND_URL;
+    delete process.env.ERWIN_EMAIL;
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-
-  describe('sendClientWelcome', () => {
-    it('should send welcome email without throwing', async () => {
-      await expect(
-        service.sendClientWelcome({
-          email: 'test@example.com',
-          name: 'Test User',
-          tier: 'Silver',
-          magicUrl: 'https://cerniq.io/auth/magic?token=abc',
-          institutionName: 'Cooperativa Test',
-        }),
-      ).resolves.not.toThrow();
-    });
-
-    it('should handle dry-run when resend is not configured', async () => {
-      (service as any).resend = null;
-      await expect(
-        service.sendClientWelcome({
-          email: 'test@example.com',
-          name: 'Test',
-          tier: 'Gold',
-          magicUrl: 'https://cerniq.io/auth/magic?token=xyz',
-          institutionName: 'Cooperativa Demo',
-        }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendDataSubmissionAck', () => {
-    it('should send acknowledgment email without throwing', async () => {
-      await expect(
-        service.sendDataSubmissionAck({
-          email: 'test@example.com',
-          name: 'Test User',
-          institutionName: 'Cooperativa Test',
-        }),
-      ).resolves.not.toThrow();
-    });
-
-    it('should handle dry-run gracefully', async () => {
-      (service as any).resend = null;
-      await expect(
-        service.sendDataSubmissionAck({
-          email: 'test@example.com',
-          name: 'Test',
-          institutionName: 'Demo CU',
-        }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendReportReady', () => {
-    it('should send report ready email without throwing', async () => {
-      await expect(
-        service.sendReportReady({
-          email: 'test@example.com',
-          name: 'Test',
-          institutionName: 'Coop Ready',
-          portalUrl: 'https://cerniq.io/portal/reports/42',
-        }),
-      ).resolves.not.toThrow();
-    });
-
-    it('should handle dry-run gracefully', async () => {
-      (service as any).resend = null;
-      await expect(
-        service.sendReportReady({
-          email: 'test@example.com',
-          name: 'Test',
-          institutionName: 'Coop Demo',
-          portalUrl: 'https://cerniq.io/portal/123',
-        }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendMagicLinkEmail', () => {
-    it('should send magic link email without throwing', async () => {
-      await expect(
-        service.sendMagicLinkEmail({
-          email: 'test@example.com',
-          magicUrl: 'https://cerniq.io/magic/abc',
-          name: 'Test',
-        }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendJobFailedAlert', () => {
-    it('should send job failed alert without throwing', async () => {
-      await expect(
-        service.sendJobFailedAlert({
-          jobId: 'job_001',
-          institutionName: 'Coop',
-          error: 'timeout',
-          clientEmail: 'client@example.com',
-        }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendPaymentFailed', () => {
-    it('should send payment failed email without throwing', async () => {
-      await expect(
-        service.sendPaymentFailed({ email: 'test@example.com', name: 'Test' }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendCancellationEmail', () => {
-    it('should send cancellation email without throwing', async () => {
-      await expect(
-        service.sendCancellationEmail({ email: 'test@example.com', name: 'Test' }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendMonthlyReportCycle', () => {
-    it('should send monthly cycle email without throwing', async () => {
-      await expect(
-        service.sendMonthlyReportCycle({ email: 'test@example.com', name: 'Test' }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendDataSubmissionReminder (B2)', () => {
-    it('should send B2 reminder without throwing', async () => {
-      await expect(
-        service.sendDataSubmissionReminder({ email: 'test@example.com', name: 'Test' }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendOnboardingCheckIn (B3)', () => {
-    it('should send B3 check-in without throwing', async () => {
-      await expect(
-        service.sendOnboardingCheckIn({ email: 'test@example.com', name: 'Test' }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendReportFollowUp (C2)', () => {
-    it('should send C2 follow-up without throwing', async () => {
-      await expect(
-        service.sendReportFollowUp({
-          email: 'test@example.com',
-          name: 'Test',
-          institutionName: 'Coop',
-        }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendWinBackEmail (D5)', () => {
-    it('should send D5 win-back without throwing', async () => {
-      await expect(
-        service.sendWinBackEmail({ email: 'test@example.com', name: 'Test' }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendLeadNurtureTeaser (A1)', () => {
-    it('should send A1 teaser without throwing', async () => {
-      await expect(
-        service.sendLeadNurtureTeaser({
-          email: 'test@example.com',
-          name: 'Test',
-          institutionName: 'Coop Test',
-        }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendLeadNurturePricing (A2)', () => {
-    it('should send A2 pricing without throwing', async () => {
-      await expect(
-        service.sendLeadNurturePricing({ email: 'test@example.com', name: 'Test' }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendDemoRequestNotification', () => {
-    it('should send demo request notification without throwing', async () => {
-      await expect(
-        service.sendDemoRequestNotification({
-          email: 'demo@example.com',
-          name: 'Demo User',
-          institutionName: 'Demo Coop',
-        }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendLeadNotification', () => {
-    it('should send lead notification without throwing', async () => {
-      await expect(
-        service.sendLeadNotification({
-          leadId: 'lead_001',
-          name: 'Lead User',
-          email: 'lead@example.com',
-          role: 'CFO',
-          institutionName: 'Lead Coop',
-          institutionType: 'cooperativa',
-          priority: 'HIGH',
-          nextFollowUp: new Date('2026-04-05'),
-        }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendLeadConfirmation', () => {
-    it('should send bilingual lead confirmation without throwing', async () => {
-      await expect(
-        service.sendLeadConfirmation({
-          name: 'Prospect',
-          email: 'prospect@example.com',
-          institutionName: 'Prospect Coop',
-          bilingual: true,
-        }),
-      ).resolves.not.toThrow();
-    });
-
-    it('should send Spanish-only lead confirmation without throwing', async () => {
-      await expect(
-        service.sendLeadConfirmation({
-          name: 'Prospect',
-          email: 'prospect@example.com',
-          institutionName: 'Prospect Coop',
-          bilingual: false,
-        }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendRevenueAlert', () => {
-    it('should send revenue alert without throwing', async () => {
-      await expect(
-        service.sendRevenueAlert({
-          amount: 499,
-          tier: 'monthly',
-          customerEmail: 'customer@example.com',
-          institutionName: 'Revenue Coop',
-        }),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('sendDisputeAlert', () => {
-    it('should send dispute alert without throwing', async () => {
-      await expect(
-        service.sendDisputeAlert({
-          chargeId: 'ch_123',
-          amount: 299,
-          reason: 'fraudulent',
-        }),
-      ).resolves.not.toThrow();
-    });
-  });
+  // ─── Private helpers ────────────────────────────────────
 
   describe('frontendUrl', () => {
-    it('should strip trailing slashes from FRONTEND_URL', () => {
+    it('strips trailing slashes', () => {
       process.env.FRONTEND_URL = 'https://cerniq.io///';
-      const url = (service as any).frontendUrl();
-      expect(url).toBe('https://cerniq.io');
+      expect((service as any).frontendUrl()).toBe('https://cerniq.io');
     });
 
-    it('should return default when FRONTEND_URL is not set', () => {
+    it('returns default when FRONTEND_URL is not set', () => {
       delete process.env.FRONTEND_URL;
-      const url = (service as any).frontendUrl();
-      expect(url).toBe('https://cerniq.io');
+      expect((service as any).frontendUrl()).toBe('https://cerniq.io');
     });
   });
 
   describe('adminEmail', () => {
-    it('returns ERWIN_EMAIL env var when set', () => {
+    it('returns ERWIN_EMAIL when set', () => {
       process.env.ERWIN_EMAIL = 'custom@example.com';
-      const email = (service as any).adminEmail();
-      expect(email).toBe('custom@example.com');
-      delete process.env.ERWIN_EMAIL;
+      expect((service as any).adminEmail()).toBe('custom@example.com');
     });
 
-    it('returns default email when ERWIN_EMAIL is not set', () => {
+    it('returns default when ERWIN_EMAIL is not set', () => {
       delete process.env.ERWIN_EMAIL;
-      const email = (service as any).adminEmail();
-      expect(email).toBe('eskiessalfonso@gmail.com');
+      expect((service as any).adminEmail()).toBe('eskiessalfonso@gmail.com');
     });
   });
 
   describe('wrap', () => {
-    it('returns valid HTML with CERNIQ branding', () => {
+    it('returns HTML with CERNIQ branding', () => {
       const html = (service as any).wrap('<p>Hello</p>');
       expect(html).toContain('CERNIQ');
       expect(html).toContain('<p>Hello</p>');
@@ -329,306 +70,344 @@ describe('EmailService', () => {
     });
 
     it('includes CTA button when ctaUrl and ctaText are provided', () => {
-      const html = (service as any).wrap(
-        '<p>Body</p>',
-        'https://example.com/action',
-        'Click Me',
-      );
+      const html = (service as any).wrap('<p>Body</p>', 'https://example.com/action', 'Click Me');
       expect(html).toContain('https://example.com/action');
       expect(html).toContain('Click Me');
     });
 
-    it('omits CTA button when ctaUrl is not provided', () => {
+    it('omits CTA when ctaUrl is not provided', () => {
       const html = (service as any).wrap('<p>No CTA</p>');
       expect(html).not.toContain('padding: 16px 36px');
     });
   });
 
-  describe('dry-run behavior', () => {
-    it('sendReportReady does not throw in dry-run mode', async () => {
+  // ─── DRY RUN behavior ──────────────────────────────────
+
+  describe('dry-run (resend = null)', () => {
+    beforeEach(() => {
       (service as any).resend = null;
-      await expect(
-        service.sendReportReady({
-          email: 'test@example.com',
-          name: 'Test',
-          institutionName: 'Coop Demo',
-          portalUrl: 'https://cerniq.io/portal/123',
-        }),
-      ).resolves.not.toThrow();
     });
 
-    it('sendClientWelcome logs dry-run when resend is null', async () => {
-      (service as any).resend = null;
-      const logSpy = jest.spyOn((service as any).logger, 'log');
-      await service.sendClientWelcome({
-        email: 'dry@example.com',
-        name: 'Dry',
-        tier: 'Bronze',
-        magicUrl: 'https://cerniq.io/magic/abc',
-        institutionName: 'Dry Coop',
+    const dryRunMethods = [
+      ['sendClientWelcome', { email: 'a@b.c', name: 'X', tier: 'G', magicUrl: 'u', institutionName: 'I' }],
+      ['sendDataSubmissionAck', { email: 'a@b.c', name: 'X', institutionName: 'I' }],
+      ['sendReportReady', { email: 'a@b.c', name: 'X', institutionName: 'I', portalUrl: 'u' }],
+      ['sendMagicLinkEmail', { email: 'a@b.c', magicUrl: 'u', name: 'X' }],
+      ['sendJobFailedAlert', { jobId: 'j', institutionName: 'I', error: 'e', clientEmail: 'c' }],
+      ['sendDemoRequestNotification', { email: 'a@b.c' }],
+      ['sendLeadNotification', { leadId: 'l', name: 'N', email: 'e', role: 'R', institutionName: 'I', institutionType: 'T', priority: 'P', nextFollowUp: new Date() }],
+      ['sendLeadConfirmation', { name: 'N', email: 'e', institutionName: 'I', bilingual: true }],
+      ['sendRevenueAlert', { amount: 100, tier: 't', customerEmail: 'c', institutionName: 'I' }],
+      ['sendPaymentFailed', { email: 'a@b.c', name: 'X' }],
+      ['sendCancellationEmail', { email: 'a@b.c', name: 'X' }],
+      ['sendMonthlyReportCycle', { email: 'a@b.c', name: 'X' }],
+      ['sendDisputeAlert', { chargeId: 'ch', amount: 100, reason: 'r' }],
+      ['sendDailyOperationsReport', { pendingJobs: 1, failedJobs: 0, newLeads: 2, pendingFollowUps: 0 }],
+      ['sendDataSubmissionReminder', { email: 'a@b.c', name: 'X' }],
+      ['sendOnboardingCheckIn', { email: 'a@b.c', name: 'X' }],
+      ['sendReportFollowUp', { email: 'a@b.c', name: 'X', institutionName: 'I' }],
+      ['sendWinBackEmail', { email: 'a@b.c', name: 'X' }],
+      ['sendLeadNurtureTeaser', { email: 'a@b.c', name: 'X', institutionName: 'I' }],
+      ['sendLeadNurturePricing', { email: 'a@b.c', name: 'X' }],
+      ['sendRenewalReminder', { email: 'a@b.c', name: 'X', daysLeft: 5, tier: 'G', currentPeriodEnd: '2026-04-01' }],
+      ['sendChurnRiskAlert', { userName: 'U', userEmail: 'e', tier: 't', daysSinceLogin: 30, currentPeriodEnd: '2026-05-01' }],
+      ['sendWeeklyRevenueReport', { activeBytier: {}, totalActive: 0, newThisWeek: 0, cancelledThisWeek: 0, upcomingRenewals: [] }],
+      ['sendNPSSurvey', { email: 'a@b.c', name: 'N', institutionName: 'I', jobId: 'j', institutionId: 'i' }],
+      ['sendTeamInviteEmail', { email: 'a@b.c', name: 'N', inviterName: 'E', role: 'VIEWER', magicUrl: 'u' }],
+    ] as const;
+
+    for (const [method, data] of dryRunMethods) {
+      it(`${method} does not throw in dry-run`, async () => {
+        await expect((service as any)[method](data)).resolves.not.toThrow();
       });
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[DRY RUN]'),
-      );
+    }
+  });
+
+  // ─── Success path — verify email content/args ───────────
+
+  describe('sendClientWelcome', () => {
+    it('sends email with correct subject and CTA', async () => {
+      await service.sendClientWelcome({
+        email: 'test@co.pr',
+        name: 'Maria',
+        tier: 'Gold',
+        magicUrl: 'https://cerniq.io/magic/abc',
+        institutionName: 'Coop Test',
+      });
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const call = mockSend.mock.calls[0][0];
+      expect(call.to).toBe('test@co.pr');
+      expect(call.subject).toContain('Bienvenido');
+      expect(call.subject).toContain('Coop Test');
+      expect(call.html).toContain('https://cerniq.io/magic/abc');
+      expect(call.html).toContain('Gold');
     });
   });
 
-  describe('error handling with mock resend', () => {
-    it('should not throw when resend.emails.send rejects', async () => {
-      const mockSend = jest.fn().mockRejectedValue(new Error('Network error'));
-      (service as any).resend = { emails: { send: mockSend } };
-
-      await expect(
-        service.sendClientWelcome({
-          email: 'fail@test.com',
-          name: 'Fail',
-          tier: 'monthly',
-          magicUrl: 'https://cerniq.io/magic',
-          institutionName: 'Coop Fail',
-        }),
-      ).resolves.toBeUndefined();
+  describe('sendDataSubmissionAck', () => {
+    it('sends acknowledgment with institution name', async () => {
+      await service.sendDataSubmissionAck({ email: 'u@c.pr', name: 'Carlos', institutionName: 'Coop A' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('Coop A');
+      expect(call.html).toContain('Coop A');
     });
+  });
 
-    it('should include correct subject and recipient for sendJobFailedAlert', async () => {
-      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_456' });
-      (service as any).resend = { emails: { send: mockSend } };
+  describe('sendReportReady', () => {
+    it('includes portal URL in CTA', async () => {
+      await service.sendReportReady({ email: 'u@c.pr', name: 'Ana', institutionName: 'Coop R', portalUrl: 'https://cerniq.io/portal/42' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.html).toContain('https://cerniq.io/portal/42');
+      expect(call.subject).toContain('Coop R');
+    });
+  });
 
-      await service.sendJobFailedAlert({
-        jobId: 'job_xyz',
-        institutionName: 'Coop Fail',
-        error: 'PDF generation timeout',
-        clientEmail: 'client@test.com',
-      });
+  describe('sendMagicLinkEmail', () => {
+    it('sends with magic URL in CTA', async () => {
+      await service.sendMagicLinkEmail({ email: 'u@c.pr', magicUrl: 'https://cerniq.io/magic/x', name: 'Luis' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.html).toContain('https://cerniq.io/magic/x');
+    });
+  });
 
-      expect(mockSend).toHaveBeenCalledTimes(1);
+  describe('sendJobFailedAlert', () => {
+    it('includes job ID and error in notification', async () => {
+      await service.sendJobFailedAlert({ jobId: 'job_1', institutionName: 'Coop F', error: 'PDF timeout', clientEmail: 'cl@c.pr' });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('FAILED');
-      expect(call.subject).toContain('Coop Fail');
-      expect(call.text).toContain('PDF generation timeout');
-    });
-
-    it('sendReportReady should include portal URL in CTA html', async () => {
-      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_789' });
-      (service as any).resend = { emails: { send: mockSend } };
-
-      await service.sendReportReady({
-        email: 'user@example.com',
-        name: 'Carlos',
-        institutionName: 'Coop Ready',
-        portalUrl: 'https://cerniq.io/portal/reports/42',
-      });
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      const call = mockSend.mock.calls[0][0];
-      expect(call.html).toContain('https://cerniq.io/portal/reports/42');
-    });
-  });
-
-  // ── Coverage boost: additional email method tests ──────────
-  describe('sendDailyOperationsReport', () => {
-    it('should send ops report with correct metrics in subject', async () => {
-      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_ops' });
-      (service as any).resend = { emails: { send: mockSend } };
-
-      await service.sendDailyOperationsReport({
-        pendingJobs: 3,
-        failedJobs: 1,
-        newLeads: 5,
-        pendingFollowUps: 2,
-      });
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      const call = mockSend.mock.calls[0][0];
-      expect(call.subject).toContain('5 leads');
-      expect(call.subject).toContain('3 pending');
-      expect(call.subject).toContain('1 failed');
-      expect(call.text).toContain('Overdue Follow-ups: 2');
-    });
-
-    it('handles dry-run when resend is null', async () => {
-      (service as any).resend = null;
-      await expect(
-        service.sendDailyOperationsReport({
-          pendingJobs: 0,
-          failedJobs: 0,
-          newLeads: 0,
-          pendingFollowUps: 0,
-        }),
-      ).resolves.not.toThrow();
+      expect(call.subject).toContain('Coop F');
+      expect(call.text).toContain('PDF timeout');
+      expect(call.text).toContain('cl@c.pr');
     });
   });
 
   describe('sendDemoRequestNotification', () => {
-    it('includes institution name and email in notification text', async () => {
-      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_demo' });
-      (service as any).resend = { emails: { send: mockSend } };
-
-      await service.sendDemoRequestNotification({
-        email: 'prospect@coop.com',
-        name: 'Maria',
-        institutionName: 'Coop Progreso',
-        institutionType: 'cooperativa',
-        totalAssets: '$100-500M',
-      });
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
+    it('includes all optional fields', async () => {
+      await service.sendDemoRequestNotification({ email: 'p@c.pr', name: 'P', institutionName: 'Coop D', institutionType: 'cooperativa', totalAssets: '$100-500M' });
       const call = mockSend.mock.calls[0][0];
-      expect(call.subject).toContain('Coop Progreso');
-      expect(call.text).toContain('prospect@coop.com');
+      expect(call.subject).toContain('Coop D');
       expect(call.text).toContain('$100-500M');
     });
+
+    it('handles missing optional fields', async () => {
+      await service.sendDemoRequestNotification({ email: 'p@c.pr' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.text).toContain('\u2014'); // em dash for missing fields
+    });
   });
 
-  describe('sendLeadNotification with phone and message', () => {
-    it('includes phone and message fields when provided', async () => {
-      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_lead' });
-      (service as any).resend = { emails: { send: mockSend } };
-
+  describe('sendLeadNotification', () => {
+    it('includes phone and message when provided', async () => {
       await service.sendLeadNotification({
-        leadId: 'lead_002',
-        name: 'Juan',
-        email: 'juan@coop.com',
-        phone: '787-555-1234',
-        role: 'CEO',
-        institutionName: 'Coop Unidos',
-        institutionType: 'cooperativa',
-        message: 'Interested in quarterly reporting',
-        priority: 'MEDIUM',
-        nextFollowUp: new Date('2026-04-10'),
+        leadId: 'l1', name: 'Juan', email: 'j@c.pr', phone: '787-555-1234',
+        role: 'CEO', institutionName: 'Coop U', institutionType: 'cooperativa',
+        message: 'Quarterly reports', priority: 'HIGH', nextFollowUp: new Date('2026-04-10'),
       });
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.text).toContain('787-555-1234');
-      expect(call.text).toContain('Interested in quarterly reporting');
-      expect(call.subject).toContain('MEDIUM');
+      expect(call.text).toContain('Quarterly reports');
+      expect(call.subject).toContain('HIGH');
     });
-  });
 
-  describe('sendRevenueAlert with correct formatting', () => {
-    it('includes amount and tier in the subject', async () => {
-      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_rev' });
-      (service as any).resend = { emails: { send: mockSend } };
-
-      await service.sendRevenueAlert({
-        amount: 1299,
-        tier: 'annual',
-        customerEmail: 'customer@coop.com',
-        institutionName: 'Coop Premium',
+    it('omits phone and message when not provided', async () => {
+      await service.sendLeadNotification({
+        leadId: 'l2', name: 'Ana', email: 'a@c.pr',
+        role: 'CFO', institutionName: 'Coop V', institutionType: 'bank',
+        priority: 'LOW', nextFollowUp: new Date('2026-04-15'),
       });
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.subject).toContain('$1299');
-      expect(call.subject).toContain('annual');
-      expect(call.text).toContain('customer@coop.com');
+      expect(call.text).not.toContain('Phone:');
+      expect(call.text).not.toContain('Message:');
     });
   });
 
-  // ── Coverage boost: remaining email methods ───────────────
+  describe('sendLeadConfirmation', () => {
+    it('sends bilingual confirmation', async () => {
+      await service.sendLeadConfirmation({ name: 'P', email: 'p@c.pr', institutionName: 'Coop P', bilingual: true });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.html).toContain('Thank you');
+      expect(call.html).toContain('Gracias');
+    });
+
+    it('sends Spanish-only when bilingual is false', async () => {
+      await service.sendLeadConfirmation({ name: 'P', email: 'p@c.pr', institutionName: 'Coop P', bilingual: false });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.html).toContain('Gracias');
+      expect(call.html).not.toContain('Thank you');
+    });
+  });
+
+  describe('sendRevenueAlert', () => {
+    it('includes amount and tier in subject', async () => {
+      await service.sendRevenueAlert({ amount: 499, tier: 'monthly', customerEmail: 'c@c.pr', institutionName: 'Coop Rev' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('$499');
+      expect(call.subject).toContain('monthly');
+    });
+  });
+
+  describe('sendPaymentFailed', () => {
+    it('sends bilingual payment failed email', async () => {
+      await service.sendPaymentFailed({ email: 'u@c.pr', name: 'Test' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('pago');
+      expect(call.html).toContain('payment');
+    });
+  });
+
+  describe('sendCancellationEmail', () => {
+    it('sends bilingual cancellation email', async () => {
+      await service.sendCancellationEmail({ email: 'u@c.pr', name: 'Test' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('personal note');
+      expect(call.html).toContain('cancelled');
+    });
+  });
+
+  describe('sendMonthlyReportCycle', () => {
+    it('sends bilingual monthly cycle email', async () => {
+      await service.sendMonthlyReportCycle({ email: 'u@c.pr', name: 'Test' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('ciclo');
+      expect(call.html).toContain('new reporting cycle');
+    });
+  });
+
+  describe('sendDisputeAlert', () => {
+    it('sends dispute alert with charge details', async () => {
+      await service.sendDisputeAlert({ chargeId: 'ch_abc', amount: 299, reason: 'fraudulent' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('$299');
+      expect(call.subject).toContain('fraudulent');
+      expect(call.text).toContain('ch_abc');
+    });
+  });
+
+  describe('sendDailyOperationsReport', () => {
+    it('sends ops report with correct metrics', async () => {
+      await service.sendDailyOperationsReport({ pendingJobs: 3, failedJobs: 1, newLeads: 5, pendingFollowUps: 2 });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('5 leads');
+      expect(call.subject).toContain('3 pending');
+      expect(call.text).toContain('Overdue Follow-ups: 2');
+    });
+  });
+
+  describe('sendDataSubmissionReminder (B2)', () => {
+    it('sends B2 reminder with portal link', async () => {
+      await service.sendDataSubmissionReminder({ email: 'u@c.pr', name: 'Test' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.html).toContain('portal/submit');
+    });
+  });
+
+  describe('sendOnboardingCheckIn (B3)', () => {
+    it('sends B3 check-in email', async () => {
+      await service.sendOnboardingCheckIn({ email: 'u@c.pr', name: 'Test' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('ayuda');
+    });
+  });
+
+  describe('sendReportFollowUp (C2)', () => {
+    it('sends C2 follow-up with institution name', async () => {
+      await service.sendReportFollowUp({ email: 'u@c.pr', name: 'Test', institutionName: 'Coop C2' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('Coop C2');
+      expect(call.html).toContain('Coop C2');
+    });
+  });
+
+  describe('sendWinBackEmail (D5)', () => {
+    it('sends D5 win-back email', async () => {
+      await service.sendWinBackEmail({ email: 'u@c.pr', name: 'Test' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('miss you');
+      expect(call.html).toContain('improvements');
+    });
+  });
+
+  describe('sendLeadNurtureTeaser (A1)', () => {
+    it('sends A1 teaser with institution name', async () => {
+      await service.sendLeadNurtureTeaser({ email: 'u@c.pr', name: 'Test', institutionName: 'Coop A1' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('Coop A1');
+      expect(call.html).toContain('demo');
+    });
+  });
+
+  describe('sendLeadNurturePricing (A2)', () => {
+    it('sends A2 pricing email with table', async () => {
+      await service.sendLeadNurturePricing({ email: 'u@c.pr', name: 'Test' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('precios');
+      expect(call.html).toContain('$499');
+    });
+  });
+
   describe('sendRenewalReminder', () => {
     it('sends urgent subject when daysLeft <= 7', async () => {
-      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_renew' });
-      (service as any).resend = { emails: { send: mockSend } };
-
-      await service.sendRenewalReminder({
-        email: 'user@coop.com',
-        name: 'Maria',
-        daysLeft: 3,
-        tier: 'Gold',
-        currentPeriodEnd: '2026-04-01',
-      });
-
+      await service.sendRenewalReminder({ email: 'u@c.pr', name: 'M', daysLeft: 3, tier: 'Gold', currentPeriodEnd: '2026-04-01' });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('Accion requerida');
       expect(call.subject).toContain('3 dias');
     });
 
     it('sends non-urgent subject when daysLeft > 7', async () => {
-      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_renew2' });
-      (service as any).resend = { emails: { send: mockSend } };
-
-      await service.sendRenewalReminder({
-        email: 'user@coop.com',
-        name: 'Maria',
-        daysLeft: 20,
-        tier: 'Silver',
-        currentPeriodEnd: '2026-04-20',
-      });
-
+      await service.sendRenewalReminder({ email: 'u@c.pr', name: 'M', daysLeft: 20, tier: 'Silver', currentPeriodEnd: '2026-04-20' });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('se renueva');
     });
 
-    it('handles dry-run when resend is null', async () => {
-      (service as any).resend = null;
-      await expect(
-        service.sendRenewalReminder({
-          email: 'user@coop.com',
-          name: 'Maria',
-          daysLeft: 5,
-          tier: 'Gold',
-          currentPeriodEnd: '2026-04-01',
-        }),
-      ).resolves.not.toThrow();
+    it('includes extra messaging when daysLeft <= 14', async () => {
+      await service.sendRenewalReminder({ email: 'u@c.pr', name: 'M', daysLeft: 10, tier: 'Gold', currentPeriodEnd: '2026-04-10' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.html).toContain('metodo de pago');
+    });
+
+    it('omits extra messaging when daysLeft > 14', async () => {
+      await service.sendRenewalReminder({ email: 'u@c.pr', name: 'M', daysLeft: 25, tier: 'Gold', currentPeriodEnd: '2026-04-25' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.html).not.toContain('metodo de pago');
     });
   });
 
   describe('sendChurnRiskAlert', () => {
-    it('sends churn risk alert with days inactive', async () => {
-      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_churn' });
-      (service as any).resend = { emails: { send: mockSend } };
-
-      await service.sendChurnRiskAlert({
-        userName: 'Carlos',
-        userEmail: 'carlos@coop.com',
-        tier: 'monthly',
-        daysSinceLogin: 45,
-        currentPeriodEnd: '2026-05-01',
-      });
-
+    it('sends churn risk alert with correct data', async () => {
+      await service.sendChurnRiskAlert({ userName: 'C', userEmail: 'c@c.pr', tier: 'monthly', daysSinceLogin: 45, currentPeriodEnd: '2026-05-01' });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('CHURN RISK');
       expect(call.subject).toContain('45d inactive');
-      expect(call.text).toContain('carlos@coop.com');
     });
   });
 
   describe('sendWeeklyRevenueReport', () => {
-    it('sends report with tier breakdown and renewals', async () => {
-      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_weekly' });
-      (service as any).resend = { emails: { send: mockSend } };
-
+    it('sends report with tier breakdown', async () => {
       await service.sendWeeklyRevenueReport({
         activeBytier: { Gold: 5, Silver: 10 },
         totalActive: 15,
         newThisWeek: 3,
         cancelledThisWeek: 1,
-        upcomingRenewals: [
-          { email: 'a@coop.com', tier: 'Gold', renewsAt: '2026-04-10' },
-        ],
+        upcomingRenewals: [{ email: 'a@c.pr', tier: 'Gold', renewsAt: '2026-04-10' }],
       });
-
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('15 active');
       expect(call.text).toContain('Gold: 5');
-      expect(call.text).toContain('a@coop.com');
+      expect(call.text).toContain('a@c.pr');
+    });
+
+    it('shows None when no upcoming renewals', async () => {
+      await service.sendWeeklyRevenueReport({
+        activeBytier: {}, totalActive: 0, newThisWeek: 0, cancelledThisWeek: 0, upcomingRenewals: [],
+      });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.text).toContain('None');
     });
   });
 
   describe('sendNPSSurvey', () => {
-    it('sends NPS survey with score links', async () => {
-      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_nps' });
-      (service as any).resend = { emails: { send: mockSend } };
-
-      await service.sendNPSSurvey({
-        email: 'user@coop.com',
-        name: 'Ana',
-        institutionName: 'Coop Test',
-        jobId: 'job_123',
-        institutionId: 'inst_123',
-      });
-
+    it('sends NPS survey with score links 0-10', async () => {
+      await service.sendNPSSurvey({ email: 'u@c.pr', name: 'A', institutionName: 'Coop', jobId: 'j1', institutionId: 'i1' });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('experiencia');
       expect(call.html).toContain('score=0');
@@ -637,88 +416,94 @@ describe('EmailService', () => {
   });
 
   describe('sendTeamInviteEmail', () => {
-    it('sends team invite with role label', async () => {
-      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_invite' });
-      (service as any).resend = { emails: { send: mockSend } };
-
-      await service.sendTeamInviteEmail({
-        email: 'new@coop.com',
-        name: 'Pedro',
-        inviterName: 'Erwin',
-        role: 'ANALYST',
-        magicUrl: 'https://cerniq.io/auth/magic?token=xyz',
-      });
-
+    it('sends team invite with correct role label', async () => {
+      await service.sendTeamInviteEmail({ email: 'n@c.pr', name: 'Pedro', inviterName: 'Erwin', role: 'ANALYST', magicUrl: 'u' });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('Erwin');
       expect(call.html).toContain('Analista / Analyst');
     });
 
-    it('handles dry-run when resend is null', async () => {
-      (service as any).resend = null;
-      await expect(
-        service.sendTeamInviteEmail({
-          email: 'new@coop.com',
-          name: 'Pedro',
-          inviterName: 'Erwin',
-          role: 'VIEWER',
-          magicUrl: 'https://cerniq.io/magic/abc',
-        }),
-      ).resolves.not.toThrow();
+    it('handles OWNER role label', async () => {
+      await service.sendTeamInviteEmail({ email: 'n@c.pr', name: 'P', inviterName: 'E', role: 'OWNER', magicUrl: 'u' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.html).toContain('Propietario / Owner');
+    });
+
+    it('falls back to raw role when label is unknown', async () => {
+      await service.sendTeamInviteEmail({ email: 'n@c.pr', name: 'P', inviterName: 'E', role: 'CUSTOM_ROLE', magicUrl: 'u' });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.html).toContain('CUSTOM_ROLE');
     });
   });
 
-  describe('sendRawEmail', () => {
-    it('sends raw email with provided html', async () => {
-      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_raw' });
-      (service as any).resend = { emails: { send: mockSend } };
+  // ─── Error handling — Resend rejects ────────────────────
 
-      await service.sendRawEmail({
-        to: 'prospect@example.com',
-        subject: 'Custom Outreach',
-        html: '<p>Hello from CERNIQ</p>',
+  describe('error handling when resend.emails.send rejects', () => {
+    beforeEach(() => {
+      mockSend.mockRejectedValue(new Error('Network error'));
+    });
+
+    const errorMethods = [
+      ['sendClientWelcome', { email: 'a@b.c', name: 'X', tier: 'G', magicUrl: 'u', institutionName: 'I' }],
+      ['sendDataSubmissionAck', { email: 'a@b.c', name: 'X', institutionName: 'I' }],
+      ['sendReportReady', { email: 'a@b.c', name: 'X', institutionName: 'I', portalUrl: 'u' }],
+      ['sendMagicLinkEmail', { email: 'a@b.c', magicUrl: 'u', name: 'X' }],
+      ['sendJobFailedAlert', { jobId: 'j', institutionName: 'I', error: 'e', clientEmail: 'c' }],
+      ['sendPaymentFailed', { email: 'a@b.c', name: 'X' }],
+      ['sendCancellationEmail', { email: 'a@b.c', name: 'X' }],
+      ['sendMonthlyReportCycle', { email: 'a@b.c', name: 'X' }],
+      ['sendDisputeAlert', { chargeId: 'ch', amount: 100, reason: 'r' }],
+      ['sendDailyOperationsReport', { pendingJobs: 0, failedJobs: 0, newLeads: 0, pendingFollowUps: 0 }],
+      ['sendDataSubmissionReminder', { email: 'a@b.c', name: 'X' }],
+      ['sendOnboardingCheckIn', { email: 'a@b.c', name: 'X' }],
+      ['sendReportFollowUp', { email: 'a@b.c', name: 'X', institutionName: 'I' }],
+      ['sendWinBackEmail', { email: 'a@b.c', name: 'X' }],
+      ['sendLeadNurtureTeaser', { email: 'a@b.c', name: 'X', institutionName: 'I' }],
+      ['sendLeadNurturePricing', { email: 'a@b.c', name: 'X' }],
+      ['sendRenewalReminder', { email: 'a@b.c', name: 'X', daysLeft: 5, tier: 'G', currentPeriodEnd: '2026-04-01' }],
+      ['sendChurnRiskAlert', { userName: 'U', userEmail: 'e', tier: 't', daysSinceLogin: 30, currentPeriodEnd: '2026-05-01' }],
+      ['sendWeeklyRevenueReport', { activeBytier: {}, totalActive: 0, newThisWeek: 0, cancelledThisWeek: 0, upcomingRenewals: [] }],
+      ['sendNPSSurvey', { email: 'a@b.c', name: 'N', institutionName: 'I', jobId: 'j', institutionId: 'i' }],
+      ['sendTeamInviteEmail', { email: 'a@b.c', name: 'N', inviterName: 'E', role: 'VIEWER', magicUrl: 'u' }],
+      ['sendDemoRequestNotification', { email: 'a@b.c' }],
+      ['sendLeadNotification', { leadId: 'l', name: 'N', email: 'e', role: 'R', institutionName: 'I', institutionType: 'T', priority: 'P', nextFollowUp: new Date() }],
+      ['sendLeadConfirmation', { name: 'N', email: 'e', institutionName: 'I', bilingual: true }],
+      ['sendRevenueAlert', { amount: 100, tier: 't', customerEmail: 'c', institutionName: 'I' }],
+    ] as const;
+
+    for (const [method, data] of errorMethods) {
+      it(`${method} catches error and does not throw`, async () => {
+        await expect((service as any)[method](data)).resolves.not.toThrow();
       });
+    }
+  });
 
+  // ─── Additional methods coverage ────────────────────────
+
+  describe('sendRawEmail', () => {
+    it('sends raw email with wrapped html', async () => {
+      await service.sendRawEmail({ to: 'p@e.com', subject: 'Custom', html: '<p>Hi</p>' });
       const call = mockSend.mock.calls[0][0];
-      expect(call.to).toBe('prospect@example.com');
-      expect(call.html).toContain('Hello from CERNIQ');
-      expect(call.html).toContain('CERNIQ'); // wrapped in template
+      expect(call.to).toBe('p@e.com');
+      expect(call.html).toContain('CERNIQ');
     });
 
     it('throws when resend fails', async () => {
-      const mockSend = jest.fn().mockRejectedValue(new Error('Send failed'));
-      (service as any).resend = { emails: { send: mockSend } };
-
-      await expect(
-        service.sendRawEmail({
-          to: 'fail@example.com',
-          subject: 'Test',
-          html: '<p>Test</p>',
-        }),
-      ).rejects.toThrow('Send failed');
+      mockSend.mockRejectedValueOnce(new Error('Send failed'));
+      await expect(service.sendRawEmail({ to: 'f@e.com', subject: 'T', html: '<p>T</p>' })).rejects.toThrow('Send failed');
     });
   });
 
   describe('sendDemoConfirmation', () => {
     it('sends demo confirmation email', async () => {
-      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_demo_conf' });
-      (service as any).resend = { emails: { send: mockSend } };
-
-      await service.sendDemoConfirmation({
-        name: 'Carlos',
-        email: 'carlos@bank.com',
-      });
-
+      await service.sendDemoConfirmation({ name: 'C', email: 'c@b.com' });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('demo');
-      expect(call.html).toContain('demo');
     });
 
     it('returns early when resend is null', async () => {
       (service as any).resend = null;
-      await expect(
-        service.sendDemoConfirmation({ email: 'test@test.com' }),
-      ).resolves.not.toThrow();
+      await expect(service.sendDemoConfirmation({ email: 't@t.com' })).resolves.not.toThrow();
     });
   });
 });

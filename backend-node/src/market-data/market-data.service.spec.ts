@@ -566,6 +566,12 @@ describe('MarketDataService', () => {
   // ── provider health DTO status levels ──────────────────────
   describe('provider health status levels', () => {
     it('returns healthy with 100% success rate', async () => {
+      service.clearCaches();
+      mockYahooProvider.getQuote.mockResolvedValueOnce({
+        ticker: 'AAPL', price: 150, change: 2.5, changePercent: 1.69,
+        previousClose: 147.5, volume: 50000000, high: 152, low: 148,
+        open: 149, timestamp: new Date(),
+      });
       await service.getQuote('AAPL');
       const health = service.getProviderHealth();
       const yahoo = health.find(h => h.provider === 'yahoo-finance');
