@@ -118,4 +118,17 @@ describe('TermPremiumService', () => {
     expect(result.inverted).toBe(false);
     expect(result.inversionPoints).toHaveLength(0);
   });
+
+  it('detects flattening zones where slope is near zero', () => {
+    const flatCurve: TermPremiumParams = {
+      yields: [
+        { maturity: 1, rate: 0.04 },
+        { maturity: 2, rate: 0.04 },
+        { maturity: 5, rate: 0.040005 }, // slope < 0.001
+        { maturity: 10, rate: 0.040005 },
+      ],
+    };
+    const result = svc.assessInversionRisk(flatCurve);
+    expect(result.flatteningZones.length).toBeGreaterThan(0);
+  });
 });

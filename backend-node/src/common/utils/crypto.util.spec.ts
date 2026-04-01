@@ -138,3 +138,13 @@ describe('sha256', () => {
     expect(sha256('hello')).not.toBe(sha256('world'));
   });
 });
+
+describe('verifyHmacSignature catch path', () => {
+  it('returns false when signature contains non-hex chars causing buffer mismatch', () => {
+    const { verifyHmacSignature, createHmacSignature } = require('./crypto.util');
+    const expected = createHmacSignature('test', 'secret');
+    // Same string length but all non-hex chars → Buffer.from produces 0 bytes → timingSafeEqual throws
+    const badSig = 'z'.repeat(expected.length);
+    expect(verifyHmacSignature('test', 'secret', badSig)).toBe(false);
+  });
+});

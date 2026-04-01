@@ -310,4 +310,54 @@ describe('ExpectedShortfallBacktestService', () => {
       }),
     ).toThrow('returns array cannot be empty');
   });
+
+  it('throws on mismatched ES array lengths', () => {
+    expect(() =>
+      service.backtestES({
+        returns: [0.01],
+        esEstimates: [0.02, 0.03],
+        varEstimates: [0.01],
+        confidenceLevel: 0.99,
+      }),
+    ).toThrow('returns, esEstimates, and varEstimates must have the same length');
+  });
+
+  it('ES backtest returns esPass true when no tail observations', () => {
+    const returns = Array.from({ length: 10 }, () => 0.01); // no exceptions
+    const varEstimates = Array.from({ length: 10 }, () => 0.005);
+    const esEstimates = Array.from({ length: 10 }, () => 0.01);
+    const result = service.backtestES({
+      returns,
+      esEstimates,
+      varEstimates,
+      confidenceLevel: 0.99,
+    });
+    expect(result.esPass).toBe(true);
+    expect(result.tailObservations).toBe(0);
+    expect(result.esRatio).toBe(0);
+  });
+
+  it('rolling backtest throws when returns length <= windowSize', () => {
+    expect(() =>
+      service.rollingBacktest({
+        returns: [0.01, 0.02],
+        windowSize: 5,
+        confidenceLevel: 0.95,
+        method: 'historical',
+      }),
+    ).toThrow('returns array must be longer than windowSize');
+  });
+
+  it('Kupiec test handles x === n case', () => {
+    // All returns are exceptions
+    const returns = Array.from({ length: 10 }, () => -0.1);
+    const varEstimates = Array.from({ length: 10 }, () => 0.01);
+    const result = service.backtestVaR({
+      returns,
+      varEstimates,
+      confidenceLevel: 0.99,
+    });
+    expect(result.exceptions).toBe(10);
+    expect(result.trafficLight).toBe('RED');
+  });
 });

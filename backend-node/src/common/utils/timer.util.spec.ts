@@ -46,4 +46,23 @@ describe('timer.util', () => {
       expect(timing.ms).toBeGreaterThanOrEqual(0);
     });
   });
+
+  describe('formatted output', () => {
+    it('formats time >= 1000ms as seconds', () => {
+      const originalHrtime = process.hrtime.bigint;
+      let callCount = 0;
+      process.hrtime.bigint = () => {
+        callCount++;
+        // First call (start) returns 0, second call (stop) returns 2 seconds in ns
+        return callCount === 1 ? BigInt(0) : BigInt(2_000_000_000);
+      };
+
+      const stop = createTimer();
+      const result = stop();
+      expect(result.formatted).toMatch(/s$/);
+      expect(result.formatted).toContain('2.00');
+
+      process.hrtime.bigint = originalHrtime;
+    });
+  });
 });

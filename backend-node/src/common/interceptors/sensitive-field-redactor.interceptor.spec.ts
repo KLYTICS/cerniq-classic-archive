@@ -109,6 +109,14 @@ describe('SensitiveFieldRedactorInterceptor', () => {
     expect(result).toBeNull();
   });
 
+  it('should pass through primitive values unchanged', async () => {
+    const handler: CallHandler = { handle: () => of(42) };
+    const result = await lastValueFrom(
+      interceptor.intercept(makeContext(), handler),
+    );
+    expect(result).toBe(42);
+  });
+
   it('should not redact safe fields', async () => {
     const handler: CallHandler = {
       handle: () =>

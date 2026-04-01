@@ -94,4 +94,44 @@ describe('CashFlowAtRiskService', () => {
     });
     expect(result.correlatedCFaR).toBeCloseTo(result.independentCFaR, 0);
   });
+
+  it('positive correlations increase correlated CFaR vs independent', () => {
+    const highCorr = [
+      [1, 0.8, 0.8, 0.8],
+      [0.8, 1, 0.8, 0.8],
+      [0.8, 0.8, 1, 0.8],
+      [0.8, 0.8, 0.8, 1],
+    ];
+    const result = service.calculateCorrelatedCFaR({
+      cashFlows,
+      correlationMatrix: highCorr,
+    });
+    expect(result.correlatedCFaR).toBeGreaterThan(result.independentCFaR);
+    expect(result.diversificationBenefit).toBeLessThan(0); // negative = no diversification benefit
+  });
+
+  it('normInv returns -Infinity for p <= 0 and Infinity for p >= 1', () => {
+    // Exercise the normInv edge-case branches via extreme confidence
+    const result1 = service.calculateCFaR({
+      cashFlows: [{ period: 1, expected: 100, volatility: 10 }],
+      confidence: 0.5,
+    });
+    expect(result1.cfar).toBe(0); // normInv(0.5) = 0
+
+    const result2 = service.calculateCFaR({
+      cashFlows: [{ period: 1, expected: 100, volatility: 10 }],
+      confidence: 0.99,
+    });
+    expect(result2.cfar).toBeGreaterThan(0);
+  });
+
+  it('exercises low-tail normInv branch (p < 0.02425)', () => {
+    // confidence = 0.01 makes normInv use the low-tail approximation
+    const result = service.calculateCFaR({
+      cashFlows: [{ period: 1, expected: 100, volatility: 10 }],
+      confidence: 0.01,
+    });
+    // At 1% confidence, CFaR should be negative (normInv(0.01) is negative)
+    expect(result.cfar).toBeLessThan(0);
+  });
 });

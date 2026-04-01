@@ -319,4 +319,38 @@ describe('RiskBudgetingService', () => {
     const expectedSharpe = result.portfolioReturn / result.portfolioVolatility;
     expect(result.sharpeRatio).toBeCloseTo(expectedSharpe, 4);
   });
+
+  it('risk parity with target risk scales weights appropriately', () => {
+    const result = service.calculateRiskParity({
+      assets: [
+        { name: 'A', annualVolatility: 0.15 },
+        { name: 'B', annualVolatility: 0.10 },
+      ],
+      correlationMatrix: [[1, 0.3], [0.3, 1]],
+      targetRisk: 0.08,
+    });
+    // Weights should still sum to ~1 and portfolioVolatility should be near target
+    const totalWeight = result.weights.reduce((s, w) => s + w.weight, 0);
+    expect(totalWeight).toBeCloseTo(1.0, 2);
+  });
+
+  it('single asset risk parity returns 100% weight', () => {
+    const result = service.calculateRiskParity({
+      assets: [{ name: 'OnlyAsset', annualVolatility: 0.20 }],
+      correlationMatrix: [[1]],
+    });
+    expect(result.weights[0].weight).toBe(1.0);
+    expect(result.portfolioVolatility).toBe(0.20);
+    expect(result.iterations).toBe(0);
+  });
+
+  it('single asset risk budget returns 100% weight', () => {
+    const result = service.riskBudget({
+      assets: [{ name: 'OnlyAsset', annualVolatility: 0.15 }],
+      correlationMatrix: [[1]],
+      targetBudgets: [1.0],
+    });
+    expect(result.weights[0].weight).toBe(1.0);
+    expect(result.actualBudgets[0]).toBe(1.0);
+  });
 });

@@ -178,5 +178,23 @@ describe('DataExportService', () => {
       const result = await service.exportMetrics('inst_001', 'json');
       expect((result as any).capitalRatio).toBeNull();
     });
+
+    it('safeString returns null for non-string values', async () => {
+      prisma.analysisRun.findFirst.mockResolvedValue(
+        makeRun({
+          summary: {
+            durationGap: {
+              durationGap: 2.5,
+              riskProfile: 42, // non-string triggers safeString null path
+              assetDuration: 3,
+              liabilityDuration: 1,
+            },
+          },
+        }),
+      );
+
+      const result = await service.exportMetrics('inst_001', 'json');
+      expect((result as any).durationGapRiskProfile).toBeNull();
+    });
   });
 });

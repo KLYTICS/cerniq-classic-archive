@@ -332,4 +332,47 @@ describe('EarningsSimulationService', () => {
       expect(base.quarters[i].date).toMatch(/^\d{4}-Q[1-4]$/);
     }
   });
+
+  // ─── Test 17: Throws on invalid quarter count ─────────────
+  it('should throw when quarters is 0 or > 20', () => {
+    const paths = svc.generateStandardRatePaths(0.045, 1);
+    expect(() =>
+      svc.simulateEarnings({
+        balanceSheet: COOPERATIVA,
+        assumptions: BASE_ASSUMPTIONS,
+        ratePaths: paths,
+        quarters: 0,
+      }),
+    ).toThrow('quarters must be between 1 and 20');
+    expect(() =>
+      svc.simulateEarnings({
+        balanceSheet: COOPERATIVA,
+        assumptions: BASE_ASSUMPTIONS,
+        ratePaths: paths,
+        quarters: 21,
+      }),
+    ).toThrow('quarters must be between 1 and 20');
+  });
+
+  // ─── Test 18: Rates floor at zero ─────────────────────────
+  it('should floor rates at 0 when large negative shock applied', () => {
+    const shockPath = { name: 'Big Shock Down', shocksBps: [-1000] };
+    const result = svc.simulateEarnings({
+      balanceSheet: COOPERATIVA,
+      assumptions: BASE_ASSUMPTIONS,
+      ratePaths: [shockPath],
+      quarters: 1,
+    });
+    // Should not crash; NII can still be computed
+    expect(result.scenarios[0].quarters[0].nii).toBeDefined();
+  });
+
+  // ─── Test 19: Generate standard paths with custom quarter count
+  it('should generate standard rate paths with custom quarter count', () => {
+    const paths = svc.generateStandardRatePaths(0.04, 12);
+    expect(paths).toHaveLength(5);
+    expect(paths[0].shocksBps).toHaveLength(12);
+    // Gradual paths cap at 8 quarters of change
+    expect(paths[1].shocksBps[8]).toBe(0); // after 8 quarters, no more shock
+  });
 });

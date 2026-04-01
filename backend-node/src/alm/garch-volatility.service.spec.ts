@@ -91,6 +91,66 @@ describe('GARCHVolatilityService', () => {
     expect(longVol).toBeGreaterThan(0);
     expect(shortVol).toBeGreaterThan(0);
   });
+
+  it('half-life is computed and positive for stationary params', () => {
+    const returns = generateReturns(100);
+    const dates = returns.map((_, i) => `day-${i}`);
+    const result = service.fitAndForecast(returns, dates);
+    expect(result.params.halfLife).toBeGreaterThan(0);
+  });
+
+  it('current vol is annualized conditional volatility', () => {
+    const returns = generateReturns(80);
+    const dates = returns.map((_, i) => `day-${i}`);
+    const result = service.fitAndForecast(returns, dates);
+    // currentVol should be positive annualized percentage
+    expect(result.currentVol).toBeGreaterThan(0);
+  });
+
+  it('uses fallback date labels when dates array is shorter than returns', () => {
+    const returns = generateReturns(50);
+    const dates: string[] = []; // empty dates
+    const result = service.fitAndForecast(returns, dates);
+    // Should use T-N fallback dates
+    expect(result.historicalVols.length).toBeGreaterThan(0);
+    expect(result.historicalVols[0].date).toContain('T-');
+  });
+
+  it('ljung-box p-value is between 0 and 1', () => {
+    const returns = generateReturns(100);
+    const dates = returns.map((_, i) => `day-${i}`);
+    const result = service.fitAndForecast(returns, dates);
+    expect(result.diagnostics.ljungBoxPValue).toBeGreaterThanOrEqual(0);
+    expect(result.diagnostics.ljungBoxPValue).toBeLessThanOrEqual(1);
+  });
+
+  it('longRunVol is positive and annualized', () => {
+    const returns = generateReturns(80);
+    const dates = returns.map((_, i) => `day-${i}`);
+    const result = service.fitAndForecast(returns, dates);
+    expect(result.params.longRunVol).toBeGreaterThan(0);
+    // longRunVol is sqrt(longRunVariance) * sqrt(252) * 100
+    const expectedLRV = Math.sqrt(result.params.longRunVariance) * Math.sqrt(252) * 100;
+    expect(result.params.longRunVol).toBeCloseTo(expectedLRV, 0);
+  });
+
+  it('gamma function handles non-integer values via Lanczos approximation', () => {
+    // Access private gamma method to cover Lanczos branch (lines 307-318)
+    const gamma = (service as any).gamma.bind(service);
+    // gamma(1.5) = sqrt(pi)/2 ≈ 0.8862
+    expect(gamma(1.5)).toBeCloseTo(0.8862, 2);
+    // gamma(2.5) = 3*sqrt(pi)/4 ≈ 1.3293
+    expect(gamma(2.5)).toBeCloseTo(1.3293, 2);
+    // Edge cases
+    expect(gamma(0)).toBe(Infinity);
+    expect(gamma(-1)).toBe(Infinity);
+  });
+
+  it('chiSquaredCDF handles x <= 0', () => {
+    const chiCDF = (service as any).chiSquaredCDF.bind(service);
+    expect(chiCDF(0, 5)).toBe(0);
+    expect(chiCDF(-1, 5)).toBe(0);
+  });
 });
 
 // Helpers

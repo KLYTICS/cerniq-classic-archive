@@ -99,4 +99,54 @@ describe('NCUARBC2Service', () => {
     if (cashComp) expect(cashComp.riskWeight).toBe(0);
     if (creditComp) expect(creditComp.riskWeight).toBe(1.0);
   });
+
+  it('maps auto/vehicle subcategories to auto_loans', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', subcategory: 'auto_loans', balance: 80 },
+      { category: 'asset', subcategory: 'vehicle_financing', balance: 20 },
+      { category: 'liability', subcategory: 'deposits', balance: 80 },
+    ]);
+    prisma.institution.findUnique.mockResolvedValue(null);
+    const result = await service.computeRBC2('inst_1');
+    const autoComp = result.components.find((c) => c.name.includes('auto'));
+    expect(autoComp).toBeDefined();
+    expect(autoComp!.riskWeight).toBe(0.75);
+  });
+
+  it('maps consumer/personal subcategories to consumer_loans', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', subcategory: 'personal_loans', balance: 100 },
+      { category: 'liability', subcategory: 'deposits', balance: 80 },
+    ]);
+    prisma.institution.findUnique.mockResolvedValue(null);
+    const result = await service.computeRBC2('inst_1');
+    const consComp = result.components.find((c) => c.name.includes('consumer'));
+    expect(consComp).toBeDefined();
+    expect(consComp!.riskWeight).toBe(0.75);
+  });
+
+  it('maps generic securities to agency_securities', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', subcategory: 'investment_securities', balance: 100 },
+      { category: 'liability', subcategory: 'deposits', balance: 80 },
+    ]);
+    prisma.institution.findUnique.mockResolvedValue(null);
+    const result = await service.computeRBC2('inst_1');
+    const secComp = result.components.find((c) => c.name.includes('agency'));
+    expect(secComp).toBeDefined();
+    expect(secComp!.riskWeight).toBe(0.2);
+  });
+
+  it('generates undercapitalized narrative when ratio < 8', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', subcategory: 'commercial_loans', balance: 500 },
+      { category: 'liability', subcategory: 'deposits', balance: 495 },
+    ]);
+    prisma.institution.findUnique.mockResolvedValue(null);
+    const result = await service.computeRBC2('inst_1');
+    if (!result.isAdequatelyCapitalized) {
+      expect(result.narrativeEn).toContain('UNDERCAPITALIZED');
+      expect(result.narrativeEs).toContain('SUBCAPITALIZADA');
+    }
+  });
 });

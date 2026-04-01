@@ -99,6 +99,19 @@ describe('PerformanceInterceptor', () => {
     expect(routeMetric!.count).toBeGreaterThanOrEqual(5);
   });
 
+  it('should shift latencies when ring buffer is full (>100 samples)', async () => {
+    const routePath = '/api/ring-buffer-test';
+    for (let i = 0; i < 105; i++) {
+      const { ctx } = createMockContext('GET', routePath, routePath);
+      const handler: CallHandler = { handle: () => of('ok') };
+      await lastValueFrom(interceptor.intercept(ctx, handler));
+    }
+    const metrics = getRouteMetrics();
+    const routeMetric = metrics.find((m) => m.route === `GET ${routePath}`);
+    expect(routeMetric).toBeDefined();
+    expect(routeMetric!.count).toBe(105);
+  });
+
   it('getRouteMetrics should return percentile data', () => {
     const metrics = getRouteMetrics();
     if (metrics.length > 0) {

@@ -1,4 +1,4 @@
-import { PayloadSizeGuard } from './payload-size.guard';
+import { PayloadSizeGuard, MaxPayloadSize } from './payload-size.guard';
 import { PayloadTooLargeException, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
@@ -70,5 +70,10 @@ describe('PayloadSizeGuard', () => {
       expect(e.message).toContain('1.0MB');
       expect(e.message).toContain('2.0MB');
     }
+  });
+
+  it('MaxPayloadSize decorator returns a function', () => {
+    const decorator = MaxPayloadSize(1024);
+    expect(typeof decorator).toBe('function');
   });
 });

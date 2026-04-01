@@ -76,6 +76,18 @@ describe('promise.util', () => {
       expect(fn).toHaveBeenCalledTimes(3);
     });
 
+    it('throws when maxAttempts is 0 (loop never executes)', async () => {
+      const fn = jest.fn().mockResolvedValue('ok');
+      let threw = false;
+      try {
+        await withRetry(fn, { maxAttempts: 0, baseDelayMs: 1 });
+      } catch {
+        threw = true;
+      }
+      expect(threw).toBe(true);
+      expect(fn).not.toHaveBeenCalled();
+    });
+
     it('stops early when shouldRetry returns false', async () => {
       const fn = jest.fn().mockRejectedValue(new Error('fatal'));
       await expect(

@@ -155,4 +155,16 @@ describe('MonteCarloService', () => {
 
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
   });
+
+  it('uses default beta of 0.5 for unknown liability subcategory', async () => {
+    mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', balance: 50000, rate: 0.05, rateType: 'fixed', subcategory: 'consumer_loans' },
+      { category: 'liability', balance: 30000, rate: 0.02, rateType: 'variable', subcategory: 'other_borrowings' },
+    ]);
+
+    const result = await service.runSimulation('inst-beta', { paths: 200, quarters: 2 });
+    expect(Number.isFinite(result.meanNII)).toBe(true);
+
+    mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
+  });
 });

@@ -113,4 +113,11 @@ describe('CollateralHaircutService', () => {
     expect(result.interpretation).toContain('$10M');
     expect(result.interpretationEs).toContain('$10M');
   });
+
+  it('returns default haircut of 15 for unknown collateral type', () => {
+    const result = service.calculate([
+      { type: 'alien_artifact', typeEs: 'artefacto_alien', marketValue: 1000000 },
+    ]);
+    expect(result.avgHaircut).toBe(15);
+  });
 });

@@ -219,4 +219,70 @@ describe('ForwardSimulationService', () => {
       result.summary.down100NIIYear3,
     );
   });
+
+  it('handles custom growth and prepayment assumptions', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      {
+        category: 'asset',
+        subcategory: 'consumer_loans',
+        name: 'Loans',
+        balance: 200,
+        rate: 0.06,
+        duration: 3,
+        rateType: 'fixed',
+        depositBeta: null,
+      },
+      {
+        category: 'liability',
+        subcategory: 'savings',
+        name: 'Savings',
+        balance: 150,
+        rate: 0.02,
+        duration: 1,
+        rateType: 'fixed',
+        depositBeta: null,
+      },
+    ]);
+
+    const result = await service.runForwardSimulation({
+      institutionId: 'inst_123',
+      growthAssumptions: { consumer_loans: 0.08 },
+      prepaymentAssumptions: { consumer_loans: 0.1 },
+      ratePaths: ['base'],
+    });
+    expect(result.quarters).toHaveLength(12);
+    expect(result.config.growthAssumptions.consumer_loans).toBe(0.08);
+  });
+
+  it('uses default beta for different liability subcategories', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      {
+        category: 'asset',
+        subcategory: 'securities',
+        name: 'Securities',
+        balance: 100,
+        rate: 0.04,
+        duration: 2,
+        rateType: 'fixed',
+        depositBeta: null,
+      },
+      {
+        category: 'liability',
+        subcategory: 'time_deposits_cd',
+        name: 'CDs',
+        balance: 80,
+        rate: 0.03,
+        duration: 2,
+        rateType: 'variable',
+        depositBeta: null,
+      },
+    ]);
+
+    const result = await service.runForwardSimulation({
+      institutionId: 'inst_123',
+      ratePaths: ['base', 'down100'],
+    });
+    expect(result.quarters.length).toBeGreaterThan(0);
+    expect(result.summary.down100NIIYear3).toBeDefined();
+  });
 });

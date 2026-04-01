@@ -163,4 +163,33 @@ describe('BehavioralDurationService', () => {
     expect(result.deposits[0].behavioralDuration).toBeLessThanOrEqual(10);
     expect(result.deposits[0].behavioralDuration).toBeGreaterThanOrEqual(0.25);
   });
+
+  it('should include share_drafts in NMD processing', async () => {
+    mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+      { subcategory: 'share_drafts', balance: 30_000_000, depositBeta: null },
+    ]);
+    const result = await service.computeBehavioralDurations('inst-1');
+    expect(result.deposits).toHaveLength(1);
+    expect(result.deposits[0].subcategory).toBe('share_drafts');
+    expect(result.deposits[0].beta).toBeCloseTo(0.13, 2);
+    expect(result.deposits[0].runoffRate).toBeCloseTo(0.09, 2);
+  });
+
+  it('should throw InternalServerErrorException on prisma failure', async () => {
+    mockPrisma.balanceSheetItem.findMany.mockRejectedValue(new Error('DB error'));
+    await expect(
+      service.computeBehavioralDurations('inst-1'),
+    ).rejects.toThrow('Computation failed');
+  });
+
+  it('should generate both EN and ES narratives', async () => {
+    mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+      { subcategory: 'savings', balance: 50_000_000, depositBeta: null },
+    ]);
+    const result = await service.computeBehavioralDurations('inst-1');
+    expect(result.narrativeEn).toContain('behavioral duration');
+    expect(result.narrativeEs).toContain('duración conductual');
+    expect(result.narrativeEn).toContain('years');
+    expect(result.narrativeEs).toContain('años');
+  });
 });

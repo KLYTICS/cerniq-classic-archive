@@ -73,4 +73,15 @@ describe('DataPrivacyService', () => {
     const result = await service.getDeletionHistory('inst-1');
     expect(result.length).toBe(1);
   });
+
+  it('generateSAR catches expense query failure gracefully', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', email: 'a@b.com' });
+    mockPrisma.auditLog.findMany.mockResolvedValue([]);
+    mockPrisma.subscription.findMany.mockResolvedValue([]);
+    mockPrisma.expense.findMany.mockRejectedValue(new Error('DB error'));
+
+    const result = await service.generateSAR('u1');
+    expect(result.userId).toBe('u1');
+    expect(result.data.personalData).toBeDefined();
+  });
 });

@@ -191,4 +191,19 @@ describe('ValuationService', () => {
     const results = await service.runScreener({ limit: 10 });
     expect(results).toBeDefined();
   });
+
+  it('should pass assetType and sector to listTickers in screener', async () => {
+    mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
+    mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 20 });
+    await service.runScreener({ assetType: 'equity', sector: 'Finance', limit: 5 });
+    expect(mockTickerService.listTickers).toHaveBeenCalledWith(
+      expect.objectContaining({ assetType: 'equity', sector: 'Finance', limit: 5 }),
+    );
+  });
+
+  it('should use frontier engine for ticker containing AI', async () => {
+    mockMarketDataService.getFundamentals.mockResolvedValue({});
+    await service.getValuation({ ticker: 'AI_STARTUP' });
+    expect(mockFrontierEngine.calculate).toHaveBeenCalled();
+  });
 });

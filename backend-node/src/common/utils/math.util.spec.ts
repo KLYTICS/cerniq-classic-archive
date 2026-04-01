@@ -42,6 +42,12 @@ describe('math.util', () => {
     it('returns 0 for empty array', () => {
       expect(percentile([], 50)).toBe(0);
     });
+
+    it('interpolates between values for fractional index', () => {
+      // p=30, length=5: index = (30/100)*4 = 1.2 → interpolate between values[1] and values[2]
+      const result = percentile([10, 20, 30, 40, 50], 30);
+      expect(result).toBe(22); // 20 + (30-20)*0.2 = 22
+    });
   });
 
   describe('safeDiv', () => {
@@ -72,6 +78,34 @@ describe('math.util', () => {
 
     it('returns 0 for empty array mean', () => {
       expect(mean([])).toBe(0);
+    });
+  });
+
+  describe('percentile edge cases', () => {
+    it('returns first element for p <= 0', () => {
+      expect(percentile([1, 2, 3, 4, 5], 0)).toBe(1);
+      expect(percentile([1, 2, 3, 4, 5], -10)).toBe(1);
+    });
+
+    it('returns last element for p >= 100', () => {
+      expect(percentile([1, 2, 3, 4, 5], 100)).toBe(5);
+      expect(percentile([1, 2, 3, 4, 5], 150)).toBe(5);
+    });
+  });
+
+  describe('safeDiv edge cases', () => {
+    it('returns default when denominator is Infinity', () => {
+      expect(safeDiv(10, Infinity)).toBe(0);
+    });
+
+    it('returns default when result is not finite', () => {
+      expect(safeDiv(NaN, 1)).toBe(0);
+    });
+  });
+
+  describe('roundTo edge cases', () => {
+    it('rounds to 0 decimal places', () => {
+      expect(roundTo(3.7, 0)).toBe(4);
     });
   });
 });

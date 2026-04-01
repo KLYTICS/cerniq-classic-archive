@@ -84,4 +84,12 @@ describe('ConditionalVaRCopulaService', () => {
     const r99 = service.calculateConditionalVaR(params99);
     expect(r99.unconditionalVaR).toBeGreaterThanOrEqual(r95.unconditionalVaR);
   });
+
+  it('falls back to unconditional VaR when fewer than 2 stress observations', () => {
+    const params = baseParams();
+    // Set threshold so extreme that no market returns qualify as stress
+    params.conditionThreshold = -999;
+    const result = service.calculateConditionalVaR(params);
+    expect(result.conditionalVaR).toBe(result.unconditionalVaR);
+  });
 });

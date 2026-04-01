@@ -101,4 +101,37 @@ describe('IncrementalVarService', () => {
       expect(typeof item.marginalVaR).toBe('number');
     }
   });
+
+  it('marginal VaR returns zeros when portfolio sigma is zero', () => {
+    const zeroPositions = [
+      { name: 'A', weight: 0, volatility: 0 },
+      { name: 'B', weight: 0, volatility: 0 },
+    ];
+    const result = service.calculateMarginalVaR({
+      positions: zeroPositions,
+      correlationMatrix: [[1, 0], [0, 1]],
+    });
+    expect(result[0].marginalVaR).toBe(0);
+    expect(result[1].marginalVaR).toBe(0);
+  });
+
+  it('handles extreme confidence levels in normInv', () => {
+    // confidence = 0.99 uses the upper tail branch of normInv
+    const result = service.calculateIncrementalVaR({
+      positions,
+      correlationMatrix,
+      confidence: 0.99,
+    });
+    expect(result.portfolioVaR).toBeGreaterThan(0);
+  });
+
+  it('handles very low confidence (p < pLow) in normInv', () => {
+    // confidence = 0.01 triggers the low-tail branch
+    const result = service.calculateIncrementalVaR({
+      positions,
+      correlationMatrix,
+      confidence: 0.01,
+    });
+    expect(result.portfolioVaR).toBeDefined();
+  });
 });

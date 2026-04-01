@@ -107,4 +107,14 @@ describe('CurrencyRiskService', () => {
     const result = service.assessCurrencyRisk(params);
     expect(result.recommendation).toMatch(/Elevated|unhedged|hedging/i);
   });
+
+  it('recommends moderate hedging for mid-range exposure', () => {
+    const params = baseParams();
+    params.positions = params.positions.map((p) => ({
+      ...p,
+      hedgedPct: 0.75,
+    }));
+    const result = service.assessCurrencyRisk(params);
+    expect(result.recommendation).toMatch(/Moderate|Consider|hedge/i);
+  });
 });

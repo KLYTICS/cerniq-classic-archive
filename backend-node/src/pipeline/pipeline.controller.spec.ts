@@ -202,4 +202,38 @@ describe('PipelineController', () => {
       expect(result.subscribe).toBeDefined();
     });
   });
+
+  describe('getRevenueMetrics — edge cases', () => {
+    it('should compute MRR correctly with mixed subscription types', async () => {
+      prismaService.lead.aggregate
+        .mockResolvedValueOnce({ _sum: { revenueAmount: 100 } })
+        .mockResolvedValueOnce({ _sum: { revenueAmount: 1000 } })
+        .mockResolvedValueOnce({ _sum: { revenueAmount: 10000 } });
+
+      prismaService.subscription.count
+        .mockResolvedValueOnce(8)   // active non-one_time
+        .mockResolvedValueOnce(12)  // total active
+        .mockResolvedValueOnce(3)   // monthly
+        .mockResolvedValueOnce(5)   // annual
+        .mockResolvedValueOnce(1);  // partner
+
+      const result = await controller.getRevenueMetrics();
+      // mrr = 3*299 + 5*200 + 1*499 = 897 + 1000 + 499 = 2396
+      expect(result.mrr).toBe(2396);
+      expect(result.arr).toBe(2396 * 12);
+      expect(result.revenueToday).toBe(100);
+    });
+  });
+
+  describe('getPipelineJobs — with status filter', () => {
+    it('should filter by COMPLETE status', async () => {
+      prismaService.reportJob.findMany.mockResolvedValue([{ id: 'j1', status: 'COMPLETE' }]);
+      prismaService.reportJob.count.mockResolvedValue(0);
+
+      await controller.getPipelineJobs('COMPLETE');
+      expect(prismaService.reportJob.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { status: 'COMPLETE' } }),
+      );
+    });
+  });
 });

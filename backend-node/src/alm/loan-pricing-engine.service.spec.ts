@@ -102,4 +102,16 @@ describe('LoanPricingEngineService', () => {
     });
     expect(result.raroc).toBeGreaterThan(0);
   });
+
+  it('handles zero interest rate loan (monthlyRate = 0)', () => {
+    const result = service.priceLoan({
+      ...baseParams,
+      costOfFunds: 0,
+      creditSpread: 0,
+      operatingCost: 0,
+      targetROE: 0,
+      capitalRequirement: 0.08,
+    });
+    expect(result.monthlyPayment).toBeCloseTo(baseParams.principal / (baseParams.maturityYears * 12), 0);
+  });
 });
