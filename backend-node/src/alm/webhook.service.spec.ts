@@ -222,5 +222,86 @@ describe('WebhookService', () => {
       expect(callData.institutionId).toBe('inst-1');
       expect(callData.events).toEqual(['policy.breach', 'rate.move']);
     });
+
+    it('increments failure count on delivery failure and disables after 10', async () => {
+      const sub = {
+        id: 'wh-fail',
+        url: 'https://hooks.example.com/webhook',
+        secretKey: 'secret',
+        institutionId: 'inst-1',
+        failureCount: 9,
+        events: ['report.ready'],
+        isActive: true,
+      };
+      mockPrisma.webhookSubscription.findMany.mockResolvedValue([sub]);
+      mockPrisma.webhookSubscription.update.mockResolvedValue({});
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockRejectedValue(new Error('timeout')) as any;
+
+      const results = await service.dispatchEvent('inst-1', 'report.ready', {});
+
+      expect(results[0].success).toBe(false);
+      // Failure count should be 10 which disables the subscription
+      expect(mockPrisma.webhookSubscription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            failureCount: 10,
+            isActive: false,
+          }),
+        }),
+      );
+
+      global.fetch = originalFetch;
+    }, 30000);
+
+    it('includes X-CERNIQ-Signature and X-CERNIQ-Event headers', async () => {
+      let capturedHeaders: any = {};
+      const sub = {
+        id: 'wh-sig',
+        url: 'https://hooks.example.com/webhook',
+        secretKey: 'test-secret',
+        institutionId: 'inst-1',
+        failureCount: 0,
+        events: ['policy.breach'],
+        isActive: true,
+      };
+      mockPrisma.webhookSubscription.findMany.mockResolvedValue([sub]);
+      mockPrisma.webhookSubscription.update.mockResolvedValue({});
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockImplementation(async (_url: any, init: any) => {
+        capturedHeaders = init?.headers || {};
+        return { status: 200 };
+      }) as any;
+
+      await service.dispatchEvent('inst-1', 'policy.breach', { detail: 'test' });
+
+      expect(capturedHeaders['X-CERNIQ-Signature']).toMatch(/^sha256=/);
+      expect(capturedHeaders['X-CERNIQ-Event']).toBe('policy.breach');
+
+      global.fetch = originalFetch;
+    });
+
+    it('should reject non-HTTPS in production', async () => {
+      const origEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      await expect(
+        service.createSubscription('inst-1', {
+          url: 'http://hooks.example.com/webhook',
+          events: ['report.ready'],
+        }),
+      ).rejects.toThrow(BadRequestException);
+      process.env.NODE_ENV = origEnv;
+    });
+
+    it('should reject ftp:// protocol', async () => {
+      await expect(
+        service.createSubscription('inst-1', {
+          url: 'ftp://files.example.com/hook',
+          events: ['report.ready'],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 });

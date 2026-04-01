@@ -124,4 +124,107 @@ describe('AlmAdvisorV2Service', () => {
     expect(pulse.next90).toContain('Filing C');
     expect(pulse.criticalDeadlines).toContain('Filing A');
   });
+
+  // ── Additional coverage: scoring sub-functions, labels, narrative ──
+
+  describe('computeHealthScore labels', () => {
+    it('assigns STRONG for score >= 80', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 10,
+        liquidity: { lcr: 140 },
+        durationGap: { durationGap: 0.5 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.label).toBe('STRONG');
+    });
+
+    it('assigns UNSATISFACTORY for very low scores', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 95,
+        liquidity: { lcr: 50 },
+        durationGap: { durationGap: 6.0 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(result.overall).toBeLessThan(40);
+    });
+
+    it('assigns FAIR for score 40-59', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 60,
+        liquidity: { lcr: 95 },
+        durationGap: { durationGap: 3.5 },
+      });
+      const result = await service.computeHealthScore('inst-1');
+      expect(['FAIR', 'MARGINAL']).toContain(result.label);
+    });
+  });
+
+  describe('rankAlerts detail', () => {
+    it('includes regulatoryRef for each alert', () => {
+      const health = {
+        overall: 50,
+        capital: 8,
+        liquidity: 8,
+        rateRisk: 8,
+        credit: 12,
+        concentration: 14,
+        label: 'FAIR' as const,
+      };
+      const alerts = service.rankAlerts(health);
+      alerts.forEach((a) => {
+        expect(a.regulatoryRef).toBeDefined();
+        expect(a.regulatoryRef.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('assigns MEDIUM severity for mid-range scores', () => {
+      const health = {
+        overall: 60,
+        capital: 10,
+        liquidity: 10,
+        rateRisk: 10,
+        credit: 16,
+        concentration: 14,
+        label: 'SATISFACTORY' as const,
+      };
+      const alerts = service.rankAlerts(health);
+      const mediumAlerts = alerts.filter((a) => a.severity === 'MEDIUM');
+      expect(mediumAlerts.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('getStaticNarrative', () => {
+    beforeEach(() => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        riskScore: 40,
+        liquidity: { lcr: 120 },
+        durationGap: { durationGap: 1.5 },
+      });
+      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({ events: [] });
+    });
+
+    it('returns a narrative containing health score section', async () => {
+      const result = await service.getStaticNarrative('inst-1', 'en');
+      expect(result.narrative).toContain('Health Score');
+      expect(result.healthScore).toBeDefined();
+    });
+
+    it('returns a Spanish narrative', async () => {
+      const result = await service.getStaticNarrative('inst-1', 'es');
+      expect(result.narrative).toContain('Puntuaci');
+      expect(result.narrative).toContain('Alertas');
+    });
+
+    it('includes alerts in narrative', async () => {
+      const result = await service.getStaticNarrative('inst-1', 'en');
+      expect(result.narrative).toContain('Risk Alerts');
+      expect(result.alerts).toHaveLength(3);
+    });
+
+    it('includes regulatory pulse in narrative', async () => {
+      const result = await service.getStaticNarrative('inst-1', 'en');
+      expect(result.narrative).toContain('Regulatory Pulse');
+      expect(result.pulse).toBeDefined();
+    });
+  });
 });

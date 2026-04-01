@@ -18,7 +18,7 @@ describe('LeadsController', () => {
     leads = {
       submitLead: jest.fn().mockResolvedValue({ id: 'lead-1', status: 'new' }),
       listLeads: jest.fn().mockResolvedValue({ data: [], total: 0 }),
-      getLeadById: jest.fn().mockResolvedValue({ id: 'lead-1' }),
+      getLead: jest.fn().mockResolvedValue({ id: 'lead-1' }),
       updateLead: jest.fn().mockResolvedValue({ id: 'lead-1' }),
       addNote: jest.fn().mockResolvedValue({ success: true }),
       markReportSent: jest.fn().mockResolvedValue({ success: true }),
@@ -70,7 +70,7 @@ describe('LeadsController', () => {
   describe('GET admin/api/leads/:id', () => {
     it('returns lead by ID', async () => {
       const r = await controller.getLead('lead-1');
-      expect(leads.getLeadById).toHaveBeenCalledWith('lead-1');
+      expect(leads.getLead).toHaveBeenCalledWith('lead-1');
     });
   });
 
