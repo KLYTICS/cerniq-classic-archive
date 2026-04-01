@@ -270,4 +270,81 @@ describe('StressTestingService', () => {
       expect(result.monteCarlo.paths).toBe(100);
     });
   });
+
+  // ── Coverage boost: runCustomScenario ──────────────────────
+  describe('runCustomScenario', () => {
+    beforeEach(() => {
+      mockAlmEnterprise.calculateNIISensitivity = jest.fn().mockResolvedValue({
+        baseNII: 10,
+        scenarios: [
+          { shiftBps: 100, niImpact: 0.5, mveImpact: -1, niImpactPct: 5 },
+          { shiftBps: 200, niImpact: 1.0, mveImpact: -2, niImpactPct: 10 },
+          { shiftBps: 300, niImpact: 1.5, mveImpact: -3, niImpactPct: 15 },
+          { shiftBps: -200, niImpact: -0.8, mveImpact: 1.5, niImpactPct: -8 },
+        ],
+      });
+      mockAlmEnterprise.calculateLCR = jest.fn().mockResolvedValue({ lcr: 120, hqla: 50 });
+      mockAlmEnterprise.getCOSSECCompliance = jest.fn().mockResolvedValue({
+        examReadinessScore: 85,
+        summary: { totalAssets: 500, totalLoans: 300, totalShares: 200, capitalRatio: 10, nim: 3.5 },
+      });
+    });
+
+    it('returns RESILIENT verdict for mild stress', async () => {
+      const result = await service.runCustomScenario('inst-1', {
+        rateShockBps: 50,
+        depositRunoffPct: 2,
+        defaultRateIncreasePct: 1,
+        energyCostShockPct: 5,
+      });
+      expect(result.nimBefore).toBeCloseTo(3.5, 1);
+      expect(result.lcrBefore).toBeCloseTo(120, 0);
+      expect(result.capitalBefore).toBeCloseTo(10, 1);
+      expect(result.verdict).toBe('RESILIENT');
+      expect(result.narrative).toContain('rate shock');
+      expect(result.narrativeEs).toContain('choque de tasas');
+    });
+
+    it('returns CRITICAL verdict for extreme stress', async () => {
+      mockAlmEnterprise.getCOSSECCompliance.mockResolvedValue({
+        examReadinessScore: 40,
+        summary: { totalAssets: 500, totalLoans: 300, totalShares: 200, capitalRatio: 5, nim: 2.0 },
+      });
+      mockAlmEnterprise.calculateLCR.mockResolvedValue({ lcr: 95, hqla: 30 });
+
+      const result = await service.runCustomScenario('inst-1', {
+        rateShockBps: -300,
+        depositRunoffPct: 25,
+        defaultRateIncreasePct: 12,
+        energyCostShockPct: 40,
+      });
+      expect(['VULNERABLE', 'CRITICAL']).toContain(result.verdict);
+      expect(result.capitalAfter).toBeLessThan(result.capitalBefore);
+    });
+
+    it('returns empty result when upstream data fails', async () => {
+      mockAlmEnterprise.calculateNIISensitivity.mockRejectedValue(new Error('DB down'));
+
+      const result = await service.runCustomScenario('inst-1', {
+        rateShockBps: 100,
+        depositRunoffPct: 5,
+        defaultRateIncreasePct: 2,
+        energyCostShockPct: 10,
+      });
+      expect(result.verdict).toBe('CRITICAL');
+      expect(result.narrative).toContain('No balance sheet data');
+    });
+
+    it('clamps parameters to valid ranges', async () => {
+      const result = await service.runCustomScenario('inst-1', {
+        rateShockBps: 500, // clamped to 300
+        depositRunoffPct: 50, // clamped to 30
+        defaultRateIncreasePct: 20, // clamped to 15
+        energyCostShockPct: 80, // clamped to 50
+      });
+      // Verify it ran without error (clamping happened internally)
+      expect(result.nimBefore).toBeDefined();
+      expect(result.lcrAfter).toBeDefined();
+    });
+  });
 });

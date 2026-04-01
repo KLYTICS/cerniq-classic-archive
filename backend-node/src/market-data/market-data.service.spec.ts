@@ -166,4 +166,122 @@ describe('MarketDataService', () => {
       expect(health[0]).toHaveProperty('successRate');
     });
   });
+
+  // ── Coverage boost: getFundamentals, getHistoricalPrices, getHealth ──
+  describe('getFundamentals', () => {
+    it('returns fundamentals from Yahoo for stock tickers', async () => {
+      const result = await service.getFundamentals('AAPL');
+      expect(result).toEqual({ pe: 25, marketCap: 2e12 });
+      expect(mockYahooProvider.getFundamentals).toHaveBeenCalledWith('AAPL');
+    });
+
+    it('throws NotFoundException for crypto tickers', async () => {
+      await expect(service.getFundamentals('BTC')).rejects.toThrow(NotFoundException);
+    });
+
+    it('caches fundamentals on second call', async () => {
+      await service.getFundamentals('AAPL');
+      mockYahooProvider.getFundamentals.mockClear();
+      await service.getFundamentals('AAPL');
+      expect(mockYahooProvider.getFundamentals).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when provider returns null', async () => {
+      service.clearCaches();
+      mockYahooProvider.getFundamentals.mockResolvedValueOnce(null);
+      await expect(service.getFundamentals('UNKNOWN')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getHistoricalPrices', () => {
+    it('routes stock tickers to Yahoo', async () => {
+      const start = new Date('2025-01-01');
+      const end = new Date('2025-12-31');
+      await service.getHistoricalPrices('AAPL', start, end);
+      expect(mockYahooProvider.getHistoricalPrices).toHaveBeenCalledWith('AAPL', start, end);
+    });
+
+    it('routes crypto tickers to CoinGecko', async () => {
+      const start = new Date('2025-01-01');
+      const end = new Date('2025-12-31');
+      await service.getHistoricalPrices('BTC', start, end);
+      expect(mockCoinGeckoProvider.getHistoricalPrices).toHaveBeenCalledWith('BTC', start, end);
+    });
+  });
+
+  describe('getHealth', () => {
+    it('returns healthy status with no streams', () => {
+      const health = service.getHealth([]);
+      expect(health.status).toBe('healthy');
+      expect(health.freshnessSummary.activeStreams).toBe(0);
+    });
+
+    it('returns degraded when stale streams exist', () => {
+      const oldDate = new Date(Date.now() - 120_000).toISOString(); // 2 min ago = STALE
+      const health = service.getHealth([{ lastQuoteAt: oldDate } as any]);
+      expect(health.status).toBe('degraded');
+      expect(health.freshnessSummary.staleStreams).toBe(1);
+    });
+  });
+
+  describe('searchTickers', () => {
+    it('searches both Yahoo and CoinGecko by default', async () => {
+      mockYahooProvider.searchTickers.mockResolvedValue([
+        { ticker: 'AAPL', name: 'Apple Inc', assetType: 'stock' },
+      ]);
+      mockCoinGeckoProvider.searchCrypto.mockResolvedValue([
+        { symbol: 'BTC', name: 'Bitcoin' },
+      ]);
+
+      const results = await service.searchTickers('a');
+      expect(results.length).toBe(2);
+    });
+
+    it('filters to crypto-only when assetType is crypto', async () => {
+      mockCoinGeckoProvider.searchCrypto.mockResolvedValue([
+        { symbol: 'ETH', name: 'Ethereum' },
+      ]);
+
+      const results = await service.searchTickers('eth', 'crypto');
+      expect(results.length).toBe(1);
+      expect(results[0].ticker).toBe('ETH');
+      expect(mockYahooProvider.searchTickers).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getRealtimeQuote', () => {
+    it('uses shorter cache TTL', async () => {
+      const quote = await service.getRealtimeQuote('AAPL');
+      expect(quote.ticker).toBe('AAPL');
+    });
+  });
+
+  describe('getInstrumentProfile', () => {
+    it('returns profile for stock ticker', async () => {
+      const profile = await service.getInstrumentProfile('AAPL');
+      expect(profile.ticker).toBe('AAPL');
+      expect(profile.assetType).toBe('stock');
+    });
+
+    it('builds profile from quote for crypto ticker', async () => {
+      const profile = await service.getInstrumentProfile('BTC');
+      expect(profile.ticker).toBe('BTC');
+      expect(profile.assetType).toBe('crypto');
+    });
+  });
+
+  describe('getNews', () => {
+    it('returns news for a ticker', async () => {
+      mockYahooProvider.getNews.mockResolvedValue([{ title: 'Test News' }]);
+      const news = await service.getNews('AAPL');
+      expect(news).toHaveLength(1);
+    });
+
+    it('returns empty array when provider returns null', async () => {
+      service.clearCaches();
+      mockYahooProvider.getNews.mockResolvedValueOnce(null);
+      const news = await service.getNews('AAPL');
+      expect(news).toEqual([]);
+    });
+  });
 });

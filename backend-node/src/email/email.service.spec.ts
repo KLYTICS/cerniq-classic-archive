@@ -524,4 +524,201 @@ describe('EmailService', () => {
       expect(call.text).toContain('customer@coop.com');
     });
   });
+
+  // ── Coverage boost: remaining email methods ───────────────
+  describe('sendRenewalReminder', () => {
+    it('sends urgent subject when daysLeft <= 7', async () => {
+      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_renew' });
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await service.sendRenewalReminder({
+        email: 'user@coop.com',
+        name: 'Maria',
+        daysLeft: 3,
+        tier: 'Gold',
+        currentPeriodEnd: '2026-04-01',
+      });
+
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('Accion requerida');
+      expect(call.subject).toContain('3 dias');
+    });
+
+    it('sends non-urgent subject when daysLeft > 7', async () => {
+      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_renew2' });
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await service.sendRenewalReminder({
+        email: 'user@coop.com',
+        name: 'Maria',
+        daysLeft: 20,
+        tier: 'Silver',
+        currentPeriodEnd: '2026-04-20',
+      });
+
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('se renueva');
+    });
+
+    it('handles dry-run when resend is null', async () => {
+      (service as any).resend = null;
+      await expect(
+        service.sendRenewalReminder({
+          email: 'user@coop.com',
+          name: 'Maria',
+          daysLeft: 5,
+          tier: 'Gold',
+          currentPeriodEnd: '2026-04-01',
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendChurnRiskAlert', () => {
+    it('sends churn risk alert with days inactive', async () => {
+      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_churn' });
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await service.sendChurnRiskAlert({
+        userName: 'Carlos',
+        userEmail: 'carlos@coop.com',
+        tier: 'monthly',
+        daysSinceLogin: 45,
+        currentPeriodEnd: '2026-05-01',
+      });
+
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('CHURN RISK');
+      expect(call.subject).toContain('45d inactive');
+      expect(call.text).toContain('carlos@coop.com');
+    });
+  });
+
+  describe('sendWeeklyRevenueReport', () => {
+    it('sends report with tier breakdown and renewals', async () => {
+      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_weekly' });
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await service.sendWeeklyRevenueReport({
+        activeBytier: { Gold: 5, Silver: 10 },
+        totalActive: 15,
+        newThisWeek: 3,
+        cancelledThisWeek: 1,
+        upcomingRenewals: [
+          { email: 'a@coop.com', tier: 'Gold', renewsAt: '2026-04-10' },
+        ],
+      });
+
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('15 active');
+      expect(call.text).toContain('Gold: 5');
+      expect(call.text).toContain('a@coop.com');
+    });
+  });
+
+  describe('sendNPSSurvey', () => {
+    it('sends NPS survey with score links', async () => {
+      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_nps' });
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await service.sendNPSSurvey({
+        email: 'user@coop.com',
+        name: 'Ana',
+        institutionName: 'Coop Test',
+        jobId: 'job_123',
+        institutionId: 'inst_123',
+      });
+
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('experiencia');
+      expect(call.html).toContain('score=0');
+      expect(call.html).toContain('score=10');
+    });
+  });
+
+  describe('sendTeamInviteEmail', () => {
+    it('sends team invite with role label', async () => {
+      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_invite' });
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await service.sendTeamInviteEmail({
+        email: 'new@coop.com',
+        name: 'Pedro',
+        inviterName: 'Erwin',
+        role: 'ANALYST',
+        magicUrl: 'https://cerniq.io/auth/magic?token=xyz',
+      });
+
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('Erwin');
+      expect(call.html).toContain('Analista / Analyst');
+    });
+
+    it('handles dry-run when resend is null', async () => {
+      (service as any).resend = null;
+      await expect(
+        service.sendTeamInviteEmail({
+          email: 'new@coop.com',
+          name: 'Pedro',
+          inviterName: 'Erwin',
+          role: 'VIEWER',
+          magicUrl: 'https://cerniq.io/magic/abc',
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendRawEmail', () => {
+    it('sends raw email with provided html', async () => {
+      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_raw' });
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await service.sendRawEmail({
+        to: 'prospect@example.com',
+        subject: 'Custom Outreach',
+        html: '<p>Hello from CERNIQ</p>',
+      });
+
+      const call = mockSend.mock.calls[0][0];
+      expect(call.to).toBe('prospect@example.com');
+      expect(call.html).toContain('Hello from CERNIQ');
+      expect(call.html).toContain('CERNIQ'); // wrapped in template
+    });
+
+    it('throws when resend fails', async () => {
+      const mockSend = jest.fn().mockRejectedValue(new Error('Send failed'));
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await expect(
+        service.sendRawEmail({
+          to: 'fail@example.com',
+          subject: 'Test',
+          html: '<p>Test</p>',
+        }),
+      ).rejects.toThrow('Send failed');
+    });
+  });
+
+  describe('sendDemoConfirmation', () => {
+    it('sends demo confirmation email', async () => {
+      const mockSend = jest.fn().mockResolvedValue({ id: 'msg_demo_conf' });
+      (service as any).resend = { emails: { send: mockSend } };
+
+      await service.sendDemoConfirmation({
+        name: 'Carlos',
+        email: 'carlos@bank.com',
+      });
+
+      const call = mockSend.mock.calls[0][0];
+      expect(call.subject).toContain('demo');
+      expect(call.html).toContain('demo');
+    });
+
+    it('returns early when resend is null', async () => {
+      (service as any).resend = null;
+      await expect(
+        service.sendDemoConfirmation({ email: 'test@test.com' }),
+      ).resolves.not.toThrow();
+    });
+  });
 });
