@@ -290,4 +290,56 @@ describe('HullWhiteService', () => {
     expect(result.sigma).toBe(0.01);
     expect(result.fitError).toBe(0);
   });
+
+  // Coverage: lines 162-171 — odd number of paths
+  it('handles odd number of paths correctly', () => {
+    const result = service.simulateRatePaths({
+      initialRate: 0.04,
+      kappa: 0.15,
+      sigma: 0.01,
+      termStructure,
+      numPaths: 101, // odd
+      horizon: 1,
+      timeSteps: 12,
+    });
+
+    expect(result.paths.length).toBe(101);
+    for (const path of result.paths) {
+      expect(path.length).toBe(12);
+    }
+  });
+
+  // Coverage: lines 363-365 — calibration grid search inner loop
+  it('calibration explores sigma grid when kappa is not fixed', () => {
+    const maturities = [0.5, 1, 2, 3, 5];
+    const marketPrices = maturities.map((mat) => {
+      const bond = service.priceZeroCouponBond({
+        currentRate: 0.04,
+        kappa: 0.3,
+        sigma: 0.02,
+        maturity: mat,
+        termStructure,
+      });
+      return { maturity: mat, price: bond.price };
+    });
+
+    const result = service.calibrate({ marketPrices });
+    expect(result.kappa).toBeGreaterThan(0);
+    expect(result.sigma).toBeGreaterThan(0);
+    expect(result.fitError).toBeLessThan(0.01);
+  });
+
+  // Coverage: line 469 — interpolateRate falls off the end of term structure
+  it('interpolateRate returns last rate for maturity beyond term structure', () => {
+    const result = service.priceZeroCouponBond({
+      currentRate: 0.04,
+      kappa: 0.15,
+      sigma: 0.01,
+      maturity: 30, // far beyond the 10-year max in term structure
+      termStructure,
+    });
+
+    expect(result.price).toBeGreaterThan(0);
+    expect(result.price).toBeLessThan(1);
+  });
 });

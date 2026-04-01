@@ -55,4 +55,27 @@ describe('hash.util', () => {
       expect(fp).toMatch(/^[a-f0-9]+$/);
     });
   });
+
+  describe('stableStringify edge types', () => {
+    it('handles symbols', () => {
+      const result = stableStringify(Symbol('test'));
+      expect(result).toContain('Symbol');
+    });
+
+    it('handles functions', () => {
+      const result = stableStringify(() => 42);
+      expect(result).toContain('=>');
+    });
+
+    it('handles arrays', () => {
+      const result = stableStringify([1, 'two', { three: 3 }]);
+      expect(result).toContain('[');
+      expect(result).toContain(']');
+    });
+
+    it('handles numbers and booleans', () => {
+      expect(stableStringify(42)).toBe('42');
+      expect(stableStringify(true)).toBe('true');
+    });
+  });
 });

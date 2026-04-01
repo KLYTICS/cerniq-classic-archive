@@ -30,4 +30,20 @@ describe('ParseDatePipe', () => {
   it('throws BadRequestException for invalid date', () => {
     expect(() => pipe.transform('not-a-date')).toThrow(BadRequestException);
   });
+
+  // Coverage: lines 35-36 — US format MM/DD/YYYY parsing
+  it('parses single-digit month/day MM/DD/YYYY', () => {
+    const result = pipe.transform('1/5/2026');
+    expect(result).toBeInstanceOf(Date);
+    expect(result.getMonth()).toBe(0); // January
+    expect(result.getDate()).toBe(5);
+    expect(result.getFullYear()).toBe(2026);
+  });
+
+  it('parses US format with two-digit month and day', () => {
+    const result = pipe.transform('12/25/2026');
+    expect(result).toBeInstanceOf(Date);
+    expect(result.getMonth()).toBe(11); // December = 11
+    expect(result.getDate()).toBe(25);
+  });
 });

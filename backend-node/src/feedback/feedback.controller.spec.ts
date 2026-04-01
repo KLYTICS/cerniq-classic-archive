@@ -249,4 +249,52 @@ describe('FeedbackController', () => {
       expect(stats.promoters).toBe(0);
     });
   });
+
+  // Coverage: lines 83-84 — recordNPS catch block (server error)
+  describe('recordNPS error handling', () => {
+    it('should redirect to thank-you with error on server error', async () => {
+      prisma.feedback.findFirst.mockRejectedValue(new Error('DB down'));
+
+      const result = await controller.recordNPS('9', 'job-1', 'inst-1');
+
+      expect(result.url).toContain('error=server_error');
+      expect(result.statusCode).toBe(302);
+    });
+  });
+
+  // Coverage: lines 119-124 — addComment catch block
+  describe('addComment error handling', () => {
+    it('should throw BadRequestException on unexpected error', async () => {
+      prisma.feedback.findUnique.mockResolvedValue({ id: 'fb-1' });
+      prisma.feedback.update.mockRejectedValue(new Error('DB write failed'));
+
+      await expect(
+        controller.addComment('fb-1', { comment: 'test', contactOk: false }),
+      ).rejects.toThrow('Failed to save comment');
+    });
+  });
+
+  // Coverage: lines 171-175 — addCommentByJob catch block
+  describe('addCommentByJob error handling', () => {
+    it('should throw BadRequestException on unexpected error', async () => {
+      prisma.feedback.findFirst.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        controller.addCommentByJob({ jobId: 'job-1', comment: 'test' }),
+      ).rejects.toThrow('Failed to save comment');
+    });
+  });
+
+  // Coverage: lines 223-227 — getStats catch block
+  describe('getStats error handling', () => {
+    it('should return zero stats on error', async () => {
+      prisma.feedback.findMany.mockRejectedValue(new Error('DB unavailable'));
+
+      const stats = await controller.getStats();
+
+      expect(stats.averageScore).toBe(0);
+      expect(stats.responseCount).toBe(0);
+      expect(stats.npsScore).toBe(0);
+    });
+  });
 });

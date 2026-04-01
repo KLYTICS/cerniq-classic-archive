@@ -217,5 +217,71 @@ describe('CacheService', () => {
       const stats = await service.getStats();
       expect(stats).toEqual({ hits: 0, misses: 0, keys: 0 });
     });
+
+    it('flushAll handles Redis error gracefully', async () => {
+      const redis = (service as any).redis;
+      redis.flushall.mockRejectedValueOnce(new Error('Flush failed'));
+      await expect(service.flushAll()).resolves.toBeUndefined();
+    });
+  });
+
+  // Coverage: lines 19-20 (retryStrategy), 26 (connect event), 30 (error event)
+  describe('onModuleInit', () => {
+    it('retryStrategy returns capped delay', () => {
+      const Redis = require('ioredis');
+      const constructorCall = Redis.mock.calls[Redis.mock.calls.length - 1];
+      const options = constructorCall[1];
+      expect(options.retryStrategy(1)).toBe(50);
+      expect(options.retryStrategy(100)).toBe(2000);
+    });
+
+    it('connect and error event handlers are registered and callable', () => {
+      const redis = (service as any).redis;
+      expect(redis.on).toHaveBeenCalledWith('connect', expect.any(Function));
+      expect(redis.on).toHaveBeenCalledWith('error', expect.any(Function));
+
+      // Actually invoke the callbacks to cover lines 26 and 30
+      const connectCall = redis.on.mock.calls.find((c: any) => c[0] === 'connect');
+      const errorCall = redis.on.mock.calls.find((c: any) => c[0] === 'error');
+      if (connectCall) connectCall[1](); // trigger connect callback
+      if (errorCall) errorCall[1](new Error('test error')); // trigger error callback
+    });
+
+    it('handles Redis init failure gracefully', async () => {
+      const Redis = require('ioredis');
+      Redis.mockImplementationOnce(() => {
+        throw new Error('Connection refused');
+      });
+      const failService = new CacheService();
+      await failService.onModuleInit();
+      expect((failService as any).redis).toBeNull();
+    });
+  });
+
+  // Coverage: line 101, delete success path
+  describe('delete', () => {
+    it('deletes a key successfully', async () => {
+      const redis = (service as any).redis;
+      redis.del.mockResolvedValueOnce(1);
+      await service.delete('test-key');
+      expect(redis.del).toHaveBeenCalledWith('test-key');
+    });
+  });
+
+  // Coverage: lines 217-220 (onModuleDestroy)
+  describe('onModuleDestroy', () => {
+    it('closes redis connection', async () => {
+      const redis = (service as any).redis;
+      await service.onModuleDestroy();
+      expect(redis.quit).toHaveBeenCalled();
+    });
+
+    it('does nothing when redis is null', async () => {
+      const nullService = new CacheService();
+      (nullService as any).redis = null;
+      await nullService.onModuleDestroy();
+      // No error thrown
+      expect(true).toBe(true);
+    });
   });
 });

@@ -378,4 +378,111 @@ describe('AuditLogInterceptor', () => {
       }),
     });
   });
+
+  // Coverage: line 140 — sanitizePayload with null
+  it('should sanitize null values to null', async () => {
+    const context = createMockContext({
+      method: 'POST',
+      routePath: '/api/data',
+      body: { field: null, nested: undefined },
+      user: { userId: 'user-12' },
+    });
+
+    const obs = interceptor.intercept(context, callHandler);
+    await lastValueFrom(obs);
+
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        changes: expect.objectContaining({ field: null }),
+      }),
+    });
+  });
+
+  // Coverage: line 143 — sanitizePayload with Buffer
+  it('should sanitize Buffer values to binary marker', async () => {
+    const context = createMockContext({
+      method: 'POST',
+      routePath: '/api/upload',
+      body: { file: Buffer.from('binary data'), name: 'test.pdf' },
+      user: { userId: 'user-13' },
+    });
+
+    const obs = interceptor.intercept(context, callHandler);
+    await lastValueFrom(obs);
+
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        changes: expect.objectContaining({
+          file: expect.stringContaining('[binary:'),
+          name: 'test.pdf',
+        }),
+      }),
+    });
+  });
+
+  // Coverage: line 146 — sanitizePayload with array
+  it('should sanitize arrays recursively', async () => {
+    const context = createMockContext({
+      method: 'POST',
+      routePath: '/api/batch',
+      body: { items: ['a', 'b'], tags: [{ secret: 'hidden' }] },
+      user: { userId: 'user-14' },
+    });
+
+    const obs = interceptor.intercept(context, callHandler);
+    await lastValueFrom(obs);
+
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        changes: expect.objectContaining({
+          items: ['a', 'b'],
+        }),
+      }),
+    });
+  });
+
+  // Coverage: line 149 — sanitizePayload with Date
+  it('should sanitize Date values to ISO strings', async () => {
+    const testDate = new Date('2026-06-15T10:00:00Z');
+    const context = createMockContext({
+      method: 'POST',
+      routePath: '/api/schedule',
+      body: { scheduledAt: testDate },
+      user: { userId: 'user-15' },
+    });
+
+    const obs = interceptor.intercept(context, callHandler);
+    await lastValueFrom(obs);
+
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        changes: expect.objectContaining({
+          scheduledAt: testDate.toISOString(),
+        }),
+      }),
+    });
+  });
+
+  // Coverage: line 214 — persist error path
+  it('should log error when audit persistence fails', async () => {
+    prisma.auditLog.create.mockRejectedValueOnce(new Error('DB write error'));
+    const errorSpy = jest
+      .spyOn((interceptor as any).logger, 'error')
+      .mockImplementation();
+
+    const context = createMockContext({
+      method: 'POST',
+      routePath: '/api/test',
+      user: { userId: 'user-16' },
+    });
+
+    const obs = interceptor.intercept(context, callHandler);
+    await lastValueFrom(obs);
+
+    // Give the async persist time to complete
+    await new Promise((r) => setTimeout(r, 50));
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to persist audit log'),
+    );
+  });
 });

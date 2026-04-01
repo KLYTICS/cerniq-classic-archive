@@ -159,4 +159,90 @@ describe('AnalyticsService', () => {
       );
     });
   });
+
+  // Coverage: line 174 — getCategoryBreakdown with date range
+  describe('getCategoryBreakdown with date range', () => {
+    it('should filter by date range when provided', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValue({
+        id: '1',
+        role: 'MEMBER',
+      });
+      prisma.expense.groupBy.mockResolvedValue([
+        { category: 'Travel', _sum: { amount: 1000 }, _count: 5 },
+      ]);
+
+      const result = await service.getCategoryBreakdown('org-1', 'user-1', {
+        startDate: '2026-01-01',
+        endDate: '2026-03-01',
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].category).toBe('Travel');
+    });
+  });
+
+  // Coverage: line 216 — getTeamComparison with date range
+  describe('getTeamComparison with date range', () => {
+    it('should filter by date range when provided', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValue({
+        id: '1',
+        role: 'ADMIN',
+      });
+      prisma.expense.findMany.mockResolvedValue([
+        {
+          userId: 'user-1',
+          amount: 500,
+          status: 'APPROVED',
+          user: { id: 'user-1', name: 'Alice', email: 'alice@test.com' },
+        },
+      ]);
+
+      const result = await service.getTeamComparison('org-1', 'user-1', {
+        startDate: '2026-01-01',
+        endDate: '2026-06-01',
+      });
+      expect(result).toHaveLength(1);
+    });
+  });
+
+  // Coverage: lines 271-290 — exportExpenses
+  describe('exportExpenses', () => {
+    it('should return formatted expense records', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValue({
+        id: '1',
+        role: 'ADMIN',
+      });
+      prisma.expense.findMany.mockResolvedValue([
+        {
+          transactionDate: new Date('2026-02-15'),
+          merchantName: 'Starbucks',
+          amount: 5.5,
+          currency: 'USD',
+          category: 'Meals',
+          status: 'APPROVED',
+          user: { name: 'Alice', email: 'alice@test.com' },
+        },
+      ]);
+
+      const result = await service.exportExpenses('org-1', 'user-1');
+      expect(result).toHaveLength(1);
+      expect(result[0].Merchant).toBe('Starbucks');
+      expect(result[0].Amount).toBe(5.5);
+      expect(result[0].Currency).toBe('USD');
+    });
+
+    it('should filter by date range when provided', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValue({
+        id: '1',
+        role: 'ADMIN',
+      });
+      prisma.expense.findMany.mockResolvedValue([]);
+
+      const result = await service.exportExpenses('org-1', 'user-1', {
+        startDate: '2026-01-01',
+        endDate: '2026-02-01',
+      });
+      expect(result).toEqual([]);
+    });
+  });
 });

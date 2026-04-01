@@ -284,4 +284,94 @@ describe('ComplianceCalendarService', () => {
       );
     });
   });
+
+  describe('alcoNextDate in the past advances to future', () => {
+    it('advances a past alcoNextDate to the present/future', async () => {
+      const pastDate = new Date('2020-01-15'); // well in the past
+      const service = new ComplianceCalendarService(
+        mockPrisma({
+          id: 'inst-1',
+          name: 'CoopAhorro',
+          type: 'cooperativa',
+          alcoMeetingFrequency: 'monthly',
+          alcoNextDate: pastDate,
+        }),
+      );
+
+      const result = await service.getUpcomingDeadlines('inst-1');
+      const meetings = result.events.filter((e) => e.category === 'meeting');
+      expect(meetings.length).toBeGreaterThanOrEqual(1);
+      // All meeting dates should be in the future
+      meetings.forEach((m) => {
+        expect(m.deadlineDate.getTime()).toBeGreaterThan(Date.now() - 86400000);
+      });
+    });
+  });
+
+  describe('fiscal year-end report due date in the past triggers next year', () => {
+    it('pushes fiscal year-end report to next year when due date is past', async () => {
+      // Mock Date to be December 2026 so Jan FYE (Jan 31, 2026) + 90 days = May 1, 2026 is in the past
+      const realDateCtor = global.Date;
+      const mockNow = new realDateCtor('2026-12-15T12:00:00Z');
+      const origNow = Date.now;
+      Date.now = () => mockNow.getTime();
+      const OrigDate = global.Date;
+      // @ts-ignore
+      global.Date = class extends realDateCtor {
+        constructor(...args: any[]) {
+          if (args.length === 0) {
+            super(mockNow.getTime());
+          } else {
+            // @ts-ignore
+            super(...args);
+          }
+        }
+        static now() { return mockNow.getTime(); }
+      };
+
+      const service = new ComplianceCalendarService(
+        mockPrisma({
+          id: 'inst-1',
+          name: 'CoopAhorro',
+          type: 'cooperativa',
+          alcoMeetingFrequency: 'monthly',
+          fiscalYearEnd: 'January',
+        }),
+      );
+
+      const result = await service.getUpcomingDeadlines('inst-1');
+      const fiscal = result.events.filter((e) =>
+        e.id.startsWith('fiscal-year-end'),
+      );
+      expect(fiscal.length).toBe(1);
+      // Should reference 2027 since Jan 2026 FYE + 90 days = May 1, 2026 which is past Dec 15, 2026
+      expect(fiscal[0].deadlineDate.getFullYear()).toBe(2027);
+
+      global.Date = OrigDate;
+      Date.now = origNow;
+    });
+  });
+
+  describe('getNextThirdWednesday edge case', () => {
+    it('generates meetings in the future when no alcoNextDate is set', async () => {
+      // This test ensures the getNextThirdWednesday path is exercised
+      // (including potential recursion when the 3rd Wed of current month has passed)
+      const service = new ComplianceCalendarService(mockPrisma({
+        id: 'inst-1',
+        name: 'Test',
+        type: 'cooperativa',
+        alcoMeetingFrequency: 'monthly',
+        // No alcoNextDate — forces getNextThirdWednesday
+      }));
+
+      const result = await service.getUpcomingDeadlines('inst-1');
+      const meetings = result.events.filter((e) => e.category === 'meeting');
+      expect(meetings.length).toBeGreaterThanOrEqual(3);
+      // All meetings should be in the future
+      const now = new Date();
+      meetings.forEach((m) => {
+        expect(m.deadlineDate.getTime()).toBeGreaterThan(now.getTime() - 86400000);
+      });
+    });
+  });
 });

@@ -365,5 +365,187 @@ describe('AuthController', () => {
 
       delete process.env.SUPABASE_JWT_AUDIENCE;
     });
+
+    it('returns aud_ok true when no expected audience configured', async () => {
+      delete process.env.SUPABASE_JWT_AUDIENCE;
+      delete process.env.SUPABASE_AUDIENCE;
+      authService.getUserOrgs = jest.fn().mockResolvedValue([]);
+
+      const req = {
+        user: { userId: 'u-noaud', email: 'no@test.com', claims: { aud: 'some-aud' } },
+      };
+
+      const result = await controller.whoami(req);
+      expect(result.aud_ok).toBe(true);
+    });
+
+    it('returns issuer_ok true when no expected issuer configured', async () => {
+      delete process.env.SUPABASE_JWT_ISSUER;
+      delete process.env.SUPABASE_ISSUER;
+      authService.getUserOrgs = jest.fn().mockResolvedValue([]);
+
+      const req = {
+        user: { userId: 'u-noiss', email: 'noiss@test.com', claims: { iss: 'any' } },
+      };
+
+      const result = await controller.whoami(req);
+      expect(result.issuer_ok).toBe(true);
+    });
+
+    it('returns issuer_ok false when issuer mismatches', async () => {
+      process.env.SUPABASE_JWT_ISSUER = 'expected-issuer';
+      authService.getUserOrgs = jest.fn().mockResolvedValue([]);
+
+      const req = {
+        user: { userId: 'u-biss', email: 'biss@test.com', claims: { iss: 'wrong-issuer' } },
+      };
+
+      const result = await controller.whoami(req);
+      expect(result.issuer_ok).toBe(false);
+
+      delete process.env.SUPABASE_JWT_ISSUER;
+    });
+
+    it('returns aud_ok false when audience mismatches (string)', async () => {
+      process.env.SUPABASE_JWT_AUDIENCE = 'expected-aud';
+      authService.getUserOrgs = jest.fn().mockResolvedValue([]);
+
+      const req = {
+        user: { userId: 'u-baud', email: 'baud@test.com', claims: { aud: 'wrong-aud' } },
+      };
+
+      const result = await controller.whoami(req);
+      expect(result.aud_ok).toBe(false);
+
+      delete process.env.SUPABASE_JWT_AUDIENCE;
+    });
+
+    it('returns aud_ok false when audience array does not include expected', async () => {
+      process.env.SUPABASE_JWT_AUDIENCE = 'expected-aud';
+      authService.getUserOrgs = jest.fn().mockResolvedValue([]);
+
+      const req = {
+        user: { userId: 'u-barr', email: 'barr@test.com', claims: { aud: ['aud1', 'aud2'] } },
+      };
+
+      const result = await controller.whoami(req);
+      expect(result.aud_ok).toBe(false);
+
+      delete process.env.SUPABASE_JWT_AUDIENCE;
+    });
+
+    it('handles empty claims object', async () => {
+      authService.getUserOrgs = jest.fn().mockResolvedValue([]);
+
+      const req = {
+        user: { userId: 'u-empty', email: 'empty@test.com', claims: {} },
+      };
+
+      const result = await controller.whoami(req);
+      expect(result.user_id).toBe('u-empty');
+    });
+
+    it('handles missing claims', async () => {
+      authService.getUserOrgs = jest.fn().mockResolvedValue([]);
+
+      const req = {
+        user: { userId: 'u-nocl', email: 'nocl@test.com' },
+      };
+
+      const result = await controller.whoami(req);
+      expect(result.user_id).toBe('u-nocl');
+    });
+
+    it('uses SUPABASE_ISSUER as fallback for issuer check', async () => {
+      delete process.env.SUPABASE_JWT_ISSUER;
+      process.env.SUPABASE_ISSUER = 'fallback-issuer';
+      authService.getUserOrgs = jest.fn().mockResolvedValue([]);
+
+      const req = {
+        user: { userId: 'u-fb', email: 'fb@test.com', claims: { iss: 'fallback-issuer' } },
+      };
+
+      const result = await controller.whoami(req);
+      expect(result.issuer_ok).toBe(true);
+
+      delete process.env.SUPABASE_ISSUER;
+    });
+
+    it('uses SUPABASE_AUDIENCE as fallback for audience check', async () => {
+      delete process.env.SUPABASE_JWT_AUDIENCE;
+      process.env.SUPABASE_AUDIENCE = 'fallback-aud';
+      authService.getUserOrgs = jest.fn().mockResolvedValue([]);
+
+      const req = {
+        user: { userId: 'u-fba', email: 'fba@test.com', claims: { aud: 'fallback-aud' } },
+      };
+
+      const result = await controller.whoami(req);
+      expect(result.aud_ok).toBe(true);
+
+      delete process.env.SUPABASE_AUDIENCE;
+    });
+
+    it('returns KLYTICS_APP_ID from env', async () => {
+      process.env.KLYTICS_APP_ID = 'custom-app';
+      authService.getUserOrgs = jest.fn().mockResolvedValue([]);
+
+      const req = {
+        user: { userId: 'u-app', email: 'app@test.com', claims: {} },
+      };
+
+      const result = await controller.whoami(req);
+      expect(result.app).toBe('custom-app');
+
+      delete process.env.KLYTICS_APP_ID;
+    });
+  });
+
+  // ── OAuth (google/github) ────────────────────────────────────
+
+  describe('OAuth endpoints', () => {
+    it('googleAuth is defined and does nothing', () => {
+      expect(controller.googleAuth()).toBeUndefined();
+    });
+
+    it('githubAuth is defined and does nothing', () => {
+      expect(controller.githubAuth()).toBeUndefined();
+    });
+
+    it('googleCallback generates tokens, sets cookies, and redirects', async () => {
+      authService.generateTokens = jest.fn().mockResolvedValue({
+        accessToken: 'g-at',
+        refreshToken: 'g-rt',
+      });
+      const res = {
+        ...mockRes(),
+        redirect: jest.fn(),
+      };
+      const req = { user: { id: 'g-user' } };
+
+      await controller.googleCallback(req, res);
+
+      expect(authService.generateTokens).toHaveBeenCalledWith({ id: 'g-user' });
+      expect(res.cookie).toHaveBeenCalledWith('access_token', 'g-at', expect.any(Object));
+      expect(res.redirect).toHaveBeenCalledWith(expect.stringContaining('/dashboard'));
+    });
+
+    it('githubCallback generates tokens, sets cookies, and redirects', async () => {
+      authService.generateTokens = jest.fn().mockResolvedValue({
+        accessToken: 'gh-at',
+        refreshToken: 'gh-rt',
+      });
+      const res = {
+        ...mockRes(),
+        redirect: jest.fn(),
+      };
+      const req = { user: { id: 'gh-user' } };
+
+      await controller.githubCallback(req, res);
+
+      expect(authService.generateTokens).toHaveBeenCalledWith({ id: 'gh-user' });
+      expect(res.cookie).toHaveBeenCalledWith('access_token', 'gh-at', expect.any(Object));
+      expect(res.redirect).toHaveBeenCalledWith(expect.stringContaining('/dashboard'));
+    });
   });
 });

@@ -73,5 +73,71 @@ describe('url.util', () => {
       expect(result).toContain('q=test');
       expect(result).toContain('page=1');
     });
+
+    it('skips undefined values', () => {
+      const result = buildUrl('https://api.example.com/search', {
+        q: 'test',
+        filter: undefined,
+      });
+      expect(result).toContain('q=test');
+      expect(result).not.toContain('filter');
+    });
+
+    it('handles boolean values', () => {
+      const result = buildUrl('https://api.example.com/search', {
+        active: true,
+      });
+      expect(result).toContain('active=true');
+    });
+  });
+
+  // Coverage: line 31 — normalizeUrl removes default port 80
+  describe('normalizeUrl edge cases', () => {
+    it('removes default port 80 for HTTP', () => {
+      const result = normalizeUrl('http://example.com:80/path');
+      expect(result).toBe('http://example.com/path');
+    });
+
+    it('returns input for invalid URL', () => {
+      expect(normalizeUrl('not-a-url')).toBe('not-a-url');
+    });
+
+    it('removes trailing slash from non-root paths', () => {
+      const result = normalizeUrl('https://example.com/path/');
+      expect(result).toBe('https://example.com/path');
+    });
+
+    it('preserves trailing slash for root path', () => {
+      const result = normalizeUrl('https://example.com/');
+      expect(result).toBe('https://example.com/');
+    });
+  });
+
+  // Coverage: line 44 — isSafeRedirect with non-http protocol
+  describe('isSafeRedirect edge cases', () => {
+    it('blocks javascript: protocol', () => {
+      expect(isSafeRedirect('javascript:alert(1)', ['example.com'])).toBe(
+        false,
+      );
+    });
+
+    it('blocks data: protocol', () => {
+      expect(isSafeRedirect('data:text/html,<h1>hi</h1>', ['example.com'])).toBe(
+        false,
+      );
+    });
+
+    it('returns false for invalid URL string', () => {
+      expect(isSafeRedirect('not a url at all', ['example.com'])).toBe(false);
+    });
+  });
+
+  // Coverage: line 71 — extractDomain
+  describe('extractDomain edge cases', () => {
+    it('extracts domain from HTTP URL', () => {
+      expect(extractDomain('http://sub.domain.com:8080/path')).toBe(
+        'sub.domain.com',
+      );
+    });
   });
 });

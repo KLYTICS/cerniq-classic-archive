@@ -528,5 +528,153 @@ describe('PortalController', () => {
         NotFoundException,
       );
     });
+
+    it('should handle empty workspaces', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1', email: 'e@t.com', name: 'N', role: 'OWNER',
+        createdAt: new Date(), lastLoginAt: null,
+      });
+      prisma.subscription.findUnique
+        .mockResolvedValueOnce({ tier: 'monthly', status: 'active' })
+        .mockResolvedValueOnce({ tier: 'monthly', status: 'active' });
+      prisma.workspace.findMany.mockResolvedValue([]);
+
+      const result = await controller.getSettings(mockReq());
+      expect(result.institutions).toEqual([]);
+      expect(result.institutionMetrics.total).toBe(0);
+    });
+  });
+
+  // ── getJobIngestionLogs ──────────────────────────────
+
+  describe('GET /api/portal/jobs/:jobId/ingestion-logs', () => {
+    it('returns ingestion logs for a job', async () => {
+      ingestionLogs.listJobLogs.mockResolvedValue([{ id: 'log-1' }]);
+      const result = await controller.getJobIngestionLogs(mockReq(), 'j1');
+      expect(ingestionLogs.listJobLogs).toHaveBeenCalledWith('user-1', 'j1');
+    });
+  });
+
+  // ── generateAlcoPack ─────────────────────────────────
+
+  describe('POST /api/portal/jobs/:jobId/alco-pack', () => {
+    it('generates ALCO pack for completed job', async () => {
+      prisma.reportJob.findFirst.mockResolvedValue({
+        id: 'j1', status: 'COMPLETE', institutionId: 'inst-1', institutionName: 'Coop Test',
+      });
+      alcoPackService.buildALCOPack = jest.fn().mockResolvedValue(Buffer.from('pdf-data'));
+
+      const res = { set: jest.fn(), end: jest.fn() };
+      await controller.generateAlcoPack(mockReq(), res, 'j1');
+
+      expect(alcoPackService.buildALCOPack).toHaveBeenCalledWith('inst-1', 'es');
+      expect(res.set).toHaveBeenCalledWith(expect.objectContaining({ 'Content-Type': 'application/pdf' }));
+      expect(res.end).toHaveBeenCalled();
+      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'alco_pack_download' }));
+    });
+
+    it('generates English ALCO pack', async () => {
+      prisma.reportJob.findFirst.mockResolvedValue({
+        id: 'j1', status: 'COMPLETE', institutionId: 'inst-1', institutionName: 'Test',
+      });
+      alcoPackService.buildALCOPack = jest.fn().mockResolvedValue(Buffer.from('en-pdf'));
+
+      const res = { set: jest.fn(), end: jest.fn() };
+      await controller.generateAlcoPack(mockReq(), res, 'j1', 'en');
+
+      expect(alcoPackService.buildALCOPack).toHaveBeenCalledWith('inst-1', 'en');
+    });
+
+    it('throws NotFoundException when job not found', async () => {
+      prisma.reportJob.findFirst.mockResolvedValue(null);
+      const res = { set: jest.fn(), end: jest.fn() };
+      await expect(controller.generateAlcoPack(mockReq(), res, 'j-bad')).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws BadRequestException when job is not COMPLETE', async () => {
+      prisma.reportJob.findFirst.mockResolvedValue({
+        id: 'j1', status: 'QUEUED', institutionId: 'inst-1',
+      });
+      const res = { set: jest.fn(), end: jest.fn() };
+      await expect(controller.generateAlcoPack(mockReq(), res, 'j1')).rejects.toThrow('ALCO pack can only be generated');
+    });
+
+    it('throws BadRequestException when no institution linked', async () => {
+      prisma.reportJob.findFirst.mockResolvedValue({
+        id: 'j1', status: 'COMPLETE', institutionId: null,
+      });
+      const res = { set: jest.fn(), end: jest.fn() };
+      await expect(controller.generateAlcoPack(mockReq(), res, 'j1')).rejects.toThrow('No institution linked');
+    });
+  });
+
+  // ── submitData: multi-period linking ─────────────────
+
+  describe('submitData — multi-period linking', () => {
+    const mockFile = {
+      originalname: 'bs.csv',
+      buffer: Buffer.from('data'),
+    } as Express.Multer.File;
+
+    it('links to previous completed job', async () => {
+      prisma.reportJob.findFirst
+        .mockResolvedValueOnce({ id: 'j2', status: 'AWAITING_DATA', institutionId: 'inst-1', institutionName: 'Coop' })
+        .mockResolvedValueOnce({ id: 'j1' }); // previous complete job
+      csvIngestion.parseCSV.mockReturnValue({ valid: true, items: [{ a: 1 }] });
+      almEnterprise.getInstitution.mockResolvedValue({ id: 'inst-1' });
+      almEnterprise.importBalanceSheetItems.mockResolvedValue(undefined);
+      prisma.reportJob.update.mockResolvedValue({});
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      const result = await controller.submitData(mockReq(), 'j2', mockFile, {});
+      expect(result.valid).toBe(true);
+    });
+
+    it('handles previous job lookup failure gracefully', async () => {
+      prisma.reportJob.findFirst
+        .mockResolvedValueOnce({ id: 'j2', status: 'AWAITING_DATA', institutionId: null, institutionName: null })
+        .mockRejectedValueOnce(new Error('Column missing')); // previous job lookup fails
+      csvIngestion.parseCSV.mockReturnValue({ valid: true, items: [{ a: 1 }] });
+      almEnterprise.createInstitution.mockResolvedValue({ id: 'new-inst' });
+      almEnterprise.importBalanceSheetItems.mockResolvedValue(undefined);
+      prisma.reportJob.update.mockResolvedValue({});
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      const result = await controller.submitData(mockReq(), 'j2', mockFile, { institutionName: 'New' });
+      expect(result.valid).toBe(true);
+    });
+
+    it('does not send email when user has no email', async () => {
+      prisma.reportJob.findFirst.mockResolvedValue({
+        id: 'j3', status: 'AWAITING_DATA', institutionId: null, institutionName: null,
+      });
+      csvIngestion.parseCSV.mockReturnValue({ valid: true, items: [{ a: 1 }] });
+      almEnterprise.createInstitution.mockResolvedValue({ id: 'new-inst' });
+      almEnterprise.importBalanceSheetItems.mockResolvedValue(undefined);
+      prisma.reportJob.update.mockResolvedValue({});
+      prisma.user.findUnique.mockResolvedValue({ id: 'u1', email: null });
+
+      const result = await controller.submitData(mockReq(), 'j3', mockFile, {});
+      expect(email.sendDataSubmissionAck).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── inviteUser: owner with no workspaces ─────────────
+
+  describe('inviteUser — owner with no workspaces', () => {
+    it('skips workspace creation when owner has no workspaces', async () => {
+      prisma.user.findUnique
+        .mockResolvedValueOnce({ id: 'owner-1', name: 'O', email: 'o@t.com', workspaces: [] })
+        .mockResolvedValueOnce(null);
+      prisma.user.create.mockResolvedValue({ id: 'new', email: 'new@t.com', role: 'VIEWER' });
+
+      const result = await controller.inviteUser(mockReq('owner-1'), {
+        email: 'new@t.com',
+        role: 'VIEWER',
+      });
+
+      expect(prisma.workspace.create).not.toHaveBeenCalled();
+      expect(result.invited).toBe(true);
+    });
   });
 });
