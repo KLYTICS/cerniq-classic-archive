@@ -54,4 +54,50 @@ describe('CreditMetricsService', () => {
       expect(seg.pctOfTotal).toBeGreaterThan(0);
     }
   });
+
+  // ── Credit migration with real segments ────────────────────
+  describe('with real loan segments', () => {
+    let svcReal: CreditMetricsService;
+
+    beforeEach(() => {
+      const segments = [
+        { segmentName: 'Consumer', balance: 5000, weightedAvgMaturity: 3 },
+        { segmentName: 'Commercial', balance: 8000, weightedAvgMaturity: 5 },
+        { segmentName: 'Mortgage', balance: 12000, weightedAvgMaturity: 15 },
+      ];
+      const mockPrisma = {
+        loanSegment: { findMany: jest.fn().mockResolvedValue(segments) },
+      } as any;
+      svcReal = new CreditMetricsService(mockPrisma);
+    });
+
+    it('computes positive VaR99 with real segments', async () => {
+      const result = await svcReal.computePortfolioVaR('inst-1', 5000);
+      expect(result.portfolioVaR99).toBeGreaterThan(0);
+    });
+
+    it('ES99 exceeds VaR99 with real data', async () => {
+      const result = await svcReal.computePortfolioVaR('inst-1', 5000);
+      expect(result.portfolioES99).toBeGreaterThanOrEqual(result.portfolioVaR99);
+    });
+
+    it('economic capital includes 1.06x multiplier on unexpected loss', async () => {
+      const result = await svcReal.computePortfolioVaR('inst-1', 5000);
+      expect(result.economicCapital).toBeCloseTo(result.unexpectedLoss * 1.06, 0);
+    });
+
+    it('per-segment contributions sum to approximately 100%', async () => {
+      const result = await svcReal.computePortfolioVaR('inst-1', 5000);
+      const totalPct = result.perSegmentContribution.reduce(
+        (s, seg) => s + seg.pctOfTotal,
+        0,
+      );
+      expect(totalPct).toBeCloseTo(100, 0);
+    });
+
+    it('reports correct number of paths', async () => {
+      const result = await svcReal.computePortfolioVaR('inst-1', 2000);
+      expect(result.paths).toBe(2000);
+    });
+  });
 });
