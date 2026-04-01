@@ -268,6 +268,31 @@ describe('MarketDataService', () => {
       expect(profile.ticker).toBe('BTC');
       expect(profile.assetType).toBe('crypto');
     });
+
+    it('returns cached profile on second call within TTL', async () => {
+      await service.getInstrumentProfile('AAPL');
+      mockYahooProvider.getInstrumentProfile.mockClear();
+      await service.getInstrumentProfile('AAPL');
+      expect(mockYahooProvider.getInstrumentProfile).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when profile null and no cache', async () => {
+      service.clearCaches();
+      mockYahooProvider.getInstrumentProfile.mockResolvedValueOnce(null);
+      await expect(service.getInstrumentProfile('UNKNOWN')).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns stale cache when profile null but cache exists', async () => {
+      await service.getInstrumentProfile('AAPL');
+      // Expire the cache
+      const cache = (service as any).instrumentCache;
+      const entry = cache.get('AAPL');
+      if (entry) entry.timestamp = 0;
+
+      mockYahooProvider.getInstrumentProfile.mockResolvedValueOnce(null);
+      const profile = await service.getInstrumentProfile('AAPL');
+      expect(profile.ticker).toBe('AAPL');
+    });
   });
 
   describe('getNews', () => {
@@ -282,6 +307,270 @@ describe('MarketDataService', () => {
       mockYahooProvider.getNews.mockResolvedValueOnce(null);
       const news = await service.getNews('AAPL');
       expect(news).toEqual([]);
+    });
+
+    it('returns cached news on second call within TTL', async () => {
+      mockYahooProvider.getNews.mockResolvedValue([{ title: 'Cached' }]);
+      await service.getNews('AAPL');
+      mockYahooProvider.getNews.mockClear();
+      await service.getNews('AAPL');
+      expect(mockYahooProvider.getNews).not.toHaveBeenCalled();
+    });
+
+    it('returns stale cache when provider returns null but cache exists', async () => {
+      mockYahooProvider.getNews.mockResolvedValueOnce([{ title: 'Old' }]);
+      await service.getNews('AAPL', 8);
+      // Expire the cache
+      const cache = (service as any).newsCache;
+      const entry = cache.get('AAPL:8');
+      if (entry) entry.timestamp = 0;
+
+      mockYahooProvider.getNews.mockResolvedValueOnce(null);
+      const news = await service.getNews('AAPL', 8);
+      expect(news[0].title).toBe('Old');
+    });
+  });
+
+  // ── getMarketSnapshot ──────────────────────────────────────
+  describe('getMarketSnapshot', () => {
+    it('returns combined quote, profile, and news', async () => {
+      const result = await service.getMarketSnapshot('AAPL');
+      expect(result.quote).toBeDefined();
+      expect(result.profile).toBeDefined();
+      expect(result.news).toBeDefined();
+    });
+  });
+
+  // ── session mapping edge cases ─────────────────────────────
+  describe('session mapping', () => {
+    it('returns CRYPTO for crypto quote', async () => {
+      const quote = await service.getQuote('BTC');
+      expect(quote.session).toBe('CRYPTO');
+    });
+
+    it('returns PREMARKET for PRE/PREPRE/PREMARKET states', async () => {
+      for (const state of ['PRE', 'PREPRE', 'PREMARKET']) {
+        service.clearCaches();
+        mockYahooProvider.getQuote.mockResolvedValueOnce({
+          ticker: 'AAPL', price: 150, change: 0, volume: 0,
+          timestamp: new Date(), marketState: state,
+        });
+        const quote = await service.getQuote('AAPL');
+        expect(quote.session).toBe('PREMARKET');
+      }
+    });
+
+    it('returns AFTER_HOURS for POST/POSTPOST/POSTMARKET/AFTER_HOURS', async () => {
+      for (const state of ['POST', 'POSTPOST', 'POSTMARKET', 'AFTER_HOURS']) {
+        service.clearCaches();
+        mockYahooProvider.getQuote.mockResolvedValueOnce({
+          ticker: 'AAPL', price: 150, change: 0, volume: 0,
+          timestamp: new Date(), marketState: state,
+        });
+        const quote = await service.getQuote('AAPL');
+        expect(quote.session).toBe('AFTER_HOURS');
+      }
+    });
+
+    it('returns REGULAR for REGULAR state', async () => {
+      service.clearCaches();
+      mockYahooProvider.getQuote.mockResolvedValueOnce({
+        ticker: 'AAPL', price: 150, change: 0, volume: 0,
+        timestamp: new Date(), marketState: 'REGULAR',
+      });
+      const quote = await service.getQuote('AAPL');
+      expect(quote.session).toBe('REGULAR');
+    });
+
+    it('returns CLOSED for CLOSED state', async () => {
+      service.clearCaches();
+      mockYahooProvider.getQuote.mockResolvedValueOnce({
+        ticker: 'AAPL', price: 150, change: 0, volume: 0,
+        timestamp: new Date(), marketState: 'CLOSED',
+      });
+      const quote = await service.getQuote('AAPL');
+      expect(quote.session).toBe('CLOSED');
+    });
+
+    it('returns UNKNOWN for unrecognized state', async () => {
+      service.clearCaches();
+      mockYahooProvider.getQuote.mockResolvedValueOnce({
+        ticker: 'AAPL', price: 150, change: 0, volume: 0,
+        timestamp: new Date(), marketState: 'WEIRD',
+      });
+      const quote = await service.getQuote('AAPL');
+      expect(quote.session).toBe('UNKNOWN');
+    });
+  });
+
+  // ── freshnessState computation ──────────────────────────────
+  describe('freshnessState', () => {
+    it('returns NEAR_REALTIME for quote < 15s old', async () => {
+      mockYahooProvider.getQuote.mockResolvedValueOnce({
+        ticker: 'AAPL', price: 150, change: 0, volume: 0,
+        quoteTimestamp: new Date(), timestamp: new Date(),
+      });
+      service.clearCaches();
+      const quote = await service.getQuote('AAPL');
+      expect(quote.freshnessState).toBe('NEAR_REALTIME');
+    });
+
+    it('returns STALE for quote > 60s old', async () => {
+      const old = new Date(Date.now() - 120_000);
+      mockYahooProvider.getQuote.mockResolvedValueOnce({
+        ticker: 'AAPL', price: 150, change: 0, volume: 0,
+        quoteTimestamp: old, timestamp: old,
+      });
+      service.clearCaches();
+      const quote = await service.getQuote('AAPL');
+      expect(quote.freshnessState).toBe('STALE');
+    });
+  });
+
+  // ── circuit breaker: health status progression ─────────────
+  describe('circuit breaker progression', () => {
+    it('opens circuit after 5 consecutive failures', async () => {
+      mockYahooProvider.getQuote.mockRejectedValue(new Error('down'));
+      for (let i = 0; i < 5; i++) {
+        service.clearCaches();
+        try { await service.getQuote('AAPL'); } catch {}
+      }
+      const health = service.getProviderHealth();
+      const yahoo = health.find(h => h.provider === 'yahoo-finance');
+      expect(yahoo!.consecutiveFailures).toBe(5);
+      expect(yahoo!.status).toBe('unhealthy');
+    });
+
+    it('skips upstream when circuit open and returns NotFoundException', async () => {
+      mockYahooProvider.getQuote.mockRejectedValue(new Error('down'));
+      for (let i = 0; i < 5; i++) {
+        service.clearCaches();
+        try { await service.getQuote('AAPL'); } catch {}
+      }
+      mockYahooProvider.getQuote.mockClear();
+      service.clearCaches();
+      try { await service.getQuote('AAPL'); } catch {}
+      expect(mockYahooProvider.getQuote).not.toHaveBeenCalled();
+    });
+
+    it('resets consecutive failures after a success', async () => {
+      mockYahooProvider.getQuote
+        .mockRejectedValueOnce(new Error('fail'))
+        .mockResolvedValueOnce({
+          ticker: 'AAPL', price: 180, change: 0, volume: 0, timestamp: new Date(),
+        });
+      service.clearCaches();
+      try { await service.getQuote('AAPL'); } catch {}
+      service.clearCaches();
+      await service.getQuote('AAPL');
+      const health = service.getProviderHealth();
+      const yahoo = health.find(h => h.provider === 'yahoo-finance');
+      expect(yahoo!.consecutiveFailures).toBe(0);
+    });
+  });
+
+  // ── normalizeQuote edge: NaN fields ────────────────────────
+  describe('normalizeQuote NaN handling', () => {
+    it('defaults NaN price/change/volume to 0', async () => {
+      service.clearCaches();
+      mockYahooProvider.getQuote.mockResolvedValueOnce({
+        ticker: 'TEST', price: NaN, change: NaN, changePercent: NaN,
+        volume: NaN, high: NaN, low: NaN, open: NaN,
+        timestamp: new Date(),
+      });
+      const quote = await service.getQuote('TEST');
+      expect(quote.price).toBe(0);
+      expect(quote.change).toBe(0);
+      expect(quote.volume).toBe(0);
+      expect(quote.changePercent).toBe(0);
+    });
+
+    it('uses price for high/low when they are NaN', async () => {
+      service.clearCaches();
+      mockYahooProvider.getQuote.mockResolvedValueOnce({
+        ticker: 'TEST', price: 100, change: 0, volume: 0,
+        high: NaN, low: NaN, open: NaN, previousClose: 0,
+        timestamp: new Date(),
+      });
+      const quote = await service.getQuote('TEST');
+      expect(quote.high).toBe(100);
+      expect(quote.low).toBe(100);
+    });
+  });
+
+  // ── getHealth with degraded provider ─────────────────────────
+  describe('getHealth with provider issues', () => {
+    it('returns unhealthy when any provider has >5 consecutive failures', async () => {
+      mockYahooProvider.getQuote.mockRejectedValue(new Error('fail'));
+      for (let i = 0; i < 5; i++) {
+        service.clearCaches();
+        try { await service.getQuote('AAPL'); } catch {}
+      }
+      const health = service.getHealth([]);
+      expect(health.status).toBe('unhealthy');
+    });
+
+    it('counts delayed streams correctly', () => {
+      const delayed = new Date(Date.now() - 30_000).toISOString(); // 30s = DELAYED
+      const health = service.getHealth([{ lastQuoteAt: delayed } as any]);
+      expect(health.freshnessSummary.delayedStreams).toBe(1);
+    });
+
+    it('handles stream with no lastQuoteAt as STALE', () => {
+      const health = service.getHealth([{ lastQuoteAt: undefined } as any]);
+      expect(health.freshnessSummary.staleStreams).toBe(1);
+    });
+  });
+
+  // ── searchTickers deduplication and assetType filtering ────
+  describe('searchTickers edge cases', () => {
+    it('deduplicates results from both providers', async () => {
+      mockYahooProvider.searchTickers.mockResolvedValue([
+        { ticker: 'BTC', name: 'Bitcoin', assetType: 'crypto' },
+      ]);
+      mockCoinGeckoProvider.searchCrypto.mockResolvedValue([
+        { symbol: 'BTC', name: 'Bitcoin' },
+      ]);
+      const results = await service.searchTickers('BTC');
+      expect(results).toHaveLength(1);
+    });
+
+    it('filters yahoo results by non-matching assetType', async () => {
+      mockYahooProvider.searchTickers.mockResolvedValue([
+        { ticker: 'AAPL', name: 'Apple', assetType: 'stock' },
+        { ticker: 'BND', name: 'Bond ETF', assetType: 'etf' },
+      ]);
+      const results = await service.searchTickers('A', 'etf');
+      expect(results.length).toBe(1);
+      expect(results[0].ticker).toBe('BND');
+    });
+  });
+
+  // ── normalizeTicker: slash and multi-crypto ────────────────
+  describe('normalizeTicker crypto variants', () => {
+    it('normalizes ETH-USD and ETHUSD to ETH', () => {
+      expect(service.normalizeTicker('ETH-USD')).toBe('ETH');
+      expect(service.normalizeTicker('ETHUSD')).toBe('ETH');
+    });
+
+    it('normalizes SOL-USD to SOL', () => {
+      expect(service.normalizeTicker('SOL-USD')).toBe('SOL');
+      expect(service.normalizeTicker('SOLUSD')).toBe('SOL');
+    });
+
+    it('normalizes slash-separated crypto pairs', () => {
+      expect(service.normalizeTicker('BTC/USD')).toBe('BTC');
+    });
+  });
+
+  // ── provider health DTO status levels ──────────────────────
+  describe('provider health status levels', () => {
+    it('returns healthy with 100% success rate', async () => {
+      await service.getQuote('AAPL');
+      const health = service.getProviderHealth();
+      const yahoo = health.find(h => h.provider === 'yahoo-finance');
+      expect(yahoo!.status).toBe('healthy');
+      expect(yahoo!.successRate).toBe(100);
     });
   });
 });

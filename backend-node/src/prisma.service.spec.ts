@@ -1,74 +1,118 @@
 /**
- * PrismaService unit tests.
+ * PrismaService unit tests — deep branch coverage.
  *
- * PrismaClient (v7) requires either a valid DATABASE_URL with a pg adapter
- * or a non-empty options object.  Because unit tests run without a live DB,
- * we test the public API surface via a minimal mock approach: we verify the
- * class exists, exports the expected interface, and that its conditional
- * logic branches behave correctly.
+ * Strategy: use Object.create(PrismaService.prototype) to get an instance
+ * without running the real constructor (which needs pg / PrismaClient).
+ * Then manually set the private fields and call methods directly.
  */
 
+/* eslint-disable @typescript-eslint/no-require-imports */
+
+jest.mock('@sentry/nestjs', () => ({ captureMessage: jest.fn() }));
+
+import * as Sentry from '@sentry/nestjs';
+
+// Helper: build a fake PrismaService instance with controllable internals
+function buildFakeService(overrides: Record<string, any> = {}) {
+  const { PrismaService } = require('./prisma.service');
+  const svc = Object.create(PrismaService.prototype);
+  svc.logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
+  svc._pool = overrides._pool ?? null;
+  svc.$connect = overrides.$connect ?? jest.fn();
+  svc.$disconnect = overrides.$disconnect ?? jest.fn();
+  svc._request = overrides._request ?? jest.fn().mockResolvedValue('db-result');
+  return svc;
+}
+
 describe('PrismaService', () => {
-  it('module exports PrismaService class', () => {
-    // Dynamic import to avoid constructor side-effects
+  const origEnv = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...origEnv };
+    jest.clearAllMocks();
+    jest.restoreAllMocks();
+  });
+
+  // ─── Module export ──────────────────────────────────────
+
+  it('exports PrismaService class', () => {
     const { PrismaService } = require('./prisma.service');
     expect(PrismaService).toBeDefined();
     expect(typeof PrismaService).toBe('function');
   });
 
-  it('PrismaService has getPoolStats method on prototype', () => {
+  it('has lifecycle and pool methods on prototype', () => {
     const { PrismaService } = require('./prisma.service');
     expect(typeof PrismaService.prototype.getPoolStats).toBe('function');
-  });
-
-  it('PrismaService has onModuleInit method on prototype', () => {
-    const { PrismaService } = require('./prisma.service');
     expect(typeof PrismaService.prototype.onModuleInit).toBe('function');
-  });
-
-  it('PrismaService has onModuleDestroy method on prototype', () => {
-    const { PrismaService } = require('./prisma.service');
     expect(typeof PrismaService.prototype.onModuleDestroy).toBe('function');
   });
 
-  it('PrismaService exports PoolStats interface shape', () => {
-    // Verify the module can be imported without errors
-    const mod = require('./prisma.service');
-    expect(mod).toHaveProperty('PrismaService');
-  });
+  // ─── Constructor (light — avoids real pg/PrismaClient) ──
 
-  describe('getPoolStats', () => {
-    it('returns null when no pool is available (no DATABASE_URL)', () => {
-      const { PrismaService } = require('./prisma.service');
-      // Construct without DATABASE_URL — pool will be null
-      const origUrl = process.env.DATABASE_URL;
+  describe('constructor', () => {
+    it('constructs without DATABASE_URL (no pool)', () => {
       delete process.env.DATABASE_URL;
-
       try {
+        const { PrismaService } = require('./prisma.service');
         const svc = new PrismaService();
-        const stats = svc.getPoolStats();
-        expect(stats).toBeNull();
+        expect(svc.getPoolStats()).toBeNull();
       } catch {
-        // PrismaClient may throw in test env — that's okay
+        // PrismaClient may throw — we still verify the branch below
         expect(true).toBe(true);
-      } finally {
-        if (origUrl) process.env.DATABASE_URL = origUrl;
       }
     });
+  });
 
-    it('returns pool stats shape when pool is mocked', () => {
+  // ─── onModuleInit ───────────────────────────────────────
+
+  describe('onModuleInit', () => {
+    it('calls $connect and installQueryLogging when DATABASE_URL is set', async () => {
+      process.env.DATABASE_URL = 'postgresql://localhost/test';
+      const svc = buildFakeService();
+      // Need to provide installQueryLogging since it is private
       const { PrismaService } = require('./prisma.service');
-      const svc = Object.create(PrismaService.prototype);
-      // Mock internal pool
-      svc._pool = {
-        totalCount: 5,
-        idleCount: 3,
-        waitingCount: 0,
-        options: { max: 20 },
-      };
+      await PrismaService.prototype.onModuleInit.call(svc);
+      expect(svc.$connect).toHaveBeenCalledTimes(1);
+    });
 
-      const stats = svc.getPoolStats();
-      expect(stats).toEqual({
+    it('skips $connect when DATABASE_URL is unset', async () => {
+      delete process.env.DATABASE_URL;
+      const svc = buildFakeService();
+      const { PrismaService } = require('./prisma.service');
+      await PrismaService.prototype.onModuleInit.call(svc);
+      expect(svc.$connect).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── onModuleDestroy ────────────────────────────────────
+
+  describe('onModuleDestroy', () => {
+    it('calls $disconnect when DATABASE_URL is set', async () => {
+      process.env.DATABASE_URL = 'postgresql://localhost/test';
+      const svc = buildFakeService();
+      const { PrismaService } = require('./prisma.service');
+      await PrismaService.prototype.onModuleDestroy.call(svc);
+      expect(svc.$disconnect).toHaveBeenCalledTimes(1);
+    });
+
+    it('skips $disconnect when DATABASE_URL is unset', async () => {
+      delete process.env.DATABASE_URL;
+      const svc = buildFakeService();
+      const { PrismaService } = require('./prisma.service');
+      await PrismaService.prototype.onModuleDestroy.call(svc);
+      expect(svc.$disconnect).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── getPoolStats ───────────────────────────────────────
+
+  describe('getPoolStats', () => {
+    it('returns pool stats when pool exists', () => {
+      const svc = buildFakeService({
+        _pool: { totalCount: 5, idleCount: 3, waitingCount: 0, options: { max: 20 } },
+      });
+      expect(svc.getPoolStats()).toEqual({
         totalCount: 5,
         idleCount: 3,
         waitingCount: 0,
@@ -76,57 +120,94 @@ describe('PrismaService', () => {
       });
     });
 
-    it('returns maxSize default of 10 when pool options.max is undefined', () => {
-      const { PrismaService } = require('./prisma.service');
-      const svc = Object.create(PrismaService.prototype);
-      svc._pool = {
-        totalCount: 1,
-        idleCount: 1,
-        waitingCount: 0,
-        options: {},
-      };
+    it('returns null when no pool', () => {
+      const svc = buildFakeService({ _pool: null });
+      expect(svc.getPoolStats()).toBeNull();
+    });
 
-      const stats = svc.getPoolStats();
-      expect(stats?.maxSize).toBe(10);
+    it('defaults maxSize to 10 when pool.options.max is undefined', () => {
+      const svc = buildFakeService({
+        _pool: { totalCount: 1, idleCount: 1, waitingCount: 0, options: {} },
+      });
+      expect(svc.getPoolStats()!.maxSize).toBe(10);
     });
   });
 
-  describe('onModuleInit', () => {
-    it('skips connection when DATABASE_URL is not set', async () => {
+  // ─── installQueryLogging ────────────────────────────────
+
+  describe('installQueryLogging', () => {
+    let svc: any;
+
+    beforeEach(() => {
+      process.env.DATABASE_URL = 'postgresql://localhost/test';
+      const origRequest = jest.fn().mockResolvedValue('db-result');
+      svc = buildFakeService({ _request: origRequest });
+      // Call the private installQueryLogging via onModuleInit
       const { PrismaService } = require('./prisma.service');
-      const origUrl = process.env.DATABASE_URL;
-      delete process.env.DATABASE_URL;
-
-      try {
-        const svc = Object.create(PrismaService.prototype);
-        svc.$connect = jest.fn();
-        svc.installQueryLogging = jest.fn();
-        svc.logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
-
-        await PrismaService.prototype.onModuleInit.call(svc);
-        expect(svc.$connect).not.toHaveBeenCalled();
-      } finally {
-        if (origUrl) process.env.DATABASE_URL = origUrl;
-      }
+      PrismaService.prototype.onModuleInit.call(svc);
     });
-  });
 
-  describe('onModuleDestroy', () => {
-    it('skips disconnect when DATABASE_URL is not set', async () => {
+    it('returns original result for fast queries', async () => {
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(1010);
+      const result = await svc._request({ model: 'User', action: 'findMany' });
+      expect(result).toBe('db-result');
+      expect(Sentry.captureMessage).not.toHaveBeenCalled();
+    });
+
+    it('warns for queries > 500ms but <= 2000ms (no Sentry)', async () => {
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(1700);
+      await svc._request({ model: 'User', action: 'findFirst' });
+      expect(svc.logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('User.findFirst'),
+      );
+      expect(Sentry.captureMessage).not.toHaveBeenCalled();
+    });
+
+    it('errors and reports to Sentry for queries > 2000ms', async () => {
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(3500);
+      await svc._request({ model: 'Post', action: 'create' });
+      expect(svc.logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Post.create'),
+      );
+      expect(Sentry.captureMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Slow DB query: Post.create'),
+        expect.objectContaining({
+          level: 'warning',
+          tags: expect.objectContaining({ model: 'Post', action: 'create' }),
+        }),
+      );
+    });
+
+    it('uses action alone when model is undefined', async () => {
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(4000);
+      await svc._request({ action: 'rawQuery' });
+      expect(Sentry.captureMessage).toHaveBeenCalledWith(
+        expect.stringContaining('rawQuery'),
+        expect.anything(),
+      );
+    });
+
+    it('uses "unknown" when both model and action are undefined', async () => {
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(4000);
+      await svc._request({});
+      expect(Sentry.captureMessage).toHaveBeenCalledWith(
+        expect.stringContaining('unknown'),
+        expect.objectContaining({
+          tags: expect.objectContaining({ model: 'n/a', action: 'n/a' }),
+        }),
+      );
+    });
+
+    it('still measures timing when the original request throws', async () => {
+      // Replace the bound original with a rejecting fn
+      const origRequestFailing = jest.fn().mockRejectedValue(new Error('DB exploded'));
+      svc = buildFakeService({ _request: origRequestFailing });
       const { PrismaService } = require('./prisma.service');
-      const origUrl = process.env.DATABASE_URL;
-      delete process.env.DATABASE_URL;
+      await PrismaService.prototype.onModuleInit.call(svc);
 
-      try {
-        const svc = Object.create(PrismaService.prototype);
-        svc.$disconnect = jest.fn();
-        svc.logger = { log: jest.fn() };
-
-        await PrismaService.prototype.onModuleDestroy.call(svc);
-        expect(svc.$disconnect).not.toHaveBeenCalled();
-      } finally {
-        if (origUrl) process.env.DATABASE_URL = origUrl;
-      }
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(5000);
+      await expect(svc._request({ model: 'X', action: 'y' })).rejects.toThrow('DB exploded');
+      expect(Sentry.captureMessage).toHaveBeenCalled();
     });
   });
 });
