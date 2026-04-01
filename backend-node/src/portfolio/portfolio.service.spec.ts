@@ -222,4 +222,173 @@ describe('PortfolioService', () => {
       NotFoundException,
     );
   });
+
+  it('throws NotFoundException when deleting non-existent portfolio', async () => {
+    mockPrisma.portfolio.findUnique.mockResolvedValue(null);
+    await expect(service.deletePortfolio('missing', 'u1')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  // ── getUserPortfolios ──────────────────────────────
+  describe('getUserPortfolios', () => {
+    it('returns enriched portfolios for user', async () => {
+      mockPrisma.portfolio.findMany.mockResolvedValue([
+        {
+          id: 'p1', userId: 'u1', name: 'Test', description: null,
+          currency: 'USD', createdAt: new Date(), updatedAt: new Date(),
+          positions: [
+            { id: 'pos-1', portfolioId: 'p1', ticker: 'AAPL', quantity: 10, avgCost: 100, addedAt: new Date(), updatedAt: new Date() },
+          ],
+        },
+      ]);
+      mockMarketDataService.getQuote.mockResolvedValue({ price: 150 });
+
+      const result = await service.getUserPortfolios('u1');
+      expect(result).toHaveLength(1);
+      expect(result[0].positions![0].currentPrice).toBe(150);
+    });
+
+    it('returns empty array when user has no portfolios', async () => {
+      mockPrisma.portfolio.findMany.mockResolvedValue([]);
+      const result = await service.getUserPortfolios('u1');
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ── updatePortfolio ────────────────────────────────
+  describe('updatePortfolio', () => {
+    it('updates portfolio metadata', async () => {
+      mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1' });
+      mockPrisma.portfolio.update.mockResolvedValue({
+        id: 'p1', userId: 'u1', name: 'Updated', description: 'desc',
+        currency: 'USD', createdAt: new Date(), updatedAt: new Date(),
+        positions: [],
+      });
+
+      const result = await service.updatePortfolio('p1', 'u1', { name: 'Updated', description: 'desc' });
+      expect(result.name).toBe('Updated');
+    });
+
+    it('throws NotFoundException for wrong user on update', async () => {
+      mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'other-user' });
+      await expect(service.updatePortfolio('p1', 'u1', { name: 'X' })).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException for non-existent portfolio on update', async () => {
+      mockPrisma.portfolio.findUnique.mockResolvedValue(null);
+      await expect(service.updatePortfolio('missing', 'u1', { name: 'X' })).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ── removePosition ─────────────────────────────────
+  describe('removePosition', () => {
+    it('deletes position when selling entire quantity', async () => {
+      mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1' });
+      mockPrisma.position.findUnique.mockResolvedValue({ id: 'pos-1', quantity: 10 });
+      mockPrisma.position.delete.mockResolvedValue({});
+
+      await service.removePosition('p1', 'u1', 'AAPL', 10, 150);
+      expect(mockPrisma.position.delete).toHaveBeenCalledWith({ where: { id: 'pos-1' } });
+    });
+
+    it('reduces quantity when partially selling', async () => {
+      mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1' });
+      mockPrisma.position.findUnique.mockResolvedValue({ id: 'pos-1', quantity: 10 });
+      mockPrisma.position.update.mockResolvedValue({});
+
+      await service.removePosition('p1', 'u1', 'AAPL', 3, 150);
+      expect(mockPrisma.position.update).toHaveBeenCalledWith({
+        where: { id: 'pos-1' },
+        data: { quantity: 7 },
+      });
+    });
+
+    it('throws NotFoundException when position not found', async () => {
+      mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1' });
+      mockPrisma.position.findUnique.mockResolvedValue(null);
+      await expect(service.removePosition('p1', 'u1', 'UNKNOWN', 5, 100)).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException when portfolio belongs to different user', async () => {
+      mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'other-user' });
+      await expect(service.removePosition('p1', 'u1', 'AAPL', 5, 100)).rejects.toThrow(NotFoundException);
+    });
+
+    it('deletes position when selling more than current quantity', async () => {
+      mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1' });
+      mockPrisma.position.findUnique.mockResolvedValue({ id: 'pos-1', quantity: 5 });
+      mockPrisma.position.delete.mockResolvedValue({});
+
+      await service.removePosition('p1', 'u1', 'AAPL', 100, 150);
+      expect(mockPrisma.position.delete).toHaveBeenCalled();
+    });
+  });
+
+  // ── getPortfolioAnalytics ──────────────────────────
+  describe('getPortfolioAnalytics', () => {
+    it('returns analytics with best/worst performers', async () => {
+      mockPrisma.portfolio.findUnique.mockResolvedValue({
+        id: 'p1', userId: 'u1', name: 'Analytics', description: null,
+        currency: 'USD', createdAt: new Date(), updatedAt: new Date(),
+        positions: [
+          { id: 'pos-1', portfolioId: 'p1', ticker: 'AAPL', quantity: 10, avgCost: 100, addedAt: new Date(), updatedAt: new Date() },
+          { id: 'pos-2', portfolioId: 'p1', ticker: 'MSFT', quantity: 5, avgCost: 300, addedAt: new Date(), updatedAt: new Date() },
+        ],
+      });
+      mockMarketDataService.getQuote
+        .mockResolvedValueOnce({ price: 150 }) // AAPL up 50%
+        .mockResolvedValueOnce({ price: 200 }); // MSFT down 33%
+
+      const result = await service.getPortfolioAnalytics('p1', 'u1');
+      expect(result.portfolioId).toBe('p1');
+      expect(result.bestPerformer.ticker).toBeDefined();
+      expect(result.worstPerformer.ticker).toBeDefined();
+      expect(result.winRate).toBeGreaterThanOrEqual(0);
+    });
+
+    it('handles portfolio with no positions', async () => {
+      mockPrisma.portfolio.findUnique.mockResolvedValue({
+        id: 'p1', userId: 'u1', name: 'Empty', description: null,
+        currency: 'USD', createdAt: new Date(), updatedAt: new Date(),
+        positions: [],
+      });
+
+      const result = await service.getPortfolioAnalytics('p1', 'u1');
+      expect(result.totalReturn).toBe(0);
+      expect(result.bestPerformer.ticker).toBe('N/A');
+    });
+  });
+
+  // ── updatePortfolioValues handles quote failure ────
+  describe('updatePortfolioValues edge cases', () => {
+    it('falls back to avgCost when getQuote returns null', async () => {
+      mockPrisma.portfolio.findUnique.mockResolvedValue({
+        id: 'p1', userId: 'u1', name: 'NoQuote', description: null,
+        currency: 'USD', createdAt: new Date(), updatedAt: new Date(),
+        positions: [
+          { id: 'pos-1', portfolioId: 'p1', ticker: 'FAIL', quantity: 10, avgCost: 100, addedAt: new Date(), updatedAt: new Date() },
+        ],
+      });
+      mockMarketDataService.getQuote.mockResolvedValue(null);
+
+      const result = await service.getPortfolio('p1', 'u1');
+      expect(result.positions![0].currentPrice).toBe(100); // falls back to avgCost
+    });
+
+    it('handles getQuote throwing an error', async () => {
+      mockPrisma.portfolio.findUnique.mockResolvedValue({
+        id: 'p1', userId: 'u1', name: 'Error', description: null,
+        currency: 'USD', createdAt: new Date(), updatedAt: new Date(),
+        positions: [
+          { id: 'pos-1', portfolioId: 'p1', ticker: 'ERR', quantity: 10, avgCost: 50, addedAt: new Date(), updatedAt: new Date() },
+        ],
+      });
+      mockMarketDataService.getQuote.mockRejectedValue(new Error('API down'));
+
+      const result = await service.getPortfolio('p1', 'u1');
+      // Should not throw, position value defaults
+      expect(result.positions).toHaveLength(1);
+    });
+  });
 });

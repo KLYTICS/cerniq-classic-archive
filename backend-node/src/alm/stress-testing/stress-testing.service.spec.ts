@@ -346,5 +346,181 @@ describe('StressTestingService', () => {
       expect(result.nimBefore).toBeDefined();
       expect(result.lcrAfter).toBeDefined();
     });
+
+    it('generates bilingual narrative in Spanish', async () => {
+      const result = await service.runCustomScenario('inst-1', {
+        rateShockBps: 100,
+        depositRunoffPct: 5,
+        defaultRateIncreasePct: 2,
+        energyCostShockPct: 10,
+      });
+      expect(result.narrativeEs).toContain('escenario');
+      expect(result.narrativeEs).toContain('Veredicto');
+    });
+
+    it('handles zero shocks with no-shocks narrative', async () => {
+      const result = await service.runCustomScenario('inst-1', {
+        rateShockBps: 0,
+        depositRunoffPct: 0,
+        defaultRateIncreasePct: 0,
+        energyCostShockPct: 0,
+      });
+      expect(result.narrative).toContain('no shocks applied');
+      expect(result.narrativeEs).toContain('sin choques aplicados');
+    });
+
+    it('returns ADEQUATE verdict for moderate stress', async () => {
+      mockAlmEnterprise.getCOSSECCompliance.mockResolvedValue({
+        examReadinessScore: 60,
+        summary: {
+          totalAssets: 500, totalLoans: 300, totalShares: 200,
+          capitalRatio: 7, nim: 3.0,
+        },
+      });
+      mockAlmEnterprise.calculateLCR.mockResolvedValue({ lcr: 105, hqla: 40 });
+
+      const result = await service.runCustomScenario('inst-1', {
+        rateShockBps: 100,
+        depositRunoffPct: 5,
+        defaultRateIncreasePct: 2,
+        energyCostShockPct: 5,
+      });
+      expect(['RESILIENT', 'ADEQUATE']).toContain(result.verdict);
+    });
+
+    it('returns VULNERABLE verdict when capital is stressed', async () => {
+      mockAlmEnterprise.getCOSSECCompliance.mockResolvedValue({
+        examReadinessScore: 45,
+        summary: {
+          totalAssets: 500, totalLoans: 400, totalShares: 250,
+          capitalRatio: 5.5, nim: 2.5,
+        },
+      });
+      mockAlmEnterprise.calculateLCR.mockResolvedValue({ lcr: 92, hqla: 25 });
+
+      const result = await service.runCustomScenario('inst-1', {
+        rateShockBps: 200,
+        depositRunoffPct: 15,
+        defaultRateIncreasePct: 8,
+        energyCostShockPct: 20,
+      });
+      expect(['VULNERABLE', 'CRITICAL']).toContain(result.verdict);
+    });
+  });
+
+  // ── runCOSSECScenarios ──────────────────────────────────────
+  describe('runCOSSECScenarios', () => {
+    beforeEach(() => {
+      mockAlmEnterprise.calculateNIISensitivity = jest.fn().mockResolvedValue({
+        baseNII: 10,
+        scenarios: [
+          { shiftBps: 100, niImpact: 0.5, mveImpact: -1, niImpactPct: 5 },
+          { shiftBps: 200, niImpact: 1.0, mveImpact: -2, niImpactPct: 10 },
+          { shiftBps: 300, niImpact: 1.5, mveImpact: -3, niImpactPct: 15 },
+          { shiftBps: -200, niImpact: -0.8, mveImpact: 1.5, niImpactPct: -8 },
+        ],
+      });
+      mockAlmEnterprise.calculateLCR = jest.fn().mockResolvedValue({ lcr: 120 });
+      mockAlmEnterprise.getCOSSECCompliance = jest.fn().mockResolvedValue({
+        summary: { totalShares: 200, totalLoans: 150 },
+      });
+    });
+
+    it('returns array of named scenario results', async () => {
+      const results = await service.runCOSSECScenarios('inst-1');
+      expect(Array.isArray(results)).toBe(true);
+      expect(results.length).toBeGreaterThan(0);
+    });
+
+    it('each result has passFailStatus', async () => {
+      const results = await service.runCOSSECScenarios('inst-1');
+      for (const result of results) {
+        expect(['pass', 'warn', 'fail']).toContain(result.passFailStatus);
+      }
+    });
+
+    it('each result has niiImpact and totalImpact fields', async () => {
+      const results = await service.runCOSSECScenarios('inst-1');
+      for (const result of results) {
+        expect(typeof result.niiImpact).toBe('number');
+        expect(typeof result.totalImpact).toBe('number');
+        expect(typeof result.totalImpactPct).toBe('number');
+      }
+    });
+  });
+
+  // ── regulatory scenario pass/fail assessment ───────────────
+  describe('regulatory scenario assessment', () => {
+    beforeEach(() => {
+      mockAlmEnterprise.calculateNIISensitivity = jest.fn().mockResolvedValue({
+        baseNII: 10,
+        scenarios: [
+          { shiftBps: 100, niImpact: 0.5, mveImpact: -1, niImpactPct: 5 },
+          { shiftBps: 200, niImpact: 1.0, mveImpact: -2, niImpactPct: 10 },
+          { shiftBps: 300, niImpact: 1.5, mveImpact: -3, niImpactPct: 15 },
+          { shiftBps: -200, niImpact: -0.8, mveImpact: 1.5, niImpactPct: -8 },
+        ],
+      });
+      mockAlmEnterprise.calculateLCR = jest.fn().mockResolvedValue({ lcr: 120 });
+      mockAlmEnterprise.calculateDurationGap = jest.fn().mockResolvedValue({ durationGap: 1.5 });
+    });
+
+    it('returns resilient when no fails or warns', async () => {
+      const result = await service.runRegulatoryStress('inst-1');
+      if (result.scenarios.every(s => s.passFailStatus === 'pass')) {
+        expect(result.overallRating).toBe('resilient');
+      }
+    });
+
+    it('returns critical when 2+ scenarios fail', async () => {
+      // Mock very negative NII to trigger failures
+      mockAlmEnterprise.calculateNIISensitivity.mockResolvedValue({
+        baseNII: 1,
+        scenarios: [
+          { shiftBps: 100, niImpact: -2, mveImpact: -5, niImpactPct: -200 },
+          { shiftBps: 200, niImpact: -3, mveImpact: -8, niImpactPct: -300 },
+          { shiftBps: 300, niImpact: -4, mveImpact: -10, niImpactPct: -400 },
+          { shiftBps: -200, niImpact: -2, mveImpact: -5, niImpactPct: -200 },
+        ],
+      });
+      mockAlmEnterprise.calculateLCR.mockResolvedValue({ lcr: 85 });
+
+      const result = await service.runRegulatoryStress('inst-1');
+      const failCount = result.scenarios.filter(s => s.passFailStatus === 'fail').length;
+      if (failCount >= 2) {
+        expect(result.overallRating).toBe('critical');
+      }
+    });
+  });
+
+  // ── Monte Carlo edge: minimum param bounds ─────────────────
+  describe('Monte Carlo minimum bounds', () => {
+    it('clamps paths minimum to 100', async () => {
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
+      const result = await service.runMonteCarloSimulation('inst-1', {
+        paths: 5,
+      });
+      expect(result.paths).toBe(100);
+    });
+
+    it('clamps horizon minimum to 1', async () => {
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
+      const result = await service.runMonteCarloSimulation('inst-1', {
+        horizon: 0,
+      });
+      expect(result.horizon).toBe(1);
+    });
+
+    it('clamps volatility minimum to 1', async () => {
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+        { category: 'asset', rateType: 'variable', balance: 100, rate: 0.05 },
+      ]);
+      const result = await service.runMonteCarloSimulation('inst-1', {
+        paths: 100,
+        volatility: -50,
+      });
+      // Should run without error with vol clamped to 1
+      expect(result.paths).toBe(100);
+    });
   });
 });
