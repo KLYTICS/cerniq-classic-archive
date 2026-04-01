@@ -1,3 +1,11 @@
+const mockCreate = jest.fn();
+jest.mock('@anthropic-ai/sdk', () => ({
+  __esModule: true,
+  default: class MockAnthropic {
+    messages = { create: mockCreate };
+  },
+}));
+
 import { ImpactExtractorService } from './impact-extractor.service';
 
 describe('ImpactExtractorService', () => {
@@ -12,6 +20,7 @@ describe('ImpactExtractorService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCreate.mockReset();
     delete process.env.ANTHROPIC_API_KEY;
     service = new ImpactExtractorService(mockPrisma as any);
   });
@@ -297,6 +306,40 @@ describe('ImpactExtractorService', () => {
       const impact = await service.extract('pub-gen');
       expect(impact.affectedSubcategories).toEqual([]);
       expect(impact.severity).toBe('MEDIUM');
+    });
+  });
+
+  // ── API catch branch (ANTHROPIC_API_KEY set, API fails, heuristic fallback) ──
+  describe('extract (API catch branch)', () => {
+    it('falls back to heuristic when ANTHROPIC_API_KEY is set (catch branch)', async () => {
+      process.env.ANTHROPIC_API_KEY = 'sk-test-key';
+      mockPrisma.regulatoryPublication.findUniqueOrThrow.mockResolvedValue({
+        id: 'pub-api-catch', regulator: 'COSSEC', title: 'Liquidez Obligatoria',
+        rawText: 'Se establece obligatorio el ratio de liquidez...',
+      });
+      mockPrisma.regulatoryPublication.update.mockResolvedValue({});
+
+      // Dynamic import of real anthropic SDK will fail with fake key,
+      // exercising the catch branch at line 55-57
+      const impact = await service.extract('pub-api-catch');
+      expect(impact.affectedSubcategories).toContain('liquidity');
+      expect(impact.severity).toBe('HIGH');
+      expect(mockPrisma.regulatoryPublication.update).toHaveBeenCalled();
+      delete process.env.ANTHROPIC_API_KEY;
+    });
+
+    it('exercises API catch path for capital-related publication', async () => {
+      process.env.ANTHROPIC_API_KEY = 'sk-test-key';
+      mockPrisma.regulatoryPublication.findUniqueOrThrow.mockResolvedValue({
+        id: 'pub-api-cap', regulator: 'NCUA', title: 'Capital Requirements',
+        rawText: 'Updated capital ratio guidelines...',
+      });
+      mockPrisma.regulatoryPublication.update.mockResolvedValue({});
+
+      const impact = await service.extract('pub-api-cap');
+      expect(impact.affectedSubcategories).toContain('capital');
+      expect(impact.severity).toBeDefined();
+      delete process.env.ANTHROPIC_API_KEY;
     });
   });
 });

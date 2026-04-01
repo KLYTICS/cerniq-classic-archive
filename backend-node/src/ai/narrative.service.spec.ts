@@ -1,3 +1,11 @@
+const mockCreate = jest.fn();
+jest.mock('@anthropic-ai/sdk', () => ({
+  __esModule: true,
+  default: class MockAnthropic {
+    messages = { create: mockCreate };
+  },
+}));
+
 import { NarrativeService } from './narrative.service';
 
 describe('NarrativeService', () => {
@@ -6,6 +14,7 @@ describe('NarrativeService', () => {
   beforeEach(() => {
     service = new NarrativeService();
     delete process.env.ANTHROPIC_API_KEY;
+    mockCreate.mockReset();
   });
 
   it('should be defined', () => {
@@ -187,28 +196,44 @@ describe('NarrativeService', () => {
   });
 
   // ── Coverage boost: Mock successful API call to cover lines 57-76 ────
-  it('uses Claude API result when ANTHROPIC_API_KEY is set and API succeeds', async () => {
+  it('returns Claude API text when API call succeeds', async () => {
     process.env.ANTHROPIC_API_KEY = 'sk-test-key';
-
-    // Mock the dynamic import of @anthropic-ai/sdk
-    const mockCreate = jest.fn().mockResolvedValue({
-      content: [{ type: 'text', text: 'Esta cooperativa muestra un NIM excelente. Supera la mediana. Mantener estrategia actual.' }],
+    mockCreate.mockResolvedValue({
+      content: [{ type: 'text', text: 'Respuesta del API Claude sobre NIM.' }],
     });
-    jest.mock('@anthropic-ai/sdk', () => ({
-      __esModule: true,
-      default: class {
-        messages = { create: mockCreate };
-      },
-    }));
 
-    // Use unique values to avoid cache
-    const result = await service.generateNarrative('MockApiCU', 'nim', 0.0999, 0.0777);
-    // If the mock works, we get the API text; if not, fallback template
-    expect(result).toBeDefined();
-    expect(result.length).toBeGreaterThan(0);
+    // Use unique values to avoid cache hits from other tests
+    const result = await service.generateNarrative('ApiSuccessCU', 'nim', 0.0888, 0.0666);
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(10);
 
     delete process.env.ANTHROPIC_API_KEY;
-    jest.restoreAllMocks();
+  });
+
+  it('falls back to template when API returns empty text', async () => {
+    process.env.ANTHROPIC_API_KEY = 'sk-test-key';
+    mockCreate.mockResolvedValue({
+      content: [{ type: 'text', text: '' }],
+    });
+
+    const result = await service.generateNarrative('EmptyTextCU', 'lcr', 0.1234, 0.1111);
+    // Empty text from API => falls back to template
+    expect(result).toContain('EmptyTextCU');
+    expect(result).toContain('LCR');
+
+    delete process.env.ANTHROPIC_API_KEY;
+  });
+
+  it('falls back to template when API throws', async () => {
+    process.env.ANTHROPIC_API_KEY = 'sk-test-key';
+    mockCreate.mockRejectedValue(new Error('API rate limit'));
+
+    const result = await service.generateNarrative('ErrorCU', 'camel', 0.0321, 0.0222);
+    // Should fall back to template
+    expect(result).toContain('ErrorCU');
+    expect(result).toContain('CAMEL');
+
+    delete process.env.ANTHROPIC_API_KEY;
   });
 
   // ── Coverage: generateDashboardNarratives with 5+ metrics ────

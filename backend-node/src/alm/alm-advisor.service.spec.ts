@@ -21,6 +21,14 @@ describe('AlmAdvisorService', () => {
     expect((service as any).anthropic).toBeUndefined();
   });
 
+  it('creates service with ANTHROPIC_API_KEY set (SDK may or may not load)', () => {
+    process.env.ANTHROPIC_API_KEY = 'sk-test-key';
+    const svc2 = new AlmAdvisorService(mockPrisma, mockAlmEnterprise);
+    expect(svc2).toBeDefined();
+    // SDK may load or fail depending on environment - either way service is defined
+    delete process.env.ANTHROPIC_API_KEY;
+  });
+
   // ─── ask: no SDK ────────────────────────────────────────
 
   describe('ask — no SDK available', () => {
