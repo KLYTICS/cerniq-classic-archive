@@ -930,4 +930,213 @@ describe('AuthService', () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
+
+  // ── validateOAuthUser ─────────────────────────────
+  describe('validateOAuthUser', () => {
+    it('returns existing user matched by provider+providerId', async () => {
+      const existingUser = { id: 'oauth-u1', email: 'oauth@test.com', provider: 'google', providerId: 'gid-1' };
+      prisma.user.findFirst.mockResolvedValue(existingUser);
+      prisma.user.update.mockResolvedValue(existingUser);
+
+      const result = await service.validateOAuthUser({
+        email: 'oauth@test.com',
+        name: 'OAuth User',
+        provider: 'google',
+        providerId: 'gid-1',
+      });
+
+      expect(result.id).toBe('oauth-u1');
+      expect(prisma.user.findFirst).toHaveBeenCalled();
+    });
+
+    it('links OAuth to existing email account when provider not found', async () => {
+      prisma.user.findFirst.mockResolvedValue(null); // no provider match
+      prisma.user.findUnique.mockResolvedValue({ id: 'email-u1', email: 'shared@test.com', avatarUrl: null });
+      prisma.user.update.mockResolvedValue({ id: 'email-u1', provider: 'github', providerId: 'gh-1' });
+
+      const result = await service.validateOAuthUser({
+        email: 'shared@test.com',
+        name: 'Shared User',
+        provider: 'github',
+        providerId: 'gh-1',
+        avatarUrl: 'https://avatar.com/pic.png',
+      });
+
+      expect(result.id).toBe('email-u1');
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'email-u1' },
+        data: expect.objectContaining({
+          provider: 'github',
+          providerId: 'gh-1',
+          avatarUrl: 'https://avatar.com/pic.png',
+        }),
+      });
+    });
+
+    it('creates new user + workspace when no existing user found', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({ id: 'new-oauth', email: 'new@oauth.com', name: 'New OAuth' });
+      prisma.workspace.create.mockResolvedValue({});
+      prisma.user.update.mockResolvedValue({});
+
+      const result = await service.validateOAuthUser({
+        email: 'new@oauth.com',
+        name: 'New OAuth',
+        provider: 'google',
+        providerId: 'gid-new',
+      });
+
+      expect(result.id).toBe('new-oauth');
+      expect(prisma.user.create).toHaveBeenCalled();
+      expect(prisma.workspace.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ ownerId: 'new-oauth' }),
+      });
+    });
+  });
+
+  // ── getUserProfile ────────────────────────────────
+  describe('getUserProfile', () => {
+    it('returns profile with organizations', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'u1',
+        email: 'profile@test.com',
+        name: 'Profile User',
+        avatarUrl: null,
+        provider: 'email',
+        emailVerified: true,
+        organizationMembers: [
+          { organization: { id: 'org-1', name: 'Test Org', slug: 'test-org' }, role: 'admin' },
+        ],
+      });
+
+      const result = await service.getUserProfile('u1');
+
+      expect(result.id).toBe('u1');
+      expect(result.organizations).toHaveLength(1);
+      expect(result.organizations[0].role).toBe('admin');
+    });
+
+    it('throws UnauthorizedException when user not found', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(service.getUserProfile('nonexistent')).rejects.toThrow('User not found');
+    });
+  });
+
+  // ── generateTokens (session eviction) ─────────────
+  describe('generateTokens', () => {
+    it('evicts oldest sessions when exceeding MAX_SESSIONS', async () => {
+      const activeSessions = Array.from({ length: 7 }, (_, i) => ({ id: `rt-${i}` }));
+      prisma.refreshToken.create.mockResolvedValue({});
+      prisma.refreshToken.findMany.mockResolvedValue(activeSessions);
+      prisma.refreshToken.updateMany.mockResolvedValue({ count: 2 });
+
+      await service.generateTokens({ id: 'u-evict', email: 'evict@test.com', name: 'Evict' });
+
+      // Should revoke the 2 oldest (7 - 5 = 2)
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['rt-0', 'rt-1'] } },
+        data: { revokedAt: expect.any(Date) },
+      });
+    });
+
+    it('does not evict when under MAX_SESSIONS', async () => {
+      prisma.refreshToken.create.mockResolvedValue({});
+      prisma.refreshToken.findMany.mockResolvedValue([{ id: 'rt-0' }]);
+
+      await service.generateTokens({ id: 'u-ok', email: 'ok@test.com' });
+
+      expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── getUserOrgs ───────────────────────────────────
+  describe('getUserOrgs', () => {
+    it('returns empty array when no supabase config', async () => {
+      delete process.env.SUPABASE_URL;
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const result = await service.getUserOrgs('u1');
+      expect(result).toEqual([]);
+    });
+
+    it('returns empty array for empty userId', async () => {
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_SERVICE_ROLE_KEY = 'key';
+      const result = await service.getUserOrgs('');
+      expect(result).toEqual([]);
+    });
+
+    it('fetches org memberships and apps from Supabase', async () => {
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-key';
+
+      jest.spyOn(global, 'fetch').mockImplementation(async (url: any) => {
+        if (url.includes('memberships')) {
+          return { ok: true, json: async () => [{ org_id: 'org-1', role: 'admin' }] } as Response;
+        }
+        if (url.includes('org_apps')) {
+          return { ok: true, json: async () => [{ app_id: 'cerniq' }] } as Response;
+        }
+        return { ok: false } as Response;
+      });
+
+      const result = await service.getUserOrgs('u1');
+      expect(result).toHaveLength(1);
+      expect(result[0].org_id).toBe('org-1');
+      expect(result[0].apps).toContain('cerniq');
+    });
+
+    it('returns empty array when membership fetch fails', async () => {
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-key';
+
+      jest.spyOn(global, 'fetch').mockResolvedValue({ ok: false } as Response);
+
+      const result = await service.getUserOrgs('u1');
+      expect(result).toEqual([]);
+    });
+
+    it('handles fetch throwing gracefully', async () => {
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-key';
+
+      jest.spyOn(global, 'fetch').mockRejectedValue(new Error('Network'));
+      const result = await service.getUserOrgs('u1');
+      expect(result).toEqual([]);
+    });
+
+    it('skips memberships with null org_id', async () => {
+      process.env.SUPABASE_URL = 'https://test.supabase.co';
+      process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-key';
+
+      jest.spyOn(global, 'fetch').mockImplementation(async (url: any) => {
+        if (url.includes('memberships')) {
+          return { ok: true, json: async () => [{ org_id: null, role: 'admin' }, { org_id: 'org-2', role: 'viewer' }] } as Response;
+        }
+        if (url.includes('org_apps')) {
+          return { ok: true, json: async () => [] } as Response;
+        }
+        return { ok: false } as Response;
+      });
+
+      const result = await service.getUserOrgs('u1');
+      expect(result).toHaveLength(1);
+      expect(result[0].org_id).toBe('org-2');
+    });
+  });
+
+  // ── revokeAllUserTokens ───────────────────────────
+  describe('revokeAllUserTokens', () => {
+    it('revokes all refresh tokens for a user', async () => {
+      prisma.refreshToken.updateMany.mockResolvedValue({ count: 3 });
+
+      await service.revokeAllUserTokens('user-revoke-all');
+
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: 'user-revoke-all', revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+    });
+  });
 });
