@@ -1,3 +1,8 @@
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrganizationsService } from './organizations.service';
 import { PrismaService } from '../prisma.service';
@@ -32,8 +37,11 @@ describe('OrganizationsService', () => {
     service = module.get<OrganizationsService>(OrganizationsService);
   });
 
+  // ─── create ─────────────────────────────────────────────
+
   describe('create', () => {
-    it('should create an organization and add creator as admin', async () => {
+    it('creates an organization with the creator as ADMIN', async () => {
+      prisma.organization.findUnique.mockResolvedValue(null); // no duplicate
       prisma.organization.create.mockResolvedValue({
         id: 'org-1',
         name: 'Test Org',
@@ -42,43 +50,122 @@ describe('OrganizationsService', () => {
       });
 
       const result = await service.create(
-        {
-          name: 'Test Org',
-          slug: 'test-org',
-        },
+        { name: 'Test Org', slug: 'test-org' },
         'user-1',
       );
 
       expect(result.name).toBe('Test Org');
+      expect(prisma.organization.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { slug: 'test-org' } }),
+      );
       expect(prisma.organization.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             name: 'Test Org',
             slug: 'test-org',
+            members: expect.objectContaining({
+              create: { userId: 'user-1', role: 'ADMIN' },
+            }),
           }),
         }),
       );
     });
+
+    it('includes description when provided', async () => {
+      prisma.organization.findUnique.mockResolvedValue(null);
+      prisma.organization.create.mockResolvedValue({ id: 'org-2' });
+
+      await service.create(
+        { name: 'Desc Org', slug: 'desc-org', description: 'A great org' },
+        'user-1',
+      );
+
+      expect(prisma.organization.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ description: 'A great org' }),
+        }),
+      );
+    });
+
+    it('throws ConflictException when slug already exists', async () => {
+      prisma.organization.findUnique.mockResolvedValue({ id: 'existing' });
+
+      await expect(
+        service.create({ name: 'Dup', slug: 'existing-slug' }, 'user-1'),
+      ).rejects.toThrow(ConflictException);
+    });
   });
 
-  describe('findAllForUser', () => {
-    it('should return organizations for a user', async () => {
+  // ─── findAll ────────────────────────────────────────────
+
+  describe('findAll', () => {
+    it('returns organizations where user is a member', async () => {
       prisma.organization.findMany.mockResolvedValue([
         { id: 'org-1', name: 'Org 1' },
         { id: 'org-2', name: 'Org 2' },
       ]);
 
       const result = await service.findAll('user-1');
-
       expect(result).toHaveLength(2);
+      expect(prisma.organization.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { members: { some: { userId: 'user-1' } } },
+          take: 100,
+        }),
+      );
+    });
+
+    it('returns empty array when user has no organizations', async () => {
+      prisma.organization.findMany.mockResolvedValue([]);
+      const result = await service.findAll('user-nobody');
+      expect(result).toHaveLength(0);
     });
   });
 
+  // ─── findOne ────────────────────────────────────────────
+
+  describe('findOne', () => {
+    it('returns organization when user is a member', async () => {
+      prisma.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        name: 'My Org',
+        members: [{ userId: 'user-1', role: 'ADMIN' }],
+        expenses: [],
+      });
+
+      const result = await service.findOne('org-1', 'user-1');
+      expect(result.name).toBe('My Org');
+    });
+
+    it('throws NotFoundException when organization does not exist', async () => {
+      prisma.organization.findUnique.mockResolvedValue(null);
+
+      await expect(service.findOne('no-org', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws ForbiddenException when user is not a member', async () => {
+      prisma.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        name: 'Private Org',
+        members: [{ userId: 'other-user', role: 'ADMIN' }],
+        expenses: [],
+      });
+
+      await expect(service.findOne('org-1', 'user-1')).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+  });
+
+  // ─── addMember ──────────────────────────────────────────
+
   describe('addMember', () => {
-    it('should add a member to organization', async () => {
+    it('adds a member when requester is ADMIN and target is not already a member', async () => {
       prisma.organizationMember.findUnique
-        .mockResolvedValueOnce({ id: '1', role: 'ADMIN' }) // requester is admin
-        .mockResolvedValueOnce(null); // target not yet member
+        .mockResolvedValueOnce({ id: '1', role: 'ADMIN' }) // requester
+        .mockResolvedValueOnce(null); // target not member
       prisma.organizationMember.create.mockResolvedValue({
         id: 'mem-1',
         role: 'MEMBER',
@@ -87,15 +174,37 @@ describe('OrganizationsService', () => {
 
       const result = await service.addMember(
         'org-1',
-        { userId: 'new-user', role: 'MEMBER' } as any,
+        { userId: 'new-user', role: 'MEMBER' as any },
         'admin-user',
       );
 
       expect(result.role).toBe('MEMBER');
+      expect(prisma.organizationMember.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            organizationId: 'org-1',
+            userId: 'new-user',
+            role: 'MEMBER',
+            invitedBy: 'admin-user',
+          }),
+        }),
+      );
     });
 
-    it('should reject if requester is not admin', async () => {
-      prisma.organizationMember.findUnique.mockResolvedValue({
+    it('throws ForbiddenException when requester is not found', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+        service.addMember(
+          'org-1',
+          { userId: 'new', role: 'MEMBER' as any },
+          'unknown-user',
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws ForbiddenException when requester is MEMBER (not ADMIN)', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValueOnce({
         id: '1',
         role: 'MEMBER',
       });
@@ -103,26 +212,155 @@ describe('OrganizationsService', () => {
       await expect(
         service.addMember(
           'org-1',
-          { userId: 'new-user', role: 'MEMBER' } as any,
+          { userId: 'new', role: 'MEMBER' as any },
           'member-user',
         ),
-      ).rejects.toThrow();
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws ConflictException when target is already a member', async () => {
+      prisma.organizationMember.findUnique
+        .mockResolvedValueOnce({ id: '1', role: 'ADMIN' }) // requester
+        .mockResolvedValueOnce({ id: '2', role: 'MEMBER' }); // already member
+
+      await expect(
+        service.addMember(
+          'org-1',
+          { userId: 'existing', role: 'MEMBER' as any },
+          'admin-user',
+        ),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
+  // ─── removeMember ───────────────────────────────────────
+
   describe('removeMember', () => {
-    it('should not allow removing the last admin (self-removal)', async () => {
-      // requester is admin and is removing themselves
+    it('removes a member when requester is ADMIN', async () => {
       prisma.organizationMember.findUnique.mockResolvedValueOnce({
         id: '1',
         role: 'ADMIN',
         userId: 'admin-user',
       });
-      prisma.organizationMember.count.mockResolvedValue(1); // only 1 admin
+      prisma.organizationMember.delete.mockResolvedValue({});
+
+      const result = await service.removeMember('org-1', 'target-user', 'admin-user');
+      expect(result).toEqual({ message: 'Member removed successfully' });
+      expect(prisma.organizationMember.delete).toHaveBeenCalledWith({
+        where: {
+          organizationId_userId: { organizationId: 'org-1', userId: 'target-user' },
+        },
+      });
+    });
+
+    it('throws ForbiddenException when requester is not found', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+        service.removeMember('org-1', 'target', 'nobody'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws ForbiddenException when requester is not ADMIN', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValueOnce({
+        id: '1',
+        role: 'MEMBER',
+        userId: 'member-user',
+      });
+
+      await expect(
+        service.removeMember('org-1', 'target', 'member-user'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('prevents removing the last admin (self-removal)', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValueOnce({
+        id: '1',
+        role: 'ADMIN',
+        userId: 'admin-user',
+      });
+      prisma.organizationMember.count.mockResolvedValue(1);
 
       await expect(
         service.removeMember('org-1', 'admin-user', 'admin-user'),
       ).rejects.toThrow('Cannot remove the last admin');
+    });
+
+    it('allows admin self-removal when there are multiple admins', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValueOnce({
+        id: '1',
+        role: 'ADMIN',
+        userId: 'admin-user',
+      });
+      prisma.organizationMember.count.mockResolvedValue(2);
+      prisma.organizationMember.delete.mockResolvedValue({});
+
+      const result = await service.removeMember('org-1', 'admin-user', 'admin-user');
+      expect(result).toEqual({ message: 'Member removed successfully' });
+    });
+
+    it('does not check admin count when removing a different user', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValueOnce({
+        id: '1',
+        role: 'ADMIN',
+        userId: 'admin-user',
+      });
+      prisma.organizationMember.delete.mockResolvedValue({});
+
+      await service.removeMember('org-1', 'other-user', 'admin-user');
+      expect(prisma.organizationMember.count).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── updateMemberRole ───────────────────────────────────
+
+  describe('updateMemberRole', () => {
+    it('updates role when requester is ADMIN', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValueOnce({
+        id: '1',
+        role: 'ADMIN',
+      });
+      prisma.organizationMember.update.mockResolvedValue({
+        id: 'mem-1',
+        role: 'ADMIN',
+        userId: 'target-user',
+      });
+
+      const result = await service.updateMemberRole(
+        'org-1',
+        'target-user',
+        'ADMIN' as any,
+        'admin-user',
+      );
+
+      expect(result.role).toBe('ADMIN');
+      expect(prisma.organizationMember.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            organizationId_userId: { organizationId: 'org-1', userId: 'target-user' },
+          },
+          data: { role: 'ADMIN' },
+        }),
+      );
+    });
+
+    it('throws ForbiddenException when requester is not found', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+        service.updateMemberRole('org-1', 'target', 'ADMIN' as any, 'nobody'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws ForbiddenException when requester is not ADMIN', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValueOnce({
+        id: '1',
+        role: 'MEMBER',
+      });
+
+      await expect(
+        service.updateMemberRole('org-1', 'target', 'ADMIN' as any, 'member'),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });
