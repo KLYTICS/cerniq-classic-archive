@@ -203,7 +203,6 @@ interface AuthUser {
   id: string;
   email: string;
   name?: string;
-  workspaceId?: string;
 }
 
 interface AuthResponse {
@@ -385,11 +384,11 @@ class APIClient {
     };
   }
 
-  async getCurrentUser(): Promise<AuthUser | null> {
+  async getCurrentUser() {
     const response = await this.client.get(`${NODE_API_URL}/api/auth/profile`, {
       skipAuthRedirect: true,
     });
-    return unwrapApiData<AuthUser | null>(response.data);
+    return unwrapApiData(response.data);
   }
 
   async logout() {

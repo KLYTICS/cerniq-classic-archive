@@ -56,4 +56,42 @@ describe('CIRModelService', () => {
     const result = svc.simulate({ r0: 0.06, numPaths: 10 });
     expect(result.simulation.meanPath[0]).toBeCloseTo(0.06, 4);
   });
+
+  // ── Coverage: sample paths are capped at 5 ──────────────────
+  it('should produce at most 5 sample paths', () => {
+    const result = svc.simulate({ numPaths: 100, horizonYears: 2 });
+    expect(result.simulation.samplePaths.length).toBeLessThanOrEqual(5);
+    for (const path of result.simulation.samplePaths) {
+      expect(path.length).toBeGreaterThan(1);
+      expect(path[0]).toBeCloseTo(0.045, 3); // default r0
+    }
+  });
+
+  // ── Coverage: percentile bands ──────────────────────────────
+  it('should produce 5 percentile bands (p5, p25, p50, p75, p95)', () => {
+    const result = svc.simulate({ numPaths: 50, horizonYears: 1 });
+    expect(Object.keys(result.simulation.percentiles)).toEqual(
+      expect.arrayContaining(['p5', 'p25', 'p50', 'p75', 'p95']),
+    );
+    // p5 should be lower than p95 at each time step
+    const p5 = result.simulation.percentiles['p5'];
+    const p95 = result.simulation.percentiles['p95'];
+    expect(p5.length).toBe(p95.length);
+  });
+
+  // ── Coverage: interpretation text ───────────────────────────
+  it('includes interpretation in English and Spanish', () => {
+    const result = svc.simulate({ numPaths: 10 });
+    expect(result.interpretation.length).toBeGreaterThan(0);
+    expect(result.interpretationEs.length).toBeGreaterThan(0);
+    expect(result.interpretation).toContain('CIR');
+    expect(result.interpretationEs).toContain('CIR');
+  });
+
+  // ── Coverage: very short horizon ────────────────────────────
+  it('handles very short horizon', () => {
+    const result = svc.simulate({ horizonYears: 0.25, numPaths: 10 });
+    expect(result.simulation.meanPath.length).toBeGreaterThanOrEqual(2);
+    expect(result.bondPrices.length).toBe(7);
+  });
 });

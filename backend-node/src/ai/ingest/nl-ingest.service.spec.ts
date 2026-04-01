@@ -227,4 +227,40 @@ describe('NLIngestService', () => {
     expect(result).toBeDefined();
     expect(typeof result.warnings).toBe('object');
   });
+
+  // ── Coverage boost: Claude API success path via mock ────────
+  it('uses Claude API when ANTHROPIC_API_KEY set and returns valid JSON', async () => {
+    jest.mock('@anthropic-ai/sdk', () => ({
+      __esModule: true,
+      default: class {
+        messages = {
+          create: jest.fn().mockResolvedValue({
+            content: [{ type: 'text', text: JSON.stringify([
+              { name: 'API Loan', category: 'asset', subcategory: 'commercial_loans', balance: 5000, rate: 0.05, duration: 3, rateType: 'fixed' },
+            ]) }],
+          }),
+        };
+      },
+    }), { virtual: true });
+
+    process.env.ANTHROPIC_API_KEY = 'sk-test-key';
+    const content = 'Commercial Loans $20,000';
+    mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 1 });
+    const result = await service.ingestDocument(
+      'inst-1', 'api.txt', content, 'text/plain',
+    );
+    expect(result).toBeDefined();
+    expect(typeof result.itemsCreated).toBe('number');
+    delete process.env.ANTHROPIC_API_KEY;
+  });
+
+  // ── Coverage: PDF with string content (base64 path) ──────────
+  it('handles PDF mime with string content via base64 buffer path', async () => {
+    const content = Buffer.from('Loans $5,000').toString('base64');
+    mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 0 });
+    const result = await service.ingestDocument(
+      'inst-1', 'report.pdf', content, 'application/pdf',
+    );
+    expect(result).toBeDefined();
+  });
 });

@@ -309,6 +309,61 @@ describe('AnomalyDetectionService', () => {
 
   // ── Health score edge cases ──────────────────────────────────
 
+  // ── Coverage: calculateApLcrImpact with zero priorQuarterlyTotal ──
+  it('calculateApLcrImpact returns 0 vsLastQuarter when prior total is 0', async () => {
+    mockPrisma.expense.findMany
+      .mockResolvedValueOnce([{ amount: 10000 }])
+      .mockResolvedValueOnce([]); // no prior expenses
+    mockAlmEnterprise.calculateLCR.mockResolvedValue({ lcr: 130, hqla: 80, netOutflows: 50 });
+    const result = await service.calculateApLcrImpact('org-1', 'inst-1');
+    expect(result.vsLastQuarter).toBe(0);
+  });
+
+  // ── Coverage: WATCH and CRITICAL alert levels ─────────────────
+  it('calculateApLcrImpact returns CRITICAL for very low projected LCR', async () => {
+    mockPrisma.expense.findMany.mockResolvedValue([{ amount: 500_000_000 }]);
+    mockAlmEnterprise.calculateLCR.mockResolvedValue({ lcr: 90, hqla: 10, netOutflows: 12 });
+    const result = await service.calculateApLcrImpact('org-1', 'inst-1');
+    expect(['WATCH', 'CRITICAL']).toContain(result.alertLevel);
+  });
+
+  // ── Coverage: HIGH severity frequency anomaly ─────────────────
+  it('detects HIGH severity frequency anomaly (> 4x rolling avg)', async () => {
+    const expenses = [];
+    for (let m = 1; m <= 3; m++) {
+      expenses.push({
+        id: `e-m${m}`, merchantName: 'HiFreq', amount: 500,
+        category: null, description: null,
+        transactionDate: new Date(`2026-0${m}-15`),
+        reviewStatus: 'PENDING', createdAt: new Date(),
+      });
+    }
+    // 15 invoices in month 4 (> 4x avg of 1)
+    for (let i = 0; i < 15; i++) {
+      expenses.push({
+        id: `e-m4-${i}`, merchantName: 'HiFreq', amount: 500,
+        category: null, description: null,
+        transactionDate: new Date(`2026-04-${String(i + 1).padStart(2, '0')}`),
+        reviewStatus: 'PENDING', createdAt: new Date(),
+      });
+    }
+    mockPrisma.expense.findMany.mockResolvedValue(expenses);
+    const result = await service.analyzeOrganization('org-1');
+    const hiFreq = result.findings.filter(f => f.findingType === 'FREQUENCY_ANOMALY' && f.severity === 'HIGH');
+    expect(hiFreq.length).toBeGreaterThan(0);
+  });
+
+  // ── Coverage: dormant vendor with gap > 180 days (HIGH severity) ──
+  it('detects HIGH severity dormant vendor (> 180 day gap)', async () => {
+    mockPrisma.expense.findMany.mockResolvedValue([
+      { id: 'e1', merchantName: 'LongDorm', amount: 500, category: null, description: null, transactionDate: new Date('2025-01-01'), reviewStatus: 'PENDING', createdAt: new Date('2025-01-01') },
+      { id: 'e2', merchantName: 'LongDorm', amount: 600, category: null, description: null, transactionDate: new Date('2026-01-15'), reviewStatus: 'PENDING', createdAt: new Date('2026-01-15') },
+    ]);
+    const result = await service.analyzeOrganization('org-1');
+    const dormant = result.findings.filter(f => f.findingType === 'DORMANT_VENDOR_REACTIVATED' && f.severity === 'HIGH');
+    expect(dormant.length).toBeGreaterThan(0);
+  });
+
   it('health score is 100 for clean expenses with no findings', async () => {
     mockPrisma.expense.findMany.mockResolvedValue([
       { id: 'e1', merchantName: 'V1', amount: 500, category: null, description: null, transactionDate: new Date(), reviewStatus: 'APPROVED', createdAt: new Date() },

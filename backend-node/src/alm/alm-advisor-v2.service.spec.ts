@@ -545,5 +545,16 @@ describe('AlmAdvisorV2Service', () => {
 
       (service as any).generateLocalNarrative = origLocal;
     });
+
+    it('streams narrative without API key using local generation', async () => {
+      delete process.env.ANTHROPIC_API_KEY;
+
+      const chunks: string[] = [];
+      for await (const chunk of service.streamNarrative('inst-1', 'en')) {
+        chunks.push(chunk);
+      }
+      const full = chunks.join('');
+      expect(full.length).toBeGreaterThan(0);
+    });
   });
 });

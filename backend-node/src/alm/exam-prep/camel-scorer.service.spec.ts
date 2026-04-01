@@ -148,4 +148,58 @@ describe('CAMELScorerService', () => {
     expect(earnings).toBeDefined();
     expect(earnings!.score).toBe(5);
   });
+
+  // ── Coverage: various CAMEL component scoring thresholds ──────
+  it('scores Capital as score 2 (Satisfactory) for NWR 8-10%', async () => {
+    mockPrisma.institution.findUnique.mockResolvedValue({ id: 'inst-2' });
+    // NWR = equity / total = 9 / 100 = 0.09
+    mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', subcategory: 'loans', balance: 100, rate: 0.05 },
+      { category: 'liability', subcategory: 'deposits', balance: 91, rate: 0.02 },
+    ]);
+    const result = await service.scoreInstitution('inst-2');
+    const capital = result.components.find(c => c.component === 'Capital');
+    expect(capital!.score).toBeLessThanOrEqual(2);
+  });
+
+  it('scores Capital as score 3 (Fair) for NWR 6-8%', async () => {
+    mockPrisma.institution.findUnique.mockResolvedValue({ id: 'inst-3' });
+    // NWR = 7 / 100 = 0.07
+    mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', subcategory: 'loans', balance: 100, rate: 0.05 },
+      { category: 'liability', subcategory: 'deposits', balance: 93, rate: 0.02 },
+    ]);
+    const result = await service.scoreInstitution('inst-3');
+    const capital = result.components.find(c => c.component === 'Capital');
+    expect(capital!.score).toBeLessThanOrEqual(3);
+  });
+
+  it('scores Capital as score 4 (Marginal) for NWR 4-6%', async () => {
+    mockPrisma.institution.findUnique.mockResolvedValue({ id: 'inst-4' });
+    // NWR = 5 / 100 = 0.05
+    mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', subcategory: 'loans', balance: 100, rate: 0.05 },
+      { category: 'liability', subcategory: 'deposits', balance: 95, rate: 0.02 },
+    ]);
+    const result = await service.scoreInstitution('inst-4');
+    const capital = result.components.find(c => c.component === 'Capital');
+    expect(capital!.score).toBeLessThanOrEqual(4);
+  });
+
+  it('returns correct composite score structure', async () => {
+    mockPrisma.institution.findUnique.mockResolvedValue({ id: 'inst-comp' });
+    mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', subcategory: 'loans', balance: 100, rate: 0.06 },
+      { category: 'liability', subcategory: 'deposits', balance: 85, rate: 0.02 },
+    ]);
+    const result = await service.scoreInstitution('inst-comp');
+    expect(result).toHaveProperty('compositeScore');
+    expect(result).toHaveProperty('compositeRating');
+    expect(result).toHaveProperty('components');
+    expect(result.components.length).toBe(5); // C, A, M, E, L
+    for (const comp of result.components) {
+      expect(comp.score).toBeGreaterThanOrEqual(1);
+      expect(comp.score).toBeLessThanOrEqual(5);
+    }
+  });
 });

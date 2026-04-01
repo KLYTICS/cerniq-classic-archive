@@ -59,4 +59,41 @@ describe('CreditRiskQuantService', () => {
     expect(result.capitalAdequacy).toHaveProperty('capitalSurplus');
     expect(result.capitalAdequacy).toHaveProperty('isAdequate');
   });
+
+  // ── Coverage: with real loan segments ──────────────────────────
+  it('uses real loan segments when available', async () => {
+    const mockPrismaReal = {
+      loanSegment: {
+        findMany: jest.fn().mockResolvedValue([
+          { segmentName: 'residential_mortgage', balance: 5000, historicalLossRate: 0.01, avgLTV: 0.75, avgDSCR: 1.3, avgAge: 3 },
+          { segmentName: 'auto_loans', balance: 3000, historicalLossRate: 0.02, avgLTV: 0, avgDSCR: 0, avgAge: 2 },
+        ]),
+      },
+      institution: { findUnique: jest.fn().mockResolvedValue({ id: 'inst-real', totalAssets: 10000 }) },
+    } as any;
+    const realSvc = new CreditRiskQuantService(mockPrismaReal);
+    const result = await realSvc.analyzePortfolio('inst-real');
+    expect(result.totalEAD).toBeGreaterThan(0);
+    expect(result.segments.length).toBeGreaterThanOrEqual(2);
+  });
+
+  // ── Coverage: LGD and correlation for each segment type ──────
+  it('computes different PD/LGD for each segment type', async () => {
+    const result = await svc.analyzePortfolio('inst-1');
+    const names = result.segments.map(s => s.segmentName);
+    expect(names).toContain('residential_mortgage');
+    expect(names).toContain('auto_loans');
+    expect(names).toContain('consumer_loans');
+    // LGDs should differ by segment
+    const lgds = result.segments.map(s => s.lgd);
+    expect(new Set(lgds).size).toBeGreaterThan(1);
+  });
+
+  // ── Coverage: portfolioElPct and portfolioEcPct ──────────────
+  it('computes portfolio-level EL and EC percentages', async () => {
+    const result = await svc.analyzePortfolio('inst-1');
+    expect(result.portfolioElPct).toBeGreaterThan(0);
+    expect(result.portfolioElPct).toBeLessThan(100);
+    expect(result.portfolioEcPct).toBeGreaterThan(0);
+  });
 });

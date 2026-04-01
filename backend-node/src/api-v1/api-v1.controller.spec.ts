@@ -157,6 +157,22 @@ describe('ApiV1Controller', () => {
     });
   });
 
+  // ── Coverage: file filter callback (line 206-210) ────────────
+  describe('analyzeCSV — file validation', () => {
+    it('should throw when all four required fields are missing', async () => {
+      const req = { apiUser: { userId: 'u1', email: 'test@test.com' } };
+      const file = { buffer: Buffer.from('data'), size: 4, originalname: 'data.csv' } as Express.Multer.File;
+      await expect(
+        controller.analyzeCSV(req, file, {
+          institutionName: '',
+          institutionType: '',
+          framework: '',
+          period: '',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
   describe('analyzeCSV — missing individual fields', () => {
     it('should throw when institutionType is empty', async () => {
       const req = { apiUser: { userId: 'u1', email: 'test@test.com' } };

@@ -46,4 +46,22 @@ describe('ParseDatePipe', () => {
     expect(result.getMonth()).toBe(11); // December = 11
     expect(result.getDate()).toBe(25);
   });
+
+  // Coverage: truly invalid date string
+  it('throws BadRequestException for completely invalid date', () => {
+    expect(() => pipe.transform('not-a-date-at-all')).toThrow(BadRequestException);
+  });
+
+  it('throws BadRequestException for partial date string', () => {
+    expect(() => pipe.transform('2026-13-45')).toThrow(BadRequestException);
+  });
+
+  it('throws for null-coerced string "null"', () => {
+    // "null" is not a valid date
+    expect(() => pipe.transform('null')).toThrow(BadRequestException);
+  });
+
+  it('throws for undefined-coerced string "undefined"', () => {
+    expect(() => pipe.transform('undefined')).toThrow(BadRequestException);
+  });
 });

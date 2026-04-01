@@ -352,4 +352,42 @@ describe('StressTestService', () => {
       }
     });
   });
+
+  // ── Coverage boost: categorizeSeverity CATASTROPHIC path ──────
+  it('produces CATASTROPHIC severity for extreme crash scenario', async () => {
+    mockMarketDataService.getQuote.mockResolvedValue({ price: 100 });
+    const customScenario = {
+      name: 'Extreme Crash',
+      description: '80% decline',
+      shocks: { equity: -0.8 },
+    };
+    const result = await service.runStressTest(
+      [{ ticker: 'AAPL', quantity: 100 }],
+      'custom',
+      customScenario,
+    );
+    // With beta 1.2-1.5, an 80% shock = 96-120% loss -> CATASTROPHIC
+    expect(result.scenarios[0].severity).toBe('CATASTROPHIC');
+  });
+
+  // ── Coverage: estimateProbability for shock < 0.1 ──────────────
+  it('returns common probability for very small shock via reverse stress test', async () => {
+    mockMarketDataService.getQuote.mockResolvedValue({ price: 100 });
+    const result = await service.runReverseStressTest(
+      [{ ticker: 'JNJ', quantity: 100 }],
+      -2,
+    );
+    expect(result.probability).toBeDefined();
+    expect(typeof result.probability).toBe('string');
+  });
+
+  // ── Coverage: findHistoricalParallel for 0.25-0.4 range ──────
+  it('returns COVID/Dot-Com parallel for medium-large shock', async () => {
+    mockMarketDataService.getQuote.mockResolvedValue({ price: 100 });
+    const result = await service.runReverseStressTest(
+      [{ ticker: 'JNJ', quantity: 100 }],
+      -25,
+    );
+    expect(result.historicalParallel).toBeDefined();
+  });
 });

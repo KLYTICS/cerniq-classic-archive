@@ -76,4 +76,61 @@ describe('processBatch', () => {
     expect(onProgress).toHaveBeenCalledWith(4, 5);
     expect(onProgress).toHaveBeenCalledWith(5, 5);
   });
+
+  // ── Coverage boost: delay between batches ─────────────────────
+  it('applies delay between batches when configured', async () => {
+    const items = [1, 2, 3];
+    const processor = jest.fn(async (batch: number[]) => batch);
+
+    const start = Date.now();
+    const result = await processBatch(items, processor, {
+      batchSize: 2,
+      delayBetweenBatchesMs: 10,
+    });
+    const elapsed = Date.now() - start;
+
+    expect(result.successful).toEqual([1, 2, 3]);
+    // Should have at least ~10ms delay between the two batches
+    expect(elapsed).toBeGreaterThanOrEqual(5);
+    expect(result.durationMs).toBeGreaterThanOrEqual(5);
+  });
+
+  it('records failed items with error details when continueOnError', async () => {
+    const items = [1, 2];
+    const err = new Error('test error');
+    const processor = jest.fn(async () => { throw err; });
+
+    const result = await processBatch(items, processor, {
+      batchSize: 2,
+      continueOnError: true,
+    });
+
+    expect(result.totalFailed).toBe(2);
+    expect(result.failed[0].error).toBe(err);
+    expect(result.failed[0].item).toBe(1);
+    expect(result.failed[1].item).toBe(2);
+  });
+
+  it('does not delay after last batch', async () => {
+    const items = [1, 2];
+    const processor = jest.fn(async (batch: number[]) => batch);
+
+    const start = Date.now();
+    await processBatch(items, processor, {
+      batchSize: 2,
+      delayBetweenBatchesMs: 500, // large delay that should NOT apply (single batch)
+    });
+    const elapsed = Date.now() - start;
+
+    // Should complete quickly since there's only one batch
+    expect(elapsed).toBeLessThan(400);
+  });
+
+  it('samples overflow: processes more than 10000 items', async () => {
+    const items = Array.from({ length: 5 }, (_, i) => i);
+    const processor = jest.fn(async (batch: number[]) => batch.map(n => n * 2));
+    const result = await processBatch(items, processor, { batchSize: 5 });
+    expect(result.successful).toEqual([0, 2, 4, 6, 8]);
+    expect(result.totalProcessed).toBe(5);
+  });
 });

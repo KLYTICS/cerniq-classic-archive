@@ -114,4 +114,30 @@ describe('ApReportService', () => {
     const result = await service.generateAPReport('org-missing', null, 'en');
     expect(Buffer.isBuffer(result)).toBe(true);
   });
+
+  // ── Coverage: report with institutionId for LCR impact ────────
+  it('generates report with LCR impact when institutionId is provided', async () => {
+    mockAnomalyDetection.calculateApLcrImpact = jest.fn().mockResolvedValue({
+      currentLcr: 120, projectedLcr: 115, hqla: 50, currentNetOutflows: 40,
+      apProjected30Day: 5000, delta: -5, alertLevel: 'ADEQUATE',
+      quarterlyAPTotal: 15000, vsLastQuarter: 10,
+    });
+    const result = await service.generateAPReport('org-1', 'inst-1', 'en');
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  // ── Coverage: Spanish language ──────────────────────────────
+  it('generates report in Spanish', async () => {
+    const result = await service.generateAPReport('org-1', null, 'es');
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  // ── Coverage: LCR impact failure ────────────────────────────
+  it('generates report even when LCR impact calculation fails', async () => {
+    mockAnomalyDetection.calculateApLcrImpact = jest.fn().mockRejectedValue(new Error('LCR failed'));
+    const result = await service.generateAPReport('org-1', 'inst-fail', 'en');
+    expect(Buffer.isBuffer(result)).toBe(true);
+  });
 });

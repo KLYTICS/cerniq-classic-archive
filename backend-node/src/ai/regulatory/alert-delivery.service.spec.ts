@@ -84,4 +84,67 @@ describe('AlertDeliveryService', () => {
     const result = await service.dismiss('a1');
     expect(result.dismissedAt).toBeDefined();
   });
+
+  // ── Coverage: mapAndDeliverToAllInstitutions ───────────────────
+  it('delivers alerts to institutions with matching subcategories', async () => {
+    mockPrisma.institution.findMany.mockResolvedValue([
+      { id: 'inst-1', balanceSheetItems: [{ subcategory: 'commercial_loans' }] },
+    ]);
+    mockPrisma.institutionAlert.create.mockResolvedValue({});
+
+    const impact = {
+      severity: 'HIGH' as const,
+      requirements: ['Comply immediately', 'Submit report'],
+      affectedSubcategories: ['credit'],
+      deadline: null,
+      keyQuote: 'New regulation',
+    };
+    const count = await service.mapAndDeliverToAllInstitutions('pub-1', impact);
+    // HIGH severity always delivers even if no subcategory match
+    expect(count).toBe(1);
+    expect(mockPrisma.institutionAlert.create).toHaveBeenCalled();
+  });
+
+  it('skips institutions with no matching subcategories for non-HIGH severity', async () => {
+    mockPrisma.institution.findMany.mockResolvedValue([
+      { id: 'inst-1', balanceSheetItems: [{ subcategory: 'auto_loans' }] },
+    ]);
+    const impact = {
+      severity: 'LOW' as const,
+      requirements: ['Review'],
+      affectedSubcategories: ['concentration'],
+      deadline: null,
+      keyQuote: 'Guideline',
+    };
+    const count = await service.mapAndDeliverToAllInstitutions('pub-2', impact);
+    expect(count).toBe(0);
+  });
+
+  it('delivers alerts for liquidity/capital/interest_rate to all institutions', async () => {
+    mockPrisma.institution.findMany.mockResolvedValue([
+      { id: 'inst-1', balanceSheetItems: [] },
+    ]);
+    mockPrisma.institutionAlert.create.mockResolvedValue({});
+
+    const impact = {
+      severity: 'MEDIUM' as const,
+      requirements: ['Review liquidity'],
+      affectedSubcategories: ['liquidity'],
+      deadline: null,
+      keyQuote: 'Liquidity regulation',
+    };
+    const count = await service.mapAndDeliverToAllInstitutions('pub-3', impact);
+    expect(count).toBe(1);
+  });
+
+  it('getInstitutionAlerts with unreadOnly filter', async () => {
+    mockPrisma.institutionAlert.findMany.mockResolvedValue([]);
+    const result = await service.getInstitutionAlerts('inst-1', true);
+    expect(result).toEqual([]);
+    expect(mockPrisma.institutionAlert.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ readAt: null, dismissedAt: null }),
+      }),
+    );
+  });
 });
