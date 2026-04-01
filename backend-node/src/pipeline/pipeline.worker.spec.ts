@@ -68,29 +68,60 @@ describe('PipelineWorker', () => {
       getALMSummary: jest.fn().mockResolvedValue({
         riskScore: 70,
         institution: { name: 'Coop Test', totalAssets: 250000000 },
-        durationGap: { durationGap: 1.2 },
-        niiSensitivity: { baseNII: 12.5, riskRating: 'moderate' },
-        liquidity: { lcr: 115, status: 'compliant' },
+        durationGap: { durationGap: 1.2, assetDuration: 3.2, liabilityDuration: 2.0, riskProfile: 'moderate' },
+        niiSensitivity: {
+          baseNII: 12.5, riskRating: 'moderate',
+          scenarios: [
+            { name: 'Up 100', niiChange: -1.5, niiChangePercent: -12 },
+            { name: 'Down 100', niiChange: 1.2, niiChangePercent: 9.6 },
+          ],
+        },
+        liquidity: { lcr: 115, status: 'compliant', buffer: 5, hqla: 80, netOutflows: 60 },
         recommendations: ['Reduce gap'],
         topRisks: ['Rate sensitivity'],
+        concentration: { sectors: [{ name: 'RE', percent: 35 }] },
       }),
       getCOSSECComplianceWithTrend: jest.fn().mockResolvedValue({
         examReadinessScore: 85,
         overallStatus: 'compliant',
-        summary: { capitalRatio: 9.5, totalAssets: 250 },
+        summary: {
+          capitalRatio: 9.5, totalAssets: 250, totalLiabilities: 210,
+          equity: 40, totalLoans: 160, totalShares: 180,
+          liquidAssets: 50, liquidityRatio: 20, loanToShareRatio: 88,
+          nim: 3.5, earningAssetsYield: 4.5, costOfFunds: 1.2,
+          largestSectorName: 'Real Estate', largestSectorPct: 35,
+        },
+        ratios: [
+          { id: 1, name: 'Capital', nameEs: 'Capital', value: 9.5, unit: '%', status: 'pass' },
+        ],
+        trends: null,
+        previousPeriod: null,
+      }),
+      getRegulatoryCompliance: jest.fn().mockResolvedValue({
+        examReadinessScore: 85,
+        overallStatus: 'compliant',
+        summary: {
+          capitalRatio: 9.5, totalAssets: 250, totalLiabilities: 210,
+          equity: 40, totalLoans: 160, totalShares: 180,
+          liquidAssets: 50, liquidityRatio: 20, loanToShareRatio: 88,
+        },
         ratios: [],
       }),
-      getRegulatoryCompliance: jest.fn().mockResolvedValue({}),
       getInstitution: jest.fn().mockResolvedValue({
         id: 'inst_1',
         name: 'Coop Test',
         primaryRegulator: 'COSSEC',
+        type: 'cooperativa',
+        currency: 'USD',
       }),
     };
 
     stressTesting = {
       runFullStressTest: jest.fn().mockResolvedValue({
-        regulatory: { overallRating: 'resilient' },
+        regulatory: { overallRating: 'resilient', scenarios: [] },
+        monteCarlo: { var95: -5.2, paths: [], niiDistribution: {} },
+        scenarios: [],
+        cossecScenarios: [],
       }),
     };
 

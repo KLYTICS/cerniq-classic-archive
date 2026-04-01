@@ -473,4 +473,69 @@ describe('BillingController', () => {
       );
     });
   });
+
+  // ── Magic Link Verification ───────────────────────────
+  describe('GET /auth/magic', () => {
+    it('should redirect to /auth/expired when no token provided', async () => {
+      const req = { ip: '1.2.3.4', headers: {} };
+      const res = { redirect: jest.fn(), cookie: jest.fn() };
+
+      await controller.verifyMagicLink(undefined as any, req, res);
+
+      expect(res.redirect).toHaveBeenCalledWith(expect.stringContaining('/auth/expired'));
+    });
+
+    it('should redirect to /auth/expired when magic link is invalid', async () => {
+      billingService.verifyMagicLink.mockResolvedValue(null);
+      const req = { ip: '1.2.3.4', headers: {} };
+      const res = { redirect: jest.fn(), cookie: jest.fn() };
+
+      await controller.verifyMagicLink('bad-token', req, res);
+
+      expect(res.redirect).toHaveBeenCalledWith(expect.stringContaining('/auth/expired'));
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({ outcome: 'failure' }),
+      );
+    });
+
+    it('should set cookie and redirect to /portal on valid magic link', async () => {
+      billingService.verifyMagicLink.mockResolvedValue({
+        id: 'user-magic',
+        email: 'magic@test.com',
+      });
+      process.env.JWT_SECRET = 'test-secret';
+
+      const req = { ip: '1.2.3.4', headers: { 'user-agent': 'jest' } };
+      const res = { redirect: jest.fn(), cookie: jest.fn() };
+
+      await controller.verifyMagicLink('valid-token', req, res);
+
+      expect(res.cookie).toHaveBeenCalledWith('access_token', expect.any(String), expect.any(Object));
+      expect(res.redirect).toHaveBeenCalledWith(expect.stringContaining('/portal'));
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({ outcome: 'success' }),
+      );
+
+      delete process.env.JWT_SECRET;
+    });
+  });
+
+  // ── Magic Link Request ────────────────────────────────
+  describe('POST /auth/magic/request', () => {
+    it('should always return success message (no enumeration)', async () => {
+      billingService.requestMagicLink.mockResolvedValue(undefined);
+
+      const result = await controller.requestMagicLink({ email: 'test@test.com' });
+
+      expect(result.message).toContain('If this email has an account');
+    });
+
+    it('should still return success when service throws (no enumeration)', async () => {
+      billingService.requestMagicLink.mockRejectedValue(new Error('Internal'));
+
+      const result = await controller.requestMagicLink({ email: 'bad@test.com' });
+
+      expect(result.message).toContain('If this email has an account');
+    });
+  });
 });

@@ -676,4 +676,220 @@ describe('AppController', () => {
       );
     });
   });
+
+  // ── Shutdown draining ───────────────────────────────────────
+  describe('GET /health during shutdown', () => {
+    it('throws ServiceUnavailableException during shutdown', async () => {
+      (AppController as any).shuttingDown = true;
+      const { ServiceUnavailableException } = require('@nestjs/common');
+      await expect(controller.getHealth()).rejects.toThrow(ServiceUnavailableException);
+    });
+  });
+
+  describe('markShuttingDown', () => {
+    it('sets the shutting down flag', () => {
+      (AppController as any).shuttingDown = false;
+      AppController.markShuttingDown();
+      expect((AppController as any).shuttingDown).toBe(true);
+    });
+  });
+
+  // ── GET /health/detailed ────────────────────────────────────
+  describe('GET /health/detailed', () => {
+    it('returns detailed health when HEALTH_DETAILS_PUBLIC is enabled', async () => {
+      process.env.HEALTH_DETAILS_PUBLIC = 'true';
+      prisma.$queryRaw.mockResolvedValue([]);
+      cacheService.ping.mockResolvedValue(true);
+
+      const result = await controller.getHealthDetailed();
+      expect(result.status).toBeDefined();
+      expect(result.services).toBeDefined();
+      expect(result.memory).toBeDefined();
+      expect(result.version).toBe('2.0.0');
+
+      delete process.env.HEALTH_DETAILS_PUBLIC;
+    });
+
+    it('returns detailed health in non-production', async () => {
+      delete process.env.HEALTH_DETAILS_PUBLIC;
+      const origEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'test';
+
+      prisma.$queryRaw.mockResolvedValue([]);
+      cacheService.ping.mockResolvedValue(true);
+
+      const result = await controller.getHealthDetailed();
+      expect(result.status).toBeDefined();
+
+      process.env.NODE_ENV = origEnv;
+    });
+
+    it('reports degraded when DB is down in detailed health', async () => {
+      delete process.env.HEALTH_DETAILS_PUBLIC;
+      const origEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'test';
+
+      prisma.$queryRaw.mockRejectedValue(new Error('DB down'));
+      cacheService.ping.mockResolvedValue(true);
+
+      const result = await controller.getHealthDetailed();
+      expect(result.services.database.status).toBe('down');
+      expect(result.status).toBe('degraded');
+
+      process.env.NODE_ENV = origEnv;
+    });
+
+    it('includes pool stats in detailed health', async () => {
+      delete process.env.HEALTH_DETAILS_PUBLIC;
+      const origEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'test';
+
+      prisma.$queryRaw.mockResolvedValue([]);
+      cacheService.ping.mockResolvedValue(true);
+      prisma.getPoolStats.mockReturnValue({
+        totalCount: 5, idleCount: 3, waitingCount: 0, maxSize: 10,
+      });
+
+      const result = await controller.getHealthDetailed();
+      expect(result.connectionPool).toBeDefined();
+      expect(result.connectionPool!.totalConnections).toBe(5);
+
+      process.env.NODE_ENV = origEnv;
+    });
+  });
+
+  // ── GET /ready — cache failure ──────────────────────────────
+  describe('GET /ready — cache failures', () => {
+    it('returns not ready when cache ping throws', async () => {
+      prisma.$queryRaw.mockResolvedValue([]);
+      cacheService.ping.mockRejectedValue(new Error('Redis down'));
+      const res = { status: jest.fn() };
+      const result = await controller.getReady(res as any);
+      expect(result.ready).toBe(false);
+      expect(result.checks.cache).toBe('fail');
+    });
+
+    it('returns not ready when cache ping returns false', async () => {
+      prisma.$queryRaw.mockResolvedValue([]);
+      cacheService.ping.mockResolvedValue(false);
+      const res = { status: jest.fn() };
+      const result = await controller.getReady(res as any);
+      expect(result.ready).toBe(false);
+      expect(result.checks.cache).toBe('fail');
+    });
+  });
+
+  // ── GET /metrics ────────────────────────────────────────────
+  describe('GET /metrics', () => {
+    it('returns process metrics', async () => {
+      prisma.getPoolStats.mockReturnValue({
+        totalCount: 5, idleCount: 3, waitingCount: 0, maxSize: 10,
+      });
+
+      const result = await controller.getMetrics();
+      expect(result.pid).toBe(process.pid);
+      expect(result.memory).toBeDefined();
+      expect(result.eventLoopLag).toBeDefined();
+      expect(result.connectionPool).toBeDefined();
+    });
+
+    it('returns default pool stats when getPoolStats returns null', async () => {
+      prisma.getPoolStats.mockReturnValue(null);
+
+      const result = await controller.getMetrics();
+      expect(result.connectionPool).toEqual({ active: 0, idle: 0, max: 10 });
+    });
+  });
+
+  // ── GET /api/admin/ops ──────────────────────────────────────
+  describe('GET /api/admin/ops', () => {
+    it('returns ops data with admin key', async () => {
+      process.env.ADMIN_KEY = 'test-admin-key';
+      prisma.reportJob.findMany.mockResolvedValue([{ id: 'job-1' }]);
+      prisma.subscription.count.mockResolvedValue(5);
+      prisma.analysisRun.count.mockResolvedValue(42);
+
+      const result = await controller.getAdminOps('test-admin-key');
+      expect(result.recentJobs).toHaveLength(1);
+      expect(result.activeSubscriptions).toBe(5);
+      expect(result.totalAnalysisRuns).toBe(42);
+      expect(result.performanceMetrics).toBeDefined();
+
+      delete process.env.ADMIN_KEY;
+    });
+  });
+
+  // ── GET /api/admin/webhook-delivery-logs ────────────────────
+  describe('GET /api/admin/webhook-delivery-logs', () => {
+    it('returns webhook subscription stats', async () => {
+      prisma.webhookSubscription.findMany.mockResolvedValue([
+        { id: 'ws-1', isActive: true, failureCount: 0 },
+        { id: 'ws-2', isActive: true, failureCount: 3 },
+        { id: 'ws-3', isActive: false, failureCount: 0 },
+      ]);
+
+      const result = await controller.getWebhookDeliveryLogs();
+      expect(result.total).toBe(3);
+      expect(result.active).toBe(2);
+      expect(result.failing).toBe(1);
+      expect(result.disabled).toBe(1);
+    });
+  });
+
+  // ── PATCH /api/admin/prospects/:id ──────────────────────────
+  describe('PATCH /api/admin/prospects/:id edge cases', () => {
+    it('only updates provided fields', async () => {
+      process.env.ADMIN_KEY = 'test-admin-key';
+      prisma.prospect.update.mockResolvedValue({ id: 'p1', name: 'Updated' });
+
+      await controller.updateProspect('test-admin-key', 'p1', { name: 'Updated' });
+
+      expect(prisma.prospect.update).toHaveBeenCalledWith({
+        where: { id: 'p1' },
+        data: { name: 'Updated' },
+      });
+      delete process.env.ADMIN_KEY;
+    });
+
+    it('updates all fields when all provided', async () => {
+      process.env.ADMIN_KEY = 'test-admin-key';
+      prisma.prospect.update.mockResolvedValue({});
+
+      await controller.updateProspect('test-admin-key', 'p1', {
+        stage: 'proposal',
+        notes: 'Good fit',
+        name: 'New Name',
+        email: 'new@test.com',
+        company: 'New Co',
+        role: 'CEO',
+      });
+
+      expect(prisma.prospect.update).toHaveBeenCalledWith({
+        where: { id: 'p1' },
+        data: {
+          stage: 'proposal',
+          notes: 'Good fit',
+          name: 'New Name',
+          email: 'new@test.com',
+          company: 'New Co',
+          role: 'CEO',
+        },
+      });
+      delete process.env.ADMIN_KEY;
+    });
+  });
+
+  // ── verifyAdmin timing-safe comparison ──────────────────────
+  describe('verifyAdmin', () => {
+    it('rejects when ADMIN_KEY env not set', async () => {
+      delete process.env.ADMIN_KEY;
+      await expect(controller.getDemoRequests('some-key')).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('rejects when key length differs', async () => {
+      process.env.ADMIN_KEY = 'correct-key';
+      await expect(controller.getDemoRequests('short')).rejects.toThrow(UnauthorizedException);
+      delete process.env.ADMIN_KEY;
+    });
+  });
 });

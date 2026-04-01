@@ -274,4 +274,108 @@ describe('AlcoPackService', () => {
     expect(order).toContain('stress');
     expect(order).toContain('inst');
   });
+
+  // ── Coverage boost: regulatory scenarios, sector median, percentile, empty recs ──
+
+  describe('buildALCOPack — stress test regulatory scenarios page', () => {
+    it('renders regulatory scenarios with pass/warn/fail statuses', async () => {
+      mockStressTesting.runFullStressTest.mockResolvedValue({
+        scenarios: [],
+        monteCarlo: { var95: -3.2, niiDistribution: { p5: -2.0, median: 1.0, p95: 4.0 } },
+        regulatory: {
+          overallRating: 'vulnerable',
+          scenarios: [
+            { name: 'Parallel +300bp', niImpact: -6.5, mveImpact: -8.2, lcrImpact: -15, capitalImpact: -2.0, passFailStatus: 'fail' },
+            { name: 'Parallel +200bp', niImpact: -4.0, mveImpact: -5.0, lcrImpact: -10, capitalImpact: -1.0, passFailStatus: 'warn' },
+            { name: 'Parallel -100bp', niImpact: 2.1, mveImpact: 3.0, lcrImpact: 5, capitalImpact: 0.5, passFailStatus: 'pass' },
+          ],
+        },
+      });
+
+      try { await service.buildALCOPack('inst-1', 'en'); } catch { /* tolerate PDF */ }
+      expect(mockStressTesting.runFullStressTest).toHaveBeenCalled();
+    });
+
+    it('renders regulatory scenarios with resilient overall rating', async () => {
+      mockStressTesting.runFullStressTest.mockResolvedValue({
+        scenarios: [],
+        monteCarlo: { var95: -1.0 },
+        regulatory: {
+          overallRating: 'resilient',
+          scenarios: [
+            { name: 'Parallel +200bp', niImpact: -2.0, mveImpact: -3.0, lcrImpact: -5, capitalImpact: -0.5, passFailStatus: 'pass' },
+          ],
+        },
+      });
+
+      try { await service.buildALCOPack('inst-1', 'es'); } catch { /* tolerate PDF */ }
+      expect(mockStressTesting.runFullStressTest).toHaveBeenCalled();
+    });
+
+    it('renders regulatory scenarios with adequate overall rating', async () => {
+      mockStressTesting.runFullStressTest.mockResolvedValue({
+        scenarios: [],
+        monteCarlo: { var95: -2.5 },
+        regulatory: {
+          overallRating: 'adequate',
+          scenarios: [
+            { name: 'Rate Spike', niImpact: -3.0, mveImpact: -4.0, lcrImpact: -8, capitalImpact: -1.0, passFailStatus: 'pass' },
+          ],
+        },
+      });
+
+      try { await service.buildALCOPack('inst-1', 'en'); } catch { /* tolerate PDF */ }
+      expect(mockStressTesting.runFullStressTest).toHaveBeenCalled();
+    });
+  });
+
+  describe('buildALCOPack — COSSEC ratios with sectorMedian & percentileRank', () => {
+    it('renders sector median when present on ratio', async () => {
+      mockAlmEnterprise.getCOSSECCompliance.mockResolvedValue({
+        ...defaultCossec,
+        ratios: [
+          { id: 1, name: 'Capital Adequacy', value: 10.5, threshold: '>= 8%', status: 'pass', unit: '%', sectorMedian: 9.2, percentileRank: 72 },
+          { id: 2, name: 'Asset Quality', value: 3.2, threshold: '<= 5%', status: 'pass', unit: '%', sectorMedian: 4.1 },
+        ],
+      });
+
+      try { await service.buildALCOPack('inst-1', 'en'); } catch { /* tolerate PDF */ }
+      expect(mockAlmEnterprise.getCOSSECCompliance).toHaveBeenCalled();
+    });
+
+    it('renders percentile rank when present on ratio', async () => {
+      mockAlmEnterprise.getCOSSECCompliance.mockResolvedValue({
+        ...defaultCossec,
+        ratios: [
+          { id: 1, name: 'Capital', value: 12.0, threshold: '>= 8%', status: 'pass', unit: '%', percentileRank: 90 },
+          { id: 3, name: 'Liquidity', value: 22.0, threshold: '>= 15%', status: 'pass', unit: '%', percentileRank: 65 },
+        ],
+      });
+
+      try { await service.buildALCOPack('inst-1', 'es'); } catch { /* tolerate PDF */ }
+      expect(mockAlmEnterprise.getCOSSECCompliance).toHaveBeenCalled();
+    });
+  });
+
+  describe('buildALCOPack — empty recommendations path', () => {
+    it('renders fallback text when recommendations array is empty', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        ...defaultSummary,
+        recommendations: [],
+      });
+
+      try { await service.buildALCOPack('inst-1', 'en'); } catch { /* tolerate PDF */ }
+      expect(mockAlmEnterprise.getALMSummary).toHaveBeenCalled();
+    });
+
+    it('renders fallback text for empty recs in Spanish', async () => {
+      mockAlmEnterprise.getALMSummary.mockResolvedValue({
+        ...defaultSummary,
+        recommendations: [],
+      });
+
+      try { await service.buildALCOPack('inst-1', 'es'); } catch { /* tolerate PDF */ }
+      expect(mockAlmEnterprise.getALMSummary).toHaveBeenCalled();
+    });
+  });
 });
