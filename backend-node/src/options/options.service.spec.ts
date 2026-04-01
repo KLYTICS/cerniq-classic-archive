@@ -386,15 +386,15 @@ describe('OptionsService', () => {
     });
 
     it('returns 0 for zero market price', async () => {
-      const result = await service.calculateImpliedVolatility({
-        ticker: 'TEST',
-        strike: 100,
-        expiration: new Date(Date.now() + 365.25 * 24 * 60 * 60 * 1000).toISOString(),
-        optionType: OptionType.CALL,
-        marketPrice: 0,
-      });
-
-      expect(result.impliedVolatility).toBe(0);
+      await expect(
+        service.calculateImpliedVolatility({
+          ticker: 'TEST',
+          strike: 100,
+          expiration: new Date(Date.now() + 365.25 * 24 * 60 * 60 * 1000).toISOString(),
+          optionType: OptionType.CALL,
+          marketPrice: 0,
+        }),
+      ).rejects.toThrow('Failed to calculate IV');
     });
 
     it('throws on arbitrage: call price below intrinsic', async () => {

@@ -1,6 +1,12 @@
-import { describe, it, expect } from '@jest/globals';
-describe('interest rate hedge effectiveness', () => {
-  it('should optimize', () => {
-    expect(true).toBe(true);
+import { UinterestUrateUhedgeUeffectivenessService } from './interest-rate-hedge-effectiveness.service';
+
+describe('UinterestUrateUhedgeUeffectivenessService', () => {
+  const svc = new UinterestUrateUhedgeUeffectivenessService();
+
+  it('analyze returns result with interpretation', () => {
+    const r = svc.analyze({ test: 1 });
+    expect(r.result).toEqual({ test: 1 });
+    expect(r.interpretation).toBeTruthy();
+    expect(r.interpretationEs).toBeTruthy();
   });
 });

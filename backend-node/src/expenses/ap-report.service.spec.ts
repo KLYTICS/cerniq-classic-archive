@@ -91,8 +91,8 @@ describe('ApReportService', () => {
       topVendors: [],
       categoryBreakdown: {},
       findings: [
-        { type: 'duplicate', vendor: 'V1', amount: 1000, estimatedRecovery: 1000, severity: 'HIGH' },
-        { type: 'unusual_amount', vendor: 'V2', amount: 500, estimatedRecovery: 250, severity: 'MEDIUM' },
+        { findingType: 'DUPLICATE_INVOICE', affectedVendor: 'V1', amount: 1000, estimatedRecovery: 1000, severity: 'HIGH' },
+        { findingType: 'AMOUNT_ANOMALY', affectedVendor: 'V2', amount: 500, estimatedRecovery: 250, severity: 'MEDIUM' },
       ],
       estimatedTotalRecovery: 1250,
       vendorRiskScores: [],

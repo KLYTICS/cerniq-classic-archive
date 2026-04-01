@@ -62,11 +62,11 @@ export function parseUserAgent(ua: string | undefined): UserAgentInfo {
   else if (lower.includes('opera') || lower.includes('opr')) browser = 'Opera';
 
   let os = 'Unknown';
-  if (lower.includes('windows')) os = 'Windows';
+  if (lower.includes('android')) os = 'Android';
+  else if (lower.includes('iphone') || lower.includes('ipad')) os = 'iOS';
+  else if (lower.includes('windows')) os = 'Windows';
   else if (lower.includes('mac os') || lower.includes('macos')) os = 'macOS';
   else if (lower.includes('linux')) os = 'Linux';
-  else if (lower.includes('android')) os = 'Android';
-  else if (lower.includes('iphone') || lower.includes('ipad')) os = 'iOS';
 
   return { raw, isBot, isMobile, browser, os };
 }
