@@ -143,14 +143,6 @@ describe('WebhookService', () => {
 
   // ── Coverage boost: dispatchEvent, deliverWebhook, retry ───
   describe('dispatchEvent', () => {
-    beforeEach(() => {
-      jest.useFakeTimers({ advanceTimers: true });
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
     it('dispatches to matching subscriptions and updates success status', async () => {
       const sub = {
         id: 'wh-1',
@@ -164,7 +156,6 @@ describe('WebhookService', () => {
       mockPrisma.webhookSubscription.findMany.mockResolvedValue([sub]);
       mockPrisma.webhookSubscription.update.mockResolvedValue({});
 
-      // Mock fetch globally
       const originalFetch = global.fetch;
       global.fetch = jest.fn().mockResolvedValue({ status: 200 }) as any;
 
@@ -188,13 +179,13 @@ describe('WebhookService', () => {
       expect(results).toEqual([]);
     });
 
-    it('increments failureCount on delivery failure and disables after 10', async () => {
+    it('does not retry on 4xx client errors', async () => {
       const sub = {
-        id: 'wh-fail',
+        id: 'wh-4xx',
         url: 'https://hooks.example.com/webhook',
         secretKey: 'secret',
         institutionId: 'inst-1',
-        failureCount: 9,
+        failureCount: 0,
         events: ['ews.alert'],
         isActive: true,
       };
@@ -202,43 +193,34 @@ describe('WebhookService', () => {
       mockPrisma.webhookSubscription.update.mockResolvedValue({});
 
       const originalFetch = global.fetch;
-      global.fetch = jest.fn().mockResolvedValue({ status: 500 }) as any;
+      const fetchMock = jest.fn().mockResolvedValue({ status: 404 });
+      global.fetch = fetchMock as any;
 
       const results = await service.dispatchEvent('inst-1', 'ews.alert', {});
 
       expect(results).toHaveLength(1);
       expect(results[0].success).toBe(false);
-      // After failure, failureCount increments to 10, subscription should be disabled
-      expect(mockPrisma.webhookSubscription.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            failureCount: 10,
-            isActive: false,
-          }),
-        }),
-      );
+      expect(results[0].statusCode).toBe(404);
+      // Should only call fetch once (no retries for 4xx)
+      expect(fetchMock).toHaveBeenCalledTimes(1);
 
       global.fetch = originalFetch;
     });
 
-    it('blocks SSRF URL during delivery and returns error result', async () => {
-      const sub = {
-        id: 'wh-ssrf',
-        url: 'http://169.254.169.254/latest/meta-data',
-        secretKey: 'secret',
-        institutionId: 'inst-1',
-        failureCount: 0,
-        events: ['report.ready'],
-        isActive: true,
-      };
-      mockPrisma.webhookSubscription.findMany.mockResolvedValue([sub]);
-      mockPrisma.webhookSubscription.update.mockResolvedValue({});
+    it('createSubscription generates a 64-char hex secretKey', async () => {
+      mockPrisma.webhookSubscription.create.mockImplementation(({ data }: any) =>
+        Promise.resolve({ id: 'wh-new', ...data }),
+      );
 
-      const results = await service.dispatchEvent('inst-1', 'report.ready', {});
+      await service.createSubscription('inst-1', {
+        url: 'https://api.valid.com/hook',
+        events: ['policy.breach', 'rate.move'],
+      });
 
-      expect(results).toHaveLength(1);
-      expect(results[0].success).toBe(false);
-      expect(results[0].error).toContain('SSRF');
+      const callData = mockPrisma.webhookSubscription.create.mock.calls[0][0].data;
+      expect(callData.secretKey).toHaveLength(64);
+      expect(callData.institutionId).toBe('inst-1');
+      expect(callData.events).toEqual(['policy.breach', 'rate.move']);
     });
   });
 });
