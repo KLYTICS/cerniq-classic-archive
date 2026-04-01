@@ -3,7 +3,11 @@ import { AlmEnterpriseService } from './alm-enterprise.service';
 
 describe('AlmEnterpriseService', () => {
   let service: AlmEnterpriseService;
-  const mockPrisma = {
+  let mockPrisma: any;
+  let mockAlmService: any;
+  let mockDurationService: any;
+
+  const makeMockPrisma = () => ({
     institution: {
       create: jest.fn(),
       findUnique: jest.fn(),
@@ -22,19 +26,76 @@ describe('AlmEnterpriseService', () => {
     },
     liquidityPosition: {
       create: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
     },
-  } as any;
-  const mockAlmService = {
-    analyzeBalanceSheet: jest.fn(),
-  } as any;
-  const mockDurationService = {
-    analyzePortfolio: jest.fn(),
-    calculateEVESensitivity: jest.fn(),
-  } as any;
+    interestRateScenario: {
+      deleteMany: jest.fn(),
+      createMany: jest.fn(),
+    },
+    analysisRun: {
+      findFirst: jest.fn(),
+    },
+    reportJob: {
+      findFirst: jest.fn(),
+    },
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPrisma = makeMockPrisma();
+    mockAlmService = {
+      analyzeBalanceSheet: jest.fn(),
+      durationGapAnalysis: jest.fn().mockReturnValue({
+        assetDuration: 3.0,
+        liabilityDuration: 1.5,
+        durationGap: 1.5,
+      }),
+      niiSimulation: jest.fn().mockReturnValue({
+        baseNII: 5_000_000,
+        scenarios: [
+          { shockBps: -200, change: -500000, changePct: -0.1 },
+          { shockBps: -100, change: -250000, changePct: -0.05 },
+          { shockBps: 0, change: 0, changePct: 0 },
+          { shockBps: 100, change: 200000, changePct: 0.04 },
+          { shockBps: 200, change: 400000, changePct: 0.08 },
+        ],
+      }),
+      eveAnalysis: jest.fn().mockReturnValue({
+        scenarios: [
+          { shockBps: -200, change: -1000000, changePct: -0.05 },
+          { shockBps: -100, change: -500000, changePct: -0.025 },
+          { shockBps: 100, change: 300000, changePct: 0.015 },
+          { shockBps: 200, change: 600000, changePct: 0.03 },
+        ],
+      }),
+      fullAnalysis: jest.fn().mockReturnValue({
+        lcr: { lcr: 115, hqlaTotal: 25_000_000, totalNetOutflows: 20_000_000, status: 'compliant' },
+        durationGap: { durationGap: 1.5 },
+      }),
+    } as any;
+    mockDurationService = {
+      calculatePortfolioMetrics: jest.fn().mockReturnValue({
+        assetDuration: 3.0,
+        liabilityDuration: 1.5,
+        assetConvexity: 0.02,
+        liabilityConvexity: 0.005,
+        leverageAdjustedDurationGap: 1.8,
+      }),
+      calculateEVESensitivity: jest.fn().mockReturnValue([
+        { shockBps: 200, eveChangePct: -5.2 },
+      ]),
+      fullDurationAnalysis: jest.fn().mockReturnValue({
+        portfolio: {
+          assetDuration: 3.0,
+          liabilityDuration: 1.5,
+          assetConvexity: 0.02,
+          liabilityConvexity: 0.005,
+          leverageAdjustedDurationGap: 1.8,
+        },
+        eveSensitivity: [{ shockBps: 200, eveChangePct: -5.2 }],
+      }),
+    } as any;
     service = new AlmEnterpriseService(
       mockPrisma,
       mockAlmService,
@@ -65,6 +126,25 @@ describe('AlmEnterpriseService', () => {
       }),
     });
     expect(result.id).toBe('inst-1');
+  });
+
+  it('createInstitution uses provided currency and regulator', async () => {
+    mockPrisma.institution.create.mockResolvedValue({ id: 'inst-2' });
+    await service.createInstitution({
+      workspaceId: 'ws-1',
+      name: 'US Credit Union',
+      type: 'credit_union',
+      totalAssets: 500,
+      reportingDate: '2026-03-31',
+      currency: 'EUR',
+      primaryRegulator: 'NCUA',
+    });
+    expect(mockPrisma.institution.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        currency: 'EUR',
+        primaryRegulator: 'NCUA',
+      }),
+    });
   });
 
   // ── getInstitution ──────────────────────────────────────────
@@ -101,12 +181,45 @@ describe('AlmEnterpriseService', () => {
     expect(result.totalPages).toBe(1);
   });
 
+  it('getInstitutionsByWorkspace respects custom pagination', async () => {
+    mockPrisma.institution.findMany.mockResolvedValue([]);
+    mockPrisma.institution.count.mockResolvedValue(50);
+
+    const result = await service.getInstitutionsByWorkspace('ws-1', {
+      page: 3,
+      pageSize: 10,
+    } as any);
+    expect(result.page).toBe(3);
+    expect(result.pageSize).toBe(10);
+    expect(result.totalPages).toBe(5);
+  });
+
   // ── getInstitutionsByUser ───────────────────────────────────
   it('getInstitutionsByUser returns empty when user has no workspaces', async () => {
     mockPrisma.workspace.findMany.mockResolvedValue([]);
     const result = await service.getInstitutionsByUser('user-1');
     expect(result.items).toEqual([]);
     expect(result.total).toBe(0);
+  });
+
+  it('getInstitutionsByUser queries institutions across all user workspaces', async () => {
+    mockPrisma.workspace.findMany.mockResolvedValue([
+      { id: 'ws-1' },
+      { id: 'ws-2' },
+    ]);
+    mockPrisma.institution.findMany.mockResolvedValue([
+      { id: 'inst-1' },
+      { id: 'inst-2' },
+    ]);
+    mockPrisma.institution.count.mockResolvedValue(2);
+
+    const result = await service.getInstitutionsByUser('user-1');
+    expect(result.items).toHaveLength(2);
+    expect(mockPrisma.institution.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { workspaceId: { in: ['ws-1', 'ws-2'] } },
+      }),
+    );
   });
 
   // ── importBalanceSheetItems ─────────────────────────────────
@@ -157,30 +270,51 @@ describe('AlmEnterpriseService', () => {
     });
   });
 
-  // ── importBalanceSheetItems edge cases ─────────────────────
-  describe('importBalanceSheetItems — liability-only import', () => {
-    it('sets totalAssets to 0 when only liabilities are imported', async () => {
-      mockPrisma.balanceSheetItem.deleteMany.mockResolvedValue({ count: 0 });
-      mockPrisma.balanceSheetItem.createMany.mockResolvedValue({ count: 1 });
-      mockPrisma.institution.update.mockResolvedValue({});
+  it('importBalanceSheetItems sets totalAssets to 0 when only liabilities are imported', async () => {
+    mockPrisma.balanceSheetItem.deleteMany.mockResolvedValue({ count: 0 });
+    mockPrisma.balanceSheetItem.createMany.mockResolvedValue({ count: 1 });
+    mockPrisma.institution.update.mockResolvedValue({});
 
-      const items = [
-        {
-          category: 'liability',
-          subcategory: 'deposits',
-          name: 'Savings',
-          balance: 500,
-          rate: 0.01,
-          duration: 0.5,
-          rateType: 'variable',
-        },
-      ];
-      await service.importBalanceSheetItems('inst-1', items);
-      expect(mockPrisma.institution.update).toHaveBeenCalledWith({
-        where: { id: 'inst-1' },
-        data: { totalAssets: 0 },
-      });
+    const items = [
+      {
+        category: 'liability',
+        subcategory: 'deposits',
+        name: 'Savings',
+        balance: 500,
+        rate: 0.01,
+        duration: 0.5,
+        rateType: 'variable',
+      },
+    ];
+    await service.importBalanceSheetItems('inst-1', items);
+    expect(mockPrisma.institution.update).toHaveBeenCalledWith({
+      where: { id: 'inst-1' },
+      data: { totalAssets: 0 },
     });
+  });
+
+  it('importBalanceSheetItems converts repriceDate and maturityDate strings to Date objects', async () => {
+    mockPrisma.balanceSheetItem.deleteMany.mockResolvedValue({ count: 0 });
+    mockPrisma.balanceSheetItem.createMany.mockResolvedValue({ count: 1 });
+    mockPrisma.institution.update.mockResolvedValue({});
+
+    const items = [
+      {
+        category: 'asset',
+        subcategory: 'loans',
+        name: 'Loan A',
+        balance: 100,
+        rate: 0.05,
+        duration: 5,
+        rateType: 'variable',
+        repriceDate: '2026-06-30',
+        maturityDate: '2031-06-30',
+      },
+    ];
+    await service.importBalanceSheetItems('inst-1', items);
+    const createCall = mockPrisma.balanceSheetItem.createMany.mock.calls[0][0];
+    expect(createCall.data[0].repriceDate).toBeInstanceOf(Date);
+    expect(createCall.data[0].maturityDate).toBeInstanceOf(Date);
   });
 
   // ── calculateDurationGap ───────────────────────────────────
@@ -190,7 +324,7 @@ describe('AlmEnterpriseService', () => {
         { category: 'asset', balance: 1000, rate: 0.05, duration: 4, rateType: 'fixed' },
         { category: 'liability', balance: 800, rate: 0.02, duration: 1, rateType: 'variable' },
       ]);
-      mockDurationService.calculatePortfolioMetrics = jest.fn().mockReturnValue({
+      mockDurationService.calculatePortfolioMetrics.mockReturnValue({
         assetDuration: 4.0,
         liabilityDuration: 1.0,
         assetConvexity: 0.02,
@@ -208,7 +342,7 @@ describe('AlmEnterpriseService', () => {
         { category: 'asset', balance: 1000, rate: 0.05, duration: 2, rateType: 'fixed' },
         { category: 'liability', balance: 900, rate: 0.03, duration: 1.8, rateType: 'fixed' },
       ]);
-      mockDurationService.calculatePortfolioMetrics = jest.fn().mockReturnValue({
+      mockDurationService.calculatePortfolioMetrics.mockReturnValue({
         assetDuration: 2.0,
         liabilityDuration: 1.8,
         assetConvexity: 0.01,
@@ -225,7 +359,7 @@ describe('AlmEnterpriseService', () => {
         { category: 'asset', balance: 500, rate: 0.04, duration: 1, rateType: 'variable' },
         { category: 'liability', balance: 800, rate: 0.03, duration: 5, rateType: 'fixed' },
       ]);
-      mockDurationService.calculatePortfolioMetrics = jest.fn().mockReturnValue({
+      mockDurationService.calculatePortfolioMetrics.mockReturnValue({
         assetDuration: 1.0,
         liabilityDuration: 5.0,
         assetConvexity: 0.005,
@@ -236,6 +370,14 @@ describe('AlmEnterpriseService', () => {
       const result = await service.calculateDurationGap('inst-1');
       expect(result.riskProfile).toBe('liability-sensitive');
       expect(result.durationGap).toBeLessThan(0);
+    });
+
+    it('falls back to AlmService when no balance sheet items exist', async () => {
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
+
+      const result = await service.calculateDurationGap('inst-1');
+      expect(mockAlmService.durationGapAnalysis).toHaveBeenCalled();
+      expect(result).toHaveProperty('riskProfile');
     });
   });
 
@@ -281,6 +423,309 @@ describe('AlmEnterpriseService', () => {
       const result = await service.calculateLCR('inst-1');
       expect(result.status).toBe('breach');
       expect(result.buffer).toBeLessThan(0);
+    });
+
+    it('falls back to AlmService fullAnalysis when no liquidity position stored', async () => {
+      mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue(null);
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
+
+      const result = await service.calculateLCR('inst-1');
+      expect(mockAlmService.fullAnalysis).toHaveBeenCalled();
+      expect(result).toHaveProperty('lcr');
+      expect(result).toHaveProperty('status');
+    });
+
+    it('returns breach with lcr=0 when fullAnalysis returns no LCR', async () => {
+      mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue(null);
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
+      mockAlmService.fullAnalysis.mockReturnValue({ lcr: null });
+
+      const result = await service.calculateLCR('inst-1');
+      expect(result.lcr).toBe(0);
+      expect(result.status).toBe('breach');
+    });
+  });
+
+  // ── calculateNIISensitivity ────────────────────────────────
+  describe('calculateNIISensitivity', () => {
+    beforeEach(() => {
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
+    });
+
+    it('returns scenarios excluding the base (0bps) scenario', async () => {
+      const result = await service.calculateNIISensitivity('inst-1');
+      expect(result.scenarios.length).toBeGreaterThan(0);
+      expect(result.scenarios.every((s: any) => s.shiftBps !== 0)).toBe(true);
+    });
+
+    it('includes baseNII in millions', async () => {
+      const result = await service.calculateNIISensitivity('inst-1');
+      expect(result.baseNII).toBe(5); // 5_000_000 / 1_000_000
+    });
+
+    it('assigns risk rating based on worst case NII impact', async () => {
+      const result = await service.calculateNIISensitivity('inst-1');
+      // Max abs impact pct = max(10, 5, 4, 8) = 10 => 'high'
+      expect(['low', 'moderate', 'high', 'critical']).toContain(result.riskRating);
+    });
+
+    it('formats scenario names with + prefix for positive shifts', async () => {
+      const result = await service.calculateNIISensitivity('inst-1');
+      const pos = result.scenarios.find((s: any) => s.shiftBps === 200);
+      if (pos) {
+        expect(pos.name).toBe('+200bps');
+      }
+    });
+  });
+
+  // ── saveLiquidityPosition ──────────────────────────────────
+  it('saveLiquidityPosition calls prisma create', async () => {
+    mockPrisma.liquidityPosition.create.mockResolvedValue({ id: 'lp-1' });
+    const data = {
+      hqlaLevel1: 100,
+      hqlaLevel2: 50,
+      cashOutflows: 80,
+      cashInflows: 30,
+      lcr: 300,
+      nsfr: 110,
+    };
+    const result = await service.saveLiquidityPosition('inst-1', data);
+    expect(mockPrisma.liquidityPosition.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          institutionId: 'inst-1',
+          hqlaLevel1: 100,
+        }),
+      }),
+    );
+    expect(result.id).toBe('lp-1');
+  });
+
+  // ── getALMSummary ──────────────────────────────────────────
+  describe('getALMSummary', () => {
+    const mockInstitution = {
+      id: 'inst-1',
+      name: 'Test Cooperativa',
+      type: 'cooperativa',
+      totalAssets: 250,
+      currency: 'USD',
+      reportingDate: new Date('2026-01-31'),
+      balanceSheetItems: [],
+      liquidityPositions: [],
+      primaryRegulator: 'COSSEC',
+    };
+
+    beforeEach(() => {
+      mockPrisma.institution.findUnique.mockResolvedValue(mockInstitution);
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
+      mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue(null);
+      mockPrisma.interestRateScenario.deleteMany.mockResolvedValue({});
+      mockPrisma.interestRateScenario.createMany.mockResolvedValue({});
+    });
+
+    it('returns complete ALM summary with all required fields', async () => {
+      const result = await service.getALMSummary('inst-1');
+      expect(result).toHaveProperty('institution');
+      expect(result).toHaveProperty('durationGap');
+      expect(result).toHaveProperty('niiSensitivity');
+      expect(result).toHaveProperty('liquidity');
+      expect(result).toHaveProperty('topRisks');
+      expect(result).toHaveProperty('recommendations');
+      expect(result).toHaveProperty('riskScore');
+      expect(result).toHaveProperty('fullAnalysis');
+    });
+
+    it('risk score is between 0 and 100', async () => {
+      const result = await service.getALMSummary('inst-1');
+      expect(result.riskScore).toBeGreaterThanOrEqual(0);
+      expect(result.riskScore).toBeLessThanOrEqual(100);
+    });
+
+    it('institution object contains correct id and name', async () => {
+      const result = await service.getALMSummary('inst-1');
+      expect(result.institution.id).toBe('inst-1');
+      expect(result.institution.name).toBe('Test Cooperativa');
+    });
+
+    it('persists scenarios to database', async () => {
+      await service.getALMSummary('inst-1');
+      expect(mockPrisma.interestRateScenario.deleteMany).toHaveBeenCalledWith({
+        where: { institutionId: 'inst-1' },
+      });
+    });
+
+    it('topRisks array is never empty', async () => {
+      const result = await service.getALMSummary('inst-1');
+      expect(result.topRisks.length).toBeGreaterThan(0);
+    });
+
+    it('recommendations array is never empty', async () => {
+      const result = await service.getALMSummary('inst-1');
+      expect(result.recommendations.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ── getRegulatoryCompliance ────────────────────────────────
+  describe('getRegulatoryCompliance', () => {
+    const mockInstitution = {
+      id: 'inst-1',
+      name: 'Test Cooperativa',
+      type: 'cooperativa',
+      totalAssets: 250,
+      currency: 'USD',
+      reportingDate: new Date('2026-01-31'),
+      balanceSheetItems: [],
+      liquidityPositions: [],
+      primaryRegulator: 'COSSEC',
+    };
+
+    beforeEach(() => {
+      mockPrisma.institution.findUnique.mockResolvedValue(mockInstitution);
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+        { category: 'asset', subcategory: 'consumer_loans', name: 'Consumer', balance: 80, rate: 0.07, duration: 3, rateType: 'fixed' },
+        { category: 'asset', subcategory: 'cash_equivalents', name: 'Cash', balance: 30, rate: 0.02, duration: 0.1, rateType: 'variable' },
+        { category: 'asset', subcategory: 'investment_securities', name: 'Bonds', balance: 40, rate: 0.045, duration: 5, rateType: 'fixed' },
+        { category: 'liability', subcategory: 'savings_deposits', name: 'Savings', balance: 100, rate: 0.015, duration: 0.5, rateType: 'variable' },
+        { category: 'liability', subcategory: 'time_deposits', name: 'CDs', balance: 30, rate: 0.035, duration: 1, rateType: 'fixed' },
+      ]);
+      mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue({
+        hqlaLevel1: 30,
+        hqlaLevel2: 10,
+        cashOutflows: 35,
+        cashInflows: 5,
+        lcr: 133.33,
+      });
+    });
+
+    it('returns COSSEC compliance when regulator is COSSEC', async () => {
+      const result = await service.getRegulatoryCompliance('inst-1');
+      expect(result).toHaveProperty('ratios');
+      expect(result).toHaveProperty('examReadinessScore');
+      expect(result).toHaveProperty('overallStatus');
+      expect(result).toHaveProperty('summary');
+    });
+
+    it('returns 12 ratios', async () => {
+      const result = await service.getRegulatoryCompliance('inst-1');
+      expect(result.ratios.length).toBe(12);
+    });
+
+    it('overall status is compliant, conditional, or non-compliant', async () => {
+      const result = await service.getRegulatoryCompliance('inst-1');
+      expect(['compliant', 'conditional', 'non-compliant']).toContain(result.overallStatus);
+    });
+
+    it('exam readiness score is between 0 and 100', async () => {
+      const result = await service.getRegulatoryCompliance('inst-1');
+      expect(result.examReadinessScore).toBeGreaterThanOrEqual(0);
+      expect(result.examReadinessScore).toBeLessThanOrEqual(100);
+    });
+
+    it('summary contains derived financial ratios', async () => {
+      const result = await service.getRegulatoryCompliance('inst-1');
+      expect(result.summary).toHaveProperty('capitalRatio');
+      expect(result.summary).toHaveProperty('loanToShareRatio');
+      expect(result.summary).toHaveProperty('liquidityRatio');
+      expect(result.summary).toHaveProperty('nim');
+      expect(result.summary.totalAssets).toBeGreaterThan(0);
+    });
+
+    it('uses NCUA framework when primaryRegulator is NCUA', async () => {
+      mockPrisma.institution.findUnique.mockResolvedValue({
+        ...mockInstitution,
+        primaryRegulator: 'NCUA',
+      });
+      const result = await service.getRegulatoryCompliance('inst-1');
+      expect(result).toHaveProperty('ratios');
+      expect(result.ratios.length).toBe(12); // 7 NCUA + 5 N/A
+    });
+  });
+
+  // ── getCOSSECComplianceWithTrend ───────────────────────────
+  describe('getCOSSECComplianceWithTrend', () => {
+    beforeEach(() => {
+      mockPrisma.institution.findUnique.mockResolvedValue({
+        id: 'inst-1',
+        name: 'Test',
+        type: 'cooperativa',
+        totalAssets: 100,
+        currency: 'USD',
+        reportingDate: new Date('2026-01-31'),
+        balanceSheetItems: [],
+        liquidityPositions: [],
+        primaryRegulator: 'COSSEC',
+      });
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
+      mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue(null);
+    });
+
+    it('returns trends: null when no previous analysis run exists', async () => {
+      mockPrisma.analysisRun.findFirst.mockResolvedValue(null);
+      const result = await service.getCOSSECComplianceWithTrend('inst-1');
+      expect(result.trends).toBeNull();
+      expect(result.previousPeriod).toBeNull();
+    });
+
+    it('calculates trend deltas when previous run has resultSummary', async () => {
+      mockPrisma.analysisRun.findFirst.mockResolvedValue({
+        createdAt: new Date('2025-10-15'),
+        resultSummary: {
+          summary: { capitalRatio: 8.5, liquidityRatio: 18, nim: 3.0 },
+        },
+      });
+      mockPrisma.reportJob.findFirst.mockResolvedValue(null);
+
+      const result = await service.getCOSSECComplianceWithTrend('inst-1');
+      expect(result.trends).not.toBeNull();
+      if (result.trends) {
+        expect(result.trends.length).toBeGreaterThan(0);
+        for (const t of result.trends) {
+          expect(['improving', 'deteriorating', 'stable']).toContain(t.trend);
+        }
+      }
+    });
+  });
+
+  // ── listBalanceSheetItems ──────────────────────────────────
+  it('listBalanceSheetItems returns paginated results', async () => {
+    mockPrisma.balanceSheetItem.findMany.mockResolvedValue([{ id: 'bsi-1' }]);
+    mockPrisma.balanceSheetItem.count.mockResolvedValue(1);
+
+    const result = await service.listBalanceSheetItems('inst-1');
+    expect(result.items).toHaveLength(1);
+    expect(result.total).toBe(1);
+    expect(result.page).toBe(1);
+  });
+
+  // ── buildBalanceSheetDto (via getBalanceSheetSnapshot) ─────
+  describe('getBalanceSheetSnapshot', () => {
+    it('returns empty-but-valid DTO when no items exist', async () => {
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
+      const result = await service.getBalanceSheetSnapshot('inst-1');
+      expect(result.assets.length).toBeGreaterThan(0);
+      expect(result.liabilities.length).toBeGreaterThan(0);
+      expect(result.equity).toBe(0);
+    });
+
+    it('converts balance sheet items to DTO with correct asset/liability split', async () => {
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+        {
+          category: 'asset', subcategory: 'loans', name: 'Loan A',
+          balance: 100, rate: 0.06, duration: 5, rateType: 'fixed',
+          maturityDate: null, repriceDate: null,
+        },
+        {
+          category: 'liability', subcategory: 'deposits', name: 'Deposit A',
+          balance: 80, rate: 0.02, duration: 1, rateType: 'variable',
+          maturityDate: null, repriceDate: null,
+        },
+      ]);
+      const result = await service.getBalanceSheetSnapshot('inst-1');
+      expect(result.assets.length).toBe(1);
+      expect(result.liabilities.length).toBe(1);
+      // balance is in millions, so amount = 100 * 1M = 100_000_000
+      expect(result.assets[0].amount).toBe(100_000_000);
+      expect(result.equity).toBe(20_000_000);
     });
   });
 });

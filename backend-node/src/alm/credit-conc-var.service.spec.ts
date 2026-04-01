@@ -54,6 +54,11 @@ describe('CreditConcentrationVaRService', () => {
     }
   });
 
+  it('demo narrativeEs is in Spanish', async () => {
+    const result = await svc.compute('inst-1');
+    expect(result.narrativeEs).toContain('concentraci');
+  });
+
   // ── Concentration VaR with real segment data ───────────────
   describe('with real loan segments', () => {
     let svcReal: CreditConcentrationVaRService;
@@ -96,6 +101,56 @@ describe('CreditConcentrationVaRService', () => {
       const result = await svcReal.compute('inst-1');
       expect(result.topConcentrations.length).toBeLessThanOrEqual(5);
       expect(result.topConcentrations.length).toBe(3); // we have 3 segments
+    });
+
+    it('top concentration shares sum to 1.0', async () => {
+      const result = await svcReal.compute('inst-1');
+      const totalShare = result.topConcentrations.reduce(
+        (s, c) => s + c.shareOfPortfolio,
+        0,
+      );
+      expect(totalShare).toBeCloseTo(1.0, 1);
+    });
+
+    it('each segment has positive expected loss (EL) and unexpected loss (UL)', async () => {
+      const result = await svcReal.compute('inst-1');
+      for (const conc of result.topConcentrations) {
+        expect(conc.el).toBeGreaterThan(0);
+        expect(conc.ul).toBeGreaterThan(0);
+      }
+    });
+
+    it('diversified VaR is positive', async () => {
+      const result = await svcReal.compute('inst-1');
+      expect(result.diversifiedVaR).toBeGreaterThan(0);
+    });
+
+    it('concentration VaR exceeds diversified VaR by the granularity adjustment', async () => {
+      const result = await svcReal.compute('inst-1');
+      expect(result.concentrationVaR).toBeCloseTo(
+        result.diversifiedVaR + result.granularityAdjustment,
+        1,
+      );
+    });
+  });
+
+  // ── Well-diversified portfolio ─────────────────────────────
+  describe('with well-diversified portfolio', () => {
+    it('reports low HHI for many equal-sized segments', async () => {
+      const segments = Array.from({ length: 10 }, (_, i) => ({
+        segmentName: `Segment${i}`,
+        balance: 1000,
+        historicalLossRate: 0.02,
+        lgd: 0.4,
+      }));
+      const mockPrisma = {
+        loanSegment: { findMany: jest.fn().mockResolvedValue(segments) },
+      } as any;
+      const svcDiversified = new CreditConcentrationVaRService(mockPrisma);
+      const result = await svcDiversified.compute('inst-1');
+      // HHI for 10 equal segments = 10 * (0.1)^2 = 0.1
+      expect(result.herfindahlIndex).toBeCloseTo(0.1, 1);
+      expect(result.narrativeEn).toContain('Well-diversified');
     });
   });
 
