@@ -45,8 +45,8 @@ export default function WhyCerniqPage() {
           </h1>
           <p className="mt-4 text-lg text-slate-600 leading-relaxed">
             {t(
-              '70+ analytical modules, 70 quant models, bilingual reporting — all for less than what you pay a consultant for one report.',
-              '70+ módulos analíticos, 70 modelos cuantitativos, informes bilingües — todo por menos de lo que paga a un consultor por un informe.'
+              '200+ analytical modules, 170+ quant models, bilingual reporting — all for less than what you pay a consultant for one report.',
+              '200+ módulos analíticos, 170+ modelos cuantitativos, informes bilingües — todo por menos de lo que paga a un consultor por un informe.'
             )}
           </p>
         </section>

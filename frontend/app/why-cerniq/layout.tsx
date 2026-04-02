@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Why CERNIQ — ALM Intelligence for PR Cooperativas',
-  description: '6 reasons cooperativas choose CERNIQ: 83% cost savings, 24-hour delivery, COSSEC compliance, bilingual EN/ES, 70+ ALM modules, 70 quant models.',
+  description: '6 reasons cooperativas choose CERNIQ: 83% cost savings, 24-hour delivery, COSSEC compliance, bilingual EN/ES, 200+ ALM modules, 170+ quant models.',
   alternates: { canonical: '/why-cerniq' },
   openGraph: {
     title: 'Why CERNIQ — Built for Puerto Rico Cooperativas',
