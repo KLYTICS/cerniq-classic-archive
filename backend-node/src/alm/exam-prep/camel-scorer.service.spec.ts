@@ -193,7 +193,7 @@ describe('CAMELScorerService', () => {
       { category: 'liability', subcategory: 'deposits', balance: 85, rate: 0.02 },
     ]);
     const result = await service.scoreInstitution('inst-comp');
-    expect(result).toHaveProperty('compositeScore');
+    expect(result).toHaveProperty('composite');
     expect(result).toHaveProperty('compositeRating');
     expect(result).toHaveProperty('components');
     expect(result.components.length).toBe(5); // C, A, M, E, L

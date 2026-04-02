@@ -195,20 +195,20 @@ describe('ConcentrationService', () => {
   // ── Coverage: custom limits ─────────────────────────────────
   it('uses custom concentration limits when available', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { category: 'asset', subcategory: 'Commercial RE', balance: 50 },
-      { category: 'asset', subcategory: 'Residential Mortgage', balance: 50 },
+      { category: 'asset', subcategory: 'Commercial RE', balance: 30 },
+      { category: 'asset', subcategory: 'Residential Mortgage', balance: 70 },
     ]);
     prisma.concentrationLimit.findMany.mockResolvedValue([
       { limitName: 'Commercial RE', limitType: 'sector', maxPct: 0.6 },
-      { limitName: 'Residential Mortgage', limitType: 'sector', maxPct: 0.4 },
+      { limitName: 'Residential Mortgage', limitType: 'sector', maxPct: 0.5 },
     ]);
 
     const result = await service.getConcentrationAnalysis('inst-custom');
     expect(result.exposures).toHaveLength(2);
-    // 50% in Commercial RE vs 60% limit => compliant
+    // 30% in Commercial RE vs 60% limit => compliant (utilization 50%)
     const cre = result.exposures.find(e => e.limitName === 'Commercial RE');
     expect(cre!.status).toBe('compliant');
-    // 50% in Residential vs 40% limit => breach
+    // 70% in Residential vs 50% limit => breach
     const res = result.exposures.find(e => e.limitName === 'Residential Mortgage');
     expect(res!.status).toBe('breach');
   });

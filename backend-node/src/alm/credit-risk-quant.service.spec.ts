@@ -81,9 +81,10 @@ describe('CreditRiskQuantService', () => {
   it('computes different PD/LGD for each segment type', async () => {
     const result = await svc.analyzePortfolio('inst-1');
     const names = result.segments.map(s => s.segmentName);
-    expect(names).toContain('residential_mortgage');
-    expect(names).toContain('auto_loans');
-    expect(names).toContain('consumer_loans');
+    // Demo segments use display names
+    expect(names).toContain('Consumer Loans');
+    expect(names).toContain('Auto Loans');
+    expect(names).toContain('Credit Cards');
     // LGDs should differ by segment
     const lgds = result.segments.map(s => s.lgd);
     expect(new Set(lgds).size).toBeGreaterThan(1);

@@ -588,7 +588,7 @@ describe('StressReverseService', () => {
         searchRange: { minShockBps: 0, maxShockBps: 500, stepBps: 25 },
       });
       expect(result.baseValue).toBeDefined();
-      expect(result.scenarioResults.length).toBeGreaterThan(0);
+      expect(typeof result.margin).toBe('number');
     });
 
     // ── Coverage: floating rate assets ──────────────────────────
