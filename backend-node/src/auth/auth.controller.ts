@@ -259,7 +259,9 @@ export class AuthController {
     const tokens = await this.authService.generateTokens(user);
     setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
     const frontendUrl = resolveFrontendUrl();
-    res.redirect(`${frontendUrl}/dashboard`);
+    res.redirect(
+      `${frontendUrl}/auth/callback?returnUrl=${encodeURIComponent('/dashboard')}`,
+    );
   }
 
   // --- OAuth: GitHub ---
@@ -276,6 +278,8 @@ export class AuthController {
     const tokens = await this.authService.generateTokens(user);
     setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
     const frontendUrl = resolveFrontendUrl();
-    res.redirect(`${frontendUrl}/dashboard`);
+    res.redirect(
+      `${frontendUrl}/auth/callback?returnUrl=${encodeURIComponent('/dashboard')}`,
+    );
   }
 }
