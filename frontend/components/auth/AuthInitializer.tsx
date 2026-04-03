@@ -1,8 +1,14 @@
 'use client';
 
-import { useLayoutEffect, useRef } from 'react';
-import { usePathname } from 'next/navigation';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
+import {
+  ACCESS_REQUIRED_ROUTE,
+  hasPlatformAccess,
+  isProtectedAppPath,
+} from '@/lib/access';
+import { APP_NAVIGATION_EVENT, buildLoginRedirectUrl } from '@/lib/api';
 
 const AUTH_ROUTE_PREFIXES = [
   '/auth',
@@ -12,6 +18,8 @@ const AUTH_ROUTE_PREFIXES = [
   '/portfolios',
   '/risk-analytics',
   '/settings',
+  '/alm',
+  ACCESS_REQUIRED_ROUTE,
 ];
 
 const ANONYMOUS_ENTRY_ROUTES = new Set([
@@ -40,7 +48,9 @@ function isAuthRelevantPath(pathname: string | null) {
     return false;
   }
 
-  return AUTH_ROUTE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  return AUTH_ROUTE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 }
 
 function isAnonymousEntryRoute(pathname: string | null) {
@@ -49,9 +59,14 @@ function isAnonymousEntryRoute(pathname: string | null) {
 
 export default function AuthInitializer() {
   const pathname = usePathname();
+  const router = useRouter();
   const initialized = useAuthStore((state) => state.initialized);
+  const access = useAuthStore((state) => state.access);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const hydrateFromStorage = useAuthStore((state) => state.hydrateFromStorage);
-  const initializeAnonymous = useAuthStore((state) => state.initializeAnonymous);
+  const initializeAnonymous = useAuthStore(
+    (state) => state.initializeAnonymous,
+  );
   const scopeRef = useRef<'auth' | 'public' | null>(null);
 
   useLayoutEffect(() => {
@@ -64,7 +79,7 @@ export default function AuthInitializer() {
     scopeRef.current = nextScope;
 
     if (!shouldHydrate) {
-      if (anonymousEntry && !initialized) {
+      if (enteringNewScope || !initialized) {
         initializeAnonymous();
       }
       return;
@@ -74,6 +89,58 @@ export default function AuthInitializer() {
       void hydrateFromStorage();
     }
   }, [pathname, initialized, hydrateFromStorage, initializeAnonymous]);
+
+  useLayoutEffect(() => {
+    if (!initialized || !pathname || !isProtectedAppPath(pathname)) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      if (pathname !== ACCESS_REQUIRED_ROUTE) {
+        const search =
+          typeof window !== 'undefined' ? window.location.search : '';
+        router.replace(buildLoginRedirectUrl(pathname, search));
+      }
+      return;
+    }
+
+    if (
+      access &&
+      !hasPlatformAccess(access) &&
+      pathname !== ACCESS_REQUIRED_ROUTE
+    ) {
+      router.replace(ACCESS_REQUIRED_ROUTE);
+    }
+  }, [pathname, initialized, isAuthenticated, access, router]);
+
+  useEffect(() => {
+    function handleAppNavigation(event: Event) {
+      const detail = (
+        event as CustomEvent<{ href?: string; replace?: boolean }>
+      ).detail;
+      if (!detail?.href) {
+        return;
+      }
+
+      if (detail.replace === false) {
+        router.push(detail.href);
+        return;
+      }
+
+      router.replace(detail.href);
+    }
+
+    window.addEventListener(
+      APP_NAVIGATION_EVENT,
+      handleAppNavigation as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        APP_NAVIGATION_EVENT,
+        handleAppNavigation as EventListener,
+      );
+    };
+  }, [router]);
 
   return null;
 }

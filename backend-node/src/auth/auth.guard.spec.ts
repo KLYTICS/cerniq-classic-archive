@@ -1,7 +1,10 @@
 import { ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
+import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
+import { PlatformAccessService } from './platform-access.service';
 
 describe('AuthGuard', () => {
   const originalEnv = { ...process.env };
@@ -15,8 +18,94 @@ describe('AuthGuard', () => {
     return {
       switchToHttp: () => ({
         getRequest: () => request,
+        getResponse: () => ({ setHeader: jest.fn() }),
       }),
-    } as ExecutionContext;
+      getHandler: () => undefined,
+      getClass: () => undefined,
+    } as unknown as ExecutionContext;
+  }
+
+  function createGuard(overrides?: {
+    jwtService?: JwtService;
+    prisma?: PrismaService;
+    authService?: AuthService;
+    reflector?: Reflector;
+    platformAccess?: PlatformAccessService;
+  }) {
+    const jwtService =
+      overrides?.jwtService ||
+      ({
+        decode: jest.fn(),
+        verify: jest.fn(),
+      } as unknown as JwtService);
+
+    const prisma =
+      overrides?.prisma ||
+      ({
+        user: {
+          findUnique: jest.fn().mockResolvedValue({ role: 'authenticated' }),
+        },
+        apiKey: {
+          findUnique: jest.fn(),
+          update: jest.fn().mockResolvedValue({}),
+        },
+      } as unknown as PrismaService);
+
+    const authService =
+      overrides?.authService ||
+      ({
+        resolveApplicationUser: jest
+          .fn()
+          .mockImplementation(
+            async ({
+              authUserId,
+              email,
+            }: {
+              authUserId: string;
+              email?: string | null;
+            }) => ({
+              id: authUserId,
+              email: email || 'user@cerniq.io',
+              role: 'authenticated',
+            }),
+          ),
+      } as unknown as AuthService);
+
+    const reflector =
+      overrides?.reflector ||
+      ({
+        getAllAndOverride: jest.fn().mockReturnValue(false),
+      } as unknown as Reflector);
+
+    const platformAccess =
+      overrides?.platformAccess ||
+      ({
+        isMasterAccountEmail: jest.fn().mockReturnValue(false),
+        getAccessForUser: jest.fn().mockResolvedValue({
+          platformAccessAllowed: true,
+          isMasterCeo: false,
+          isPaid: true,
+          effectiveTier: 'monthly',
+          effectiveStatus: 'active',
+          reason: 'paid',
+        }),
+        buildForbiddenPayload: jest.fn(),
+      } as unknown as PlatformAccessService);
+
+    return {
+      guard: new AuthGuard(
+        authService,
+        jwtService,
+        prisma,
+        reflector,
+        platformAccess,
+      ),
+      jwtService,
+      prisma,
+      authService,
+      reflector,
+      platformAccess,
+    };
   }
 
   it('accepts CERNIQ legacy access tokens even when Supabase is configured', async () => {
@@ -33,8 +122,33 @@ describe('AuthGuard', () => {
       }),
     } as unknown as JwtService;
 
-    const prisma = {} as PrismaService;
-    const guard = new AuthGuard(jwtService, prisma);
+    const authService = {
+      resolveApplicationUser: jest.fn().mockResolvedValue({
+        id: 'user-123',
+        email: 'operator@cerniq.io',
+        role: 'OWNER',
+      }),
+    } as unknown as AuthService;
+
+    const platformAccess = {
+      isMasterAccountEmail: jest.fn().mockReturnValue(false),
+      getAccessForUser: jest.fn().mockResolvedValue({
+        platformAccessAllowed: true,
+        isMasterCeo: false,
+        isPaid: true,
+        effectiveTier: 'monthly',
+        effectiveStatus: 'active',
+        reason: 'paid',
+      }),
+      buildForbiddenPayload: jest.fn(),
+    } as unknown as PlatformAccessService;
+
+    const { guard } = createGuard({
+      jwtService,
+      authService,
+      platformAccess,
+      prisma: {} as PrismaService,
+    });
 
     const fetchSpy = jest.spyOn(global, 'fetch');
     const request: Record<string, unknown> = {
@@ -45,6 +159,13 @@ describe('AuthGuard', () => {
 
     await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
     expect(fetchSpy).not.toHaveBeenCalled();
+    expect(authService.resolveApplicationUser).toHaveBeenCalled();
+    expect(platformAccess.getAccessForUser).toHaveBeenCalledWith(
+      'user-123',
+      'operator@cerniq.io',
+      undefined,
+      'OWNER',
+    );
     expect(request.user).toMatchObject({
       userId: 'user-123',
       email: 'operator@cerniq.io',
@@ -52,14 +173,72 @@ describe('AuthGuard', () => {
     });
   });
 
-  it('throws UnauthorizedException when no token and no API key', async () => {
+  it('elevates the master CEO account to OWNER when access is granted by bypass', async () => {
     const jwtService = {
-      decode: jest.fn(),
-      verify: jest.fn(),
+      decode: jest.fn().mockReturnValue({ type: 'access' }),
+      verify: jest.fn().mockReturnValue({
+        sub: 'user-ceo',
+        email: 'data.ai.kiess@gmail.com',
+        type: 'access',
+      }),
     } as unknown as JwtService;
 
-    const prisma = {} as PrismaService;
-    const guard = new AuthGuard(jwtService, prisma);
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue({ role: 'VIEWER' }),
+      },
+    } as unknown as PrismaService;
+
+    const authService = {
+      resolveApplicationUser: jest.fn().mockResolvedValue({
+        id: 'user-ceo',
+        email: 'data.ai.kiess@gmail.com',
+        role: 'VIEWER',
+      }),
+    } as unknown as AuthService;
+
+    const platformAccess = {
+      isMasterAccountEmail: jest.fn().mockReturnValue(true),
+      getAccessForUser: jest.fn().mockResolvedValue({
+        platformAccessAllowed: true,
+        isMasterCeo: true,
+        isPaid: false,
+        effectiveTier: 'free',
+        effectiveStatus: null,
+        reason: 'master_ceo',
+      }),
+      buildForbiddenPayload: jest.fn(),
+    } as unknown as PlatformAccessService;
+
+    const { guard } = createGuard({
+      jwtService,
+      prisma,
+      authService,
+      platformAccess,
+    });
+
+    const request: Record<string, unknown> = {
+      cookies: { access_token: 'ceo-token' },
+      headers: {},
+      method: 'GET',
+    };
+
+    await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
+    expect(platformAccess.getAccessForUser).toHaveBeenCalledWith(
+      'user-ceo',
+      'data.ai.kiess@gmail.com',
+      undefined,
+      'VIEWER',
+    );
+    expect(request.user).toMatchObject({
+      userId: 'user-ceo',
+      email: 'data.ai.kiess@gmail.com',
+      role: 'OWNER',
+    });
+  });
+
+  it('throws UnauthorizedException when no token and no API key', async () => {
+    const { guard } = createGuard();
 
     const request: Record<string, unknown> = {
       cookies: {},
@@ -67,7 +246,9 @@ describe('AuthGuard', () => {
       method: 'GET',
     };
 
-    await expect(guard.canActivate(createContext(request))).rejects.toThrow('Invalid or expired token');
+    await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+      'Invalid or expired token',
+    );
   });
 
   it('extracts Bearer token from Authorization header', async () => {
@@ -80,8 +261,10 @@ describe('AuthGuard', () => {
       }),
     } as unknown as JwtService;
 
-    const prisma = {} as PrismaService;
-    const guard = new AuthGuard(jwtService, prisma);
+    const { guard } = createGuard({
+      jwtService,
+      prisma: {} as PrismaService,
+    });
 
     const request: Record<string, unknown> = {
       headers: { authorization: 'Bearer my-jwt-token' },
@@ -93,11 +276,6 @@ describe('AuthGuard', () => {
   });
 
   it('sets X-API-Key-Expires-In-Days header when key expires within 14 days', async () => {
-    const jwtService = {
-      decode: jest.fn(),
-      verify: jest.fn(),
-    } as unknown as JwtService;
-
     const expiresInDays = 7;
     const expiresAt = new Date(Date.now() + expiresInDays * 86_400_000);
 
@@ -115,7 +293,9 @@ describe('AuthGuard', () => {
       },
     } as unknown as PrismaService;
 
-    const guard = new AuthGuard(jwtService, prisma);
+    const { guard } = createGuard({
+      prisma,
+    });
 
     const responseHeaders: Record<string, string> = {};
     const ctx = {
@@ -125,23 +305,21 @@ describe('AuthGuard', () => {
           method: 'GET',
         }),
         getResponse: () => ({
-          setHeader: (name: string, value: string) => { responseHeaders[name] = value; },
+          setHeader: (name: string, value: string) => {
+            responseHeaders[name] = value;
+          },
         }),
       }),
-    } as ExecutionContext;
+      getHandler: () => undefined,
+      getClass: () => undefined,
+    } as unknown as ExecutionContext;
 
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
     expect(responseHeaders['X-API-Key-Expires-In-Days']).toBeDefined();
-    expect(responseHeaders['Warning']).toContain('API key expires');
+    expect(responseHeaders.Warning).toContain('API key expires');
   });
 
   it('throws ForbiddenException for non-GET API key requests', async () => {
-    const { ForbiddenException } = require('@nestjs/common');
-    const jwtService = {
-      decode: jest.fn(),
-      verify: jest.fn(),
-    } as unknown as JwtService;
-
     const prisma = {
       apiKey: {
         findUnique: jest.fn().mockResolvedValue({
@@ -156,22 +334,19 @@ describe('AuthGuard', () => {
       },
     } as unknown as PrismaService;
 
-    const guard = new AuthGuard(jwtService, prisma);
+    const { guard } = createGuard({ prisma });
 
     const request: Record<string, unknown> = {
       headers: { 'x-api-key': 'ck_live_test_key' },
-      method: 'POST', // Non-read-only
+      method: 'POST',
     };
 
-    await expect(guard.canActivate(createContext(request))).rejects.toThrow('API keys are read-only');
+    await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+      'API keys are read-only',
+    );
   });
 
   it('rejects revoked API keys', async () => {
-    const jwtService = {
-      decode: jest.fn(),
-      verify: jest.fn(),
-    } as unknown as JwtService;
-
     const prisma = {
       apiKey: {
         findUnique: jest.fn().mockResolvedValue({
@@ -185,22 +360,19 @@ describe('AuthGuard', () => {
       },
     } as unknown as PrismaService;
 
-    const guard = new AuthGuard(jwtService, prisma);
+    const { guard } = createGuard({ prisma });
 
     const request: Record<string, unknown> = {
       headers: { 'x-api-key': 'ck_live_revoked_key' },
       method: 'GET',
     };
 
-    await expect(guard.canActivate(createContext(request))).rejects.toThrow('Invalid or expired token');
+    await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+      'Invalid or expired token',
+    );
   });
 
   it('rejects expired API keys', async () => {
-    const jwtService = {
-      decode: jest.fn(),
-      verify: jest.fn(),
-    } as unknown as JwtService;
-
     const prisma = {
       apiKey: {
         findUnique: jest.fn().mockResolvedValue({
@@ -208,20 +380,22 @@ describe('AuthGuard', () => {
           keyHash: 'hash',
           keyPrefix: 'ck_live_',
           revokedAt: null,
-          expiresAt: new Date('2020-01-01'), // Expired
+          expiresAt: new Date('2020-01-01'),
           user: { id: 'user-key', email: 'apiuser@test.com' },
         }),
       },
     } as unknown as PrismaService;
 
-    const guard = new AuthGuard(jwtService, prisma);
+    const { guard } = createGuard({ prisma });
 
     const request: Record<string, unknown> = {
       headers: { 'x-api-key': 'ck_live_expired_key' },
       method: 'GET',
     };
 
-    await expect(guard.canActivate(createContext(request))).rejects.toThrow('Invalid or expired token');
+    await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+      'Invalid or expired token',
+    );
   });
 
   it('enforces org access when KLYTICS_REQUIRE_ORG is true', async () => {
@@ -238,13 +412,19 @@ describe('AuthGuard', () => {
       }),
     } as unknown as JwtService;
 
-    const prisma = {
-      user: { findUnique: jest.fn().mockResolvedValue({ role: 'authenticated' }) },
-    } as unknown as PrismaService;
+    const authService = {
+      resolveApplicationUser: jest.fn().mockResolvedValue({
+        id: 'user-org-test',
+        email: 'org@test.com',
+        role: 'authenticated',
+      }),
+    } as unknown as AuthService;
 
-    const guard = new AuthGuard(jwtService, prisma);
+    const { guard } = createGuard({
+      jwtService,
+      authService,
+    });
 
-    // No org header and no orgId in token => should fail
     const request: Record<string, unknown> = {
       cookies: { access_token: 'valid-token' },
       headers: {},
@@ -262,23 +442,29 @@ describe('AuthGuard', () => {
     process.env.SUPABASE_ANON_KEY = 'anon';
 
     const jwtService = {
-      decode: jest.fn().mockReturnValue({ some: 'claim' }), // Not type=access
+      decode: jest.fn().mockReturnValue({ some: 'claim' }),
       verify: jest.fn().mockReturnValue({
         sub: 'user-legacy',
         email: 'legacy@test.com',
       }),
     } as unknown as JwtService;
 
-    // Mock Supabase fetch to fail
+    const authService = {
+      resolveApplicationUser: jest.fn().mockResolvedValue({
+        id: 'user-legacy',
+        email: 'legacy@test.com',
+        role: 'authenticated',
+      }),
+    } as unknown as AuthService;
+
     const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: false,
     } as Response);
 
-    const prisma = {
-      user: { findUnique: jest.fn().mockResolvedValue(null) },
-    } as unknown as PrismaService;
-
-    const guard = new AuthGuard(jwtService, prisma);
+    const { guard } = createGuard({
+      jwtService,
+      authService,
+    });
 
     const request: Record<string, unknown> = {
       headers: { authorization: 'Bearer some-token' },
@@ -292,14 +478,13 @@ describe('AuthGuard', () => {
     delete process.env.AUTH_ALLOW_LEGACY;
   });
 
-  it('resolves role from database when available', async () => {
+  it('preserves the provisioned role when token auth already resolved one', async () => {
     const jwtService = {
       decode: jest.fn().mockReturnValue({ type: 'access' }),
       verify: jest.fn().mockReturnValue({
         sub: 'user-db-role',
         email: 'role@test.com',
         type: 'access',
-        role: 'authenticated',
       }),
     } as unknown as JwtService;
 
@@ -307,7 +492,19 @@ describe('AuthGuard', () => {
       user: { findUnique: jest.fn().mockResolvedValue({ role: 'admin' }) },
     } as unknown as PrismaService;
 
-    const guard = new AuthGuard(jwtService, prisma);
+    const authService = {
+      resolveApplicationUser: jest.fn().mockResolvedValue({
+        id: 'user-db-role',
+        email: 'role@test.com',
+        role: undefined,
+      }),
+    } as unknown as AuthService;
+
+    const { guard } = createGuard({
+      jwtService,
+      prisma,
+      authService,
+    });
 
     const request: Record<string, unknown> = {
       cookies: { access_token: 'valid-token' },
@@ -316,7 +513,7 @@ describe('AuthGuard', () => {
     };
 
     await guard.canActivate(createContext(request));
-    expect((request.user as any).role).toBe('admin');
+    expect((request.user as any).role).toBe('authenticated');
   });
 
   it('falls back to token role when DB lookup fails', async () => {
@@ -334,7 +531,19 @@ describe('AuthGuard', () => {
       user: { findUnique: jest.fn().mockRejectedValue(new Error('DB down')) },
     } as unknown as PrismaService;
 
-    const guard = new AuthGuard(jwtService, prisma);
+    const authService = {
+      resolveApplicationUser: jest.fn().mockResolvedValue({
+        id: 'user-db-err',
+        email: 'err@test.com',
+        role: undefined,
+      }),
+    } as unknown as AuthService;
+
+    const { guard } = createGuard({
+      jwtService,
+      prisma,
+      authService,
+    });
 
     const request: Record<string, unknown> = {
       cookies: { access_token: 'valid-token' },

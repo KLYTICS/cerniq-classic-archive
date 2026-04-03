@@ -8,6 +8,7 @@ import { RolesGuard } from './roles.guard';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { GithubStrategy } from './strategies/github.strategy';
+import { PlatformAccessService } from './platform-access.service';
 
 @Global()
 @Module({
@@ -23,10 +24,17 @@ import { GithubStrategy } from './strategies/github.strategy';
     AuthService,
     AuthGuard,
     RolesGuard,
+    PlatformAccessService,
     JwtStrategy,
     GoogleStrategy,
     GithubStrategy,
   ],
-  exports: [AuthService, AuthGuard, RolesGuard, JwtModule],
+  exports: [
+    AuthService,
+    AuthGuard,
+    RolesGuard,
+    PlatformAccessService,
+    JwtModule,
+  ],
 })
 export class AuthModule {}

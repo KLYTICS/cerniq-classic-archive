@@ -12,6 +12,7 @@ import { AuditService } from '../audit/audit.service';
 import { AlcoPackService } from '../pipeline/alco-pack.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { PlatformAccessService } from '../auth/platform-access.service';
 
 jest.mock('../prisma.service', () => ({
   PrismaService: jest.fn().mockImplementation(() => ({})),
@@ -28,6 +29,7 @@ describe('PortalController', () => {
   let billing: Record<string, jest.Mock>;
   let audit: Record<string, jest.Mock>;
   let alcoPackService: Record<string, jest.Mock>;
+  let platformAccess: Record<string, jest.Mock>;
 
   const mockReq = (userId = 'user-1') => ({
     user: { userId },
@@ -99,6 +101,21 @@ describe('PortalController', () => {
       generatePack: jest.fn(),
     };
 
+    platformAccess = {
+      getAccessForUser: jest.fn().mockResolvedValue({
+        platformAccessAllowed: true,
+        isMasterCeo: false,
+        isPaid: true,
+        effectiveTier: 'monthly',
+        effectiveStatus: 'active',
+        reason: 'paid',
+      }),
+      buildForbiddenPayload: jest.fn().mockImplementation((access) => ({
+        code: 'PLATFORM_ACCESS_REQUIRED',
+        access,
+      })),
+    };
+
     prisma.subscription.findUnique.mockResolvedValue({
       tier: 'monthly',
       status: 'active',
@@ -116,6 +133,7 @@ describe('PortalController', () => {
         { provide: BillingService, useValue: billing },
         { provide: AuditService, useValue: audit },
         { provide: AlcoPackService, useValue: alcoPackService },
+        { provide: PlatformAccessService, useValue: platformAccess },
       ],
     })
       .overrideGuard(AuthGuard)
@@ -149,7 +167,14 @@ describe('PortalController', () => {
     });
 
     it('should block free accounts from listing jobs', async () => {
-      prisma.subscription.findUnique.mockResolvedValueOnce(null);
+      platformAccess.getAccessForUser.mockResolvedValueOnce({
+        platformAccessAllowed: false,
+        isMasterCeo: false,
+        isPaid: false,
+        effectiveTier: 'free',
+        effectiveStatus: null,
+        reason: 'subscription_required',
+      });
 
       await expect(controller.listJobs(mockReq())).rejects.toThrow(
         ForbiddenException,
@@ -340,9 +365,13 @@ describe('PortalController', () => {
     });
 
     it('should block free accounts from submitting data', async () => {
-      prisma.subscription.findUnique.mockResolvedValueOnce({
-        tier: 'free',
-        status: 'active',
+      platformAccess.getAccessForUser.mockResolvedValueOnce({
+        platformAccessAllowed: false,
+        isMasterCeo: false,
+        isPaid: false,
+        effectiveTier: 'free',
+        effectiveStatus: null,
+        reason: 'subscription_required',
       });
 
       await expect(
@@ -503,9 +532,7 @@ describe('PortalController', () => {
         createdAt: new Date(),
         lastLoginAt: null,
       });
-      prisma.subscription.findUnique
-        .mockResolvedValueOnce({ tier: 'monthly', status: 'active' })
-        .mockResolvedValueOnce(null);
+      prisma.subscription.findUnique.mockResolvedValueOnce(null);
       prisma.workspace.findMany.mockResolvedValue([]);
 
       const result = await controller.getSettings(mockReq());
@@ -514,7 +541,14 @@ describe('PortalController', () => {
     });
 
     it('should block free tier users from settings', async () => {
-      prisma.subscription.findUnique.mockResolvedValueOnce(null);
+      platformAccess.getAccessForUser.mockResolvedValueOnce({
+        platformAccessAllowed: false,
+        isMasterCeo: false,
+        isPaid: false,
+        effectiveTier: 'free',
+        effectiveStatus: null,
+        reason: 'subscription_required',
+      });
 
       await expect(controller.getSettings(mockReq())).rejects.toThrow(
         ForbiddenException,

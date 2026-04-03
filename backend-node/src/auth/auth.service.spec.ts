@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma.service';
+import { PlatformAccessService } from './platform-access.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -27,6 +28,7 @@ describe('AuthService', () => {
       updateMany: jest.Mock;
     };
     workspace: {
+      findFirst: jest.Mock;
       create: jest.Mock;
     };
     passwordResetToken: {
@@ -43,6 +45,10 @@ describe('AuthService', () => {
     $transaction: jest.Mock;
   };
   let jwtService: { sign: jest.Mock; verify: jest.Mock };
+  let platformAccess: {
+    evaluateAccess: jest.Mock;
+    isMasterAccountEmail: jest.Mock;
+  };
 
   beforeEach(async () => {
     prisma = {
@@ -60,6 +66,7 @@ describe('AuthService', () => {
         updateMany: jest.fn(),
       },
       workspace: {
+        findFirst: jest.fn(),
         create: jest.fn(),
       },
       passwordResetToken: {
@@ -81,11 +88,26 @@ describe('AuthService', () => {
       verify: jest.fn(),
     };
 
+    platformAccess = {
+      isMasterAccountEmail: jest.fn((email?: string | null) => {
+        return (email || '').trim().toLowerCase() === 'data.ai.kiess@gmail.com';
+      }),
+      evaluateAccess: jest.fn().mockReturnValue({
+        platformAccessAllowed: true,
+        isMasterCeo: false,
+        isPaid: true,
+        effectiveTier: 'monthly',
+        effectiveStatus: 'active',
+        reason: 'paid',
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwtService },
+        { provide: PlatformAccessService, useValue: platformAccess },
       ],
     }).compile();
 
@@ -102,6 +124,7 @@ describe('AuthService', () => {
         email: 'new@example.com',
         name: 'New User',
       });
+      prisma.workspace.findFirst.mockResolvedValue(null);
       prisma.workspace.create.mockResolvedValue({});
       prisma.refreshToken.create.mockResolvedValue({});
 
@@ -123,6 +146,7 @@ describe('AuthService', () => {
         email: 'test@example.com',
         name: 'Test',
       });
+      prisma.workspace.findFirst.mockResolvedValue(null);
       prisma.workspace.create.mockResolvedValue({});
       prisma.refreshToken.create.mockResolvedValue({});
 
@@ -166,6 +190,122 @@ describe('AuthService', () => {
     });
   });
 
+  describe('resolveApplicationUser', () => {
+    it('should auto-provision an authenticated app user and workspace when missing', async () => {
+      prisma.user.findUnique.mockResolvedValueOnce(null);
+      prisma.user.findUnique.mockResolvedValueOnce(null);
+      prisma.user.create.mockResolvedValue({
+        id: 'auth-user-id',
+        email: 'data.ai.kiess@gmail.com',
+        name: null,
+        avatarUrl: null,
+        provider: 'supabase',
+        providerId: 'auth-user-id',
+        emailVerified: true,
+        role: 'OWNER',
+      });
+      prisma.workspace.findFirst.mockResolvedValue(null);
+      prisma.workspace.create.mockResolvedValue({});
+
+      const result = await service.resolveApplicationUser({
+        authUserId: 'auth-user-id',
+        email: 'data.ai.kiess@gmail.com',
+        provider: 'supabase',
+        providerId: 'auth-user-id',
+      });
+
+      expect(prisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            id: 'auth-user-id',
+            email: 'data.ai.kiess@gmail.com',
+          }),
+        }),
+      );
+      expect(prisma.workspace.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            ownerId: 'auth-user-id',
+          }),
+        }),
+      );
+      expect(result.id).toBe('auth-user-id');
+    });
+
+    it('should reuse an existing email-matched app user instead of creating a second row', async () => {
+      prisma.user.findUnique.mockResolvedValueOnce({
+        id: 'legacy-user-id',
+        email: 'data.ai.kiess@gmail.com',
+        name: 'Erwin Kiess',
+        avatarUrl: null,
+        provider: 'email',
+        providerId: null,
+        emailVerified: true,
+        role: 'OWNER',
+        passwordHash: await bcrypt.hash('ErwinKiess!CERNIQ2026', 12),
+      });
+      prisma.workspace.findFirst.mockResolvedValue({ id: 'ws-1' });
+
+      const result = await service.resolveApplicationUser({
+        authUserId: 'supabase-subject',
+        email: 'data.ai.kiess@gmail.com',
+      });
+
+      expect(prisma.user.create).not.toHaveBeenCalled();
+      expect(result.id).toBe('legacy-user-id');
+    });
+  });
+
+  describe('getUserProfile', () => {
+    it('should provision and return the profile for an authenticated master account missing a local row', async () => {
+      prisma.user.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 'auth-user-id',
+          email: 'data.ai.kiess@gmail.com',
+          name: 'Erwin Kiess',
+          avatarUrl: null,
+          provider: 'supabase',
+          emailVerified: true,
+          subscription: null,
+          organizationMembers: [],
+        });
+      prisma.user.create.mockResolvedValue({
+        id: 'auth-user-id',
+        email: 'data.ai.kiess@gmail.com',
+        name: 'Erwin Kiess',
+        avatarUrl: null,
+        provider: 'supabase',
+        providerId: 'auth-user-id',
+        emailVerified: true,
+        role: 'OWNER',
+        passwordHash: await bcrypt.hash('ErwinKiess!CERNIQ2026', 12),
+      });
+      prisma.workspace.findFirst.mockResolvedValue(null);
+      prisma.workspace.create.mockResolvedValue({});
+      platformAccess.evaluateAccess.mockReturnValue({
+        platformAccessAllowed: true,
+        isMasterCeo: true,
+        isPaid: false,
+        effectiveTier: 'free',
+        effectiveStatus: null,
+        reason: 'master_ceo',
+      });
+
+      const profile = await service.getUserProfile(
+        'auth-user-id',
+        'data.ai.kiess@gmail.com',
+      );
+
+      expect(profile.email).toBe('data.ai.kiess@gmail.com');
+      expect(profile.access).toMatchObject({
+        platformAccessAllowed: true,
+        isMasterCeo: true,
+      });
+    });
+  });
+
   // ── login ───────────────────────────────────────────────
 
   describe('login', () => {
@@ -188,6 +328,60 @@ describe('AuthService', () => {
       expect(result.accessToken).toBe('mock-jwt-token');
       expect(result.refreshToken).toBe('mock-jwt-token');
       expect(result.user.email).toBe('login@example.com');
+    });
+
+    it('should provision the Erwin Kiess master account for backend password login', async () => {
+      process.env.MASTER_ACCOUNT_PASSWORD = 'UltraSecret123!';
+      prisma.user.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 'master-user-id',
+          email: 'data.ai.kiess@gmail.com',
+          name: 'Erwin Kiess',
+          avatarUrl: null,
+          provider: 'email',
+          providerId: null,
+          emailVerified: true,
+          role: 'OWNER',
+          passwordHash: await bcrypt.hash('UltraSecret123!', 12),
+        })
+        .mockResolvedValueOnce({
+          id: 'master-user-id',
+          email: 'data.ai.kiess@gmail.com',
+          name: 'Erwin Kiess',
+          passwordHash: await bcrypt.hash('UltraSecret123!', 12),
+        });
+      prisma.user.create.mockResolvedValue({
+        id: 'master-user-id',
+        email: 'data.ai.kiess@gmail.com',
+        name: 'Erwin Kiess',
+        avatarUrl: null,
+        provider: 'email',
+        providerId: null,
+        emailVerified: true,
+        role: 'OWNER',
+        passwordHash: await bcrypt.hash('UltraSecret123!', 12),
+      });
+      prisma.workspace.findFirst.mockResolvedValue(null);
+      prisma.workspace.create.mockResolvedValue({});
+      prisma.user.update.mockResolvedValue({});
+      prisma.refreshToken.create.mockResolvedValue({});
+
+      const result = await service.login({
+        email: 'DATA.AI.KIESS@GMAIL.COM',
+        password: 'UltraSecret123!',
+      });
+
+      expect(prisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            email: 'data.ai.kiess@gmail.com',
+            name: 'Erwin Kiess',
+            role: 'OWNER',
+          }),
+        }),
+      );
+      expect(result.user.email).toBe('data.ai.kiess@gmail.com');
     });
 
     it('should reject invalid password with UnauthorizedException', async () => {
@@ -221,6 +415,7 @@ describe('AuthService', () => {
       prisma.user.findUnique.mockResolvedValue({
         id: 'oauth-user',
         email: 'oauth@example.com',
+        provider: 'google',
         passwordHash: null,
       });
 
@@ -229,7 +424,9 @@ describe('AuthService', () => {
           email: 'oauth@example.com',
           password: 'password123',
         }),
-      ).rejects.toThrow('Invalid credentials');
+      ).rejects.toThrow(
+        'This account was created with Google sign-in. Use Google, or reset your password to create an email-password login.',
+      );
     });
   });
 

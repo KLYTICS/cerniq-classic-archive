@@ -85,3 +85,43 @@ export function getAuthCookieOptions() {
     ...(cookieDomain ? { domain: cookieDomain } : {}),
   };
 }
+
+const ACCESS_TOKEN_MAX_AGE = 24 * 60 * 60 * 1000; // 24h
+const REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7d
+
+export function setAuthCookies(
+  res: {
+    cookie: (
+      name: string,
+      value: string,
+      options: Record<string, unknown>,
+    ) => void;
+  },
+  accessToken: string,
+  refreshToken: string,
+) {
+  const cookieOptions = getAuthCookieOptions();
+
+  res.cookie('access_token', accessToken, {
+    ...cookieOptions,
+    maxAge: ACCESS_TOKEN_MAX_AGE,
+  });
+  res.cookie('refresh_token', refreshToken, {
+    ...cookieOptions,
+    maxAge: REFRESH_TOKEN_MAX_AGE,
+  });
+}
+
+export function clearAuthCookies(
+  res: {
+    clearCookie: (
+      name: string,
+      options: Record<string, unknown>,
+    ) => void;
+  },
+) {
+  const cookieOptions = getAuthCookieOptions();
+
+  res.clearCookie('access_token', cookieOptions);
+  res.clearCookie('refresh_token', cookieOptions);
+}

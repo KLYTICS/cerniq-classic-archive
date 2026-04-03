@@ -28,6 +28,7 @@ export const es: TranslationKeys = {
     email: 'Correo electr\u00f3nico',
     password: 'Contrase\u00f1a',
     emailPlaceholder: 'nombre@institucion.com',
+    forgotPassword: '\u00bfOlvidaste tu contrase\u00f1a?',
     orContinueWith: 'O contin\u00faa con',
     noAccount: '\u00bfNo tienes cuenta? Reg\u00edstrate',
     hasAccount: '\u00bfYa tienes cuenta? Inicia sesi\u00f3n',

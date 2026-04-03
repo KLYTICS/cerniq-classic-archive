@@ -6,9 +6,13 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { hashApiKey, isReadOnlyMethod } from './api-key.util';
+import { ALLOW_BLOCKED_ACCESS_KEY } from './allow-blocked-access.decorator';
+import { AuthService } from './auth.service';
+import { PlatformAccessService } from './platform-access.service';
 
 // Re-export for backward compatibility
 export { ROLES_KEY, Roles } from './roles.decorator';
@@ -20,8 +24,17 @@ type AuthenticatedRequestUser = {
   role?: string;
   claims: Record<string, any>;
   orgId?: string | null;
+  authSubject?: string;
   authMethod?: 'token' | 'api_key';
   keyExpiresAt?: Date;
+  access?: {
+    platformAccessAllowed: boolean;
+    isMasterCeo: boolean;
+    isPaid: boolean;
+    effectiveTier: string;
+    effectiveStatus: string | null;
+    reason: string;
+  };
 };
 
 @Injectable()
@@ -29,8 +42,11 @@ export class AuthGuard implements CanActivate {
   private readonly logger = new Logger(AuthGuard.name);
 
   constructor(
+    private authService: AuthService,
     private jwtService: JwtService,
     private prisma: PrismaService,
+    private reflector: Reflector,
+    private platformAccess: PlatformAccessService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -83,13 +99,56 @@ export class AuthGuard implements CanActivate {
       throw new ForbiddenException('API keys are read-only');
     }
 
+    const allowBlockedAccess = this.reflector.getAllAndOverride<boolean>(
+      ALLOW_BLOCKED_ACCESS_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    const authSubject = user.userId;
+    const isMasterAccount = this.platformAccess.isMasterAccountEmail(
+      user.email,
+    );
+    let applicationUserId = user.userId;
+    let applicationUserEmail = user.email;
+    let provisionedRole = user.role;
+
+    if (user.authMethod === 'token') {
+      const applicationUser = await this.authService.resolveApplicationUser({
+        authUserId: authSubject,
+        email: user.email,
+        name:
+          typeof user.claims?.name === 'string'
+            ? user.claims.name
+            : typeof user.claims?.user_metadata === 'object' &&
+                user.claims.user_metadata !== null &&
+                typeof (user.claims.user_metadata as Record<string, unknown>)
+                  .name === 'string'
+              ? ((user.claims.user_metadata as Record<string, unknown>)
+                  .name as string)
+              : null,
+        avatarUrl:
+          typeof user.claims?.avatar_url === 'string'
+            ? user.claims.avatar_url
+            : null,
+        provider: this.resolveProviderFromClaims(user.claims),
+        providerId: authSubject,
+        emailVerified: true,
+      });
+
+      applicationUserId = applicationUser.id;
+      applicationUserEmail = applicationUser.email;
+      provisionedRole = applicationUser.role || provisionedRole;
+    }
+
     let orgId = user.orgId || null;
     if (user.authMethod !== 'api_key') {
       const orgHeader =
         this.getHeader(request, 'x-organization-id') ||
         this.getHeader(request, 'x-klytics-org-id');
       orgId = orgId || orgHeader || null;
-      const orgAllowed = await this.enforceOrgAccess(user.userId, orgId);
+      const orgAllowed = isMasterAccount
+        ? true
+        : await this.enforceOrgAccess(authSubject, orgId);
       if (!orgAllowed) {
         throw new ForbiddenException(
           'Org membership or entitlement check failed',
@@ -102,10 +161,12 @@ export class AuthGuard implements CanActivate {
     let resolvedRole = user.role;
     if (user.authMethod === 'api_key') {
       resolvedRole = 'api_key';
-    } else if (user.userId) {
+    } else if (provisionedRole) {
+      resolvedRole = provisionedRole;
+    } else if (applicationUserId) {
       try {
         const dbUser = await this.prisma.user.findUnique({
-          where: { id: user.userId },
+          where: { id: applicationUserId },
           select: { role: true },
         });
         if (dbUser?.role) {
@@ -114,17 +175,38 @@ export class AuthGuard implements CanActivate {
       } catch (dbError) {
         // Fall back to token-based role on DB error — but log it
         this.logger.warn(
-          `DB role lookup failed for user ${user.userId}, using token role`,
+          `DB role lookup failed for user ${applicationUserId}, using token role`,
           dbError,
         );
       }
     }
 
+    const access = await this.platformAccess.getAccessForUser(
+      applicationUserId,
+      applicationUserEmail,
+      undefined,
+      resolvedRole,
+    );
+    const effectiveRole = access.isMasterCeo
+      ? 'OWNER'
+      : resolvedRole || 'authenticated';
+
     request.user = {
       ...user,
+      userId: applicationUserId,
+      email: applicationUserEmail,
       orgId,
-      role: resolvedRole || 'authenticated',
+      authSubject,
+      role: effectiveRole,
+      access,
     };
+
+    if (!allowBlockedAccess && !access.platformAccessAllowed) {
+      throw new ForbiddenException(
+        this.platformAccess.buildForbiddenPayload(access),
+      );
+    }
+
     return true;
   }
 
@@ -345,5 +427,25 @@ export class AuthGuard implements CanActivate {
     } catch {
       return false;
     }
+  }
+
+  private resolveProviderFromClaims(claims: Record<string, unknown>) {
+    const appMetadata =
+      claims.app_metadata &&
+      typeof claims.app_metadata === 'object' &&
+      !Array.isArray(claims.app_metadata)
+        ? (claims.app_metadata as Record<string, unknown>)
+        : null;
+
+    const provider = [
+      claims.provider,
+      claims.auth_provider,
+      appMetadata?.provider,
+    ].find(
+      (value): value is string =>
+        typeof value === 'string' && value.trim().length > 0,
+    );
+
+    return provider || 'supabase';
   }
 }

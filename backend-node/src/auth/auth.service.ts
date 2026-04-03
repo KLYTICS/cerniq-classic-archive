@@ -10,10 +10,16 @@ import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { apiKeyPrefix, generateApiKeyToken, hashApiKey } from './api-key.util';
+import {
+  MASTER_ACCOUNT_EMAIL,
+  PlatformAccessService,
+} from './platform-access.service';
 
 const BCRYPT_SALT_ROUNDS = 12;
 const ACCESS_TOKEN_EXPIRY = '24h';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+const MASTER_ACCOUNT_NAME = 'Erwin Kiess';
+const DEV_MASTER_ACCOUNT_PASSWORD = 'ErwinKiess!CERNIQ2026';
 
 export interface AuthResponse {
   user: {
@@ -31,6 +37,18 @@ interface OAuthUserProfile {
   avatarUrl?: string;
 }
 
+type ResolvedApplicationUser = {
+  id: string;
+  email: string;
+  name?: string | null;
+  avatarUrl?: string | null;
+  provider?: string | null;
+  providerId?: string | null;
+  emailVerified?: boolean;
+  role?: string | null;
+  passwordHash?: string | null;
+};
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -38,6 +56,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private platformAccess: PlatformAccessService,
   ) {}
 
   async register(dto: {
@@ -49,8 +68,15 @@ export class AuthService {
     accessToken: string;
     refreshToken: string;
   }> {
+    const normalizedEmail = this.normalizeEmail(dto.email) || dto.email;
+
+    if (this.platformAccess.isMasterAccountEmail(normalizedEmail)) {
+      await this.ensureMasterAccountProvisioned();
+      throw new ConflictException('Email already registered');
+    }
+
     const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email: normalizedEmail },
     });
 
     if (existing) {
@@ -62,7 +88,7 @@ export class AuthService {
 
     const user = await this.prisma.user.create({
       data: {
-        email: dto.email,
+        email: normalizedEmail,
         name: dto.name,
         passwordHash,
         provider: 'email',
@@ -73,7 +99,7 @@ export class AuthService {
     this.logger.log({
       event: 'user_registered',
       userId: user.id,
-      email: dto.email,
+      email: normalizedEmail,
       provider: 'email',
     });
 
@@ -93,24 +119,42 @@ export class AuthService {
     accessToken: string;
     refreshToken: string;
   }> {
+    const normalizedEmail = this.normalizeEmail(dto.email) || dto.email;
+
+    if (this.platformAccess.isMasterAccountEmail(normalizedEmail)) {
+      await this.ensureMasterAccountProvisioned();
+    }
+
     const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email: normalizedEmail },
     });
 
-    if (!user || !user.passwordHash) {
+    if (!user) {
       this.logger.warn({
         event: 'login_failed',
-        email: dto.email,
+        email: normalizedEmail,
         reason: 'not_found',
       });
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.passwordHash) {
+      this.logger.warn({
+        event: 'login_failed',
+        email: normalizedEmail,
+        reason: 'no_password_hash',
+        provider: user.provider,
+      });
+      throw new UnauthorizedException(
+        this.buildNoPasswordLoginMessage(user.provider),
+      );
     }
 
     const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordValid) {
       this.logger.warn({
         event: 'login_failed',
-        email: dto.email,
+        email: normalizedEmail,
         reason: 'bad_password',
       });
       throw new UnauthorizedException('Invalid credentials');
@@ -129,10 +173,23 @@ export class AuthService {
     this.logger.log({
       event: 'user_login',
       userId: user.id,
-      email: dto.email,
+      email: normalizedEmail,
       provider: 'email',
     });
     return this.generateTokens(user);
+  }
+
+  private buildNoPasswordLoginMessage(provider?: string | null): string {
+    switch ((provider || '').trim().toLowerCase()) {
+      case 'google':
+        return 'This account was created with Google sign-in. Use Google, or reset your password to create an email-password login.';
+      case 'github':
+        return 'This account was created with GitHub sign-in. Use GitHub, or reset your password to create an email-password login.';
+      case 'magic_link':
+        return 'This account uses secure email links and does not have a password yet. Use "Forgot password" to create one.';
+      default:
+        return 'This account does not have a password yet. Use "Forgot password" to create one.';
+    }
   }
 
   async validateOAuthUser(profile: OAuthUserProfile) {
@@ -197,6 +254,154 @@ export class AuthService {
       userId: user.id,
       provider: profile.provider,
     });
+    return user;
+  }
+
+  async resolveApplicationUser(params: {
+    authUserId: string;
+    email?: string | null;
+    name?: string | null;
+    avatarUrl?: string | null;
+    provider?: string | null;
+    providerId?: string | null;
+    emailVerified?: boolean;
+  }): Promise<ResolvedApplicationUser> {
+    const {
+      authUserId,
+      email,
+      name,
+      avatarUrl,
+      provider,
+      providerId,
+      emailVerified = true,
+    } = params;
+
+    const normalizedEmail = this.normalizeEmail(email);
+
+    if (this.platformAccess.isMasterAccountEmail(normalizedEmail)) {
+      return this.ensureMasterAccountProvisioned({
+        authUserId,
+        provider,
+        providerId,
+      });
+    }
+
+    let user = await this.prisma.user.findUnique({
+      where: { id: authUserId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarUrl: true,
+        provider: true,
+        providerId: true,
+        emailVerified: true,
+        role: true,
+        passwordHash: true,
+      },
+    });
+
+    if (!user && normalizedEmail) {
+      user = await this.prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatarUrl: true,
+          provider: true,
+          providerId: true,
+          emailVerified: true,
+          role: true,
+          passwordHash: true,
+        },
+      });
+    }
+
+    if (!user) {
+      if (!normalizedEmail) {
+        throw new UnauthorizedException('Authenticated user email is required');
+      }
+
+      user = await this.prisma.user.create({
+        data: {
+          id: authUserId,
+          email: normalizedEmail,
+          name: name || null,
+          avatarUrl: avatarUrl || null,
+          provider: provider || 'supabase',
+          providerId: providerId || authUserId,
+          emailVerified,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatarUrl: true,
+          provider: true,
+          providerId: true,
+          emailVerified: true,
+          role: true,
+          passwordHash: true,
+        },
+      });
+
+      this.logger.log({
+        event: 'auth_user_provisioned',
+        userId: user.id,
+        email: user.email,
+        provider: user.provider,
+      });
+    } else {
+      const updates: Record<string, unknown> = {};
+
+      if (normalizedEmail && user.email !== normalizedEmail) {
+        const existingByEmail = await this.prisma.user.findUnique({
+          where: { email: normalizedEmail },
+          select: { id: true },
+        });
+        if (!existingByEmail || existingByEmail.id === user.id) {
+          updates.email = normalizedEmail;
+        }
+      }
+
+      if (name && !user.name) {
+        updates.name = name;
+      }
+      if (avatarUrl && !user.avatarUrl) {
+        updates.avatarUrl = avatarUrl;
+      }
+      if (provider && !user.provider) {
+        updates.provider = provider;
+      }
+      if (providerId && !user.providerId) {
+        updates.providerId = providerId;
+      }
+      if (emailVerified && !user.emailVerified) {
+        updates.emailVerified = true;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: updates,
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+            provider: true,
+            providerId: true,
+            emailVerified: true,
+            role: true,
+            passwordHash: true,
+          },
+        });
+      }
+    }
+
+    await this.ensureDefaultWorkspace(user.id, user.name, user.email);
+
     return user;
   }
 
@@ -350,10 +555,16 @@ export class AuthService {
     });
   }
 
-  async getUserProfile(userId: string) {
-    const user = await this.prisma.user.findUnique({
+  async getUserProfile(userId: string, email?: string | null) {
+    let user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
+        subscription: {
+          select: {
+            tier: true,
+            status: true,
+          },
+        },
         organizationMembers: {
           include: {
             organization: {
@@ -368,9 +579,43 @@ export class AuthService {
       },
     });
 
+    if (!user && email) {
+      const resolvedUser = await this.resolveApplicationUser({
+        authUserId: userId,
+        email,
+      });
+      user = await this.prisma.user.findUnique({
+        where: { id: resolvedUser.id },
+        include: {
+          subscription: {
+            select: {
+              tier: true,
+              status: true,
+            },
+          },
+          organizationMembers: {
+            include: {
+              organization: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
+
+    const access = this.platformAccess.evaluateAccess(
+      email || user.email,
+      user.subscription,
+    );
 
     return {
       id: user.id,
@@ -383,6 +628,7 @@ export class AuthService {
         ...m.organization,
         role: m.role,
       })),
+      access,
     };
   }
 
@@ -688,5 +934,160 @@ export class AuthService {
     }
 
     return { revoked: true };
+  }
+
+  private normalizeEmail(email?: string | null) {
+    return (email || '').trim().toLowerCase() || null;
+  }
+
+  private async ensureMasterAccountProvisioned(params?: {
+    authUserId?: string | null;
+    provider?: string | null;
+    providerId?: string | null;
+  }): Promise<ResolvedApplicationUser> {
+    const password = this.getMasterAccountPassword();
+    const existing = await this.prisma.user.findUnique({
+      where: { email: MASTER_ACCOUNT_EMAIL },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarUrl: true,
+        provider: true,
+        providerId: true,
+        emailVerified: true,
+        role: true,
+        passwordHash: true,
+      },
+    });
+
+    const passwordHash = await this.resolveMasterPasswordHash(
+      password,
+      existing?.passwordHash,
+    );
+    const effectiveProvider = (params?.provider || '').trim() || 'email';
+    const effectiveProviderId =
+      (params?.providerId || '').trim() ||
+      (params?.authUserId || '').trim() ||
+      null;
+
+    let user = existing;
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          id: params?.authUserId || crypto.randomUUID(),
+          email: MASTER_ACCOUNT_EMAIL,
+          name: MASTER_ACCOUNT_NAME,
+          passwordHash,
+          provider: effectiveProvider,
+          providerId: effectiveProviderId,
+          emailVerified: true,
+          role: 'OWNER',
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatarUrl: true,
+          provider: true,
+          providerId: true,
+          emailVerified: true,
+          role: true,
+          passwordHash: true,
+        },
+      });
+    } else {
+      const data: Record<string, unknown> = {};
+
+      if (user.name !== MASTER_ACCOUNT_NAME) {
+        data.name = MASTER_ACCOUNT_NAME;
+      }
+      if (user.role !== 'OWNER') {
+        data.role = 'OWNER';
+      }
+      if (!user.emailVerified) {
+        data.emailVerified = true;
+      }
+      if (passwordHash && passwordHash !== user.passwordHash) {
+        data.passwordHash = passwordHash;
+      }
+
+      if (Object.keys(data).length > 0) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data,
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+            provider: true,
+            providerId: true,
+            emailVerified: true,
+            role: true,
+            passwordHash: true,
+          },
+        });
+      }
+    }
+
+    await this.ensureDefaultWorkspace(user.id, MASTER_ACCOUNT_NAME, user.email);
+    return user;
+  }
+
+  private getMasterAccountPassword() {
+    const configured = (process.env.MASTER_ACCOUNT_PASSWORD || '').trim();
+    if (configured) {
+      return configured;
+    }
+
+    if ((process.env.NODE_ENV || '').trim().toLowerCase() !== 'production') {
+      return DEV_MASTER_ACCOUNT_PASSWORD;
+    }
+
+    throw new UnauthorizedException('Master account is not configured');
+  }
+
+  private async resolveMasterPasswordHash(
+    password: string,
+    currentHash?: string | null,
+  ) {
+    if (currentHash) {
+      const matches = await bcrypt.compare(password, currentHash).catch(
+        () => false,
+      );
+      if (matches) {
+        return currentHash;
+      }
+    }
+
+    return bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+  }
+
+  private async ensureDefaultWorkspace(
+    userId: string,
+    name?: string | null,
+    email?: string | null,
+  ) {
+    const existingWorkspace = await this.prisma.workspace.findFirst({
+      where: { ownerId: userId },
+      select: { id: true },
+    });
+
+    if (existingWorkspace) {
+      return;
+    }
+
+    const workspaceLabel =
+      (name || this.normalizeEmail(email)?.split('@')[0] || 'CERNIQ') +
+      "'s Workspace";
+
+    await this.prisma.workspace.create({
+      data: {
+        name: workspaceLabel,
+        ownerId: userId,
+      },
+    });
   }
 }

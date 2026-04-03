@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { BillingController } from './billing.controller';
 import { BillingService } from './billing.service';
+import { AuthService } from '../auth/auth.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { PrismaService } from '../prisma.service';
@@ -26,6 +27,7 @@ describe('BillingController', () => {
       | 'requestMagicLink'
     >
   >;
+  let authService: jest.Mocked<Pick<AuthService, 'generateTokens'>>;
   let auditService: { log: jest.Mock };
 
   beforeEach(async () => {
@@ -49,6 +51,10 @@ describe('BillingController', () => {
       log: jest.fn(),
     };
 
+    const mockAuthService = {
+      generateTokens: jest.fn(),
+    };
+
     const mockPrismaService = {
       processedWebhookEvent: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -60,6 +66,7 @@ describe('BillingController', () => {
       controllers: [BillingController],
       providers: [
         { provide: BillingService, useValue: mockBillingService },
+        { provide: AuthService, useValue: mockAuthService },
         { provide: AuditService, useValue: mockAuditService },
         { provide: PrismaService, useValue: mockPrismaService },
       ],
@@ -70,6 +77,7 @@ describe('BillingController', () => {
 
     controller = module.get<BillingController>(BillingController);
     billingService = module.get(BillingService);
+    authService = module.get(AuthService);
     auditService = module.get(AuditService);
   });
 
@@ -474,55 +482,70 @@ describe('BillingController', () => {
     });
   });
 
-  // ── Magic Link Verification ───────────────────────────
-  describe('GET /auth/magic', () => {
-    it('should redirect to /auth/expired when no token provided', async () => {
+  describe('magic link auth', () => {
+    it('redirects to /auth/expired when no token is provided', async () => {
       const req = { ip: '1.2.3.4', headers: {} };
       const res = { redirect: jest.fn(), cookie: jest.fn() };
 
       await controller.verifyMagicLink(undefined as any, req, res);
 
-      expect(res.redirect).toHaveBeenCalledWith(expect.stringContaining('/auth/expired'));
+      expect(res.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('/auth/expired'),
+      );
     });
 
-    it('should redirect to /auth/expired when magic link is invalid', async () => {
+    it('redirects to /auth/expired when the magic link is invalid', async () => {
       billingService.verifyMagicLink.mockResolvedValue(null);
+
       const req = { ip: '1.2.3.4', headers: {} };
       const res = { redirect: jest.fn(), cookie: jest.fn() };
 
       await controller.verifyMagicLink('bad-token', req, res);
 
-      expect(res.redirect).toHaveBeenCalledWith(expect.stringContaining('/auth/expired'));
+      expect(res.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('/auth/expired'),
+      );
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({ outcome: 'failure' }),
       );
     });
 
-    it('should set cookie and redirect to /portal on valid magic link', async () => {
+    it('sets the full auth cookie pair when a magic link is verified', async () => {
+      process.env.FRONTEND_URL = 'https://cerniq.io';
       billingService.verifyMagicLink.mockResolvedValue({
-        id: 'user-magic',
-        email: 'magic@test.com',
+        id: 'user-123',
+        email: 'owner@cerniq.io',
+        name: 'Owner',
+      } as any);
+      authService.generateTokens.mockResolvedValue({
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        user: { id: 'user-123', email: 'owner@cerniq.io', name: 'Owner' },
       });
-      process.env.JWT_SECRET = 'test-secret';
 
-      const req = { ip: '1.2.3.4', headers: { 'user-agent': 'jest' } };
-      const res = { redirect: jest.fn(), cookie: jest.fn() };
+      const req = { ip: '127.0.0.1', headers: { 'user-agent': 'jest' } };
+      const res = {
+        cookie: jest.fn(),
+        redirect: jest.fn(),
+      };
 
-      await controller.verifyMagicLink('valid-token', req, res);
+      await controller.verifyMagicLink('magic-token', req, res);
 
-      expect(res.cookie).toHaveBeenCalledWith('access_token', expect.any(String), expect.any(Object));
-      expect(res.redirect).toHaveBeenCalledWith(expect.stringContaining('/portal'));
+      expect(authService.generateTokens).toHaveBeenCalledWith({
+        id: 'user-123',
+        email: 'owner@cerniq.io',
+        name: 'Owner',
+      });
+      expect(res.cookie).toHaveBeenCalledTimes(2);
+      expect(res.redirect).toHaveBeenCalledWith('https://cerniq.io/portal');
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({ outcome: 'success' }),
       );
-
-      delete process.env.JWT_SECRET;
     });
   });
 
-  // ── Magic Link Request ────────────────────────────────
   describe('POST /auth/magic/request', () => {
-    it('should always return success message (no enumeration)', async () => {
+    it('always returns a success message', async () => {
       billingService.requestMagicLink.mockResolvedValue(undefined);
 
       const result = await controller.requestMagicLink({ email: 'test@test.com' });
@@ -530,7 +553,7 @@ describe('BillingController', () => {
       expect(result.message).toContain('If this email has an account');
     });
 
-    it('should still return success when service throws (no enumeration)', async () => {
+    it('still returns success when the service throws', async () => {
       billingService.requestMagicLink.mockRejectedValue(new Error('Internal'));
 
       const result = await controller.requestMagicLink({ email: 'bad@test.com' });
@@ -539,9 +562,8 @@ describe('BillingController', () => {
     });
   });
 
-  // ── Webhook: dedup race condition ────────────────────────────────
   describe('POST /api/billing/webhook — edge cases', () => {
-    it('should handle dedup race condition (create throws unique constraint)', async () => {
+    it('handles a dedup race condition when create throws a unique constraint error', async () => {
       const event = {
         type: 'customer.subscription.created',
         id: 'evt_race',
@@ -550,7 +572,6 @@ describe('BillingController', () => {
       billingService.verifyWebhookSignature.mockReturnValue(event as any);
       billingService.handleSubscriptionCreated.mockResolvedValue(undefined);
 
-      // Simulate unique constraint violation on create
       const prisma = controller['prisma'] as any;
       prisma.processedWebhookEvent.create.mockRejectedValue(
         new Error('Unique constraint violation'),
@@ -559,11 +580,10 @@ describe('BillingController', () => {
       const req = { rawBody: Buffer.from('body') };
       const result = await controller.handleWebhook('sig_valid', req);
 
-      // Should still return success (race condition is handled gracefully)
       expect(result).toEqual({ received: true });
     });
 
-    it('should handle checkout.session.completed with non-paid status gracefully', async () => {
+    it('handles checkout.session.completed with a non-paid status gracefully', async () => {
       const session = { payment_status: 'no_payment_required', id: 'sess_np' };
       const event = {
         type: 'checkout.session.completed',
@@ -580,9 +600,8 @@ describe('BillingController', () => {
     });
   });
 
-  // ── Checkout with leadId ─────────────────────────────────────────
   describe('POST /api/billing/checkout — with leadId', () => {
-    it('should pass leadId through to service', async () => {
+    it('passes leadId through to the service', async () => {
       const dto = {
         tier: 'monthly' as const,
         customerEmail: 'lead@test.com',

@@ -1,4 +1,5 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import Stripe from 'stripe';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma.service';
@@ -406,12 +407,26 @@ export class BillingService {
   }
 
   async verifyMagicLink(token: string) {
-    const link = await this.prisma.magicLink.findUnique({
-      where: { token },
-      include: { user: true },
-    });
+    const links = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        userId: string;
+        expiresAt: Date;
+        usedAt: Date | null;
+      }>
+    >(Prisma.sql`
+      SELECT
+        id,
+        user_id AS "userId",
+        expires_at AS "expiresAt",
+        used_at AS "usedAt"
+      FROM magic_links
+      WHERE token = ${token}
+      LIMIT 1
+    `);
+    const link = links[0] || null;
 
-    if (!link || link.usedAt || new Date() > link.expiresAt) {
+    if (!link || link.usedAt || new Date() > new Date(link.expiresAt)) {
       return null;
     }
 
@@ -420,17 +435,29 @@ export class BillingService {
       data: { usedAt: new Date() },
     });
 
+    const user = await this.prisma.user.findUnique({
+      where: { id: link.userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+      },
+    });
+    if (!user) {
+      return null;
+    }
+
     // Update lastLoginAt timestamp for magic link login
     await this.prisma.user
       .update({
-        where: { id: link.user.id },
+        where: { id: user.id },
         data: { lastLoginAt: new Date() },
       })
       .catch(() => {
         /* best-effort */
       });
 
-    return link.user;
+    return user;
   }
 
   // ── Email Sequence Scheduling ─────────────────────────

@@ -40,6 +40,7 @@ import { AuditService } from '../audit/audit.service';
 import { AlcoPackService } from '../pipeline/alco-pack.service';
 import { IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
 import { SkipAuditLog } from '../common/decorators/audit-action.decorator';
+import { PlatformAccessService } from '../auth/platform-access.service';
 
 class InviteDto {
   @IsEmail()
@@ -70,6 +71,7 @@ export class PortalController {
     private readonly billing: BillingService,
     private readonly audit: AuditService,
     private readonly alcoPackService: AlcoPackService,
+    private readonly platformAccess: PlatformAccessService,
   ) {}
 
   // ── List User's Report Jobs ─────────────────────────
@@ -651,7 +653,12 @@ export class PortalController {
     );
 
     return {
-      user,
+      user: user
+        ? {
+            ...user,
+            role: req.user?.access?.isMasterCeo ? 'OWNER' : user.role,
+          }
+        : user,
       subscription: subscription || { tier: 'free', status: 'active' },
       workspaceCount: workspaces.length,
       workspaces,
@@ -680,16 +687,10 @@ export class PortalController {
   }
 
   private async requirePaidPortalAccess(userId: string) {
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { userId },
-      select: {
-        tier: true,
-      },
-    });
-
-    if (!subscription || subscription.tier === 'free') {
+    const access = await this.platformAccess.getAccessForUser(userId);
+    if (!access.platformAccessAllowed) {
       throw new ForbiddenException(
-        'A paid CERNIQ plan is required to access the client portal.',
+        this.platformAccess.buildForbiddenPayload(access),
       );
     }
   }

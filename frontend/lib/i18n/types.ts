@@ -28,6 +28,7 @@ export interface TranslationKeys {
     email: string;
     password: string;
     emailPlaceholder: string;
+    forgotPassword: string;
     orContinueWith: string;
     noAccount: string;
     hasAccount: string;

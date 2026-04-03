@@ -31,6 +31,7 @@ import AlertBanner from '@/components/alm/AlertBanner';
 import ExportCSVButton from '@/components/alm/ExportCSVButton';
 import { ExportButtons } from '@/components/alm/ExportButtons';
 import { useALM } from '@/components/alm/ALMProvider';
+import { getApiErrorMessage, isAuthError } from '@/lib/api';
 import { useTranslation } from '@/lib/i18n';
 import { usePDFExport } from '@/hooks/usePDFExport';
 
@@ -109,6 +110,27 @@ function DeadlineItem({ label, date }: { label: string; date: string }) {
   );
 }
 
+function ALMPageErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex items-center justify-center p-6">
+      <div className="w-full max-w-xl rounded-3xl border border-rose-200 bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50">
+          <AlertTriangle className="h-6 w-6 text-rose-600" />
+        </div>
+        <h2 className="text-lg font-semibold text-slate-950">Unable to load ALM dashboard</h2>
+        <p className="mt-2 text-sm text-slate-600">{message}</p>
+        <button
+          onClick={onRetry}
+          className="mt-5 inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Retry
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Dashboard ─────────────────────────────────────────
 
 export default function ALMDashboardPage() {
@@ -129,7 +151,16 @@ export default function ALMDashboardPage() {
       setSummary(data);
       analytics.track(EVENTS.ALM_ANALYSIS_RUN, { institutionId, riskScore: data.riskScore });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load');
+      if (isAuthError(err)) {
+        return;
+      }
+
+      setError(
+        getApiErrorMessage(
+          err,
+          'The ALM dashboard could not reach the backend summary service.'
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -163,6 +194,19 @@ export default function ALMDashboardPage() {
         <div className="grid grid-cols-8 gap-3">{Array.from({length:8}).map((_,i) => <div key={i} className="h-24 rounded-xl bg-slate-100" />)}</div>
         <div className="grid grid-cols-12 gap-4"><div className="col-span-3 h-64 rounded-xl bg-slate-100" /><div className="col-span-5 h-64 rounded-xl bg-slate-100" /><div className="col-span-4 h-64 rounded-xl bg-slate-100" /></div>
       </div>
+    );
+  }
+
+  if (error && !summary) {
+    return (
+      <ALMPageErrorState
+        message={error}
+        onRetry={() => {
+          if (selectedId) {
+            void fetchSummary(selectedId);
+          }
+        }}
+      />
     );
   }
 

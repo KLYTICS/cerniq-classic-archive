@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { hashApiKey } from '../../auth/api-key.util';
+import { PlatformAccessService } from '../../auth/platform-access.service';
 
 export type ApiKeyUser = {
   userId: string;
@@ -32,7 +33,10 @@ export type ApiKeyUser = {
 export class ApiKeyAuthGuard implements CanActivate {
   private readonly logger = new Logger(ApiKeyAuthGuard.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly platformAccess: PlatformAccessService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -53,7 +57,7 @@ export class ApiKeyAuthGuard implements CanActivate {
           select: {
             id: true,
             email: true,
-            subscription: { select: { tier: true } },
+            subscription: { select: { tier: true, status: true } },
           },
         },
       },
@@ -94,6 +98,16 @@ export class ApiKeyAuthGuard implements CanActivate {
       tier,
     };
 
+    const access = this.platformAccess.evaluateAccess(
+      key.user.email,
+      key.user.subscription,
+    );
+    if (!access.platformAccessAllowed) {
+      throw new ForbiddenException(
+        this.platformAccess.buildForbiddenPayload(access),
+      );
+    }
+
     request.apiUser = apiUser;
 
     // Also attach as request.user for compatibility with response envelope
@@ -104,6 +118,7 @@ export class ApiKeyAuthGuard implements CanActivate {
       claims: { auth_method: 'api_key', api_key_id: key.id },
       orgId: null,
       authMethod: 'api_key',
+      access,
     };
 
     return true;

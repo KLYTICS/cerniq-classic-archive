@@ -3,27 +3,52 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { BarChart3, Upload, CreditCard, Settings, LogOut, HelpCircle } from 'lucide-react';
+import {
+  BarChart3,
+  Upload,
+  CreditCard,
+  Settings,
+  LogOut,
+  HelpCircle,
+} from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { CerniqLockup } from '@/components/brand/CerniqLogo';
 import PortalPaywall from '@/components/portal/PortalPaywall';
-import { requiresPortalPaywall, type PortalSubscription } from '@/lib/subscription';
+import {
+  normalizePlatformAccess,
+  type PlatformAccessState,
+} from '@/lib/access';
+import {
+  requiresPortalPaywall,
+  type PortalSubscription,
+} from '@/lib/subscription';
 import { getPublicApiUrl } from '@/lib/api-base';
 import { unwrapApiData } from '@/lib/api-response';
+
+const PROFILE_RETRY_DELAYS_MS =
+  process.env.NODE_ENV === 'test' ? [0, 1, 1] : [0, 400, 1000];
 
 interface PortalUser {
   id: string;
   email: string;
   name?: string;
+  access?: unknown;
 }
 
 interface PortalContextType {
   user: PortalUser | null;
   subscription: PortalSubscription | null;
+  access: PlatformAccessState | null;
   loading: boolean;
 }
 
-const PortalContext = createContext<PortalContextType>({ user: null, subscription: null, loading: true });
+const PortalContext = createContext<PortalContextType>({
+  user: null,
+  subscription: null,
+  access: null,
+  loading: true,
+});
+
 export const usePortal = () => useContext(PortalContext);
 
 const NAV_ITEMS = [
@@ -33,16 +58,38 @@ const NAV_ITEMS = [
   { href: '/portal/settings', label: 'Settings', icon: Settings },
 ];
 
-export default function PortalLayout({ children }: { children: React.ReactNode }) {
+function normalizePortalUser(payload: unknown): PortalUser | null {
+  const unwrapped = unwrapApiData<PortalUser | null>(payload);
+  if (!unwrapped?.id || !unwrapped.email) {
+    return null;
+  }
+  return unwrapped;
+}
+
+function normalizeSubscription(
+  payload: unknown,
+): PortalSubscription | null {
+  return unwrapApiData<PortalSubscription | null>(payload);
+}
+
+export default function PortalLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [user, setUser] = useState<PortalUser | null>(null);
-  const [subscription, setSubscription] = useState<PortalSubscription | null>(null);
+  const [subscription, setSubscription] = useState<PortalSubscription | null>(
+    null,
+  );
+  const [access, setAccess] = useState<PlatformAccessState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionError, setSessionError] = useState('');
   const pathname = usePathname();
   const router = useRouter();
+  const isPortalLoginRoute = pathname === '/portal/login';
 
   useEffect(() => {
-    // Skip auth check for login page to avoid redirect loop
-    if (pathname === '/portal/login') {
+    if (isPortalLoginRoute) {
       setLoading(false);
       return;
     }
@@ -50,72 +97,97 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     let cancelled = false;
 
     async function loadUser() {
-      try {
-        const [profileRes, subRes] = await Promise.all([
-          fetch(getPublicApiUrl('/api/auth/profile'), { credentials: 'include' }),
-          fetch(getPublicApiUrl('/api/billing/subscription'), { credentials: 'include' }),
-        ]);
+      setSessionError('');
 
-        if (!profileRes.ok) {
-          if (!cancelled) {
-            setUser(null);
-            setSubscription(null);
-            router.replace('/portal/login');
+      for (const [index, delayMs] of PROFILE_RETRY_DELAYS_MS.entries()) {
+        if (delayMs > 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+        }
+
+        try {
+          const [profileRes, subRes] = await Promise.all([
+            fetch(getPublicApiUrl('/api/auth/profile'), {
+              credentials: 'include',
+            }),
+            fetch(getPublicApiUrl('/api/billing/subscription'), {
+              credentials: 'include',
+            }),
+          ]);
+
+          if (profileRes.status === 401) {
+            if (!cancelled) {
+              setUser(null);
+              setSubscription(null);
+              setAccess(null);
+              setLoading(false);
+              router.replace('/portal/login');
+            }
+            return;
           }
-          return;
-        }
 
-        const profilePayload = unwrapApiData<PortalUser | null>(
-          await profileRes.json().catch(() => null),
-        );
+          if (profileRes.ok) {
+            const profilePayload = normalizePortalUser(
+              await profileRes.json().catch(() => null),
+            );
 
-        if (!profilePayload?.id || !profilePayload.email) {
-          if (!cancelled) {
-            setUser(null);
-            setSubscription(null);
-            router.replace('/portal/login');
+            if (!profilePayload) {
+              throw new Error('Malformed profile payload');
+            }
+
+            const subscriptionPayload = subRes.ok
+              ? normalizeSubscription(await subRes.json().catch(() => null))
+              : null;
+
+            if (!cancelled) {
+              setUser(profilePayload);
+              setSubscription(subscriptionPayload);
+              setAccess(normalizePlatformAccess(profilePayload.access));
+              setSessionError('');
+              setLoading(false);
+            }
+            return;
           }
-          return;
+        } catch {
+          // Retry below. Network/proxy misses should not bounce the user to login.
         }
 
-        if (!cancelled) {
-          setUser(profilePayload);
-        }
-
-        if (subRes.ok) {
-          const subscriptionPayload = unwrapApiData<PortalSubscription | null>(
-            await subRes.json().catch(() => null),
-          );
+        if (index === PROFILE_RETRY_DELAYS_MS.length - 1) {
           if (!cancelled) {
-            setSubscription(subscriptionPayload);
+            setSessionError(
+              'We could not verify your portal session right now. Please retry.',
+            );
+            setLoading(false);
           }
-        }
-      } catch {
-        if (!cancelled) {
-          setUser(null);
-          setSubscription(null);
-          router.replace('/portal/login');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
         }
       }
     }
 
-    loadUser();
+    void loadUser();
 
     return () => {
       cancelled = true;
     };
-  }, [router, pathname]);
+  }, [router, isPortalLoginRoute]);
 
   const logout = async () => {
-    await fetch(getPublicApiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' });
+    await fetch(getPublicApiUrl('/api/auth/logout'), {
+      method: 'POST',
+      credentials: 'include',
+    });
     router.push('/');
   };
 
-  if (loading || (!user && pathname !== '/portal/login')) {
+  if (isPortalLoginRoute) {
+    return (
+      <PortalContext.Provider
+        value={{ user, subscription, access, loading: false }}
+      >
+        <ErrorBoundary context="portal">{children}</ErrorBoundary>
+      </PortalContext.Provider>
+    );
+  }
+
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f7fbff]">
         <div className="flex flex-col items-center gap-3">
@@ -126,21 +198,58 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     );
   }
 
-  // Login page renders without sidebar chrome
-  if (pathname === '/portal/login') {
+  if (!user && !sessionError) {
     return (
-      <PortalContext.Provider value={{ user, subscription, loading }}>
-        <ErrorBoundary context="portal">
-          {children}
-        </ErrorBoundary>
-      </PortalContext.Provider>
+      <div className="flex min-h-screen items-center justify-center bg-[#f7fbff]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" />
+          <span className="text-sm text-slate-500">Loading portal...</span>
+        </div>
+      </div>
     );
   }
 
-  const showPortalPaywall = Boolean(user && requiresPortalPaywall(subscription));
+  if (sessionError && !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f7fbff] px-4">
+        <div className="w-full max-w-md rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-[0_30px_80px_rgba(41,85,133,0.14)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700/70">
+            Session recovery
+          </p>
+          <h1 className="mt-3 text-2xl font-semibold text-slate-950">
+            Portal access is still settling
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            {sessionError}
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <button
+              onClick={() => window.location.reload()}
+              className="rounded-xl bg-[#1B3A6B] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#15305a]"
+            >
+              Retry session check
+            </button>
+            <Link
+              href="/portal/login"
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Back to portal login
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const showPortalPaywall = Boolean(
+    user &&
+      (access
+        ? !access.platformAccessAllowed
+        : requiresPortalPaywall(subscription)),
+  );
 
   return (
-    <PortalContext.Provider value={{ user, subscription, loading }}>
+    <PortalContext.Provider value={{ user, subscription, access, loading }}>
       <ErrorBoundary context="portal">
         <div className="flex min-h-screen bg-[#f7fbff] text-slate-950">
           <aside className="flex w-72 flex-col border-r border-slate-200/80 bg-[rgba(255,255,255,0.98)] shadow-[0_24px_80px_rgba(41,85,133,0.14)]">
@@ -149,9 +258,12 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                 <CerniqLockup compact tagline="Client Portal" />
               </Link>
               <div className="mt-4 rounded-[1.35rem] border border-cyan-200/60 bg-gradient-to-br from-cyan-50 via-white to-sky-50 px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-700/80">Report delivery</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-700/80">
+                  Report delivery
+                </p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Submit balance-sheet files, track processing, and retrieve completed CERNIQ reports.
+                  Submit balance-sheet files, track processing, and retrieve
+                  completed CERNIQ reports.
                 </p>
               </div>
             </div>
@@ -212,7 +324,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                     subscription={subscription}
                     user={{ email: user.email, name: user.name }}
                   />
-                ) : children}
+                ) : (
+                  children
+                )}
               </div>
             </div>
           </main>

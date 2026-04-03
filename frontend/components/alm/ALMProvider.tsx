@@ -9,7 +9,14 @@ import {
   ReactNode,
   startTransition,
 } from 'react';
-import { apiClient } from '@/lib/api';
+import {
+  apiClient,
+  buildLoginRedirectUrl,
+  getApiErrorMessage,
+  isAuthError,
+  isPlatformAccessError,
+} from '@/lib/api';
+import { ACCESS_REQUIRED_ROUTE } from '@/lib/access';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 
 interface Institution {
@@ -26,6 +33,8 @@ interface ALMContextType {
   selectedId: string;
   institution: Institution | null;
   loading: boolean;
+  authRedirecting: boolean;
+  bootstrapError: string | null;
   setSelectedId: (id: string) => void;
   selectInstitution: (id: string) => void;
   refresh: () => Promise<void>;
@@ -36,6 +45,8 @@ const ALMContext = createContext<ALMContextType>({
   selectedId: '',
   institution: null,
   loading: true,
+  authRedirecting: false,
+  bootstrapError: null,
   setSelectedId: () => {},
   selectInstitution: () => {},
   refresh: async () => {},
@@ -55,15 +66,40 @@ export default function ALMProvider({ children }: { children: ReactNode }) {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [selectedId, setSelectedIdState] = useState(urlId);
   const [loading, setLoading] = useState(true);
+  const [authRedirecting, setAuthRedirecting] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+
+  const redirectToLogin = useCallback(() => {
+    router.replace(
+      buildLoginRedirectUrl(
+        pathname,
+        searchParamsString ? `?${searchParamsString}` : '',
+      ),
+    );
+  }, [pathname, router, searchParamsString]);
 
   const setSelectedId = useCallback(
     (id: string) => {
       setSelectedIdState(id);
+      const params = new URLSearchParams(searchParamsString);
+      if (id) {
+        params.set('id', id);
+      } else {
+        params.delete('id');
+      }
+      const nextQuery = params.toString();
+      startTransition(() => {
+        router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+      });
     },
-    [],
+    [pathname, router, searchParamsString],
   );
 
   const fetchInstitutions = useCallback(async () => {
+    setLoading(true);
+    setAuthRedirecting(false);
+    setBootstrapError(null);
+
     try {
       const data = await apiClient.getInstitutions();
       setInstitutions(data);
@@ -80,12 +116,31 @@ export default function ALMProvider({ children }: { children: ReactNode }) {
           });
         }
       }
-    } catch {
+    } catch (error: unknown) {
       setInstitutions([]);
+      setSelectedIdState('');
+
+      if (isAuthError(error)) {
+        setAuthRedirecting(true);
+        redirectToLogin();
+        return;
+      }
+
+      if (isPlatformAccessError(error)) {
+        router.replace(ACCESS_REQUIRED_ROUTE);
+        return;
+      }
+
+      setBootstrapError(
+        getApiErrorMessage(
+          error,
+          'ALM data is unavailable right now. Please retry once the backend is responding.',
+        ),
+      );
     } finally {
       setLoading(false);
     }
-  }, [urlId]);
+  }, [redirectToLogin, router, urlId]);
 
   useEffect(() => {
     fetchInstitutions();
@@ -113,6 +168,8 @@ export default function ALMProvider({ children }: { children: ReactNode }) {
         selectedId,
         institution,
         loading,
+        authRedirecting,
+        bootstrapError,
         setSelectedId,
         selectInstitution: setSelectedId,
         refresh: fetchInstitutions,

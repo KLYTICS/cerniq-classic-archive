@@ -2,6 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 import { getMarketApiBase } from './marketTransport';
 import { getPublicApiBase, getPublicApiUrl } from './api-base';
 import { asRecord, unwrapApiData } from './api-response';
+import { ACCESS_REQUIRED_ROUTE } from './access';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -17,11 +18,20 @@ declare module 'axios' {
 
 const API_URL = getPublicApiBase();
 const NODE_API_URL = getPublicApiBase();
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const ACCESS_TOKEN_KEY = 'cerniq_access_token';
 const LEGACY_ACCESS_TOKEN_KEY = 'capex_access_token';
 const MARKET_API_BASE = getMarketApiBase();
+const REFRESH_ENDPOINT = '/api/auth/refresh';
+export const APP_NAVIGATION_EVENT = 'cerniq:navigate';
+
+type AppNavigationDetail = {
+  href: string;
+  replace?: boolean;
+};
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
 
 function getAccessToken(): string {
   if (typeof window === 'undefined') {
@@ -68,6 +78,117 @@ function clearAccessToken(): void {
   sessionStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+}
+
+function getResponseStatus(error: unknown): number | undefined {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof (error as { response?: { status?: number } }).response?.status === 'number'
+  ) {
+    return (error as { response: { status: number } }).response.status;
+  }
+
+  return undefined;
+}
+
+function getResponseCode(error: unknown): string | undefined {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error
+  ) {
+    const data = (error as {
+      response?: { data?: { code?: string; error?: { code?: string } } };
+    }).response?.data;
+    if (typeof data?.code === 'string') {
+      return data.code;
+    }
+    if (typeof data?.error?.code === 'string') {
+      return data.error.code;
+    }
+  }
+
+  return undefined;
+}
+
+export function isAuthError(error: unknown): boolean {
+  const status = getResponseStatus(error);
+  return status === 401;
+}
+
+export function isPlatformAccessError(error: unknown): boolean {
+  return (
+    getResponseStatus(error) === 403 &&
+    getResponseCode(error) === 'PLATFORM_ACCESS_REQUIRED'
+  );
+}
+
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof (error as {
+      response?: {
+        data?: {
+          error?: string | { message?: string; detail?: string };
+          message?: string;
+          detail?: string;
+        };
+      };
+    }).response === 'object'
+  ) {
+    const data = (error as {
+      response?: {
+        data?: {
+          error?: string | { message?: string; detail?: string };
+          message?: string;
+          detail?: string;
+        };
+      };
+    }).response?.data;
+    if (typeof data?.error === 'string' && data.error.trim()) {
+      return data.error;
+    }
+    if (
+      typeof data?.error === 'object' &&
+      data.error !== null &&
+      typeof data.error.message === 'string' &&
+      data.error.message.trim()
+    ) {
+      return data.error.message;
+    }
+    if (typeof data?.message === 'string' && data.message.trim()) {
+      return data.message;
+    }
+    if (typeof data?.detail === 'string' && data.detail.trim()) {
+      return data.detail;
+    }
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+export function buildLoginRedirectUrl(pathname: string, search = ''): string {
+  return `/login?returnUrl=${encodeURIComponent(`${pathname}${search}`)}`;
+}
+
+function requestAppNavigation(detail: AppNavigationDetail) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent<AppNavigationDetail>(APP_NAVIGATION_EVENT, {
+      detail,
+    }),
+  );
 }
 
 export interface ManagedApiKey {
@@ -246,27 +367,43 @@ class APIClient {
       return config;
     });
 
-    // 401 interceptor: attempt token refresh, then redirect to login
+    // Strict-auth requests attempt silent refresh once, then redirect to login.
     this.client.interceptors.response.use(
       (response) => response,
       async (error) => {
-        const status = error.response?.status;
+        const status = getResponseStatus(error);
         const originalRequest = error.config;
+
+        if (status === 403 && getResponseCode(error) === 'PLATFORM_ACCESS_REQUIRED') {
+          if (typeof window !== 'undefined' && window.location.pathname !== ACCESS_REQUIRED_ROUTE) {
+            requestAppNavigation({ href: ACCESS_REQUIRED_ROUTE, replace: true });
+          }
+          return Promise.reject(error);
+        }
 
         if (status === 401 && originalRequest?.skipAuthRedirect) {
           clearAccessToken();
           return Promise.reject(error);
         }
 
-        // Only handle 401s; don't retry refresh calls themselves
-        if (status === 401 && originalRequest && !originalRequest._retry401) {
+        // Only handle 401s; don't retry refresh calls themselves.
+        if (
+          status === 401 &&
+          originalRequest &&
+          !originalRequest._retry401 &&
+          !String(originalRequest.url || '').includes(REFRESH_ENDPOINT)
+        ) {
           originalRequest._retry401 = true;
           try {
-            // Attempt silent token refresh via HttpOnly cookie
+            // Attempt silent token refresh against the same public /api origin the browser uses.
             const refreshRes = await axios.post(
-              getPublicApiUrl('/api/auth/refresh'),
+              getPublicApiUrl(REFRESH_ENDPOINT),
               {},
-              { withCredentials: true }
+              {
+                headers: { 'Content-Type': 'application/json' },
+                validateStatus: () => true,
+                withCredentials: true,
+              }
             );
             const refreshPayload = asRecord(
               unwrapApiData<Record<string, unknown>>(refreshRes.data)
@@ -275,18 +412,19 @@ class APIClient {
               typeof refreshPayload?.accessToken === 'string'
                 ? refreshPayload.accessToken
                 : '';
+            if (refreshRes.status < 200 || refreshRes.status >= 300) {
+              throw new Error(`Refresh failed with status ${refreshRes.status}`);
+            }
             if (newToken) {
               setAccessToken(newToken);
               originalRequest.headers = originalRequest.headers || {};
               originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
-            }
-
-            if (!newToken && originalRequest.headers?.Authorization) {
+            } else if (originalRequest.headers?.Authorization) {
               clearAccessToken();
               delete originalRequest.headers.Authorization;
             }
 
-            return this.client(originalRequest);
+            return this.client.request(originalRequest);
           } catch {
             // Refresh failed — clear session and redirect to login
           }
@@ -296,8 +434,13 @@ class APIClient {
             if (currentPath === '/login' || currentPath === '/portal/login') {
               return Promise.reject(error);
             }
-            const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-            window.location.href = `/login?returnUrl=${returnUrl}`;
+            requestAppNavigation({
+              href: buildLoginRedirectUrl(
+                window.location.pathname,
+                window.location.search,
+              ),
+              replace: true,
+            });
           }
         }
 
@@ -308,81 +451,20 @@ class APIClient {
 
   // Authentication
   async register(email: string, password: string, name?: string): Promise<AuthResponse> {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      const response = await this.client.post(`${NODE_API_URL}/api/auth/register`, {
-        email,
-        password,
-        name,
-      });
-      return unwrapApiData<AuthResponse>(response.data);
-    }
-
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
-      method: 'POST',
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password, data: { name } }),
+    const response = await this.client.post(`${NODE_API_URL}/api/auth/register`, {
+      email: normalizeEmail(email),
+      password,
+      name,
     });
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data?.msg || data?.error_description || data?.error || 'Registration failed');
-    }
-
-    const token = data.session?.access_token || '';
-    if (token) {
-      setAccessToken(token);
-    }
-
-    return {
-      access_token: token,
-      user: {
-        id: data.user?.id || email,
-        email: data.user?.email || email,
-        name: data.user?.user_metadata?.name || name,
-      },
-    };
+    return unwrapApiData<AuthResponse>(response.data);
   }
 
   async login(email: string, password: string): Promise<AuthResponse> {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      const response = await this.client.post(`${NODE_API_URL}/api/auth/login`, {
-        email,
-        password,
-      });
-      return unwrapApiData<AuthResponse>(response.data);
-    }
-
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-      method: 'POST',
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
+    const response = await this.client.post(`${NODE_API_URL}/api/auth/login`, {
+      email: normalizeEmail(email),
+      password,
     });
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data?.msg || data?.error_description || data?.error || 'Login failed');
-    }
-
-    if (data.access_token) {
-      setAccessToken(data.access_token);
-    }
-
-    return {
-      access_token: data.access_token,
-      user: {
-        id: data.user?.id || email,
-        email: data.user?.email || email,
-        name: data.user?.user_metadata?.name,
-      },
-    };
+    return unwrapApiData<AuthResponse>(response.data);
   }
 
   async getCurrentUser(): Promise<AuthUser | null> {
@@ -408,6 +490,21 @@ class APIClient {
 
   async changePassword(currentPassword: string, newPassword: string) {
     const response = await this.client.put(`${NODE_API_URL}/api/auth/password`, { currentPassword, newPassword });
+    return response.data;
+  }
+
+  async requestPasswordReset(email: string) {
+    const response = await this.client.post(`${NODE_API_URL}/api/auth/password-reset`, {
+      email: normalizeEmail(email),
+    });
+    return response.data;
+  }
+
+  async confirmPasswordReset(token: string, newPassword: string) {
+    const response = await this.client.post(`${NODE_API_URL}/api/auth/password-reset/confirm`, {
+      token,
+      newPassword,
+    });
     return response.data;
   }
 
@@ -555,7 +652,10 @@ class APIClient {
     if (startDate) params.start = startDate;
     if (endDate) params.end = endDate;
 
-    const response = await this.client.get(`${MARKET_API_BASE}/history/${ticker}`, { params });
+    const response = await this.client.get(`${MARKET_API_BASE}/history/${ticker}`, {
+      params,
+      skipAuthRedirect: true,
+    });
     return response.data;
   }
 
@@ -867,7 +967,9 @@ class APIClient {
   }
 
   async getNodeQuote(ticker: string) {
-    const response = await this.client.get(`${MARKET_API_BASE}/quote/${ticker}`);
+    const response = await this.client.get(`${MARKET_API_BASE}/quote/${ticker}`, {
+      skipAuthRedirect: true,
+    });
     const data = response.data;
 
     return {
@@ -886,12 +988,15 @@ class APIClient {
 
     const response = await this.client.get(`${MARKET_API_BASE}/history/${ticker}`, {
       params,
+      skipAuthRedirect: true,
     });
     return response.data;
   }
 
   async getNodeFundamentals(ticker: string) {
-    const response = await this.client.get(`${MARKET_API_BASE}/fundamentals/${ticker}`);
+    const response = await this.client.get(`${MARKET_API_BASE}/fundamentals/${ticker}`, {
+      skipAuthRedirect: true,
+    });
     return response.data;
   }
 
@@ -903,13 +1008,16 @@ class APIClient {
   }
 
   async getNodeInstrument(ticker: string) {
-    const response = await this.client.get(`${MARKET_API_BASE}/instrument/${ticker}`);
+    const response = await this.client.get(`${MARKET_API_BASE}/instrument/${ticker}`, {
+      skipAuthRedirect: true,
+    });
     return response.data;
   }
 
   async getNodeNews(ticker: string, limit: number = 8) {
     const response = await this.client.get(`${MARKET_API_BASE}/news/${ticker}`, {
       params: { limit },
+      skipAuthRedirect: true,
     });
     return response.data;
   }
@@ -917,6 +1025,7 @@ class APIClient {
   async getNodeSnapshot(ticker: string, newsLimit: number = 8) {
     const response = await this.client.get(`${MARKET_API_BASE}/snapshot/${ticker}`, {
       params: { newsLimit },
+      skipAuthRedirect: true,
     });
     return response.data;
   }
@@ -1026,16 +1135,10 @@ class APIClient {
   // --- ALM Enterprise (DB-backed) ---
 
   async getInstitutions(workspaceId?: string) {
-    try {
-      const params = workspaceId ? `?workspaceId=${workspaceId}` : '';
-      const response = await this.client.get(`${NODE_API_URL}/api/alm/institutions${params}`);
-      return response.data?.items ?? response.data ?? [];
-    } catch {
-      return [{
-        id: 'demo-bank-id', name: 'FirstBank Puerto Rico', type: 'commercial_bank',
-        totalAssets: 18900, currency: 'USD', reportingDate: '2025-12-31T00:00:00.000Z',
-      }];
-    }
+    const params = workspaceId ? `?workspaceId=${workspaceId}` : '';
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/institutions${params}`);
+    const payload = response.data?.data ?? response.data;
+    return payload?.items ?? payload ?? [];
   }
 
   async createInstitution(data: {
@@ -1048,61 +1151,17 @@ class APIClient {
     primaryRegulator?: string;
   }) {
     const response = await this.client.post(`${NODE_API_URL}/api/alm/institutions`, data);
-    return response.data;
+    return response.data?.data ?? response.data;
   }
 
   async getInstitution(institutionId: string) {
-    try {
-      const response = await this.client.get(`${NODE_API_URL}/api/alm/institutions/${institutionId}`);
-      return response.data;
-    } catch {
-      return {
-        id: institutionId, name: 'FirstBank Puerto Rico', type: 'commercial_bank', totalAssets: 18900,
-        balanceSheetItems: [
-          { category: 'asset', subcategory: 'commercial_loans', name: 'Commercial Real Estate Loans', balance: 4850, rate: 6.42, duration: 4.2, rateType: 'fixed' },
-          { category: 'asset', subcategory: 'residential_mortgages', name: 'Residential Mortgage Portfolio', balance: 3680, rate: 5.18, duration: 6.8, rateType: 'fixed' },
-          { category: 'asset', subcategory: 'commercial_loans', name: 'C&I Loans', balance: 2940, rate: 7.15, duration: 2.4, rateType: 'variable' },
-          { category: 'asset', subcategory: 'consumer_loans', name: 'Consumer & Auto Loans', balance: 1820, rate: 8.90, duration: 2.1, rateType: 'fixed' },
-          { category: 'asset', subcategory: 'investment_securities', name: 'US Treasury & Agency MBS', balance: 3200, rate: 3.85, duration: 4.6, rateType: 'fixed' },
-          { category: 'asset', subcategory: 'investment_securities', name: 'PR Municipal Bonds', balance: 680, rate: 4.20, duration: 5.1, rateType: 'fixed' },
-          { category: 'asset', subcategory: 'cash_equivalents', name: 'Cash & Fed Funds Sold', balance: 1730, rate: 4.85, duration: 0.01, rateType: 'variable' },
-          { category: 'liability', subcategory: 'demand_deposits', name: 'Non-Interest Bearing Deposits', balance: 3420, rate: 0, duration: 0.01, rateType: 'variable' },
-          { category: 'liability', subcategory: 'demand_deposits', name: 'Interest-Bearing Checking', balance: 2850, rate: 0.45, duration: 0.1, rateType: 'variable' },
-          { category: 'liability', subcategory: 'savings_deposits', name: 'Savings & Money Market', balance: 4180, rate: 2.95, duration: 0.3, rateType: 'variable' },
-          { category: 'liability', subcategory: 'time_deposits', name: 'Certificates of Deposit', balance: 3200, rate: 4.35, duration: 0.8, rateType: 'fixed' },
-          { category: 'liability', subcategory: 'borrowings', name: 'FHLB Advances & Repos', balance: 2100, rate: 4.72, duration: 1.4, rateType: 'fixed' },
-          { category: 'liability', subcategory: 'borrowings', name: 'Subordinated Debt', balance: 350, rate: 5.85, duration: 4.8, rateType: 'fixed' },
-          { category: 'equity', subcategory: 'equity', name: 'Common Equity', balance: 2400, rate: 0, duration: 0, rateType: 'fixed' },
-        ],
-      };
-    }
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/institutions/${institutionId}`);
+    return response.data?.data ?? response.data;
   }
 
   async getALMSummary(institutionId: string) {
-    try {
-      const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/summary`);
-      return response.data;
-    } catch {
-      // Graceful degradation: return demo data if backend unavailable
-      return {
-        institution: { id: institutionId, name: 'FirstBank Puerto Rico', type: 'commercial_bank', totalAssets: 18900, currency: 'USD', reportingDate: '2025-12-31T00:00:00.000Z' },
-        durationGap: { assetDuration: 3.8, liabilityDuration: 2.0, durationGap: 1.8, riskProfile: 'asset-sensitive' as const },
-        niiSensitivity: {
-          scenarios: [
-            { name: '+200 bps', shiftBps: 200, niImpact: 118, niImpactPct: 15.9 },
-            { name: '+100 bps', shiftBps: 100, niImpact: 62, niImpactPct: 8.4 },
-            { name: 'Base', shiftBps: 0, niImpact: 0, niImpactPct: 0 },
-            { name: '-100 bps', shiftBps: -100, niImpact: -48, niImpactPct: -6.5 },
-            { name: '-200 bps', shiftBps: -200, niImpact: -96, niImpactPct: -12.9 },
-          ],
-          baseNII: 742, riskRating: 'moderate' as const,
-        },
-        liquidity: { lcr: 148.2, hqla: 4800, netOutflows: 3240, status: 'compliant' as const, buffer: 48.2 },
-        topRisks: ['CRE concentration at 285% of capital (limit: 300%)', 'Fed rate cuts compressing NIM from 4.25%', 'Government deposit concentration (22% of total)'],
-        recommendations: ['Hedge +1.8yr duration gap via $500M receive-fixed swaps', 'Diversify CRE into C&I and consumer — target 250% concentration', 'Lock in $800M FHLB funding at 2-3yr terms before rate cuts'],
-        riskScore: 82,
-      };
-    }
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/summary`);
+    return response.data?.data ?? response.data;
   }
 
   async getNIISensitivity(institutionId: string) {
@@ -1265,7 +1324,9 @@ class APIClient {
     descriptionEs: string;
     relatedModule: string;
   }[]> {
-    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/calendar`);
+    const response = await this.client.get(`${NODE_API_URL}/api/alm/${institutionId}/calendar`, {
+      skipAuthRedirect: true,
+    });
     return response.data;
   }
 
@@ -1294,7 +1355,7 @@ class APIClient {
   async seedDemoInstitution(workspaceId: string, type: 'bank' | 'credit_union' | 'family_office' | 'cooperativa') {
     try {
       const response = await this.client.post(`${NODE_API_URL}/api/alm/seed-demo`, { workspaceId, type });
-      return response.data;
+      return response.data?.data ?? response.data;
     } catch {
       return { success: true, institutionId: 'demo-bank-id', institution: { id: 'demo-bank-id', name: 'FirstBank Puerto Rico', type, totalAssets: 18900, currency: 'USD' } };
     }
@@ -1319,12 +1380,12 @@ class APIClient {
 
   async getMyWorkspaces() {
     const response = await this.client.get(`${NODE_API_URL}/api/workspaces`);
-    return response.data;
+    return response.data?.data ?? response.data;
   }
 
   async createMyWorkspace(name: string) {
     const response = await this.client.post(`${NODE_API_URL}/api/workspaces`, { name });
-    return response.data;
+    return response.data?.data ?? response.data;
   }
 
   // --- Expense / SpendCheck Analysis (POST /api/expenses/:orgId/analyze) ---

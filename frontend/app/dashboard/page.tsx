@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
@@ -22,7 +22,7 @@ import {
   Upload,
   Users,
 } from 'lucide-react';
-import { SkeletonLoader, EmptyState } from '@/components/ui/cerniq';
+import { EmptyState } from '@/components/ui/cerniq';
 
 /* --- Helpers --- */
 
@@ -378,7 +378,14 @@ function DashboardLangToggle() {
 /* --- Main Page --- */
 
 export default function DashboardPage() {
-  const { initialized, isAuthenticated, onboardingComplete, user, logout } = useAuthStore();
+  const {
+    initialized,
+    isAuthenticated,
+    onboardingComplete,
+    user,
+    logout,
+    hydrateFromStorage,
+  } = useAuthStore();
   const router = useRouter();
   const { locale } = useTranslation();
 
@@ -386,17 +393,7 @@ export default function DashboardPage() {
   const t = (en: string, es: string) => locale === 'en' ? en : es;
 
   // Greeting based on time of day
-  const greeting = useMemo(() => {
-    const h = new Date().getHours();
-    if (locale === 'en') {
-      if (h < 12) return 'Good morning';
-      if (h < 18) return 'Good afternoon';
-      return 'Good evening';
-    }
-    if (h < 12) return 'Buenos dias';
-    if (h < 18) return 'Buenas tardes';
-    return 'Buenas noches';
-  }, [locale]);
+  const greeting = locale === 'en' ? 'Welcome back' : 'Bienvenido';
 
   // Mock COSSEC score -- will be replaced with real API data when available
   const cossecScore = 72;
@@ -407,6 +404,7 @@ export default function DashboardPage() {
   const [calendarLoading, setCalendarLoading] = useState(true);
 
   const displayName = user?.name || user?.email?.split('@')[0] || '';
+  const isDemoMode = !isAuthenticated || !onboardingComplete;
 
   // Derive exam countdown from calendar deadlines
   const examDeadline = calendarDeadlines.find(
@@ -417,19 +415,14 @@ export default function DashboardPage() {
     : null;
 
   useEffect(() => {
-    if (!initialized) return;
-    if (!isAuthenticated) {
-      router.push('/login');
-      return;
+    if (!initialized) {
+      void hydrateFromStorage();
     }
-    if (!onboardingComplete) {
-      router.push('/onboarding');
-    }
-  }, [initialized, isAuthenticated, onboardingComplete, router]);
+  }, [initialized, hydrateFromStorage]);
 
   // Load compliance calendar deadlines
   useEffect(() => {
-    if (!initialized || !isAuthenticated) return;
+    if (!initialized) return;
     let cancelled = false;
 
     async function loadCalendar() {
@@ -456,41 +449,7 @@ export default function DashboardPage() {
 
     loadCalendar();
     return () => { cancelled = true; };
-  }, [initialized, isAuthenticated]);
-
-  if (!initialized) {
-    return (
-      <div className="min-h-screen overflow-x-clip px-4 py-4 text-slate-950 sm:px-5 lg:px-6">
-        <div className="mx-auto max-w-7xl space-y-4">
-          {/* Skeleton nav */}
-          <div className="cerniq-panel px-4 py-3 sm:px-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-6 w-20 rounded-lg" style={{ background: 'linear-gradient(90deg, #CBD5E1 25%, #F8FAFC 50%, #CBD5E1 75%)', backgroundSize: '200% 100%', animation: 'cerniq-shimmer 1.5s infinite ease-in-out' }} />
-                <div className="h-4 w-28 rounded-full" style={{ background: 'linear-gradient(90deg, #CBD5E1 25%, #F8FAFC 50%, #CBD5E1 75%)', backgroundSize: '200% 100%', animation: 'cerniq-shimmer 1.5s infinite ease-in-out' }} />
-              </div>
-            </div>
-          </div>
-          {/* Skeleton quick stats */}
-          <div className="cerniq-panel p-5 sm:p-6">
-            <SkeletonLoader variant="text" count={1} />
-            <div className="mt-6">
-              <SkeletonLoader variant="metric" count={3} />
-            </div>
-          </div>
-          {/* Skeleton module cards */}
-          <div className="cerniq-panel p-5 sm:p-6">
-            <SkeletonLoader variant="card" count={6} />
-          </div>
-        </div>
-        <style>{`@keyframes cerniq-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated || !onboardingComplete) {
-    return null;
-  }
+  }, [initialized]);
 
   return (
     <div className="min-h-screen overflow-x-clip px-4 py-4 text-slate-950 sm:px-5 lg:px-6">
@@ -510,28 +469,65 @@ export default function DashboardPage() {
 
             <div className="flex flex-wrap items-center gap-3">
               <DashboardLangToggle />
-              <span className="rounded-full border border-slate-200 bg-white/85 px-4 py-2 text-sm text-slate-600">
-                {user?.email}
-              </span>
+              {isDemoMode ? (
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800">
+                  {t('Demo mode', 'Modo demo')}
+                </span>
+              ) : (
+                <span className="rounded-full border border-slate-200 bg-white/85 px-4 py-2 text-sm text-slate-600">
+                  {user?.email}
+                </span>
+              )}
               <button
                 onClick={() => router.push('/live-data')}
                 className="cerniq-button-secondary px-4 py-2 text-sm"
               >
                 {t('Live Data', 'Datos en Vivo')}
               </button>
-              <button
-                onClick={async () => {
-                  await logout();
-                  router.push('/login');
-                }}
-                className="flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 transition hover:border-red-300"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                {t('Logout', 'Salir')}
-              </button>
+              {isDemoMode ? (
+                <button
+                  onClick={() => router.push('/login')}
+                  className="rounded-full bg-[#1B3A6B] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#163258]"
+                >
+                  {t('Sign in', 'Iniciar sesion')}
+                </button>
+              ) : (
+                <button
+                  onClick={async () => {
+                    await logout();
+                    router.push('/login');
+                  }}
+                  className="flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 transition hover:border-red-300"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  {t('Logout', 'Salir')}
+                </button>
+              )}
             </div>
           </div>
         </nav>
+
+        {isDemoMode ? (
+          <div className="flex flex-col gap-3 rounded-2xl border border-cyan-200 bg-cyan-50/85 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-700">
+                {t('Dashboard access', 'Acceso al dashboard')}
+              </p>
+              <p className="mt-1 text-sm text-slate-700">
+                {t(
+                  'You are viewing the live demo experience. Sign in to save workspaces, billing access, and institution-specific data.',
+                  'Esta viendo la experiencia demo en vivo. Inicie sesion para guardar workspaces, acceso de facturacion y datos especificos de su institucion.',
+                )}
+              </p>
+            </div>
+            <button
+              onClick={() => router.push('/login')}
+              className="rounded-full bg-cyan-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-800"
+            >
+              {t('Unlock full access', 'Desbloquear acceso total')}
+            </button>
+          </div>
+        ) : null}
 
         {/* -- Exam Countdown Banner -- */}
         {daysToExam !== null && daysToExam <= 90 && daysToExam >= 0 && (
@@ -582,7 +578,7 @@ export default function DashboardPage() {
                   {greeting}
                 </p>
                 <h1 className="font-display mt-1 text-2xl text-slate-950 sm:text-3xl">
-                  {displayName ? `${displayName}` : t('Dashboard', 'Panel de Control')}
+                  {displayName || t('Dashboard', 'Panel de Control')}
                 </h1>
                 <p className="mt-2 text-sm text-slate-500">
                   {lastAnalysisDate
@@ -780,7 +776,9 @@ export default function DashboardPage() {
           </div>
 
           {calendarLoading ? (
-            <SkeletonLoader variant="text" count={4} />
+            <div className="py-6 text-center text-sm text-slate-400">
+              {t('Loading calendar deadlines...', 'Cargando fechas regulatorias...')}
+            </div>
           ) : calendarDeadlines.length === 0 ? (
             <p className="py-6 text-center text-sm text-slate-400">
               {t('No upcoming deadlines', 'No hay fechas limite proximas')}

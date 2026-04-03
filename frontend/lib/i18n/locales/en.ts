@@ -28,6 +28,7 @@ export const en: TranslationKeys = {
     email: 'Email',
     password: 'Password',
     emailPlaceholder: 'name@institution.com',
+    forgotPassword: 'Forgot password?',
     orContinueWith: 'Or continue with',
     noAccount: "Don't have an account? Sign up",
     hasAccount: 'Already have an account? Sign in',

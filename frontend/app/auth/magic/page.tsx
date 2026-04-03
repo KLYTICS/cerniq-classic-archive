@@ -11,7 +11,7 @@ function MagicLinkInner() {
     const token = searchParams.get('token');
     if (token) {
       analytics.track(EVENTS.MAGIC_LINK_CLICKED);
-      window.location.href = `/auth/magic?token=${encodeURIComponent(token)}`;
+      window.location.href = `/api/auth/magic?token=${encodeURIComponent(token)}`;
     } else {
       window.location.href = '/auth/expired';
     }

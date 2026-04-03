@@ -19,7 +19,7 @@ export default function PortalLogin() {
     setError(null);
 
     try {
-      const res = await fetch('/auth/magic/request', {
+      const res = await fetch('/api/auth/magic/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),

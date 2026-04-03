@@ -1,61 +1,27 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('ALM Dashboard', () => {
-  test('should load ALM main page without server error', async ({ page }) => {
-    const response = await page.goto('/alm');
-    // ALM page should load (may show demo data or redirect to login, but never 500)
-    expect(response?.status()).toBeLessThan(500);
-  });
-
-  test('should render ALM layout shell with sidebar', async ({ page }) => {
+test.describe('ALM strict-auth routes', () => {
+  test('redirects /alm to login with returnUrl', async ({ page }) => {
     await page.goto('/alm');
-    // The ALM layout includes a sidebar, a top bar, and a demo banner
-    const body = page.locator('body');
-    await expect(body).toBeVisible();
-    // ALM layout should contain the "ALM" or institution-related text
-    const textContent = await body.textContent();
-    expect(textContent?.length).toBeGreaterThan(0);
+    await page.waitForURL('**/login?returnUrl=%2Falm');
+    await expect(page).toHaveURL(/\/login\?returnUrl=%2Falm$/);
   });
 
-  test('should load ALM stress-test sub-page', async ({ page }) => {
-    const response = await page.goto('/alm/stress-test');
-    expect(response?.status()).toBeLessThan(500);
-    await expect(page.locator('body')).toBeVisible();
+  test('redirects /alm/modules to login with returnUrl', async ({ page }) => {
+    await page.goto('/alm/modules');
+    await page.waitForURL('**/login?returnUrl=%2Falm%2Fmodules');
+    await expect(page).toHaveURL(/\/login\?returnUrl=%2Falm%2Fmodules$/);
   });
 
-  test('should load ALM sensitivity sub-page', async ({ page }) => {
-    const response = await page.goto('/alm/sensitivity');
-    expect(response?.status()).toBeLessThan(500);
-    await expect(page.locator('body')).toBeVisible();
+  test('redirects /alm/balance-sheet to login with returnUrl', async ({ page }) => {
+    await page.goto('/alm/balance-sheet');
+    await page.waitForURL('**/login?returnUrl=%2Falm%2Fbalance-sheet');
+    await expect(page).toHaveURL(/\/login\?returnUrl=%2Falm%2Fbalance-sheet$/);
   });
 
-  test('should load ALM liquidity sub-page', async ({ page }) => {
-    const response = await page.goto('/alm/liquidity');
-    expect(response?.status()).toBeLessThan(500);
-    await expect(page.locator('body')).toBeVisible();
-  });
-
-  test('should load ALM balance-sheet sub-page', async ({ page }) => {
-    const response = await page.goto('/alm/balance-sheet');
-    expect(response?.status()).toBeLessThan(500);
-    await expect(page.locator('body')).toBeVisible();
-  });
-
-  test('should not expose sensitive data in ALM page source', async ({ page }) => {
-    await page.goto('/alm');
-    const content = await page.content();
-    // Must not leak API keys, tokens, or connection strings into client HTML
-    expect(content).not.toMatch(/sk_live_|pk_live_|Bearer\s+ey|postgresql:\/\/|DATABASE_URL/);
-  });
-
-  test('should include language toggle in ALM layout', async ({ page }) => {
-    await page.goto('/alm');
-    // The ALM layout renders EN/ES toggle buttons
-    const enButton = page.getByRole('button', { name: 'EN' });
-    const esButton = page.getByRole('button', { name: 'ES' });
-    // These should be present in the ALM top bar
-    const enCount = await enButton.count();
-    const esCount = await esButton.count();
-    expect(enCount + esCount).toBeGreaterThan(0);
+  test('redirects /dashboard to login with returnUrl', async ({ page }) => {
+    await page.goto('/dashboard');
+    await page.waitForURL('**/login?returnUrl=%2Fdashboard');
+    await expect(page).toHaveURL(/\/login\?returnUrl=%2Fdashboard$/);
   });
 });

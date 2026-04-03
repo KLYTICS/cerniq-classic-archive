@@ -42,9 +42,23 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       } else if (typeof exResponse === 'object' && exResponse !== null) {
         const obj = exResponse as any;
         message = obj.message || message;
+        if (typeof obj.code === 'string' && obj.code.trim()) {
+          code = obj.code;
+        }
         details = obj.errors || obj.details;
+        if (!details) {
+          const passthrough = { ...obj };
+          delete passthrough.code;
+          delete passthrough.message;
+          delete passthrough.statusCode;
+          if (Object.keys(passthrough).length > 0) {
+            details = passthrough;
+          }
+        }
       }
-      code = this.statusToCode(status);
+      if (!code || code === 'INTERNAL_ERROR') {
+        code = this.statusToCode(status);
+      }
     } else if (exception instanceof Error) {
       this.logger.error(
         `Unhandled exception: ${exception.message}`,

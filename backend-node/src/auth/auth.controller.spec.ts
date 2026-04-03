@@ -167,12 +167,9 @@ describe('AuthController', () => {
       const req = { cookies: {} };
       const res = mockRes();
 
-      await controller.refresh({} as any, req, res);
-
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({
-        message: 'No refresh token provided',
-      });
+      await expect(controller.refresh({} as any, req, res)).rejects.toThrow(
+        'No refresh token provided',
+      );
     });
   });
 
@@ -211,7 +208,7 @@ describe('AuthController', () => {
       const req = { user: { userId: 'u5' } };
       const result = await controller.getProfile(req);
 
-      expect(authService.getUserProfile).toHaveBeenCalledWith('u5');
+      expect(authService.getUserProfile).toHaveBeenCalledWith('u5', undefined);
       expect(result).toEqual(profile);
     });
   });
@@ -527,7 +524,9 @@ describe('AuthController', () => {
 
       expect(authService.generateTokens).toHaveBeenCalledWith({ id: 'g-user' });
       expect(res.cookie).toHaveBeenCalledWith('access_token', 'g-at', expect.any(Object));
-      expect(res.redirect).toHaveBeenCalledWith(expect.stringContaining('/dashboard'));
+      expect(res.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('/auth/callback?returnUrl=%2Fdashboard'),
+      );
     });
 
     it('githubCallback generates tokens, sets cookies, and redirects', async () => {
@@ -545,7 +544,9 @@ describe('AuthController', () => {
 
       expect(authService.generateTokens).toHaveBeenCalledWith({ id: 'gh-user' });
       expect(res.cookie).toHaveBeenCalledWith('access_token', 'gh-at', expect.any(Object));
-      expect(res.redirect).toHaveBeenCalledWith(expect.stringContaining('/dashboard'));
+      expect(res.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('/auth/callback?returnUrl=%2Fdashboard'),
+      );
     });
   });
 });

@@ -94,6 +94,12 @@ fi
 # ─── Check for port conflict ───
 if lsof -ti :3000 > /dev/null 2>&1; then
   yellow "⚠️  Port 3000 is in use."
+  lsof -nP -iTCP:3000 -sTCP:LISTEN
+  EXISTING_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://localhost:3000/api/status 2>/dev/null || echo "000")
+  if [ "$EXISTING_STATUS" != "000" ]; then
+    yellow "   Probe: GET /api/status returned HTTP $EXISTING_STATUS"
+    yellow "   If this is not the CERNIQ Nest backend, clear port 3000 before continuing."
+  fi
   read -p "   Kill existing process? (y/n) " -n 1 -r
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then

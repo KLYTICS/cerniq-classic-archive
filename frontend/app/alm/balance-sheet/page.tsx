@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { apiClient } from '@/lib/api';
+import { apiClient, getApiErrorMessage, isAuthError } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
 import { RefreshCw, DollarSign, Upload, Plus, Trash2, AlertTriangle, Check, Download, Table, FileWarning, ChevronDown } from 'lucide-react';
 import { useALM } from '@/components/alm/ALMProvider';
@@ -168,6 +168,27 @@ function DurationHeatmap({ items }: { items: BalanceSheetItem[] }) {
   );
 }
 
+function BalanceSheetErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-1 items-center justify-center p-6">
+      <div className="w-full max-w-xl rounded-3xl border border-rose-500/20 bg-slate-900/90 p-8 text-center shadow-xl">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-rose-500/30 bg-rose-500/10">
+          <AlertTriangle className="h-6 w-6 text-rose-300" />
+        </div>
+        <h2 className="text-lg font-semibold text-white">Unable to load balance sheet</h2>
+        <p className="mt-2 text-sm text-slate-300">{message}</p>
+        <button
+          onClick={onRetry}
+          className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-slate-100"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Retry
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function BalanceSheetPage() {
   const { selectedId, institution: almInstitution } = useALM();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -194,8 +215,18 @@ export default function BalanceSheetPage() {
       setItems(data.balanceSheetItems || []);
       setDirty(false);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load balance sheet';
-      setError(message);
+      setInstitution(null);
+      setItems([]);
+      if (isAuthError(err)) {
+        return;
+      }
+
+      setError(
+        getApiErrorMessage(
+          err,
+          'The balance-sheet service is unavailable right now. Please retry.'
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -341,6 +372,10 @@ export default function BalanceSheetPage() {
   }
 
   if (loading) return <SkeletonPulse />;
+
+  if (error && !institution && items.length === 0) {
+    return <BalanceSheetErrorState message={error} onRetry={() => void fetchData()} />;
+  }
 
   return (
     <div className="p-6 space-y-5 max-w-[1400px] mx-auto">

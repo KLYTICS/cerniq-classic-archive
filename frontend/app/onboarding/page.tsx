@@ -5,8 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
-import { getCurrentSubscription } from '@/lib/billing';
-import { hasPaidPortalAccess, isRememberedPortalUser, rememberPortalUser } from '@/lib/subscription';
+import {
+  ACCESS_REQUIRED_ROUTE,
+  hasPlatformAccess,
+  normalizePlatformAccess,
+  prefersPortalExperience,
+} from '@/lib/access';
+import { isRememberedPortalUser, rememberPortalUser } from '@/lib/subscription';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -15,6 +20,8 @@ export default function OnboardingPage() {
     isAuthenticated,
     onboardingComplete,
     user,
+    access,
+    setAccess,
     setOnboardingComplete,
   } = useAuthStore();
 
@@ -54,6 +61,10 @@ export default function OnboardingPage() {
       router.replace('/login');
       return;
     }
+    if (access && !hasPlatformAccess(access)) {
+      router.replace(ACCESS_REQUIRED_ROUTE);
+      return;
+    }
     if (onboardingComplete) {
       router.replace('/dashboard');
       return;
@@ -71,13 +82,30 @@ export default function OnboardingPage() {
       }
 
       try {
-        const subscription = await getCurrentSubscription();
-        if (!cancelled && hasPaidPortalAccess(subscription)) {
+        const profile = await apiClient.getCurrentUser();
+        const nextAccess = normalizePlatformAccess(
+          typeof profile === 'object' && profile !== null && 'access' in profile
+            ? (profile as { access?: unknown }).access
+            : null,
+        );
+        setAccess(nextAccess);
+
+        if (!cancelled && nextAccess && !hasPlatformAccess(nextAccess)) {
+          router.replace(ACCESS_REQUIRED_ROUTE);
+          return;
+        }
+
+        const shouldUsePortal = Boolean(
+          nextAccess?.platformAccessAllowed &&
+          (isRememberedPortalUser() || prefersPortalExperience(nextAccess)),
+        );
+
+        if (!cancelled && shouldUsePortal) {
           rememberPortalUser();
           router.replace('/portal');
         }
       } catch {
-        // If billing can't be loaded we keep the standard onboarding path.
+        // If profile can't be loaded we keep the standard onboarding path.
       }
     };
 
@@ -85,7 +113,7 @@ export default function OnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [initialized, isAuthenticated, onboardingComplete, router]);
+  }, [initialized, isAuthenticated, onboardingComplete, router, access, setAccess]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();

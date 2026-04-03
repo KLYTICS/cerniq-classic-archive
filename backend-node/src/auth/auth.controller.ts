@@ -10,6 +10,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
@@ -21,7 +22,12 @@ import {
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
-import { getAuthCookieOptions, resolveFrontendUrl } from './auth-cookie.util';
+import { AllowBlockedAccess } from './allow-blocked-access.decorator';
+import {
+  clearAuthCookies,
+  resolveFrontendUrl,
+  setAuthCookies,
+} from './auth-cookie.util';
 import {
   RegisterDto,
   LoginDto,
@@ -33,27 +39,6 @@ import {
 import { CreateApiKeyDto } from './dto/api-key.dto';
 import { AuditService } from '../audit/audit.service';
 import { SkipAuditLog } from '../common/decorators/audit-action.decorator';
-
-const COOKIE_OPTIONS = getAuthCookieOptions();
-
-const ACCESS_TOKEN_MAX_AGE = 24 * 60 * 60 * 1000; // 24h
-const REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7d
-
-function setAuthCookies(res: any, accessToken: string, refreshToken: string) {
-  res.cookie('access_token', accessToken, {
-    ...COOKIE_OPTIONS,
-    maxAge: ACCESS_TOKEN_MAX_AGE,
-  });
-  res.cookie('refresh_token', refreshToken, {
-    ...COOKIE_OPTIONS,
-    maxAge: REFRESH_TOKEN_MAX_AGE,
-  });
-}
-
-function clearAuthCookies(res: any) {
-  res.clearCookie('access_token', COOKIE_OPTIONS);
-  res.clearCookie('refresh_token', COOKIE_OPTIONS);
-}
 
 @ApiTags('Authentication')
 @Controller('api/auth')
@@ -131,8 +116,9 @@ export class AuthController {
   ) {
     const token = body.refreshToken || req.cookies?.refresh_token;
     if (!token) {
-      return res.status(401).json({ message: 'No refresh token provided' });
+      throw new UnauthorizedException('No refresh token provided');
     }
+
     const result = await this.authService.refreshTokens(token);
     setAuthCookies(res, result.accessToken, result.refreshToken);
     return { user: result.user };
@@ -151,6 +137,7 @@ export class AuthController {
 
   @Get('profile')
   @UseGuards(AuthGuard)
+  @AllowBlockedAccess()
   @ApiBearerAuth('BearerAuth')
   @ApiOperation({ summary: 'Get the authenticated user profile' })
   @ApiResponse({
@@ -159,7 +146,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getProfile(@Req() req: any) {
-    return this.authService.getUserProfile(req.user.userId);
+    return this.authService.getUserProfile(req.user.userId, req.user.email);
   }
 
   @Get('whoami')
@@ -216,12 +203,11 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createApiKey(@Req() req: any, @Body() dto: CreateApiKeyDto) {
-    const created = await this.authService.createApiKey(
+    return this.authService.createApiKey(
       req.user.userId,
       dto.name,
       dto.expiresInDays,
     );
-    return created;
   }
 
   @Post('api-keys/:keyId/revoke')
@@ -245,12 +231,9 @@ export class AuthController {
     return this.authService.resetPassword(dto.token, dto.newPassword);
   }
 
-  // --- OAuth: Google ---
   @Get('google')
   @UseGuards(PassportAuthGuard('google'))
-  googleAuth() {
-    // Passport redirects to Google
-  }
+  googleAuth() {}
 
   @Get('google/callback')
   @UseGuards(PassportAuthGuard('google'))
@@ -264,12 +247,9 @@ export class AuthController {
     );
   }
 
-  // --- OAuth: GitHub ---
   @Get('github')
   @UseGuards(PassportAuthGuard('github'))
-  githubAuth() {
-    // Passport redirects to GitHub
-  }
+  githubAuth() {}
 
   @Get('github/callback')
   @UseGuards(PassportAuthGuard('github'))

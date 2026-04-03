@@ -65,6 +65,7 @@ describe('BillingService', () => {
         findUnique: jest.fn(),
         update: jest.fn(),
       },
+      $queryRaw: jest.fn(),
       emailSequence: {
         findFirst: jest.fn(),
         create: jest.fn(),
@@ -765,7 +766,7 @@ describe('BillingService', () => {
 
   describe('verifyMagicLink', () => {
     it('should return null for non-existent token', async () => {
-      prisma.magicLink.findUnique.mockResolvedValue(null);
+      prisma.$queryRaw.mockResolvedValue([]);
 
       const result = await service.verifyMagicLink('bad-token');
 
@@ -773,12 +774,14 @@ describe('BillingService', () => {
     });
 
     it('should return null for already-used token', async () => {
-      prisma.magicLink.findUnique.mockResolvedValue({
-        id: 'ml-1',
-        usedAt: new Date(),
-        expiresAt: new Date(Date.now() + 60000),
-        user: { id: 'user-1' },
-      });
+      prisma.$queryRaw.mockResolvedValue([
+        {
+          id: 'ml-1',
+          usedAt: new Date(),
+          expiresAt: new Date(Date.now() + 60000),
+          userId: 'user-1',
+        },
+      ]);
 
       const result = await service.verifyMagicLink('used-token');
 
@@ -786,12 +789,14 @@ describe('BillingService', () => {
     });
 
     it('should return null for expired token', async () => {
-      prisma.magicLink.findUnique.mockResolvedValue({
-        id: 'ml-1',
-        usedAt: null,
-        expiresAt: new Date(Date.now() - 60000),
-        user: { id: 'user-1' },
-      });
+      prisma.$queryRaw.mockResolvedValue([
+        {
+          id: 'ml-1',
+          usedAt: null,
+          expiresAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+        },
+      ]);
 
       const result = await service.verifyMagicLink('expired-token');
 
@@ -800,13 +805,16 @@ describe('BillingService', () => {
 
     it('should mark token as used and return user for valid token', async () => {
       const mockUser = { id: 'user-1', email: 'valid@test.com' };
-      prisma.magicLink.findUnique.mockResolvedValue({
-        id: 'ml-1',
-        usedAt: null,
-        expiresAt: new Date(Date.now() + 60000),
-        user: mockUser,
-      });
+      prisma.$queryRaw.mockResolvedValue([
+        {
+          id: 'ml-1',
+          usedAt: null,
+          expiresAt: new Date(Date.now() + 60000),
+          userId: 'user-1',
+        },
+      ]);
       prisma.magicLink.update.mockResolvedValue({});
+      prisma.user.findUnique.mockResolvedValue(mockUser);
       prisma.user.update.mockResolvedValue({});
 
       const result = await service.verifyMagicLink('valid-token');

@@ -23,27 +23,16 @@ import {
 } from '@nestjs/swagger';
 import { BillingService } from './billing.service';
 import { CheckoutRequestDto } from './billing.dto';
+import { AuthService } from '../auth/auth.service';
 import { AuthGuard } from '../auth/auth.guard';
-import { getAuthCookieOptions } from '../auth/auth-cookie.util';
+import { AllowBlockedAccess } from '../auth/allow-blocked-access.decorator';
+import {
+  resolveFrontendUrl,
+  setAuthCookies,
+} from '../auth/auth-cookie.util';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma.service';
 import { SkipAuditLog } from '../common/decorators/audit-action.decorator';
-
-function resolveFrontendUrl(): string {
-  const configured = (process.env.FRONTEND_URL || '')
-    .trim()
-    .replace(/\/+$/, '');
-  if (configured) {
-    return configured;
-  }
-  if (process.env.NODE_ENV !== 'production') {
-    return 'http://localhost:3001';
-  }
-  return 'https://cerniq.io';
-}
-
-const AUTH_COOKIE_OPTIONS = getAuthCookieOptions();
-
 @ApiTags('Billing')
 @Controller()
 export class BillingController {
@@ -51,6 +40,7 @@ export class BillingController {
 
   constructor(
     private readonly billing: BillingService,
+    private readonly authService: AuthService,
     private readonly audit: AuditService,
     private readonly prisma: PrismaService,
   ) {}
@@ -96,6 +86,7 @@ export class BillingController {
 
   @Post('api/billing/portal')
   @UseGuards(AuthGuard)
+  @AllowBlockedAccess()
   @ApiBearerAuth('BearerAuth')
   @ApiOperation({
     summary:
@@ -220,7 +211,7 @@ export class BillingController {
 
   // ── Magic Link Auth ───────────────────────────────────
 
-  @Get('auth/magic')
+  @Get('api/auth/magic')
   @Throttle({ default: { limit: 10, ttl: 900000 } })
   @ApiOperation({
     summary: 'Verify a magic link token and set authentication cookies',
@@ -233,6 +224,38 @@ export class BillingController {
     @Query('token') token: string,
     @Req() req: any,
     @Res() res: any,
+  ) {
+    return this.completeMagicLinkVerification(token, req, res);
+  }
+
+  @Get('auth/magic')
+  @Throttle({ default: { limit: 10, ttl: 900000 } })
+  async verifyMagicLinkLegacy(
+    @Query('token') token: string,
+    @Req() req: any,
+    @Res() res: any,
+  ) {
+    return this.completeMagicLinkVerification(token, req, res);
+  }
+
+  @Post('api/auth/magic/request')
+  @Throttle({ default: { limit: 3, ttl: 3600000 } })
+  @HttpCode(HttpStatus.OK)
+  async requestMagicLink(@Body() body: { email: string }) {
+    return this.queueMagicLinkRequest(body.email);
+  }
+
+  @Post('auth/magic/request')
+  @Throttle({ default: { limit: 3, ttl: 3600000 } })
+  @HttpCode(HttpStatus.OK)
+  async requestMagicLinkLegacy(@Body() body: { email: string }) {
+    return this.queueMagicLinkRequest(body.email);
+  }
+
+  private async completeMagicLinkVerification(
+    token: string,
+    req: any,
+    res: any,
   ) {
     const frontendUrl = resolveFrontendUrl();
     if (!token) {
@@ -252,18 +275,8 @@ export class BillingController {
       return res.redirect(`${frontendUrl}/auth/expired`);
     }
 
-    // Create JWT session (reuse existing auth service pattern)
-    const jwt = require('jsonwebtoken');
-    const accessToken = jwt.sign(
-      { sub: user.id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' },
-    );
-
-    res.cookie('access_token', accessToken, {
-      ...AUTH_COOKIE_OPTIONS,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    const tokens = await this.authService.generateTokens(user);
+    setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
 
     this.audit.log({
       userId: user.id,
@@ -277,17 +290,14 @@ export class BillingController {
     return res.redirect(`${frontendUrl}/portal`);
   }
 
-  @Post('auth/magic/request')
-  @Throttle({ default: { limit: 3, ttl: 3600000 } })
-  @HttpCode(HttpStatus.OK)
-  async requestMagicLink(@Body() body: { email: string }) {
+  private async queueMagicLinkRequest(email: string) {
     // Always return success (don't reveal if email exists)
     try {
-      await this.billing.requestMagicLink(body.email);
+      await this.billing.requestMagicLink(email);
     } catch (err) {
       // Don't reveal account existence — but log for audit trail
       this.logger.warn(
-        `Magic link request failed for ${body.email}: ${(err as Error).message}`,
+        `Magic link request failed for ${email}: ${(err as Error).message}`,
       );
     }
     return { message: 'If this email has an account, a login link was sent.' };
@@ -297,6 +307,7 @@ export class BillingController {
 
   @Get('api/billing/subscription')
   @UseGuards(AuthGuard)
+  @AllowBlockedAccess()
   @ApiBearerAuth('BearerAuth')
   @ApiOperation({
     summary: 'Get current subscription details for the authenticated user',

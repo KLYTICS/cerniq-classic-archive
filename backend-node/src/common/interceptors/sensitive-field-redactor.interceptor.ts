@@ -33,20 +33,25 @@ export class SensitiveFieldRedactorInterceptor implements NestInterceptor {
     return next.handle().pipe(map((data) => this.redact(data)));
   }
 
-  private redact(value: any): any {
+  private redact(value: any, seen: WeakSet<object> = new WeakSet()): any {
     if (value === null || value === undefined) return value;
 
     if (Array.isArray(value)) {
-      return value.map((item) => this.redact(item));
+      return value.map((item) => this.redact(item, seen));
     }
 
     if (typeof value === 'object' && !(value instanceof Date)) {
+      if (seen.has(value)) {
+        return '[Circular]';
+      }
+      seen.add(value);
+
       const result: any = {};
       for (const [key, val] of Object.entries(value)) {
         if (this.isSensitiveKey(key)) {
           result[key] = '[REDACTED]';
         } else if (typeof val === 'object' && val !== null) {
-          result[key] = this.redact(val);
+          result[key] = this.redact(val, seen);
         } else {
           result[key] = val;
         }

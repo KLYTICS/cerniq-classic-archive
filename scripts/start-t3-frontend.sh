@@ -90,6 +90,12 @@ fi
 # ─── Check for port conflict ───
 if lsof -ti :3001 > /dev/null 2>&1; then
   yellow "⚠️  Port 3001 is in use."
+  lsof -nP -iTCP:3001 -sTCP:LISTEN
+  FRONTEND_PROBE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://localhost:3001/api/auth/refresh 2>/dev/null || echo "000")
+  if [ "$FRONTEND_PROBE" != "000" ]; then
+    yellow "   Probe: GET /api/auth/refresh returned HTTP $FRONTEND_PROBE"
+    yellow "   Expected local CERNIQ frontend rewrites on port 3001 before browser testing."
+  fi
   read -p "   Kill existing process? (y/n) " -n 1 -r
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then

@@ -152,8 +152,49 @@ function MobileHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   );
 }
 
+function ALMRedirectingState() {
+  return (
+    <div className="flex min-h-[420px] items-center justify-center px-6 py-10">
+      <div className="max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
+          <RefreshCw className="h-6 w-6 animate-spin text-cyan-700" />
+        </div>
+        <h2 className="text-lg font-semibold text-slate-950">Redirecting to sign in</h2>
+        <p className="mt-2 text-sm text-slate-600">
+          ALM requires an authenticated session. We are sending you to the login screen now.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ALMServiceError({ message, onRetry }: { message: string; onRetry: () => Promise<void> }) {
+  return (
+    <div className="flex min-h-[420px] items-center justify-center px-6 py-10">
+      <div className="max-w-xl rounded-3xl border border-rose-200 bg-white p-8 shadow-sm">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50">
+          <Building2 className="h-6 w-6 text-rose-600" />
+        </div>
+        <h2 className="text-lg font-semibold text-slate-950">ALM data service unavailable</h2>
+        <p className="mt-2 text-sm text-slate-600">{message}</p>
+        <div className="mt-5 flex items-center gap-3">
+          <button
+            onClick={() => void onRetry()}
+            className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Retry
+          </button>
+          <span className="text-xs text-slate-500">Check that the CERNIQ backend is running on port 3000.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ALMShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { authRedirecting, bootstrapError, refresh } = useALM();
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f7fbff] text-slate-950">
@@ -167,9 +208,15 @@ function ALMShell({ children }: { children: React.ReactNode }) {
         <ALMBreadcrumb />
 
         <main id="alm-report-content" className="flex-1 overflow-y-auto bg-transparent scroll-smooth">
-          <div className="animate-fade-in">
-            {children}
-          </div>
+          {authRedirecting ? (
+            <ALMRedirectingState />
+          ) : bootstrapError ? (
+            <ALMServiceError message={bootstrapError} onRetry={refresh} />
+          ) : (
+            <div className="animate-fade-in">
+              {children}
+            </div>
+          )}
         </main>
       </div>
     </div>

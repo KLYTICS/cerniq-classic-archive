@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 import { apiClient } from './api';
+import {
+    normalizePlatformAccess,
+    type PlatformAccessState,
+} from './access';
 
 interface User {
     id: string;
@@ -9,6 +13,7 @@ interface User {
 
 interface AuthState {
     user: User | null;
+    access: PlatformAccessState | null;
     initialized: boolean;
     isAuthenticated: boolean;
     authRevision: number;
@@ -16,6 +21,8 @@ interface AuthState {
     hydrateFromStorage: () => Promise<void>;
     initializeAnonymous: () => void;
     setUser: (user: User | null) => void;
+    setAccess: (access: PlatformAccessState | null) => void;
+    setSession: (user: User | null, access: PlatformAccessState | null) => void;
     setOnboardingComplete: (complete: boolean) => void;
     logout: () => Promise<void>;
 }
@@ -76,8 +83,13 @@ function normalizeUser(payload: unknown): User | null {
     };
 }
 
+function hasStoredOnboardingFlag(userId: string) {
+    return typeof window !== 'undefined' && localStorage.getItem(onboardingKey(userId)) === 'true';
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
     user: null,
+    access: null,
     initialized: false,
     isAuthenticated: false,
     authRevision: 0,
@@ -93,17 +105,22 @@ export const useAuthStore = create<AuthState>((set) => ({
         const setUnauthenticated = () =>
             set((state) => ({
                 user: null,
+                access: null,
                 isAuthenticated: false,
                 authRevision: state.authRevision + 1,
                 onboardingComplete: false,
                 initialized: true,
             }));
 
-        const setAuthenticated = (user: User) => {
+        const setAuthenticated = (
+            user: User,
+            access: PlatformAccessState | null,
+        ) => {
             localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
-            const onboardingComplete = localStorage.getItem(onboardingKey(user.id)) === 'true';
+            const onboardingComplete = hasStoredOnboardingFlag(user.id);
             set((state) => ({
                 user,
+                access,
                 isAuthenticated: true,
                 authRevision: state.authRevision + 1,
                 onboardingComplete,
@@ -130,12 +147,16 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
 
         const storedUserRaw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+        let cachedUser: User | null = null;
         if (storedUserRaw) {
             try {
                 const parsedUser = normalizeUser(JSON.parse(storedUserRaw));
                 if (parsedUser) {
-                    setAuthenticated(parsedUser);
-                    return;
+                    cachedUser = parsedUser;
+                    if (!shouldProbeServerSession()) {
+                        setAuthenticated(parsedUser, null);
+                        return;
+                    }
                 }
                 localStorage.removeItem(AUTH_USER_STORAGE_KEY);
             } catch {
@@ -148,13 +169,27 @@ export const useAuthStore = create<AuthState>((set) => ({
             try {
                 const profile = await apiClient.getCurrentUser();
                 const profileUser = normalizeUser(profile);
+                const access = normalizePlatformAccess(
+                    typeof profile === 'object' && profile !== null && 'access' in profile
+                        ? (profile as { access?: unknown }).access
+                        : null,
+                );
                 if (profileUser) {
-                    setAuthenticated(profileUser);
+                    setAuthenticated(profileUser, access);
                     return;
                 }
             } catch {
-                // No active session or profile endpoint unavailable.
+                // Preserve the locally known user while profile/bootstrap retries settle.
+                if (cachedUser) {
+                    setAuthenticated(cachedUser, null);
+                    return;
+                }
             }
+        }
+
+        if (cachedUser && !shouldProbeServerSession()) {
+            setAuthenticated(cachedUser, null);
+            return;
         }
 
         setUnauthenticated();
@@ -162,6 +197,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     initializeAnonymous: () => {
         set((state) => ({
             user: null,
+            access: null,
             isAuthenticated: false,
             authRevision: state.authRevision + 1,
             onboardingComplete: false,
@@ -178,11 +214,37 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
 
         const onboardingComplete = user
-            ? (typeof window !== 'undefined' && localStorage.getItem(onboardingKey(user.id)) === 'true')
+            ? hasStoredOnboardingFlag(user.id)
             : false;
 
         set((state) => ({
             user,
+            access: user ? state.access : null,
+            isAuthenticated: Boolean(user),
+            authRevision: state.authRevision + 1,
+            onboardingComplete,
+            initialized: true,
+        }));
+    },
+    setAccess: (access) => {
+        set({ access });
+    },
+    setSession: (user, access) => {
+        if (typeof window !== 'undefined') {
+            if (user) {
+                localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
+            } else {
+                localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+            }
+        }
+
+        const onboardingComplete = user
+            ? hasStoredOnboardingFlag(user.id)
+            : false;
+
+        set((state) => ({
+            user,
+            access,
             isAuthenticated: Boolean(user),
             authRevision: state.authRevision + 1,
             onboardingComplete,
@@ -204,6 +266,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
         set((state) => ({
             user: null,
+            access: null,
             isAuthenticated: false,
             authRevision: state.authRevision + 1,
             onboardingComplete: false,
