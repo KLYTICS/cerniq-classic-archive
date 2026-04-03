@@ -22,6 +22,14 @@ describe('PipelineHealthController', () => {
     jest.clearAllMocks();
   });
 
+  function mockCurrentDate(mockDate: Date) {
+    const RealDate = Date;
+    return jest.spyOn(global, 'Date').mockImplementation(
+      ((value?: string | number | Date) =>
+        value === undefined ? mockDate : new RealDate(value)) as any,
+    );
+  }
+
   it('returns operational status when last run exists', async () => {
     mockPipelineService.getLastSuccessfulRun.mockResolvedValue({
       completedAt: '2026-03-27T23:30:00Z',
@@ -119,11 +127,7 @@ describe('PipelineHealthController', () => {
     // 2026-03-27 is a Friday. Set time to 23:45 UTC.
     const realDate = Date;
     const mockDate = new Date('2026-03-27T23:45:00.000Z');
-    jest.spyOn(global, 'Date').mockImplementation((...args: any[]) => {
-      if (args.length === 0) return mockDate;
-      if (args.length === 1) return new realDate(args[0]);
-      return new realDate(...args);
-    });
+    mockCurrentDate(mockDate);
 
     mockPipelineService.getLastSuccessfulRun.mockResolvedValue(null);
     mockPipelineService.getTrackedTickerCount.mockResolvedValue(0);
@@ -142,11 +146,7 @@ describe('PipelineHealthController', () => {
     // 2026-03-28 is a Saturday
     const realDate = Date;
     const mockDate = new Date('2026-03-28T10:00:00.000Z');
-    jest.spyOn(global, 'Date').mockImplementation((...args: any[]) => {
-      if (args.length === 0) return mockDate;
-      if (args.length === 1) return new realDate(args[0]);
-      return new realDate(...args);
-    });
+    mockCurrentDate(mockDate);
 
     mockPipelineService.getLastSuccessfulRun.mockResolvedValue(null);
     mockPipelineService.getTrackedTickerCount.mockResolvedValue(0);

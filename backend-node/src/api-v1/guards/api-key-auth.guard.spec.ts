@@ -20,6 +20,7 @@ function createMockContext(headers: Record<string, string> = {}): ExecutionConte
 describe('ApiKeyAuthGuard', () => {
   let guard: ApiKeyAuthGuard;
   let mockPrisma: any;
+  let mockPlatformAccess: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -29,7 +30,20 @@ describe('ApiKeyAuthGuard', () => {
         update: jest.fn().mockResolvedValue({}),
       },
     };
-    guard = new ApiKeyAuthGuard(mockPrisma);
+    mockPlatformAccess = {
+      evaluateAccess: jest.fn().mockReturnValue({
+        platformAccessAllowed: true,
+        isMasterCeo: false,
+        isPaid: true,
+        effectiveTier: 'standard',
+        effectiveStatus: 'active',
+        reason: 'paid',
+      }),
+      buildForbiddenPayload: jest
+        .fn()
+        .mockReturnValue({ code: 'PLATFORM_ACCESS_REQUIRED' }),
+    };
+    guard = new ApiKeyAuthGuard(mockPrisma, mockPlatformAccess);
   });
 
   it('should be defined', () => {

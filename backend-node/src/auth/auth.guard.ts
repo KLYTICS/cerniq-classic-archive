@@ -161,8 +161,6 @@ export class AuthGuard implements CanActivate {
     let resolvedRole = user.role;
     if (user.authMethod === 'api_key') {
       resolvedRole = 'api_key';
-    } else if (provisionedRole) {
-      resolvedRole = provisionedRole;
     } else if (applicationUserId) {
       try {
         const dbUser = await this.prisma.user.findUnique({
@@ -171,6 +169,8 @@ export class AuthGuard implements CanActivate {
         });
         if (dbUser?.role) {
           resolvedRole = dbUser.role;
+        } else if (provisionedRole) {
+          resolvedRole = provisionedRole;
         }
       } catch (dbError) {
         // Fall back to token-based role on DB error — but log it
@@ -178,7 +178,12 @@ export class AuthGuard implements CanActivate {
           `DB role lookup failed for user ${applicationUserId}, using token role`,
           dbError,
         );
+        if (provisionedRole) {
+          resolvedRole = provisionedRole;
+        }
       }
+    } else if (provisionedRole) {
+      resolvedRole = provisionedRole;
     }
 
     const access = await this.platformAccess.getAccessForUser(

@@ -1,5 +1,6 @@
 import { ExecutionContext, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma.service';
 import { AuthGuard } from './auth.guard';
 
@@ -26,6 +27,20 @@ describe('AuthGuard (enhanced)', () => {
   }
 
   function createGuard(jwtOverrides?: Partial<JwtService>, prismaOverrides?: any) {
+    const authService = {
+      resolveApplicationUser: jest.fn().mockImplementation(async ({
+        authUserId,
+        email,
+      }: {
+        authUserId?: string;
+        email?: string;
+      }) => ({
+        id: authUserId ?? email ?? 'user-1',
+        email: email ?? 'test@cerniq.io',
+        role: null,
+      })),
+    };
+
     const jwtService = {
       decode: jest.fn().mockReturnValue({}),
       verify: jest.fn(),
@@ -38,7 +53,39 @@ describe('AuthGuard (enhanced)', () => {
       ...prismaOverrides,
     } as unknown as PrismaService;
 
-    return { guard: new AuthGuard(jwtService, prisma), jwtService, prisma };
+    const reflector = {
+      getAllAndOverride: jest.fn().mockReturnValue(false),
+    } as unknown as Reflector;
+
+    const platformAccess = {
+      isMasterAccountEmail: jest.fn().mockReturnValue(false),
+      getAccessForUser: jest.fn().mockResolvedValue({
+        platformAccessAllowed: true,
+        isMasterCeo: false,
+        isPaid: true,
+        effectiveTier: 'standard',
+        effectiveStatus: 'active',
+        reason: 'paid',
+      }),
+      buildForbiddenPayload: jest
+        .fn()
+        .mockReturnValue({ code: 'PLATFORM_ACCESS_REQUIRED' }),
+    };
+
+    return {
+      guard: new AuthGuard(
+        authService as any,
+        jwtService,
+        prisma,
+        reflector,
+        platformAccess as any,
+      ),
+      authService,
+      jwtService,
+      prisma,
+      reflector,
+      platformAccess,
+    };
   }
 
   describe('JWT token authentication', () => {

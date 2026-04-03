@@ -195,9 +195,9 @@ describe('ValuationService', () => {
   it('should pass assetType and sector to listTickers in screener', async () => {
     mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
     mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 20 });
-    await service.runScreener({ assetType: 'equity', sector: 'Finance', limit: 5 });
+    await service.runScreener({ assetType: 'stock', sector: 'Finance', limit: 5 });
     expect(mockTickerService.listTickers).toHaveBeenCalledWith(
-      expect.objectContaining({ assetType: 'equity', sector: 'Finance', limit: 5 }),
+      expect.objectContaining({ assetType: 'stock', sector: 'Finance', limit: 5 }),
     );
   });
 

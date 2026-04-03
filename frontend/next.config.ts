@@ -4,6 +4,7 @@ import { withSentryConfig } from '@sentry/nextjs';
 const hasSentryReleaseAuth = Boolean(process.env.SENTRY_AUTH_TOKEN);
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
   async rewrites() {
     const backendUrl = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
     if (!backendUrl) {
