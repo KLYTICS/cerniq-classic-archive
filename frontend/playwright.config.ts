@@ -1,17 +1,21 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const frontendBaseUrl =
-  process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3001';
+  process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:3101';
 const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEBSERVER === '1';
 const backendBaseUrl =
   process.env.PLAYWRIGHT_BACKEND_URL ||
   process.env.NEXT_PUBLIC_NODE_API_URL ||
-  'http://localhost:3000';
+  'http://127.0.0.1:3100';
 const backendCommand =
   process.env.PLAYWRIGHT_BACKEND_COMMAND ||
-  'cd ../backend-node && npm run start:dev';
+  'cd ../backend-node && PORT=3100 BACKEND_PORT=3100 npm run start:dev';
 const frontendCommand =
-  process.env.PLAYWRIGHT_FRONTEND_COMMAND || 'npm run dev';
+  process.env.PLAYWRIGHT_FRONTEND_COMMAND ||
+  'NEXT_PUBLIC_NODE_API_URL=http://127.0.0.1:3100 npx next dev --port 3101';
+
+process.env.PLAYWRIGHT_BASE_URL ??= frontendBaseUrl;
+process.env.PLAYWRIGHT_BACKEND_URL ??= backendBaseUrl;
 
 const webServer = skipWebServer
   ? undefined

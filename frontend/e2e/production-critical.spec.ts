@@ -30,6 +30,12 @@ function attachErrorTracker(page: Page) {
     if (/favicon\.ico/i.test(text)) {
       return;
     }
+    if (
+      /_next\/webpack-hmr/i.test(text) &&
+      /ERR_INVALID_HTTP_RESPONSE/i.test(text)
+    ) {
+      return;
+    }
 
     errors.push(`console: ${text}`);
   });

@@ -407,14 +407,7 @@ export class BillingService {
   }
 
   async verifyMagicLink(token: string) {
-    const links = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        userId: string;
-        expiresAt: Date;
-        usedAt: Date | null;
-      }>
-    >(Prisma.sql`
+    const links = (await this.prisma.$queryRaw(Prisma.sql`
       SELECT
         id,
         user_id AS "userId",
@@ -423,7 +416,12 @@ export class BillingService {
       FROM magic_links
       WHERE token = ${token}
       LIMIT 1
-    `);
+    `)) as Array<{
+      id: string;
+      userId: string;
+      expiresAt: Date;
+      usedAt: Date | null;
+    }>;
     const link = links[0] || null;
 
     if (!link || link.usedAt || new Date() > new Date(link.expiresAt)) {

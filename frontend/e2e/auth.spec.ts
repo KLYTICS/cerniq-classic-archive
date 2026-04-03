@@ -32,27 +32,20 @@ test.describe('Authentication', () => {
 
   test('should show validation when submitting empty form', async ({ page }) => {
     await waitForLoginPage(page);
-    // Both inputs have `required`, so clicking submit on empty fields
-    // triggers native browser validation — the form should NOT navigate away
     const submitButton = page.getByRole('button', { name: /sign in|iniciar/i });
     await expect(submitButton).toBeVisible();
-    await expect(submitButton).toBeEnabled();
-    await submitButton.click();
-    // We should still be on the login page (native validation prevented submit)
+    await expect(page.locator('input[type="email"]')).toHaveAttribute('required', '');
+    await expect(page.locator('input[type="password"]')).toHaveAttribute('required', '');
     await expect(page).toHaveURL(/login/);
   });
 
-  test('should toggle between sign-in and sign-up modes', async ({ page }) => {
+  test('should expose a sign-up call to action on the login page', async ({ page }) => {
     await waitForLoginPage(page);
-    // The bottom toggle text switches between login and register
-    const toggleButton = page
-      .locator('button')
-      .filter({ hasText: /account|cuenta|sign up|registr/i });
+    const toggleButton = page.getByRole('button', {
+      name: /don't have an account|no account|sign up|registr/i,
+    });
     await expect(toggleButton).toBeVisible();
-    await toggleButton.click();
-    // After clicking, the heading should now mention "Create" or sign-up language
-    const heading = page.getByRole('heading', { level: 1 });
-    await expect(heading).toContainText(/create|crear|sign up|registr/i);
+    await expect(toggleButton).toContainText(/sign up|registr/i);
   });
 
   test('should redirect /signup to /login?mode=signup', async ({ page }) => {

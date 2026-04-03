@@ -91,7 +91,12 @@ export default function AuthInitializer() {
   }, [pathname, initialized, hydrateFromStorage, initializeAnonymous]);
 
   useLayoutEffect(() => {
-    if (!initialized || !pathname || !isProtectedAppPath(pathname)) {
+    if (
+      !initialized ||
+      !pathname ||
+      isAnonymousEntryRoute(pathname) ||
+      !isProtectedAppPath(pathname)
+    ) {
       return;
     }
 

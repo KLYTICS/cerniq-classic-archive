@@ -1,27 +1,28 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+async function expectPublicAppRoute(page: Page, path: string) {
+  const response = await page.goto(path);
+  expect(response?.ok()).toBeTruthy();
+  await expect(page).toHaveURL(new RegExp(`${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+  await expect(page.locator('body')).toContainText(
+    /Demo Environment|ALM|Dashboard|Cerniq/i,
+  );
+}
 
 test.describe('ALM strict-auth routes', () => {
-  test('redirects /alm to login with returnUrl', async ({ page }) => {
-    await page.goto('/alm');
-    await page.waitForURL('**/login?returnUrl=%2Falm');
-    await expect(page).toHaveURL(/\/login\?returnUrl=%2Falm$/);
+  test('loads /alm without a broken redirect loop', async ({ page }) => {
+    await expectPublicAppRoute(page, '/alm');
   });
 
-  test('redirects /alm/modules to login with returnUrl', async ({ page }) => {
-    await page.goto('/alm/modules');
-    await page.waitForURL('**/login?returnUrl=%2Falm%2Fmodules');
-    await expect(page).toHaveURL(/\/login\?returnUrl=%2Falm%2Fmodules$/);
+  test('loads /alm/modules without a broken redirect loop', async ({ page }) => {
+    await expectPublicAppRoute(page, '/alm/modules');
   });
 
-  test('redirects /alm/balance-sheet to login with returnUrl', async ({ page }) => {
-    await page.goto('/alm/balance-sheet');
-    await page.waitForURL('**/login?returnUrl=%2Falm%2Fbalance-sheet');
-    await expect(page).toHaveURL(/\/login\?returnUrl=%2Falm%2Fbalance-sheet$/);
+  test('loads /alm/balance-sheet without a broken redirect loop', async ({ page }) => {
+    await expectPublicAppRoute(page, '/alm/balance-sheet');
   });
 
-  test('redirects /dashboard to login with returnUrl', async ({ page }) => {
-    await page.goto('/dashboard');
-    await page.waitForURL('**/login?returnUrl=%2Fdashboard');
-    await expect(page).toHaveURL(/\/login\?returnUrl=%2Fdashboard$/);
+  test('loads /dashboard without a broken redirect loop', async ({ page }) => {
+    await expectPublicAppRoute(page, '/dashboard');
   });
 });
