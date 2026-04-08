@@ -461,6 +461,24 @@ if [ "$READ_ONLY_MODE" -eq 0 ] && [ -n "$AUTH_TOKEN" ] && [ -n "$INSTITUTION_ID"
 fi
 
 # ════════════════════════════════════════════
+# SECTION 9B: PORTAL ACTIVATION (OPTIONAL AUTHED)
+# ════════════════════════════════════════════
+PORTAL_TOKEN="${PORTAL_AUTH_TOKEN:-}"
+if [ -n "$PORTAL_TOKEN" ]; then
+  blue "──── 9B. Portal Activation ────"
+
+  GET "GET /api/portal/overview" "/api/portal/overview" "$PORTAL_TOKEN"
+
+  if [ "$READ_ONLY_MODE" -eq 0 ]; then
+    POST_EXPECT_2XX "POST /api/portal/jobs/open-cycle" \
+      "/api/portal/jobs/open-cycle" "" "$PORTAL_TOKEN"
+  else
+    skip_read_only_section "9B. Portal activation write checks"
+  fi
+  echo ""
+fi
+
+# ════════════════════════════════════════════
 # SECTION 10: ALM — STRESS TESTING
 # ════════════════════════════════════════════
 if [ "$READ_ONLY_MODE" -eq 0 ] && [ -n "$AUTH_TOKEN" ] && [ -n "$INSTITUTION_ID" ]; then
