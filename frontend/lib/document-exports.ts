@@ -1,5 +1,8 @@
 'use client';
 
+import { fetchWithAppAuth } from './auth-fetch';
+import { unwrapApiData } from './api-response';
+
 export type DocumentExportKind =
   | 'alm_report'
   | 'sample_report'
@@ -22,35 +25,6 @@ export interface DocumentExportManifest {
   sourceJobId: string | null;
 }
 
-const ACCESS_TOKEN_KEY = 'cerniq_access_token';
-
-function getAccessToken(): string {
-  if (typeof window === 'undefined') {
-    return '';
-  }
-
-  return (
-    sessionStorage.getItem(ACCESS_TOKEN_KEY) ||
-    localStorage.getItem(ACCESS_TOKEN_KEY) ||
-    ''
-  );
-}
-
-function buildAuthenticatedHeaders(url: string): HeadersInit {
-  const headers: HeadersInit = {};
-  const normalizedUrl = new URL(url, window.location.origin);
-  const sameOrigin = normalizedUrl.origin === window.location.origin;
-
-  if (sameOrigin && normalizedUrl.pathname.startsWith('/api/')) {
-    const token = getAccessToken();
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-  }
-
-  return headers;
-}
-
 function getDownloadFilename(
   manifest: DocumentExportManifest,
   disposition: string | null,
@@ -62,24 +36,18 @@ function getDownloadFilename(
 export async function fetchDocumentExports(
   manifestPath: string,
 ): Promise<DocumentExportManifest[]> {
-  const response = await fetch(manifestPath, {
-    credentials: 'include',
-    headers:
-      typeof window === 'undefined'
-        ? {}
-        : buildAuthenticatedHeaders(manifestPath),
-  });
+  const response = await fetchWithAppAuth(manifestPath, { cache: 'no-store' });
 
   if (!response.ok) {
     throw new Error(`Unable to load exports (${response.status})`);
   }
 
-  const data = await response.json();
-  if (!Array.isArray(data)) {
+  const payload = unwrapApiData<unknown>(await response.json());
+  if (!Array.isArray(payload)) {
     throw new Error('Invalid export manifest payload');
   }
 
-  return data as DocumentExportManifest[];
+  return payload as DocumentExportManifest[];
 }
 
 export async function downloadDocumentExport(
@@ -89,13 +57,7 @@ export async function downloadDocumentExport(
     throw new Error('Document is not available for download yet');
   }
 
-  const response = await fetch(manifest.downloadUrl, {
-    credentials: 'include',
-    headers:
-      typeof window === 'undefined'
-        ? {}
-        : buildAuthenticatedHeaders(manifest.downloadUrl),
-  });
+  const response = await fetchWithAppAuth(manifest.downloadUrl);
 
   if (!response.ok) {
     throw new Error(`Download failed (${response.status})`);

@@ -3,6 +3,8 @@
 import { useState, useCallback } from 'react';
 import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
+import { fetchWithAppAuth } from '@/lib/auth-fetch';
+import { unwrapApiData } from '@/lib/api-response';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { MessageSquare, AlertTriangle, Send } from 'lucide-react';
 
@@ -50,14 +52,16 @@ export default function AnalystPage() {
     setLoading(true);
 
     try {
-      const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-      const res = await fetch(`${NODE_API_URL}/api/alm/${selectedId}/analyst/chat`, {
+      const res = await fetchWithAppAuth(`/api/alm/${selectedId}/analyst/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text, sessionId: `session-${selectedId}`, lang: locale }),
       });
       if (res.ok) {
-        const data = await res.json() as { message: AnalystMessage };
+        const data = unwrapApiData<{ message?: AnalystMessage }>(await res.json());
+        if (!data?.message) {
+          throw new Error('Invalid analyst response payload');
+        }
         setMessages(prev => [...prev, data.message]);
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: locale === 'es' ? 'Error al procesar la consulta. Intente de nuevo.' : 'Error processing query. Please try again.' }]);

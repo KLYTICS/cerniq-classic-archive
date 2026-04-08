@@ -36,23 +36,26 @@ describe('DocumentExportButtons', () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => [
-          {
-            id: 'alm_report:inst-1:en',
-            kind: 'alm_report',
-            language: 'en',
-            audience: 'internal',
-            filename: 'alm-report-test-en-2026-04-06.pdf',
-            mimeType: 'application/pdf',
-            status: 'ready',
-            downloadUrl: '/api/alm/inst-1/report?lang=en',
-            generatedAt: '2026-04-06T12:00:00.000Z',
-            expiresAt: null,
-            watermark: null,
-            sourceInstitutionId: 'inst-1',
-            sourceJobId: null,
-          },
-        ],
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: 'alm_report:inst-1:en',
+              kind: 'alm_report',
+              language: 'en',
+              audience: 'internal',
+              filename: 'alm-report-test-en-2026-04-06.pdf',
+              mimeType: 'application/pdf',
+              status: 'ready',
+              downloadUrl: '/api/alm/inst-1/report?lang=en',
+              generatedAt: '2026-04-06T12:00:00.000Z',
+              expiresAt: null,
+              watermark: null,
+              sourceInstitutionId: 'inst-1',
+              sourceJobId: null,
+            },
+          ],
+        }),
       })
       .mockResolvedValueOnce({
         ok: true,
