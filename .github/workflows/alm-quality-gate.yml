@@ -1,0 +1,259 @@
+# ALM Quality Gate — session-aware CI/CD layer
+#
+# This workflow ADDS to the existing ci-cd.yml pipeline. It does NOT
+# replace it. The existing pipeline handles lint, unit tests, E2E,
+# Playwright, security audit, and deploy. This workflow adds the
+# session-collab guardrails that FAANG-quality cross-session work needs:
+#
+#   1. Dedicated golden-drift job with rich annotations (the ALM math
+#      immune system — see src/alm/golden-reconciliation.spec.ts)
+#   2. Prisma schema-drift detection (catches the case where one session
+#      edits schema.prisma without generating a matching migration)
+#   3. SESSION_HANDOFF.md freshness warning (non-blocking — the handoff
+#      doc is the source of truth for cross-session state)
+#   4. Path-filtered targeted tests (only runs on relevant changes,
+#      saves CI minutes when parallel sessions push unrelated work)
+#   5. ci-status.json artifact (machine-readable verdict the next
+#      Claude session can read without re-running the full suite)
+#
+# Locked decisions: see docs/CI_CD_PIPELINE.md and docs/SESSION_HANDOFF.md §1.
+
+name: ALM Quality Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend-node/src/alm/**'
+      - 'backend-node/src/actions/**'
+      - 'backend-node/src/expenses/**'
+      - 'backend-node/src/pipeline/**'
+      - 'backend-node/prisma/**'
+      - 'backend-node/test/golden/**'
+      - 'backend-node/package.json'
+      - 'backend-node/package-lock.json'
+      - 'docs/SESSION_HANDOFF.md'
+      - '.github/workflows/alm-quality-gate.yml'
+      - 'scripts/ci/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend-node/src/alm/**'
+      - 'backend-node/src/actions/**'
+      - 'backend-node/src/expenses/**'
+      - 'backend-node/src/pipeline/**'
+      - 'backend-node/prisma/**'
+      - 'backend-node/test/golden/**'
+      - 'docs/SESSION_HANDOFF.md'
+
+# Cancel stale runs when a newer push lands. With multiple parallel Claude
+# sessions pushing back-to-back, this prevents queue buildup and makes the
+# latest commit's verdict the authoritative one.
+concurrency:
+  group: alm-quality-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ─── Fast type check — everything else depends on it ─────────────
+  typecheck:
+    name: Backend Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend-node/package-lock.json
+      - name: Install dependencies
+        working-directory: backend-node
+        run: npm ci
+      - name: Generate Prisma client
+        working-directory: backend-node
+        run: npx prisma generate
+      - name: TypeScript strict check
+        working-directory: backend-node
+        run: npx tsc --noEmit --project tsconfig.json
+
+  # ─── Targeted jest run: ALM + actions + expenses + pipeline ──────
+  # Scoped subset of the full suite that covers everything our Phase 1/2/3
+  # work touches. Runs in ~35s vs the full backend-test's ~5 min. The
+  # existing ci-cd.yml still runs the full suite; this is the fast
+  # feedback path for session-relevant changes.
+  alm-tests:
+    name: ALM + Actions Targeted Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [typecheck]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend-node/package-lock.json
+      - name: Install dependencies
+        working-directory: backend-node
+        run: npm ci
+      - name: Generate Prisma client
+        working-directory: backend-node
+        run: npx prisma generate
+      - name: Run targeted jest suites
+        working-directory: backend-node
+        run: npx jest src/alm src/actions src/expenses src/pipeline --no-coverage --forceExit
+        env:
+          JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
+          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
+
+  # ─── Dedicated golden drift job — the ALM math immune system ─────
+  # Runs src/alm/golden-reconciliation.spec.ts in isolation with a rich
+  # output wrapper. On failure, emits a GitHub Actions error annotation
+  # with clear diagnosis + remediation steps. Locked decision D7: NEVER
+  # auto-update golden files in CI.
+  golden-drift:
+    name: ALM Math Golden Drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [typecheck]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend-node/package-lock.json
+      - name: Install dependencies
+        working-directory: backend-node
+        run: npm ci
+      - name: Generate Prisma client
+        working-directory: backend-node
+        run: npx prisma generate
+      - name: Run golden reconciliation
+        run: bash scripts/ci/golden-drift-report.sh
+        env:
+          JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
+
+  # ─── Schema drift: does schema.prisma match migration history? ───
+  # Catches the cross-session failure mode where one session edits
+  # schema.prisma without generating a migration (or vice versa). Uses a
+  # postgres shadow database — the CI runner gets its own throwaway DB
+  # so we don't touch the main test fixture DB.
+  schema-drift:
+    name: Prisma Schema Drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: shadow
+          POSTGRES_PASSWORD: shadow
+          POSTGRES_DB: cerniq_shadow
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U shadow"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend-node/package-lock.json
+      - name: Install dependencies
+        working-directory: backend-node
+        run: npm ci
+      - name: Check schema drift
+        run: bash scripts/ci/check-schema-drift.sh
+        env:
+          SHADOW_DATABASE_URL: postgresql://shadow:shadow@localhost:5433/cerniq_shadow
+
+  # ─── Session handoff freshness — non-blocking warning ───────────
+  # Emits a GitHub warning annotation (yellow in PR review UI) when
+  # sensitive paths change without updating docs/SESSION_HANDOFF.md.
+  # Soft gate — never blocks the build, but surfaces the hygiene miss
+  # so the next session can backfill the handoff doc.
+  session-freshness:
+    name: Session Handoff Freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need full history so git diff against the base works
+          fetch-depth: 0
+      - name: Check handoff doc freshness
+        run: bash scripts/ci/check-session-freshness.sh
+
+  # ─── Quality gate aggregator — writes ci-status.json artifact ────
+  # Runs AFTER all other jobs (always, even on failure) so we always
+  # publish a ci-status.json artifact. The next Claude session downloads
+  # this to know the verdict without re-running the full suite.
+  quality-gate:
+    name: Quality Gate Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    needs:
+      - typecheck
+      - alm-tests
+      - golden-drift
+      - schema-drift
+      - session-freshness
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate ci-status.json
+        run: bash scripts/ci/session-ci-report.sh
+        env:
+          JOB_TYPECHECK: ${{ needs.typecheck.result }}
+          JOB_ALM_TESTS: ${{ needs.alm-tests.result }}
+          JOB_GOLDEN_DRIFT: ${{ needs.golden-drift.result }}
+          JOB_SCHEMA_DRIFT: ${{ needs.schema-drift.result }}
+          JOB_SESSION_FRESHNESS: ${{ needs.session-freshness.result }}
+      - name: Upload ci-status.json artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-status
+          path: .ci-artifacts/ci-status.json
+          retention-days: 30
+      - name: Write job summary
+        run: |
+          {
+            echo "## 🛡️ ALM Quality Gate Report"
+            echo ""
+            echo "**Commit**: \`${GITHUB_SHA:0:7}\`"
+            echo "**Branch**: \`${GITHUB_REF_NAME}\`"
+            echo ""
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Type check | ${{ needs.typecheck.result }} |"
+            echo "| ALM targeted tests | ${{ needs.alm-tests.result }} |"
+            echo "| Golden math drift | ${{ needs.golden-drift.result }} |"
+            echo "| Schema drift | ${{ needs.schema-drift.result }} |"
+            echo "| Session freshness | ${{ needs.session-freshness.result }} (soft) |"
+            echo ""
+            echo "---"
+            echo ""
+            echo "### Cross-session handoff"
+            echo ""
+            echo "The \`ci-status.json\` artifact is attached to this run. The next"
+            echo "Claude session can download it to read the verdict without"
+            echo "re-running the full suite. See \`docs/CI_CD_PIPELINE.md\` for the"
+            echo "full session-collab protocol."
+          } >> $GITHUB_STEP_SUMMARY
+      - name: Fail the workflow if any hard gate failed
+        if: |
+          needs.typecheck.result != 'success' ||
+          needs.alm-tests.result != 'success' ||
+          needs.golden-drift.result != 'success' ||
+          needs.schema-drift.result != 'success'
+        run: |
+          echo "::error title=Quality Gate Failed::One or more hard gates failed. See job summaries above."
+          exit 1
