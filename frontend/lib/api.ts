@@ -288,6 +288,37 @@ export interface StressScenarioResult {
   narrativeEs: string;
 }
 
+export interface DemoSeatAnalytics {
+  generatedAt: string;
+  totals: {
+    provisioned: number;
+    active: number;
+    expired: number;
+    converted: number;
+    viewedAtLeastOnce: number;
+  };
+  rates: {
+    conversionRatePct: number;
+    viewRatePct: number;
+  };
+  revenue: {
+    allTimeUsd: number;
+    thisMonthUsd: number;
+  };
+  velocity: {
+    provisionedLast7Days: number;
+    convertedLast7Days: number;
+    avgDaysToConvert: number | null;
+  };
+  thisMonthConverted: number;
+  topConvertingSnapshots: Array<{
+    identifier: string;
+    source: string;
+    converted: number;
+    revenueUsd: number;
+  }>;
+}
+
 export interface IntelligenceAccountSummary {
   accountId: string;
   prospectId: string | null;
@@ -1804,6 +1835,14 @@ class APIClient {
     const response = await this.client.post(
       `${NODE_API_URL}/admin/api/demo-seats/sweep`,
       {},
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async getDemoSeatAnalytics(): Promise<DemoSeatAnalytics> {
+    const response = await this.client.get(
+      `${NODE_API_URL}/admin/api/demo-seats/analytics`,
       { headers: this.adminHeaders() },
     );
     return response.data;

@@ -616,6 +616,166 @@ describe('DemoSeatService', () => {
     });
   });
 
+  describe('sendExpiryReminders', () => {
+    beforeEach(() => {
+      prisma.prospectInstitution.findMany = jest.fn();
+      prisma.emailSequence = {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({}),
+      };
+      prisma.subscription.findUnique = jest.fn().mockResolvedValue({
+        tier: 'demo',
+        status: 'active',
+      });
+      email.sendDemoExpiryReminder = jest.fn().mockResolvedValue(undefined);
+    });
+
+    it('sends a reminder per seat in the 48–96h window', async () => {
+      const now = new Date('2026-04-15T14:00:00Z');
+      prisma.prospectInstitution.findMany.mockResolvedValue([
+        {
+          id: 'p1',
+          name: 'Cooperativa Caguas',
+          demoUserId: 'u1',
+          contactEmail: 'cfo@caguas.coop',
+          contactName: 'CFO Caguas',
+          demoExpiresAt: new Date('2026-04-18T14:00:00Z'), // 72h out
+        },
+      ]);
+
+      const result = await service.sendExpiryReminders(now);
+
+      expect(result.sent).toBe(1);
+      expect(result.skipped).toBe(0);
+      expect(email.sendDemoExpiryReminder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'cfo@caguas.coop',
+          institutionName: 'Cooperativa Caguas',
+          daysRemaining: 3,
+          language: 'es',
+        }),
+      );
+      // Dedup sentinel recorded in EmailSequence
+      expect(prisma.emailSequence.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: 'u1',
+            sequenceKey: 'demo_expiry_reminder',
+          }),
+        }),
+      );
+    });
+
+    it('skips seats that already received a reminder (dedup)', async () => {
+      prisma.prospectInstitution.findMany.mockResolvedValue([
+        {
+          id: 'p1',
+          name: 'Coop',
+          demoUserId: 'u1',
+          contactEmail: 'cfo@coop.pr',
+          contactName: 'CFO',
+          demoExpiresAt: new Date(Date.now() + 72 * 3600_000),
+        },
+      ]);
+      // Pre-existing reminder record
+      prisma.emailSequence.findFirst.mockResolvedValue({
+        id: 'seq-1',
+        sequenceKey: 'demo_expiry_reminder',
+      });
+
+      const result = await service.sendExpiryReminders();
+
+      expect(result.sent).toBe(0);
+      expect(result.skipped).toBe(1);
+      expect(email.sendDemoExpiryReminder).not.toHaveBeenCalled();
+      expect(prisma.emailSequence.create).not.toHaveBeenCalled();
+    });
+
+    it('skips seats whose user converted between scan and send', async () => {
+      prisma.prospectInstitution.findMany.mockResolvedValue([
+        {
+          id: 'p1',
+          name: 'Coop',
+          demoUserId: 'u1',
+          contactEmail: 'cfo@coop.pr',
+          contactName: 'CFO',
+          demoExpiresAt: new Date(Date.now() + 72 * 3600_000),
+        },
+      ]);
+      // Between scan and send the user upgraded to monthly
+      prisma.subscription.findUnique.mockResolvedValue({
+        tier: 'monthly',
+        status: 'active',
+      });
+
+      const result = await service.sendExpiryReminders();
+
+      expect(result.sent).toBe(0);
+      expect(result.skipped).toBe(1);
+      expect(email.sendDemoExpiryReminder).not.toHaveBeenCalled();
+    });
+
+    it('skips seats with no contactEmail', async () => {
+      prisma.prospectInstitution.findMany.mockResolvedValue([
+        {
+          id: 'p1',
+          name: 'Coop',
+          demoUserId: 'u1',
+          contactEmail: null,
+          contactName: null,
+          demoExpiresAt: new Date(Date.now() + 72 * 3600_000),
+        },
+      ]);
+
+      const result = await service.sendExpiryReminders();
+
+      expect(result.sent).toBe(0);
+      expect(result.skipped).toBe(1);
+      expect(email.sendDemoExpiryReminder).not.toHaveBeenCalled();
+    });
+
+    it('returns zeros when the window is empty', async () => {
+      prisma.prospectInstitution.findMany.mockResolvedValue([]);
+
+      const result = await service.sendExpiryReminders();
+
+      expect(result).toEqual({ scanned: 0, sent: 0, skipped: 0 });
+      expect(email.sendDemoExpiryReminder).not.toHaveBeenCalled();
+    });
+
+    it('continues past per-seat failures — one broken email does not break the batch', async () => {
+      const now = new Date('2026-04-15T14:00:00Z');
+      prisma.prospectInstitution.findMany.mockResolvedValue([
+        {
+          id: 'p1',
+          name: 'Coop A',
+          demoUserId: 'u1',
+          contactEmail: 'a@coop.pr',
+          contactName: 'A',
+          demoExpiresAt: new Date('2026-04-18T14:00:00Z'),
+        },
+        {
+          id: 'p2',
+          name: 'Coop B',
+          demoUserId: 'u2',
+          contactEmail: 'b@coop.pr',
+          contactName: 'B',
+          demoExpiresAt: new Date('2026-04-18T14:00:00Z'),
+        },
+      ]);
+      // First send throws (Resend down), second succeeds
+      email.sendDemoExpiryReminder
+        .mockRejectedValueOnce(new Error('Resend error'))
+        .mockResolvedValueOnce(undefined);
+
+      const result = await service.sendExpiryReminders(now);
+
+      expect(result.scanned).toBe(2);
+      expect(result.sent).toBe(1);
+      expect(result.skipped).toBe(1);
+    });
+  });
+
   describe('listAdminDemoSeats', () => {
     beforeEach(() => {
       prisma.prospectInstitution.findMany = jest.fn();

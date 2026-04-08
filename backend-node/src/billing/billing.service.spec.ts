@@ -568,6 +568,24 @@ describe('BillingService', () => {
         );
       });
 
+      it('persists conversion attribution (convertedAt, amountUsd, toTier) for analytics', async () => {
+        await service.handlePaymentComplete({
+          ...baseSession,
+          metadata: { ...baseSession.metadata, tier: 'annual' },
+          amount_total: 598800, // $5,988 annual plan
+        });
+
+        expect(prisma.prospectInstitution.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              demoConvertedAt: expect.any(Date),
+              demoConvertedAmountUsd: 5988,
+              demoConvertedToTier: 'annual',
+            }),
+          }),
+        );
+      });
+
       it('logs portal.demo_seat_converted with institution + amount', async () => {
         const loggerSpy = jest.spyOn((service as any).logger, 'log');
 

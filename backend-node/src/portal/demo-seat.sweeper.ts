@@ -65,4 +65,47 @@ export class DemoSeatSweeper {
       }
     }
   }
+
+  /**
+   * Daily T-3 expiry reminder batch. Runs at 14:00 UTC (9 AM AST) — the
+   * time CFOs are most likely to be at their desks and actually open email.
+   *
+   * Scans for seats whose TTL falls in the 48–96h window from now, sends
+   * each a bilingual "your analysis expires soon" email, records the send
+   * in the EmailSequence table so we don't double-send, and audit-logs the
+   * reminder. Same Sentry-on-failure pattern as the hourly sweep.
+   */
+  @Cron('0 14 * * *') // Daily at 14:00 UTC
+  async runDailyReminders() {
+    try {
+      const result = await this.demoSeats.sendExpiryReminders();
+      if (result.sent > 0) {
+        this.logger.log({
+          event: 'portal.demo_seat_reminder_sweep',
+          scanned: result.scanned,
+          sent: result.sent,
+          skipped: result.skipped,
+        });
+      }
+    } catch (err: any) {
+      this.logger.error(
+        `Demo seat reminder batch failed: ${err?.message || err}`,
+        err?.stack,
+      );
+      try {
+        Sentry.withScope((scope) => {
+          scope.setTag('component', 'portal.demo_seat_sweeper');
+          scope.setTag('cron', 'daily_reminder');
+          scope.setContext('sweeper', {
+            cronExpression: '0 14 * * *',
+            event: 'portal.demo_seat_reminder_failed',
+          });
+          scope.setLevel('error');
+          Sentry.captureException(err);
+        });
+      } catch {
+        // ignore
+      }
+    }
+  }
 }

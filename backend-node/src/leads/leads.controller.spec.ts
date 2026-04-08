@@ -43,6 +43,7 @@ describe('LeadsController', () => {
 
     const intelligence = mockSvc();
     const demoSeats = mockSvc();
+    const demoSeatAnalytics = mockSvc();
     controller = new LeadsController(
       leads as any,
       qualification as any,
@@ -50,6 +51,7 @@ describe('LeadsController', () => {
       outreach as any,
       intelligence as any,
       demoSeats as any,
+      demoSeatAnalytics as any,
     );
   });
 

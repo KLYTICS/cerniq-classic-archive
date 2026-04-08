@@ -20,6 +20,7 @@ import { LeadScoringService } from './lead-scoring.service';
 import { OutreachExecutionService } from './outreach-execution.service';
 import { InstitutionIntelligenceService } from './institution-intelligence.service';
 import { DemoSeatService } from '../portal/demo-seat.service';
+import { DemoSeatAnalyticsService } from '../portal/demo-seat-analytics.service';
 import { SubmitLeadDto, UpdateLeadDto } from './leads.dto';
 import { AdminGuard } from '../common/guards/admin.guard';
 
@@ -42,6 +43,7 @@ export class LeadsController {
     private readonly outreachExecution: OutreachExecutionService,
     private readonly intelligence: InstitutionIntelligenceService,
     private readonly demoSeats: DemoSeatService,
+    private readonly demoSeatAnalytics: DemoSeatAnalyticsService,
   ) {}
 
   // ── Public endpoint (rate-limited at app level) ──
@@ -301,6 +303,12 @@ export class LeadsController {
   @UseGuards(AdminGuard)
   async sweepDemoSeats() {
     return this.demoSeats.sweepExpired();
+  }
+
+  @Get('admin/api/demo-seats/analytics')
+  @UseGuards(AdminGuard)
+  async getDemoSeatAnalytics() {
+    return this.demoSeatAnalytics.getAnalytics();
   }
 
   @Post('admin/api/prospects/:id/dossier/refresh')

@@ -577,6 +577,7 @@ export class BillingService {
         return;
       }
 
+      const amountUsd = amountTotal / 100;
       await this.prisma.prospectInstitution.update({
         where: { id: prospect.id },
         data: {
@@ -584,6 +585,11 @@ export class BillingService {
           // Keep demoUserId + demoReportJobId for historical attribution,
           // but clear the expiry so the sweeper stops scanning this row.
           demoExpiresAt: null,
+          // Persist attribution fields so DemoSeatAnalyticsService can
+          // compute funnel metrics + revenue without re-joining Lead.
+          demoConvertedAt: new Date(),
+          demoConvertedAmountUsd: amountUsd,
+          demoConvertedToTier: toTier,
         },
       });
 

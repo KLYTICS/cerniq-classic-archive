@@ -299,6 +299,75 @@ export class EmailService {
     }
   }
 
+  // ── Demo Expiry Reminder (T-3 nudge before demo window closes) ──
+
+  async sendDemoExpiryReminder(data: {
+    email: string;
+    name: string;
+    institutionName: string;
+    magicLinkUrl: string;
+    daysRemaining: number;
+    upgradeUrl: string;
+    language: 'es' | 'en';
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Demo expiry reminder: ${data.email}`);
+      return;
+    }
+    const subject =
+      data.language === 'es'
+        ? `${data.daysRemaining} día${data.daysRemaining === 1 ? '' : 's'} restante${data.daysRemaining === 1 ? '' : 's'} — su análisis CERNIQ`
+        : `${data.daysRemaining} day${data.daysRemaining === 1 ? '' : 's'} left on your CERNIQ analysis`;
+    const ctaText =
+      data.language === 'es'
+        ? 'Mantener mi análisis'
+        : 'Keep my analysis';
+
+    const bodyEs = `<p>Hola ${data.name || ''},</p>
+       <p>Un recordatorio rápido: su análisis CERNIQ de <strong>${data.institutionName}</strong> expira en <strong>${data.daysRemaining} día${data.daysRemaining === 1 ? '' : 's'}</strong>.</p>
+       <p>Después de la expiración, el portal ya no será accesible y necesitará re-provisionar el análisis desde cero. Si quiere mantener su informe, duration gap, prueba de estrés Monte Carlo, y paquete ALCO, active una suscripción ahora — sus datos, institución y informe se conservan intactos.</p>
+       <p style="background: #FEF3C7; padding: 12px; border-radius: 6px; font-size: 13px; color: #78350F;">
+         <strong>¿Qué sucede si actualiza?</strong><br>
+         • Su workspace actual se preserva<br>
+         • El informe existente sigue disponible<br>
+         • Puede refinar con sus datos reales en cualquier momento<br>
+         • Acceso ilimitado a los 34 modelos cuantitativos + 200+ módulos ALM
+       </p>
+       <p>¿Prefiere una llamada rápida antes de decidir? Responda a este email y coordinamos 15 minutos.</p>
+       ${this.SIGNATURE_ES}`;
+
+    const bodyEn = `<p>Hi ${data.name || ''},</p>
+       <p>Quick reminder: your CERNIQ analysis for <strong>${data.institutionName}</strong> expires in <strong>${data.daysRemaining} day${data.daysRemaining === 1 ? '' : 's'}</strong>.</p>
+       <p>After expiry the portal will no longer be accessible and you'd need to re-provision the analysis from scratch. If you want to keep your report, duration gap, Monte Carlo stress test, and ALCO pack, activate a subscription now — your data, institution, and report are preserved intact.</p>
+       <p style="background: #FEF3C7; padding: 12px; border-radius: 6px; font-size: 13px; color: #78350F;">
+         <strong>What happens when you upgrade?</strong><br>
+         • Your current workspace is preserved<br>
+         • Existing report stays available<br>
+         • You can refine with real data any time<br>
+         • Unlimited access to all 34 quant models + 200+ ALM modules
+       </p>
+       <p>Prefer a quick call first? Reply to this email and we'll book 15 minutes.</p>
+       ${this.SIGNATURE_EN}`;
+
+    try {
+      await this.resend.emails.send({
+        from: 'Erwin Kiess <onboarding@resend.dev>',
+        replyTo: this.adminEmail(),
+        to: data.email,
+        subject,
+        html: this.wrap(
+          data.language === 'es'
+            ? `${bodyEs}${this.DIVIDER}${bodyEn}`
+            : `${bodyEn}${this.DIVIDER}${bodyEs}`,
+          data.upgradeUrl,
+          ctaText,
+        ),
+      });
+    } catch (err) {
+      this.logger.error(`Failed to send demo expiry reminder: ${err}`);
+    }
+  }
+
   // ── 4. Magic Link / Data Reminder ─────────────────────
 
   async sendMagicLinkEmail(data: {

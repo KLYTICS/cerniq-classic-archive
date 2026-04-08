@@ -1,11 +1,21 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { usePortal } from '../layout';
-import { CreditCard, ExternalLink, CheckCircle, Shield } from 'lucide-react';
+import {
+  CreditCard,
+  ExternalLink,
+  CheckCircle,
+  Shield,
+  Clock,
+  Sparkles,
+  ArrowRight,
+} from 'lucide-react';
 import { analytics, EVENTS } from '@/lib/analytics';
 import { getPublicApiUrl } from '@/lib/api-base';
 import { unwrapApiData } from '@/lib/api-response';
+import { isActiveDemo } from '@/lib/access';
 
 const TIER_DETAILS: Record<string, { name: string; price: string; features: string[] }> = {
   free: {
@@ -13,9 +23,19 @@ const TIER_DETAILS: Record<string, { name: string; price: string; features: stri
     price: '$0',
     features: ['Demo access', 'Public data preview'],
   },
+  demo: {
+    name: 'Demo Seat',
+    price: 'Trial',
+    features: [
+      'Full ALM report from COSSEC public filings',
+      'ALCO board pack (ES + EN)',
+      '14-day evaluation window',
+      'Upgrade preserves your workspace',
+    ],
+  },
   one_time: {
     name: 'Single Report',
-    price: '$499',
+    price: '$750',
     features: ['One ALM report (ES + EN)', 'Board-ready PDF', 'Share link'],
   },
   monthly: {
@@ -36,11 +56,17 @@ const TIER_DETAILS: Record<string, { name: string; price: string; features: stri
 };
 
 export default function PortalBilling() {
-  const { subscription } = usePortal();
+  const { subscription, access, user } = usePortal();
   const [loadingPortal, setLoadingPortal] = useState(false);
 
   const tier = subscription?.tier || 'free';
   const details = TIER_DETAILS[tier] || TIER_DETAILS.free;
+  const isDemo = isActiveDemo(access) || tier === 'demo';
+  const daysRemaining = access?.daysRemaining ?? null;
+  // Institution name pre-fill: the demo seat banner path has the institution
+  // name available via user.name or the portal's own state — we surface it
+  // through the checkout params so the upgrade flow never asks twice.
+  const institutionName = user?.name || '';
 
   const openBillingPortal = async () => {
     setLoadingPortal(true);
@@ -73,6 +99,92 @@ export default function PortalBilling() {
           <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">Review the current plan, payment state, and secure billing actions without leaving the portal.</p>
         </div>
       </section>
+
+      {/* ─── Demo seat upgrade banner ─── */}
+      {isDemo && (
+        <section
+          aria-labelledby="demo-upgrade-headline"
+          className="relative overflow-hidden rounded-3xl border border-amber-300/40 bg-gradient-to-br from-[#1a0e2e] via-[#1B3A6B] to-[#0e2340] p-7 shadow-[0_24px_70px_rgba(232,160,32,0.2)]"
+        >
+          <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber-400/10 blur-3xl" />
+          <div className="absolute -bottom-20 -left-12 h-56 w-56 rounded-full bg-fuchsia-400/10 blur-3xl" />
+
+          <div className="relative z-10 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/40 bg-amber-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-200">
+                <Sparkles className="h-3.5 w-3.5" />
+                Demo seat
+              </div>
+              <h2
+                id="demo-upgrade-headline"
+                className="mt-4 font-display text-3xl font-semibold text-white sm:text-4xl"
+              >
+                {daysRemaining !== null && daysRemaining <= 1
+                  ? 'Your analysis expires today'
+                  : daysRemaining !== null
+                    ? `${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left — upgrade to keep your analysis`
+                    : 'Upgrade to keep your analysis'}
+              </h2>
+              <p className="mt-4 max-w-xl text-sm leading-7 text-white/70">
+                When you upgrade, your existing workspace, institution, and
+                report are preserved intact — you don&apos;t re-enter anything.
+                The demo seat becomes a full CERNIQ subscription with the
+                entire 200+ module platform unlocked.
+              </p>
+
+              <ul className="mt-5 space-y-2 text-sm text-white/80">
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                  Existing workspace + institution preserved
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                  Current demo report remains accessible
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                  Upload real numbers any time to refine the analysis
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                  Full platform: Monte Carlo, VaR, IRRBB, CECL, 200+ modules
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex flex-col justify-between gap-4">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-cyan-300" />
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-200">
+                    Access window
+                  </p>
+                </div>
+                <p className="mt-3 text-3xl font-semibold text-white">
+                  {daysRemaining !== null ? `${daysRemaining}d` : '—'}
+                </p>
+                <p className="mt-1 text-xs text-white/60">remaining on demo</p>
+              </div>
+
+              <Link
+                href={`/pricing?source=demo_upgrade${institutionName ? `&institution=${encodeURIComponent(institutionName)}` : ''}`}
+                onClick={() =>
+                  analytics.track(EVENTS.PORTAL_BILLING_OPENED, {
+                    tier: 'demo_upgrade',
+                  })
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#E8A020] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-amber-900/30 transition hover:bg-[#d19218]"
+              >
+                Upgrade now
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <p className="text-center text-[11px] text-white/50">
+                Starts at $299/mo — cancel any time
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Current Plan */}
       <div className="cerniq-panel p-6">

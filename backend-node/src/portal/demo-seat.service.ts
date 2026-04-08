@@ -381,6 +381,142 @@ export class DemoSeatService {
   }
 
   /**
+   * Send T-3 expiry reminder emails to demo seats approaching their TTL.
+   *
+   * Scans for seats where `demoExpiresAt` falls between `now + 48h` and
+   * `now + 96h` — a 2-day window that guarantees every seat gets exactly
+   * one reminder regardless of when the daily cron fires within that day.
+   * Dedup via EmailSequence table (sequenceKey='demo_expiry_reminder' per
+   * userId) — running the cron twice in a day is a no-op.
+   *
+   * NEVER throws. Each per-seat failure is logged and continues — one
+   * broken email doesn't block the rest of the batch.
+   *
+   * Returns { scanned, sent, skipped } counts for observability.
+   */
+  async sendExpiryReminders(
+    now: Date = new Date(),
+  ): Promise<{ scanned: number; sent: number; skipped: number }> {
+    const windowStart = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    const windowEnd = new Date(now.getTime() + 96 * 60 * 60 * 1000);
+
+    const candidates = await this.prisma.prospectInstitution.findMany({
+      where: {
+        demoUserId: { not: null },
+        demoConvertedAt: null, // skip already-converted seats
+        demoExpiresAt: {
+          gte: windowStart,
+          lt: windowEnd,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        demoUserId: true,
+        contactEmail: true,
+        contactName: true,
+        demoExpiresAt: true,
+      },
+    });
+
+    if (candidates.length === 0) {
+      return { scanned: 0, sent: 0, skipped: 0 };
+    }
+
+    let sent = 0;
+    let skipped = 0;
+
+    for (const seat of candidates) {
+      if (!seat.demoUserId || !seat.contactEmail) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        // Dedup: skip if we already queued a reminder for this seat
+        const alreadySent = await this.prisma.emailSequence.findFirst({
+          where: {
+            userId: seat.demoUserId,
+            sequenceKey: 'demo_expiry_reminder',
+          },
+        });
+        if (alreadySent) {
+          skipped++;
+          continue;
+        }
+
+        // Double-check the user still has an active demo subscription —
+        // they might have converted between scan and send.
+        const subscription = await this.prisma.subscription.findUnique({
+          where: { userId: seat.demoUserId },
+        });
+        if (!subscription || subscription.tier !== 'demo') {
+          skipped++;
+          continue;
+        }
+
+        const expiresMs = seat.demoExpiresAt?.getTime() || 0;
+        const daysRemaining = Math.max(
+          1,
+          Math.ceil((expiresMs - now.getTime()) / 86400_000),
+        );
+        const frontendUrl = this.frontendUrl();
+
+        await this.email.sendDemoExpiryReminder({
+          email: seat.contactEmail,
+          name: seat.contactName || seat.name,
+          institutionName: seat.name,
+          magicLinkUrl: `${frontendUrl}/portal/login`,
+          upgradeUrl: `${frontendUrl}/portal/billing`,
+          daysRemaining,
+          language: 'es',
+        });
+
+        // Record the reminder so we don't re-send tomorrow
+        await this.prisma.emailSequence.create({
+          data: {
+            userId: seat.demoUserId,
+            sequenceKey: 'demo_expiry_reminder',
+            scheduledAt: now,
+            sentAt: now,
+            metadata: {
+              prospectId: seat.id,
+              institutionName: seat.name,
+              daysRemaining,
+            },
+          },
+        });
+
+        this.audit.log({
+          userId: seat.demoUserId,
+          action: 'demo_seat_expiry_reminder_sent',
+          resource: 'prospect_institution',
+          resourceId: seat.id,
+          metadata: { daysRemaining, email: seat.contactEmail },
+        });
+
+        sent++;
+      } catch (err: any) {
+        this.logger.warn({
+          event: 'portal.demo_seat_reminder_failed',
+          prospectId: seat.id,
+          error: err?.message || 'unknown',
+        });
+        skipped++;
+      }
+    }
+
+    this.logger.log({
+      event: 'portal.demo_seat_reminder_batch',
+      scanned: candidates.length,
+      sent,
+      skipped,
+    });
+
+    return { scanned: candidates.length, sent, skipped };
+  }
+
+  /**
    * List demo seats for the admin dashboard. Supports status filtering
    * (active / expired / all) and sorts by expiry descending so newest
    * provisioning shows first.

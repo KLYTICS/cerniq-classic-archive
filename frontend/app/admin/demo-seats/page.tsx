@@ -2,22 +2,36 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { apiClient } from '@/lib/api';
+import { apiClient, type DemoSeatAnalytics } from '@/lib/api';
 import {
   ArrowLeft,
   Building2,
   CheckCircle2,
   Clock,
   Copy,
+  DollarSign,
   Eye,
   EyeOff,
   ExternalLink,
   Filter,
   RefreshCw,
   Sparkles,
+  TrendingUp,
+  Zap,
 } from 'lucide-react';
 
 type Filter = 'all' | 'active' | 'expired';
+
+function formatUsd(value: number): string {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 10_000) return `$${(value / 1000).toFixed(0)}K`;
+  if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
+  return `$${value.toFixed(0)}`;
+}
+
+function formatPct(value: number): string {
+  return `${value.toFixed(1)}%`;
+}
 
 interface DemoSeat {
   prospectId: string;
@@ -90,6 +104,8 @@ function statusPillClasses(status: 'active' | 'expired', daysRemaining: number |
 
 export default function DemoSeatsDashboard() {
   const [seats, setSeats] = useState<DemoSeat[]>([]);
+  const [analytics, setAnalytics] = useState<DemoSeatAnalytics | null>(null);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
@@ -113,9 +129,25 @@ export default function DemoSeatsDashboard() {
     [filter],
   );
 
+  const loadAnalytics = useCallback(async () => {
+    setAnalyticsError(null);
+    try {
+      const result = await apiClient.getDemoSeatAnalytics();
+      setAnalytics(result);
+    } catch (err: unknown) {
+      // Non-fatal — the page still renders without the funnel strip
+      setAnalyticsError(getApiErrorMessage(err, 'Failed to load analytics'));
+      setAnalytics(null);
+    }
+  }, []);
+
   useEffect(() => {
     load(filter);
   }, [load, filter]);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [loadAnalytics]);
 
   const metrics = useMemo(() => {
     const active = seats.filter((s) => s.status === 'active').length;
@@ -135,6 +167,31 @@ export default function DemoSeatsDashboard() {
       // ignore
     }
   }, []);
+
+  const [extendingId, setExtendingId] = useState<string | null>(null);
+  const [extendResult, setExtendResult] = useState<string | null>(null);
+
+  const extendDemo = useCallback(
+    async (seat: DemoSeat) => {
+      setExtendingId(seat.prospectId);
+      setExtendResult(null);
+      try {
+        const result = await apiClient.provisionDemoPortal(seat.prospectId, {
+          ttlDays: 14,
+          sendEmail: false,
+        });
+        setExtendResult(
+          `Extended ${seat.institutionName} by 14 days (new expiry ${new Date(result.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`,
+        );
+        await Promise.all([load(filter), loadAnalytics()]);
+      } catch (err: unknown) {
+        setExtendResult(getApiErrorMessage(err, 'Extend failed'));
+      } finally {
+        setExtendingId(null);
+      }
+    },
+    [filter, load, loadAnalytics],
+  );
 
   const handleSweep = useCallback(async () => {
     setSweeping(true);
@@ -202,6 +259,125 @@ export default function DemoSeatsDashboard() {
         {sweepResult ? (
           <div className="mb-6 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-sm text-cyan-100">
             {sweepResult}
+          </div>
+        ) : null}
+
+        {extendResult ? (
+          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+            {extendResult}
+          </div>
+        ) : null}
+
+        {/* ─── Funnel strip — the strategic metric that matters ─── */}
+        {analytics && !analyticsError ? (
+          <section
+            aria-labelledby="funnel-headline"
+            className="mb-8 rounded-3xl border border-fuchsia-400/20 bg-gradient-to-br from-slate-950 via-slate-900 to-[#1a0e2e] p-6 shadow-[0_24px_80px_rgba(139,92,246,0.15)]"
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-fuchsia-300">
+                  Conversion funnel
+                </p>
+                <h2
+                  id="funnel-headline"
+                  className="mt-2 text-xl font-semibold text-white"
+                >
+                  Demo → Paid pipeline performance
+                </h2>
+              </div>
+              {analytics.revenue.thisMonthUsd > 0 ? (
+                <div className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-200">
+                  {formatUsd(analytics.revenue.thisMonthUsd)} MTD
+                </div>
+              ) : null}
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+              <FunnelCell
+                icon={Sparkles}
+                color="cyan"
+                label="Provisioned"
+                value={analytics.totals.provisioned}
+                footnote={`+${analytics.velocity.provisionedLast7Days} in 7d`}
+              />
+              <FunnelCell
+                icon={Eye}
+                color="emerald"
+                label="Viewed"
+                value={analytics.totals.viewedAtLeastOnce}
+                footnote={`${formatPct(analytics.rates.viewRatePct)} view rate`}
+              />
+              <FunnelCell
+                icon={CheckCircle2}
+                color="fuchsia"
+                label="Converted"
+                value={analytics.totals.converted}
+                footnote={`+${analytics.velocity.convertedLast7Days} in 7d`}
+              />
+              <FunnelCell
+                icon={TrendingUp}
+                color="amber"
+                label="Conversion rate"
+                value={formatPct(analytics.rates.conversionRatePct)}
+                footnote={
+                  analytics.rates.conversionRatePct > 15
+                    ? 'Above benchmark'
+                    : 'Below benchmark'
+                }
+              />
+              <FunnelCell
+                icon={DollarSign}
+                color="emerald"
+                label="Revenue attributed"
+                value={formatUsd(analytics.revenue.allTimeUsd)}
+                footnote="All-time"
+              />
+              <FunnelCell
+                icon={Zap}
+                color="cyan"
+                label="Avg days to convert"
+                value={
+                  analytics.velocity.avgDaysToConvert !== null
+                    ? `${analytics.velocity.avgDaysToConvert}d`
+                    : '—'
+                }
+                footnote="Provision → paid"
+              />
+            </div>
+
+            {analytics.topConvertingSnapshots.length > 0 ? (
+              <div className="mt-6 border-t border-white/5 pt-5">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  Top converting snapshots
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {analytics.topConvertingSnapshots.map((snap) => (
+                    <div
+                      key={`${snap.source}-${snap.identifier}`}
+                      className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs"
+                    >
+                      <span className="text-fuchsia-200">{snap.identifier}</span>
+                      <span className="text-slate-500">·</span>
+                      <span className="text-slate-400">
+                        {snap.converted} deal{snap.converted === 1 ? '' : 's'}
+                      </span>
+                      <span className="text-slate-500">·</span>
+                      <span className="text-emerald-300">
+                        {formatUsd(snap.revenueUsd)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
+        {analyticsError ? (
+          <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-200">
+            Analytics unavailable: {analyticsError}. Metrics below still reflect
+            the current page view.
           </div>
         ) : null}
 
@@ -356,6 +532,27 @@ export default function DemoSeatsDashboard() {
                                 )}
                               </button>
                             ) : null}
+                            {/* Extend +14d — calls the same idempotent
+                                provisioner as the prospects page. Safe for
+                                both active (days_remaining extended) and
+                                expired (re-activated) seats. */}
+                            <button
+                              onClick={() => extendDemo(seat)}
+                              disabled={extendingId === seat.prospectId}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-[11px] font-semibold text-amber-200 transition hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {extendingId === seat.prospectId ? (
+                                <>
+                                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-amber-200/40 border-t-amber-200" />
+                                  Extending…
+                                </>
+                              ) : (
+                                <>
+                                  <Clock className="h-3 w-3" />
+                                  Extend +14d
+                                </>
+                              )}
+                            </button>
                             {seat.reportJobId ? (
                               <a
                                 href={`/portal/reports/${seat.reportJobId}`}
@@ -383,6 +580,46 @@ export default function DemoSeatsDashboard() {
           bypass is audit-logged with <code className="rounded bg-white/5 px-1 py-0.5 text-cyan-200">masterCeoBypass: true</code>.
         </p>
       </div>
+    </div>
+  );
+}
+
+// ─── Funnel cell ──────────────────────────────────────
+//
+// A tight metric cell used only inside the "Conversion funnel" strip.
+// Dark glassmorphism card with an icon in the accent color and a
+// footnote that gives context (7-day delta, view rate, benchmark, etc.)
+// without needing a second row of cells.
+
+type FunnelCellColor = 'cyan' | 'emerald' | 'fuchsia' | 'amber' | 'red';
+
+interface FunnelCellProps {
+  readonly icon: React.ComponentType<{ className?: string }>;
+  readonly color: FunnelCellColor;
+  readonly label: string;
+  readonly value: string | number;
+  readonly footnote?: string;
+}
+
+function FunnelCell({ icon: Icon, color, label, value, footnote }: FunnelCellProps) {
+  const toneByColor: Record<FunnelCellColor, { icon: string; value: string }> = {
+    cyan: { icon: 'text-cyan-300', value: 'text-white' },
+    emerald: { icon: 'text-emerald-300', value: 'text-emerald-100' },
+    fuchsia: { icon: 'text-fuchsia-300', value: 'text-fuchsia-100' },
+    amber: { icon: 'text-amber-300', value: 'text-amber-100' },
+    red: { icon: 'text-red-300', value: 'text-red-100' },
+  };
+  const tone = toneByColor[color];
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <Icon className={`h-4 w-4 ${tone.icon}`} />
+      <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        {label}
+      </p>
+      <p className={`mt-2 text-2xl font-semibold ${tone.value}`}>{value}</p>
+      {footnote ? (
+        <p className="mt-1 text-[10px] text-slate-500">{footnote}</p>
+      ) : null}
     </div>
   );
 }

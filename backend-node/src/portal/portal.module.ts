@@ -11,6 +11,7 @@ import { PortalDocumentExportsService } from './portal-document-exports.service'
 import { PortalAlmReportService } from './portal-alm-report.service';
 import { DemoSeatService } from './demo-seat.service';
 import { DemoSeatSweeper } from './demo-seat.sweeper';
+import { DemoSeatAnalyticsService } from './demo-seat-analytics.service';
 
 @Module({
   imports: [
@@ -31,7 +32,12 @@ import { DemoSeatSweeper } from './demo-seat.sweeper';
     PortalAlmReportService,
     DemoSeatService,
     DemoSeatSweeper,
+    DemoSeatAnalyticsService,
   ],
-  exports: [DemoSeatService, PortalAlmReportService],
+  exports: [
+    DemoSeatService,
+    PortalAlmReportService,
+    DemoSeatAnalyticsService,
+  ],
 })
 export class PortalModule {}

@@ -25,7 +25,10 @@ const Sentry = require('@sentry/nestjs') as {
 
 describe('DemoSeatSweeper', () => {
   let sweeper: DemoSeatSweeper;
-  let demoSeats: { sweepExpired: jest.Mock };
+  let demoSeats: {
+    sweepExpired: jest.Mock;
+    sendExpiryReminders: jest.Mock;
+  };
 
   beforeEach(async () => {
     demoSeats = {
@@ -33,6 +36,11 @@ describe('DemoSeatSweeper', () => {
         scanned: 0,
         expired: 0,
         expiredIds: [],
+      }),
+      sendExpiryReminders: jest.fn().mockResolvedValue({
+        scanned: 0,
+        sent: 0,
+        skipped: 0,
       }),
     };
 
@@ -160,6 +168,87 @@ describe('DemoSeatSweeper', () => {
       await sweeper.runHourly();
 
       expect(demoSeats.sweepExpired).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('runDailyReminders', () => {
+    it('invokes DemoSeatService.sendExpiryReminders on every tick', async () => {
+      await sweeper.runDailyReminders();
+      expect(demoSeats.sendExpiryReminders).toHaveBeenCalledTimes(1);
+    });
+
+    it('is a no-op log-wise when no reminders were sent', async () => {
+      const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+
+      await sweeper.runDailyReminders();
+
+      expect(logSpy).not.toHaveBeenCalledWith(
+        expect.objectContaining({ event: 'portal.demo_seat_reminder_sweep' }),
+      );
+      logSpy.mockRestore();
+    });
+
+    it('emits a structured log when reminders actually fired', async () => {
+      demoSeats.sendExpiryReminders.mockResolvedValue({
+        scanned: 5,
+        sent: 3,
+        skipped: 2,
+      });
+      const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+
+      await sweeper.runDailyReminders();
+
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'portal.demo_seat_reminder_sweep',
+          scanned: 5,
+          sent: 3,
+          skipped: 2,
+        }),
+      );
+      logSpy.mockRestore();
+    });
+
+    it('NEVER throws when sendExpiryReminders rejects', async () => {
+      demoSeats.sendExpiryReminders.mockRejectedValue(
+        new Error('Resend outage'),
+      );
+      jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+      await expect(sweeper.runDailyReminders()).resolves.toBeUndefined();
+    });
+
+    it('escalates reminder failures to Sentry with cron=daily_reminder tag', async () => {
+      const resendErr = new Error('Resend outage');
+      demoSeats.sendExpiryReminders.mockRejectedValue(resendErr);
+      jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+      const scopeConfig: {
+        tags: Record<string, string>;
+        contexts: Record<string, any>;
+      } = { tags: {}, contexts: {} };
+      Sentry.withScope.mockImplementationOnce((cb: any) => {
+        const mockScope = {
+          setTag: jest.fn((key: string, value: string) => {
+            scopeConfig.tags[key] = value;
+          }),
+          setContext: jest.fn((key: string, value: any) => {
+            scopeConfig.contexts[key] = value;
+          }),
+          setLevel: jest.fn(),
+        };
+        cb(mockScope);
+      });
+
+      await sweeper.runDailyReminders();
+
+      expect(Sentry.captureException).toHaveBeenCalledWith(resendErr);
+      expect(scopeConfig.tags.cron).toBe('daily_reminder');
+      expect(scopeConfig.contexts.sweeper).toEqual(
+        expect.objectContaining({
+          event: 'portal.demo_seat_reminder_failed',
+        }),
+      );
     });
   });
 });

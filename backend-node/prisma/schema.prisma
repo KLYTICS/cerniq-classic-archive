@@ -893,6 +893,13 @@ model ProspectInstitution {
   demoProvisionedAt  DateTime? @map("demo_provisioned_at")
   demoExpiresAt      DateTime? @map("demo_expires_at")
   demoLastViewedAt   DateTime? @map("demo_last_viewed_at")
+  // Conversion attribution — set by billing.service.closeConvertedDemoProspect
+  // when a demo user runs Stripe checkout. Powers the DemoSeatAnalyticsService
+  // funnel metrics + the admin revenue-attribution dashboard. Null when the
+  // demo expires without converting.
+  demoConvertedAt        DateTime? @map("demo_converted_at")
+  demoConvertedAmountUsd Decimal?  @map("demo_converted_amount_usd") @db.Decimal(12, 2)
+  demoConvertedToTier    String?   @map("demo_converted_to_tier") // monthly | annual | one_time | partner
 
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -903,6 +910,7 @@ model ProspectInstitution {
   @@index([intelligenceAccountId])
   @@index([demoUserId])
   @@index([demoExpiresAt])
+  @@index([demoConvertedAt])
   @@map("prospect_institutions")
 }
 
