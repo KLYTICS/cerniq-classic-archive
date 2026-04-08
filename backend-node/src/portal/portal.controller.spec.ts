@@ -50,6 +50,9 @@ describe('PortalController', () => {
         update: jest.fn(),
         count: jest.fn().mockResolvedValue(0),
       },
+      ingestionLog: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
       user: {
         findUnique: jest.fn(),
         create: jest.fn(),
@@ -241,6 +244,101 @@ describe('PortalController', () => {
     });
   });
 
+  describe('GET /api/portal/overview', () => {
+    it('returns a needs-upload overview for awaiting-data jobs', async () => {
+      prisma.reportJob.findMany.mockResolvedValue([
+        {
+          id: 'job-awaiting',
+          institutionName: 'Coop San Juan',
+          status: 'AWAITING_DATA',
+          analysisPeriod: null,
+          previousJobId: null,
+          submittedAt: null,
+          processingStartedAt: null,
+          completedAt: null,
+          createdAt: new Date('2026-04-08T10:00:00Z'),
+          reportUrl: null,
+          reportUrlEn: null,
+          reportLang: 'es',
+          errorMessage: null,
+          userId: 'user-1',
+          triggeredBy: 'portal_submit_seed',
+        },
+      ]);
+      platformAccess.getAccessForUser.mockResolvedValue({
+        platformAccessAllowed: true,
+        isMasterCeo: false,
+        isPaid: false,
+        isDemo: true,
+        effectiveTier: 'demo',
+        effectiveStatus: 'active',
+        effectivePeriodEnd: '2026-04-10T09:00:00.000Z',
+        daysRemaining: 2,
+        reason: 'demo_active',
+      });
+      demoSeats.getDemoSeatForUser.mockResolvedValue({
+        id: 'prospect-1',
+        name: 'Coop San Juan',
+        publicDataSource: 'cossec',
+        demoProvisionedAt: new Date('2026-04-08T09:00:00Z'),
+        demoExpiresAt: new Date('2026-04-10T09:00:00Z'),
+        demoReportJobId: 'job-awaiting',
+      });
+
+      const result = await controller.getOverview(mockReq());
+
+      expect(result.workflowState).toBe('needs_upload');
+      expect(result.latestActionableJob?.id).toBe('job-awaiting');
+      expect(result.counts.awaitingData).toBe(1);
+      expect(result.nextAction.href).toBe('/portal/submit?jobId=job-awaiting');
+      expect(result.demoSeat.seat?.reportJobId).toBe('job-awaiting');
+    });
+
+    it('returns validation summary for validation-failed jobs', async () => {
+      prisma.reportJob.findMany.mockResolvedValue([
+        {
+          id: 'job-failed',
+          institutionName: 'Coop Validation',
+          status: 'VALIDATION_FAILED',
+          analysisPeriod: 'Q1-2026',
+          previousJobId: null,
+          submittedAt: new Date('2026-04-08T11:00:00Z'),
+          processingStartedAt: null,
+          completedAt: null,
+          createdAt: new Date('2026-04-08T10:00:00Z'),
+          reportUrl: null,
+          reportUrlEn: null,
+          reportLang: 'es',
+          errorMessage: 'row 4 balance: invalid number',
+          userId: 'user-1',
+          triggeredBy: 'portal_submit',
+        },
+      ]);
+      prisma.ingestionLog.findFirst.mockResolvedValue({
+        sourceFilename: 'coop.csv',
+        status: 'FAILED',
+        totalRows: 40,
+        validRows: 38,
+        errorRows: 2,
+        importedCount: 0,
+        warnings: ['Duration missing for one row'],
+        errors: [{ row: 4, field: 'balance', message: 'invalid number' }],
+      });
+
+      const result = await controller.getOverview(mockReq());
+
+      expect(result.workflowState).toBe('validation_failed');
+      expect(result.validationSummary).toEqual(
+        expect.objectContaining({
+          sourceFilename: 'coop.csv',
+          warningCount: 1,
+          errorCount: 1,
+        }),
+      );
+      expect(result.nextAction.href).toBe('/portal/submit?jobId=job-failed');
+    });
+  });
+
   // ── getJob ─────────────────────────────────────
 
   describe('GET /api/portal/jobs/:jobId', () => {
@@ -374,6 +472,13 @@ describe('PortalController', () => {
         errors: [{ row: 1, field: 'amount', message: 'not a number' }],
         warnings: [],
         items: [],
+        summary: {
+          totalRows: 1,
+          validRows: 0,
+          errorRows: 1,
+          totalAssets: 0,
+          totalLiabilities: 0,
+        },
       });
       prisma.reportJob.update.mockResolvedValue({});
 
@@ -381,6 +486,9 @@ describe('PortalController', () => {
 
       expect(result.valid).toBe(false);
       expect(result.status).toBe('VALIDATION_FAILED');
+      expect(result.warningCount).toBe(0);
+      expect(result.jobId).toBe('j1');
+      expect(result.nextHref).toBe('/portal/submit?jobId=j1');
       expect(ingestionLogs.recordLog).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'FAILED' }),
       );
@@ -399,7 +507,14 @@ describe('PortalController', () => {
           { category: 'asset', item: 'Cash', amount: 1000000 },
           { category: 'liability', item: 'Deposits', amount: 800000 },
         ],
-        warnings: [],
+        warnings: ['rateType defaulted'],
+        summary: {
+          totalRows: 2,
+          validRows: 2,
+          errorRows: 0,
+          totalAssets: 1000000,
+          totalLiabilities: 800000,
+        },
       });
       almEnterprise.createInstitution.mockResolvedValue({ id: 'inst-new' });
       almEnterprise.importBalanceSheetItems.mockResolvedValue({ count: 2 });
@@ -415,7 +530,10 @@ describe('PortalController', () => {
       expect(result.valid).toBe(true);
       expect(result.status).toBe('QUEUED');
       expect(result.itemsImported).toBe(2);
+      expect(result.warningCount).toBe(1);
       expect(result.institutionId).toBe('inst-new');
+      expect(result.institutionName).toBe('Cooperativa Test');
+      expect(result.nextHref).toBe('/portal/reports/j1');
 
       // Verify pipeline steps executed
       expect(almEnterprise.createInstitution).toHaveBeenCalled();
@@ -446,6 +564,13 @@ describe('PortalController', () => {
         valid: true,
         items: [{ a: 1 }],
         warnings: [],
+        summary: {
+          totalRows: 1,
+          validRows: 1,
+          errorRows: 0,
+          totalAssets: 1,
+          totalLiabilities: 0,
+        },
       });
       almEnterprise.getInstitution.mockResolvedValue({ id: 'inst-existing' });
       almEnterprise.importBalanceSheetItems.mockResolvedValue({ count: 1 });
@@ -486,6 +611,40 @@ describe('PortalController', () => {
       ).rejects.toThrow(ForbiddenException);
 
       expect(prisma.reportJob.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('should allow retrying a validation-failed job', async () => {
+      prisma.reportJob.findFirst.mockResolvedValue({
+        id: 'j1',
+        status: 'VALIDATION_FAILED',
+        institutionId: 'inst-existing',
+        institutionName: 'Retry Coop',
+      });
+      csvIngestion.parseCSV.mockReturnValue({
+        valid: true,
+        items: [{ category: 'asset', item: 'Cash', amount: 1 }],
+        warnings: [],
+        summary: {
+          totalRows: 1,
+          validRows: 1,
+          errorRows: 0,
+          totalAssets: 1,
+          totalLiabilities: 0,
+        },
+      });
+      almEnterprise.getInstitution.mockResolvedValue({ id: 'inst-existing' });
+      almEnterprise.importBalanceSheetItems.mockResolvedValue({ count: 1 });
+      prisma.reportJob.update.mockResolvedValue({});
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      const result = await controller.submitData(mockReq(), 'j1', mockFile, {});
+
+      expect(result.valid).toBe(true);
+      expect(prisma.reportJob.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'VALIDATING' }),
+        }),
+      );
     });
   });
 
@@ -833,6 +992,13 @@ describe('PortalController', () => {
         valid: true,
         items: [{ a: 1 }],
         warnings: [],
+        summary: {
+          totalRows: 1,
+          validRows: 1,
+          errorRows: 0,
+          totalAssets: 1,
+          totalLiabilities: 0,
+        },
       });
       almEnterprise.getInstitution.mockResolvedValue({ id: 'inst-1' });
       almEnterprise.importBalanceSheetItems.mockResolvedValue({ count: 1 });
@@ -856,6 +1022,13 @@ describe('PortalController', () => {
         valid: true,
         items: [{ a: 1 }],
         warnings: [],
+        summary: {
+          totalRows: 1,
+          validRows: 1,
+          errorRows: 0,
+          totalAssets: 1,
+          totalLiabilities: 0,
+        },
       });
       almEnterprise.createInstitution.mockResolvedValue({ id: 'new-inst' });
       almEnterprise.importBalanceSheetItems.mockResolvedValue({ count: 1 });
@@ -879,6 +1052,13 @@ describe('PortalController', () => {
         valid: true,
         items: [{ a: 1 }],
         warnings: [],
+        summary: {
+          totalRows: 1,
+          validRows: 1,
+          errorRows: 0,
+          totalAssets: 1,
+          totalLiabilities: 0,
+        },
       });
       almEnterprise.createInstitution.mockResolvedValue({ id: 'new-inst' });
       almEnterprise.importBalanceSheetItems.mockResolvedValue({ count: 1 });

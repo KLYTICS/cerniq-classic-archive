@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -8,12 +8,10 @@ import {
   Download,
   FileText,
   CheckCircle,
-  ArrowRight,
   HelpCircle,
   ChevronDown,
   ChevronUp,
   ClipboardList,
-  Clock3,
   Sparkles,
   AlertTriangle,
   Eye,
@@ -366,7 +364,7 @@ export default function PortalSubmit() {
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const jobs = overview?.jobs || [];
+  const jobs = useMemo(() => overview?.jobs || [], [overview?.jobs]);
   const selectedJobFromQuery = searchParams.get('jobId');
 
   useEffect(() => {
