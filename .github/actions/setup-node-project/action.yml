@@ -1,0 +1,37 @@
+name: Setup Node Project
+description: Setup Node.js caching and install dependencies for a checked-out repo subproject.
+
+inputs:
+  working-directory:
+    description: Repo-relative directory containing package.json
+    required: true
+  cache-dependency-path:
+    description: Repo-relative lockfile path used by setup-node caching
+    required: true
+  node-version:
+    description: Node.js version to install
+    required: false
+    default: '20'
+  cache:
+    description: Package manager cache mode for setup-node
+    required: false
+    default: npm
+  install-command:
+    description: Command used to install project dependencies
+    required: false
+    default: npm ci
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: ${{ inputs.cache }}
+        cache-dependency-path: ${{ inputs.cache-dependency-path }}
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: ${{ inputs.install-command }}

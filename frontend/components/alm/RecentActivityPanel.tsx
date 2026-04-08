@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Clock, ChevronRight, Search } from 'lucide-react';
 
+import { PinModuleButton } from '@/components/alm/PinModuleButton';
 import { useTranslation } from '@/lib/i18n';
 import { useRecent } from '@/lib/alm/recent';
 import { MODULES_BY_SLUG } from '@/lib/alm/registry';
@@ -73,23 +74,31 @@ export function RecentActivityPanel({ className, max = 5 }: RecentActivityPanelP
         {items.map((mod, i) => {
           const Icon = mod.icon;
           return (
-            <Link
+            <div
               key={mod.slug}
-              href={mod.href}
               className="group flex items-center gap-3 rounded-lg border border-transparent px-2 py-1.5 transition hover:border-slate-200 hover:bg-slate-50"
             >
-              <span className="font-mono text-[9px] text-slate-300 w-3 text-right">{i + 1}</span>
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-100 bg-slate-50 group-hover:border-slate-200">
-                <Icon className="h-3.5 w-3.5 text-slate-500 group-hover:text-slate-700" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-slate-800 group-hover:text-slate-950">
-                  {mod.name[locale]}
-                </p>
-                <p className="truncate text-[10px] text-slate-400">{mod.description[locale]}</p>
-              </div>
+              <span className="w-3 text-right font-mono text-[9px] text-slate-300">{i + 1}</span>
+              <Link href={mod.href} className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-100 bg-slate-50 group-hover:border-slate-200">
+                  <Icon className="h-3.5 w-3.5 text-slate-500 group-hover:text-slate-700" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-slate-800 group-hover:text-slate-950">
+                    {mod.name[locale]}
+                  </p>
+                  <p className="truncate text-[10px] text-slate-400">{mod.description[locale]}</p>
+                </div>
+              </Link>
+              <PinModuleButton
+                slug={mod.slug}
+                locale={locale}
+                moduleName={mod.name[locale]}
+                compact
+                className="shrink-0"
+              />
               <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300 group-hover:text-slate-500" />
-            </Link>
+            </div>
           );
         })}
       </div>

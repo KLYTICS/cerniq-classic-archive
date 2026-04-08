@@ -2,7 +2,7 @@
 
 > **Read this first.** This is the canonical pickup point for any Claude session continuing the FAANG-quality polish work on (1) institution seeding, (2) enterprise actions, (3) report accuracy. Update this file whenever you land work — the next session reads it before touching code.
 
-Last updated: 2026-04-08 (Phase 2 batch 5 — session-aware CI/CD quality gate)
+Last updated: 2026-04-08 (green-phase integration branch active — codex/ci-green-integration-2026-04-08)
 
 ---
 
@@ -122,6 +122,31 @@ Last updated: 2026-04-08 (Phase 2 batch 5 — session-aware CI/CD quality gate)
 
 ---
 
+## 4.5 Green-phase branch authority (2026-04-08)
+
+- **Merge authority branch:** `codex/ci-green-integration-2026-04-08`
+- **Validated base commit:** `origin/main@75791172`
+- **Owner lane:** CI/CD + cross-session integration hardening
+- **Frozen paths until merge:** `.github/**`, `backend-node/prisma/**`, `backend-node/src/{alm,leads,portal}/**`, and the touched frontend portal overview files
+- **Session rule:** rebase onto `codex/ci-green-integration-2026-04-08` before touching any frozen path, or pause until this branch merges
+
+Current blocker status:
+
+- `CI Quick Check` is green on PR `#31`
+- `ALM Quality Gate` is green on PR `#31`
+- `CERNIQ CI/CD` is green except for `Frontend E2E Tests`, which timed out waiting for Playwright dev servers on the first PR run
+- `CodeQL Security Analysis` fails only because repository code scanning is not enabled, not because of code findings
+
+Greening sequence for this branch:
+
+1. Keep the Prisma migration authoritative and do not weaken schema drift checks
+2. Fix backend/controller drift until `CI Quick Check` + `ALM Quality Gate` are green
+3. Fix `frontend-e2e` startup by running Playwright against built backend/frontend servers
+4. Make CodeQL skip cleanly when repository code scanning is disabled
+5. Re-run PR checks and merge only after the branch is fully green
+
+---
+
 ## 5. Recent landings
 
 (Append on each merge: date — what — file:line of the change.)
@@ -137,6 +162,7 @@ Last updated: 2026-04-08 (Phase 2 batch 5 — session-aware CI/CD quality gate)
 - 2026-04-08 — **Phase 2 batch 5 landed: session-aware CI/CD quality gate.** New workflow `.github/workflows/alm-quality-gate.yml` adds 6 jobs that the existing `ci-cd.yml` doesn't have: `typecheck` (fast tsc), `alm-tests` (targeted jest in ~35s), `golden-drift` (rich annotations on ALM math drift), `schema-drift` (prisma migrate diff against postgres shadow DB — catches the cross-session "edited schema without migration" failure mode), `session-freshness` (non-blocking warning when sensitive paths change without updating SESSION_HANDOFF.md), `quality-gate` (aggregator that publishes `ci-status.json` artifact at 30-day retention). Path-filtered triggers so frontend-only or unrelated changes don't waste CI minutes. Concurrency group cancels stale runs from older pushes. 4 supporting shell scripts in `scripts/ci/` (golden-drift-report, check-schema-drift, check-session-freshness, session-ci-report) — all work locally with graceful fallbacks. Full pipeline architecture documented at `docs/CI_CD_PIPELINE.md` (read first before editing any workflow). NEW files only, zero modifications to existing `ci-cd.yml`/`ci.yml`/`codeql.yml` (cross-session safety). Pushed as commit `7918b37a`. — `.github/workflows/alm-quality-gate.yml`, `scripts/ci/*.sh`, `docs/CI_CD_PIPELINE.md`
 - 2026-04-08 — **GitHub Actions billing block (known constraint).** The `alm-quality-gate.yml` workflow's first run (`24137471120`) was triggered correctly by the push, GitHub recognized all 6 jobs and the path filters, but every job was blocked at the scheduler with `"The job was not started because recent account payments have failed or your spending limit needs to be increased"`. This is an **account-level state**, not a code defect — the existing `ci-cd.yml`'s `release-gate` step explicitly notes the same risk: *"If GitHub Actions billing is suspended, remote runs may still remain red before jobs start."* The workflow itself is structurally correct (YAML validated, jobs scheduled, concurrency group active). Once billing is restored, it runs automatically on the next push to a path-filtered file. **Local validation done before commit** proved the 4 shell scripts all work end-to-end (golden 4/4 tests, schema-drift fallback, freshness detection, JSON status report).
 - 2026-04-08 — **Surprise commit `71a8d747` swept in 37 other-session files.** Intended to commit only `docs/SESSION_HANDOFF.md` (the billing-block note above), but the resulting commit landed 37 files. Inspection shows the extra 36 files are **a coherent feature** — the Demo Seat Portal stream from another Claude session: `backend-node/src/portal/demo-seat.{service,sweeper}.{ts,spec.ts}`, `portal-alm-report.service.ts`, `portal-document-exports.service.{ts,spec.ts}`, `portal.controller.{ts,spec.ts}` updates, `portal.module.ts`, `prisma/migrations/20260407120000_add_demo_seat_provisioning/`, `schema.prisma` extensions (629 lines: Close Cockpit + Intelligence models from yet another stream), `scripts/provision-demo-portal.ts`, `scripts/test-file-exports.ts`, `src/alm/data-pull/cossec-data-pull.service.{ts,spec.ts}` + cossec-2025q4 snapshot, `src/auth/{auth.guard,platform-access.service}.ts`, `src/email/email.service.ts`, `src/leads/leads.controller.{ts,spec.ts}`, `frontend/app/admin/demo-seats/page.tsx`, `frontend/app/admin/prospects/page.tsx`, `frontend/app/portal/page.tsx`, plus `tsconfig.json`. **Main is healthy after the commit:** type-check clean, **2600/2600 tests across 247 suites passing** (up from 2525/242 — the new files added their own specs and they pass). Mechanism is unknown (husky pre-commit only runs `tsc --noEmit`, no auto-stage; index was clean before `git add docs/SESSION_HANDOFF.md`). **NOT reverting** because the commit is a real coherent feature, main is green, and the other sessions presumably wanted this work landed eventually. **Lesson for future sessions:** when running `git add <single-file>` followed by `git commit`, check `git diff --cached --name-only` BEFORE the commit to verify only the intended file is staged. Surgical commit pattern from 2026-04-07 still applies for INTENTIONAL multi-session work — see §5 of CI_CD_PIPELINE.md.
+- 2026-04-08 — **Green-phase integration lane established on `codex/ci-green-integration-2026-04-08`.** Replayed only the intended CI centralization paths, added the missing Prisma migration `20260408153542_sync_demo_engagement_schema/`, fixed backend/controller drift (`alm.controller.spec.ts`, `leads.controller.spec.ts`, `portal.controller.{ts,spec.ts}`, `common/streaming/sse.util.ts`, `actions/alm-actions.bootstrap.ts`), and included the coherent frontend portal-overview wiring required for a green frontend build (`frontend/app/portal/*.tsx`, `frontend/components/portal/*`, `frontend/{hooks,lib}/portal-overview.*`). Local validation on the branch is green: `prisma validate`, strict schema drift, `tsc --noEmit`, backend tests/build, frontend lint/build/vitest, outbound pytest. First PR run showed `CI Quick Check` + `ALM Quality Gate` green and narrowed the remaining blockers to Playwright server startup plus CodeQL repository settings. Follow-up workflow fix switched `frontend-e2e` to built servers and made CodeQL skip cleanly when code scanning is disabled. — `.github/workflows/{ci-cd,codeql}.yml`, `.github/actions/**`, `backend-node/prisma/migrations/20260408153542_sync_demo_engagement_schema/`, touched backend spec/helper files, touched frontend portal overview files, `docs/{CI_CD_PIPELINE,ops/REPO_GREEN_CHECKLIST,SESSION_HANDOFF}.md`
 
 ---
 

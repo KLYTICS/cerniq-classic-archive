@@ -18,6 +18,7 @@ import {
 } from '@/lib/alm/registry';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { ModuleStatusGrid } from '@/components/alm/ModuleStatusGrid';
+import { PinnedModulesPanel } from '@/components/alm/PinnedModulesPanel';
 import { RecentActivityPanel } from '@/components/alm/RecentActivityPanel';
 import { AlmPageSkeleton } from '@/components/alm/AlmPageSkeleton';
 import AIAdvisorChat from '@/components/alm/AIAdvisorChat';
@@ -456,7 +457,8 @@ function Dashboard({ summary: s, institutionName, isDemo, onRefresh, advisorOpen
             </Link>
           </section>
 
-          {/* Recent activity — "jump back in" */}
+          {/* Pinned modules + recent activity — daily workflow shortcuts */}
+          <PinnedModulesPanel />
           <RecentActivityPanel />
         </div>
 

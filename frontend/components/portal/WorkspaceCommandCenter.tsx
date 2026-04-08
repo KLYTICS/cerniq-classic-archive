@@ -31,6 +31,11 @@ interface WorkspaceCommandCenterProps {
     complete: number;
   };
   workflowState?: PortalWorkflowState;
+  activation?: {
+    activationScore: number;
+    isStalled: boolean;
+    stalledMilestoneLabel: string | null;
+  } | null;
 }
 
 function formatTierLabel(tier: SubscriptionTier) {
@@ -54,6 +59,7 @@ export default function WorkspaceCommandCenter({
   jobs,
   counts,
   workflowState,
+  activation,
 }: WorkspaceCommandCenterProps) {
   const completedReports =
     counts?.complete ??
@@ -208,6 +214,11 @@ export default function WorkspaceCommandCenter({
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 {completedChecklist} of {checklist.length} launch milestones completed across this account.
               </p>
+              {activation?.isStalled && activation.stalledMilestoneLabel ? (
+                <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+                  Activation is stalled at: {activation.stalledMilestoneLabel}
+                </p>
+              ) : null}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">

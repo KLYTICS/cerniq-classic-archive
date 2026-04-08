@@ -44,6 +44,7 @@ import { PortalDocumentExportsService } from './portal-document-exports.service'
 import { PortalAlmReportService } from './portal-alm-report.service';
 import { DemoSeatService } from './demo-seat.service';
 import { buildPdfResponseHeaders } from '../alm/document-exports.util';
+import { OnboardingOrchestratorService } from '../alm/onboarding-orchestrator.service';
 
 type PortalWorkflowState =
   | 'needs_report'
@@ -88,6 +89,7 @@ const PORTAL_ACTIONABLE_STATUSES = [
 
 type PortalOverviewJob = {
   id: string;
+  institutionId: string | null;
   institutionName: string;
   status: string;
   analysisPeriod: string | null;
@@ -102,6 +104,23 @@ type PortalOverviewJob = {
   errorMessage: string | null;
   userId: string;
   triggeredBy: string;
+};
+
+type PortalActivationSnapshot = {
+  institutionId: string;
+  activationScore: number;
+  daysSinceSignup: number;
+  isStalled: boolean;
+  stalledMilestone: string | null;
+  stalledMilestoneLabel: string | null;
+  stalledMilestoneLabelEs: string | null;
+  milestones: Array<{
+    id: string;
+    label: string;
+    labelEs: string;
+    completed: boolean;
+    completedAt: string | null;
+  }>;
 };
 
 class InviteDto {
@@ -136,6 +155,7 @@ export class PortalController {
     private readonly portalExports: PortalDocumentExportsService,
     private readonly portalAlmReport: PortalAlmReportService,
     private readonly demoSeats: DemoSeatService,
+    private readonly onboardingOrchestrator: OnboardingOrchestratorService,
   ) {}
 
   // ── List User's Report Jobs ─────────────────────────
@@ -165,6 +185,7 @@ export class PortalController {
   })
   async getOverview(@Req() req: any) {
     const userId = req.user.userId;
+    const access = await this.requirePaidPortalAccess(userId);
     const scope = await this.buildJobOwnerScope(userId);
     const jobs = await this.loadPortalJobs(scope);
     const counts = this.countPortalJobs(jobs);
@@ -178,13 +199,86 @@ export class PortalController {
       : null;
 
     return {
+      access,
       jobs,
       latestActionableJob,
       workflowState,
       counts,
+      activation: await this.buildActivationSnapshot(latestActionableJob),
       demoSeat: await this.loadDemoSeatContextPayload(userId),
       nextAction: this.buildNextAction(workflowState, latestActionableJob),
       validationSummary,
+    };
+  }
+
+  @Post('jobs/open-cycle')
+  @Roles('OWNER', 'ANALYST')
+  @ApiOperation({
+    summary:
+      'Create or reopen the next pending report cycle for the authenticated user',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'A pending or retryable report cycle is ready for upload',
+  })
+  async openReportCycle(@Req() req: any) {
+    const userId = req.user.userId;
+    await this.requirePaidPortalAccess(userId);
+
+    const jobs = await this.loadPortalJobs({ userId });
+    const existingJob =
+      jobs.find((job) => job.status === 'VALIDATION_FAILED') ||
+      jobs.find((job) => job.status === 'AWAITING_DATA') ||
+      null;
+
+    if (existingJob) {
+      return {
+        created: false,
+        reopened: existingJob.status === 'VALIDATION_FAILED',
+        nextActionHref: `/portal/submit?jobId=${existingJob.id}`,
+        job: existingJob,
+      };
+    }
+
+    const workspace = await this.prisma.workspace.findMany({
+      where: { ownerId: userId },
+      select: { name: true },
+      orderBy: { createdAt: 'asc' },
+      take: 1,
+    });
+
+    const seedJob = jobs[0] || null;
+    const latestCompletedJob = seedJob?.institutionId
+      ? await this.prisma.reportJob.findFirst({
+          where: {
+            userId,
+            institutionId: seedJob.institutionId,
+            status: 'COMPLETE',
+          },
+          orderBy: { completedAt: 'desc' },
+          select: { id: true },
+        })
+      : null;
+
+    const job = await this.prisma.reportJob.create({
+      data: {
+        userId,
+        institutionId: seedJob?.institutionId || null,
+        institutionName: this.resolveCycleInstitutionName(
+          seedJob,
+          workspace[0]?.name || null,
+        ),
+        status: 'AWAITING_DATA',
+        previousJobId: latestCompletedJob?.id || null,
+        triggeredBy: 'portal_open_cycle',
+      },
+    });
+
+    return {
+      created: true,
+      reopened: false,
+      nextActionHref: `/portal/submit?jobId=${job.id}`,
+      job,
     };
   }
 
@@ -938,6 +1032,7 @@ export class PortalController {
       take: scope.userId ? undefined : 200,
       select: {
         id: true,
+        institutionId: true,
         institutionName: true,
         status: true,
         analysisPeriod: true,
@@ -1084,16 +1179,43 @@ export class PortalController {
       case 'needs_report':
       default:
         return {
-          labelEn: 'Open workspace',
-          labelEs: 'Abrir portal',
-          href: '/portal',
+          labelEn: 'Create first report cycle',
+          labelEs: 'Crear primer ciclo de informe',
+          href: '/portal/submit?createCycle=1',
           jobId: null,
           explanationEn:
-            'Your account is active, but no report cycle is currently awaiting data.',
+            'Your account is active, but no report cycle is open yet. Create one now so you can upload the first CSV immediately.',
           explanationEs:
-            'Su cuenta esta activa, pero no hay un ciclo de informe esperando datos.',
+            'Su cuenta esta activa, pero aun no hay un ciclo de informe abierto. Cree uno ahora para cargar el primer CSV de inmediato.',
         };
     }
+  }
+
+  private async buildActivationSnapshot(
+    job: PortalOverviewJob | null,
+  ): Promise<PortalActivationSnapshot | null> {
+    if (!job?.institutionId) {
+      return null;
+    }
+
+    const activation = await this.onboardingOrchestrator.getOnboardingStatus(
+      job.institutionId,
+    );
+    const stalledMilestone =
+      activation.milestones.find(
+        (milestone) => milestone.id === activation.stalledMilestone,
+      ) || null;
+
+    return {
+      institutionId: activation.institutionId,
+      activationScore: activation.activationScore,
+      daysSinceSignup: activation.daysSinceSignup,
+      isStalled: activation.isStalled,
+      stalledMilestone: activation.stalledMilestone,
+      stalledMilestoneLabel: stalledMilestone?.label || null,
+      stalledMilestoneLabelEs: stalledMilestone?.labelEs || null,
+      milestones: activation.milestones,
+    };
   }
 
   private async getValidationSummaryForJob(
@@ -1144,7 +1266,6 @@ export class PortalController {
               message: issue.message,
             };
           }
-
           return {
             row: null,
             field: null,
@@ -1189,6 +1310,21 @@ export class PortalController {
           }
         : null,
     };
+  }
+
+  private resolveCycleInstitutionName(
+    seedJob: PortalOverviewJob | null,
+    workspaceName: string | null,
+  ) {
+    if (seedJob?.institutionName?.trim()) {
+      return seedJob.institutionName;
+    }
+
+    if (workspaceName?.trim()) {
+      return workspaceName.replace(/\s+workspace$/i, '').trim() || workspaceName;
+    }
+
+    return 'Pending Institution';
   }
 
   /**

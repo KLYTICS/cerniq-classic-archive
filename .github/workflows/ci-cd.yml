@@ -12,6 +12,13 @@ concurrency:
 
 env:
   NODE_VERSION: '20'
+  PYTHON_VERSION: '3.12'
+  TEST_DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
+  CI_REDIS_URL: redis://localhost:6379
+  CI_JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
+  CI_BUILD_JWT_SECRET: ci-build-secret-must-be-at-least-32-characters-long
+  FRONTEND_API_URL: http://localhost:3000
+  PLAYWRIGHT_BACKEND_URL: http://localhost:43100
 
 jobs:
   # Backend NestJS — lint, test, build
@@ -49,24 +56,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup backend workspace
+        uses: ./.github/actions/setup-node-project
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
           cache-dependency-path: backend-node/package-lock.json
-
-      - name: Cache backend node_modules
-        uses: actions/cache@v4
-        with:
-          path: backend-node/node_modules
-          key: ${{ runner.os }}-backend-node-modules-${{ hashFiles('backend-node/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-backend-node-modules-
-
-      - name: Install dependencies
-        working-directory: backend-node
-        run: npm ci
+          working-directory: backend-node
 
       - name: Generate Prisma client
         working-directory: backend-node
@@ -76,7 +71,7 @@ jobs:
         working-directory: backend-node
         run: npx prisma db push
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
 
       - name: Validate Prisma schema
         working-directory: backend-node
@@ -94,16 +89,16 @@ jobs:
         working-directory: backend-node
         run: npm run test -- --forceExit
         env:
-          REDIS_URL: redis://localhost:6379
-          JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
-          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
+          REDIS_URL: ${{ env.CI_REDIS_URL }}
+          JWT_SECRET: ${{ env.CI_JWT_SECRET }}
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
 
       - name: Build
         working-directory: backend-node
         run: npm run build
         env:
-          JWT_SECRET: ci-build-secret-must-be-at-least-32-characters-long
-          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
+          JWT_SECRET: ${{ env.CI_BUILD_JWT_SECRET }}
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
 
   # Frontend Next.js — lint, build
   frontend-test:
@@ -115,16 +110,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup frontend workspace
+        uses: ./.github/actions/setup-node-project
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
+          working-directory: frontend
 
       - name: Security audit
         working-directory: frontend
@@ -138,8 +129,8 @@ jobs:
         working-directory: frontend
         run: npm run build
         env:
-          NEXT_PUBLIC_NODE_API_URL: http://localhost:3000
-          NEXT_PUBLIC_API_URL: http://localhost:3000
+          NEXT_PUBLIC_NODE_API_URL: ${{ env.FRONTEND_API_URL }}
+          NEXT_PUBLIC_API_URL: ${{ env.FRONTEND_API_URL }}
 
       - name: Run component tests
         working-directory: frontend
@@ -191,16 +182,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup backend workspace
+        uses: ./.github/actions/setup-node-project
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
           cache-dependency-path: backend-node/package-lock.json
-
-      - name: Install dependencies
-        working-directory: backend-node
-        run: npm ci
+          working-directory: backend-node
 
       - name: Generate Prisma client
         working-directory: backend-node
@@ -210,15 +197,15 @@ jobs:
         working-directory: backend-node
         run: npx prisma db push
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
 
       - name: Run backend E2E & security suites
         working-directory: backend-node
         run: npx jest --config ./test/jest-e2e.json --runInBand
         env:
-          REDIS_URL: redis://localhost:6379
-          JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
-          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
+          REDIS_URL: ${{ env.CI_REDIS_URL }}
+          JWT_SECRET: ${{ env.CI_JWT_SECRET }}
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
 
   # Outbound Python engine — lint, test
   outbound-test:
@@ -230,16 +217,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup outbound workspace
+        uses: ./.github/actions/setup-python-project
         with:
-          python-version: '3.12'
-          cache: 'pip'
+          python-version: ${{ env.PYTHON_VERSION }}
           cache-dependency-path: services/outbound/requirements.txt
-
-      - name: Install dependencies
-        working-directory: services/outbound
-        run: pip install -r requirements.txt pytest
+          working-directory: services/outbound
 
       - name: Run tests
         working-directory: services/outbound
@@ -304,22 +287,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup frontend workspace
+        uses: ./.github/actions/setup-node-project
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: |
-            frontend/package-lock.json
-            backend-node/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
+          working-directory: frontend
 
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Install backend dependencies
-        working-directory: backend-node
-        run: npm ci
+      - name: Setup backend workspace
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache-dependency-path: backend-node/package-lock.json
+          working-directory: backend-node
 
       - name: Generate Prisma client
         working-directory: backend-node
@@ -329,7 +309,14 @@ jobs:
         working-directory: backend-node
         run: npx prisma db push
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+
+      - name: Build backend
+        working-directory: backend-node
+        run: npm run build
+        env:
+          JWT_SECRET: ${{ env.CI_BUILD_JWT_SECRET }}
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
 
       - name: Install Playwright browsers
         working-directory: frontend
@@ -339,20 +326,22 @@ jobs:
         working-directory: frontend
         run: npm run build
         env:
-          NEXT_PUBLIC_NODE_API_URL: http://localhost:43100
-          NEXT_PUBLIC_API_URL: http://localhost:43100
+          NEXT_PUBLIC_NODE_API_URL: http://127.0.0.1:3100
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:3100
 
       - name: Run Playwright tests
         working-directory: frontend
         run: npx playwright test --reporter=github
         env:
           CI: true
-          PLAYWRIGHT_BACKEND_URL: http://localhost:43100
-          NEXT_PUBLIC_NODE_API_URL: http://localhost:43100
-          NEXT_PUBLIC_API_URL: http://localhost:43100
-          REDIS_URL: redis://localhost:6379
-          JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
-          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
+          PLAYWRIGHT_BACKEND_URL: http://127.0.0.1:3100
+          PLAYWRIGHT_BACKEND_COMMAND: cd ../backend-node && PORT=3100 BACKEND_PORT=3100 npm run start:prod
+          PLAYWRIGHT_FRONTEND_COMMAND: NEXT_PUBLIC_NODE_API_URL=http://127.0.0.1:3100 NEXT_PUBLIC_API_URL=http://127.0.0.1:3100 npx next start --port 3101
+          NEXT_PUBLIC_NODE_API_URL: http://127.0.0.1:3100
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:3100
+          REDIS_URL: ${{ env.CI_REDIS_URL }}
+          JWT_SECRET: ${{ env.CI_JWT_SECRET }}
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

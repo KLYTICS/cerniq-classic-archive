@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Check } from 'lucide-react';
 
+import { PinModuleButton } from '@/components/alm/PinModuleButton';
 import type { Locale } from '@/lib/i18n';
 import {
   ALM_CATEGORIES,
@@ -54,35 +55,44 @@ function ModuleCard({ mod, locale, migrated, compact }: ModuleCardProps) {
   const titleClass = compact ? 'text-[11px]' : 'text-xs';
 
   return (
-    <Link
-      href={mod.href}
-      className={`group relative flex items-start gap-2 rounded-xl border border-slate-200 bg-white ${paddingClass} transition hover:border-slate-300 hover:shadow-sm ${migrated ? '' : 'opacity-70'}`}
-    >
-      <div className={`flex ${iconBoxClass} shrink-0 items-center justify-center rounded-lg border border-slate-100 bg-slate-50 group-hover:border-slate-200`}>
-        <Icon className={`${iconClass} text-slate-500 group-hover:text-slate-700`} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1">
-          <p className={`truncate ${titleClass} font-semibold text-slate-800 group-hover:text-slate-950`}>
-            {mod.name[locale]}
-          </p>
-          {migrated ? (
-            <Check
-              className="h-2.5 w-2.5 shrink-0 text-emerald-600"
-              aria-label={locale === 'es' ? 'Listo' : 'Ready'}
-            />
-          ) : null}
+    <div className={`group relative rounded-xl border border-slate-200 bg-white transition hover:border-slate-300 hover:shadow-sm ${migrated ? '' : 'opacity-70'}`}>
+      <PinModuleButton
+        slug={mod.slug}
+        locale={locale}
+        moduleName={mod.name[locale]}
+        compact
+        className="absolute right-2 top-2 z-10 opacity-0 shadow-sm group-hover:opacity-100 focus-visible:opacity-100"
+      />
+      <Link
+        href={mod.href}
+        className={`flex items-start gap-2 rounded-xl ${paddingClass} pr-10`}
+      >
+        <div className={`flex ${iconBoxClass} shrink-0 items-center justify-center rounded-lg border border-slate-100 bg-slate-50 group-hover:border-slate-200`}>
+          <Icon className={`${iconClass} text-slate-500 group-hover:text-slate-700`} />
         </div>
-        <p className="mt-0.5 line-clamp-1 text-[9px] text-slate-400">
-          {mod.description[locale]}
-        </p>
-      </div>
-      {mod.status !== 'ga' ? (
-        <span className="absolute -right-0.5 -top-0.5 rounded px-1 py-px text-[7px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200">
-          {mod.status}
-        </span>
-      ) : null}
-    </Link>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1">
+            <p className={`truncate ${titleClass} font-semibold text-slate-800 group-hover:text-slate-950`}>
+              {mod.name[locale]}
+            </p>
+            {migrated ? (
+              <Check
+                className="h-2.5 w-2.5 shrink-0 text-emerald-600"
+                aria-label={locale === 'es' ? 'Listo' : 'Ready'}
+              />
+            ) : null}
+          </div>
+          <p className="mt-0.5 line-clamp-1 text-[9px] text-slate-400">
+            {mod.description[locale]}
+          </p>
+        </div>
+        {mod.status !== 'ga' ? (
+          <span className="absolute -right-0.5 -top-0.5 rounded border border-amber-200 bg-amber-50 px-1 py-px text-[7px] font-bold uppercase tracking-wider text-amber-700">
+            {mod.status}
+          </span>
+        ) : null}
+      </Link>
+    </div>
   );
 }
 

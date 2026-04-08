@@ -16,11 +16,13 @@ const {
   searchParams,
   trackMock,
   loadOverviewMock,
+  replaceMock,
   hookState,
 } = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
   trackMock: vi.fn(),
   loadOverviewMock: vi.fn(),
+  replaceMock: vi.fn(),
   hookState: {
     overview: null as unknown,
     loading: false,
@@ -32,6 +34,7 @@ const {
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => searchParams,
+  useRouter: () => ({ replace: replaceMock }),
 }));
 
 vi.mock('next/link', () => ({
@@ -92,6 +95,7 @@ const overviewMock = {
   jobs: [
     {
       id: 'job-awaiting',
+      institutionId: 'inst-1',
       institutionName: 'Coop San Juan',
       status: 'AWAITING_DATA',
       analysisPeriod: null,
@@ -110,6 +114,7 @@ const overviewMock = {
   ],
   latestActionableJob: {
     id: 'job-awaiting',
+    institutionId: 'inst-1',
     institutionName: 'Coop San Juan',
     status: 'AWAITING_DATA',
     analysisPeriod: null,
@@ -133,6 +138,18 @@ const overviewMock = {
     processing: 0,
     complete: 0,
   },
+  access: {
+    platformAccessAllowed: true,
+    isMasterCeo: false,
+    isPaid: true,
+    isDemo: false,
+    effectiveTier: 'monthly',
+    effectiveStatus: 'active',
+    effectivePeriodEnd: null,
+    daysRemaining: null,
+    reason: 'paid',
+  },
+  activation: null,
   demoSeat: { isDemo: false, seat: null },
   nextAction: {
     labelEn: 'Upload balance-sheet data',
@@ -165,6 +182,7 @@ describe('PortalSubmit', () => {
     searchParams.delete('jobId');
     trackMock.mockReset();
     loadOverviewMock.mockReset();
+    replaceMock.mockReset();
     hookState.overview = overviewMock;
     hookState.loading = false;
     hookState.error = null;

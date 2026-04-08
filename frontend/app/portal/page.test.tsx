@@ -62,29 +62,23 @@ vi.mock('@/components/portal/DemoSeatBanner', () => ({
   default: () => <div>Demo banner</div>,
 }));
 
-const overviewState = {
-  overview: {
-    jobs: [
-      {
-        id: 'job-awaiting',
-        institutionName: 'Coop San Juan',
-        status: 'AWAITING_DATA',
-        analysisPeriod: null,
-        previousJobId: null,
-        submittedAt: null,
-        processingStartedAt: null,
-        completedAt: null,
-        createdAt: '2026-04-08T10:00:00.000Z',
-        reportUrl: null,
-        reportUrlEn: null,
-        reportLang: 'es',
-        errorMessage: null,
-        userId: 'user-1',
-        triggeredBy: 'portal_submit_seed',
-      },
-    ],
-    latestActionableJob: {
+const baseOverview: any = {
+  access: {
+    platformAccessAllowed: true,
+    isMasterCeo: false,
+    isPaid: true,
+    isDemo: false,
+    effectiveTier: 'monthly',
+    effectiveStatus: 'active',
+    effectivePeriodEnd: null,
+    daysRemaining: null,
+    reason: 'paid',
+  },
+  activation: null,
+  jobs: [
+    {
       id: 'job-awaiting',
+      institutionId: 'inst-1',
       institutionName: 'Coop San Juan',
       status: 'AWAITING_DATA',
       analysisPeriod: null,
@@ -100,26 +94,50 @@ const overviewState = {
       userId: 'user-1',
       triggeredBy: 'portal_submit_seed',
     },
-    workflowState: 'needs_upload',
-    counts: {
-      total: 1,
-      awaitingData: 1,
-      validationFailed: 0,
-      processing: 0,
-      complete: 0,
-    },
-    demoSeat: { isDemo: false, seat: null },
-    nextAction: {
-      labelEn: 'Upload balance-sheet data',
-      labelEs: 'Cargar datos del balance',
-      href: '/portal/submit?jobId=job-awaiting',
-      jobId: 'job-awaiting',
-      explanationEn:
-        'Your report cycle is waiting for the CSV needed to start validation and analysis.',
-      explanationEs:
-        'El ciclo de informe esta esperando el CSV para comenzar la validacion y el analisis.',
-    },
-    validationSummary: null,
+  ],
+  latestActionableJob: {
+    id: 'job-awaiting',
+    institutionId: 'inst-1',
+    institutionName: 'Coop San Juan',
+    status: 'AWAITING_DATA',
+    analysisPeriod: null,
+    previousJobId: null,
+    submittedAt: null,
+    processingStartedAt: null,
+    completedAt: null,
+    createdAt: '2026-04-08T10:00:00.000Z',
+    reportUrl: null,
+    reportUrlEn: null,
+    reportLang: 'es',
+    errorMessage: null,
+    userId: 'user-1',
+    triggeredBy: 'portal_submit_seed',
+  },
+  workflowState: 'needs_upload',
+  counts: {
+    total: 1,
+    awaitingData: 1,
+    validationFailed: 0,
+    processing: 0,
+    complete: 0,
+  },
+  demoSeat: { isDemo: false, seat: null },
+  nextAction: {
+    labelEn: 'Upload balance-sheet data',
+    labelEs: 'Cargar datos del balance',
+    href: '/portal/submit?jobId=job-awaiting',
+    jobId: 'job-awaiting',
+    explanationEn:
+      'Your report cycle is waiting for the CSV needed to start validation and analysis.',
+    explanationEs:
+      'El ciclo de informe esta esperando el CSV para comenzar la validacion y el analisis.',
+  },
+  validationSummary: null,
+};
+
+const overviewState: any = {
+  overview: {
+    ...baseOverview,
   },
   loading: false,
   error: null as string | null,
@@ -154,6 +172,7 @@ vi.mock('lucide-react', () => {
 describe('PortalHome', () => {
   beforeEach(() => {
     searchParams.delete('welcome');
+    overviewState.overview = { ...baseOverview };
   });
 
   it('surfaces the actionable upload state from the shared overview', () => {
@@ -165,5 +184,37 @@ describe('PortalHome', () => {
     expect(
       screen.getAllByRole('link', { name: /Upload balance-sheet data/i })[0],
     ).toHaveAttribute('href', '/portal/submit?jobId=job-awaiting');
+  });
+
+  it('shows a first-run activation CTA when no report cycle exists yet', () => {
+    overviewState.overview = {
+      ...overviewState.overview,
+      jobs: [],
+      latestActionableJob: null,
+      workflowState: 'needs_report',
+      counts: {
+        total: 0,
+        awaitingData: 0,
+        validationFailed: 0,
+        processing: 0,
+        complete: 0,
+      },
+      nextAction: {
+        labelEn: 'Create first report cycle',
+        labelEs: 'Crear primer ciclo de informe',
+        href: '/portal/submit?createCycle=1',
+        jobId: null,
+        explanationEn:
+          'Create the first report cycle so the workspace can move directly into upload.',
+        explanationEs:
+          'Cree el primer ciclo de informe para que el portal avance directo a la carga.',
+      },
+    };
+
+    render(<PortalHome />);
+
+    expect(
+      screen.getAllByRole('link', { name: /Create first report cycle/i })[0],
+    ).toHaveAttribute('href', '/portal/submit?createCycle=1');
   });
 });

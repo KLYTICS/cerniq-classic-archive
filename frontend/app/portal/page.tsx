@@ -442,6 +442,16 @@ export default function PortalHome() {
         jobs={jobs.map((job) => ({ id: job.id, status: job.status }))}
         counts={overview?.counts}
         workflowState={overview?.workflowState}
+        activation={
+          overview?.activation
+            ? {
+                activationScore: overview.activation.activationScore,
+                isStalled: overview.activation.isStalled,
+                stalledMilestoneLabel:
+                  overview.activation.stalledMilestoneLabel,
+              }
+            : null
+        }
       />
 
       {overview?.nextAction ? (
@@ -495,10 +505,10 @@ export default function PortalHome() {
               </p>
               <div className="flex gap-3">
                 <Link
-                  href="/portal/submit"
+                  href={overview?.nextAction?.href || '/portal/submit?createCycle=1'}
                   className="cerniq-button-primary px-4 py-2.5 text-sm"
                 >
-                  <Upload className="h-4 w-4" /> {t('Upload data', 'Cargar datos')}
+                  <Upload className="h-4 w-4" /> {t('Create report cycle', 'Crear ciclo de informe')}
                 </Link>
               </div>
             </div>
@@ -520,7 +530,7 @@ export default function PortalHome() {
                   <Download className="h-4 w-4" /> {t('Download template', 'Descargar plantilla')}
                 </a>
                 <Link
-                  href="/portal/submit"
+                  href={overview?.nextAction?.href || '/portal/submit'}
                   className="cerniq-button-primary px-4 py-2.5 text-sm"
                 >
                   <Upload className="h-4 w-4" /> {t('Upload data', 'Cargar datos')}

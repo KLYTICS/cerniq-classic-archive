@@ -52,8 +52,9 @@ export class AlmActionsBootstrap implements OnModuleInit {
         estimatedDurationMs: 1500,
       },
       async (input) => {
-        const workspaceId = String(input.workspaceId ?? '');
-        const fixture = String(input.fixture ?? '');
+        const workspaceId =
+          typeof input.workspaceId === 'string' ? input.workspaceId : '';
+        const fixture = typeof input.fixture === 'string' ? input.fixture : '';
         if (!workspaceId || !fixture) {
           return {
             success: false,

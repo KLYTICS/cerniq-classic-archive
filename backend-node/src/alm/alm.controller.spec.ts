@@ -273,11 +273,12 @@ describe('AlmController — Core Revenue Path', () => {
   describe('GET /api/alm/:id/regulatory-compliance', () => {
     it('returns regulatory compliance', async () => {
       enterprise.getRegulatoryCompliance.mockResolvedValue({
-        ncua: { status: 'compliant' },
-        cossec: { status: 'compliant' },
+        overallStatus: 'compliant',
+        checks: [],
+        ratios: [],
       });
       const r = await controller.getRegulatoryCompliance('i1');
-      expect(r.ncua.status).toBe('compliant');
+      expect(r.overallStatus).toBe('compliant');
     });
   });
 
@@ -298,11 +299,21 @@ describe('AlmController — Core Revenue Path', () => {
   describe('GET /api/alm/:id/nii-sensitivity', () => {
     it('returns NII sensitivity', async () => {
       enterprise.calculateNIISensitivity.mockResolvedValue({
-        up100: -2.5,
-        down100: 1.8,
+        scenarios: [
+          {
+            name: '+100bps',
+            shiftBps: 100,
+            niImpact: -2.5,
+            niImpactPct: -1.8,
+            mveImpact: 0,
+            mveImpactPct: 0,
+          },
+        ],
+        baseNII: 12.4,
+        riskRating: 'moderate',
       });
       const r = await controller.getNIISensitivity('i1');
-      expect(r.up100).toBe(-2.5);
+      expect(r.scenarios[0]?.niImpact).toBe(-2.5);
     });
   });
 
@@ -352,7 +363,7 @@ describe('AlmController — Core Revenue Path', () => {
     it('lists analysis runs', async () => {
       analysisRuns.listRuns.mockResolvedValue({ data: [], total: 0 });
       const req = { user: { userId: 'u1' } };
-      const r = await controller.listAnalysisRuns(req, 'i1', {} as any);
+      await controller.listAnalysisRuns(req, 'i1', {} as any);
       expect(analysisRuns.listRuns).toHaveBeenCalledWith(
         'u1',
         'i1',
@@ -372,7 +383,7 @@ describe('AlmController — Core Revenue Path', () => {
         total: 0,
       });
       const req = { user: { userId: 'u1' } };
-      const r = await controller.listIngestionLogs(req, 'i1', {} as any);
+      await controller.listIngestionLogs(req, 'i1', {} as any);
       expect(ingestionLogs.listInstitutionLogs).toHaveBeenCalledWith(
         'u1',
         'i1',
@@ -387,12 +398,18 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/:id/calendar', () => {
     it('returns compliance calendar deadlines', async () => {
-      complianceCalendar.getUpcomingDeadlines.mockResolvedValue([
-        { name: 'NCUA 5300', dueDate: '2024-03-31' },
-      ]);
+      complianceCalendar.getUpcomingDeadlines.mockResolvedValue({
+        events: [
+          {
+            id: 'ncua-5300',
+            title: 'NCUA 5300',
+            deadlineDate: '2024-03-31',
+          },
+        ],
+      });
       const r = await controller.getComplianceCalendar('i1');
-      expect(r).toHaveLength(1);
-      expect(r[0].name).toBe('NCUA 5300');
+      expect(r.events).toHaveLength(1);
+      expect(r.events[0]?.title).toBe('NCUA 5300');
     });
   });
 
@@ -464,7 +481,7 @@ describe('AlmController — Core Revenue Path', () => {
       };
       const r = await controller.uploadCSV(req, 'i1', file as any);
       expect(r.imported).toBe(true);
-      expect(r.importedCount).toBe(1);
+      expect('importedCount' in r ? r.importedCount : undefined).toBe(1);
     });
   });
 
@@ -520,17 +537,32 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/:id/ftp', () => {
     it('returns FTP analysis', async () => {
-      ftp.getFTPAnalysis.mockResolvedValue({ nim: 2.8, spreads: [] });
+      ftp.getFTPAnalysis.mockResolvedValue({
+        instruments: [],
+        segments: [],
+        summary: {
+          totalAssetContribution: 0,
+          totalLiabilityContribution: 0,
+          netFTPMargin: 2.8,
+          netFTPMarginPct: 2.8,
+          totalAssets: 100,
+          totalLiabilities: 80,
+          weightedAssetSpread: 1.4,
+          weightedLiabilitySpread: 0.6,
+        },
+        curveUsed: 'US Treasury (Default)',
+        asOfDate: '2026-04-08',
+      });
       const r = await controller.getFTPAnalysis('i1');
       expect(ftp.getFTPAnalysis).toHaveBeenCalledWith('i1');
-      expect(r.nim).toBe(2.8);
+      expect(r.summary.netFTPMarginPct).toBe(2.8);
     });
   });
 
   describe('POST /api/alm/:id/ftp/custom', () => {
     it('runs custom FTP with spread adjustment', async () => {
       ftp.getFTPAnalysis.mockResolvedValue({ nim: 3.1 });
-      const r = await controller.runCustomFTP('i1', {
+      await controller.runCustomFTP('i1', {
         spreadAdjBps: 25,
       } as any);
       expect(ftp.getFTPAnalysis).toHaveBeenCalledWith('i1', 25);
@@ -571,7 +603,7 @@ describe('AlmController — Core Revenue Path', () => {
     it('imports loan segments', async () => {
       const dto = { segments: [{ type: 'auto', balance: 5e6 }] };
       cecl.importLoanSegments.mockResolvedValue({ count: 1 });
-      const r = await controller.importLoanSegments('i1', dto as any);
+      await controller.importLoanSegments('i1', dto as any);
       expect(cecl.importLoanSegments).toHaveBeenCalledWith('i1', dto.segments);
     });
   });
@@ -588,7 +620,7 @@ describe('AlmController — Core Revenue Path', () => {
     it('runs WARM calculation', async () => {
       cecl.calculateWARM.mockResolvedValue({ allowance: 500_000 });
       const dto = { segments: [{ type: 'auto' }] };
-      const r = await controller.runWARMCalculation(dto as any);
+      await controller.runWARMCalculation(dto as any);
       expect(cecl.calculateWARM).toHaveBeenCalledWith(dto.segments);
     });
   });
@@ -603,7 +635,7 @@ describe('AlmController — Core Revenue Path', () => {
         tenors: [],
         rates: [],
       });
-      const r = await controller.getYieldCurveAnalysis('i1');
+      await controller.getYieldCurveAnalysis('i1');
       expect(yieldCurve.getYieldCurveAnalysis).toHaveBeenCalledWith('i1');
     });
   });
@@ -660,7 +692,7 @@ describe('AlmController — Core Revenue Path', () => {
         data: [],
         total: 0,
       });
-      const r = await controller.listScenarios('i1', {} as any);
+      await controller.listScenarios('i1', {} as any);
       expect(scenarioPersistence.listScenarios).toHaveBeenCalledWith(
         'i1',
         expect.any(Object),
@@ -690,9 +722,11 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/:id/calendar — empty result', () => {
     it('returns empty array when no deadlines', async () => {
-      complianceCalendar.getUpcomingDeadlines.mockResolvedValue([]);
+      complianceCalendar.getUpcomingDeadlines.mockResolvedValue({
+        events: [],
+      });
       const r = await controller.getComplianceCalendar('i1');
-      expect(r).toHaveLength(0);
+      expect(r.events).toHaveLength(0);
     });
   });
 
@@ -729,16 +763,23 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('POST /api/alm/scenarios/compare', () => {
     it('compares scenarios', async () => {
-      scenarioPersistence.compareScenarios = jest
-        .fn()
-        .mockResolvedValue({ delta: 0.5 });
+      scenarioPersistence.compareScenarios = jest.fn().mockResolvedValue({
+        scenarios: [
+          { id: 'sc1', name: 'Base' },
+          { id: 'sc2', name: 'Stress' },
+        ],
+        comparison: {
+          rows: [],
+          verdicts: ['Base is more favorable'],
+        },
+      });
       const dto = { scenarioIds: ['sc1', 'sc2'] };
       const r = await controller.compareScenarios(dto as any);
       expect(scenarioPersistence.compareScenarios).toHaveBeenCalledWith([
         'sc1',
         'sc2',
       ]);
-      expect(r.delta).toBe(0.5);
+      expect(r.scenarios).toHaveLength(2);
     });
   });
 
@@ -792,7 +833,7 @@ describe('AlmController — Core Revenue Path', () => {
         .fn()
         .mockResolvedValue({ updated: 2 });
       const body = { betas: [{ subcategory: 'savings', beta: 0.5 }] };
-      const r = await controller.updateDepositBetas('i1', body);
+      await controller.updateDepositBetas('i1', body);
       expect(depositBeta.updateDepositBetas).toHaveBeenCalledWith(
         'i1',
         body.betas,
@@ -805,7 +846,7 @@ describe('AlmController — Core Revenue Path', () => {
       depositBeta.calculateBetaImpact = jest
         .fn()
         .mockResolvedValue({ impact: -1.2 });
-      const r = await controller.getDepositBetaImpact('i1');
+      await controller.getDepositBetaImpact('i1');
       expect(depositBeta.calculateBetaImpact).toHaveBeenCalledWith('i1', 100);
     });
 
@@ -813,7 +854,7 @@ describe('AlmController — Core Revenue Path', () => {
       depositBeta.calculateBetaImpact = jest
         .fn()
         .mockResolvedValue({ impact: -2.4 });
-      const r = await controller.getDepositBetaImpact('i1', '200');
+      await controller.getDepositBetaImpact('i1', '200');
       expect(depositBeta.calculateBetaImpact).toHaveBeenCalledWith('i1', 200);
     });
   });
@@ -852,7 +893,7 @@ describe('AlmController — Core Revenue Path', () => {
       const body = {
         limits: [{ limitType: 'sector', limitName: 'RE', maxPct: 30 }],
       };
-      const r = await controller.saveConcentrationLimits('i1', body);
+      await controller.saveConcentrationLimits('i1', body);
       expect(concentration.saveConcentrationLimits).toHaveBeenCalledWith(
         'i1',
         body.limits,
@@ -872,7 +913,7 @@ describe('AlmController — Core Revenue Path', () => {
       const body = {
         limits: [{ limitType: 'sector', limitName: 'RE', maxPct: 30 }],
       };
-      const r = await controller.saveConcentrationLimits('i1', body);
+      await controller.saveConcentrationLimits('i1', body);
       expect(concentration.saveConcentrationLimits).toHaveBeenCalledWith(
         'i1',
         body.limits,
@@ -906,7 +947,7 @@ describe('AlmController — Core Revenue Path', () => {
         defaultRateIncreasePct: 2,
         energyCostShockPct: 5,
       };
-      const r = await controller.runCustomStressScenario('i1', params);
+      await controller.runCustomStressScenario('i1', params);
       expect(stressTesting.runCustomScenario).toHaveBeenCalledWith(
         'i1',
         params,
@@ -1104,12 +1145,19 @@ describe('AlmController — Core Revenue Path', () => {
     });
 
     it('computePrepayment delegates', async () => {
-      const r = await controller.computePrepayment('i1', {});
+      const r = await controller.computePrepayment({
+        mortgageRate: 0.065,
+        currentMarketRate: 0.055,
+        ageMonths: 24,
+      });
       expect(r).toBeNull();
     });
 
     it('prepaymentSensitivity delegates', async () => {
-      const r = await controller.prepaymentSensitivity('i1', {});
+      const r = await controller.prepaymentSensitivity({
+        mortgageRate: 0.065,
+        currentMarketRate: 0.055,
+      });
       expect(r).toBeNull();
     });
 
@@ -1141,7 +1189,7 @@ describe('AlmController — Core Revenue Path', () => {
     it('chatWithAnalyst delegates', async () => {
       const r = await controller.chatWithAnalyst('i1', {
         message: 'test',
-        history: [],
+        sessionId: 'session-1',
       });
       expect(r).toBeNull();
     });
@@ -1191,7 +1239,7 @@ describe('AlmController — Core Revenue Path', () => {
     });
 
     it('getUsageSummary delegates', async () => {
-      const r = await controller.getUsageSummary({ user: { userId: 'u1' } });
+      const r = await controller.getUsageSummary('i1', '2026-04');
       expect(r).toBeNull();
     });
 
@@ -1363,7 +1411,10 @@ describe('AlmController — Core Revenue Path', () => {
     });
 
     it('buildDemoWorkspace delegates', async () => {
-      const r = await controller.buildDemoWorkspace({ workspaceId: 'ws1' });
+      const r = await controller.buildDemoWorkspace({
+        charterNumber: '12345',
+        demoLabel: 'Sales Call',
+      });
       expect(r).toBeNull();
     });
 
@@ -1463,7 +1514,11 @@ describe('AlmController — Core Revenue Path', () => {
     });
 
     it('priceCapFloor delegates', async () => {
-      const r = await controller.priceCapFloor('i1', {});
+      const r = await controller.priceCapFloor({
+        type: 'cap',
+        notional: 1_000_000,
+        strike: 0.05,
+      });
       expect(r).toBeNull();
     });
 
@@ -1491,7 +1546,11 @@ describe('AlmController — Core Revenue Path', () => {
     });
 
     it('createReseller delegates', async () => {
-      const r = await controller.createReseller({} as any, {} as any);
+      const r = await controller.createReseller({
+        name: 'Partner A',
+        slug: 'partner-a',
+        revenueSharePct: 25,
+      });
       expect(r).toBeNull();
     });
 
@@ -1508,7 +1567,10 @@ describe('AlmController — Core Revenue Path', () => {
     it('generateSampleReport delegates', async () => {
       try {
         const res = { set: jest.fn(), end: jest.fn() };
-        await controller.generateSampleReport(res, 'cooperativa');
+        await controller.generateSampleReport(
+          { charterNumber: '12345', lang: 'en' },
+          res,
+        );
       } catch {
         // proxy may return null causing buffer.length error
       }

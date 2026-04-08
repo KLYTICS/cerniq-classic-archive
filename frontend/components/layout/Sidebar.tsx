@@ -16,6 +16,7 @@ import {
   Key,
   Landmark,
   LogOut,
+  Star,
   User,
   X,
   Zap,
@@ -23,8 +24,16 @@ import {
 
 import {
   ALM_CATEGORIES,
+  type AlmModule,
+  MODULES_BY_SLUG,
   MODULES_BY_CATEGORY,
 } from '@/lib/alm/registry';
+import {
+  PINNED_MAX,
+  clearPinned,
+  togglePinned,
+  usePinned,
+} from '@/lib/alm/pinned';
 
 interface NavItem {
   href: string;
@@ -51,6 +60,56 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+interface AlmModuleNavRowProps {
+  readonly active: boolean;
+  readonly locale: 'en' | 'es';
+  readonly module: AlmModule;
+  readonly onClose: () => void;
+  readonly pinned: boolean;
+}
+
+function AlmModuleNavRow({ active, locale, module, onClose, pinned }: AlmModuleNavRowProps) {
+  const Icon = module.icon;
+  const pinLabel = pinned
+    ? (locale === 'es' ? `Desfijar ${module.name[locale]}` : `Unpin ${module.name[locale]}`)
+    : (locale === 'es' ? `Fijar ${module.name[locale]}` : `Pin ${module.name[locale]}`);
+
+  return (
+    <div className="group mb-0.5 flex items-center gap-1 rounded-xl">
+      <Link
+        href={module.href}
+        onClick={onClose}
+        className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-1.5 text-[12px] transition ${
+          active
+            ? 'bg-cyan-50/80 font-medium text-cyan-800'
+            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-950'
+        }`}
+      >
+        <Icon className="h-3 w-3 shrink-0" />
+        <span className="truncate">{module.name[locale]}</span>
+        {module.status !== 'ga' ? (
+          <span className="ml-auto rounded border border-amber-200 bg-amber-50 px-1 py-px text-[8px] font-bold uppercase tracking-wider text-amber-600">
+            {module.status}
+          </span>
+        ) : null}
+      </Link>
+      <button
+        type="button"
+        onClick={() => togglePinned(module.slug)}
+        aria-label={pinLabel}
+        title={pinLabel}
+        className={`mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
+          pinned
+            ? 'border-amber-200 bg-amber-50 text-amber-500 hover:border-amber-300 hover:text-amber-600'
+            : 'border-transparent text-slate-300 hover:border-slate-200 hover:bg-white hover:text-slate-500'
+        }`}
+      >
+        <Star className="h-3.5 w-3.5" fill={pinned ? 'currentColor' : 'none'} />
+      </button>
+    </div>
+  );
+}
+
 /**
  * Sidebar. The ALM module tree is derived from lib/alm/registry.ts — never
  * hardcode module labels or icons in this file. To add or rename a module,
@@ -61,6 +120,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const router = useRouter();
   const { logout } = useAuthStore();
   const { t, locale } = useTranslation();
+  const pinnedSlugs = usePinned();
   const [almExpanded, setAlmExpanded] = useState(false);
   const isAlmRoute = pathname.startsWith('/alm');
   const isAlmExpanded = isAlmRoute || almExpanded;
@@ -82,6 +142,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const populatedCategories = ALM_CATEGORIES.filter(
     (cat) => MODULES_BY_CATEGORY[cat.id].length > 0,
   );
+  const pinnedModules = pinnedSlugs
+    .map((slug) => MODULES_BY_SLUG[slug])
+    .filter((mod): mod is AlmModule => mod != null);
 
   return (
     <>
@@ -181,6 +244,50 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
               {isAlmExpanded ? (
                 <div id="alm-module-tree" className="ml-6 border-l border-slate-200 pl-3">
+                  <div className="mb-3">
+                    <div className="mb-1 flex items-center justify-between px-1">
+                      <div className="flex items-center gap-1.5">
+                        <Star className="h-2.5 w-2.5 text-amber-500" fill={pinnedModules.length > 0 ? 'currentColor' : 'none'} />
+                        <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          {locale === 'es' ? 'Fijados' : 'Pinned'}
+                        </p>
+                        {pinnedModules.length > 0 ? (
+                          <span className="text-[9px] text-slate-300">{pinnedModules.length}</span>
+                        ) : null}
+                      </div>
+                      {pinnedModules.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={clearPinned}
+                          className="text-[9px] font-medium uppercase tracking-[0.14em] text-slate-400 transition hover:text-slate-600"
+                        >
+                          {locale === 'es' ? 'Limpiar' : 'Clear'}
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {pinnedModules.length > 0 ? (
+                      <div>
+                        {pinnedModules.map((mod) => (
+                          <AlmModuleNavRow
+                            key={`pinned-${mod.slug}`}
+                            module={mod}
+                            locale={locale}
+                            active={isActive(mod.href) && (mod.href !== '/alm' || pathname === '/alm')}
+                            onClose={onClose}
+                            pinned
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-2 py-2 text-[10px] leading-relaxed text-slate-400">
+                        {locale === 'es'
+                          ? `Marque hasta ${PINNED_MAX} módulos para mantenerlos arriba.`
+                          : `Star up to ${PINNED_MAX} modules to keep them at the top.`}
+                      </div>
+                    )}
+                  </div>
+
                   {populatedCategories.map((cat) => {
                     const modules = MODULES_BY_CATEGORY[cat.id];
                     return (
@@ -189,27 +296,16 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                           {cat.label[locale]}
                         </p>
                         {modules.map((mod) => {
-                          const Icon = mod.icon;
                           const active = isActive(mod.href) && (mod.href !== '/alm' || pathname === '/alm');
                           return (
-                            <Link
+                            <AlmModuleNavRow
                               key={mod.slug}
-                              href={mod.href}
-                              onClick={onClose}
-                              className={`mb-0.5 flex items-center gap-2 rounded-xl px-2 py-1.5 text-[12px] transition ${
-                                active
-                                  ? 'bg-cyan-50/80 font-medium text-cyan-800'
-                                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-950'
-                              }`}
-                            >
-                              <Icon className="h-3 w-3 shrink-0" />
-                              <span className="truncate">{mod.name[locale]}</span>
-                              {mod.status !== 'ga' ? (
-                                <span className="ml-auto rounded px-1 py-px text-[8px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 border border-amber-200">
-                                  {mod.status}
-                                </span>
-                              ) : null}
-                            </Link>
+                              module={mod}
+                              locale={locale}
+                              active={active}
+                              onClose={onClose}
+                              pinned={pinnedSlugs.includes(mod.slug)}
+                            />
                           );
                         })}
                       </div>

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "active": true,
+  "skill": "cancel",
+  "keyword": "stop",
+  "phase": "planning",
+  "activated_at": "2026-04-08T16:42:27.042Z",
+  "updated_at": "2026-04-08T16:42:27.042Z",
+  "source": "keyword-detector",
+  "session_id": "",
+  "thread_id": "019d6db2-d04c-7f83-984d-7d537dec1d07",
+  "turn_id": "019d6dc6-9753-7fb3-bef1-a0427ea40fc6",
+  "iteration": 7,
+  "last_turn_at": "2026-04-08T18:09:51.399Z"
+}
