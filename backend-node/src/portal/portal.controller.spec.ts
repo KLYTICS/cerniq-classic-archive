@@ -360,7 +360,7 @@ describe('PortalController', () => {
 
       await expect(
         controller.submitData(mockReq(), 'j1', mockFile, {}),
-      ).rejects.toThrow('Job is not awaiting data');
+      ).rejects.toThrow('Job is not ready for data submission');
     });
 
     it('should return validation errors when CSV is invalid', async () => {
@@ -372,6 +372,8 @@ describe('PortalController', () => {
       csvIngestion.parseCSV.mockReturnValue({
         valid: false,
         errors: [{ row: 1, field: 'amount', message: 'not a number' }],
+        warnings: [],
+        items: [],
       });
       prisma.reportJob.update.mockResolvedValue({});
 
@@ -397,9 +399,10 @@ describe('PortalController', () => {
           { category: 'asset', item: 'Cash', amount: 1000000 },
           { category: 'liability', item: 'Deposits', amount: 800000 },
         ],
+        warnings: [],
       });
       almEnterprise.createInstitution.mockResolvedValue({ id: 'inst-new' });
-      almEnterprise.importBalanceSheetItems.mockResolvedValue(undefined);
+      almEnterprise.importBalanceSheetItems.mockResolvedValue({ count: 2 });
       prisma.reportJob.update.mockResolvedValue({});
       prisma.user.findUnique.mockResolvedValue({
         id: 'user-1',
@@ -439,9 +442,13 @@ describe('PortalController', () => {
         institutionId: 'inst-existing',
         institutionName: 'Existing Coop',
       });
-      csvIngestion.parseCSV.mockReturnValue({ valid: true, items: [{ a: 1 }] });
+      csvIngestion.parseCSV.mockReturnValue({
+        valid: true,
+        items: [{ a: 1 }],
+        warnings: [],
+      });
       almEnterprise.getInstitution.mockResolvedValue({ id: 'inst-existing' });
-      almEnterprise.importBalanceSheetItems.mockResolvedValue(undefined);
+      almEnterprise.importBalanceSheetItems.mockResolvedValue({ count: 1 });
       prisma.reportJob.update.mockResolvedValue({});
       prisma.user.findUnique.mockResolvedValue(null);
 
@@ -822,9 +829,13 @@ describe('PortalController', () => {
           institutionName: 'Coop',
         })
         .mockResolvedValueOnce({ id: 'j1' }); // previous complete job
-      csvIngestion.parseCSV.mockReturnValue({ valid: true, items: [{ a: 1 }] });
+      csvIngestion.parseCSV.mockReturnValue({
+        valid: true,
+        items: [{ a: 1 }],
+        warnings: [],
+      });
       almEnterprise.getInstitution.mockResolvedValue({ id: 'inst-1' });
-      almEnterprise.importBalanceSheetItems.mockResolvedValue(undefined);
+      almEnterprise.importBalanceSheetItems.mockResolvedValue({ count: 1 });
       prisma.reportJob.update.mockResolvedValue({});
       prisma.user.findUnique.mockResolvedValue(null);
 
@@ -841,9 +852,13 @@ describe('PortalController', () => {
           institutionName: null,
         })
         .mockRejectedValueOnce(new Error('Column missing')); // previous job lookup fails
-      csvIngestion.parseCSV.mockReturnValue({ valid: true, items: [{ a: 1 }] });
+      csvIngestion.parseCSV.mockReturnValue({
+        valid: true,
+        items: [{ a: 1 }],
+        warnings: [],
+      });
       almEnterprise.createInstitution.mockResolvedValue({ id: 'new-inst' });
-      almEnterprise.importBalanceSheetItems.mockResolvedValue(undefined);
+      almEnterprise.importBalanceSheetItems.mockResolvedValue({ count: 1 });
       prisma.reportJob.update.mockResolvedValue({});
       prisma.user.findUnique.mockResolvedValue(null);
 
@@ -860,9 +875,13 @@ describe('PortalController', () => {
         institutionId: null,
         institutionName: null,
       });
-      csvIngestion.parseCSV.mockReturnValue({ valid: true, items: [{ a: 1 }] });
+      csvIngestion.parseCSV.mockReturnValue({
+        valid: true,
+        items: [{ a: 1 }],
+        warnings: [],
+      });
       almEnterprise.createInstitution.mockResolvedValue({ id: 'new-inst' });
-      almEnterprise.importBalanceSheetItems.mockResolvedValue(undefined);
+      almEnterprise.importBalanceSheetItems.mockResolvedValue({ count: 1 });
       prisma.reportJob.update.mockResolvedValue({});
       prisma.user.findUnique.mockResolvedValue({ id: 'u1', email: null });
 

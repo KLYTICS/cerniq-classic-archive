@@ -13,6 +13,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { getFeature, type SubscriptionTier } from '@/lib/features';
+import type { PortalWorkflowState } from '@/lib/portal-overview';
 
 interface ReportJobSummary {
   id: string;
@@ -23,6 +24,13 @@ interface WorkspaceCommandCenterProps {
   userName?: string;
   tier: SubscriptionTier;
   jobs: ReportJobSummary[];
+  counts?: {
+    awaitingData: number;
+    validationFailed: number;
+    processing: number;
+    complete: number;
+  };
+  workflowState?: PortalWorkflowState;
 }
 
 function formatTierLabel(tier: SubscriptionTier) {
@@ -44,14 +52,22 @@ export default function WorkspaceCommandCenter({
   userName,
   tier,
   jobs,
+  counts,
+  workflowState,
 }: WorkspaceCommandCenterProps) {
-  const completedReports = jobs.filter((job) => job.status === 'COMPLETE').length;
-  const inFlightReports = jobs.filter((job) =>
-    ['QUEUED', 'PROCESSING', 'GENERATING_PDF', 'UPLOADING', 'VALIDATING'].includes(job.status),
-  ).length;
-  const awaitingDataReports = jobs.filter((job) =>
-    ['AWAITING_DATA', 'VALIDATION_FAILED'].includes(job.status),
-  ).length;
+  const completedReports =
+    counts?.complete ??
+    jobs.filter((job) => job.status === 'COMPLETE').length;
+  const inFlightReports =
+    counts?.processing ??
+    jobs.filter((job) =>
+      ['QUEUED', 'PROCESSING', 'GENERATING_PDF', 'UPLOADING', 'VALIDATING'].includes(job.status),
+    ).length;
+  const awaitingDataReports =
+    (counts?.awaitingData ?? 0) + (counts?.validationFailed ?? 0) ||
+    jobs.filter((job) =>
+      ['AWAITING_DATA', 'VALIDATION_FAILED'].includes(job.status),
+    ).length;
   const trendCharts = getFeature(tier, 'trendCharts');
   const apiAccess = getFeature(tier, 'apiAccess');
   const boardPresentation = getFeature(tier, 'boardPresentation');
@@ -71,6 +87,15 @@ export default function WorkspaceCommandCenter({
       label: 'Balance-sheet data submitted',
       detail: 'Upload the first CSV to move from setup into production.',
       done: jobs.some((job) => !['AWAITING_DATA', 'VALIDATION_FAILED'].includes(job.status)),
+    },
+    {
+      label: 'Processing started',
+      detail: 'CERNIQ validation, analytics, and report generation are underway.',
+      done:
+        inFlightReports > 0 ||
+        completedReports > 0 ||
+        workflowState === 'processing' ||
+        workflowState === 'report_ready',
     },
     {
       label: 'Board-ready output delivered',

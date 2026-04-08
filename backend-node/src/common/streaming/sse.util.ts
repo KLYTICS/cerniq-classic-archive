@@ -22,8 +22,12 @@ export function createSSEStream(
         subscriber.next({ data: { type: 'done' } } as any);
         subscriber.complete();
       } catch (err: any) {
+        const message =
+          err && typeof err.message === 'string' && err.message.length > 0
+            ? err.message
+            : 'Stream error';
         subscriber.next({
-          data: { type: 'error', message: err.message ?? 'Stream error' },
+          data: { type: 'error', message },
         } as any);
         subscriber.error(err);
       }

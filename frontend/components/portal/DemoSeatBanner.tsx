@@ -162,7 +162,11 @@ export default function DemoSeatBanner({
             )}
 
             <Link
-              href="/portal/submit"
+              href={
+                reportJobId
+                  ? `/portal/submit?jobId=${reportJobId}`
+                  : '/portal/submit'
+              }
               className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/0 px-6 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-white/80 transition hover:bg-white/5"
             >
               <Upload className="h-3.5 w-3.5" />

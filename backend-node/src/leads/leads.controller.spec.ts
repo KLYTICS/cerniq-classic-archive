@@ -19,15 +19,25 @@ describe('LeadsController', () => {
 
   beforeEach(() => {
     leads = {
-      submitLead: jest.fn().mockResolvedValue({ id: 'lead-1', status: 'new' }),
+      submitLead: jest.fn().mockResolvedValue({
+        leadId: 'lead-1',
+        message: "We'll have your sample report ready within 48 hours.",
+      }),
       listLeads: jest.fn().mockResolvedValue({ data: [], total: 0 }),
       getLead: jest.fn().mockResolvedValue({ id: 'lead-1' }),
       updateLead: jest.fn().mockResolvedValue({ id: 'lead-1' }),
       addNote: jest.fn().mockResolvedValue({ success: true }),
       markReportSent: jest.fn().mockResolvedValue({ success: true }),
-      getPipelineMetrics: jest
-        .fn()
-        .mockResolvedValue({ total: 5, conversion: '20%' }),
+      getPipelineMetrics: jest.fn().mockResolvedValue({
+        totalLeads: 5,
+        monthLeads: 2,
+        statusCounts: {},
+        conversionRate: '20%',
+        avgCloseTimeDays: 14,
+        monthRevenue: 1500,
+        totalRevenue: 4500,
+        pipelineValue: 3000,
+      }),
       seedProspectPipeline: jest.fn().mockResolvedValue({ seeded: 12 }),
       getProspects: jest.fn().mockResolvedValue([]),
       getBenchmarks: jest.fn().mockResolvedValue([]),
@@ -71,7 +81,7 @@ describe('LeadsController', () => {
       };
       const r = await controller.submitLead(dto as any);
       expect(leads.submitLead).toHaveBeenCalledWith(dto);
-      expect(r.id).toBe('lead-1');
+      expect(r.leadId).toBe('lead-1');
     });
   });
 
@@ -85,20 +95,20 @@ describe('LeadsController', () => {
   describe('GET admin/api/leads/metrics', () => {
     it('returns pipeline metrics', async () => {
       const r = await controller.getMetrics();
-      expect(r.total).toBe(5);
+      expect(r.totalLeads).toBe(5);
     });
   });
 
   describe('GET admin/api/leads/:id', () => {
     it('returns lead by ID', async () => {
-      const r = await controller.getLead('lead-1');
+      await controller.getLead('lead-1');
       expect(leads.getLead).toHaveBeenCalledWith('lead-1');
     });
   });
 
   describe('PUT admin/api/leads/:id', () => {
     it('updates lead', async () => {
-      const r = await controller.updateLead('lead-1', {
+      await controller.updateLead('lead-1', {
         status: 'CONTACTED',
       } as any);
       expect(leads.updateLead).toHaveBeenCalledWith('lead-1', {
@@ -109,35 +119,35 @@ describe('LeadsController', () => {
 
   describe('POST admin/api/leads/:id/note', () => {
     it('adds note to lead', async () => {
-      const r = await controller.addNote('lead-1', 'Called CFO');
+      await controller.addNote('lead-1', 'Called CFO');
       expect(leads.addNote).toHaveBeenCalledWith('lead-1', 'Called CFO');
     });
   });
 
   describe('POST admin/api/prospects/seed', () => {
     it('seeds prospect pipeline', async () => {
-      const r = await controller.seedProspects();
+      await controller.seedProspects();
       expect(leads.seedProspectPipeline).toHaveBeenCalled();
     });
   });
 
   describe('GET admin/api/prospects/:id/qualify', () => {
     it('qualifies a prospect', async () => {
-      const r = await controller.qualifyProspect('p-1');
+      await controller.qualifyProspect('p-1');
       expect(qualification.qualifyProspect).toHaveBeenCalledWith('p-1');
     });
   });
 
   describe('GET admin/api/leads/:id/score', () => {
     it('scores a lead', async () => {
-      const r = await controller.scoreLead('lead-1');
+      await controller.scoreLead('lead-1');
       expect(scoring.scoreLead).toHaveBeenCalledWith('lead-1');
     });
   });
 
   describe('POST admin/api/prospects/:id/send-outreach', () => {
     it('sends outreach to prospect', async () => {
-      const r = await controller.sendOutreach('p-1', 'es');
+      await controller.sendOutreach('p-1', 'es');
       expect(outreach.executeOutreach).toHaveBeenCalled();
     });
 
@@ -162,7 +172,7 @@ describe('LeadsController', () => {
   describe('GET admin/api/prospects', () => {
     it('lists prospects', async () => {
       leads.listProspects = jest.fn().mockResolvedValue([{ id: 'p-1' }]);
-      const r = await controller.listProspects();
+      await controller.listProspects();
       expect(leads.listProspects).toHaveBeenCalled();
     });
   });
@@ -170,7 +180,7 @@ describe('LeadsController', () => {
   describe('GET admin/api/benchmarks', () => {
     it('returns benchmarks', async () => {
       leads.getBenchmarks = jest.fn().mockResolvedValue({ nim: 3.5 });
-      const r = await controller.getBenchmarks();
+      await controller.getBenchmarks();
       expect(leads.getBenchmarks).toHaveBeenCalled();
     });
   });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { usePortal } from './layout';
@@ -18,31 +18,14 @@ import ReportProgressWS from '@/components/portal/ReportProgressWS';
 import DocumentExportButtons from '@/components/exports/DocumentExportButtons';
 import DemoSeatBanner from '@/components/portal/DemoSeatBanner';
 import { rememberPortalUser } from '@/lib/subscription';
-import { getBalanceSheetTemplateUrl, getPublicApiUrl } from '@/lib/api-base';
-import { unwrapApiData } from '@/lib/api-response';
+import { getBalanceSheetTemplateUrl } from '@/lib/api-base';
 import { isActiveDemo } from '@/lib/access';
-
-interface ReportJob {
-  id: string;
-  institutionName: string;
-  status: string;
-  completedAt?: string;
-  createdAt: string;
-}
-
-interface DemoSeatContext {
-  isDemo: boolean;
-  daysRemaining?: number | null;
-  expiresAt?: string | null;
-  seat: {
-    prospectId: string;
-    institutionName: string;
-    publicDataSource: string | null;
-    provisionedAt: string | null;
-    expiresAt: string | null;
-    reportJobId: string | null;
-  } | null;
-}
+import {
+  type PortalNextAction,
+  type PortalOverviewJob,
+  isPortalProcessingStatus,
+} from '@/lib/portal-overview';
+import { usePortalOverview } from '@/hooks/usePortalOverview';
 
 /* ---------- helper: map job status to progress step ---------- */
 function statusToStep(status: string | undefined): number {
@@ -72,7 +55,13 @@ function completedStepsForStatus(status: string | undefined): number[] {
 }
 
 /* ---------- Welcome Banner (shown when ?welcome=1) ---------- */
-function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
+function WelcomeBanner({
+  latestJob,
+  nextAction,
+}: {
+  latestJob?: PortalOverviewJob | null;
+  nextAction?: PortalNextAction | null;
+}) {
   const searchParams = useSearchParams();
   const isWelcome = searchParams.get('welcome') === '1';
   const { user } = usePortal();
@@ -88,7 +77,19 @@ function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
   if (!isWelcome) return null;
 
   const institutionName = latestJob?.institutionName || user?.name || '';
-  const hasJob = !!latestJob;
+  const actionHref =
+    nextAction?.href ||
+    (latestJob ? `/portal/submit?jobId=${latestJob.id}` : '/portal/submit');
+  const actionLabel =
+    latestJob?.status === 'COMPLETE'
+      ? t('View report', 'Ver informe')
+      : latestJob?.status === 'VALIDATION_FAILED'
+        ? t('Fix validation', 'Corregir validacion')
+        : latestJob?.status === 'AWAITING_DATA'
+          ? t('Upload data', 'Cargar datos')
+          : nextAction
+            ? t(nextAction.labelEn, nextAction.labelEs)
+            : t('Set up institution', 'Configurar institucion');
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-[#1B3A6B] p-8 sm:p-10 mb-6">
@@ -119,24 +120,18 @@ function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
         </p>
 
         <div className="mt-6">
-          {hasJob ? (
-            <Link
-              href="/portal/submit"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#E8A020] px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[#d19218] transition-colors"
-            >
+          <Link
+            href={actionHref}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#E8A020] px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[#d19218] transition-colors"
+          >
+            {latestJob?.status === 'COMPLETE' ? (
+              <Eye className="h-4 w-4" />
+            ) : (
               <Upload className="h-4 w-4" />
-              {t('Upload data', 'Cargar datos')}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          ) : (
-            <Link
-              href="/portal/submit"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#E8A020] px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[#d19218] transition-colors"
-            >
-              {t('Set up institution', 'Configurar institucion')}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          )}
+            )}
+            {actionLabel}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </div>
     </div>
@@ -155,7 +150,7 @@ function AlcoPackButton({ jobId, compact }: { jobId: string; compact?: boolean }
 }
 
 /* ---------- Report Ready State ---------- */
-function ReportReadyState({ job }: { job: ReportJob }) {
+function ReportReadyState({ job }: { job: PortalOverviewJob }) {
   const { locale } = useTranslation();
   const t = (en: string, es: string) => locale === 'en' ? en : es;
 
@@ -210,6 +205,100 @@ function ReportReadyState({ job }: { job: ReportJob }) {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WorkflowActionCard({
+  workflowState,
+  nextAction,
+  validationSummary,
+  job,
+}: {
+  workflowState: string;
+  nextAction: PortalNextAction;
+  validationSummary: {
+    warningCount: number;
+    errorCount: number;
+    errors: Array<{ message: string }>;
+  } | null;
+  job: PortalOverviewJob | null;
+}) {
+  const { locale } = useTranslation();
+  const t = (en: string, es: string) => (locale === 'en' ? en : es);
+
+  const eyebrow =
+    workflowState === 'validation_failed'
+      ? t('Fix and resubmit', 'Corregir y reenviar')
+      : workflowState === 'needs_upload'
+        ? t('Action required', 'Accion requerida')
+        : workflowState === 'processing'
+          ? t('Pipeline active', 'Tuberia activa')
+          : t('Workspace status', 'Estado del portal');
+
+  const headline =
+    workflowState === 'validation_failed'
+      ? t('This report needs corrected data before CERNIQ can continue.', 'Este informe necesita datos corregidos antes de continuar.')
+      : workflowState === 'needs_upload'
+        ? t('Your next report cycle is ready for upload.', 'Su proximo ciclo de informe esta listo para cargar.')
+        : workflowState === 'processing'
+          ? t('Submission received. CERNIQ is validating and generating the report now.', 'Carga recibida. CERNIQ esta validando y generando el informe ahora.')
+          : t('Open the next step for this workspace.', 'Abra el siguiente paso para este portal.');
+
+  return (
+    <div className="cerniq-panel p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-3xl">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+            {eyebrow}
+          </p>
+          <h2 className="mt-2 font-display text-2xl text-slate-950">
+            {headline}
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            {t(nextAction.explanationEn, nextAction.explanationEs)}
+          </p>
+          {job ? (
+            <p className="mt-3 text-xs font-medium text-slate-500">
+              {job.institutionName} • {job.status.replace(/_/g, ' ')}
+            </p>
+          ) : null}
+          {workflowState === 'validation_failed' && validationSummary ? (
+            <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+              <p className="text-sm font-semibold text-rose-700">
+                {t(
+                  `${validationSummary.errorCount} validation issues found`,
+                  `${validationSummary.errorCount} problemas de validacion encontrados`,
+                )}
+              </p>
+              <ul className="mt-2 space-y-1 text-xs text-rose-700">
+                {validationSummary.errors.slice(0, 3).map((error, index) => (
+                  <li key={`${error.message}-${index}`}>• {error.message}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex shrink-0 flex-col gap-3">
+          <Link
+            href={nextAction.href}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#E8A020] px-5 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[#d19218] transition-colors"
+          >
+            {t(nextAction.labelEn, nextAction.labelEs)}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          {workflowState === 'needs_upload' ? (
+            <a
+              href={getBalanceSheetTemplateUrl('cooperativa')}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <Download className="h-4 w-4" />
+              {t('Download template', 'Descargar plantilla')}
+            </a>
+          ) : null}
         </div>
       </div>
     </div>
@@ -271,80 +360,39 @@ export default function PortalHome() {
   const { user, subscription, access } = usePortal();
   const { locale } = useTranslation();
   const t = useCallback((en: string, es: string) => locale === 'en' ? en : es, [locale]);
-
-  const [jobs, setJobs] = useState<ReportJob[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [demoContext, setDemoContext] = useState<DemoSeatContext | null>(null);
+  const {
+    overview,
+    loading,
+    error: fetchError,
+    loadOverview,
+  } = usePortalOverview();
 
   const tier = (subscription?.tier || 'free') as SubscriptionTier;
   const trendFeature = useFeature(tier, 'trendCharts');
   const isDemoSeat = isActiveDemo(access) || tier === 'demo';
 
-  const loadJobs = useCallback(async () => {
-    setLoading(true);
-    setFetchError(null);
-    try {
-      const res = await fetch(getPublicApiUrl('/api/portal/jobs'), { credentials: 'include' });
-      if (res.ok) {
-        setJobs(unwrapApiData<ReportJob[]>(await res.json().catch(() => [])));
-      } else {
-        setFetchError(t('Could not load reports. Please try again.', 'No se pudo cargar los informes. Intente de nuevo.'));
-      }
-    } catch {
-      setFetchError(t('Connection error. Check your internet and try again.', 'Error de conexion. Verifique su internet e intente de nuevo.'));
-    }
-    setLoading(false);
-  }, [t]);
-
-  const loadDemoContext = useCallback(async () => {
-    if (!isDemoSeat) {
-      setDemoContext(null);
-      return;
-    }
-    try {
-      const res = await fetch(getPublicApiUrl('/api/portal/demo-seat'), {
-        credentials: 'include',
-        cache: 'no-store',
-      });
-      if (res.ok) {
-        const payload = unwrapApiData<DemoSeatContext>(await res.json().catch(() => null));
-        setDemoContext(payload || null);
-      }
-    } catch {
-      // Non-fatal — banner just falls back to access-based defaults
-    }
-  }, [isDemoSeat]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      loadJobs();
-      loadDemoContext();
-    }, 0);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [loadJobs, loadDemoContext]);
-
-  const latestJob = jobs[0];
-  const completedJobs = jobs.filter(j => j.status === 'COMPLETE');
+  const jobs = overview?.jobs || [];
+  const latestJob = overview?.latestActionableJob || jobs[0] || null;
+  const completedJobs = jobs.filter((job) => job.status === 'COMPLETE');
   const currentStep = statusToStep(latestJob?.status);
   const completed = completedStepsForStatus(latestJob?.status);
 
-  const isProcessing = latestJob && ['QUEUED', 'PROCESSING', 'GENERATING_PDF', 'UPLOADING', 'VALIDATING'].includes(latestJob.status);
-  const isComplete = latestJob?.status === 'COMPLETE';
+  const isProcessing =
+    overview?.workflowState === 'processing' &&
+    isPortalProcessingStatus(latestJob?.status);
+  const isComplete = overview?.workflowState === 'report_ready' && latestJob?.status === 'COMPLETE';
 
   // The "demo report job" is the one tied to the demo seat. It is normally
   // the latest job, but a demo prospect could (eventually) have refined it
   // with a real upload — in which case we still want to surface the demo
   // provenance until they fully commit.
+  const demoContext = overview?.demoSeat || null;
   const demoJob =
     demoContext?.seat?.reportJobId
       ? jobs.find((j) => j.id === demoContext.seat?.reportJobId) || null
       : null;
   const demoIsProcessing = demoJob
-    ? ['QUEUED', 'PROCESSING', 'GENERATING_PDF', 'UPLOADING', 'VALIDATING'].includes(demoJob.status)
+    ? isPortalProcessingStatus(demoJob.status)
     : false;
 
   return (
@@ -358,7 +406,7 @@ export default function PortalHome() {
 
       {/* Welcome banner (only when ?welcome=1) */}
       <Suspense fallback={null}>
-        <WelcomeBanner latestJob={latestJob} />
+        <WelcomeBanner latestJob={latestJob} nextAction={overview?.nextAction || null} />
       </Suspense>
 
       {/* Demo seat banner — only for demo-tier users (provisioned from prospect) */}
@@ -377,7 +425,18 @@ export default function PortalHome() {
         userName={user?.name}
         tier={tier}
         jobs={jobs.map((job) => ({ id: job.id, status: job.status }))}
+        counts={overview?.counts}
+        workflowState={overview?.workflowState}
       />
+
+      {overview?.nextAction && (
+        <WorkflowActionCard
+          workflowState={overview.workflowState}
+          nextAction={overview.nextAction}
+          validationSummary={overview.validationSummary}
+          job={latestJob}
+        />
+      )}
 
       {/* Progress Tracker */}
       <div className="cerniq-panel p-6">
@@ -393,7 +452,7 @@ export default function PortalHome() {
           jobId={latestJob.id}
           institutionName={latestJob.institutionName}
           initialStatus={latestJob.status}
-          onComplete={loadJobs}
+          onComplete={loadOverview}
         />
       )}
 
@@ -492,8 +551,7 @@ export default function PortalHome() {
         <ErrorBanner
           titleEs={locale === 'es' ? fetchError : undefined}
           error={fetchError}
-          onRetry={loadJobs}
-          onDismiss={() => setFetchError(null)}
+          onRetry={loadOverview}
         />
       )}
 
@@ -519,7 +577,9 @@ export default function PortalHome() {
               )}
               actionLabel={t('Upload data', 'Cargar datos')}
               onAction={() => {
-                if (typeof window !== 'undefined') window.location.href = '/portal/submit';
+                if (typeof window !== 'undefined') {
+                  window.location.href = overview?.nextAction?.href || '/portal/submit';
+                }
               }}
             />
           </div>
@@ -570,7 +630,7 @@ export default function PortalHome() {
                         </div>
                       ) : job.status === 'AWAITING_DATA' || job.status === 'VALIDATION_FAILED' ? (
                         <Link
-                          href="/portal/submit"
+                          href={`/portal/submit?jobId=${job.id}`}
                           className="inline-flex items-center gap-1 text-xs font-medium text-[#E8A020] hover:underline"
                         >
                           <Upload className="h-3 w-3" />

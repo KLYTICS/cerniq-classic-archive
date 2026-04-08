@@ -5,15 +5,21 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.12'
+  FRONTEND_API_URL: http://localhost:3000
+
 jobs:
   backend-typecheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup-node-project
         with:
-          node-version: '20'
-      - run: cd backend-node && npm ci
+          node-version: ${{ env.NODE_VERSION }}
+          cache-dependency-path: backend-node/package-lock.json
+          working-directory: backend-node
       - run: cd backend-node && npx prisma generate
       - run: cd backend-node && npx tsc --noEmit
         env:
@@ -23,30 +29,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup-node-project
         with:
-          node-version: '20'
-      - run: cd frontend && npm ci
+          node-version: ${{ env.NODE_VERSION }}
+          cache-dependency-path: frontend/package-lock.json
+          working-directory: frontend
       - run: cd frontend && npx next build
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:3000
+          NEXT_PUBLIC_API_URL: ${{ env.FRONTEND_API_URL }}
 
   outbound-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: ./.github/actions/setup-python-project
         with:
-          python-version: '3.12'
-      - run: cd services/outbound && pip install -r requirements.txt pytest
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache-dependency-path: services/outbound/requirements.txt
+          working-directory: services/outbound
       - run: cd services/outbound && python -m pytest tests/ -q
 
   prisma-validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup-node-project
         with:
-          node-version: '20'
-      - run: cd backend-node && npm ci
+          node-version: ${{ env.NODE_VERSION }}
+          cache-dependency-path: backend-node/package-lock.json
+          working-directory: backend-node
       - run: cd backend-node && npx prisma validate

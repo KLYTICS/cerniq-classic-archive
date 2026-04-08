@@ -12,9 +12,10 @@ Last updated: 2026-04-08
 
 ## 1. Pipeline overview
 
-Three workflows run on push/PR to main. They layer, they don't overlap.
+Two authoritative workflows run on push/PR to main, plus one temporary
+compatibility shim. They layer, they don't overlap.
 
-### `ci-cd.yml` — the main pipeline (pre-existing, 393 lines)
+### `ci-cd.yml` — the main pipeline
 The backbone. Runs everything: backend lint + unit + build, backend E2E,
 frontend lint + build + vitest + Playwright, Python outbound tests, security
 audit, release gate, Railway deploy (main branch), Vercel frontend (via
@@ -23,9 +24,16 @@ GitHub integration).
 **Don't edit this file unless you need to change a release gate or deploy
 target.** Its changes affect every session.
 
-### `ci.yml` — the quick check (pre-existing, 52 lines)
-Fast-path type-check + prisma validate. Runs before `ci-cd.yml` gets to its
-heavy jobs. A trivial smoke test.
+This workflow now pulls shared setup/install behavior from:
+
+- `.github/actions/setup-node-project/action.yml`
+- `.github/actions/setup-python-project/action.yml`
+
+### `ci.yml` — the quick check compatibility shim
+Fast-path type-check + prisma validate. It still exists to preserve the
+existing visible check surface while the centralized setup actions prove out.
+It now reuses the same `.github/actions/*` building blocks as the main
+workflows and should be retired only after a fully green verification cycle.
 
 ### `alm-quality-gate.yml` — session-aware guardrails (new, Phase 2 batch 5)
 **This is the session-collab layer.** Adds five checks that the existing
@@ -38,6 +46,16 @@ pipeline doesn't have:
 5. **`ci-status.json` artifact** — machine-readable verdict for next session
 
 See §3 for details on each job.
+
+### Shared setup layer — `.github/actions/*`
+The repo now centralizes repeated GitHub-only setup logic into composite
+actions:
+
+- `setup-node-project` handles `actions/setup-node` caching + `npm ci`
+- `setup-python-project` handles `actions/setup-python` caching + pip install
+
+Jobs still perform their own explicit `actions/checkout` step because local
+composite actions require the repository contents to be present first.
 
 ---
 
@@ -63,6 +81,7 @@ See §3 for details on each job.
 - `docs/SESSION_HANDOFF.md`
 - `.github/workflows/alm-quality-gate.yml`
 - `scripts/ci/**`
+- `.github/actions/**`
 
 This is intentional: a frontend-only change doesn't rerun the ALM quality
 gate (saves CI minutes). A docs-only change to `SESSION_HANDOFF.md` triggers
@@ -104,7 +123,8 @@ cache.
 - **Purpose**: catches the cross-session failure mode where one session edits
   `schema.prisma` without generating a migration (or vice versa)
 - **Runs**: `bash scripts/ci/check-schema-drift.sh` which runs
-  `prisma migrate diff --from-migrations --to-schema --shadow-database-url`
+  `prisma migrate diff --from-migrations --to-schema` using datasource and
+  shadow datasource values from `backend-node/prisma.config.ts`
 - **Duration**: ~45s (needs postgres shadow DB)
 - **Services**: `postgres:15-alpine` as a throwaway shadow DB
 - **On failure**: emits `::error title=Schema Drift Detected::` with the
@@ -200,9 +220,11 @@ is the guardrail.
    (Recent landings)`. The freshness check is soft but the handoff doc is
    the cross-session source of truth — keep it fresh.
 
-5. **After push**: the `alm-quality-gate.yml` workflow runs within ~2 min.
-   Check the run's `ci-status.json` artifact to see the verdict. If `red`,
-   read the job logs and fix before starting new work.
+5. **After push**: check both authoritative workflows:
+   - `CERNIQ CI/CD` for full release-integrity status
+   - `ALM Quality Gate` for path-scoped math/schema/session guardrails
+   If `ALM Quality Gate` is red on `schema-drift`, treat that as a real
+   migration problem unless the logs show a CLI/runtime error.
 
 6. **Next session starts**: reads `SESSION_HANDOFF.md` + fetches the latest
    `ci-status.json` from the last green run. Knows exactly what's shipped

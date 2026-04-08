@@ -45,6 +45,65 @@ import { PortalAlmReportService } from './portal-alm-report.service';
 import { DemoSeatService } from './demo-seat.service';
 import { buildPdfResponseHeaders } from '../alm/document-exports.util';
 
+type PortalWorkflowState =
+  | 'needs_report'
+  | 'needs_upload'
+  | 'validation_failed'
+  | 'processing'
+  | 'report_ready';
+
+type PortalValidationIssue = {
+  row?: number | null;
+  field?: string | null;
+  message: string;
+};
+
+type PortalValidationSummary = {
+  sourceFilename: string | null;
+  status: string;
+  totalRows: number;
+  validRows: number;
+  errorRows: number;
+  importedCount: number;
+  warningCount: number;
+  errorCount: number;
+  warnings: string[];
+  errors: PortalValidationIssue[];
+};
+
+const PORTAL_PROCESSING_STATUSES = [
+  'VALIDATING',
+  'QUEUED',
+  'PROCESSING',
+  'GENERATING_PDF',
+  'UPLOADING',
+] as const;
+
+const PORTAL_ACTIONABLE_STATUSES = [
+  'AWAITING_DATA',
+  'VALIDATION_FAILED',
+  ...PORTAL_PROCESSING_STATUSES,
+  'COMPLETE',
+] as const;
+
+type PortalOverviewJob = {
+  id: string;
+  institutionName: string;
+  status: string;
+  analysisPeriod: string | null;
+  previousJobId: string | null;
+  submittedAt: Date | null;
+  processingStartedAt: Date | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  reportUrl: string | null;
+  reportUrlEn: string | null;
+  reportLang: string;
+  errorMessage: string | null;
+  userId: string;
+  triggeredBy: string;
+};
+
 class InviteDto {
   @IsEmail()
   email: string;
@@ -95,26 +154,38 @@ export class PortalController {
     const userId = req.user.userId;
     const scope = await this.buildJobOwnerScope(userId);
 
-    return this.prisma.reportJob.findMany({
-      where: scope,
-      orderBy: { createdAt: 'desc' },
-      // Master CEO can see across all users → cap to keep responses bounded.
-      take: scope.userId ? undefined : 200,
-      select: {
-        id: true,
-        institutionName: true,
-        status: true,
-        analysisPeriod: true,
-        previousJobId: true,
-        completedAt: true,
-        createdAt: true,
-        reportUrl: true,
-        reportUrlEn: true,
-        reportLang: true,
-        userId: true,
-        triggeredBy: true,
-      },
-    });
+    return this.loadPortalJobs(scope);
+  }
+
+  @Get('overview')
+  @Roles('OWNER', 'ANALYST', 'VIEWER')
+  @ApiOperation({
+    summary:
+      'Get canonical portal workflow overview for the authenticated user',
+  })
+  async getOverview(@Req() req: any) {
+    const userId = req.user.userId;
+    const scope = await this.buildJobOwnerScope(userId);
+    const jobs = await this.loadPortalJobs(scope);
+    const counts = this.countPortalJobs(jobs);
+    const latestActionableJob = this.selectLatestActionableJob(jobs);
+    const workflowState = this.derivePortalWorkflowState(latestActionableJob);
+    const validationSummary = latestActionableJob
+      ? await this.getValidationSummaryForJob(
+          latestActionableJob.userId,
+          latestActionableJob.id,
+        )
+      : null;
+
+    return {
+      jobs,
+      latestActionableJob,
+      workflowState,
+      counts,
+      demoSeat: await this.loadDemoSeatContextPayload(userId),
+      nextAction: this.buildNextAction(workflowState, latestActionableJob),
+      validationSummary,
+    };
   }
 
   // ── Get Job Detail ──────────────────────────────────
@@ -445,9 +516,9 @@ export class PortalController {
       where: { id: jobId, userId },
     });
     if (!job) throw new NotFoundException('Job not found');
-    if (job.status !== 'AWAITING_DATA') {
+    if (!['AWAITING_DATA', 'VALIDATION_FAILED'].includes(job.status)) {
       throw new BadRequestException(
-        `Job is not awaiting data (current: ${job.status})`,
+        `Job is not ready for data submission (current: ${job.status})`,
       );
     }
     if (!file) throw new BadRequestException('No CSV file provided');
@@ -475,7 +546,13 @@ export class PortalController {
       return {
         valid: false,
         errors: parseResult.errors,
+        warnings: parseResult.warnings,
+        warningCount: parseResult.warnings.length,
         status: 'VALIDATION_FAILED',
+        jobId,
+        institutionId: job.institutionId,
+        institutionName: job.institutionName,
+        nextHref: `/portal/submit?jobId=${jobId}`,
       };
     }
 
@@ -588,9 +665,13 @@ export class PortalController {
     return {
       valid: true,
       status: 'QUEUED',
+      jobId,
       itemsImported: parseResult.items.length,
+      warningCount: parseResult.warnings.length,
       institutionId: institution.id,
+      institutionName: instName,
       ingestionLogId: log.id,
+      nextHref: `/portal/reports/${jobId}`,
     };
   }
 
@@ -846,6 +927,267 @@ export class PortalController {
       );
     }
     return access;
+  }
+
+  private async loadPortalJobs(scope: {
+    userId?: string;
+  }): Promise<PortalOverviewJob[]> {
+    return this.prisma.reportJob.findMany({
+      where: scope,
+      orderBy: { createdAt: 'desc' },
+      take: scope.userId ? undefined : 200,
+      select: {
+        id: true,
+        institutionName: true,
+        status: true,
+        analysisPeriod: true,
+        previousJobId: true,
+        submittedAt: true,
+        processingStartedAt: true,
+        completedAt: true,
+        createdAt: true,
+        reportUrl: true,
+        reportUrlEn: true,
+        reportLang: true,
+        errorMessage: true,
+        userId: true,
+        triggeredBy: true,
+      },
+    });
+  }
+
+  private countPortalJobs(jobs: PortalOverviewJob[]) {
+    return jobs.reduce(
+      (acc, job) => {
+        acc.total += 1;
+        if (job.status === 'AWAITING_DATA') acc.awaitingData += 1;
+        if (job.status === 'VALIDATION_FAILED') acc.validationFailed += 1;
+        if (PORTAL_PROCESSING_STATUSES.includes(job.status as any)) {
+          acc.processing += 1;
+        }
+        if (job.status === 'COMPLETE') acc.complete += 1;
+        return acc;
+      },
+      {
+        total: 0,
+        awaitingData: 0,
+        validationFailed: 0,
+        processing: 0,
+        complete: 0,
+      },
+    );
+  }
+
+  private selectLatestActionableJob(
+    jobs: PortalOverviewJob[],
+  ): PortalOverviewJob | null {
+    const priority: Record<string, number> = {
+      VALIDATION_FAILED: 0,
+      AWAITING_DATA: 1,
+      VALIDATING: 2,
+      QUEUED: 3,
+      PROCESSING: 4,
+      GENERATING_PDF: 5,
+      UPLOADING: 6,
+      COMPLETE: 7,
+    };
+
+    const actionable = jobs.filter((job) =>
+      PORTAL_ACTIONABLE_STATUSES.includes(job.status as any),
+    );
+    if (actionable.length === 0) {
+      return null;
+    }
+
+    return actionable.sort((left, right) => {
+      const leftPriority = priority[left.status] ?? 99;
+      const rightPriority = priority[right.status] ?? 99;
+      if (leftPriority !== rightPriority) {
+        return leftPriority - rightPriority;
+      }
+      return (
+        new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+      );
+    })[0];
+  }
+
+  private derivePortalWorkflowState(
+    job: PortalOverviewJob | null,
+  ): PortalWorkflowState {
+    if (!job) {
+      return 'needs_report';
+    }
+    if (job.status === 'VALIDATION_FAILED') {
+      return 'validation_failed';
+    }
+    if (job.status === 'AWAITING_DATA') {
+      return 'needs_upload';
+    }
+    if (PORTAL_PROCESSING_STATUSES.includes(job.status as any)) {
+      return 'processing';
+    }
+    if (job.status === 'COMPLETE') {
+      return 'report_ready';
+    }
+    return 'needs_report';
+  }
+
+  private buildNextAction(
+    workflowState: PortalWorkflowState,
+    job: PortalOverviewJob | null,
+  ) {
+    switch (workflowState) {
+      case 'validation_failed':
+        return {
+          labelEn: 'Fix validation and resubmit',
+          labelEs: 'Corregir validacion y reenviar',
+          href: job ? `/portal/submit?jobId=${job.id}` : '/portal/submit',
+          jobId: job?.id ?? null,
+          explanationEn:
+            'This report needs corrected balance-sheet data before CERNIQ can continue.',
+          explanationEs:
+            'Este informe necesita datos corregidos antes de que CERNIQ pueda continuar.',
+        };
+      case 'needs_upload':
+        return {
+          labelEn: 'Upload balance-sheet data',
+          labelEs: 'Cargar datos del balance',
+          href: job ? `/portal/submit?jobId=${job.id}` : '/portal/submit',
+          jobId: job?.id ?? null,
+          explanationEn:
+            'Your report cycle is waiting for the CSV needed to start validation and analysis.',
+          explanationEs:
+            'El ciclo de informe esta esperando el CSV para comenzar la validacion y el analisis.',
+        };
+      case 'processing':
+        return {
+          labelEn: 'Track processing',
+          labelEs: 'Seguir procesamiento',
+          href: job ? `/portal/reports/${job.id}` : '/portal',
+          jobId: job?.id ?? null,
+          explanationEn:
+            'Your upload has been accepted and the report is moving through the CERNIQ pipeline.',
+          explanationEs:
+            'Su carga fue aceptada y el informe esta avanzando por la tuberia de CERNIQ.',
+        };
+      case 'report_ready':
+        return {
+          labelEn: 'Open latest report',
+          labelEs: 'Abrir ultimo informe',
+          href: job ? `/portal/reports/${job.id}` : '/portal',
+          jobId: job?.id ?? null,
+          explanationEn:
+            'Your latest report is ready to review, export, and share with stakeholders.',
+          explanationEs:
+            'Su ultimo informe esta listo para revisar, exportar y compartir.',
+        };
+      case 'needs_report':
+      default:
+        return {
+          labelEn: 'Open workspace',
+          labelEs: 'Abrir portal',
+          href: '/portal',
+          jobId: null,
+          explanationEn:
+            'Your account is active, but no report cycle is currently awaiting data.',
+          explanationEs:
+            'Su cuenta esta activa, pero no hay un ciclo de informe esperando datos.',
+        };
+    }
+  }
+
+  private async getValidationSummaryForJob(
+    ownerId: string,
+    jobId: string,
+  ): Promise<PortalValidationSummary | null> {
+    const log = await this.prisma.ingestionLog.findFirst({
+      where: {
+        reportJobId: jobId,
+        createdByUserId: ownerId,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        sourceFilename: true,
+        status: true,
+        totalRows: true,
+        validRows: true,
+        errorRows: true,
+        importedCount: true,
+        warnings: true,
+        errors: true,
+      },
+    });
+
+    if (!log) {
+      return null;
+    }
+
+    const warnings = Array.isArray(log.warnings)
+      ? log.warnings.map((warning: unknown) => String(warning))
+      : [];
+    const errors = Array.isArray(log.errors)
+      ? log.errors.map((error: unknown) => {
+          if (
+            error &&
+            typeof error === 'object' &&
+            'message' in error &&
+            typeof (error as { message?: unknown }).message === 'string'
+          ) {
+            const issue = error as {
+              row?: number | null;
+              field?: string | null;
+              message: string;
+            };
+            return {
+              row: issue.row ?? null,
+              field: issue.field ?? null,
+              message: issue.message,
+            };
+          }
+          return {
+            row: null,
+            field: null,
+            message: String(error),
+          };
+        })
+      : [];
+
+    return {
+      sourceFilename: log.sourceFilename,
+      status: log.status,
+      totalRows: log.totalRows,
+      validRows: log.validRows,
+      errorRows: log.errorRows,
+      importedCount: log.importedCount,
+      warningCount: warnings.length,
+      errorCount: errors.length,
+      warnings,
+      errors,
+    };
+  }
+
+  private async loadDemoSeatContextPayload(userId: string) {
+    const access = await this.platformAccess.getAccessForUser(userId);
+    if (!access.isDemo) {
+      return { isDemo: false, seat: null };
+    }
+
+    const seat = await this.demoSeats.getDemoSeatForUser(userId);
+    return {
+      isDemo: true,
+      daysRemaining: access.daysRemaining,
+      expiresAt: access.effectivePeriodEnd,
+      seat: seat
+        ? {
+            prospectId: seat.id,
+            institutionName: seat.name,
+            publicDataSource: seat.publicDataSource,
+            provisionedAt: seat.demoProvisionedAt?.toISOString() || null,
+            expiresAt: seat.demoExpiresAt?.toISOString() || null,
+            reportJobId: seat.demoReportJobId,
+          }
+        : null,
+    };
   }
 
   /**
