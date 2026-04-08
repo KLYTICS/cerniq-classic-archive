@@ -83,7 +83,7 @@ describe('RequestDeduplicationMiddleware', () => {
   });
 
   it('should clean up inflight entry when response finishes', () => {
-    let finishCb: () => void = () => {};
+    let finishCb: (() => void) | undefined = () => {};
     const res = {
       on: jest.fn((event: string, cb: () => void) => {
         finishCb = cb;
@@ -100,7 +100,7 @@ describe('RequestDeduplicationMiddleware', () => {
     expect(res.on).toHaveBeenCalledWith('finish', expect.any(Function));
 
     // Trigger finish
-    finishCb();
+    finishCb?.();
 
     // New request to same URL should create a new inflight entry
     const res2 = { on: jest.fn() } as any;

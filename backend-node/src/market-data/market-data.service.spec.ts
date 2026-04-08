@@ -479,8 +479,8 @@ describe('MarketDataService', () => {
         service.clearCaches();
         try {
           await service.getQuote('AAPL');
-        } catch {
-          // expected while tripping the circuit breaker
+        } catch (error) {
+          void error;
         }
       }
       const health = service.getProviderHealth();
@@ -495,16 +495,16 @@ describe('MarketDataService', () => {
         service.clearCaches();
         try {
           await service.getQuote('AAPL');
-        } catch {
-          // expected while tripping the circuit breaker
+        } catch (error) {
+          void error;
         }
       }
       mockYahooProvider.getQuote.mockClear();
       service.clearCaches();
       try {
         await service.getQuote('AAPL');
-      } catch {
-        // expected once the circuit is open
+      } catch (error) {
+        void error;
       }
       expect(mockYahooProvider.getQuote).not.toHaveBeenCalled();
     });
@@ -522,8 +522,8 @@ describe('MarketDataService', () => {
       service.clearCaches();
       try {
         await service.getQuote('AAPL');
-      } catch {
-        // expected before the recovery quote succeeds
+      } catch (error) {
+        void error;
       }
       service.clearCaches();
       await service.getQuote('AAPL');
@@ -582,8 +582,8 @@ describe('MarketDataService', () => {
         service.clearCaches();
         try {
           await service.getQuote('AAPL');
-        } catch {
-          // expected while forcing unhealthy provider state
+        } catch (error) {
+          void error;
         }
       }
       const health = service.getHealth([]);

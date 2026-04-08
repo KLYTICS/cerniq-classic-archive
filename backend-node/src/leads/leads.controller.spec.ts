@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck — Mock data uses simplified shapes
 import { LeadsController } from './leads.controller';
 
 function mockSvc(): any {

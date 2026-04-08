@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck — Mock data intentionally uses simplified shapes
 /**
  * ALM Controller — Comprehensive Tests
  *

@@ -47,13 +47,13 @@ export class RequestContextInterceptor implements NestInterceptor {
 
     return new Observable((subscriber) => {
       requestContextStorage.run(ctx, () => {
-        const subscription = next.handle().subscribe({
-          next: (val) => subscriber.next(val),
-          error: (err) => subscriber.error(err),
+        const innerSubscription = next.handle().subscribe({
+          next: (value) => subscriber.next(value),
+          error: (error) => subscriber.error(error),
           complete: () => subscriber.complete(),
         });
 
-        return () => subscription.unsubscribe();
+        return () => innerSubscription.unsubscribe();
       });
     });
   }
