@@ -74,7 +74,7 @@ jobs:
 
       - name: Push schema to test database
         working-directory: backend-node
-        run: npx prisma db push --skip-generate
+        run: npx prisma db push
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
 
@@ -208,7 +208,7 @@ jobs:
 
       - name: Push schema to test database
         working-directory: backend-node
-        run: npx prisma db push --skip-generate
+        run: npx prisma db push
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
 
@@ -327,7 +327,7 @@ jobs:
 
       - name: Push schema to test database
         working-directory: backend-node
-        run: npx prisma db push --skip-generate
+        run: npx prisma db push
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
 
