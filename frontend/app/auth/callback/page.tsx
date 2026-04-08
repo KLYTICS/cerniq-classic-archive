@@ -3,6 +3,10 @@
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
+import {
+  resolveAuthenticatedDestination,
+} from '@/lib/access';
+import { isRememberedPortalUser } from '@/lib/subscription';
 
 function sanitizeReturnUrl(value: string | null) {
   if (!value || !value.startsWith('/')) {
@@ -18,6 +22,7 @@ export default function AuthCallbackPage() {
   const initialized = useAuthStore((state) => state.initialized);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
+  const access = useAuthStore((state) => state.access);
   const onboardingComplete = useAuthStore((state) => state.onboardingComplete);
 
   useEffect(() => {
@@ -37,8 +42,18 @@ export default function AuthCallbackPage() {
       return;
     }
 
-    router.replace(onboardingComplete ? '/dashboard' : '/onboarding');
+    const portalPreferred =
+      isRememberedPortalUser() || returnUrl.startsWith('/portal');
+
+    router.replace(
+      resolveAuthenticatedDestination({
+        access,
+        onboardingComplete,
+        portalPreferred,
+      }),
+    );
   }, [
+    access,
     initialized,
     isAuthenticated,
     onboardingComplete,

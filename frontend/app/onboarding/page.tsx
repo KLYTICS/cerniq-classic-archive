@@ -57,6 +57,10 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (!initialized) return;
+    const hasPortalHint =
+      typeof window !== 'undefined' &&
+      (isRememberedPortalUser() ||
+        new URLSearchParams(window.location.search).get('welcome') === '1');
     if (!isAuthenticated) {
       router.replace('/login');
       return;
@@ -66,16 +70,18 @@ export default function OnboardingPage() {
       return;
     }
     if (onboardingComplete) {
-      router.replace('/dashboard');
+      const shouldUsePortal = Boolean(
+        hasPortalHint ||
+          (access?.platformAccessAllowed && prefersPortalExperience(access)),
+      );
+      router.replace(shouldUsePortal ? '/portal' : '/dashboard');
       return;
     }
     // ALM/billing subscription buyers should go to /portal, not onboarding
     // Check if user arrived via magic link (portal flow) or has a subscription indicator
     let cancelled = false;
     const redirectPortalUsers = async () => {
-      const portalUser = typeof window !== 'undefined' &&
-        (isRememberedPortalUser() ||
-         new URLSearchParams(window.location.search).get('welcome') === '1');
+      const portalUser = hasPortalHint;
       if (portalUser) {
         router.replace('/portal');
         return;

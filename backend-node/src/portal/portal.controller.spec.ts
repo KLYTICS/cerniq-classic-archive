@@ -15,6 +15,7 @@ import { PlatformAccessService } from '../auth/platform-access.service';
 import { PortalDocumentExportsService } from './portal-document-exports.service';
 import { PortalAlmReportService } from './portal-alm-report.service';
 import { DemoSeatService } from './demo-seat.service';
+import { OnboardingOrchestratorService } from '../alm/onboarding-orchestrator.service';
 
 jest.mock('../prisma.service', () => ({
   PrismaService: jest.fn().mockImplementation(() => ({})),
@@ -34,6 +35,7 @@ describe('PortalController', () => {
   let platformAccess: Record<string, jest.Mock>;
   let portalAlmReport: Record<string, jest.Mock>;
   let demoSeats: Record<string, jest.Mock>;
+  let onboardingOrchestrator: Record<string, jest.Mock>;
 
   const mockReq = (userId = 'user-1') => ({
     user: { userId },
@@ -48,6 +50,7 @@ describe('PortalController', () => {
         findFirst: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
+        create: jest.fn(),
         count: jest.fn().mockResolvedValue(0),
       },
       ingestionLog: {
@@ -126,6 +129,17 @@ describe('PortalController', () => {
       getDemoSeatForUser: jest.fn().mockResolvedValue(null),
     };
 
+    onboardingOrchestrator = {
+      getOnboardingStatus: jest.fn().mockResolvedValue({
+        institutionId: 'inst-1',
+        milestones: [],
+        activationScore: 0,
+        daysSinceSignup: 0,
+        isStalled: false,
+        stalledMilestone: null,
+      }),
+    };
+
     platformAccess = {
       getAccessForUser: jest.fn().mockResolvedValue({
         platformAccessAllowed: true,
@@ -164,6 +178,10 @@ describe('PortalController', () => {
         { provide: PortalDocumentExportsService, useValue: portalExports },
         { provide: PortalAlmReportService, useValue: portalAlmReport },
         { provide: DemoSeatService, useValue: demoSeats },
+        {
+          provide: OnboardingOrchestratorService,
+          useValue: onboardingOrchestrator,
+        },
       ],
     })
       .overrideGuard(AuthGuard)
@@ -292,6 +310,9 @@ describe('PortalController', () => {
       expect(result.counts.awaitingData).toBe(1);
       expect(result.nextAction.href).toBe('/portal/submit?jobId=job-awaiting');
       expect(result.demoSeat.seat?.reportJobId).toBe('job-awaiting');
+      expect(result.access).toEqual(
+        expect.objectContaining({ platformAccessAllowed: true, isDemo: true }),
+      );
     });
 
     it('returns validation summary for validation-failed jobs', async () => {
@@ -336,6 +357,146 @@ describe('PortalController', () => {
         }),
       );
       expect(result.nextAction.href).toBe('/portal/submit?jobId=job-failed');
+    });
+
+    it('returns activation context when the latest job is linked to an institution', async () => {
+      prisma.reportJob.findMany.mockResolvedValue([
+        {
+          id: 'job-complete',
+          institutionId: 'inst-activation',
+          institutionName: 'Coop Activation',
+          status: 'COMPLETE',
+          analysisPeriod: 'Q1-2026',
+          previousJobId: null,
+          submittedAt: new Date('2026-04-08T11:00:00Z'),
+          processingStartedAt: new Date('2026-04-08T11:05:00Z'),
+          completedAt: new Date('2026-04-08T11:30:00Z'),
+          createdAt: new Date('2026-04-08T10:00:00Z'),
+          reportUrl: 'https://r2.example/report.pdf',
+          reportUrlEn: null,
+          reportLang: 'es',
+          errorMessage: null,
+          userId: 'user-1',
+          triggeredBy: 'portal_submit',
+        },
+      ]);
+      onboardingOrchestrator.getOnboardingStatus.mockResolvedValueOnce({
+        institutionId: 'inst-activation',
+        activationScore: 2,
+        daysSinceSignup: 4,
+        isStalled: true,
+        stalledMilestone: 'first_analysis',
+        milestones: [
+          {
+            id: 'data_loaded',
+            label: 'Balance sheet data loaded',
+            labelEs: 'Datos de balance cargados',
+            completed: true,
+            completedAt: '2026-04-08T10:00:00.000Z',
+          },
+          {
+            id: 'first_analysis',
+            label: 'First ALM analysis run',
+            labelEs: 'Primer análisis ALM ejecutado',
+            completed: false,
+            completedAt: null,
+          },
+        ],
+      });
+
+      const result = await controller.getOverview(mockReq());
+
+      expect(result.activation).toEqual(
+        expect.objectContaining({
+          institutionId: 'inst-activation',
+          activationScore: 2,
+          isStalled: true,
+          stalledMilestoneLabel: 'First ALM analysis run',
+        }),
+      );
+    });
+  });
+
+  describe('POST /api/portal/jobs/open-cycle', () => {
+    it('reuses an existing validation-failed job before creating a new one', async () => {
+      prisma.reportJob.findMany.mockResolvedValue([
+        {
+          id: 'job-retry',
+          institutionId: 'inst-1',
+          institutionName: 'Retry Coop',
+          status: 'VALIDATION_FAILED',
+          analysisPeriod: 'Q1-2026',
+          previousJobId: null,
+          submittedAt: null,
+          processingStartedAt: null,
+          completedAt: null,
+          createdAt: new Date('2026-04-08T10:00:00Z'),
+          reportUrl: null,
+          reportUrlEn: null,
+          reportLang: 'es',
+          errorMessage: 'bad row',
+          userId: 'user-1',
+          triggeredBy: 'portal_submit',
+        },
+      ]);
+
+      const result = await controller.openReportCycle(mockReq());
+
+      expect(result.created).toBe(false);
+      expect(result.reopened).toBe(true);
+      expect(result.job.id).toBe('job-retry');
+      expect(prisma.reportJob.create).not.toHaveBeenCalled();
+    });
+
+    it('creates a new awaiting-data job when no uploadable job exists', async () => {
+      prisma.reportJob.findMany.mockResolvedValue([
+        {
+          id: 'job-complete',
+          institutionId: 'inst-complete',
+          institutionName: 'Coop Complete',
+          status: 'COMPLETE',
+          analysisPeriod: 'Q1-2026',
+          previousJobId: null,
+          submittedAt: null,
+          processingStartedAt: null,
+          completedAt: new Date('2026-04-08T11:00:00Z'),
+          createdAt: new Date('2026-04-08T10:00:00Z'),
+          reportUrl: 'https://r2.example/report.pdf',
+          reportUrlEn: null,
+          reportLang: 'es',
+          errorMessage: null,
+          userId: 'user-1',
+          triggeredBy: 'payment',
+        },
+      ]);
+      prisma.workspace.findMany.mockResolvedValue([
+        { name: 'Coop Complete Workspace' },
+      ]);
+      prisma.reportJob.findFirst.mockResolvedValueOnce({
+        id: 'job-complete',
+      });
+      prisma.reportJob.create = jest.fn().mockResolvedValue({
+        id: 'job-new',
+        institutionId: 'inst-complete',
+        institutionName: 'Coop Complete',
+        status: 'AWAITING_DATA',
+      });
+
+      const result = await controller.openReportCycle(mockReq());
+
+      expect(result.created).toBe(true);
+      expect(result.reopened).toBe(false);
+      expect(result.nextActionHref).toBe('/portal/submit?jobId=job-new');
+      expect(prisma.reportJob.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            institutionId: 'inst-complete',
+            institutionName: 'Coop Complete',
+            status: 'AWAITING_DATA',
+            triggeredBy: 'portal_open_cycle',
+          }),
+        }),
+      );
     });
   });
 

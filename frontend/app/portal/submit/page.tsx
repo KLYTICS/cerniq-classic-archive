@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Upload,
   Download,
@@ -33,6 +33,7 @@ import {
 import { unwrapApiData } from '@/lib/api-response';
 import {
   type PortalOverviewJob,
+  type PortalOpenCycleResponse,
   type PortalValidationSummary,
   isPortalActionRequiredStatus,
   isPortalProcessingStatus,
@@ -338,6 +339,7 @@ function ReportReadyCard({ job }: { job: PortalOverviewJob }) {
 }
 
 export default function PortalSubmit() {
+  const router = useRouter();
   const { locale } = useTranslation();
   const t = useCallback(
     (en: string, es: string) => (locale === 'en' ? en : es),
@@ -362,10 +364,62 @@ export default function PortalSubmit() {
     null,
   );
   const [dragOver, setDragOver] = useState(false);
+  const [openingCycle, setOpeningCycle] = useState(false);
+  const [autoCreateAttempted, setAutoCreateAttempted] = useState(false);
+  const [cycleError, setCycleError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const jobs = useMemo(() => overview?.jobs || [], [overview?.jobs]);
   const selectedJobFromQuery = searchParams.get('jobId');
+  const createCycleRequested = searchParams.get('createCycle') === '1';
+
+  const openReportCycle = useCallback(async () => {
+    setOpeningCycle(true);
+    setCycleError(null);
+
+    try {
+      const res = await fetch(getPublicApiUrl('/api/portal/jobs/open-cycle'), {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        throw new Error(
+          t(
+            'Could not open a report cycle. Please try again.',
+            'No se pudo abrir un ciclo de informe. Intente de nuevo.',
+          ),
+        );
+      }
+
+      const payload = unwrapApiData<PortalOpenCycleResponse | null>(
+        await res.json().catch(() => null),
+      );
+
+      if (!payload?.job?.id) {
+        throw new Error(
+          t(
+            'Could not open a report cycle. Please try again.',
+            'No se pudo abrir un ciclo de informe. Intente de nuevo.',
+          ),
+        );
+      }
+
+      await loadOverview();
+      router.replace(payload.nextActionHref || `/portal/submit?jobId=${payload.job.id}`);
+    } catch (err) {
+      setCycleError(
+        err instanceof Error
+          ? err.message
+          : t(
+              'Could not open a report cycle. Please try again.',
+              'No se pudo abrir un ciclo de informe. Intente de nuevo.',
+            ),
+      );
+    } finally {
+      setOpeningCycle(false);
+    }
+  }, [loadOverview, router, t]);
 
   useEffect(() => {
     if (!overview) return;
@@ -391,6 +445,31 @@ export default function PortalSubmit() {
     }
   }, [jobs, overview, selectedJobFromQuery, selectedJobId]);
 
+  useEffect(() => {
+    if (
+      !overview ||
+      !createCycleRequested ||
+      selectedJobFromQuery ||
+      autoCreateAttempted
+    ) {
+      return;
+    }
+
+    if (overview.workflowState !== 'needs_report' || openingCycle) {
+      return;
+    }
+
+    setAutoCreateAttempted(true);
+    void openReportCycle();
+  }, [
+    autoCreateAttempted,
+    createCycleRequested,
+    openReportCycle,
+    openingCycle,
+    overview,
+    selectedJobFromQuery,
+  ]);
+
   const selectedJob =
     jobs.find((job) => job.id === selectedJobId) ||
     overview?.latestActionableJob ||
@@ -407,6 +486,7 @@ export default function PortalSubmit() {
       ? {
           ...(selectedJob || overview?.latestActionableJob || {
             id: submittedState.jobId,
+            institutionId: submittedState.institutionId || null,
             institutionName: submittedState.institutionName || 'CERNIQ',
             status: submittedState.status,
             analysisPeriod,
@@ -634,6 +714,27 @@ export default function PortalSubmit() {
 
                 {fetchError ? (
                   <ErrorBanner error={fetchError} onRetry={loadOverview} />
+                ) : cycleError ? (
+                  <ErrorBanner
+                    error={cycleError}
+                    onRetry={openReportCycle}
+                    onDismiss={() => setCycleError(null)}
+                  />
+                ) : openingCycle ? (
+                  <div className="rounded-2xl border border-[#1ABFFF]/20 bg-[#1ABFFF]/5 p-5">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {t(
+                        'Opening your first report cycle...',
+                        'Abriendo su primer ciclo de informe...',
+                      )}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      {t(
+                        'CERNIQ is preparing a report slot so you can upload data immediately.',
+                        'CERNIQ esta preparando un espacio de informe para que pueda cargar datos de inmediato.',
+                      )}
+                    </p>
+                  </div>
                 ) : loading ? (
                   <SkeletonLoader variant="card" count={2} />
                 ) : displayWorkflowState === 'needs_report' ? (
@@ -648,15 +749,10 @@ export default function PortalSubmit() {
                       'Su cuenta esta activa, pero todavia no hay un ciclo de informe esperando datos. Abra el portal para revisar los siguientes pasos.',
                     )}
                     actionLabel={t(
-                      overview?.nextAction?.labelEn || 'Open workspace',
-                      overview?.nextAction?.labelEs || 'Abrir portal',
+                      overview?.nextAction?.labelEn || 'Create first report cycle',
+                      overview?.nextAction?.labelEs || 'Crear primer ciclo de informe',
                     )}
-                    onAction={() => {
-                      if (typeof window !== 'undefined') {
-                        window.location.href =
-                          overview?.nextAction?.href || '/portal';
-                      }
-                    }}
+                    onAction={openReportCycle}
                   />
                 ) : displayWorkflowState === 'processing' && displayJob ? (
                   <ProcessingCard

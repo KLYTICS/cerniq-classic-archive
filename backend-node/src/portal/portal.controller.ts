@@ -1032,6 +1032,7 @@ export class PortalController {
       take: scope.userId ? undefined : 200,
       select: {
         id: true,
+        institutionId: true,
         institutionName: true,
         status: true,
         analysisPeriod: true,
@@ -1178,16 +1179,43 @@ export class PortalController {
       case 'needs_report':
       default:
         return {
-          labelEn: 'Open workspace',
-          labelEs: 'Abrir portal',
-          href: '/portal',
+          labelEn: 'Create first report cycle',
+          labelEs: 'Crear primer ciclo de informe',
+          href: '/portal/submit?createCycle=1',
           jobId: null,
           explanationEn:
-            'Your account is active, but no report cycle is currently awaiting data.',
+            'Your account is active, but no report cycle is open yet. Create one now so you can upload the first CSV immediately.',
           explanationEs:
-            'Su cuenta esta activa, pero no hay un ciclo de informe esperando datos.',
+            'Su cuenta esta activa, pero aun no hay un ciclo de informe abierto. Cree uno ahora para cargar el primer CSV de inmediato.',
         };
     }
+  }
+
+  private async buildActivationSnapshot(
+    job: PortalOverviewJob | null,
+  ): Promise<PortalActivationSnapshot | null> {
+    if (!job?.institutionId) {
+      return null;
+    }
+
+    const activation = await this.onboardingOrchestrator.getOnboardingStatus(
+      job.institutionId,
+    );
+    const stalledMilestone =
+      activation.milestones.find(
+        (milestone) => milestone.id === activation.stalledMilestone,
+      ) || null;
+
+    return {
+      institutionId: activation.institutionId,
+      activationScore: activation.activationScore,
+      daysSinceSignup: activation.daysSinceSignup,
+      isStalled: activation.isStalled,
+      stalledMilestone: activation.stalledMilestone,
+      stalledMilestoneLabel: stalledMilestone?.label || null,
+      stalledMilestoneLabelEs: stalledMilestone?.labelEs || null,
+      milestones: activation.milestones,
+    };
   }
 
   private async getValidationSummaryForJob(
@@ -1282,6 +1310,21 @@ export class PortalController {
           }
         : null,
     };
+  }
+
+  private resolveCycleInstitutionName(
+    seedJob: PortalOverviewJob | null,
+    workspaceName: string | null,
+  ) {
+    if (seedJob?.institutionName?.trim()) {
+      return seedJob.institutionName;
+    }
+
+    if (workspaceName?.trim()) {
+      return workspaceName.replace(/\s+workspace$/i, '').trim() || workspaceName;
+    }
+
+    return 'Pending Institution';
   }
 
   /**

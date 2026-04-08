@@ -1,3 +1,5 @@
+import type { PlatformAccessState } from './access';
+
 export type PortalWorkflowState =
   | 'needs_report'
   | 'needs_upload'
@@ -15,6 +17,7 @@ export const PORTAL_PROCESSING_STATUSES = [
 
 export interface PortalOverviewJob {
   id: string;
+  institutionId: string | null;
   institutionName: string;
   status: string;
   analysisPeriod: string | null;
@@ -74,6 +77,7 @@ export interface PortalDemoSeatContext {
 }
 
 export interface PortalOverview {
+  access: PlatformAccessState;
   jobs: PortalOverviewJob[];
   latestActionableJob: PortalOverviewJob | null;
   workflowState: PortalWorkflowState;
@@ -84,9 +88,32 @@ export interface PortalOverview {
     processing: number;
     complete: number;
   };
+  activation: {
+    institutionId: string;
+    activationScore: number;
+    daysSinceSignup: number;
+    isStalled: boolean;
+    stalledMilestone: string | null;
+    stalledMilestoneLabel: string | null;
+    stalledMilestoneLabelEs: string | null;
+    milestones: Array<{
+      id: string;
+      label: string;
+      labelEs: string;
+      completed: boolean;
+      completedAt: string | null;
+    }>;
+  } | null;
   demoSeat: PortalDemoSeatContext;
   nextAction: PortalNextAction;
   validationSummary: PortalValidationSummary | null;
+}
+
+export interface PortalOpenCycleResponse {
+  created: boolean;
+  reopened: boolean;
+  nextActionHref: string;
+  job: PortalOverviewJob;
 }
 
 export function isPortalProcessingStatus(status?: string | null): boolean {
