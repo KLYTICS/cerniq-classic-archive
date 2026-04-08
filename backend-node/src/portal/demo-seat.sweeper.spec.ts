@@ -3,6 +3,26 @@ import { Logger } from '@nestjs/common';
 import { DemoSeatSweeper } from './demo-seat.sweeper';
 import { DemoSeatService } from './demo-seat.service';
 
+// Mock @sentry/nestjs at the module level. The runtime module's exports
+// are frozen (non-configurable), so jest.spyOn throws. This mock gives us
+// the full control we need without touching the real module bindings.
+jest.mock('@sentry/nestjs', () => ({
+  withScope: jest.fn((cb: (scope: any) => void) => {
+    cb({
+      setTag: jest.fn(),
+      setContext: jest.fn(),
+      setLevel: jest.fn(),
+    });
+  }),
+  captureException: jest.fn(),
+}));
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const Sentry = require('@sentry/nestjs') as {
+  withScope: jest.Mock;
+  captureException: jest.Mock;
+};
+
 describe('DemoSeatSweeper', () => {
   let sweeper: DemoSeatSweeper;
   let demoSeats: { sweepExpired: jest.Mock };
@@ -80,6 +100,58 @@ describe('DemoSeatSweeper', () => {
         expect.any(String),
       );
       errorSpy.mockRestore();
+    });
+
+    it('escalates sweep failures to Sentry with structured tags', async () => {
+      const dbError = new Error('DB connection lost');
+      demoSeats.sweepExpired.mockRejectedValue(dbError);
+      jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+      // Swap in a scope spy that records how the scope was configured
+      const scopeConfig: {
+        tags: Record<string, string>;
+        contexts: Record<string, any>;
+        level?: string;
+      } = { tags: {}, contexts: {} };
+      Sentry.withScope.mockImplementationOnce((cb: any) => {
+        const mockScope = {
+          setTag: jest.fn((key: string, value: string) => {
+            scopeConfig.tags[key] = value;
+          }),
+          setContext: jest.fn((key: string, value: any) => {
+            scopeConfig.contexts[key] = value;
+          }),
+          setLevel: jest.fn((level: string) => {
+            scopeConfig.level = level;
+          }),
+        };
+        cb(mockScope);
+      });
+
+      await sweeper.runHourly();
+
+      expect(Sentry.withScope).toHaveBeenCalled();
+      expect(Sentry.captureException).toHaveBeenCalledWith(dbError);
+      expect(scopeConfig.tags.component).toBe('portal.demo_seat_sweeper');
+      expect(scopeConfig.tags.cron).toBe('hourly');
+      expect(scopeConfig.contexts.sweeper).toEqual(
+        expect.objectContaining({
+          event: 'portal.demo_seat_sweep_failed',
+        }),
+      );
+      expect(scopeConfig.level).toBe('error');
+    });
+
+    it('swallows Sentry errors so the cron never crashes', async () => {
+      // Defense in depth: if Sentry itself throws (misconfigured, quota),
+      // the cron handler must still return normally.
+      demoSeats.sweepExpired.mockRejectedValue(new Error('DB lost'));
+      jest.spyOn(Logger.prototype, 'error').mockImplementation();
+      Sentry.withScope.mockImplementationOnce(() => {
+        throw new Error('Sentry unavailable');
+      });
+
+      await expect(sweeper.runHourly()).resolves.toBeUndefined();
     });
 
     it('is idempotent across back-to-back calls', async () => {

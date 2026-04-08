@@ -75,6 +75,10 @@ describe('BillingService', () => {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'ws-auto' }),
       },
+      prospectInstitution: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({}),
+      },
     };
 
     email = {
@@ -311,6 +315,9 @@ describe('BillingService', () => {
         email: 'cfo@coop.pr',
         name: 'Pablo',
       });
+      // Default: no pre-existing subscription (fresh signup flow). The
+      // demo-conversion tests below override this to return tier='demo'.
+      prisma.subscription.findUnique.mockResolvedValue(null);
       prisma.subscription.upsert.mockResolvedValue({});
       prisma.lead.update.mockResolvedValue({});
       prisma.reportJob.create.mockResolvedValue({});
@@ -465,6 +472,180 @@ describe('BillingService', () => {
       await service.handlePaymentComplete(emptySession);
 
       expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    // ── Demo → paid conversion ─────────────────────
+    //
+    // These tests exercise the branch where the paying user already has a
+    // tier='demo' subscription from a prior portal demo seat. The upgrade
+    // must preserve their workspace/institution/reports and close the
+    // linked prospect. The sweeper should never see them again because the
+    // subscription tier flips away from 'demo'.
+
+    describe('demo → paid conversion', () => {
+      const demoUser = {
+        id: 'user-demo',
+        email: 'cfo@coop.pr',
+        name: 'Pablo',
+      };
+
+      beforeEach(() => {
+        // User already exists from the demo-seat provisioning flow
+        prisma.user.findUnique.mockResolvedValue(demoUser);
+        prisma.subscription.findUnique.mockResolvedValue({
+          userId: demoUser.id,
+          tier: 'demo',
+          status: 'active',
+          currentPeriodEnd: new Date(Date.now() + 7 * 86400000),
+        });
+        // Prospect record linked to this user via demoUserId
+        prisma.prospectInstitution.findFirst.mockResolvedValue({
+          id: 'prospect-1',
+          name: 'Cooperativa ABC',
+          intelligenceAccountId: null,
+        });
+      });
+
+      it('detects the conversion and logs a structured event', async () => {
+        const loggerSpy = jest.spyOn((service as any).logger, 'log');
+
+        await service.handlePaymentComplete({
+          ...baseSession,
+          metadata: { ...baseSession.metadata, tier: 'monthly' },
+        });
+
+        expect(loggerSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: 'portal.demo_seat_converting',
+            userId: demoUser.id,
+            fromTier: 'demo',
+            toTier: 'monthly',
+          }),
+        );
+      });
+
+      it('flips the subscription from demo to the purchased tier (annual)', async () => {
+        await service.handlePaymentComplete({
+          ...baseSession,
+          metadata: { ...baseSession.metadata, tier: 'annual' },
+        });
+
+        expect(prisma.subscription.upsert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { userId: demoUser.id },
+            update: expect.objectContaining({
+              tier: 'annual',
+              status: 'active',
+            }),
+          }),
+        );
+      });
+
+      it('reuses the existing user — no new user created', async () => {
+        await service.handlePaymentComplete(baseSession);
+
+        expect(prisma.user.create).not.toHaveBeenCalled();
+      });
+
+      it('closes the linked prospect as closed_won and clears demo expiry', async () => {
+        await service.handlePaymentComplete({
+          ...baseSession,
+          metadata: { ...baseSession.metadata, tier: 'monthly' },
+        });
+
+        expect(prisma.prospectInstitution.findFirst).toHaveBeenCalledWith({
+          where: { demoUserId: demoUser.id },
+          select: expect.any(Object),
+        });
+        expect(prisma.prospectInstitution.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { id: 'prospect-1' },
+            data: expect.objectContaining({
+              outreachStatus: 'closed_won',
+              demoExpiresAt: null,
+            }),
+          }),
+        );
+      });
+
+      it('logs portal.demo_seat_converted with institution + amount', async () => {
+        const loggerSpy = jest.spyOn((service as any).logger, 'log');
+
+        await service.handlePaymentComplete({
+          ...baseSession,
+          metadata: { ...baseSession.metadata, tier: 'monthly' },
+          amount_total: 49900,
+        });
+
+        expect(loggerSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: 'portal.demo_seat_converted',
+            userId: demoUser.id,
+            prospectId: 'prospect-1',
+            institutionName: 'Cooperativa ABC',
+            toTier: 'monthly',
+            amountUsd: 499,
+          }),
+        );
+      });
+
+      it('NEVER throws when the prospect lookup fails — billing continues', async () => {
+        prisma.prospectInstitution.findFirst.mockRejectedValueOnce(
+          new Error('DB blip'),
+        );
+
+        await expect(
+          service.handlePaymentComplete(baseSession),
+        ).resolves.toBeUndefined();
+
+        // The subscription upsert must still have happened — the conversion
+        // hook failure cannot block the payment path.
+        expect(prisma.subscription.upsert).toHaveBeenCalled();
+      });
+
+      it('is a no-op when the paying user has no linked prospect', async () => {
+        prisma.prospectInstitution.findFirst.mockResolvedValueOnce(null);
+        const loggerSpy = jest.spyOn((service as any).logger, 'log');
+
+        await service.handlePaymentComplete(baseSession);
+
+        expect(prisma.prospectInstitution.update).not.toHaveBeenCalled();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: 'portal.demo_seat_converted_no_prospect',
+            userId: demoUser.id,
+          }),
+        );
+      });
+
+      it('does NOT trigger conversion path for fresh signups (no existing sub)', async () => {
+        // Reset: fresh signup, no prior subscription
+        prisma.subscription.findUnique.mockResolvedValue(null);
+        prisma.user.findUnique.mockResolvedValue(null);
+        const loggerSpy = jest.spyOn((service as any).logger, 'log');
+
+        await service.handlePaymentComplete(baseSession);
+
+        expect(prisma.prospectInstitution.findFirst).not.toHaveBeenCalled();
+        expect(loggerSpy).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: 'portal.demo_seat_converting',
+          }),
+        );
+      });
+
+      it('does NOT trigger conversion path for existing paid users renewing', async () => {
+        // User already pays monthly — this is a renewal, not a demo conversion
+        prisma.subscription.findUnique.mockResolvedValue({
+          userId: demoUser.id,
+          tier: 'monthly',
+          status: 'active',
+        });
+
+        await service.handlePaymentComplete(baseSession);
+
+        expect(prisma.prospectInstitution.findFirst).not.toHaveBeenCalled();
+      });
     });
   });
 

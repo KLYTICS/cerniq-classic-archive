@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api';
-import { Landmark, RefreshCw, Copy, Check, Trash2, ExternalLink, Users, Building2, FileText, ClipboardCheck, UserSearch, Activity } from 'lucide-react';
+import { Landmark, RefreshCw, Copy, Check, Trash2, ExternalLink, Users, Building2, FileText, ClipboardCheck, UserSearch, Activity, BrainCircuit, Sparkles } from 'lucide-react';
 
 const ADMIN_KEY_STORAGE = 'cerniq_admin_key';
 const VERCEL_URL = typeof window !== 'undefined' ? window.location.origin : '';
@@ -249,6 +249,12 @@ export default function AdminPage() {
           </Link>
           <Link href="/admin/prospects" className="flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
             <UserSearch className="h-4 w-4" /> Prospect Pipeline
+          </Link>
+          <Link href="/admin/demo-seats" className="flex items-center gap-2 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 border border-fuchsia-500/20 text-fuchsia-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
+            <Sparkles className="h-4 w-4" /> Demo Seats
+          </Link>
+          <Link href="/admin/intelligence" className="flex items-center gap-2 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-cyan-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
+            <BrainCircuit className="h-4 w-4" /> Intelligence OS
           </Link>
           <Link href="/admin/checklist" className="flex items-center gap-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
             <ClipboardCheck className="h-4 w-4" /> Pre-Demo Checklist

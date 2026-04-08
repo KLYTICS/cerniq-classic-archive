@@ -134,6 +134,30 @@ export class BillingService {
       });
     }
 
+    // 1b. Demo → paid conversion detection
+    //
+    // If the user already has a tier='demo' subscription, this checkout is a
+    // conversion from the portal demo seat, not a fresh signup. We preserve
+    // every existing artifact (workspace, institution, completed demo report)
+    // so the prospect doesn't lose their data — the subscription upsert below
+    // will simply overwrite tier='demo' with the paid tier. The post-upsert
+    // hook then closes the originating prospect, marks the lead as won, and
+    // audit-logs the conversion so Erwin can track demo-seat ROI in Sentry /
+    // the admin dashboard.
+    const existingSubscription = await this.prisma.subscription.findUnique({
+      where: { userId: user.id },
+    });
+    const wasDemoConversion = existingSubscription?.tier === 'demo';
+    if (wasDemoConversion) {
+      this.logger.log({
+        event: 'portal.demo_seat_converting',
+        userId: user.id,
+        email: customerEmail,
+        fromTier: 'demo',
+        toTier: tier,
+      });
+    }
+
     // 2. Upsert subscription
     await this.prisma.subscription.upsert({
       where: { userId: user.id },
@@ -159,6 +183,11 @@ export class BillingService {
             : this.addMonths(new Date(), tier === 'annual' ? 12 : 1),
       },
     });
+
+    // 2b. Post-upgrade hook for demo → paid conversions
+    if (wasDemoConversion) {
+      await this.closeConvertedDemoProspect(user.id, tier, amount_total ?? 0);
+    }
 
     // 3. Update lead if linked
     if (metadata.leadId) {
@@ -511,6 +540,70 @@ export class BillingService {
         createdAt: true,
       },
     });
+  }
+
+  // ── Demo → Paid Conversion Helper ────────────────────
+  //
+  // When a prospect who was provisioned via the portal demo-seat flow runs
+  // checkout and pays, we want every artifact they already have (workspace,
+  // institution, completed demo report, portal sessions) to survive the
+  // upgrade. The subscription upsert in handlePaymentComplete already flips
+  // their tier from 'demo' to the purchased tier — this helper handles the
+  // other side-effects: closing the prospect record, logging the conversion
+  // as a structured event so admin dashboards + Sentry can surface it, and
+  // resetting the demo expiry fields to null so the sweeper ignores them.
+  //
+  // Idempotent: if no prospect is linked to this user, it's a no-op.
+
+  private async closeConvertedDemoProspect(
+    userId: string,
+    toTier: BillingTier,
+    amountTotal: number,
+  ): Promise<void> {
+    try {
+      const prospect = await this.prisma.prospectInstitution.findFirst({
+        where: { demoUserId: userId },
+        select: {
+          id: true,
+          name: true,
+          intelligenceAccountId: true,
+        },
+      });
+      if (!prospect) {
+        this.logger.log({
+          event: 'portal.demo_seat_converted_no_prospect',
+          userId,
+        });
+        return;
+      }
+
+      await this.prisma.prospectInstitution.update({
+        where: { id: prospect.id },
+        data: {
+          outreachStatus: 'closed_won',
+          // Keep demoUserId + demoReportJobId for historical attribution,
+          // but clear the expiry so the sweeper stops scanning this row.
+          demoExpiresAt: null,
+        },
+      });
+
+      this.logger.log({
+        event: 'portal.demo_seat_converted',
+        userId,
+        prospectId: prospect.id,
+        institutionName: prospect.name,
+        toTier,
+        amountUsd: amountTotal / 100,
+      });
+    } catch (err: any) {
+      // Never throw from the billing webhook path — log and continue so the
+      // subscription upgrade still succeeds even if prospect attribution fails.
+      this.logger.error({
+        event: 'portal.demo_seat_conversion_hook_failed',
+        userId,
+        error: err?.message || 'unknown',
+      });
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────
