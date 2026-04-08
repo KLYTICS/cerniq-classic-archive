@@ -81,6 +81,11 @@ describe('APIClient', () => {
     // Admin methods
     expect(typeof apiClient.getDemoRequests).toBe('function');
     expect(typeof apiClient.getAdminStats).toBe('function');
+    expect(typeof apiClient.getAdminOps).toBe('function');
+    expect(typeof apiClient.getAdminPipeline).toBe('function');
+    expect(typeof apiClient.getAdminRevenueMetrics).toBe('function');
+    expect(typeof apiClient.getAdminAuditLogs).toBe('function');
+    expect(typeof apiClient.getExitMetrics).toBe('function');
   });
 
   it('marks passive profile checks to skip auth redirects', async () => {

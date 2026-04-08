@@ -192,7 +192,7 @@ export default function WorkspaceCommandCenter({
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link href="/portal/settings" className="inline-flex items-center gap-2 rounded-full border border-white/14 bg-white/8 px-5 py-3 text-sm font-semibold text-white/88 transition hover:bg-white/12">
-                  Open admin console
+                  Open workspace settings
                 </Link>
               </div>
             </div>

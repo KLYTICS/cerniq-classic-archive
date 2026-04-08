@@ -1,89 +1,162 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api';
-import { Landmark, RefreshCw, Copy, Check, Trash2, ExternalLink, Users, Building2, FileText, ClipboardCheck, UserSearch, Activity, BrainCircuit, Sparkles } from 'lucide-react';
+import {
+  type ControlTowerSummary,
+  type OperatorActionKey,
+  type OperatorActionResult,
+  formatStatusTone,
+  formatUsd,
+} from '@/lib/control-tower';
+import {
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  BrainCircuit,
+  CheckCircle2,
+  ExternalLink,
+  FileText,
+  GitBranch,
+  Landmark,
+  RefreshCw,
+  Server,
+  Sparkles,
+  Workflow,
+  Wrench,
+} from 'lucide-react';
 
 const ADMIN_KEY_STORAGE = 'cerniq_admin_key';
-const VERCEL_URL = typeof window !== 'undefined' ? window.location.origin : '';
+const LIVE_URL =
+  typeof window !== 'undefined' ? window.location.origin : 'https://cerniq.io';
 
-interface DemoRequest {
-  id: string;
-  email: string;
-  name: string | null;
-  institutionName: string | null;
-  institutionType: string | null;
-  totalAssets: string | null;
-  message: string | null;
-  createdAt: string;
-}
-
-interface Stats {
-  demoRequests: number;
-  institutions: number;
-  users: number;
-  recentUsers: number;
-  prospects: number;
-}
-
-function getErrorMessage(error: unknown): string {
+function getErrorMessage(error: unknown, fallback = 'Failed to load control tower') {
   if (
     typeof error === 'object' &&
     error !== null &&
     'response' in error &&
-    typeof (error as { response?: { status?: number } }).response?.status === 'number'
+    typeof (error as { response?: { status?: number } }).response?.status ===
+      'number'
   ) {
     return (error as { response?: { status?: number } }).response?.status === 401
       ? 'Invalid admin key'
-      : 'Failed to load data';
+      : fallback;
   }
 
-  return 'Failed to load data';
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as { message?: unknown }).message === 'string'
+  ) {
+    return (error as { message: string }).message;
+  }
+
+  return fallback;
+}
+
+function StatusChip({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: 'emerald' | 'amber' | 'slate';
+}) {
+  const classes =
+    tone === 'emerald'
+      ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-200'
+      : tone === 'amber'
+        ? 'border-amber-500/25 bg-amber-500/10 text-amber-200'
+        : 'border-white/10 bg-white/5 text-slate-300';
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${classes}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  detail,
+  icon,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-slate-900/75 p-5">
+      <div className="text-cyan-300">{icon}</div>
+      <p className="mt-4 text-xs uppercase tracking-[0.22em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-3 text-3xl font-semibold text-white">{value}</p>
+      <p className="mt-2 text-sm text-slate-400">{detail}</p>
+    </div>
+  );
 }
 
 function AdminAuth({ onAuth }: { onAuth: () => void }) {
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setChecking(true);
+    setError(null);
+
     try {
-      // Validate key against the server
-      const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-      const res = await fetch(`${NODE_API_URL}/api/admin/stats`, {
-        headers: { 'x-admin-key': password },
-      });
-      if (res.ok) {
-        sessionStorage.setItem(ADMIN_KEY_STORAGE, password);
-        onAuth();
-      } else {
-        setError(true);
-      }
-    } catch {
-      setError(true);
+      sessionStorage.setItem(ADMIN_KEY_STORAGE, password);
+      await apiClient.getAdminControlTowerSummary();
+      onAuth();
+    } catch (err) {
+      sessionStorage.removeItem(ADMIN_KEY_STORAGE);
+      setError(getErrorMessage(err, 'Invalid admin key'));
     } finally {
       setChecking(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-      <form onSubmit={handleSubmit} className="bg-slate-900 border border-white/10 p-8 rounded-2xl w-full max-w-sm">
-        <h1 className="text-xl font-bold text-white mb-6 text-center">Admin Access</h1>
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-white">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-sm rounded-3xl border border-white/10 bg-slate-900/90 p-8 shadow-2xl"
+      >
+        <div className="mb-6 flex items-center gap-3">
+          <Landmark className="h-5 w-5 text-amber-400" />
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+              Operator access
+            </p>
+            <h1 className="mt-1 text-xl font-semibold">CERNIQ Control Tower</h1>
+          </div>
+        </div>
         <input
           type="password"
           value={password}
-          onChange={(e) => { setPassword(e.target.value); setError(false); }}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setError(null);
+          }}
           placeholder="Enter admin key"
-          className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          className="mb-4 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
           autoFocus
         />
-        {error && <p className="text-red-400 text-sm mb-4">Invalid admin key</p>}
-        <button type="submit" disabled={checking} className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-lg transition disabled:opacity-50">
-          {checking ? 'Verifying...' : 'Enter'}
+        {error ? <p className="mb-4 text-sm text-red-300">{error}</p> : null}
+        <button
+          type="submit"
+          disabled={checking}
+          className="w-full rounded-2xl bg-amber-400 px-4 py-3 font-semibold text-slate-950 transition hover:bg-amber-300 disabled:opacity-60"
+        >
+          {checking ? 'Verifying...' : 'Enter control tower'}
         </button>
       </form>
     </div>
@@ -92,372 +165,526 @@ function AdminAuth({ onAuth }: { onAuth: () => void }) {
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
-  const [tab, setTab] = useState<'requests' | 'outreach'>('requests');
-  const [requests, setRequests] = useState<DemoRequest[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [summary, setSummary] = useState<ControlTowerSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [healthStatus, setHealthStatus] = useState<string>('checking...');
-  const [copied, setCopied] = useState<string | null>(null);
-
-  // Outreach state
-  const [contactName, setContactName] = useState('');
-  const [outreachInstitution, setOutreachInstitution] = useState('');
-  const [outreachAssets, setOutreachAssets] = useState('');
-  const [outreachLang, setOutreachLang] = useState<'EN' | 'ES'>('EN');
-  const [outreachResult, setOutreachResult] = useState('');
-  const [outreachLoading, setOutreachLoading] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<OperatorActionKey | null>(null);
+  const [actionResult, setActionResult] = useState<OperatorActionResult | null>(
+    null,
+  );
 
   useEffect(() => {
     if (sessionStorage.getItem(ADMIN_KEY_STORAGE)) {
       setAuthed(true);
+    } else {
+      setLoading(false);
     }
   }, []);
 
-  const fetchData = useCallback(async () => {
+  const loadSummary = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const [reqs, st] = await Promise.all([
-        apiClient.getDemoRequests(),
-        apiClient.getAdminStats(),
-      ]);
-      setRequests(reqs);
-      setStats(st);
-    } catch (err: unknown) {
-      setFetchError(getErrorMessage(err));
+      const nextSummary = await apiClient.getAdminControlTowerSummary();
+      setSummary(nextSummary);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const checkHealth = useCallback(async () => {
-    try {
-      const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-      const res = await fetch(`${NODE_API_URL}/health`);
-      const data = await res.json();
-      setHealthStatus(data.status === 'healthy' ? 'Healthy' : 'Degraded');
-    } catch {
-      setHealthStatus('Unreachable');
-    }
-  }, []);
-
   useEffect(() => {
-    if (authed) {
-      fetchData();
-      checkHealth();
-    }
-  }, [authed, fetchData, checkHealth]);
+    if (!authed) return;
+    void loadSummary();
+  }, [authed, loadSummary]);
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 2000);
-  };
+  const runAction = useCallback(
+    async (action: OperatorActionKey, target?: { userId?: string; jobId?: string }) => {
+      setBusyAction(action);
+      setActionResult(null);
+      setError(null);
+      try {
+        const result = await apiClient.runAdminControlTowerAction({
+          action,
+          userId: target?.userId,
+          jobId: target?.jobId,
+        });
+        setActionResult(result);
+        await loadSummary();
+      } catch (err) {
+        setError(getErrorMessage(err, 'Operator action failed'));
+      } finally {
+        setBusyAction(null);
+      }
+    },
+    [loadSummary],
+  );
 
-  const generateDemoMessage = (req: DemoRequest) => {
-    const name = req.name || 'there';
-    return `Hi ${name}, here's your personalized CERNIQ demo: ${VERCEL_URL}/demo?type=bank — I've pre-loaded it with a $1.2B Puerto Rico community bank profile. Takes 2 min to register. Let me know when you're ready to walk through it together. — Erwin`;
-  };
-
-  const handleResetDemo = async () => {
-    if (!confirm('Delete all institution data? This cannot be undone.')) return;
-    await apiClient.resetDemoData();
-    fetchData();
-  };
-
-  const generateOutreach = () => {
-    setOutreachLoading(true);
-    const templates = {
-      EN: `Hi ${contactName}, I'm Erwin from KLYTICS in San Juan. We built CERNIQ — a platform that replaces Excel-based ALM with automated duration gap analysis, NII sensitivity, and stress testing. Built specifically for ${outreachInstitution}-sized institutions (${outreachAssets}) preparing for OCIF exams. Would you have 15 minutes this week for a quick walkthrough? Happy to pre-load your institution's profile so you can see real outputs.`,
-      ES: `Hola ${contactName}, soy Erwin de KLYTICS en San Juan. Desarrollamos CERNIQ — una plataforma que reemplaza el ALM basado en Excel con analisis automatizado de duration gap, sensibilidad NII y pruebas de estres. Disenado especificamente para instituciones como ${outreachInstitution} (${outreachAssets}) preparandose para examenes OCIF. Tendrias 15 minutos esta semana para una demostracion rapida? Puedo pre-cargar el perfil de tu institucion para que veas resultados reales.`,
-    };
-    setTimeout(() => {
-      setOutreachResult(templates[outreachLang]);
-      setOutreachLoading(false);
-    }, 500);
-  };
+  const topMetrics = useMemo(() => {
+    if (!summary) return [];
+    return [
+      {
+        label: 'MRR',
+        value: formatUsd(summary.revenue.mrr),
+        detail: `${summary.revenue.activeSubscriptions} active subscriptions`,
+        icon: <Landmark className="h-5 w-5" />,
+      },
+      {
+        label: 'Report pipeline',
+        value: String(summary.pipeline.counts.processing),
+        detail: `${summary.pipeline.counts.awaitingData} awaiting • ${summary.pipeline.counts.failed} blocked`,
+        icon: <Workflow className="h-5 w-5" />,
+      },
+      {
+        label: 'Intelligence',
+        value: String(summary.intelligence.stats.totalAccounts),
+        detail: `${summary.intelligence.stats.staleAccounts} stale • ${summary.intelligence.stats.overdueActions} overdue`,
+        icon: <BrainCircuit className="h-5 w-5" />,
+      },
+      {
+        label: 'Continuity',
+        value: String(summary.sessionContinuity.metrics?.turnCount || 0),
+        detail: summary.sessionContinuity.activeModes[0]
+          ? `Active mode: ${summary.sessionContinuity.activeModes[0]}`
+          : 'No active OMX mode',
+        icon: <Sparkles className="h-5 w-5" />,
+      },
+    ];
+  }, [summary]);
 
   if (!authed) {
-    return <AdminAuth onAuth={() => setAuthed(true)} />;
+    return <AdminAuth onAuth={() => { setAuthed(true); setLoading(true); }} />;
   }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      {/* Header */}
-      <div className="border-b border-white/10 bg-slate-900/80">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Landmark className="h-5 w-5 text-amber-400" />
-            <h1 className="text-lg font-bold">CERNIQ Admin</h1>
+      <div className="border-b border-white/10 bg-slate-900/85">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-5">
+          <div>
+            <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">
+              Operator Control Tower
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold">
+              Run CERNIQ like one connected operating system.
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm text-slate-400">
+              One internal surface for pipeline health, portal activation, intelligence freshness,
+              demo-seat flow, and cross-session coordination.
+            </p>
           </div>
-          <div className="flex items-center gap-4 text-sm">
-            <a href={VERCEL_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-slate-400 hover:text-white transition">
-              <ExternalLink className="h-3.5 w-3.5" /> Live Site
+          <div className="flex flex-wrap items-center gap-3">
+            <a
+              href={LIVE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300 transition hover:bg-white/10"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Live site
             </a>
-            <span className={`px-2 py-1 rounded text-xs font-medium ${healthStatus === 'Healthy' ? 'bg-emerald-500/20 text-emerald-300' : healthStatus === 'Degraded' ? 'bg-amber-500/20 text-amber-300' : 'bg-red-500/20 text-red-300'}`}>
-              Backend: {healthStatus}
-            </span>
-            {stats && (
-              <span className="px-2 py-1 rounded bg-blue-500/20 text-blue-300 text-xs font-medium">
-                {stats.demoRequests} requests
-              </span>
-            )}
+            <button
+              onClick={() => loadSummary()}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-300 disabled:opacity-60"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
           </div>
         </div>
       </div>
 
-      {fetchError && (
-        <div className="max-w-7xl mx-auto px-6 pt-4">
-          <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 flex items-center gap-2">
-            <span className="text-red-400 text-sm">{fetchError}</span>
-            <button onClick={() => { setFetchError(null); fetchData(); }} className="text-xs text-red-300 hover:text-white ml-auto underline">Retry</button>
+      <div className="mx-auto max-w-7xl px-6 py-8">
+        {error ? (
+          <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+            {error}
           </div>
-        </div>
-      )}
+        ) : null}
 
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-        {/* Stats */}
-        {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="bg-slate-900/60 border border-white/10 rounded-xl p-4">
-              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1"><FileText className="h-3.5 w-3.5" /> Demo Requests</div>
-              <div className="text-2xl font-bold">{stats.demoRequests}</div>
-            </div>
-            <div className="bg-slate-900/60 border border-white/10 rounded-xl p-4">
-              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1"><Building2 className="h-3.5 w-3.5" /> Institutions</div>
-              <div className="text-2xl font-bold">{stats.institutions}</div>
-            </div>
-            <div className="bg-slate-900/60 border border-white/10 rounded-xl p-4">
-              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1"><Users className="h-3.5 w-3.5" /> Total Users</div>
-              <div className="text-2xl font-bold">{stats.users}</div>
-            </div>
-            <div className="bg-slate-900/60 border border-white/10 rounded-xl p-4">
-              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1"><Users className="h-3.5 w-3.5" /> Last 7 Days</div>
-              <div className="text-2xl font-bold">{stats.recentUsers}</div>
-            </div>
-            <div className="bg-slate-900/60 border border-white/10 rounded-xl p-4">
-              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1"><UserSearch className="h-3.5 w-3.5" /> Prospects</div>
-              <div className="text-2xl font-bold">{stats.prospects}</div>
-            </div>
+        {actionResult ? (
+          <div className="mb-6 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-sm text-cyan-100">
+            <span className="font-semibold">{actionResult.summary}</span>
           </div>
-        )}
+        ) : null}
 
-        {/* Quick Links */}
-        <div className="flex gap-3 flex-wrap">
-          <Link href="/admin/leads" className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
-            <Users className="h-4 w-4" /> Lead Pipeline
-          </Link>
-          <Link href="/admin/prospects" className="flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
-            <UserSearch className="h-4 w-4" /> Prospect Pipeline
-          </Link>
-          <Link href="/admin/demo-seats" className="flex items-center gap-2 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 border border-fuchsia-500/20 text-fuchsia-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
-            <Sparkles className="h-4 w-4" /> Demo Seats
-          </Link>
-          <Link href="/admin/intelligence" className="flex items-center gap-2 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-cyan-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
-            <BrainCircuit className="h-4 w-4" /> Intelligence OS
-          </Link>
-          <Link href="/admin/checklist" className="flex items-center gap-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
-            <ClipboardCheck className="h-4 w-4" /> Pre-Demo Checklist
-          </Link>
-          <Link href="/admin/ops" className="flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
-            <Activity className="h-4 w-4" /> Ops Dashboard
-          </Link>
-          <Link href="/admin/audit" className="flex items-center gap-2 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-300 px-4 py-2.5 rounded-xl text-sm font-medium transition">
-            <FileText className="h-4 w-4" /> Audit Trail
-          </Link>
-        </div>
-
-        {/* Platform Metrics */}
-        <div className="bg-slate-900/60 border border-white/10 rounded-xl p-5">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4">Platform Metrics</h3>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-            {[
-              { label: 'Frontend Pages', value: '122', color: 'text-cyan-300' },
-              { label: 'ALM Modules', value: '62', color: 'text-indigo-300' },
-              { label: 'Backend Services', value: '142', color: 'text-emerald-300' },
-              { label: 'API Endpoints', value: '142', color: 'text-amber-300' },
-              { label: 'Prisma Models', value: '54', color: 'text-purple-300' },
-              { label: 'Quant Models', value: '34', color: 'text-rose-300' },
-            ].map((m) => (
-              <div key={m.label} className="text-center">
-                <p className={`text-2xl font-bold tabular-nums ${m.color}`}>{m.value}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">{m.label}</p>
-              </div>
+        {loading && !summary ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-40 animate-pulse rounded-3xl border border-white/10 bg-slate-900/70"
+              />
             ))}
           </div>
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: 'Sidebar Entries', value: '54' },
-              { label: 'i18n Keys', value: '240+' },
-              { label: 'Total Commits', value: '63' },
-              { label: 'Bibles Executed', value: 'V1-V12' },
-            ].map((m) => (
-              <div key={m.label} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2">
-                <span className="text-[10px] text-slate-500">{m.label}</span>
-                <span className="text-xs font-bold text-white tabular-nums">{m.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 border-b border-white/10 pb-2">
-          <button onClick={() => setTab('requests')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tab === 'requests' ? 'bg-amber-500/20 text-amber-300' : 'text-slate-400 hover:text-white'}`}>
-            Demo Requests
-          </button>
-          <button onClick={() => setTab('outreach')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tab === 'outreach' ? 'bg-amber-500/20 text-amber-300' : 'text-slate-400 hover:text-white'}`}>
-            Outreach
-          </button>
-        </div>
-
-        {tab === 'requests' && (
-          <>
-            {/* Quick Actions */}
-            <div className="flex gap-3">
-              <button onClick={fetchData} disabled={loading} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg text-sm transition">
-                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
-              </button>
-              <button onClick={() => copyToClipboard(`${VERCEL_URL}/demo?type=bank`, 'demo-url')} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg text-sm transition">
-                {copied === 'demo-url' ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />} Copy Demo URL
-              </button>
-              <button onClick={handleResetDemo} className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-300 px-4 py-2 rounded-lg text-sm transition">
-                <Trash2 className="h-3.5 w-3.5" /> Reset Demo Data
-              </button>
+        ) : summary ? (
+          <div className="space-y-8">
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusChip
+                label={`API ${summary.pipeline.counts.failed > 0 ? 'attention' : 'healthy'}`}
+                tone={summary.pipeline.counts.failed > 0 ? 'amber' : 'emerald'}
+              />
+              <StatusChip
+                label={`Branch ${summary.sessionContinuity.activeBranch || 'unknown'}`}
+                tone="slate"
+              />
+              <StatusChip
+                label={`${summary.sessionContinuity.activeModes.length} active mode(s)`}
+                tone={summary.sessionContinuity.activeModes.length > 0 ? 'amber' : 'slate'}
+              />
+              <StatusChip
+                label={`${summary.demoSeats.expiringSoon} demo seats expiring soon`}
+                tone={summary.demoSeats.expiringSoon > 0 ? 'amber' : 'emerald'}
+              />
             </div>
 
-            {/* Table */}
-            <div className="bg-slate-900/60 border border-white/10 rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/10 text-left text-slate-400">
-                    <th className="px-4 py-3 font-medium">Date</th>
-                    <th className="px-4 py-3 font-medium">Name</th>
-                    <th className="px-4 py-3 font-medium">Email</th>
-                    <th className="px-4 py-3 font-medium">Institution</th>
-                    <th className="px-4 py-3 font-medium">Type</th>
-                    <th className="px-4 py-3 font-medium">Assets</th>
-                    <th className="px-4 py-3 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {requests.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                        No demo requests yet
-                      </td>
-                    </tr>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {topMetrics.map((metric) => (
+                <StatCard key={metric.label} {...metric} />
+              ))}
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+              <section className="rounded-3xl border border-white/10 bg-slate-900/75 p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                      Priority queue
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold">What needs attention now</h2>
+                  </div>
+                  <AlertTriangle className="h-5 w-5 text-amber-300" />
+                </div>
+                <div className="mt-5 space-y-3">
+                  {summary.nextActions.length === 0 ? (
+                    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+                      No critical blockers surfaced in the current control-plane snapshot.
+                    </div>
                   ) : (
-                    requests.map((req) => (
-                      <tr key={req.id} className="border-b border-white/5 hover:bg-white/5">
-                        <td className="px-4 py-3 text-slate-400">
-                          {new Date(req.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3">{req.name || '—'}</td>
-                        <td className="px-4 py-3 text-amber-300">{req.email}</td>
-                        <td className="px-4 py-3">{req.institutionName || '—'}</td>
-                        <td className="px-4 py-3 capitalize">{req.institutionType?.replace('_', ' ') || '—'}</td>
-                        <td className="px-4 py-3">{req.totalAssets || '—'}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => copyToClipboard(generateDemoMessage(req), req.id)}
-                              className="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-2 py-1 rounded transition"
-                            >
-                              {copied === req.id ? 'Copied!' : 'Send Demo Link'}
-                            </button>
-                            <button
-                              onClick={() => copyToClipboard(req.email, `email-${req.id}`)}
-                              className="text-xs bg-white/5 hover:bg-white/10 px-2 py-1 rounded transition"
-                            >
-                              {copied === `email-${req.id}` ? 'Copied!' : 'Copy Email'}
-                            </button>
+                    summary.nextActions.map((item) => (
+                      <div
+                        key={item.id}
+                        className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <StatusChip
+                                label={item.severity}
+                                tone={item.severity === 'high' ? 'amber' : 'slate'}
+                              />
+                              <p className="font-semibold text-white">{item.title}</p>
+                            </div>
+                            <p className="mt-3 text-sm leading-6 text-slate-400">
+                              {item.domain}
+                            </p>
                           </div>
-                        </td>
-                      </tr>
+                          <div className="flex items-center gap-2">
+                            {item.action ? (
+                              <button
+                                onClick={() => runAction(item.action as OperatorActionKey)}
+                                disabled={busyAction === item.action}
+                                className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-500/20 disabled:opacity-60"
+                              >
+                                {busyAction === item.action ? 'Running...' : 'Run action'}
+                              </button>
+                            ) : null}
+                            {item.href ? (
+                              <Link
+                                href={item.href}
+                                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+                              >
+                                Open
+                                <ArrowRight className="h-4 w-4" />
+                              </Link>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
                     ))
                   )}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-
-        {tab === 'outreach' && (
-          <div className="bg-slate-900/60 border border-white/10 rounded-xl p-6 max-w-2xl">
-            <h3 className="text-lg font-bold mb-4">Generate Outreach Message</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Contact Name</label>
-                <input
-                  type="text"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  placeholder="Jose Pablo"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Institution Name</label>
-                <input
-                  type="text"
-                  value={outreachInstitution}
-                  onChange={(e) => setOutreachInstitution(e.target.value)}
-                  placeholder="Banco Popular"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-slate-400 mb-1">Asset Size</label>
-                  <select
-                    value={outreachAssets}
-                    onChange={(e) => setOutreachAssets(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  >
-                    <option value="">Select</option>
-                    <option value="$100M-$500M">$100M-$500M</option>
-                    <option value="$500M-$1B">$500M-$1B</option>
-                    <option value="$1B-$5B">$1B-$5B</option>
-                    <option value="$5B+">$5B+</option>
-                  </select>
                 </div>
-                <div>
-                  <label className="block text-sm text-slate-400 mb-1">Language</label>
-                  <select
-                    value={outreachLang}
-                    onChange={(e) => setOutreachLang(e.target.value as 'EN' | 'ES')}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  >
-                    <option value="EN">English</option>
-                    <option value="ES">Spanish</option>
-                  </select>
-                </div>
-              </div>
-              <button
-                onClick={generateOutreach}
-                disabled={!contactName || !outreachInstitution || outreachLoading}
-                className="bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-6 py-2 rounded-lg transition disabled:opacity-50"
-              >
-                {outreachLoading ? 'Generating...' : 'Generate'}
-              </button>
+              </section>
 
-              {outreachResult && (
-                <div className="mt-4">
-                  <div className="bg-slate-800 border border-white/10 rounded-lg p-4 text-sm text-slate-200 leading-relaxed">
-                    {outreachResult}
+              <section className="rounded-3xl border border-white/10 bg-slate-900/75 p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                      Safe actions
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold">Operator actions</h2>
                   </div>
-                  <button
-                    onClick={() => copyToClipboard(outreachResult, 'outreach')}
-                    className="mt-2 flex items-center gap-2 text-sm text-amber-300 hover:text-amber-200 transition"
-                  >
-                    {copied === 'outreach' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                    {copied === 'outreach' ? 'Copied!' : 'Copy to Clipboard'}
-                  </button>
+                  <Wrench className="h-5 w-5 text-cyan-300" />
                 </div>
-              )}
+                <div className="mt-5 space-y-3">
+                  {summary.safeActions.map((action) => (
+                    <button
+                      key={action.action}
+                      onClick={() => runAction(action.action as OperatorActionKey)}
+                      disabled={busyAction === action.action}
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-left transition hover:bg-white/[0.06] disabled:opacity-60"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-white">{action.label}</p>
+                          <p className="mt-1 text-sm text-slate-400">{action.description}</p>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-slate-500" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <section className="rounded-3xl border border-white/10 bg-slate-900/75 p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                    Feature bridge
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold">Every CERNIQ lane, connected</h2>
+                </div>
+                <Server className="h-5 w-5 text-cyan-300" />
+              </div>
+              <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {summary.featureBridge.map((feature) => (
+                  <Link
+                    key={feature.id}
+                    href={feature.href}
+                    className="group rounded-3xl border border-white/10 bg-white/[0.03] p-5 transition hover:border-cyan-400/30 hover:bg-white/[0.05]"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <StatusChip
+                        label={feature.status}
+                        tone={formatStatusTone(feature.status)}
+                      />
+                      <ArrowRight className="h-4 w-4 text-slate-500 transition group-hover:translate-x-0.5" />
+                    </div>
+                    <h3 className="mt-4 text-xl font-semibold text-white">{feature.label}</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">{feature.detail}</p>
+                  </Link>
+                ))}
+              </div>
+            </section>
+
+            <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+              <section className="rounded-3xl border border-white/10 bg-slate-900/75 p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                      Session continuity
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold">
+                      Between terminals and sessions
+                    </h2>
+                  </div>
+                  <GitBranch className="h-5 w-5 text-cyan-300" />
+                </div>
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                      Latest session summary
+                    </p>
+                    <ul className="mt-3 space-y-2 text-sm text-slate-300">
+                      {summary.sessionContinuity.latestStatusSummary.map((line) => (
+                        <li key={line}>• {line}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                      Next recommended commands
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {summary.sessionContinuity.recommendedCommands.map((command) => (
+                        <code
+                          key={command}
+                          className="block rounded-xl bg-black/30 px-3 py-2 text-xs text-cyan-100"
+                        >
+                          {command}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                      Branch
+                    </p>
+                    <p className="mt-3 text-lg font-semibold text-white">
+                      {summary.sessionContinuity.activeBranch || 'unknown'}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-400">
+                      {summary.sessionContinuity.activeModes[0] || 'No active mode'}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                      Turn metrics
+                    </p>
+                    <p className="mt-3 text-lg font-semibold text-white">
+                      {summary.sessionContinuity.metrics?.turnCount || 0}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-400">
+                      Last HUD title: {summary.sessionContinuity.lastAgentOutputTitle || '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                      Workspace root
+                    </p>
+                    <p className="mt-3 break-all text-sm text-slate-300">
+                      {summary.sessionContinuity.workspaceRoot}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-3xl border border-white/10 bg-slate-900/75 p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                      Subordinate workspaces
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold">Open the specialist consoles</h2>
+                  </div>
+                  <CheckCircle2 className="h-5 w-5 text-cyan-300" />
+                </div>
+                <div className="mt-5 grid gap-3">
+                  {[
+                    ['Pipeline', '/admin/pipeline'],
+                    ['Prospects', '/admin/prospects'],
+                    ['Demo Seats', '/admin/demo-seats'],
+                    ['Intelligence', '/admin/intelligence'],
+                    ['Ops', '/admin/ops'],
+                    ['Metrics', '/admin/metrics'],
+                    ['Audit', '/admin/audit'],
+                    ['Checklist', '/admin/checklist'],
+                  ].map(([label, href]) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:bg-white/[0.06]"
+                    >
+                      <span className="font-medium text-white">{label}</span>
+                      <ArrowRight className="h-4 w-4 text-slate-500" />
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-2">
+              <section className="rounded-3xl border border-white/10 bg-slate-900/75 p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                      Recent pipeline jobs
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold">Queue visibility</h2>
+                  </div>
+                  <Activity className="h-5 w-5 text-cyan-300" />
+                </div>
+                <div className="mt-5 space-y-3">
+                  {summary.pipeline.recentJobs.map((job) => (
+                    <div
+                      key={job.id}
+                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-white">{job.institutionName}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {job.user?.email || 'Unknown client'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <StatusChip
+                            label={job.status}
+                            tone={
+                              ['FAILED', 'VALIDATION_FAILED'].includes(job.status)
+                                ? 'amber'
+                                : ['PROCESSING', 'QUEUED', 'UPLOADING', 'VALIDATING', 'GENERATING_PDF'].includes(job.status)
+                                  ? 'emerald'
+                                  : 'slate'
+                            }
+                          />
+                          {['FAILED', 'VALIDATION_FAILED'].includes(job.status) ? (
+                            <button
+                              onClick={() =>
+                                runAction('retry_pipeline_job', { jobId: job.id })
+                              }
+                              disabled={busyAction === 'retry_pipeline_job'}
+                              className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-500/20 disabled:opacity-60"
+                            >
+                              {busyAction === 'retry_pipeline_job'
+                                ? 'Retrying...'
+                                : 'Retry'}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                      {job.errorMessage ? (
+                        <p className="mt-3 text-sm text-amber-200">{job.errorMessage}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="rounded-3xl border border-white/10 bg-slate-900/75 p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                      Portal & demo-seat lane
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold">Activation and conversion</h2>
+                  </div>
+                  <FileText className="h-5 w-5 text-cyan-300" />
+                </div>
+                <div className="mt-5 space-y-3">
+                  {summary.portal.stalledJobs.map((job) => (
+                    <div
+                      key={job.id}
+                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-white">{job.institutionName}</p>
+                          <p className="mt-1 text-xs text-slate-500">{job.userId}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <StatusChip label={job.status} tone="amber" />
+                          <button
+                            onClick={() => runAction('open_portal_cycle', { userId: job.userId })}
+                            disabled={busyAction === 'open_portal_cycle'}
+                            className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-500/20 disabled:opacity-60"
+                          >
+                            {busyAction === 'open_portal_cycle' ? 'Opening...' : 'Open cycle'}
+                          </button>
+                        </div>
+                      </div>
+                      {job.errorMessage ? (
+                        <p className="mt-3 text-sm text-amber-200">{job.errorMessage}</p>
+                      ) : null}
+                    </div>
+                  ))}
+
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <p className="text-sm text-slate-300">
+                      Demo seats: {summary.demoSeats.active} active, {summary.demoSeats.expired} expired, {summary.demoSeats.expiringSoon} expiring soon.
+                    </p>
+                    <p className="mt-2 text-sm text-slate-400">
+                      Intelligence handoff: {summary.intelligence.handoff.summary}
+                    </p>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

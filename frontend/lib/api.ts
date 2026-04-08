@@ -319,6 +319,65 @@ export interface DemoSeatAnalytics {
   }>;
 }
 
+export interface AdminRevenueMetrics {
+  revenueToday: number;
+  revenueMonth: number;
+  revenueYear: number;
+  mrr: number;
+  arr: number;
+  activeSubscriptions: number;
+  totalSubscriptions: number;
+}
+
+export interface AdminPipelineHealth {
+  awaitingData: number;
+  processing: number;
+  complete: number;
+  failed: number;
+}
+
+export interface AdminPipelineJob {
+  id: string;
+  institutionName: string;
+  status: string;
+  retryCount: number;
+  createdAt: string;
+  completedAt?: string;
+  errorMessage?: string;
+  user?: { email: string; name: string };
+}
+
+export interface AdminPipelineSnapshot {
+  jobs: AdminPipelineJob[];
+  health: AdminPipelineHealth;
+}
+
+export interface AdminOpsSnapshot {
+  recentJobs: Array<{
+    id: string;
+    institutionName: string;
+    status: string;
+    createdAt: string;
+    completedAt: string | null;
+    errorMessage: string | null;
+    triggeredBy: string;
+  }>;
+  activeSubscriptions: number;
+  totalAnalysisRuns: number;
+  performanceMetrics: Array<Record<string, unknown>>;
+}
+
+export interface AdminAuditEntry {
+  id: string;
+  userId: string | null;
+  action: string;
+  resource: string;
+  outcome: string;
+  metadata: Record<string, unknown> | null;
+  ipAddress: string | null;
+  createdAt: string;
+}
+
 export interface IntelligenceAccountSummary {
   accountId: string;
   prospectId: string | null;
@@ -688,6 +747,63 @@ class APIClient {
 
   async getAdminStats() {
     const response = await this.client.get(`${NODE_API_URL}/api/admin/stats`, { headers: this.adminHeaders() });
+    return response.data;
+  }
+
+  async getAdminControlTowerSummary() {
+    const response = await this.client.get(
+      `${NODE_API_URL}/admin/api/control-tower/summary`,
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async runAdminControlTowerAction(body: {
+    action: string;
+    userId?: string;
+    jobId?: string;
+  }) {
+    const response = await this.client.post(
+      `${NODE_API_URL}/admin/api/control-tower/actions`,
+      body,
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async getAdminOps(): Promise<AdminOpsSnapshot> {
+    const response = await this.client.get(`${NODE_API_URL}/api/admin/ops`, {
+      headers: this.adminHeaders(),
+    });
+    return response.data;
+  }
+
+  async getAdminPipeline(status?: string): Promise<AdminPipelineSnapshot> {
+    const suffix = status ? `?status=${encodeURIComponent(status)}` : '';
+    const response = await this.client.get(`${NODE_API_URL}/admin/api/pipeline${suffix}`, {
+      headers: this.adminHeaders(),
+    });
+    return response.data;
+  }
+
+  async getAdminRevenueMetrics(): Promise<AdminRevenueMetrics> {
+    const response = await this.client.get(`${NODE_API_URL}/admin/api/revenue`, {
+      headers: this.adminHeaders(),
+    });
+    return response.data;
+  }
+
+  async getAdminAuditLogs(limit = 100): Promise<AdminAuditEntry[]> {
+    const response = await this.client.get(`${NODE_API_URL}/api/admin/audit-logs?limit=${limit}`, {
+      headers: this.adminHeaders(),
+    });
+    return Array.isArray(response.data) ? response.data : response.data.logs || [];
+  }
+
+  async getExitMetrics() {
+    const response = await this.client.get(`${NODE_API_URL}/api/admin/exit-metrics`, {
+      headers: this.adminHeaders(),
+    });
     return response.data;
   }
 

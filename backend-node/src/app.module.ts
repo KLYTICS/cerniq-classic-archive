@@ -45,6 +45,8 @@ import { ComplianceModule } from './compliance/compliance.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { CloseModule } from './close/close.module';
+import { AdminModule } from './admin/admin.module';
+import { ExitMetricsService } from './admin/exit-metrics.service';
 
 @Module({
   imports: [
@@ -125,6 +127,8 @@ import { CloseModule } from './close/close.module';
     NotificationsModule,
     // Competitor + buyer intelligence OS
     IntelligenceModule,
+    // Operator control tower
+    AdminModule,
     // Month-end Close Cockpit (CFO → CPA workflow)
     CloseModule,
   ],
@@ -151,6 +155,7 @@ import { CloseModule } from './close/close.module';
       provide: APP_INTERCEPTOR,
       useClass: CorrelationInterceptor,
     },
+    ExitMetricsService,
   ],
 })
 export class AppModule implements NestModule {

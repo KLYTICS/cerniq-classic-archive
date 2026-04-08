@@ -16,6 +16,7 @@ import { EmailService } from './email/email.service';
 import { MarketDataService } from './market-data/market-data.service';
 import { MarketStreamManagerService } from './market-data/market-stream-manager.service';
 import { CacheService } from './cache/cache.service';
+import { ExitMetricsService } from './admin/exit-metrics.service';
 import { UnauthorizedException } from '@nestjs/common';
 
 jest.mock('node:fs', () => {
@@ -59,6 +60,7 @@ describe('AppController', () => {
   let prisma: any;
   let cacheService: any;
   let emailService: any;
+  let exitMetricsService: any;
 
   beforeEach(async () => {
     cacheService = {
@@ -70,6 +72,13 @@ describe('AppController', () => {
     emailService = {
       sendDemoRequestNotification: jest.fn().mockResolvedValue(undefined),
       sendDemoConfirmation: jest.fn().mockResolvedValue(undefined),
+    };
+    exitMetricsService = {
+      getExitMetrics: jest.fn().mockResolvedValue({
+        mrr: 0,
+        arr: 0,
+        activeInstitutions: 0,
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -92,6 +101,10 @@ describe('AppController', () => {
         {
           provide: CacheService,
           useValue: cacheService,
+        },
+        {
+          provide: ExitMetricsService,
+          useValue: exitMetricsService,
         },
       ],
     })
@@ -856,6 +869,23 @@ describe('AppController', () => {
       expect(result.activeSubscriptions).toBe(5);
       expect(result.totalAnalysisRuns).toBe(42);
       expect(result.performanceMetrics).toBeDefined();
+
+      delete process.env.ADMIN_KEY;
+    });
+  });
+
+  describe('GET /api/admin/exit-metrics', () => {
+    it('returns exit metrics with admin key', async () => {
+      process.env.ADMIN_KEY = 'test-admin-key';
+
+      await expect(
+        controller.getExitMetrics('test-admin-key'),
+      ).resolves.toEqual({
+        mrr: 0,
+        arr: 0,
+        activeInstitutions: 0,
+      });
+      expect(exitMetricsService.getExitMetrics).toHaveBeenCalled();
 
       delete process.env.ADMIN_KEY;
     });

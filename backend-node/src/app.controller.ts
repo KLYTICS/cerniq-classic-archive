@@ -29,6 +29,7 @@ import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { DemoRequestDto } from './dto/demo-request.dto';
 import { MarketDataService } from './market-data/market-data.service';
 import { MarketStreamManagerService } from './market-data/market-stream-manager.service';
+import { ExitMetricsService } from './admin/exit-metrics.service';
 import type { Response } from 'express';
 
 function shouldExposeDetailedHealth(): boolean {
@@ -191,6 +192,7 @@ export class AppController {
     private readonly emailService: EmailService,
     private readonly marketDataService: MarketDataService,
     private readonly marketStreamManager: MarketStreamManagerService,
+    private readonly exitMetricsService: ExitMetricsService,
   ) {}
 
   private async isCacheReachable(): Promise<boolean> {
@@ -736,6 +738,12 @@ export class AppController {
       totalAnalysisRuns,
       performanceMetrics,
     };
+  }
+
+  @Get('api/admin/exit-metrics')
+  async getExitMetrics(@Headers('x-admin-key') adminKey: string) {
+    this.verifyAdmin(adminKey);
+    return this.exitMetricsService.getExitMetrics();
   }
 
   private verifyAdmin(key: string) {
