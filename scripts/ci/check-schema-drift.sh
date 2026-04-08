@@ -61,10 +61,9 @@ echo ""
 # Generate the SQL that would be needed to bring the migration-history state
 # into sync with schema.prisma. Empty output = clean. Non-empty = drift.
 set +e
-DRIFT_SQL=$(DATABASE_URL="$SHADOW_DATABASE_URL" npx prisma migrate diff \
+DRIFT_SQL=$(DATABASE_URL="$SHADOW_DATABASE_URL" SHADOW_DATABASE_URL="$SHADOW_DATABASE_URL" npx prisma migrate diff \
   --from-migrations prisma/migrations \
   --to-schema prisma/schema.prisma \
-  --shadow-database-url "$SHADOW_DATABASE_URL" \
   --script 2>&1)
 PRISMA_EXIT=$?
 set -e
