@@ -324,9 +324,12 @@ describe('RiskBudgetingService', () => {
     const result = service.calculateRiskParity({
       assets: [
         { name: 'A', annualVolatility: 0.15 },
-        { name: 'B', annualVolatility: 0.10 },
+        { name: 'B', annualVolatility: 0.1 },
       ],
-      correlationMatrix: [[1, 0.3], [0.3, 1]],
+      correlationMatrix: [
+        [1, 0.3],
+        [0.3, 1],
+      ],
       targetRisk: 0.08,
     });
     // Weights should still sum to ~1 and portfolioVolatility should be near target
@@ -336,11 +339,11 @@ describe('RiskBudgetingService', () => {
 
   it('single asset risk parity returns 100% weight', () => {
     const result = service.calculateRiskParity({
-      assets: [{ name: 'OnlyAsset', annualVolatility: 0.20 }],
+      assets: [{ name: 'OnlyAsset', annualVolatility: 0.2 }],
       correlationMatrix: [[1]],
     });
     expect(result.weights[0].weight).toBe(1.0);
-    expect(result.portfolioVolatility).toBe(0.20);
+    expect(result.portfolioVolatility).toBe(0.2);
     expect(result.iterations).toBe(0);
   });
 

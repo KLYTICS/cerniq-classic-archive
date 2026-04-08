@@ -97,7 +97,12 @@ export class ActionRegistryService {
   async dispatch(
     actionId: string,
     input: ActionInput,
-    ctx: { userId?: string; userRoles?: string[]; ipAddress?: string; userAgent?: string } = {},
+    ctx: {
+      userId?: string;
+      userRoles?: string[];
+      ipAddress?: string;
+      userAgent?: string;
+    } = {},
   ): Promise<ActionResult> {
     const startedAt = new Date();
     const start = startedAt.getTime();

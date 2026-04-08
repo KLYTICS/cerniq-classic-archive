@@ -40,10 +40,7 @@ describe('Portal export endpoints (HTTP integration)', () => {
 
   // Shared fixtures
   const paidUser = { userId: 'user-paid', email: 'cfo@test.coop' };
-  const fakePdf = Buffer.from(
-    '%PDF-1.4\n%CERNIQ-TEST-FIXTURE\n%%EOF',
-    'utf-8',
-  );
+  const fakePdf = Buffer.from('%PDF-1.4\n%CERNIQ-TEST-FIXTURE\n%%EOF', 'utf-8');
 
   const prisma = {
     reportJob: {
@@ -108,7 +105,10 @@ describe('Portal export endpoints (HTTP integration)', () => {
           provide: IngestionLogsService,
           useValue: { listJobLogs: jest.fn(), recordLog: jest.fn() },
         },
-        { provide: EmailService, useValue: { sendDataSubmissionAck: jest.fn() } },
+        {
+          provide: EmailService,
+          useValue: { sendDataSubmissionAck: jest.fn() },
+        },
         {
           provide: DataCryptoService,
           useValue: { encrypt: jest.fn().mockReturnValue('enc') },
@@ -183,7 +183,10 @@ describe('Portal export endpoints (HTTP integration)', () => {
         language: 'es',
         mimeType: 'application/pdf',
       });
-      expect(portalExports.listJobExports).toHaveBeenCalledWith('user-paid', 'j1');
+      expect(portalExports.listJobExports).toHaveBeenCalledWith(
+        'user-paid',
+        'j1',
+      );
     });
 
     it('returns 403 when the user has no platform access', async () => {

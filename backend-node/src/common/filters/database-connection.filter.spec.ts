@@ -43,7 +43,9 @@ describe('DatabaseConnectionFilter', () => {
     filter.catch({ message: 'DB error' } as any, host);
     const body = json.mock.calls[0][0];
     expect(body.error.timestamp).toBeDefined();
-    expect(new Date(body.error.timestamp).toISOString()).toBe(body.error.timestamp);
+    expect(new Date(body.error.timestamp).toISOString()).toBe(
+      body.error.timestamp,
+    );
   });
 
   it('includes request URL as path', () => {

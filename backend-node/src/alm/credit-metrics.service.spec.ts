@@ -69,8 +69,10 @@ describe('CreditMetricsService', () => {
 
   it('migration matrix rows sum to approximately 1.0', async () => {
     const result = await svc.computePortfolioVaR('inst-1');
-    for (const [rating, transitions] of Object.entries(result.migrationMatrix)) {
-      const sum = Object.values(transitions as Record<string, number>).reduce((s, v) => s + v, 0);
+    for (const [rating, transitions] of Object.entries(
+      result.migrationMatrix,
+    )) {
+      const sum = Object.values(transitions).reduce((s, v) => s + v, 0);
       // Sparse matrix: some rows may have few transitions, especially for rare ratings
       expect(sum).toBeGreaterThan(0);
       expect(sum).toBeLessThanOrEqual(1.01);
@@ -100,12 +102,17 @@ describe('CreditMetricsService', () => {
 
     it('ES99 exceeds VaR99 with real data', async () => {
       const result = await svcReal.computePortfolioVaR('inst-1', 5000);
-      expect(result.portfolioES99).toBeGreaterThanOrEqual(result.portfolioVaR99);
+      expect(result.portfolioES99).toBeGreaterThanOrEqual(
+        result.portfolioVaR99,
+      );
     });
 
     it('economic capital includes 1.06x multiplier on unexpected loss', async () => {
       const result = await svcReal.computePortfolioVaR('inst-1', 5000);
-      expect(result.economicCapital).toBeCloseTo(result.unexpectedLoss * 1.06, 0);
+      expect(result.economicCapital).toBeCloseTo(
+        result.unexpectedLoss * 1.06,
+        0,
+      );
     });
 
     it('per-segment contributions sum to approximately 100%', async () => {

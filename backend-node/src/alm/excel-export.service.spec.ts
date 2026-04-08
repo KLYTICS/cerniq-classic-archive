@@ -7,7 +7,10 @@ describe('ExcelExportService', () => {
   beforeEach(() => {
     almEnterprise = {
       getALMSummary: jest.fn().mockResolvedValue({
-        institution: { name: 'Coop Test', reportingDate: '2026-01-31T00:00:00Z' },
+        institution: {
+          name: 'Coop Test',
+          reportingDate: '2026-01-31T00:00:00Z',
+        },
         riskScore: 72,
         durationGap: {
           assetDuration: 3.5,
@@ -123,9 +126,17 @@ describe('ExcelExportService', () => {
       // the Excel cells use xmlMaybeNumberCell to render DATA UNAVAILABLE
       // instead of phantom 0, AND the Data Gaps sheet surfaces the gap.
       almEnterprise.getALMSummary.mockResolvedValueOnce({
-        institution: { name: 'Empty CU', reportingDate: '2026-01-01T00:00:00Z' },
+        institution: {
+          name: 'Empty CU',
+          reportingDate: '2026-01-01T00:00:00Z',
+        },
         riskScore: null,
-        durationGap: { assetDuration: 1, liabilityDuration: 1, durationGap: 0, riskProfile: 'neutral' },
+        durationGap: {
+          assetDuration: 1,
+          liabilityDuration: 1,
+          durationGap: 0,
+          riskProfile: 'neutral',
+        },
         liquidity: {
           lcr: null,
           hqla: null,
@@ -185,7 +196,9 @@ describe('ExcelExportService', () => {
     it('should handle errors from almEnterprise gracefully', async () => {
       almEnterprise.getALMSummary.mockRejectedValue(new Error('DB down'));
       almEnterprise.getCOSSECCompliance.mockRejectedValue(new Error('DB down'));
-      almEnterprise.calculateNIISensitivity.mockRejectedValue(new Error('timeout'));
+      almEnterprise.calculateNIISensitivity.mockRejectedValue(
+        new Error('timeout'),
+      );
 
       const result = await service.exportToExcel('inst_002');
       const xml = result.toString('utf-8');
@@ -203,7 +216,10 @@ describe('ExcelExportService', () => {
 
     it('should escape XML special characters', async () => {
       almEnterprise.getALMSummary.mockResolvedValue({
-        institution: { name: 'Test & <Institution>', reportingDate: '2026-01-31T00:00:00Z' },
+        institution: {
+          name: 'Test & <Institution>',
+          reportingDate: '2026-01-31T00:00:00Z',
+        },
         riskScore: 50,
         topRisks: ['Risk with "quotes" & <tags>'],
         recommendations: [],
@@ -217,7 +233,9 @@ describe('ExcelExportService', () => {
   });
 
   it('handles listBalanceSheetItems rejection gracefully', async () => {
-    almEnterprise.listBalanceSheetItems.mockRejectedValue(new Error('DB error'));
+    almEnterprise.listBalanceSheetItems.mockRejectedValue(
+      new Error('DB error'),
+    );
     const result = await service.exportToExcel('inst_005');
     expect(result).toBeInstanceOf(Buffer);
   });

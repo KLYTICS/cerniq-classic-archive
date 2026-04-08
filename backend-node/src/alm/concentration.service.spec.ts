@@ -188,7 +188,7 @@ describe('ConcentrationService', () => {
     const result = await service.getConcentrationAnalysis('inst-breach');
     // 100% in Commercial RE, limit is 30% => breach
     expect(result.breachCount).toBeGreaterThanOrEqual(1);
-    const breach = result.exposures.find(e => e.status === 'breach');
+    const breach = result.exposures.find((e) => e.status === 'breach');
     expect(breach).toBeDefined();
   });
 
@@ -206,10 +206,12 @@ describe('ConcentrationService', () => {
     const result = await service.getConcentrationAnalysis('inst-custom');
     expect(result.exposures).toHaveLength(2);
     // 30% in Commercial RE vs 60% limit => compliant (utilization 50%)
-    const cre = result.exposures.find(e => e.limitName === 'Commercial RE');
+    const cre = result.exposures.find((e) => e.limitName === 'Commercial RE');
     expect(cre!.status).toBe('compliant');
     // 70% in Residential vs 50% limit => breach
-    const res = result.exposures.find(e => e.limitName === 'Residential Mortgage');
+    const res = result.exposures.find(
+      (e) => e.limitName === 'Residential Mortgage',
+    );
     expect(res!.status).toBe('breach');
   });
 

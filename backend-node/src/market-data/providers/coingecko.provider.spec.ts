@@ -80,7 +80,9 @@ describe('CoinGeckoProvider', () => {
       const result = await provider.getQuote('eth');
       expect(result).not.toBeNull();
       expect(result!.ticker).toBe('ETH');
-      expect(mockClient.coins.fetch).toHaveBeenCalledWith('ethereum', { market_data: true });
+      expect(mockClient.coins.fetch).toHaveBeenCalledWith('ethereum', {
+        market_data: true,
+      });
     });
 
     it('returns null when API response is not successful', async () => {
@@ -112,8 +114,30 @@ describe('CoinGeckoProvider', () => {
     });
 
     it('maps all known tickers correctly', async () => {
-      const knownTickers = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'MATIC', 'DOT', 'AVAX'];
-      const expectedIds = ['bitcoin', 'ethereum', 'binancecoin', 'solana', 'ripple', 'cardano', 'dogecoin', 'matic-network', 'polkadot', 'avalanche-2'];
+      const knownTickers = [
+        'BTC',
+        'ETH',
+        'BNB',
+        'SOL',
+        'XRP',
+        'ADA',
+        'DOGE',
+        'MATIC',
+        'DOT',
+        'AVAX',
+      ];
+      const expectedIds = [
+        'bitcoin',
+        'ethereum',
+        'binancecoin',
+        'solana',
+        'ripple',
+        'cardano',
+        'dogecoin',
+        'matic-network',
+        'polkadot',
+        'avalanche-2',
+      ];
 
       for (let i = 0; i < knownTickers.length; i++) {
         mockClient.coins.fetch.mockResolvedValue({
@@ -121,7 +145,9 @@ describe('CoinGeckoProvider', () => {
           data: { market_data: { current_price: { usd: 100 } } },
         });
         await provider.getQuote(knownTickers[i]);
-        expect(mockClient.coins.fetch).toHaveBeenCalledWith(expectedIds[i], { market_data: true });
+        expect(mockClient.coins.fetch).toHaveBeenCalledWith(expectedIds[i], {
+          market_data: true,
+        });
         jest.clearAllMocks();
       }
     });
@@ -178,7 +204,9 @@ describe('CoinGeckoProvider', () => {
     });
 
     it('returns empty array on error', async () => {
-      mockClient.coins.fetchMarketChart.mockRejectedValue(new Error('Network error'));
+      mockClient.coins.fetchMarketChart.mockRejectedValue(
+        new Error('Network error'),
+      );
       const result = await provider.getHistoricalPrices(
         'BTC',
         new Date('2024-01-01'),
@@ -197,10 +225,13 @@ describe('CoinGeckoProvider', () => {
       const end = new Date('2024-01-31');
       await provider.getHistoricalPrices('BTC', start, end);
 
-      expect(mockClient.coins.fetchMarketChart).toHaveBeenCalledWith('bitcoin', {
-        days: '30',
-        vs_currency: 'usd',
-      });
+      expect(mockClient.coins.fetchMarketChart).toHaveBeenCalledWith(
+        'bitcoin',
+        {
+          days: '30',
+          vs_currency: 'usd',
+        },
+      );
     });
 
     it('handles empty prices array', async () => {
@@ -264,9 +295,7 @@ describe('CoinGeckoProvider', () => {
     it('searches case-insensitively by symbol', async () => {
       mockClient.coins.list.mockResolvedValue({
         success: true,
-        data: [
-          { symbol: 'sol', name: 'Solana', id: 'solana' },
-        ],
+        data: [{ symbol: 'sol', name: 'Solana', id: 'solana' }],
       });
 
       const result = await provider.searchCrypto('SOL');

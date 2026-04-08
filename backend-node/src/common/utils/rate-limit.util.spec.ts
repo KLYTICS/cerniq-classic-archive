@@ -68,7 +68,10 @@ describe('TokenBucketLimiter', () => {
     // Consume to create a bucket, then backdate its lastRefill
     limiter.consume('user:1');
     // Access internal buckets to simulate an old entry
-    const buckets = (limiter as any).buckets as Map<string, { tokens: number; lastRefill: number }>;
+    const buckets = (limiter as any).buckets as Map<
+      string,
+      { tokens: number; lastRefill: number }
+    >;
     const bucket = buckets.get('user:1')!;
     bucket.lastRefill = Date.now() - 5000; // 5 seconds ago
 

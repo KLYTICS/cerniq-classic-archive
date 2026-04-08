@@ -25,7 +25,9 @@ describe('ValidationExceptionFilter (enhanced)', () => {
       message: ['name should not be empty', 'email must be an email'],
     });
     filter.catch(exception, mockHost);
-    expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(mockResponse.status).toHaveBeenCalledWith(
+      HttpStatus.UNPROCESSABLE_ENTITY,
+    );
   });
 
   it('returns VALIDATION_ERROR code for array messages', () => {
@@ -93,7 +95,9 @@ describe('ValidationExceptionFilter (enhanced)', () => {
   });
 
   it('handles BadRequestException with object message (not array)', () => {
-    const exception = new BadRequestException({ message: 'simple string message' });
+    const exception = new BadRequestException({
+      message: 'simple string message',
+    });
     filter.catch(exception, mockHost);
     expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
   });

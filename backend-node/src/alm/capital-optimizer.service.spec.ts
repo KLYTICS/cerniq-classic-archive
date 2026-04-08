@@ -75,12 +75,42 @@ describe('CapitalOptimizerService', () => {
 
     beforeEach(() => {
       const items = [
-        { category: 'asset', subcategory: 'cash_equivalents', balance: 30, rate: 0.02 },
-        { category: 'asset', subcategory: 'investment_securities', balance: 50, rate: 0.042 },
-        { category: 'asset', subcategory: 'consumer_loans', balance: 80, rate: 0.065 },
-        { category: 'asset', subcategory: 'commercial_loans', balance: 60, rate: 0.075 },
-        { category: 'liability', subcategory: 'savings_deposits', balance: 120, rate: 0.015 },
-        { category: 'liability', subcategory: 'time_deposits', balance: 60, rate: 0.035 },
+        {
+          category: 'asset',
+          subcategory: 'cash_equivalents',
+          balance: 30,
+          rate: 0.02,
+        },
+        {
+          category: 'asset',
+          subcategory: 'investment_securities',
+          balance: 50,
+          rate: 0.042,
+        },
+        {
+          category: 'asset',
+          subcategory: 'consumer_loans',
+          balance: 80,
+          rate: 0.065,
+        },
+        {
+          category: 'asset',
+          subcategory: 'commercial_loans',
+          balance: 60,
+          rate: 0.075,
+        },
+        {
+          category: 'liability',
+          subcategory: 'savings_deposits',
+          balance: 120,
+          rate: 0.015,
+        },
+        {
+          category: 'liability',
+          subcategory: 'time_deposits',
+          balance: 60,
+          rate: 0.035,
+        },
       ];
       const mockPrisma = {
         balanceSheetItem: {
@@ -94,8 +124,8 @@ describe('CapitalOptimizerService', () => {
       const result = await svcReal.optimize('inst-1');
       expect(result.deltaAllocations.length).toBeGreaterThan(0);
       // First allocation should be a reduction (negative delta)
-      const reduction = result.deltaAllocations.find(d => d.deltaUSD < 0);
-      const increase = result.deltaAllocations.find(d => d.deltaUSD > 0);
+      const reduction = result.deltaAllocations.find((d) => d.deltaUSD < 0);
+      const increase = result.deltaAllocations.find((d) => d.deltaUSD > 0);
       expect(reduction).toBeDefined();
       expect(increase).toBeDefined();
     });
@@ -110,10 +140,10 @@ describe('CapitalOptimizerService', () => {
       const aggressive = await svcReal.optimize('inst-1', 'aggressive');
 
       const consMove = conservative.deltaAllocations
-        .filter(d => d.deltaUSD > 0)
+        .filter((d) => d.deltaUSD > 0)
         .reduce((s, d) => s + d.deltaUSD, 0);
       const aggMove = aggressive.deltaAllocations
-        .filter(d => d.deltaUSD > 0)
+        .filter((d) => d.deltaUSD > 0)
         .reduce((s, d) => s + d.deltaUSD, 0);
 
       expect(aggMove).toBeGreaterThanOrEqual(consMove);
@@ -124,14 +154,18 @@ describe('CapitalOptimizerService', () => {
       const totalAssets = 30 + 50 + 80 + 60;
       for (const delta of result.deltaAllocations) {
         if (delta.deltaUSD > 0) {
-          expect(delta.suggestedBalance / totalAssets).toBeLessThanOrEqual(0.31);
+          expect(delta.suggestedBalance / totalAssets).toBeLessThanOrEqual(
+            0.31,
+          );
         }
       }
     });
 
     it('constraint analysis includes NWR check', async () => {
       const result = await svcReal.optimize('inst-1');
-      const nwrConstraint = result.constraintSlacks.find(c => c.constraint.includes('NWR'));
+      const nwrConstraint = result.constraintSlacks.find((c) =>
+        c.constraint.includes('NWR'),
+      );
       expect(nwrConstraint).toBeDefined();
     });
 

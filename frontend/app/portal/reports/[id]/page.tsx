@@ -7,14 +7,12 @@ import { FileText, Download, ArrowLeft, Clock, AlertTriangle, Globe } from 'luci
 import { analytics, EVENTS } from '@/lib/analytics';
 import { getPublicApiUrl } from '@/lib/api-base';
 import { unwrapApiData } from '@/lib/api-response';
+import { useDocumentExports } from '@/hooks/useDocumentExports';
 
 interface JobDetail {
   id: string;
   institutionName: string;
   status: string;
-  reportUrl: string | null;
-  reportUrlEn: string | null;
-  reportLang: string;
   completedAt: string | null;
   createdAt: string;
   errorMessage: string | null;
@@ -25,6 +23,15 @@ export default function ReportViewer() {
   const [job, setJob] = useState<JobDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [pdfLang, setPdfLang] = useState<'es' | 'en'>('es');
+  const {
+    readyManifests,
+    error: exportError,
+    downloadingId,
+    download,
+  } = useDocumentExports(
+    params.id ? `/api/portal/jobs/${params.id}/exports` : undefined,
+    { enabled: Boolean(params.id) },
+  );
 
   useEffect(() => {
     async function loadJob() {
@@ -36,7 +43,6 @@ export default function ReportViewer() {
             return;
           }
           setJob(data);
-          if (data.reportLang === 'en') setPdfLang('en');
           analytics.track(EVENTS.PORTAL_REPORT_VIEWED, { jobId: data.id, status: data.status });
         }
       } catch { /* silent */ }
@@ -63,7 +69,14 @@ export default function ReportViewer() {
     );
   }
 
-  const currentUrl = pdfLang === 'en' ? job.reportUrlEn : job.reportUrl;
+  const reportManifests = readyManifests.filter((manifest) => manifest.kind === 'alm_report');
+  const currentManifest = reportManifests.find((manifest) => manifest.language === pdfLang)
+    || reportManifests[0]
+    || null;
+  const boardPackManifest = readyManifests.find(
+    (manifest) => manifest.kind === 'alco_pack' && manifest.language === pdfLang,
+  ) || readyManifests.find((manifest) => manifest.kind === 'alco_pack') || null;
+  const currentUrl = currentManifest?.downloadUrl || null;
   const isProcessing = ['QUEUED', 'PROCESSING', 'GENERATING_PDF', 'UPLOADING', 'VALIDATING'].includes(job.status);
 
   return (
@@ -85,7 +98,7 @@ export default function ReportViewer() {
         {job.status === 'COMPLETE' && (
           <div className="flex items-center gap-2">
             {/* Language toggle */}
-            {job.reportUrlEn && job.reportUrl && (
+            {reportManifests.length > 1 && (
               <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => setPdfLang('es')}
@@ -101,19 +114,35 @@ export default function ReportViewer() {
                 </button>
               </div>
             )}
-            {currentUrl && (
-              <a
-                href={currentUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-[#1B3A6B] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#15305a] transition"
+            {currentManifest && (
+              <button
+                onClick={() => void download(currentManifest)}
+                disabled={downloadingId === currentManifest.id}
+                className="inline-flex items-center gap-2 bg-[#1B3A6B] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#15305a] transition disabled:opacity-60"
               >
-                <Download className="h-4 w-4" /> Download PDF
-              </a>
+                <Download className="h-4 w-4" />
+                {downloadingId === currentManifest.id ? 'Preparing...' : 'Download report'}
+              </button>
+            )}
+            {boardPackManifest && (
+              <button
+                onClick={() => void download(boardPackManifest)}
+                disabled={downloadingId === boardPackManifest.id}
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              >
+                <Download className="h-4 w-4" />
+                {downloadingId === boardPackManifest.id ? 'Preparing...' : 'Board package'}
+              </button>
             )}
           </div>
         )}
       </div>
+
+      {exportError && (
+        <div className="border-b border-rose-100 bg-rose-50 px-6 py-2 text-xs text-rose-700">
+          {exportError}
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-auto">

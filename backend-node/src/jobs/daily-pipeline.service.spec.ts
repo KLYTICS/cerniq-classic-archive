@@ -123,15 +123,15 @@ describe('DailyPipelineService', () => {
     });
 
     it('records upsert errors for individual tickers', async () => {
-      mockPrisma.position.findMany.mockResolvedValue([
-        { ticker: 'AAPL' },
-      ]);
+      mockPrisma.position.findMany.mockResolvedValue([{ ticker: 'AAPL' }]);
       mockMarketData.getQuote.mockResolvedValue({
         price: 150,
         change: 1,
         changePercent: 0.5,
       });
-      mockPrisma.marketPrice.upsert.mockRejectedValue(new Error('DB constraint'));
+      mockPrisma.marketPrice.upsert.mockRejectedValue(
+        new Error('DB constraint'),
+      );
 
       const result = await service.runPipeline();
       expect(result.errors.length).toBeGreaterThan(0);
@@ -139,7 +139,9 @@ describe('DailyPipelineService', () => {
     });
 
     it('returns FAILED status when fatal error occurs', async () => {
-      mockPrisma.position.findMany.mockRejectedValue(new Error('DB connection lost'));
+      mockPrisma.position.findMany.mockRejectedValue(
+        new Error('DB connection lost'),
+      );
 
       const result = await service.runPipeline();
       expect(result.status).toBe('FAILED');
@@ -171,9 +173,7 @@ describe('DailyPipelineService', () => {
       mockPrisma.portfolio.findMany.mockResolvedValue([
         {
           id: 'port-1',
-          positions: [
-            { ticker: 'AAPL', quantity: 100, avgCost: 150 },
-          ],
+          positions: [{ ticker: 'AAPL', quantity: 100, avgCost: 150 }],
         },
       ]);
       mockRisk.calculateCorrelationMatrix.mockResolvedValue({ matrix: [] });
@@ -215,7 +215,9 @@ describe('DailyPipelineService', () => {
           positions: [{ ticker: 'AAPL', quantity: 100, avgCost: 150 }],
         },
       ]);
-      mockRisk.calculateCorrelationMatrix.mockRejectedValue(new Error('Corr failed'));
+      mockRisk.calculateCorrelationMatrix.mockRejectedValue(
+        new Error('Corr failed'),
+      );
 
       const result = await service.runPipeline();
       expect(result.errors.length).toBeGreaterThan(0);

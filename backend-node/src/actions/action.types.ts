@@ -108,9 +108,10 @@ export interface ActionResult<TData = unknown> {
  * so existing service methods can be registered as actions without
  * rewriting their return types.
  */
-export type ActionHandler<TInput extends ActionInput = ActionInput, TData = unknown> = (
-  input: TInput,
-) => Promise<ActionResult<TData> | TData>;
+export type ActionHandler<
+  TInput extends ActionInput = ActionInput,
+  TData = unknown,
+> = (input: TInput) => Promise<ActionResult<TData> | TData>;
 
 /**
  * A registered action — metadata + handler. Internal to the registry;

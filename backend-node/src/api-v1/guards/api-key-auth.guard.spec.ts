@@ -1,4 +1,8 @@
-import { UnauthorizedException, ForbiddenException, ExecutionContext } from '@nestjs/common';
+import {
+  UnauthorizedException,
+  ForbiddenException,
+  ExecutionContext,
+} from '@nestjs/common';
 import { ApiKeyAuthGuard } from './api-key-auth.guard';
 
 // Mock the hashApiKey utility
@@ -6,7 +10,9 @@ jest.mock('../../auth/api-key.util', () => ({
   hashApiKey: jest.fn((token: string) => `hashed_${token}`),
 }));
 
-function createMockContext(headers: Record<string, string> = {}): ExecutionContext {
+function createMockContext(
+  headers: Record<string, string> = {},
+): ExecutionContext {
   const request: any = {
     headers,
   };
@@ -68,7 +74,9 @@ describe('ApiKeyAuthGuard', () => {
 
   it('throws UnauthorizedException when API key is not found in database', async () => {
     mockPrisma.apiKey.findUnique.mockResolvedValue(null);
-    const ctx = createMockContext({ authorization: 'Bearer ck_live_testkey123' });
+    const ctx = createMockContext({
+      authorization: 'Bearer ck_live_testkey123',
+    });
     await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
     await expect(guard.canActivate(ctx)).rejects.toThrow('Invalid API key');
   });
@@ -80,7 +88,9 @@ describe('ApiKeyAuthGuard', () => {
       keyPrefix: 'ck_live_',
       user: null,
     });
-    const ctx = createMockContext({ authorization: 'Bearer ck_live_testkey123' });
+    const ctx = createMockContext({
+      authorization: 'Bearer ck_live_testkey123',
+    });
     await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
   });
 
@@ -93,7 +103,9 @@ describe('ApiKeyAuthGuard', () => {
       expiresAt: null,
       user: { id: 'user-1', email: 'test@example.com', subscription: null },
     });
-    const ctx = createMockContext({ authorization: 'Bearer ck_live_testkey123' });
+    const ctx = createMockContext({
+      authorization: 'Bearer ck_live_testkey123',
+    });
     await expect(guard.canActivate(ctx)).rejects.toThrow(ForbiddenException);
     await expect(guard.canActivate(ctx)).rejects.toThrow('revoked');
   });
@@ -107,7 +119,9 @@ describe('ApiKeyAuthGuard', () => {
       expiresAt: new Date('2020-01-01'), // expired in the past
       user: { id: 'user-1', email: 'test@example.com', subscription: null },
     });
-    const ctx = createMockContext({ authorization: 'Bearer ck_live_testkey123' });
+    const ctx = createMockContext({
+      authorization: 'Bearer ck_live_testkey123',
+    });
     await expect(guard.canActivate(ctx)).rejects.toThrow(ForbiddenException);
     await expect(guard.canActivate(ctx)).rejects.toThrow('expired');
   });
@@ -126,7 +140,9 @@ describe('ApiKeyAuthGuard', () => {
       },
     });
 
-    const request: any = { headers: { authorization: 'Bearer ck_live_testkey123' } };
+    const request: any = {
+      headers: { authorization: 'Bearer ck_live_testkey123' },
+    };
     const ctx = {
       switchToHttp: () => ({
         getRequest: () => request,
@@ -156,7 +172,9 @@ describe('ApiKeyAuthGuard', () => {
       },
     });
 
-    const request: any = { headers: { authorization: 'Bearer ck_live_testkey123' } };
+    const request: any = {
+      headers: { authorization: 'Bearer ck_live_testkey123' },
+    };
     const ctx = {
       switchToHttp: () => ({
         getRequest: () => request,
@@ -181,7 +199,9 @@ describe('ApiKeyAuthGuard', () => {
       },
     });
 
-    const request: any = { headers: { authorization: 'Bearer ck_live_testkey123' } };
+    const request: any = {
+      headers: { authorization: 'Bearer ck_live_testkey123' },
+    };
     const ctx = {
       switchToHttp: () => ({
         getRequest: () => request,
@@ -206,7 +226,9 @@ describe('ApiKeyAuthGuard', () => {
       },
     });
 
-    const request: any = { headers: { authorization: 'Bearer ck_live_testkey123' } };
+    const request: any = {
+      headers: { authorization: 'Bearer ck_live_testkey123' },
+    };
     const ctx = {
       switchToHttp: () => ({
         getRequest: () => request,
@@ -231,7 +253,9 @@ describe('ApiKeyAuthGuard', () => {
       },
     });
 
-    const request: any = { headers: { authorization: 'Bearer ck_live_testkey123' } };
+    const request: any = {
+      headers: { authorization: 'Bearer ck_live_testkey123' },
+    };
     const ctx = {
       switchToHttp: () => ({
         getRequest: () => request,
@@ -260,7 +284,9 @@ describe('ApiKeyAuthGuard', () => {
     });
     mockPrisma.apiKey.update.mockResolvedValue({});
 
-    const request: any = { headers: { authorization: 'Bearer ck_live_testkey123' } };
+    const request: any = {
+      headers: { authorization: 'Bearer ck_live_testkey123' },
+    };
     const ctx = {
       switchToHttp: () => ({
         getRequest: () => request,
@@ -289,7 +315,9 @@ describe('ApiKeyAuthGuard', () => {
     });
     mockPrisma.apiKey.update.mockRejectedValue(new Error('DB error'));
 
-    const request: any = { headers: { authorization: 'Bearer ck_live_testkey123' } };
+    const request: any = {
+      headers: { authorization: 'Bearer ck_live_testkey123' },
+    };
     const ctx = {
       switchToHttp: () => ({
         getRequest: () => request,
@@ -317,7 +345,9 @@ describe('ApiKeyAuthGuard', () => {
       },
     });
 
-    const request: any = { headers: { authorization: 'Bearer ck_live_testkey123' } };
+    const request: any = {
+      headers: { authorization: 'Bearer ck_live_testkey123' },
+    };
     const ctx = {
       switchToHttp: () => ({
         getRequest: () => request,

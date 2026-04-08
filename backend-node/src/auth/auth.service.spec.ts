@@ -1131,7 +1131,12 @@ describe('AuthService', () => {
   // ── validateOAuthUser ─────────────────────────────
   describe('validateOAuthUser', () => {
     it('returns existing user matched by provider+providerId', async () => {
-      const existingUser = { id: 'oauth-u1', email: 'oauth@test.com', provider: 'google', providerId: 'gid-1' };
+      const existingUser = {
+        id: 'oauth-u1',
+        email: 'oauth@test.com',
+        provider: 'google',
+        providerId: 'gid-1',
+      };
       prisma.user.findFirst.mockResolvedValue(existingUser);
       prisma.user.update.mockResolvedValue(existingUser);
 
@@ -1148,8 +1153,16 @@ describe('AuthService', () => {
 
     it('links OAuth to existing email account when provider not found', async () => {
       prisma.user.findFirst.mockResolvedValue(null); // no provider match
-      prisma.user.findUnique.mockResolvedValue({ id: 'email-u1', email: 'shared@test.com', avatarUrl: null });
-      prisma.user.update.mockResolvedValue({ id: 'email-u1', provider: 'github', providerId: 'gh-1' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'email-u1',
+        email: 'shared@test.com',
+        avatarUrl: null,
+      });
+      prisma.user.update.mockResolvedValue({
+        id: 'email-u1',
+        provider: 'github',
+        providerId: 'gh-1',
+      });
 
       const result = await service.validateOAuthUser({
         email: 'shared@test.com',
@@ -1173,7 +1186,11 @@ describe('AuthService', () => {
     it('creates new user + workspace when no existing user found', async () => {
       prisma.user.findFirst.mockResolvedValue(null);
       prisma.user.findUnique.mockResolvedValue(null);
-      prisma.user.create.mockResolvedValue({ id: 'new-oauth', email: 'new@oauth.com', name: 'New OAuth' });
+      prisma.user.create.mockResolvedValue({
+        id: 'new-oauth',
+        email: 'new@oauth.com',
+        name: 'New OAuth',
+      });
       prisma.workspace.create.mockResolvedValue({});
       prisma.user.update.mockResolvedValue({});
 
@@ -1203,7 +1220,10 @@ describe('AuthService', () => {
         provider: 'email',
         emailVerified: true,
         organizationMembers: [
-          { organization: { id: 'org-1', name: 'Test Org', slug: 'test-org' }, role: 'admin' },
+          {
+            organization: { id: 'org-1', name: 'Test Org', slug: 'test-org' },
+            role: 'admin',
+          },
         ],
       });
 
@@ -1217,19 +1237,27 @@ describe('AuthService', () => {
     it('throws UnauthorizedException when user not found', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.getUserProfile('nonexistent')).rejects.toThrow('User not found');
+      await expect(service.getUserProfile('nonexistent')).rejects.toThrow(
+        'User not found',
+      );
     });
   });
 
   // ── generateTokens (session eviction) ─────────────
   describe('generateTokens', () => {
     it('evicts oldest sessions when exceeding MAX_SESSIONS', async () => {
-      const activeSessions = Array.from({ length: 7 }, (_, i) => ({ id: `rt-${i}` }));
+      const activeSessions = Array.from({ length: 7 }, (_, i) => ({
+        id: `rt-${i}`,
+      }));
       prisma.refreshToken.create.mockResolvedValue({});
       prisma.refreshToken.findMany.mockResolvedValue(activeSessions);
       prisma.refreshToken.updateMany.mockResolvedValue({ count: 2 });
 
-      await service.generateTokens({ id: 'u-evict', email: 'evict@test.com', name: 'Evict' });
+      await service.generateTokens({
+        id: 'u-evict',
+        email: 'evict@test.com',
+        name: 'Evict',
+      });
 
       // Should revoke the 2 oldest (7 - 5 = 2)
       expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
@@ -1270,10 +1298,16 @@ describe('AuthService', () => {
 
       jest.spyOn(global, 'fetch').mockImplementation(async (url: any) => {
         if (url.includes('memberships')) {
-          return { ok: true, json: async () => [{ org_id: 'org-1', role: 'admin' }] } as Response;
+          return {
+            ok: true,
+            json: async () => [{ org_id: 'org-1', role: 'admin' }],
+          } as Response;
         }
         if (url.includes('org_apps')) {
-          return { ok: true, json: async () => [{ app_id: 'cerniq' }] } as Response;
+          return {
+            ok: true,
+            json: async () => [{ app_id: 'cerniq' }],
+          } as Response;
         }
         return { ok: false } as Response;
       });
@@ -1309,7 +1343,13 @@ describe('AuthService', () => {
 
       jest.spyOn(global, 'fetch').mockImplementation(async (url: any) => {
         if (url.includes('memberships')) {
-          return { ok: true, json: async () => [{ org_id: null, role: 'admin' }, { org_id: 'org-2', role: 'viewer' }] } as Response;
+          return {
+            ok: true,
+            json: async () => [
+              { org_id: null, role: 'admin' },
+              { org_id: 'org-2', role: 'viewer' },
+            ],
+          } as Response;
         }
         if (url.includes('org_apps')) {
           return { ok: true, json: async () => [] } as Response;

@@ -319,9 +319,7 @@ export class EmailService {
         ? `${data.daysRemaining} día${data.daysRemaining === 1 ? '' : 's'} restante${data.daysRemaining === 1 ? '' : 's'} — su análisis CERNIQ`
         : `${data.daysRemaining} day${data.daysRemaining === 1 ? '' : 's'} left on your CERNIQ analysis`;
     const ctaText =
-      data.language === 'es'
-        ? 'Mantener mi análisis'
-        : 'Keep my analysis';
+      data.language === 'es' ? 'Mantener mi análisis' : 'Keep my analysis';
 
     const bodyEs = `<p>Hola ${data.name || ''},</p>
        <p>Un recordatorio rápido: su análisis CERNIQ de <strong>${data.institutionName}</strong> expira en <strong>${data.daysRemaining} día${data.daysRemaining === 1 ? '' : 's'}</strong>.</p>

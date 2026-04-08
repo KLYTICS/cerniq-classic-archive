@@ -103,9 +103,21 @@ describe('VendorIntelligenceService', () => {
 
     it('groups expenses by vendor and calculates totals', () => {
       const expenses = [
-        { merchantName: 'Acme Corp', amount: 1000, transactionDate: new Date('2026-01-15') },
-        { merchantName: 'Acme Corp', amount: 2000, transactionDate: new Date('2026-02-15') },
-        { merchantName: 'Beta Inc', amount: 500, transactionDate: new Date('2026-01-20') },
+        {
+          merchantName: 'Acme Corp',
+          amount: 1000,
+          transactionDate: new Date('2026-01-15'),
+        },
+        {
+          merchantName: 'Acme Corp',
+          amount: 2000,
+          transactionDate: new Date('2026-02-15'),
+        },
+        {
+          merchantName: 'Beta Inc',
+          amount: 500,
+          transactionDate: new Date('2026-01-20'),
+        },
       ];
       const r = service.generateVendorReport(expenses);
       expect(r).toHaveLength(2);
@@ -118,8 +130,16 @@ describe('VendorIntelligenceService', () => {
 
     it('calculates percent of total spend', () => {
       const expenses = [
-        { merchantName: 'Vendor A', amount: 750, transactionDate: new Date('2026-01-01') },
-        { merchantName: 'Vendor B', amount: 250, transactionDate: new Date('2026-01-02') },
+        {
+          merchantName: 'Vendor A',
+          amount: 750,
+          transactionDate: new Date('2026-01-01'),
+        },
+        {
+          merchantName: 'Vendor B',
+          amount: 250,
+          transactionDate: new Date('2026-01-02'),
+        },
       ];
       const r = service.generateVendorReport(expenses);
       expect(r[0].percentOfTotalSpend).toBe(75);
@@ -128,9 +148,21 @@ describe('VendorIntelligenceService', () => {
 
     it('tracks latest transaction date per vendor', () => {
       const expenses = [
-        { merchantName: 'Vendor A', amount: 100, transactionDate: new Date('2026-01-01') },
-        { merchantName: 'Vendor A', amount: 200, transactionDate: new Date('2026-03-01') },
-        { merchantName: 'Vendor A', amount: 150, transactionDate: new Date('2026-02-01') },
+        {
+          merchantName: 'Vendor A',
+          amount: 100,
+          transactionDate: new Date('2026-01-01'),
+        },
+        {
+          merchantName: 'Vendor A',
+          amount: 200,
+          transactionDate: new Date('2026-03-01'),
+        },
+        {
+          merchantName: 'Vendor A',
+          amount: 150,
+          transactionDate: new Date('2026-02-01'),
+        },
       ];
       const r = service.generateVendorReport(expenses);
       expect(r[0].latestTransactionDate).toEqual(new Date('2026-03-01'));
@@ -138,8 +170,16 @@ describe('VendorIntelligenceService', () => {
 
     it('normalizes vendor names case-insensitively', () => {
       const expenses = [
-        { merchantName: 'ACME CORP', amount: 100, transactionDate: new Date('2026-01-01') },
-        { merchantName: 'acme corp', amount: 200, transactionDate: new Date('2026-01-02') },
+        {
+          merchantName: 'ACME CORP',
+          amount: 100,
+          transactionDate: new Date('2026-01-01'),
+        },
+        {
+          merchantName: 'acme corp',
+          amount: 200,
+          transactionDate: new Date('2026-01-02'),
+        },
       ];
       const r = service.generateVendorReport(expenses);
       expect(r).toHaveLength(1);
@@ -148,9 +188,21 @@ describe('VendorIntelligenceService', () => {
 
     it('sorts by spend descending', () => {
       const expenses = [
-        { merchantName: 'Small', amount: 100, transactionDate: new Date('2026-01-01') },
-        { merchantName: 'Big', amount: 10000, transactionDate: new Date('2026-01-01') },
-        { merchantName: 'Medium', amount: 1000, transactionDate: new Date('2026-01-01') },
+        {
+          merchantName: 'Small',
+          amount: 100,
+          transactionDate: new Date('2026-01-01'),
+        },
+        {
+          merchantName: 'Big',
+          amount: 10000,
+          transactionDate: new Date('2026-01-01'),
+        },
+        {
+          merchantName: 'Medium',
+          amount: 1000,
+          transactionDate: new Date('2026-01-01'),
+        },
       ];
       const r = service.generateVendorReport(expenses);
       expect(r[0].vendorName).toBe('Big');
@@ -160,18 +212,36 @@ describe('VendorIntelligenceService', () => {
 
     it('matches known profiles in report', () => {
       const expenses = [
-        { merchantName: 'LUMA Energy', amount: 28000, transactionDate: new Date('2026-01-01') },
-        { merchantName: 'Unknown XYZ', amount: 5000, transactionDate: new Date('2026-01-01') },
+        {
+          merchantName: 'LUMA Energy',
+          amount: 28000,
+          transactionDate: new Date('2026-01-01'),
+        },
+        {
+          merchantName: 'Unknown XYZ',
+          amount: 5000,
+          transactionDate: new Date('2026-01-01'),
+        },
       ];
       const r = service.generateVendorReport(expenses);
-      expect(r.find((v) => v.vendorName === 'LUMA Energy')!.match).not.toBeNull();
+      expect(
+        r.find((v) => v.vendorName === 'LUMA Energy')!.match,
+      ).not.toBeNull();
       expect(r.find((v) => v.vendorName === 'Unknown XYZ')!.match).toBeNull();
     });
 
     it('rounds quarterlyTotal to 2 decimal places', () => {
       const expenses = [
-        { merchantName: 'V', amount: 33.333, transactionDate: new Date('2026-01-01') },
-        { merchantName: 'V', amount: 66.667, transactionDate: new Date('2026-01-01') },
+        {
+          merchantName: 'V',
+          amount: 33.333,
+          transactionDate: new Date('2026-01-01'),
+        },
+        {
+          merchantName: 'V',
+          amount: 66.667,
+          transactionDate: new Date('2026-01-01'),
+        },
       ];
       const r = service.generateVendorReport(expenses);
       expect(r[0].quarterlyTotal).toBe(100);
@@ -179,7 +249,11 @@ describe('VendorIntelligenceService', () => {
 
     it('handles single expense', () => {
       const expenses = [
-        { merchantName: 'Solo', amount: 500, transactionDate: new Date('2026-03-15') },
+        {
+          merchantName: 'Solo',
+          amount: 500,
+          transactionDate: new Date('2026-03-15'),
+        },
       ];
       const r = service.generateVendorReport(expenses);
       expect(r).toHaveLength(1);

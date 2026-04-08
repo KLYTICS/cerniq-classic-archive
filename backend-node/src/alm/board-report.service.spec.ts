@@ -147,8 +147,8 @@ describe('BoardReportService', () => {
     expect(result.kpis.nplRatio).toBeNull();
 
     expect(result.gaps).toBeDefined();
-    const warningFields = result.gaps!
-      .filter((g) => g.severity === 'WARNING')
+    const warningFields = result
+      .gaps!.filter((g) => g.severity === 'WARNING')
       .map((g) => g.field);
     expect(warningFields).toEqual(
       expect.arrayContaining([

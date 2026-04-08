@@ -13,6 +13,7 @@ import {
   UploadedFile,
   BadRequestException,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
 import { AlmService } from './alm.service';
@@ -36,6 +37,7 @@ import { LiquidityAdvancedService } from './liquidity-advanced.service';
 import { ConcentrationService } from './concentration.service';
 import { NCUADataPullService } from './data-pull/ncua-data-pull.service';
 import { SampleReportFactoryService } from './sample-report-factory.service';
+import { AlmDocumentExportsService } from './alm-document-exports.service';
 // Phase IV services
 import { LiquidityStressPackService } from './liquidity-stress-pack.service';
 import { IRRPolicyService } from './irr-policy.service';
@@ -103,6 +105,7 @@ import { TrendAnalysisService } from './trend-analysis.service';
 import { DataExportService } from './data-export.service';
 import { CustomScenarioService } from './custom-scenario.service';
 import { ExcelExportService } from './excel-export.service';
+import { buildPdfResponseHeaders } from './document-exports.util';
 import {
   ApiTags,
   ApiOperation,
@@ -232,6 +235,7 @@ export class AlmController {
     private readonly dataExport: DataExportService,
     private readonly customScenario: CustomScenarioService,
     private readonly excelExport: ExcelExportService,
+    private readonly documentExports: AlmDocumentExportsService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -553,7 +557,10 @@ export class AlmController {
   }
 
   @Get('templates/:type')
-  getCSVTemplate(@Param('type') type: string, @Res() res: any) {
+  getCSVTemplate(
+    @Param('type') type: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const csv =
       type === 'cooperativa'
         ? this.csvIngestion.getCooperativaTemplate()
@@ -564,8 +571,7 @@ export class AlmController {
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': `attachment; filename="${filename}"`,
     });
-    // BOM for Excel UTF-8 compatibility
-    res.send('\uFEFF' + csv);
+    return '\uFEFF' + csv;
   }
 
   @Post('seed-demo')
@@ -583,9 +589,9 @@ export class AlmController {
     return this.workspaceOnboarding.seedDemoData(body.workspaceId, body.type);
   }
 
-  // ─── Institution fixture seeding (Phase 1, idempotent, transactional) ──
-  // Re-running this endpoint with the same (workspaceId, fixtureKey) is a
-  // supported no-op — see docs/SESSION_HANDOFF.md for the pickup contract.
+  // ─── Institution fixture seeding (idempotent, transactional) ──────────
+  // The new pickup-friendly path. Re-running this endpoint with the same
+  // (workspaceId, fixtureKey) is a supported no-op — see SESSION_HANDOFF.md.
 
   @Get('fixtures')
   @UseGuards(AuthGuard)
@@ -621,10 +627,12 @@ export class AlmController {
     return this.institutionSeed.seedFromFixture(body.workspaceId, body.fixture);
   }
 
-  // ─── Report preflight (Phase 2 batch 4, D4 2026-04-07) ──────────────
-  // Central "is this report safe to ship?" API. Returns unified gap manifest
-  // from every ALM sub-call plus ready: boolean. Frontends gate download
-  // buttons on ready === true; the action registry uses it as a precheck.
+  // ─── Report preflight (D1, 2026-04-07) ────────────────────────
+  // The "is this report safe to ship?" API. Returns the unified gap manifest
+  // from every ALM sub-call (LCR, COSSEC, regulatory stress) plus a
+  // `ready: boolean`. Frontend gates download buttons on `ready === true`,
+  // the action registry uses it as a precheck before dispatching report
+  // generation, and the audit pipeline logs it for compliance review.
 
   @Get(':institutionId/preflight')
   @UseGuards(AuthGuard)
@@ -1015,20 +1023,51 @@ export class AlmController {
     this.logger.log(
       `PDF report requested for institution ${institutionId} (lang=${lang || 'en'})`,
     );
-    const buffer = await this.reportsService.generateALMReport(
+    const document = await this.documentExports.generateInstitutionExport(
       institutionId,
-      lang,
+      lang === 'es' ? 'es' : 'en',
     );
-    const institution = await this.almEnterprise.getInstitution(institutionId);
-    const dateStr = new Date().toISOString().split('T')[0];
-    const filename = `alm-report-${institution.name.replace(/\s+/g, '-').toLowerCase()}-${dateStr}.pdf`;
+    res.set(buildPdfResponseHeaders(document.manifest, document.buffer.length));
+    res.end(document.buffer);
+  }
 
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Content-Length': buffer.length,
-    });
-    res.end(buffer);
+  @Get(':institutionId/exports')
+  @UseGuards(AuthGuard)
+  @ApiOperation({
+    summary: 'List team-ready export manifests for an institution',
+  })
+  @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Export manifests for institutional documents',
+  })
+  async listInstitutionExports(@Param('institutionId') institutionId: string) {
+    return this.documentExports.listInstitutionExports(institutionId);
+  }
+
+  @Get('previews/:slug/exports')
+  @ApiOperation({
+    summary: 'List export manifests for a public preview document',
+  })
+  async listPreviewExports(@Param('slug') slug: string) {
+    return this.documentExports.listPreviewExports(slug);
+  }
+
+  @Get('previews/:slug/report')
+  @ApiOperation({
+    summary: 'Download a public preview document as PDF',
+  })
+  async downloadPreviewReport(
+    @Param('slug') slug: string,
+    @Query('lang') lang: string,
+    @Res() res: any,
+  ) {
+    const document = await this.documentExports.generatePreviewExport(
+      slug,
+      lang === 'en' ? 'en' : 'es',
+    );
+    res.set(buildPdfResponseHeaders(document.manifest, document.buffer.length));
+    res.end(document.buffer);
   }
 
   // ─── MP-003: CECL Vintage Analyzer ──────────────────────────────
@@ -1903,16 +1942,39 @@ export class AlmController {
     this.logger.log(
       `Sample report requested for charter ${body.charterNumber}`,
     );
-    const buffer = await this.sampleReportFactory.generateSampleReport(
+    const document = await this.documentExports.generateSampleExport(
       body.charterNumber,
-      body.lang,
+      body.lang === 'es' ? 'es' : 'en',
     );
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="sample-alm-report-${body.charterNumber}.pdf"`,
-      'Content-Length': buffer.length,
-    });
-    res.end(buffer);
+    res.set(buildPdfResponseHeaders(document.manifest, document.buffer.length));
+    res.end(document.buffer);
+  }
+
+  @Get('sample-report/:charterNumber/exports')
+  @UseGuards(AuthGuard)
+  @ApiOperation({
+    summary: 'List export manifests for sample report documents',
+  })
+  async listSampleReportExports(@Param('charterNumber') charterNumber: string) {
+    return this.documentExports.listSampleExports(charterNumber);
+  }
+
+  @Get('sample-report/:charterNumber')
+  @UseGuards(AuthGuard)
+  @ApiOperation({
+    summary: 'Download a sample report document as PDF',
+  })
+  async downloadSampleReport(
+    @Param('charterNumber') charterNumber: string,
+    @Query('lang') lang: string,
+    @Res() res: any,
+  ) {
+    const document = await this.documentExports.generateSampleExport(
+      charterNumber,
+      lang === 'es' ? 'es' : 'en',
+    );
+    res.set(buildPdfResponseHeaders(document.manifest, document.buffer.length));
+    res.end(document.buffer);
   }
 
   @Post('sample-report/prospect')

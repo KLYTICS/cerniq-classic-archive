@@ -69,7 +69,13 @@ describe('AlmAdvisorV2Service', () => {
       const result = await service.computeHealthScore('inst-1');
       expect(result.overall).toBeGreaterThan(0);
       expect(result.overall).toBeLessThanOrEqual(100);
-      expect(result.capital + result.liquidity + result.rateRisk + result.credit + result.concentration).toBe(result.overall);
+      expect(
+        result.capital +
+          result.liquidity +
+          result.rateRisk +
+          result.credit +
+          result.concentration,
+      ).toBe(result.overall);
     });
 
     // ── Label assignments ──
@@ -360,10 +366,14 @@ describe('AlmAdvisorV2Service', () => {
 
   describe('buildRegPulse', () => {
     it('returns default messages when calendar service throws', async () => {
-      mockComplianceCalendar.getUpcomingDeadlines.mockRejectedValue(new Error('fail'));
+      mockComplianceCalendar.getUpcomingDeadlines.mockRejectedValue(
+        new Error('fail'),
+      );
       const pulse = await service.buildRegPulse('inst-1');
       expect(pulse.next30).toBe('No deadlines in this period.');
-      expect(pulse.next30Es).toBe('Sin fechas l\u00edmite pendientes en este per\u00edodo.');
+      expect(pulse.next30Es).toBe(
+        'Sin fechas l\u00edmite pendientes en este per\u00edodo.',
+      );
       expect(pulse.criticalDeadlines).toEqual([]);
     });
 
@@ -371,9 +381,22 @@ describe('AlmAdvisorV2Service', () => {
       const now = Date.now();
       mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({
         events: [
-          { title: 'Filing A', titleEs: 'Informe A', deadlineDate: new Date(now + 10 * 86400000).toISOString(), urgency: 'CRITICAL' },
-          { title: 'Filing B', deadlineDate: new Date(now + 45 * 86400000).toISOString(), urgency: 'HIGH' },
-          { title: 'Filing C', deadlineDate: new Date(now + 75 * 86400000).toISOString(), urgency: 'MEDIUM' },
+          {
+            title: 'Filing A',
+            titleEs: 'Informe A',
+            deadlineDate: new Date(now + 10 * 86400000).toISOString(),
+            urgency: 'CRITICAL',
+          },
+          {
+            title: 'Filing B',
+            deadlineDate: new Date(now + 45 * 86400000).toISOString(),
+            urgency: 'HIGH',
+          },
+          {
+            title: 'Filing C',
+            deadlineDate: new Date(now + 75 * 86400000).toISOString(),
+            urgency: 'MEDIUM',
+          },
         ],
       });
       const pulse = await service.buildRegPulse('inst-1');
@@ -387,7 +410,12 @@ describe('AlmAdvisorV2Service', () => {
       const now = Date.now();
       mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({
         events: [
-          { title: 'Filing A', titleEs: 'Informe A', deadlineDate: new Date(now + 5 * 86400000).toISOString(), urgency: 'LOW' },
+          {
+            title: 'Filing A',
+            titleEs: 'Informe A',
+            deadlineDate: new Date(now + 5 * 86400000).toISOString(),
+            urgency: 'LOW',
+          },
         ],
       });
       const pulse = await service.buildRegPulse('inst-1');
@@ -398,7 +426,11 @@ describe('AlmAdvisorV2Service', () => {
       const now = Date.now();
       mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({
         events: [
-          { title: 'Overdue X', deadlineDate: new Date(now + 5 * 86400000).toISOString(), urgency: 'OVERDUE' },
+          {
+            title: 'Overdue X',
+            deadlineDate: new Date(now + 5 * 86400000).toISOString(),
+            urgency: 'OVERDUE',
+          },
         ],
       });
       const pulse = await service.buildRegPulse('inst-1');
@@ -406,7 +438,9 @@ describe('AlmAdvisorV2Service', () => {
     });
 
     it('returns empty strings for windows with no events', async () => {
-      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({ events: [] });
+      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({
+        events: [],
+      });
       const pulse = await service.buildRegPulse('inst-1');
       expect(pulse.next30).toBe('No deadlines in this period.');
       expect(pulse.next60).toBe('No deadlines in this period.');
@@ -423,7 +457,9 @@ describe('AlmAdvisorV2Service', () => {
         liquidity: { lcr: 120 },
         durationGap: { durationGap: 1.5 },
       });
-      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({ events: [] });
+      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({
+        events: [],
+      });
       delete process.env.ANTHROPIC_API_KEY;
       delete process.env.OPENAI_API_KEY;
     });
@@ -460,7 +496,9 @@ describe('AlmAdvisorV2Service', () => {
         liquidity: { lcr: 120 },
         durationGap: { durationGap: 1.5 },
       });
-      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({ events: [] });
+      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({
+        events: [],
+      });
     });
 
     it('returns a complete AdvisorNarrative object in English', async () => {
@@ -481,7 +519,11 @@ describe('AlmAdvisorV2Service', () => {
       const now = Date.now();
       mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({
         events: [
-          { title: 'Urgent Filing', deadlineDate: new Date(now + 5 * 86400000).toISOString(), urgency: 'CRITICAL' },
+          {
+            title: 'Urgent Filing',
+            deadlineDate: new Date(now + 5 * 86400000).toISOString(),
+            urgency: 'CRITICAL',
+          },
         ],
       });
       const result = await service.getStaticNarrative('inst-1', 'en');
@@ -498,7 +540,9 @@ describe('AlmAdvisorV2Service', () => {
         liquidity: { lcr: 120 },
         durationGap: { durationGap: 1.5 },
       });
-      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({ events: [] });
+      mockComplianceCalendar.getUpcomingDeadlines.mockResolvedValue({
+        events: [],
+      });
     });
 
     afterEach(() => {

@@ -29,6 +29,11 @@ function createPrismaMock() {
   const refreshTokens: any[] = [];
   const workspaces: any[] = [];
   const auditLogs: any[] = [];
+  const activeSubscription = {
+    tier: 'monthly',
+    status: 'active',
+    currentPeriodEnd: new Date(Date.now() + 7 * 86400_000),
+  };
 
   return {
     $connect: jest.fn(),
@@ -40,12 +45,19 @@ function createPrismaMock() {
 
     user: {
       findUnique: jest.fn().mockImplementation(({ where }: any) => {
-        return Promise.resolve(
+        const user =
           users.find(
             (u) =>
               (where.email && u.email === where.email) ||
               (where.id && u.id === where.id),
-          ) || null,
+          ) || null;
+        return Promise.resolve(
+          user
+            ? {
+                ...user,
+                subscription: user.subscription ?? activeSubscription,
+              }
+            : null,
         );
       }),
       findFirst: jest.fn().mockResolvedValue(null),
@@ -63,6 +75,7 @@ function createPrismaMock() {
           createdAt: new Date(),
           lastLoginAt: null,
           organizationMembers: [],
+          subscription: activeSubscription,
         };
         users.push(user);
         return Promise.resolve(user);
@@ -101,6 +114,13 @@ function createPrismaMock() {
         const ws = { id: crypto.randomUUID(), ...data, createdAt: new Date() };
         workspaces.push(ws);
         return Promise.resolve(ws);
+      }),
+      findFirst: jest.fn().mockImplementation(({ where }: any = {}) => {
+        return Promise.resolve(
+          workspaces.find((ws) =>
+            where?.ownerId ? ws.ownerId === where.ownerId : true,
+          ) || null,
+        );
       }),
       findMany: jest.fn().mockResolvedValue([]),
     },

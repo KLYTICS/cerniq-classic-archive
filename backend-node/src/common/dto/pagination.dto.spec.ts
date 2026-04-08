@@ -103,7 +103,11 @@ describe('PaginationQueryDto', () => {
 describe('paginate', () => {
   it('should return correct paginated result', () => {
     const items = [1, 2, 3];
-    const query: PaginationQueryDto = { page: 2, pageSize: 10, sortOrder: 'desc' };
+    const query: PaginationQueryDto = {
+      page: 2,
+      pageSize: 10,
+      sortOrder: 'desc',
+    };
     const result = paginate(items, 25, query);
 
     expect(result.items).toEqual([1, 2, 3]);
@@ -131,19 +135,31 @@ describe('paginate', () => {
   });
 
   it('should calculate totalPages correctly for exact division', () => {
-    const query: PaginationQueryDto = { page: 1, pageSize: 5, sortOrder: 'desc' };
+    const query: PaginationQueryDto = {
+      page: 1,
+      pageSize: 5,
+      sortOrder: 'desc',
+    };
     const result = paginate([], 20, query);
     expect(result.totalPages).toBe(4);
   });
 
   it('should calculate totalPages correctly for non-exact division', () => {
-    const query: PaginationQueryDto = { page: 1, pageSize: 5, sortOrder: 'desc' };
+    const query: PaginationQueryDto = {
+      page: 1,
+      pageSize: 5,
+      sortOrder: 'desc',
+    };
     const result = paginate([], 21, query);
     expect(result.totalPages).toBe(5); // ceil(21/5)
   });
 
   it('should handle zero total', () => {
-    const query: PaginationQueryDto = { page: 1, pageSize: 20, sortOrder: 'desc' };
+    const query: PaginationQueryDto = {
+      page: 1,
+      pageSize: 20,
+      sortOrder: 'desc',
+    };
     const result = paginate([], 0, query);
     expect(result.totalPages).toBe(0);
     expect(result.items).toEqual([]);

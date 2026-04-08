@@ -18,7 +18,10 @@ describe('ValuationController', () => {
 
   describe('getValuation (POST /calculate)', () => {
     it('returns valuation result on success', async () => {
-      mockService.getValuation.mockResolvedValue({ fairValue: 200, upside: 15 });
+      mockService.getValuation.mockResolvedValue({
+        fairValue: 200,
+        upside: 15,
+      });
       const result = await controller.getValuation({ ticker: 'AAPL' });
       expect(result).toEqual({ fairValue: 200, upside: 15 });
       expect(mockService.getValuation).toHaveBeenCalledWith({ ticker: 'AAPL' });
@@ -26,7 +29,9 @@ describe('ValuationController', () => {
 
     it('throws HttpException with error message on failure', async () => {
       mockService.getValuation.mockRejectedValue(new Error('Ticker not found'));
-      await expect(controller.getValuation({ ticker: 'INVALID' })).rejects.toThrow(HttpException);
+      await expect(
+        controller.getValuation({ ticker: 'INVALID' }),
+      ).rejects.toThrow(HttpException);
     });
 
     it('uses error.status if available', async () => {
@@ -98,7 +103,9 @@ describe('ValuationController', () => {
 
   describe('runScreener (GET /screener)', () => {
     it('returns screener results on success', async () => {
-      mockService.runScreener.mockResolvedValue([{ ticker: 'AAPL', score: 80 }]);
+      mockService.runScreener.mockResolvedValue([
+        { ticker: 'AAPL', score: 80 },
+      ]);
       const result = await controller.runScreener({});
       expect(result).toHaveLength(1);
       expect(result[0].ticker).toBe('AAPL');
@@ -147,7 +154,9 @@ describe('ValuationController', () => {
 
     it('throws HttpException on failure', async () => {
       mockService.getValuation.mockRejectedValue(new Error('Engine failed'));
-      await expect(controller.getCyclicalValuation('X')).rejects.toThrow(HttpException);
+      await expect(controller.getCyclicalValuation('X')).rejects.toThrow(
+        HttpException,
+      );
     });
   });
 
@@ -165,7 +174,9 @@ describe('ValuationController', () => {
 
     it('throws HttpException on failure', async () => {
       mockService.getValuation.mockRejectedValue(new Error('Error'));
-      await expect(controller.getCompounderValuation('X')).rejects.toThrow(HttpException);
+      await expect(controller.getCompounderValuation('X')).rejects.toThrow(
+        HttpException,
+      );
     });
   });
 
@@ -173,7 +184,9 @@ describe('ValuationController', () => {
 
   describe('getFrontierValuation (GET /frontier/:ticker)', () => {
     it('calls getValuation with frontier type', async () => {
-      mockService.getValuation.mockResolvedValue({ probabilityWeightedValue: 300 });
+      mockService.getValuation.mockResolvedValue({
+        probabilityWeightedValue: 300,
+      });
       await controller.getFrontierValuation('PLTR');
       expect(mockService.getValuation).toHaveBeenCalledWith({
         ticker: 'PLTR',
@@ -183,7 +196,9 @@ describe('ValuationController', () => {
 
     it('throws HttpException on failure', async () => {
       mockService.getValuation.mockRejectedValue(new Error('Error'));
-      await expect(controller.getFrontierValuation('X')).rejects.toThrow(HttpException);
+      await expect(controller.getFrontierValuation('X')).rejects.toThrow(
+        HttpException,
+      );
     });
   });
 });

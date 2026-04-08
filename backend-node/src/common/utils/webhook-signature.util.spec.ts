@@ -1,4 +1,7 @@
-import { verifyWebhookSignature, signWebhookPayload } from './webhook-signature.util';
+import {
+  verifyWebhookSignature,
+  signWebhookPayload,
+} from './webhook-signature.util';
 
 describe('webhook-signature.util', () => {
   const secret = 'test-webhook-secret';
@@ -37,7 +40,8 @@ describe('webhook-signature.util', () => {
       const { timestamp } = signWebhookPayload(payload, secret);
       const valid = verifyWebhookSignature({
         payload,
-        signature: 'sha256=0000000000000000000000000000000000000000000000000000000000000000',
+        signature:
+          'sha256=0000000000000000000000000000000000000000000000000000000000000000',
         secret,
         timestamp,
       });
@@ -80,7 +84,10 @@ describe('webhook-signature.util', () => {
     });
 
     it('works without timestamp (no replay protection)', () => {
-      const sig = require('crypto').createHmac('sha256', secret).update(payload).digest('hex');
+      const sig = require('crypto')
+        .createHmac('sha256', secret)
+        .update(payload)
+        .digest('hex');
       const valid = verifyWebhookSignature({
         payload,
         signature: sig,
@@ -112,7 +119,10 @@ describe('webhook-signature.util', () => {
 
     it('returns false when non-hex signature causes timingSafeEqual to throw', () => {
       const crypto = require('crypto');
-      const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+      const expected = crypto
+        .createHmac('sha256', secret)
+        .update(payload)
+        .digest('hex');
       // Same string length but all non-hex chars → buffer size mismatch → timingSafeEqual throws
       const badSig = 'z'.repeat(expected.length);
       const valid = verifyWebhookSignature({

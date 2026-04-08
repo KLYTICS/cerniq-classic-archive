@@ -1,120 +1,103 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AlmEnterpriseService } from '../alm-enterprise.service';
-import { StressTestingService } from '../stress-testing/stress-testing.service';
+import {
+  ALMSummaryResult,
+  AlmEnterpriseService,
+  COSSECComplianceResult,
+} from '../alm-enterprise.service';
+import {
+  StressTestResult,
+  StressTestingService,
+} from '../stress-testing/stress-testing.service';
+import {
+  asNumber,
+  createReportFormatter,
+  inferMoneyScale,
+  REPORT_THEME,
+  ReportLanguage,
+  toneFromStatus,
+} from './report-formatting';
 
 const PDFDocument = require('pdfkit');
 
-/** Round to n decimal places */
-function round(value: number, decimals: number): number {
-  const factor = Math.pow(10, decimals);
-  return Math.round(value * factor) / factor;
+type ReportTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+
+interface ReportMetric {
+  label: string;
+  value: string;
+  helper?: string | null;
+  tone?: ReportTone;
 }
 
-// ── Color palette ──────────────────────────────────────────────────
-const COLORS = {
-  brand: '#f59e0b', // amber-500
-  brandDark: '#b45309', // amber-700
-  dark: '#0f172a', // slate-900
-  heading: '#1e293b', // slate-800
-  body: '#475569', // slate-600
-  muted: '#94a3b8', // slate-400
-  light: '#f1f5f9', // slate-100
-  border: '#e2e8f0', // slate-200
-  rowAlt: '#f8fafc', // slate-50
-  green: '#16a34a',
-  red: '#dc2626',
-  greenBg: '#f0fdf4',
-  redBg: '#fef2f2',
-};
+interface ReportRecommendation {
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  text: string;
+}
 
-// ── Bilingual text lookup ─────────────────────────────────────────
-type Lang = 'en' | 'es';
-const T: Record<string, Record<Lang, string>> = {
-  almReport: {
-    en: 'Asset Liability Management Report',
-    es: 'Informe de Gestión de Activos y Pasivos',
-  },
-  confidential: {
-    en: 'CONFIDENTIAL — For Internal Use Only',
-    es: 'CONFIDENCIAL — Solo para Uso Interno',
-  },
-  executiveSummary: { en: 'EXECUTIVE SUMMARY', es: 'RESUMEN EJECUTIVO' },
-  keyMetrics: {
-    en: 'Key metrics and risk assessment',
-    es: 'Métricas clave y evaluación de riesgo',
-  },
-  balanceSheetSnapshot: {
-    en: 'BALANCE SHEET SNAPSHOT',
-    es: 'ESTADO DE SITUACIÓN FINANCIERA',
-  },
-  bsSubtitle: {
-    en: 'Asset and liability positions',
-    es: 'Posiciones de activos y pasivos',
-  },
-  interestRateRisk: {
-    en: 'INTEREST RATE RISK',
-    es: 'RIESGO DE TASA DE INTERÉS',
-  },
-  irSubtitle: {
-    en: 'Duration gap and NII sensitivity analysis',
-    es: 'Análisis de brecha de duración y sensibilidad NII',
-  },
-  liquidityRisk: { en: 'LIQUIDITY RISK', es: 'RIESGO DE LIQUIDEZ' },
-  liqSubtitle: {
-    en: 'LCR compliance and HQLA composition',
-    es: 'Cumplimiento LCR y composición HQLA',
-  },
-  stressTesting: { en: 'STRESS TESTING', es: 'PRUEBAS DE ESTRÉS' },
-  stressSubtitle: {
-    en: 'Monte Carlo simulation and regulatory scenarios',
-    es: 'Simulación Monte Carlo y escenarios regulatorios',
-  },
-  cossecCompliance: { en: 'COSSEC COMPLIANCE', es: 'CUMPLIMIENTO COSSEC' },
-  ncuaCompliance: { en: 'NCUA CAMEL ANALYSIS', es: 'ANALISIS CAMEL NCUA' },
-  cossecSubtitle: {
-    en: 'Regulatory checklist and capital adequacy',
-    es: 'Lista regulatoria y suficiencia de capital',
-  },
-  ncuaSubtitle: {
-    en: 'CAMEL framework ratios and capital adequacy',
-    es: 'Razones del marco CAMEL y suficiencia de capital',
-  },
-  recommendations: { en: 'RECOMMENDATIONS', es: 'RECOMENDACIONES' },
-  recSubtitle: {
-    en: 'Actionable risk mitigation strategies',
-    es: 'Estrategias de mitigación de riesgo',
-  },
-  totalAssets: { en: 'Total Assets', es: 'Total Activos' },
-  totalLiabilities: { en: 'Total Liabilities', es: 'Total Pasivos' },
-  equity: { en: 'Equity', es: 'Capital' },
-  category: { en: 'Category', es: 'Categoría' },
-  name: { en: 'Name', es: 'Nombre' },
-  balance: { en: 'Balance ($M)', es: 'Saldo ($M)' },
-  rate: { en: 'Rate (%)', es: 'Tasa (%)' },
-  duration: { en: 'Duration (yr)', es: 'Duración (años)' },
-  rateType: { en: 'Type', es: 'Tipo' },
-  assets: { en: 'Assets', es: 'Activos' },
-  liabilities: { en: 'Liabilities', es: 'Pasivos' },
-  preparedBy: { en: 'Prepared By', es: 'Preparado Por' },
-  reportId: { en: 'Report ID', es: 'ID de Informe' },
-  metric: { en: 'Metric', es: 'Métrica' },
-  value: { en: 'Value', es: 'Valor' },
-  disclaimer: {
-    en: 'This report is generated automatically by CERNIQ and should be reviewed by qualified risk management professionals before making any decisions. Past performance and simulated scenarios do not guarantee future results. KLYTICS is not a registered investment advisor.',
-    es: 'Este informe es generado automáticamente por CERNIQ y debe ser revisado por profesionales cualificados de gestión de riesgo antes de tomar decisiones. Rendimientos pasados y escenarios simulados no garantizan resultados futuros. KLYTICS no es un asesor de inversión registrado.',
-  },
-};
+interface ReportTableRow {
+  cells: string[];
+  tone?: ReportTone;
+}
 
-function t(key: string, lang: Lang): string {
-  return T[key]?.[lang] || T[key]?.en || key;
+interface SectionState<T> {
+  available: boolean;
+  note: string | null;
+  data: T | null;
+}
+
+interface BalanceSheetSection {
+  summaryRows: ReportTableRow[];
+  assetRows: ReportTableRow[];
+  liabilityRows: ReportTableRow[];
+}
+
+interface InterestRateSection {
+  narrative: string;
+  metricRows: ReportTableRow[];
+  scenarioRows: ReportTableRow[];
+}
+
+interface LiquidityStressSection {
+  liquidityNarrative: string;
+  liquidityRows: ReportTableRow[];
+  hqlaRows: ReportTableRow[];
+  stressOverviewRows: ReportTableRow[];
+  regulatoryStressRows: ReportTableRow[];
+}
+
+interface RegulatorySection {
+  statusLabel: string;
+  statusTone: ReportTone;
+  summaryRows: ReportTableRow[];
+  checkRows: ReportTableRow[];
+  notes: string[];
+}
+
+interface ALMReportPayload {
+  lang: ReportLanguage;
+  formatter: ReturnType<typeof createReportFormatter>;
+  institutionName: string;
+  institutionTypeLabel: string;
+  currency: string;
+  primaryRegulator: string;
+  reportId: string;
+  generatedAtLabel: string;
+  reportingPeriodLabel: string;
+  assetsMetric: { exact: string; compact: string | null };
+  executiveHeadline: string;
+  executiveNarrative: string;
+  overviewMetrics: ReportMetric[];
+  keyRisks: string[];
+  recommendations: ReportRecommendation[];
+  availabilityNotes: string[];
+  balanceSheet: SectionState<BalanceSheetSection>;
+  interestRate: SectionState<InterestRateSection>;
+  liquidityStress: SectionState<LiquidityStressSection>;
+  regulatory: SectionState<RegulatorySection>;
 }
 
 @Injectable()
 export class ReportsService {
   private readonly logger = new Logger(ReportsService.name);
-  private pageNum = 0;
-  private totalPages = 8; // cover + 7 content pages
-  private lang: Lang = 'en';
 
   constructor(
     private readonly almEnterprise: AlmEnterpriseService,
@@ -126,35 +109,53 @@ export class ReportsService {
     language?: string,
     opts?: { watermark?: string },
   ): Promise<Buffer> {
+    const lang: ReportLanguage = language === 'es' ? 'es' : 'en';
     this.logger.log(
-      `Generating ALM report for institution ${institutionId} (lang=${language || 'en'}${opts?.watermark ? ', SAMPLE' : ''})`,
+      `Generating ALM report for institution ${institutionId} (lang=${lang}${opts?.watermark ? ', watermarked' : ''})`,
     );
-    this.lang = language === 'es' ? 'es' : 'en';
 
-    const [summary, stressTest, cossec, institution] = await Promise.all([
-      this.almEnterprise.getALMSummary(institutionId),
-      this.stressTesting.runFullStressTest(institutionId, {
-        paths: 500,
-        horizon: 12,
-      }),
-      this.almEnterprise.getRegulatoryCompliance(institutionId),
-      this.almEnterprise.getInstitution(institutionId),
-    ]);
+    const institution = await this.almEnterprise.getInstitution(institutionId);
 
-    this.pageNum = 0;
-    const reportId = `RPT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const [summaryResult, stressResult, complianceResult] =
+      await Promise.allSettled([
+        this.almEnterprise.getALMSummary(institutionId),
+        this.stressTesting.runFullStressTest(institutionId, {
+          paths: 500,
+          horizon: 12,
+        }),
+        this.almEnterprise.getRegulatoryCompliance(institutionId),
+      ]);
+
+    const payload = this.buildPayload({
+      institution,
+      lang,
+      summary:
+        summaryResult.status === 'fulfilled' ? summaryResult.value : null,
+      stress: stressResult.status === 'fulfilled' ? stressResult.value : null,
+      compliance:
+        complianceResult.status === 'fulfilled' ? complianceResult.value : null,
+      summaryError:
+        summaryResult.status === 'rejected' ? summaryResult.reason : null,
+      stressError:
+        stressResult.status === 'rejected' ? stressResult.reason : null,
+      complianceError:
+        complianceResult.status === 'rejected' ? complianceResult.reason : null,
+    });
 
     return new Promise<Buffer>((resolve, reject) => {
       try {
         const doc = new PDFDocument({
           size: 'letter',
-          margins: { top: 60, bottom: 70, left: 60, right: 60 },
+          margins: { top: 58, bottom: 60, left: 54, right: 54 },
           info: {
-            Title: `ALM Risk Report — ${summary.institution.name}`,
+            Title: `${payload.institutionName} — CERNIQ ALM Report`,
             Author: 'CERNIQ | KLYTICS',
-            Subject: t('almReport', this.lang),
+            Subject:
+              lang === 'es'
+                ? 'Informe de Gestión de Activos y Pasivos'
+                : 'Asset Liability Management Report',
+            Keywords: opts?.watermark || 'CERNIQ ALM report',
           },
-          bufferPages: true,
         });
 
         const chunks: Buffer[] = [];
@@ -162,1242 +163,2120 @@ export class ReportsService {
         doc.on('end', () => resolve(Buffer.concat(chunks)));
         doc.on('error', reject);
 
-        // ─── COVER PAGE ────────────────────────────────
-        this.renderCoverPage(doc, summary, reportId);
-
-        // ─── SECTION 1: EXECUTIVE SUMMARY ──────────────
-        doc.addPage();
-        this.renderExecutiveSummary(doc, summary);
-
-        // ─── SECTION 2: BALANCE SHEET SNAPSHOT ─────────
-        doc.addPage();
-        this.renderBalanceSheetSnapshot(doc, institution, summary);
-
-        // ─── SECTION 3: INTEREST RATE RISK ─────────────
-        doc.addPage();
-        this.renderInterestRateRisk(doc, summary);
-
-        // ─── SECTION 4: LIQUIDITY RISK ─────────────────
-        doc.addPage();
-        this.renderLiquidityRisk(doc, summary);
-
-        // ─── SECTION 5: STRESS TESTING ─────────────────
-        doc.addPage();
-        this.renderStressTesting(doc, stressTest, summary);
-
-        // ─── SECTION 6: REGULATORY COMPLIANCE ─────────
-        if (
-          cossec &&
-          (institution.type === 'cooperativa' ||
-            institution.type === 'credit_union')
-        ) {
-          doc.addPage();
-          this.renderRegulatoryCompliance(
-            doc,
-            cossec,
-            summary,
-            institution.primaryRegulator,
-          );
-        }
-
-        // ─── SECTION 7: RECOMMENDATIONS ────────────────
-        doc.addPage();
-        this.renderRecommendations(doc, summary);
+        this.renderCoverPage(doc, payload, opts?.watermark || null);
+        this.renderOverviewPage(doc, payload, opts?.watermark || null);
+        this.renderBalanceSheetPage(doc, payload, opts?.watermark || null);
+        this.renderInterestRatePage(doc, payload, opts?.watermark || null);
+        this.renderLiquidityStressPage(doc, payload, opts?.watermark || null);
+        this.renderRegulatoryPage(doc, payload, opts?.watermark || null);
+        this.renderRecommendationsPage(doc, payload, opts?.watermark || null);
 
         doc.end();
-      } catch (err) {
-        reject(err instanceof Error ? err : new Error(String(err)));
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
   }
 
-  // ─── Cover Page ──────────────────────────────────────────────
+  private buildPayload(input: {
+    institution: any;
+    lang: ReportLanguage;
+    summary: ALMSummaryResult | null;
+    stress: StressTestResult | null;
+    compliance: COSSECComplianceResult | null;
+    summaryError: unknown;
+    stressError: unknown;
+    complianceError: unknown;
+  }): ALMReportPayload {
+    const { institution, lang, summary, stress, compliance } = input;
+    const items = Array.isArray(institution?.balanceSheetItems)
+      ? institution.balanceSheetItems
+      : [];
+    const assetItems = items.filter((item: any) => item.category === 'asset');
+    const liabilityItems = items.filter(
+      (item: any) => item.category === 'liability',
+    );
+    const totalAssetsFromItems = assetItems.reduce(
+      (sum: number, item: any) => sum + asNumber(item.balance),
+      0,
+    );
+    const totalLiabilitiesFromItems = liabilityItems.reduce(
+      (sum: number, item: any) => sum + asNumber(item.balance),
+      0,
+    );
+
+    const rawAssetCandidates = [
+      institution?.totalAssets,
+      summary?.institution?.totalAssets,
+      compliance?.summary?.totalAssets,
+      totalAssetsFromItems,
+      compliance?.summary?.totalLoans,
+      compliance?.summary?.liquidAssets,
+      summary?.liquidity?.hqla,
+      summary?.liquidity?.netOutflows,
+      stress?.monteCarlo?.expectedNII,
+      stress?.monteCarlo?.worstCaseNII,
+    ];
+
+    const moneyScale = inferMoneyScale(rawAssetCandidates);
+    const formatter = createReportFormatter(lang, {
+      currency:
+        institution?.currency || summary?.institution?.currency || 'USD',
+      moneyScale,
+    });
+
+    const exactAssetsRaw =
+      totalAssetsFromItems ||
+      asNumber(compliance?.summary?.totalAssets) ||
+      asNumber(summary?.institution?.totalAssets) ||
+      asNumber(institution?.totalAssets);
+    const exactLiabilitiesRaw =
+      totalLiabilitiesFromItems ||
+      asNumber(compliance?.summary?.totalLiabilities) ||
+      0;
+    const exactEquityRaw =
+      asNumber(compliance?.summary?.equity) ||
+      (exactAssetsRaw && exactLiabilitiesRaw
+        ? exactAssetsRaw - exactLiabilitiesRaw
+        : 0);
+
+    const capitalRatio =
+      asNumber(compliance?.summary?.capitalRatio) ||
+      (exactAssetsRaw > 0 ? (exactEquityRaw / exactAssetsRaw) * 100 : 0);
+    const lcr = asNumber(summary?.liquidity?.lcr);
+    const durationGap = asNumber(summary?.durationGap?.durationGap);
+    const baseNII = asNumber(summary?.niiSensitivity?.baseNII);
+    const riskScore = asNumber(summary?.riskScore);
+
+    const scoreTone =
+      riskScore >= 80
+        ? 'success'
+        : riskScore >= 60
+          ? 'info'
+          : riskScore >= 40
+            ? 'warning'
+            : 'danger';
+    const scoreLabel =
+      riskScore >= 80
+        ? this.tx(lang, 'Stable risk posture', 'Postura de riesgo estable')
+        : riskScore >= 60
+          ? this.tx(lang, 'Watch list posture', 'Postura bajo vigilancia')
+          : riskScore >= 40
+            ? this.tx(
+                lang,
+                'Elevated risk posture',
+                'Postura de riesgo elevada',
+              )
+            : this.tx(
+                lang,
+                'Immediate attention needed',
+                'Atención inmediata requerida',
+              );
+
+    const assetsMetric = formatter.moneyWithCompact(exactAssetsRaw);
+    const institutionTypeLabel = this.humanizeInstitutionType(
+      institution?.type,
+    );
+    const primaryRegulator = institution?.primaryRegulator || 'COSSEC';
+
+    const overviewMetrics: ReportMetric[] = [
+      {
+        label: this.tx(lang, 'Total assets', 'Activos totales'),
+        value: assetsMetric.exact,
+        helper: assetsMetric.compact ? `(${assetsMetric.compact})` : null,
+        tone: 'info',
+      },
+      {
+        label: this.tx(lang, 'Capital ratio', 'Razón de capital'),
+        value: formatter.percent(capitalRatio, 2),
+        helper: this.tx(
+          lang,
+          `Equity ${formatter.money(exactEquityRaw)}`,
+          `Capital ${formatter.money(exactEquityRaw)}`,
+        ),
+        tone:
+          capitalRatio >= 10
+            ? 'success'
+            : capitalRatio >= 8
+              ? 'warning'
+              : 'danger',
+      },
+      {
+        label: 'LCR',
+        value: lcr ? formatter.percent(lcr, 1) : this.unavailable(lang),
+        helper: summary?.liquidity
+          ? this.tx(
+              lang,
+              `${formatter.money(summary.liquidity.hqla)} HQLA vs ${formatter.money(summary.liquidity.netOutflows)} outflows`,
+              `${formatter.money(summary.liquidity.hqla)} HQLA frente a ${formatter.money(summary.liquidity.netOutflows)} salidas`,
+            )
+          : null,
+        tone: toneFromStatus(summary?.liquidity?.status),
+      },
+      {
+        label: this.tx(lang, 'Duration gap', 'Brecha de duración'),
+        value: durationGap
+          ? `${durationGap >= 0 ? '+' : ''}${formatter.years(durationGap, 2)}`
+          : this.unavailable(lang),
+        helper: summary?.durationGap?.riskProfile
+          ? this.humanizeRiskProfile(summary.durationGap.riskProfile, lang)
+          : null,
+        tone:
+          Math.abs(durationGap) >= 2
+            ? 'warning'
+            : Math.abs(durationGap) >= 1
+              ? 'info'
+              : 'success',
+      },
+      {
+        label: this.tx(lang, 'Base NII', 'NII base'),
+        value: baseNII ? formatter.money(baseNII) : this.unavailable(lang),
+        helper: summary?.niiSensitivity?.riskRating
+          ? this.tx(
+              lang,
+              `Risk rating: ${String(summary.niiSensitivity.riskRating).toUpperCase()}`,
+              `Calificación de riesgo: ${String(summary.niiSensitivity.riskRating).toUpperCase()}`,
+            )
+          : null,
+        tone: toneFromStatus(summary?.niiSensitivity?.riskRating),
+      },
+      {
+        label: this.tx(lang, 'Regulator', 'Regulador'),
+        value: primaryRegulator,
+        helper: institutionTypeLabel,
+        tone: 'neutral',
+      },
+    ];
+
+    const executiveHeadline = this.tx(
+      lang,
+      `${institution?.name || 'Institution'} enters the board cycle with ${scoreLabel.toLowerCase()}, ${formatter.percent(capitalRatio, 2)} capital, and ${lcr ? formatter.percent(lcr, 1) : this.unavailable(lang)} liquidity coverage.`,
+      `${institution?.name || 'Institución'} entra al ciclo de junta con ${scoreLabel.toLowerCase()}, capital de ${formatter.percent(capitalRatio, 2)} y cobertura de liquidez de ${lcr ? formatter.percent(lcr, 1) : this.unavailable(lang)}.`,
+    );
+
+    const executiveNarrative = this.buildExecutiveNarrative({
+      lang,
+      formatter,
+      institutionName: institution?.name || 'Institution',
+      riskScore,
+      capitalRatio,
+      lcr,
+      durationGap,
+      baseNII,
+      regulator: primaryRegulator,
+    });
+
+    const keyRisks = this.deriveTopRisks({
+      lang,
+      formatter,
+      summary,
+      compliance,
+      capitalRatio,
+      lcr,
+      durationGap,
+    });
+
+    const recommendations = this.deriveRecommendations({
+      lang,
+      summary,
+      capitalRatio,
+      lcr,
+      durationGap,
+      primaryRegulator,
+    });
+
+    const availabilityNotes = [
+      summary
+        ? null
+        : this.buildUnavailableNote(lang, 'ALM summary', input.summaryError),
+      stress
+        ? null
+        : this.buildUnavailableNote(lang, 'stress testing', input.stressError),
+      compliance
+        ? null
+        : this.buildUnavailableNote(
+            lang,
+            'regulatory compliance',
+            input.complianceError,
+          ),
+    ].filter(Boolean) as string[];
+
+    const balanceSheet = this.buildBalanceSheetSection({
+      lang,
+      formatter,
+      institution,
+      totalAssetsRaw: exactAssetsRaw,
+      totalLiabilitiesRaw: exactLiabilitiesRaw,
+      equityRaw: exactEquityRaw,
+      capitalRatio,
+    });
+
+    const interestRate = this.buildInterestRateSection({
+      lang,
+      formatter,
+      summary,
+      durationGap,
+      baseNII,
+    });
+
+    const liquidityStress = this.buildLiquidityStressSection({
+      lang,
+      formatter,
+      summary,
+      stress,
+    });
+
+    const regulatory = this.buildRegulatorySection({
+      lang,
+      formatter,
+      compliance,
+      capitalRatio,
+      primaryRegulator,
+    });
+
+    return {
+      lang,
+      formatter,
+      institutionName: institution?.name || 'Institution',
+      institutionTypeLabel,
+      currency: institution?.currency || 'USD',
+      primaryRegulator,
+      reportId: `RPT-${Date.now().toString(36).toUpperCase()}-${Math.random()
+        .toString(36)
+        .slice(2, 6)
+        .toUpperCase()}`,
+      generatedAtLabel: formatter.date(new Date()),
+      reportingPeriodLabel: formatter.month(
+        institution?.reportingDate || summary?.institution?.reportingDate,
+      ),
+      assetsMetric,
+      executiveHeadline,
+      executiveNarrative,
+      overviewMetrics,
+      keyRisks,
+      recommendations,
+      availabilityNotes,
+      balanceSheet,
+      interestRate,
+      liquidityStress,
+      regulatory,
+    };
+  }
+
+  private buildBalanceSheetSection(input: {
+    lang: ReportLanguage;
+    formatter: ReturnType<typeof createReportFormatter>;
+    institution: any;
+    totalAssetsRaw: number;
+    totalLiabilitiesRaw: number;
+    equityRaw: number;
+    capitalRatio: number;
+  }): SectionState<BalanceSheetSection> {
+    const {
+      lang,
+      formatter,
+      institution,
+      totalAssetsRaw,
+      totalLiabilitiesRaw,
+      equityRaw,
+      capitalRatio,
+    } = input;
+    const items = Array.isArray(institution?.balanceSheetItems)
+      ? institution.balanceSheetItems
+      : [];
+    const assetItems = items.filter((item: any) => item.category === 'asset');
+    const liabilityItems = items.filter(
+      (item: any) => item.category === 'liability',
+    );
+
+    const available = assetItems.length > 0 || liabilityItems.length > 0;
+    if (!available) {
+      return {
+        available: false,
+        note: this.tx(
+          lang,
+          'Balance-sheet items are not available yet. The report is showing institution-level totals only.',
+          'Los rubros del balance aún no están disponibles. El informe muestra solamente los totales institucionales.',
+        ),
+        data: {
+          summaryRows: [
+            {
+              cells: [
+                this.tx(lang, 'Total assets', 'Activos totales'),
+                formatter.money(totalAssetsRaw),
+              ],
+            },
+            {
+              cells: [
+                this.tx(lang, 'Total liabilities', 'Pasivos totales'),
+                formatter.money(totalLiabilitiesRaw),
+              ],
+            },
+            {
+              cells: [
+                this.tx(lang, 'Equity', 'Capital'),
+                formatter.money(equityRaw),
+              ],
+              tone: 'info',
+            },
+            {
+              cells: [
+                this.tx(lang, 'Capital ratio', 'Razón de capital'),
+                formatter.percent(capitalRatio, 2),
+              ],
+              tone: capitalRatio >= 8 ? 'success' : 'danger',
+            },
+          ],
+          assetRows: [],
+          liabilityRows: [],
+        },
+      };
+    }
+
+    return {
+      available: true,
+      note: null,
+      data: {
+        summaryRows: [
+          {
+            cells: [
+              this.tx(lang, 'Total assets', 'Activos totales'),
+              formatter.money(totalAssetsRaw),
+            ],
+          },
+          {
+            cells: [
+              this.tx(lang, 'Total liabilities', 'Pasivos totales'),
+              formatter.money(totalLiabilitiesRaw),
+            ],
+          },
+          {
+            cells: [
+              this.tx(lang, 'Equity', 'Capital'),
+              formatter.money(equityRaw),
+            ],
+            tone: 'info',
+          },
+          {
+            cells: [
+              this.tx(lang, 'Capital ratio', 'Razón de capital'),
+              formatter.percent(capitalRatio, 2),
+            ],
+            tone: capitalRatio >= 8 ? 'success' : 'danger',
+          },
+        ],
+        assetRows: assetItems.map((item: any) => ({
+          cells: [
+            item.name || this.tx(lang, 'Unnamed asset', 'Activo sin nombre'),
+            formatter.money(item.balance),
+            formatter.percent(item.rate, 2),
+            formatter.years(item.duration, 2),
+            String(item.rateType || '').toUpperCase() || 'N/A',
+          ],
+        })),
+        liabilityRows: liabilityItems.map((item: any) => ({
+          cells: [
+            item.name ||
+              this.tx(lang, 'Unnamed liability', 'Pasivo sin nombre'),
+            formatter.money(item.balance),
+            formatter.percent(item.rate, 2),
+            formatter.years(item.duration, 2),
+            String(item.rateType || '').toUpperCase() || 'N/A',
+          ],
+        })),
+      },
+    };
+  }
+
+  private buildInterestRateSection(input: {
+    lang: ReportLanguage;
+    formatter: ReturnType<typeof createReportFormatter>;
+    summary: ALMSummaryResult | null;
+    durationGap: number;
+    baseNII: number;
+  }): SectionState<InterestRateSection> {
+    const { lang, formatter, summary, durationGap, baseNII } = input;
+
+    if (!summary) {
+      return {
+        available: false,
+        note: this.tx(
+          lang,
+          'Interest-rate analytics are unavailable because the ALM summary could not be computed.',
+          'Los analíticos de tasa no están disponibles porque no se pudo calcular el resumen ALM.',
+        ),
+        data: null,
+      };
+    }
+
+    const scenarios = Array.isArray(summary.niiSensitivity?.scenarios)
+      ? [...summary.niiSensitivity.scenarios].sort(
+          (left, right) => asNumber(left.shiftBps) - asNumber(right.shiftBps),
+        )
+      : [];
+
+    return {
+      available: true,
+      note: null,
+      data: {
+        narrative: this.tx(
+          lang,
+          `${summary.institution.name} is ${this.humanizeRiskProfile(summary.durationGap.riskProfile, lang)} with an asset duration of ${formatter.years(summary.durationGap.assetDuration, 2)} against liability duration of ${formatter.years(summary.durationGap.liabilityDuration, 2)}. Base NII stands at ${formatter.money(baseNII)} and the modeled rate risk points to a ${durationGap >= 0 ? 'positive' : 'negative'} duration gap of ${formatter.years(durationGap, 2)}.`,
+          `${summary.institution.name} presenta ${this.humanizeRiskProfile(summary.durationGap.riskProfile, lang)} con duración de activos de ${formatter.years(summary.durationGap.assetDuration, 2)} frente a duración de pasivos de ${formatter.years(summary.durationGap.liabilityDuration, 2)}. El NII base se ubica en ${formatter.money(baseNII)} y el riesgo modelado señala una brecha de duración ${durationGap >= 0 ? 'positiva' : 'negativa'} de ${formatter.years(durationGap, 2)}.`,
+        ),
+        metricRows: [
+          {
+            cells: [
+              this.tx(lang, 'Asset duration', 'Duración de activos'),
+              formatter.years(summary.durationGap.assetDuration, 2),
+            ],
+          },
+          {
+            cells: [
+              this.tx(lang, 'Liability duration', 'Duración de pasivos'),
+              formatter.years(summary.durationGap.liabilityDuration, 2),
+            ],
+          },
+          {
+            cells: [
+              this.tx(lang, 'Duration gap', 'Brecha de duración'),
+              `${durationGap >= 0 ? '+' : ''}${formatter.years(durationGap, 2)}`,
+            ],
+            tone: Math.abs(durationGap) >= 2 ? 'warning' : 'success',
+          },
+          {
+            cells: [
+              this.tx(lang, 'Base NII', 'NII base'),
+              formatter.money(baseNII),
+            ],
+          },
+        ],
+        scenarioRows: scenarios.map((scenario: any) => ({
+          cells: [
+            scenario.name || `${scenario.shiftBps} bps`,
+            `${asNumber(scenario.shiftBps) >= 0 ? '+' : ''}${asNumber(
+              scenario.shiftBps,
+            )} bps`,
+            formatter.signedMoney(scenario.niImpact),
+            formatter.percent(scenario.niImpactPct, 2, true),
+            formatter.signedMoney(scenario.mveImpact),
+            formatter.percent(scenario.mveImpactPct, 2, true),
+          ],
+          tone:
+            asNumber(scenario.niImpact) < 0 || asNumber(scenario.mveImpact) < 0
+              ? 'warning'
+              : 'success',
+        })),
+      },
+    };
+  }
+
+  private buildLiquidityStressSection(input: {
+    lang: ReportLanguage;
+    formatter: ReturnType<typeof createReportFormatter>;
+    summary: ALMSummaryResult | null;
+    stress: StressTestResult | null;
+  }): SectionState<LiquidityStressSection> {
+    const { lang, formatter, summary, stress } = input;
+
+    const available = Boolean(summary || stress);
+    if (!available) {
+      return {
+        available: false,
+        note: this.tx(
+          lang,
+          'Liquidity and stress testing data are unavailable for this institution.',
+          'Los datos de liquidez y pruebas de estrés no están disponibles para esta institución.',
+        ),
+        data: null,
+      };
+    }
+
+    const lcr = asNumber(summary?.liquidity?.lcr);
+    const liquidityNarrative = summary
+      ? this.tx(
+          lang,
+          `Liquidity coverage currently stands at ${formatter.percent(lcr, 1)} with ${formatter.money(summary.liquidity.hqla)} of HQLA backing ${formatter.money(summary.liquidity.netOutflows)} of modeled 30-day net outflows.`,
+          `La cobertura de liquidez se ubica actualmente en ${formatter.percent(lcr, 1)} con ${formatter.money(summary.liquidity.hqla)} de HQLA respaldando ${formatter.money(summary.liquidity.netOutflows)} de salidas netas modeladas a 30 días.`,
+        )
+      : this.tx(
+          lang,
+          'Liquidity metrics are unavailable, but stress outputs are included below.',
+          'Las métricas de liquidez no están disponibles, pero se incluyen los resultados de estrés a continuación.',
+        );
+
+    const hqla = asNumber(summary?.liquidity?.hqla);
+    const hqlaRows: ReportTableRow[] = hqla
+      ? [
+          {
+            cells: [
+              this.tx(lang, 'Level 1 liquidity', 'Liquidez nivel 1'),
+              formatter.money(hqla * 0.7),
+              '70%',
+            ],
+          },
+          {
+            cells: [
+              this.tx(lang, 'Level 2 liquidity', 'Liquidez nivel 2'),
+              formatter.money(hqla * 0.3),
+              '30%',
+            ],
+          },
+          {
+            cells: [
+              this.tx(lang, 'Total HQLA', 'HQLA total'),
+              formatter.money(hqla),
+              '100%',
+            ],
+            tone: 'info',
+          },
+        ]
+      : [];
+
+    const stressOverviewRows: ReportTableRow[] = stress?.monteCarlo
+      ? [
+          {
+            cells: [
+              this.tx(lang, 'Expected NII', 'NII esperado'),
+              formatter.money(stress.monteCarlo.expectedNII),
+            ],
+          },
+          {
+            cells: [
+              this.tx(lang, 'Worst case NII', 'NII peor caso'),
+              formatter.money(stress.monteCarlo.worstCaseNII),
+            ],
+            tone: 'danger',
+          },
+          {
+            cells: [
+              this.tx(lang, 'NII at risk', 'NII en riesgo'),
+              formatter.money(stress.monteCarlo.niiAtRisk),
+            ],
+            tone: 'warning',
+          },
+          {
+            cells: [
+              this.tx(lang, 'Simulation paths', 'Trayectorias simuladas'),
+              formatter.integer(stress.monteCarlo.paths),
+            ],
+          },
+        ]
+      : [];
+
+    const regulatoryStressRows: ReportTableRow[] = Array.isArray(
+      stress?.regulatory?.scenarios,
+    )
+      ? stress.regulatory.scenarios.map((scenario: any) => ({
+          cells: [
+            scenario.name || 'Scenario',
+            formatter.signedMoney(scenario.niImpact),
+            formatter.signedMoney(scenario.mveImpact),
+            formatter.percent(scenario.lcrImpact, 1, true),
+            formatter.percent(scenario.capitalImpact, 2, true),
+            String(scenario.passFailStatus || '').toUpperCase() || 'N/A',
+          ],
+          tone: toneFromStatus(scenario.passFailStatus),
+        }))
+      : [];
+
+    return {
+      available: true,
+      note: null,
+      data: {
+        liquidityNarrative,
+        liquidityRows: summary
+          ? [
+              {
+                cells: ['LCR', formatter.percent(summary.liquidity.lcr, 1)],
+                tone: toneFromStatus(summary.liquidity.status),
+              },
+              {
+                cells: [
+                  this.tx(lang, 'HQLA', 'HQLA'),
+                  formatter.money(summary.liquidity.hqla),
+                ],
+              },
+              {
+                cells: [
+                  this.tx(lang, 'Net outflows', 'Salidas netas'),
+                  formatter.money(summary.liquidity.netOutflows),
+                ],
+              },
+              {
+                cells: [
+                  this.tx(lang, 'Buffer vs 100%', 'Colchón sobre 100%'),
+                  formatter.percent(summary.liquidity.buffer, 1, true),
+                ],
+                tone:
+                  asNumber(summary.liquidity.buffer) >= 0
+                    ? 'success'
+                    : 'danger',
+              },
+            ]
+          : [],
+        hqlaRows,
+        stressOverviewRows,
+        regulatoryStressRows,
+      },
+    };
+  }
+
+  private buildRegulatorySection(input: {
+    lang: ReportLanguage;
+    formatter: ReturnType<typeof createReportFormatter>;
+    compliance: COSSECComplianceResult | null;
+    capitalRatio: number;
+    primaryRegulator: string;
+  }): SectionState<RegulatorySection> {
+    const { lang, formatter, compliance, capitalRatio, primaryRegulator } =
+      input;
+
+    if (!compliance) {
+      return {
+        available: false,
+        note: this.tx(
+          lang,
+          `Regulatory compliance output for ${primaryRegulator} is unavailable. The report still includes board-level capital and liquidity figures.`,
+          `La salida regulatoria para ${primaryRegulator} no está disponible. El informe aún incluye cifras de capital y liquidez a nivel de junta.`,
+        ),
+        data: {
+          statusLabel: this.unavailable(lang),
+          statusTone: capitalRatio >= 8 ? 'warning' : 'danger',
+          summaryRows: [
+            {
+              cells: [
+                this.tx(lang, 'Capital ratio', 'Razón de capital'),
+                formatter.percent(capitalRatio, 2),
+              ],
+            },
+          ],
+          checkRows: [],
+          notes: [],
+        },
+      };
+    }
+
+    const statusTone = toneFromStatus(compliance.overallStatus);
+    const statusLabel = this.tx(
+      lang,
+      `${primaryRegulator} status: ${String(compliance.overallStatus || '').toUpperCase()}`,
+      `Estado ${primaryRegulator}: ${String(compliance.overallStatus || '').toUpperCase()}`,
+    );
+
+    return {
+      available: true,
+      note: null,
+      data: {
+        statusLabel,
+        statusTone,
+        summaryRows: [
+          {
+            cells: [
+              this.tx(lang, 'Exam readiness', 'Preparación para examen'),
+              formatter.percent(compliance.examReadinessScore, 0),
+            ],
+            tone: compliance.examReadinessScore >= 80 ? 'success' : 'warning',
+          },
+          {
+            cells: [
+              this.tx(lang, 'Total assets', 'Activos totales'),
+              formatter.money(compliance.summary?.totalAssets),
+            ],
+          },
+          {
+            cells: [
+              this.tx(lang, 'Total loans', 'Préstamos totales'),
+              formatter.money(compliance.summary?.totalLoans),
+            ],
+          },
+          {
+            cells: [
+              this.tx(lang, 'Liquid assets', 'Activos líquidos'),
+              formatter.money(compliance.summary?.liquidAssets),
+            ],
+          },
+        ],
+        checkRows: Array.isArray(compliance.checks)
+          ? compliance.checks.map((check: any) => ({
+              cells: [
+                lang === 'es' && check.nameEs
+                  ? check.nameEs
+                  : check.name || 'Metric',
+                formatter.percent(check.value, 2),
+                `${check.threshold}${check.unit || ''}`,
+                String(check.status || '').toUpperCase() || 'N/A',
+              ],
+              tone: toneFromStatus(check.status),
+            }))
+          : [],
+        notes: Array.isArray(compliance.checks)
+          ? compliance.checks
+              .map((check: any) =>
+                lang === 'es' && check.descriptionEs
+                  ? check.descriptionEs
+                  : check.description,
+              )
+              .filter(Boolean)
+          : [],
+      },
+    };
+  }
+
+  private deriveTopRisks(input: {
+    lang: ReportLanguage;
+    formatter: ReturnType<typeof createReportFormatter>;
+    summary: ALMSummaryResult | null;
+    compliance: COSSECComplianceResult | null;
+    capitalRatio: number;
+    lcr: number;
+    durationGap: number;
+  }): string[] {
+    const {
+      lang,
+      formatter,
+      summary,
+      compliance,
+      capitalRatio,
+      lcr,
+      durationGap,
+    } = input;
+    const risks = [
+      ...(Array.isArray(summary?.topRisks) ? summary.topRisks : []),
+    ];
+
+    if (Math.abs(durationGap) >= 2) {
+      risks.push(
+        this.tx(
+          lang,
+          `Duration gap of ${formatter.years(durationGap, 2)} is outside a comfortable board range and should be repriced or hedged.`,
+          `La brecha de duración de ${formatter.years(durationGap, 2)} está fuera de un rango cómodo para la junta y debe repricingarse o cubrirse.`,
+        ),
+      );
+    }
+
+    if (lcr > 0 && lcr < 100) {
+      risks.push(
+        this.tx(
+          lang,
+          `Liquidity coverage at ${formatter.percent(lcr, 1)} is below the 100% reference threshold.`,
+          `La cobertura de liquidez de ${formatter.percent(lcr, 1)} está por debajo del umbral de referencia de 100%.`,
+        ),
+      );
+    }
+
+    if (capitalRatio > 0 && capitalRatio < 8) {
+      risks.push(
+        this.tx(
+          lang,
+          `Capital ratio of ${formatter.percent(capitalRatio, 2)} is thin for the current risk profile.`,
+          `La razón de capital de ${formatter.percent(capitalRatio, 2)} es estrecha para el perfil de riesgo actual.`,
+        ),
+      );
+    }
+
+    if (
+      compliance?.overallStatus &&
+      String(compliance.overallStatus).toLowerCase() !== 'compliant'
+    ) {
+      risks.push(
+        this.tx(
+          lang,
+          `${compliance.institutionName || 'Institution'} is not fully compliant under the latest ${compliance.institutionType || ''} regulatory profile.`,
+          `${compliance.institutionName || 'La institución'} no está totalmente cumplidora bajo el perfil regulatorio más reciente de ${compliance.institutionType || ''}.`,
+        ),
+      );
+    }
+
+    return risks.slice(0, 5);
+  }
+
+  private deriveRecommendations(input: {
+    lang: ReportLanguage;
+    summary: ALMSummaryResult | null;
+    capitalRatio: number;
+    lcr: number;
+    durationGap: number;
+    primaryRegulator: string;
+  }): ReportRecommendation[] {
+    const { lang, summary, capitalRatio, lcr, durationGap, primaryRegulator } =
+      input;
+
+    const sourceRecs = Array.isArray(summary?.recommendations)
+      ? summary.recommendations
+      : [];
+    const derived: ReportRecommendation[] = sourceRecs.map((text, index) => ({
+      priority: index < 2 ? 'HIGH' : index < 4 ? 'MEDIUM' : 'LOW',
+      text,
+    }));
+
+    if (Math.abs(durationGap) >= 2) {
+      derived.push({
+        priority: 'HIGH',
+        text: this.tx(
+          lang,
+          'Reduce the duration mismatch by extending liability tenor, shortening asset duration, or layering a hedge before the next board cycle.',
+          'Reduzca el descalce de duración extendiendo el plazo de pasivos, acortando la duración de activos o incorporando cobertura antes del próximo ciclo de junta.',
+        ),
+      });
+    }
+
+    if (lcr > 0 && lcr < 110) {
+      derived.push({
+        priority: 'HIGH',
+        text: this.tx(
+          lang,
+          'Raise on-balance-sheet liquidity so the institution operates with a durable LCR cushion rather than at-threshold coverage.',
+          'Eleve la liquidez en balance para que la institución opere con un colchón de LCR durable en vez de una cobertura al límite.',
+        ),
+      });
+    }
+
+    if (capitalRatio > 0 && capitalRatio < 9) {
+      derived.push({
+        priority: 'MEDIUM',
+        text: this.tx(
+          lang,
+          `Review capital planning against ${primaryRegulator} expectations and preserve retained earnings until the ratio rebuilds.`,
+          `Revise la planificación de capital contra las expectativas de ${primaryRegulator} y preserve utilidades retenidas hasta recomponer la razón.`,
+        ),
+      });
+    }
+
+    if (derived.length === 0) {
+      derived.push({
+        priority: 'MEDIUM',
+        text: this.tx(
+          lang,
+          'Continue board-level monitoring of rate sensitivity, liquidity, and capital to preserve the current posture.',
+          'Mantenga el monitoreo a nivel de junta sobre sensibilidad a tasas, liquidez y capital para preservar la postura actual.',
+        ),
+      });
+    }
+
+    return derived.slice(0, 6);
+  }
+
+  private buildExecutiveNarrative(input: {
+    lang: ReportLanguage;
+    formatter: ReturnType<typeof createReportFormatter>;
+    institutionName: string;
+    riskScore: number;
+    capitalRatio: number;
+    lcr: number;
+    durationGap: number;
+    baseNII: number;
+    regulator: string;
+  }): string {
+    const {
+      lang,
+      formatter,
+      institutionName,
+      riskScore,
+      capitalRatio,
+      lcr,
+      durationGap,
+      baseNII,
+      regulator,
+    } = input;
+    return this.tx(
+      lang,
+      `${institutionName} is entering this reporting period with a risk score of ${formatter.integer(riskScore)}/100, capital at ${formatter.percent(capitalRatio, 2)}, and base net interest income of ${formatter.money(baseNII)}. Liquidity coverage is ${lcr ? formatter.percent(lcr, 1) : 'not available'} and the modeled duration gap is ${durationGap >= 0 ? 'positive' : 'negative'} at ${formatter.years(durationGap, 2)}. Board discussion should focus on whether the current balance-sheet posture remains acceptable under ${regulator} expectations.`,
+      `${institutionName} entra a este período con una puntuación de riesgo de ${formatter.integer(riskScore)}/100, capital de ${formatter.percent(capitalRatio, 2)} y un ingreso neto por intereses base de ${formatter.money(baseNII)}. La cobertura de liquidez es ${lcr ? formatter.percent(lcr, 1) : 'no disponible'} y la brecha de duración modelada es ${durationGap >= 0 ? 'positiva' : 'negativa'} en ${formatter.years(durationGap, 2)}. La conversación de junta debe enfocarse en si la postura actual del balance sigue siendo aceptable bajo las expectativas de ${regulator}.`,
+    );
+  }
 
   private renderCoverPage(
     doc: typeof PDFDocument,
-    summary: {
-      institution: {
-        name: string;
-        type: string;
-        totalAssets: number;
-        currency: string;
-        reportingDate: string;
-      };
-      riskScore: number;
-      durationGap: { durationGap: number; riskProfile: string };
-      niiSensitivity: {
-        baseNII: number;
-        riskRating: string;
-        scenarios: Array<{
-          shiftBps: number;
-          niImpact: number;
-          niImpactPct: number;
-        }>;
-      };
-      liquidity: { lcr: number; status: string };
-    },
-    reportId?: string,
+    payload: ALMReportPayload,
+    watermark: string | null,
   ) {
-    const pw = doc.page.width;
-    const mL = doc.page.margins.left;
-    const mR = doc.page.margins.right;
-    const contentWidth = pw - mL - mR;
+    const left = doc.page.margins.left;
+    const width = doc.page.width - left - doc.page.margins.right;
 
-    // Dark header rectangle — 80px
-    doc.rect(0, 0, pw, 80).fill(COLORS.dark);
+    doc.rect(0, 0, doc.page.width, 128).fill(REPORT_THEME.dark);
+    doc.rect(0, 0, doc.page.width, 6).fill(REPORT_THEME.brand);
+    this.drawWatermark(doc, watermark);
 
-    // Brand bar at very top
-    doc.rect(0, 0, pw, 4).fill(COLORS.brand);
-
-    // Top left: CERNIQ
     doc
-      .fontSize(18)
       .fillColor('#ffffff')
-      .text('CERNIQ', mL, 30, { align: 'left' });
-
-    // Top right: KLYTICS in amber
-    doc
-      .fontSize(14)
-      .fillColor(COLORS.brand)
-      .text('KLYTICS', 0, 33, {
-        align: 'right',
-        width: pw - mR,
-      });
-
-    // Institution name — large
-    doc.y = 120;
-    doc
-      .fontSize(28)
-      .fillColor(COLORS.heading)
-      .text(summary.institution.name, mL, 120, {
-        width: contentWidth,
-      });
-
-    // Subtitle
-    doc.moveDown(0.2);
-    doc.fontSize(14).fillColor(COLORS.body).text(t('almReport', this.lang), {
-      width: contentWidth,
-    });
-
-    // Report date + ID
-    const locale = this.lang === 'es' ? 'es-PR' : 'en-US';
-    const reportDate = new Date().toLocaleDateString(locale, {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-    doc.moveDown(0.3);
-    doc
-      .fontSize(11)
-      .fillColor(COLORS.muted)
-      .text(reportDate, { width: contentWidth });
-    if (reportId) {
-      doc
-        .fontSize(8)
-        .fillColor(COLORS.muted)
-        .text(`${t('reportId', this.lang)}: ${reportId}`, {
-          width: contentWidth,
-        });
-    }
-
-    // Horizontal rule — amber
-    doc.moveDown(1);
-    const ruleY = doc.y;
-    doc
-      .moveTo(mL, ruleY)
-      .lineTo(mL + contentWidth, ruleY)
-      .lineWidth(2)
-      .stroke(COLORS.brand);
-
-    // CONFIDENTIAL
-    doc.moveDown(0.5);
-    doc
-      .fontSize(9)
-      .fillColor(COLORS.muted)
-      .text(t('confidential', this.lang), mL, doc.y, {
-        width: contentWidth,
-        align: 'center',
-      });
-
-    // ─── Executive Summary on page 1 ────────────────────────
-    doc.moveDown(2);
-    doc
+      .font('Helvetica-Bold')
       .fontSize(12)
-      .fillColor(COLORS.heading)
-      .text('Executive Summary', mL, doc.y);
-    doc.moveDown(0.5);
-
-    // Highlight box
-    const boxY = doc.y;
-    const boxH = 130;
-    doc.rect(mL, boxY, contentWidth, boxH).fill('#f8fafc');
-    doc.rect(mL, boxY, 4, boxH).fill(COLORS.brand);
-
-    const scoreLabel =
-      summary.riskScore >= 80
-        ? 'LOW RISK'
-        : summary.riskScore >= 60
-          ? 'MODERATE'
-          : summary.riskScore >= 40
-            ? 'ELEVATED'
-            : 'HIGH RISK';
-
-    const lcrStatus =
-      summary.liquidity.status === 'compliant' ? 'COMPLIANT' : 'WARNING';
-
-    const scenario200 = summary.niiSensitivity.scenarios?.find(
-      (s) => s.shiftBps === 200,
-    );
-    const nii200 = scenario200
-      ? `$${scenario200.niImpact >= 0 ? '+' : ''}${scenario200.niImpact.toFixed(1)}M (${scenario200.niImpactPct >= 0 ? '+' : ''}${scenario200.niImpactPct.toFixed(1)}%)`
-      : 'N/A';
-
-    const summaryRows = [
-      ['Overall Risk Score', `${summary.riskScore}/100 — ${scoreLabel}`],
-      [
-        'Duration Gap',
-        `${summary.durationGap.durationGap > 0 ? '+' : ''}${summary.durationGap.durationGap} years (${summary.durationGap.riskProfile.replace(/-/g, ' ')})`,
-      ],
-      [
-        'LCR (Basel III)',
-        `${summary.liquidity.lcr.toFixed(1)}% — ${lcrStatus}`,
-      ],
-      ['NII at Risk (+200bps)', nii200],
-      ['Total Assets', `$${summary.institution.totalAssets.toLocaleString()}M`],
-      [
-        'Report Sections',
-        'Interest Rate Risk, Liquidity, Stress Testing, Recommendations',
-      ],
-    ];
-
-    let rowY = boxY + 10;
-    summaryRows.forEach(([label, value]) => {
-      doc
-        .fontSize(9)
-        .fillColor(COLORS.muted)
-        .text(label, mL + 16, rowY, { width: 140, continued: false });
-      doc
-        .fontSize(9)
-        .fillColor(COLORS.heading)
-        .text(value, mL + 165, rowY, {
-          width: contentWidth - 180,
-          continued: false,
-        });
-      rowY += 19;
-    });
-
-    doc.y = boxY + boxH + 15;
-
-    // Info block
-    const infoItems = [
-      [
-        'Institution Type',
-        summary.institution.type
-          .replace(/_/g, ' ')
-          .replace(/\b\w/g, (l: string) => l.toUpperCase()),
-      ],
-      ['Prepared By', 'KLYTICS | CERNIQ'],
-      [
-        'Reporting Period',
-        new Date(summary.institution.reportingDate).toLocaleDateString(
-          'en-US',
-          { month: 'long', year: 'numeric' },
-        ),
-      ],
-    ];
-
-    infoItems.forEach(([label, value]) => {
-      const y = doc.y;
-      doc
-        .fontSize(9)
-        .fillColor(COLORS.muted)
-        .text(label, mL, y, { width: 120, continued: false });
-      doc
-        .fontSize(9)
-        .fillColor(COLORS.heading)
-        .text(value, mL + 130, y, { continued: false });
-      doc.y = y + 16;
-    });
-
-    // Footer
+      .text('CERNIQ', left, 24);
     doc
-      .fontSize(7)
-      .fillColor(COLORS.muted)
-      .text(
-        'This document contains confidential information intended for authorized recipients only.',
-        mL,
-        doc.page.height - 85,
-        { width: contentWidth, align: 'center' },
-      );
-
-    this.renderFooter(doc, summary.institution.name);
-  }
-
-  // ─── Executive Summary ───────────────────────────────────────
-
-  private renderExecutiveSummary(
-    doc: typeof PDFDocument,
-    summary: {
-      institution: { name: string; totalAssets: number };
-      riskScore: number;
-      durationGap: {
-        durationGap: number;
-        riskProfile: string;
-        assetDuration: number;
-        liabilityDuration: number;
-      };
-      niiSensitivity: { baseNII: number; riskRating: string };
-      liquidity: { lcr: number; status: string; buffer: number };
-      topRisks: string[];
-    },
-  ) {
-    this.renderSectionHeader(
-      doc,
-      '1',
-      'EXECUTIVE SUMMARY',
-      'Key metrics and risk assessment',
-    );
-
-    // Risk score highlight box
-    const scoreLabel =
-      summary.riskScore >= 80
-        ? 'Low Risk'
-        : summary.riskScore >= 60
-          ? 'Moderate'
-          : summary.riskScore >= 40
-            ? 'Elevated'
-            : 'High Risk';
-    const scoreColor =
-      summary.riskScore >= 80
-        ? COLORS.green
-        : summary.riskScore >= 60
-          ? COLORS.brand
-          : COLORS.red;
-
-    const boxY = doc.y;
-    doc
-      .rect(
-        doc.page.margins.left,
-        boxY,
-        doc.page.width - doc.page.margins.left - doc.page.margins.right,
-        40,
-      )
-      .fill('#f8fafc');
-    doc.rect(doc.page.margins.left, boxY, 4, 40).fill(scoreColor);
-    doc
-      .fontSize(11)
-      .fillColor(COLORS.heading)
-      .text(
-        `Overall Risk Score: ${summary.riskScore}/100`,
-        doc.page.margins.left + 16,
-        boxY + 8,
-      );
-    doc
-      .fontSize(10)
-      .fillColor(scoreColor)
-      .text(scoreLabel, doc.page.margins.left + 16, boxY + 24);
-    doc.y = boxY + 50;
-
-    // Narrative
-    const profile = summary.durationGap.riskProfile.replace(/-/g, ' ');
-    doc.fontSize(10).fillColor(COLORS.body);
-    doc.text(
-      `${summary.institution.name} is ${profile} with a duration gap of ` +
-        `${summary.durationGap.durationGap > 0 ? '+' : ''}${summary.durationGap.durationGap} years. ` +
-        `Net interest income base is $${summary.niiSensitivity.baseNII}M with a ` +
-        `${summary.niiSensitivity.riskRating} risk rating. ` +
-        `Liquidity coverage ratio stands at ${summary.liquidity.lcr}% (${summary.liquidity.status}).`,
-    );
-    doc.moveDown(1.5);
-
-    // Key Metrics Table
-    const metrics = [
-      ['Overall Risk Score', `${summary.riskScore}/100 — ${scoreLabel}`],
-      [
-        'Duration Gap',
-        `${summary.durationGap.durationGap > 0 ? '+' : ''}${summary.durationGap.durationGap} years (${profile})`,
-      ],
-      ['Asset Duration', `${summary.durationGap.assetDuration} years`],
-      ['Liability Duration', `${summary.durationGap.liabilityDuration} years`],
-      ['Base NII', `$${summary.niiSensitivity.baseNII}M`],
-      ['NII Risk Rating', summary.niiSensitivity.riskRating.toUpperCase()],
-      ['LCR Ratio', `${summary.liquidity.lcr}%`],
-      ['LCR Status', summary.liquidity.status.toUpperCase()],
-      [
-        'LCR Buffer',
-        `${summary.liquidity.buffer > 0 ? '+' : ''}${summary.liquidity.buffer}%`,
-      ],
-    ];
-
-    this.renderStyledTable(doc, ['Metric', 'Value'], metrics);
-
-    doc.moveDown(1.5);
-
-    // Top Risks
-    this.renderSubsectionHeader(doc, 'Top Risks');
-    doc.moveDown(0.3);
-    summary.topRisks.forEach((risk, i) => {
-      const y = doc.y;
-      doc
-        .fontSize(9)
-        .fillColor(COLORS.red)
-        .text(`${i + 1}.`, doc.page.margins.left, y, { continued: false });
-      doc
-        .fontSize(9)
-        .fillColor(COLORS.body)
-        .text(risk, doc.page.margins.left + 20, y, { continued: false });
-      doc.y = Math.max(doc.y, y + 14);
-    });
-
-    this.renderFooter(doc, summary.institution.name);
-  }
-
-  // ─── Interest Rate Risk ──────────────────────────────────────
-
-  private renderInterestRateRisk(
-    doc: typeof PDFDocument,
-    summary: {
-      institution: { name: string };
-      durationGap: {
-        durationGap: number;
-        riskProfile: string;
-        assetDuration: number;
-        liabilityDuration: number;
-      };
-      niiSensitivity: {
-        scenarios: Array<{
-          name: string;
-          shiftBps: number;
-          niImpact: number;
-          niImpactPct: number;
-          mveImpact: number;
-          mveImpactPct: number;
-        }>;
-        baseNII: number;
-        riskRating: string;
-      };
-    },
-  ) {
-    this.renderSectionHeader(
-      doc,
-      '3',
-      t('interestRateRisk', this.lang),
-      t('irSubtitle', this.lang),
-    );
-
-    // Duration Gap narrative
-    this.renderSubsectionHeader(doc, 'Duration Gap Analysis');
-    doc.moveDown(0.3);
-    doc.fontSize(10).fillColor(COLORS.body);
-    doc.text(
-      `The institution exhibits a ${summary.durationGap.riskProfile.replace(/-/g, ' ')} profile. ` +
-        `Asset-weighted duration of ${summary.durationGap.assetDuration} years versus ` +
-        `liability duration of ${summary.durationGap.liabilityDuration} years, ` +
-        `resulting in a duration gap of ${summary.durationGap.durationGap > 0 ? '+' : ''}${summary.durationGap.durationGap} years.`,
-    );
-    doc.moveDown(1.5);
-
-    // NII Sensitivity Table
-    this.renderSubsectionHeader(doc, 'NII Sensitivity Scenarios');
-    doc.moveDown(0.2);
-    doc
+      .fillColor('#cbd5e1')
+      .font('Helvetica')
       .fontSize(9)
-      .fillColor(COLORS.muted)
       .text(
-        `Base NII: $${summary.niiSensitivity.baseNII}M  |  Risk Rating: ${summary.niiSensitivity.riskRating.toUpperCase()}`,
+        payload.lang === 'es'
+          ? 'Informe premium para junta'
+          : 'Board-ready premium report',
+        left,
+        42,
       );
-    doc.moveDown(0.5);
 
-    const sorted = [...summary.niiSensitivity.scenarios].sort(
-      (a, b) => a.shiftBps - b.shiftBps,
-    );
-    const scenarioRows = sorted.map((s) => [
-      s.name,
-      `${s.shiftBps > 0 ? '+' : ''}${s.shiftBps} bps`,
-      `$${s.niImpact >= 0 ? '+' : ''}${s.niImpact.toFixed(2)}M`,
-      `${s.niImpactPct >= 0 ? '+' : ''}${s.niImpactPct.toFixed(2)}%`,
-      `$${s.mveImpact >= 0 ? '+' : ''}${s.mveImpact.toFixed(2)}M`,
-      `${s.mveImpactPct >= 0 ? '+' : ''}${s.mveImpactPct.toFixed(2)}%`,
-    ]);
-
-    this.renderStyledTable(
-      doc,
-      ['Scenario', 'Shift', 'NII Impact', 'NII %', 'MVE Impact', 'MVE %'],
-      scenarioRows,
-      {
-        highlightRows: sorted.map((s, i) => ({
-          index: i,
-          color: s.niImpact >= 0 ? COLORS.greenBg : COLORS.redBg,
-        })),
-        boldRows: sorted
-          .map((s, i) => (Math.abs(s.shiftBps) === 100 ? i : -1))
-          .filter((i) => i >= 0),
-      },
-    );
-
-    this.renderFooter(doc, summary.institution.name);
-  }
-
-  // ─── Liquidity Risk ──────────────────────────────────────────
-
-  private renderLiquidityRisk(
-    doc: typeof PDFDocument,
-    summary: {
-      institution: { name: string };
-      liquidity: {
-        lcr: number;
-        hqla: number;
-        netOutflows: number;
-        status: string;
-        buffer: number;
-      };
-    },
-  ) {
-    this.renderSectionHeader(
-      doc,
-      '4',
-      t('liquidityRisk', this.lang),
-      t('liqSubtitle', this.lang),
-    );
-
-    const statusLabel =
-      summary.liquidity.status === 'compliant'
-        ? 'COMPLIANT'
-        : summary.liquidity.status === 'warning'
-          ? 'WARNING'
-          : 'BREACH';
-    const statusColor =
-      summary.liquidity.status === 'compliant' ? COLORS.green : COLORS.red;
-
-    // Status highlight box
-    const boxY = doc.y;
     doc
-      .rect(
-        doc.page.margins.left,
-        boxY,
-        doc.page.width - doc.page.margins.left - doc.page.margins.right,
-        36,
-      )
-      .fill(
-        summary.liquidity.status === 'compliant'
-          ? COLORS.greenBg
-          : COLORS.redBg,
-      );
-    doc.rect(doc.page.margins.left, boxY, 4, 36).fill(statusColor);
+      .fillColor('#ffffff')
+      .font('Helvetica-Bold')
+      .fontSize(24)
+      .text(payload.institutionName, left, 152, { width });
     doc
-      .fontSize(10)
-      .fillColor(statusColor)
+      .fillColor(REPORT_THEME.brandAlt)
+      .font('Helvetica-Bold')
+      .fontSize(12)
       .text(
-        `Basel III LCR: ${statusLabel} — ${summary.liquidity.lcr.toFixed(1)}%`,
-        doc.page.margins.left + 16,
-        boxY + 8,
+        payload.lang === 'es'
+          ? 'Informe de gestión de activos y pasivos'
+          : 'Asset liability management report',
+        left,
+        190,
+        { width },
       );
-    doc
-      .fontSize(9)
-      .fillColor(COLORS.body)
-      .text(
-        `Buffer: ${summary.liquidity.buffer > 0 ? '+' : ''}${summary.liquidity.buffer.toFixed(1)}% over 100% minimum`,
-        doc.page.margins.left + 16,
-        boxY + 22,
-      );
-    doc.y = boxY + 46;
 
-    doc.fontSize(10).fillColor(COLORS.body);
-    doc.text(
-      `LCR stands at ${summary.liquidity.lcr.toFixed(1)}%, ` +
-        `calculated as HQLA ($${summary.liquidity.hqla.toFixed(1)}M) divided by ` +
-        `net cash outflows ($${summary.liquidity.netOutflows.toFixed(1)}M) over a 30-day stress period.`,
-    );
-    doc.moveDown(1.5);
-
-    // LCR Metrics
-    this.renderSubsectionHeader(doc, 'Liquidity Coverage Ratio');
-    doc.moveDown(0.3);
-
-    const lcrRows = [
-      ['Total HQLA', `$${summary.liquidity.hqla.toFixed(1)}M`],
+    const metaRows = [
       [
-        'Net Cash Outflows (30-day)',
-        `$${summary.liquidity.netOutflows.toFixed(1)}M`,
+        this.tx(payload.lang, 'Institution type', 'Tipo de institución'),
+        payload.institutionTypeLabel,
       ],
-      ['LCR Ratio', `${summary.liquidity.lcr.toFixed(1)}%`],
-      ['Compliance Status', statusLabel],
       [
-        'Buffer over Minimum',
-        `${summary.liquidity.buffer > 0 ? '+' : ''}${summary.liquidity.buffer.toFixed(1)}%`,
+        this.tx(payload.lang, 'Regulator', 'Regulador'),
+        payload.primaryRegulator,
       ],
+      [
+        this.tx(payload.lang, 'Reporting period', 'Período reportado'),
+        payload.reportingPeriodLabel,
+      ],
+      [
+        this.tx(payload.lang, 'Generated on', 'Generado el'),
+        payload.generatedAtLabel,
+      ],
+      [this.tx(payload.lang, 'Report ID', 'ID del informe'), payload.reportId],
     ];
-
-    this.renderStyledTable(doc, ['Metric', 'Value'], lcrRows);
-
-    doc.moveDown(1.5);
-
-    // HQLA Composition
-    this.renderSubsectionHeader(doc, 'HQLA Composition (Estimated)');
-    doc.moveDown(0.3);
-
-    const hqla = summary.liquidity.hqla;
-    const hqlaRows = [
-      [
-        'Level 1 — Cash, Government Bonds',
-        `$${round(hqla * 0.7, 1)}M`,
-        '70%',
-        'No haircut',
-      ],
-      [
-        'Level 2A — Agency MBS, High-Grade Corp',
-        `$${round(hqla * 0.2, 1)}M`,
-        '20%',
-        '15% haircut',
-      ],
-      [
-        'Level 2B — Lower-rated Corporate',
-        `$${round(hqla * 0.1, 1)}M`,
-        '10%',
-        '50% haircut',
-      ],
-      ['Total HQLA', `$${round(hqla, 1)}M`, '100%', '—'],
-    ];
-
-    this.renderStyledTable(
-      doc,
-      ['Category', 'Amount', 'Share', 'Haircut'],
-      hqlaRows,
-      {
-        boldRows: [3],
-      },
-    );
-
-    this.renderFooter(doc, summary.institution.name);
-  }
-
-  // ─── Stress Testing ──────────────────────────────────────────
-
-  private renderStressTesting(
-    doc: typeof PDFDocument,
-    stressTest: {
-      monteCarlo: {
-        niiAtRisk: number;
-        expectedNII: number;
-        worstCaseNII: number;
-        niiDistribution: {
-          p5: number;
-          p25: number;
-          median: number;
-          p75: number;
-          p95: number;
-        };
-        paths: number;
-        horizon: number;
-      };
-      regulatory: {
-        scenarios: Array<{
-          name: string;
-          description: string;
-          niImpact: number;
-          mveImpact: number;
-          lcrImpact: number;
-          capitalImpact: number;
-          passFailStatus: string;
-        }>;
-        overallRating: string;
-      };
-    },
-    summary: { institution: { name: string } },
-  ) {
-    this.renderSectionHeader(
-      doc,
-      '5',
-      t('stressTesting', this.lang),
-      t('stressSubtitle', this.lang),
-    );
-
-    // Monte Carlo section
-    this.renderSubsectionHeader(doc, 'Monte Carlo Simulation (Vasicek Model)');
-    doc.moveDown(0.3);
-    doc.fontSize(10).fillColor(COLORS.body);
-    doc.text(
-      `${stressTest.monteCarlo.paths} interest rate paths simulated over ${stressTest.monteCarlo.horizon} months ` +
-        `using a Vasicek mean-reverting model. NII at Risk (expected minus 5th percentile) ` +
-        `is $${stressTest.monteCarlo.niiAtRisk}M.`,
-    );
-    doc.moveDown(0.5);
-
-    // Highlight box for key MC metrics
-    const boxY = doc.y;
-    const mL = doc.page.margins.left;
-    const cw = doc.page.width - mL - doc.page.margins.right;
-    doc.rect(mL, boxY, cw, 50).fill('#fffbeb');
-    doc.rect(mL, boxY, 4, 50).fill(COLORS.brand);
-
-    const col3w = cw / 3;
-    doc.fontSize(8).fillColor(COLORS.muted);
-    doc.text('Expected NII', mL + 16, boxY + 6, { width: col3w });
-    doc.text('Worst Case (5th %ile)', mL + 16 + col3w, boxY + 6, {
-      width: col3w,
-    });
-    doc.text('NII at Risk', mL + 16 + col3w * 2, boxY + 6, { width: col3w });
-
-    doc.fontSize(14).fillColor(COLORS.heading);
-    doc.text(`$${stressTest.monteCarlo.expectedNII}M`, mL + 16, boxY + 20, {
-      width: col3w,
-    });
-    doc.text(
-      `$${stressTest.monteCarlo.worstCaseNII}M`,
-      mL + 16 + col3w,
-      boxY + 20,
-      { width: col3w },
-    );
-    doc.fontSize(14).fillColor(COLORS.red);
-    doc.text(
-      `$${stressTest.monteCarlo.niiAtRisk}M`,
-      mL + 16 + col3w * 2,
-      boxY + 20,
-      { width: col3w },
-    );
-
-    doc.y = boxY + 60;
-
-    // Distribution table
-    const mcRows = [
-      [
-        '5th Percentile (Worst Case)',
-        `$${stressTest.monteCarlo.niiDistribution.p5}M`,
-      ],
-      ['25th Percentile', `$${stressTest.monteCarlo.niiDistribution.p25}M`],
-      [
-        'Median (Expected)',
-        `$${stressTest.monteCarlo.niiDistribution.median}M`,
-      ],
-      ['75th Percentile', `$${stressTest.monteCarlo.niiDistribution.p75}M`],
-      [
-        '95th Percentile (Best Case)',
-        `$${stressTest.monteCarlo.niiDistribution.p95}M`,
-      ],
-    ];
-
-    this.renderStyledTable(doc, ['Percentile', 'NII Value'], mcRows);
-
-    doc.moveDown(1.5);
-
-    // Regulatory scenarios
-    this.renderSubsectionHeader(doc, 'Regulatory Stress Scenarios');
-    doc.moveDown(0.2);
-
-    const ratingColor =
-      stressTest.regulatory.overallRating === 'resilient'
-        ? COLORS.green
-        : stressTest.regulatory.overallRating === 'adequate'
-          ? '#2563eb'
-          : COLORS.red;
-    doc
-      .fontSize(9)
-      .fillColor(ratingColor)
-      .text(
-        `Overall Rating: ${stressTest.regulatory.overallRating.toUpperCase()}`,
-      );
-    doc.moveDown(0.5);
-
-    const regRows = stressTest.regulatory.scenarios.map((s) => [
-      s.name,
-      `$${s.niImpact >= 0 ? '+' : ''}${s.niImpact}M`,
-      `$${s.mveImpact >= 0 ? '+' : ''}${s.mveImpact}M`,
-      `${s.lcrImpact.toFixed(1)}%`,
-      `${s.capitalImpact >= 0 ? '+' : ''}${s.capitalImpact}%`,
-      s.passFailStatus.toUpperCase(),
-    ]);
-
-    this.renderStyledTable(
-      doc,
-      ['Scenario', 'NII', 'MVE', 'LCR', 'Capital', 'Status'],
-      regRows,
-      {
-        highlightRows: stressTest.regulatory.scenarios.map((s, i) => ({
-          index: i,
-          color:
-            s.passFailStatus === 'pass'
-              ? COLORS.greenBg
-              : s.passFailStatus === 'warn'
-                ? '#fffbeb'
-                : COLORS.redBg,
-        })),
-        statusColumn: 5,
-      },
-    );
-
-    this.renderFooter(doc, summary.institution.name);
-  }
-
-  // ─── Balance Sheet Snapshot ──────────────────────────────────
-
-  private renderBalanceSheetSnapshot(
-    doc: typeof PDFDocument,
-    institution: any,
-    summary: { institution: { name: string; totalAssets: number } },
-  ) {
-    this.renderSectionHeader(
-      doc,
-      '2',
-      t('balanceSheetSnapshot', this.lang),
-      t('bsSubtitle', this.lang),
-    );
-
-    const items = institution.balanceSheetItems || [];
-    const assets = items.filter((i: any) => i.category === 'asset');
-    const liabilities = items.filter((i: any) => i.category === 'liability');
-    const totalA = assets.reduce((s: number, i: any) => s + i.balance, 0);
-    const totalL = liabilities.reduce((s: number, i: any) => s + i.balance, 0);
-    const equity = totalA - totalL;
-
-    // Summary KPIs
-    const kpis = [
-      [t('totalAssets', this.lang), `$${totalA.toFixed(1)}M`],
-      [t('totalLiabilities', this.lang), `$${totalL.toFixed(1)}M`],
-      [t('equity', this.lang), `$${equity.toFixed(1)}M`],
-      [
-        this.lang === 'es' ? 'Razón de Capital' : 'Capital Ratio',
-        `${totalA > 0 ? ((equity / totalA) * 100).toFixed(1) : '0.0'}%`,
-      ],
-    ];
-    this.renderStyledTable(
-      doc,
-      [t('metric', this.lang), t('value', this.lang)],
-      kpis,
-      { boldRows: [2, 3] },
-    );
-    doc.moveDown(1);
-
-    // Assets table
-    this.renderSubsectionHeader(doc, t('assets', this.lang));
-    doc.moveDown(0.3);
-    const assetRows = assets.map((a: any) => [
-      a.name,
-      `$${a.balance.toFixed(1)}M`,
-      `${(a.rate * 100).toFixed(2)}%`,
-      `${a.duration.toFixed(1)}yr`,
-      a.rateType,
-    ]);
-    this.renderStyledTable(
-      doc,
-      [
-        t('name', this.lang),
-        t('balance', this.lang),
-        t('rate', this.lang),
-        t('duration', this.lang),
-        t('rateType', this.lang),
-      ],
-      assetRows,
-    );
-    doc.moveDown(1);
-
-    // Liabilities table
-    if (doc.y > doc.page.height - 200) {
-      doc.addPage();
-      this.renderFooter(doc, summary.institution.name);
+    let metaY = 232;
+    for (const [label, value] of metaRows) {
+      doc
+        .fillColor(REPORT_THEME.muted)
+        .font('Helvetica')
+        .fontSize(8)
+        .text(label, left, metaY, { width: 120 });
+      doc
+        .fillColor(REPORT_THEME.heading)
+        .font('Helvetica-Bold')
+        .fontSize(9)
+        .text(value, left + 128, metaY, { width: width - 128 });
+      metaY += 18;
     }
-    this.renderSubsectionHeader(doc, t('liabilities', this.lang));
-    doc.moveDown(0.3);
-    const liabRows = liabilities.map((l: any) => [
-      l.name,
-      `$${l.balance.toFixed(1)}M`,
-      `${(l.rate * 100).toFixed(2)}%`,
-      `${l.duration.toFixed(1)}yr`,
-      l.rateType,
-    ]);
-    this.renderStyledTable(
+
+    this.drawTonePanel(
       doc,
-      [
-        t('name', this.lang),
-        t('balance', this.lang),
-        t('rate', this.lang),
-        t('duration', this.lang),
-        t('rateType', this.lang),
-      ],
-      liabRows,
+      left,
+      350,
+      width,
+      72,
+      scoreTone(payload.overviewMetrics),
+      '',
     );
-
-    this.renderFooter(doc, summary.institution.name);
-  }
-
-  // ─── COSSEC Compliance ─────────────────────────────────────
-
-  private renderRegulatoryCompliance(
-    doc: typeof PDFDocument,
-    cossec: any,
-    summary: { institution: { name: string } },
-    primaryRegulator?: string,
-  ) {
-    const isNcua = primaryRegulator === 'NCUA';
-    const titleKey = isNcua ? 'ncuaCompliance' : 'cossecCompliance';
-    const subtitleKey = isNcua ? 'ncuaSubtitle' : 'cossecSubtitle';
-    this.renderSectionHeader(
-      doc,
-      '6',
-      t(titleKey, this.lang),
-      t(subtitleKey, this.lang),
-    );
-
-    // Overall status
-    const statusColor =
-      cossec.overallStatus === 'compliant'
-        ? COLORS.green
-        : cossec.overallStatus === 'conditional'
-          ? COLORS.brand
-          : COLORS.red;
-    const statusText = cossec.overallStatus.toUpperCase();
-
-    const mL = doc.page.margins.left;
-    const cw = doc.page.width - mL - doc.page.margins.right;
-
-    const boxY = doc.y;
     doc
-      .rect(mL, boxY, cw, 36)
-      .fill(
-        cossec.overallStatus === 'compliant'
-          ? COLORS.greenBg
-          : cossec.overallStatus === 'conditional'
-            ? '#fffbeb'
-            : COLORS.redBg,
-      );
-    doc.rect(mL, boxY, 4, 36).fill(statusColor);
+      .fillColor(REPORT_THEME.heading)
+      .font('Helvetica-Bold')
+      .fontSize(14)
+      .text(payload.executiveHeadline, left + 18, 366, {
+        width: width - 36,
+      });
     doc
-      .fontSize(11)
-      .fillColor(statusColor)
-      .text(
-        `${this.lang === 'es' ? 'Estado General' : 'Overall Status'}: ${statusText}`,
-        mL + 16,
-        boxY + 10,
-      );
-    doc.y = boxY + 46;
+      .fillColor(REPORT_THEME.body)
+      .font('Helvetica')
+      .fontSize(10)
+      .text(payload.executiveNarrative, left + 18, 394, {
+        width: width - 36,
+      });
 
-    // Compliance checks table
-    const checkRows = cossec.checks.map((c: any) => [
-      this.lang === 'es' ? c.nameEs : c.name,
-      `${c.value}${c.unit}`,
-      `${c.threshold}${c.unit}`,
-      c.status.toUpperCase(),
-    ]);
-
-    const headers =
-      this.lang === 'es'
-        ? ['Métrica', 'Valor Actual', 'Umbral', 'Estado']
-        : ['Metric', 'Current Value', 'Threshold', 'Status'];
-
-    this.renderStyledTable(doc, headers, checkRows, {
-      highlightRows: cossec.checks.map((c: any, i: number) => ({
-        index: i,
-        color:
-          c.status === 'pass'
-            ? COLORS.greenBg
-            : c.status === 'warning'
-              ? '#fffbeb'
-              : COLORS.redBg,
-      })),
-      statusColumn: 3,
-    });
-
-    doc.moveDown(1.5);
-
-    // Details for each check
-    cossec.checks.forEach((check: any) => {
-      if (doc.y > doc.page.height - 80) {
-        doc.addPage();
-        this.renderFooter(doc, summary.institution.name);
-      }
-      doc
-        .fontSize(9)
-        .fillColor(COLORS.body)
-        .text(this.lang === 'es' ? check.descriptionEs : check.description);
-      doc.moveDown(0.4);
-    });
-
-    this.renderFooter(doc, summary.institution.name);
-  }
-
-  // ─── Recommendations ─────────────────────────────────────────
-
-  private renderRecommendations(
-    doc: typeof PDFDocument,
-    summary: {
-      institution: { name: string; type?: string };
-      recommendations: string[];
-      riskScore: number;
-    },
-  ) {
-    const recNum =
-      summary.institution?.type === 'cooperativa' ||
-      summary.institution?.type === 'credit_union'
-        ? '7'
-        : '6';
-    this.renderSectionHeader(
+    this.drawMetricCards(
       doc,
-      recNum,
-      t('recommendations', this.lang),
-      t('recSubtitle', this.lang),
+      payload,
+      446,
+      payload.overviewMetrics.slice(0, 4),
     );
 
-    doc.fontSize(10).fillColor(COLORS.body);
-    doc.text(
-      `Based on the comprehensive ALM analysis for ${summary.institution.name} (Risk Score: ${summary.riskScore}/100):`,
-    );
-    doc.moveDown(1);
-
-    const priorities = ['HIGH', 'HIGH', 'MEDIUM', 'MEDIUM', 'LOW'];
-    const priorityColors: Record<string, string> = {
-      HIGH: COLORS.red,
-      MEDIUM: COLORS.brand,
-      LOW: COLORS.green,
-    };
-
-    summary.recommendations.forEach((rec, i) => {
-      const priority = priorities[i] || 'MEDIUM';
-      const pColor = priorityColors[priority];
-
-      if (doc.y > doc.page.height - 100) {
-        doc.addPage();
-        this.renderFooter(doc, summary.institution.name);
-      }
-
-      const y = doc.y;
-      // Priority badge
+    if (payload.availabilityNotes.length > 0) {
+      this.drawPanel(
+        doc,
+        left,
+        596,
+        width,
+        96,
+        REPORT_THEME.warningBg,
+        REPORT_THEME.warning,
+      );
       doc
-        .fontSize(7)
-        .fillColor(pColor)
-        .text(`[${priority}]`, doc.page.margins.left, y, { continued: false });
-      // Recommendation text
-      doc
+        .fillColor(REPORT_THEME.warning)
+        .font('Helvetica-Bold')
         .fontSize(10)
-        .fillColor(COLORS.heading)
-        .text(`${i + 1}. ${rec}`, doc.page.margins.left + 45, y, {
+        .text(
+          this.tx(
+            payload.lang,
+            'Data availability notes',
+            'Notas de disponibilidad de datos',
+          ),
+          left + 14,
+          608,
+        );
+      doc
+        .fillColor(REPORT_THEME.body)
+        .font('Helvetica')
+        .fontSize(8.5)
+        .text(payload.availabilityNotes.join(' '), left + 14, 626, {
+          width: width - 28,
+        });
+    }
+
+    this.drawFooter(doc, payload, 1);
+  }
+
+  private renderOverviewPage(
+    doc: typeof PDFDocument,
+    payload: ALMReportPayload,
+    watermark: string | null,
+  ) {
+    doc.addPage();
+    this.drawWatermark(doc, watermark);
+    this.drawPageHeader(
+      doc,
+      payload,
+      this.tx(payload.lang, 'Board highlights', 'Hallazgos para junta'),
+      this.tx(
+        payload.lang,
+        'Institution-specific headline metrics and risk framing',
+        'Métricas institucionales y marco de riesgos',
+      ),
+      2,
+    );
+
+    doc
+      .fillColor(REPORT_THEME.heading)
+      .font('Helvetica-Bold')
+      .fontSize(11)
+      .text(
+        this.tx(payload.lang, 'Headline metrics', 'Métricas clave'),
+        doc.page.margins.left,
+        doc.y,
+      );
+    doc.moveDown(0.4);
+    const metricGridHeight = this.drawMetricCards(
+      doc,
+      payload,
+      doc.y,
+      payload.overviewMetrics,
+    );
+    doc.y += metricGridHeight + 14;
+
+    this.drawPanel(
+      doc,
+      doc.page.margins.left,
+      doc.y,
+      doc.page.width - doc.page.margins.left - doc.page.margins.right,
+      106,
+      REPORT_THEME.panel,
+      REPORT_THEME.brandAlt,
+    );
+    doc
+      .fillColor(REPORT_THEME.heading)
+      .font('Helvetica-Bold')
+      .fontSize(11)
+      .text(
+        this.tx(payload.lang, 'Board narrative', 'Narrativa para junta'),
+        doc.page.margins.left + 14,
+        doc.y + 12,
+      );
+    doc
+      .fillColor(REPORT_THEME.body)
+      .font('Helvetica')
+      .fontSize(9.5)
+      .text(
+        payload.executiveNarrative,
+        doc.page.margins.left + 14,
+        doc.y + 30,
+        {
           width:
             doc.page.width -
             doc.page.margins.left -
             doc.page.margins.right -
-            50,
+            28,
+        },
+      );
+    doc.y += 124;
+
+    doc
+      .fillColor(REPORT_THEME.heading)
+      .font('Helvetica-Bold')
+      .fontSize(11)
+      .text(
+        this.tx(
+          payload.lang,
+          'Top risks for discussion',
+          'Riesgos principales para discusión',
+        ),
+        doc.page.margins.left,
+        doc.y,
+      );
+    doc.moveDown(0.5);
+    payload.keyRisks.forEach((risk) => {
+      this.ensureSpace(doc, 28, payload, 2);
+      doc
+        .fillColor(REPORT_THEME.danger)
+        .font('Helvetica-Bold')
+        .fontSize(12)
+        .text('•', doc.page.margins.left, doc.y + 1);
+      doc
+        .fillColor(REPORT_THEME.body)
+        .font('Helvetica')
+        .fontSize(9.5)
+        .text(risk, doc.page.margins.left + 14, doc.y, {
+          width:
+            doc.page.width -
+            doc.page.margins.left -
+            doc.page.margins.right -
+            18,
         });
-      doc.moveDown(0.5);
+      doc.moveDown(0.9);
     });
 
-    doc.moveDown(3);
+    this.drawFooter(doc, payload, 2);
+  }
 
-    // Disclaimer
-    doc
-      .moveTo(doc.page.margins.left, doc.y)
-      .lineTo(doc.page.width - doc.page.margins.right, doc.y)
-      .lineWidth(0.5)
-      .stroke(COLORS.border);
-    doc.moveDown(1);
-
-    doc.fontSize(8).fillColor(COLORS.muted);
-    doc.text(
-      `${this.lang === 'es' ? 'Descargo' : 'Disclaimer'}: ${t('disclaimer', this.lang)}`,
+  private renderBalanceSheetPage(
+    doc: typeof PDFDocument,
+    payload: ALMReportPayload,
+    watermark: string | null,
+  ) {
+    doc.addPage();
+    this.drawWatermark(doc, watermark);
+    this.drawPageHeader(
+      doc,
+      payload,
+      this.tx(
+        payload.lang,
+        'Balance-sheet snapshot',
+        'Estado de situación financiera',
+      ),
+      this.tx(
+        payload.lang,
+        'Exact balance and pricing context',
+        'Contexto exacto de balance y precios',
+      ),
+      3,
     );
 
-    this.renderFooter(doc, summary.institution.name);
-  }
-
-  // ─── Shared Rendering Helpers ────────────────────────────────
-
-  private renderSectionHeader(
-    doc: typeof PDFDocument,
-    num: string,
-    title: string,
-    subtitle?: string,
-  ) {
-    this.pageNum++;
-    const mL = doc.page.margins.left;
-    const mR = doc.page.margins.right;
-    const contentWidth = doc.page.width - mL - mR;
-
-    // Brand bar at top
-    doc.rect(0, 0, doc.page.width, 4).fill(COLORS.brand);
-
-    // Section X of 5 — top right
-    doc
-      .fontSize(8)
-      .fillColor(COLORS.muted)
-      .text(`Section ${num} of 5`, 0, doc.page.margins.top + 4, {
-        align: 'right',
-        width: doc.page.width - mR,
-      });
-
-    // Left border accent + section title
-    doc.y = doc.page.margins.top;
-    const headerY = doc.y;
-
-    doc.rect(mL, headerY, 4, subtitle ? 36 : 28).fill(COLORS.brand);
-
-    doc
-      .fontSize(16)
-      .fillColor(COLORS.heading)
-      .text(`${num}. ${title}`, mL + 16, headerY + 2);
-    if (subtitle) {
-      doc
-        .fontSize(9)
-        .fillColor(COLORS.muted)
-        .text(subtitle, mL + 16, headerY + 22);
+    if (!payload.balanceSheet.available && payload.balanceSheet.note) {
+      this.drawUnavailablePanel(doc, payload.balanceSheet.note, payload);
     }
 
-    doc.y = headerY + (subtitle ? 46 : 38);
+    const summaryData = payload.balanceSheet.data;
+    if (summaryData) {
+      this.drawTable(
+        doc,
+        payload,
+        [
+          this.tx(payload.lang, 'Metric', 'Métrica'),
+          this.tx(payload.lang, 'Value', 'Valor'),
+        ],
+        summaryData.summaryRows,
+        [0.55, 0.45],
+        3,
+      );
+      doc.moveDown(0.6);
 
-    // Subtle rule below header
-    doc
-      .moveTo(mL, doc.y)
-      .lineTo(mL + contentWidth, doc.y)
-      .lineWidth(0.5)
-      .stroke(COLORS.border);
-    doc.moveDown(1);
-  }
-
-  private renderSubsectionHeader(doc: typeof PDFDocument, title: string) {
-    doc
-      .fontSize(11)
-      .fillColor(COLORS.heading)
-      .text(title, { underline: false });
-    const y = doc.y + 2;
-    doc
-      .moveTo(doc.page.margins.left, y)
-      .lineTo(doc.page.margins.left + 60, y)
-      .lineWidth(1.5)
-      .stroke(COLORS.brand);
-    doc.y = y + 6;
-  }
-
-  private renderStyledTable(
-    doc: typeof PDFDocument,
-    headers: string[],
-    rows: string[][],
-    options?: {
-      highlightRows?: Array<{ index: number; color: string }>;
-      boldRows?: number[];
-      statusColumn?: number;
-    },
-  ) {
-    const mL = doc.page.margins.left;
-    const mR = doc.page.margins.right;
-    const contentWidth = doc.page.width - mL - mR;
-    const colWidth = contentWidth / headers.length;
-    const rowHeight = 18;
-    let y = doc.y;
-
-    // Header background
-    doc.rect(mL, y - 2, contentWidth, rowHeight + 2).fill(COLORS.dark);
-
-    // Header text
-    doc.fontSize(8).fillColor('#ffffff');
-    headers.forEach((h, i) => {
-      doc.text(h, mL + i * colWidth + 6, y + 2, {
-        width: colWidth - 12,
-        align: i === 0 ? 'left' : 'right',
-        lineBreak: false,
-      });
-    });
-    y += rowHeight + 2;
-
-    // Data rows
-    rows.forEach((row, rowIdx) => {
-      // Page break check
-      if (y > doc.page.height - 80) {
-        doc.addPage();
-        this.renderFooter(doc, '');
-        y = doc.page.margins.top + 20;
+      if (summaryData.assetRows.length > 0) {
+        this.drawSectionLabel(
+          doc,
+          payload,
+          this.tx(payload.lang, 'Assets', 'Activos'),
+        );
+        this.drawTable(
+          doc,
+          payload,
+          [
+            this.tx(payload.lang, 'Name', 'Nombre'),
+            this.tx(payload.lang, 'Balance', 'Saldo'),
+            this.tx(payload.lang, 'Rate', 'Tasa'),
+            this.tx(payload.lang, 'Duration', 'Duración'),
+            this.tx(payload.lang, 'Type', 'Tipo'),
+          ],
+          summaryData.assetRows,
+          [0.34, 0.21, 0.15, 0.15, 0.15],
+          3,
+        );
+        doc.moveDown(0.6);
       }
 
-      // Row background
-      const highlight = options?.highlightRows?.find((h) => h.index === rowIdx);
-      const bgColor = highlight
-        ? highlight.color
-        : rowIdx % 2 === 1
-          ? COLORS.rowAlt
-          : '#ffffff';
-      doc.rect(mL, y - 1, contentWidth, rowHeight).fill(bgColor);
+      if (summaryData.liabilityRows.length > 0) {
+        this.drawSectionLabel(
+          doc,
+          payload,
+          this.tx(payload.lang, 'Liabilities', 'Pasivos'),
+        );
+        this.drawTable(
+          doc,
+          payload,
+          [
+            this.tx(payload.lang, 'Name', 'Nombre'),
+            this.tx(payload.lang, 'Balance', 'Saldo'),
+            this.tx(payload.lang, 'Rate', 'Tasa'),
+            this.tx(payload.lang, 'Duration', 'Duración'),
+            this.tx(payload.lang, 'Type', 'Tipo'),
+          ],
+          summaryData.liabilityRows,
+          [0.34, 0.21, 0.15, 0.15, 0.15],
+          3,
+        );
+      }
+    }
 
-      // Row text
-      const isBold = options?.boldRows?.includes(rowIdx);
-      doc.fontSize(isBold ? 9 : 8.5).fillColor(COLORS.body);
-
-      row.forEach((cell, colIdx) => {
-        let cellColor = COLORS.body;
-
-        // Color-code status column
-        if (
-          options?.statusColumn !== undefined &&
-          colIdx === options.statusColumn
-        ) {
-          if (cell === 'PASS') cellColor = COLORS.green;
-          else if (cell === 'FAIL') cellColor = COLORS.red;
-          else if (cell === 'WARN') cellColor = COLORS.brandDark;
-        }
-
-        // Color-code values starting with + or -
-        if (colIdx > 0 && cell.startsWith('+$')) cellColor = COLORS.green;
-        if (colIdx > 0 && cell.startsWith('-$')) cellColor = COLORS.red;
-
-        if (isBold) {
-          doc.font('Helvetica-Bold');
-        } else {
-          doc.font('Helvetica');
-        }
-
-        doc.fillColor(cellColor).text(cell, mL + colIdx * colWidth + 6, y + 3, {
-          width: colWidth - 12,
-          align: colIdx === 0 ? 'left' : 'right',
-          lineBreak: false,
-        });
-      });
-
-      y += rowHeight;
-    });
-
-    // Bottom border
-    doc
-      .moveTo(mL, y)
-      .lineTo(mL + contentWidth, y)
-      .lineWidth(0.5)
-      .stroke(COLORS.border);
-
-    doc.font('Helvetica');
-    doc.y = y + 8;
+    this.drawFooter(doc, payload, 3);
   }
 
-  private renderFooter(doc: typeof PDFDocument, institutionName: string) {
-    const mL = doc.page.margins.left;
-    const contentWidth = doc.page.width - mL - doc.page.margins.right;
-    const bottom = doc.page.height - 45;
+  private renderInterestRatePage(
+    doc: typeof PDFDocument,
+    payload: ALMReportPayload,
+    watermark: string | null,
+  ) {
+    doc.addPage();
+    this.drawWatermark(doc, watermark);
+    this.drawPageHeader(
+      doc,
+      payload,
+      this.tx(payload.lang, 'Interest-rate risk', 'Riesgo de tasa'),
+      this.tx(
+        payload.lang,
+        'Duration posture and NII sensitivity',
+        'Postura de duración y sensibilidad NII',
+      ),
+      4,
+    );
 
-    // Rule
+    if (!payload.interestRate.available) {
+      this.drawUnavailablePanel(
+        doc,
+        payload.interestRate.note || this.unavailable(payload.lang),
+        payload,
+      );
+      this.drawFooter(doc, payload, 4);
+      return;
+    }
+
+    const interestData = payload.interestRate.data!;
+    this.drawPanel(
+      doc,
+      doc.page.margins.left,
+      doc.y,
+      doc.page.width - doc.page.margins.left - doc.page.margins.right,
+      88,
+      REPORT_THEME.panel,
+      REPORT_THEME.brandAlt,
+    );
     doc
-      .moveTo(mL, bottom - 8)
-      .lineTo(mL + contentWidth, bottom - 8)
-      .lineWidth(0.3)
-      .stroke(COLORS.border);
+      .fillColor(REPORT_THEME.body)
+      .font('Helvetica')
+      .fontSize(9.5)
+      .text(interestData.narrative, doc.page.margins.left + 14, doc.y + 14, {
+        width:
+          doc.page.width - doc.page.margins.left - doc.page.margins.right - 28,
+      });
+    doc.y += 102;
 
-    // Left: institution name
-    doc.fontSize(7).fillColor(COLORS.muted);
-    if (institutionName) {
-      doc.text(institutionName, mL, bottom, {
-        width: contentWidth / 3,
-        align: 'left',
+    this.drawTable(
+      doc,
+      payload,
+      [
+        this.tx(payload.lang, 'Metric', 'Métrica'),
+        this.tx(payload.lang, 'Value', 'Valor'),
+      ],
+      interestData.metricRows,
+      [0.52, 0.48],
+      4,
+    );
+    doc.moveDown(0.8);
+
+    if (interestData.scenarioRows.length > 0) {
+      this.drawSectionLabel(
+        doc,
+        payload,
+        this.tx(
+          payload.lang,
+          'Modeled rate shocks',
+          'Choques de tasa modelados',
+        ),
+      );
+      this.drawTable(
+        doc,
+        payload,
+        [
+          this.tx(payload.lang, 'Scenario', 'Escenario'),
+          this.tx(payload.lang, 'Shift', 'Cambio'),
+          'NII',
+          'NII %',
+          'MVE',
+          'MVE %',
+        ],
+        interestData.scenarioRows,
+        [0.25, 0.12, 0.18, 0.15, 0.16, 0.14],
+        4,
+      );
+    }
+
+    this.drawFooter(doc, payload, 4);
+  }
+
+  private renderLiquidityStressPage(
+    doc: typeof PDFDocument,
+    payload: ALMReportPayload,
+    watermark: string | null,
+  ) {
+    doc.addPage();
+    this.drawWatermark(doc, watermark);
+    this.drawPageHeader(
+      doc,
+      payload,
+      this.tx(payload.lang, 'Liquidity and stress', 'Liquidez y estrés'),
+      this.tx(
+        payload.lang,
+        'Liquidity buffer plus scenario resilience',
+        'Colchón de liquidez y resiliencia por escenarios',
+      ),
+      5,
+    );
+
+    if (!payload.liquidityStress.available) {
+      this.drawUnavailablePanel(
+        doc,
+        payload.liquidityStress.note || this.unavailable(payload.lang),
+        payload,
+      );
+      this.drawFooter(doc, payload, 5);
+      return;
+    }
+
+    const liquidityData = payload.liquidityStress.data!;
+    this.drawPanel(
+      doc,
+      doc.page.margins.left,
+      doc.y,
+      doc.page.width - doc.page.margins.left - doc.page.margins.right,
+      72,
+      REPORT_THEME.infoBg,
+      REPORT_THEME.info,
+    );
+    doc
+      .fillColor(REPORT_THEME.body)
+      .font('Helvetica')
+      .fontSize(9.5)
+      .text(
+        liquidityData.liquidityNarrative,
+        doc.page.margins.left + 14,
+        doc.y + 14,
+        {
+          width:
+            doc.page.width -
+            doc.page.margins.left -
+            doc.page.margins.right -
+            28,
+        },
+      );
+    doc.y += 84;
+
+    if (liquidityData.liquidityRows.length > 0) {
+      this.drawTable(
+        doc,
+        payload,
+        [
+          this.tx(payload.lang, 'Liquidity metric', 'Métrica de liquidez'),
+          this.tx(payload.lang, 'Value', 'Valor'),
+        ],
+        liquidityData.liquidityRows,
+        [0.56, 0.44],
+        5,
+      );
+      doc.moveDown(0.8);
+    }
+
+    if (liquidityData.hqlaRows.length > 0) {
+      this.drawSectionLabel(
+        doc,
+        payload,
+        this.tx(
+          payload.lang,
+          'Indicative HQLA mix',
+          'Mezcla indicativa de HQLA',
+        ),
+      );
+      this.drawTable(
+        doc,
+        payload,
+        [
+          this.tx(payload.lang, 'Category', 'Categoría'),
+          this.tx(payload.lang, 'Amount', 'Monto'),
+          this.tx(payload.lang, 'Share', 'Participación'),
+        ],
+        liquidityData.hqlaRows,
+        [0.45, 0.33, 0.22],
+        5,
+      );
+      doc.moveDown(0.8);
+    }
+
+    if (liquidityData.stressOverviewRows.length > 0) {
+      this.drawSectionLabel(
+        doc,
+        payload,
+        this.tx(payload.lang, 'Monte Carlo summary', 'Resumen Monte Carlo'),
+      );
+      this.drawTable(
+        doc,
+        payload,
+        [
+          this.tx(payload.lang, 'Stress metric', 'Métrica de estrés'),
+          this.tx(payload.lang, 'Value', 'Valor'),
+        ],
+        liquidityData.stressOverviewRows,
+        [0.56, 0.44],
+        5,
+      );
+      doc.moveDown(0.8);
+    }
+
+    if (liquidityData.regulatoryStressRows.length > 0) {
+      this.drawSectionLabel(
+        doc,
+        payload,
+        this.tx(
+          payload.lang,
+          'Regulatory scenarios',
+          'Escenarios regulatorios',
+        ),
+      );
+      this.drawTable(
+        doc,
+        payload,
+        [
+          this.tx(payload.lang, 'Scenario', 'Escenario'),
+          'NII',
+          'MVE',
+          'LCR',
+          this.tx(payload.lang, 'Capital', 'Capital'),
+          this.tx(payload.lang, 'Status', 'Estado'),
+        ],
+        liquidityData.regulatoryStressRows,
+        [0.24, 0.16, 0.16, 0.14, 0.14, 0.16],
+        5,
+      );
+    }
+
+    this.drawFooter(doc, payload, 5);
+  }
+
+  private renderRegulatoryPage(
+    doc: typeof PDFDocument,
+    payload: ALMReportPayload,
+    watermark: string | null,
+  ) {
+    doc.addPage();
+    this.drawWatermark(doc, watermark);
+    this.drawPageHeader(
+      doc,
+      payload,
+      this.tx(payload.lang, 'Regulatory posture', 'Postura regulatoria'),
+      this.tx(
+        payload.lang,
+        'Current regulator-facing indicators',
+        'Indicadores actuales frente al regulador',
+      ),
+      6,
+    );
+
+    if (!payload.regulatory.available && payload.regulatory.note) {
+      this.drawUnavailablePanel(doc, payload.regulatory.note, payload);
+    }
+
+    const regulatoryData = payload.regulatory.data;
+    if (regulatoryData) {
+      this.drawTonePanel(
+        doc,
+        doc.page.margins.left,
+        doc.y,
+        doc.page.width - doc.page.margins.left - doc.page.margins.right,
+        52,
+        regulatoryData.statusTone,
+        regulatoryData.statusLabel,
+      );
+      doc.y += 64;
+
+      this.drawTable(
+        doc,
+        payload,
+        [
+          this.tx(payload.lang, 'Summary metric', 'Métrica resumen'),
+          this.tx(payload.lang, 'Value', 'Valor'),
+        ],
+        regulatoryData.summaryRows,
+        [0.56, 0.44],
+        6,
+      );
+      doc.moveDown(0.8);
+
+      if (regulatoryData.checkRows.length > 0) {
+        this.drawSectionLabel(
+          doc,
+          payload,
+          this.tx(
+            payload.lang,
+            'Regulatory checks',
+            'Verificaciones regulatorias',
+          ),
+        );
+        this.drawTable(
+          doc,
+          payload,
+          [
+            this.tx(payload.lang, 'Check', 'Verificación'),
+            this.tx(payload.lang, 'Current', 'Actual'),
+            this.tx(payload.lang, 'Threshold', 'Umbral'),
+            this.tx(payload.lang, 'Status', 'Estado'),
+          ],
+          regulatoryData.checkRows,
+          [0.42, 0.18, 0.2, 0.2],
+          6,
+        );
+        doc.moveDown(0.8);
+      }
+
+      if (regulatoryData.notes.length > 0) {
+        this.drawSectionLabel(
+          doc,
+          payload,
+          this.tx(payload.lang, 'Observations', 'Observaciones'),
+        );
+        regulatoryData.notes.slice(0, 5).forEach((note) => {
+          this.ensureSpace(doc, 28, payload, 6);
+          doc
+            .fillColor(REPORT_THEME.body)
+            .font('Helvetica')
+            .fontSize(9)
+            .text(`• ${note}`, doc.page.margins.left, doc.y, {
+              width:
+                doc.page.width - doc.page.margins.left - doc.page.margins.right,
+            });
+          doc.moveDown(0.65);
+        });
+      }
+    }
+
+    this.drawFooter(doc, payload, 6);
+  }
+
+  private renderRecommendationsPage(
+    doc: typeof PDFDocument,
+    payload: ALMReportPayload,
+    watermark: string | null,
+  ) {
+    doc.addPage();
+    this.drawWatermark(doc, watermark);
+    this.drawPageHeader(
+      doc,
+      payload,
+      this.tx(payload.lang, 'Board actions', 'Acciones de junta'),
+      this.tx(
+        payload.lang,
+        'Priority actions from the current ALM posture',
+        'Acciones prioritarias según la postura ALM actual',
+      ),
+      7,
+    );
+
+    payload.recommendations.forEach((recommendation, index) => {
+      this.ensureSpace(doc, 78, payload, 7);
+      const tone =
+        recommendation.priority === 'HIGH'
+          ? 'danger'
+          : recommendation.priority === 'MEDIUM'
+            ? 'warning'
+            : 'success';
+      this.drawTonePanel(
+        doc,
+        doc.page.margins.left,
+        doc.y,
+        doc.page.width - doc.page.margins.left - doc.page.margins.right,
+        64,
+        tone,
+        `${index + 1}. ${recommendation.priority}`,
+      );
+      doc
+        .fillColor(REPORT_THEME.body)
+        .font('Helvetica')
+        .fontSize(9.5)
+        .text(recommendation.text, doc.page.margins.left + 14, doc.y + 24, {
+          width:
+            doc.page.width -
+            doc.page.margins.left -
+            doc.page.margins.right -
+            28,
+        });
+      doc.y += 78;
+    });
+
+    if (payload.availabilityNotes.length > 0) {
+      this.drawSectionLabel(
+        doc,
+        payload,
+        this.tx(payload.lang, 'Data completeness', 'Integridad de datos'),
+      );
+      payload.availabilityNotes.forEach((note) => {
+        this.ensureSpace(doc, 24, payload, 7);
+        doc
+          .fillColor(REPORT_THEME.body)
+          .font('Helvetica')
+          .fontSize(8.5)
+          .text(`• ${note}`, doc.page.margins.left, doc.y, {
+            width:
+              doc.page.width - doc.page.margins.left - doc.page.margins.right,
+          });
+        doc.moveDown(0.5);
       });
     }
 
-    // Center: branding
-    doc.text(
-      'CERNIQ by KLYTICS | Confidential',
-      mL + contentWidth / 3,
-      bottom,
-      { width: contentWidth / 3, align: 'center' },
-    );
+    doc.moveDown(1.2);
+    doc
+      .fillColor(REPORT_THEME.muted)
+      .font('Helvetica')
+      .fontSize(8)
+      .text(
+        this.tx(
+          payload.lang,
+          'This document is generated from the latest available ALM, balance-sheet, liquidity, and regulatory data in CERNIQ. Review all assumptions before taking action.',
+          'Este documento se genera con la información ALM, de balance, liquidez y regulatoria más reciente disponible en CERNIQ. Revise todos los supuestos antes de actuar.',
+        ),
+        doc.page.margins.left,
+        doc.y,
+        {
+          width:
+            doc.page.width - doc.page.margins.left - doc.page.margins.right,
+          align: 'center',
+        },
+      );
 
-    // Right: date
-    const dateStr = new Date().toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-    doc.text(dateStr, mL + (contentWidth * 2) / 3, bottom, {
-      width: contentWidth / 3,
+    this.drawFooter(doc, payload, 7);
+  }
+
+  private drawPageHeader(
+    doc: typeof PDFDocument,
+    payload: ALMReportPayload,
+    title: string,
+    subtitle: string,
+    pageNumber: number,
+  ) {
+    doc.rect(0, 0, doc.page.width, 5).fill(REPORT_THEME.brand);
+    doc
+      .fillColor(REPORT_THEME.heading)
+      .font('Helvetica-Bold')
+      .fontSize(16)
+      .text(title, doc.page.margins.left, 48);
+    doc
+      .fillColor(REPORT_THEME.muted)
+      .font('Helvetica')
+      .fontSize(8.5)
+      .text(subtitle, doc.page.margins.left, 68);
+    doc
+      .fillColor(REPORT_THEME.muted)
+      .font('Helvetica')
+      .fontSize(8)
+      .text(
+        `${payload.institutionName} | ${payload.primaryRegulator}`,
+        doc.page.margins.left,
+        82,
+      );
+    doc.text(`${pageNumber}`, 0, 50, {
+      width: doc.page.width - doc.page.margins.right,
       align: 'right',
     });
+    doc.y = 104;
   }
+
+  private drawFooter(
+    doc: typeof PDFDocument,
+    payload: ALMReportPayload,
+    pageNumber: number,
+  ) {
+    const left = doc.page.margins.left;
+    const width = doc.page.width - left - doc.page.margins.right;
+    const y = doc.page.height - 34;
+    doc
+      .moveTo(left, y - 10)
+      .lineTo(left + width, y - 10)
+      .lineWidth(0.4)
+      .strokeColor(REPORT_THEME.border)
+      .stroke();
+    doc
+      .fillColor(REPORT_THEME.muted)
+      .font('Helvetica')
+      .fontSize(7)
+      .text(payload.institutionName, left, y, { width: width / 3 });
+    doc.text('CERNIQ | KLYTICS', left + width / 3, y, {
+      width: width / 3,
+      align: 'center',
+    });
+    doc.text(
+      `${payload.generatedAtLabel} | ${pageNumber}`,
+      left + (width * 2) / 3,
+      y,
+      {
+        width: width / 3,
+        align: 'right',
+      },
+    );
+  }
+
+  private drawMetricCards(
+    doc: typeof PDFDocument,
+    payload: ALMReportPayload,
+    startY: number,
+    metrics: ReportMetric[],
+  ): number {
+    const left = doc.page.margins.left;
+    const gutter = 12;
+    const totalWidth = doc.page.width - left - doc.page.margins.right;
+    const columnWidth = (totalWidth - gutter) / 2;
+    const cardHeight = 58;
+
+    metrics.forEach((metric, index) => {
+      const row = Math.floor(index / 2);
+      const col = index % 2;
+      const x = left + col * (columnWidth + gutter);
+      const y = startY + row * (cardHeight + gutter);
+      this.drawTonePanel(
+        doc,
+        x,
+        y,
+        columnWidth,
+        cardHeight,
+        metric.tone || 'neutral',
+        metric.label,
+      );
+      doc
+        .fillColor(REPORT_THEME.heading)
+        .font('Helvetica-Bold')
+        .fontSize(12)
+        .text(metric.value, x + 12, y + 22, { width: columnWidth - 24 });
+      if (metric.helper) {
+        doc
+          .fillColor(REPORT_THEME.muted)
+          .font('Helvetica')
+          .fontSize(7.5)
+          .text(metric.helper, x + 12, y + 39, { width: columnWidth - 24 });
+      }
+    });
+
+    const rows = Math.ceil(metrics.length / 2);
+    return rows > 0 ? rows * cardHeight + (rows - 1) * gutter : 0;
+  }
+
+  private drawTable(
+    doc: typeof PDFDocument,
+    payload: ALMReportPayload,
+    headers: string[],
+    rows: ReportTableRow[],
+    widthRatios: number[],
+    pageNumber: number,
+  ) {
+    const left = doc.page.margins.left;
+    const width = doc.page.width - left - doc.page.margins.right;
+    const normalized = normalizeWidthRatios(widthRatios, width);
+    const rowPadding = 6;
+    const sectionTop = () => {
+      doc.rect(left, doc.y, width, 20).fill(REPORT_THEME.dark);
+      let cursor = left;
+      headers.forEach((header, index) => {
+        doc
+          .fillColor('#ffffff')
+          .font('Helvetica-Bold')
+          .fontSize(8)
+          .text(header, cursor + rowPadding, doc.y + 6, {
+            width: normalized[index] - rowPadding * 2,
+            align: index === 0 ? 'left' : 'right',
+          });
+        cursor += normalized[index];
+      });
+      doc.y += 22;
+    };
+
+    sectionTop();
+
+    rows.forEach((row, rowIndex) => {
+      const rowHeight =
+        Math.max(
+          ...row.cells.map((cell, index) =>
+            doc.heightOfString(cell, {
+              width: normalized[index] - rowPadding * 2,
+              align: index === 0 ? 'left' : 'right',
+            }),
+          ),
+        ) +
+        rowPadding * 1.6;
+      this.ensureSpace(doc, rowHeight + 6, payload, pageNumber);
+      if (doc.y + rowHeight > doc.page.height - 70) {
+        this.drawFooter(doc, payload, pageNumber);
+        doc.addPage();
+        this.drawPageHeader(
+          doc,
+          payload,
+          payload.lang === 'es' ? 'Continuación' : 'Continued',
+          payload.institutionName,
+          pageNumber,
+        );
+        sectionTop();
+      }
+
+      const tone = row.tone || (rowIndex % 2 === 1 ? 'info' : 'neutral');
+      const { fill, accent, text } = toneColors(tone);
+      this.drawPanel(doc, left, doc.y, width, rowHeight, fill, accent);
+
+      let cursor = left;
+      row.cells.forEach((cell, index) => {
+        doc
+          .fillColor(text)
+          .font(index === 0 ? 'Helvetica-Bold' : 'Helvetica')
+          .fontSize(8.5)
+          .text(cell, cursor + rowPadding, doc.y + 5, {
+            width: normalized[index] - rowPadding * 2,
+            align: index === 0 ? 'left' : 'right',
+          });
+        cursor += normalized[index];
+      });
+      doc.y += rowHeight + 6;
+    });
+  }
+
+  private drawSectionLabel(
+    doc: typeof PDFDocument,
+    payload: ALMReportPayload,
+    title: string,
+  ) {
+    this.ensureSpace(doc, 24, payload, 0);
+    doc
+      .fillColor(REPORT_THEME.heading)
+      .font('Helvetica-Bold')
+      .fontSize(10)
+      .text(title, doc.page.margins.left, doc.y);
+    doc.moveDown(0.35);
+  }
+
+  private drawUnavailablePanel(
+    doc: typeof PDFDocument,
+    text: string,
+    payload: ALMReportPayload,
+  ) {
+    const left = doc.page.margins.left;
+    const width = doc.page.width - left - doc.page.margins.right;
+    this.drawPanel(
+      doc,
+      left,
+      doc.y,
+      width,
+      72,
+      REPORT_THEME.warningBg,
+      REPORT_THEME.warning,
+    );
+    doc
+      .fillColor(REPORT_THEME.warning)
+      .font('Helvetica-Bold')
+      .fontSize(10)
+      .text(
+        this.tx(
+          payload.lang,
+          'Section available with limited data',
+          'Sección disponible con datos limitados',
+        ),
+        left + 14,
+        doc.y + 12,
+      );
+    doc
+      .fillColor(REPORT_THEME.body)
+      .font('Helvetica')
+      .fontSize(9)
+      .text(text, left + 14, doc.y + 30, {
+        width: width - 28,
+      });
+    doc.y += 84;
+  }
+
+  private drawTonePanel(
+    doc: typeof PDFDocument,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    tone: ReportTone,
+    title: string,
+  ) {
+    const { fill, accent } = toneColors(tone);
+    this.drawPanel(doc, x, y, width, height, fill, accent);
+    if (title) {
+      doc
+        .fillColor(accent)
+        .font('Helvetica-Bold')
+        .fontSize(8)
+        .text(title, x + 12, y + 10, { width: width - 24 });
+    }
+  }
+
+  private drawPanel(
+    doc: typeof PDFDocument,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    fillColor: string,
+    accentColor: string,
+  ) {
+    doc.rect(x, y, width, height).fill(fillColor);
+    doc.rect(x, y, 4, height).fill(accentColor);
+  }
+
+  private drawWatermark(doc: typeof PDFDocument, watermark: string | null) {
+    if (!watermark) {
+      return;
+    }
+
+    doc.save();
+    doc.rotate(-24, { origin: [306, 396] });
+    doc
+      .fillColor('#cbd5e1')
+      .opacity(0.28)
+      .font('Helvetica-Bold')
+      .fontSize(24)
+      .text(watermark, 84, 350, { width: 440, align: 'center' });
+    doc.restore();
+    doc.opacity(1);
+  }
+
+  private ensureSpace(
+    doc: typeof PDFDocument,
+    height: number,
+    payload: ALMReportPayload,
+    pageNumber: number,
+  ) {
+    if (doc.y + height <= doc.page.height - 60) {
+      return;
+    }
+
+    this.drawFooter(doc, payload, pageNumber);
+    doc.addPage();
+    this.drawPageHeader(
+      doc,
+      payload,
+      payload.lang === 'es' ? 'Continuación' : 'Continued',
+      payload.institutionName,
+      pageNumber,
+    );
+  }
+
+  private humanizeInstitutionType(type: string | null | undefined): string {
+    if (!type) {
+      return 'Institution';
+    }
+
+    return String(type)
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  private humanizeRiskProfile(
+    profile: string | null | undefined,
+    lang: ReportLanguage,
+  ): string {
+    if (!profile) {
+      return this.unavailable(lang);
+    }
+
+    const normalized = String(profile).replace(/-/g, ' ');
+    if (lang === 'es') {
+      if (normalized === 'asset sensitive') return 'sensibilidad activa';
+      if (normalized === 'liability sensitive') return 'sensibilidad pasiva';
+      if (normalized === 'neutral') return 'perfil neutral';
+    }
+    return normalized;
+  }
+
+  private buildUnavailableNote(
+    lang: ReportLanguage,
+    label: string,
+    error: unknown,
+  ): string {
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : this.tx(lang, 'service unavailable', 'servicio no disponible');
+    return this.tx(
+      lang,
+      `${label} is unavailable in this export: ${message}.`,
+      `${label} no está disponible en esta exportación: ${message}.`,
+    );
+  }
+
+  private tx(lang: ReportLanguage, en: string, es: string): string {
+    return lang === 'es' ? es : en;
+  }
+
+  private unavailable(lang: ReportLanguage): string {
+    return this.tx(lang, 'Unavailable', 'No disponible');
+  }
+}
+
+function normalizeWidthRatios(ratios: number[], width: number): number[] {
+  const total = ratios.reduce((sum, ratio) => sum + ratio, 0) || 1;
+  return ratios.map((ratio) => (ratio / total) * width);
+}
+
+function toneColors(tone: ReportTone): {
+  fill: string;
+  accent: string;
+  text: string;
+} {
+  switch (tone) {
+    case 'success':
+      return {
+        fill: REPORT_THEME.successBg,
+        accent: REPORT_THEME.success,
+        text: REPORT_THEME.heading,
+      };
+    case 'warning':
+      return {
+        fill: REPORT_THEME.warningBg,
+        accent: REPORT_THEME.warning,
+        text: REPORT_THEME.heading,
+      };
+    case 'danger':
+      return {
+        fill: REPORT_THEME.dangerBg,
+        accent: REPORT_THEME.danger,
+        text: REPORT_THEME.heading,
+      };
+    case 'info':
+      return {
+        fill: REPORT_THEME.infoBg,
+        accent: REPORT_THEME.info,
+        text: REPORT_THEME.heading,
+      };
+    default:
+      return {
+        fill: REPORT_THEME.panel,
+        accent: REPORT_THEME.brandAlt,
+        text: REPORT_THEME.heading,
+      };
+  }
+}
+
+function scoreTone(metrics: ReportMetric[]): ReportTone {
+  return (
+    metrics.find((metric) => metric.label.toLowerCase().includes('capital'))
+      ?.tone || 'info'
+  );
 }

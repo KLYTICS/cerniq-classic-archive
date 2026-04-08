@@ -50,7 +50,8 @@ describe('origin-allowlist', () => {
     });
 
     it('allows origins from ALLOWED_ORIGINS csv', () => {
-      process.env.ALLOWED_ORIGINS = 'https://partner1.com, https://partner2.com';
+      process.env.ALLOWED_ORIGINS =
+        'https://partner1.com, https://partner2.com';
       expect(isAllowedOrigin('https://partner1.com')).toBe(true);
       expect(isAllowedOrigin('https://partner2.com')).toBe(true);
     });
@@ -62,7 +63,9 @@ describe('origin-allowlist', () => {
 
     it('allows Vercel preview origins when enabled', () => {
       process.env.ALLOW_PREVIEW_ORIGINS = 'true';
-      expect(isAllowedOrigin('https://my-app-ekiess-projects.vercel.app')).toBe(true);
+      expect(isAllowedOrigin('https://my-app-ekiess-projects.vercel.app')).toBe(
+        true,
+      );
     });
 
     it('rejects Vercel preview origins when not enabled', () => {
@@ -70,7 +73,9 @@ describe('origin-allowlist', () => {
       process.env.NODE_ENV = 'production';
       // This should not match the preview regex when preview origins are disabled
       // and it's not in the static allowlist
-      expect(isAllowedOrigin('https://random-ekiess-projects.vercel.app')).toBe(false);
+      expect(isAllowedOrigin('https://random-ekiess-projects.vercel.app')).toBe(
+        false,
+      );
     });
 
     it('normalizes origins by stripping trailing slashes and paths', () => {

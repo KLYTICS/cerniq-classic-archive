@@ -112,14 +112,9 @@ export function setAuthCookies(
   });
 }
 
-export function clearAuthCookies(
-  res: {
-    clearCookie: (
-      name: string,
-      options: Record<string, unknown>,
-    ) => void;
-  },
-) {
+export function clearAuthCookies(res: {
+  clearCookie: (name: string, options: Record<string, unknown>) => void;
+}) {
   const cookieOptions = getAuthCookieOptions();
 
   res.clearCookie('access_token', cookieOptions);

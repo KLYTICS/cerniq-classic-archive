@@ -1,10 +1,13 @@
-// @ts-nocheck — Mock data uses simplified shapes
 import { LeadsController } from './leads.controller';
 
 function mockSvc(): any {
-  return new Proxy({}, {
-    get: (_t: any, p: any) => typeof p === 'symbol' ? undefined : jest.fn().mockResolvedValue(null),
-  });
+  return new Proxy(
+    {},
+    {
+      get: (_t: any, p: any) =>
+        typeof p === 'symbol' ? undefined : jest.fn().mockResolvedValue(null),
+    },
+  );
 }
 
 describe('LeadsController', () => {
@@ -22,11 +25,15 @@ describe('LeadsController', () => {
       updateLead: jest.fn().mockResolvedValue({ id: 'lead-1' }),
       addNote: jest.fn().mockResolvedValue({ success: true }),
       markReportSent: jest.fn().mockResolvedValue({ success: true }),
-      getPipelineMetrics: jest.fn().mockResolvedValue({ total: 5, conversion: '20%' }),
+      getPipelineMetrics: jest
+        .fn()
+        .mockResolvedValue({ total: 5, conversion: '20%' }),
       seedProspectPipeline: jest.fn().mockResolvedValue({ seeded: 12 }),
       getProspects: jest.fn().mockResolvedValue([]),
       getBenchmarks: jest.fn().mockResolvedValue([]),
-      generateOutreach: jest.fn().mockResolvedValue({ subject: 'Test', body: 'Body' }),
+      generateOutreach: jest
+        .fn()
+        .mockResolvedValue({ subject: 'Test', body: 'Body' }),
     };
     qualification = {
       qualifyProspect: jest.fn().mockResolvedValue({ score: 85, tier: 'A' }),
@@ -49,15 +56,19 @@ describe('LeadsController', () => {
       qualification as any,
       scoring as any,
       outreach as any,
-      intelligence as any,
-      demoSeats as any,
-      demoSeatAnalytics as any,
+      intelligence,
+      demoSeats,
+      demoSeatAnalytics,
     );
   });
 
   describe('POST /api/v1/leads/submit', () => {
     it('submits a lead', async () => {
-      const dto = { email: 'cfo@coop.pr', institutionName: 'CoopAhorro', institutionType: 'cooperativa' };
+      const dto = {
+        email: 'cfo@coop.pr',
+        institutionName: 'CoopAhorro',
+        institutionType: 'cooperativa',
+      };
       const r = await controller.submitLead(dto as any);
       expect(leads.submitLead).toHaveBeenCalledWith(dto);
       expect(r.id).toBe('lead-1');
@@ -87,8 +98,12 @@ describe('LeadsController', () => {
 
   describe('PUT admin/api/leads/:id', () => {
     it('updates lead', async () => {
-      const r = await controller.updateLead('lead-1', { status: 'CONTACTED' } as any);
-      expect(leads.updateLead).toHaveBeenCalledWith('lead-1', { status: 'CONTACTED' });
+      const r = await controller.updateLead('lead-1', {
+        status: 'CONTACTED',
+      } as any);
+      expect(leads.updateLead).toHaveBeenCalledWith('lead-1', {
+        status: 'CONTACTED',
+      });
     });
   });
 

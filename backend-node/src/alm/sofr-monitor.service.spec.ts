@@ -51,10 +51,46 @@ describe('SOFRMonitorService', () => {
 
     beforeEach(() => {
       const items = [
-        { id: 'i1', name: 'LIBOR Floating Mortgage', category: 'asset', subcategory: 'residential_mortgage', balance: 25, duration: 0.3, rate: 0.065, rateType: 'variable' },
-        { id: 'i2', name: 'C&I Floating LIBOR', category: 'asset', subcategory: 'commercial_loans', balance: 15, duration: 3, rate: 0.072, rateType: 'variable' },
-        { id: 'i3', name: 'SOFR-indexed CD', category: 'liability', subcategory: 'sofr_deposits', balance: 30, duration: 1, rate: 0.03, rateType: 'variable' },
-        { id: 'i4', name: 'Fixed Rate Loan', category: 'asset', subcategory: 'commercial', balance: 50, duration: 5, rate: 0.06, rateType: 'fixed' },
+        {
+          id: 'i1',
+          name: 'LIBOR Floating Mortgage',
+          category: 'asset',
+          subcategory: 'residential_mortgage',
+          balance: 25,
+          duration: 0.3,
+          rate: 0.065,
+          rateType: 'variable',
+        },
+        {
+          id: 'i2',
+          name: 'C&I Floating LIBOR',
+          category: 'asset',
+          subcategory: 'commercial_loans',
+          balance: 15,
+          duration: 3,
+          rate: 0.072,
+          rateType: 'variable',
+        },
+        {
+          id: 'i3',
+          name: 'SOFR-indexed CD',
+          category: 'liability',
+          subcategory: 'sofr_deposits',
+          balance: 30,
+          duration: 1,
+          rate: 0.03,
+          rateType: 'variable',
+        },
+        {
+          id: 'i4',
+          name: 'Fixed Rate Loan',
+          category: 'asset',
+          subcategory: 'commercial',
+          balance: 50,
+          duration: 5,
+          rate: 0.06,
+          rateType: 'fixed',
+        },
       ];
       const mockPrisma = {
         balanceSheetItem: { findMany: jest.fn().mockResolvedValue(items) },
@@ -75,8 +111,12 @@ describe('SOFRMonitorService', () => {
 
     it('selects 1M_LIBOR tenor for short duration and 3M_LIBOR for longer', async () => {
       const result = await serviceWithData.getExposureReport('inst-1');
-      const shortDur = result.exposures.find(e => e.name.includes('LIBOR Floating Mortgage'));
-      const longDur = result.exposures.find(e => e.name.includes('C&I Floating'));
+      const shortDur = result.exposures.find((e) =>
+        e.name.includes('LIBOR Floating Mortgage'),
+      );
+      const longDur = result.exposures.find((e) =>
+        e.name.includes('C&I Floating'),
+      );
 
       // duration 0.3 <= 0.5 => 1M_LIBOR, spread = 0.00114
       expect(shortDur!.referenceRate).toBe('1M LIBOR');

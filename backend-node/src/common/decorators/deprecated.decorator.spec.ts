@@ -96,9 +96,7 @@ describe('DeprecationInterceptor', () => {
 
     interceptor.intercept(context, next).subscribe(() => {
       expect(setHeader).toHaveBeenCalledTimes(3);
-      const headerNames = setHeader.mock.calls.map(
-        (call: any[]) => call[0],
-      );
+      const headerNames = setHeader.mock.calls.map((call: any[]) => call[0]);
       expect(headerNames).toContain('Sunset');
       expect(headerNames).toContain('Deprecation');
       expect(headerNames).toContain('Link');

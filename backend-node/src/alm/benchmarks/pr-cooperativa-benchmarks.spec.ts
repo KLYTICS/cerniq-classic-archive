@@ -36,7 +36,7 @@ describe('PR Cooperativa Benchmarks', () => {
 
     it('each benchmark has median, p25, and p75', () => {
       for (const [name, bench] of Object.entries(PR_COOP_BENCHMARKS.ratios)) {
-        const b = bench as SectorBenchmark;
+        const b = bench;
         expect(typeof b.median).toBe('number');
         expect(typeof b.p25).toBe('number');
         expect(typeof b.p75).toBe('number');

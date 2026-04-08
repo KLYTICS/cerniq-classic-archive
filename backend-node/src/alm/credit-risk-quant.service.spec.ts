@@ -65,11 +65,29 @@ describe('CreditRiskQuantService', () => {
     const mockPrismaReal = {
       loanSegment: {
         findMany: jest.fn().mockResolvedValue([
-          { segmentName: 'residential_mortgage', balance: 5000, historicalLossRate: 0.01, avgLTV: 0.75, avgDSCR: 1.3, avgAge: 3 },
-          { segmentName: 'auto_loans', balance: 3000, historicalLossRate: 0.02, avgLTV: 0, avgDSCR: 0, avgAge: 2 },
+          {
+            segmentName: 'residential_mortgage',
+            balance: 5000,
+            historicalLossRate: 0.01,
+            avgLTV: 0.75,
+            avgDSCR: 1.3,
+            avgAge: 3,
+          },
+          {
+            segmentName: 'auto_loans',
+            balance: 3000,
+            historicalLossRate: 0.02,
+            avgLTV: 0,
+            avgDSCR: 0,
+            avgAge: 2,
+          },
         ]),
       },
-      institution: { findUnique: jest.fn().mockResolvedValue({ id: 'inst-real', totalAssets: 10000 }) },
+      institution: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ id: 'inst-real', totalAssets: 10000 }),
+      },
     } as any;
     const realSvc = new CreditRiskQuantService(mockPrismaReal);
     const result = await realSvc.analyzePortfolio('inst-real');
@@ -80,13 +98,13 @@ describe('CreditRiskQuantService', () => {
   // ── Coverage: LGD and correlation for each segment type ──────
   it('computes different PD/LGD for each segment type', async () => {
     const result = await svc.analyzePortfolio('inst-1');
-    const names = result.segments.map(s => s.segmentName);
+    const names = result.segments.map((s) => s.segmentName);
     // Demo segments use display names
     expect(names).toContain('Consumer Loans');
     expect(names).toContain('Auto Loans');
     expect(names).toContain('Credit Cards');
     // LGDs should differ by segment
-    const lgds = result.segments.map(s => s.lgd);
+    const lgds = result.segments.map((s) => s.lgd);
     expect(new Set(lgds).size).toBeGreaterThan(1);
   });
 

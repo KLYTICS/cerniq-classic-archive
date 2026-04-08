@@ -203,16 +203,39 @@ describe('AlmAdvisorService', () => {
         largestSectorPct: 35,
       },
       ratios: [
-        { name: 'Capital', nameEs: 'Capital', value: 10.2, unit: '%', status: 'pass' },
-        { name: 'Liquidity', nameEs: 'Liquidez', value: 22, unit: '%', status: 'info' },
+        {
+          name: 'Capital',
+          nameEs: 'Capital',
+          value: 10.2,
+          unit: '%',
+          status: 'pass',
+        },
+        {
+          name: 'Liquidity',
+          nameEs: 'Liquidez',
+          value: 22,
+          unit: '%',
+          status: 'info',
+        },
       ],
     };
 
     const fullSummary = {
       institution: { name: 'Test CU', type: 'credit_union' },
-      durationGap: { durationGap: 1.5, assetDuration: 3.2, liabilityDuration: 1.7, riskProfile: 'moderate' },
+      durationGap: {
+        durationGap: 1.5,
+        assetDuration: 3.2,
+        liabilityDuration: 1.7,
+        riskProfile: 'moderate',
+      },
       niiSensitivity: { baseNII: 12.5, riskRating: 'moderate' },
-      liquidity: { lcr: 120, buffer: 5, hqla: 80, netOutflows: 60, status: 'compliant' },
+      liquidity: {
+        lcr: 120,
+        buffer: 5,
+        hqla: 80,
+        netOutflows: 60,
+        status: 'compliant',
+      },
       riskScore: 45,
       topRisks: ['Duration mismatch'],
       recommendations: ['Reduce gap'],
@@ -315,7 +338,9 @@ describe('AlmAdvisorService', () => {
     });
 
     it('does not throw when auditLog.create fails', async () => {
-      mockPrisma.auditLog = { create: jest.fn().mockRejectedValue(new Error('table missing')) };
+      mockPrisma.auditLog = {
+        create: jest.fn().mockRejectedValue(new Error('table missing')),
+      };
       await expect(
         (service as any).persistQuery('inst-1', 'q', 'r', 100),
       ).resolves.toBeUndefined();
@@ -334,18 +359,42 @@ describe('AlmAdvisorService', () => {
       examReadinessScore: 85,
       overallStatus: 'GOOD',
       summary: {
-        totalAssets: 500, nim: 3.5, capitalRatio: 10.2,
-        loanToShareRatio: 65, liquidityRatio: 22,
-        earningAssetsYield: 4.5, costOfFunds: 1.2,
-        largestSectorName: 'Real Estate', largestSectorPct: 35,
+        totalAssets: 500,
+        nim: 3.5,
+        capitalRatio: 10.2,
+        loanToShareRatio: 65,
+        liquidityRatio: 22,
+        earningAssetsYield: 4.5,
+        costOfFunds: 1.2,
+        largestSectorName: 'Real Estate',
+        largestSectorPct: 35,
       },
-      ratios: [{ name: 'Capital', nameEs: 'Capital', value: 10.2, unit: '%', status: 'pass' }],
+      ratios: [
+        {
+          name: 'Capital',
+          nameEs: 'Capital',
+          value: 10.2,
+          unit: '%',
+          status: 'pass',
+        },
+      ],
     };
     const fullSummary = {
       institution: { name: 'Test CU', type: 'credit_union' },
-      durationGap: { durationGap: -0.5, assetDuration: 1.5, liabilityDuration: 2.0, riskProfile: 'low' },
+      durationGap: {
+        durationGap: -0.5,
+        assetDuration: 1.5,
+        liabilityDuration: 2.0,
+        riskProfile: 'low',
+      },
       niiSensitivity: { baseNII: 12.5, riskRating: 'moderate' },
-      liquidity: { lcr: 120, buffer: -2, hqla: 80, netOutflows: 60, status: 'warning' },
+      liquidity: {
+        lcr: 120,
+        buffer: -2,
+        hqla: 80,
+        netOutflows: 60,
+        status: 'warning',
+      },
       riskScore: 45,
       topRisks: ['Rate risk'],
       recommendations: ['Increase duration'],

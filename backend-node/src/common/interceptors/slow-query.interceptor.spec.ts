@@ -11,7 +11,10 @@ import * as Sentry from '@sentry/nestjs';
 describe('SlowRequestInterceptor', () => {
   let interceptor: SlowRequestInterceptor;
 
-  function createMockContext(method = 'GET', url = '/api/test'): ExecutionContext {
+  function createMockContext(
+    method = 'GET',
+    url = '/api/test',
+  ): ExecutionContext {
     return {
       switchToHttp: () => ({
         getRequest: () => ({ method, url }),
@@ -27,7 +30,9 @@ describe('SlowRequestInterceptor', () => {
   it('does not log fast requests', async () => {
     const context = createMockContext();
     const handler: CallHandler = { handle: () => of('ok') };
-    const warnSpy = jest.spyOn((interceptor as any).logger, 'warn').mockImplementation();
+    const warnSpy = jest
+      .spyOn((interceptor as any).logger, 'warn')
+      .mockImplementation();
 
     await lastValueFrom(interceptor.intercept(context, handler));
 
@@ -45,16 +50,16 @@ describe('SlowRequestInterceptor', () => {
           let callCount = 0;
           jest.spyOn(Date, 'now').mockImplementation(() => {
             callCount++;
-            return callCount === 1
-              ? originalNow()
-              : originalNow() + 4000; // 4000ms > 3000ms threshold
+            return callCount === 1 ? originalNow() : originalNow() + 4000; // 4000ms > 3000ms threshold
           });
           subscriber.next('ok');
           subscriber.complete();
           (Date.now as any).mockRestore();
         }),
     };
-    const warnSpy = jest.spyOn((interceptor as any).logger, 'warn').mockImplementation();
+    const warnSpy = jest
+      .spyOn((interceptor as any).logger, 'warn')
+      .mockImplementation();
 
     await lastValueFrom(interceptor.intercept(context, handler));
 

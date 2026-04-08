@@ -75,7 +75,10 @@ describe('DataPrivacyService', () => {
   });
 
   it('generateSAR catches expense query failure gracefully', async () => {
-    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', email: 'a@b.com' });
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.com',
+    });
     mockPrisma.auditLog.findMany.mockResolvedValue([]);
     mockPrisma.subscription.findMany.mockResolvedValue([]);
     mockPrisma.expense.findMany.mockRejectedValue(new Error('DB error'));

@@ -45,43 +45,64 @@ describe('CalculateGreeksDto', () => {
   });
 
   it('fails when underlying is negative', async () => {
-    const dto = plainToInstance(CalculateGreeksDto, { ...makeValid(), underlying: -10 });
+    const dto = plainToInstance(CalculateGreeksDto, {
+      ...makeValid(),
+      underlying: -10,
+    });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
 
   it('fails when strike is negative', async () => {
-    const dto = plainToInstance(CalculateGreeksDto, { ...makeValid(), strike: -5 });
+    const dto = plainToInstance(CalculateGreeksDto, {
+      ...makeValid(),
+      strike: -5,
+    });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
 
   it('fails when timeToExpiry exceeds 1', async () => {
-    const dto = plainToInstance(CalculateGreeksDto, { ...makeValid(), timeToExpiry: 2 });
+    const dto = plainToInstance(CalculateGreeksDto, {
+      ...makeValid(),
+      timeToExpiry: 2,
+    });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
 
   it('fails when riskFreeRate exceeds 1', async () => {
-    const dto = plainToInstance(CalculateGreeksDto, { ...makeValid(), riskFreeRate: 1.5 });
+    const dto = plainToInstance(CalculateGreeksDto, {
+      ...makeValid(),
+      riskFreeRate: 1.5,
+    });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
 
   it('fails when volatility exceeds 5', async () => {
-    const dto = plainToInstance(CalculateGreeksDto, { ...makeValid(), volatility: 6 });
+    const dto = plainToInstance(CalculateGreeksDto, {
+      ...makeValid(),
+      volatility: 6,
+    });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
 
   it('fails with invalid optionType', async () => {
-    const dto = plainToInstance(CalculateGreeksDto, { ...makeValid(), optionType: 'invalid' });
+    const dto = plainToInstance(CalculateGreeksDto, {
+      ...makeValid(),
+      optionType: 'invalid',
+    });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
 
   it('fails when dividendYield exceeds 1', async () => {
-    const dto = plainToInstance(CalculateGreeksDto, { ...makeValid(), dividendYield: 1.5 });
+    const dto = plainToInstance(CalculateGreeksDto, {
+      ...makeValid(),
+      dividendYield: 1.5,
+    });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
@@ -123,13 +144,19 @@ describe('OptionChainRequestDto', () => {
   });
 
   it('fails when strikeCount exceeds 100', async () => {
-    const dto = plainToInstance(OptionChainRequestDto, { ticker: 'AAPL', strikeCount: 200 });
+    const dto = plainToInstance(OptionChainRequestDto, {
+      ticker: 'AAPL',
+      strikeCount: 200,
+    });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
 
   it('fails when strikeCount is less than 1', async () => {
-    const dto = plainToInstance(OptionChainRequestDto, { ticker: 'AAPL', strikeCount: 0 });
+    const dto = plainToInstance(OptionChainRequestDto, {
+      ticker: 'AAPL',
+      strikeCount: 0,
+    });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });

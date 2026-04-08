@@ -26,7 +26,10 @@ describe('NLIngestService', () => {
       'Core Deposits $40,000',
     ].join('\n');
     const result = await service.ingestDocument(
-      'inst-1', 'balance.txt', content, 'text/plain',
+      'inst-1',
+      'balance.txt',
+      content,
+      'text/plain',
     );
     expect(result.itemsCreated).toBe(3);
     expect(result.extractedCategories.assets).toBeGreaterThanOrEqual(0);
@@ -35,17 +38,25 @@ describe('NLIngestService', () => {
 
   it('returns zero items for empty content', async () => {
     const result = await service.ingestDocument(
-      'inst-1', 'empty.txt', 'No numbers here at all', 'text/plain',
+      'inst-1',
+      'empty.txt',
+      'No numbers here at all',
+      'text/plain',
     );
     expect(result.itemsCreated).toBe(0);
-    expect(result.warnings).toContain('No balance sheet items detected in document.');
+    expect(result.warnings).toContain(
+      'No balance sheet items detected in document.',
+    );
   });
 
   it('classifies deposits as liabilities', async () => {
     const content = 'Savings Deposits $25,000\nShared deposits $10,000\n';
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 2 });
     const result = await service.ingestDocument(
-      'inst-1', 'deposits.txt', content, 'text/plain',
+      'inst-1',
+      'deposits.txt',
+      content,
+      'text/plain',
     );
     expect(result.extractedCategories.liabilities).toBeGreaterThan(0);
   });
@@ -54,7 +65,10 @@ describe('NLIngestService', () => {
     const content = Buffer.from('Cash $5,000\nLoans $15,000');
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 2 });
     const result = await service.ingestDocument(
-      'inst-1', 'bs.txt', content, 'text/plain',
+      'inst-1',
+      'bs.txt',
+      content,
+      'text/plain',
     );
     expect(result.itemsCreated).toBe(2);
   });
@@ -75,7 +89,10 @@ describe('NLIngestService', () => {
     const content = Buffer.from('Loans $10,000\nDeposits $8,000');
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 2 });
     const result = await service.ingestDocument(
-      'inst-1', 'balance.pdf', content, 'application/pdf',
+      'inst-1',
+      'balance.pdf',
+      content,
+      'application/pdf',
     );
     // Should still process (either via pdf-parse or fallback)
     expect(result).toBeDefined();
@@ -86,7 +103,10 @@ describe('NLIngestService', () => {
     const content = 'base64encodedcontent';
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 0 });
     const result = await service.ingestDocument(
-      'inst-1', 'data.pdf', content, 'application/pdf',
+      'inst-1',
+      'data.pdf',
+      content,
+      'application/pdf',
     );
     expect(result).toBeDefined();
   });
@@ -95,7 +115,10 @@ describe('NLIngestService', () => {
     const content = 'Short Term Borrowing $50,000';
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 1 });
     const result = await service.ingestDocument(
-      'inst-1', 'borrows.txt', content, 'text/plain',
+      'inst-1',
+      'borrows.txt',
+      content,
+      'text/plain',
     );
     expect(result.extractedCategories.liabilities).toBeGreaterThanOrEqual(1);
   });
@@ -104,7 +127,10 @@ describe('NLIngestService', () => {
     const content = 'Pasivo Total $100,000';
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 1 });
     const result = await service.ingestDocument(
-      'inst-1', 'pasivo.txt', content, 'text/plain',
+      'inst-1',
+      'pasivo.txt',
+      content,
+      'text/plain',
     );
     expect(result.extractedCategories.liabilities).toBeGreaterThanOrEqual(1);
   });
@@ -113,7 +139,10 @@ describe('NLIngestService', () => {
     const content = 'Member Shares $75,000';
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 1 });
     const result = await service.ingestDocument(
-      'inst-1', 'shares.txt', content, 'text/plain',
+      'inst-1',
+      'shares.txt',
+      content,
+      'text/plain',
     );
     expect(result.extractedCategories.liabilities).toBeGreaterThanOrEqual(1);
   });
@@ -122,7 +151,10 @@ describe('NLIngestService', () => {
     const content = 'Tiny Item $0.05\nReal Loans $5,000';
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 1 });
     const result = await service.ingestDocument(
-      'inst-1', 'filter.txt', content, 'text/plain',
+      'inst-1',
+      'filter.txt',
+      content,
+      'text/plain',
     );
     // Only the $5,000 item should be extracted
     expect(result.itemsCreated).toBe(1);
@@ -132,7 +164,10 @@ describe('NLIngestService', () => {
     const content = 'Huge Item $200,000\nNormal Loans $5,000';
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 1 });
     const result = await service.ingestDocument(
-      'inst-1', 'filter-big.txt', content, 'text/plain',
+      'inst-1',
+      'filter-big.txt',
+      content,
+      'text/plain',
     );
     expect(result.itemsCreated).toBe(1);
   });
@@ -142,7 +177,10 @@ describe('NLIngestService', () => {
     const content = 'Valid Loans $5,000\nZero Balance Item $0.5';
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 1 });
     const result = await service.ingestDocument(
-      'inst-1', 'mixed.txt', content, 'text/plain',
+      'inst-1',
+      'mixed.txt',
+      content,
+      'text/plain',
     );
     // The heuristic creates items with positive balances from regex
     expect(result).toBeDefined();
@@ -150,12 +188,16 @@ describe('NLIngestService', () => {
 
   it('limits extraction to 30 items max', async () => {
     // Create content with many lines
-    const lines = Array.from({ length: 50 }, (_, i) =>
-      `Item ${i} $${(i + 1) * 100}`,
+    const lines = Array.from(
+      { length: 50 },
+      (_, i) => `Item ${i} $${(i + 1) * 100}`,
     ).join('\n');
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 30 });
     const result = await service.ingestDocument(
-      'inst-1', 'many.txt', lines, 'text/plain',
+      'inst-1',
+      'many.txt',
+      lines,
+      'text/plain',
     );
     // Should not exceed 30 items from heuristic
     expect(result).toBeDefined();
@@ -165,7 +207,10 @@ describe('NLIngestService', () => {
     const content = 'Loans,$10,000\nDeposits,$8,000';
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 2 });
     const result = await service.ingestDocument(
-      'inst-1', 'data.csv', content, 'text/csv',
+      'inst-1',
+      'data.csv',
+      content,
+      'text/csv',
     );
     expect(result).toBeDefined();
   });
@@ -175,7 +220,10 @@ describe('NLIngestService', () => {
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 1 });
     // File ends with .pdf but mime is different — should still try pdf path
     const result = await service.ingestDocument(
-      'inst-1', 'report.pdf', content, 'application/octet-stream',
+      'inst-1',
+      'report.pdf',
+      content,
+      'application/octet-stream',
     );
     expect(result).toBeDefined();
   });
@@ -186,7 +234,10 @@ describe('NLIngestService', () => {
     const content = 'Commercial Loans $20,000\nSavings Deposits $15,000';
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 2 });
     const result = await service.ingestDocument(
-      'inst-1', 'balance.txt', content, 'text/plain',
+      'inst-1',
+      'balance.txt',
+      content,
+      'text/plain',
     );
     expect(result).toBeDefined();
     expect(typeof result.itemsCreated).toBe('number');
@@ -197,10 +248,13 @@ describe('NLIngestService', () => {
   it('generates warning when validation filters items (missing name)', async () => {
     // We can test the validation path indirectly: items extracted by heuristic
     // that have amount in the valid range but whose name is empty after strip
-    const content = ' $5,000';  // Line with amount but empty name after strip
+    const content = ' $5,000'; // Line with amount but empty name after strip
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 0 });
     const result = await service.ingestDocument(
-      'inst-1', 'edge.txt', content, 'text/plain',
+      'inst-1',
+      'edge.txt',
+      content,
+      'text/plain',
     );
     // The heuristic may parse it (name could be empty string -> 'Item')
     expect(result).toBeDefined();
@@ -211,7 +265,10 @@ describe('NLIngestService', () => {
     const content = 'Total Loans $45,500.50';
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 1 });
     const result = await service.ingestDocument(
-      'inst-1', 'commas.txt', content, 'text/plain',
+      'inst-1',
+      'commas.txt',
+      content,
+      'text/plain',
     );
     expect(result.itemsCreated).toBe(1);
   });
@@ -222,7 +279,10 @@ describe('NLIngestService', () => {
     const content = 'Valid Loans $5,000\nAnother Item $3,000';
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 2 });
     const result = await service.ingestDocument(
-      'inst-1', 'warn.txt', content, 'text/plain',
+      'inst-1',
+      'warn.txt',
+      content,
+      'text/plain',
     );
     expect(result).toBeDefined();
     expect(typeof result.warnings).toBe('object');
@@ -230,24 +290,44 @@ describe('NLIngestService', () => {
 
   // ── Coverage boost: Claude API success path via mock ────────
   it('uses Claude API when ANTHROPIC_API_KEY set and returns valid JSON', async () => {
-    jest.mock('@anthropic-ai/sdk', () => ({
-      __esModule: true,
-      default: class {
-        messages = {
-          create: jest.fn().mockResolvedValue({
-            content: [{ type: 'text', text: JSON.stringify([
-              { name: 'API Loan', category: 'asset', subcategory: 'commercial_loans', balance: 5000, rate: 0.05, duration: 3, rateType: 'fixed' },
-            ]) }],
-          }),
-        };
-      },
-    }), { virtual: true });
+    jest.mock(
+      '@anthropic-ai/sdk',
+      () => ({
+        __esModule: true,
+        default: class {
+          messages = {
+            create: jest.fn().mockResolvedValue({
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify([
+                    {
+                      name: 'API Loan',
+                      category: 'asset',
+                      subcategory: 'commercial_loans',
+                      balance: 5000,
+                      rate: 0.05,
+                      duration: 3,
+                      rateType: 'fixed',
+                    },
+                  ]),
+                },
+              ],
+            }),
+          };
+        },
+      }),
+      { virtual: true },
+    );
 
     process.env.ANTHROPIC_API_KEY = 'sk-test-key';
     const content = 'Commercial Loans $20,000';
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 1 });
     const result = await service.ingestDocument(
-      'inst-1', 'api.txt', content, 'text/plain',
+      'inst-1',
+      'api.txt',
+      content,
+      'text/plain',
     );
     expect(result).toBeDefined();
     expect(typeof result.itemsCreated).toBe('number');
@@ -259,7 +339,10 @@ describe('NLIngestService', () => {
     const content = Buffer.from('Loans $5,000').toString('base64');
     mockPrisma.balanceSheetItem.createMany.mockResolvedValueOnce({ count: 0 });
     const result = await service.ingestDocument(
-      'inst-1', 'report.pdf', content, 'application/pdf',
+      'inst-1',
+      'report.pdf',
+      content,
+      'application/pdf',
     );
     expect(result).toBeDefined();
   });

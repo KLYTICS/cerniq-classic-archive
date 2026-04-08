@@ -1054,9 +1054,9 @@ export class AuthService {
     currentHash?: string | null,
   ) {
     if (currentHash) {
-      const matches = await bcrypt.compare(password, currentHash).catch(
-        () => false,
-      );
+      const matches = await bcrypt
+        .compare(password, currentHash)
+        .catch(() => false);
       if (matches) {
         return currentHash;
       }

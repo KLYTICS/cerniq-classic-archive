@@ -129,7 +129,9 @@ describe('ReportStorageService', () => {
     });
 
     it('getSignedUrl generates a signed URL', async () => {
-      mockGetSignedUrl.mockResolvedValue('https://r2.example.com/signed?token=abc');
+      mockGetSignedUrl.mockResolvedValue(
+        'https://r2.example.com/signed?token=abc',
+      );
 
       const result = await service.getSignedUrl('reports/test.pdf');
 

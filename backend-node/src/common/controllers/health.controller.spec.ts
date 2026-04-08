@@ -64,7 +64,7 @@ describe('HealthController', () => {
 
     const result = await controller.check();
     expect(result.status).toBe('unhealthy');
-    const cacheDep = result.dependencies.find(d => d.name === 'cache');
+    const cacheDep = result.dependencies.find((d) => d.name === 'cache');
     expect(cacheDep!.status).toBe('unhealthy');
   });
 
@@ -80,7 +80,9 @@ describe('HealthController', () => {
 
     const ctrl2 = module2.get<HealthController>(HealthController);
     const result = await ctrl2.check();
-    expect(result.dependencies.find(d => d.name === 'cache')!.status).toBe('healthy');
+    expect(result.dependencies.find((d) => d.name === 'cache')!.status).toBe(
+      'healthy',
+    );
   });
 
   // ── Coverage: no prisma / no cache (optional deps) ────────────
@@ -101,7 +103,12 @@ describe('HealthController', () => {
 
   // ── Coverage: pool stats ─────────────────────────────────────
   it('includes pool stats when prisma provides them', async () => {
-    mockPrisma.getPoolStats.mockReturnValue({ total: 10, idle: 5, waiting: 0, max: 20 });
+    mockPrisma.getPoolStats.mockReturnValue({
+      total: 10,
+      idle: 5,
+      waiting: 0,
+      max: 20,
+    });
     const result = await controller.check();
     expect(result.pool).toEqual({ total: 10, idle: 5, waiting: 0, max: 20 });
   });

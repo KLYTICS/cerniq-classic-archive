@@ -387,9 +387,7 @@ describe('RealtimeGateway', () => {
     });
 
     it('should emit error when Greeks calculation fails', async () => {
-      mockMarketDataService.getQuote.mockRejectedValue(
-        new Error('quote fail'),
-      );
+      mockMarketDataService.getQuote.mockRejectedValue(new Error('quote fail'));
       const socket = makeSocket('c-1');
 
       await gateway.handleGreeksSubscription(socket as any, {

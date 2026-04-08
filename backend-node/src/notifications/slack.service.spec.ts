@@ -139,13 +139,28 @@ describe('SlackService', () => {
     const svc = new (SlackService as any)();
     svc.webhookUrl = 'https://hooks.slack.com/test';
 
-    await svc.sendAlert({ type: 'new_lead', title: 'T', details: {}, urgency: 'low' });
+    await svc.sendAlert({
+      type: 'new_lead',
+      title: 'T',
+      details: {},
+      urgency: 'low',
+    });
     expect(capturedBody.attachments[0].color).toBe('#36a64f');
 
-    await svc.sendAlert({ type: 'new_lead', title: 'T', details: {}, urgency: 'medium' });
+    await svc.sendAlert({
+      type: 'new_lead',
+      title: 'T',
+      details: {},
+      urgency: 'medium',
+    });
     expect(capturedBody.attachments[0].color).toBe('#daa520');
 
-    await svc.sendAlert({ type: 'new_lead', title: 'T', details: {}, urgency: 'high' });
+    await svc.sendAlert({
+      type: 'new_lead',
+      title: 'T',
+      details: {},
+      urgency: 'high',
+    });
     expect(capturedBody.attachments[0].color).toBe('#ff0000');
 
     global.fetch = origFetch;
@@ -184,7 +199,9 @@ describe('SlackService', () => {
       title: 'T',
       details: { Name: 'John', Empty: null, Also: undefined as any },
     });
-    const fieldTitles = capturedBody.attachments[0].fields.map((f: any) => f.title.trim());
+    const fieldTitles = capturedBody.attachments[0].fields.map((f: any) =>
+      f.title.trim(),
+    );
     expect(fieldTitles).toContain('Name');
     expect(fieldTitles).not.toContain('Empty');
     expect(fieldTitles).not.toContain('Also');
@@ -206,10 +223,18 @@ describe('SlackService', () => {
     await svc.sendAlert({
       type: 'new_lead',
       title: 'T',
-      details: { Short: 'yes', LongField: 'This is a very long value that exceeds thirty characters in length' },
+      details: {
+        Short: 'yes',
+        LongField:
+          'This is a very long value that exceeds thirty characters in length',
+      },
     });
-    const shortField = capturedBody.attachments[0].fields.find((f: any) => f.title.trim() === 'Short');
-    const longField = capturedBody.attachments[0].fields.find((f: any) => f.title.trim() === 'Long Field');
+    const shortField = capturedBody.attachments[0].fields.find(
+      (f: any) => f.title.trim() === 'Short',
+    );
+    const longField = capturedBody.attachments[0].fields.find(
+      (f: any) => f.title.trim() === 'Long Field',
+    );
     expect(shortField.short).toBe(true);
     expect(longField.short).toBe(false);
 
@@ -240,13 +265,31 @@ describe('SlackService', () => {
     const svc = new (SlackService as any)();
     svc.webhookUrl = 'https://hooks.slack.com/test';
 
-    await svc.notifyNewLead({ name: 'A', email: 'a@b.c', institution: 'X', type: 'T', priority: 'HIGH' });
+    await svc.notifyNewLead({
+      name: 'A',
+      email: 'a@b.c',
+      institution: 'X',
+      type: 'T',
+      priority: 'HIGH',
+    });
     expect(capturedBody.attachments[0].color).toBe('#ff0000');
 
-    await svc.notifyNewLead({ name: 'A', email: 'a@b.c', institution: 'X', type: 'T', priority: 'MEDIUM' });
+    await svc.notifyNewLead({
+      name: 'A',
+      email: 'a@b.c',
+      institution: 'X',
+      type: 'T',
+      priority: 'MEDIUM',
+    });
     expect(capturedBody.attachments[0].color).toBe('#daa520');
 
-    await svc.notifyNewLead({ name: 'A', email: 'a@b.c', institution: 'X', type: 'T', priority: 'LOW' });
+    await svc.notifyNewLead({
+      name: 'A',
+      email: 'a@b.c',
+      institution: 'X',
+      type: 'T',
+      priority: 'LOW',
+    });
     expect(capturedBody.attachments[0].color).toBe('#36a64f');
 
     global.fetch = origFetch;
@@ -284,9 +327,14 @@ describe('SlackService', () => {
     svc.webhookUrl = 'https://hooks.slack.com/test';
 
     await svc.notifyCheckoutCompleted({
-      email: 'e@t.com', institution: 'CU', tier: 'Pro', amount: 9999,
+      email: 'e@t.com',
+      institution: 'CU',
+      tier: 'Pro',
+      amount: 9999,
     });
-    const amountField = capturedBody.attachments[0].fields.find((f: any) => f.title.trim() === 'Amount');
+    const amountField = capturedBody.attachments[0].fields.find(
+      (f: any) => f.title.trim() === 'Amount',
+    );
     expect(amountField.value).toBe('$9999');
 
     global.fetch = origFetch;

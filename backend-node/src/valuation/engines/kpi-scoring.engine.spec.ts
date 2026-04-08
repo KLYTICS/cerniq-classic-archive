@@ -24,9 +24,7 @@ describe('KPIScoringEngine', () => {
       const result = await engine.calculate('MSFT', {}, {});
 
       expect(result.overallScore).toBe(Math.round(result.overallScore));
-      expect(result.fundamentalScore).toBe(
-        Math.round(result.fundamentalScore),
-      );
+      expect(result.fundamentalScore).toBe(Math.round(result.fundamentalScore));
       expect(result.momentumScore).toBe(Math.round(result.momentumScore));
       expect(result.valuationScore).toBe(Math.round(result.valuationScore));
       expect(result.qualityScore).toBe(Math.round(result.qualityScore));
@@ -85,9 +83,7 @@ describe('KPIScoringEngine', () => {
       const ms = 75;
       const vs = (75 + 70 + 50) / 3;
       const qs = (66.66666666666667 + 50 + 80) / 3;
-      const expected = Math.round(
-        fs * 0.3 + ms * 0.2 + vs * 0.25 + qs * 0.25,
-      );
+      const expected = Math.round(fs * 0.3 + ms * 0.2 + vs * 0.25 + qs * 0.25);
 
       expect(result.overallScore).toBe(expected);
       spy.mockRestore();

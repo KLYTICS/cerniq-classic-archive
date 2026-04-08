@@ -129,7 +129,9 @@ describe('SampleReportFactoryService', () => {
     const buffer = await service.generateSampleReport('12345', 'es');
     expect(buffer).toBeInstanceOf(Buffer);
     expect(reportsService.generateALMReport).toHaveBeenCalledWith(
-      'temp-inst', 'es', expect.any(Object),
+      'temp-inst',
+      'es',
+      expect.any(Object),
     );
   });
 
@@ -149,7 +151,10 @@ describe('SampleReportFactoryService', () => {
   it('generateAndSaveForProspect handles null prospect', async () => {
     prisma.prospectInstitution.findUnique.mockResolvedValue(null);
 
-    const result = await service.generateAndSaveForProspect('12345', 'p-missing');
+    const result = await service.generateAndSaveForProspect(
+      '12345',
+      'p-missing',
+    );
     expect(result.success).toBe(true);
     // update should NOT be called since prospect is null
     expect(prisma.prospectInstitution.update).not.toHaveBeenCalled();
@@ -158,7 +163,8 @@ describe('SampleReportFactoryService', () => {
   // ── Coverage: prospect with null notes ────────────────────────
   it('generateAndSaveForProspect handles prospect with null notes', async () => {
     prisma.prospectInstitution.findUnique.mockResolvedValue({
-      id: 'p2', notes: null,
+      id: 'p2',
+      notes: null,
     });
     prisma.prospectInstitution.update.mockResolvedValue({});
 

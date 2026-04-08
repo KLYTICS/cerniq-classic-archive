@@ -60,9 +60,7 @@ describe('classifyField', () => {
   });
 
   it('should return RESTRICTED for env.JWT_SECRET', () => {
-    expect(classifyField('env.JWT_SECRET')).toBe(
-      DataClassification.RESTRICTED,
-    );
+    expect(classifyField('env.JWT_SECRET')).toBe(DataClassification.RESTRICTED);
   });
 
   it('should return RESTRICTED for env.DATABASE_URL', () => {
@@ -72,9 +70,7 @@ describe('classifyField', () => {
   });
 
   it('should return RESTRICTED for apiKey.keyHash', () => {
-    expect(classifyField('apiKey.keyHash')).toBe(
-      DataClassification.RESTRICTED,
-    );
+    expect(classifyField('apiKey.keyHash')).toBe(DataClassification.RESTRICTED);
   });
 
   it('should return CONFIDENTIAL for apiKey.keyPrefix', () => {
@@ -112,9 +108,7 @@ describe('classifyField', () => {
   });
 
   it('should return INTERNAL for institution.type', () => {
-    expect(classifyField('institution.type')).toBe(
-      DataClassification.INTERNAL,
-    );
+    expect(classifyField('institution.type')).toBe(DataClassification.INTERNAL);
   });
 
   it('should return INTERNAL for user.role', () => {
@@ -122,9 +116,7 @@ describe('classifyField', () => {
   });
 
   it('should return INTERNAL for user.lastLoginAt', () => {
-    expect(classifyField('user.lastLoginAt')).toBe(
-      DataClassification.INTERNAL,
-    );
+    expect(classifyField('user.lastLoginAt')).toBe(DataClassification.INTERNAL);
   });
 
   it('should return RESTRICTED for user.providerId', () => {

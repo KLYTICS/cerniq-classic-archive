@@ -172,7 +172,9 @@ describe('Report accuracy — empty institution contract (D1)', () => {
       // Top-risks narrative includes the LCR-data-unavailable line so a user
       // reading the report's text section sees the missing-data signal even
       // before they look at the gaps array.
-      expect(result.topRisks.some((r) => /cannot be assessed/i.test(r))).toBe(true);
+      expect(result.topRisks.some((r) => /cannot be assessed/i.test(r))).toBe(
+        true,
+      );
     });
 
     it('recommends uploading liquidity data instead of an HQLA buffer recommendation', async () => {

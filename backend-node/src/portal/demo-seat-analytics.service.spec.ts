@@ -196,8 +196,7 @@ describe('DemoSeatAnalyticsService', () => {
       const calls = prisma.prospectInstitution.count.mock.calls;
       const activeCall = calls.find(
         (c: any[]) =>
-          c[0]?.where?.demoExpiresAt &&
-          'gte' in c[0].where.demoExpiresAt,
+          c[0]?.where?.demoExpiresAt && 'gte' in c[0].where.demoExpiresAt,
       );
       expect(activeCall).toBeDefined();
       expect(activeCall[0].where.demoConvertedAt).toBeNull();

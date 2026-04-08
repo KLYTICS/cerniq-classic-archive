@@ -1,18 +1,16 @@
 # Latest Session Status
 
-Date: 2026-03-31
+Date: 2026-04-08
 
 ## Summary
 
-- Local code-quality and build gates are green for the current working tree.
+- Local code-quality and build gates are green for the `codex/export-local-green` integration branch.
 - Public production verification is green on `cerniq.io` and `api.cerniq.io`.
-- Backend Jest open-handle leakage has been diagnosed and fixed in code.
-- Frontend production runtime is now live and verified on webpack-backed `next build`, avoiding the Turbopack chunk-path breakage seen earlier.
-- Portal auth bootstrap no longer allows protected portal content to flash briefly before redirecting unauthenticated users to `/portal/login`.
-- The `frontend-e2e` GitHub workflow now provisions the backend dependencies, Postgres, Redis, Prisma schema, and env vars that Playwright already depends on.
-- Live local stack is running and healthy on backend `4010` and frontend `4011`.
-- Active recovery branch is `codex/enterprise-green-recovery`.
-- GitHub Actions runs for PR `#24` are still blocked, but the failures are external to the codebase.
+- ALM/portal/sample/preview exports are standardized behind the shared manifest-driven export contract.
+- The ALM report renderer now uses payload-first assembly with exact money formatting and partial-data resilience.
+- Frontend local browser validation passes in this worktree when Playwright is launched with the webpack frontend command override.
+- Active pickup branch is `codex/export-local-green`.
+- GitHub Actions remain blocked by account billing, which is external to the codebase.
 - Root blocker: GitHub is refusing to start jobs because of an account billing or spending-limit problem.
 
 ## GitHub Actions Blocker
@@ -49,12 +47,11 @@ Backend results:
 
 - TypeScript check passed
 - Prisma schema valid
-- Non-mutating ESLint passed
+- Non-mutating ESLint exits zero
 - Backend E2E/security passed: `4` suites, `64` tests
-- Jest passed cleanly with open-handle diagnostics: `367` suites, `2643` tests
-- Jest passed with CI-style force exit: `367` suites, `2643` tests
+- Jest passed cleanly with open-handle diagnostics: `445` suites, `5630` tests
+- Jest passed with CI-style force exit: `445` suites, `5630` tests
 - Nest build passed
-- Root `npm run verify:backend` wrapper passed end to end
 
 Frontend:
 
@@ -67,10 +64,9 @@ Frontend results:
 
 - ESLint passed
 - Next production build passed on webpack
-- Vitest passed: `47` files, `257` tests
-- Default Playwright suite passed locally against booted frontend/backend: `55` passed, `2` preview-only skips
+- Vitest passed: `57` files, `475` tests
+- Default Playwright suite passed locally against booted frontend/backend using `PLAYWRIGHT_FRONTEND_COMMAND='... next dev --webpack ...'`: `51` passed, `2` preview-only skips
 - Production-critical Playwright passed: `5` tests against `cerniq.io`
-- Root `npm run verify:frontend` wrapper passed end to end
 
 Outbound:
 
@@ -128,6 +124,8 @@ What must be rechecked immediately after Actions billing is restored:
 
 - Use `docs/ops/REPO_GREEN_CHECKLIST.md` as the canonical validation source instead of duplicating the command matrix in new handoff notes.
 - Use `npx eslint "{src,apps,libs,test}/**/*.ts"` in `backend-node` when you need a non-mutating lint pass on a dirty worktree.
+- In symlinked worktrees, local Playwright must boot the frontend with webpack to avoid the Turbopack symlink panic:
+  - `PLAYWRIGHT_FRONTEND_COMMAND='NEXT_PUBLIC_NODE_API_URL=http://127.0.0.1:3100 npx next dev --webpack --port 3101'`
 - Treat `bash scripts/smoke-test.sh https://api.cerniq.io` as read-only by default. Use `ALLOW_PRODUCTION_MUTATIONS=1` only with explicit intent and safe credentials.
 - If GitHub Actions billing is restored, the next high-value step is to re-run the blocked workflows immediately to verify remote green status.
-- Current acceptance state: backend health is `ok`, frontend health is `healthy`, public production gate is `12/12`, production smoke is `31/31` with `4` intentional skips, frontend production-critical Playwright is `5/5`, frontend Vitest is `257/257`, outbound pytest is `82/82`, and the remaining non-green status is operational on GitHub Actions billing.
+- Current acceptance state on `codex/export-local-green`: backend health is `ok`, frontend health is `healthy`, public production gate is `12/12`, production smoke is `31/31` with `4` intentional skips, frontend production-critical Playwright is `5/5`, frontend Vitest is `475/475`, backend unit tests are `5630/5630`, backend e2e/security is `64/64`, outbound pytest is `82/82`, and the remaining non-green status is operational on GitHub Actions billing.

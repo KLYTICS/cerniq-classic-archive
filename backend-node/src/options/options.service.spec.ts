@@ -376,7 +376,9 @@ describe('OptionsService', () => {
       const ivResult = await service.calculateImpliedVolatility({
         ticker: 'TEST',
         strike: 100,
-        expiration: new Date(Date.now() + 365.25 * 24 * 60 * 60 * 1000).toISOString(),
+        expiration: new Date(
+          Date.now() + 365.25 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
         optionType: OptionType.CALL,
         marketPrice: priced.price,
       });
@@ -390,7 +392,9 @@ describe('OptionsService', () => {
         service.calculateImpliedVolatility({
           ticker: 'TEST',
           strike: 100,
-          expiration: new Date(Date.now() + 365.25 * 24 * 60 * 60 * 1000).toISOString(),
+          expiration: new Date(
+            Date.now() + 365.25 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
           optionType: OptionType.CALL,
           marketPrice: 0,
         }),
@@ -402,7 +406,9 @@ describe('OptionsService', () => {
         service.calculateImpliedVolatility({
           ticker: 'TEST',
           strike: 50,
-          expiration: new Date(Date.now() + 365.25 * 24 * 60 * 60 * 1000).toISOString(),
+          expiration: new Date(
+            Date.now() + 365.25 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
           optionType: OptionType.CALL,
           marketPrice: 0.001,
         }),
@@ -414,7 +420,9 @@ describe('OptionsService', () => {
         service.calculateImpliedVolatility({
           ticker: 'TEST',
           strike: 100,
-          expiration: new Date(Date.now() + 365.25 * 24 * 60 * 60 * 1000).toISOString(),
+          expiration: new Date(
+            Date.now() + 365.25 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
           optionType: OptionType.CALL,
           marketPrice: 200,
         }),
@@ -426,7 +434,9 @@ describe('OptionsService', () => {
         service.calculateImpliedVolatility({
           ticker: 'TEST',
           strike: 100,
-          expiration: new Date(Date.now() + 365.25 * 24 * 60 * 60 * 1000).toISOString(),
+          expiration: new Date(
+            Date.now() + 365.25 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
           optionType: OptionType.PUT,
           marketPrice: 200,
         }),
@@ -448,7 +458,9 @@ describe('OptionsService', () => {
 
   describe('calculateStrategy', () => {
     it('calculates bull call spread payoff', async () => {
-      const futureExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const futureExpiry = new Date(
+        Date.now() + 30 * 24 * 60 * 60 * 1000,
+      ).toISOString();
 
       const result = await service.calculateStrategy({
         underlyingPrice: 100,
@@ -481,7 +493,9 @@ describe('OptionsService', () => {
     });
 
     it('calculates protective put payoff', async () => {
-      const futureExpiry = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
+      const futureExpiry = new Date(
+        Date.now() + 60 * 24 * 60 * 60 * 1000,
+      ).toISOString();
 
       const result = await service.calculateStrategy({
         underlyingPrice: 100,
@@ -507,7 +521,9 @@ describe('OptionsService', () => {
   // ── Strategy identification ────────────────────────────────────
 
   describe('strategy identification', () => {
-    const futureExpiry = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
+    const futureExpiry = new Date(
+      Date.now() + 60 * 24 * 60 * 60 * 1000,
+    ).toISOString();
 
     it('identifies Bear Put Spread (2 puts, buy first)', async () => {
       const result = await service.calculateStrategy({
@@ -515,8 +531,20 @@ describe('OptionsService', () => {
         riskFreeRate: 0.05,
         volatility: 0.2,
         legs: [
-          { strike: 105, optionType: OptionType.PUT, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
-          { strike: 95, optionType: OptionType.PUT, buySell: 'sell' as any, quantity: 1, expiration: futureExpiry },
+          {
+            strike: 105,
+            optionType: OptionType.PUT,
+            buySell: 'buy' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
+          {
+            strike: 95,
+            optionType: OptionType.PUT,
+            buySell: 'sell' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
         ],
       });
       expect(result.payoff.length).toBeGreaterThan(0);
@@ -528,8 +556,20 @@ describe('OptionsService', () => {
         riskFreeRate: 0.05,
         volatility: 0.2,
         legs: [
-          { strike: 105, optionType: OptionType.PUT, buySell: 'sell' as any, quantity: 1, expiration: futureExpiry },
-          { strike: 95, optionType: OptionType.PUT, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
+          {
+            strike: 105,
+            optionType: OptionType.PUT,
+            buySell: 'sell' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
+          {
+            strike: 95,
+            optionType: OptionType.PUT,
+            buySell: 'buy' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
         ],
       });
       expect(result.payoff.length).toBeGreaterThan(0);
@@ -541,8 +581,20 @@ describe('OptionsService', () => {
         riskFreeRate: 0.05,
         volatility: 0.2,
         legs: [
-          { strike: 100, optionType: OptionType.CALL, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
-          { strike: 100, optionType: OptionType.PUT, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
+          {
+            strike: 100,
+            optionType: OptionType.CALL,
+            buySell: 'buy' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
+          {
+            strike: 100,
+            optionType: OptionType.PUT,
+            buySell: 'buy' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
         ],
       });
       expect(result.payoff.length).toBeGreaterThan(0);
@@ -554,8 +606,20 @@ describe('OptionsService', () => {
         riskFreeRate: 0.05,
         volatility: 0.2,
         legs: [
-          { strike: 100, optionType: OptionType.CALL, buySell: 'sell' as any, quantity: 1, expiration: futureExpiry },
-          { strike: 100, optionType: OptionType.PUT, buySell: 'sell' as any, quantity: 1, expiration: futureExpiry },
+          {
+            strike: 100,
+            optionType: OptionType.CALL,
+            buySell: 'sell' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
+          {
+            strike: 100,
+            optionType: OptionType.PUT,
+            buySell: 'sell' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
         ],
       });
       expect(result.payoff.length).toBeGreaterThan(0);
@@ -567,10 +631,34 @@ describe('OptionsService', () => {
         riskFreeRate: 0.05,
         volatility: 0.2,
         legs: [
-          { strike: 90, optionType: OptionType.PUT, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
-          { strike: 95, optionType: OptionType.PUT, buySell: 'sell' as any, quantity: 1, expiration: futureExpiry },
-          { strike: 105, optionType: OptionType.CALL, buySell: 'sell' as any, quantity: 1, expiration: futureExpiry },
-          { strike: 110, optionType: OptionType.CALL, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
+          {
+            strike: 90,
+            optionType: OptionType.PUT,
+            buySell: 'buy' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
+          {
+            strike: 95,
+            optionType: OptionType.PUT,
+            buySell: 'sell' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
+          {
+            strike: 105,
+            optionType: OptionType.CALL,
+            buySell: 'sell' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
+          {
+            strike: 110,
+            optionType: OptionType.CALL,
+            buySell: 'buy' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
         ],
       });
       expect(result.payoff.length).toBeGreaterThan(0);
@@ -582,9 +670,27 @@ describe('OptionsService', () => {
         riskFreeRate: 0.05,
         volatility: 0.2,
         legs: [
-          { strike: 95, optionType: OptionType.CALL, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
-          { strike: 100, optionType: OptionType.CALL, buySell: 'sell' as any, quantity: 2, expiration: futureExpiry },
-          { strike: 105, optionType: OptionType.CALL, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
+          {
+            strike: 95,
+            optionType: OptionType.CALL,
+            buySell: 'buy' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
+          {
+            strike: 100,
+            optionType: OptionType.CALL,
+            buySell: 'sell' as any,
+            quantity: 2,
+            expiration: futureExpiry,
+          },
+          {
+            strike: 105,
+            optionType: OptionType.CALL,
+            buySell: 'buy' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
         ],
       });
       expect(result.payoff.length).toBeGreaterThan(0);
@@ -625,7 +731,9 @@ describe('OptionsService', () => {
         const ivResult = await service.calculateImpliedVolatility({
           ticker: 'TEST',
           strike: 50,
-          expiration: new Date(Date.now() + 36.525 * 24 * 60 * 60 * 1000).toISOString(),
+          expiration: new Date(
+            Date.now() + 36.525 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
           optionType: OptionType.PUT,
           marketPrice: priced.price,
         });
@@ -646,7 +754,9 @@ describe('OptionsService', () => {
       const ivResult = await service.calculateImpliedVolatility({
         ticker: 'TEST',
         strike: 100,
-        expiration: new Date(Date.now() + 365.25 * 24 * 60 * 60 * 1000).toISOString(),
+        expiration: new Date(
+          Date.now() + 365.25 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
         optionType: OptionType.PUT,
         marketPrice: priced.price,
       });
@@ -659,14 +769,28 @@ describe('OptionsService', () => {
 
   describe('Bear Call Spread', () => {
     it('identifies Bear Call Spread (2 calls, sell first)', async () => {
-      const futureExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const futureExpiry = new Date(
+        Date.now() + 30 * 24 * 60 * 60 * 1000,
+      ).toISOString();
       const result = await service.calculateStrategy({
         underlyingPrice: 100,
         riskFreeRate: 0.05,
         volatility: 0.2,
         legs: [
-          { strike: 95, optionType: OptionType.CALL, buySell: 'sell' as any, quantity: 1, expiration: futureExpiry },
-          { strike: 105, optionType: OptionType.CALL, buySell: 'buy' as any, quantity: 1, expiration: futureExpiry },
+          {
+            strike: 95,
+            optionType: OptionType.CALL,
+            buySell: 'sell' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
+          {
+            strike: 105,
+            optionType: OptionType.CALL,
+            buySell: 'buy' as any,
+            quantity: 1,
+            expiration: futureExpiry,
+          },
         ],
       });
       expect(result.payoff.length).toBeGreaterThan(0);
@@ -760,7 +884,9 @@ describe('OptionsService', () => {
       const result = await service.calculateImpliedVolatility({
         ticker: 'TEST',
         strike: 100,
-        expiration: new Date(Date.now() + 91.3 * 24 * 60 * 60 * 1000).toISOString(),
+        expiration: new Date(
+          Date.now() + 91.3 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
         optionType: OptionType.CALL,
         marketPrice: priced.price,
       });
@@ -783,7 +909,9 @@ describe('OptionsService', () => {
       const ivResult = await service.calculateImpliedVolatility({
         ticker: 'TEST',
         strike: 100,
-        expiration: new Date(Date.now() + 365.25 * 24 * 60 * 60 * 1000).toISOString(),
+        expiration: new Date(
+          Date.now() + 365.25 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
         optionType: OptionType.PUT,
         marketPrice: priced.price,
       });

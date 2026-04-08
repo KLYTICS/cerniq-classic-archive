@@ -41,8 +41,7 @@ describe('FrontierValuationEngine', () => {
 
     it('should compute upside correctly', async () => {
       const result = await engine.calculate('RBLX', 40, {});
-      const expected =
-        ((result.probabilityWeightedValue - 40) / 40) * 100;
+      const expected = ((result.probabilityWeightedValue - 40) / 40) * 100;
       expect(result.upside).toBeCloseTo(expected, 5);
     });
 

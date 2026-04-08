@@ -179,7 +179,7 @@ export class NCUARBC2Service {
       dataGap('rbc2.irrCharge.durationGap', 'CALCULATION_FAILED', {
         severity: 'WARNING',
         action:
-          'Wire DurationService into RBC2Service so the IRR charge uses the institution\'s measured duration gap instead of the sector default of 2.1 years.',
+          "Wire DurationService into RBC2Service so the IRR charge uses the institution's measured duration gap instead of the sector default of 2.1 years.",
         context: { hardcodedDurationGap: 2.1 },
       }),
     ];

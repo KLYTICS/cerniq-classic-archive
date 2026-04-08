@@ -6,11 +6,11 @@ Preserve the current enterprise-hardening worktree, keep local quality gates gre
 
 ## Current State
 
-- Date: 2026-03-31
-- Workspace: `/Users/money/Desktop/Cerniq`
-- Active branch: `codex/enterprise-green-recovery`
-- Base HEAD at pickup: `7d2c55731fe54d7944316050fc27bfa435eeb48f`
-- Strategy: preserve the dirty worktree and harden in place
+- Date: 2026-04-08
+- Workspace: `/Users/money/Desktop/Cerniq-export-local-green`
+- Active branch: `codex/export-local-green`
+- Base HEAD at pickup: `38078b9bbe6c1a55228986efe8c55f28d6459c91`
+- Strategy: clean integration worktree for export/report hardening plus full local-green validation
 
 Current validated state on this branch:
 
@@ -19,11 +19,11 @@ Current validated state on this branch:
 - Backend non-mutating ESLint: pass
 - Backend build: pass
 - Backend E2E/security: pass (`4` suites, `64` tests)
-- Backend tests: pass (`367` suites, `2643` tests)
+- Backend tests: pass (`445` suites, `5630` tests)
 - Frontend lint: pass
 - Frontend build: pass
-- Frontend tests: pass (`47` files, `257` tests)
-- Frontend default Playwright: pass (`55` passed, `2` preview-only skips)
+- Frontend tests: pass (`57` files, `475` tests)
+- Frontend default Playwright: pass (`51` passed, `2` preview-only skips) using webpack dev override in this symlinked worktree
 - Frontend production-critical Playwright: pass (`5` tests against `cerniq.io`)
 - Outbound pytest: pass (`82` tests)
 - Public production gate: pass (`12/12` checks)
@@ -31,9 +31,9 @@ Current validated state on this branch:
 
 ## Gaps
 
-- GitHub Actions is still blocked from reaching green because recent runs on PR `#24` are not starting due to repository/account Actions billing or spending-limit issues.
+- GitHub Actions is still blocked from reaching green because recent runs are not starting due to repository/account Actions billing or spending-limit issues.
 - Full authenticated production smoke is intentionally not part of the default live gate; it requires explicit opt-in and safe credentials.
-- The remaining non-green state is operational, not code-related; the branch itself is locally validated and pushed.
+- Portal iframe signed-URL rendering was left outside this export-hardening branch and remains a follow-up verification item.
 
 ## Affected Areas
 

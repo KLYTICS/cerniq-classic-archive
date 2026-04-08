@@ -1,9 +1,6 @@
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
-import {
-  ValuationRequestDto,
-  ScreenerRequestDto,
-} from './valuation.dto';
+import { ValuationRequestDto, ScreenerRequestDto } from './valuation.dto';
 
 describe('ValuationRequestDto', () => {
   it('passes with valid ticker', async () => {

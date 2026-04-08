@@ -33,7 +33,9 @@ describe('sanitize-sql utilities', () => {
     });
 
     it('throws on unsafe identifiers', () => {
-      expect(() => sanitizeIdentifier('DROP TABLE users')).toThrow('Unsafe SQL identifier');
+      expect(() => sanitizeIdentifier('DROP TABLE users')).toThrow(
+        'Unsafe SQL identifier',
+      );
       expect(() => sanitizeIdentifier('')).toThrow('Unsafe SQL identifier');
     });
   });

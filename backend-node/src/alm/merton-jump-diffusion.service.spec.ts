@@ -80,7 +80,9 @@ describe('MertonJumpDiffusionService', () => {
 
   it('CVaR95 should exceed VaR95 (expected shortfall >= VaR)', () => {
     const result = service.simulate({ numPaths: 5000 });
-    expect(result.riskMetrics.cvar95).toBeGreaterThanOrEqual(result.riskMetrics.var95);
+    expect(result.riskMetrics.cvar95).toBeGreaterThanOrEqual(
+      result.riskMetrics.var95,
+    );
   });
 
   it('interpretation strings contain key metrics', () => {

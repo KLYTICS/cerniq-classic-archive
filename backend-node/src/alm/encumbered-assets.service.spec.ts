@@ -162,7 +162,14 @@ describe('EncumberedAssetsService', () => {
   // ── Coverage: validation edge cases ────────────────────────────
   it('validates encumbered exceeds balance', () => {
     const result = svc.validateEncumbrance({
-      assets: [{ name: 'OverEncumbered', balance: 100, encumbered: 200, pledgedTo: 'Bank' }],
+      assets: [
+        {
+          name: 'OverEncumbered',
+          balance: 100,
+          encumbered: 200,
+          pledgedTo: 'Bank',
+        },
+      ],
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toContain('exceeds balance');
@@ -170,7 +177,9 @@ describe('EncumberedAssetsService', () => {
 
   it('validates negative encumbered amount', () => {
     const result = svc.validateEncumbrance({
-      assets: [{ name: 'Negative', balance: 100, encumbered: -10, pledgedTo: 'Bank' }],
+      assets: [
+        { name: 'Negative', balance: 100, encumbered: -10, pledgedTo: 'Bank' },
+      ],
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toContain('negative');
@@ -178,7 +187,9 @@ describe('EncumberedAssetsService', () => {
 
   it('validates encumbered without pledgee', () => {
     const result = svc.validateEncumbrance({
-      assets: [{ name: 'NoPledgee', balance: 100, encumbered: 50, pledgedTo: '' }],
+      assets: [
+        { name: 'NoPledgee', balance: 100, encumbered: 50, pledgedTo: '' },
+      ],
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toContain('no pledgee');

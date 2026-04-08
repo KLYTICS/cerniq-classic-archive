@@ -60,7 +60,7 @@ describe('CompounderValuationEngine', () => {
     it('should convert roicSpread to percentage', async () => {
       const result = await engine.calculate('V', 200, { eps: 12, fcf: 10 });
       expect(result.roicSpread).toBeGreaterThanOrEqual((0.15 - 0.08) * 100);
-      expect(result.roicSpread).toBeLessThanOrEqual((0.30 - 0.08) * 100);
+      expect(result.roicSpread).toBeLessThanOrEqual((0.3 - 0.08) * 100);
     });
 
     it('should have peMultiple >= base of 20', async () => {
@@ -169,7 +169,7 @@ describe('CompounderValuationEngine', () => {
       // So roic = roicSpread/100 + 0.08
       const roic = result.roicSpread / 100 + 0.08;
       expect(roic).toBeGreaterThanOrEqual(0.15);
-      expect(roic).toBeLessThanOrEqual(0.30);
+      expect(roic).toBeLessThanOrEqual(0.3);
     });
   });
 });

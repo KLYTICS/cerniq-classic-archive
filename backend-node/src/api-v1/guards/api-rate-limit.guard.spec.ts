@@ -45,7 +45,10 @@ describe('ApiRateLimitGuard', () => {
     const result = await guard.canActivate(context);
     expect(result).toBe(true);
     expect(response.setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', '100');
-    expect(response.setHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', '99');
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'X-RateLimit-Remaining',
+      '99',
+    );
   });
 
   it('allows first request for partner tier user with higher limit', async () => {
@@ -53,8 +56,14 @@ describe('ApiRateLimitGuard', () => {
     const { context, response } = createMockContext(apiUser);
     const result = await guard.canActivate(context);
     expect(result).toBe(true);
-    expect(response.setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', '1000');
-    expect(response.setHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', '999');
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'X-RateLimit-Limit',
+      '1000',
+    );
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'X-RateLimit-Remaining',
+      '999',
+    );
   });
 
   it('tracks request count across multiple calls (in-memory fallback)', async () => {
@@ -70,7 +79,10 @@ describe('ApiRateLimitGuard', () => {
     const { context, response } = createMockContext(apiUser);
     const result = await guard.canActivate(context);
     expect(result).toBe(true);
-    expect(response.setHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', '94');
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'X-RateLimit-Remaining',
+      '94',
+    );
   });
 
   it('throws 429 when standard tier exceeds 100 requests', async () => {
@@ -98,7 +110,10 @@ describe('ApiRateLimitGuard', () => {
       expect(body.error).toBe('Rate limit exceeded');
       expect(body.message).toContain('100 requests/hour');
     }
-    expect(response.setHeader).toHaveBeenCalledWith('Retry-After', expect.any(String));
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'Retry-After',
+      expect.any(String),
+    );
   });
 
   it('sets rate limit headers on every response', async () => {
@@ -106,9 +121,18 @@ describe('ApiRateLimitGuard', () => {
     const { context, response } = createMockContext(apiUser);
     await guard.canActivate(context);
 
-    expect(response.setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', expect.any(String));
-    expect(response.setHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', expect.any(String));
-    expect(response.setHeader).toHaveBeenCalledWith('X-RateLimit-Reset', expect.any(String));
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'X-RateLimit-Limit',
+      expect.any(String),
+    );
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'X-RateLimit-Remaining',
+      expect.any(String),
+    );
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'X-RateLimit-Reset',
+      expect.any(String),
+    );
   });
 
   it('resets count after window expires', async () => {
@@ -128,7 +152,10 @@ describe('ApiRateLimitGuard', () => {
     // Next request should reset the counter
     const { context: ctx2, response } = createMockContext(apiUser);
     await guard.canActivate(ctx2);
-    expect(response.setHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', '99');
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'X-RateLimit-Remaining',
+      '99',
+    );
   });
 
   it('different API keys have independent counters', async () => {
@@ -144,7 +171,10 @@ describe('ApiRateLimitGuard', () => {
     // user2's first request should show full remaining
     const { context, response } = createMockContext(user2);
     await guard.canActivate(context);
-    expect(response.setHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', '99');
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'X-RateLimit-Remaining',
+      '99',
+    );
   });
 
   // ── With Redis (CacheService mock) ─────────────────────────
@@ -174,7 +204,10 @@ describe('ApiRateLimitGuard', () => {
       const apiUser = { apiKeyId: 'key-redis-exp', tier: 'standard' };
       const { context } = createMockContext(apiUser);
       await guardWithRedis.canActivate(context);
-      expect(mockRedis.expire).toHaveBeenCalledWith('rate:api:key-redis-exp', 3600);
+      expect(mockRedis.expire).toHaveBeenCalledWith(
+        'rate:api:key-redis-exp',
+        3600,
+      );
     });
 
     it('does not set expire on subsequent requests (count > 1)', async () => {
@@ -192,7 +225,10 @@ describe('ApiRateLimitGuard', () => {
       const result = await guardWithRedis.canActivate(context);
       expect(result).toBe(true);
       // Should still set headers from in-memory fallback
-      expect(response.setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', '100');
+      expect(response.setHeader).toHaveBeenCalledWith(
+        'X-RateLimit-Limit',
+        '100',
+      );
     });
 
     it('returns correct remaining count from Redis', async () => {
@@ -200,7 +236,10 @@ describe('ApiRateLimitGuard', () => {
       const apiUser = { apiKeyId: 'key-redis-rem', tier: 'standard' };
       const { context, response } = createMockContext(apiUser);
       await guardWithRedis.canActivate(context);
-      expect(response.setHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', '50');
+      expect(response.setHeader).toHaveBeenCalledWith(
+        'X-RateLimit-Remaining',
+        '50',
+      );
     });
   });
 

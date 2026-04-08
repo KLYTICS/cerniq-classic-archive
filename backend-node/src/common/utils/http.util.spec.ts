@@ -150,7 +150,8 @@ describe('http.util', () => {
 
   describe('parseUserAgent', () => {
     it('detects Chrome on macOS', () => {
-      const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/120.0.0.0';
+      const ua =
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/120.0.0.0';
       const info = parseUserAgent(ua);
       expect(info.browser).toBe('Chrome');
       expect(info.os).toBe('macOS');
@@ -159,33 +160,39 @@ describe('http.util', () => {
     });
 
     it('detects Firefox', () => {
-      const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0';
+      const ua =
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0';
       const info = parseUserAgent(ua);
       expect(info.browser).toBe('Firefox');
       expect(info.os).toBe('Windows');
     });
 
     it('detects Edge', () => {
-      const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Edg/120.0.0.0';
+      const ua =
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Edg/120.0.0.0';
       const info = parseUserAgent(ua);
       expect(info.browser).toBe('Edge');
     });
 
     it('detects Safari (without Chrome)', () => {
-      const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15';
+      const ua =
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15';
       const info = parseUserAgent(ua);
       expect(info.browser).toBe('Safari');
       expect(info.os).toBe('macOS');
     });
 
     it('detects Opera', () => {
-      const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 OPR/105.0.0.0';
+      const ua =
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 OPR/105.0.0.0';
       const info = parseUserAgent(ua);
       expect(info.browser).toBe('Opera');
     });
 
     it('detects bots', () => {
-      const info = parseUserAgent('Googlebot/2.1 (+http://www.google.com/bot.html)');
+      const info = parseUserAgent(
+        'Googlebot/2.1 (+http://www.google.com/bot.html)',
+      );
       expect(info.isBot).toBe(true);
     });
 
@@ -205,28 +212,32 @@ describe('http.util', () => {
     });
 
     it('detects mobile Android', () => {
-      const ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+      const ua =
+        'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
       const info = parseUserAgent(ua);
       expect(info.isMobile).toBe(true);
       expect(info.os).toBe('Android');
     });
 
     it('detects mobile iPhone', () => {
-      const ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+      const ua =
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
       const info = parseUserAgent(ua);
       expect(info.isMobile).toBe(true);
       expect(info.os).toBe('iOS');
     });
 
     it('detects iPad as mobile and iOS', () => {
-      const ua = 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15';
+      const ua =
+        'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15';
       const info = parseUserAgent(ua);
       expect(info.isMobile).toBe(true);
       expect(info.os).toBe('iOS');
     });
 
     it('detects Linux OS', () => {
-      const ua = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0';
+      const ua =
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0';
       const info = parseUserAgent(ua);
       expect(info.os).toBe('Linux');
     });

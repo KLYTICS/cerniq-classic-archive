@@ -5,12 +5,11 @@ import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import ALMProvider, { useALM } from '@/components/alm/ALMProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { Download, Menu, Building2, ChevronDown, RefreshCw } from 'lucide-react';
-import { apiClient } from '@/lib/api';
-import { analytics, EVENTS } from '@/lib/analytics';
+import { Menu, Building2, ChevronDown, RefreshCw } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
-import { usePDFExport } from '@/hooks/usePDFExport';
 import ALMBreadcrumb from '@/components/alm/ALMBreadcrumb';
+import DocumentExportButtons from '@/components/exports/DocumentExportButtons';
+import { CommandPalette } from '@/components/alm/CommandPalette';
 
 function LanguageToggle() {
   const { locale, setLocale } = useTranslation();
@@ -38,30 +37,7 @@ function LanguageToggle() {
 
 function ALMTopBar() {
   const { institutions, selectedId, institution, setSelectedId } = useALM();
-  const { t, locale } = useTranslation();
-  const { exportToPDF, isExporting } = usePDFExport();
-
-  const handleExport = async () => {
-    if (!selectedId) return;
-
-    const isDemoInstitution = selectedId.startsWith('demo-');
-
-    analytics.track(EVENTS.ALM_REPORT_DOWNLOADED, { institutionId: selectedId });
-
-    if (!isDemoInstitution) {
-      try {
-        await apiClient.downloadALMReport(selectedId, locale);
-        return;
-      } catch {
-        // Fall back to client-side export below.
-      }
-    }
-
-    exportToPDF({
-      elementId: 'alm-report-content',
-      filename: `ALM_Report_${institution?.name?.replace(/\s+/g, '_') || selectedId}.pdf`,
-    });
-  };
+  const { t } = useTranslation();
 
   return (
     <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/90 px-6 backdrop-blur-md">
@@ -96,6 +72,7 @@ function ALMTopBar() {
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-500" />
           </div>
         )}
+        <CommandPalette />
         <LanguageToggle />
         <Link
           href="/pricing"
@@ -104,14 +81,11 @@ function ALMTopBar() {
           {t('alm.pricing')}
         </Link>
         {selectedId && (
-          <button
-            onClick={handleExport}
-            disabled={isExporting}
-            className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 transition hover:border-cyan-300 hover:text-cyan-700 disabled:opacity-50"
-          >
-            {isExporting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">{isExporting ? 'Generating...' : t('alm.exportPdf')}</span>
-          </button>
+          <DocumentExportButtons
+            manifestPath={`/api/alm/${selectedId}/exports`}
+            kinds={['alm_report']}
+            compact
+          />
         )}
       </div>
     </div>

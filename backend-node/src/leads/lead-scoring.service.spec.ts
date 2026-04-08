@@ -149,8 +149,11 @@ describe('LeadScoringService', () => {
   describe('scoreLead — edge cases', () => {
     it('assigns pricing_page intent score', async () => {
       mockPrisma.lead.findUnique.mockResolvedValue({
-        id: 'lead-pp', institutionType: 'family_office',
-        source: 'pricing_page', notes: null, reportSentAt: null,
+        id: 'lead-pp',
+        institutionType: 'family_office',
+        source: 'pricing_page',
+        notes: null,
+        reportSentAt: null,
       });
       const score = await service.scoreLead('lead-pp');
       expect(score.intent).toBe(10);
@@ -159,8 +162,11 @@ describe('LeadScoringService', () => {
 
     it('assigns community_bank fit score', async () => {
       mockPrisma.lead.findUnique.mockResolvedValue({
-        id: 'lead-cb', institutionType: 'community_bank',
-        source: null, notes: null, reportSentAt: null,
+        id: 'lead-cb',
+        institutionType: 'community_bank',
+        source: null,
+        notes: null,
+        reportSentAt: null,
       });
       const score = await service.scoreLead('lead-cb');
       expect(score.fit).toBe(10);
@@ -168,8 +174,11 @@ describe('LeadScoringService', () => {
 
     it('assigns cpa_consultant fit score', async () => {
       mockPrisma.lead.findUnique.mockResolvedValue({
-        id: 'lead-cpa', institutionType: 'cpa_consultant',
-        source: null, notes: null, reportSentAt: null,
+        id: 'lead-cpa',
+        institutionType: 'cpa_consultant',
+        source: null,
+        notes: null,
+        reportSentAt: null,
       });
       const score = await service.scoreLead('lead-cpa');
       expect(score.fit).toBe(6);
@@ -177,8 +186,11 @@ describe('LeadScoringService', () => {
 
     it('assigns default fit for unknown institution type', async () => {
       mockPrisma.lead.findUnique.mockResolvedValue({
-        id: 'lead-unk', institutionType: 'unknown_type',
-        source: null, notes: null, reportSentAt: null,
+        id: 'lead-unk',
+        institutionType: 'unknown_type',
+        source: null,
+        notes: null,
+        reportSentAt: null,
       });
       const score = await service.scoreLead('lead-unk');
       expect(score.fit).toBe(5);
@@ -186,8 +198,11 @@ describe('LeadScoringService', () => {
 
     it('assigns COLD tier for score 20-39', async () => {
       mockPrisma.lead.findUnique.mockResolvedValue({
-        id: 'lead-cold', institutionType: 'cooperativa',
-        source: null, notes: 'some notes', reportSentAt: null,
+        id: 'lead-cold',
+        institutionType: 'cooperativa',
+        source: null,
+        notes: 'some notes',
+        reportSentAt: null,
       });
       const score = await service.scoreLead('lead-cold');
       expect(score.total).toBe(20); // 15 fit + 5 notes intent
@@ -196,8 +211,10 @@ describe('LeadScoringService', () => {
 
     it('assigns HOT tier for high total score', async () => {
       mockPrisma.lead.findUnique.mockResolvedValue({
-        id: 'lead-hot', institutionType: 'cooperativa',
-        source: 'demo_completion', notes: 'Very interested',
+        id: 'lead-hot',
+        institutionType: 'cooperativa',
+        source: 'demo_completion',
+        notes: 'Very interested',
         reportSentAt: new Date(),
       });
       // 15 fit + 15 demo + 5 notes + 10 report = 45 => WARM

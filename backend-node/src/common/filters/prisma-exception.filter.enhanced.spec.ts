@@ -51,7 +51,11 @@ describe('PrismaExceptionFilter (enhanced)', () => {
   });
 
   it('maps P2003 to 400 FOREIGN_KEY_VIOLATION', () => {
-    const exception = { code: 'P2003', message: 'Foreign key constraint failed', meta: {} };
+    const exception = {
+      code: 'P2003',
+      message: 'Foreign key constraint failed',
+      meta: {},
+    };
     filter.catch(exception as any, mockHost);
     expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     expect(mockResponse.json).toHaveBeenCalledWith(
@@ -62,7 +66,11 @@ describe('PrismaExceptionFilter (enhanced)', () => {
   });
 
   it('maps P2014 to 400 RELATION_VIOLATION', () => {
-    const exception = { code: 'P2014', message: 'Required relation violation', meta: {} };
+    const exception = {
+      code: 'P2014',
+      message: 'Required relation violation',
+      meta: {},
+    };
     filter.catch(exception as any, mockHost);
     expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     expect(mockResponse.json).toHaveBeenCalledWith(
@@ -75,7 +83,9 @@ describe('PrismaExceptionFilter (enhanced)', () => {
   it('maps unknown Prisma codes to 500 DATABASE_ERROR', () => {
     const exception = { code: 'P9999', message: 'Unknown error', meta: {} };
     filter.catch(exception as any, mockHost);
-    expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    expect(mockResponse.status).toHaveBeenCalledWith(
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
     expect(mockResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({
         error: expect.objectContaining({ code: 'DATABASE_ERROR' }),

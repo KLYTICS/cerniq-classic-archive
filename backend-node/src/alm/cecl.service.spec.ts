@@ -403,7 +403,9 @@ describe('CECLService', () => {
 
     it('returns totalProvision12M as sum of first 4 quarters', async () => {
       const result = await svc.getCECLForecast('inst-1');
-      const sum4 = result.quarters.slice(0, 4).reduce((s, q) => s + q.provisionExpense, 0);
+      const sum4 = result.quarters
+        .slice(0, 4)
+        .reduce((s, q) => s + q.provisionExpense, 0);
       expect(result.totalProvision12M).toBeCloseTo(sum4, 2);
     });
 
@@ -466,7 +468,14 @@ describe('CECLService', () => {
       const mockPrisma = {
         loanSegment: {
           findMany: jest.fn().mockResolvedValue([
-            { segmentName: 'Consumer', balance: 100000, weightedAvgMaturity: 3, historicalLossRate: 0.02, lgd: 0.5, qualitativeAdj: 0.005 },
+            {
+              segmentName: 'Consumer',
+              balance: 100000,
+              weightedAvgMaturity: 3,
+              historicalLossRate: 0.02,
+              lgd: 0.5,
+              qualitativeAdj: 0.005,
+            },
           ]),
           createMany: jest.fn(),
           deleteMany: jest.fn(),

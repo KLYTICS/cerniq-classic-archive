@@ -34,13 +34,17 @@ describe('RolesGuard', () => {
   });
 
   it('allows access when user has one of the required roles', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['admin', 'super_admin']);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue(['admin', 'super_admin']);
     const context = createContext({ role: 'admin' });
     expect(guard.canActivate(context)).toBe(true);
   });
 
   it('throws ForbiddenException when user role does not match', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['admin', 'super_admin']);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue(['admin', 'super_admin']);
     const context = createContext({ role: 'viewer' });
     expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
   });

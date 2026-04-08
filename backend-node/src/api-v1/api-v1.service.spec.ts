@@ -125,7 +125,15 @@ describe('ApiV1Service', () => {
       framework: 'cossec',
       period: 'Q1-2026',
       rows: [
-        { category: 'asset', name: 'Loans', balance: 100000, rate: 5.5, subcategory: 'consumer_loans', duration: 3, rateType: 'fixed' },
+        {
+          category: 'asset',
+          name: 'Loans',
+          balance: 100000,
+          rate: 5.5,
+          subcategory: 'consumer_loans',
+          duration: 3,
+          rateType: 'fixed',
+        },
       ],
     });
 
@@ -133,9 +141,7 @@ describe('ApiV1Service', () => {
     // The rate 5.5 (>1) should have been normalized to 0.055
     expect(mockAlmEnterprise.importBalanceSheetItems).toHaveBeenCalledWith(
       'inst-1',
-      expect.arrayContaining([
-        expect.objectContaining({ rate: 0.055 }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ rate: 0.055 })]),
     );
   });
 
@@ -144,7 +150,15 @@ describe('ApiV1Service', () => {
       valid: true,
       errors: [],
       items: [
-        { category: 'asset', name: 'Cash', balance: 50000, rate: 0.01, subcategory: 'cash', duration: 0, rateType: 'fixed' },
+        {
+          category: 'asset',
+          name: 'Cash',
+          balance: 50000,
+          rate: 0.01,
+          subcategory: 'cash',
+          duration: 0,
+          rateType: 'fixed',
+        },
       ],
     });
     mockPrisma.workspace.create.mockResolvedValue({ id: 'ws-2' });

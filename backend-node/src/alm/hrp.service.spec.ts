@@ -101,7 +101,12 @@ describe('HRPService', () => {
 
   it('uses default vol of 0.05 for unknown asset subcategory', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { subcategory: 'exotic_derivatives', category: 'asset', balance: 100, rate: 0.05 },
+      {
+        subcategory: 'exotic_derivatives',
+        category: 'asset',
+        balance: 100,
+        rate: 0.05,
+      },
       { subcategory: 'cash', category: 'asset', balance: 100, rate: 0.01 },
     ]);
     const result = await service.computeHRP('inst_1');

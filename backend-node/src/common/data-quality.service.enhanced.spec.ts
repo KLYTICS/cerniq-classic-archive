@@ -1,4 +1,7 @@
-import { DataQualityService, DataValidationMiddleware } from './data-quality.service';
+import {
+  DataQualityService,
+  DataValidationMiddleware,
+} from './data-quality.service';
 
 describe('DataQualityService', () => {
   let service: DataQualityService;
@@ -51,7 +54,9 @@ describe('DataQualityService', () => {
       const report = service.validatePriceData(data);
       expect(report.invalidPoints).toBe(1);
       expect(report.issues).toEqual(
-        expect.arrayContaining([expect.stringContaining('Missing close price')]),
+        expect.arrayContaining([
+          expect.stringContaining('Missing close price'),
+        ]),
       );
     });
 
@@ -74,7 +79,9 @@ describe('DataQualityService', () => {
       ];
       const report = service.validatePriceData(data);
       expect(report.issues).toEqual(
-        expect.arrayContaining([expect.stringContaining('Extreme price movement')]),
+        expect.arrayContaining([
+          expect.stringContaining('Extreme price movement'),
+        ]),
       );
       // Extreme movements are warned but not marked invalid
       expect(report.validPoints).toBe(2);
@@ -118,7 +125,10 @@ describe('DataQualityService', () => {
     });
 
     it('returns healthy when success rate is high', () => {
-      service.recordMetric('source1', { successfulRequests: 100, totalRequests: 0 });
+      service.recordMetric('source1', {
+        successfulRequests: 100,
+        totalRequests: 0,
+      });
       // After recordMetric, totalRequests = 1, successfulRequests = 100
       const status = service.getHealthStatus();
       expect(status.status).toBeDefined();
@@ -174,7 +184,11 @@ describe('DataValidationMiddleware', () => {
   });
 
   it('rejects invalid ticker format', () => {
-    const req = { params: { ticker: 'invalid123' }, query: {}, body: {} } as any;
+    const req = {
+      params: { ticker: 'invalid123' },
+      query: {},
+      body: {},
+    } as any;
     middleware.use(req, mockRes, mockNext);
     expect(mockRes.status).toHaveBeenCalledWith(400);
     expect(mockNext).not.toHaveBeenCalled();
@@ -187,7 +201,11 @@ describe('DataValidationMiddleware', () => {
   });
 
   it('rejects invalid start date', () => {
-    const req = { params: {}, query: { startDate: 'not-a-date' }, body: {} } as any;
+    const req = {
+      params: {},
+      query: { startDate: 'not-a-date' },
+      body: {},
+    } as any;
     middleware.use(req, mockRes, mockNext);
     expect(mockRes.status).toHaveBeenCalledWith(400);
   });
@@ -203,7 +221,11 @@ describe('DataValidationMiddleware', () => {
   });
 
   it('rejects confidence level outside 0-1 range', () => {
-    const req = { params: {}, query: { confidenceLevel: '1.5' }, body: {} } as any;
+    const req = {
+      params: {},
+      query: { confidenceLevel: '1.5' },
+      body: {},
+    } as any;
     middleware.use(req, mockRes, mockNext);
     expect(mockRes.status).toHaveBeenCalledWith(400);
   });

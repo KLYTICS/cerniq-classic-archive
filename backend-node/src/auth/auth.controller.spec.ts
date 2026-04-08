@@ -286,43 +286,72 @@ describe('AuthController', () => {
     });
 
     it('should create API key with expiresInDays', async () => {
-      authService.createApiKey.mockResolvedValue({ id: 'k4', key: 'ck_live_xxx' });
+      authService.createApiKey.mockResolvedValue({
+        id: 'k4',
+        key: 'ck_live_xxx',
+      });
 
       const req = { user: { userId: 'u9' } };
-      const result = await controller.createApiKey(req, { name: 'expiring', expiresInDays: 30 } as any);
+      const result = await controller.createApiKey(req, {
+        name: 'expiring',
+        expiresInDays: 30,
+      } as any);
 
-      expect(authService.createApiKey).toHaveBeenCalledWith('u9', 'expiring', 30);
+      expect(authService.createApiKey).toHaveBeenCalledWith(
+        'u9',
+        'expiring',
+        30,
+      );
     });
   });
 
   describe('PUT /api/auth/password', () => {
     it('should change password for authenticated user', async () => {
-      authService.changePassword.mockResolvedValue({ message: 'Password changed' });
+      authService.changePassword.mockResolvedValue({
+        message: 'Password changed',
+      });
       const req = { user: { userId: 'u10' } };
       const dto = { currentPassword: 'old', newPassword: 'new' };
 
       const result = await controller.changePassword(req, dto as any);
 
-      expect(authService.changePassword).toHaveBeenCalledWith('u10', 'old', 'new');
+      expect(authService.changePassword).toHaveBeenCalledWith(
+        'u10',
+        'old',
+        'new',
+      );
     });
   });
 
   describe('POST /api/auth/password-reset/confirm', () => {
     it('should confirm password reset', async () => {
-      authService.resetPassword = jest.fn().mockResolvedValue({ message: 'Password reset' });
+      authService.resetPassword = jest
+        .fn()
+        .mockResolvedValue({ message: 'Password reset' });
       const dto = { token: 'reset-token', newPassword: 'newPass123' };
 
       const result = await controller.resetPassword(dto as any);
 
-      expect(authService.resetPassword).toHaveBeenCalledWith('reset-token', 'newPass123');
+      expect(authService.resetPassword).toHaveBeenCalledWith(
+        'reset-token',
+        'newPass123',
+      );
     });
   });
 
   describe('GET /api/auth/whoami', () => {
     it('should return whoami info with orgs', async () => {
-      authService.getUserOrgs = jest.fn().mockResolvedValue([{ org_id: 'org-1', role: 'admin', apps: ['cerniq'] }]);
+      authService.getUserOrgs = jest
+        .fn()
+        .mockResolvedValue([
+          { org_id: 'org-1', role: 'admin', apps: ['cerniq'] },
+        ]);
       const req = {
-        user: { userId: 'u-who', email: 'who@test.com', claims: { iss: 'test', aud: 'test' } },
+        user: {
+          userId: 'u-who',
+          email: 'who@test.com',
+          claims: { iss: 'test', aud: 'test' },
+        },
       };
 
       const result = await controller.whoami(req);
@@ -338,7 +367,11 @@ describe('AuthController', () => {
       authService.getUserOrgs = jest.fn().mockResolvedValue([]);
 
       const req = {
-        user: { userId: 'u-iss', email: 'iss@test.com', claims: { iss: 'test-issuer', aud: 'test-audience' } },
+        user: {
+          userId: 'u-iss',
+          email: 'iss@test.com',
+          claims: { iss: 'test-issuer', aud: 'test-audience' },
+        },
       };
 
       const result = await controller.whoami(req);
@@ -354,7 +387,11 @@ describe('AuthController', () => {
       authService.getUserOrgs = jest.fn().mockResolvedValue([]);
 
       const req = {
-        user: { userId: 'u-aud', email: 'aud@test.com', claims: { aud: ['other-aud', 'expected-aud'] } },
+        user: {
+          userId: 'u-aud',
+          email: 'aud@test.com',
+          claims: { aud: ['other-aud', 'expected-aud'] },
+        },
       };
 
       const result = await controller.whoami(req);
@@ -369,7 +406,11 @@ describe('AuthController', () => {
       authService.getUserOrgs = jest.fn().mockResolvedValue([]);
 
       const req = {
-        user: { userId: 'u-noaud', email: 'no@test.com', claims: { aud: 'some-aud' } },
+        user: {
+          userId: 'u-noaud',
+          email: 'no@test.com',
+          claims: { aud: 'some-aud' },
+        },
       };
 
       const result = await controller.whoami(req);
@@ -382,7 +423,11 @@ describe('AuthController', () => {
       authService.getUserOrgs = jest.fn().mockResolvedValue([]);
 
       const req = {
-        user: { userId: 'u-noiss', email: 'noiss@test.com', claims: { iss: 'any' } },
+        user: {
+          userId: 'u-noiss',
+          email: 'noiss@test.com',
+          claims: { iss: 'any' },
+        },
       };
 
       const result = await controller.whoami(req);
@@ -394,7 +439,11 @@ describe('AuthController', () => {
       authService.getUserOrgs = jest.fn().mockResolvedValue([]);
 
       const req = {
-        user: { userId: 'u-biss', email: 'biss@test.com', claims: { iss: 'wrong-issuer' } },
+        user: {
+          userId: 'u-biss',
+          email: 'biss@test.com',
+          claims: { iss: 'wrong-issuer' },
+        },
       };
 
       const result = await controller.whoami(req);
@@ -408,7 +457,11 @@ describe('AuthController', () => {
       authService.getUserOrgs = jest.fn().mockResolvedValue([]);
 
       const req = {
-        user: { userId: 'u-baud', email: 'baud@test.com', claims: { aud: 'wrong-aud' } },
+        user: {
+          userId: 'u-baud',
+          email: 'baud@test.com',
+          claims: { aud: 'wrong-aud' },
+        },
       };
 
       const result = await controller.whoami(req);
@@ -422,7 +475,11 @@ describe('AuthController', () => {
       authService.getUserOrgs = jest.fn().mockResolvedValue([]);
 
       const req = {
-        user: { userId: 'u-barr', email: 'barr@test.com', claims: { aud: ['aud1', 'aud2'] } },
+        user: {
+          userId: 'u-barr',
+          email: 'barr@test.com',
+          claims: { aud: ['aud1', 'aud2'] },
+        },
       };
 
       const result = await controller.whoami(req);
@@ -459,7 +516,11 @@ describe('AuthController', () => {
       authService.getUserOrgs = jest.fn().mockResolvedValue([]);
 
       const req = {
-        user: { userId: 'u-fb', email: 'fb@test.com', claims: { iss: 'fallback-issuer' } },
+        user: {
+          userId: 'u-fb',
+          email: 'fb@test.com',
+          claims: { iss: 'fallback-issuer' },
+        },
       };
 
       const result = await controller.whoami(req);
@@ -474,7 +535,11 @@ describe('AuthController', () => {
       authService.getUserOrgs = jest.fn().mockResolvedValue([]);
 
       const req = {
-        user: { userId: 'u-fba', email: 'fba@test.com', claims: { aud: 'fallback-aud' } },
+        user: {
+          userId: 'u-fba',
+          email: 'fba@test.com',
+          claims: { aud: 'fallback-aud' },
+        },
       };
 
       const result = await controller.whoami(req);
@@ -523,7 +588,11 @@ describe('AuthController', () => {
       await controller.googleCallback(req, res);
 
       expect(authService.generateTokens).toHaveBeenCalledWith({ id: 'g-user' });
-      expect(res.cookie).toHaveBeenCalledWith('access_token', 'g-at', expect.any(Object));
+      expect(res.cookie).toHaveBeenCalledWith(
+        'access_token',
+        'g-at',
+        expect.any(Object),
+      );
       expect(res.redirect).toHaveBeenCalledWith(
         expect.stringContaining('/auth/callback?returnUrl=%2Fdashboard'),
       );
@@ -542,8 +611,14 @@ describe('AuthController', () => {
 
       await controller.githubCallback(req, res);
 
-      expect(authService.generateTokens).toHaveBeenCalledWith({ id: 'gh-user' });
-      expect(res.cookie).toHaveBeenCalledWith('access_token', 'gh-at', expect.any(Object));
+      expect(authService.generateTokens).toHaveBeenCalledWith({
+        id: 'gh-user',
+      });
+      expect(res.cookie).toHaveBeenCalledWith(
+        'access_token',
+        'gh-at',
+        expect.any(Object),
+      );
       expect(res.redirect).toHaveBeenCalledWith(
         expect.stringContaining('/auth/callback?returnUrl=%2Fdashboard'),
       );

@@ -13,7 +13,12 @@ describe('TailRiskDecompositionService', () => {
 
   const fatTailReturns = [
     ...normalReturns,
-    -0.15, 0.12, -0.1, 0.08, -0.18, 0.14,
+    -0.15,
+    0.12,
+    -0.1,
+    0.08,
+    -0.18,
+    0.14,
   ];
 
   beforeEach(() => {
@@ -86,9 +91,8 @@ describe('TailRiskDecompositionService', () => {
 
   it('computes negative skewness for left-skewed distribution', () => {
     const returns = [
-      0.01, 0.02, 0.015, 0.01, 0.005, 0.02, 0.01, 0.015,
-      -0.1, -0.08, 0.01, 0.02, 0.01, 0.015, 0.01, 0.005,
-      0.01, 0.02, 0.01, 0.015,
+      0.01, 0.02, 0.015, 0.01, 0.005, 0.02, 0.01, 0.015, -0.1, -0.08, 0.01,
+      0.02, 0.01, 0.015, 0.01, 0.005, 0.01, 0.02, 0.01, 0.015,
     ];
     const result = service.decomposeTailRisk({ returns });
     expect(result.skewness).toBeLessThan(0);
@@ -96,9 +100,8 @@ describe('TailRiskDecompositionService', () => {
 
   it('computes positive skewness for right-skewed distribution', () => {
     const returns = [
-      -0.01, -0.02, -0.015, -0.01, -0.005, -0.02, -0.01, -0.015,
-      0.1, 0.08, -0.01, -0.02, -0.01, -0.015, -0.01, -0.005,
-      -0.01, -0.02, -0.01, -0.015,
+      -0.01, -0.02, -0.015, -0.01, -0.005, -0.02, -0.01, -0.015, 0.1, 0.08,
+      -0.01, -0.02, -0.01, -0.015, -0.01, -0.005, -0.01, -0.02, -0.01, -0.015,
     ];
     const result = service.decomposeTailRisk({ returns });
     expect(result.skewness).toBeGreaterThan(0);
@@ -112,19 +115,29 @@ describe('TailRiskDecompositionService', () => {
   });
 
   it('decomposes with marketReturns of matching length', () => {
-    const returns = Array.from({ length: 50 }, (_, i) => Math.sin(i * 0.5) * 0.02);
-    const marketReturns = Array.from({ length: 50 }, (_, i) => Math.sin(i * 0.5) * 0.015);
+    const returns = Array.from(
+      { length: 50 },
+      (_, i) => Math.sin(i * 0.5) * 0.02,
+    );
+    const marketReturns = Array.from(
+      { length: 50 },
+      (_, i) => Math.sin(i * 0.5) * 0.015,
+    );
     const result = service.decomposeTailRisk({ returns, marketReturns });
     expect(result.systematicTailRisk).toBeGreaterThanOrEqual(0);
     expect(result.systematicTailRisk).toBeLessThanOrEqual(1);
-    expect(result.systematicTailRisk + result.idiosyncraticTailRisk).toBeCloseTo(1, 3);
+    expect(
+      result.systematicTailRisk + result.idiosyncraticTailRisk,
+    ).toBeCloseTo(1, 3);
   });
 
   it('uses heuristic when marketReturns length does not match', () => {
     const returns = normalReturns;
     const marketReturns = [0.005, -0.01];
     const result = service.decomposeTailRisk({ returns, marketReturns });
-    expect(result.systematicTailRisk + result.idiosyncraticTailRisk).toBeCloseTo(1, 3);
+    expect(
+      result.systematicTailRisk + result.idiosyncraticTailRisk,
+    ).toBeCloseTo(1, 3);
   });
 
   it('handles near-zero variance (all identical returns)', () => {
@@ -136,7 +149,10 @@ describe('TailRiskDecompositionService', () => {
   });
 
   it('fatTailProbability is in [0,1]', () => {
-    const returns = Array.from({ length: 200 }, (_, i) => Math.sin(i * 0.1) * 0.01);
+    const returns = Array.from(
+      { length: 200 },
+      (_, i) => Math.sin(i * 0.1) * 0.01,
+    );
     const result = service.decomposeTailRisk({ returns });
     expect(result.fatTailProbability).toBeGreaterThanOrEqual(0);
     expect(result.fatTailProbability).toBeLessThanOrEqual(1);
@@ -154,7 +170,10 @@ describe('TailRiskDecompositionService', () => {
   });
 
   it('assigns high systematic risk when correlated with market', () => {
-    const marketReturns = Array.from({ length: 100 }, (_, i) => Math.sin(i * 0.2) * 0.02);
+    const marketReturns = Array.from(
+      { length: 100 },
+      (_, i) => Math.sin(i * 0.2) * 0.02,
+    );
     const returns = marketReturns.map((m) => m * 1.5);
     const result = service.decomposeTailRisk({ returns, marketReturns });
     expect(result.systematicTailRisk).toBeGreaterThan(0);

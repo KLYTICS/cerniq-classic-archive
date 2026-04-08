@@ -105,11 +105,16 @@ describe('ExecutionService', () => {
     // halfSpread = 10bps → need 0 < effectiveSlippage < 10bps
     // execPrice = 150.075 → slippage = (150.075-150)/150*10000 = 5bps
     mockMarketDataService.getQuote.mockResolvedValueOnce({
-      price: 150, bid: 149.85, ask: 150.15,
+      price: 150,
+      bid: 149.85,
+      ask: 150.15,
     });
     const result = await service.calculateSlippage({
-      ticker: 'TEST', executionPrice: 150.075,
-      executionTime: new Date(), side: 'BUY', quantity: 100,
+      ticker: 'TEST',
+      executionPrice: 150.075,
+      executionTime: new Date(),
+      side: 'BUY',
+      quantity: 100,
     });
     expect(result.quality).toBe('GOOD');
   });
@@ -119,11 +124,16 @@ describe('ExecutionService', () => {
     // spreadBps=20, halfSpread=10bps → need 10 <= effectiveSlippage < 20bps
     // execPrice = 150.22 → slippage = (150.22-150)/150*10000 ≈ 14.67bps
     mockMarketDataService.getQuote.mockResolvedValueOnce({
-      price: 150, bid: 149.85, ask: 150.15,
+      price: 150,
+      bid: 149.85,
+      ask: 150.15,
     });
     const result = await service.calculateSlippage({
-      ticker: 'TEST', executionPrice: 150.22,
-      executionTime: new Date(), side: 'BUY', quantity: 100,
+      ticker: 'TEST',
+      executionPrice: 150.22,
+      executionTime: new Date(),
+      side: 'BUY',
+      quantity: 100,
     });
     expect(result.quality).toBe('FAIR');
   });
@@ -131,35 +141,56 @@ describe('ExecutionService', () => {
   // ── Compliance flags ──────────────────────────────────────
   it('flags high slippage (>50bps) in compliance report', async () => {
     mockMarketDataService.getQuote.mockResolvedValue({
-      price: 100, bid: 99.95, ask: 100.05,
+      price: 100,
+      bid: 99.95,
+      ask: 100.05,
     });
-    const executions = [{
-      ticker: 'BIG', executionPrice: 101.5,
-      executionTime: new Date(), side: 'BUY' as const, quantity: 100,
-    }];
+    const executions = [
+      {
+        ticker: 'BIG',
+        executionPrice: 101.5,
+        executionTime: new Date(),
+        side: 'BUY' as const,
+        quantity: 100,
+      },
+    ];
     const result = await service.generateBestExecutionReport(executions, {
-      start: new Date('2025-01-01'), end: new Date('2025-01-31'),
+      start: new Date('2025-01-01'),
+      end: new Date('2025-01-31'),
     });
-    expect(result.complianceFlags.some((f) => f.includes('HIGH_SLIPPAGE'))).toBe(true);
+    expect(
+      result.complianceFlags.some((f) => f.includes('HIGH_SLIPPAGE')),
+    ).toBe(true);
   });
 
   it('flags large order poor fill in compliance report', async () => {
     mockMarketDataService.getQuote.mockResolvedValue({
-      price: 100, bid: 99.95, ask: 100.05,
+      price: 100,
+      bid: 99.95,
+      ask: 100.05,
     });
-    const executions = [{
-      ticker: 'BIG', executionPrice: 101.5,
-      executionTime: new Date(), side: 'BUY' as const, quantity: 15000,
-    }];
+    const executions = [
+      {
+        ticker: 'BIG',
+        executionPrice: 101.5,
+        executionTime: new Date(),
+        side: 'BUY' as const,
+        quantity: 15000,
+      },
+    ];
     const result = await service.generateBestExecutionReport(executions, {
-      start: new Date('2025-01-01'), end: new Date('2025-01-31'),
+      start: new Date('2025-01-01'),
+      end: new Date('2025-01-31'),
     });
-    expect(result.complianceFlags.some((f) => f.includes('LARGE_ORDER_POOR_FILL'))).toBe(true);
+    expect(
+      result.complianceFlags.some((f) => f.includes('LARGE_ORDER_POOR_FILL')),
+    ).toBe(true);
   });
 
   it('handles empty executions in best execution report', async () => {
     const result = await service.generateBestExecutionReport([], {
-      start: new Date('2025-01-01'), end: new Date('2025-01-31'),
+      start: new Date('2025-01-01'),
+      end: new Date('2025-01-31'),
     });
     expect(result.totalExecutions).toBe(0);
     expect(result.summary.averageSlippageBps).toBe(0);
@@ -173,13 +204,38 @@ describe('ExecutionService', () => {
       .mockResolvedValueOnce({ price: 100, bid: 99.85, ask: 100.15 }) // FAIR: within full spread
       .mockResolvedValueOnce({ price: 100, bid: 99.85, ask: 100.15 }); // POOR: beyond spread
     const executions = [
-      { ticker: 'A', executionPrice: 99.90, executionTime: new Date(), side: 'BUY' as const, quantity: 10 }, // below mid → EXCELLENT
-      { ticker: 'B', executionPrice: 100.05, executionTime: new Date(), side: 'BUY' as const, quantity: 10 }, // ~5bps < 15bps half → GOOD
-      { ticker: 'C', executionPrice: 100.20, executionTime: new Date(), side: 'BUY' as const, quantity: 10 }, // ~20bps between half(15) and full(30) → FAIR
-      { ticker: 'D', executionPrice: 101.00, executionTime: new Date(), side: 'BUY' as const, quantity: 10 }, // ~100bps >> 30bps → POOR
+      {
+        ticker: 'A',
+        executionPrice: 99.9,
+        executionTime: new Date(),
+        side: 'BUY' as const,
+        quantity: 10,
+      }, // below mid → EXCELLENT
+      {
+        ticker: 'B',
+        executionPrice: 100.05,
+        executionTime: new Date(),
+        side: 'BUY' as const,
+        quantity: 10,
+      }, // ~5bps < 15bps half → GOOD
+      {
+        ticker: 'C',
+        executionPrice: 100.2,
+        executionTime: new Date(),
+        side: 'BUY' as const,
+        quantity: 10,
+      }, // ~20bps between half(15) and full(30) → FAIR
+      {
+        ticker: 'D',
+        executionPrice: 101.0,
+        executionTime: new Date(),
+        side: 'BUY' as const,
+        quantity: 10,
+      }, // ~100bps >> 30bps → POOR
     ];
     const result = await service.generateBestExecutionReport(executions, {
-      start: new Date('2025-01-01'), end: new Date('2025-01-31'),
+      start: new Date('2025-01-01'),
+      end: new Date('2025-01-31'),
     });
     expect(result.summary.qualityBreakdown.excellent).toBeGreaterThanOrEqual(1);
     expect(result.summary.qualityBreakdown.good).toBeGreaterThanOrEqual(1);

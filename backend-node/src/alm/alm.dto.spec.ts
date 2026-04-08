@@ -149,8 +149,24 @@ describe('ALM DTOs', () => {
 
   describe('ScenarioRequestDto', () => {
     const validBalanceSheet = {
-      assets: [{ name: 'A', amount: 1000, rate: 0.05, maturityYears: 5, isFloating: false }],
-      liabilities: [{ name: 'L', amount: 800, rate: 0.02, maturityYears: 2, isFloating: false }],
+      assets: [
+        {
+          name: 'A',
+          amount: 1000,
+          rate: 0.05,
+          maturityYears: 5,
+          isFloating: false,
+        },
+      ],
+      liabilities: [
+        {
+          name: 'L',
+          amount: 800,
+          rate: 0.02,
+          maturityYears: 2,
+          isFloating: false,
+        },
+      ],
       equity: 200,
     };
 
@@ -222,8 +238,24 @@ describe('ALM DTOs', () => {
 
   describe('FullAnalysisRequestDto', () => {
     const validBS = {
-      assets: [{ name: 'A', amount: 1000, rate: 0.05, maturityYears: 5, isFloating: false }],
-      liabilities: [{ name: 'L', amount: 800, rate: 0.02, maturityYears: 2, isFloating: false }],
+      assets: [
+        {
+          name: 'A',
+          amount: 1000,
+          rate: 0.05,
+          maturityYears: 5,
+          isFloating: false,
+        },
+      ],
+      liabilities: [
+        {
+          name: 'L',
+          amount: 800,
+          rate: 0.02,
+          maturityYears: 2,
+          isFloating: false,
+        },
+      ],
       equity: 200,
     };
 

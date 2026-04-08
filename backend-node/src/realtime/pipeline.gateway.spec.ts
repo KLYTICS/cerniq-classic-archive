@@ -2,8 +2,16 @@ import { PipelineGateway } from './pipeline.gateway';
 import { isAllowedOrigin } from '../security/origin-allowlist';
 
 // Extract the CORS origin callback from the NestJS WebSocketGateway decorator metadata
-function getCorsOriginCallback(): ((origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => void) | undefined {
-  const metadata = Reflect.getMetadata('websockets:gateway_options', PipelineGateway);
+function getCorsOriginCallback():
+  | ((
+      origin: string | undefined,
+      cb: (err: Error | null, allow?: boolean) => void,
+    ) => void)
+  | undefined {
+  const metadata = Reflect.getMetadata(
+    'websockets:gateway_options',
+    PipelineGateway,
+  );
   return metadata?.cors?.origin;
 }
 
@@ -19,7 +27,12 @@ describe('PipelineGateway', () => {
 
   describe('handleConnection', () => {
     it('should log the connected client', () => {
-      const mockSocket = { id: 'sock-1', join: jest.fn(), emit: jest.fn(), handshake: { query: {} } };
+      const mockSocket = {
+        id: 'sock-1',
+        join: jest.fn(),
+        emit: jest.fn(),
+        handshake: { query: {} },
+      };
       // Should not throw
       gateway.handleConnection(mockSocket as any);
       expect(gateway).toBeDefined();
@@ -28,7 +41,12 @@ describe('PipelineGateway', () => {
 
   describe('handleDisconnect', () => {
     it('should log the disconnected client', () => {
-      const mockSocket = { id: 'sock-2', join: jest.fn(), emit: jest.fn(), handshake: { query: {} } };
+      const mockSocket = {
+        id: 'sock-2',
+        join: jest.fn(),
+        emit: jest.fn(),
+        handshake: { query: {} },
+      };
       gateway.handleDisconnect(mockSocket as any);
       expect(gateway).toBeDefined();
     });
@@ -36,7 +54,11 @@ describe('PipelineGateway', () => {
 
   describe('handleJoin', () => {
     it('should join the correct job room and return success', async () => {
-      const mockSocket = { id: 'sock-3', join: jest.fn().mockResolvedValue(undefined), emit: jest.fn() };
+      const mockSocket = {
+        id: 'sock-3',
+        join: jest.fn().mockResolvedValue(undefined),
+        emit: jest.fn(),
+      };
       const result = await gateway.handleJoin(mockSocket as any, 'job-123');
 
       expect(mockSocket.join).toHaveBeenCalledWith('job:job-123');
@@ -46,7 +68,11 @@ describe('PipelineGateway', () => {
 
   describe('handleLeave', () => {
     it('should leave the correct job room and return success', async () => {
-      const mockSocket = { id: 'sock-4', leave: jest.fn().mockResolvedValue(undefined), emit: jest.fn() };
+      const mockSocket = {
+        id: 'sock-4',
+        leave: jest.fn().mockResolvedValue(undefined),
+        emit: jest.fn(),
+      };
       const result = await gateway.handleLeave(mockSocket as any, 'job-456');
 
       expect(mockSocket.leave).toHaveBeenCalledWith('job:job-456');
@@ -133,7 +159,9 @@ describe('PipelineGateway', () => {
 
       const emittedPayload = mockServer.emit.mock.calls[0][1];
       expect(() => new Date(emittedPayload.timestamp)).not.toThrow();
-      expect(new Date(emittedPayload.timestamp).toISOString()).toBe(emittedPayload.timestamp);
+      expect(new Date(emittedPayload.timestamp).toISOString()).toBe(
+        emittedPayload.timestamp,
+      );
     });
   });
 

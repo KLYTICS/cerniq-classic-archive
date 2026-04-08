@@ -948,9 +948,7 @@ export class AlcoPackService {
       y += 16;
       doc.rect(ML, y, CW, 22).fill('#E2E8F0');
       const lcrBarW =
-        liq.lcr === null
-          ? 0
-          : Math.min(CW, Math.max(10, (liq.lcr / 200) * CW));
+        liq.lcr === null ? 0 : Math.min(CW, Math.max(10, (liq.lcr / 200) * CW));
       if (lcrBarW > 0) {
         doc.rect(ML, y, lcrBarW, 22).fill(lcrColor);
       }

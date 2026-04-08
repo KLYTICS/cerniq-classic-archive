@@ -88,7 +88,10 @@ describe('AlertDeliveryService', () => {
   // ── Coverage: mapAndDeliverToAllInstitutions ───────────────────
   it('delivers alerts to institutions with matching subcategories', async () => {
     mockPrisma.institution.findMany.mockResolvedValue([
-      { id: 'inst-1', balanceSheetItems: [{ subcategory: 'commercial_loans' }] },
+      {
+        id: 'inst-1',
+        balanceSheetItems: [{ subcategory: 'commercial_loans' }],
+      },
     ]);
     mockPrisma.institutionAlert.create.mockResolvedValue({});
 

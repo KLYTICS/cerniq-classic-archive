@@ -3,7 +3,9 @@ import { processBatch } from './batch-processor.util';
 describe('processBatch', () => {
   it('processes all items in batches', async () => {
     const items = [1, 2, 3, 4, 5];
-    const processor = jest.fn(async (batch: number[]) => batch.map((n) => n * 2));
+    const processor = jest.fn(async (batch: number[]) =>
+      batch.map((n) => n * 2),
+    );
 
     const result = await processBatch(items, processor, { batchSize: 2 });
 
@@ -40,9 +42,9 @@ describe('processBatch', () => {
       throw new Error('batch failed');
     });
 
-    await expect(processBatch(items, processor, { batchSize: 2 })).rejects.toThrow(
-      'batch failed',
-    );
+    await expect(
+      processBatch(items, processor, { batchSize: 2 }),
+    ).rejects.toThrow('batch failed');
   });
 
   it('continues on error when continueOnError is true', async () => {
@@ -98,7 +100,9 @@ describe('processBatch', () => {
   it('records failed items with error details when continueOnError', async () => {
     const items = [1, 2];
     const err = new Error('test error');
-    const processor = jest.fn(async () => { throw err; });
+    const processor = jest.fn(async () => {
+      throw err;
+    });
 
     const result = await processBatch(items, processor, {
       batchSize: 2,
@@ -128,7 +132,9 @@ describe('processBatch', () => {
 
   it('samples overflow: processes more than 10000 items', async () => {
     const items = Array.from({ length: 5 }, (_, i) => i);
-    const processor = jest.fn(async (batch: number[]) => batch.map(n => n * 2));
+    const processor = jest.fn(async (batch: number[]) =>
+      batch.map((n) => n * 2),
+    );
     const result = await processBatch(items, processor, { batchSize: 5 });
     expect(result.successful).toEqual([0, 2, 4, 6, 8]);
     expect(result.totalProcessed).toBe(5);

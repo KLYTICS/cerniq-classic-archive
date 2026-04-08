@@ -81,9 +81,24 @@ describe('CVaROptimizerService', () => {
     beforeEach(() => {
       const items = [
         { category: 'asset', subcategory: 'cash', balance: 20, rate: 0.02 },
-        { category: 'asset', subcategory: 'securities', balance: 40, rate: 0.045 },
-        { category: 'asset', subcategory: 'consumer_loans', balance: 60, rate: 0.065 },
-        { category: 'asset', subcategory: 'mortgage', balance: 30, rate: 0.055 },
+        {
+          category: 'asset',
+          subcategory: 'securities',
+          balance: 40,
+          rate: 0.045,
+        },
+        {
+          category: 'asset',
+          subcategory: 'consumer_loans',
+          balance: 60,
+          rate: 0.065,
+        },
+        {
+          category: 'asset',
+          subcategory: 'mortgage',
+          balance: 30,
+          rate: 0.055,
+        },
       ];
       const mockPrisma = {
         balanceSheetItem: {
@@ -118,7 +133,7 @@ describe('CVaROptimizerService', () => {
 
     it('efficient frontier has increasing target returns', async () => {
       const result = await svcReal.optimize('inst-1');
-      const targets = result.efficientFrontier.map(p => p.targetReturn);
+      const targets = result.efficientFrontier.map((p) => p.targetReturn);
       for (let i = 1; i < targets.length; i++) {
         expect(targets[i]).toBeGreaterThanOrEqual(targets[i - 1]);
       }

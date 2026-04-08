@@ -1146,7 +1146,12 @@ describe('BillingService', () => {
         customer_email: 'ws@test.com',
         customer: 'cus_ws',
         amount_total: 75000,
-        metadata: { tier: 'one_time', leadId: '', institutionName: 'Coop WS', customerName: 'WS' },
+        metadata: {
+          tier: 'one_time',
+          leadId: '',
+          institutionName: 'Coop WS',
+          customerName: 'WS',
+        },
       } as any);
 
       expect(prisma.workspace.create).toHaveBeenCalledWith({
@@ -1171,7 +1176,12 @@ describe('BillingService', () => {
         customer_email: 'existing@test.com',
         customer: 'cus_x',
         amount_total: 75000,
-        metadata: { tier: 'one_time', leadId: '', institutionName: '', customerName: '' },
+        metadata: {
+          tier: 'one_time',
+          leadId: '',
+          institutionName: '',
+          customerName: '',
+        },
       } as any);
 
       expect(prisma.workspace.create).not.toHaveBeenCalled();
@@ -1188,7 +1198,9 @@ describe('BillingService', () => {
 
     it('should handle user with no email', async () => {
       prisma.subscription.findFirst.mockResolvedValue({
-        id: 'sub-1', userId: 'user-1', tier: 'monthly',
+        id: 'sub-1',
+        userId: 'user-1',
+        tier: 'monthly',
       });
       prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: null });
 
@@ -1201,12 +1213,17 @@ describe('BillingService', () => {
   describe('handleSubscriptionCancelled edge cases', () => {
     it('should skip when no matching subscription', async () => {
       prisma.subscription.findFirst.mockResolvedValue(null);
-      await service.handleSubscriptionCancelled({ customer: 'cus_none' } as any);
+      await service.handleSubscriptionCancelled({
+        customer: 'cus_none',
+      } as any);
       expect(prisma.subscription.update).not.toHaveBeenCalled();
     });
 
     it('should not send email if user has no email', async () => {
-      prisma.subscription.findFirst.mockResolvedValue({ id: 'sub-1', userId: 'user-1' });
+      prisma.subscription.findFirst.mockResolvedValue({
+        id: 'sub-1',
+        userId: 'user-1',
+      });
       prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: null });
       prisma.emailSequence.findFirst.mockResolvedValue(null);
 
@@ -1219,7 +1236,9 @@ describe('BillingService', () => {
   describe('handleInvoicePaid edge cases', () => {
     it('should not create report job for one_time tier', async () => {
       prisma.subscription.findFirst.mockResolvedValue({
-        id: 'sub-1', userId: 'user-1', tier: 'one_time',
+        id: 'sub-1',
+        userId: 'user-1',
+        tier: 'one_time',
       });
 
       await service.handleInvoicePaid({
@@ -1232,7 +1251,9 @@ describe('BillingService', () => {
 
     it('should not send email if user has no email on invoice paid', async () => {
       prisma.subscription.findFirst.mockResolvedValue({
-        id: 'sub-1', userId: 'user-1', tier: 'monthly',
+        id: 'sub-1',
+        userId: 'user-1',
+        tier: 'monthly',
       });
       prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: null });
       prisma.reportJob.findFirst.mockResolvedValue(null);
@@ -1250,7 +1271,10 @@ describe('BillingService', () => {
   // ── handleSubscriptionCreated / Updated (sync from Stripe) ──
   describe('handleSubscriptionCreated/Updated', () => {
     it('should sync subscription status from Stripe (active)', async () => {
-      prisma.subscription.findFirst.mockResolvedValue({ id: 'sub-1', tier: 'monthly' });
+      prisma.subscription.findFirst.mockResolvedValue({
+        id: 'sub-1',
+        tier: 'monthly',
+      });
       prisma.subscription.update.mockResolvedValue({});
 
       await service.handleSubscriptionCreated({
@@ -1269,7 +1293,10 @@ describe('BillingService', () => {
     });
 
     it('should sync cancelled subscription status', async () => {
-      prisma.subscription.findFirst.mockResolvedValue({ id: 'sub-2', tier: 'annual' });
+      prisma.subscription.findFirst.mockResolvedValue({
+        id: 'sub-2',
+        tier: 'annual',
+      });
       prisma.subscription.update.mockResolvedValue({});
 
       await service.handleSubscriptionUpdated({
@@ -1281,7 +1308,10 @@ describe('BillingService', () => {
 
       expect(prisma.subscription.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ status: 'cancelled', cancelledAt: expect.any(Date) }),
+          data: expect.objectContaining({
+            status: 'cancelled',
+            cancelledAt: expect.any(Date),
+          }),
         }),
       );
     });
@@ -1300,7 +1330,10 @@ describe('BillingService', () => {
     });
 
     it('maps trialing status to active', async () => {
-      prisma.subscription.findFirst.mockResolvedValue({ id: 'sub-3', tier: 'monthly' });
+      prisma.subscription.findFirst.mockResolvedValue({
+        id: 'sub-3',
+        tier: 'monthly',
+      });
       prisma.subscription.update.mockResolvedValue({});
 
       await service.handleSubscriptionUpdated({
@@ -1318,7 +1351,10 @@ describe('BillingService', () => {
     });
 
     it('maps past_due status', async () => {
-      prisma.subscription.findFirst.mockResolvedValue({ id: 'sub-4', tier: 'monthly' });
+      prisma.subscription.findFirst.mockResolvedValue({
+        id: 'sub-4',
+        tier: 'monthly',
+      });
       prisma.subscription.update.mockResolvedValue({});
 
       await service.handleSubscriptionUpdated({
@@ -1336,7 +1372,10 @@ describe('BillingService', () => {
     });
 
     it('maps paused status to grace_period', async () => {
-      prisma.subscription.findFirst.mockResolvedValue({ id: 'sub-5', tier: 'annual' });
+      prisma.subscription.findFirst.mockResolvedValue({
+        id: 'sub-5',
+        tier: 'annual',
+      });
       prisma.subscription.update.mockResolvedValue({});
 
       await service.handleSubscriptionUpdated({
@@ -1358,7 +1397,10 @@ describe('BillingService', () => {
   describe('resolveFrontendUrl', () => {
     it('should block external URLs (open redirect prevention)', async () => {
       const stripeMock = (service as any).stripe;
-      stripeMock.checkout.sessions.create.mockResolvedValue({ url: '', id: 'cs_redir' });
+      stripeMock.checkout.sessions.create.mockResolvedValue({
+        url: '',
+        id: 'cs_redir',
+      });
 
       await service.createCheckoutSession({
         tier: 'monthly',
@@ -1374,7 +1416,10 @@ describe('BillingService', () => {
 
     it('should allow localhost URLs during dev', async () => {
       const stripeMock = (service as any).stripe;
-      stripeMock.checkout.sessions.create.mockResolvedValue({ url: '', id: 'cs_local' });
+      stripeMock.checkout.sessions.create.mockResolvedValue({
+        url: '',
+        id: 'cs_local',
+      });
 
       await service.createCheckoutSession({
         tier: 'monthly',
@@ -1389,7 +1434,10 @@ describe('BillingService', () => {
 
     it('should handle empty success/cancel URLs', async () => {
       const stripeMock = (service as any).stripe;
-      stripeMock.checkout.sessions.create.mockResolvedValue({ url: '', id: 'cs_empty' });
+      stripeMock.checkout.sessions.create.mockResolvedValue({
+        url: '',
+        id: 'cs_empty',
+      });
 
       await service.createCheckoutSession({
         tier: 'monthly',
@@ -1431,7 +1479,10 @@ describe('BillingService', () => {
   // ── handlePaymentComplete - annual tier period end ──
   describe('handlePaymentComplete (annual tier)', () => {
     it('should set currentPeriodEnd ~12 months for annual tier', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-annual', email: 'annual@test.com' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-annual',
+        email: 'annual@test.com',
+      });
       prisma.subscription.upsert.mockResolvedValue({});
       prisma.reportJob.create.mockResolvedValue({});
       prisma.magicLink.create.mockResolvedValue({});
@@ -1444,7 +1495,12 @@ describe('BillingService', () => {
         customer_email: 'annual@test.com',
         customer: 'cus_a',
         amount_total: 290000,
-        metadata: { tier: 'annual', leadId: '', institutionName: '', customerName: '' },
+        metadata: {
+          tier: 'annual',
+          leadId: '',
+          institutionName: '',
+          customerName: '',
+        },
       } as any);
 
       const call = prisma.subscription.upsert.mock.calls[0][0];

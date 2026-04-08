@@ -180,7 +180,10 @@ describe('IdempotencyResponseInterceptor', () => {
     );
 
     expect(res2.status).toHaveBeenCalledWith(201);
-    expect(res2.setHeader).toHaveBeenCalledWith('X-Idempotent-Replayed', 'true');
+    expect(res2.setHeader).toHaveBeenCalledWith(
+      'X-Idempotent-Replayed',
+      'true',
+    );
   });
 
   // ── Cleanup method ───────────────────────────────────────────

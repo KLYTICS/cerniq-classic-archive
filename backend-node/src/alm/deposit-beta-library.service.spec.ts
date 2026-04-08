@@ -109,15 +109,60 @@ describe('DepositBetaLibraryService', () => {
   it('normalizes subcategory aliases correctly', async () => {
     prisma.institution.findUnique.mockResolvedValue({ totalAssets: 200 });
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { category: 'liability', subcategory: 'demand deposits', balance: 10, depositBeta: 0.12 },
-      { category: 'liability', subcategory: 'checking', balance: 10, depositBeta: 0.09 },
-      { category: 'liability', subcategory: 'ahorro', balance: 20, depositBeta: 0.20 },
-      { category: 'liability', subcategory: 'share draft', balance: 15, depositBeta: 0.14 },
-      { category: 'liability', subcategory: 'money market', balance: 30, depositBeta: 0.45 },
-      { category: 'liability', subcategory: 'IRA accounts', balance: 25, depositBeta: 0.55 },
-      { category: 'liability', subcategory: 'certificate of deposit', balance: 40, depositBeta: 0.80 },
-      { category: 'liability', subcategory: 'plazo fijo', balance: 10, depositBeta: 0.75 },
-      { category: 'liability', subcategory: 'mm fund', balance: 5, depositBeta: 0.40 },
+      {
+        category: 'liability',
+        subcategory: 'demand deposits',
+        balance: 10,
+        depositBeta: 0.12,
+      },
+      {
+        category: 'liability',
+        subcategory: 'checking',
+        balance: 10,
+        depositBeta: 0.09,
+      },
+      {
+        category: 'liability',
+        subcategory: 'ahorro',
+        balance: 20,
+        depositBeta: 0.2,
+      },
+      {
+        category: 'liability',
+        subcategory: 'share draft',
+        balance: 15,
+        depositBeta: 0.14,
+      },
+      {
+        category: 'liability',
+        subcategory: 'money market',
+        balance: 30,
+        depositBeta: 0.45,
+      },
+      {
+        category: 'liability',
+        subcategory: 'IRA accounts',
+        balance: 25,
+        depositBeta: 0.55,
+      },
+      {
+        category: 'liability',
+        subcategory: 'certificate of deposit',
+        balance: 40,
+        depositBeta: 0.8,
+      },
+      {
+        category: 'liability',
+        subcategory: 'plazo fijo',
+        balance: 10,
+        depositBeta: 0.75,
+      },
+      {
+        category: 'liability',
+        subcategory: 'mm fund',
+        balance: 5,
+        depositBeta: 0.4,
+      },
     ]);
 
     const result = await service.getBenchmark('inst_1');
@@ -131,7 +176,12 @@ describe('DepositBetaLibraryService', () => {
   it('uses default beta for unknown subcategory', async () => {
     prisma.institution.findUnique.mockResolvedValue({ totalAssets: 200 });
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { category: 'liability', subcategory: 'exotic_product', balance: 50, depositBeta: null },
+      {
+        category: 'liability',
+        subcategory: 'exotic_product',
+        balance: 50,
+        depositBeta: null,
+      },
     ]);
 
     const result = await service.getBenchmark('inst_1');

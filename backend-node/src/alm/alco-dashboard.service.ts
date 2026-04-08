@@ -31,7 +31,11 @@ export class ALCODashboardService {
       status: 'green' | 'amber' | 'red' | 'info';
       threshold: string;
     }>;
-    overallHealth: 'strong' | 'adequate' | 'needs_attention' | 'data_unavailable';
+    overallHealth:
+      | 'strong'
+      | 'adequate'
+      | 'needs_attention'
+      | 'data_unavailable';
     interpretation: string;
     interpretationEs: string;
   } {
@@ -98,7 +102,8 @@ export class ALCODashboardService {
         m.durationGap,
         '≤2yr',
         (n) => `${n.toFixed(1)}yr`,
-        (n) => (Math.abs(n) <= 2 ? 'green' : Math.abs(n) <= 4 ? 'amber' : 'red'),
+        (n) =>
+          Math.abs(n) <= 2 ? 'green' : Math.abs(n) <= 4 ? 'amber' : 'red',
       ),
       row(
         'CAMEL',

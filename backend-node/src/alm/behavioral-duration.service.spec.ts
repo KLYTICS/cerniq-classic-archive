@@ -176,10 +176,12 @@ describe('BehavioralDurationService', () => {
   });
 
   it('should throw InternalServerErrorException on prisma failure', async () => {
-    mockPrisma.balanceSheetItem.findMany.mockRejectedValue(new Error('DB error'));
-    await expect(
-      service.computeBehavioralDurations('inst-1'),
-    ).rejects.toThrow('Computation failed');
+    mockPrisma.balanceSheetItem.findMany.mockRejectedValue(
+      new Error('DB error'),
+    );
+    await expect(service.computeBehavioralDurations('inst-1')).rejects.toThrow(
+      'Computation failed',
+    );
   });
 
   it('should generate both EN and ES narratives', async () => {

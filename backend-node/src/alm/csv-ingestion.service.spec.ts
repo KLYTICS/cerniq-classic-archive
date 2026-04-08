@@ -73,8 +73,9 @@ describe('CSVIngestionService', () => {
 
   it('rejects CSV exceeding MAX_CSV_ROWS', () => {
     const header = 'category,subcategory,name,balance,rate,duration,rateType';
-    const rows = Array.from({ length: 50002 }, () =>
-      'asset,commercial_loans,CRE,10,5.25,4.5,fixed',
+    const rows = Array.from(
+      { length: 50002 },
+      () => 'asset,commercial_loans,CRE,10,5.25,4.5,fixed',
     );
     const csv = [header, ...rows].join('\n');
     const result = service.parseCSV(csv);
@@ -110,7 +111,9 @@ describe('CSVIngestionService', () => {
       'liability,demand_deposits,Deposits,10,1,0.1,variable',
     ].join('\n');
     const result = service.parseCSV(csv);
-    expect(result.warnings.some((w) => w.includes('negative equity'))).toBe(true);
+    expect(result.warnings.some((w) => w.includes('negative equity'))).toBe(
+      true,
+    );
   });
 
   it('errors when liability subcategory used with asset category', () => {
@@ -201,7 +204,8 @@ describe('CSVIngestionService', () => {
   });
 
   it('handles \\r\\n line endings', () => {
-    const csv = 'category,subcategory,name,balance,rate,duration,rateType\r\nasset,commercial_loans,Loans,10,5.25,4.5,fixed\r\n';
+    const csv =
+      'category,subcategory,name,balance,rate,duration,rateType\r\nasset,commercial_loans,Loans,10,5.25,4.5,fixed\r\n';
     const result = service.parseCSV(csv);
     expect(result.valid).toBe(true);
   });
@@ -212,6 +216,8 @@ describe('CSVIngestionService', () => {
       'asset,unknown_sub,Test,10,5,3,fixed',
     ].join('\n');
     const result = service.parseCSV(csv);
-    expect(result.warnings.some((w) => w.includes('Unknown subcategory'))).toBe(true);
+    expect(result.warnings.some((w) => w.includes('Unknown subcategory'))).toBe(
+      true,
+    );
   });
 });

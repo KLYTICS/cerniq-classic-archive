@@ -24,18 +24,68 @@ describe('ReportsService', () => {
       baseNII: 5.2,
       riskRating: 'moderate',
       scenarios: [
-        { name: 'Parallel -200bp', shiftBps: -200, niImpact: 1.8, niImpactPct: 34.6, mveImpact: 2.5, mveImpactPct: 3.7 },
-        { name: 'Parallel -100bp', shiftBps: -100, niImpact: 0.9, niImpactPct: 17.3, mveImpact: 1.2, mveImpactPct: 1.8 },
-        { name: 'Parallel +100bp', shiftBps: 100, niImpact: -0.8, niImpactPct: -15.4, mveImpact: -1.0, mveImpactPct: -1.5 },
-        { name: 'Parallel +200bp', shiftBps: 200, niImpact: -2.1, niImpactPct: -40.4, mveImpact: -3.5, mveImpactPct: -5.2 },
+        {
+          name: 'Parallel -200bp',
+          shiftBps: -200,
+          niImpact: 1.8,
+          niImpactPct: 34.6,
+          mveImpact: 2.5,
+          mveImpactPct: 3.7,
+        },
+        {
+          name: 'Parallel -100bp',
+          shiftBps: -100,
+          niImpact: 0.9,
+          niImpactPct: 17.3,
+          mveImpact: 1.2,
+          mveImpactPct: 1.8,
+        },
+        {
+          name: 'Parallel +100bp',
+          shiftBps: 100,
+          niImpact: -0.8,
+          niImpactPct: -15.4,
+          mveImpact: -1.0,
+          mveImpactPct: -1.5,
+        },
+        {
+          name: 'Parallel +200bp',
+          shiftBps: 200,
+          niImpact: -2.1,
+          niImpactPct: -40.4,
+          mveImpact: -3.5,
+          mveImpactPct: -5.2,
+        },
       ],
     },
-    liquidity: { lcr: 118, hqla: 23, netOutflows: 19.5, status: 'compliant', buffer: 18.0 },
+    liquidity: {
+      lcr: 118,
+      hqla: 23,
+      netOutflows: 19.5,
+      status: 'compliant',
+      buffer: 18.0,
+    },
     fullAnalysis: {
       durationGap: { durationGap: 2.3 },
       balanceSheet: {
-        assets: [{ name: 'Loans', balance: 150, rate: 7.5, duration: 4.0, rateType: 'fixed' }],
-        liabilities: [{ name: 'Deposits', balance: 200, rate: 2.0, duration: 0.5, rateType: 'variable' }],
+        assets: [
+          {
+            name: 'Loans',
+            balance: 150,
+            rate: 7.5,
+            duration: 4.0,
+            rateType: 'fixed',
+          },
+        ],
+        liabilities: [
+          {
+            name: 'Deposits',
+            balance: 200,
+            rate: 2.0,
+            duration: 0.5,
+            rateType: 'variable',
+          },
+        ],
         totalAssets: 250,
         totalLiabilities: 225,
         equity: 25,
@@ -55,10 +105,26 @@ describe('ReportsService', () => {
         institutionType: 'cooperativa',
         reportingDate: '2026-01-31T00:00:00.000Z',
         checks: [
-          { name: 'Capital Ratio', nameEs: 'Razón de Capital', value: 10.5, threshold: 6.0, status: 'pass', unit: '%', description: 'Capital adequacy check', descriptionEs: 'Verificación de adecuación de capital' },
+          {
+            name: 'Capital Ratio',
+            nameEs: 'Razón de Capital',
+            value: 10.5,
+            threshold: 6.0,
+            status: 'pass',
+            unit: '%',
+            description: 'Capital adequacy check',
+            descriptionEs: 'Verificación de adecuación de capital',
+          },
         ],
         ratios: [
-          { id: 1, name: 'Capital Adequacy', value: 10.5, threshold: '>= 8%', status: 'pass', unit: '%' },
+          {
+            id: 1,
+            name: 'Capital Adequacy',
+            value: 10.5,
+            threshold: '>= 8%',
+            status: 'pass',
+            unit: '%',
+          },
         ],
         examReadinessScore: 85,
         overallStatus: 'compliant',
@@ -71,10 +137,38 @@ describe('ReportsService', () => {
         totalAssets: 250,
         primaryRegulator: 'COSSEC',
         balanceSheetItems: [
-          { category: 'asset', name: 'Loans', balance: 150, rate: 0.075, duration: 4.0, rateType: 'fixed' },
-          { category: 'asset', name: 'Securities', balance: 60, rate: 0.045, duration: 2.5, rateType: 'fixed' },
-          { category: 'liability', name: 'Deposits', balance: 180, rate: 0.02, duration: 0.5, rateType: 'variable' },
-          { category: 'liability', name: 'Borrowings', balance: 30, rate: 0.035, duration: 1.0, rateType: 'fixed' },
+          {
+            category: 'asset',
+            name: 'Loans',
+            balance: 150,
+            rate: 0.075,
+            duration: 4.0,
+            rateType: 'fixed',
+          },
+          {
+            category: 'asset',
+            name: 'Securities',
+            balance: 60,
+            rate: 0.045,
+            duration: 2.5,
+            rateType: 'fixed',
+          },
+          {
+            category: 'liability',
+            name: 'Deposits',
+            balance: 180,
+            rate: 0.02,
+            duration: 0.5,
+            rateType: 'variable',
+          },
+          {
+            category: 'liability',
+            name: 'Borrowings',
+            balance: 30,
+            rate: 0.035,
+            duration: 1.0,
+            rateType: 'fixed',
+          },
         ],
       }),
     } as any;
@@ -93,12 +187,34 @@ describe('ReportsService', () => {
           niiAtRisk: 3.2,
           expectedNII: 5.0,
           worstCaseNII: 1.8,
-          niiDistribution: { p5: 1.8, p25: 3.5, median: 5.0, p75: 6.5, p95: 8.0 },
+          niiDistribution: {
+            p5: 1.8,
+            p25: 3.5,
+            median: 5.0,
+            p75: 6.5,
+            p95: 8.0,
+          },
         },
         regulatory: {
           scenarios: [
-            { name: 'Parallel +200bp', description: 'Rate rise', niImpact: -4.0, mveImpact: -5.0, lcrImpact: -10, capitalImpact: -1.0, passFailStatus: 'pass' },
-            { name: 'Parallel -100bp', description: 'Rate decline', niImpact: 2.1, mveImpact: 3.0, lcrImpact: 5, capitalImpact: 0.5, passFailStatus: 'pass' },
+            {
+              name: 'Parallel +200bp',
+              description: 'Rate rise',
+              niImpact: -4.0,
+              mveImpact: -5.0,
+              lcrImpact: -10,
+              capitalImpact: -1.0,
+              passFailStatus: 'pass',
+            },
+            {
+              name: 'Parallel -100bp',
+              description: 'Rate decline',
+              niImpact: 2.1,
+              mveImpact: 3.0,
+              lcrImpact: 5,
+              capitalImpact: 0.5,
+              passFailStatus: 'pass',
+            },
           ],
           overallRating: 'resilient',
         },
@@ -123,7 +239,9 @@ describe('ReportsService', () => {
       paths: 500,
       horizon: 12,
     });
-    expect(mockAlmEnterprise.getRegulatoryCompliance).toHaveBeenCalledWith('inst-1');
+    expect(mockAlmEnterprise.getRegulatoryCompliance).toHaveBeenCalledWith(
+      'inst-1',
+    );
     expect(mockAlmEnterprise.getInstitution).toHaveBeenCalledWith('inst-1');
   });
 
@@ -148,13 +266,12 @@ describe('ReportsService', () => {
   });
 
   it('generateALMReport accepts watermark option', async () => {
-    try {
-      await service.generateALMReport('inst-1', 'en', { watermark: 'SAMPLE' });
-    } catch {
-      // PDF rendering may fail
-    }
+    const result = await service.generateALMReport('inst-1', 'en', {
+      watermark: 'SAMPLE',
+    });
 
-    expect(mockAlmEnterprise.getALMSummary).toHaveBeenCalled();
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect(result.includes('SAMPLE')).toBe(true);
   });
 
   it('generateALMReport fetches data concurrently via Promise.all', async () => {
@@ -210,10 +327,11 @@ describe('ReportsService', () => {
     }
   });
 
-  it('handles error during data fetch gracefully', async () => {
+  it('keeps generating a report when non-essential data fetches fail', async () => {
     mockAlmEnterprise.getALMSummary.mockRejectedValue(new Error('DB down'));
 
-    await expect(service.generateALMReport('inst-1')).rejects.toThrow();
+    const result = await service.generateALMReport('inst-1');
+    expect(Buffer.isBuffer(result)).toBe(true);
   });
 
   // ── risk score label mapping ────────────────────────────────
@@ -291,7 +409,13 @@ describe('ReportsService', () => {
     it('handles warning LCR status', async () => {
       mockAlmEnterprise.getALMSummary.mockResolvedValue(
         makeSummary({
-          liquidity: { lcr: 85, hqla: 10, netOutflows: 12, status: 'warning', buffer: -15 },
+          liquidity: {
+            lcr: 85,
+            hqla: 10,
+            netOutflows: 12,
+            status: 'warning',
+            buffer: -15,
+          },
         }),
       );
       try {
@@ -394,7 +518,9 @@ describe('ReportsService', () => {
         'inst-1',
         { paths: 500, horizon: 12 },
       );
-      expect(mockAlmEnterprise.getRegulatoryCompliance).toHaveBeenCalledWith('inst-1');
+      expect(mockAlmEnterprise.getRegulatoryCompliance).toHaveBeenCalledWith(
+        'inst-1',
+      );
       expect(mockAlmEnterprise.getInstitution).toHaveBeenCalledWith('inst-1');
     });
   });
@@ -407,15 +533,45 @@ describe('ReportsService', () => {
           niiAtRisk: 3.2,
           expectedNII: 5.0,
           worstCaseNII: 1.8,
-          niiDistribution: { p5: 2.0, p25: 3.5, median: 5.0, p75: 6.5, p95: 8.0 },
+          niiDistribution: {
+            p5: 2.0,
+            p25: 3.5,
+            median: 5.0,
+            p75: 6.5,
+            p95: 8.0,
+          },
           paths: 500,
           horizon: 12,
         },
         regulatory: {
           scenarios: [
-            { name: 'Parallel +300bp', description: 'Severe rate rise', niImpact: -6.5, mveImpact: -8.2, lcrImpact: -15, capitalImpact: -2.0, passFailStatus: 'fail' },
-            { name: 'Parallel +200bp', description: 'Moderate rate rise', niImpact: -4.0, mveImpact: -5.0, lcrImpact: -10, capitalImpact: -1.0, passFailStatus: 'warn' },
-            { name: 'Parallel -100bp', description: 'Rate decline', niImpact: 2.1, mveImpact: 3.0, lcrImpact: 5, capitalImpact: 0.5, passFailStatus: 'pass' },
+            {
+              name: 'Parallel +300bp',
+              description: 'Severe rate rise',
+              niImpact: -6.5,
+              mveImpact: -8.2,
+              lcrImpact: -15,
+              capitalImpact: -2.0,
+              passFailStatus: 'fail',
+            },
+            {
+              name: 'Parallel +200bp',
+              description: 'Moderate rate rise',
+              niImpact: -4.0,
+              mveImpact: -5.0,
+              lcrImpact: -10,
+              capitalImpact: -1.0,
+              passFailStatus: 'warn',
+            },
+            {
+              name: 'Parallel -100bp',
+              description: 'Rate decline',
+              niImpact: 2.1,
+              mveImpact: 3.0,
+              lcrImpact: 5,
+              capitalImpact: 0.5,
+              passFailStatus: 'pass',
+            },
           ],
           overallRating: 'vulnerable',
         },
@@ -435,13 +591,27 @@ describe('ReportsService', () => {
           niiAtRisk: 2.1,
           expectedNII: 4.0,
           worstCaseNII: 1.5,
-          niiDistribution: { p5: 1.5, p25: 2.5, median: 4.0, p75: 5.5, p95: 7.0 },
+          niiDistribution: {
+            p5: 1.5,
+            p25: 2.5,
+            median: 4.0,
+            p75: 5.5,
+            p95: 7.0,
+          },
           paths: 500,
           horizon: 12,
         },
         regulatory: {
           scenarios: [
-            { name: 'Parallel +200bp', description: 'Rate rise', niImpact: -3.0, mveImpact: -4.0, lcrImpact: -8, capitalImpact: -0.8, passFailStatus: 'pass' },
+            {
+              name: 'Parallel +200bp',
+              description: 'Rate rise',
+              niImpact: -3.0,
+              mveImpact: -4.0,
+              lcrImpact: -8,
+              capitalImpact: -0.8,
+              passFailStatus: 'pass',
+            },
           ],
           overallRating: 'resilient',
         },
@@ -465,10 +635,38 @@ describe('ReportsService', () => {
         totalAssets: 250,
         primaryRegulator: 'COSSEC',
         balanceSheetItems: [
-          { category: 'asset', name: 'Loans', balance: 150, rate: 0.075, duration: 4.0, rateType: 'fixed' },
-          { category: 'asset', name: 'Securities', balance: 60, rate: 0.045, duration: 2.5, rateType: 'fixed' },
-          { category: 'liability', name: 'Deposits', balance: 180, rate: 0.02, duration: 0.5, rateType: 'variable' },
-          { category: 'liability', name: 'Borrowings', balance: 30, rate: 0.035, duration: 1.0, rateType: 'fixed' },
+          {
+            category: 'asset',
+            name: 'Loans',
+            balance: 150,
+            rate: 0.075,
+            duration: 4.0,
+            rateType: 'fixed',
+          },
+          {
+            category: 'asset',
+            name: 'Securities',
+            balance: 60,
+            rate: 0.045,
+            duration: 2.5,
+            rateType: 'fixed',
+          },
+          {
+            category: 'liability',
+            name: 'Deposits',
+            balance: 180,
+            rate: 0.02,
+            duration: 0.5,
+            rateType: 'variable',
+          },
+          {
+            category: 'liability',
+            name: 'Borrowings',
+            balance: 30,
+            rate: 0.035,
+            duration: 1.0,
+            rateType: 'fixed',
+          },
         ],
       });
 
@@ -506,17 +704,55 @@ describe('ReportsService', () => {
         institutionType: 'cooperativa',
         reportingDate: '2026-01-31T00:00:00.000Z',
         checks: [
-          { name: 'Capital Ratio', value: 10.5, threshold: 6.0, status: 'pass', unit: '%' },
-          { name: 'Asset Quality', value: 3.2, threshold: 5.0, status: 'pass', unit: '%' },
+          {
+            name: 'Capital Ratio',
+            value: 10.5,
+            threshold: 6.0,
+            status: 'pass',
+            unit: '%',
+          },
+          {
+            name: 'Asset Quality',
+            value: 3.2,
+            threshold: 5.0,
+            status: 'pass',
+            unit: '%',
+          },
         ],
         ratios: [
-          { id: 1, name: 'Capital Adequacy', value: 10.5, threshold: '>= 8%', status: 'pass', unit: '%' },
-          { id: 2, name: 'Asset Quality', value: 3.2, threshold: '<= 5%', status: 'pass', unit: '%' },
-          { id: 3, name: 'Liquidity', value: 22.0, threshold: '>= 15%', status: 'pass', unit: '%' },
+          {
+            id: 1,
+            name: 'Capital Adequacy',
+            value: 10.5,
+            threshold: '>= 8%',
+            status: 'pass',
+            unit: '%',
+          },
+          {
+            id: 2,
+            name: 'Asset Quality',
+            value: 3.2,
+            threshold: '<= 5%',
+            status: 'pass',
+            unit: '%',
+          },
+          {
+            id: 3,
+            name: 'Liquidity',
+            value: 22.0,
+            threshold: '>= 15%',
+            status: 'pass',
+            unit: '%',
+          },
         ],
         examReadinessScore: 90,
         overallStatus: 'compliant',
-        summary: { totalAssets: 250, totalLiabilities: 225, equity: 25, capitalRatio: 10.5 },
+        summary: {
+          totalAssets: 250,
+          totalLiabilities: 225,
+          equity: 25,
+          capitalRatio: 10.5,
+        },
       });
 
       try {
@@ -539,11 +775,33 @@ describe('ReportsService', () => {
         institutionName: 'Test CU',
         institutionType: 'credit_union',
         reportingDate: '2026-01-31T00:00:00.000Z',
-        checks: [{ name: 'Net Worth', value: 8.5, threshold: 7.0, status: 'pass', unit: '%' }],
-        ratios: [{ id: 1, name: 'Net Worth Ratio', value: 8.5, threshold: '>= 7%', status: 'pass', unit: '%' }],
+        checks: [
+          {
+            name: 'Net Worth',
+            value: 8.5,
+            threshold: 7.0,
+            status: 'pass',
+            unit: '%',
+          },
+        ],
+        ratios: [
+          {
+            id: 1,
+            name: 'Net Worth Ratio',
+            value: 8.5,
+            threshold: '>= 7%',
+            status: 'pass',
+            unit: '%',
+          },
+        ],
         examReadinessScore: 78,
         overallStatus: 'compliant',
-        summary: { totalAssets: 500, totalLiabilities: 460, equity: 40, capitalRatio: 8.0 },
+        summary: {
+          totalAssets: 500,
+          totalLiabilities: 460,
+          equity: 40,
+          capitalRatio: 8.0,
+        },
       });
 
       try {
@@ -604,10 +862,34 @@ describe('ReportsService', () => {
             baseNII: 5.2,
             riskRating: 'moderate',
             scenarios: [
-              { shiftBps: -200, niImpact: 1.8, niImpactPct: 34.6, mveImpact: 2.5, mveImpactPct: 3.7 },
-              { shiftBps: -100, niImpact: 0.9, niImpactPct: 17.3, mveImpact: 1.2, mveImpactPct: 1.8 },
-              { shiftBps: 100, niImpact: -0.8, niImpactPct: -15.4, mveImpact: -1.0, mveImpactPct: -1.5 },
-              { shiftBps: 200, niImpact: -2.1, niImpactPct: -40.4, mveImpact: -3.5, mveImpactPct: -5.2 },
+              {
+                shiftBps: -200,
+                niImpact: 1.8,
+                niImpactPct: 34.6,
+                mveImpact: 2.5,
+                mveImpactPct: 3.7,
+              },
+              {
+                shiftBps: -100,
+                niImpact: 0.9,
+                niImpactPct: 17.3,
+                mveImpact: 1.2,
+                mveImpactPct: 1.8,
+              },
+              {
+                shiftBps: 100,
+                niImpact: -0.8,
+                niImpactPct: -15.4,
+                mveImpact: -1.0,
+                mveImpactPct: -1.5,
+              },
+              {
+                shiftBps: 200,
+                niImpact: -2.1,
+                niImpactPct: -40.4,
+                mveImpact: -3.5,
+                mveImpactPct: -5.2,
+              },
             ],
           },
         }),

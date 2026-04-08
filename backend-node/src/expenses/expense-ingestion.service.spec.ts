@@ -103,7 +103,9 @@ describe('ExpenseIngestionService', () => {
     const result = service.parseExpenseCSV(csv);
     expect(result.valid).toBe(true);
     expect(result.items[0].category).toBe('other');
-    expect(result.warnings.some((w) => w.includes('Unknown category'))).toBe(true);
+    expect(result.warnings.some((w) => w.includes('Unknown category'))).toBe(
+      true,
+    );
   });
 
   it('warns for unknown status and defaults to "PAID"', () => {
@@ -114,7 +116,9 @@ describe('ExpenseIngestionService', () => {
     const result = service.parseExpenseCSV(csv);
     expect(result.valid).toBe(true);
     expect(result.items[0].status).toBe('PAID');
-    expect(result.warnings.some((w) => w.includes('Unknown status'))).toBe(true);
+    expect(result.warnings.some((w) => w.includes('Unknown status'))).toBe(
+      true,
+    );
   });
 
   it('handles Spanish status aliases (pagado -> PAID)', () => {
@@ -221,7 +225,10 @@ describe('ExpenseIngestionService', () => {
       '2025-06-01,INV-003,C,200',
     ].join('\n');
     const result = service.parseExpenseCSV(csv);
-    expect(result.summary.dateRange).toEqual({ from: '2025-01-15', to: '2025-06-01' });
+    expect(result.summary.dateRange).toEqual({
+      from: '2025-01-15',
+      to: '2025-06-01',
+    });
   });
 
   it('defaults currency to USD when not provided', () => {
@@ -250,7 +257,8 @@ describe('ExpenseIngestionService', () => {
   });
 
   it('handles \\r\\n line endings', () => {
-    const csv = 'date,invoice_number,vendor,amount\r\n2025-01-15,INV-001,Test Vendor,500\r\n';
+    const csv =
+      'date,invoice_number,vendor,amount\r\n2025-01-15,INV-001,Test Vendor,500\r\n';
     const result = service.parseExpenseCSV(csv);
     expect(result.valid).toBe(true);
   });

@@ -373,7 +373,7 @@ describe('HullWhiteService', () => {
 
   // ── Coverage: calibration with default kappa ──────────────────
   it('calibrates with auto-detected kappa range', () => {
-    const marketPrices = termStructure.map(p => ({
+    const marketPrices = termStructure.map((p) => ({
       maturity: p.maturity,
       price: Math.exp(-p.rate * p.maturity),
     }));

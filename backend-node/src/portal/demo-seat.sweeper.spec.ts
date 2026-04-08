@@ -17,7 +17,6 @@ jest.mock('@sentry/nestjs', () => ({
   captureException: jest.fn(),
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const Sentry = require('@sentry/nestjs') as {
   withScope: jest.Mock;
   captureException: jest.Mock;
@@ -99,7 +98,9 @@ describe('DemoSeatSweeper', () => {
       // Cron handlers must never throw — an uncaught rejection kills the
       // scheduler in NestJS. We log and continue.
       demoSeats.sweepExpired.mockRejectedValue(new Error('DB connection lost'));
-      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+      const errorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
 
       await expect(sweeper.runHourly()).resolves.toBeUndefined();
 

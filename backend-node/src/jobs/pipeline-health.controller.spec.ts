@@ -24,10 +24,10 @@ describe('PipelineHealthController', () => {
 
   function mockCurrentDate(mockDate: Date) {
     const RealDate = Date;
-    return jest.spyOn(global, 'Date').mockImplementation(
-      ((value?: string | number | Date) =>
-        value === undefined ? mockDate : new RealDate(value)) as any,
-    );
+    return jest
+      .spyOn(global, 'Date')
+      .mockImplementation(((value?: string | number | Date) =>
+        value === undefined ? mockDate : new RealDate(value)) as any);
   }
 
   it('returns operational status when last run exists', async () => {

@@ -49,7 +49,9 @@ describe('ParseDatePipe', () => {
 
   // Coverage: truly invalid date string
   it('throws BadRequestException for completely invalid date', () => {
-    expect(() => pipe.transform('not-a-date-at-all')).toThrow(BadRequestException);
+    expect(() => pipe.transform('not-a-date-at-all')).toThrow(
+      BadRequestException,
+    );
   });
 
   it('throws BadRequestException for partial date string', () => {

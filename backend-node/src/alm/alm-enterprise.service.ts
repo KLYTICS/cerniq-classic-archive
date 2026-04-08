@@ -126,7 +126,11 @@ export interface COSSECComplianceResult {
   checks: COSSECCheck[];
   ratios: CossecRatioResult[];
   examReadinessScore: number;
-  overallStatus: 'compliant' | 'conditional' | 'non-compliant' | 'data_unavailable';
+  overallStatus:
+    | 'compliant'
+    | 'conditional'
+    | 'non-compliant'
+    | 'data_unavailable';
   /**
    * Populated when input data is incomplete (e.g. empty balance sheet). When
    * any CRITICAL gap is present, `checks`/`ratios` are empty and the summary
@@ -668,7 +672,8 @@ export class AlmEnterpriseService {
       this.logger.warn({
         event: 'lcr_data_unavailable',
         institutionId,
-        reason: 'NO_LIQUIDITY_POSITION and balance-sheet derivation insufficient',
+        reason:
+          'NO_LIQUIDITY_POSITION and balance-sheet derivation insufficient',
       });
       return {
         lcr: null,
@@ -705,9 +710,11 @@ export class AlmEnterpriseService {
    * is `'data_unavailable'` and the `gaps[]` array carries a CRITICAL gap so
    * callers can branch on the manifest, not on phantom zeros.
    */
-  private cossecDataUnavailableResult(
-    institution: { name: string; type: string; reportingDate: Date | string },
-  ): COSSECComplianceResult {
+  private cossecDataUnavailableResult(institution: {
+    name: string;
+    type: string;
+    reportingDate: Date | string;
+  }): COSSECComplianceResult {
     const reportingDate =
       institution.reportingDate instanceof Date
         ? institution.reportingDate.toISOString()
@@ -2007,11 +2014,7 @@ export class AlmEnterpriseService {
         'Upload a current liquidity_positions row so LCR can be calculated and recommendations made',
       );
     } else {
-      if (
-        lcr.buffer !== null &&
-        lcr.buffer < 20 &&
-        lcr.status !== 'breach'
-      ) {
+      if (lcr.buffer !== null && lcr.buffer < 20 && lcr.status !== 'breach') {
         recs.push(
           'Build HQLA buffer — target LCR above 120% for adequate cushion',
         );

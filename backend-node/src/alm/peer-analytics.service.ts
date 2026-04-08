@@ -247,9 +247,7 @@ export class PeerAnalyticsService {
    * (15.2, 115, 0.18, 1.3) and ranked the institution against peers using
    * those literals — a phantom comparison.
    */
-  private async getInstitutionMetrics(
-    institutionId: string,
-  ): Promise<{
+  private async getInstitutionMetrics(institutionId: string): Promise<{
     metrics: Record<string, number | null>;
     gaps: DataGap[];
   }> {

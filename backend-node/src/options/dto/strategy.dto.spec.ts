@@ -28,37 +28,55 @@ describe('StrategyLegDto', () => {
   });
 
   it('passes with premium set', async () => {
-    const dto = plainToInstance(StrategyLegDto, { ...makeValidLeg(), premium: 5.50 });
+    const dto = plainToInstance(StrategyLegDto, {
+      ...makeValidLeg(),
+      premium: 5.5,
+    });
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
   });
 
   it('fails when strike is negative', async () => {
-    const dto = plainToInstance(StrategyLegDto, { ...makeValidLeg(), strike: -1 });
+    const dto = plainToInstance(StrategyLegDto, {
+      ...makeValidLeg(),
+      strike: -1,
+    });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
 
   it('fails when quantity is less than 1', async () => {
-    const dto = plainToInstance(StrategyLegDto, { ...makeValidLeg(), quantity: 0 });
+    const dto = plainToInstance(StrategyLegDto, {
+      ...makeValidLeg(),
+      quantity: 0,
+    });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
 
   it('fails with invalid buySell enum', async () => {
-    const dto = plainToInstance(StrategyLegDto, { ...makeValidLeg(), buySell: 'hold' });
+    const dto = plainToInstance(StrategyLegDto, {
+      ...makeValidLeg(),
+      buySell: 'hold',
+    });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
 
   it('accepts SELL buySell value', async () => {
-    const dto = plainToInstance(StrategyLegDto, { ...makeValidLeg(), buySell: BuySell.SELL });
+    const dto = plainToInstance(StrategyLegDto, {
+      ...makeValidLeg(),
+      buySell: BuySell.SELL,
+    });
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
   });
 
   it('accepts PUT optionType', async () => {
-    const dto = plainToInstance(StrategyLegDto, { ...makeValidLeg(), optionType: OptionType.PUT });
+    const dto = plainToInstance(StrategyLegDto, {
+      ...makeValidLeg(),
+      optionType: OptionType.PUT,
+    });
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
   });
@@ -128,7 +146,9 @@ describe('STRATEGY_PRESETS', () => {
 
   it('all presets have valid categories', () => {
     for (const preset of STRATEGY_PRESETS) {
-      expect(['bullish', 'bearish', 'neutral', 'volatility']).toContain(preset.category);
+      expect(['bullish', 'bearish', 'neutral', 'volatility']).toContain(
+        preset.category,
+      );
     }
   });
 

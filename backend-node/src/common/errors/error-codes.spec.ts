@@ -5,13 +5,21 @@ describe('ERROR_CODES', () => {
     const keys = Object.keys(ERROR_CODES);
 
     // Auth domain
-    expect(keys.filter((k) => k.startsWith('AUTH_')).length).toBeGreaterThanOrEqual(5);
+    expect(
+      keys.filter((k) => k.startsWith('AUTH_')).length,
+    ).toBeGreaterThanOrEqual(5);
     // ALM domain
-    expect(keys.filter((k) => k.startsWith('ALM_')).length).toBeGreaterThanOrEqual(3);
+    expect(
+      keys.filter((k) => k.startsWith('ALM_')).length,
+    ).toBeGreaterThanOrEqual(3);
     // Billing domain
-    expect(keys.filter((k) => k.startsWith('BILLING_')).length).toBeGreaterThanOrEqual(2);
+    expect(
+      keys.filter((k) => k.startsWith('BILLING_')).length,
+    ).toBeGreaterThanOrEqual(2);
     // System domain
-    expect(keys.filter((k) => k.startsWith('SYSTEM_')).length).toBeGreaterThanOrEqual(3);
+    expect(
+      keys.filter((k) => k.startsWith('SYSTEM_')).length,
+    ).toBeGreaterThanOrEqual(3);
   });
 
   it('every error code has matching code, valid HTTP status, and a message', () => {

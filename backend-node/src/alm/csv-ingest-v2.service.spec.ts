@@ -103,7 +103,7 @@ describe('CsvIngestV2Service', () => {
     const csv = `my_field,other\n100,hello`;
     const result = await service.analyzeCSV('inst_1', csv);
 
-    const mapping = result.mappings.find(m => m.csvColumn === 'my_field');
+    const mapping = result.mappings.find((m) => m.csvColumn === 'my_field');
     expect(mapping!.cerniqField).toBe('balance');
     expect(mapping!.confidence).toBe(0.95);
   });
@@ -112,7 +112,7 @@ describe('CsvIngestV2Service', () => {
     const csv = `pct_col,name\n0.05,Loan A\n0.12,Loan B\n0.03,Loan C`;
     const result = await service.analyzeCSV('inst_1', csv);
 
-    const pctMapping = result.mappings.find(m => m.csvColumn === 'pct_col');
+    const pctMapping = result.mappings.find((m) => m.csvColumn === 'pct_col');
     expect(pctMapping!.cerniqField).toBe('rate');
     expect(pctMapping!.confidence).toBe(0.6);
   });
@@ -121,7 +121,7 @@ describe('CsvIngestV2Service', () => {
     const csv = `num_col,name\n50000,Asset A\n120000,Asset B`;
     const result = await service.analyzeCSV('inst_1', csv);
 
-    const numMapping = result.mappings.find(m => m.csvColumn === 'num_col');
+    const numMapping = result.mappings.find((m) => m.csvColumn === 'num_col');
     expect(numMapping!.cerniqField).toBe('balance');
     expect(numMapping!.confidence).toBe(0.5);
   });
@@ -129,24 +129,34 @@ describe('CsvIngestV2Service', () => {
   it('warns when no name/category column detected', async () => {
     const csv = `balance,rate\n100,0.05\n200,0.06`;
     const result = await service.analyzeCSV('inst_1', csv);
-    expect(result.warnings.some(w => w.includes('name/category'))).toBe(true);
+    expect(result.warnings.some((w) => w.includes('name/category'))).toBe(true);
   });
 
   it('classifies Spanish headers (saldo, tasa, nombre)', async () => {
     const csv = `nombre,saldo,tasa\nPrestamo Auto,50000,0.06\nHipoteca,150000,0.045`;
     const result = await service.analyzeCSV('inst_1', csv);
 
-    expect(result.mappings.find(m => m.csvColumn === 'nombre')!.cerniqField).toBe('name');
-    expect(result.mappings.find(m => m.csvColumn === 'saldo')!.cerniqField).toBe('balance');
-    expect(result.mappings.find(m => m.csvColumn === 'tasa')!.cerniqField).toBe('rate');
+    expect(
+      result.mappings.find((m) => m.csvColumn === 'nombre')!.cerniqField,
+    ).toBe('name');
+    expect(
+      result.mappings.find((m) => m.csvColumn === 'saldo')!.cerniqField,
+    ).toBe('balance');
+    expect(
+      result.mappings.find((m) => m.csvColumn === 'tasa')!.cerniqField,
+    ).toBe('rate');
   });
 
   it('detects repriceDate from reset_date header', async () => {
     const csv = `name,balance,reset_date,mat_date\nLoan A,100,2026-06-01,2027-01-01`;
     const result = await service.analyzeCSV('inst_1', csv);
 
-    expect(result.mappings.find(m => m.csvColumn === 'reset_date')!.cerniqField).toBe('repriceDate');
-    expect(result.mappings.find(m => m.csvColumn === 'mat_date')!.cerniqField).toBe('maturityDate');
+    expect(
+      result.mappings.find((m) => m.csvColumn === 'reset_date')!.cerniqField,
+    ).toBe('repriceDate');
+    expect(
+      result.mappings.find((m) => m.csvColumn === 'mat_date')!.cerniqField,
+    ).toBe('maturityDate');
   });
 
   // ── commitIngestion additional branches ─────────────
@@ -164,7 +174,9 @@ describe('CsvIngestV2Service', () => {
 
     const result = await service.commitIngestion('inst_1', csv, mappings);
     expect(result.rowsIngested).toBe(1);
-    expect(result.warnings.some(w => w.includes('invalid balance'))).toBe(true);
+    expect(result.warnings.some((w) => w.includes('invalid balance'))).toBe(
+      true,
+    );
   });
 
   it('warns and skips rows with zero balance', async () => {
@@ -217,7 +229,9 @@ describe('CsvIngestV2Service', () => {
     await service.commitIngestion('inst_1', csv, mappings);
 
     const createCall = prisma.balanceSheetItem.createMany.mock.calls[0][0];
-    expect(createCall.data.every((item: any) => item.category === 'liability')).toBe(true);
+    expect(
+      createCall.data.every((item: any) => item.category === 'liability'),
+    ).toBe(true);
   });
 
   it('normalizes subcategories for various keywords', async () => {
@@ -238,7 +252,11 @@ describe('CsvIngestV2Service', () => {
 
   it('detects variable rate type from rateType field', async () => {
     const csv = `name,balance,rate_type\nvariable loan,100,variable`;
-    const mappings = { name: 'subcategory', balance: 'balance', rate_type: 'rateType' };
+    const mappings = {
+      name: 'subcategory',
+      balance: 'balance',
+      rate_type: 'rateType',
+    };
 
     await service.commitIngestion('inst_1', csv, mappings);
 

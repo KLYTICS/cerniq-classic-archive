@@ -176,7 +176,9 @@ describe('LeadQualificationService', () => {
       });
 
       const result = await service.qualifyProspect('p6');
-      const outreachSignal = result.signals.find((s) => s.name === 'outreach_recency');
+      const outreachSignal = result.signals.find(
+        (s) => s.name === 'outreach_recency',
+      );
       expect(outreachSignal?.score).toBe(5);
       expect(outreachSignal?.reason).toContain('re-engage');
     });
@@ -194,7 +196,9 @@ describe('LeadQualificationService', () => {
       });
 
       const result = await service.qualifyProspect('p7');
-      const outreachSignal = result.signals.find((s) => s.name === 'outreach_recency');
+      const outreachSignal = result.signals.find(
+        (s) => s.name === 'outreach_recency',
+      );
       expect(outreachSignal?.score).toBe(10);
     });
   });

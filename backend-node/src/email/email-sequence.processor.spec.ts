@@ -255,7 +255,9 @@ describe('EmailSequenceProcessor', () => {
       prisma.user.findUnique
         .mockResolvedValueOnce({ email: 'fail@test.com', name: 'Fail' })
         .mockResolvedValueOnce({ email: 'ok@test.com', name: 'OK' });
-      email.sendDataSubmissionReminder.mockRejectedValue(new Error('SMTP down'));
+      email.sendDataSubmissionReminder.mockRejectedValue(
+        new Error('SMTP down'),
+      );
 
       await processor.processDueSequences();
 
@@ -277,7 +279,10 @@ describe('EmailSequenceProcessor', () => {
           status: 'pending',
         },
       ]);
-      prisma.user.findUnique.mockResolvedValue({ email: 'a@b.com', name: 'Test' });
+      prisma.user.findUnique.mockResolvedValue({
+        email: 'a@b.com',
+        name: 'Test',
+      });
 
       await processor.processDueSequences();
 

@@ -127,7 +127,12 @@ describe('OutreachExecutionService', () => {
 
     it('counts failed outreach when executeOutreach returns sent=false', async () => {
       mockPrisma.prospectInstitution.findMany.mockResolvedValue([
-        { id: 'p-fail', name: 'Failing Coop', contactEmail: null, estimatedAssets: 100 },
+        {
+          id: 'p-fail',
+          name: 'Failing Coop',
+          contactEmail: null,
+          estimatedAssets: 100,
+        },
       ]);
       // executeOutreach will return { sent: false } because no contactEmail
       mockPrisma.prospectInstitution.findUnique.mockResolvedValue({

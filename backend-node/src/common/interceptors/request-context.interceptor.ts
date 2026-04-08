@@ -4,7 +4,7 @@ import {
   ExecutionContext,
   CallHandler,
 } from '@nestjs/common';
-import { Observable, tap } from 'rxjs';
+import { Observable } from 'rxjs';
 import { AsyncLocalStorage } from 'async_hooks';
 
 /**
@@ -47,16 +47,13 @@ export class RequestContextInterceptor implements NestInterceptor {
 
     return new Observable((subscriber) => {
       requestContextStorage.run(ctx, () => {
-        next
-          .handle()
-          .pipe(
-            tap({
-              next: (val) => subscriber.next(val),
-              error: (err) => subscriber.error(err),
-              complete: () => subscriber.complete(),
-            }),
-          )
-          .subscribe();
+        const innerSubscription = next.handle().subscribe({
+          next: (value) => subscriber.next(value),
+          error: (error) => subscriber.error(error),
+          complete: () => subscriber.complete(),
+        });
+
+        return () => innerSubscription.unsubscribe();
       });
     });
   }

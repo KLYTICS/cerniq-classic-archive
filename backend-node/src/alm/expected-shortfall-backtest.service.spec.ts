@@ -319,7 +319,9 @@ describe('ExpectedShortfallBacktestService', () => {
         varEstimates: [0.01],
         confidenceLevel: 0.99,
       }),
-    ).toThrow('returns, esEstimates, and varEstimates must have the same length');
+    ).toThrow(
+      'returns, esEstimates, and varEstimates must have the same length',
+    );
   });
 
   it('ES backtest returns esPass true when no tail observations', () => {

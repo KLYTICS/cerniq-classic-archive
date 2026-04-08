@@ -125,9 +125,12 @@ describe('StressTestService', () => {
     const result = await service.runStressTest(positions, 'historical');
     for (const scenario of result.scenarios) {
       if (scenario.pnlPercent > -5) expect(scenario.severity).toBe('LOW');
-      else if (scenario.pnlPercent > -15) expect(scenario.severity).toBe('MODERATE');
-      else if (scenario.pnlPercent > -30) expect(scenario.severity).toBe('HIGH');
-      else if (scenario.pnlPercent > -50) expect(scenario.severity).toBe('SEVERE');
+      else if (scenario.pnlPercent > -15)
+        expect(scenario.severity).toBe('MODERATE');
+      else if (scenario.pnlPercent > -30)
+        expect(scenario.severity).toBe('HIGH');
+      else if (scenario.pnlPercent > -50)
+        expect(scenario.severity).toBe('SEVERE');
       else expect(scenario.severity).toBe('CATASTROPHIC');
     }
   });
@@ -329,9 +332,9 @@ describe('StressTestService', () => {
   describe('hypothetical scenarios with diverse portfolio', () => {
     it('handles mixed tech and defensive portfolio correctly', async () => {
       mockMarketDataService.getQuote
-        .mockResolvedValueOnce({ price: 200 })  // NVDA (tech)
-        .mockResolvedValueOnce({ price: 50 })   // WMT (defensive)
-        .mockResolvedValueOnce({ price: 100 });  // XYZ (average)
+        .mockResolvedValueOnce({ price: 200 }) // NVDA (tech)
+        .mockResolvedValueOnce({ price: 50 }) // WMT (defensive)
+        .mockResolvedValueOnce({ price: 100 }); // XYZ (average)
 
       const positions = [
         { ticker: 'NVDA', quantity: 50 },

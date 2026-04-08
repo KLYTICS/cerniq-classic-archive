@@ -97,7 +97,12 @@ describe('CAMELScorerService', () => {
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
       { category: 'asset', subcategory: 'loans', balance: 500, rate: 0.06 },
       { category: 'asset', subcategory: 'cash', balance: 100, rate: 0.01 },
-      { category: 'liability', subcategory: 'deposits', balance: 565, rate: 0.02 },
+      {
+        category: 'liability',
+        subcategory: 'deposits',
+        balance: 565,
+        rate: 0.02,
+      },
     ]);
 
     const result = await service.scoreInstitution('inst-1');
@@ -112,7 +117,12 @@ describe('CAMELScorerService', () => {
     mockPrisma.institution.findUnique.mockResolvedValue({ id: 'inst-1' });
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
       { category: 'asset', subcategory: 'loans', balance: 600, rate: 0.06 },
-      { category: 'liability', subcategory: 'deposits', balance: 576, rate: 0.02 },
+      {
+        category: 'liability',
+        subcategory: 'deposits',
+        balance: 576,
+        rate: 0.02,
+      },
     ]);
 
     const result = await service.scoreInstitution('inst-1');
@@ -125,7 +135,12 @@ describe('CAMELScorerService', () => {
     mockPrisma.institution.findUnique.mockResolvedValue({ id: 'inst-1' });
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
       { category: 'asset', subcategory: 'loans', balance: 600, rate: 0.06 },
-      { category: 'liability', subcategory: 'deposits', balance: 590, rate: 0.02 },
+      {
+        category: 'liability',
+        subcategory: 'deposits',
+        balance: 590,
+        rate: 0.02,
+      },
     ]);
 
     const result = await service.scoreInstitution('inst-1');
@@ -140,7 +155,12 @@ describe('CAMELScorerService', () => {
     // More liability interest expense than asset income
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
       { category: 'asset', subcategory: 'loans', balance: 100, rate: 0.02 },
-      { category: 'liability', subcategory: 'deposits', balance: 500, rate: 0.10 },
+      {
+        category: 'liability',
+        subcategory: 'deposits',
+        balance: 500,
+        rate: 0.1,
+      },
     ]);
 
     const result = await service.scoreInstitution('inst-1');
@@ -155,10 +175,15 @@ describe('CAMELScorerService', () => {
     // NWR = equity / total = 9 / 100 = 0.09
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
       { category: 'asset', subcategory: 'loans', balance: 100, rate: 0.05 },
-      { category: 'liability', subcategory: 'deposits', balance: 91, rate: 0.02 },
+      {
+        category: 'liability',
+        subcategory: 'deposits',
+        balance: 91,
+        rate: 0.02,
+      },
     ]);
     const result = await service.scoreInstitution('inst-2');
-    const capital = result.components.find(c => c.component === 'Capital');
+    const capital = result.components.find((c) => c.component === 'Capital');
     expect(capital!.score).toBeLessThanOrEqual(2);
   });
 
@@ -167,10 +192,15 @@ describe('CAMELScorerService', () => {
     // NWR = 7 / 100 = 0.07
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
       { category: 'asset', subcategory: 'loans', balance: 100, rate: 0.05 },
-      { category: 'liability', subcategory: 'deposits', balance: 93, rate: 0.02 },
+      {
+        category: 'liability',
+        subcategory: 'deposits',
+        balance: 93,
+        rate: 0.02,
+      },
     ]);
     const result = await service.scoreInstitution('inst-3');
-    const capital = result.components.find(c => c.component === 'Capital');
+    const capital = result.components.find((c) => c.component === 'Capital');
     expect(capital!.score).toBeLessThanOrEqual(3);
   });
 
@@ -179,10 +209,15 @@ describe('CAMELScorerService', () => {
     // NWR = 5 / 100 = 0.05
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
       { category: 'asset', subcategory: 'loans', balance: 100, rate: 0.05 },
-      { category: 'liability', subcategory: 'deposits', balance: 95, rate: 0.02 },
+      {
+        category: 'liability',
+        subcategory: 'deposits',
+        balance: 95,
+        rate: 0.02,
+      },
     ]);
     const result = await service.scoreInstitution('inst-4');
-    const capital = result.components.find(c => c.component === 'Capital');
+    const capital = result.components.find((c) => c.component === 'Capital');
     expect(capital!.score).toBeLessThanOrEqual(4);
   });
 
@@ -190,7 +225,12 @@ describe('CAMELScorerService', () => {
     mockPrisma.institution.findUnique.mockResolvedValue({ id: 'inst-comp' });
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
       { category: 'asset', subcategory: 'loans', balance: 100, rate: 0.06 },
-      { category: 'liability', subcategory: 'deposits', balance: 85, rate: 0.02 },
+      {
+        category: 'liability',
+        subcategory: 'deposits',
+        balance: 85,
+        rate: 0.02,
+      },
     ]);
     const result = await service.scoreInstitution('inst-comp');
     expect(result).toHaveProperty('composite');

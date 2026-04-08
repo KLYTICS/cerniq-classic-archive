@@ -101,7 +101,7 @@ describe('BlackLittermanService', () => {
           description: 'Securities up',
           assets: ['securities'],
           type: 'absolute' as const,
-          expectedReturn: 0.10,
+          expectedReturn: 0.1,
           confidence: 0.6,
         },
       ];
@@ -187,7 +187,12 @@ describe('BlackLittermanService', () => {
       const cashOnlyPrisma = {
         balanceSheetItem: {
           findMany: jest.fn().mockResolvedValue([
-            { subcategory: 'cash', balance: 1000, rate: 0.02, category: 'asset' },
+            {
+              subcategory: 'cash',
+              balance: 1000,
+              rate: 0.02,
+              category: 'asset',
+            },
           ]),
         },
       } as any;
@@ -229,15 +234,34 @@ describe('BlackLittermanService', () => {
       const diversePrisma = {
         balanceSheetItem: {
           findMany: jest.fn().mockResolvedValue([
-            { subcategory: 'cash', balance: 100, rate: 0.01, category: 'asset' },
-            { subcategory: 'residential_mortgage', balance: 100, rate: 0.05, category: 'asset' },
-            { subcategory: 'commercial_loans', balance: 100, rate: 0.07, category: 'asset' },
+            {
+              subcategory: 'cash',
+              balance: 100,
+              rate: 0.01,
+              category: 'asset',
+            },
+            {
+              subcategory: 'residential_mortgage',
+              balance: 100,
+              rate: 0.05,
+              category: 'asset',
+            },
+            {
+              subcategory: 'commercial_loans',
+              balance: 100,
+              rate: 0.07,
+              category: 'asset',
+            },
           ]),
         },
       } as any;
       const diverseSvc = new BlackLittermanService(diversePrisma);
       const result = await diverseSvc.computeBLPortfolio('inst-1');
-      expect(result.assetNames).toEqual(['cash', 'residential_mortgage', 'commercial_loans']);
+      expect(result.assetNames).toEqual([
+        'cash',
+        'residential_mortgage',
+        'commercial_loans',
+      ]);
       // Cash should have higher weight (lower vol) in MVO
       expect(result.equilibriumReturns.length).toBe(3);
     });
@@ -251,7 +275,12 @@ describe('BlackLittermanService', () => {
           findMany: jest.fn().mockResolvedValue([
             { subcategory: 'cash', balance: 50, rate: 0.01, category: 'asset' },
             { subcategory: 'cash', balance: 50, rate: 0.02, category: 'asset' },
-            { subcategory: 'securities', balance: 100, rate: 0.04, category: 'asset' },
+            {
+              subcategory: 'securities',
+              balance: 100,
+              rate: 0.04,
+              category: 'asset',
+            },
           ]),
         },
       } as any;

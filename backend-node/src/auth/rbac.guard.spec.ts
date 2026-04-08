@@ -63,7 +63,11 @@ describe('RBACGuard', () => {
   });
 
   it('allows BREAKGLASS everything (wildcard)', () => {
-    const ctx = makeContext(CerniqRole.BREAKGLASS, ['write:alm', 'run:monte_carlo', 'admin:anything']);
+    const ctx = makeContext(CerniqRole.BREAKGLASS, [
+      'write:alm',
+      'run:monte_carlo',
+      'admin:anything',
+    ]);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
@@ -108,7 +112,7 @@ describe('RBAC helpers', () => {
   it('getAllRoles returns all defined roles', () => {
     const roles = getAllRoles();
     expect(roles.length).toBeGreaterThanOrEqual(10);
-    expect(roles.find(r => r.role === CerniqRole.CFO)).toBeDefined();
-    expect(roles.find(r => r.role === CerniqRole.BREAKGLASS)).toBeDefined();
+    expect(roles.find((r) => r.role === CerniqRole.CFO)).toBeDefined();
+    expect(roles.find((r) => r.role === CerniqRole.BREAKGLASS)).toBeDefined();
   });
 });

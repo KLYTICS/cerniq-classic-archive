@@ -161,7 +161,11 @@ describe('ApiV1Controller', () => {
   describe('analyzeCSV — file validation', () => {
     it('should throw when all four required fields are missing', async () => {
       const req = { apiUser: { userId: 'u1', email: 'test@test.com' } };
-      const file = { buffer: Buffer.from('data'), size: 4, originalname: 'data.csv' } as Express.Multer.File;
+      const file = {
+        buffer: Buffer.from('data'),
+        size: 4,
+        originalname: 'data.csv',
+      } as Express.Multer.File;
       await expect(
         controller.analyzeCSV(req, file, {
           institutionName: '',
@@ -176,7 +180,11 @@ describe('ApiV1Controller', () => {
   describe('analyzeCSV — missing individual fields', () => {
     it('should throw when institutionType is empty', async () => {
       const req = { apiUser: { userId: 'u1', email: 'test@test.com' } };
-      const file = { buffer: Buffer.from('data'), size: 4, originalname: 'data.csv' } as Express.Multer.File;
+      const file = {
+        buffer: Buffer.from('data'),
+        size: 4,
+        originalname: 'data.csv',
+      } as Express.Multer.File;
       await expect(
         controller.analyzeCSV(req, file, {
           institutionName: 'Test',
@@ -189,7 +197,11 @@ describe('ApiV1Controller', () => {
 
     it('should throw when framework is empty', async () => {
       const req = { apiUser: { userId: 'u1', email: 'test@test.com' } };
-      const file = { buffer: Buffer.from('data'), size: 4, originalname: 'data.csv' } as Express.Multer.File;
+      const file = {
+        buffer: Buffer.from('data'),
+        size: 4,
+        originalname: 'data.csv',
+      } as Express.Multer.File;
       await expect(
         controller.analyzeCSV(req, file, {
           institutionName: 'Test',
@@ -202,7 +214,11 @@ describe('ApiV1Controller', () => {
 
     it('should throw when period is empty', async () => {
       const req = { apiUser: { userId: 'u1', email: 'test@test.com' } };
-      const file = { buffer: Buffer.from('data'), size: 4, originalname: 'data.csv' } as Express.Multer.File;
+      const file = {
+        buffer: Buffer.from('data'),
+        size: 4,
+        originalname: 'data.csv',
+      } as Express.Multer.File;
       await expect(
         controller.analyzeCSV(req, file, {
           institutionName: 'Test',

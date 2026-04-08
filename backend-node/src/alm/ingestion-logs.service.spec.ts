@@ -71,7 +71,10 @@ describe('IngestionLogsService', () => {
         findMany: jest.fn().mockResolvedValue(mockLogs),
       };
 
-      const result = await service.listInstitutionLogs('user_123', 'inst_123', { page: 1, pageSize: 10 } as any);
+      const result = await service.listInstitutionLogs('user_123', 'inst_123', {
+        page: 1,
+        pageSize: 10,
+      } as any);
       expect(result.items).toEqual(mockLogs);
       expect(result.total).toBe(2);
       expect(result.page).toBe(1);
@@ -88,7 +91,9 @@ describe('IngestionLogsService', () => {
 
   describe('listJobLogs', () => {
     it('returns logs for a specific report job', async () => {
-      prisma.reportJob = { findFirst: jest.fn().mockResolvedValue({ id: 'job_123' }) };
+      prisma.reportJob = {
+        findFirst: jest.fn().mockResolvedValue({ id: 'job_123' }),
+      };
       prisma.ingestionLog.findMany.mockResolvedValue([{ id: 'log_j1' }]);
 
       const result = await service.listJobLogs('user_123', 'job_123');
@@ -115,7 +120,13 @@ describe('IngestionLogsService', () => {
           items: [],
           errors: [],
           warnings: [],
-          summary: { totalRows: 0, validRows: 0, errorRows: 0, totalAssets: 0, totalLiabilities: 0 },
+          summary: {
+            totalRows: 0,
+            validRows: 0,
+            errorRows: 0,
+            totalAssets: 0,
+            totalLiabilities: 0,
+          },
         },
       });
 

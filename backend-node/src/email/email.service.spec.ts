@@ -70,7 +70,11 @@ describe('EmailService', () => {
     });
 
     it('includes CTA button when ctaUrl and ctaText are provided', () => {
-      const html = (service as any).wrap('<p>Body</p>', 'https://example.com/action', 'Click Me');
+      const html = (service as any).wrap(
+        '<p>Body</p>',
+        'https://example.com/action',
+        'Click Me',
+      );
       expect(html).toContain('https://example.com/action');
       expect(html).toContain('Click Me');
     });
@@ -89,31 +93,121 @@ describe('EmailService', () => {
     });
 
     const dryRunMethods = [
-      ['sendClientWelcome', { email: 'a@b.c', name: 'X', tier: 'G', magicUrl: 'u', institutionName: 'I' }],
-      ['sendDataSubmissionAck', { email: 'a@b.c', name: 'X', institutionName: 'I' }],
-      ['sendReportReady', { email: 'a@b.c', name: 'X', institutionName: 'I', portalUrl: 'u' }],
+      [
+        'sendClientWelcome',
+        {
+          email: 'a@b.c',
+          name: 'X',
+          tier: 'G',
+          magicUrl: 'u',
+          institutionName: 'I',
+        },
+      ],
+      [
+        'sendDataSubmissionAck',
+        { email: 'a@b.c', name: 'X', institutionName: 'I' },
+      ],
+      [
+        'sendReportReady',
+        { email: 'a@b.c', name: 'X', institutionName: 'I', portalUrl: 'u' },
+      ],
       ['sendMagicLinkEmail', { email: 'a@b.c', magicUrl: 'u', name: 'X' }],
-      ['sendJobFailedAlert', { jobId: 'j', institutionName: 'I', error: 'e', clientEmail: 'c' }],
+      [
+        'sendJobFailedAlert',
+        { jobId: 'j', institutionName: 'I', error: 'e', clientEmail: 'c' },
+      ],
       ['sendDemoRequestNotification', { email: 'a@b.c' }],
-      ['sendLeadNotification', { leadId: 'l', name: 'N', email: 'e', role: 'R', institutionName: 'I', institutionType: 'T', priority: 'P', nextFollowUp: new Date() }],
-      ['sendLeadConfirmation', { name: 'N', email: 'e', institutionName: 'I', bilingual: true }],
-      ['sendRevenueAlert', { amount: 100, tier: 't', customerEmail: 'c', institutionName: 'I' }],
+      [
+        'sendLeadNotification',
+        {
+          leadId: 'l',
+          name: 'N',
+          email: 'e',
+          role: 'R',
+          institutionName: 'I',
+          institutionType: 'T',
+          priority: 'P',
+          nextFollowUp: new Date(),
+        },
+      ],
+      [
+        'sendLeadConfirmation',
+        { name: 'N', email: 'e', institutionName: 'I', bilingual: true },
+      ],
+      [
+        'sendRevenueAlert',
+        { amount: 100, tier: 't', customerEmail: 'c', institutionName: 'I' },
+      ],
       ['sendPaymentFailed', { email: 'a@b.c', name: 'X' }],
       ['sendCancellationEmail', { email: 'a@b.c', name: 'X' }],
       ['sendMonthlyReportCycle', { email: 'a@b.c', name: 'X' }],
       ['sendDisputeAlert', { chargeId: 'ch', amount: 100, reason: 'r' }],
-      ['sendDailyOperationsReport', { pendingJobs: 1, failedJobs: 0, newLeads: 2, pendingFollowUps: 0 }],
+      [
+        'sendDailyOperationsReport',
+        { pendingJobs: 1, failedJobs: 0, newLeads: 2, pendingFollowUps: 0 },
+      ],
       ['sendDataSubmissionReminder', { email: 'a@b.c', name: 'X' }],
       ['sendOnboardingCheckIn', { email: 'a@b.c', name: 'X' }],
-      ['sendReportFollowUp', { email: 'a@b.c', name: 'X', institutionName: 'I' }],
+      [
+        'sendReportFollowUp',
+        { email: 'a@b.c', name: 'X', institutionName: 'I' },
+      ],
       ['sendWinBackEmail', { email: 'a@b.c', name: 'X' }],
-      ['sendLeadNurtureTeaser', { email: 'a@b.c', name: 'X', institutionName: 'I' }],
+      [
+        'sendLeadNurtureTeaser',
+        { email: 'a@b.c', name: 'X', institutionName: 'I' },
+      ],
       ['sendLeadNurturePricing', { email: 'a@b.c', name: 'X' }],
-      ['sendRenewalReminder', { email: 'a@b.c', name: 'X', daysLeft: 5, tier: 'G', currentPeriodEnd: '2026-04-01' }],
-      ['sendChurnRiskAlert', { userName: 'U', userEmail: 'e', tier: 't', daysSinceLogin: 30, currentPeriodEnd: '2026-05-01' }],
-      ['sendWeeklyRevenueReport', { activeBytier: {}, totalActive: 0, newThisWeek: 0, cancelledThisWeek: 0, upcomingRenewals: [] }],
-      ['sendNPSSurvey', { email: 'a@b.c', name: 'N', institutionName: 'I', jobId: 'j', institutionId: 'i' }],
-      ['sendTeamInviteEmail', { email: 'a@b.c', name: 'N', inviterName: 'E', role: 'VIEWER', magicUrl: 'u' }],
+      [
+        'sendRenewalReminder',
+        {
+          email: 'a@b.c',
+          name: 'X',
+          daysLeft: 5,
+          tier: 'G',
+          currentPeriodEnd: '2026-04-01',
+        },
+      ],
+      [
+        'sendChurnRiskAlert',
+        {
+          userName: 'U',
+          userEmail: 'e',
+          tier: 't',
+          daysSinceLogin: 30,
+          currentPeriodEnd: '2026-05-01',
+        },
+      ],
+      [
+        'sendWeeklyRevenueReport',
+        {
+          activeBytier: {},
+          totalActive: 0,
+          newThisWeek: 0,
+          cancelledThisWeek: 0,
+          upcomingRenewals: [],
+        },
+      ],
+      [
+        'sendNPSSurvey',
+        {
+          email: 'a@b.c',
+          name: 'N',
+          institutionName: 'I',
+          jobId: 'j',
+          institutionId: 'i',
+        },
+      ],
+      [
+        'sendTeamInviteEmail',
+        {
+          email: 'a@b.c',
+          name: 'N',
+          inviterName: 'E',
+          role: 'VIEWER',
+          magicUrl: 'u',
+        },
+      ],
     ] as const;
 
     for (const [method, data] of dryRunMethods) {
@@ -146,7 +240,11 @@ describe('EmailService', () => {
 
   describe('sendDataSubmissionAck', () => {
     it('sends acknowledgment with institution name', async () => {
-      await service.sendDataSubmissionAck({ email: 'u@c.pr', name: 'Carlos', institutionName: 'Coop A' });
+      await service.sendDataSubmissionAck({
+        email: 'u@c.pr',
+        name: 'Carlos',
+        institutionName: 'Coop A',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('Coop A');
       expect(call.html).toContain('Coop A');
@@ -155,7 +253,12 @@ describe('EmailService', () => {
 
   describe('sendReportReady', () => {
     it('includes portal URL in CTA', async () => {
-      await service.sendReportReady({ email: 'u@c.pr', name: 'Ana', institutionName: 'Coop R', portalUrl: 'https://cerniq.io/portal/42' });
+      await service.sendReportReady({
+        email: 'u@c.pr',
+        name: 'Ana',
+        institutionName: 'Coop R',
+        portalUrl: 'https://cerniq.io/portal/42',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.html).toContain('https://cerniq.io/portal/42');
       expect(call.subject).toContain('Coop R');
@@ -164,7 +267,11 @@ describe('EmailService', () => {
 
   describe('sendMagicLinkEmail', () => {
     it('sends with magic URL in CTA', async () => {
-      await service.sendMagicLinkEmail({ email: 'u@c.pr', magicUrl: 'https://cerniq.io/magic/x', name: 'Luis' });
+      await service.sendMagicLinkEmail({
+        email: 'u@c.pr',
+        magicUrl: 'https://cerniq.io/magic/x',
+        name: 'Luis',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.html).toContain('https://cerniq.io/magic/x');
     });
@@ -172,7 +279,12 @@ describe('EmailService', () => {
 
   describe('sendJobFailedAlert', () => {
     it('includes job ID and error in notification', async () => {
-      await service.sendJobFailedAlert({ jobId: 'job_1', institutionName: 'Coop F', error: 'PDF timeout', clientEmail: 'cl@c.pr' });
+      await service.sendJobFailedAlert({
+        jobId: 'job_1',
+        institutionName: 'Coop F',
+        error: 'PDF timeout',
+        clientEmail: 'cl@c.pr',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('FAILED');
       expect(call.subject).toContain('Coop F');
@@ -183,7 +295,13 @@ describe('EmailService', () => {
 
   describe('sendDemoRequestNotification', () => {
     it('includes all optional fields', async () => {
-      await service.sendDemoRequestNotification({ email: 'p@c.pr', name: 'P', institutionName: 'Coop D', institutionType: 'cooperativa', totalAssets: '$100-500M' });
+      await service.sendDemoRequestNotification({
+        email: 'p@c.pr',
+        name: 'P',
+        institutionName: 'Coop D',
+        institutionType: 'cooperativa',
+        totalAssets: '$100-500M',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('Coop D');
       expect(call.text).toContain('$100-500M');
@@ -199,9 +317,16 @@ describe('EmailService', () => {
   describe('sendLeadNotification', () => {
     it('includes phone and message when provided', async () => {
       await service.sendLeadNotification({
-        leadId: 'l1', name: 'Juan', email: 'j@c.pr', phone: '787-555-1234',
-        role: 'CEO', institutionName: 'Coop U', institutionType: 'cooperativa',
-        message: 'Quarterly reports', priority: 'HIGH', nextFollowUp: new Date('2026-04-10'),
+        leadId: 'l1',
+        name: 'Juan',
+        email: 'j@c.pr',
+        phone: '787-555-1234',
+        role: 'CEO',
+        institutionName: 'Coop U',
+        institutionType: 'cooperativa',
+        message: 'Quarterly reports',
+        priority: 'HIGH',
+        nextFollowUp: new Date('2026-04-10'),
       });
       const call = mockSend.mock.calls[0][0];
       expect(call.text).toContain('787-555-1234');
@@ -211,9 +336,14 @@ describe('EmailService', () => {
 
     it('omits phone and message when not provided', async () => {
       await service.sendLeadNotification({
-        leadId: 'l2', name: 'Ana', email: 'a@c.pr',
-        role: 'CFO', institutionName: 'Coop V', institutionType: 'bank',
-        priority: 'LOW', nextFollowUp: new Date('2026-04-15'),
+        leadId: 'l2',
+        name: 'Ana',
+        email: 'a@c.pr',
+        role: 'CFO',
+        institutionName: 'Coop V',
+        institutionType: 'bank',
+        priority: 'LOW',
+        nextFollowUp: new Date('2026-04-15'),
       });
       const call = mockSend.mock.calls[0][0];
       expect(call.text).not.toContain('Phone:');
@@ -223,14 +353,24 @@ describe('EmailService', () => {
 
   describe('sendLeadConfirmation', () => {
     it('sends bilingual confirmation', async () => {
-      await service.sendLeadConfirmation({ name: 'P', email: 'p@c.pr', institutionName: 'Coop P', bilingual: true });
+      await service.sendLeadConfirmation({
+        name: 'P',
+        email: 'p@c.pr',
+        institutionName: 'Coop P',
+        bilingual: true,
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.html).toContain('Thank you');
       expect(call.html).toContain('Gracias');
     });
 
     it('sends Spanish-only when bilingual is false', async () => {
-      await service.sendLeadConfirmation({ name: 'P', email: 'p@c.pr', institutionName: 'Coop P', bilingual: false });
+      await service.sendLeadConfirmation({
+        name: 'P',
+        email: 'p@c.pr',
+        institutionName: 'Coop P',
+        bilingual: false,
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.html).toContain('Gracias');
       expect(call.html).not.toContain('Thank you');
@@ -239,7 +379,12 @@ describe('EmailService', () => {
 
   describe('sendRevenueAlert', () => {
     it('includes amount and tier in subject', async () => {
-      await service.sendRevenueAlert({ amount: 499, tier: 'monthly', customerEmail: 'c@c.pr', institutionName: 'Coop Rev' });
+      await service.sendRevenueAlert({
+        amount: 499,
+        tier: 'monthly',
+        customerEmail: 'c@c.pr',
+        institutionName: 'Coop Rev',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('$499');
       expect(call.subject).toContain('monthly');
@@ -275,7 +420,11 @@ describe('EmailService', () => {
 
   describe('sendDisputeAlert', () => {
     it('sends dispute alert with charge details', async () => {
-      await service.sendDisputeAlert({ chargeId: 'ch_abc', amount: 299, reason: 'fraudulent' });
+      await service.sendDisputeAlert({
+        chargeId: 'ch_abc',
+        amount: 299,
+        reason: 'fraudulent',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('$299');
       expect(call.subject).toContain('fraudulent');
@@ -285,7 +434,12 @@ describe('EmailService', () => {
 
   describe('sendDailyOperationsReport', () => {
     it('sends ops report with correct metrics', async () => {
-      await service.sendDailyOperationsReport({ pendingJobs: 3, failedJobs: 1, newLeads: 5, pendingFollowUps: 2 });
+      await service.sendDailyOperationsReport({
+        pendingJobs: 3,
+        failedJobs: 1,
+        newLeads: 5,
+        pendingFollowUps: 2,
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('5 leads');
       expect(call.subject).toContain('3 pending');
@@ -295,7 +449,10 @@ describe('EmailService', () => {
 
   describe('sendDataSubmissionReminder (B2)', () => {
     it('sends B2 reminder with portal link', async () => {
-      await service.sendDataSubmissionReminder({ email: 'u@c.pr', name: 'Test' });
+      await service.sendDataSubmissionReminder({
+        email: 'u@c.pr',
+        name: 'Test',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.html).toContain('portal/submit');
     });
@@ -311,7 +468,11 @@ describe('EmailService', () => {
 
   describe('sendReportFollowUp (C2)', () => {
     it('sends C2 follow-up with institution name', async () => {
-      await service.sendReportFollowUp({ email: 'u@c.pr', name: 'Test', institutionName: 'Coop C2' });
+      await service.sendReportFollowUp({
+        email: 'u@c.pr',
+        name: 'Test',
+        institutionName: 'Coop C2',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('Coop C2');
       expect(call.html).toContain('Coop C2');
@@ -329,7 +490,11 @@ describe('EmailService', () => {
 
   describe('sendLeadNurtureTeaser (A1)', () => {
     it('sends A1 teaser with institution name', async () => {
-      await service.sendLeadNurtureTeaser({ email: 'u@c.pr', name: 'Test', institutionName: 'Coop A1' });
+      await service.sendLeadNurtureTeaser({
+        email: 'u@c.pr',
+        name: 'Test',
+        institutionName: 'Coop A1',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('Coop A1');
       expect(call.html).toContain('demo');
@@ -347,26 +512,50 @@ describe('EmailService', () => {
 
   describe('sendRenewalReminder', () => {
     it('sends urgent subject when daysLeft <= 7', async () => {
-      await service.sendRenewalReminder({ email: 'u@c.pr', name: 'M', daysLeft: 3, tier: 'Gold', currentPeriodEnd: '2026-04-01' });
+      await service.sendRenewalReminder({
+        email: 'u@c.pr',
+        name: 'M',
+        daysLeft: 3,
+        tier: 'Gold',
+        currentPeriodEnd: '2026-04-01',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('Accion requerida');
       expect(call.subject).toContain('3 dias');
     });
 
     it('sends non-urgent subject when daysLeft > 7', async () => {
-      await service.sendRenewalReminder({ email: 'u@c.pr', name: 'M', daysLeft: 20, tier: 'Silver', currentPeriodEnd: '2026-04-20' });
+      await service.sendRenewalReminder({
+        email: 'u@c.pr',
+        name: 'M',
+        daysLeft: 20,
+        tier: 'Silver',
+        currentPeriodEnd: '2026-04-20',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('se renueva');
     });
 
     it('includes extra messaging when daysLeft <= 14', async () => {
-      await service.sendRenewalReminder({ email: 'u@c.pr', name: 'M', daysLeft: 10, tier: 'Gold', currentPeriodEnd: '2026-04-10' });
+      await service.sendRenewalReminder({
+        email: 'u@c.pr',
+        name: 'M',
+        daysLeft: 10,
+        tier: 'Gold',
+        currentPeriodEnd: '2026-04-10',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.html).toContain('metodo de pago');
     });
 
     it('omits extra messaging when daysLeft > 14', async () => {
-      await service.sendRenewalReminder({ email: 'u@c.pr', name: 'M', daysLeft: 25, tier: 'Gold', currentPeriodEnd: '2026-04-25' });
+      await service.sendRenewalReminder({
+        email: 'u@c.pr',
+        name: 'M',
+        daysLeft: 25,
+        tier: 'Gold',
+        currentPeriodEnd: '2026-04-25',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.html).not.toContain('metodo de pago');
     });
@@ -374,7 +563,13 @@ describe('EmailService', () => {
 
   describe('sendChurnRiskAlert', () => {
     it('sends churn risk alert with correct data', async () => {
-      await service.sendChurnRiskAlert({ userName: 'C', userEmail: 'c@c.pr', tier: 'monthly', daysSinceLogin: 45, currentPeriodEnd: '2026-05-01' });
+      await service.sendChurnRiskAlert({
+        userName: 'C',
+        userEmail: 'c@c.pr',
+        tier: 'monthly',
+        daysSinceLogin: 45,
+        currentPeriodEnd: '2026-05-01',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('CHURN RISK');
       expect(call.subject).toContain('45d inactive');
@@ -388,7 +583,9 @@ describe('EmailService', () => {
         totalActive: 15,
         newThisWeek: 3,
         cancelledThisWeek: 1,
-        upcomingRenewals: [{ email: 'a@c.pr', tier: 'Gold', renewsAt: '2026-04-10' }],
+        upcomingRenewals: [
+          { email: 'a@c.pr', tier: 'Gold', renewsAt: '2026-04-10' },
+        ],
       });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('15 active');
@@ -398,7 +595,11 @@ describe('EmailService', () => {
 
     it('shows None when no upcoming renewals', async () => {
       await service.sendWeeklyRevenueReport({
-        activeBytier: {}, totalActive: 0, newThisWeek: 0, cancelledThisWeek: 0, upcomingRenewals: [],
+        activeBytier: {},
+        totalActive: 0,
+        newThisWeek: 0,
+        cancelledThisWeek: 0,
+        upcomingRenewals: [],
       });
       const call = mockSend.mock.calls[0][0];
       expect(call.text).toContain('None');
@@ -407,7 +608,13 @@ describe('EmailService', () => {
 
   describe('sendNPSSurvey', () => {
     it('sends NPS survey with score links 0-10', async () => {
-      await service.sendNPSSurvey({ email: 'u@c.pr', name: 'A', institutionName: 'Coop', jobId: 'j1', institutionId: 'i1' });
+      await service.sendNPSSurvey({
+        email: 'u@c.pr',
+        name: 'A',
+        institutionName: 'Coop',
+        jobId: 'j1',
+        institutionId: 'i1',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('experiencia');
       expect(call.html).toContain('score=0');
@@ -417,20 +624,38 @@ describe('EmailService', () => {
 
   describe('sendTeamInviteEmail', () => {
     it('sends team invite with correct role label', async () => {
-      await service.sendTeamInviteEmail({ email: 'n@c.pr', name: 'Pedro', inviterName: 'Erwin', role: 'ANALYST', magicUrl: 'u' });
+      await service.sendTeamInviteEmail({
+        email: 'n@c.pr',
+        name: 'Pedro',
+        inviterName: 'Erwin',
+        role: 'ANALYST',
+        magicUrl: 'u',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('Erwin');
       expect(call.html).toContain('Analista / Analyst');
     });
 
     it('handles OWNER role label', async () => {
-      await service.sendTeamInviteEmail({ email: 'n@c.pr', name: 'P', inviterName: 'E', role: 'OWNER', magicUrl: 'u' });
+      await service.sendTeamInviteEmail({
+        email: 'n@c.pr',
+        name: 'P',
+        inviterName: 'E',
+        role: 'OWNER',
+        magicUrl: 'u',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.html).toContain('Propietario / Owner');
     });
 
     it('falls back to raw role when label is unknown', async () => {
-      await service.sendTeamInviteEmail({ email: 'n@c.pr', name: 'P', inviterName: 'E', role: 'CUSTOM_ROLE', magicUrl: 'u' });
+      await service.sendTeamInviteEmail({
+        email: 'n@c.pr',
+        name: 'P',
+        inviterName: 'E',
+        role: 'CUSTOM_ROLE',
+        magicUrl: 'u',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.html).toContain('CUSTOM_ROLE');
     });
@@ -444,31 +669,121 @@ describe('EmailService', () => {
     });
 
     const errorMethods = [
-      ['sendClientWelcome', { email: 'a@b.c', name: 'X', tier: 'G', magicUrl: 'u', institutionName: 'I' }],
-      ['sendDataSubmissionAck', { email: 'a@b.c', name: 'X', institutionName: 'I' }],
-      ['sendReportReady', { email: 'a@b.c', name: 'X', institutionName: 'I', portalUrl: 'u' }],
+      [
+        'sendClientWelcome',
+        {
+          email: 'a@b.c',
+          name: 'X',
+          tier: 'G',
+          magicUrl: 'u',
+          institutionName: 'I',
+        },
+      ],
+      [
+        'sendDataSubmissionAck',
+        { email: 'a@b.c', name: 'X', institutionName: 'I' },
+      ],
+      [
+        'sendReportReady',
+        { email: 'a@b.c', name: 'X', institutionName: 'I', portalUrl: 'u' },
+      ],
       ['sendMagicLinkEmail', { email: 'a@b.c', magicUrl: 'u', name: 'X' }],
-      ['sendJobFailedAlert', { jobId: 'j', institutionName: 'I', error: 'e', clientEmail: 'c' }],
+      [
+        'sendJobFailedAlert',
+        { jobId: 'j', institutionName: 'I', error: 'e', clientEmail: 'c' },
+      ],
       ['sendPaymentFailed', { email: 'a@b.c', name: 'X' }],
       ['sendCancellationEmail', { email: 'a@b.c', name: 'X' }],
       ['sendMonthlyReportCycle', { email: 'a@b.c', name: 'X' }],
       ['sendDisputeAlert', { chargeId: 'ch', amount: 100, reason: 'r' }],
-      ['sendDailyOperationsReport', { pendingJobs: 0, failedJobs: 0, newLeads: 0, pendingFollowUps: 0 }],
+      [
+        'sendDailyOperationsReport',
+        { pendingJobs: 0, failedJobs: 0, newLeads: 0, pendingFollowUps: 0 },
+      ],
       ['sendDataSubmissionReminder', { email: 'a@b.c', name: 'X' }],
       ['sendOnboardingCheckIn', { email: 'a@b.c', name: 'X' }],
-      ['sendReportFollowUp', { email: 'a@b.c', name: 'X', institutionName: 'I' }],
+      [
+        'sendReportFollowUp',
+        { email: 'a@b.c', name: 'X', institutionName: 'I' },
+      ],
       ['sendWinBackEmail', { email: 'a@b.c', name: 'X' }],
-      ['sendLeadNurtureTeaser', { email: 'a@b.c', name: 'X', institutionName: 'I' }],
+      [
+        'sendLeadNurtureTeaser',
+        { email: 'a@b.c', name: 'X', institutionName: 'I' },
+      ],
       ['sendLeadNurturePricing', { email: 'a@b.c', name: 'X' }],
-      ['sendRenewalReminder', { email: 'a@b.c', name: 'X', daysLeft: 5, tier: 'G', currentPeriodEnd: '2026-04-01' }],
-      ['sendChurnRiskAlert', { userName: 'U', userEmail: 'e', tier: 't', daysSinceLogin: 30, currentPeriodEnd: '2026-05-01' }],
-      ['sendWeeklyRevenueReport', { activeBytier: {}, totalActive: 0, newThisWeek: 0, cancelledThisWeek: 0, upcomingRenewals: [] }],
-      ['sendNPSSurvey', { email: 'a@b.c', name: 'N', institutionName: 'I', jobId: 'j', institutionId: 'i' }],
-      ['sendTeamInviteEmail', { email: 'a@b.c', name: 'N', inviterName: 'E', role: 'VIEWER', magicUrl: 'u' }],
+      [
+        'sendRenewalReminder',
+        {
+          email: 'a@b.c',
+          name: 'X',
+          daysLeft: 5,
+          tier: 'G',
+          currentPeriodEnd: '2026-04-01',
+        },
+      ],
+      [
+        'sendChurnRiskAlert',
+        {
+          userName: 'U',
+          userEmail: 'e',
+          tier: 't',
+          daysSinceLogin: 30,
+          currentPeriodEnd: '2026-05-01',
+        },
+      ],
+      [
+        'sendWeeklyRevenueReport',
+        {
+          activeBytier: {},
+          totalActive: 0,
+          newThisWeek: 0,
+          cancelledThisWeek: 0,
+          upcomingRenewals: [],
+        },
+      ],
+      [
+        'sendNPSSurvey',
+        {
+          email: 'a@b.c',
+          name: 'N',
+          institutionName: 'I',
+          jobId: 'j',
+          institutionId: 'i',
+        },
+      ],
+      [
+        'sendTeamInviteEmail',
+        {
+          email: 'a@b.c',
+          name: 'N',
+          inviterName: 'E',
+          role: 'VIEWER',
+          magicUrl: 'u',
+        },
+      ],
       ['sendDemoRequestNotification', { email: 'a@b.c' }],
-      ['sendLeadNotification', { leadId: 'l', name: 'N', email: 'e', role: 'R', institutionName: 'I', institutionType: 'T', priority: 'P', nextFollowUp: new Date() }],
-      ['sendLeadConfirmation', { name: 'N', email: 'e', institutionName: 'I', bilingual: true }],
-      ['sendRevenueAlert', { amount: 100, tier: 't', customerEmail: 'c', institutionName: 'I' }],
+      [
+        'sendLeadNotification',
+        {
+          leadId: 'l',
+          name: 'N',
+          email: 'e',
+          role: 'R',
+          institutionName: 'I',
+          institutionType: 'T',
+          priority: 'P',
+          nextFollowUp: new Date(),
+        },
+      ],
+      [
+        'sendLeadConfirmation',
+        { name: 'N', email: 'e', institutionName: 'I', bilingual: true },
+      ],
+      [
+        'sendRevenueAlert',
+        { amount: 100, tier: 't', customerEmail: 'c', institutionName: 'I' },
+      ],
     ] as const;
 
     for (const [method, data] of errorMethods) {
@@ -482,7 +797,11 @@ describe('EmailService', () => {
 
   describe('sendRawEmail', () => {
     it('sends raw email with wrapped html', async () => {
-      await service.sendRawEmail({ to: 'p@e.com', subject: 'Custom', html: '<p>Hi</p>' });
+      await service.sendRawEmail({
+        to: 'p@e.com',
+        subject: 'Custom',
+        html: '<p>Hi</p>',
+      });
       const call = mockSend.mock.calls[0][0];
       expect(call.to).toBe('p@e.com');
       expect(call.html).toContain('CERNIQ');
@@ -490,7 +809,9 @@ describe('EmailService', () => {
 
     it('throws when resend fails', async () => {
       mockSend.mockRejectedValueOnce(new Error('Send failed'));
-      await expect(service.sendRawEmail({ to: 'f@e.com', subject: 'T', html: '<p>T</p>' })).rejects.toThrow('Send failed');
+      await expect(
+        service.sendRawEmail({ to: 'f@e.com', subject: 'T', html: '<p>T</p>' }),
+      ).rejects.toThrow('Send failed');
     });
   });
 
@@ -503,7 +824,9 @@ describe('EmailService', () => {
 
     it('returns early when resend is null', async () => {
       (service as any).resend = null;
-      await expect(service.sendDemoConfirmation({ email: 't@t.com' })).resolves.not.toThrow();
+      await expect(
+        service.sendDemoConfirmation({ email: 't@t.com' }),
+      ).resolves.not.toThrow();
     });
   });
 });
