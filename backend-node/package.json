@@ -25,6 +25,7 @@
     "prisma:deploy": "bash ./scripts/prisma-migrate-safe.sh apply",
     "prisma:generate": "prisma generate",
     "seed:institution": "npx ts-node scripts/seed-institution.ts",
+    "seed:portal-submit": "npx ts-node scripts/seed-portal-submit.ts",
     "demo:provision": "npx ts-node scripts/provision-demo-portal.ts",
     "demo:list": "npx ts-node scripts/provision-demo-portal.ts --list",
     "exports:test": "npx ts-node scripts/test-file-exports.ts"

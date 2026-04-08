@@ -1,0 +1,33 @@
+name: Setup Python Project
+description: Setup Python caching and install dependencies for a checked-out repo subproject.
+
+inputs:
+  working-directory:
+    description: Repo-relative directory containing the requirements file
+    required: true
+  cache-dependency-path:
+    description: Repo-relative requirements file used by setup-python caching
+    required: true
+  python-version:
+    description: Python version to install
+    required: false
+    default: '3.12'
+  install-command:
+    description: Command used to install project dependencies
+    required: false
+    default: pip install -r requirements.txt pytest
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: pip
+        cache-dependency-path: ${{ inputs.cache-dependency-path }}
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: ${{ inputs.install-command }}

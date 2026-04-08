@@ -253,6 +253,15 @@ cd frontend && bun run test:e2e
 cd backend-node && npm run test:cov
 ```
 
+Portal submit E2E seed:
+
+```bash
+cd backend-node
+npm run seed:portal-submit
+```
+
+This provisions a portal-ready test user, an active subscription, one `AWAITING_DATA` report job, a fresh magic link, and a normalized uploadable CSV fixture for `/portal/submit`.
+
 ---
 
 ## Deployment

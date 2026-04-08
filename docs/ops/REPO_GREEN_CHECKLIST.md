@@ -6,6 +6,19 @@ Date validated locally: 2026-04-08
 
 This is the canonical release-integrity checklist for the CERNIQ repository. Use it as the source of truth for whether the repo is locally green and rerun-ready.
 
+GitHub workflow wiring is centralized through:
+
+- `.github/actions/setup-node-project/action.yml`
+- `.github/actions/setup-python-project/action.yml`
+
+The authoritative remote signals are:
+
+- `CERNIQ CI/CD`
+- `ALM Quality Gate`
+
+`CI Quick Check` is a temporary compatibility shim and should stay green, but
+it is not the long-term source of truth.
+
 Remote GitHub Actions may still appear red when billing is suspended. If a workflow reports:
 
 `The job was not started because recent account payments have failed or your spending limit needs to be increased.`
@@ -72,12 +85,15 @@ Production-authenticated or mutating smoke:
 ## Release Gate Expectations
 
 - CI release integrity requires `backend-test`, `backend-e2e`, `frontend-test`, `frontend-e2e`, and `outbound-test`.
+- `CERNIQ CI/CD` is the full release-integrity pipeline.
+- `ALM Quality Gate` is the path-scoped ALM/session guardrail pipeline.
 - `frontend-e2e` must run on pull requests and on pushes to `main`.
 - `deploy-backend` and `deploy-frontend` must both depend on `release-gate`.
 - Public production validation is green when read-only public endpoints return `200` and protected/admin routes reject unauthenticated access with `401/403`.
 - The CSV onboarding template is part of the public production gate through the frontend-hosted asset at `/templates/cerniq-balance-sheet-v1.csv`, not a backend API requirement.
 - In read-only public-production mode, market-data quote/snapshot probes are advisory because upstream providers can transiently return `404` while the ALM wedge remains fully operational.
 - Repo-level wrapper checks `npm run verify:backend`, `npm run verify:frontend`, and `npm run smoke:production` should all execute cleanly on a locally green worktree.
+- If `ALM Quality Gate` fails on `Prisma Schema Drift`, generate and commit the missing Prisma migration instead of weakening the workflow.
 
 ## Known Non-Blocking Debt
 

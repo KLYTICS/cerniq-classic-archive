@@ -97,8 +97,9 @@ function createPrismaMock() {
     workspace: {
       findFirst: jest.fn().mockImplementation(({ where }: any) => {
         return Promise.resolve(
-          workspaces.find((workspace) => workspace.ownerId === where?.ownerId) ||
-            null,
+          workspaces.find(
+            (workspace) => workspace.ownerId === where?.ownerId,
+          ) || null,
         );
       }),
       create: jest.fn().mockImplementation(({ data }: any) => {
