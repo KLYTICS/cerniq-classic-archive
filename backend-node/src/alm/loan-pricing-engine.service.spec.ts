@@ -112,6 +112,9 @@ describe('LoanPricingEngineService', () => {
       targetROE: 0,
       capitalRequirement: 0.08,
     });
-    expect(result.monthlyPayment).toBeCloseTo(baseParams.principal / (baseParams.maturityYears * 12), 0);
+    expect(result.monthlyPayment).toBeCloseTo(
+      baseParams.principal / (baseParams.maturityYears * 12),
+      0,
+    );
   });
 });

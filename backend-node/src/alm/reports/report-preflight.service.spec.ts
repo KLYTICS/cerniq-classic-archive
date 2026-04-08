@@ -14,7 +14,10 @@ import { ReportPreflightService } from './report-preflight.service';
 import { dataGap } from './data-gap';
 
 describe('ReportPreflightService', () => {
-  let almEnterprise: { getALMSummary: jest.Mock; getCOSSECCompliance: jest.Mock };
+  let almEnterprise: {
+    getALMSummary: jest.Mock;
+    getCOSSECCompliance: jest.Mock;
+  };
   let stressTesting: { runRegulatoryStress: jest.Mock };
   let service: ReportPreflightService;
 
@@ -79,19 +82,25 @@ describe('ReportPreflightService', () => {
     almEnterprise.getALMSummary.mockResolvedValue({
       ...goodSummary(),
       gaps: [
-        dataGap('liquidity.lcr', 'NO_LIQUIDITY_POSITION', { severity: 'CRITICAL' }),
+        dataGap('liquidity.lcr', 'NO_LIQUIDITY_POSITION', {
+          severity: 'CRITICAL',
+        }),
       ],
     });
     almEnterprise.getCOSSECCompliance.mockResolvedValue({
       ...goodCossec(),
       gaps: [
-        dataGap('cossec.balanceSheet', 'EMPTY_BALANCE_SHEET', { severity: 'CRITICAL' }),
+        dataGap('cossec.balanceSheet', 'EMPTY_BALANCE_SHEET', {
+          severity: 'CRITICAL',
+        }),
       ],
     });
     stressTesting.runRegulatoryStress.mockResolvedValue({
       ...goodStress(),
       gaps: [
-        dataGap('stress.regulatory.baseLCR', 'NO_LIQUIDITY_POSITION', { severity: 'CRITICAL' }),
+        dataGap('stress.regulatory.baseLCR', 'NO_LIQUIDITY_POSITION', {
+          severity: 'CRITICAL',
+        }),
       ],
     });
 

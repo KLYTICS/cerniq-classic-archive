@@ -11,6 +11,7 @@ import { NCUADataPullService } from '../alm/data-pull/ncua-data-pull.service';
 import { BillingService } from '../billing/billing.service';
 import { EmailService } from '../email/email.service';
 import { AuditService } from '../audit/audit.service';
+import { DemoSeatEngagementService } from './demo-seat-engagement.service';
 
 const DEFAULT_DEMO_TTL_DAYS = 14;
 const DEMO_USER_PROVIDER = 'demo_seat';
@@ -90,6 +91,7 @@ export class DemoSeatService {
     private readonly billing: BillingService,
     private readonly email: EmailService,
     private readonly audit: AuditService,
+    private readonly engagement: DemoSeatEngagementService,
   ) {}
 
   // ─── Public API ──────────────────────────────────────────────
@@ -225,6 +227,20 @@ export class DemoSeatService {
       reused,
     });
 
+    // Record the provisioning event in the engagement log (fire-and-forget)
+    void this.engagement.recordEvent({
+      prospectInstitutionId: prospect.id,
+      userId: user.id,
+      eventType: 'provisioned',
+      metadata: {
+        reused,
+        source: publicData.source,
+        ttlDays,
+        institutionName: publicData.institutionName,
+        asOfQuarter: publicData.asOfQuarter,
+      },
+    });
+
     // 9. Optional email notification
     if (input.sendEmail) {
       try {
@@ -237,6 +253,16 @@ export class DemoSeatService {
           disclosure: publicData.disclosure,
           expiresAt,
           language: publicData.preferredLanguage,
+        });
+        void this.engagement.recordEvent({
+          prospectInstitutionId: prospect.id,
+          userId: user.id,
+          eventType: 'email_sent',
+          metadata: {
+            email: contactEmail,
+            template: 'demo_portal_ready',
+            language: publicData.preferredLanguage,
+          },
         });
       } catch (err: any) {
         this.logger.warn({
@@ -361,6 +387,15 @@ export class DemoSeatService {
         action: 'demo_seat_expired',
         resource: 'prospect_institution',
         resourceId: prospect.id,
+        metadata: {
+          institutionName: prospect.name,
+          expiredAt: prospect.demoExpiresAt?.toISOString() || null,
+        },
+      });
+      void this.engagement.recordEvent({
+        prospectInstitutionId: prospect.id,
+        userId: prospect.demoUserId,
+        eventType: 'expired',
         metadata: {
           institutionName: prospect.name,
           expiredAt: prospect.demoExpiresAt?.toISOString() || null,

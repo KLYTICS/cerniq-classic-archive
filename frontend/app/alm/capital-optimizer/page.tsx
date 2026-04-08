@@ -1,168 +1,239 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { apiClient } from '@/lib/api';
-import { useALM } from '@/components/alm/ALMProvider';
-import { useTranslation } from '@/lib/i18n';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
-import { Sparkles, AlertTriangle, Play, RefreshCw } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Cell, ReferenceLine,
+} from 'recharts';
+import { Play, RefreshCw } from 'lucide-react';
 
-interface OptimizationResult {
-  deltaAllocations: Array<{ subcategory: string; category: string; currentBalance: number; suggestedBalance: number; deltaUSD: number; deltaPct: number; rateImpact: number }>;
-  projectedNIIGain: number; projectedNIIGainPct: number;
-  constraintSlacks: Array<{ constraint: string; currentValue: number; limit: number; slack: number; binding: boolean }>;
-  aggressivenessLevel: string; narrative: string; narrativeEs: string;
+import { useTranslation } from '@/lib/i18n';
+import { AlmPage } from '@/components/alm/AlmPage';
+import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
+import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+
+type Aggressiveness = 'conservative' | 'moderate' | 'aggressive';
+
+interface DeltaAllocation {
+  readonly subcategory: string;
+  readonly category: string;
+  readonly currentBalance: number;
+  readonly suggestedBalance: number;
+  readonly deltaUSD: number;
+  readonly deltaPct: number;
+  readonly rateImpact: number;
 }
 
-export default function CapitalOptimizerPage() {
-  const { selectedId } = useALM();
+interface ConstraintSlack {
+  readonly constraint: string;
+  readonly currentValue: number;
+  readonly limit: number;
+  readonly slack: number;
+  readonly binding: boolean;
+}
+
+interface OptimizationResult {
+  readonly deltaAllocations: readonly DeltaAllocation[];
+  readonly projectedNIIGain: number;
+  readonly projectedNIIGainPct: number;
+  readonly constraintSlacks: readonly ConstraintSlack[];
+  readonly aggressivenessLevel: string;
+  readonly narrative: string;
+  readonly narrativeEs: string;
+}
+
+function validateOpt(raw: unknown): OptimizationResult {
+  if (!raw || typeof raw !== 'object') throw new Error('Capital optimizer response must be an object');
+  const r = raw as Record<string, unknown>;
+  if (typeof r.projectedNIIGain !== 'number') throw new Error('Capital opt: missing projectedNIIGain');
+  if (!Array.isArray(r.deltaAllocations)) throw new Error('Capital opt: deltaAllocations must be array');
+  if (!Array.isArray(r.constraintSlacks)) throw new Error('Capital opt: constraintSlacks must be array');
+  return r as unknown as OptimizationResult;
+}
+
+function getDemo(agg: Aggressiveness): OptimizationResult {
+  const maxMove = agg === 'conservative' ? 8 : agg === 'moderate' ? 15 : 25;
+  const limit = agg === 'conservative' ? 3 : agg === 'moderate' ? 6 : 10;
+  return {
+    deltaAllocations: [
+      { subcategory: 'securities',     category: 'asset', currentBalance: 50, suggestedBalance: 50 - maxMove, deltaUSD: -maxMove, deltaPct: -(maxMove / 445) * 100, rateImpact: -maxMove * 0.042 },
+      { subcategory: 'consumer_loans', category: 'asset', currentBalance: 85, suggestedBalance: 85 + maxMove, deltaUSD:  maxMove, deltaPct:  (maxMove / 445) * 100, rateImpact:  maxMove * 0.072 },
+    ],
+    projectedNIIGain:    +(maxMove * 0.03).toFixed(2),
+    projectedNIIGainPct: +((maxMove * 0.03 / 12.8) * 100).toFixed(1),
+    constraintSlacks: [
+      { constraint: 'LCR ≥ 100%',  currentValue: 115, limit: 100, slack: 15,  binding: false },
+      { constraint: 'NSFR ≥ 100%', currentValue: 108, limit: 100, slack:  8,  binding: false },
+      { constraint: 'NWR ≥ 7%',    currentValue:   9.2, limit:   7, slack:  2.2, binding: false },
+      { constraint: `Max realloc ≤ ${limit}%`, currentValue: +(maxMove / 445 * 100).toFixed(1), limit, slack: 0, binding: true },
+    ],
+    aggressivenessLevel: agg,
+    narrative:   `Shift $${maxMove}M from securities to consumer loans to gain $${(maxMove * 0.03).toFixed(2)}M in annual NII.`,
+    narrativeEs: `Traslade $${maxMove}M de valores a préstamos de consumo para ganar $${(maxMove * 0.03).toFixed(2)}M en NII anual.`,
+  };
+}
+
+function OptContent({ data }: { data: OptimizationResult }) {
   const { locale } = useTranslation();
-  const [data, setData] = useState<OptimizationResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [aggressiveness, setAggressiveness] = useState<'conservative' | 'moderate' | 'aggressive'>('moderate');
 
-  const runOptimization = useCallback(async () => {
-    if (!selectedId) return;
-    setLoading(true);
-    try { setData(await apiClient.optimizeCapital(selectedId, aggressiveness)); }
-    catch { setData(getDemoData(aggressiveness)); }
-    finally { setLoading(false); }
-  }, [selectedId, aggressiveness]);
+  const stripItems = useMemo<readonly MetricStripItem[]>(() => [
+    { key: 'projected_nii_gain',     label: locale === 'es' ? 'Ganancia NII'    : 'NII Gain',         value: data.projectedNIIGain,     unit: 'USD_M' },
+    { key: 'projected_nii_gain_pct', label: locale === 'es' ? 'Ganancia %'      : 'NII Gain %',       value: data.projectedNIIGainPct,  unit: '%' },
+    { key: 'realloc_count',          label: locale === 'es' ? 'Reasignaciones' : 'Reallocations',    value: data.deltaAllocations.length, unit: 'count' },
+    { key: 'binding_constraints',    label: locale === 'es' ? 'Restricc. Vinculantes' : 'Binding',  value: data.constraintSlacks.filter((c) => c.binding).length, unit: 'count' },
+    { key: 'total_constraints',      label: locale === 'es' ? 'Restricciones'  : 'Constraints',      value: data.constraintSlacks.length, unit: 'count' },
+  ], [data, locale]);
 
-  if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
+  const reallocData = useMemo(
+    () => data.deltaAllocations.map((a) => ({
+      name: a.subcategory.replace(/_/g, ' '),
+      delta: a.deltaUSD,
+    })),
+    [data],
+  );
+
+  const deltaColumns = useMemo<readonly DataTableColumn<DeltaAllocation>[]>(() => [
+    { id: 'name',     header: locale === 'es' ? 'Subcategoría' : 'Subcategory', kind: 'custom',
+      accessor: (r) => r.subcategory,
+      render: (r) => <span className="text-xs font-medium capitalize text-slate-800">{r.subcategory.replace(/_/g, ' ')}</span>,
+      align: 'text-left',
+    },
+    { id: 'current',   header: locale === 'es' ? 'Balance Actual'    : 'Current Balance',   kind: 'number', accessor: (r) => r.currentBalance,   unit: 'USD_M' },
+    { id: 'suggested', header: locale === 'es' ? 'Balance Sugerido'  : 'Suggested Balance', kind: 'number', accessor: (r) => r.suggestedBalance, unit: 'USD_M' },
+    { id: 'delta',     header: 'Δ ($M)',                                                     kind: 'delta',  accessor: (r) => r.deltaUSD,         unit: 'USD_M' },
+    { id: 'rate_imp',  header: locale === 'es' ? 'Impacto Tasa'     : 'Rate Impact',        kind: 'delta',  accessor: (r) => r.rateImpact,       unit: 'USD_M' },
+  ], [locale]);
+
+  const constraintColumns = useMemo<readonly DataTableColumn<ConstraintSlack>[]>(() => [
+    { id: 'name',    header: locale === 'es' ? 'Restricción' : 'Constraint', kind: 'text', accessor: (r) => r.constraint, align: 'text-left' },
+    { id: 'current', header: locale === 'es' ? 'Actual' : 'Current', kind: 'custom',
+      accessor: (r) => r.currentValue,
+      render: (r) => <span className="font-mono text-xs tabular-nums text-slate-700">{r.currentValue.toFixed(1)}</span>,
+    },
+    { id: 'limit',   header: locale === 'es' ? 'Límite' : 'Limit', kind: 'custom',
+      accessor: (r) => r.limit,
+      render: (r) => <span className="font-mono text-xs tabular-nums text-slate-500">{r.limit.toFixed(1)}</span>,
+    },
+    { id: 'slack',   header: 'Slack', kind: 'custom',
+      accessor: (r) => r.slack,
+      render: (r) => (
+        <span className={`font-mono text-xs font-bold tabular-nums ${r.slack < 2 ? 'text-amber-700' : 'text-emerald-700'}`}>
+          {r.slack.toFixed(1)}
+        </span>
+      ),
+    },
+    { id: 'binding', header: locale === 'es' ? 'Vinculante' : 'Binding', kind: 'custom',
+      accessor: (r) => (r.binding ? 'yes' : 'no'),
+      align: 'text-center',
+      render: (r) => r.binding ? (
+        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700">BINDING</span>
+      ) : (
+        <span className="text-[10px] text-slate-300">—</span>
+      ),
+    },
+  ], [locale]);
 
   return (
-    <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50">
-          <Sparkles className="h-4 w-4 text-emerald-700" />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold text-slate-950">
-            {locale === 'es' ? 'Optimizador de Capital — Maximizar NII' : 'Capital Optimizer — Maximize NII'}
-          </h1>
-          <p className="text-xs text-slate-500">
-            {locale === 'es' ? 'Programación lineal sujeta a LCR/NSFR/NWR/concentración' : 'Linear programming subject to LCR/NSFR/NWR/concentration constraints'}
+    <>
+      <MetricStrip items={stripItems} locale={locale} density="compact" />
+
+      {/* Narrative banner */}
+      <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+          {locale === 'es' ? 'Estrategia Recomendada' : 'Recommended Strategy'}
+        </p>
+        <p className="text-sm leading-relaxed text-emerald-800">{locale === 'es' ? data.narrativeEs : data.narrative}</p>
+      </section>
+
+      {/* Reallocation chart */}
+      {reallocData.length > 0 ? (
+        <section className="rounded-xl border border-slate-200 bg-white p-5">
+          <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            {locale === 'es' ? 'Reasignación Recomendada' : 'Recommended Reallocation'}
           </p>
-        </div>
-      </div>
-
-      {/* Aggressiveness Selector */}
-      <div className="flex items-center gap-3">
-        {(['conservative', 'moderate', 'aggressive'] as const).map(level => (
-          <button key={level} onClick={() => setAggressiveness(level)}
-            className={`rounded-lg border px-4 py-2.5 text-xs font-medium transition ${
-              aggressiveness === level ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-            }`}>
-            {level === 'conservative' ? (locale === 'es' ? 'Conservador (±3%)' : 'Conservative (±3%)')
-              : level === 'moderate' ? (locale === 'es' ? 'Moderado (±6%)' : 'Moderate (±6%)')
-              : locale === 'es' ? 'Agresivo (±10%)' : 'Aggressive (±10%)'}
-          </button>
-        ))}
-        <button onClick={runOptimization} disabled={loading}
-          className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50 ml-auto">
-          {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-          {loading ? (locale === 'es' ? 'Optimizando...' : 'Optimizing...') : (locale === 'es' ? 'Ejecutar Optimización' : 'Run Optimization')}
-        </button>
-      </div>
-
-      {data && (
-        <>
-          {/* NII Gain Banner */}
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600">
-                  {locale === 'es' ? 'Ganancia NII Proyectada' : 'Projected NII Gain'}
-                </p>
-                <p className="text-3xl font-bold text-emerald-700 tabular-nums">${data.projectedNIIGain.toFixed(2)}M</p>
-                <p className="text-xs text-emerald-600 mt-1">+{data.projectedNIIGainPct}% {locale === 'es' ? 'sobre NII actual' : 'over current NII'}</p>
-              </div>
-              <p className="text-sm text-emerald-800 max-w-[400px] text-right leading-relaxed">
-                {locale === 'es' ? data.narrativeEs : data.narrative}
-              </p>
-            </div>
-          </div>
-
-          {/* Reallocation Chart */}
-          {data.deltaAllocations.length > 0 && (
-            <div className="rounded-xl border border-slate-200 bg-white p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-4">
-                {locale === 'es' ? 'Reasignación Recomendada' : 'Recommended Reallocation'}
-              </p>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={data.deltaAllocations.map(a => ({
-                  name: a.subcategory.replace(/_/g, ' '),
-                  delta: a.deltaUSD,
-                }))}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: 12, fontSize: 12 }}
-                    formatter={(value) => [`$${Number(value ?? 0).toFixed(1)}M`, '']}
-                  />
-                  <ReferenceLine y={0} stroke="#94a3b8" />
-                  <Bar dataKey="delta" radius={[4, 4, 0, 0]}>
-                    {data.deltaAllocations.map((a, i) => <Cell key={i} fill={a.deltaUSD >= 0 ? '#10b981' : '#ef4444'} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
-          {/* Constraint Slacks */}
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-100">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                {locale === 'es' ? 'Estado de Restricciones' : 'Constraint Status'}
-              </p>
-            </div>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-50 bg-slate-50/50">
-                  {[locale === 'es' ? 'Restricción' : 'Constraint', locale === 'es' ? 'Actual' : 'Current',
-                    locale === 'es' ? 'Límite' : 'Limit', 'Slack', locale === 'es' ? 'Vinculante' : 'Binding'].map(h => (
-                    <th key={h} className="px-4 py-2 text-left text-[11px] font-medium text-slate-500">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.constraintSlacks.map(c => (
-                  <tr key={c.constraint} className="border-b border-slate-50 last:border-0">
-                    <td className="px-4 py-2.5 font-medium text-slate-700 text-xs">{c.constraint}</td>
-                    <td className="px-4 py-2.5 tabular-nums text-xs">{c.currentValue}</td>
-                    <td className="px-4 py-2.5 tabular-nums text-xs text-slate-500">{c.limit}</td>
-                    <td className={`px-4 py-2.5 tabular-nums text-xs font-medium ${c.slack < 2 ? 'text-amber-700' : 'text-emerald-700'}`}>{c.slack.toFixed(1)}</td>
-                    <td className="px-4 py-2.5">{c.binding && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5 border border-amber-200">BINDING</span>}</td>
-                  </tr>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={reallocData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={(v) => `$${v}M`} tick={{ fontSize: 11 }} />
+              <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(value) => [`$${Number(value ?? 0).toFixed(1)}M`, '']} />
+              <ReferenceLine y={0} stroke="#94a3b8" />
+              <Bar dataKey="delta" radius={[4, 4, 0, 0]}>
+                {reallocData.map((a) => (
+                  <Cell key={a.name} fill={a.delta >= 0 ? '#059669' : '#dc2626'} />
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-    </div>
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </section>
+      ) : null}
+
+      {/* Allocation detail */}
+      <section>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {locale === 'es' ? 'Detalle de Reasignación' : 'Allocation Detail'}
+        </p>
+        <DataTable rows={data.deltaAllocations} columns={deltaColumns} locale={locale} rowKey={(r) => `${r.category}-${r.subcategory}`} />
+      </section>
+
+      {/* Constraint slacks */}
+      <section>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {locale === 'es' ? 'Estado de Restricciones' : 'Constraint Status'}
+        </p>
+        <DataTable rows={data.constraintSlacks} columns={constraintColumns} locale={locale} rowKey={(r) => r.constraint} />
+      </section>
+    </>
   );
 }
 
-function getDemoData(agg: string): OptimizationResult {
-  const maxMove = agg === 'conservative' ? 8 : agg === 'moderate' ? 15 : 25;
-  return {
-    deltaAllocations: [
-      { subcategory: 'securities', category: 'asset', currentBalance: 50, suggestedBalance: 50 - maxMove, deltaUSD: -maxMove, deltaPct: -(maxMove / 445) * 100, rateImpact: -maxMove * 0.042 },
-      { subcategory: 'consumer_loans', category: 'asset', currentBalance: 85, suggestedBalance: 85 + maxMove, deltaUSD: maxMove, deltaPct: (maxMove / 445) * 100, rateImpact: maxMove * 0.072 },
-    ],
-    projectedNIIGain: +(maxMove * 0.03).toFixed(2),
-    projectedNIIGainPct: +((maxMove * 0.03 / 12.8) * 100).toFixed(1),
-    constraintSlacks: [
-      { constraint: 'LCR ≥ 100%', currentValue: 115, limit: 100, slack: 15, binding: false },
-      { constraint: 'NSFR ≥ 100%', currentValue: 108, limit: 100, slack: 8, binding: false },
-      { constraint: 'NWR ≥ 7%', currentValue: 9.2, limit: 7, slack: 2.2, binding: false },
-      { constraint: `Max realloc ≤ ${agg === 'conservative' ? 3 : agg === 'moderate' ? 6 : 10}%`, currentValue: +(maxMove / 445 * 100).toFixed(1), limit: agg === 'conservative' ? 3 : agg === 'moderate' ? 6 : 10, slack: 0, binding: false },
-    ],
-    aggressivenessLevel: agg,
-    narrative: `Shift $${maxMove}M from securities to consumer loans to gain $${(maxMove * 0.03).toFixed(2)}M in annual NII.`,
-    narrativeEs: `Traslade $${maxMove}M de valores a préstamos de consumo para ganar $${(maxMove * 0.03).toFixed(2)}M en NII anual.`,
-  };
+// ─── Page with aggressiveness controls + run-nonce ─────────────────────────
+
+export default function CapitalOptimizerPage() {
+  const { locale } = useTranslation();
+  const [aggressiveness, setAggressiveness] = useState<Aggressiveness>('moderate');
+  const [runNonce, setRunNonce] = useState(0);
+
+  return (
+    <AlmPage<OptimizationResult>
+      slug="capital-optimizer"
+      iconTint="emerald"
+      method="POST"
+      body={{ aggressiveness }}
+      deps={[runNonce]}
+      validate={validateOpt}
+      getDemo={() => getDemo(aggressiveness)}
+      controls={
+        <div className="flex items-center gap-2">
+          <div className="flex overflow-hidden rounded-lg border border-slate-200">
+            {(['conservative', 'moderate', 'aggressive'] as const).map((level) => (
+              <button
+                key={level}
+                type="button"
+                onClick={() => setAggressiveness(level)}
+                aria-pressed={aggressiveness === level}
+                className={`px-2.5 py-1 text-[10px] font-semibold transition ${
+                  aggressiveness === level ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {level === 'conservative' ? (locale === 'es' ? 'Cons. ±3%'  : 'Cons. ±3%')
+                 : level === 'moderate'    ? (locale === 'es' ? 'Mod. ±6%'   : 'Mod. ±6%')
+                 :                           (locale === 'es' ? 'Agr. ±10%'  : 'Agg. ±10%')}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setRunNonce((n) => n + 1)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+          >
+            {runNonce === 0 ? <Play className="h-3.5 w-3.5" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            {locale === 'es' ? 'Optimizar' : 'Optimize'}
+          </button>
+        </div>
+      }
+    >
+      {(data) => <OptContent data={data} />}
+    </AlmPage>
+  );
 }

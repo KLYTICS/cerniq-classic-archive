@@ -131,7 +131,9 @@ describe('RegulatoryScraperService', () => {
         ),
     });
     mockPrisma.regulatoryPublication.findUnique.mockResolvedValue(null);
-    mockPrisma.regulatoryPublication.create.mockRejectedValue(new Error('DB write error'));
+    mockPrisma.regulatoryPublication.create.mockRejectedValue(
+      new Error('DB write error'),
+    );
 
     const result = await service.runDailyScan();
     expect(result.errors.length).toBeGreaterThan(0);

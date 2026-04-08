@@ -43,6 +43,8 @@ import { AuditModule } from './audit/audit.module';
 import { ApiV1Module } from './api-v1/api-v1.module';
 import { ComplianceModule } from './compliance/compliance.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { IntelligenceModule } from './intelligence/intelligence.module';
+import { CloseModule } from './close/close.module';
 
 @Module({
   imports: [
@@ -121,6 +123,10 @@ import { NotificationsModule } from './notifications/notifications.module';
     ComplianceModule,
     // Slack/webhook notifications for sales alerts
     NotificationsModule,
+    // Competitor + buyer intelligence OS
+    IntelligenceModule,
+    // Month-end Close Cockpit (CFO → CPA workflow)
+    CloseModule,
   ],
   controllers: [AppController],
   providers: [

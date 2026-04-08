@@ -159,7 +159,9 @@ describe('WebhookService', () => {
       const originalFetch = global.fetch;
       global.fetch = jest.fn().mockResolvedValue({ status: 200 }) as any;
 
-      const results = await service.dispatchEvent('inst-1', 'policy.breach', { detail: 'test' });
+      const results = await service.dispatchEvent('inst-1', 'policy.breach', {
+        detail: 'test',
+      });
 
       expect(results).toHaveLength(1);
       expect(results[0].success).toBe(true);
@@ -208,8 +210,8 @@ describe('WebhookService', () => {
     });
 
     it('createSubscription generates a 64-char hex secretKey', async () => {
-      mockPrisma.webhookSubscription.create.mockImplementation(({ data }: any) =>
-        Promise.resolve({ id: 'wh-new', ...data }),
+      mockPrisma.webhookSubscription.create.mockImplementation(
+        ({ data }: any) => Promise.resolve({ id: 'wh-new', ...data }),
       );
 
       await service.createSubscription('inst-1', {
@@ -217,7 +219,8 @@ describe('WebhookService', () => {
         events: ['policy.breach', 'rate.move'],
       });
 
-      const callData = mockPrisma.webhookSubscription.create.mock.calls[0][0].data;
+      const callData =
+        mockPrisma.webhookSubscription.create.mock.calls[0][0].data;
       expect(callData.secretKey).toHaveLength(64);
       expect(callData.institutionId).toBe('inst-1');
       expect(callData.events).toEqual(['policy.breach', 'rate.move']);
@@ -270,12 +273,16 @@ describe('WebhookService', () => {
       mockPrisma.webhookSubscription.update.mockResolvedValue({});
 
       const originalFetch = global.fetch;
-      global.fetch = jest.fn().mockImplementation(async (_url: any, init: any) => {
-        capturedHeaders = init?.headers || {};
-        return { status: 200 };
-      }) as any;
+      global.fetch = jest
+        .fn()
+        .mockImplementation(async (_url: any, init: any) => {
+          capturedHeaders = init?.headers || {};
+          return { status: 200 };
+        }) as any;
 
-      await service.dispatchEvent('inst-1', 'policy.breach', { detail: 'test' });
+      await service.dispatchEvent('inst-1', 'policy.breach', {
+        detail: 'test',
+      });
 
       expect(capturedHeaders['X-CERNIQ-Signature']).toMatch(/^sha256=/);
       expect(capturedHeaders['X-CERNIQ-Event']).toBe('policy.breach');

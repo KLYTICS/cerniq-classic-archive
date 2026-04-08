@@ -20,7 +20,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AlmEnterpriseService } from '../alm-enterprise.service';
 import { StressTestingService } from '../stress-testing/stress-testing.service';
 import { DataGap, hasCriticalGap, mergeGaps } from './data-gap';
-import type { ALMSummaryResult, COSSECComplianceResult } from '../alm-enterprise.service';
+import type {
+  ALMSummaryResult,
+  COSSECComplianceResult,
+} from '../alm-enterprise.service';
 import type { RegulatoryStressResult } from '../stress-testing/stress-testing.service';
 
 export interface PreflightResult {
@@ -93,13 +96,15 @@ export class ReportPreflightService {
     // into structured gaps so a single sub-failure doesn't sink the whole
     // preflight — the user still needs to see what's working.
     const [summary, cossec, regulatoryStress] = await Promise.all([
-      this.almEnterprise.getALMSummary(institutionId).catch((err: Error) =>
-        this.errorToShell<ALMSummaryResult>(
-          'preflight.almSummary',
-          err,
-          institutionId,
+      this.almEnterprise
+        .getALMSummary(institutionId)
+        .catch((err: Error) =>
+          this.errorToShell<ALMSummaryResult>(
+            'preflight.almSummary',
+            err,
+            institutionId,
+          ),
         ),
-      ),
       this.almEnterprise
         .getCOSSECCompliance(institutionId)
         .catch((err: Error) =>
@@ -157,11 +162,7 @@ export class ReportPreflightService {
    * the consumer (this preflight) only reads `.gaps` from the shells —
    * never the numeric fields.
    */
-  private errorToShell<T>(
-    field: string,
-    err: Error,
-    institutionId: string,
-  ): T {
+  private errorToShell<T>(field: string, err: Error, institutionId: string): T {
     this.logger.warn({
       event: 'preflight_subcall_threw',
       field,

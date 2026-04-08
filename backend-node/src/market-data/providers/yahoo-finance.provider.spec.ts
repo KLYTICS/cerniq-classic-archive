@@ -262,7 +262,10 @@ describe('YahooFinanceProvider', () => {
     });
 
     it('defaults marketCap to 0 when missing', async () => {
-      mockClient.quote.mockResolvedValue({ symbol: 'XYZ', quoteType: 'EQUITY' });
+      mockClient.quote.mockResolvedValue({
+        symbol: 'XYZ',
+        quoteType: 'EQUITY',
+      });
       const result = await provider.getFundamentals('XYZ');
       expect(result!.marketCap).toBe(0);
     });
@@ -273,9 +276,27 @@ describe('YahooFinanceProvider', () => {
   describe('getInstrumentProfile', () => {
     it('returns full instrument profile for a stock', async () => {
       mockClient.quoteSummary.mockResolvedValue({
-        quoteType: { quoteType: 'EQUITY', shortName: 'Apple', longName: 'Apple Inc.', symbol: 'AAPL', exchange: 'NMS' },
-        price: { symbol: 'AAPL', currency: 'USD', marketState: 'REGULAR', shortName: 'Apple', longName: 'Apple Inc.', exchangeName: 'NASDAQ' },
-        summaryProfile: { sector: 'Technology', industry: 'Consumer Electronics', longBusinessSummary: 'Apple designs...', website: 'https://apple.com' },
+        quoteType: {
+          quoteType: 'EQUITY',
+          shortName: 'Apple',
+          longName: 'Apple Inc.',
+          symbol: 'AAPL',
+          exchange: 'NMS',
+        },
+        price: {
+          symbol: 'AAPL',
+          currency: 'USD',
+          marketState: 'REGULAR',
+          shortName: 'Apple',
+          longName: 'Apple Inc.',
+          exchangeName: 'NASDAQ',
+        },
+        summaryProfile: {
+          sector: 'Technology',
+          industry: 'Consumer Electronics',
+          longBusinessSummary: 'Apple designs...',
+          website: 'https://apple.com',
+        },
         fundProfile: {},
         summaryDetail: { marketCap: 2_800_000_000_000, currency: 'USD' },
         defaultKeyStatistics: {},
@@ -295,7 +316,11 @@ describe('YahooFinanceProvider', () => {
 
     it('returns profile for an ETF with holdings', async () => {
       mockClient.quoteSummary.mockResolvedValue({
-        quoteType: { quoteType: 'ETF', shortName: 'SPDR S&P 500', symbol: 'SPY' },
+        quoteType: {
+          quoteType: 'ETF',
+          shortName: 'SPDR S&P 500',
+          symbol: 'SPY',
+        },
         price: { symbol: 'SPY', currency: 'USD' },
         summaryProfile: {},
         fundProfile: { categoryName: 'Large Blend', family: 'SPDR' },
@@ -401,17 +426,23 @@ describe('YahooFinanceProvider', () => {
     it('limits to default 8 if not specified', async () => {
       mockClient.search.mockResolvedValue({ news: [] });
       await provider.getNews('AAPL');
-      expect(mockClient.search).toHaveBeenCalledWith('AAPL', expect.objectContaining({
-        newsCount: 8,
-      }));
+      expect(mockClient.search).toHaveBeenCalledWith(
+        'AAPL',
+        expect.objectContaining({
+          newsCount: 8,
+        }),
+      );
     });
 
     it('clamps newsCount to max 20', async () => {
       mockClient.search.mockResolvedValue({ news: [] });
       await provider.getNews('AAPL', 50);
-      expect(mockClient.search).toHaveBeenCalledWith('AAPL', expect.objectContaining({
-        newsCount: 20,
-      }));
+      expect(mockClient.search).toHaveBeenCalledWith(
+        'AAPL',
+        expect.objectContaining({
+          newsCount: 20,
+        }),
+      );
     });
   });
 
@@ -421,8 +452,19 @@ describe('YahooFinanceProvider', () => {
     it('returns mapped search results', async () => {
       mockClient.search.mockResolvedValue({
         quotes: [
-          { symbol: 'AAPL', shortname: 'Apple Inc.', quoteType: 'EQUITY', exchDisp: 'NASDAQ', sectorDisp: 'Technology' },
-          { symbol: 'AAPB', longname: 'GraniteShares', quoteType: 'ETF', exchDisp: 'NYSE' },
+          {
+            symbol: 'AAPL',
+            shortname: 'Apple Inc.',
+            quoteType: 'EQUITY',
+            exchDisp: 'NASDAQ',
+            sectorDisp: 'Technology',
+          },
+          {
+            symbol: 'AAPB',
+            longname: 'GraniteShares',
+            quoteType: 'ETF',
+            exchDisp: 'NYSE',
+          },
         ],
       });
 

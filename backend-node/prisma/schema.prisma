@@ -905,6 +905,7 @@ model ProspectInstitution {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   intelligenceAccount IntelligenceAccount? @relation(fields: [intelligenceAccountId], references: [id], onDelete: SetNull)
+  engagementEvents    DemoSeatEngagementEvent[]
 
   @@index([outreachStatus])
   @@index([intelligenceAccountId])
@@ -912,6 +913,39 @@ model ProspectInstitution {
   @@index([demoExpiresAt])
   @@index([demoConvertedAt])
   @@map("prospect_institutions")
+}
+
+/// Per-touchpoint event log for demo seat engagement.
+///
+/// Populated by DemoSeatEngagementService.recordEvent() — every
+/// meaningful action in a demo seat's lifecycle (provisioning, email
+/// sends, portal views, report downloads, upgrade clicks, conversion,
+/// expiry, reminders) writes a row here. Powers the admin per-seat
+/// timeline UI and future cohort / funnel drop-off analytics.
+///
+/// Append-only: rows are never updated or deleted once written (except
+/// via cascading delete when the parent prospect is removed, which is
+/// itself an extremely rare operation).
+model DemoSeatEngagementEvent {
+  id                    String   @id @default(cuid())
+  prospectInstitutionId String   @map("prospect_institution_id")
+  /// The demo user associated with the seat at the time of the event.
+  /// Null for events recorded before a user was provisioned.
+  userId                String?  @map("user_id") @db.Uuid
+  /// provisioned | email_sent | email_opened | email_clicked |
+  /// portal_viewed | report_viewed | alco_downloaded |
+  /// upgrade_clicked | converted | expired | reminder_sent
+  eventType             String   @map("event_type")
+  /// Free-form context: {daysRemaining, language, amountUsd, toTier, ...}
+  metadata              Json?
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  prospect ProspectInstitution @relation(fields: [prospectInstitutionId], references: [id], onDelete: Cascade)
+
+  @@index([prospectInstitutionId, createdAt])
+  @@index([eventType])
+  @@index([userId])
+  @@map("demo_seat_engagement_events")
 }
 
 model IntelligenceAccount {
@@ -1714,6 +1748,13 @@ model CloseJournalEntry {
   postedById   String?             @map("posted_by_id") @db.Uuid
   approvedById String?             @map("approved_by_id") @db.Uuid
   evidenceUrls String[]            @default([]) @map("evidence_urls")
+  // Self-relation: links a reversal JE to the original it reverses. The
+  // original is marked status=REVERSED; the new offsetting JE has its
+  // status=POSTED with reversesJeId pointing back. Real ledgers never
+  // edit posted entries — they post a reversal. Same pattern here.
+  reversesJeId String?             @map("reverses_je_id") @db.Uuid
+  reverses     CloseJournalEntry?  @relation("JeReversal", fields: [reversesJeId], references: [id])
+  reversedBy   CloseJournalEntry[] @relation("JeReversal")
   createdAt    DateTime            @default(now()) @map("created_at")
   updatedAt    DateTime            @updatedAt @map("updated_at")
 
@@ -1721,6 +1762,7 @@ model CloseJournalEntry {
 
   @@unique([cycleId, reference])
   @@index([cycleId, status])
+  @@index([reversesJeId])
   @@map("close_journal_entries")
 }
 
@@ -1833,6 +1875,7 @@ enum CloseActivityKind {
   TASK_CASCADED_UNBLOCK
   TIE_OUT_RUN
   JE_POSTED
+  JE_REVERSED
   FLUX_REFRESHED
   GL_UPLOADED
   RECON_REVIEWED

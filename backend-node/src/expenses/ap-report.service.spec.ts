@@ -91,8 +91,20 @@ describe('ApReportService', () => {
       topVendors: [],
       categoryBreakdown: {},
       findings: [
-        { findingType: 'DUPLICATE_INVOICE', affectedVendor: 'V1', amount: 1000, estimatedRecovery: 1000, severity: 'HIGH' },
-        { findingType: 'AMOUNT_ANOMALY', affectedVendor: 'V2', amount: 500, estimatedRecovery: 250, severity: 'MEDIUM' },
+        {
+          findingType: 'DUPLICATE_INVOICE',
+          affectedVendor: 'V1',
+          amount: 1000,
+          estimatedRecovery: 1000,
+          severity: 'HIGH',
+        },
+        {
+          findingType: 'AMOUNT_ANOMALY',
+          affectedVendor: 'V2',
+          amount: 500,
+          estimatedRecovery: 250,
+          severity: 'MEDIUM',
+        },
       ],
       estimatedTotalRecovery: 1250,
       vendorRiskScores: [],
@@ -101,7 +113,14 @@ describe('ApReportService', () => {
       healthScore: 72,
       topVendorName: 'V1',
       vendorReport: [
-        { vendorName: 'V1', transactionCount: 5, quarterlyTotal: 50000, percentOfTotalSpend: 30, match: null, latestTransactionDate: new Date() },
+        {
+          vendorName: 'V1',
+          transactionCount: 5,
+          quarterlyTotal: 50000,
+          percentOfTotalSpend: 30,
+          match: null,
+          latestTransactionDate: new Date(),
+        },
       ],
     });
     const result = await service.generateAPReport('org-1', null, 'en');
@@ -118,9 +137,15 @@ describe('ApReportService', () => {
   // ── Coverage: report with institutionId for LCR impact ────────
   it('generates report with LCR impact when institutionId is provided', async () => {
     mockAnomalyDetection.calculateApLcrImpact = jest.fn().mockResolvedValue({
-      currentLcr: 120, projectedLcr: 115, hqla: 50, currentNetOutflows: 40,
-      apProjected30Day: 5000, delta: -5, alertLevel: 'ADEQUATE',
-      quarterlyAPTotal: 15000, vsLastQuarter: 10,
+      currentLcr: 120,
+      projectedLcr: 115,
+      hqla: 50,
+      currentNetOutflows: 40,
+      apProjected30Day: 5000,
+      delta: -5,
+      alertLevel: 'ADEQUATE',
+      quarterlyAPTotal: 15000,
+      vsLastQuarter: 10,
     });
     const result = await service.generateAPReport('org-1', 'inst-1', 'en');
     expect(Buffer.isBuffer(result)).toBe(true);
@@ -136,7 +161,9 @@ describe('ApReportService', () => {
 
   // ── Coverage: LCR impact failure ────────────────────────────
   it('generates report even when LCR impact calculation fails', async () => {
-    mockAnomalyDetection.calculateApLcrImpact = jest.fn().mockRejectedValue(new Error('LCR failed'));
+    mockAnomalyDetection.calculateApLcrImpact = jest
+      .fn()
+      .mockRejectedValue(new Error('LCR failed'));
     const result = await service.generateAPReport('org-1', 'inst-fail', 'en');
     expect(Buffer.isBuffer(result)).toBe(true);
   });

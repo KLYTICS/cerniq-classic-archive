@@ -217,10 +217,22 @@ describe('ImmunizationStrategyService', () => {
   it('should recommend buying when asset duration is shorter than liability duration', () => {
     const params: ImmunizationParams = {
       assets: [
-        { name: 'Short Bond', marketValue: 50_000_000, duration: 1.0, convexity: 5, yield: 0.03 },
+        {
+          name: 'Short Bond',
+          marketValue: 50_000_000,
+          duration: 1.0,
+          convexity: 5,
+          yield: 0.03,
+        },
       ],
       liabilities: [
-        { name: 'Long Liability', marketValue: 40_000_000, duration: 5.0, convexity: 3, yield: 0.02 },
+        {
+          name: 'Long Liability',
+          marketValue: 40_000_000,
+          duration: 5.0,
+          convexity: 3,
+          yield: 0.02,
+        },
       ],
       targetHorizon: 3.0,
     };

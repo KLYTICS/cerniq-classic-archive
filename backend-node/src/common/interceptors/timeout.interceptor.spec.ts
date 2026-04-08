@@ -58,7 +58,9 @@ describe('TimeoutInterceptor', () => {
     for (const url of patterns) {
       const ctx = createMockContext(url);
       const handler: CallHandler = { handle: () => of('ok') };
-      interceptor.intercept(ctx, handler).subscribe((r) => expect(r).toBe('ok'));
+      interceptor
+        .intercept(ctx, handler)
+        .subscribe((r) => expect(r).toBe('ok'));
     }
   });
 

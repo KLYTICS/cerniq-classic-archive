@@ -135,7 +135,9 @@ describe('MarketDataService', () => {
     it('throws NotFoundException when provider returns null and no cache', async () => {
       service.clearCaches();
       mockYahooProvider.getQuote.mockResolvedValueOnce(null);
-      await expect(service.getQuote('UNKNOWN')).rejects.toThrow(NotFoundException);
+      await expect(service.getQuote('UNKNOWN')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('returns stale cached quote when provider fails', async () => {
@@ -176,7 +178,9 @@ describe('MarketDataService', () => {
     });
 
     it('throws NotFoundException for crypto tickers', async () => {
-      await expect(service.getFundamentals('BTC')).rejects.toThrow(NotFoundException);
+      await expect(service.getFundamentals('BTC')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('caches fundamentals on second call', async () => {
@@ -189,7 +193,9 @@ describe('MarketDataService', () => {
     it('throws NotFoundException when provider returns null', async () => {
       service.clearCaches();
       mockYahooProvider.getFundamentals.mockResolvedValueOnce(null);
-      await expect(service.getFundamentals('UNKNOWN')).rejects.toThrow(NotFoundException);
+      await expect(service.getFundamentals('UNKNOWN')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -198,14 +204,22 @@ describe('MarketDataService', () => {
       const start = new Date('2025-01-01');
       const end = new Date('2025-12-31');
       await service.getHistoricalPrices('AAPL', start, end);
-      expect(mockYahooProvider.getHistoricalPrices).toHaveBeenCalledWith('AAPL', start, end);
+      expect(mockYahooProvider.getHistoricalPrices).toHaveBeenCalledWith(
+        'AAPL',
+        start,
+        end,
+      );
     });
 
     it('routes crypto tickers to CoinGecko', async () => {
       const start = new Date('2025-01-01');
       const end = new Date('2025-12-31');
       await service.getHistoricalPrices('BTC', start, end);
-      expect(mockCoinGeckoProvider.getHistoricalPrices).toHaveBeenCalledWith('BTC', start, end);
+      expect(mockCoinGeckoProvider.getHistoricalPrices).toHaveBeenCalledWith(
+        'BTC',
+        start,
+        end,
+      );
     });
   });
 
@@ -279,7 +293,9 @@ describe('MarketDataService', () => {
     it('throws NotFoundException when profile null and no cache', async () => {
       service.clearCaches();
       mockYahooProvider.getInstrumentProfile.mockResolvedValueOnce(null);
-      await expect(service.getInstrumentProfile('UNKNOWN')).rejects.toThrow(NotFoundException);
+      await expect(service.getInstrumentProfile('UNKNOWN')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('returns stale cache when profile null but cache exists', async () => {
@@ -352,8 +368,12 @@ describe('MarketDataService', () => {
       for (const state of ['PRE', 'PREPRE', 'PREMARKET']) {
         service.clearCaches();
         mockYahooProvider.getQuote.mockResolvedValueOnce({
-          ticker: 'AAPL', price: 150, change: 0, volume: 0,
-          timestamp: new Date(), marketState: state,
+          ticker: 'AAPL',
+          price: 150,
+          change: 0,
+          volume: 0,
+          timestamp: new Date(),
+          marketState: state,
         });
         const quote = await service.getQuote('AAPL');
         expect(quote.session).toBe('PREMARKET');
@@ -364,8 +384,12 @@ describe('MarketDataService', () => {
       for (const state of ['POST', 'POSTPOST', 'POSTMARKET', 'AFTER_HOURS']) {
         service.clearCaches();
         mockYahooProvider.getQuote.mockResolvedValueOnce({
-          ticker: 'AAPL', price: 150, change: 0, volume: 0,
-          timestamp: new Date(), marketState: state,
+          ticker: 'AAPL',
+          price: 150,
+          change: 0,
+          volume: 0,
+          timestamp: new Date(),
+          marketState: state,
         });
         const quote = await service.getQuote('AAPL');
         expect(quote.session).toBe('AFTER_HOURS');
@@ -375,8 +399,12 @@ describe('MarketDataService', () => {
     it('returns REGULAR for REGULAR state', async () => {
       service.clearCaches();
       mockYahooProvider.getQuote.mockResolvedValueOnce({
-        ticker: 'AAPL', price: 150, change: 0, volume: 0,
-        timestamp: new Date(), marketState: 'REGULAR',
+        ticker: 'AAPL',
+        price: 150,
+        change: 0,
+        volume: 0,
+        timestamp: new Date(),
+        marketState: 'REGULAR',
       });
       const quote = await service.getQuote('AAPL');
       expect(quote.session).toBe('REGULAR');
@@ -385,8 +413,12 @@ describe('MarketDataService', () => {
     it('returns CLOSED for CLOSED state', async () => {
       service.clearCaches();
       mockYahooProvider.getQuote.mockResolvedValueOnce({
-        ticker: 'AAPL', price: 150, change: 0, volume: 0,
-        timestamp: new Date(), marketState: 'CLOSED',
+        ticker: 'AAPL',
+        price: 150,
+        change: 0,
+        volume: 0,
+        timestamp: new Date(),
+        marketState: 'CLOSED',
       });
       const quote = await service.getQuote('AAPL');
       expect(quote.session).toBe('CLOSED');
@@ -395,8 +427,12 @@ describe('MarketDataService', () => {
     it('returns UNKNOWN for unrecognized state', async () => {
       service.clearCaches();
       mockYahooProvider.getQuote.mockResolvedValueOnce({
-        ticker: 'AAPL', price: 150, change: 0, volume: 0,
-        timestamp: new Date(), marketState: 'WEIRD',
+        ticker: 'AAPL',
+        price: 150,
+        change: 0,
+        volume: 0,
+        timestamp: new Date(),
+        marketState: 'WEIRD',
       });
       const quote = await service.getQuote('AAPL');
       expect(quote.session).toBe('UNKNOWN');
@@ -407,8 +443,12 @@ describe('MarketDataService', () => {
   describe('freshnessState', () => {
     it('returns NEAR_REALTIME for quote < 15s old', async () => {
       mockYahooProvider.getQuote.mockResolvedValueOnce({
-        ticker: 'AAPL', price: 150, change: 0, volume: 0,
-        quoteTimestamp: new Date(), timestamp: new Date(),
+        ticker: 'AAPL',
+        price: 150,
+        change: 0,
+        volume: 0,
+        quoteTimestamp: new Date(),
+        timestamp: new Date(),
       });
       service.clearCaches();
       const quote = await service.getQuote('AAPL');
@@ -418,8 +458,12 @@ describe('MarketDataService', () => {
     it('returns STALE for quote > 60s old', async () => {
       const old = new Date(Date.now() - 120_000);
       mockYahooProvider.getQuote.mockResolvedValueOnce({
-        ticker: 'AAPL', price: 150, change: 0, volume: 0,
-        quoteTimestamp: old, timestamp: old,
+        ticker: 'AAPL',
+        price: 150,
+        change: 0,
+        volume: 0,
+        quoteTimestamp: old,
+        timestamp: old,
       });
       service.clearCaches();
       const quote = await service.getQuote('AAPL');
@@ -433,10 +477,14 @@ describe('MarketDataService', () => {
       mockYahooProvider.getQuote.mockRejectedValue(new Error('down'));
       for (let i = 0; i < 5; i++) {
         service.clearCaches();
-        try { await service.getQuote('AAPL'); } catch {}
+        try {
+          await service.getQuote('AAPL');
+        } catch {
+          // expected while tripping the circuit breaker
+        }
       }
       const health = service.getProviderHealth();
-      const yahoo = health.find(h => h.provider === 'yahoo-finance');
+      const yahoo = health.find((h) => h.provider === 'yahoo-finance');
       expect(yahoo!.consecutiveFailures).toBe(5);
       expect(yahoo!.status).toBe('unhealthy');
     });
@@ -445,11 +493,19 @@ describe('MarketDataService', () => {
       mockYahooProvider.getQuote.mockRejectedValue(new Error('down'));
       for (let i = 0; i < 5; i++) {
         service.clearCaches();
-        try { await service.getQuote('AAPL'); } catch {}
+        try {
+          await service.getQuote('AAPL');
+        } catch {
+          // expected while tripping the circuit breaker
+        }
       }
       mockYahooProvider.getQuote.mockClear();
       service.clearCaches();
-      try { await service.getQuote('AAPL'); } catch {}
+      try {
+        await service.getQuote('AAPL');
+      } catch {
+        // expected once the circuit is open
+      }
       expect(mockYahooProvider.getQuote).not.toHaveBeenCalled();
     });
 
@@ -457,14 +513,22 @@ describe('MarketDataService', () => {
       mockYahooProvider.getQuote
         .mockRejectedValueOnce(new Error('fail'))
         .mockResolvedValueOnce({
-          ticker: 'AAPL', price: 180, change: 0, volume: 0, timestamp: new Date(),
+          ticker: 'AAPL',
+          price: 180,
+          change: 0,
+          volume: 0,
+          timestamp: new Date(),
         });
       service.clearCaches();
-      try { await service.getQuote('AAPL'); } catch {}
+      try {
+        await service.getQuote('AAPL');
+      } catch {
+        // expected before the recovery quote succeeds
+      }
       service.clearCaches();
       await service.getQuote('AAPL');
       const health = service.getProviderHealth();
-      const yahoo = health.find(h => h.provider === 'yahoo-finance');
+      const yahoo = health.find((h) => h.provider === 'yahoo-finance');
       expect(yahoo!.consecutiveFailures).toBe(0);
     });
   });
@@ -474,8 +538,14 @@ describe('MarketDataService', () => {
     it('defaults NaN price/change/volume to 0', async () => {
       service.clearCaches();
       mockYahooProvider.getQuote.mockResolvedValueOnce({
-        ticker: 'TEST', price: NaN, change: NaN, changePercent: NaN,
-        volume: NaN, high: NaN, low: NaN, open: NaN,
+        ticker: 'TEST',
+        price: NaN,
+        change: NaN,
+        changePercent: NaN,
+        volume: NaN,
+        high: NaN,
+        low: NaN,
+        open: NaN,
         timestamp: new Date(),
       });
       const quote = await service.getQuote('TEST');
@@ -488,8 +558,14 @@ describe('MarketDataService', () => {
     it('uses price for high/low when they are NaN', async () => {
       service.clearCaches();
       mockYahooProvider.getQuote.mockResolvedValueOnce({
-        ticker: 'TEST', price: 100, change: 0, volume: 0,
-        high: NaN, low: NaN, open: NaN, previousClose: 0,
+        ticker: 'TEST',
+        price: 100,
+        change: 0,
+        volume: 0,
+        high: NaN,
+        low: NaN,
+        open: NaN,
+        previousClose: 0,
         timestamp: new Date(),
       });
       const quote = await service.getQuote('TEST');
@@ -504,7 +580,11 @@ describe('MarketDataService', () => {
       mockYahooProvider.getQuote.mockRejectedValue(new Error('fail'));
       for (let i = 0; i < 5; i++) {
         service.clearCaches();
-        try { await service.getQuote('AAPL'); } catch {}
+        try {
+          await service.getQuote('AAPL');
+        } catch {
+          // expected while forcing unhealthy provider state
+        }
       }
       const health = service.getHealth([]);
       expect(health.status).toBe('unhealthy');
@@ -568,13 +648,20 @@ describe('MarketDataService', () => {
     it('returns healthy with 100% success rate', async () => {
       service.clearCaches();
       mockYahooProvider.getQuote.mockResolvedValueOnce({
-        ticker: 'AAPL', price: 150, change: 2.5, changePercent: 1.69,
-        previousClose: 147.5, volume: 50000000, high: 152, low: 148,
-        open: 149, timestamp: new Date(),
+        ticker: 'AAPL',
+        price: 150,
+        change: 2.5,
+        changePercent: 1.69,
+        previousClose: 147.5,
+        volume: 50000000,
+        high: 152,
+        low: 148,
+        open: 149,
+        timestamp: new Date(),
       });
       await service.getQuote('AAPL');
       const health = service.getProviderHealth();
-      const yahoo = health.find(h => h.provider === 'yahoo-finance');
+      const yahoo = health.find((h) => h.provider === 'yahoo-finance');
       expect(yahoo!.status).toBe('healthy');
       expect(yahoo!.successRate).toBe(100);
     });

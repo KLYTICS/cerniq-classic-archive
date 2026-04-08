@@ -672,7 +672,15 @@ export class AuthService {
 
   async requestPasswordReset(email: string) {
     const successMsg = 'If that email exists, a reset link has been sent';
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const normalizedEmail = this.normalizeEmail(email) || email;
+
+    if (this.platformAccess.isMasterAccountEmail(normalizedEmail)) {
+      await this.ensureMasterAccountProvisioned();
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
     // Always return success to prevent email enumeration
     if (!user) {
       return { message: successMsg };
@@ -945,7 +953,7 @@ export class AuthService {
     provider?: string | null;
     providerId?: string | null;
   }): Promise<ResolvedApplicationUser> {
-    const password = this.getMasterAccountPassword();
+    const password = this.getConfiguredMasterAccountPassword();
     const existing = await this.prisma.user.findUnique({
       where: { email: MASTER_ACCOUNT_EMAIL },
       select: {
@@ -1036,7 +1044,7 @@ export class AuthService {
     return user;
   }
 
-  private getMasterAccountPassword() {
+  private getConfiguredMasterAccountPassword() {
     const configured = (process.env.MASTER_ACCOUNT_PASSWORD || '').trim();
     if (configured) {
       return configured;
@@ -1046,17 +1054,21 @@ export class AuthService {
       return DEV_MASTER_ACCOUNT_PASSWORD;
     }
 
-    throw new UnauthorizedException('Master account is not configured');
+    return null;
   }
 
   private async resolveMasterPasswordHash(
-    password: string,
+    password?: string | null,
     currentHash?: string | null,
   ) {
+    if (!password) {
+      return currentHash || null;
+    }
+
     if (currentHash) {
-      const matches = await bcrypt.compare(password, currentHash).catch(
-        () => false,
-      );
+      const matches = await bcrypt
+        .compare(password, currentHash)
+        .catch(() => false);
       if (matches) {
         return currentHash;
       }

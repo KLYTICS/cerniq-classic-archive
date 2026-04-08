@@ -58,10 +58,34 @@ describe('AssetEWSService', () => {
   // ── Coverage: with actual balance sheet data ──────────────────
   it('computes EWS with real loan segments and balance sheet items', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { category: 'asset', subcategory: 'commercial_loans', balance: 5000, rate: 0.06, duration: 3 },
-      { category: 'asset', subcategory: 'auto_loans', balance: 3000, rate: 0.05, duration: 2 },
-      { category: 'asset', subcategory: 'cash', balance: 1000, rate: 0.01, duration: 0 },
-      { category: 'asset', subcategory: 'securities', balance: 2000, rate: 0.03, duration: 5 },
+      {
+        category: 'asset',
+        subcategory: 'commercial_loans',
+        balance: 5000,
+        rate: 0.06,
+        duration: 3,
+      },
+      {
+        category: 'asset',
+        subcategory: 'auto_loans',
+        balance: 3000,
+        rate: 0.05,
+        duration: 2,
+      },
+      {
+        category: 'asset',
+        subcategory: 'cash',
+        balance: 1000,
+        rate: 0.01,
+        duration: 0,
+      },
+      {
+        category: 'asset',
+        subcategory: 'securities',
+        balance: 2000,
+        rate: 0.03,
+        duration: 5,
+      },
     ]);
     prisma.loanSegment.findMany.mockResolvedValue([
       { balance: 5000, historicalLossRate: 0.03 },
@@ -73,14 +97,20 @@ describe('AssetEWSService', () => {
     expect(result.compositeScore).toBeLessThanOrEqual(100);
     expect(result.indicators).toHaveLength(12);
     // With higher loss rates, some indicators should be yellow/red
-    const nonGreen = result.indicators.filter(i => i.alertLevel !== 'green');
+    const nonGreen = result.indicators.filter((i) => i.alertLevel !== 'green');
     expect(nonGreen.length).toBeGreaterThanOrEqual(0);
   });
 
   // ── Coverage: RED/YELLOW alert levels ────────────────────────
   it('produces RED alert and deteriorating indicators with high loss rates', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { category: 'asset', subcategory: 'commercial_loans', balance: 10000, rate: 0.08, duration: 5 },
+      {
+        category: 'asset',
+        subcategory: 'commercial_loans',
+        balance: 10000,
+        rate: 0.08,
+        duration: 5,
+      },
     ]);
     prisma.loanSegment.findMany.mockResolvedValue([
       { balance: 10000, historicalLossRate: 0.08 }, // very high loss rate
@@ -88,7 +118,9 @@ describe('AssetEWSService', () => {
 
     const result = await service.computeEWS('inst-high-loss');
     // High loss rates should trigger red indicators and lower composite score
-    const redIndicators = result.indicators.filter(i => i.alertLevel === 'red');
+    const redIndicators = result.indicators.filter(
+      (i) => i.alertLevel === 'red',
+    );
     expect(redIndicators.length).toBeGreaterThan(0);
     // Top deteriorating should have entries
     expect(result.topDeteriorating.length).toBeGreaterThanOrEqual(0);
@@ -99,10 +131,16 @@ describe('AssetEWSService', () => {
   // ── Coverage: peer alert when peer_delinquency_gap is not green ──
   it('produces peer divergence alert with high loss rates', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      { category: 'asset', subcategory: 'commercial_loans', balance: 10000, rate: 0.1, duration: 5 },
+      {
+        category: 'asset',
+        subcategory: 'commercial_loans',
+        balance: 10000,
+        rate: 0.1,
+        duration: 5,
+      },
     ]);
     prisma.loanSegment.findMany.mockResolvedValue([
-      { balance: 10000, historicalLossRate: 0.10 },
+      { balance: 10000, historicalLossRate: 0.1 },
     ]);
 
     const result = await service.computeEWS('inst-peer-alert');

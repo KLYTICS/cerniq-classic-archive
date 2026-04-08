@@ -84,7 +84,7 @@ export default function PortalPaywall({ path, subscription, user }: PortalPaywal
         tier,
         customerEmail: user.email,
         customerName: user.name,
-        successUrl: '/portal?welcome=1',
+        successUrl: '/portal/login?billing=success',
         cancelUrl: path.startsWith('/portal') ? path : '/portal',
       });
 

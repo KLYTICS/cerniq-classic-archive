@@ -80,7 +80,14 @@ describe('CreditRiskPlusService', () => {
     // Use very small exposure so distribution does not reach 0.999
     const tinyParams = {
       segments: [
-        { name: 'Micro', nameEs: 'Micro', exposure: 1, pd: 0.0001, lgd: 0.01, count: 1 },
+        {
+          name: 'Micro',
+          nameEs: 'Micro',
+          exposure: 1,
+          pd: 0.0001,
+          lgd: 0.01,
+          count: 1,
+        },
       ],
       confidenceLevel: 0.999,
     };

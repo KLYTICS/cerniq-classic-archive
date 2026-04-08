@@ -28,12 +28,16 @@ describe('environment utilities', () => {
 
     it('throws when env var is missing', () => {
       delete process.env.MISSING_VAR;
-      expect(() => requireEnv('MISSING_VAR')).toThrow('Missing required environment variable');
+      expect(() => requireEnv('MISSING_VAR')).toThrow(
+        'Missing required environment variable',
+      );
     });
 
     it('throws when env var is empty string', () => {
       process.env.EMPTY_VAR = '';
-      expect(() => requireEnv('EMPTY_VAR')).toThrow('Missing required environment variable');
+      expect(() => requireEnv('EMPTY_VAR')).toThrow(
+        'Missing required environment variable',
+      );
     });
   });
 
@@ -97,7 +101,11 @@ describe('environment utilities', () => {
   describe('getEnvList', () => {
     it('splits comma-separated values', () => {
       process.env.ORIGINS = 'http://a.com, http://b.com , http://c.com';
-      expect(getEnvList('ORIGINS')).toEqual(['http://a.com', 'http://b.com', 'http://c.com']);
+      expect(getEnvList('ORIGINS')).toEqual([
+        'http://a.com',
+        'http://b.com',
+        'http://c.com',
+      ]);
     });
 
     it('returns default when not set', () => {

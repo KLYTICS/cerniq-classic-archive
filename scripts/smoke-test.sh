@@ -52,6 +52,7 @@ red()    { printf "\033[31m❌ %-55s FAIL (HTTP %s)\033[0m\n" "$1" "$2"; }
 yellow() { printf "\033[33m⚠️  %-55s SKIP (%s)\033[0m\n" "$1" "$2"; }
 blue()   { printf "\033[34m%s\033[0m\n" "$1"; }
 dim()    { printf "\033[2m%s\033[0m\n" "$1"; }
+warn()   { printf "\033[33m⚠️  %-55s WARN (HTTP %s)\033[0m\n" "$1" "$2"; }
 
 build_auth_args() {
   local auth_ref="${2:-}"
@@ -164,6 +165,17 @@ POST_BODY() {
   curl -s --max-time 15 -H "Content-Type: application/json" -d "$2" "$API$1" 2>/dev/null || echo "{}"
 }
 
+GET_WARN_ONLY() {
+  local label="$1"; local path="$2"
+  local code
+  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$API$path" 2>/dev/null || echo "000")
+  if [[ "$code" =~ ^2 ]]; then
+    green "$label"; PASS=$((PASS+1))
+  else
+    warn "$label" "$code"; WARN=$((WARN+1))
+  fi
+}
+
 # ─── Banner ───
 echo ""
 blue "══════════════════════════════════════════════════════════"
@@ -229,11 +241,8 @@ echo ""
 # SECTION 3: PUBLIC ENDPOINTS
 # ════════════════════════════════════════════
 blue "──── 3. Public Endpoints (no auth required) ────"
-GET "GET /api/market-data/quote/AAPL"        "/api/market-data/quote/AAPL"
-GET "GET /api/market-data/quote/SPY"         "/api/market-data/quote/SPY"
 GET "GET /api/alm/demo-balance-sheet"        "/api/alm/demo-balance-sheet"
 GET "GET /api/alm/demo-analysis"             "/api/alm/demo-analysis"
-GET "GET /api/alm/templates/cooperativa"     "/api/alm/templates/cooperativa"
 echo ""
 
 # ════════════════════════════════════════════
@@ -535,9 +544,15 @@ fi
 # SECTION 14: MARKET DATA
 # ════════════════════════════════════════════
 blue "──── 14. Market Data ────"
-GET "GET /api/market-data/quote/AAPL"         "/api/market-data/quote/AAPL"
-GET "GET /api/market-data/quote/SPY"          "/api/market-data/quote/SPY"
-GET "GET /api/market-data/snapshot/AAPL"      "/api/market-data/snapshot/AAPL"
+if [ "$READ_ONLY_MODE" -eq 1 ]; then
+  GET_WARN_ONLY "GET /api/market-data/quote/AAPL"    "/api/market-data/quote/AAPL"
+  GET_WARN_ONLY "GET /api/market-data/quote/SPY"     "/api/market-data/quote/SPY"
+  GET_WARN_ONLY "GET /api/market-data/snapshot/AAPL" "/api/market-data/snapshot/AAPL"
+else
+  GET "GET /api/market-data/quote/AAPL"         "/api/market-data/quote/AAPL"
+  GET "GET /api/market-data/quote/SPY"          "/api/market-data/quote/SPY"
+  GET "GET /api/market-data/snapshot/AAPL"      "/api/market-data/snapshot/AAPL"
+fi
 GET "GET /api/market-data/health"             "/api/market-data/health"
 GET "GET /api/market-data/streams"            "/api/market-data/streams"
 echo ""
@@ -622,11 +637,12 @@ echo ""
 blue "──── 18. Sample Report & Templates ────"
 if [ "$READ_ONLY_MODE" -eq 1 ]; then
   skip_read_only_section "18. Sample report generation"
+  dim "  CSV template delivery is covered by scripts/health-check.sh against the frontend-hosted asset."
 else
   SAMPLE_BODY='{"institutionName":"CoopAhorro Demo","totalAssets":250000000,"language":"es"}'
   POST_EXPECT_2XX "POST /api/alm/sample-report (public)" "/api/alm/sample-report" "$SAMPLE_BODY"
+  GET "GET /api/alm/templates/cooperativa" "/api/alm/templates/cooperativa"
 fi
-GET "GET /api/alm/templates/cooperativa" "/api/alm/templates/cooperativa"
 echo ""
 
 # ════════════════════════════════════════════

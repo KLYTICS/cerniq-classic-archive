@@ -232,7 +232,7 @@ export default function LandingPage() {
     try {
       const checkoutUrl = await createCheckoutSession({
         tier,
-        successUrl: '/portal?welcome=1',
+        successUrl: '/portal/login?billing=success',
         cancelUrl: '/pricing',
       });
       window.location.href = checkoutUrl;

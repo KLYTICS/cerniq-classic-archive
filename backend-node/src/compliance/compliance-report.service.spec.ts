@@ -157,9 +157,7 @@ describe('ComplianceReportService', () => {
   });
 
   it('handles insufficient logs for gap analysis', async () => {
-    mockPrisma.auditLog.findMany.mockResolvedValue([
-      { createdAt: new Date() },
-    ]);
+    mockPrisma.auditLog.findMany.mockResolvedValue([{ createdAt: new Date() }]);
 
     const report = await service.generateSOC2Evidence();
     const at = report.sections.auditTrail;

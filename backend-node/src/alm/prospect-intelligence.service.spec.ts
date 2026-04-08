@@ -18,10 +18,30 @@ describe('ProspectIntelligenceService', () => {
         institutionName: 'Cooperativa Test',
         items: [
           { category: 'asset', subcategory: 'cash', balance: 30, rate: 0 },
-          { category: 'asset', subcategory: 'residential_mortgage', balance: 150, rate: 0.055 },
-          { category: 'asset', subcategory: 'consumer_loans', balance: 70, rate: 0.08 },
-          { category: 'liability', subcategory: 'savings', balance: 180, rate: 0.02 },
-          { category: 'liability', subcategory: 'time_deposits', balance: 50, rate: 0.035 },
+          {
+            category: 'asset',
+            subcategory: 'residential_mortgage',
+            balance: 150,
+            rate: 0.055,
+          },
+          {
+            category: 'asset',
+            subcategory: 'consumer_loans',
+            balance: 70,
+            rate: 0.08,
+          },
+          {
+            category: 'liability',
+            subcategory: 'savings',
+            balance: 180,
+            rate: 0.02,
+          },
+          {
+            category: 'liability',
+            subcategory: 'time_deposits',
+            balance: 50,
+            rate: 0.035,
+          },
         ],
       }),
     };
@@ -52,11 +72,18 @@ describe('ProspectIntelligenceService', () => {
       institutionName: 'Low Capital CU',
       items: [
         { category: 'asset', subcategory: 'cash', balance: 250, rate: 0 },
-        { category: 'liability', subcategory: 'savings', balance: 230, rate: 0.02 },
+        {
+          category: 'liability',
+          subcategory: 'savings',
+          balance: 230,
+          rate: 0.02,
+        },
       ],
     });
     const result = await service.analyzeProspect('99999');
-    const nwrFlag = result.riskFlags.find((f) => f.metric === 'Net Worth Ratio');
+    const nwrFlag = result.riskFlags.find(
+      (f) => f.metric === 'Net Worth Ratio',
+    );
     expect(nwrFlag).toBeDefined();
     expect(nwrFlag!.actual).toBeLessThan(9.2);
     expect(nwrFlag!.gap).toBeLessThan(0);
@@ -67,8 +94,18 @@ describe('ProspectIntelligenceService', () => {
       institutionName: 'Healthy CU',
       items: [
         { category: 'asset', subcategory: 'cash', balance: 50, rate: 0 },
-        { category: 'asset', subcategory: 'consumer_loans', balance: 100, rate: 0.07 },
-        { category: 'liability', subcategory: 'savings', balance: 130, rate: 0.015 },
+        {
+          category: 'asset',
+          subcategory: 'consumer_loans',
+          balance: 100,
+          rate: 0.07,
+        },
+        {
+          category: 'liability',
+          subcategory: 'savings',
+          balance: 130,
+          rate: 0.015,
+        },
       ],
     });
     const result = await service.analyzeProspect('11111');
@@ -80,7 +117,12 @@ describe('ProspectIntelligenceService', () => {
       institutionName: 'Small CU',
       items: [
         { category: 'asset', subcategory: 'cash', balance: 30, rate: 0 },
-        { category: 'liability', subcategory: 'savings', balance: 25, rate: 0.01 },
+        {
+          category: 'liability',
+          subcategory: 'savings',
+          balance: 25,
+          rate: 0.01,
+        },
       ],
     });
     const result = await service.analyzeProspect('22222');
@@ -92,8 +134,18 @@ describe('ProspectIntelligenceService', () => {
       institutionName: 'Medium CU',
       items: [
         { category: 'asset', subcategory: 'cash', balance: 100, rate: 0 },
-        { category: 'asset', subcategory: 'consumer_loans', balance: 100, rate: 0.06 },
-        { category: 'liability', subcategory: 'savings', balance: 180, rate: 0.02 },
+        {
+          category: 'asset',
+          subcategory: 'consumer_loans',
+          balance: 100,
+          rate: 0.06,
+        },
+        {
+          category: 'liability',
+          subcategory: 'savings',
+          balance: 180,
+          rate: 0.02,
+        },
       ],
     });
     const result = await service.analyzeProspect('33333');
@@ -105,7 +157,12 @@ describe('ProspectIntelligenceService', () => {
       institutionName: 'Large CU',
       items: [
         { category: 'asset', subcategory: 'cash', balance: 500, rate: 0 },
-        { category: 'liability', subcategory: 'savings', balance: 450, rate: 0.02 },
+        {
+          category: 'liability',
+          subcategory: 'savings',
+          balance: 450,
+          rate: 0.02,
+        },
       ],
     });
     const result = await service.analyzeProspect('44444');
@@ -124,11 +181,18 @@ describe('ProspectIntelligenceService', () => {
       institutionName: 'Low NIM CU',
       items: [
         { category: 'asset', subcategory: 'cash', balance: 200, rate: 0.01 },
-        { category: 'liability', subcategory: 'savings', balance: 170, rate: 0.02 },
+        {
+          category: 'liability',
+          subcategory: 'savings',
+          balance: 170,
+          rate: 0.02,
+        },
       ],
     });
     const result = await service.analyzeProspect('55555');
-    const nimFlag = result.riskFlags.find((f) => f.metric === 'Net Interest Margin');
+    const nimFlag = result.riskFlags.find(
+      (f) => f.metric === 'Net Interest Margin',
+    );
     expect(nimFlag).toBeDefined();
     expect(nimFlag!.actual).toBeLessThan(3.6);
   });
@@ -139,12 +203,24 @@ describe('ProspectIntelligenceService', () => {
       institutionName: 'High L/S CU',
       items: [
         { category: 'asset', subcategory: 'cash', balance: 10, rate: 0 },
-        { category: 'asset', subcategory: 'consumer_loans', balance: 180, rate: 0.08 },
-        { category: 'liability', subcategory: 'savings', balance: 170, rate: 0.02 },
+        {
+          category: 'asset',
+          subcategory: 'consumer_loans',
+          balance: 180,
+          rate: 0.08,
+        },
+        {
+          category: 'liability',
+          subcategory: 'savings',
+          balance: 170,
+          rate: 0.02,
+        },
       ],
     });
     const result = await service.analyzeProspect('66666');
-    const ltsFlag = result.riskFlags.find((f) => f.metric === 'Loan-to-Share Ratio');
+    const ltsFlag = result.riskFlags.find(
+      (f) => f.metric === 'Loan-to-Share Ratio',
+    );
     expect(ltsFlag).toBeDefined();
     expect(ltsFlag!.actual).toBeGreaterThan(82);
   });
@@ -154,11 +230,18 @@ describe('ProspectIntelligenceService', () => {
       institutionName: 'Very Low Capital CU',
       items: [
         { category: 'asset', subcategory: 'cash', balance: 100, rate: 0 },
-        { category: 'liability', subcategory: 'savings', balance: 95, rate: 0.02 },
+        {
+          category: 'liability',
+          subcategory: 'savings',
+          balance: 95,
+          rate: 0.02,
+        },
       ],
     });
     const result = await service.analyzeProspect('77777');
-    const nwrFlag = result.riskFlags.find((f) => f.metric === 'Net Worth Ratio');
+    const nwrFlag = result.riskFlags.find(
+      (f) => f.metric === 'Net Worth Ratio',
+    );
     expect(nwrFlag).toBeDefined();
     expect(nwrFlag!.severity).toBe('HIGH');
   });
@@ -168,7 +251,12 @@ describe('ProspectIntelligenceService', () => {
       institutionName: 'Risky CU',
       items: [
         { category: 'asset', subcategory: 'cash', balance: 100, rate: 0 },
-        { category: 'liability', subcategory: 'savings', balance: 95, rate: 0.02 },
+        {
+          category: 'liability',
+          subcategory: 'savings',
+          balance: 95,
+          rate: 0.02,
+        },
       ],
     });
     const result = await service.analyzeProspect('88888');
@@ -201,7 +289,12 @@ describe('ProspectIntelligenceService', () => {
 
   it('analyzeAllProspects skips prospects without publicDataSource', async () => {
     prisma.prospectInstitution.findMany.mockResolvedValue([
-      { id: 'p1', name: 'NoData CU', publicDataSource: null, outreachStatus: 'not_started' },
+      {
+        id: 'p1',
+        name: 'NoData CU',
+        publicDataSource: null,
+        outreachStatus: 'not_started',
+      },
     ]);
     const result = await service.analyzeAllProspects();
     expect(result.analyzed).toBe(0);
@@ -209,7 +302,12 @@ describe('ProspectIntelligenceService', () => {
 
   it('analyzeAllProspects processes valid prospects', async () => {
     prisma.prospectInstitution.findMany.mockResolvedValue([
-      { id: 'p1', name: 'Valid CU', publicDataSource: 'ncua', outreachStatus: 'not_started' },
+      {
+        id: 'p1',
+        name: 'Valid CU',
+        publicDataSource: 'ncua',
+        outreachStatus: 'not_started',
+      },
     ]);
     prisma.prospectInstitution.update.mockResolvedValue({});
     const result = await service.analyzeAllProspects();
@@ -219,7 +317,12 @@ describe('ProspectIntelligenceService', () => {
 
   it('analyzeAllProspects handles errors for individual prospects', async () => {
     prisma.prospectInstitution.findMany.mockResolvedValue([
-      { id: 'p1', name: 'Error CU', publicDataSource: 'ncua', outreachStatus: 'not_started' },
+      {
+        id: 'p1',
+        name: 'Error CU',
+        publicDataSource: 'ncua',
+        outreachStatus: 'not_started',
+      },
     ]);
     ncuaPull.pullByCharterNumber.mockRejectedValue(new Error('Network error'));
     const result = await service.analyzeAllProspects();
@@ -228,7 +331,12 @@ describe('ProspectIntelligenceService', () => {
 
   it('analyzeAllProspects updates prospect status after analysis', async () => {
     prisma.prospectInstitution.findMany.mockResolvedValue([
-      { id: 'p1', name: 'Update CU', publicDataSource: 'ncua', outreachStatus: 'not_started' },
+      {
+        id: 'p1',
+        name: 'Update CU',
+        publicDataSource: 'ncua',
+        outreachStatus: 'not_started',
+      },
     ]);
     prisma.prospectInstitution.update.mockResolvedValue({});
     await service.analyzeAllProspects();
@@ -245,12 +353,24 @@ describe('ProspectIntelligenceService', () => {
       institutionName: 'Healthy CU',
       items: [
         { category: 'asset', subcategory: 'cash', balance: 50, rate: 0 },
-        { category: 'asset', subcategory: 'consumer_loans', balance: 100, rate: 0.07 },
-        { category: 'liability', subcategory: 'savings', balance: 130, rate: 0.015 },
+        {
+          category: 'asset',
+          subcategory: 'consumer_loans',
+          balance: 100,
+          rate: 0.07,
+        },
+        {
+          category: 'liability',
+          subcategory: 'savings',
+          balance: 130,
+          rate: 0.015,
+        },
       ],
     });
     const result = await service.analyzeProspect('11111');
-    const examFlag = result.riskFlags.find((f) => f.metric === 'Exam Preparation');
+    const examFlag = result.riskFlags.find(
+      (f) => f.metric === 'Exam Preparation',
+    );
     if (examFlag) {
       expect(examFlag.severity).toBe('LOW');
       expect(examFlag.narrativeEs).toContain('COSSEC');

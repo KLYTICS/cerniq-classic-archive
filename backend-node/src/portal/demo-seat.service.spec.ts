@@ -10,6 +10,7 @@ describe('DemoSeatService', () => {
   let billing: any;
   let email: any;
   let audit: any;
+  let engagement: any;
 
   const cossecPullResult = {
     slug: 'caguas',
@@ -108,6 +109,10 @@ describe('DemoSeatService', () => {
       log: jest.fn(),
     };
 
+    engagement = {
+      recordEvent: jest.fn().mockResolvedValue(undefined),
+    };
+
     service = new DemoSeatService(
       prisma,
       almEnterprise,
@@ -116,6 +121,7 @@ describe('DemoSeatService', () => {
       billing,
       email,
       audit,
+      engagement,
     );
   });
 

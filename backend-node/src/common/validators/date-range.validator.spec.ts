@@ -67,15 +67,15 @@ describe('MaxDateSpanConstraint', () => {
     }) as any;
 
   it('returns true when span <= maxDays', () => {
-    expect(
-      constraint.validate('2026-01-31', makeArgs('2026-01-01', 365)),
-    ).toBe(true);
+    expect(constraint.validate('2026-01-31', makeArgs('2026-01-01', 365))).toBe(
+      true,
+    );
   });
 
   it('returns false when span > maxDays', () => {
-    expect(
-      constraint.validate('2027-06-01', makeArgs('2026-01-01', 30)),
-    ).toBe(false);
+    expect(constraint.validate('2027-06-01', makeArgs('2026-01-01', 30))).toBe(
+      false,
+    );
   });
 
   it('returns true when startDate is missing', () => {

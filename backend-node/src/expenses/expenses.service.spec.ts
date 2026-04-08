@@ -215,9 +215,9 @@ describe('ExpensesService', () => {
       });
       prisma.expense.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne('exp-999', 'org-1', 'user-1')).rejects.toThrow(
-        'Expense not found',
-      );
+      await expect(
+        service.findOne('exp-999', 'org-1', 'user-1'),
+      ).rejects.toThrow('Expense not found');
     });
   });
 
@@ -329,9 +329,9 @@ describe('ExpensesService', () => {
         status: 'DRAFT',
       });
 
-      await expect(service.approve('exp-1', 'org-1', 'admin-1')).rejects.toThrow(
-        'Only submitted expenses can be approved',
-      );
+      await expect(
+        service.approve('exp-1', 'org-1', 'admin-1'),
+      ).rejects.toThrow('Only submitted expenses can be approved');
     });
 
     it('should throw ForbiddenException for non-admin approve', async () => {

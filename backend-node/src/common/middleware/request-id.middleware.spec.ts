@@ -52,7 +52,8 @@ describe('RequestIdMiddleware', () => {
 
     middleware.use(req, res, next);
 
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     expect(req.id).toMatch(uuidRegex);
   });
 });

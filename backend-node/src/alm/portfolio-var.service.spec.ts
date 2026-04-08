@@ -113,9 +113,9 @@ describe('PortfolioVaRService', () => {
     // Use items that sum to 0
     const prismaZero = {
       balanceSheetItem: {
-        findMany: jest.fn().mockResolvedValue([
-          { balance: 0, duration: 3, category: 'asset' },
-        ]),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ balance: 0, duration: 3, category: 'asset' }]),
       },
     } as any;
     const svc = new PortfolioVaRService(prismaZero);

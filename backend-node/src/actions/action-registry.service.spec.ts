@@ -80,10 +80,9 @@ describe('ActionRegistryService', () => {
   // ── dispatch() — permissions ──────────────────────────────
 
   it('dispatch denies + audits when caller lacks required roles', async () => {
-    service.register(
-      meta({ permissions: ['admin'] }),
-      async () => ({ leaked: 'data' }),
-    );
+    service.register(meta({ permissions: ['admin'] }), async () => ({
+      leaked: 'data',
+    }));
     const result = await service.dispatch(
       'test.action',
       {},
@@ -104,10 +103,9 @@ describe('ActionRegistryService', () => {
   });
 
   it('dispatch allows when caller has at least one matching role', async () => {
-    service.register(
-      meta({ permissions: ['admin', 'analyst'] }),
-      async () => ({ value: 42 }),
-    );
+    service.register(meta({ permissions: ['admin', 'analyst'] }), async () => ({
+      value: 42,
+    }));
     const result = await service.dispatch(
       'test.action',
       {},

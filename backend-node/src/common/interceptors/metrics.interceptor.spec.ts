@@ -5,7 +5,10 @@ import { ResponseHistogramInterceptor } from './response-histogram.interceptor';
 describe('ResponseHistogramInterceptor (metrics)', () => {
   let interceptor: ResponseHistogramInterceptor;
 
-  function createMockContext(method = 'GET', url = '/api/test'): ExecutionContext {
+  function createMockContext(
+    method = 'GET',
+    url = '/api/test',
+  ): ExecutionContext {
     return {
       switchToHttp: () => ({
         getRequest: () => ({ method, originalUrl: url }),

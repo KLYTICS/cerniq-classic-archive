@@ -53,6 +53,11 @@ function createPrismaMock() {
           createdAt: new Date(),
           lastLoginAt: null,
           organizationMembers: [],
+          subscription: {
+            tier: 'demo',
+            status: 'active',
+            currentPeriodEnd: new Date(Date.now() + 7 * 86400_000),
+          },
         };
         users.push(user);
         return Promise.resolve(user);
@@ -90,6 +95,12 @@ function createPrismaMock() {
     },
 
     workspace: {
+      findFirst: jest.fn().mockImplementation(({ where }: any) => {
+        return Promise.resolve(
+          workspaces.find((workspace) => workspace.ownerId === where?.ownerId) ||
+            null,
+        );
+      }),
       create: jest.fn().mockImplementation(({ data }: any) => {
         const ws = { id: crypto.randomUUID(), ...data, createdAt: new Date() };
         workspaces.push(ws);

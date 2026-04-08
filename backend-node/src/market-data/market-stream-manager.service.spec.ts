@@ -48,17 +48,23 @@ describe('MarketStreamManagerService', () => {
 
     it('normalizes ticker via marketDataService', async () => {
       await service.subscribe('aapl');
-      expect(mockMarketDataService.normalizeTicker).toHaveBeenCalledWith('aapl');
+      expect(mockMarketDataService.normalizeTicker).toHaveBeenCalledWith(
+        'aapl',
+      );
     });
 
     it('calls getRealtimeQuote on first subscribe', async () => {
       await service.subscribe('AAPL');
-      expect(mockMarketDataService.getRealtimeQuote).toHaveBeenCalledWith('AAPL');
+      expect(mockMarketDataService.getRealtimeQuote).toHaveBeenCalledWith(
+        'AAPL',
+      );
     });
 
     it('calls getInstrumentProfile on first subscribe', async () => {
       await service.subscribe('AAPL');
-      expect(mockMarketDataService.getInstrumentProfile).toHaveBeenCalledWith('AAPL');
+      expect(mockMarketDataService.getInstrumentProfile).toHaveBeenCalledWith(
+        'AAPL',
+      );
     });
 
     it('calls getNews on first subscribe', async () => {
@@ -108,7 +114,9 @@ describe('MarketStreamManagerService', () => {
     it('normalizes ticker before unsubscribing', async () => {
       await service.subscribe('AAPL');
       service.unsubscribe('aapl');
-      expect(mockMarketDataService.normalizeTicker).toHaveBeenCalledWith('aapl');
+      expect(mockMarketDataService.normalizeTicker).toHaveBeenCalledWith(
+        'aapl',
+      );
     });
 
     it('subscriber count does not go below 0', async () => {
@@ -347,7 +355,9 @@ describe('MarketStreamManagerService', () => {
 
     it('handles all three fetch failures simultaneously', async () => {
       mockMarketDataService.getRealtimeQuote.mockRejectedValue(new Error('Q'));
-      mockMarketDataService.getInstrumentProfile.mockRejectedValue(new Error('P'));
+      mockMarketDataService.getInstrumentProfile.mockRejectedValue(
+        new Error('P'),
+      );
       mockMarketDataService.getNews.mockRejectedValue(new Error('N'));
 
       await service.subscribe('ALLFAIL');
@@ -405,7 +415,7 @@ describe('MarketStreamManagerService', () => {
       await (service as any).publishQuote('TSLA');
 
       const statuses = service.getStreamStatus();
-      const tsla = statuses.find(s => s.ticker === 'TSLA');
+      const tsla = statuses.find((s) => s.ticker === 'TSLA');
       expect(tsla?.lastErrorAt).toBeInstanceOf(Date);
       expect(tsla?.lastErrorMessage).toContain('Quote service down');
     });
@@ -425,7 +435,7 @@ describe('MarketStreamManagerService', () => {
       await (service as any).publishQuote('XERR');
 
       const statuses = service.getStreamStatus();
-      const xerr = statuses.find(s => s.ticker === 'XERR');
+      const xerr = statuses.find((s) => s.ticker === 'XERR');
       expect(xerr?.lastErrorMessage).toContain('Failed to stream quote');
     });
   });
@@ -444,7 +454,7 @@ describe('MarketStreamManagerService', () => {
       await (service as any).publishProfile('PROF');
 
       const statuses = service.getStreamStatus();
-      const prof = statuses.find(s => s.ticker === 'PROF');
+      const prof = statuses.find((s) => s.ticker === 'PROF');
       expect(prof?.lastErrorMessage).toContain('Profile timeout');
     });
 
@@ -461,8 +471,10 @@ describe('MarketStreamManagerService', () => {
       await (service as any).publishProfile('PERR');
 
       const statuses = service.getStreamStatus();
-      const perr = statuses.find(s => s.ticker === 'PERR');
-      expect(perr?.lastErrorMessage).toContain('Failed to stream instrument profile');
+      const perr = statuses.find((s) => s.ticker === 'PERR');
+      expect(perr?.lastErrorMessage).toContain(
+        'Failed to stream instrument profile',
+      );
     });
   });
 
@@ -480,7 +492,7 @@ describe('MarketStreamManagerService', () => {
       await (service as any).publishNews('NEWS');
 
       const statuses = service.getStreamStatus();
-      const news = statuses.find(s => s.ticker === 'NEWS');
+      const news = statuses.find((s) => s.ticker === 'NEWS');
       expect(news?.lastErrorMessage).toContain('News API error');
     });
 
@@ -497,7 +509,7 @@ describe('MarketStreamManagerService', () => {
       await (service as any).publishNews('NERR');
 
       const statuses = service.getStreamStatus();
-      const nerr = statuses.find(s => s.ticker === 'NERR');
+      const nerr = statuses.find((s) => s.ticker === 'NERR');
       expect(nerr?.lastErrorMessage).toContain('Failed to stream news');
     });
   });
@@ -506,13 +518,17 @@ describe('MarketStreamManagerService', () => {
 
   describe('publishProfileAndNews partial failures', () => {
     it('handles partial failures in publishProfileAndNews', async () => {
-      mockMarketDataService.getRealtimeQuote.mockRejectedValueOnce(new Error('Q'));
-      mockMarketDataService.getInstrumentProfile.mockResolvedValueOnce({ ticker: 'PART' });
+      mockMarketDataService.getRealtimeQuote.mockRejectedValueOnce(
+        new Error('Q'),
+      );
+      mockMarketDataService.getInstrumentProfile.mockResolvedValueOnce({
+        ticker: 'PART',
+      });
       mockMarketDataService.getNews.mockRejectedValueOnce(new Error('N'));
 
       await service.subscribe('PART');
       const statuses = service.getStreamStatus();
-      const part = statuses.find(s => s.ticker === 'PART');
+      const part = statuses.find((s) => s.ticker === 'PART');
       // Profile succeeded, so lastProfileAt should be set
       expect(part?.lastProfileAt).toBeInstanceOf(Date);
     });
@@ -549,7 +565,9 @@ describe('MarketStreamManagerService', () => {
       process.env.MARKET_PROFILE_STREAM_INTERVAL_MS = '30000';
       process.env.MARKET_NEWS_STREAM_INTERVAL_MS = '60000';
 
-      const customService = new MarketStreamManagerService(mockMarketDataService as any);
+      const customService = new MarketStreamManagerService(
+        mockMarketDataService as any,
+      );
       expect((customService as any).quotePollIntervalMs).toBe(10000);
       expect((customService as any).profilePollIntervalMs).toBe(30000);
       expect((customService as any).newsPollIntervalMs).toBe(60000);
@@ -563,7 +581,9 @@ describe('MarketStreamManagerService', () => {
     it('uses fallback for negative env var values', () => {
       const orig = process.env.MARKET_STREAM_INTERVAL_MS;
       process.env.MARKET_STREAM_INTERVAL_MS = '-100';
-      const customService = new MarketStreamManagerService(mockMarketDataService as any);
+      const customService = new MarketStreamManagerService(
+        mockMarketDataService as any,
+      );
       expect((customService as any).quotePollIntervalMs).toBe(5000);
       customService.onModuleDestroy();
       process.env.MARKET_STREAM_INTERVAL_MS = orig;

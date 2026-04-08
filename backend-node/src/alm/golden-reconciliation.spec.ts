@@ -19,12 +19,7 @@
  * before it ships. They pin the entire ALM math to a known-good output
  * and turn the canonical fixture into a load-bearing artifact.
  */
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { AlmService } from './alm.service';
 import { DurationService } from './duration.service';
@@ -170,13 +165,8 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
   });
 
   it('getCOSSECCompliance produces the canonical snapshot', async () => {
-    const actual = normalize(
-      await service.getCOSSECCompliance(INSTITUTION_ID),
-    );
-    const expected = loadOrCapture(
-      'pr-cooperativa-demo.cossec.json',
-      actual,
-    );
+    const actual = normalize(await service.getCOSSECCompliance(INSTITUTION_ID));
+    const expected = loadOrCapture('pr-cooperativa-demo.cossec.json', actual);
     expect(actual).toEqual(expected);
   });
 

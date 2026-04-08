@@ -130,7 +130,8 @@ describe('GARCHVolatilityService', () => {
     const result = service.fitAndForecast(returns, dates);
     expect(result.params.longRunVol).toBeGreaterThan(0);
     // longRunVol is sqrt(longRunVariance) * sqrt(252) * 100
-    const expectedLRV = Math.sqrt(result.params.longRunVariance) * Math.sqrt(252) * 100;
+    const expectedLRV =
+      Math.sqrt(result.params.longRunVariance) * Math.sqrt(252) * 100;
     expect(result.params.longRunVol).toBeCloseTo(expectedLRV, 0);
   });
 

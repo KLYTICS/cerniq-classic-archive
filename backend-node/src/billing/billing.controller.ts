@@ -26,10 +26,7 @@ import { CheckoutRequestDto } from './billing.dto';
 import { AuthService } from '../auth/auth.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { AllowBlockedAccess } from '../auth/allow-blocked-access.decorator';
-import {
-  resolveFrontendUrl,
-  setAuthCookies,
-} from '../auth/auth-cookie.util';
+import { resolveFrontendUrl, setAuthCookies } from '../auth/auth-cookie.util';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma.service';
 import { SkipAuditLog } from '../common/decorators/audit-action.decorator';

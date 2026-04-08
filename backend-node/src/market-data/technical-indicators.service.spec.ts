@@ -103,8 +103,8 @@ describe('TechnicalIndicatorsService', () => {
       const ema = service.calculateEMA(data, 3);
       // EMA should react faster to the jump, so the last EMA value > last SMA value
       // (since EMA weights recent data more heavily)
-      const lastSma = sma[sma.length - 1] as number;
-      const lastEma = ema[ema.length - 1] as number;
+      const lastSma = sma[sma.length - 1];
+      const lastEma = ema[ema.length - 1];
       expect(lastEma).toBeGreaterThan(lastSma);
     });
   });
@@ -225,9 +225,9 @@ describe('TechnicalIndicatorsService', () => {
     it('upper band > middle > lower band', () => {
       const result = service.calculateBollingerBands(prices, 10);
       for (let i = 9; i < prices.length; i++) {
-        const upper = result.upper[i] as number;
-        const middle = result.middle[i] as number;
-        const lower = result.lower[i] as number;
+        const upper = result.upper[i];
+        const middle = result.middle[i];
+        const lower = result.lower[i];
         if (upper !== null && middle !== null && lower !== null) {
           expect(upper).toBeGreaterThanOrEqual(middle);
           expect(middle).toBeGreaterThanOrEqual(lower);
@@ -240,7 +240,7 @@ describe('TechnicalIndicatorsService', () => {
       const result = service.calculateBollingerBands(prices, period);
       const sma = service.calculateSMA(prices, period);
       for (let i = period - 1; i < prices.length; i++) {
-        expect(result.middle[i]).toBeCloseTo(sma[i] as number, 8);
+        expect(result.middle[i]).toBeCloseTo(sma[i], 8);
       }
     });
 
@@ -258,8 +258,8 @@ describe('TechnicalIndicatorsService', () => {
       const wide = service.calculateBollingerBands(prices, 10, 3);
       // At each valid index, the width (upper - lower) should be wider for multiplier 3
       for (let i = 9; i < prices.length; i++) {
-        const narrowWidth = (narrow.upper[i] as number) - (narrow.lower[i] as number);
-        const wideWidth = (wide.upper[i] as number) - (wide.lower[i] as number);
+        const narrowWidth = narrow.upper[i] - narrow.lower[i];
+        const wideWidth = wide.upper[i] - wide.lower[i];
         expect(wideWidth).toBeGreaterThan(narrowWidth);
       }
     });
@@ -315,9 +315,18 @@ describe('TechnicalIndicatorsService', () => {
   // ── ATR ────────────────────────────────────────────────────────────
 
   describe('calculateATR', () => {
-    const highs = [48, 48, 48.5, 48.2, 48.8, 49, 49.5, 49.2, 49.8, 50, 50.3, 50.1, 50.5, 50.8, 51, 51.2];
-    const lows = [46, 46.2, 46.5, 46, 46.5, 47, 47.5, 47, 47.5, 48, 48.3, 48, 48.5, 48.8, 49, 49.2];
-    const closes = [47, 47.5, 47.8, 47, 47.5, 48, 48.5, 48, 48.5, 49, 49.3, 49, 49.5, 49.8, 50, 50.2];
+    const highs = [
+      48, 48, 48.5, 48.2, 48.8, 49, 49.5, 49.2, 49.8, 50, 50.3, 50.1, 50.5,
+      50.8, 51, 51.2,
+    ];
+    const lows = [
+      46, 46.2, 46.5, 46, 46.5, 47, 47.5, 47, 47.5, 48, 48.3, 48, 48.5, 48.8,
+      49, 49.2,
+    ];
+    const closes = [
+      47, 47.5, 47.8, 47, 47.5, 48, 48.5, 48, 48.5, 49, 49.3, 49, 49.5, 49.8,
+      50, 50.2,
+    ];
 
     it('returns array matching original length', () => {
       const atr = service.calculateATR(highs, lows, closes, 5);
@@ -342,9 +351,18 @@ describe('TechnicalIndicatorsService', () => {
   // ── Stochastic ─────────────────────────────────────────────────────
 
   describe('calculateStochastic', () => {
-    const highs = [48, 48, 48.5, 48.2, 48.8, 49, 49.5, 49.2, 49.8, 50, 50.3, 50.1, 50.5, 50.8, 51, 51.2];
-    const lows = [46, 46.2, 46.5, 46, 46.5, 47, 47.5, 47, 47.5, 48, 48.3, 48, 48.5, 48.8, 49, 49.2];
-    const closes = [47, 47.5, 47.8, 47, 47.5, 48, 48.5, 48, 48.5, 49, 49.3, 49, 49.5, 49.8, 50, 50.2];
+    const highs = [
+      48, 48, 48.5, 48.2, 48.8, 49, 49.5, 49.2, 49.8, 50, 50.3, 50.1, 50.5,
+      50.8, 51, 51.2,
+    ];
+    const lows = [
+      46, 46.2, 46.5, 46, 46.5, 47, 47.5, 47, 47.5, 48, 48.3, 48, 48.5, 48.8,
+      49, 49.2,
+    ];
+    const closes = [
+      47, 47.5, 47.8, 47, 47.5, 48, 48.5, 48, 48.5, 49, 49.3, 49, 49.5, 49.8,
+      50, 50.2,
+    ];
 
     it('returns k and d arrays', () => {
       const result = service.calculateStochastic(highs, lows, closes, 5);

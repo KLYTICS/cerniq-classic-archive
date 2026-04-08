@@ -1,157 +1,254 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
+import { Check } from 'lucide-react';
+
 import { useTranslation } from '@/lib/i18n';
-import { Globe, Check } from 'lucide-react';
+import { label, labelUnit } from '@/lib/alm/labels';
+import { AlmPage } from '@/components/alm/AlmPage';
+import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
+import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+
+/**
+ * USVI FSC Framework — global (institution-agnostic) endpoint.
+ *
+ * Uses `institutionIdOverride` with a sentinel to bypass the no-institution
+ * check in useAlmEndpoint; the registry endpoint `/api/alm/usvi/framework`
+ * contains no `{id}` placeholder, so substitution is a no-op.
+ */
 
 type USVIPeerBenchmarkKey = 'nim' | 'lcr' | 'nwr' | 'loanToShare';
 
 interface USVIDifference {
-  area: string;
-  pr: string;
-  usvi: string;
+  readonly area: string;
+  readonly pr: string;
+  readonly usvi: string;
 }
 
 interface USVIComplianceEvent {
-  event: string;
-  eventEs: string;
-  frequency: string;
-  nextDueDate: string;
-  regulatoryRef: string;
+  readonly event: string;
+  readonly eventEs: string;
+  readonly frequency: string;
+  readonly nextDueDate: string;
+  readonly regulatoryRef: string;
 }
 
 interface USVIBenchmarkStats {
-  p25: number;
-  p50: number;
-  p75: number;
+  readonly p25: number;
+  readonly p50: number;
+  readonly p75: number;
 }
 
 interface USVIEconomicParams {
-  tourismSeasonalityPeak: number[];
-  dominantSector: string;
-  populationEstimate: number;
-  creditUnionCount: number;
-  avgHurricaneCPRSpike: number;
+  readonly tourismSeasonalityPeak: readonly number[];
+  readonly dominantSector: string;
+  readonly populationEstimate: number;
+  readonly creditUnionCount: number;
+  readonly avgHurricaneCPRSpike: number;
 }
 
 interface USVIFrameworkData {
-  jurisdiction: string;
-  regulator: string;
-  complianceCalendar: USVIComplianceEvent[];
-  economicParams: USVIEconomicParams;
-  peerBenchmarks: Record<USVIPeerBenchmarkKey, USVIBenchmarkStats>;
-  differences: USVIDifference[];
+  readonly jurisdiction: string;
+  readonly regulator: string;
+  readonly complianceCalendar: readonly USVIComplianceEvent[];
+  readonly economicParams: USVIEconomicParams;
+  readonly peerBenchmarks: Readonly<Record<USVIPeerBenchmarkKey, USVIBenchmarkStats>>;
+  readonly differences: readonly USVIDifference[];
 }
 
-export default function USVIPage() {
+function validateUSVI(raw: unknown): USVIFrameworkData {
+  if (!raw || typeof raw !== 'object') throw new Error('USVI response must be an object');
+  const r = raw as Record<string, unknown>;
+  if (typeof r.jurisdiction !== 'string') throw new Error('USVI: missing jurisdiction');
+  if (!Array.isArray(r.complianceCalendar)) throw new Error('USVI: complianceCalendar must be array');
+  if (!Array.isArray(r.differences)) throw new Error('USVI: differences must be array');
+  return r as unknown as USVIFrameworkData;
+}
+
+function getDemo(): USVIFrameworkData {
+  return {
+    jurisdiction: 'USVI',
+    regulator: 'USVI Financial Services Commission (FSC)',
+    complianceCalendar: [
+      { event: 'FSC Annual Examination',  eventEs: 'Examen Anual FSC',    frequency: 'annual',    nextDueDate: '2027-03-31', regulatoryRef: 'USVI FSC §4-201' },
+      { event: 'NCUA 5300 Call Report',   eventEs: 'Informe 5300 NCUA',   frequency: 'quarterly', nextDueDate: '2026-05-15', regulatoryRef: 'NCUA §741.6' },
+      { event: 'BSA/AML Review',          eventEs: 'Revisión BSA/AML',    frequency: 'annual',    nextDueDate: '2027-03-31', regulatoryRef: 'FinCEN' },
+    ],
+    economicParams: {
+      tourismSeasonalityPeak: [11, 12, 1, 2, 3],
+      dominantSector: 'tourism',
+      populationEstimate: 87146,
+      creditUnionCount: 6,
+      avgHurricaneCPRSpike: 0.35,
+    },
+    peerBenchmarks: {
+      nim:         { p25: 2.6, p50: 3.2, p75: 3.8  },
+      lcr:         { p25: 95,  p50: 112, p75: 135  },
+      nwr:         { p25: 7.5, p50: 9.0, p75: 11.2 },
+      loanToShare: { p25: 55,  p50: 65,  p75: 78   },
+    },
+    differences: [
+      { area: 'Primary Regulator',  pr: 'COSSEC',                 usvi: 'USVI FSC' },
+      { area: 'Federal Supervisor', pr: 'NCUA (all)',             usvi: 'NCUA (federal) / FSC (state)' },
+      { area: 'Primary Language',   pr: 'Spanish',                usvi: 'English' },
+      { area: 'Economic Driver',    pr: 'Pharma + tourism + gov', usvi: 'Tourism (dominant)' },
+      { area: 'Hurricane Exposure', pr: 'High',                   usvi: 'Very High' },
+      { area: 'Credit Union Count', pr: '94 cooperativas',        usvi: '~6 credit unions' },
+    ],
+  };
+}
+
+interface BenchmarkRow {
+  readonly key: USVIPeerBenchmarkKey;
+  readonly label: string;
+  readonly p25: number;
+  readonly p50: number;
+  readonly p75: number;
+}
+
+function USVIContent({ data }: { data: USVIFrameworkData }) {
   const { locale } = useTranslation();
-  const [data, setData] = useState<USVIFrameworkData | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-        const res = await fetch(`${NODE_API_URL}/api/alm/usvi/framework`);
-        if (res.ok) setData(await res.json() as USVIFrameworkData);
-        else setData(getDemoData());
-      } catch { setData(getDemoData()); }
-      finally { setLoading(false); }
-    })();
-  }, []);
+  const stripItems = useMemo<readonly MetricStripItem[]>(() => [
+    { key: 'credit_unions',   label: locale === 'es' ? 'Cooperativas'      : 'Credit Unions',       value: data.economicParams.creditUnionCount,      unit: 'count' },
+    { key: 'population',      label: locale === 'es' ? 'Población'          : 'Population',         value: data.economicParams.populationEstimate,    unit: 'count' },
+    { key: 'hurricane_cpr',   label: locale === 'es' ? 'Spike Huracán CPR'  : 'Hurricane CPR Spike', value: data.economicParams.avgHurricaneCPRSpike, unit: 'ratio' },
+    { key: 'compliance_events', label: locale === 'es' ? 'Eventos Cumplim.' : 'Compliance Events',  value: data.complianceCalendar.length,            unit: 'count' },
+    { key: 'pr_usvi_diffs',   label: locale === 'es' ? 'Diferencias PR/USVI' : 'PR/USVI Diffs',      value: data.differences.length,                  unit: 'count' },
+  ], [data, locale]);
 
-  if (loading || !data) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
+  const benchmarkRows = useMemo<readonly BenchmarkRow[]>(
+    () => (Object.entries(data.peerBenchmarks) as Array<[USVIPeerBenchmarkKey, USVIBenchmarkStats]>).map(
+      ([key, stats]) => ({ key, label: label(key, locale), ...stats }),
+    ),
+    [data, locale],
+  );
+
+  const benchmarkColumns = useMemo<readonly DataTableColumn<BenchmarkRow>[]>(() => [
+    { id: 'metric', header: locale === 'es' ? 'Métrica' : 'Metric', kind: 'custom',
+      accessor: (r) => r.label,
+      render: (r) => <span className="text-xs font-medium text-slate-700">{r.label}</span>,
+      align: 'text-left',
+    },
+    { id: 'p25',    header: 'P25', kind: 'custom', accessor: (r) => r.p25,
+      render: (r) => <span className="font-mono text-xs tabular-nums text-slate-500">{r.p25}{labelUnit(r.key) === '%' ? '%' : ''}</span>,
+    },
+    { id: 'p50',    header: 'P50 (median)', kind: 'custom', accessor: (r) => r.p50,
+      render: (r) => <span className="font-mono text-xs font-bold tabular-nums text-slate-900">{r.p50}{labelUnit(r.key) === '%' ? '%' : ''}</span>,
+    },
+    { id: 'p75',    header: 'P75', kind: 'custom', accessor: (r) => r.p75,
+      render: (r) => <span className="font-mono text-xs tabular-nums text-slate-500">{r.p75}{labelUnit(r.key) === '%' ? '%' : ''}</span>,
+    },
+  ], [locale]);
+
+  const differenceColumns = useMemo<readonly DataTableColumn<USVIDifference>[]>(() => [
+    { id: 'area', header: locale === 'es' ? 'Área' : 'Area', kind: 'custom',
+      accessor: (r) => r.area,
+      render: (r) => <span className="text-xs font-medium text-slate-800">{r.area}</span>,
+      align: 'text-left',
+    },
+    { id: 'pr', header: 'Puerto Rico', kind: 'custom',
+      accessor: (r) => r.pr,
+      render: (r) => <span className="text-xs text-slate-600">{r.pr}</span>,
+      align: 'text-left',
+    },
+    { id: 'usvi', header: 'USVI', kind: 'custom',
+      accessor: (r) => r.usvi,
+      render: (r) => <span className="text-xs font-medium text-sky-700">{r.usvi}</span>,
+      align: 'text-left',
+    },
+  ], [locale]);
+
+  const complianceColumns = useMemo<readonly DataTableColumn<USVIComplianceEvent>[]>(() => [
+    { id: 'event', header: locale === 'es' ? 'Evento' : 'Event', kind: 'custom',
+      accessor: (r) => locale === 'es' ? r.eventEs : r.event,
+      render: (r) => (
+        <span className="inline-flex items-center gap-2 text-xs text-slate-700">
+          <Check className="h-3.5 w-3.5 text-sky-500" aria-hidden />
+          {locale === 'es' ? r.eventEs : r.event}
+        </span>
+      ),
+      align: 'text-left',
+    },
+    { id: 'freq', header: locale === 'es' ? 'Frecuencia' : 'Frequency', kind: 'text', accessor: (r) => r.frequency },
+    { id: 'due',  header: locale === 'es' ? 'Próximo'    : 'Next Due',  kind: 'text', accessor: (r) => r.nextDueDate },
+    { id: 'ref',  header: locale === 'es' ? 'Referencia' : 'Reference', kind: 'custom',
+      accessor: (r) => r.regulatoryRef,
+      render: (r) => <span className="text-[10px] font-mono text-slate-400">{r.regulatoryRef}</span>,
+    },
+  ], [locale]);
 
   return (
-    <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-sky-200 bg-sky-50">
-          <Globe className="h-4 w-4 text-sky-700" />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold text-slate-950">{locale === 'es' ? 'Expansión USVI — Marco Regulatorio FSC' : 'USVI Expansion — FSC Regulatory Framework'}</h1>
-          <p className="text-xs text-slate-500">{data.regulator}</p>
-        </div>
-      </div>
+    <>
+      <div className="text-[11px] text-slate-500">{data.regulator}</div>
 
-      {/* PR ↔ USVI Differences */}
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-100">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{locale === 'es' ? 'Diferencias PR ↔ USVI' : 'PR ↔ USVI Differences'}</p>
-        </div>
-        <table className="w-full text-sm">
-          <thead><tr className="border-b border-slate-50 bg-slate-50/50">
-            {[locale === 'es' ? 'Área' : 'Area', 'Puerto Rico', 'USVI'].map(h => <th key={h} className="px-4 py-2 text-left text-[10px] font-medium text-slate-500">{h}</th>)}
-          </tr></thead>
-          <tbody>{data.differences.map((difference, i) => (
-            <tr key={i} className="border-b border-slate-50 last:border-0">
-              <td className="px-4 py-2.5 text-xs font-medium text-slate-700">{difference.area}</td>
-              <td className="px-4 py-2.5 text-xs text-slate-600">{difference.pr}</td>
-              <td className="px-4 py-2.5 text-xs text-sky-700 font-medium">{difference.usvi}</td>
-            </tr>
-          ))}</tbody>
-        </table>
-      </div>
+      <MetricStrip items={stripItems} locale={locale} density="compact" />
 
-      {/* Compliance Calendar */}
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">{locale === 'es' ? 'Calendario de Cumplimiento FSC' : 'FSC Compliance Calendar'}</p>
-        {data.complianceCalendar.map((event, i) => (
-          <div key={i} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
-            <Check className="h-3.5 w-3.5 text-sky-500" />
-            <span className="text-xs text-slate-700 flex-1">{locale === 'es' ? event.eventEs : event.event}</span>
-            <span className="text-[10px] text-slate-500">{event.frequency}</span>
-            <span className="text-[10px] tabular-nums text-slate-400">{event.nextDueDate}</span>
-          </div>
-        ))}
-      </div>
+      {/* PR ↔ USVI differences */}
+      <section>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {locale === 'es' ? 'Diferencias PR ↔ USVI' : 'PR ↔ USVI Differences'}
+        </p>
+        <DataTable
+          rows={data.differences}
+          columns={differenceColumns}
+          locale={locale}
+          rowKey={(r) => r.area}
+        />
+      </section>
 
-      {/* USVI Peer Benchmarks */}
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">{locale === 'es' ? 'Benchmarks Pares USVI' : 'USVI Peer Benchmarks'}</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {(Object.entries(data.peerBenchmarks) as Array<[USVIPeerBenchmarkKey, USVIBenchmarkStats]>).map(([key, stats]) => (
-            <div key={key} className="rounded-lg border border-slate-100 p-3 text-center">
-              <p className="text-[10px] font-medium uppercase text-slate-400">{key.toUpperCase()}</p>
-              <p className="text-sm font-bold tabular-nums text-slate-950">{stats.p50}{key === 'nim' || key === 'nwr' ? '%' : key === 'lcr' || key === 'loanToShare' ? '%' : ''}</p>
-              <p className="text-[9px] text-slate-400">p25: {stats.p25} | p75: {stats.p75}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Compliance calendar */}
+      <section>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {locale === 'es' ? 'Calendario de Cumplimiento FSC' : 'FSC Compliance Calendar'}
+        </p>
+        <DataTable
+          rows={data.complianceCalendar}
+          columns={complianceColumns}
+          locale={locale}
+          rowKey={(r) => r.event}
+        />
+      </section>
 
-      {/* Economic Parameters */}
-      <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 mb-2">{locale === 'es' ? 'Parámetros Económicos USVI' : 'USVI Economic Parameters'}</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-amber-800">
-          <div>{locale === 'es' ? 'Sector Dominante' : 'Dominant Sector'}: <strong>{data.economicParams.dominantSector}</strong></div>
-          <div>{locale === 'es' ? 'Cooperativas' : 'Credit Unions'}: <strong>{data.economicParams.creditUnionCount}</strong></div>
+      {/* Peer benchmarks */}
+      <section>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {locale === 'es' ? 'Benchmarks Pares USVI' : 'USVI Peer Benchmarks'}
+        </p>
+        <DataTable
+          rows={benchmarkRows}
+          columns={benchmarkColumns}
+          locale={locale}
+          rowKey={(r) => r.key}
+        />
+      </section>
+
+      {/* Economic parameters sidebar */}
+      <section className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-700">
+          {locale === 'es' ? 'Parámetros Económicos' : 'Economic Parameters'}
+        </p>
+        <div className="grid grid-cols-2 gap-3 text-xs text-amber-800 md:grid-cols-4">
+          <div>{locale === 'es' ? 'Sector dominante' : 'Dominant sector'}: <strong>{data.economicParams.dominantSector}</strong></div>
+          <div>{locale === 'es' ? 'Cooperativas'     : 'Credit Unions'}:   <strong>{data.economicParams.creditUnionCount}</strong></div>
           <div>Hurricane CPR: <strong>+{(data.economicParams.avgHurricaneCPRSpike * 100).toFixed(0)}%</strong></div>
-          <div>{locale === 'es' ? 'Población' : 'Population'}: <strong>{data.economicParams.populationEstimate.toLocaleString()}</strong></div>
+          <div>{locale === 'es' ? 'Población'        : 'Population'}: <strong>{data.economicParams.populationEstimate.toLocaleString()}</strong></div>
         </div>
-      </div>
-    </div>
+      </section>
+    </>
   );
 }
 
-function getDemoData(): USVIFrameworkData {
-  return {
-    jurisdiction: 'USVI', regulator: 'USVI Financial Services Commission (FSC)',
-    complianceCalendar: [
-      { event: 'FSC Annual Examination', eventEs: 'Examen Anual FSC', frequency: 'annual', nextDueDate: '2027-03-31', regulatoryRef: 'USVI FSC §4-201' },
-      { event: 'NCUA 5300 Call Report', eventEs: 'Informe 5300 NCUA', frequency: 'quarterly', nextDueDate: '2026-05-15', regulatoryRef: 'NCUA §741.6' },
-      { event: 'BSA/AML Review', eventEs: 'Revisión BSA/AML', frequency: 'annual', nextDueDate: '2027-03-31', regulatoryRef: 'FinCEN' },
-    ],
-    economicParams: { tourismSeasonalityPeak: [11, 12, 1, 2, 3], dominantSector: 'tourism', populationEstimate: 87146, creditUnionCount: 6, avgHurricaneCPRSpike: 0.35 },
-    peerBenchmarks: { nim: { p25: 2.6, p50: 3.2, p75: 3.8 }, lcr: { p25: 95, p50: 112, p75: 135 }, nwr: { p25: 7.5, p50: 9.0, p75: 11.2 }, loanToShare: { p25: 55, p50: 65, p75: 78 } },
-    differences: [
-      { area: 'Primary Regulator', pr: 'COSSEC', usvi: 'USVI FSC' },
-      { area: 'Federal Supervisor', pr: 'NCUA (all)', usvi: 'NCUA (federal) / FSC (state)' },
-      { area: 'Primary Language', pr: 'Spanish', usvi: 'English' },
-      { area: 'Economic Driver', pr: 'Pharma + tourism + gov', usvi: 'Tourism (dominant)' },
-      { area: 'Hurricane Exposure', pr: 'High', usvi: 'Very High' },
-      { area: 'Credit Union Count', pr: '94 cooperativas', usvi: '~6 credit unions' },
-    ],
-  };
+export default function USVIPage() {
+  return (
+    <AlmPage<USVIFrameworkData>
+      slug="usvi"
+      iconTint="sky"
+      institutionIdOverride="global"
+      validate={validateUSVI}
+      getDemo={getDemo}
+    >
+      {(data) => <USVIContent data={data} />}
+    </AlmPage>
+  );
 }

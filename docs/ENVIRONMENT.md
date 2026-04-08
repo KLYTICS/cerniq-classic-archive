@@ -114,6 +114,7 @@ Each `.env.example` file contains all variables with sensible development defaul
 | `STRIPE_PRICE_ANNUAL` | ⚠️ | — | Price ID for annual subscription |
 | `STRIPE_PRICE_PARTNER` | ⚠️ | — | Price ID for partner tier |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | ⚠️ | — | Stripe publishable key (frontend) |
+| `NEXT_PUBLIC_SENTRY_DSN` | ⚠️ | — | Client-side Sentry DSN for browser error tracking |
 
 ---
 
@@ -123,6 +124,7 @@ Each `.env.example` file contains all variables with sensible development defaul
 |----------|----------|---------|-------------|
 | `RESEND_API_KEY` | ⚠️ | — | Resend API key |
 | `ERWIN_EMAIL` | ❌ | `eskiessalfonso@gmail.com` | Admin notification email |
+| `SLACK_WEBHOOK_URL` | ❌ | — | Slack incoming webhook for sales alerts |
 
 ---
 
@@ -240,8 +242,12 @@ Each `.env.example` file contains all variables with sensible development defaul
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `LOG_LEVEL` | ❌ | `info` | Pino log level (debug, info, warn, error) |
-| `SENTRY_DSN` | ⚠️ | — | Sentry error tracking DSN (backend) |
-| `NEXT_PUBLIC_SENTRY_DSN` | ⚠️ | — | Sentry error tracking DSN (frontend) |
+| `SENTRY_DSN` | ⚠️ | — | Server-side Sentry DSN (backend + Next server runtime) |
+| `NEXT_PUBLIC_SENTRY_DSN` | ⚠️ | — | Client-side Sentry DSN (browser runtime) |
+| `SENTRY_ORG` | ❌ | — | Sentry organization slug for source map upload |
+| `SENTRY_PROJECT` | ❌ | — | Sentry project slug for source map upload |
+| `SENTRY_AUTH_TOKEN` | ❌ | — | Sentry auth token for release + sourcemap upload |
+| `SENTRY_RELEASE` | ❌ | — | Optional explicit frontend release identifier |
 | `SENTRY_ORG` | ❌ | — | Sentry organization slug |
 | `SENTRY_PROJECT` | ❌ | — | Sentry project slug |
 | `SENTRY_AUTH_TOKEN` | ❌ | — | Sentry auth token (for source maps) |

@@ -104,17 +104,32 @@ describe('CircuitBreakerService', () => {
 
       // Trip open for monte_carlo (threshold: 3, cooldown: 30000)
       for (let i = 0; i < 3; i++) {
-        await service.execute('monte_carlo', async () => { throw new Error('err'); }, () => null);
+        await service.execute(
+          'monte_carlo',
+          async () => {
+            throw new Error('err');
+          },
+          () => null,
+        );
       }
-      expect(service.getStatus().find(s => s.service === 'monte_carlo')?.state).toBe('open');
+      expect(
+        service.getStatus().find((s) => s.service === 'monte_carlo')?.state,
+      ).toBe('open');
 
       // Advance past cooldown (30s)
       now += 31000;
 
-      const result = await service.execute('monte_carlo', async () => 'recovered');
+      const result = await service.execute(
+        'monte_carlo',
+        async () => 'recovered',
+      );
       expect(result).toBe('recovered');
-      expect(service.getStatus().find(s => s.service === 'monte_carlo')?.state).toBe('closed');
-      expect(service.getStatus().find(s => s.service === 'monte_carlo')?.failures).toBe(0);
+      expect(
+        service.getStatus().find((s) => s.service === 'monte_carlo')?.state,
+      ).toBe('closed');
+      expect(
+        service.getStatus().find((s) => s.service === 'monte_carlo')?.failures,
+      ).toBe(0);
 
       Date.now = realNow;
     });
@@ -125,14 +140,28 @@ describe('CircuitBreakerService', () => {
       Date.now = () => now;
 
       for (let i = 0; i < 3; i++) {
-        await service.execute('monte_carlo', async () => { throw new Error('err'); }, () => null);
+        await service.execute(
+          'monte_carlo',
+          async () => {
+            throw new Error('err');
+          },
+          () => null,
+        );
       }
 
       now += 31000;
 
       // Fail during half_open → should go back to open
-      await service.execute('monte_carlo', async () => { throw new Error('still broken'); }, () => null);
-      expect(service.getStatus().find(s => s.service === 'monte_carlo')?.state).toBe('open');
+      await service.execute(
+        'monte_carlo',
+        async () => {
+          throw new Error('still broken');
+        },
+        () => null,
+      );
+      expect(
+        service.getStatus().find((s) => s.service === 'monte_carlo')?.state,
+      ).toBe('open');
 
       Date.now = realNow;
     });
@@ -143,7 +172,13 @@ describe('CircuitBreakerService', () => {
       Date.now = () => now;
 
       for (let i = 0; i < 3; i++) {
-        await service.execute('monte_carlo', async () => { throw new Error('err'); }, () => null);
+        await service.execute(
+          'monte_carlo',
+          async () => {
+            throw new Error('err');
+          },
+          () => null,
+        );
       }
 
       now += 31000;
@@ -162,14 +197,22 @@ describe('CircuitBreakerService', () => {
       Date.now = () => now;
 
       // Create a circuit with a failure, then recover it (state will be closed with lastFailure > 0)
-      await service.execute('stale_svc', async () => { throw new Error('err'); }, () => null);
+      await service.execute(
+        'stale_svc',
+        async () => {
+          throw new Error('err');
+        },
+        () => null,
+      );
       await service.execute('stale_svc', async () => 'ok');
 
       // Advance past 1 hour
       now += 3_600_001;
       (service as any).evictStale();
 
-      expect(service.getStatus().find(s => s.service === 'stale_svc')).toBeUndefined();
+      expect(
+        service.getStatus().find((s) => s.service === 'stale_svc'),
+      ).toBeUndefined();
       Date.now = realNow;
     });
 
@@ -179,12 +222,20 @@ describe('CircuitBreakerService', () => {
       Date.now = () => now;
 
       for (let i = 0; i < 5; i++) {
-        await service.execute('open_svc', async () => { throw new Error('err'); }, () => null);
+        await service.execute(
+          'open_svc',
+          async () => {
+            throw new Error('err');
+          },
+          () => null,
+        );
       }
 
       now += 3_600_001;
       (service as any).evictStale();
-      expect(service.getStatus().find(s => s.service === 'open_svc')).toBeDefined();
+      expect(
+        service.getStatus().find((s) => s.service === 'open_svc'),
+      ).toBeDefined();
 
       Date.now = realNow;
     });
@@ -193,7 +244,9 @@ describe('CircuitBreakerService', () => {
       await service.execute('fresh_svc', async () => 'ok');
       (service as any).evictStale();
       // lastFailure is 0 and openedAt is 0, so lastActivity is 0 which is > 0 check fails
-      expect(service.getStatus().find(s => s.service === 'fresh_svc')).toBeDefined();
+      expect(
+        service.getStatus().find((s) => s.service === 'fresh_svc'),
+      ).toBeDefined();
     });
   });
 
@@ -207,7 +260,9 @@ describe('CircuitBreakerService', () => {
 
       for (let i = 0; i < 5; i++) {
         await expect(
-          service.execute('default', async () => { throw new Error('err'); }),
+          service.execute('default', async () => {
+            throw new Error('err');
+          }),
         ).rejects.toThrow();
       }
 
@@ -229,9 +284,17 @@ describe('CircuitBreakerService', () => {
   describe('named configs', () => {
     it('ncua_pull has threshold 3', async () => {
       for (let i = 0; i < 3; i++) {
-        await service.execute('ncua_pull', async () => { throw new Error('err'); }, () => null);
+        await service.execute(
+          'ncua_pull',
+          async () => {
+            throw new Error('err');
+          },
+          () => null,
+        );
       }
-      expect(service.getStatus().find(s => s.service === 'ncua_pull')?.state).toBe('open');
+      expect(
+        service.getStatus().find((s) => s.service === 'ncua_pull')?.state,
+      ).toBe('open');
     });
 
     it('claude_api recovers after 1-min cooldown', async () => {
@@ -240,7 +303,13 @@ describe('CircuitBreakerService', () => {
       Date.now = () => now;
 
       for (let i = 0; i < 5; i++) {
-        await service.execute('claude_api', async () => { throw new Error('err'); }, () => null);
+        await service.execute(
+          'claude_api',
+          async () => {
+            throw new Error('err');
+          },
+          () => null,
+        );
       }
 
       now += 60001;
@@ -252,23 +321,47 @@ describe('CircuitBreakerService', () => {
 
     it('fred_api has threshold 3', async () => {
       for (let i = 0; i < 3; i++) {
-        await service.execute('fred_api', async () => { throw new Error('err'); }, () => null);
+        await service.execute(
+          'fred_api',
+          async () => {
+            throw new Error('err');
+          },
+          () => null,
+        );
       }
-      expect(service.getStatus().find(s => s.service === 'fred_api')?.state).toBe('open');
+      expect(
+        service.getStatus().find((s) => s.service === 'fred_api')?.state,
+      ).toBe('open');
     });
 
     it('stripe_api has threshold 3', async () => {
       for (let i = 0; i < 3; i++) {
-        await service.execute('stripe_api', async () => { throw new Error('err'); }, () => null);
+        await service.execute(
+          'stripe_api',
+          async () => {
+            throw new Error('err');
+          },
+          () => null,
+        );
       }
-      expect(service.getStatus().find(s => s.service === 'stripe_api')?.state).toBe('open');
+      expect(
+        service.getStatus().find((s) => s.service === 'stripe_api')?.state,
+      ).toBe('open');
     });
 
     it('unknown key uses default config', async () => {
       for (let i = 0; i < 5; i++) {
-        await service.execute('unknown_svc', async () => { throw new Error('err'); }, () => null);
+        await service.execute(
+          'unknown_svc',
+          async () => {
+            throw new Error('err');
+          },
+          () => null,
+        );
       }
-      expect(service.getStatus().find(s => s.service === 'unknown_svc')?.state).toBe('open');
+      expect(
+        service.getStatus().find((s) => s.service === 'unknown_svc')?.state,
+      ).toBe('open');
     });
   });
 

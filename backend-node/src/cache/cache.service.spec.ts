@@ -241,7 +241,9 @@ describe('CacheService', () => {
       expect(redis.on).toHaveBeenCalledWith('error', expect.any(Function));
 
       // Actually invoke the callbacks to cover lines 26 and 30
-      const connectCall = redis.on.mock.calls.find((c: any) => c[0] === 'connect');
+      const connectCall = redis.on.mock.calls.find(
+        (c: any) => c[0] === 'connect',
+      );
       const errorCall = redis.on.mock.calls.find((c: any) => c[0] === 'error');
       if (connectCall) connectCall[1](); // trigger connect callback
       if (errorCall) errorCall[1](new Error('test error')); // trigger error callback

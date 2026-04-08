@@ -1,82 +1,110 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useALM } from '@/components/alm/ALMProvider';
-import { useTranslation } from '@/lib/i18n';
+import { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Ruler, AlertTriangle } from 'lucide-react';
+
+import { useTranslation } from '@/lib/i18n';
+import { AlmPage } from '@/components/alm/AlmPage';
+import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
+import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
 
 interface PortfolioKRDPoint {
-  tenor: string;
-  tenorYears: number;
-  krd: number;
+  readonly tenor: string;
+  readonly tenorYears: number;
+  readonly krd: number;
 }
 
 interface InstrumentKRDDetail {
-  instrumentName: string;
-  balance: number;
-  modifiedDuration: number;
-  effectiveDuration: number;
-  convexity: number;
+  readonly instrumentName: string;
+  readonly balance: number;
+  readonly modifiedDuration: number;
+  readonly effectiveDuration: number;
+  readonly convexity: number;
 }
 
 interface KeyRateDurationData {
-  instruments: InstrumentKRDDetail[];
-  portfolioModifiedDuration: number;
-  portfolioEffectiveDuration: number;
-  portfolioConvexity: number;
-  durationGap: number;
-  negativeConvexityExposure: number;
-  portfolioKRDs: PortfolioKRDPoint[];
+  readonly instruments: readonly InstrumentKRDDetail[];
+  readonly portfolioModifiedDuration: number;
+  readonly portfolioEffectiveDuration: number;
+  readonly portfolioConvexity: number;
+  readonly durationGap: number;
+  readonly negativeConvexityExposure: number;
+  readonly portfolioKRDs: readonly PortfolioKRDPoint[];
 }
 
-export default function KRDPage() {
-  const { selectedId } = useALM();
+function validateKRD(raw: unknown): KeyRateDurationData {
+  if (!raw || typeof raw !== 'object') throw new Error('KRD response must be an object');
+  const r = raw as Record<string, unknown>;
+  if (typeof r.portfolioModifiedDuration !== 'number') throw new Error('KRD: missing portfolioModifiedDuration');
+  if (!Array.isArray(r.portfolioKRDs)) throw new Error('KRD: portfolioKRDs must be array');
+  return r as unknown as KeyRateDurationData;
+}
+
+function getDemo(): KeyRateDurationData {
+  return {
+    instruments: [
+      { instrumentName: 'Agency MBS 15Y', balance: 85,  modifiedDuration: 5.2, effectiveDuration: 4.1, convexity: -2.1 },
+      { instrumentName: 'UST 10Y',        balance: 45,  modifiedDuration: 8.4, effectiveDuration: 8.4, convexity:  0.7 },
+      { instrumentName: 'Corporate IG 5Y',balance: 62,  modifiedDuration: 4.1, effectiveDuration: 4.0, convexity:  0.3 },
+      { instrumentName: 'UST 2Y',         balance: 38,  modifiedDuration: 1.9, effectiveDuration: 1.9, convexity:  0.1 },
+      { instrumentName: 'Muni 7Y',        balance: 22,  modifiedDuration: 6.1, effectiveDuration: 5.8, convexity:  0.4 },
+    ],
+    portfolioModifiedDuration: 4.2,
+    portfolioEffectiveDuration: 3.8,
+    portfolioConvexity: -0.6,
+    durationGap: 2.1,
+    negativeConvexityExposure: 50,
+    portfolioKRDs: [
+      { tenor: '3M',  tenorYears: 0.25, krd: 0.12 },
+      { tenor: '1Y',  tenorYears: 1,    krd: 0.35 },
+      { tenor: '2Y',  tenorYears: 2,    krd: 0.58 },
+      { tenor: '3Y',  tenorYears: 3,    krd: 0.72 },
+      { tenor: '5Y',  tenorYears: 5,    krd: 0.85 },
+      { tenor: '7Y',  tenorYears: 7,    krd: 0.62 },
+      { tenor: '10Y', tenorYears: 10,   krd: 0.38 },
+      { tenor: '30Y', tenorYears: 30,   krd: 0.18 },
+    ],
+  };
+}
+
+function KRDContent({ data }: { data: KeyRateDurationData }) {
   const { locale } = useTranslation();
-  const [data, setData] = useState<KeyRateDurationData | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!selectedId) return;
-    (async () => {
-      setLoading(true);
-      try {
-        const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-        const res = await fetch(`${NODE_API_URL}/api/alm/${selectedId}/key-rate-durations`);
-        if (res.ok) setData(await res.json() as KeyRateDurationData);
-        else setData(getDemoData());
-      } catch { setData(getDemoData()); }
-      finally { setLoading(false); }
-    })();
-  }, [selectedId]);
+  const stripItems = useMemo<readonly MetricStripItem[]>(() => [
+    { key: 'mod_duration',       label: locale === 'es' ? 'Duración Modificada' : 'Modified Duration', value: data.portfolioModifiedDuration,  unit: 'years' },
+    { key: 'eff_duration',       label: locale === 'es' ? 'Duración Efectiva'   : 'Effective Duration', value: data.portfolioEffectiveDuration, unit: 'years' },
+    { key: 'convexity',          value: data.portfolioConvexity, unit: 'x' },
+    { key: 'duration_gap',       label: locale === 'es' ? 'Brecha Duración' : 'Duration Gap', value: data.durationGap, unit: 'years' },
+    { key: 'neg_convexity_exp',  label: locale === 'es' ? 'Conv. Negativa' : 'Neg. Convexity Exp.',    value: data.negativeConvexityExposure, unit: 'USD_M' },
+    { key: 'tenor_points',       label: locale === 'es' ? 'Puntos KRD' : 'KRD Points',                  value: data.portfolioKRDs.length, unit: 'count' },
+  ], [data, locale]);
 
-  if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
-  if (loading || !data) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
+  const instrumentColumns = useMemo<readonly DataTableColumn<InstrumentKRDDetail>[]>(() => [
+    { id: 'name',    header: locale === 'es' ? 'Instrumento' : 'Instrument', kind: 'text',   accessor: (r) => r.instrumentName, align: 'text-left' },
+    { id: 'balance', header: locale === 'es' ? 'Balance'     : 'Balance',    kind: 'number', accessor: (r) => r.balance,          unit: 'USD_M' },
+    { id: 'mod',     header: locale === 'es' ? 'Dur. Mod.'   : 'Mod. Dur.',  kind: 'number', accessor: (r) => r.modifiedDuration,  unit: 'years' },
+    { id: 'eff',     header: locale === 'es' ? 'Dur. Efec.'  : 'Eff. Dur.',  kind: 'number', accessor: (r) => r.effectiveDuration, unit: 'years' },
+    { id: 'convex',  header: locale === 'es' ? 'Convexidad'  : 'Convexity',  kind: 'custom',
+      accessor: (r) => r.convexity,
+      render: (r) => (
+        <span className={`font-mono text-xs font-bold tabular-nums ${r.convexity < 0 ? 'text-rose-600' : 'text-slate-700'}`}>
+          {r.convexity.toFixed(2)}
+        </span>
+      ),
+    },
+  ], [locale]);
 
   return (
-    <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-teal-200 bg-teal-50">
-          <Ruler className="h-4 w-4 text-teal-700" />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold text-slate-950">{locale === 'es' ? 'Duraciones de Tasa Clave (KRD)' : 'Key-Rate Durations (KRD)'}</h1>
-          <p className="text-xs text-slate-500">{locale === 'es' ? 'Sensibilidad por tenor, convexidad efectiva, brecha de duración' : 'Sensitivity by tenor, effective convexity, duration gap'}</p>
-        </div>
-      </div>
+    <>
+      <MetricStrip items={stripItems} locale={locale} density="compact" />
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KPI label={locale === 'es' ? 'Dur. Modificada' : 'Mod. Duration'} value={`${data.portfolioModifiedDuration} yr`} />
-        <KPI label={locale === 'es' ? 'Dur. Efectiva' : 'Eff. Duration'} value={`${data.portfolioEffectiveDuration} yr`} accent />
-        <KPI label={locale === 'es' ? 'Convexidad' : 'Convexity'} value={data.portfolioConvexity.toFixed(2)} warn={data.portfolioConvexity < -1} />
-        <KPI label={locale === 'es' ? 'Brecha Duración' : 'Duration Gap'} value={`${data.durationGap} yr`} />
-        <KPI label={locale === 'es' ? 'Conv. Negativa ($M)' : 'Neg. Convexity ($M)'} value={`$${data.negativeConvexityExposure}M`} warn={data.negativeConvexityExposure > 30} />
-      </div>
-
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-4">{locale === 'es' ? 'Perfil KRD del Portafolio' : 'Portfolio KRD Profile'}</p>
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={data.portfolioKRDs}>
+      {/* KRD profile chart */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {locale === 'es' ? 'Perfil KRD del Portafolio' : 'Portfolio KRD Profile'}
+        </p>
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={data.portfolioKRDs as PortfolioKRDPoint[]}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="tenor" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} label={{ value: locale === 'es' ? 'Años' : 'Years', angle: -90, position: 'insideLeft', style: { fontSize: 10 } }} />
@@ -84,57 +112,30 @@ export default function KRDPage() {
             <Bar dataKey="krd" name="KRD" fill="#14b8a6" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
-      </div>
+      </section>
 
-      {data.instruments?.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{locale === 'es' ? 'Detalle por Instrumento' : 'Instrument Detail'}</p>
-          </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-50 bg-slate-50/50">
-                {[locale === 'es' ? 'Instrumento' : 'Instrument', locale === 'es' ? 'Balance' : 'Balance', locale === 'es' ? 'Dur. Mod.' : 'Mod. Dur.', locale === 'es' ? 'Dur. Efec.' : 'Eff. Dur.', locale === 'es' ? 'Convexidad' : 'Convexity'].map(h => (
-                  <th key={h} className="px-4 py-2 text-left text-[10px] font-medium text-slate-500">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.instruments.map((inst, i) => (
-                <tr key={i} className="border-b border-slate-50 last:border-0">
-                  <td className="px-4 py-2.5 text-xs font-medium text-slate-700">{inst.instrumentName}</td>
-                  <td className="px-4 py-2.5 text-xs tabular-nums">${inst.balance}M</td>
-                  <td className="px-4 py-2.5 text-xs tabular-nums">{inst.modifiedDuration}</td>
-                  <td className="px-4 py-2.5 text-xs tabular-nums font-medium text-teal-700">{inst.effectiveDuration}</td>
-                  <td className={`px-4 py-2.5 text-xs tabular-nums ${inst.convexity < 0 ? 'text-rose-600 font-medium' : ''}`}>{inst.convexity}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+      {/* Instrument detail */}
+      {data.instruments.length > 0 ? (
+        <section>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            {locale === 'es' ? 'Detalle por Instrumento' : 'Instrument Detail'}
+          </p>
+          <DataTable rows={data.instruments} columns={instrumentColumns} locale={locale} rowKey={(r) => r.instrumentName} />
+        </section>
+      ) : null}
+    </>
   );
 }
 
-function KPI({ label, value, accent, warn }: { label: string; value: string; accent?: boolean; warn?: boolean }) {
+export default function KRDPage() {
   return (
-    <div className={`rounded-xl border p-3 ${warn ? 'border-rose-200 bg-rose-50' : accent ? 'border-teal-200 bg-teal-50' : 'border-slate-200 bg-white'}`}>
-      <p className="text-[10px] font-medium uppercase text-slate-400">{label}</p>
-      <p className={`text-lg font-bold tabular-nums ${warn ? 'text-rose-700' : accent ? 'text-teal-700' : 'text-slate-950'}`}>{value}</p>
-    </div>
+    <AlmPage<KeyRateDurationData>
+      slug="key-rate-durations"
+      iconTint="emerald"
+      validate={validateKRD}
+      getDemo={getDemo}
+    >
+      {(data) => <KRDContent data={data} />}
+    </AlmPage>
   );
-}
-
-function getDemoData(): KeyRateDurationData {
-  return {
-    instruments: [], portfolioModifiedDuration: 4.2, portfolioEffectiveDuration: 3.8,
-    portfolioConvexity: -0.6, durationGap: 2.1, negativeConvexityExposure: 50,
-    portfolioKRDs: [
-      { tenor: '3M', tenorYears: 0.25, krd: 0.12 }, { tenor: '1Y', tenorYears: 1, krd: 0.35 },
-      { tenor: '2Y', tenorYears: 2, krd: 0.58 }, { tenor: '3Y', tenorYears: 3, krd: 0.72 },
-      { tenor: '5Y', tenorYears: 5, krd: 0.85 }, { tenor: '7Y', tenorYears: 7, krd: 0.62 },
-      { tenor: '10Y', tenorYears: 10, krd: 0.38 }, { tenor: '30Y', tenorYears: 30, krd: 0.18 },
-    ],
-  };
 }

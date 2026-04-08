@@ -74,7 +74,10 @@ function getMetadata(key: string, decorator: MethodDecorator): any {
   return Reflect.getMetadata(key, TestClass.prototype.handler);
 }
 
-function getMetadataFromClassDecorator(key: string, decorator: ClassDecorator): any {
+function getMetadataFromClassDecorator(
+  key: string,
+  decorator: ClassDecorator,
+): any {
   @(decorator as any)
   class TestClass {}
   return Reflect.getMetadata(key, TestClass);
@@ -113,7 +116,10 @@ describe('Decorators', () => {
 
   describe('@CacheKey', () => {
     it('sets CACHE_KEY_METADATA to provided key', () => {
-      const meta = getMetadata(CACHE_KEY_METADATA, CacheKey('portfolio:summary'));
+      const meta = getMetadata(
+        CACHE_KEY_METADATA,
+        CacheKey('portfolio:summary'),
+      );
       expect(meta).toBe('portfolio:summary');
     });
   });
@@ -145,7 +151,10 @@ describe('Decorators', () => {
 
   describe('@AuditAction', () => {
     it('sets AUDIT_ACTION_KEY to provided action name', () => {
-      const meta = getMetadata(AUDIT_ACTION_KEY, AuditAction('GENERATE_REPORT'));
+      const meta = getMetadata(
+        AUDIT_ACTION_KEY,
+        AuditAction('GENERATE_REPORT'),
+      );
       expect(meta).toBe('GENERATE_REPORT');
     });
   });
@@ -222,7 +231,10 @@ describe('Decorators', () => {
     it('works with Permissions constants', () => {
       const meta = getMetadata(
         PERMISSIONS_KEY,
-        RequiredPermissions(Permissions.REPORT_GENERATE, Permissions.REPORT_EXPORT),
+        RequiredPermissions(
+          Permissions.REPORT_GENERATE,
+          Permissions.REPORT_EXPORT,
+        ),
       );
       expect(meta).toEqual(['report:generate', 'report:export']);
     });
@@ -250,7 +262,12 @@ describe('Decorators', () => {
 
   describe('@ThrottleBy', () => {
     it('sets THROTTLE_KEY with full config', () => {
-      const config = { key: 'report-export', limit: 5, windowSec: 3600, by: 'user' as const };
+      const config = {
+        key: 'report-export',
+        limit: 5,
+        windowSec: 3600,
+        by: 'user' as const,
+      };
       const meta = getMetadata(THROTTLE_KEY, ThrottleBy(config));
       expect(meta).toEqual(config);
     });

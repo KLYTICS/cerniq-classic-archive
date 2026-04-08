@@ -1,407 +1,234 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { apiClient } from '@/lib/api';
-import { analytics, EVENTS } from '@/lib/analytics';
-import { RefreshCw, Shield, AlertTriangle, CheckCircle } from 'lucide-react';
-import RiskBadge from '@/components/alm/RiskBadge';
-import { useALM } from '@/components/alm/ALMProvider';
+import { useMemo } from 'react';
 import {
-  PieChart,
-  Pie,
-  Cell,
-  RadialBarChart,
-  RadialBar,
-  ResponsiveContainer,
-  PolarAngleAxis,
-  Tooltip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ReferenceLine,
+  PieChart, Pie, Cell, RadialBarChart, RadialBar,
+  ResponsiveContainer, PolarAngleAxis, Tooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine,
 } from 'recharts';
 
+import { useTranslation } from '@/lib/i18n';
+import { AlmPage } from '@/components/alm/AlmPage';
+import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
+
+/**
+ * Liquidity — migrated to the AlmPage shell.
+ *
+ * Primary LCR / HQLA / Net Outflows panel. The original dark-themed page
+ * was inconsistent with the rest of the post-density modules; this version
+ * matches the white-background palette used by var/cecl/stress-v2.
+ */
+
+// ─── Domain types ────────────────────────────────────────────────────────────
+
 interface LiquidityPosition {
-  lcr: number;
-  hqla: number;
-  netOutflows: number;
-  status: 'compliant' | 'warning' | 'breach';
-  buffer: number;
+  readonly lcr: number;
+  readonly hqla: number;
+  readonly netOutflows: number;
+  readonly status: 'compliant' | 'warning' | 'breach';
+  readonly buffer: number;
 }
 
-function LCRGauge({ lcr }: { lcr: number }) {
+// ─── Validation + demo ──────────────────────────────────────────────────────
+
+function validateLiquidity(raw: unknown): LiquidityPosition {
+  if (!raw || typeof raw !== 'object') throw new Error('Liquidity response must be an object');
+  const r = raw as Record<string, unknown>;
+  if (typeof r.lcr !== 'number') throw new Error('Liquidity: missing lcr');
+  if (typeof r.hqla !== 'number') throw new Error('Liquidity: missing hqla');
+  if (typeof r.netOutflows !== 'number') throw new Error('Liquidity: missing netOutflows');
+  return r as unknown as LiquidityPosition;
+}
+
+function getDemo(): LiquidityPosition {
+  return { lcr: 142.3, hqla: 87.5, netOutflows: 61.4, status: 'compliant', buffer: 42.3 };
+}
+
+// ─── Custom panels ───────────────────────────────────────────────────────────
+
+interface LCRGaugeProps {
+  readonly lcr: number;
+}
+
+function LCRGauge({ lcr }: LCRGaugeProps) {
   const cappedLcr = Math.min(lcr, 200);
-  const color = lcr >= 100 ? '#22c55e' : lcr >= 90 ? '#eab308' : '#ef4444';
+  const color = lcr >= 100 ? '#059669' : lcr >= 90 ? '#d97706' : '#dc2626';
   const data = [{ value: cappedLcr, fill: color }];
 
   return (
     <div className="flex flex-col items-center">
-      <div style={{ width: 200, height: 200 }} className="relative">
+      <div className="relative" style={{ width: 200, height: 200 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <RadialBarChart
-            cx="50%"
-            cy="50%"
-            innerRadius="70%"
-            outerRadius="100%"
-            barSize={14}
-            data={data}
-            startAngle={180}
-            endAngle={0}
-          >
+          <RadialBarChart cx="50%" cy="50%" innerRadius="70%" outerRadius="100%" barSize={14} data={data} startAngle={180} endAngle={0}>
             <PolarAngleAxis type="number" domain={[0, 200]} angleAxisId={0} tick={false} />
-            <RadialBar
-              background={{ fill: 'rgba(255,255,255,0.03)' }}
-              dataKey="value"
-              cornerRadius={8}
-              angleAxisId={0}
-            />
+            <RadialBar background={{ fill: '#f1f5f9' }} dataKey="value" cornerRadius={8} angleAxisId={0} />
           </RadialBarChart>
         </ResponsiveContainer>
         <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ paddingTop: 16 }}>
-          <span className="text-3xl font-bold text-white tabular-nums">{lcr.toFixed(1)}%</span>
-          <span className="text-[10px] text-slate-500 mt-0.5 uppercase tracking-wider">LCR</span>
+          <span className="text-3xl font-bold tabular-nums text-slate-950">{lcr.toFixed(1)}%</span>
+          <span className="mt-0.5 text-[10px] uppercase tracking-wider text-slate-500">LCR</span>
         </div>
       </div>
-      <span className="text-xs font-medium mt-1" style={{ color }}>
-        {lcr >= 100 ? 'Compliant' : lcr >= 90 ? 'Warning' : 'Below Minimum'}
-      </span>
     </div>
   );
 }
 
-function HQLAComposition({ hqla, netOutflows }: { hqla: number; netOutflows: number }) {
-  const level1 = hqla * 0.70;
-  const level2a = hqla * 0.20;
-  const level2b = hqla * 0.10;
+interface HQLAProps {
+  readonly hqla: number;
+  readonly netOutflows: number;
+  readonly locale: 'en' | 'es';
+}
 
+function HQLAComposition({ hqla, netOutflows, locale }: HQLAProps) {
   const data = [
-    { name: 'Level 1', desc: 'Cash & Govt Bonds', value: Math.round(level1 * 100) / 100, color: '#22c55e' },
-    { name: 'Level 2A', desc: 'Agency MBS, Corp', value: Math.round(level2a * 100) / 100, color: '#3b82f6' },
-    { name: 'Level 2B', desc: 'Lower-rated Corp', value: Math.round(level2b * 100) / 100, color: '#8b5cf6' },
+    { name: 'Level 1',  desc: locale === 'es' ? 'Efectivo + Bonos Gov' : 'Cash + Govt Bonds', value: +(hqla * 0.70).toFixed(2), color: '#059669' },
+    { name: 'Level 2A', desc: locale === 'es' ? 'Agency MBS / Corp'    : 'Agency MBS / Corp',  value: +(hqla * 0.20).toFixed(2), color: '#2563eb' },
+    { name: 'Level 2B', desc: locale === 'es' ? 'Corporativo Bajo'     : 'Lower-Rated Corp',   value: +(hqla * 0.10).toFixed(2), color: '#7c3aed' },
   ];
 
   return (
     <div>
-      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">HQLA Composition</h3>
+      <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {locale === 'es' ? 'Composición HQLA' : 'HQLA Composition'}
+      </h3>
       <div className="flex items-center gap-6">
-        <ResponsiveContainer width={160} height={160}>
+        <ResponsiveContainer width={150} height={150}>
           <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              innerRadius={45}
-              outerRadius={72}
-              paddingAngle={3}
-              dataKey="value"
-            >
-              {data.map((entry, index) => (
-                <Cell key={index} fill={entry.color} />
-              ))}
+            <Pie data={data} cx="50%" cy="50%" innerRadius={42} outerRadius={68} paddingAngle={3} dataKey="value">
+              {data.map((e, i) => <Cell key={i} fill={e.color} />)}
             </Pie>
             <Tooltip
-              contentStyle={{
-                backgroundColor: '#0f172a',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 8,
-                color: '#f1f5f9',
-                fontSize: 12,
-              }}
+              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 12 }}
               formatter={(value) => [`$${Number(value ?? 0).toFixed(1)}M`, '']}
             />
           </PieChart>
         </ResponsiveContainer>
-        <div className="space-y-3 flex-1">
-          {data.map((item, i) => (
-            <div key={i} className="flex items-center justify-between">
+        <div className="flex-1 space-y-2">
+          {data.map((item) => (
+            <div key={item.name} className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: item.color }} />
+                <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: item.color }} aria-hidden />
                 <div>
-                  <p className="text-xs text-white font-medium">{item.name}</p>
+                  <p className="text-xs font-medium text-slate-800">{item.name}</p>
                   <p className="text-[10px] text-slate-500">{item.desc}</p>
                 </div>
               </div>
-              <span className="text-xs text-slate-300 font-mono tabular-nums">${item.value.toFixed(1)}M</span>
+              <span className="font-mono text-xs tabular-nums text-slate-700">${item.value.toFixed(1)}M</span>
             </div>
           ))}
         </div>
       </div>
-      <div className="mt-4 pt-3 border-t border-white/[0.06] space-y-1.5">
+      <div className="mt-4 space-y-1.5 border-t border-slate-100 pt-3">
         <div className="flex justify-between text-[11px]">
-          <span className="text-slate-500">Total HQLA</span>
-          <span className="text-white font-medium tabular-nums">${hqla.toFixed(1)}M</span>
+          <span className="text-slate-500">{locale === 'es' ? 'HQLA Total' : 'Total HQLA'}</span>
+          <span className="font-medium tabular-nums text-slate-800">${hqla.toFixed(1)}M</span>
         </div>
         <div className="flex justify-between text-[11px]">
-          <span className="text-slate-500">Net Outflows (30-day)</span>
-          <span className="text-white font-medium tabular-nums">${netOutflows.toFixed(1)}M</span>
+          <span className="text-slate-500">{locale === 'es' ? 'Salidas Netas (30d)' : 'Net Outflows (30d)'}</span>
+          <span className="font-medium tabular-nums text-slate-800">${netOutflows.toFixed(1)}M</span>
         </div>
       </div>
     </div>
   );
 }
 
-function CashFlowWaterfall({ hqla, netOutflows }: { hqla: number; netOutflows: number }) {
-  const weeks = [
-    { name: 'Week 1', inflow: hqla * 0.08, outflow: -netOutflows * 0.30 },
-    { name: 'Week 2', inflow: hqla * 0.06, outflow: -netOutflows * 0.25 },
-    { name: 'Week 3', inflow: hqla * 0.05, outflow: -netOutflows * 0.25 },
-    { name: 'Week 4', inflow: hqla * 0.04, outflow: -netOutflows * 0.20 },
-  ];
+interface WaterfallProps {
+  readonly hqla: number;
+  readonly netOutflows: number;
+  readonly locale: 'en' | 'es';
+}
 
-  const data = weeks.map((w) => ({
-    name: w.name,
-    inflow: Math.round(w.inflow * 100) / 100,
-    outflow: Math.round(w.outflow * 100) / 100,
-  }));
+function CashFlowWaterfall({ hqla, netOutflows, locale }: WaterfallProps) {
+  const weeks = [
+    { name: 'W1', inflow: +(hqla * 0.08).toFixed(2), outflow: +(-netOutflows * 0.30).toFixed(2) },
+    { name: 'W2', inflow: +(hqla * 0.06).toFixed(2), outflow: +(-netOutflows * 0.25).toFixed(2) },
+    { name: 'W3', inflow: +(hqla * 0.05).toFixed(2), outflow: +(-netOutflows * 0.25).toFixed(2) },
+    { name: 'W4', inflow: +(hqla * 0.04).toFixed(2), outflow: +(-netOutflows * 0.20).toFixed(2) },
+  ];
 
   return (
     <div>
-      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">30-Day Cash Flow Projection</h3>
+      <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {locale === 'es' ? 'Proyección Flujo 30 Días' : '30-Day Cash Flow Projection'}
+      </h3>
       <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-          <XAxis
-            dataKey="name"
-            tick={{ fill: '#64748b', fontSize: 11 }}
-            axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
-          />
-          <YAxis
-            tick={{ fill: '#64748b', fontSize: 11 }}
-            axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
-            label={{ value: '$ Millions', angle: -90, position: 'insideLeft', fill: '#475569', fontSize: 10 }}
-          />
+        <BarChart data={weeks} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+          <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+          <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}M`} />
           <Tooltip
-            contentStyle={{
-              backgroundColor: '#0f172a',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 8,
-              color: '#f1f5f9',
-              fontSize: 12,
-            }}
-            formatter={(value, name) => [
-              `$${Number(value ?? 0).toFixed(1)}M`,
-              name === 'inflow' ? 'Inflows' : 'Outflows',
-            ]}
+            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 12 }}
+            formatter={(value, name) => [`$${Number(value ?? 0).toFixed(1)}M`, name === 'inflow' ? (locale === 'es' ? 'Entradas' : 'Inflows') : (locale === 'es' ? 'Salidas' : 'Outflows')]}
           />
-          <ReferenceLine y={0} stroke="rgba(255,255,255,0.1)" />
-          <Bar dataKey="inflow" fill="#22c55e" fillOpacity={0.6} radius={[3, 3, 0, 0]} name="inflow" />
-          <Bar dataKey="outflow" fill="#ef4444" fillOpacity={0.6} radius={[3, 3, 0, 0]} name="outflow" />
+          <ReferenceLine y={0} stroke="#cbd5e1" />
+          <Bar dataKey="inflow"  fill="#059669" fillOpacity={0.7} radius={[3, 3, 0, 0]} name="inflow" />
+          <Bar dataKey="outflow" fill="#dc2626" fillOpacity={0.7} radius={[3, 3, 0, 0]} name="outflow" />
         </BarChart>
       </ResponsiveContainer>
-      <div className="flex items-center justify-center gap-4 mt-2 text-[10px] text-slate-500">
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/60" /> Inflows</span>
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-red-500/60" /> Outflows</span>
-      </div>
     </div>
   );
 }
 
-function SkeletonPulse() {
+// ─── Content ─────────────────────────────────────────────────────────────────
+
+function LiquidityContent({ data }: { data: LiquidityPosition }) {
+  const { locale } = useTranslation();
+
+  const stripItems = useMemo<readonly MetricStripItem[]>(() => [
+    { key: 'lcr',          value: data.lcr,         unit: '%' },
+    { key: 'hqla',         value: data.hqla,        unit: 'USD_M' },
+    { key: 'net_outflows', label: locale === 'es' ? 'Salidas Netas' : 'Net Outflows', value: data.netOutflows, unit: 'USD_M' },
+    { key: 'buffer',       label: locale === 'es' ? 'Búfer sobre Mín.' : 'Buffer over Min', value: data.buffer, unit: '%' },
+  ], [data, locale]);
+
+  const statusTone =
+    data.status === 'compliant' ? { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', label: locale === 'es' ? 'Cumple' : 'Compliant' } :
+    data.status === 'warning'   ? { bg: 'bg-amber-50',   border: 'border-amber-200',   text: 'text-amber-700',   label: locale === 'es' ? 'Advertencia' : 'Warning' } :
+                                  { bg: 'bg-rose-50',    border: 'border-rose-200',    text: 'text-rose-700',    label: locale === 'es' ? 'Incumple' : 'Breach' };
+
   return (
-    <div className="p-6 space-y-5 animate-pulse">
-      <div className="h-6 bg-slate-800 rounded w-48" />
-      <div className="h-16 bg-slate-900/40 rounded-xl border border-white/[0.06]" />
-      <div className="grid grid-cols-3 gap-4">
-        <div className="h-72 bg-slate-900/40 rounded-xl border border-white/[0.06]" />
-        <div className="h-72 bg-slate-900/40 rounded-xl border border-white/[0.06]" />
-        <div className="h-72 bg-slate-900/40 rounded-xl border border-white/[0.06]" />
+    <>
+      <MetricStrip items={stripItems} locale={locale} density="compact" />
+
+      {/* Basel III compliance banner */}
+      <section className={`flex items-center gap-3 rounded-xl border p-3.5 ${statusTone.bg} ${statusTone.border}`}>
+        <span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusTone.bg} ${statusTone.text} ${statusTone.border}`}>
+          {statusTone.label}
+        </span>
+        <div className="text-[11px] text-slate-600">
+          LCR {data.lcr.toFixed(1)}% (min 100%) · {locale === 'es' ? 'búfer' : 'buffer'} {data.buffer > 0 ? '+' : ''}{data.buffer.toFixed(1)}%
+        </div>
+      </section>
+
+      {/* Main grid: gauge + HQLA + metrics */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="flex items-center justify-center rounded-xl border border-slate-200 bg-white p-5">
+          <LCRGauge lcr={data.lcr} />
+        </section>
+        <section className="rounded-xl border border-slate-200 bg-white p-5">
+          <HQLAComposition hqla={data.hqla} netOutflows={data.netOutflows} locale={locale} />
+        </section>
       </div>
-    </div>
+
+      {/* Cash flow waterfall */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <CashFlowWaterfall hqla={data.hqla} netOutflows={data.netOutflows} locale={locale} />
+      </section>
+    </>
   );
 }
+
+// ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function LiquidityPage() {
-  const { selectedId } = useALM();
-  const [liquidity, setLiquidity] = useState<LiquidityPosition | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!selectedId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiClient.getLiquidityPosition(selectedId);
-      setLiquidity(data);
-      analytics.track(EVENTS.ALM_ANALYSIS_RUN, {
-        institutionId: selectedId,
-        view: 'liquidity',
-        lcr: data.lcr,
-        status: data.status,
-      });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load liquidity data';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedId]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  if (!selectedId) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="text-center space-y-4">
-          <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto" />
-          <p className="text-slate-400 text-sm">No institution selected.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) return <SkeletonPulse />;
-
   return (
-    <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-            <Shield className="h-4 w-4 text-emerald-400" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-white">Liquidity Analysis</h1>
-            <p className="text-xs text-slate-500">LCR, HQLA & Cash Flow Projections</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {liquidity && <RiskBadge status={liquidity.status} size="sm" />}
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-slate-400 hover:text-white px-3 py-1.5 rounded-lg text-xs transition disabled:opacity-50"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-red-300 text-sm">
-          {error}
-        </div>
-      )}
-
-      {!loading && !error && !liquidity && (
-        <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-10 text-center">
-          <Shield className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-          <p className="text-sm text-slate-400 mb-1">No liquidity data available</p>
-          <p className="text-xs text-slate-600">Upload balance sheet data to generate LCR and HQLA analysis.</p>
-        </div>
-      )}
-
-      {liquidity && (
-        <>
-          {/* Basel III Compliance Banner */}
-          <div className={`rounded-xl border p-3.5 flex items-center gap-3 ${
-            liquidity.status === 'compliant'
-              ? 'bg-emerald-500/5 border-emerald-500/15'
-              : liquidity.status === 'warning'
-              ? 'bg-amber-500/5 border-amber-500/15'
-              : 'bg-red-500/5 border-red-500/15'
-          }`}>
-            {liquidity.status === 'compliant' ? (
-              <CheckCircle className="h-5 w-5 text-emerald-400 shrink-0" />
-            ) : (
-              <AlertTriangle className={`h-5 w-5 shrink-0 ${liquidity.status === 'warning' ? 'text-amber-400' : 'text-red-400'}`} />
-            )}
-            <div>
-              <p className={`text-sm font-medium ${
-                liquidity.status === 'compliant' ? 'text-emerald-300' : liquidity.status === 'warning' ? 'text-amber-300' : 'text-red-300'
-              }`}>
-                Basel III LCR: {liquidity.status === 'compliant' ? 'Compliant' : liquidity.status === 'warning' ? 'Warning' : 'BREACH'}
-              </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                LCR at {liquidity.lcr.toFixed(1)}% (min: 100%) &middot; Buffer: {liquidity.buffer > 0 ? '+' : ''}{liquidity.buffer.toFixed(1)}%
-              </p>
-            </div>
-          </div>
-
-          {/* Main Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* LCR Gauge */}
-            <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 flex flex-col items-center justify-center">
-              <LCRGauge lcr={liquidity.lcr} />
-            </div>
-
-            {/* HQLA */}
-            <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
-              <HQLAComposition hqla={liquidity.hqla} netOutflows={liquidity.netOutflows} />
-            </div>
-
-            {/* Key Metrics */}
-            <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
-              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Liquidity Metrics</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-[11px] text-slate-500">LCR Ratio</span>
-                  <span className="text-lg font-bold text-white tabular-nums">{liquidity.lcr.toFixed(1)}%</span>
-                </div>
-                <div className="w-full bg-white/[0.04] rounded-full h-1.5">
-                  <div
-                    className={`h-1.5 rounded-full transition-all ${
-                      liquidity.lcr >= 100 ? 'bg-emerald-500' : liquidity.lcr >= 90 ? 'bg-amber-500' : 'bg-red-500'
-                    }`}
-                    style={{ width: `${Math.min(liquidity.lcr, 200) / 2}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[10px] text-slate-600">
-                  <span>0%</span>
-                  <span className="text-amber-500/60">100% min</span>
-                  <span>200%</span>
-                </div>
-
-                <div className="pt-3 border-t border-white/[0.06] space-y-2.5">
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-slate-500">Total HQLA</span>
-                    <span className="text-white font-medium tabular-nums">${liquidity.hqla.toFixed(1)}M</span>
-                  </div>
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-slate-500">Net Cash Outflows</span>
-                    <span className="text-white font-medium tabular-nums">${liquidity.netOutflows.toFixed(1)}M</span>
-                  </div>
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-slate-500">Buffer over Min</span>
-                    <span className={`font-medium tabular-nums ${liquidity.buffer >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {liquidity.buffer > 0 ? '+' : ''}{liquidity.buffer.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-[11px]">
-                    <span className="text-slate-500">Status</span>
-                    <RiskBadge status={liquidity.status} size="sm" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Cash Flow Waterfall */}
-          <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
-            <CashFlowWaterfall hqla={liquidity.hqla} netOutflows={liquidity.netOutflows} />
-          </div>
-
-          {/* Basel III Info */}
-          <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Basel III LCR Requirements</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[11px] text-slate-400">
-              <div>
-                <p className="text-xs font-medium text-slate-300 mb-1">Minimum Requirement</p>
-                <p className="leading-relaxed">Banks must maintain a minimum LCR of 100%, meaning HQLA must equal or exceed total net cash outflows over a 30-day stress scenario.</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-300 mb-1">HQLA Eligibility</p>
-                <p className="leading-relaxed">Level 1: Cash, central bank reserves, govt bonds (no haircut). Level 2A: Agency MBS, high-grade corporates (15%). Level 2B: Lower-rated corporates, equities (50%).</p>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
+    <AlmPage<LiquidityPosition>
+      slug="liquidity"
+      iconTint="emerald"
+      validate={validateLiquidity}
+      getDemo={getDemo}
+    >
+      {(data) => <LiquidityContent data={data} />}
+    </AlmPage>
   );
 }

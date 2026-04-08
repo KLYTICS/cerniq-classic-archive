@@ -101,7 +101,9 @@ describe('OrganizationsService', () => {
         id: 'org-3',
         name: 'Inc Org',
         slug: 'inc-org',
-        members: [{ role: 'ADMIN', userId: 'u-1', user: { id: 'u-1', email: 'a@b.c' } }],
+        members: [
+          { role: 'ADMIN', userId: 'u-1', user: { id: 'u-1', email: 'a@b.c' } },
+        ],
       });
 
       const result = await service.create(
@@ -290,7 +292,12 @@ describe('OrganizationsService', () => {
       prisma.organizationMember.create.mockResolvedValue({
         id: 'mem-1',
         role: 'ADMIN',
-        user: { id: 'u-new', email: 'new@test.com', name: 'New', avatarUrl: null },
+        user: {
+          id: 'u-new',
+          email: 'new@test.com',
+          name: 'New',
+          avatarUrl: null,
+        },
       });
 
       const result = await service.addMember(
@@ -431,12 +438,7 @@ describe('OrganizationsService', () => {
       prisma.organizationMember.findUnique.mockResolvedValueOnce(null);
 
       await expect(
-        service.updateMemberRole(
-          'org-1',
-          'target',
-          'ADMIN' as any,
-          'nobody',
-        ),
+        service.updateMemberRole('org-1', 'target', 'ADMIN' as any, 'nobody'),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -447,12 +449,7 @@ describe('OrganizationsService', () => {
       });
 
       await expect(
-        service.updateMemberRole(
-          'org-1',
-          'target',
-          'ADMIN' as any,
-          'member',
-        ),
+        service.updateMemberRole('org-1', 'target', 'ADMIN' as any, 'member'),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -488,7 +485,12 @@ describe('OrganizationsService', () => {
         user: { id: 'target', email: 't@test.com', name: 'T', avatarUrl: null },
       });
 
-      await service.updateMemberRole('org-1', 'target', 'ADMIN' as any, 'admin');
+      await service.updateMemberRole(
+        'org-1',
+        'target',
+        'ADMIN' as any,
+        'admin',
+      );
 
       expect(prisma.organizationMember.update).toHaveBeenCalledWith(
         expect.objectContaining({

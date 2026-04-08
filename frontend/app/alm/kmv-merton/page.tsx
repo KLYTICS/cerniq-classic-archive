@@ -1,140 +1,176 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useALM } from '@/components/alm/ALMProvider';
+import { useMemo } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Cell,
+} from 'recharts';
+
 import { useTranslation } from '@/lib/i18n';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Gauge, AlertTriangle } from 'lucide-react';
+import { AlmPage } from '@/components/alm/AlmPage';
+import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
+import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+
+interface KMVObligor {
+  readonly name: string;
+  readonly assetValue: number;
+  readonly debtPoint: number;
+  readonly dd: number;
+  readonly edf: number;
+  readonly rating: string;
+}
 
 interface KMVResult {
-  portfolioDD: number;
-  portfolioEDF: number;
-  riskRating: string;
-  obligors: Array<{ name: string; assetValue: number; debtPoint: number; dd: number; edf: number; rating: string }>;
+  readonly portfolioDD: number;
+  readonly portfolioEDF: number;
+  readonly riskRating: string;
+  readonly obligors: readonly KMVObligor[];
 }
 
-export default function KMVMertonPage() {
-  const { selectedId } = useALM();
-  const { locale } = useTranslation();
-  const [data, setData] = useState<KMVResult | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!selectedId) return;
-    (async () => {
-      setLoading(true);
-      try {
-        const NODE = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-        const res = await fetch(`${NODE}/api/alm/${selectedId}/kmv-merton`);
-        if (res.ok) setData(await res.json());
-        else setData(getDemo());
-      } catch { setData(getDemo()); }
-      finally { setLoading(false); }
-    })();
-  }, [selectedId]);
-
-  if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
-  if (loading || !data) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
-
-  const ddColor = (dd: number) => dd > 3 ? '#22c55e' : dd > 2 ? '#eab308' : dd > 1 ? '#f97316' : '#ef4444';
-
-  return (
-    <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-200 bg-amber-50">
-          <Gauge className="h-4 w-4 text-amber-700" />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold text-slate-950">{locale === 'es' ? 'KMV-Merton — Distancia al Incumplimiento' : 'KMV-Merton — Distance to Default'}</h1>
-          <p className="text-xs text-slate-500">{locale === 'es' ? 'Modelo estructural: activos vs punto de deuda → EDF' : 'Structural model: assets vs debt point → EDF'}</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KPI label={locale === 'es' ? 'DD Portafolio' : 'Portfolio DD'} value={data.portfolioDD.toFixed(2)} accent={data.portfolioDD > 3} warn={data.portfolioDD < 2} />
-        <KPI label={locale === 'es' ? 'EDF Portafolio' : 'Portfolio EDF'} value={`${(data.portfolioEDF * 100).toFixed(3)}%`} warn={data.portfolioEDF > 0.02} />
-        <KPI label={locale === 'es' ? 'Calificación' : 'Risk Rating'} value={data.riskRating} accent={data.riskRating.startsWith('A')} />
-        <KPI label={locale === 'es' ? 'Obligados' : 'Obligors'} value={`${data.obligors.length}`} />
-      </div>
-
-      {/* DD Gauge — horizontal bar */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-4">
-          {locale === 'es' ? 'Distancia al Incumplimiento por Obligado' : 'Distance to Default by Obligor'}
-        </p>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data.obligors} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis type="number" tick={{ fontSize: 11 }} domain={[0, 6]} />
-            <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
-            <Tooltip
-              contentStyle={{ borderRadius: 12, fontSize: 12 }}
-              formatter={(value, name) => {
-                const numericValue = Number(value ?? 0);
-                const seriesName = name ?? '';
-                return [
-                  seriesName === 'dd'
-                    ? numericValue.toFixed(2)
-                    : `${(numericValue * 100).toFixed(3)}%`,
-                  seriesName === 'dd' ? 'DD' : 'EDF',
-                ];
-              }}
-            />
-            <Bar dataKey="dd" name="Distance-to-Default" radius={[0, 4, 4, 0]}>
-              {data.obligors.map((o, i) => <Cell key={i} fill={ddColor(o.dd)} />)}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-        <div className="flex justify-center gap-4 mt-2 text-[10px] text-slate-500">
-          <span className="flex items-center gap-1"><div className="h-2 w-2 rounded-full bg-green-500" /> DD &gt; 3 Safe</span>
-          <span className="flex items-center gap-1"><div className="h-2 w-2 rounded-full bg-yellow-500" /> DD 2-3 Watch</span>
-          <span className="flex items-center gap-1"><div className="h-2 w-2 rounded-full bg-orange-500" /> DD 1-2 Warning</span>
-          <span className="flex items-center gap-1"><div className="h-2 w-2 rounded-full bg-red-500" /> DD &lt; 1 Critical</span>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
-          {locale === 'es' ? 'Detalle de Obligados' : 'Obligor Detail'}
-        </p>
-        <div className="space-y-2">
-          {data.obligors.map((o, i) => (
-            <div key={i} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-              <div>
-                <span className="text-sm font-medium text-slate-800">{o.name}</span>
-                <span className="ml-2 text-[10px] text-slate-400">Assets: ${o.assetValue}M | Debt: ${o.debtPoint}M</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-mono" style={{ color: ddColor(o.dd) }}>DD {o.dd.toFixed(2)}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">{o.rating}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function KPI({ label, value, accent, warn }: { label: string; value: string; accent?: boolean; warn?: boolean }) {
-  return (
-    <div className={`rounded-xl border p-3 ${warn ? 'border-rose-200 bg-rose-50' : accent ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
-      <p className="text-[10px] font-medium uppercase text-slate-400">{label}</p>
-      <p className={`text-lg font-bold tabular-nums ${warn ? 'text-rose-700' : accent ? 'text-emerald-700' : 'text-slate-950'}`}>{value}</p>
-    </div>
-  );
+function validateKMV(raw: unknown): KMVResult {
+  if (!raw || typeof raw !== 'object') throw new Error('KMV response must be an object');
+  const r = raw as Record<string, unknown>;
+  if (typeof r.portfolioDD !== 'number') throw new Error('KMV: missing portfolioDD');
+  if (!Array.isArray(r.obligors)) throw new Error('KMV: obligors must be array');
+  return r as unknown as KMVResult;
 }
 
 function getDemo(): KMVResult {
   return {
-    portfolioDD: 3.42, portfolioEDF: 0.0031, riskRating: 'A-',
+    portfolioDD: 3.42,
+    portfolioEDF: 0.0031,
+    riskRating: 'A-',
     obligors: [
-      { name: 'Consumer RE Pool', assetValue: 95, debtPoint: 72, dd: 4.1, edf: 0.0002, rating: 'A+' },
-      { name: 'Commercial CRE', assetValue: 68, debtPoint: 55, dd: 2.8, edf: 0.0026, rating: 'BBB+' },
-      { name: 'Auto Loan Pool', assetValue: 42, debtPoint: 38, dd: 1.9, edf: 0.029, rating: 'BB+' },
-      { name: 'Small Business', assetValue: 25, debtPoint: 22, dd: 1.5, edf: 0.067, rating: 'BB-' },
-      { name: 'Personal Unsecured', assetValue: 18, debtPoint: 16, dd: 1.1, edf: 0.136, rating: 'B+' },
-      { name: 'Municipal Bonds', assetValue: 35, debtPoint: 12, dd: 5.2, edf: 0.00001, rating: 'AA' },
+      { name: 'Consumer RE Pool',   assetValue: 95, debtPoint: 72, dd: 4.1, edf: 0.0002,  rating: 'A+' },
+      { name: 'Commercial CRE',     assetValue: 68, debtPoint: 55, dd: 2.8, edf: 0.0026,  rating: 'BBB+' },
+      { name: 'Auto Loan Pool',     assetValue: 42, debtPoint: 38, dd: 1.9, edf: 0.029,   rating: 'BB+' },
+      { name: 'Small Business',     assetValue: 25, debtPoint: 22, dd: 1.5, edf: 0.067,   rating: 'BB-' },
+      { name: 'Personal Unsecured', assetValue: 18, debtPoint: 16, dd: 1.1, edf: 0.136,   rating: 'B+' },
+      { name: 'Municipal Bonds',    assetValue: 35, debtPoint: 12, dd: 5.2, edf: 0.00001, rating: 'AA' },
     ],
   };
+}
+
+function ddColor(dd: number): string {
+  if (dd > 3) return '#059669';
+  if (dd > 2) return '#d97706';
+  if (dd > 1) return '#ea580c';
+  return '#dc2626';
+}
+
+function ddLabel(dd: number, locale: 'en' | 'es'): string {
+  if (dd > 3) return locale === 'es' ? 'Seguro'    : 'Safe';
+  if (dd > 2) return locale === 'es' ? 'Vigilancia' : 'Watch';
+  if (dd > 1) return locale === 'es' ? 'Advertencia' : 'Warning';
+  return locale === 'es' ? 'Crítico' : 'Critical';
+}
+
+function KMVContent({ data }: { data: KMVResult }) {
+  const { locale } = useTranslation();
+
+  const stripItems = useMemo<readonly MetricStripItem[]>(() => [
+    { key: 'portfolio_dd',  label: locale === 'es' ? 'DD Portafolio'  : 'Portfolio DD',  value: data.portfolioDD,  unit: 'x' },
+    { key: 'portfolio_edf', label: locale === 'es' ? 'EDF Portafolio' : 'Portfolio EDF', value: data.portfolioEDF, unit: 'ratio' },
+    { key: 'risk_rating',   label: locale === 'es' ? 'Calificación'   : 'Risk Rating',   value: null, unit: undefined, /* string value rendered separately */ },
+    { key: 'obligor_count', label: locale === 'es' ? 'Obligados'      : 'Obligors',      value: data.obligors.length, unit: 'count' },
+    { key: 'safe_count',    label: locale === 'es' ? 'Seguros'        : 'Safe (DD>3)',   value: data.obligors.filter((o) => o.dd > 3).length, unit: 'count' },
+    { key: 'critical_count',label: locale === 'es' ? 'Críticos'       : 'Critical (DD<1)', value: data.obligors.filter((o) => o.dd < 1).length, unit: 'count' },
+  ], [data, locale]);
+
+  const columns = useMemo<readonly DataTableColumn<KMVObligor>[]>(() => [
+    { id: 'name', header: locale === 'es' ? 'Obligado' : 'Obligor', kind: 'text', accessor: (r) => r.name },
+    { id: 'assets', header: locale === 'es' ? 'Activos' : 'Assets', kind: 'number', accessor: (r) => r.assetValue, unit: 'USD_M' },
+    { id: 'debt',   header: locale === 'es' ? 'Deuda'   : 'Debt Point', kind: 'number', accessor: (r) => r.debtPoint, unit: 'USD_M' },
+    { id: 'dd',
+      header: 'DD',
+      kind: 'custom',
+      accessor: (r) => r.dd,
+      render: (r) => (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ddColor(r.dd) }} aria-hidden />
+          <span className="font-mono text-xs font-bold tabular-nums" style={{ color: ddColor(r.dd) }}>
+            {r.dd.toFixed(2)}
+          </span>
+        </span>
+      ),
+    },
+    { id: 'edf',    header: 'EDF',    kind: 'number', accessor: (r) => r.edf, unit: 'ratio' },
+    { id: 'rating', header: locale === 'es' ? 'Calif.' : 'Rating', kind: 'text', accessor: (r) => r.rating },
+    { id: 'status', header: locale === 'es' ? 'Estado' : 'Status', kind: 'custom',
+      accessor: (r) => ddLabel(r.dd, locale),
+      render: (r) => (
+        <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold" style={{
+          color: ddColor(r.dd),
+          borderColor: ddColor(r.dd) + '40',
+          backgroundColor: ddColor(r.dd) + '10',
+        }}>
+          {ddLabel(r.dd, locale)}
+        </span>
+      ),
+    },
+  ], [locale]);
+
+  return (
+    <>
+      <MetricStrip items={stripItems} locale={locale} density="compact" />
+
+      {/* Extra line for the string-valued risk rating since MetricStrip is number-first */}
+      <div className="flex items-center gap-2 text-xs">
+        <span className="font-semibold uppercase tracking-[0.08em] text-slate-500">
+          {locale === 'es' ? 'Calificación Portafolio' : 'Portfolio Rating'}
+        </span>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-bold text-slate-700">
+          {data.riskRating}
+        </span>
+      </div>
+
+      {/* DD bar chart */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {locale === 'es' ? 'Distancia al Incumplimiento por Obligado' : 'Distance to Default by Obligor'}
+        </p>
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={data.obligors as KMVObligor[]} layout="vertical">
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+            <XAxis type="number" tick={{ fontSize: 11 }} domain={[0, 6]} />
+            <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11 }} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, fontSize: 12 }}
+              formatter={(value) => [Number(value ?? 0).toFixed(2), 'DD']}
+            />
+            <Bar dataKey="dd" name="Distance-to-Default" radius={[0, 4, 4, 0]}>
+              {data.obligors.map((o) => <Cell key={o.name} fill={ddColor(o.dd)} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+        <div className="mt-2 flex justify-center gap-4 text-[10px] text-slate-500">
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600" /> DD &gt; 3</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500"   /> DD 2–3</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500"  /> DD 1–2</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-600"     /> DD &lt; 1</span>
+        </div>
+      </section>
+
+      {/* Obligor detail table */}
+      <section>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {locale === 'es' ? 'Detalle de Obligados' : 'Obligor Detail'}
+        </p>
+        <DataTable rows={data.obligors} columns={columns} locale={locale} rowKey={(r) => r.name} />
+      </section>
+    </>
+  );
+}
+
+export default function KMVMertonPage() {
+  return (
+    <AlmPage<KMVResult>
+      slug="kmv-merton"
+      iconTint="amber"
+      validate={validateKMV}
+      getDemo={getDemo}
+    >
+      {(data) => <KMVContent data={data} />}
+    </AlmPage>
+  );
 }

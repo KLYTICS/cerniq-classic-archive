@@ -4,11 +4,7 @@ describe('TrendAnalysisService', () => {
   let service: TrendAnalysisService;
   let prisma: any;
 
-  const makeRun = (
-    id: string,
-    createdAt: Date,
-    resultSummary: unknown,
-  ) => ({
+  const makeRun = (id: string, createdAt: Date, resultSummary: unknown) => ({
     id,
     createdAt,
     resultSummary,
@@ -116,8 +112,12 @@ describe('TrendAnalysisService', () => {
 
     it('should return periods in chronological order (oldest first)', async () => {
       prisma.analysisRun.findMany.mockResolvedValue([
-        makeRun('run_new', new Date('2026-03-01'), { summary: { riskScore: 80 } }),
-        makeRun('run_old', new Date('2026-01-01'), { summary: { riskScore: 60 } }),
+        makeRun('run_new', new Date('2026-03-01'), {
+          summary: { riskScore: 80 },
+        }),
+        makeRun('run_old', new Date('2026-01-01'), {
+          summary: { riskScore: 60 },
+        }),
       ]);
 
       const result = await service.getHistoricalTrend('inst_001');
@@ -136,7 +136,9 @@ describe('TrendAnalysisService', () => {
         }),
       ]);
 
-      const result = await service.getHistoricalTrend('inst_001', ['riskScore']);
+      const result = await service.getHistoricalTrend('inst_001', [
+        'riskScore',
+      ]);
       const p = result.periods[0];
       expect(p.riskScore).toBe(70);
       expect(p.lcr).toBeNull();

@@ -153,13 +153,42 @@ export class LeadsService {
 
     return this.prisma.lead.findMany({
       where,
+      include: {
+        intelligenceAccount: {
+          select: {
+            id: true,
+            kind: true,
+            freshnessScore: true,
+            opportunityScore: true,
+            threatScore: true,
+            actionScore: true,
+            lastRefreshedAt: true,
+          },
+        },
+      },
       orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
       take: 100,
     });
   }
 
   async getLead(id: string) {
-    return this.prisma.lead.findUniqueOrThrow({ where: { id } });
+    return this.prisma.lead.findUniqueOrThrow({
+      where: { id },
+      include: {
+        intelligenceAccount: {
+          select: {
+            id: true,
+            kind: true,
+            freshnessScore: true,
+            opportunityScore: true,
+            threatScore: true,
+            actionScore: true,
+            currentSummary: true,
+            lastRefreshedAt: true,
+          },
+        },
+      },
+    });
   }
 
   async updateLead(id: string, dto: UpdateLeadDto) {

@@ -14,7 +14,11 @@ describe('AlmComputeProcessor', () => {
 
   it('enqueueComputeJob registers a pending job and returns the jobId', async () => {
     const jobId = `test-job-${Date.now()}`;
-    const returned = await enqueueComputeJob(jobId, 'monte-carlo', async () => ({ result: 42 }));
+    const returned = await enqueueComputeJob(
+      jobId,
+      'monte-carlo',
+      async () => ({ result: 42 }),
+    );
     expect(returned).toBe(jobId);
     const status = getJobStatus(jobId);
     expect(status).not.toBeNull();
@@ -36,7 +40,9 @@ describe('AlmComputeProcessor', () => {
 
   it('marks job as failed when executeFn throws', async () => {
     const jobId = `fail-${Date.now()}`;
-    await enqueueComputeJob(jobId, 'cecl', async () => { throw new Error('DB timeout'); });
+    await enqueueComputeJob(jobId, 'cecl', async () => {
+      throw new Error('DB timeout');
+    });
     await flushAsync(200);
     const status = getJobStatus(jobId);
     expect(status).not.toBeNull();
@@ -47,7 +53,11 @@ describe('AlmComputeProcessor', () => {
 
   it('increments progress during execution', async () => {
     const jobId = `progress-${Date.now()}`;
-    await enqueueComputeJob(jobId, 'var', () => new Promise((r) => setTimeout(() => r({ done: true }), 1500)));
+    await enqueueComputeJob(
+      jobId,
+      'var',
+      () => new Promise((r) => setTimeout(() => r({ done: true }), 1500)),
+    );
     await flushAsync(600); // after ~1 progress tick
     const status = getJobStatus(jobId);
     expect(status).not.toBeNull();
@@ -61,7 +71,11 @@ describe('AlmComputeProcessor', () => {
 
   it('listActiveJobs includes pending/running jobs', async () => {
     const jobId = `active-${Date.now()}`;
-    await enqueueComputeJob(jobId, 'duration', () => new Promise((r) => setTimeout(() => r({}), 500)));
+    await enqueueComputeJob(
+      jobId,
+      'duration',
+      () => new Promise((r) => setTimeout(() => r({}), 500)),
+    );
     const active = listActiveJobs();
     const found = active.find((j) => j.jobId === jobId);
     if (found) {

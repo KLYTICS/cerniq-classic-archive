@@ -57,9 +57,11 @@ function makeFakePrisma() {
       }),
     },
     balanceSheetItem: {
-      count: jest.fn(async ({ where }: any) =>
-        balanceSheetItems.filter((i) => i.institutionId === where.institutionId)
-          .length,
+      count: jest.fn(
+        async ({ where }: any) =>
+          balanceSheetItems.filter(
+            (i) => i.institutionId === where.institutionId,
+          ).length,
       ),
       deleteMany: jest.fn(async ({ where }: any) => {
         for (let i = balanceSheetItems.length - 1; i >= 0; i--) {

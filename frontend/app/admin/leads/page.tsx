@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Users, DollarSign, TrendingUp, Clock, RefreshCw,
-  Pencil, FileText, Check, ArrowLeft,
+  Pencil, FileText, Check, ArrowLeft, Sparkles,
 } from 'lucide-react';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
@@ -26,6 +26,15 @@ interface Lead {
   dealType?: string;
   reportSentAt?: string;
   createdAt: string;
+  intelligenceAccount?: {
+    id: string;
+    kind: string;
+    freshnessScore: number;
+    opportunityScore: number;
+    threatScore: number;
+    actionScore: number;
+    lastRefreshedAt?: string | null;
+  } | null;
 }
 
 interface Metrics {
@@ -295,6 +304,7 @@ export default function LeadsPipelinePage() {
                 <th className="px-4 py-3 text-left">Priority</th>
                 <th className="px-4 py-3 text-left">Contact</th>
                 <th className="px-4 py-3 text-left">Institution</th>
+                <th className="px-4 py-3 text-left">Intelligence</th>
                 <th className="px-4 py-3 text-left">Status</th>
                 <th className="px-4 py-3 text-left">Submitted</th>
                 <th className="px-4 py-3 text-left">Follow-Up</th>
@@ -317,6 +327,32 @@ export default function LeadsPipelinePage() {
                   <td className="px-4 py-3">
                     <p className="text-white">{lead.institutionName}</p>
                     <p className="text-xs text-slate-500">{lead.institutionType}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    {lead.intelligenceAccount ? (
+                      <div className="space-y-2">
+                        <Link
+                          href={`/admin/intelligence/${lead.intelligenceAccount.id}`}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-300 transition hover:text-cyan-200"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Open account
+                        </Link>
+                        <div className="flex flex-wrap gap-1.5 text-[10px]">
+                          <span className="rounded-full bg-cyan-500/10 px-2 py-1 text-cyan-200">
+                            action {lead.intelligenceAccount.actionScore}
+                          </span>
+                          <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-emerald-200">
+                            opp {lead.intelligenceAccount.opportunityScore}
+                          </span>
+                          <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-200">
+                            fresh {lead.intelligenceAccount.freshnessScore}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-600">No intelligence link</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <select
@@ -389,7 +425,7 @@ export default function LeadsPipelinePage() {
               ))}
               {leads.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-600">
+                  <td colSpan={8} className="px-4 py-12 text-center text-slate-600">
                     No leads yet. They&apos;ll appear when prospects submit the contact form.
                   </td>
                 </tr>

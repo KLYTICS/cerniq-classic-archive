@@ -20,7 +20,7 @@ export async function createCheckoutSession({
   customerName,
   institutionName,
   leadId,
-  successUrl = '/portal?welcome=1',
+  successUrl = '/portal/login?billing=success',
   cancelUrl = '/pricing',
 }: CreateCheckoutSessionParams) {
   const response = await fetch(getPublicApiUrl('/api/billing/checkout'), {

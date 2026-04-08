@@ -70,7 +70,12 @@ describe('AlmEnterpriseService', () => {
         ],
       }),
       fullAnalysis: jest.fn().mockReturnValue({
-        lcr: { lcr: 115, hqlaTotal: 25_000_000, totalNetOutflows: 20_000_000, status: 'compliant' },
+        lcr: {
+          lcr: 115,
+          hqlaTotal: 25_000_000,
+          totalNetOutflows: 20_000_000,
+          status: 'compliant',
+        },
         durationGap: { durationGap: 1.5 },
       }),
     } as any;
@@ -82,9 +87,9 @@ describe('AlmEnterpriseService', () => {
         liabilityConvexity: 0.005,
         leverageAdjustedDurationGap: 1.8,
       }),
-      calculateEVESensitivity: jest.fn().mockReturnValue([
-        { shockBps: 200, eveChangePct: -5.2 },
-      ]),
+      calculateEVESensitivity: jest
+        .fn()
+        .mockReturnValue([{ shockBps: 200, eveChangePct: -5.2 }]),
       fullDurationAnalysis: jest.fn().mockReturnValue({
         portfolio: {
           assetDuration: 3.0,
@@ -321,8 +326,20 @@ describe('AlmEnterpriseService', () => {
   describe('calculateDurationGap', () => {
     it('returns asset-sensitive profile when gap > 0.5', async () => {
       mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
-        { category: 'asset', balance: 1000, rate: 0.05, duration: 4, rateType: 'fixed' },
-        { category: 'liability', balance: 800, rate: 0.02, duration: 1, rateType: 'variable' },
+        {
+          category: 'asset',
+          balance: 1000,
+          rate: 0.05,
+          duration: 4,
+          rateType: 'fixed',
+        },
+        {
+          category: 'liability',
+          balance: 800,
+          rate: 0.02,
+          duration: 1,
+          rateType: 'variable',
+        },
       ]);
       mockDurationService.calculatePortfolioMetrics.mockReturnValue({
         assetDuration: 4.0,
@@ -339,8 +356,20 @@ describe('AlmEnterpriseService', () => {
 
     it('returns neutral profile when |gap| < 0.5', async () => {
       mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
-        { category: 'asset', balance: 1000, rate: 0.05, duration: 2, rateType: 'fixed' },
-        { category: 'liability', balance: 900, rate: 0.03, duration: 1.8, rateType: 'fixed' },
+        {
+          category: 'asset',
+          balance: 1000,
+          rate: 0.05,
+          duration: 2,
+          rateType: 'fixed',
+        },
+        {
+          category: 'liability',
+          balance: 900,
+          rate: 0.03,
+          duration: 1.8,
+          rateType: 'fixed',
+        },
       ]);
       mockDurationService.calculatePortfolioMetrics.mockReturnValue({
         assetDuration: 2.0,
@@ -356,8 +385,20 @@ describe('AlmEnterpriseService', () => {
 
     it('returns liability-sensitive profile when gap < -0.5', async () => {
       mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
-        { category: 'asset', balance: 500, rate: 0.04, duration: 1, rateType: 'variable' },
-        { category: 'liability', balance: 800, rate: 0.03, duration: 5, rateType: 'fixed' },
+        {
+          category: 'asset',
+          balance: 500,
+          rate: 0.04,
+          duration: 1,
+          rateType: 'variable',
+        },
+        {
+          category: 'liability',
+          balance: 800,
+          rate: 0.03,
+          duration: 5,
+          rateType: 'fixed',
+        },
       ]);
       mockDurationService.calculatePortfolioMetrics.mockReturnValue({
         assetDuration: 1.0,
@@ -426,7 +467,9 @@ describe('AlmEnterpriseService', () => {
     });
 
     it('falls back to AlmService fullAnalysis when no liquidity position stored', async () => {
-      mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue(null);
+      mockPrisma.liquidityPosition.findFirst = jest
+        .fn()
+        .mockResolvedValue(null);
       mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
 
       const result = await service.calculateLCR('inst-1');
@@ -443,7 +486,9 @@ describe('AlmEnterpriseService', () => {
     // actual situation was "no data has been loaded yet". The new contract
     // is asserted below.
     it('returns data_unavailable with a CRITICAL gap when no LCR can be computed', async () => {
-      mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue(null);
+      mockPrisma.liquidityPosition.findFirst = jest
+        .fn()
+        .mockResolvedValue(null);
       mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
       mockAlmService.fullAnalysis.mockReturnValue({ lcr: null });
 
@@ -490,7 +535,9 @@ describe('AlmEnterpriseService', () => {
     it('assigns risk rating based on worst case NII impact', async () => {
       const result = await service.calculateNIISensitivity('inst-1');
       // Max abs impact pct = max(10, 5, 4, 8) = 10 => 'high'
-      expect(['low', 'moderate', 'high', 'critical']).toContain(result.riskRating);
+      expect(['low', 'moderate', 'high', 'critical']).toContain(
+        result.riskRating,
+      );
     });
 
     it('formats scenario names with + prefix for positive shifts', async () => {
@@ -542,7 +589,9 @@ describe('AlmEnterpriseService', () => {
     beforeEach(() => {
       mockPrisma.institution.findUnique.mockResolvedValue(mockInstitution);
       mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
-      mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue(null);
+      mockPrisma.liquidityPosition.findFirst = jest
+        .fn()
+        .mockResolvedValue(null);
       mockPrisma.interestRateScenario.deleteMany.mockResolvedValue({});
       mockPrisma.interestRateScenario.createMany.mockResolvedValue({});
     });
@@ -606,11 +655,51 @@ describe('AlmEnterpriseService', () => {
     beforeEach(() => {
       mockPrisma.institution.findUnique.mockResolvedValue(mockInstitution);
       mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
-        { category: 'asset', subcategory: 'consumer_loans', name: 'Consumer', balance: 80, rate: 0.07, duration: 3, rateType: 'fixed' },
-        { category: 'asset', subcategory: 'cash_equivalents', name: 'Cash', balance: 30, rate: 0.02, duration: 0.1, rateType: 'variable' },
-        { category: 'asset', subcategory: 'investment_securities', name: 'Bonds', balance: 40, rate: 0.045, duration: 5, rateType: 'fixed' },
-        { category: 'liability', subcategory: 'savings_deposits', name: 'Savings', balance: 100, rate: 0.015, duration: 0.5, rateType: 'variable' },
-        { category: 'liability', subcategory: 'time_deposits', name: 'CDs', balance: 30, rate: 0.035, duration: 1, rateType: 'fixed' },
+        {
+          category: 'asset',
+          subcategory: 'consumer_loans',
+          name: 'Consumer',
+          balance: 80,
+          rate: 0.07,
+          duration: 3,
+          rateType: 'fixed',
+        },
+        {
+          category: 'asset',
+          subcategory: 'cash_equivalents',
+          name: 'Cash',
+          balance: 30,
+          rate: 0.02,
+          duration: 0.1,
+          rateType: 'variable',
+        },
+        {
+          category: 'asset',
+          subcategory: 'investment_securities',
+          name: 'Bonds',
+          balance: 40,
+          rate: 0.045,
+          duration: 5,
+          rateType: 'fixed',
+        },
+        {
+          category: 'liability',
+          subcategory: 'savings_deposits',
+          name: 'Savings',
+          balance: 100,
+          rate: 0.015,
+          duration: 0.5,
+          rateType: 'variable',
+        },
+        {
+          category: 'liability',
+          subcategory: 'time_deposits',
+          name: 'CDs',
+          balance: 30,
+          rate: 0.035,
+          duration: 1,
+          rateType: 'fixed',
+        },
       ]);
       mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue({
         hqlaLevel1: 30,
@@ -636,7 +725,9 @@ describe('AlmEnterpriseService', () => {
 
     it('overall status is compliant, conditional, or non-compliant', async () => {
       const result = await service.getRegulatoryCompliance('inst-1');
-      expect(['compliant', 'conditional', 'non-compliant']).toContain(result.overallStatus);
+      expect(['compliant', 'conditional', 'non-compliant']).toContain(
+        result.overallStatus,
+      );
     });
 
     it('exam readiness score is between 0 and 100', async () => {
@@ -716,7 +807,9 @@ describe('AlmEnterpriseService', () => {
           rateType: 'variable',
         },
       ]);
-      mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue(null);
+      mockPrisma.liquidityPosition.findFirst = jest
+        .fn()
+        .mockResolvedValue(null);
     });
 
     it('returns trends: null when no previous analysis run exists', async () => {
@@ -770,14 +863,26 @@ describe('AlmEnterpriseService', () => {
     it('converts balance sheet items to DTO with correct asset/liability split', async () => {
       mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
         {
-          category: 'asset', subcategory: 'loans', name: 'Loan A',
-          balance: 100, rate: 0.06, duration: 5, rateType: 'fixed',
-          maturityDate: null, repriceDate: null,
+          category: 'asset',
+          subcategory: 'loans',
+          name: 'Loan A',
+          balance: 100,
+          rate: 0.06,
+          duration: 5,
+          rateType: 'fixed',
+          maturityDate: null,
+          repriceDate: null,
         },
         {
-          category: 'liability', subcategory: 'deposits', name: 'Deposit A',
-          balance: 80, rate: 0.02, duration: 1, rateType: 'variable',
-          maturityDate: null, repriceDate: null,
+          category: 'liability',
+          subcategory: 'deposits',
+          name: 'Deposit A',
+          balance: 80,
+          rate: 0.02,
+          duration: 1,
+          rateType: 'variable',
+          maturityDate: null,
+          repriceDate: null,
         },
       ]);
       const result = await service.getBalanceSheetSnapshot('inst-1');
@@ -804,14 +909,26 @@ describe('AlmEnterpriseService', () => {
       });
       mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
         {
-          category: 'asset', subcategory: 'loans', name: 'Loans',
-          balance: 150, rate: 0.06, duration: 5, rateType: 'fixed',
-          maturityDate: null, repriceDate: null,
+          category: 'asset',
+          subcategory: 'loans',
+          name: 'Loans',
+          balance: 150,
+          rate: 0.06,
+          duration: 5,
+          rateType: 'fixed',
+          maturityDate: null,
+          repriceDate: null,
         },
         {
-          category: 'liability', subcategory: 'deposits', name: 'Deposits',
-          balance: 130, rate: 0.02, duration: 1, rateType: 'variable',
-          maturityDate: null, repriceDate: null,
+          category: 'liability',
+          subcategory: 'deposits',
+          name: 'Deposits',
+          balance: 130,
+          rate: 0.02,
+          duration: 1,
+          rateType: 'variable',
+          maturityDate: null,
+          repriceDate: null,
         },
       ]);
       mockPrisma.liquidityPosition.findFirst.mockResolvedValue(null);
@@ -819,8 +936,10 @@ describe('AlmEnterpriseService', () => {
 
     it('covers large duration gap scoring', async () => {
       mockDurationService.calculatePortfolioMetrics.mockReturnValueOnce({
-        assetDuration: 6.0, liabilityDuration: 2.0,
-        assetConvexity: 0.02, liabilityConvexity: 0.005,
+        assetDuration: 6.0,
+        liabilityDuration: 2.0,
+        assetConvexity: 0.02,
+        liabilityConvexity: 0.005,
         leverageAdjustedDurationGap: 4.0,
       });
       const result = await service.getALMSummary('inst-1');
@@ -829,8 +948,10 @@ describe('AlmEnterpriseService', () => {
 
     it('covers very large duration gap scoring', async () => {
       mockDurationService.calculatePortfolioMetrics.mockReturnValueOnce({
-        assetDuration: 8.0, liabilityDuration: 1.5,
-        assetConvexity: 0.02, liabilityConvexity: 0.005,
+        assetDuration: 8.0,
+        liabilityDuration: 1.5,
+        assetConvexity: 0.02,
+        liabilityConvexity: 0.005,
         leverageAdjustedDurationGap: 6.5,
       });
       const result = await service.getALMSummary('inst-1');
@@ -839,8 +960,10 @@ describe('AlmEnterpriseService', () => {
 
     it('covers neutral risk profile (gap < 0.5)', async () => {
       mockDurationService.calculatePortfolioMetrics.mockReturnValueOnce({
-        assetDuration: 2.0, liabilityDuration: 1.8,
-        assetConvexity: 0.02, liabilityConvexity: 0.005,
+        assetDuration: 2.0,
+        liabilityDuration: 1.8,
+        assetConvexity: 0.02,
+        liabilityConvexity: 0.005,
         leverageAdjustedDurationGap: 0.2,
       });
       const result = await service.getALMSummary('inst-1');
@@ -849,8 +972,10 @@ describe('AlmEnterpriseService', () => {
 
     it('covers liability-sensitive risk profile (gap < 0)', async () => {
       mockDurationService.calculatePortfolioMetrics.mockReturnValueOnce({
-        assetDuration: 1.0, liabilityDuration: 3.0,
-        assetConvexity: 0.02, liabilityConvexity: 0.005,
+        assetDuration: 1.0,
+        liabilityDuration: 3.0,
+        assetConvexity: 0.02,
+        liabilityConvexity: 0.005,
         leverageAdjustedDurationGap: -2.0,
       });
       const result = await service.getALMSummary('inst-1');
@@ -877,7 +1002,12 @@ describe('AlmEnterpriseService', () => {
 
     it('covers low LCR scoring', async () => {
       mockAlmService.fullAnalysis.mockReturnValue({
-        lcr: { lcr: 70, hqlaTotal: 10_000_000, totalNetOutflows: 15_000_000, status: 'breach' },
+        lcr: {
+          lcr: 70,
+          hqlaTotal: 10_000_000,
+          totalNetOutflows: 15_000_000,
+          status: 'breach',
+        },
         durationGap: { durationGap: 1.5 },
       });
       const result = await service.getALMSummary('inst-1');
@@ -886,7 +1016,12 @@ describe('AlmEnterpriseService', () => {
 
     it('covers warning LCR scoring', async () => {
       mockAlmService.fullAnalysis.mockReturnValue({
-        lcr: { lcr: 85, hqlaTotal: 15_000_000, totalNetOutflows: 18_000_000, status: 'warning' },
+        lcr: {
+          lcr: 85,
+          hqlaTotal: 15_000_000,
+          totalNetOutflows: 18_000_000,
+          status: 'warning',
+        },
         durationGap: { durationGap: 1.5 },
       });
       const result = await service.getALMSummary('inst-1');
@@ -895,7 +1030,12 @@ describe('AlmEnterpriseService', () => {
 
     it('covers moderate LCR scoring', async () => {
       mockAlmService.fullAnalysis.mockReturnValue({
-        lcr: { lcr: 95, hqlaTotal: 18_000_000, totalNetOutflows: 19_000_000, status: 'warning' },
+        lcr: {
+          lcr: 95,
+          hqlaTotal: 18_000_000,
+          totalNetOutflows: 19_000_000,
+          status: 'warning',
+        },
         durationGap: { durationGap: 1.5 },
       });
       const result = await service.getALMSummary('inst-1');
@@ -916,9 +1056,15 @@ describe('AlmEnterpriseService', () => {
       });
       mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
         {
-          category: 'asset', subcategory: 'loans', name: 'Loans',
-          balance: 150, rate: 0.06, duration: 5, rateType: 'fixed',
-          maturityDate: null, repriceDate: null,
+          category: 'asset',
+          subcategory: 'loans',
+          name: 'Loans',
+          balance: 150,
+          rate: 0.06,
+          duration: 5,
+          rateType: 'fixed',
+          maturityDate: null,
+          repriceDate: null,
         },
       ]);
       mockPrisma.liquidityPosition.findFirst.mockResolvedValue(null);

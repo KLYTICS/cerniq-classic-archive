@@ -7,7 +7,7 @@ import { SkeletonLoader, EmptyState, ErrorBanner } from '@/components/ui/cerniq'
 import { analytics, EVENTS } from '@/lib/analytics';
 import { useTranslation } from '@/lib/i18n';
 import ProgressTracker from '@/components/portal/ProgressTracker';
-import { getPublicApiUrl } from '@/lib/api-base';
+import { getBalanceSheetTemplateUrl, getPublicApiUrl } from '@/lib/api-base';
 import { unwrapApiData } from '@/lib/api-response';
 
 interface ReportJob {
@@ -295,7 +295,7 @@ export default function PortalSubmit() {
                   )}
                 </p>
                 <a
-                  href={getPublicApiUrl('/api/alm/templates/cooperativa')}
+                  href={getBalanceSheetTemplateUrl('cooperativa')}
                   className="cerniq-button-secondary px-4 py-2 text-sm"
                 >
                   <Download className="h-4 w-4" /> {t('Download template', 'Descargar plantilla')}

@@ -245,18 +245,24 @@ describe('ExecutionService', () => {
         bid: 99.95,
         ask: 100.05,
       });
-      const executions = [{
-        ticker: 'TEST',
-        executionPrice: 101.0, // 100bps above mid
-        executionTime: new Date(),
-        side: 'BUY' as const,
-        quantity: 100,
-      }];
+      const executions = [
+        {
+          ticker: 'TEST',
+          executionPrice: 101.0, // 100bps above mid
+          executionTime: new Date(),
+          side: 'BUY' as const,
+          quantity: 100,
+        },
+      ];
       const result = await service.generateBestExecutionReport(executions, {
         start: new Date('2023-01-01'),
         end: new Date('2023-12-31'),
       });
-      expect(result.complianceFlags.some((f) => f.includes('HIGH_SLIPPAGE_DETECTED'))).toBe(true);
+      expect(
+        result.complianceFlags.some((f) =>
+          f.includes('HIGH_SLIPPAGE_DETECTED'),
+        ),
+      ).toBe(true);
     });
 
     it('should flag large order poor fill', async () => {
@@ -265,18 +271,22 @@ describe('ExecutionService', () => {
         bid: 99.95,
         ask: 100.05,
       });
-      const executions = [{
-        ticker: 'BIG',
-        executionPrice: 101.0,
-        executionTime: new Date(),
-        side: 'BUY' as const,
-        quantity: 20000, // notional > $1M
-      }];
+      const executions = [
+        {
+          ticker: 'BIG',
+          executionPrice: 101.0,
+          executionTime: new Date(),
+          side: 'BUY' as const,
+          quantity: 20000, // notional > $1M
+        },
+      ];
       const result = await service.generateBestExecutionReport(executions, {
         start: new Date('2023-01-01'),
         end: new Date('2023-12-31'),
       });
-      expect(result.complianceFlags.some((f) => f.includes('LARGE_ORDER_POOR_FILL'))).toBe(true);
+      expect(
+        result.complianceFlags.some((f) => f.includes('LARGE_ORDER_POOR_FILL')),
+      ).toBe(true);
     });
   });
 

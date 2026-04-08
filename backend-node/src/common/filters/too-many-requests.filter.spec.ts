@@ -25,7 +25,10 @@ describe('TooManyRequestsFilter', () => {
 
   it('returns 429 structured response for rate limit errors', () => {
     const { host, status, json } = makeHost('/api/alm/analysis');
-    const exception = new HttpException('Too Many Requests', HttpStatus.TOO_MANY_REQUESTS);
+    const exception = new HttpException(
+      'Too Many Requests',
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
 
     filter.catch(exception, host);
 
@@ -43,7 +46,10 @@ describe('TooManyRequestsFilter', () => {
 
   it('includes timestamp in 429 response', () => {
     const { host, json } = makeHost();
-    const exception = new HttpException('Too Many Requests', HttpStatus.TOO_MANY_REQUESTS);
+    const exception = new HttpException(
+      'Too Many Requests',
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
     filter.catch(exception, host);
     const body = json.mock.calls[0][0];
     expect(body.timestamp).toBeDefined();
@@ -53,7 +59,10 @@ describe('TooManyRequestsFilter', () => {
   it('uses Retry-After header value as retryAfterSeconds', () => {
     const { host, json, getHeader } = makeHost();
     getHeader.mockReturnValue('120');
-    const exception = new HttpException('Too Many', HttpStatus.TOO_MANY_REQUESTS);
+    const exception = new HttpException(
+      'Too Many',
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
     filter.catch(exception, host);
     expect(json.mock.calls[0][0].retryAfterSeconds).toBe(120);
   });
@@ -61,7 +70,10 @@ describe('TooManyRequestsFilter', () => {
   it('defaults retryAfterSeconds to 60 when header missing', () => {
     const { host, json, getHeader } = makeHost();
     getHeader.mockReturnValue(undefined);
-    const exception = new HttpException('Too Many', HttpStatus.TOO_MANY_REQUESTS);
+    const exception = new HttpException(
+      'Too Many',
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
     filter.catch(exception, host);
     expect(json.mock.calls[0][0].retryAfterSeconds).toBe(60);
   });
@@ -70,10 +82,15 @@ describe('TooManyRequestsFilter', () => {
 
   it('passes through HttpException with non-429 status', () => {
     const { host, status, json } = makeHost();
-    const exception = new HttpException({ message: 'Bad request' }, HttpStatus.BAD_REQUEST);
+    const exception = new HttpException(
+      { message: 'Bad request' },
+      HttpStatus.BAD_REQUEST,
+    );
     filter.catch(exception, host);
     expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Bad request' }));
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Bad request' }),
+    );
   });
 
   it('passes through 404 HttpException', () => {

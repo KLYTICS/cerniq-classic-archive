@@ -1,4 +1,10 @@
-import { HttpException, HttpStatus, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { GlobalExceptionFilter } from './http-exception.filter';
 
 describe('GlobalExceptionFilter', () => {
@@ -69,14 +75,25 @@ describe('GlobalExceptionFilter', () => {
   });
 
   it('joins array messages', () => {
-    filter.catch(new BadRequestException({ message: ['field1 invalid', 'field2 required'] }), mockHost);
+    filter.catch(
+      new BadRequestException({
+        message: ['field1 invalid', 'field2 required'],
+      }),
+      mockHost,
+    );
     const body = mockResponse.json.mock.calls[0][0];
     expect(body.error.message).toContain('field1 invalid');
     expect(body.error.message).toContain('field2 required');
   });
 
   it('includes details from validation errors', () => {
-    filter.catch(new BadRequestException({ message: 'Validation failed', errors: [{ field: 'email' }] }), mockHost);
+    filter.catch(
+      new BadRequestException({
+        message: 'Validation failed',
+        errors: [{ field: 'email' }],
+      }),
+      mockHost,
+    );
     const body = mockResponse.json.mock.calls[0][0];
     expect(body.error.details).toEqual([{ field: 'email' }]);
   });
@@ -138,7 +155,13 @@ describe('GlobalExceptionFilter', () => {
   });
 
   it('handles HttpException with details field in object response', () => {
-    filter.catch(new HttpException({ message: 'Validation', details: { field: 'name' } }, 400), mockHost);
+    filter.catch(
+      new HttpException(
+        { message: 'Validation', details: { field: 'name' } },
+        400,
+      ),
+      mockHost,
+    );
     const body = mockResponse.json.mock.calls[0][0];
     expect(body.error.details).toEqual({ field: 'name' });
   });

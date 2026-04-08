@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { unwrapApiData } from '@/lib/api-response';
 
 interface HealthData {
   status: string;
@@ -22,7 +23,12 @@ export default function StatusPage() {
         process.env.NEXT_PUBLIC_NODE_API_URL || ''
       ).trim().replace(/\/+$/, '');
       const res = await fetch(`${NODE_API_URL}/health`);
-      const data = await res.json();
+      const data = unwrapApiData<HealthData>(
+        await res.json().catch(() => null),
+      );
+      if (!data?.status || !data?.services) {
+        throw new Error('Invalid health payload');
+      }
       setHealth(data);
       setLastChecked(new Date());
       setError(false);
@@ -95,7 +101,9 @@ export default function StatusPage() {
               <div className={`w-3 h-3 ${statusColor(health.status)} rounded-full`} />
               <div>
                 <h2 className="text-lg font-bold">
-                  {health.status === 'healthy' ? 'All Systems Operational' : 'Partial Degradation'}
+                  {health.status === 'healthy' || health.status === 'ok'
+                    ? 'All Systems Operational'
+                    : 'Partial Degradation'}
                 </h2>
                 <p className="text-sm text-slate-400">Version {health.version}</p>
               </div>

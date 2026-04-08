@@ -83,11 +83,17 @@ describe('RequestDeduplicationMiddleware', () => {
   });
 
   it('should clean up inflight entry when response finishes', () => {
-    let finishCb: Function = () => {};
+    let finishCb: () => void = () => {};
     const res = {
-      on: jest.fn((event: string, cb: Function) => { finishCb = cb; }),
+      on: jest.fn((event: string, cb: () => void) => {
+        finishCb = cb;
+      }),
     };
-    const req = { method: 'GET', originalUrl: '/api/finish-test', headers: {} } as any;
+    const req = {
+      method: 'GET',
+      originalUrl: '/api/finish-test',
+      headers: {},
+    } as any;
     const next = jest.fn();
 
     middleware.use(req, res as any, next);
@@ -106,7 +112,11 @@ describe('RequestDeduplicationMiddleware', () => {
   it('should clean up via TTL timeout', () => {
     jest.useFakeTimers();
     const res = { on: jest.fn() } as any;
-    const req = { method: 'GET', originalUrl: '/api/ttl-test', headers: {} } as any;
+    const req = {
+      method: 'GET',
+      originalUrl: '/api/ttl-test',
+      headers: {},
+    } as any;
     const next = jest.fn();
 
     middleware.use(req, res, next);
@@ -133,12 +143,20 @@ describe('RequestDeduplicationMiddleware', () => {
   });
 
   it('should generate different keys for different auth headers', () => {
-    const { req: req1, res: res1, next: next1 } = createMocks('GET', '/api/data', {
+    const {
+      req: req1,
+      res: res1,
+      next: next1,
+    } = createMocks('GET', '/api/data', {
       authorization: 'Bearer token-A',
     });
     middleware.use(req1, res1, next1);
 
-    const { req: req2, res: res2, next: next2 } = createMocks('GET', '/api/data', {
+    const {
+      req: req2,
+      res: res2,
+      next: next2,
+    } = createMocks('GET', '/api/data', {
       authorization: 'Bearer token-B',
     });
     middleware.use(req2, res2, next2);

@@ -231,9 +231,7 @@ describe('ComplianceCalendarService', () => {
 
       const result = await service.getUpcomingDeadlines('inst-1');
       for (let i = 1; i < result.events.length; i++) {
-        expect(
-          result.events[i].deadlineDate.getTime(),
-        ).toBeGreaterThanOrEqual(
+        expect(result.events[i].deadlineDate.getTime()).toBeGreaterThanOrEqual(
           result.events[i - 1].deadlineDate.getTime(),
         );
       }
@@ -316,17 +314,19 @@ describe('ComplianceCalendarService', () => {
       const origNow = Date.now;
       Date.now = () => mockNow.getTime();
       const OrigDate = global.Date;
-      // @ts-ignore
+      // @ts-expect-error test-only Date shim for deterministic time travel
       global.Date = class extends realDateCtor {
         constructor(...args: any[]) {
           if (args.length === 0) {
             super(mockNow.getTime());
           } else {
-            // @ts-ignore
+            // @ts-expect-error forwarding constructor args to built-in Date
             super(...args);
           }
         }
-        static now() { return mockNow.getTime(); }
+        static now() {
+          return mockNow.getTime();
+        }
       };
 
       const service = new ComplianceCalendarService(
@@ -356,13 +356,15 @@ describe('ComplianceCalendarService', () => {
     it('generates meetings in the future when no alcoNextDate is set', async () => {
       // This test ensures the getNextThirdWednesday path is exercised
       // (including potential recursion when the 3rd Wed of current month has passed)
-      const service = new ComplianceCalendarService(mockPrisma({
-        id: 'inst-1',
-        name: 'Test',
-        type: 'cooperativa',
-        alcoMeetingFrequency: 'monthly',
-        // No alcoNextDate — forces getNextThirdWednesday
-      }));
+      const service = new ComplianceCalendarService(
+        mockPrisma({
+          id: 'inst-1',
+          name: 'Test',
+          type: 'cooperativa',
+          alcoMeetingFrequency: 'monthly',
+          // No alcoNextDate — forces getNextThirdWednesday
+        }),
+      );
 
       const result = await service.getUpcomingDeadlines('inst-1');
       const meetings = result.events.filter((e) => e.category === 'meeting');
@@ -370,7 +372,9 @@ describe('ComplianceCalendarService', () => {
       // All meetings should be in the future
       const now = new Date();
       meetings.forEach((m) => {
-        expect(m.deadlineDate.getTime()).toBeGreaterThan(now.getTime() - 86400000);
+        expect(m.deadlineDate.getTime()).toBeGreaterThan(
+          now.getTime() - 86400000,
+        );
       });
     });
   });

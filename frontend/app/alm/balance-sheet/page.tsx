@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient, getApiErrorMessage, isAuthError } from '@/lib/api';
+import { getBalanceSheetTemplateUrl } from '@/lib/api-base';
 import { analytics, EVENTS } from '@/lib/analytics';
 import { RefreshCw, DollarSign, Upload, Plus, Trash2, AlertTriangle, Check, Download, Table, FileWarning, ChevronDown } from 'lucide-react';
 import { useALM } from '@/components/alm/ALMProvider';
@@ -341,10 +342,8 @@ export default function BalanceSheetPage() {
   };
 
   const downloadTemplate = (type: 'generic' | 'cooperativa') => {
-    const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-    // Download from server (includes BOM for Excel UTF-8 compat)
     const a = document.createElement('a');
-    a.href = `${NODE_API_URL}/api/alm/templates/${type}`;
+    a.href = getBalanceSheetTemplateUrl(type);
     a.download = `balance_sheet_template_${type}.csv`;
     a.click();
     setShowTemplateMenu(false);

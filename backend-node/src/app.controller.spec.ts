@@ -207,12 +207,20 @@ describe('AppController', () => {
     readFileSync.mockReturnValueOnce('536870912');
 
     getHealthMemorySnapshot({
-      rss: 100, heapTotal: 200, heapUsed: 100, external: 0, arrayBuffers: 0,
+      rss: 100,
+      heapTotal: 200,
+      heapUsed: 100,
+      external: 0,
+      arrayBuffers: 0,
     });
     // Second call should use cache and not call readFileSync again
     readFileSync.mockClear();
     getHealthMemorySnapshot({
-      rss: 100, heapTotal: 200, heapUsed: 100, external: 0, arrayBuffers: 0,
+      rss: 100,
+      heapTotal: 200,
+      heapUsed: 100,
+      external: 0,
+      arrayBuffers: 0,
     });
     expect(readFileSync).not.toHaveBeenCalled();
   });
@@ -484,7 +492,9 @@ describe('AppController', () => {
       };
       await controller.submitDemoRequest(body as any);
 
-      expect(emailService.sendDemoRequestNotification).toHaveBeenCalledWith(body);
+      expect(emailService.sendDemoRequestNotification).toHaveBeenCalledWith(
+        body,
+      );
       expect(emailService.sendDemoConfirmation).toHaveBeenCalledWith({
         name: 'Jane Doe',
         email: 'test@example.com',
@@ -529,9 +539,9 @@ describe('AppController', () => {
       });
 
       it('rejects when no admin key provided', async () => {
-        await expect(controller.getDemoRequests(undefined as any)).rejects.toThrow(
-          UnauthorizedException,
-        );
+        await expect(
+          controller.getDemoRequests(undefined as any),
+        ).rejects.toThrow(UnauthorizedException);
       });
     });
 
@@ -581,7 +591,15 @@ describe('AppController', () => {
 
       it('seeds prospects from JSON data', async () => {
         const seeds = [
-          { name: 'Prospect 1', email: 'p1@test.com', company: 'C1', role: 'CEO', stage: 'lead', source: 'manual', notes: '' },
+          {
+            name: 'Prospect 1',
+            email: 'p1@test.com',
+            company: 'C1',
+            role: 'CEO',
+            stage: 'lead',
+            source: 'manual',
+            notes: '',
+          },
         ];
         process.env.PROSPECT_SEED_DATA = JSON.stringify(seeds);
         prisma.prospect.findFirst.mockResolvedValue(null);
@@ -595,7 +613,12 @@ describe('AppController', () => {
 
       it('skips existing prospects', async () => {
         const seeds = [
-          { name: 'Existing', email: 'existing@test.com', stage: 'lead', source: 'manual' },
+          {
+            name: 'Existing',
+            email: 'existing@test.com',
+            stage: 'lead',
+            source: 'manual',
+          },
         ];
         process.env.PROSPECT_SEED_DATA = JSON.stringify(seeds);
         prisma.prospect.findFirst.mockResolvedValue({ id: 'existing' });
@@ -623,7 +646,10 @@ describe('AppController', () => {
       });
 
       it('POST /api/admin/prospects creates prospect', async () => {
-        prisma.prospect.create.mockResolvedValue({ id: 'p2', name: 'New Prospect' });
+        prisma.prospect.create.mockResolvedValue({
+          id: 'p2',
+          name: 'New Prospect',
+        });
         const result = await controller.createProspect(adminKey, {
           name: 'New Prospect',
           email: 'new@test.com',
@@ -632,7 +658,10 @@ describe('AppController', () => {
       });
 
       it('PATCH /api/admin/prospects/:id updates prospect', async () => {
-        prisma.prospect.update.mockResolvedValue({ id: 'p1', stage: 'demo_done' });
+        prisma.prospect.update.mockResolvedValue({
+          id: 'p1',
+          stage: 'demo_done',
+        });
         const result = await controller.updateProspect(adminKey, 'p1', {
           stage: 'demo_done',
           notes: 'Demo completed',
@@ -652,7 +681,9 @@ describe('AppController', () => {
 
   describe('workspace endpoints', () => {
     it('GET /api/workspaces returns user workspaces', async () => {
-      prisma.workspace.findMany.mockResolvedValue([{ id: 'ws1', name: 'My Workspace' }]);
+      prisma.workspace.findMany.mockResolvedValue([
+        { id: 'ws1', name: 'My Workspace' },
+      ]);
       const req = { user: { userId: 'u1' } };
       const result = await controller.getWorkspaces(req);
       expect(result).toHaveLength(1);
@@ -666,7 +697,10 @@ describe('AppController', () => {
     });
 
     it('POST /api/workspaces uses default name', async () => {
-      prisma.workspace.create.mockResolvedValue({ id: 'ws3', name: 'My Workspace' });
+      prisma.workspace.create.mockResolvedValue({
+        id: 'ws3',
+        name: 'My Workspace',
+      });
       const req = { user: { userId: 'u1' } };
       await controller.createWorkspace(req, { name: '' });
       expect(prisma.workspace.create).toHaveBeenCalledWith(
@@ -682,7 +716,9 @@ describe('AppController', () => {
     it('throws ServiceUnavailableException during shutdown', async () => {
       (AppController as any).shuttingDown = true;
       const { ServiceUnavailableException } = require('@nestjs/common');
-      await expect(controller.getHealth()).rejects.toThrow(ServiceUnavailableException);
+      await expect(controller.getHealth()).rejects.toThrow(
+        ServiceUnavailableException,
+      );
     });
   });
 
@@ -747,7 +783,10 @@ describe('AppController', () => {
       prisma.$queryRaw.mockResolvedValue([]);
       cacheService.ping.mockResolvedValue(true);
       prisma.getPoolStats.mockReturnValue({
-        totalCount: 5, idleCount: 3, waitingCount: 0, maxSize: 10,
+        totalCount: 5,
+        idleCount: 3,
+        waitingCount: 0,
+        maxSize: 10,
       });
 
       const result = await controller.getHealthDetailed();
@@ -783,7 +822,10 @@ describe('AppController', () => {
   describe('GET /metrics', () => {
     it('returns process metrics', async () => {
       prisma.getPoolStats.mockReturnValue({
-        totalCount: 5, idleCount: 3, waitingCount: 0, maxSize: 10,
+        totalCount: 5,
+        idleCount: 3,
+        waitingCount: 0,
+        maxSize: 10,
       });
 
       const result = await controller.getMetrics();
@@ -842,7 +884,9 @@ describe('AppController', () => {
       process.env.ADMIN_KEY = 'test-admin-key';
       prisma.prospect.update.mockResolvedValue({ id: 'p1', name: 'Updated' });
 
-      await controller.updateProspect('test-admin-key', 'p1', { name: 'Updated' });
+      await controller.updateProspect('test-admin-key', 'p1', {
+        name: 'Updated',
+      });
 
       expect(prisma.prospect.update).toHaveBeenCalledWith({
         where: { id: 'p1' },
@@ -883,12 +927,16 @@ describe('AppController', () => {
   describe('verifyAdmin', () => {
     it('rejects when ADMIN_KEY env not set', async () => {
       delete process.env.ADMIN_KEY;
-      await expect(controller.getDemoRequests('some-key')).rejects.toThrow(UnauthorizedException);
+      await expect(controller.getDemoRequests('some-key')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('rejects when key length differs', async () => {
       process.env.ADMIN_KEY = 'correct-key';
-      await expect(controller.getDemoRequests('short')).rejects.toThrow(UnauthorizedException);
+      await expect(controller.getDemoRequests('short')).rejects.toThrow(
+        UnauthorizedException,
+      );
       delete process.env.ADMIN_KEY;
     });
   });

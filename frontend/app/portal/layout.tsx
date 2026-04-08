@@ -42,6 +42,11 @@ interface PortalContextType {
   loading: boolean;
 }
 
+interface SessionPayload {
+  authenticated: boolean;
+  user?: PortalUser;
+}
+
 const PortalContext = createContext<PortalContextType>({
   user: null,
   subscription: null,
@@ -105,16 +110,15 @@ export default function PortalLayout({
         }
 
         try {
-          const [profileRes, subRes] = await Promise.all([
-            fetch(getPublicApiUrl('/api/auth/profile'), {
-              credentials: 'include',
-            }),
-            fetch(getPublicApiUrl('/api/billing/subscription'), {
-              credentials: 'include',
-            }),
-          ]);
+          const profileRes = await fetch(getPublicApiUrl('/api/auth/session'), {
+            credentials: 'include',
+            cache: 'no-store',
+          });
+          const sessionPayload = (await profileRes.json().catch(() => null)) as
+            | SessionPayload
+            | null;
 
-          if (profileRes.status === 401) {
+          if (!sessionPayload?.authenticated || !sessionPayload.user) {
             if (!cancelled) {
               setUser(null);
               setSubscription(null);
@@ -125,28 +129,27 @@ export default function PortalLayout({
             return;
           }
 
-          if (profileRes.ok) {
-            const profilePayload = normalizePortalUser(
-              await profileRes.json().catch(() => null),
-            );
-
-            if (!profilePayload) {
-              throw new Error('Malformed profile payload');
-            }
-
-            const subscriptionPayload = subRes.ok
-              ? normalizeSubscription(await subRes.json().catch(() => null))
-              : null;
-
-            if (!cancelled) {
-              setUser(profilePayload);
-              setSubscription(subscriptionPayload);
-              setAccess(normalizePlatformAccess(profilePayload.access));
-              setSessionError('');
-              setLoading(false);
-            }
-            return;
+          const profilePayload = normalizePortalUser(sessionPayload.user);
+          if (!profilePayload) {
+            throw new Error('Malformed profile payload');
           }
+
+          const subRes = await fetch(getPublicApiUrl('/api/billing/subscription'), {
+            credentials: 'include',
+            cache: 'no-store',
+          });
+          const subscriptionPayload = subRes.ok
+            ? normalizeSubscription(await subRes.json().catch(() => null))
+            : null;
+
+          if (!cancelled) {
+            setUser(profilePayload);
+            setSubscription(subscriptionPayload);
+            setAccess(normalizePlatformAccess(profilePayload.access));
+            setSessionError('');
+            setLoading(false);
+          }
+          return;
         } catch {
           // Retry below. Network/proxy misses should not bounce the user to login.
         }

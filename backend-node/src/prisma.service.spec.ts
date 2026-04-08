@@ -6,8 +6,6 @@
  * Then manually set the private fields and call methods directly.
  */
 
-/* eslint-disable @typescript-eslint/no-require-imports */
-
 jest.mock('@sentry/nestjs', () => ({ captureMessage: jest.fn() }));
 
 import * as Sentry from '@sentry/nestjs';
@@ -110,7 +108,12 @@ describe('PrismaService', () => {
   describe('getPoolStats', () => {
     it('returns pool stats when pool exists', () => {
       const svc = buildFakeService({
-        _pool: { totalCount: 5, idleCount: 3, waitingCount: 0, options: { max: 20 } },
+        _pool: {
+          totalCount: 5,
+          idleCount: 3,
+          waitingCount: 0,
+          options: { max: 20 },
+        },
       });
       expect(svc.getPoolStats()).toEqual({
         totalCount: 5,
@@ -148,14 +151,20 @@ describe('PrismaService', () => {
     });
 
     it('returns original result for fast queries', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(1010);
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1010);
       const result = await svc._request({ model: 'User', action: 'findMany' });
       expect(result).toBe('db-result');
       expect(Sentry.captureMessage).not.toHaveBeenCalled();
     });
 
     it('warns for queries > 500ms but <= 2000ms (no Sentry)', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(1700);
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1700);
       await svc._request({ model: 'User', action: 'findFirst' });
       expect(svc.logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('User.findFirst'),
@@ -164,7 +173,10 @@ describe('PrismaService', () => {
     });
 
     it('errors and reports to Sentry for queries > 2000ms', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(3500);
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(3500);
       await svc._request({ model: 'Post', action: 'create' });
       expect(svc.logger.error).toHaveBeenCalledWith(
         expect.stringContaining('Post.create'),
@@ -179,7 +191,10 @@ describe('PrismaService', () => {
     });
 
     it('uses action alone when model is undefined', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(4000);
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(4000);
       await svc._request({ action: 'rawQuery' });
       expect(Sentry.captureMessage).toHaveBeenCalledWith(
         expect.stringContaining('rawQuery'),
@@ -188,7 +203,10 @@ describe('PrismaService', () => {
     });
 
     it('uses "unknown" when both model and action are undefined', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(4000);
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(4000);
       await svc._request({});
       expect(Sentry.captureMessage).toHaveBeenCalledWith(
         expect.stringContaining('unknown'),
@@ -200,18 +218,28 @@ describe('PrismaService', () => {
 
     it('still measures timing when the original request throws', async () => {
       // Replace the bound original with a rejecting fn
-      const origRequestFailing = jest.fn().mockRejectedValue(new Error('DB exploded'));
+      const origRequestFailing = jest
+        .fn()
+        .mockRejectedValue(new Error('DB exploded'));
       svc = buildFakeService({ _request: origRequestFailing });
       const { PrismaService } = require('./prisma.service');
       await PrismaService.prototype.onModuleInit.call(svc);
 
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(5000);
-      await expect(svc._request({ model: 'X', action: 'y' })).rejects.toThrow('DB exploded');
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(5000);
+      await expect(svc._request({ model: 'X', action: 'y' })).rejects.toThrow(
+        'DB exploded',
+      );
       expect(Sentry.captureMessage).toHaveBeenCalled();
     });
 
     it('does not log or report for sub-500ms queries', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(1100);
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1100);
       await svc._request({ model: 'User', action: 'count' });
       expect(svc.logger.warn).not.toHaveBeenCalled();
       expect(svc.logger.error).not.toHaveBeenCalled();
@@ -219,14 +247,20 @@ describe('PrismaService', () => {
     });
 
     it('handles query at exactly 500ms boundary as fast (no warning)', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(1500);
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1500);
       await svc._request({ model: 'Session', action: 'findMany' });
       // 500ms is <= SLOW_QUERY_WARN_MS (default 500) so no warn
       expect(svc.logger.warn).not.toHaveBeenCalled();
     });
 
     it('handles query at exactly 501ms as slow (warn)', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(1501);
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1501);
       await svc._request({ model: 'Account', action: 'update' });
       expect(svc.logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Account.update'),
@@ -234,7 +268,10 @@ describe('PrismaService', () => {
     });
 
     it('includes duration and threshold in Sentry extra for error-level queries', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(4000);
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(4000);
       await svc._request({ model: 'Report', action: 'aggregate' });
       expect(Sentry.captureMessage).toHaveBeenCalledWith(
         expect.any(String),
@@ -252,7 +289,12 @@ describe('PrismaService', () => {
   describe('getPoolStats additional', () => {
     it('returns correct values when pool has waiting connections', () => {
       const svc = buildFakeService({
-        _pool: { totalCount: 20, idleCount: 0, waitingCount: 5, options: { max: 20 } },
+        _pool: {
+          totalCount: 20,
+          idleCount: 0,
+          waitingCount: 5,
+          options: { max: 20 },
+        },
       });
       const stats = svc.getPoolStats();
       expect(stats!.waitingCount).toBe(5);

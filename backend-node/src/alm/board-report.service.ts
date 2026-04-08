@@ -326,7 +326,7 @@ export class BoardReportService {
       dataGap('board.regPulse', 'CALCULATION_FAILED', {
         severity: 'WARNING',
         action:
-          'Wire ComplianceCalendarService into the board report so reg pulse dates come from the institution\'s actual schedule, not hardcoded literals.',
+          "Wire ComplianceCalendarService into the board report so reg pulse dates come from the institution's actual schedule, not hardcoded literals.",
       }),
     );
 

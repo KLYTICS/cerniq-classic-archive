@@ -252,7 +252,11 @@ describe('BacktestService', () => {
     // All same price
     const data = Array.from({ length: 30 }, (_, i) => ({
       date: `2025-01-${String(i + 1).padStart(2, '0')}`,
-      open: 100, high: 100, low: 100, close: 100, volume: 1000000,
+      open: 100,
+      high: 100,
+      low: 100,
+      close: 100,
+      volume: 1000000,
     }));
     mockMarketDataService.getHistoricalPrices.mockResolvedValue(data);
 
@@ -279,7 +283,11 @@ describe('BacktestService', () => {
     // Monotonically increasing prices
     const data = Array.from({ length: 40 }, (_, i) => ({
       date: `2025-01-${String(i + 1).padStart(2, '0')}`,
-      open: 100 + i, high: 102 + i, low: 99 + i, close: 100 + i + 1, volume: 1000000,
+      open: 100 + i,
+      high: 102 + i,
+      low: 99 + i,
+      close: 100 + i + 1,
+      volume: 1000000,
     }));
     mockMarketDataService.getHistoricalPrices.mockResolvedValue(data);
 

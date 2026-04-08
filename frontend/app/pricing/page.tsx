@@ -135,7 +135,7 @@ export default function PricingPage() {
     try {
       const checkoutUrl = await createCheckoutSession({
         tier: tier as 'one_time' | 'monthly' | 'annual' | 'partner',
-        successUrl: '/portal?welcome=1',
+        successUrl: '/portal/login?billing=success',
         cancelUrl: '/pricing',
       });
       window.location.href = checkoutUrl;

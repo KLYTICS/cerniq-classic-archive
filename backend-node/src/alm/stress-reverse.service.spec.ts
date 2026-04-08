@@ -491,10 +491,22 @@ describe('StressReverseService', () => {
       // but negative shocks breach sooner
       const bs: BalanceSheetInput = {
         assets: [
-          { name: 'Fixed Loans', amount: 100, rate: 0.05, maturityYears: 10, isFloating: false },
+          {
+            name: 'Fixed Loans',
+            amount: 100,
+            rate: 0.05,
+            maturityYears: 10,
+            isFloating: false,
+          },
         ],
         liabilities: [
-          { name: 'Deposits', amount: 85, rate: 0.02, maturityYears: 0.5, isFloating: false },
+          {
+            name: 'Deposits',
+            amount: 85,
+            rate: 0.02,
+            maturityYears: 0.5,
+            isFloating: false,
+          },
         ],
       };
       const result = service.findBreachScenario({
@@ -552,8 +564,24 @@ describe('StressReverseService', () => {
   describe('approxDuration edge cases', () => {
     it('zero-maturity asset has zero duration impact on EVE', () => {
       const bs: BalanceSheetInput = {
-        assets: [{ name: 'Cash', amount: 100, rate: 0.05, maturityYears: 0, isFloating: false }],
-        liabilities: [{ name: 'Deposits', amount: 85, rate: 0.02, maturityYears: 1, isFloating: false }],
+        assets: [
+          {
+            name: 'Cash',
+            amount: 100,
+            rate: 0.05,
+            maturityYears: 0,
+            isFloating: false,
+          },
+        ],
+        liabilities: [
+          {
+            name: 'Deposits',
+            amount: 85,
+            rate: 0.02,
+            maturityYears: 1,
+            isFloating: false,
+          },
+        ],
       };
       const result = service.findBreachScenario({
         balanceSheet: bs,
@@ -565,8 +593,24 @@ describe('StressReverseService', () => {
 
     it('zero-rate asset uses maturity as duration', () => {
       const bs: BalanceSheetInput = {
-        assets: [{ name: 'Zero Coupon', amount: 100, rate: 0, maturityYears: 5, isFloating: false }],
-        liabilities: [{ name: 'Deposits', amount: 85, rate: 0.02, maturityYears: 1, isFloating: false }],
+        assets: [
+          {
+            name: 'Zero Coupon',
+            amount: 100,
+            rate: 0,
+            maturityYears: 5,
+            isFloating: false,
+          },
+        ],
+        liabilities: [
+          {
+            name: 'Deposits',
+            amount: 85,
+            rate: 0.02,
+            maturityYears: 1,
+            isFloating: false,
+          },
+        ],
       };
       const result = service.findBreachScenario({
         balanceSheet: bs,
@@ -579,8 +623,24 @@ describe('StressReverseService', () => {
     // ── Coverage: multi-factor search with NII metric ──────────
     it('finds NII breach scenario', () => {
       const bs: BalanceSheetInput = {
-        assets: [{ name: 'Loans', amount: 100, rate: 0.05, maturityYears: 5, isFloating: false }],
-        liabilities: [{ name: 'Deposits', amount: 80, rate: 0.02, maturityYears: 1, isFloating: true }],
+        assets: [
+          {
+            name: 'Loans',
+            amount: 100,
+            rate: 0.05,
+            maturityYears: 5,
+            isFloating: false,
+          },
+        ],
+        liabilities: [
+          {
+            name: 'Deposits',
+            amount: 80,
+            rate: 0.02,
+            maturityYears: 1,
+            isFloating: true,
+          },
+        ],
       };
       const result = service.findBreachScenario({
         balanceSheet: bs,
@@ -594,8 +654,24 @@ describe('StressReverseService', () => {
     // ── Coverage: floating rate assets ──────────────────────────
     it('handles floating rate assets correctly', () => {
       const bs: BalanceSheetInput = {
-        assets: [{ name: 'Floating Loan', amount: 100, rate: 0.04, maturityYears: 3, isFloating: true }],
-        liabilities: [{ name: 'Fixed Dep', amount: 90, rate: 0.03, maturityYears: 2, isFloating: false }],
+        assets: [
+          {
+            name: 'Floating Loan',
+            amount: 100,
+            rate: 0.04,
+            maturityYears: 3,
+            isFloating: true,
+          },
+        ],
+        liabilities: [
+          {
+            name: 'Fixed Dep',
+            amount: 90,
+            rate: 0.03,
+            maturityYears: 2,
+            isFloating: false,
+          },
+        ],
       };
       const result = service.findBreachScenario({
         balanceSheet: bs,
@@ -609,8 +685,24 @@ describe('StressReverseService', () => {
     // ── Coverage: no breach found ──────────────────────────────
     it('returns null breach when within limits', () => {
       const bs: BalanceSheetInput = {
-        assets: [{ name: 'Cash', amount: 100, rate: 0.01, maturityYears: 0.25, isFloating: false }],
-        liabilities: [{ name: 'Deposits', amount: 95, rate: 0.01, maturityYears: 0.25, isFloating: false }],
+        assets: [
+          {
+            name: 'Cash',
+            amount: 100,
+            rate: 0.01,
+            maturityYears: 0.25,
+            isFloating: false,
+          },
+        ],
+        liabilities: [
+          {
+            name: 'Deposits',
+            amount: 95,
+            rate: 0.01,
+            maturityYears: 0.25,
+            isFloating: false,
+          },
+        ],
       };
       const result = service.findBreachScenario({
         balanceSheet: bs,

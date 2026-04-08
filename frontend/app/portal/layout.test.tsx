@@ -70,8 +70,8 @@ describe('PortalLayout', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          success: true,
-          data: {
+          authenticated: true,
+          user: {
             id: 'portal-user-1',
             email: 'qa@cerniq.io',
             name: 'CERNIQ QA',
@@ -101,17 +101,10 @@ describe('PortalLayout', () => {
   });
 
   it('keeps protected content hidden while redirecting unauthenticated users', async () => {
-    fetchMock
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        json: async () => ({ message: 'Unauthorized' }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        json: async () => ({ message: 'Unauthorized' }),
-      });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ authenticated: false }),
+    });
 
     render(
       <PortalLayout>

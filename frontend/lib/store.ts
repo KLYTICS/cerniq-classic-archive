@@ -11,6 +11,11 @@ interface User {
     name?: string;
 }
 
+interface SessionBootstrapPayload {
+    authenticated: boolean;
+    user?: User & { access?: unknown };
+}
+
 interface AuthState {
     user: User | null;
     access: PlatformAccessState | null;
@@ -167,14 +172,16 @@ export const useAuthStore = create<AuthState>((set) => ({
         // OAuth/login may have a valid server-side cookie before localStorage is populated.
         if (shouldProbeServerSession()) {
             try {
-                const profile = await apiClient.getCurrentUser();
-                const profileUser = normalizeUser(profile);
-                const access = normalizePlatformAccess(
-                    typeof profile === 'object' && profile !== null && 'access' in profile
-                        ? (profile as { access?: unknown }).access
-                        : null,
-                );
-                if (profileUser) {
+                const response = await fetch('/api/auth/session', {
+                    credentials: 'include',
+                    cache: 'no-store',
+                });
+                const profile = response.ok
+                    ? (await response.json().catch(() => null) as SessionBootstrapPayload | null)
+                    : null;
+                const profileUser = normalizeUser(profile?.user ?? null);
+                const access = normalizePlatformAccess(profile?.user?.access ?? null);
+                if (profile?.authenticated && profileUser) {
                     setAuthenticated(profileUser, access);
                     return;
                 }

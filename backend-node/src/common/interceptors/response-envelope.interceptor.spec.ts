@@ -36,12 +36,22 @@ describe('ResponseEnvelopeInterceptor', () => {
   });
 
   it('extracts paginated results into data + meta', async () => {
-    const paginated = { items: [{ id: 1 }, { id: 2 }], total: 10, page: 2, pageSize: 2 };
+    const paginated = {
+      items: [{ id: 1 }, { id: 2 }],
+      total: 10,
+      page: 2,
+      pageSize: 2,
+    };
     const handler: CallHandler = { handle: () => of(paginated) };
     const result = await lastValueFrom(interceptor.intercept(ctx, handler));
     expect(result.success).toBe(true);
     expect(result.data).toEqual([{ id: 1 }, { id: 2 }]);
-    expect(result.meta).toEqual({ page: 2, pageSize: 2, total: 10, totalPages: 5 });
+    expect(result.meta).toEqual({
+      page: 2,
+      pageSize: 2,
+      total: 10,
+      totalPages: 5,
+    });
   });
 
   it('calculates totalPages from total and pageSize', async () => {

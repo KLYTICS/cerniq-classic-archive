@@ -113,10 +113,20 @@ describe('PeerAnalyticsService', () => {
         balanceSheetItem: {
           findMany: jest.fn().mockResolvedValue([
             // Assets: $200M at 7% yield = $14M income
-            { category: 'asset', subcategory: 'loans', balance: 200, rate: 0.07 },
+            {
+              category: 'asset',
+              subcategory: 'loans',
+              balance: 200,
+              rate: 0.07,
+            },
             // Liabs: $150M at 1% cost = $1.5M expense
             // NIM = (14 - 1.5) / 200 * 100 = 6.25% — top quartile for medium tier (p75=4.2)
-            { category: 'liability', subcategory: 'deposits', balance: 150, rate: 0.01 },
+            {
+              category: 'liability',
+              subcategory: 'deposits',
+              balance: 150,
+              rate: 0.01,
+            },
           ]),
         },
       } as any;
@@ -218,16 +228,33 @@ describe('PeerAnalyticsService', () => {
         },
         balanceSheetItem: {
           findMany: jest.fn().mockResolvedValue([
-            { category: 'asset', subcategory: 'loans', balance: 150, rate: 0.06 },
-            { category: 'asset', subcategory: 'securities', balance: 50, rate: 0.04 },
-            { category: 'liability', subcategory: 'deposits', balance: 180, rate: 0.02 },
+            {
+              category: 'asset',
+              subcategory: 'loans',
+              balance: 150,
+              rate: 0.06,
+            },
+            {
+              category: 'asset',
+              subcategory: 'securities',
+              balance: 50,
+              rate: 0.04,
+            },
+            {
+              category: 'liability',
+              subcategory: 'deposits',
+              balance: 180,
+              rate: 0.02,
+            },
           ]),
         },
       } as any;
       const svc = new PeerAnalyticsService(realPrisma);
       const result = await svc.getPeerAnalytics('inst-1');
 
-      const nim = result.metrics.find(m => m.metricName.includes('Net Interest Margin'));
+      const nim = result.metrics.find((m) =>
+        m.metricName.includes('Net Interest Margin'),
+      );
       // NIM = ((150*0.06 + 50*0.04) - 180*0.02) / 200 * 100
       // = (9 + 2 - 3.6) / 200 * 100 = 7.4 / 200 * 100 = 3.7
       expect(nim!.institutionValue).toBeCloseTo(3.7, 1);
@@ -240,17 +267,34 @@ describe('PeerAnalyticsService', () => {
         },
         balanceSheetItem: {
           findMany: jest.fn().mockResolvedValue([
-            { category: 'asset', subcategory: 'loans', balance: 120, rate: 0.06 },
+            {
+              category: 'asset',
+              subcategory: 'loans',
+              balance: 120,
+              rate: 0.06,
+            },
             { category: 'asset', subcategory: 'cash', balance: 30, rate: 0.01 },
-            { category: 'asset', subcategory: 'securities', balance: 50, rate: 0.04 },
-            { category: 'liability', subcategory: 'deposits', balance: 180, rate: 0.02 },
+            {
+              category: 'asset',
+              subcategory: 'securities',
+              balance: 50,
+              rate: 0.04,
+            },
+            {
+              category: 'liability',
+              subcategory: 'deposits',
+              balance: 180,
+              rate: 0.02,
+            },
           ]),
         },
       } as any;
       const svc = new PeerAnalyticsService(realPrisma);
       const result = await svc.getPeerAnalytics('inst-1');
 
-      const lts = result.metrics.find(m => m.metricName.includes('Loan-to-Share'));
+      const lts = result.metrics.find((m) =>
+        m.metricName.includes('Loan-to-Share'),
+      );
       // totalLoans = 120 (loans, excludes cash and securities)
       // totalLiabs = 180
       // loanToShare = (120 / 180) * 100 = 66.67

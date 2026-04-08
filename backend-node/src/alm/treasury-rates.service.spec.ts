@@ -147,8 +147,7 @@ describe('TreasuryRatesService', () => {
     process.env.FRED_API_KEY = 'test-key';
     const mockFetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () =>
-        Promise.resolve({ observations: [{ value: '4.75' }] }),
+      json: () => Promise.resolve({ observations: [{ value: '4.75' }] }),
     });
     (global as any).fetch = mockFetch;
 
@@ -172,7 +171,9 @@ describe('TreasuryRatesService', () => {
     process.env.FRED_API_KEY = 'test-key';
     const freshService = new TreasuryRatesService();
     // Override the private fetchFromFRED method to throw
-    (freshService as any).fetchFromFRED = jest.fn().mockRejectedValue(new Error('FRED down'));
+    (freshService as any).fetchFromFRED = jest
+      .fn()
+      .mockRejectedValue(new Error('FRED down'));
     const snapshot = await freshService.getLatestSnapshot();
     expect(snapshot.source).toBe('approximation');
     delete process.env.FRED_API_KEY;

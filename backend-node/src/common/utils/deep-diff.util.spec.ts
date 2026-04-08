@@ -35,25 +35,24 @@ describe('deep-diff.util', () => {
       { user: { name: 'Bob', age: 30 } },
     );
     expect(diff).toEqual([
-      { path: 'user.name', oldValue: 'Alice', newValue: 'Bob', type: 'changed' },
+      {
+        path: 'user.name',
+        oldValue: 'Alice',
+        newValue: 'Bob',
+        type: 'changed',
+      },
     ]);
   });
 
   it('handles deeply nested additions', () => {
-    const diff = deepDiff(
-      { a: { b: { c: 1 } } },
-      { a: { b: { c: 1, d: 2 } } },
-    );
+    const diff = deepDiff({ a: { b: { c: 1 } } }, { a: { b: { c: 1, d: 2 } } });
     expect(diff).toEqual([
       { path: 'a.b.d', oldValue: undefined, newValue: 2, type: 'added' },
     ]);
   });
 
   it('handles deeply nested removals', () => {
-    const diff = deepDiff(
-      { a: { b: { c: 1, d: 2 } } },
-      { a: { b: { c: 1 } } },
-    );
+    const diff = deepDiff({ a: { b: { c: 1, d: 2 } } }, { a: { b: { c: 1 } } });
     expect(diff).toEqual([
       { path: 'a.b.d', oldValue: 2, newValue: undefined, type: 'removed' },
     ]);
@@ -131,16 +130,15 @@ describe('deep-diff.util', () => {
   });
 
   it('handles multiple changes at once', () => {
-    const diff = deepDiff(
-      { a: 1, b: 2, c: 3 },
-      { a: 10, b: 2, d: 4 },
-    );
+    const diff = deepDiff({ a: 1, b: 2, c: 3 }, { a: 10, b: 2, d: 4 });
     expect(diff).toHaveLength(3);
-    expect(diff).toEqual(expect.arrayContaining([
-      { path: 'a', oldValue: 1, newValue: 10, type: 'changed' },
-      { path: 'c', oldValue: 3, newValue: undefined, type: 'removed' },
-      { path: 'd', oldValue: undefined, newValue: 4, type: 'added' },
-    ]));
+    expect(diff).toEqual(
+      expect.arrayContaining([
+        { path: 'a', oldValue: 1, newValue: 10, type: 'changed' },
+        { path: 'c', oldValue: 3, newValue: undefined, type: 'removed' },
+        { path: 'd', oldValue: undefined, newValue: 4, type: 'added' },
+      ]),
+    );
   });
 
   // ── formatDiffSummary ─────────────────────────────────────────
@@ -159,7 +157,12 @@ describe('deep-diff.util', () => {
 
     it('formats removed entry', () => {
       const diffs: DiffEntry[] = [
-        { path: 'name', oldValue: 'Alice', newValue: undefined, type: 'removed' },
+        {
+          path: 'name',
+          oldValue: 'Alice',
+          newValue: undefined,
+          type: 'removed',
+        },
       ];
       expect(formatDiffSummary(diffs)).toBe('- name: "Alice"');
     });

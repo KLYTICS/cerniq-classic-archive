@@ -1,139 +1,208 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { apiClient } from '@/lib/api';
-import { useALM } from '@/components/alm/ALMProvider';
-import { useTranslation } from '@/lib/i18n';
+import { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Shield, AlertTriangle, Check, X } from 'lucide-react';
+import { Check, AlertTriangle, X } from 'lucide-react';
+
+import { useTranslation } from '@/lib/i18n';
+import { label } from '@/lib/alm/labels';
+import { AlmPage } from '@/components/alm/AlmPage';
+import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
+import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+
+/**
+ * VaR Suite — flagship reference using the AlmPage shell.
+ *
+ * Module identity, header, loading/error/success states, demo banner,
+ * and retry wiring are all handled by <AlmPage>. The only module-specific
+ * concerns here are:
+ *
+ *   - Domain types + runtime shape guard (validate)
+ *   - Demo factory (opt-in fallback)
+ *   - The content render prop (MetricStrip + DataTable + chart + Kupiec)
+ *   - Controls (confidence + horizon selects)
+ *
+ * To migrate another module, copy this file, swap slug + types + demo, and
+ * adjust the content renderer. Total migration is usually <150 LoC.
+ */
+
+// ─── Domain types ────────────────────────────────────────────────────────────
 
 interface VaRResult {
-  method: string; confidenceLevel: number; horizon: number;
-  var: number; cvar: number; varPct: number; portfolioValue: number;
+  readonly method: 'historical' | 'parametric' | 'montecarlo';
+  readonly confidenceLevel: number;
+  readonly horizon: number;
+  readonly var: number;
+  readonly cvar: number;
+  readonly varPct: number;
+  readonly portfolioValue: number;
 }
 
 interface BacktestResult {
-  testDays: number; exceptions: number; exceptionRate: number;
-  expectedExceptions: number; kupiecLR: number; kupiecPValue: number;
-  trafficLight: 'GREEN' | 'AMBER' | 'RED';
+  readonly testDays: number;
+  readonly exceptions: number;
+  readonly exceptionRate: number;
+  readonly expectedExceptions: number;
+  readonly kupiecLR: number;
+  readonly kupiecPValue: number;
+  readonly trafficLight: 'GREEN' | 'AMBER' | 'RED';
 }
 
-interface VaRSuite { historical: VaRResult; parametric: VaRResult; montecarlo: VaRResult; backtestResult: BacktestResult }
+interface VaRSuite {
+  readonly historical: VaRResult;
+  readonly parametric: VaRResult;
+  readonly montecarlo: VaRResult;
+  readonly backtestResult: BacktestResult;
+}
 
-const METHOD_COLORS = { historical: '#06b6d4', parametric: '#f59e0b', montecarlo: '#8b5cf6' };
-const TRAFFIC_STYLES = {
-  GREEN: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  AMBER: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  RED: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
+// ─── Static constants ────────────────────────────────────────────────────────
+
+const METHOD_COLORS: Record<VaRResult['method'], string> = {
+  historical: '#06b6d4',
+  parametric: '#f59e0b',
+  montecarlo: '#8b5cf6',
 };
 
-export default function VaRPage() {
-  const { selectedId } = useALM();
+const TRAFFIC_STYLES = {
+  GREEN: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', Icon: Check },
+  AMBER: { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   Icon: AlertTriangle },
+  RED:   { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200',    Icon: X },
+} as const;
+
+// ─── Runtime validation + demo factory ──────────────────────────────────────
+
+function isVaRResult(v: unknown): v is VaRResult {
+  if (!v || typeof v !== 'object') return false;
+  const r = v as Record<string, unknown>;
+  return (
+    typeof r.var === 'number' &&
+    typeof r.cvar === 'number' &&
+    typeof r.varPct === 'number' &&
+    typeof r.portfolioValue === 'number'
+  );
+}
+
+function validateVaRSuite(raw: unknown): VaRSuite {
+  if (!raw || typeof raw !== 'object') throw new Error('VaR response must be an object');
+  const r = raw as Record<string, unknown>;
+  if (!isVaRResult(r.historical) || !isVaRResult(r.parametric) || !isVaRResult(r.montecarlo)) {
+    throw new Error('VaR response missing one of historical/parametric/montecarlo');
+  }
+  if (!r.backtestResult || typeof r.backtestResult !== 'object') {
+    throw new Error('VaR response missing backtestResult');
+  }
+  return r as unknown as VaRSuite;
+}
+
+function makeDemoData(conf: 95 | 99, hor: 1 | 10): VaRSuite {
+  const scale = hor === 10 ? 3.16 : 1;
+  const cScale = conf === 99 ? 1.4 : 1;
+  const round = (n: number) => +n.toFixed(2);
+  return {
+    historical: { method: 'historical', confidenceLevel: conf / 100, horizon: hor, var: round(9.3 * scale * cScale), cvar: round(12.1 * scale * cScale), varPct: 2.09, portfolioValue: 445 },
+    parametric: { method: 'parametric', confidenceLevel: conf / 100, horizon: hor, var: round(8.7 * scale * cScale), cvar: round(10.8 * scale * cScale), varPct: 1.96, portfolioValue: 445 },
+    montecarlo: { method: 'montecarlo', confidenceLevel: conf / 100, horizon: hor, var: round(9.5 * scale * cScale), cvar: round(12.8 * scale * cScale), varPct: 2.13, portfolioValue: 445 },
+    backtestResult: { testDays: 250, exceptions: 3, exceptionRate: 0.012, expectedExceptions: conf === 99 ? 2.5 : 12.5, kupiecLR: 1.85, kupiecPValue: 0.10, trafficLight: 'GREEN' },
+  };
+}
+
+// ─── Content component (calls hooks on derived data) ───────────────────────
+
+interface ContentProps {
+  readonly data: VaRSuite;
+  readonly confidence: 95 | 99;
+}
+
+interface MethodRow {
+  readonly id: VaRResult['method'];
+  readonly label: string;
+  readonly result: VaRResult;
+}
+
+function VaRContent({ data, confidence }: ContentProps) {
   const { locale } = useTranslation();
-  const [data, setData] = useState<VaRSuite | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [confidence, setConfidence] = useState<95 | 99>(95);
-  const [horizon, setHorizon] = useState<1 | 10>(1);
-  const [isDemo, setIsDemo] = useState(false);
 
-  const loadData = useCallback(async () => {
-    if (!selectedId) return;
-    setLoading(true);
-    try { setData(await apiClient.getVaRSuite(selectedId, confidence, horizon)); setIsDemo(false); }
-    catch { setData(getDemoData(confidence, horizon)); setIsDemo(true); }
-    finally { setLoading(false); }
-  }, [selectedId, confidence, horizon]);
+  const methodRows = useMemo<readonly MethodRow[]>(
+    () => [
+      { id: 'historical', label: locale === 'es' ? 'Simulación Histórica' : 'Historical Simulation',     result: data.historical },
+      { id: 'parametric', label: locale === 'es' ? 'Delta-Normal'          : 'Parametric (Delta-Normal)', result: data.parametric },
+      { id: 'montecarlo', label: 'Monte Carlo',                                                          result: data.montecarlo },
+    ],
+    [data, locale],
+  );
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const stripItems = useMemo<readonly MetricStripItem[]>(() => {
+    const winnerVar  = Math.max(data.historical.var,  data.parametric.var,  data.montecarlo.var);
+    const winnerCvar = Math.max(data.historical.cvar, data.parametric.cvar, data.montecarlo.cvar);
+    return [
+      { key: 'portfolio_value',     label: locale === 'es' ? 'Valor Portafolio' : 'Portfolio Value', unit: 'USD_M', value: data.historical.portfolioValue },
+      { key: 'var',                 label: `${label('var',  locale)} (max)`, value: winnerVar,  unit: 'USD_M' },
+      { key: 'cvar',                label: `${label('cvar', locale)} (max)`, value: winnerCvar, unit: 'USD_M' },
+      { key: 'exceptions',          value: data.backtestResult.exceptions,         unit: 'count' },
+      { key: 'expected_exceptions', value: data.backtestResult.expectedExceptions, unit: 'count' },
+      { key: 'kupiec_lr',           value: data.backtestResult.kupiecLR,           unit: 'x' },
+      { key: 'kupiec_p_value',      value: data.backtestResult.kupiecPValue,       unit: 'x' },
+    ];
+  }, [data, locale]);
 
-  if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
-  if (loading || !data) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
+  const methodColumns = useMemo<readonly DataTableColumn<MethodRow>[]>(() => [
+    {
+      id: 'method',
+      header: locale === 'es' ? 'Método' : 'Method',
+      kind: 'custom',
+      accessor: (r) => r.label,
+      render: (r) => (
+        <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-800">
+          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: METHOD_COLORS[r.id] }} aria-hidden />
+          {r.label}
+        </span>
+      ),
+    },
+    { id: 'var',  headerKey: 'var',  kind: 'number', accessor: (r) => r.result.var,  unit: 'USD_M' },
+    { id: 'cvar', headerKey: 'cvar', kind: 'number', accessor: (r) => r.result.cvar, unit: 'USD_M' },
+    { id: 'pct',  header: locale === 'es' ? '% Portafolio' : '% Portfolio', kind: 'number', accessor: (r) => r.result.varPct, unit: '%' },
+    { id: 'horizon', header: locale === 'es' ? 'Horizonte' : 'Horizon',     kind: 'custom',
+      accessor: (r) => r.result.horizon,
+      render: (r) => <span className="text-xs text-slate-600">{r.result.horizon}d</span>,
+    },
+  ], [locale]);
 
-  const compChart = [
-    { method: locale === 'es' ? 'Histórico' : 'Historical', var: data.historical.var, cvar: data.historical.cvar, color: METHOD_COLORS.historical },
-    { method: locale === 'es' ? 'Paramétrico' : 'Parametric', var: data.parametric.var, cvar: data.parametric.cvar, color: METHOD_COLORS.parametric },
-    { method: 'Monte Carlo', var: data.montecarlo.var, cvar: data.montecarlo.cvar, color: METHOD_COLORS.montecarlo },
-  ];
+  const compChart = useMemo(
+    () => methodRows.map((r) => ({
+      method: r.label,
+      var: r.result.var,
+      cvar: r.result.cvar,
+      color: METHOD_COLORS[r.id],
+    })),
+    [methodRows],
+  );
 
   const bt = data.backtestResult;
   const tl = TRAFFIC_STYLES[bt.trafficLight];
+  const TrafficIcon = tl.Icon;
 
   return (
-    <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
-      {isDemo && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 mb-4">
-          <strong>Sample data</strong> — Connect your institution for live analysis.
-        </div>
-      )}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-purple-200 bg-purple-50">
-            <Shield className="h-4 w-4 text-purple-700" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-slate-950">
-              {locale === 'es' ? 'Suite VaR — Valor en Riesgo' : 'VaR Suite — Value at Risk'}
-            </h1>
-            <p className="text-xs text-slate-500">
-              {locale === 'es' ? 'Histórico + Paramétrico + Monte Carlo + Backtest Kupiec' : 'Historical + Parametric + Monte Carlo + Kupiec Backtest'}
-            </p>
-          </div>
-        </div>
-        {/* Controls */}
-        <div className="flex items-center gap-2">
-          <select value={confidence} onChange={e => setConfidence(+e.target.value as 95 | 99)}
-            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
-            <option value={95}>95%</option>
-            <option value={99}>99%</option>
-          </select>
-          <select value={horizon} onChange={e => setHorizon(+e.target.value as 1 | 10)}
-            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
-            <option value={1}>1-Day</option>
-            <option value={10}>10-Day</option>
-          </select>
-        </div>
-      </div>
+    <>
+      <MetricStrip items={stripItems} locale={locale} density="compact" />
 
-      {/* Three Method Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {[
-          { key: 'historical' as const, label: locale === 'es' ? 'Simulación Histórica' : 'Historical Simulation', data: data.historical },
-          { key: 'parametric' as const, label: locale === 'es' ? 'Delta-Normal' : 'Parametric (Delta-Normal)', data: data.parametric },
-          { key: 'montecarlo' as const, label: 'Monte Carlo', data: data.montecarlo },
-        ].map(({ key, label, data: d }) => (
-          <div key={key} className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="h-3 w-3 rounded-full" style={{ backgroundColor: METHOD_COLORS[key] }} />
-              <p className="text-xs font-semibold text-slate-700">{label}</p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-[10px] text-slate-500">VaR {confidence}%</span>
-                <span className="text-sm font-bold tabular-nums text-slate-950">${d.var.toFixed(2)}M</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[10px] text-slate-500">CVaR / ES</span>
-                <span className="text-sm font-bold tabular-nums text-rose-700">${d.cvar.toFixed(2)}M</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[10px] text-slate-500">% {locale === 'es' ? 'Portfolio' : 'Portfolio'}</span>
-                <span className="text-sm font-medium tabular-nums text-slate-600">{d.varPct}%</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <section>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {locale === 'es' ? 'Comparación de Métodos' : 'Method Comparison'}
+          {' '}
+          <span className="text-slate-300">— VaR {confidence}%</span>
+        </p>
+        <DataTable rows={methodRows} columns={methodColumns} locale={locale} rowKey={(r) => r.id} />
+      </section>
 
-      {/* VaR Comparison Chart */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-4">
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
           VaR vs. CVaR — {locale === 'es' ? 'Comparación de Métodos' : 'Method Comparison'}
         </p>
-        <ResponsiveContainer width="100%" height={250}>
+        <ResponsiveContainer width="100%" height={240}>
           <BarChart data={compChart}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="method" tick={{ fontSize: 11 }} />
-            <YAxis tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
+            <YAxis tickFormatter={(v) => `$${v}M`} tick={{ fontSize: 11 }} />
             <Tooltip
               contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
               formatter={(value) => [`$${Number(value ?? 0).toFixed(2)}M`, '']}
@@ -144,38 +213,76 @@ export default function VaRPage() {
             <Bar dataKey="cvar" name="CVaR / ES" fill="#ef4444" radius={[4, 4, 0, 0]} opacity={0.6} />
           </BarChart>
         </ResponsiveContainer>
-      </div>
+      </section>
 
-      {/* Kupiec Backtest */}
-      <div className={`rounded-xl border p-4 ${tl.bg} ${tl.border}`}>
+      <section className={`rounded-xl border p-4 ${tl.bg} ${tl.border}`}>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-bold text-slate-950">
               {locale === 'es' ? 'Backtest Kupiec — Semáforo Basel' : 'Kupiec Backtest — Basel Traffic Light'}
             </p>
-            <p className="text-xs text-slate-600 mt-1">
-              {bt.exceptions} {locale === 'es' ? 'excepciones en' : 'exceptions in'} {bt.testDays} {locale === 'es' ? 'días' : 'days'} ({locale === 'es' ? 'esperado' : 'expected'}: {bt.expectedExceptions.toFixed(1)}) | LR: {bt.kupiecLR.toFixed(2)} | p: {bt.kupiecPValue}
+            <p className="mt-1 text-xs text-slate-600">
+              {bt.exceptions} {locale === 'es' ? 'excepciones en' : 'exceptions in'} {bt.testDays} {locale === 'es' ? 'días' : 'days'}
+              {' '}({locale === 'es' ? 'esperado' : 'expected'}: {bt.expectedExceptions.toFixed(1)})
+              {' | '}LR: {bt.kupiecLR.toFixed(2)}
+              {' | '}p: {bt.kupiecPValue}
             </p>
           </div>
           <div className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold ${tl.bg} ${tl.text} ${tl.border}`}>
-            {bt.trafficLight === 'GREEN' && <Check className="h-4 w-4" />}
-            {bt.trafficLight === 'AMBER' && <AlertTriangle className="h-4 w-4" />}
-            {bt.trafficLight === 'RED' && <X className="h-4 w-4" />}
+            <TrafficIcon className="h-4 w-4" />
             {bt.trafficLight}
           </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </>
   );
 }
 
-function getDemoData(conf: number, hor: number): VaRSuite {
-  const scale = hor === 10 ? 3.16 : 1;
-  const cScale = conf === 99 ? 1.4 : 1;
-  return {
-    historical: { method: 'historical', confidenceLevel: conf / 100, horizon: hor, var: +(9.3 * scale * cScale).toFixed(2), cvar: +(12.1 * scale * cScale).toFixed(2), varPct: 2.09, portfolioValue: 445 },
-    parametric: { method: 'parametric', confidenceLevel: conf / 100, horizon: hor, var: +(8.7 * scale * cScale).toFixed(2), cvar: +(10.8 * scale * cScale).toFixed(2), varPct: 1.96, portfolioValue: 445 },
-    montecarlo: { method: 'montecarlo', confidenceLevel: conf / 100, horizon: hor, var: +(9.5 * scale * cScale).toFixed(2), cvar: +(12.8 * scale * cScale).toFixed(2), varPct: 2.13, portfolioValue: 445 },
-    backtestResult: { testDays: 250, exceptions: 3, exceptionRate: 0.012, expectedExceptions: conf === 99 ? 2.5 : 12.5, kupiecLR: 1.85, kupiecPValue: 0.10, trafficLight: 'GREEN' },
-  };
+// ─── Page ────────────────────────────────────────────────────────────────────
+
+export default function VaRPage() {
+  const { locale } = useTranslation();
+  const [confidence, setConfidence] = useState<95 | 99>(95);
+  const [horizon, setHorizon] = useState<1 | 10>(1);
+
+  return (
+    <AlmPage<VaRSuite>
+      slug="var"
+      iconTint="purple"
+      validate={validateVaRSuite}
+      queryParams={{ confidence, horizon }}
+      deps={[confidence, horizon]}
+      getDemo={() => makeDemoData(confidence, horizon)}
+      controls={
+        <>
+          <label className="sr-only" htmlFor="var-confidence">
+            {locale === 'es' ? 'Nivel de confianza' : 'Confidence level'}
+          </label>
+          <select
+            id="var-confidence"
+            value={confidence}
+            onChange={(e) => setConfidence(+e.target.value as 95 | 99)}
+            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
+          >
+            <option value={95}>95%</option>
+            <option value={99}>99%</option>
+          </select>
+          <label className="sr-only" htmlFor="var-horizon">
+            {locale === 'es' ? 'Horizonte temporal' : 'Time horizon'}
+          </label>
+          <select
+            id="var-horizon"
+            value={horizon}
+            onChange={(e) => setHorizon(+e.target.value as 1 | 10)}
+            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
+          >
+            <option value={1}>1-{locale === 'es' ? 'Día' : 'Day'}</option>
+            <option value={10}>10-{locale === 'es' ? 'Días' : 'Day'}</option>
+          </select>
+        </>
+      }
+    >
+      {(data) => <VaRContent data={data} confidence={confidence} />}
+    </AlmPage>
+  );
 }

@@ -135,7 +135,9 @@ export class InstitutionSeedService {
           },
         });
         liquidityDelta = 'created';
-      } else if (this.liquidityFieldsEqual(existingLiquidity, liquidityPayload)) {
+      } else if (
+        this.liquidityFieldsEqual(existingLiquidity, liquidityPayload)
+      ) {
         liquidityDelta = 'unchanged';
       } else {
         await tx.liquidityPosition.update({

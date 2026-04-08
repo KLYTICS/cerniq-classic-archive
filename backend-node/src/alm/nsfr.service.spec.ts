@@ -89,7 +89,9 @@ describe('NSFRService', () => {
 
     it('applies 100% ASF factor to equity/capital items', async () => {
       const result = await service.calculateNSFR('inst-1');
-      const capitalCat = result.asf.categories.find(c => c.category === 'Regulatory Capital');
+      const capitalCat = result.asf.categories.find(
+        (c) => c.category === 'Regulatory Capital',
+      );
       expect(capitalCat).toBeDefined();
       expect(capitalCat!.factor).toBe(1.0);
       expect(capitalCat!.weightedAmount).toBe(capitalCat!.balance);
@@ -97,37 +99,53 @@ describe('NSFRService', () => {
 
     it('applies 95% ASF factor to stable deposits (non-term)', async () => {
       const result = await service.calculateNSFR('inst-1');
-      const stableCat = result.asf.categories.find(c => c.category === 'Stable Deposits (insured)');
+      const stableCat = result.asf.categories.find(
+        (c) => c.category === 'Stable Deposits (insured)',
+      );
       expect(stableCat).toBeDefined();
       expect(stableCat!.factor).toBe(0.95);
-      expect(stableCat!.weightedAmount).toBeCloseTo(stableCat!.balance * 0.95, 0);
+      expect(stableCat!.weightedAmount).toBeCloseTo(
+        stableCat!.balance * 0.95,
+        0,
+      );
     });
 
     it('applies 90% ASF factor to less stable deposits (term certificates)', async () => {
       const result = await service.calculateNSFR('inst-1');
-      const lessStableCat = result.asf.categories.find(c => c.category === 'Less Stable Deposits');
+      const lessStableCat = result.asf.categories.find(
+        (c) => c.category === 'Less Stable Deposits',
+      );
       expect(lessStableCat).toBeDefined();
       expect(lessStableCat!.factor).toBe(0.9);
-      expect(lessStableCat!.weightedAmount).toBeCloseTo(lessStableCat!.balance * 0.9, 0);
+      expect(lessStableCat!.weightedAmount).toBeCloseTo(
+        lessStableCat!.balance * 0.9,
+        0,
+      );
     });
 
     it('applies 50% ASF factor to wholesale funding (<1yr)', async () => {
       const result = await service.calculateNSFR('inst-1');
-      const wholesaleCat = result.asf.categories.find(c => c.category === 'Wholesale Funding (<1yr)');
+      const wholesaleCat = result.asf.categories.find(
+        (c) => c.category === 'Wholesale Funding (<1yr)',
+      );
       expect(wholesaleCat).toBeDefined();
       expect(wholesaleCat!.factor).toBe(0.5);
     });
 
     it('applies 0% RSF factor to cash', async () => {
       const result = await service.calculateNSFR('inst-1');
-      const cashCat = result.rsf.categories.find(c => c.category === 'Cash & Reserves');
+      const cashCat = result.rsf.categories.find(
+        (c) => c.category === 'Cash & Reserves',
+      );
       expect(cashCat).toBeDefined();
       expect(cashCat!.weightedAmount).toBe(0);
     });
 
     it('applies 5% RSF factor to government securities', async () => {
       const result = await service.calculateNSFR('inst-1');
-      const govCat = result.rsf.categories.find(c => c.category === 'Government Securities');
+      const govCat = result.rsf.categories.find(
+        (c) => c.category === 'Government Securities',
+      );
       expect(govCat).toBeDefined();
       expect(govCat!.factor).toBe(0.05);
       expect(govCat!.weightedAmount).toBeCloseTo(govCat!.balance * 0.05, 0);
@@ -135,14 +153,18 @@ describe('NSFRService', () => {
 
     it('applies 65% RSF factor to mortgage loans', async () => {
       const result = await service.calculateNSFR('inst-1');
-      const mortgageCat = result.rsf.categories.find(c => c.category === 'Mortgage Loans');
+      const mortgageCat = result.rsf.categories.find(
+        (c) => c.category === 'Mortgage Loans',
+      );
       expect(mortgageCat).toBeDefined();
       expect(mortgageCat!.factor).toBe(0.65);
     });
 
     it('applies 100% RSF factor to fixed assets', async () => {
       const result = await service.calculateNSFR('inst-1');
-      const fixedCat = result.rsf.categories.find(c => c.category === 'Fixed Assets');
+      const fixedCat = result.rsf.categories.find(
+        (c) => c.category === 'Fixed Assets',
+      );
       expect(fixedCat).toBeDefined();
       expect(fixedCat!.factor).toBe(1.0);
       expect(fixedCat!.weightedAmount).toBe(fixedCat!.balance);
@@ -172,7 +194,9 @@ describe('NSFRService', () => {
       { category: 'loan', name: 'Long-term Loan Portfolio', balance: 5000 },
     ];
     const mockPrisma = {
-      balanceSheetItem: { findMany: jest.fn().mockResolvedValue(lowFundingItems) },
+      balanceSheetItem: {
+        findMany: jest.fn().mockResolvedValue(lowFundingItems),
+      },
     } as any;
     const breachService = new NSFRService(mockPrisma);
     const result = await breachService.calculateNSFR('inst-1');
@@ -206,13 +230,17 @@ describe('NSFRService', () => {
       { category: 'loan', name: 'Loan', balance: 5000 },
     ];
     const mockPrisma = {
-      balanceSheetItem: { findMany: jest.fn().mockResolvedValue(lowFundingItems) },
+      balanceSheetItem: {
+        findMany: jest.fn().mockResolvedValue(lowFundingItems),
+      },
     } as any;
     const svc = new NSFRService(mockPrisma);
     const result = await svc.calculateNSFR('inst-1');
     if (result.nsfr < 100) {
-      const actionTexts = result.recommendations.map(r => r.action);
-      expect(actionTexts.some(a => a.includes('deposit') || a.includes('funding'))).toBe(true);
+      const actionTexts = result.recommendations.map((r) => r.action);
+      expect(
+        actionTexts.some((a) => a.includes('deposit') || a.includes('funding')),
+      ).toBe(true);
     }
   });
 

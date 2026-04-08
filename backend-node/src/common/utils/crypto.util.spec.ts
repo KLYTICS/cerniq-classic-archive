@@ -141,7 +141,10 @@ describe('sha256', () => {
 
 describe('verifyHmacSignature catch path', () => {
   it('returns false when signature contains non-hex chars causing buffer mismatch', () => {
-    const { verifyHmacSignature, createHmacSignature } = require('./crypto.util');
+    const {
+      verifyHmacSignature,
+      createHmacSignature,
+    } = require('./crypto.util');
     const expected = createHmacSignature('test', 'secret');
     // Same string length but all non-hex chars → Buffer.from produces 0 bytes → timingSafeEqual throws
     const badSig = 'z'.repeat(expected.length);

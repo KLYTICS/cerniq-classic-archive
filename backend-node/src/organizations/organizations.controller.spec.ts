@@ -81,7 +81,11 @@ describe('OrganizationsController', () => {
 
       const result = await controller.addMember('org-1', dto, req);
 
-      expect(mockService.addMember).toHaveBeenCalledWith('org-1', dto, 'admin-1');
+      expect(mockService.addMember).toHaveBeenCalledWith(
+        'org-1',
+        dto,
+        'admin-1',
+      );
       expect(result.role).toBe('MEMBER');
     });
   });
@@ -91,11 +95,17 @@ describe('OrganizationsController', () => {
   describe('removeMember', () => {
     it('calls service.removeMember with org id, userId, and requesting userId', async () => {
       const req = { user: { userId: 'admin-1' } };
-      mockService.removeMember.mockResolvedValue({ message: 'Member removed successfully' });
+      mockService.removeMember.mockResolvedValue({
+        message: 'Member removed successfully',
+      });
 
       const result = await controller.removeMember('org-1', 'target-user', req);
 
-      expect(mockService.removeMember).toHaveBeenCalledWith('org-1', 'target-user', 'admin-1');
+      expect(mockService.removeMember).toHaveBeenCalledWith(
+        'org-1',
+        'target-user',
+        'admin-1',
+      );
       expect(result.message).toBe('Member removed successfully');
     });
   });
@@ -106,9 +116,17 @@ describe('OrganizationsController', () => {
     it('calls service.updateMemberRole with all params', async () => {
       const req = { user: { userId: 'admin-1' } };
       const body = { role: 'ADMIN' };
-      mockService.updateMemberRole.mockResolvedValue({ id: 'mem-1', role: 'ADMIN' });
+      mockService.updateMemberRole.mockResolvedValue({
+        id: 'mem-1',
+        role: 'ADMIN',
+      });
 
-      const result = await controller.updateMemberRole('org-1', 'target-user', body as any, req);
+      const result = await controller.updateMemberRole(
+        'org-1',
+        'target-user',
+        body as any,
+        req,
+      );
 
       expect(mockService.updateMemberRole).toHaveBeenCalledWith(
         'org-1',

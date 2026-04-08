@@ -12,6 +12,7 @@ import { PortalAlmReportService } from './portal-alm-report.service';
 import { DemoSeatService } from './demo-seat.service';
 import { DemoSeatSweeper } from './demo-seat.sweeper';
 import { DemoSeatAnalyticsService } from './demo-seat-analytics.service';
+import { DemoSeatEngagementService } from './demo-seat-engagement.service';
 
 @Module({
   imports: [
@@ -33,11 +34,13 @@ import { DemoSeatAnalyticsService } from './demo-seat-analytics.service';
     DemoSeatService,
     DemoSeatSweeper,
     DemoSeatAnalyticsService,
+    DemoSeatEngagementService,
   ],
   exports: [
     DemoSeatService,
     PortalAlmReportService,
     DemoSeatAnalyticsService,
+    DemoSeatEngagementService,
   ],
 })
 export class PortalModule {}

@@ -56,7 +56,9 @@ describe('PipelineWorker', () => {
 
     storage = {
       upload: jest.fn().mockResolvedValue(undefined),
-      getSignedUrl: jest.fn().mockResolvedValue('https://s3.example.com/report.pdf'),
+      getSignedUrl: jest
+        .fn()
+        .mockResolvedValue('https://s3.example.com/report.pdf'),
     };
 
     emailService = {
@@ -68,15 +70,41 @@ describe('PipelineWorker', () => {
       getALMSummary: jest.fn().mockResolvedValue({
         riskScore: 70,
         institution: { name: 'Coop Test', totalAssets: 250000000 },
-        durationGap: { durationGap: 1.2, assetDuration: 3.2, liabilityDuration: 2.0, riskProfile: 'moderate' },
+        durationGap: {
+          durationGap: 1.2,
+          assetDuration: 3.2,
+          liabilityDuration: 2.0,
+          riskProfile: 'moderate',
+        },
         niiSensitivity: {
-          baseNII: 12.5, riskRating: 'moderate',
+          baseNII: 12.5,
+          riskRating: 'moderate',
           scenarios: [
-            { name: 'Up 100', shiftBps: 100, niImpact: -1.5, niImpactPct: -12, mveImpact: -2.0, mveImpactPct: -8.5 },
-            { name: 'Down 100', shiftBps: -100, niImpact: 1.2, niImpactPct: 9.6, mveImpact: 1.5, mveImpactPct: 6.0 },
+            {
+              name: 'Up 100',
+              shiftBps: 100,
+              niImpact: -1.5,
+              niImpactPct: -12,
+              mveImpact: -2.0,
+              mveImpactPct: -8.5,
+            },
+            {
+              name: 'Down 100',
+              shiftBps: -100,
+              niImpact: 1.2,
+              niImpactPct: 9.6,
+              mveImpact: 1.5,
+              mveImpactPct: 6.0,
+            },
           ],
         },
-        liquidity: { lcr: 115, status: 'compliant', buffer: 5, hqla: 80, netOutflows: 60 },
+        liquidity: {
+          lcr: 115,
+          status: 'compliant',
+          buffer: 5,
+          hqla: 80,
+          netOutflows: 60,
+        },
         recommendations: ['Reduce gap'],
         topRisks: ['Rate sensitivity'],
         concentration: { sectors: [{ name: 'RE', percent: 35 }] },
@@ -85,14 +113,30 @@ describe('PipelineWorker', () => {
         examReadinessScore: 85,
         overallStatus: 'compliant',
         summary: {
-          capitalRatio: 9.5, totalAssets: 250, totalLiabilities: 210,
-          equity: 40, totalLoans: 160, totalShares: 180,
-          liquidAssets: 50, liquidityRatio: 20, loanToShareRatio: 88,
-          nim: 3.5, earningAssetsYield: 4.5, costOfFunds: 1.2,
-          largestSectorName: 'Real Estate', largestSectorPct: 35,
+          capitalRatio: 9.5,
+          totalAssets: 250,
+          totalLiabilities: 210,
+          equity: 40,
+          totalLoans: 160,
+          totalShares: 180,
+          liquidAssets: 50,
+          liquidityRatio: 20,
+          loanToShareRatio: 88,
+          nim: 3.5,
+          earningAssetsYield: 4.5,
+          costOfFunds: 1.2,
+          largestSectorName: 'Real Estate',
+          largestSectorPct: 35,
         },
         ratios: [
-          { id: 1, name: 'Capital', nameEs: 'Capital', value: 9.5, unit: '%', status: 'pass' },
+          {
+            id: 1,
+            name: 'Capital',
+            nameEs: 'Capital',
+            value: 9.5,
+            unit: '%',
+            status: 'pass',
+          },
         ],
         trends: null,
         previousPeriod: null,
@@ -101,9 +145,15 @@ describe('PipelineWorker', () => {
         examReadinessScore: 85,
         overallStatus: 'compliant',
         summary: {
-          capitalRatio: 9.5, totalAssets: 250, totalLiabilities: 210,
-          equity: 40, totalLoans: 160, totalShares: 180,
-          liquidAssets: 50, liquidityRatio: 20, loanToShareRatio: 88,
+          capitalRatio: 9.5,
+          totalAssets: 250,
+          totalLiabilities: 210,
+          equity: 40,
+          totalLoans: 160,
+          totalShares: 180,
+          liquidAssets: 50,
+          liquidityRatio: 20,
+          loanToShareRatio: 88,
         },
         ratios: [],
       }),
@@ -175,7 +225,9 @@ describe('PipelineWorker', () => {
 
     it('emits progress for all 7 steps', async () => {
       await worker.processQueue();
-      const steps = pipelineGateway.emitProgress.mock.calls.map((c: any) => c[1].step);
+      const steps = pipelineGateway.emitProgress.mock.calls.map(
+        (c: any) => c[1].step,
+      );
       expect(steps).toContain('VALIDATING');
       expect(steps).toContain('COSSEC_CALC');
       expect(steps).toContain('MONTE_CARLO');
@@ -219,8 +271,14 @@ describe('PipelineWorker', () => {
     it('uploads two PDFs (ES + EN)', async () => {
       await worker.processQueue();
       expect(storage.upload).toHaveBeenCalledTimes(2);
-      expect(storage.upload).toHaveBeenCalledWith('reports/job_1/report_es.pdf', expect.any(Buffer));
-      expect(storage.upload).toHaveBeenCalledWith('reports/job_1/report_en.pdf', expect.any(Buffer));
+      expect(storage.upload).toHaveBeenCalledWith(
+        'reports/job_1/report_es.pdf',
+        expect.any(Buffer),
+      );
+      expect(storage.upload).toHaveBeenCalledWith(
+        'reports/job_1/report_en.pdf',
+        expect.any(Buffer),
+      );
     });
 
     it('gets signed URLs for both reports', async () => {
@@ -230,10 +288,13 @@ describe('PipelineWorker', () => {
 
     it('emits WebSocket completion event', async () => {
       await worker.processQueue();
-      expect(pipelineGateway.emitComplete).toHaveBeenCalledWith('job_1', expect.objectContaining({
-        reportUrl: expect.any(String),
-        reportUrlEn: expect.any(String),
-      }));
+      expect(pipelineGateway.emitComplete).toHaveBeenCalledWith(
+        'job_1',
+        expect.objectContaining({
+          reportUrl: expect.any(String),
+          reportUrlEn: expect.any(String),
+        }),
+      );
     });
 
     it('increments subscription reportsUsed', async () => {
@@ -261,13 +322,18 @@ describe('PipelineWorker', () => {
       await worker.processQueue();
       expect(prisma.emailSequence.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ userId: 'user_1', sequenceKey: 'C2' }),
+          data: expect.objectContaining({
+            userId: 'user_1',
+            sequenceKey: 'C2',
+          }),
         }),
       );
     });
 
     it('does not send email or schedule C2 when user has no email', async () => {
-      prisma.reportJob.findFirst.mockResolvedValue(makeJob({ user: { name: 'No Email' } }));
+      prisma.reportJob.findFirst.mockResolvedValue(
+        makeJob({ user: { name: 'No Email' } }),
+      );
       await worker.processQueue();
       expect(emailService.sendReportReady).not.toHaveBeenCalled();
       expect(prisma.emailSequence.create).not.toHaveBeenCalled();
@@ -297,7 +363,10 @@ describe('PipelineWorker', () => {
 
       await worker.processQueue();
 
-      expect(pipelineGateway.emitError).toHaveBeenCalledWith('job_1', expect.any(String));
+      expect(pipelineGateway.emitError).toHaveBeenCalledWith(
+        'job_1',
+        expect.any(String),
+      );
     });
 
     it('sends job failed alert email on failure', async () => {
@@ -379,7 +448,9 @@ describe('PipelineWorker', () => {
     });
 
     it('rethrows non-table-missing errors', async () => {
-      prisma.reportJob.findFirst.mockRejectedValue(new Error('Connection refused'));
+      prisma.reportJob.findFirst.mockRejectedValue(
+        new Error('Connection refused'),
+      );
       await expect(worker.processQueue()).rejects.toThrow('Connection refused');
     });
   });
@@ -388,7 +459,10 @@ describe('PipelineWorker', () => {
 
   describe('loadInstitutionData (private)', () => {
     it('loads by institutionId when provided', async () => {
-      const result = await (worker as any).loadInstitutionData('user_1', 'inst_1');
+      const result = await (worker as any).loadInstitutionData(
+        'user_1',
+        'inst_1',
+      );
       expect(prisma.institution.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: 'inst_1' } }),
       );
@@ -416,7 +490,10 @@ describe('PipelineWorker', () => {
 
     it('returns null when workspace has no institutions', async () => {
       prisma.workspace.findFirst.mockResolvedValue({ institutions: [] });
-      const result = await (worker as any).loadInstitutionData('user_1', undefined);
+      const result = await (worker as any).loadInstitutionData(
+        'user_1',
+        undefined,
+      );
       expect(result).toBeNull();
     });
   });
@@ -448,21 +525,31 @@ describe('PipelineWorker', () => {
 
   describe('isReportJobsTableMissing (private)', () => {
     it('returns true for P2021 error code', () => {
-      expect((worker as any).isReportJobsTableMissing({ code: 'P2021' })).toBe(true);
+      expect((worker as any).isReportJobsTableMissing({ code: 'P2021' })).toBe(
+        true,
+      );
     });
 
     it('returns true for meta.code P2021', () => {
-      expect((worker as any).isReportJobsTableMissing({ meta: { code: 'P2021' } })).toBe(true);
+      expect(
+        (worker as any).isReportJobsTableMissing({ meta: { code: 'P2021' } }),
+      ).toBe(true);
     });
 
     it('returns true for message containing report_jobs + does not exist', () => {
       expect(
-        (worker as any).isReportJobsTableMissing(new Error('The table `report_jobs` does not exist in the database')),
+        (worker as any).isReportJobsTableMissing(
+          new Error('The table `report_jobs` does not exist in the database'),
+        ),
       ).toBe(true);
     });
 
     it('returns false for unrelated errors', () => {
-      expect((worker as any).isReportJobsTableMissing(new Error('Connection refused'))).toBe(false);
+      expect(
+        (worker as any).isReportJobsTableMissing(
+          new Error('Connection refused'),
+        ),
+      ).toBe(false);
     });
 
     it('returns false for null/undefined error', () => {
@@ -482,8 +569,12 @@ describe('PipelineWorker', () => {
 
     it('produces a fallback PDF when ALM data fails', async () => {
       almEnterprise.getALMSummary.mockRejectedValue(new Error('ALM down'));
-      almEnterprise.getRegulatoryCompliance.mockRejectedValue(new Error('Reg down'));
-      stressTesting.runFullStressTest.mockRejectedValue(new Error('Stress down'));
+      almEnterprise.getRegulatoryCompliance.mockRejectedValue(
+        new Error('Reg down'),
+      );
+      stressTesting.runFullStressTest.mockRejectedValue(
+        new Error('Stress down'),
+      );
 
       const result = await (worker as any).generateReport('inst_1', 'en');
       expect(Buffer.isBuffer(result)).toBe(true);
@@ -492,7 +583,9 @@ describe('PipelineWorker', () => {
     it('calls getCOSSECComplianceWithTrend for COSSEC institutions', async () => {
       await (worker as any).generateReport('inst_1', 'en');
       // Since primaryRegulator is COSSEC, it should call getCOSSECComplianceWithTrend
-      expect(almEnterprise.getCOSSECComplianceWithTrend).toHaveBeenCalledWith('inst_1');
+      expect(almEnterprise.getCOSSECComplianceWithTrend).toHaveBeenCalledWith(
+        'inst_1',
+      );
     });
 
     it('uses base regulatory compliance for NCUA institutions', async () => {

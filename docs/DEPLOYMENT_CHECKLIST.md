@@ -54,6 +54,18 @@ All variables sourced from `.env.example` at project root. Set these in Railway 
 |----------|---------|-------|
 | `RESEND_API_KEY` | `re_...` | Transactional email via Resend |
 | `ERWIN_EMAIL` | `eskiessalfonso@gmail.com` | Notification recipient for demo requests |
+| `SLACK_WEBHOOK_URL` | `https://hooks.slack.com/...` | Backend sales-alert destination (optional) |
+
+#### OBSERVABILITY
+
+| Variable | Target | Notes |
+|----------|--------|-------|
+| `SENTRY_DSN` | Backend + Frontend | Server-side Next and NestJS runtime reporting |
+| `NEXT_PUBLIC_SENTRY_DSN` | Frontend | Browser-side Sentry reporting |
+| `SENTRY_ORG` | Frontend | Required for sourcemap upload |
+| `SENTRY_PROJECT` | Frontend | Required for sourcemap upload |
+| `SENTRY_AUTH_TOKEN` | Frontend | Required for release creation + sourcemap upload |
+| `SENTRY_RELEASE` | Frontend | Optional explicit release name |
 
 #### STORAGE
 

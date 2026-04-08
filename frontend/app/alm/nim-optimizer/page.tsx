@@ -1,128 +1,165 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useALM } from '@/components/alm/ALMProvider';
+import { useMemo } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Cell, ReferenceLine,
+} from 'recharts';
+import { ArrowUp, ArrowDown, Minus } from 'lucide-react';
+
 import { useTranslation } from '@/lib/i18n';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
-import { TrendingUp, AlertTriangle, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { AlmPage } from '@/components/alm/AlmPage';
+import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
+import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
 
 interface RateRec {
-  product: string; category: string; currentRate: number; peerMedianRate: number;
-  suggestedRate: number; rateDeltaBps: number; direction: string; niiImpact: number;
-  volumeImpact: string; rationale: string; rationaleEs: string;
+  readonly product: string;
+  readonly category: string;
+  readonly currentRate: number;
+  readonly peerMedianRate: number;
+  readonly suggestedRate: number;
+  readonly rateDeltaBps: number;
+  readonly direction: string;
+  readonly niiImpact: number;
+  readonly volumeImpact: string;
+  readonly rationale: string;
+  readonly rationaleEs: string;
 }
 
-interface NIMResult { currentNIM: number; projectedNIM: number; nimGainBps: number; totalNIIGain: number; recommendations: RateRec[] }
+interface NIMResult {
+  readonly currentNIM: number;
+  readonly projectedNIM: number;
+  readonly nimGainBps: number;
+  readonly totalNIIGain: number;
+  readonly recommendations: readonly RateRec[];
+}
 
-export default function NIMOptimizerPage() {
-  const { selectedId } = useALM();
+function validateNimOpt(raw: unknown): NIMResult {
+  if (!raw || typeof raw !== 'object') throw new Error('NIM optimizer response must be an object');
+  const r = raw as Record<string, unknown>;
+  if (typeof r.currentNIM !== 'number') throw new Error('NIM opt: missing currentNIM');
+  if (!Array.isArray(r.recommendations)) throw new Error('NIM opt: recommendations must be array');
+  return r as unknown as NIMResult;
+}
+
+function getDemo(): NIMResult {
+  return {
+    currentNIM: 3.42,
+    projectedNIM: 3.68,
+    nimGainBps: 26,
+    totalNIIGain: 4.8, // USD_M
+    recommendations: [
+      { product: 'Auto Loans',         category: 'Lending',  currentRate: 6.25, peerMedianRate: 6.85, suggestedRate: 6.75, rateDeltaBps:  50, direction: 'up',   niiImpact: 1.2, volumeImpact: 'Minimal',  rationale: 'Below peer median by 60bps with strong demand', rationaleEs: 'Por debajo de la mediana de pares por 60bps con demanda fuerte' },
+      { product: 'Personal Loans',     category: 'Lending',  currentRate: 9.50, peerMedianRate: 10.15, suggestedRate: 9.95, rateDeltaBps: 45, direction: 'up',   niiImpact: 0.85, volumeImpact: 'Low',      rationale: 'Competitive gap allows 45bps increase',       rationaleEs: 'Brecha competitiva permite aumento de 45bps' },
+      { product: 'Share Certificates', category: 'Deposits', currentRate: 4.75, peerMedianRate: 4.40, suggestedRate: 4.50, rateDeltaBps: -25, direction: 'down', niiImpact: 1.1, volumeImpact: 'Moderate', rationale: 'Above peer median; reduce to capture spread', rationaleEs: 'Sobre la mediana; reducir para capturar margen' },
+      { product: 'Money Market',       category: 'Deposits', currentRate: 3.90, peerMedianRate: 3.65, suggestedRate: 3.70, rateDeltaBps: -20, direction: 'down', niiImpact: 0.65, volumeImpact: 'Low',      rationale: 'Slightly above median with stable balances',  rationaleEs: 'Ligeramente sobre mediana con saldos estables' },
+      { product: 'Commercial RE',      category: 'Lending',  currentRate: 7.10, peerMedianRate: 7.45, suggestedRate: 7.35, rateDeltaBps:  25, direction: 'up',   niiImpact: 1.0, volumeImpact: 'Minimal',  rationale: 'Strong collateral supports higher rate',       rationaleEs: 'Colateral fuerte soporta tasa mayor' },
+    ],
+  };
+}
+
+function NimOptContent({ data }: { data: NIMResult }) {
   const { locale } = useTranslation();
-  const [data, setData] = useState<NIMResult | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!selectedId) return;
-    (async () => {
-      setLoading(true);
-      try {
-        const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-        const res = await fetch(`${NODE_API_URL}/api/alm/${selectedId}/nim-optimizer`);
-        if (res.ok) setData(await res.json());
-        else setData(getDemoData());
-      } catch { setData(getDemoData()); }
-      finally { setLoading(false); }
-    })();
-  }, [selectedId]);
+  const stripItems = useMemo<readonly MetricStripItem[]>(() => [
+    { key: 'nim_current',    label: locale === 'es' ? 'NIM Actual'     : 'NIM Current',     value: data.currentNIM,   unit: '%' },
+    { key: 'nim_projected',  label: locale === 'es' ? 'NIM Proyectado' : 'NIM Projected',   value: data.projectedNIM, unit: '%' },
+    { key: 'nim_gain_bps',   label: locale === 'es' ? 'Ganancia NIM'   : 'NIM Gain',        value: data.nimGainBps,   unit: 'bps' },
+    { key: 'total_nii_gain', label: locale === 'es' ? 'NII Adicional'  : 'Total NII Gain',  value: data.totalNIIGain, unit: 'USD_M' },
+    { key: 'rec_count',      label: locale === 'es' ? 'Recomendaciones' : 'Recommendations', value: data.recommendations.length, unit: 'count' },
+  ], [data, locale]);
 
-  if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
-  if (loading) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
-  if (!data) return <div className="flex-1 flex items-center justify-center p-6 text-sm text-slate-400">No data available</div>;
+  const chartData = useMemo(
+    () => data.recommendations.map((r) => ({ name: r.product, impact: r.niiImpact })),
+    [data],
+  );
 
-  function getDemoData(): NIMResult {
-    return {
-      currentNIM: 3.42, projectedNIM: 3.68, nimGainBps: 26, totalNIIGain: 4800000,
-      recommendations: [
-        { product: 'Auto Loans', category: 'Lending', currentRate: 6.25, peerMedianRate: 6.85, suggestedRate: 6.75, rateDeltaBps: 50, direction: 'up', niiImpact: 1200000, volumeImpact: 'Minimal', rationale: 'Below peer median by 60bps with strong demand', rationaleEs: 'Por debajo de la mediana de pares por 60bps con demanda fuerte' },
-        { product: 'Personal Loans', category: 'Lending', currentRate: 9.50, peerMedianRate: 10.15, suggestedRate: 9.95, rateDeltaBps: 45, direction: 'up', niiImpact: 850000, volumeImpact: 'Low', rationale: 'Competitive gap allows 45bps increase', rationaleEs: 'Brecha competitiva permite aumento de 45bps' },
-        { product: 'Share Certificates', category: 'Deposits', currentRate: 4.75, peerMedianRate: 4.40, suggestedRate: 4.50, rateDeltaBps: -25, direction: 'down', niiImpact: 1100000, volumeImpact: 'Moderate', rationale: 'Above peer median; reduce to capture spread', rationaleEs: 'Sobre la mediana; reducir para capturar margen' },
-        { product: 'Money Market', category: 'Deposits', currentRate: 3.90, peerMedianRate: 3.65, suggestedRate: 3.70, rateDeltaBps: -20, direction: 'down', niiImpact: 650000, volumeImpact: 'Low', rationale: 'Slightly above median with stable balances', rationaleEs: 'Ligeramente sobre mediana con saldos estables' },
-        { product: 'Commercial RE', category: 'Lending', currentRate: 7.10, peerMedianRate: 7.45, suggestedRate: 7.35, rateDeltaBps: 25, direction: 'up', niiImpact: 1000000, volumeImpact: 'Minimal', rationale: 'Strong collateral supports higher rate', rationaleEs: 'Colateral fuerte soporta tasa mayor' },
-      ],
-    };
-  }
-
-  const chartData = data.recommendations.map(r => ({ name: r.product, impact: r.niiImpact, direction: r.direction }));
+  const columns = useMemo<readonly DataTableColumn<RateRec>[]>(() => [
+    { id: 'dir', header: '', kind: 'custom',
+      accessor: (r) => r.direction,
+      width: 'w-8',
+      render: (r) => (
+        r.direction === 'up'   ? <ArrowUp   className="inline h-4 w-4 text-emerald-600" aria-label="Up" /> :
+        r.direction === 'down' ? <ArrowDown className="inline h-4 w-4 text-cyan-600"    aria-label="Down" /> :
+                                 <Minus     className="inline h-4 w-4 text-slate-400"   aria-label="Flat" />
+      ),
+    },
+    { id: 'product', header: locale === 'es' ? 'Producto' : 'Product', kind: 'custom',
+      accessor: (r) => r.product,
+      render: (r) => (
+        <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-800">
+          {r.product}
+          <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${
+            r.category === 'Lending' ? 'bg-cyan-50 text-cyan-700' : 'bg-purple-50 text-purple-700'
+          }`}>
+            {r.category}
+          </span>
+        </span>
+      ),
+      align: 'text-left',
+    },
+    { id: 'current',   header: locale === 'es' ? 'Actual'    : 'Current',   kind: 'number', accessor: (r) => r.currentRate,    unit: '%' },
+    { id: 'peer',      header: locale === 'es' ? 'Pares'     : 'Peer Med.', kind: 'number', accessor: (r) => r.peerMedianRate, unit: '%' },
+    { id: 'suggested', header: locale === 'es' ? 'Sugerido' : 'Suggested',  kind: 'number', accessor: (r) => r.suggestedRate,  unit: '%' },
+    { id: 'delta',     header: 'Δ',                                         kind: 'delta',  accessor: (r) => r.rateDeltaBps,   unit: 'bps' },
+    { id: 'impact',    header: locale === 'es' ? 'Impacto NII' : 'NII Impact', kind: 'delta', accessor: (r) => r.niiImpact, unit: 'USD_M' },
+  ], [locale]);
 
   return (
-    <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-green-200 bg-green-50">
-          <TrendingUp className="h-4 w-4 text-green-700" />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold text-slate-950">{locale === 'es' ? 'Optimizador NIM — Recomendaciones de Tasa' : 'NIM Optimizer — Rate Recommendations'}</h1>
-          <p className="text-xs text-slate-500">{locale === 'es' ? 'Oportunidades de repricing vs. mediana de pares PR' : 'Repricing opportunities vs. PR peer median'}</p>
-        </div>
-      </div>
+    <>
+      <MetricStrip items={stripItems} locale={locale} density="compact" />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <p className="text-[10px] font-medium uppercase text-slate-400">NIM {locale === 'es' ? 'Actual' : 'Current'}</p>
-          <p className="text-2xl font-bold tabular-nums text-slate-950">{data.currentNIM}%</p>
-        </div>
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <p className="text-[10px] font-medium uppercase text-emerald-600">NIM {locale === 'es' ? 'Proyectado' : 'Projected'}</p>
-          <p className="text-2xl font-bold tabular-nums text-emerald-700">{data.projectedNIM}%</p>
-        </div>
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <p className="text-[10px] font-medium uppercase text-emerald-600">{locale === 'es' ? 'Ganancia' : 'Gain'}</p>
-          <p className="text-2xl font-bold tabular-nums text-emerald-700">+{data.nimGainBps} bps</p>
-        </div>
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <p className="text-[10px] font-medium uppercase text-emerald-600">{locale === 'es' ? 'NII Adicional' : 'NII Gain'}</p>
-          <p className="text-2xl font-bold tabular-nums text-emerald-700">+${data.totalNIIGain}M</p>
-        </div>
-      </div>
+      {/* NII impact chart */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {locale === 'es' ? 'Impacto NII por Producto' : 'NII Impact by Product'}
+        </p>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+            <YAxis tickFormatter={(v) => `$${v}M`} tick={{ fontSize: 11 }} />
+            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(value) => [`$${Number(value ?? 0).toFixed(2)}M`, '']} />
+            <ReferenceLine y={0} stroke="#94a3b8" />
+            <Bar dataKey="impact" radius={[4, 4, 0, 0]}>
+              {chartData.map((e) => (
+                <Cell key={e.name} fill={e.impact >= 0 ? '#059669' : '#dc2626'} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </section>
 
-      {chartData.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-4">{locale === 'es' ? 'Impacto NII por Producto' : 'NII Impact by Product'}</p>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tickFormatter={v => `$${v}M`} tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} />
-              <ReferenceLine y={0} stroke="#94a3b8" />
-              <Bar dataKey="impact" radius={[4, 4, 0, 0]}>
-                {chartData.map((e, i) => <Cell key={i} fill={e.impact >= 0 ? '#10b981' : '#ef4444'} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      {/* Recommendations table */}
+      <section>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {locale === 'es' ? 'Recomendaciones de Tasa' : 'Rate Recommendations'}
+        </p>
+        <DataTable rows={data.recommendations} columns={columns} locale={locale} rowKey={(r) => r.product} />
+      </section>
 
-      <div className="space-y-3">
-        {data.recommendations.map((r, i) => (
-          <div key={i} className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                {r.direction === 'increase' ? <ArrowUp className="h-4 w-4 text-emerald-600" /> : r.direction === 'decrease' ? <ArrowDown className="h-4 w-4 text-cyan-600" /> : <Minus className="h-4 w-4 text-slate-400" />}
-                <span className="text-sm font-semibold text-slate-800 capitalize">{r.product}</span>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${r.category === 'asset' ? 'bg-cyan-50 text-cyan-700' : 'bg-purple-50 text-purple-700'}`}>{r.category}</span>
-              </div>
-              <span className="text-sm font-bold tabular-nums text-emerald-700">+${r.niiImpact}M</span>
-            </div>
-            <div className="flex gap-6 text-xs text-slate-500 mb-2">
-              <span>{locale === 'es' ? 'Actual' : 'Current'}: {(r.currentRate * 100).toFixed(2)}%</span>
-              <span>{locale === 'es' ? 'Pares' : 'Peer'}: {(r.peerMedianRate * 100).toFixed(2)}%</span>
-              <span>{locale === 'es' ? 'Sugerido' : 'Suggested'}: {(r.suggestedRate * 100).toFixed(2)}%</span>
-              <span>{r.rateDeltaBps > 0 ? '+' : ''}{r.rateDeltaBps} bps</span>
-            </div>
-            <p className="text-xs text-slate-600">{locale === 'es' ? r.rationaleEs : r.rationale}</p>
+      {/* Rationale cards */}
+      <section className="space-y-2">
+        {data.recommendations.map((r) => (
+          <div key={r.product} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+            <p className="mb-0.5 text-xs font-semibold text-slate-800">{r.product}</p>
+            <p className="text-[11px] leading-relaxed text-slate-600">{locale === 'es' ? r.rationaleEs : r.rationale}</p>
           </div>
         ))}
-      </div>
-    </div>
+      </section>
+    </>
+  );
+}
+
+export default function NIMOptimizerPage() {
+  return (
+    <AlmPage<NIMResult>
+      slug="nim-optimizer"
+      iconTint="emerald"
+      validate={validateNimOpt}
+      getDemo={getDemo}
+    >
+      {(data) => <NimOptContent data={data} />}
+    </AlmPage>
   );
 }

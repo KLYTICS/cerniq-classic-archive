@@ -151,12 +151,24 @@ describe('FineTunePipelineService', () => {
   describe('exportTrainingData', () => {
     it('exports training data as JSONL filtered by quality', () => {
       service.addTrainingExample({
-        messages: [{ role: 'user', content: 'Low quality' }, { role: 'assistant', content: 'A' }],
-        category: 'regulatory', quality: 2, language: 'en', source: 'test',
+        messages: [
+          { role: 'user', content: 'Low quality' },
+          { role: 'assistant', content: 'A' },
+        ],
+        category: 'regulatory',
+        quality: 2,
+        language: 'en',
+        source: 'test',
       });
       service.addTrainingExample({
-        messages: [{ role: 'user', content: 'High quality' }, { role: 'assistant', content: 'A' }],
-        category: 'regulatory', quality: 5, language: 'es', source: 'test',
+        messages: [
+          { role: 'user', content: 'High quality' },
+          { role: 'assistant', content: 'A' },
+        ],
+        category: 'regulatory',
+        quality: 5,
+        language: 'es',
+        source: 'test',
       });
 
       const exported = service.exportTrainingData(4);
@@ -166,8 +178,14 @@ describe('FineTunePipelineService', () => {
 
     it('uses default minQuality of 3', () => {
       service.addTrainingExample({
-        messages: [{ role: 'user', content: 'Q3' }, { role: 'assistant', content: 'A' }],
-        category: 'financial_statement', quality: 3, language: 'en', source: 'test',
+        messages: [
+          { role: 'user', content: 'Q3' },
+          { role: 'assistant', content: 'A' },
+        ],
+        category: 'financial_statement',
+        quality: 3,
+        language: 'en',
+        source: 'test',
       });
       const exported = service.exportTrainingData();
       expect(exported).toContain('Q3');
@@ -186,8 +204,14 @@ describe('FineTunePipelineService', () => {
   // ── Coverage: getTrainingStats readyForTraining ───────────────
   it('getTrainingStats reports not ready when < 100 examples', () => {
     service.addTrainingExample({
-      messages: [{ role: 'user', content: 'X' }, { role: 'assistant', content: 'Y' }],
-      category: 'regulatory', quality: 5, language: 'en', source: 'test',
+      messages: [
+        { role: 'user', content: 'X' },
+        { role: 'assistant', content: 'Y' },
+      ],
+      category: 'regulatory',
+      quality: 5,
+      language: 'en',
+      source: 'test',
     });
     const stats = service.getTrainingStats();
     expect(stats.readyForTraining).toBe(false);

@@ -88,7 +88,9 @@ describe('DataExportService', () => {
     });
 
     it('should return null for all metrics when summary is missing', async () => {
-      prisma.analysisRun.findFirst.mockResolvedValue(makeRun({ other: 'data' }));
+      prisma.analysisRun.findFirst.mockResolvedValue(
+        makeRun({ other: 'data' }),
+      );
 
       const result = await service.exportMetrics('inst_001', 'json');
       const metrics = result as any;

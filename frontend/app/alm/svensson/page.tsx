@@ -1,134 +1,176 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useALM } from '@/components/alm/ALMProvider';
-import { useTranslation } from '@/lib/i18n';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { TrendingUp, AlertTriangle } from 'lucide-react';
+import { useMemo } from 'react';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend,
+} from 'recharts';
 
-interface SvenssonResult {
-  svenssonParams: { beta0: number; beta1: number; beta2: number; lambda: number; beta3: number; lambda2: number };
-  nelsonSiegelParams: { beta0: number; beta1: number; beta2: number; lambda: number };
-  fittedCurve: Array<{ tenor: number; rate: number }>;
-  baseCurve: Array<{ tenor: number; rate: number }>;
-  comparison: { nelsonSiegelRMSE: number; svenssonRMSE: number; improvementPct: number };
+import { useTranslation } from '@/lib/i18n';
+import { label } from '@/lib/alm/labels';
+import { AlmPage } from '@/components/alm/AlmPage';
+import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
+import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+
+interface SvenssonParams {
+  readonly beta0: number;
+  readonly beta1: number;
+  readonly beta2: number;
+  readonly lambda: number;
+  readonly beta3: number;
+  readonly lambda2: number;
 }
 
-function getDemoData(): SvenssonResult {
+interface NelsonSiegelParams {
+  readonly beta0: number;
+  readonly beta1: number;
+  readonly beta2: number;
+  readonly lambda: number;
+}
+
+interface CurvePoint {
+  readonly tenor: number;
+  readonly rate: number;
+}
+
+interface SvenssonResult {
+  readonly svenssonParams: SvenssonParams;
+  readonly nelsonSiegelParams: NelsonSiegelParams;
+  readonly fittedCurve: readonly CurvePoint[];
+  readonly baseCurve: readonly CurvePoint[];
+  readonly comparison: {
+    readonly nelsonSiegelRMSE: number;
+    readonly svenssonRMSE: number;
+    readonly improvementPct: number;
+  };
+}
+
+function validateSvensson(raw: unknown): SvenssonResult {
+  if (!raw || typeof raw !== 'object') throw new Error('Svensson response must be an object');
+  const r = raw as Record<string, unknown>;
+  if (!r.svenssonParams || !r.nelsonSiegelParams) throw new Error('Svensson: missing params');
+  if (!Array.isArray(r.baseCurve)) throw new Error('Svensson: baseCurve must be array');
+  return r as unknown as SvenssonResult;
+}
+
+function getDemo(): SvenssonResult {
   const baseCurve = [
-    { tenor: 0.25, rate: 0.048 }, { tenor: 0.5, rate: 0.0465 }, { tenor: 1, rate: 0.044 },
-    { tenor: 2, rate: 0.042 }, { tenor: 3, rate: 0.041 }, { tenor: 5, rate: 0.0405 },
-    { tenor: 7, rate: 0.041 }, { tenor: 10, rate: 0.042 }, { tenor: 20, rate: 0.0455 }, { tenor: 30, rate: 0.0465 },
+    { tenor: 0.25, rate: 0.048  }, { tenor: 0.5, rate: 0.0465 }, { tenor: 1,  rate: 0.044  },
+    { tenor: 2,    rate: 0.042  }, { tenor: 3,   rate: 0.041  }, { tenor: 5,  rate: 0.0405 },
+    { tenor: 7,    rate: 0.041  }, { tenor: 10,  rate: 0.042  }, { tenor: 20, rate: 0.0455 }, { tenor: 30, rate: 0.0465 },
   ];
   return {
-    svenssonParams: { beta0: 0.0471, beta1: -0.0015, beta2: -0.0082, lambda: 1.8, beta3: 0.0034, lambda2: 5.2 },
-    nelsonSiegelParams: { beta0: 0.0468, beta1: 0.0012, beta2: -0.0095, lambda: 1.6 },
-    fittedCurve: baseCurve.map(p => ({ tenor: p.tenor, rate: p.rate + (Math.random() - 0.5) * 0.0003 })),
+    svenssonParams:     { beta0: 0.0471, beta1: -0.0015, beta2: -0.0082, lambda: 1.8, beta3: 0.0034, lambda2: 5.2 },
+    nelsonSiegelParams: { beta0: 0.0468, beta1:  0.0012, beta2: -0.0095, lambda: 1.6 },
+    fittedCurve: baseCurve.map((p, i) => ({ tenor: p.tenor, rate: p.rate + (i % 3 - 1) * 0.0001 })),
     baseCurve,
     comparison: { nelsonSiegelRMSE: 0.00042, svenssonRMSE: 0.00018, improvementPct: 57.1 },
   };
 }
 
-export default function SvenssonPage() {
-  const { selectedId } = useALM();
+interface ParamRow {
+  readonly key: string;
+  readonly label: string;
+  readonly svensson: number | null;
+  readonly nelsonSiegel: number | null;
+}
+
+function SvenssonContent({ data }: { data: SvenssonResult }) {
   const { locale } = useTranslation();
-  const [data, setData] = useState<SvenssonResult | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!selectedId) return;
-    (async () => {
-      setLoading(true);
-      try {
-        const NODE = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-        const res = await fetch(`${NODE}/api/alm/${selectedId}/yield-curve/svensson`);
-        if (res.ok) setData(await res.json());
-        else setData(getDemoData());
-      } catch { setData(getDemoData()); }
-      finally { setLoading(false); }
-    })();
-  }, [selectedId]);
+  const stripItems = useMemo<readonly MetricStripItem[]>(() => [
+    { key: 'svensson_rmse',  label: 'Svensson RMSE',       value: data.comparison.svenssonRMSE * 10000,     unit: 'bps' },
+    { key: 'ns_rmse',        label: 'Nelson-Siegel RMSE',  value: data.comparison.nelsonSiegelRMSE * 10000, unit: 'bps' },
+    { key: 'improvement',    label: locale === 'es' ? 'Mejora' : 'Improvement', value: data.comparison.improvementPct, unit: '%' },
+    { key: 'svensson_params', label: locale === 'es' ? 'Parámetros Svensson' : 'Svensson Params', value: 6, unit: 'count' },
+    { key: 'ns_params',       label: locale === 'es' ? 'Parámetros NS' : 'NS Params',             value: 4, unit: 'count' },
+    { key: 'tenor_points',    label: locale === 'es' ? 'Puntos Tenor' : 'Tenor Points',           value: data.baseCurve.length, unit: 'count' },
+  ], [data, locale]);
 
-  if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
-  if (loading) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
-  if (!data) return <div className="flex-1 flex items-center justify-center p-6 text-sm text-slate-400">No data available</div>;
+  const chartData = useMemo(
+    () => data.baseCurve.map((p, i) => ({
+      tenor: `${p.tenor}Y`,
+      market: +(p.rate * 100).toFixed(3),
+      svensson: +((data.fittedCurve[i]?.rate ?? 0) * 100).toFixed(3),
+    })),
+    [data],
+  );
 
-  const chartData = data.baseCurve.map((p, i) => ({
-    tenor: `${p.tenor}Y`,
-    market: +(p.rate * 100).toFixed(3),
-    svensson: +((data.fittedCurve[i]?.rate ?? 0) * 100).toFixed(3),
-  }));
+  const paramRows = useMemo<readonly ParamRow[]>(() => {
+    const allKeys: (keyof SvenssonParams)[] = ['beta0', 'beta1', 'beta2', 'beta3', 'lambda', 'lambda2'];
+    return allKeys.map((k) => ({
+      key: k,
+      label: label(k, locale),
+      svensson: data.svenssonParams[k] ?? null,
+      nelsonSiegel:
+        (data.nelsonSiegelParams as unknown as Record<string, number | undefined>)[
+          k
+        ] ?? null,
+    }));
+  }, [data, locale]);
+
+  const columns = useMemo<readonly DataTableColumn<ParamRow>[]>(() => [
+    { id: 'name',     header: locale === 'es' ? 'Parámetro' : 'Parameter', kind: 'custom',
+      accessor: (r) => r.label,
+      render: (r) => <span className="text-xs text-slate-700">{r.label}</span>,
+      align: 'text-left',
+    },
+    { id: 'svensson', header: 'Svensson',      kind: 'custom',
+      accessor: (r) => r.svensson,
+      render: (r) => r.svensson != null
+        ? <span className="font-mono text-xs font-bold tabular-nums text-indigo-700">{r.svensson.toFixed(6)}</span>
+        : <span className="text-xs text-slate-300">—</span>,
+    },
+    { id: 'ns',       header: 'Nelson-Siegel', kind: 'custom',
+      accessor: (r) => r.nelsonSiegel,
+      render: (r) => r.nelsonSiegel != null
+        ? <span className="font-mono text-xs font-bold tabular-nums text-slate-600">{r.nelsonSiegel.toFixed(6)}</span>
+        : <span className="text-xs text-slate-300">—</span>,
+    },
+  ], [locale]);
 
   return (
-    <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50">
-          <TrendingUp className="h-4 w-4 text-indigo-700" />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold text-slate-950">{locale === 'es' ? 'Modelo Svensson (6 Parametros)' : 'Svensson Model (6-Parameter)'}</h1>
-          <p className="text-xs text-slate-500">{locale === 'es' ? 'Extension de Nelson-Siegel con segunda joroba — usado por ECB y Bundesbank' : 'Nelson-Siegel extension with second hump — used by ECB and Bundesbank'}</p>
-        </div>
-      </div>
+    <>
+      <MetricStrip items={stripItems} locale={locale} density="compact" />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <p className="text-[10px] font-medium uppercase text-slate-400">Svensson RMSE</p>
-          <p className="text-2xl font-bold tabular-nums text-slate-950">{(data.comparison.svenssonRMSE * 10000).toFixed(1)} bps</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <p className="text-[10px] font-medium uppercase text-slate-400">Nelson-Siegel RMSE</p>
-          <p className="text-2xl font-bold tabular-nums text-slate-950">{(data.comparison.nelsonSiegelRMSE * 10000).toFixed(1)} bps</p>
-        </div>
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <p className="text-[10px] font-medium uppercase text-emerald-600">{locale === 'es' ? 'Mejora' : 'Improvement'}</p>
-          <p className="text-2xl font-bold tabular-nums text-emerald-700">{data.comparison.improvementPct}%</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <p className="text-[10px] font-medium uppercase text-slate-400">{locale === 'es' ? 'Parametros' : 'Parameters'}</p>
-          <p className="text-2xl font-bold tabular-nums text-slate-950">6</p>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <h3 className="text-sm font-bold text-slate-950 mb-3">{locale === 'es' ? 'Ajuste de Curva: Mercado vs. Svensson' : 'Curve Fit: Market vs. Svensson'}</h3>
+      {/* Curve fit chart */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {locale === 'es' ? 'Ajuste de Curva: Mercado vs Svensson' : 'Curve Fit: Market vs Svensson'}
+        </p>
         <ResponsiveContainer width="100%" height={320}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
             <XAxis dataKey="tenor" tick={{ fontSize: 11 }} />
-            <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
-            <Tooltip formatter={(value: number | string | undefined) => `${Number(value ?? 0).toFixed(3)}%`} />
-            <Legend />
-            <Line type="monotone" dataKey="market" name={locale === 'es' ? 'Mercado' : 'Market'} stroke="#475569" strokeWidth={2} dot={{ r: 4 }} />
-            <Line type="monotone" dataKey="svensson" name="Svensson" stroke="#6366f1" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3 }} />
+            <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11 }} tickFormatter={(v) => `${Number(v).toFixed(1)}%`} />
+            <Tooltip formatter={(value) => `${Number(value ?? 0).toFixed(3)}%`} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Line type="monotone" dataKey="market"   name={locale === 'es' ? 'Mercado' : 'Market'} stroke="#475569" strokeWidth={2}                     dot={{ r: 4 }} />
+            <Line type="monotone" dataKey="svensson" name="Svensson"                                stroke="#6366f1" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="text-sm font-bold text-slate-950 mb-3">{locale === 'es' ? 'Parametros Svensson' : 'Svensson Parameters'}</h3>
-          <div className="space-y-2 text-xs">
-            {Object.entries(data.svenssonParams).map(([key, val]) => (
-              <div key={key} className="flex justify-between border-b border-slate-100 pb-1">
-                <span className="text-slate-500 font-mono">{key}</span>
-                <span className="font-bold tabular-nums text-slate-950">{typeof val === 'number' ? val.toFixed(6) : val}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="text-sm font-bold text-slate-950 mb-3">{locale === 'es' ? 'Parametros Nelson-Siegel' : 'Nelson-Siegel Parameters'}</h3>
-          <div className="space-y-2 text-xs">
-            {Object.entries(data.nelsonSiegelParams).map(([key, val]) => (
-              <div key={key} className="flex justify-between border-b border-slate-100 pb-1">
-                <span className="text-slate-500 font-mono">{key}</span>
-                <span className="font-bold tabular-nums text-slate-950">{typeof val === 'number' ? val.toFixed(6) : val}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
+      {/* Parameter comparison table */}
+      <section>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {locale === 'es' ? 'Parámetros: Svensson vs Nelson-Siegel' : 'Parameters: Svensson vs Nelson-Siegel'}
+        </p>
+        <DataTable rows={paramRows} columns={columns} locale={locale} rowKey={(r) => r.key} />
+      </section>
+    </>
+  );
+}
+
+export default function SvenssonPage() {
+  return (
+    <AlmPage<SvenssonResult>
+      slug="svensson"
+      iconTint="indigo"
+      validate={validateSvensson}
+      getDemo={getDemo}
+    >
+      {(data) => <SvenssonContent data={data} />}
+    </AlmPage>
   );
 }

@@ -69,9 +69,7 @@ describe('PrismaExceptionFilter', () => {
     filter.catch(error, host);
     expect(status).toHaveBeenCalledWith(HttpStatus.CONFLICT);
     const body = json.mock.calls[0][0];
-    expect(body.error.message).toBe(
-      'A record with this field already exists',
-    );
+    expect(body.error.message).toBe('A record with this field already exists');
   });
 
   it('maps P2002 with undefined meta to fallback "field"', () => {
@@ -79,9 +77,7 @@ describe('PrismaExceptionFilter', () => {
     const error = { code: 'P2002', message: 'err', meta: undefined } as any;
     filter.catch(error, host);
     const body = json.mock.calls[0][0];
-    expect(body.error.message).toBe(
-      'A record with this field already exists',
-    );
+    expect(body.error.message).toBe('A record with this field already exists');
   });
 
   // ── P2025: Not found ─────────────────────────────────────────

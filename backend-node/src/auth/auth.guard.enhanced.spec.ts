@@ -1,4 +1,8 @@
-import { ExecutionContext, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma.service';
@@ -12,9 +16,7 @@ describe('AuthGuard (enhanced)', () => {
     jest.restoreAllMocks();
   });
 
-  function createContext(
-    request: Record<string, unknown>,
-  ): ExecutionContext {
+  function createContext(request: Record<string, unknown>): ExecutionContext {
     const mockRes = { setHeader: jest.fn() };
     return {
       switchToHttp: () => ({
@@ -26,19 +28,26 @@ describe('AuthGuard (enhanced)', () => {
     } as unknown as ExecutionContext;
   }
 
-  function createGuard(jwtOverrides?: Partial<JwtService>, prismaOverrides?: any) {
+  function createGuard(
+    jwtOverrides?: Partial<JwtService>,
+    prismaOverrides?: any,
+  ) {
     const authService = {
-      resolveApplicationUser: jest.fn().mockImplementation(async ({
-        authUserId,
-        email,
-      }: {
-        authUserId?: string;
-        email?: string;
-      }) => ({
-        id: authUserId ?? email ?? 'user-1',
-        email: email ?? 'test@cerniq.io',
-        role: null,
-      })),
+      resolveApplicationUser: jest
+        .fn()
+        .mockImplementation(
+          async ({
+            authUserId,
+            email,
+          }: {
+            authUserId?: string;
+            email?: string;
+          }) => ({
+            id: authUserId ?? email ?? 'user-1',
+            email: email ?? 'test@cerniq.io',
+            role: null,
+          }),
+        ),
     };
 
     const jwtService = {
@@ -49,7 +58,10 @@ describe('AuthGuard (enhanced)', () => {
 
     const prisma = {
       user: { findUnique: jest.fn().mockResolvedValue(null) },
-      apiKey: { findUnique: jest.fn().mockResolvedValue(null), update: jest.fn() },
+      apiKey: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
+      },
       ...prismaOverrides,
     } as unknown as PrismaService;
 
@@ -207,7 +219,9 @@ describe('AuthGuard (enhanced)', () => {
 
       const { guard } = createGuard({
         decode: jest.fn().mockReturnValue({ sub: 'some-user' }),
-        verify: jest.fn().mockImplementation(() => { throw new Error('invalid'); }),
+        verify: jest.fn().mockImplementation(() => {
+          throw new Error('invalid');
+        }),
       });
 
       const request: any = {
@@ -262,7 +276,9 @@ describe('AuthGuard (enhanced)', () => {
 
       const { guard } = createGuard({
         decode: jest.fn().mockReturnValue({ sub: 'unknown' }),
-        verify: jest.fn().mockImplementation(() => { throw new Error('bad'); }),
+        verify: jest.fn().mockImplementation(() => {
+          throw new Error('bad');
+        }),
       });
 
       const request: any = {
@@ -283,7 +299,9 @@ describe('AuthGuard (enhanced)', () => {
 
       const { guard } = createGuard({
         decode: jest.fn().mockReturnValue({ sub: 'user' }),
-        verify: jest.fn().mockImplementation(() => { throw new Error('bad'); }),
+        verify: jest.fn().mockImplementation(() => {
+          throw new Error('bad');
+        }),
       });
 
       const request: any = {
@@ -309,7 +327,9 @@ describe('AuthGuard (enhanced)', () => {
 
       const { guard } = createGuard({
         decode: jest.fn().mockReturnValue({}),
-        verify: jest.fn().mockImplementation(() => { throw new Error('bad'); }),
+        verify: jest.fn().mockImplementation(() => {
+          throw new Error('bad');
+        }),
       });
 
       const request: any = {
@@ -332,7 +352,9 @@ describe('AuthGuard (enhanced)', () => {
 
       const { guard } = createGuard({
         decode: jest.fn().mockReturnValue({}),
-        verify: jest.fn().mockImplementation(() => { throw new Error('bad'); }),
+        verify: jest.fn().mockImplementation(() => {
+          throw new Error('bad');
+        }),
       });
 
       const request: any = {
@@ -583,8 +605,14 @@ describe('AuthGuard (enhanced)', () => {
       };
 
       await guard.canActivate(ctx);
-      expect(mockRes.setHeader).toHaveBeenCalledWith('X-API-Key-Expires-In-Days', expect.any(String));
-      expect(mockRes.setHeader).toHaveBeenCalledWith('Warning', expect.stringContaining('API key expires'));
+      expect(mockRes.setHeader).toHaveBeenCalledWith(
+        'X-API-Key-Expires-In-Days',
+        expect.any(String),
+      );
+      expect(mockRes.setHeader).toHaveBeenCalledWith(
+        'Warning',
+        expect.stringContaining('API key expires'),
+      );
     });
 
     it('does not set expiry headers when key expires in more than 14 days', async () => {
@@ -988,10 +1016,16 @@ describe('AuthGuard (enhanced)', () => {
       jest.spyOn(global, 'fetch').mockImplementation(async (url: any) => {
         callCount++;
         if (url.includes('memberships')) {
-          return { ok: true, json: async () => [{ org_id: 'org-1', role: 'admin' }] } as Response;
+          return {
+            ok: true,
+            json: async () => [{ org_id: 'org-1', role: 'admin' }],
+          } as Response;
         }
         if (url.includes('org_apps')) {
-          return { ok: true, json: async () => [{ app_id: 'cerniq' }] } as Response;
+          return {
+            ok: true,
+            json: async () => [{ app_id: 'cerniq' }],
+          } as Response;
         }
         return { ok: false } as Response;
       });
@@ -1026,7 +1060,10 @@ describe('AuthGuard (enhanced)', () => {
 
       jest.spyOn(global, 'fetch').mockImplementation(async (url: any) => {
         if (url.includes('memberships')) {
-          return { ok: true, json: async () => [{ org_id: 'org-1', role: 'admin' }] } as Response;
+          return {
+            ok: true,
+            json: async () => [{ org_id: 'org-1', role: 'admin' }],
+          } as Response;
         }
         if (url.includes('org_apps')) {
           return { ok: true, json: async () => [] } as Response; // no entitlements
@@ -1164,7 +1201,9 @@ describe('AuthGuard (enhanced)', () => {
 
       const { guard } = createGuard({
         decode: jest.fn().mockReturnValue({ roles: ['admin', 'viewer'] }),
-        verify: jest.fn().mockImplementation(() => { throw new Error('invalid'); }),
+        verify: jest.fn().mockImplementation(() => {
+          throw new Error('invalid');
+        }),
       });
 
       const request: any = {

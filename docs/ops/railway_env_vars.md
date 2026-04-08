@@ -46,12 +46,24 @@ If `DATA_ENCRYPTION_KEY` is not set, the service logs a warning and stores/retur
 |----------|-------------|---------|
 | `STRIPE_SECRET_KEY` | Stripe API secret key | `sk_live_...` or `sk_test_...` |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret | `whsec_...` |
+| `STRIPE_PRICE_ONE_TIME` | Price ID for one-time ALM report | `price_...` |
+| `STRIPE_PRICE_MONTHLY` | Price ID for monthly platform plan | `price_...` |
+| `STRIPE_PRICE_ANNUAL` | Price ID for annual compliance package | `price_...` |
+| `STRIPE_PRICE_PARTNER` | Price ID for partner access plan | `price_...` |
 
 ## Email (Resend)
 
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `RESEND_API_KEY` | Resend API key for transactional email | `re_...` |
+| `SLACK_WEBHOOK_URL` | Slack incoming webhook for sales alerts | `https://hooks.slack.com/...` |
+
+## AI / Observability
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `ANTHROPIC_API_KEY` | Anthropic API key for AI advisor features | `sk-ant-...` |
+| `SENTRY_DSN` | Sentry DSN for backend runtime reporting | `https://...@sentry.io/...` |
 
 ## OAuth Providers
 

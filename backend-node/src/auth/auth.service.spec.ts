@@ -384,6 +384,51 @@ describe('AuthService', () => {
       expect(result.user.email).toBe('data.ai.kiess@gmail.com');
     });
 
+    it('provisions the master account in production without a preset password and routes recovery through reset flow', async () => {
+      process.env.NODE_ENV = 'production';
+      delete process.env.MASTER_ACCOUNT_PASSWORD;
+
+      prisma.user.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        id: 'master-user-id',
+        email: 'data.ai.kiess@gmail.com',
+        name: 'Erwin Kiess',
+        provider: 'email',
+        passwordHash: null,
+      });
+      prisma.user.create.mockResolvedValue({
+        id: 'master-user-id',
+        email: 'data.ai.kiess@gmail.com',
+        name: 'Erwin Kiess',
+        avatarUrl: null,
+        provider: 'email',
+        providerId: null,
+        emailVerified: true,
+        role: 'OWNER',
+        passwordHash: null,
+      });
+      prisma.workspace.findFirst.mockResolvedValue(null);
+      prisma.workspace.create.mockResolvedValue({});
+
+      await expect(
+        service.login({
+          email: 'data.ai.kiess@gmail.com',
+          password: 'any-password',
+        }),
+      ).rejects.toThrow(
+        'This account does not have a password yet. Use "Forgot password" to create one.',
+      );
+
+      expect(prisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            email: 'data.ai.kiess@gmail.com',
+            passwordHash: null,
+            role: 'OWNER',
+          }),
+        }),
+      );
+    });
+
     it('should reject invalid password with UnauthorizedException', async () => {
       const hash = await bcrypt.hash('realPassword', 12);
       prisma.user.findUnique.mockResolvedValue({
@@ -512,6 +557,50 @@ describe('AuthService', () => {
 
       const result = await service.requestPasswordReset('ok@example.com');
 
+      expect(result.message).toBe(
+        'If that email exists, a reset link has been sent',
+      );
+    });
+
+    it('provisions the master account before issuing a reset token', async () => {
+      process.env.NODE_ENV = 'production';
+      delete process.env.MASTER_ACCOUNT_PASSWORD;
+
+      prisma.user.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        id: 'master-user-id',
+        email: 'data.ai.kiess@gmail.com',
+        name: 'Erwin Kiess',
+        passwordHash: null,
+      });
+      prisma.user.create.mockResolvedValue({
+        id: 'master-user-id',
+        email: 'data.ai.kiess@gmail.com',
+        name: 'Erwin Kiess',
+        avatarUrl: null,
+        provider: 'email',
+        providerId: null,
+        emailVerified: true,
+        role: 'OWNER',
+        passwordHash: null,
+      });
+      prisma.workspace.findFirst.mockResolvedValue(null);
+      prisma.workspace.create.mockResolvedValue({});
+      prisma.passwordResetToken.updateMany.mockResolvedValue({ count: 0 });
+      prisma.passwordResetToken.create.mockResolvedValue({});
+
+      const result = await service.requestPasswordReset(
+        'DATA.AI.KIESS@GMAIL.COM',
+      );
+
+      expect(prisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            email: 'data.ai.kiess@gmail.com',
+            passwordHash: null,
+          }),
+        }),
+      );
+      expect(prisma.passwordResetToken.create).toHaveBeenCalled();
       expect(result.message).toBe(
         'If that email exists, a reset link has been sent',
       );
@@ -1131,7 +1220,12 @@ describe('AuthService', () => {
   // ── validateOAuthUser ─────────────────────────────
   describe('validateOAuthUser', () => {
     it('returns existing user matched by provider+providerId', async () => {
-      const existingUser = { id: 'oauth-u1', email: 'oauth@test.com', provider: 'google', providerId: 'gid-1' };
+      const existingUser = {
+        id: 'oauth-u1',
+        email: 'oauth@test.com',
+        provider: 'google',
+        providerId: 'gid-1',
+      };
       prisma.user.findFirst.mockResolvedValue(existingUser);
       prisma.user.update.mockResolvedValue(existingUser);
 
@@ -1148,8 +1242,16 @@ describe('AuthService', () => {
 
     it('links OAuth to existing email account when provider not found', async () => {
       prisma.user.findFirst.mockResolvedValue(null); // no provider match
-      prisma.user.findUnique.mockResolvedValue({ id: 'email-u1', email: 'shared@test.com', avatarUrl: null });
-      prisma.user.update.mockResolvedValue({ id: 'email-u1', provider: 'github', providerId: 'gh-1' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'email-u1',
+        email: 'shared@test.com',
+        avatarUrl: null,
+      });
+      prisma.user.update.mockResolvedValue({
+        id: 'email-u1',
+        provider: 'github',
+        providerId: 'gh-1',
+      });
 
       const result = await service.validateOAuthUser({
         email: 'shared@test.com',
@@ -1173,7 +1275,11 @@ describe('AuthService', () => {
     it('creates new user + workspace when no existing user found', async () => {
       prisma.user.findFirst.mockResolvedValue(null);
       prisma.user.findUnique.mockResolvedValue(null);
-      prisma.user.create.mockResolvedValue({ id: 'new-oauth', email: 'new@oauth.com', name: 'New OAuth' });
+      prisma.user.create.mockResolvedValue({
+        id: 'new-oauth',
+        email: 'new@oauth.com',
+        name: 'New OAuth',
+      });
       prisma.workspace.create.mockResolvedValue({});
       prisma.user.update.mockResolvedValue({});
 
@@ -1203,7 +1309,10 @@ describe('AuthService', () => {
         provider: 'email',
         emailVerified: true,
         organizationMembers: [
-          { organization: { id: 'org-1', name: 'Test Org', slug: 'test-org' }, role: 'admin' },
+          {
+            organization: { id: 'org-1', name: 'Test Org', slug: 'test-org' },
+            role: 'admin',
+          },
         ],
       });
 
@@ -1217,19 +1326,27 @@ describe('AuthService', () => {
     it('throws UnauthorizedException when user not found', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.getUserProfile('nonexistent')).rejects.toThrow('User not found');
+      await expect(service.getUserProfile('nonexistent')).rejects.toThrow(
+        'User not found',
+      );
     });
   });
 
   // ── generateTokens (session eviction) ─────────────
   describe('generateTokens', () => {
     it('evicts oldest sessions when exceeding MAX_SESSIONS', async () => {
-      const activeSessions = Array.from({ length: 7 }, (_, i) => ({ id: `rt-${i}` }));
+      const activeSessions = Array.from({ length: 7 }, (_, i) => ({
+        id: `rt-${i}`,
+      }));
       prisma.refreshToken.create.mockResolvedValue({});
       prisma.refreshToken.findMany.mockResolvedValue(activeSessions);
       prisma.refreshToken.updateMany.mockResolvedValue({ count: 2 });
 
-      await service.generateTokens({ id: 'u-evict', email: 'evict@test.com', name: 'Evict' });
+      await service.generateTokens({
+        id: 'u-evict',
+        email: 'evict@test.com',
+        name: 'Evict',
+      });
 
       // Should revoke the 2 oldest (7 - 5 = 2)
       expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
@@ -1270,10 +1387,16 @@ describe('AuthService', () => {
 
       jest.spyOn(global, 'fetch').mockImplementation(async (url: any) => {
         if (url.includes('memberships')) {
-          return { ok: true, json: async () => [{ org_id: 'org-1', role: 'admin' }] } as Response;
+          return {
+            ok: true,
+            json: async () => [{ org_id: 'org-1', role: 'admin' }],
+          } as Response;
         }
         if (url.includes('org_apps')) {
-          return { ok: true, json: async () => [{ app_id: 'cerniq' }] } as Response;
+          return {
+            ok: true,
+            json: async () => [{ app_id: 'cerniq' }],
+          } as Response;
         }
         return { ok: false } as Response;
       });
@@ -1309,7 +1432,13 @@ describe('AuthService', () => {
 
       jest.spyOn(global, 'fetch').mockImplementation(async (url: any) => {
         if (url.includes('memberships')) {
-          return { ok: true, json: async () => [{ org_id: null, role: 'admin' }, { org_id: 'org-2', role: 'viewer' }] } as Response;
+          return {
+            ok: true,
+            json: async () => [
+              { org_id: null, role: 'admin' },
+              { org_id: 'org-2', role: 'viewer' },
+            ],
+          } as Response;
         }
         if (url.includes('org_apps')) {
           return { ok: true, json: async () => [] } as Response;

@@ -72,6 +72,7 @@ check "Login Page"                 "$FRONTEND_URL/login"
 check "Status Page"                "$FRONTEND_URL/status"
 check "Portal Page"                "$FRONTEND_URL/portal"
 check "ALM Page"                   "$FRONTEND_URL/alm"
+check "CSV Template"               "$FRONTEND_URL/templates/cerniq-balance-sheet-v1.csv"
 echo ""
 
 # ---- Section 3: Security ----

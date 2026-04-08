@@ -2,14 +2,18 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import { analytics, EVENTS } from '@/lib/analytics';
 
 export default function PortalLogin() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const billingSuccess = searchParams.get('billing') === 'success';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +54,15 @@ export default function PortalLogin() {
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-6">
+          {billingSuccess ? (
+            <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <p className="text-sm font-semibold text-emerald-800">Payment confirmed</p>
+              <p className="mt-1 text-sm text-emerald-700">
+                Your subscription is active. Enter the same email you used at checkout and we&apos;ll send your secure portal link.
+              </p>
+            </div>
+          ) : null}
+
           {sent ? (
             <div className="text-center py-4">
               <CheckCircle className="h-10 w-10 text-green-500 mx-auto mb-3" />

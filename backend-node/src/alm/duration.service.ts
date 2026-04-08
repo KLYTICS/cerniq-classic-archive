@@ -68,6 +68,28 @@ function round(value: number, decimals: number): number {
   return Math.round(value * factor) / factor;
 }
 
+function asNumber(value: unknown): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    'toNumber' in value &&
+    typeof (value as { toNumber?: unknown }).toNumber === 'function'
+  ) {
+    const parsed = (value as { toNumber: () => number }).toNumber();
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 @Injectable()
 export class DurationService {
   private readonly logger = new Logger(DurationService.name);
@@ -161,8 +183,9 @@ export class DurationService {
    */
   generateCashFlows(item: BalanceSheetItem): InstrumentCashFlows {
     // Normalize rate: if > 1, assume it's a percentage (e.g., 5.5 → 0.055)
-    const yieldRate = item.rate > 1 ? item.rate / 100 : item.rate;
-    const balance = item.balance; // already in $M
+    const rawRate = asNumber(item.rate);
+    const yieldRate = rawRate > 1 ? rawRate / 100 : rawRate;
+    const balance = asNumber(item.balance); // already in $M
 
     // Determine maturity in years
     let maturityYears: number;
@@ -175,7 +198,7 @@ export class DurationService {
         ),
       );
     } else {
-      maturityYears = Math.max(1, Math.round(item.duration || 1));
+      maturityYears = Math.max(1, Math.round(asNumber(item.duration) || 1));
     }
 
     // For variable-rate instruments, effective duration for repricing
@@ -230,14 +253,17 @@ export class DurationService {
     items: BalanceSheetItem[],
   ): PortfolioDurationMetrics {
     const assetItems = items.filter(
-      (i) => i.category === 'asset' && i.balance > 0,
+      (i) => i.category === 'asset' && asNumber(i.balance) > 0,
     );
     const liabilityItems = items.filter(
-      (i) => i.category === 'liability' && i.balance > 0,
+      (i) => i.category === 'liability' && asNumber(i.balance) > 0,
     );
 
-    const totalAssets = assetItems.reduce((s, i) => s + i.balance, 0);
-    const totalLiabilities = liabilityItems.reduce((s, i) => s + i.balance, 0);
+    const totalAssets = assetItems.reduce((s, i) => s + asNumber(i.balance), 0);
+    const totalLiabilities = liabilityItems.reduce(
+      (s, i) => s + asNumber(i.balance),
+      0,
+    );
 
     // Calculate per-instrument metrics for assets
     const assetDetails = assetItems.map((item) => {
@@ -254,7 +280,7 @@ export class DurationService {
       );
       return {
         name: item.name,
-        balance: item.balance,
+        balance: asNumber(item.balance),
         modifiedDuration: round(modDuration, 4),
         convexity: round(convexity, 4),
         maturityYears: cf.maturityYears,
@@ -277,7 +303,7 @@ export class DurationService {
       );
       return {
         name: item.name,
-        balance: item.balance,
+        balance: asNumber(item.balance),
         modifiedDuration: round(modDuration, 4),
         convexity: round(convexity, 4),
         maturityYears: cf.maturityYears,

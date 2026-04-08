@@ -111,7 +111,9 @@ describe('ValuationService', () => {
   });
 
   it('should handle fundamentals error gracefully with defaults', async () => {
-    mockMarketDataService.getFundamentals.mockRejectedValue(new Error('Not available'));
+    mockMarketDataService.getFundamentals.mockRejectedValue(
+      new Error('Not available'),
+    );
     const result = await service.getValuation({ ticker: 'AAPL' });
     expect(mockCompounderEngine.calculate).toHaveBeenCalled();
     expect(result).toBeDefined();
@@ -124,21 +126,33 @@ describe('ValuationService', () => {
   });
 
   it('should sort screener results by upside', async () => {
-    mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 30 });
+    mockCompounderEngine.calculate.mockReturnValue({
+      fairValue: 200,
+      upside: 30,
+    });
     mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
     const results = await service.runScreener({ sortBy: 'upside', limit: 10 });
     expect(results.length).toBeGreaterThan(0);
   });
 
   it('should sort screener results by marketCap', async () => {
-    mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 30 });
+    mockCompounderEngine.calculate.mockReturnValue({
+      fairValue: 200,
+      upside: 30,
+    });
     mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
-    const results = await service.runScreener({ sortBy: 'marketCap', limit: 10 });
+    const results = await service.runScreener({
+      sortBy: 'marketCap',
+      limit: 10,
+    });
     expect(results.length).toBeGreaterThan(0);
   });
 
   it('should filter by minScore in screener', async () => {
-    mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 30 });
+    mockCompounderEngine.calculate.mockReturnValue({
+      fairValue: 200,
+      upside: 30,
+    });
     mockKpiEngine.calculate.mockReturnValue({ overallScore: 50 });
     const results = await service.runScreener({ minScore: 70, limit: 10 });
     expect(results).toHaveLength(0);
@@ -149,7 +163,10 @@ describe('ValuationService', () => {
       .mockResolvedValueOnce({ price: 150 }) // for getValuation inside screener
       .mockRejectedValueOnce(new Error('API error')); // for subsequent calls
     mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
-    mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 20 });
+    mockCompounderEngine.calculate.mockReturnValue({
+      fairValue: 200,
+      upside: 20,
+    });
     const results = await service.runScreener({ limit: 10 });
     // Should still return results (errors are caught)
     expect(results).toBeDefined();
@@ -157,7 +174,10 @@ describe('ValuationService', () => {
 
   it('should use specified valuationType in screener', async () => {
     mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
-    mockCyclicalEngine.calculate.mockReturnValue({ fairValue: 100, upside: 10 });
+    mockCyclicalEngine.calculate.mockReturnValue({
+      fairValue: 100,
+      upside: 10,
+    });
     const results = await service.runScreener({
       valuationType: 'cyclical',
       limit: 10,
@@ -172,7 +192,10 @@ describe('ValuationService', () => {
 
   it('should default limit to 50 when not specified in screener', async () => {
     mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
-    mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 20 });
+    mockCompounderEngine.calculate.mockReturnValue({
+      fairValue: 200,
+      upside: 20,
+    });
     await service.runScreener({});
     expect(mockTickerService.listTickers).toHaveBeenCalledWith(
       expect.objectContaining({ limit: 50 }),
@@ -186,7 +209,9 @@ describe('ValuationService', () => {
     });
     mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
     mockTickerService.listTickers.mockResolvedValue({
-      tickers: [{ ticker: 'NVDA', name: 'Nvidia', sector: 'Tech', marketCap: 2000000 }],
+      tickers: [
+        { ticker: 'NVDA', name: 'Nvidia', sector: 'Tech', marketCap: 2000000 },
+      ],
     });
     const results = await service.runScreener({ limit: 10 });
     expect(results).toBeDefined();
@@ -194,10 +219,21 @@ describe('ValuationService', () => {
 
   it('should pass assetType and sector to listTickers in screener', async () => {
     mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
-    mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 20 });
-    await service.runScreener({ assetType: 'stock', sector: 'Finance', limit: 5 });
+    mockCompounderEngine.calculate.mockReturnValue({
+      fairValue: 200,
+      upside: 20,
+    });
+    await service.runScreener({
+      assetType: 'stock',
+      sector: 'Finance',
+      limit: 5,
+    });
     expect(mockTickerService.listTickers).toHaveBeenCalledWith(
-      expect.objectContaining({ assetType: 'stock', sector: 'Finance', limit: 5 }),
+      expect.objectContaining({
+        assetType: 'stock',
+        sector: 'Finance',
+        limit: 5,
+      }),
     );
   });
 
@@ -209,7 +245,10 @@ describe('ValuationService', () => {
 
   // ── Coverage boost: screener default sortBy (score) ──────────
   it('should default sortBy to score in screener', async () => {
-    mockCompounderEngine.calculate.mockReturnValue({ fairValue: 200, upside: 20 });
+    mockCompounderEngine.calculate.mockReturnValue({
+      fairValue: 200,
+      upside: 20,
+    });
     mockKpiEngine.calculate.mockReturnValue({ overallScore: 80 });
     const results = await service.runScreener({ limit: 10 });
     expect(results).toBeDefined();
@@ -230,7 +269,14 @@ describe('ValuationService', () => {
     mockCompounderEngine.calculate.mockReturnValue({ upside: 10 });
     mockKpiEngine.calculate.mockReturnValue({ overallScore: 90 });
     mockTickerService.listTickers.mockResolvedValue({
-      tickers: [{ ticker: 'NOVALUE', name: 'No Value Corp', sector: null, marketCap: null }],
+      tickers: [
+        {
+          ticker: 'NOVALUE',
+          name: 'No Value Corp',
+          sector: null,
+          marketCap: null,
+        },
+      ],
     });
     const results = await service.runScreener({ limit: 10 });
     if (results.length > 0) {

@@ -166,9 +166,7 @@ describe('promise.util', () => {
     });
 
     it('wraps non-Error rejections into Error objects', async () => {
-      const { rejected } = await settleAll([
-        Promise.reject('string reason'),
-      ]);
+      const { rejected } = await settleAll([Promise.reject('string reason')]);
       expect(rejected[0]).toBeInstanceOf(Error);
       expect(rejected[0].message).toBe('string reason');
     });
@@ -201,17 +199,13 @@ describe('promise.util', () => {
     it('respects concurrency limit', async () => {
       let running = 0;
       let maxRunning = 0;
-      const results = await mapConcurrent(
-        [1, 2, 3, 4, 5],
-        2,
-        async (item) => {
-          running++;
-          maxRunning = Math.max(maxRunning, running);
-          await sleep(10);
-          running--;
-          return item;
-        },
-      );
+      const results = await mapConcurrent([1, 2, 3, 4, 5], 2, async (item) => {
+        running++;
+        maxRunning = Math.max(maxRunning, running);
+        await sleep(10);
+        running--;
+        return item;
+      });
       expect(maxRunning).toBeLessThanOrEqual(2);
       expect(results).toEqual([1, 2, 3, 4, 5]);
     });
@@ -222,11 +216,7 @@ describe('promise.util', () => {
     });
 
     it('works when concurrency exceeds items count', async () => {
-      const result = await mapConcurrent(
-        [1, 2],
-        100,
-        async (item) => item + 1,
-      );
+      const result = await mapConcurrent([1, 2], 100, async (item) => item + 1);
       expect(result).toEqual([2, 3]);
     });
   });

@@ -117,7 +117,10 @@ describe('createSSEStream', () => {
 
   it('emits error with fallback message when error has no message', async () => {
     async function* badGen(): AsyncGenerator<string> {
-      throw { notMessage: true };
+      yield* [];
+      const err = new Error();
+      Object.defineProperty(err, 'message', { value: undefined });
+      throw err;
     }
 
     const observable = createSSEStream(badGen());

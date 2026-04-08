@@ -211,11 +211,11 @@ describe('PipelineController', () => {
         .mockResolvedValueOnce({ _sum: { revenueAmount: 10000 } });
 
       prismaService.subscription.count
-        .mockResolvedValueOnce(8)   // active non-one_time
-        .mockResolvedValueOnce(12)  // total active
-        .mockResolvedValueOnce(3)   // monthly
-        .mockResolvedValueOnce(5)   // annual
-        .mockResolvedValueOnce(1);  // partner
+        .mockResolvedValueOnce(8) // active non-one_time
+        .mockResolvedValueOnce(12) // total active
+        .mockResolvedValueOnce(3) // monthly
+        .mockResolvedValueOnce(5) // annual
+        .mockResolvedValueOnce(1); // partner
 
       const result = await controller.getRevenueMetrics();
       // mrr = 3*299 + 5*200 + 1*499 = 897 + 1000 + 499 = 2396
@@ -227,7 +227,9 @@ describe('PipelineController', () => {
 
   describe('getPipelineJobs — with status filter', () => {
     it('should filter by COMPLETE status', async () => {
-      prismaService.reportJob.findMany.mockResolvedValue([{ id: 'j1', status: 'COMPLETE' }]);
+      prismaService.reportJob.findMany.mockResolvedValue([
+        { id: 'j1', status: 'COMPLETE' },
+      ]);
       prismaService.reportJob.count.mockResolvedValue(0);
 
       await controller.getPipelineJobs('COMPLETE');

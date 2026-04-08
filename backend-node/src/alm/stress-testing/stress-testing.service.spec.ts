@@ -105,7 +105,12 @@ describe('StressTestingService', () => {
       // All floating
       mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
         { category: 'asset', rateType: 'variable', balance: 500, rate: 0.06 },
-        { category: 'liability', rateType: 'variable', balance: 400, rate: 0.02 },
+        {
+          category: 'liability',
+          rateType: 'variable',
+          balance: 400,
+          rate: 0.02,
+        },
       ]);
       const floatingResult = await service.runMonteCarloSimulation('inst-1', {
         paths: 500,
@@ -124,8 +129,10 @@ describe('StressTestingService', () => {
         volatility: 200,
       });
 
-      const floatingSpread = floatingResult.niiDistribution.p95 - floatingResult.niiDistribution.p5;
-      const fixedSpread = fixedResult.niiDistribution.p95 - fixedResult.niiDistribution.p5;
+      const floatingSpread =
+        floatingResult.niiDistribution.p95 - floatingResult.niiDistribution.p5;
+      const fixedSpread =
+        fixedResult.niiDistribution.p95 - fixedResult.niiDistribution.p5;
 
       // Floating portfolio should have wider NII spread (more rate-sensitive)
       expect(floatingSpread).toBeGreaterThan(fixedSpread);
@@ -142,7 +149,10 @@ describe('StressTestingService', () => {
       });
 
       // p5 should equal p95 for a fully fixed portfolio (no rate sensitivity)
-      expect(result.niiDistribution.p5).toBeCloseTo(result.niiDistribution.p95, 1);
+      expect(result.niiDistribution.p5).toBeCloseTo(
+        result.niiDistribution.p95,
+        1,
+      );
     });
   });
 
@@ -187,7 +197,12 @@ describe('StressTestingService', () => {
   it('niiAtRisk equals expectedNII minus worstCaseNII', async () => {
     mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
       { category: 'asset', rateType: 'variable', balance: 200, rate: 0.06 },
-      { category: 'liability', rateType: 'variable', balance: 150, rate: 0.025 },
+      {
+        category: 'liability',
+        rateType: 'variable',
+        balance: 150,
+        rate: 0.025,
+      },
     ]);
     const result = await service.runMonteCarloSimulation('inst-1', {
       paths: 200,
@@ -211,14 +226,18 @@ describe('StressTestingService', () => {
           { shiftBps: -200, niImpact: -0.8, mveImpact: 1.5, niImpactPct: -8 },
         ],
       });
-      mockAlmEnterprise.calculateLCR = jest.fn().mockResolvedValue({ lcr: 120 });
-      mockAlmEnterprise.calculateDurationGap = jest.fn().mockResolvedValue({ durationGap: 1.5 });
+      mockAlmEnterprise.calculateLCR = jest
+        .fn()
+        .mockResolvedValue({ lcr: 120 });
+      mockAlmEnterprise.calculateDurationGap = jest
+        .fn()
+        .mockResolvedValue({ durationGap: 1.5 });
     });
 
     it('returns 4 regulatory scenarios', async () => {
       const result = await service.runRegulatoryStress('inst-1');
       expect(result.scenarios).toHaveLength(4);
-      const names = result.scenarios.map(s => s.name);
+      const names = result.scenarios.map((s) => s.name);
       expect(names).toContain('Rapid Rise');
       expect(names).toContain('Gradual Rise');
       expect(names).toContain('Yield Curve Inversion');
@@ -227,7 +246,9 @@ describe('StressTestingService', () => {
 
     it('assigns overall rating based on fail/warn counts', async () => {
       const result = await service.runRegulatoryStress('inst-1');
-      expect(['resilient', 'adequate', 'vulnerable', 'critical']).toContain(result.overallRating);
+      expect(['resilient', 'adequate', 'vulnerable', 'critical']).toContain(
+        result.overallRating,
+      );
     });
 
     it('each scenario has valid rateShock array of 12 months', async () => {
@@ -251,8 +272,12 @@ describe('StressTestingService', () => {
           { shiftBps: -200, niImpact: -0.8, mveImpact: 1.5, niImpactPct: -8 },
         ],
       });
-      mockAlmEnterprise.calculateLCR = jest.fn().mockResolvedValue({ lcr: 120 });
-      mockAlmEnterprise.calculateDurationGap = jest.fn().mockResolvedValue({ durationGap: 1.5 });
+      mockAlmEnterprise.calculateLCR = jest
+        .fn()
+        .mockResolvedValue({ lcr: 120 });
+      mockAlmEnterprise.calculateDurationGap = jest
+        .fn()
+        .mockResolvedValue({ durationGap: 1.5 });
       mockAlmEnterprise.getCOSSECCompliance = jest.fn().mockResolvedValue({
         summary: { totalShares: 200, totalLoans: 150 },
       });
@@ -263,7 +288,10 @@ describe('StressTestingService', () => {
     });
 
     it('returns monteCarlo, regulatory, and cossecScenarios', async () => {
-      const result = await service.runFullStressTest('inst-1', { paths: 100, horizon: 6 });
+      const result = await service.runFullStressTest('inst-1', {
+        paths: 100,
+        horizon: 6,
+      });
       expect(result).toHaveProperty('monteCarlo');
       expect(result).toHaveProperty('regulatory');
       expect(result).toHaveProperty('cossecScenarios');
@@ -283,10 +311,18 @@ describe('StressTestingService', () => {
           { shiftBps: -200, niImpact: -0.8, mveImpact: 1.5, niImpactPct: -8 },
         ],
       });
-      mockAlmEnterprise.calculateLCR = jest.fn().mockResolvedValue({ lcr: 120, hqla: 50 });
+      mockAlmEnterprise.calculateLCR = jest
+        .fn()
+        .mockResolvedValue({ lcr: 120, hqla: 50 });
       mockAlmEnterprise.getCOSSECCompliance = jest.fn().mockResolvedValue({
         examReadinessScore: 85,
-        summary: { totalAssets: 500, totalLoans: 300, totalShares: 200, capitalRatio: 10, nim: 3.5 },
+        summary: {
+          totalAssets: 500,
+          totalLoans: 300,
+          totalShares: 200,
+          capitalRatio: 10,
+          nim: 3.5,
+        },
       });
     });
 
@@ -308,7 +344,13 @@ describe('StressTestingService', () => {
     it('returns CRITICAL verdict for extreme stress', async () => {
       mockAlmEnterprise.getCOSSECCompliance.mockResolvedValue({
         examReadinessScore: 40,
-        summary: { totalAssets: 500, totalLoans: 300, totalShares: 200, capitalRatio: 5, nim: 2.0 },
+        summary: {
+          totalAssets: 500,
+          totalLoans: 300,
+          totalShares: 200,
+          capitalRatio: 5,
+          nim: 2.0,
+        },
       });
       mockAlmEnterprise.calculateLCR.mockResolvedValue({ lcr: 95, hqla: 30 });
 
@@ -323,7 +365,9 @@ describe('StressTestingService', () => {
     });
 
     it('returns empty result when upstream data fails', async () => {
-      mockAlmEnterprise.calculateNIISensitivity.mockRejectedValue(new Error('DB down'));
+      mockAlmEnterprise.calculateNIISensitivity.mockRejectedValue(
+        new Error('DB down'),
+      );
 
       const result = await service.runCustomScenario('inst-1', {
         rateShockBps: 100,
@@ -373,8 +417,11 @@ describe('StressTestingService', () => {
       mockAlmEnterprise.getCOSSECCompliance.mockResolvedValue({
         examReadinessScore: 60,
         summary: {
-          totalAssets: 500, totalLoans: 300, totalShares: 200,
-          capitalRatio: 7, nim: 3.0,
+          totalAssets: 500,
+          totalLoans: 300,
+          totalShares: 200,
+          capitalRatio: 7,
+          nim: 3.0,
         },
       });
       mockAlmEnterprise.calculateLCR.mockResolvedValue({ lcr: 105, hqla: 40 });
@@ -392,8 +439,11 @@ describe('StressTestingService', () => {
       mockAlmEnterprise.getCOSSECCompliance.mockResolvedValue({
         examReadinessScore: 45,
         summary: {
-          totalAssets: 500, totalLoans: 400, totalShares: 250,
-          capitalRatio: 5.5, nim: 2.5,
+          totalAssets: 500,
+          totalLoans: 400,
+          totalShares: 250,
+          capitalRatio: 5.5,
+          nim: 2.5,
         },
       });
       mockAlmEnterprise.calculateLCR.mockResolvedValue({ lcr: 92, hqla: 25 });
@@ -420,7 +470,9 @@ describe('StressTestingService', () => {
           { shiftBps: -200, niImpact: -0.8, mveImpact: 1.5, niImpactPct: -8 },
         ],
       });
-      mockAlmEnterprise.calculateLCR = jest.fn().mockResolvedValue({ lcr: 120 });
+      mockAlmEnterprise.calculateLCR = jest
+        .fn()
+        .mockResolvedValue({ lcr: 120 });
       mockAlmEnterprise.getCOSSECCompliance = jest.fn().mockResolvedValue({
         summary: { totalShares: 200, totalLoans: 150 },
       });
@@ -461,13 +513,17 @@ describe('StressTestingService', () => {
           { shiftBps: -200, niImpact: -0.8, mveImpact: 1.5, niImpactPct: -8 },
         ],
       });
-      mockAlmEnterprise.calculateLCR = jest.fn().mockResolvedValue({ lcr: 120 });
-      mockAlmEnterprise.calculateDurationGap = jest.fn().mockResolvedValue({ durationGap: 1.5 });
+      mockAlmEnterprise.calculateLCR = jest
+        .fn()
+        .mockResolvedValue({ lcr: 120 });
+      mockAlmEnterprise.calculateDurationGap = jest
+        .fn()
+        .mockResolvedValue({ durationGap: 1.5 });
     });
 
     it('returns resilient when no fails or warns', async () => {
       const result = await service.runRegulatoryStress('inst-1');
-      if (result.scenarios.every(s => s.passFailStatus === 'pass')) {
+      if (result.scenarios.every((s) => s.passFailStatus === 'pass')) {
         expect(result.overallRating).toBe('resilient');
       }
     });
@@ -486,7 +542,9 @@ describe('StressTestingService', () => {
       mockAlmEnterprise.calculateLCR.mockResolvedValue({ lcr: 85 });
 
       const result = await service.runRegulatoryStress('inst-1');
-      const failCount = result.scenarios.filter(s => s.passFailStatus === 'fail').length;
+      const failCount = result.scenarios.filter(
+        (s) => s.passFailStatus === 'fail',
+      ).length;
       if (failCount >= 2) {
         expect(result.overallRating).toBe('critical');
       }

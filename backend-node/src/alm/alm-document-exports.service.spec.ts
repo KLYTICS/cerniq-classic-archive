@@ -1,0 +1,83 @@
+import { AlmDocumentExportsService } from './alm-document-exports.service';
+
+describe('AlmDocumentExportsService', () => {
+  let service: AlmDocumentExportsService;
+  let almEnterprise: any;
+  let reportsService: any;
+  let sampleReportFactory: any;
+  let previewReports: any;
+
+  beforeEach(() => {
+    almEnterprise = {
+      getInstitution: jest.fn().mockResolvedValue({
+        id: 'inst-1',
+        name: 'Cooperativa Test',
+        reportingDate: '2026-04-01T00:00:00.000Z',
+      }),
+    };
+    reportsService = {
+      generateALMReport: jest.fn().mockResolvedValue(Buffer.from('alm-report')),
+    };
+    sampleReportFactory = {
+      generateSampleReport: jest
+        .fn()
+        .mockResolvedValue(Buffer.from('sample-report')),
+    };
+    previewReports = {
+      getPreviewDefinition: jest.fn().mockReturnValue({
+        slug: 'cooperativa-oriental',
+        name: 'Cooperativa Oriental',
+      }),
+      generatePreviewReport: jest
+        .fn()
+        .mockResolvedValue(Buffer.from('preview-report')),
+    };
+
+    service = new AlmDocumentExportsService(
+      almEnterprise,
+      reportsService,
+      sampleReportFactory,
+      previewReports,
+    );
+  });
+
+  it('lists institutional exports as manifest records', async () => {
+    const manifests = await service.listInstitutionExports('inst-1');
+
+    expect(manifests).toHaveLength(2);
+    expect(manifests[0]).toEqual(
+      expect.objectContaining({
+        kind: 'alm_report',
+        audience: 'internal',
+        sourceInstitutionId: 'inst-1',
+      }),
+    );
+  });
+
+  it('generates a sample export with shared metadata', async () => {
+    const document = await service.generateSampleExport('12345', 'es');
+
+    expect(sampleReportFactory.generateSampleReport).toHaveBeenCalledWith(
+      '12345',
+      'es',
+    );
+    expect(document.manifest.kind).toBe('sample_report');
+    expect(document.manifest.watermark).toContain('SAMPLE DOCUMENT');
+  });
+
+  it('generates preview exports through the preview report service', async () => {
+    const document = await service.generatePreviewExport(
+      'cooperativa-oriental',
+      'en',
+    );
+
+    expect(previewReports.generatePreviewReport).toHaveBeenCalledWith(
+      'cooperativa-oriental',
+      'en',
+    );
+    expect(document.manifest.kind).toBe('preview_report');
+    expect(document.manifest.downloadUrl).toContain(
+      '/api/alm/previews/cooperativa-oriental/report',
+    );
+  });
+});

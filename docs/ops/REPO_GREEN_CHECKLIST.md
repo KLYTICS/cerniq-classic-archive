@@ -1,6 +1,6 @@
 # Repo Green Checklist
 
-Date validated locally: 2026-03-31
+Date validated locally: 2026-04-08
 
 ## Purpose
 
@@ -59,14 +59,14 @@ Production-authenticated or mutating smoke:
 - Backend Prisma validation: pass
 - Backend TypeScript: pass
 - Backend non-mutating ESLint: pass
-- Backend unit tests: `367` suites / `2643` tests
+- Backend unit tests: `453` suites / `5705` tests
 - Backend E2E/security: `4` suites / `64` tests
 - Frontend lint/build/Vitest: pass
-- Frontend Vitest: `47` files / `257` tests
-- Frontend default Playwright: `55` passed / `2` preview-only skips
+- Frontend Vitest: `67` files / `543` tests
+- Frontend default Playwright: `51` passed / `2` preview-only skips
 - Frontend production-critical Playwright: `5` tests
 - Outbound pytest: `82` tests
-- Public production gate (`scripts/health-check.sh`): `12/12` passed
+- Public production gate (`scripts/health-check.sh`): `13/13` passed
 - Public production smoke (`scripts/smoke-test.sh https://api.cerniq.io`): `31` passed, `0` failed, `4` intentional skips
 
 ## Release Gate Expectations
@@ -75,6 +75,8 @@ Production-authenticated or mutating smoke:
 - `frontend-e2e` must run on pull requests and on pushes to `main`.
 - `deploy-backend` and `deploy-frontend` must both depend on `release-gate`.
 - Public production validation is green when read-only public endpoints return `200` and protected/admin routes reject unauthenticated access with `401/403`.
+- The CSV onboarding template is part of the public production gate through the frontend-hosted asset at `/templates/cerniq-balance-sheet-v1.csv`, not a backend API requirement.
+- In read-only public-production mode, market-data quote/snapshot probes are advisory because upstream providers can transiently return `404` while the ALM wedge remains fully operational.
 - Repo-level wrapper checks `npm run verify:backend`, `npm run verify:frontend`, and `npm run smoke:production` should all execute cleanly on a locally green worktree.
 
 ## Known Non-Blocking Debt

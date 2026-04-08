@@ -198,8 +198,24 @@ describe('PortfolioService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         positions: [
-          { id: 'pos-1', portfolioId: 'p1', ticker: 'AAPL', quantity: 10, avgCost: 100, addedAt: new Date(), updatedAt: new Date() },
-          { id: 'pos-2', portfolioId: 'p1', ticker: 'MSFT', quantity: 5, avgCost: 200, addedAt: new Date(), updatedAt: new Date() },
+          {
+            id: 'pos-1',
+            portfolioId: 'p1',
+            ticker: 'AAPL',
+            quantity: 10,
+            avgCost: 100,
+            addedAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            id: 'pos-2',
+            portfolioId: 'p1',
+            ticker: 'MSFT',
+            quantity: 5,
+            avgCost: 200,
+            addedAt: new Date(),
+            updatedAt: new Date(),
+          },
         ],
       });
       mockMarketDataService.getQuote.mockResolvedValue({ price: 150 });
@@ -235,10 +251,23 @@ describe('PortfolioService', () => {
     it('returns enriched portfolios for user', async () => {
       mockPrisma.portfolio.findMany.mockResolvedValue([
         {
-          id: 'p1', userId: 'u1', name: 'Test', description: null,
-          currency: 'USD', createdAt: new Date(), updatedAt: new Date(),
+          id: 'p1',
+          userId: 'u1',
+          name: 'Test',
+          description: null,
+          currency: 'USD',
+          createdAt: new Date(),
+          updatedAt: new Date(),
           positions: [
-            { id: 'pos-1', portfolioId: 'p1', ticker: 'AAPL', quantity: 10, avgCost: 100, addedAt: new Date(), updatedAt: new Date() },
+            {
+              id: 'pos-1',
+              portfolioId: 'p1',
+              ticker: 'AAPL',
+              quantity: 10,
+              avgCost: 100,
+              addedAt: new Date(),
+              updatedAt: new Date(),
+            },
           ],
         },
       ]);
@@ -259,42 +288,74 @@ describe('PortfolioService', () => {
   // ── updatePortfolio ────────────────────────────────
   describe('updatePortfolio', () => {
     it('updates portfolio metadata', async () => {
-      mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1' });
+      mockPrisma.portfolio.findUnique.mockResolvedValue({
+        id: 'p1',
+        userId: 'u1',
+      });
       mockPrisma.portfolio.update.mockResolvedValue({
-        id: 'p1', userId: 'u1', name: 'Updated', description: 'desc',
-        currency: 'USD', createdAt: new Date(), updatedAt: new Date(),
+        id: 'p1',
+        userId: 'u1',
+        name: 'Updated',
+        description: 'desc',
+        currency: 'USD',
+        createdAt: new Date(),
+        updatedAt: new Date(),
         positions: [],
       });
 
-      const result = await service.updatePortfolio('p1', 'u1', { name: 'Updated', description: 'desc' });
+      const result = await service.updatePortfolio('p1', 'u1', {
+        name: 'Updated',
+        description: 'desc',
+      });
       expect(result.name).toBe('Updated');
     });
 
     it('throws NotFoundException for wrong user on update', async () => {
-      mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'other-user' });
-      await expect(service.updatePortfolio('p1', 'u1', { name: 'X' })).rejects.toThrow(NotFoundException);
+      mockPrisma.portfolio.findUnique.mockResolvedValue({
+        id: 'p1',
+        userId: 'other-user',
+      });
+      await expect(
+        service.updatePortfolio('p1', 'u1', { name: 'X' }),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('throws NotFoundException for non-existent portfolio on update', async () => {
       mockPrisma.portfolio.findUnique.mockResolvedValue(null);
-      await expect(service.updatePortfolio('missing', 'u1', { name: 'X' })).rejects.toThrow(NotFoundException);
+      await expect(
+        service.updatePortfolio('missing', 'u1', { name: 'X' }),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   // ── removePosition ─────────────────────────────────
   describe('removePosition', () => {
     it('deletes position when selling entire quantity', async () => {
-      mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1' });
-      mockPrisma.position.findUnique.mockResolvedValue({ id: 'pos-1', quantity: 10 });
+      mockPrisma.portfolio.findUnique.mockResolvedValue({
+        id: 'p1',
+        userId: 'u1',
+      });
+      mockPrisma.position.findUnique.mockResolvedValue({
+        id: 'pos-1',
+        quantity: 10,
+      });
       mockPrisma.position.delete.mockResolvedValue({});
 
       await service.removePosition('p1', 'u1', 'AAPL', 10, 150);
-      expect(mockPrisma.position.delete).toHaveBeenCalledWith({ where: { id: 'pos-1' } });
+      expect(mockPrisma.position.delete).toHaveBeenCalledWith({
+        where: { id: 'pos-1' },
+      });
     });
 
     it('reduces quantity when partially selling', async () => {
-      mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1' });
-      mockPrisma.position.findUnique.mockResolvedValue({ id: 'pos-1', quantity: 10 });
+      mockPrisma.portfolio.findUnique.mockResolvedValue({
+        id: 'p1',
+        userId: 'u1',
+      });
+      mockPrisma.position.findUnique.mockResolvedValue({
+        id: 'pos-1',
+        quantity: 10,
+      });
       mockPrisma.position.update.mockResolvedValue({});
 
       await service.removePosition('p1', 'u1', 'AAPL', 3, 150);
@@ -305,19 +366,35 @@ describe('PortfolioService', () => {
     });
 
     it('throws NotFoundException when position not found', async () => {
-      mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1' });
+      mockPrisma.portfolio.findUnique.mockResolvedValue({
+        id: 'p1',
+        userId: 'u1',
+      });
       mockPrisma.position.findUnique.mockResolvedValue(null);
-      await expect(service.removePosition('p1', 'u1', 'UNKNOWN', 5, 100)).rejects.toThrow(NotFoundException);
+      await expect(
+        service.removePosition('p1', 'u1', 'UNKNOWN', 5, 100),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('throws NotFoundException when portfolio belongs to different user', async () => {
-      mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'other-user' });
-      await expect(service.removePosition('p1', 'u1', 'AAPL', 5, 100)).rejects.toThrow(NotFoundException);
+      mockPrisma.portfolio.findUnique.mockResolvedValue({
+        id: 'p1',
+        userId: 'other-user',
+      });
+      await expect(
+        service.removePosition('p1', 'u1', 'AAPL', 5, 100),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('deletes position when selling more than current quantity', async () => {
-      mockPrisma.portfolio.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1' });
-      mockPrisma.position.findUnique.mockResolvedValue({ id: 'pos-1', quantity: 5 });
+      mockPrisma.portfolio.findUnique.mockResolvedValue({
+        id: 'p1',
+        userId: 'u1',
+      });
+      mockPrisma.position.findUnique.mockResolvedValue({
+        id: 'pos-1',
+        quantity: 5,
+      });
       mockPrisma.position.delete.mockResolvedValue({});
 
       await service.removePosition('p1', 'u1', 'AAPL', 100, 150);
@@ -329,11 +406,32 @@ describe('PortfolioService', () => {
   describe('getPortfolioAnalytics', () => {
     it('returns analytics with best/worst performers', async () => {
       mockPrisma.portfolio.findUnique.mockResolvedValue({
-        id: 'p1', userId: 'u1', name: 'Analytics', description: null,
-        currency: 'USD', createdAt: new Date(), updatedAt: new Date(),
+        id: 'p1',
+        userId: 'u1',
+        name: 'Analytics',
+        description: null,
+        currency: 'USD',
+        createdAt: new Date(),
+        updatedAt: new Date(),
         positions: [
-          { id: 'pos-1', portfolioId: 'p1', ticker: 'AAPL', quantity: 10, avgCost: 100, addedAt: new Date(), updatedAt: new Date() },
-          { id: 'pos-2', portfolioId: 'p1', ticker: 'MSFT', quantity: 5, avgCost: 300, addedAt: new Date(), updatedAt: new Date() },
+          {
+            id: 'pos-1',
+            portfolioId: 'p1',
+            ticker: 'AAPL',
+            quantity: 10,
+            avgCost: 100,
+            addedAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            id: 'pos-2',
+            portfolioId: 'p1',
+            ticker: 'MSFT',
+            quantity: 5,
+            avgCost: 300,
+            addedAt: new Date(),
+            updatedAt: new Date(),
+          },
         ],
       });
       mockMarketDataService.getQuote
@@ -349,8 +447,13 @@ describe('PortfolioService', () => {
 
     it('handles portfolio with no positions', async () => {
       mockPrisma.portfolio.findUnique.mockResolvedValue({
-        id: 'p1', userId: 'u1', name: 'Empty', description: null,
-        currency: 'USD', createdAt: new Date(), updatedAt: new Date(),
+        id: 'p1',
+        userId: 'u1',
+        name: 'Empty',
+        description: null,
+        currency: 'USD',
+        createdAt: new Date(),
+        updatedAt: new Date(),
         positions: [],
       });
 
@@ -364,10 +467,23 @@ describe('PortfolioService', () => {
   describe('updatePortfolioValues edge cases', () => {
     it('falls back to avgCost when getQuote returns null', async () => {
       mockPrisma.portfolio.findUnique.mockResolvedValue({
-        id: 'p1', userId: 'u1', name: 'NoQuote', description: null,
-        currency: 'USD', createdAt: new Date(), updatedAt: new Date(),
+        id: 'p1',
+        userId: 'u1',
+        name: 'NoQuote',
+        description: null,
+        currency: 'USD',
+        createdAt: new Date(),
+        updatedAt: new Date(),
         positions: [
-          { id: 'pos-1', portfolioId: 'p1', ticker: 'FAIL', quantity: 10, avgCost: 100, addedAt: new Date(), updatedAt: new Date() },
+          {
+            id: 'pos-1',
+            portfolioId: 'p1',
+            ticker: 'FAIL',
+            quantity: 10,
+            avgCost: 100,
+            addedAt: new Date(),
+            updatedAt: new Date(),
+          },
         ],
       });
       mockMarketDataService.getQuote.mockResolvedValue(null);
@@ -378,10 +494,23 @@ describe('PortfolioService', () => {
 
     it('handles getQuote throwing an error', async () => {
       mockPrisma.portfolio.findUnique.mockResolvedValue({
-        id: 'p1', userId: 'u1', name: 'Error', description: null,
-        currency: 'USD', createdAt: new Date(), updatedAt: new Date(),
+        id: 'p1',
+        userId: 'u1',
+        name: 'Error',
+        description: null,
+        currency: 'USD',
+        createdAt: new Date(),
+        updatedAt: new Date(),
         positions: [
-          { id: 'pos-1', portfolioId: 'p1', ticker: 'ERR', quantity: 10, avgCost: 50, addedAt: new Date(), updatedAt: new Date() },
+          {
+            id: 'pos-1',
+            portfolioId: 'p1',
+            ticker: 'ERR',
+            quantity: 10,
+            avgCost: 50,
+            addedAt: new Date(),
+            updatedAt: new Date(),
+          },
         ],
       });
       mockMarketDataService.getQuote.mockRejectedValue(new Error('API down'));

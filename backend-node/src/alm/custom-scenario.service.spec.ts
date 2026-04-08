@@ -307,9 +307,9 @@ describe('CustomScenarioService', () => {
     expect(result.lcrImpact).toBeNull();
     expect(result.capitalImpact).toBeNull();
     expect(result.gaps).toBeDefined();
-    expect(
-      result.gaps!.some((g) => g.field === 'customScenario.cossec'),
-    ).toBe(true);
+    expect(result.gaps!.some((g) => g.field === 'customScenario.cossec')).toBe(
+      true,
+    );
   });
 
   it('returns data_unavailable when LCR is null', async () => {
@@ -335,8 +335,8 @@ describe('CustomScenarioService', () => {
 
     expect(result.overallStatus).toBe('data_unavailable');
     expect(result.lcrImpact).toBeNull();
-    expect(
-      result.gaps!.some((g) => g.field === 'customScenario.lcr'),
-    ).toBe(true);
+    expect(result.gaps!.some((g) => g.field === 'customScenario.lcr')).toBe(
+      true,
+    );
   });
 });

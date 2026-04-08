@@ -160,16 +160,12 @@ export class DemoSeatAnalyticsService {
 
     if (rows.length === 0) return null;
 
-    const totalMs = rows.reduce<number>(
-      (sum, row) => {
-        if (!row.demoProvisionedAt || !row.demoConvertedAt) return sum;
-        return (
-          sum +
-          (row.demoConvertedAt.getTime() - row.demoProvisionedAt.getTime())
-        );
-      },
-      0,
-    );
+    const totalMs = rows.reduce<number>((sum, row) => {
+      if (!row.demoProvisionedAt || !row.demoConvertedAt) return sum;
+      return (
+        sum + (row.demoConvertedAt.getTime() - row.demoProvisionedAt.getTime())
+      );
+    }, 0);
 
     const avgMs = totalMs / rows.length;
     return round(avgMs / 86400000, 1);
@@ -181,7 +177,12 @@ export class DemoSeatAnalyticsService {
    * actually buying" — guides the next quarter's snapshot refresh priority.
    */
   private async computeTopConvertingSnapshots(): Promise<
-    Array<{ identifier: string; source: string; converted: number; revenueUsd: number }>
+    Array<{
+      identifier: string;
+      source: string;
+      converted: number;
+      revenueUsd: number;
+    }>
   > {
     // Prisma groupBy + aggregate returns a narrow generic that TS 5 sometimes
     // widens to unknown in the `.map` callback. We annotate the row shape

@@ -86,9 +86,7 @@ describe('LlmService', () => {
   // Coverage: lines 135-136 — error in generateStockInsight
   it('generateStockInsight returns fallback on API error', async () => {
     const openai = (service as any).openai;
-    openai.chat.completions.create.mockRejectedValueOnce(
-      new Error('API down'),
-    );
+    openai.chat.completions.create.mockRejectedValueOnce(new Error('API down'));
 
     const result = await service.generateStockInsight('AAPL', 150, 2.5);
     expect(result).toBe('Unable to generate insight at this time.');

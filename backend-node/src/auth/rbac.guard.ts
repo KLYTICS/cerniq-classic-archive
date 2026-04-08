@@ -124,6 +124,10 @@ export class RBACGuard implements CanActivate {
     if (!requiredPermissions || requiredPermissions.length === 0) return true;
 
     const request = context.switchToHttp().getRequest();
+    if (request.user?.access?.isMasterCeo) {
+      return true;
+    }
+
     const userRole = request.user?.role ?? CerniqRole.VIEWER;
     const rolePermissions =
       ROLE_PERMISSIONS[userRole] ?? ROLE_PERMISSIONS[CerniqRole.VIEWER];

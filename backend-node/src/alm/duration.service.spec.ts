@@ -210,7 +210,11 @@ describe('DurationService', () => {
     });
 
     it('clamps negative yield to 0', () => {
-      const result = service.calculateMacaulayDuration([100, 1100], -0.02, 1000);
+      const result = service.calculateMacaulayDuration(
+        [100, 1100],
+        -0.02,
+        1000,
+      );
       expect(result).toBeGreaterThan(0);
     });
 

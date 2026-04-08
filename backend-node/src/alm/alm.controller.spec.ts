@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck — Mock data intentionally uses simplified shapes
 /**
  * ALM Controller — Comprehensive Tests
@@ -113,22 +114,22 @@ describe('AlmController — Core Revenue Path', () => {
     liquidityAdvanced = {};
     concentration = {};
 
-    // Build args array matching constructor parameter count.
-    //
-    // Phase 1 (2026-04-07): InstitutionSeedService at position 6.
-    // Phase 2 batch 4 (2026-04-07): ReportPreflightService inserted at
-    // position 4 (between reportsService and workspaceOnboarding).
-    // Every downstream slot is shifted by the cumulative offset of those
-    // two insertions. See docs/SESSION_HANDOFF.md §3 for the controller cursor.
+    // Build args array matching constructor parameter count
     const paramCount = AlmController.length || 90;
     const args: any[] = Array.from({ length: paramCount }, () => mockSvc());
+    // Slot known services into the correct constructor positions.
+    //   Phase 1 (2026-04-07): InstitutionSeedService at position 5.
+    //   Phase 2 batch 4 (2026-04-07): ReportPreflightService inserted at
+    //   position 4 (between reportsService and workspaceOnboarding).
+    // Every downstream slot is shifted by the cumulative offset of those
+    // two insertions. See SESSION_HANDOFF.md §3 for the controller cursor.
     args[0] = mockSvc(); // almService
     args[1] = enterprise;
     args[2] = stressTesting;
     args[3] = reportsService;
     args[4] = mockSvc(); // reportPreflight (Phase 2 batch 4 — central preflight API)
     args[5] = workspaceOnboarding;
-    args[6] = mockSvc(); // institutionSeed (Phase 1 — the idempotent seeder)
+    args[6] = mockSvc(); // institutionSeed (Phase 1 — the new idempotent seeder)
     args[7] = csvIngestion;
     args[8] = analysisRuns;
     args[9] = ingestionLogs;
@@ -233,7 +234,10 @@ describe('AlmController — Core Revenue Path', () => {
         total: 1,
       });
       const r = await controller.listBalanceSheetItems('i1', {} as any);
-      expect(enterprise.listBalanceSheetItems).toHaveBeenCalledWith('i1', expect.any(Object));
+      expect(enterprise.listBalanceSheetItems).toHaveBeenCalledWith(
+        'i1',
+        expect.any(Object),
+      );
       expect(r.total).toBe(1);
     });
   });
@@ -322,7 +326,10 @@ describe('AlmController — Core Revenue Path', () => {
   describe('POST /api/alm/analysis/run', () => {
     it('creates analysis run', async () => {
       const dto = { institutionId: 'i1', type: 'full' };
-      analysisRuns.createRun.mockResolvedValue({ id: 'run1', status: 'queued' });
+      analysisRuns.createRun.mockResolvedValue({
+        id: 'run1',
+        status: 'queued',
+      });
       const req = { user: { userId: 'u1' } };
       const r = await controller.createAnalysisRun(req, dto as any);
       expect(analysisRuns.createRun).toHaveBeenCalledWith('u1', dto);
@@ -332,7 +339,10 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/analysis-runs/:runId', () => {
     it('returns analysis run', async () => {
-      analysisRuns.getRun.mockResolvedValue({ id: 'run1', status: 'completed' });
+      analysisRuns.getRun.mockResolvedValue({
+        id: 'run1',
+        status: 'completed',
+      });
       const req = { user: { userId: 'u1' } };
       const r = await controller.getAnalysisRun(req, 'run1');
       expect(analysisRuns.getRun).toHaveBeenCalledWith('u1', 'run1');
@@ -345,7 +355,11 @@ describe('AlmController — Core Revenue Path', () => {
       analysisRuns.listRuns.mockResolvedValue({ data: [], total: 0 });
       const req = { user: { userId: 'u1' } };
       const r = await controller.listAnalysisRuns(req, 'i1', {} as any);
-      expect(analysisRuns.listRuns).toHaveBeenCalledWith('u1', 'i1', expect.any(Object));
+      expect(analysisRuns.listRuns).toHaveBeenCalledWith(
+        'u1',
+        'i1',
+        expect.any(Object),
+      );
     });
   });
 
@@ -355,10 +369,17 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/institutions/:id/ingestion-logs', () => {
     it('lists ingestion logs', async () => {
-      ingestionLogs.listInstitutionLogs.mockResolvedValue({ data: [], total: 0 });
+      ingestionLogs.listInstitutionLogs.mockResolvedValue({
+        data: [],
+        total: 0,
+      });
       const req = { user: { userId: 'u1' } };
       const r = await controller.listIngestionLogs(req, 'i1', {} as any);
-      expect(ingestionLogs.listInstitutionLogs).toHaveBeenCalledWith('u1', 'i1', expect.any(Object));
+      expect(ingestionLogs.listInstitutionLogs).toHaveBeenCalledWith(
+        'u1',
+        'i1',
+        expect.any(Object),
+      );
     });
   });
 
@@ -398,7 +419,11 @@ describe('AlmController — Core Revenue Path', () => {
       ingestionLogs.recordLog.mockResolvedValue({ id: 'log1' });
 
       const req = { user: { userId: 'u1' } };
-      const file = { buffer: Buffer.from('bad,data'), originalname: 'test.csv', size: 8 };
+      const file = {
+        buffer: Buffer.from('bad,data'),
+        originalname: 'test.csv',
+        size: 8,
+      };
       const r = await controller.uploadCSV(req, 'i1', file as any);
       expect(r.valid).toBe(false);
       expect(r.imported).toBe(false);
@@ -414,7 +439,11 @@ describe('AlmController — Core Revenue Path', () => {
       ingestionLogs.recordLog.mockResolvedValue({ id: 'log2' });
 
       const req = { user: { userId: 'u1' } };
-      const file = { buffer: Buffer.from('good,data'), originalname: 'test.csv', size: 9 };
+      const file = {
+        buffer: Buffer.from('good,data'),
+        originalname: 'test.csv',
+        size: 9,
+      };
       const r = await controller.uploadCSV(req, 'i1', file as any, 'true');
       expect(r.imported).toBe(false);
       expect(enterprise.importBalanceSheetItems).not.toHaveBeenCalled();
@@ -430,7 +459,11 @@ describe('AlmController — Core Revenue Path', () => {
       ingestionLogs.recordLog.mockResolvedValue({ id: 'log3' });
 
       const req = { user: { userId: 'u1' } };
-      const file = { buffer: Buffer.from('good,data'), originalname: 'test.csv', size: 9 };
+      const file = {
+        buffer: Buffer.from('good,data'),
+        originalname: 'test.csv',
+        size: 9,
+      };
       const r = await controller.uploadCSV(req, 'i1', file as any);
       expect(r.imported).toBe(true);
       expect(r.importedCount).toBe(1);
@@ -443,22 +476,22 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/templates/:type', () => {
     it('returns cooperativa template', () => {
-      const res = { set: jest.fn(), send: jest.fn() };
-      controller.getCSVTemplate('cooperativa', res);
+      const res = { set: jest.fn() };
+      const result = controller.getCSVTemplate('cooperativa', res as any);
       expect(csvIngestion.getCooperativaTemplate).toHaveBeenCalled();
       expect(res.set).toHaveBeenCalledWith(
         expect.objectContaining({
           'Content-Type': 'text/csv; charset=utf-8',
         }),
       );
-      expect(res.send).toHaveBeenCalledWith(expect.stringContaining('header1,header2'));
+      expect(result).toEqual(expect.stringContaining('header1,header2'));
     });
 
     it('returns generic template for non-cooperativa type', () => {
-      const res = { set: jest.fn(), send: jest.fn() };
-      controller.getCSVTemplate('bank', res);
+      const res = { set: jest.fn() };
+      const result = controller.getCSVTemplate('bank', res as any);
       expect(csvIngestion.getGenericTemplate).toHaveBeenCalled();
-      expect(res.send).toHaveBeenCalledWith(expect.stringContaining('generic_header'));
+      expect(result).toEqual(expect.stringContaining('generic_header'));
     });
   });
 
@@ -468,12 +501,17 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('POST /api/alm/seed-demo', () => {
     it('seeds demo data', async () => {
-      workspaceOnboarding.seedDemoData.mockResolvedValue({ institutionId: 'i1' });
+      workspaceOnboarding.seedDemoData.mockResolvedValue({
+        institutionId: 'i1',
+      });
       const r = await controller.seedDemoData({
         workspaceId: 'ws1',
         type: 'cooperativa',
       });
-      expect(workspaceOnboarding.seedDemoData).toHaveBeenCalledWith('ws1', 'cooperativa');
+      expect(workspaceOnboarding.seedDemoData).toHaveBeenCalledWith(
+        'ws1',
+        'cooperativa',
+      );
       expect(r.institutionId).toBe('i1');
     });
   });
@@ -494,7 +532,9 @@ describe('AlmController — Core Revenue Path', () => {
   describe('POST /api/alm/:id/ftp/custom', () => {
     it('runs custom FTP with spread adjustment', async () => {
       ftp.getFTPAnalysis.mockResolvedValue({ nim: 3.1 });
-      const r = await controller.runCustomFTP('i1', { spreadAdjBps: 25 } as any);
+      const r = await controller.runCustomFTP('i1', {
+        spreadAdjBps: 25,
+      } as any);
       expect(ftp.getFTPAnalysis).toHaveBeenCalledWith('i1', 25);
     });
   });
@@ -513,7 +553,10 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/:id/cecl', () => {
     it('returns CECL analysis', async () => {
-      cecl.getCECLAnalysis.mockResolvedValue({ allowance: 1.2e6, methodology: 'warm' });
+      cecl.getCECLAnalysis.mockResolvedValue({
+        allowance: 1.2e6,
+        methodology: 'warm',
+      });
       const r = await controller.getCECLAnalysis('i1', 'warm');
       expect(cecl.getCECLAnalysis).toHaveBeenCalledWith('i1', 'warm');
       expect(r.methodology).toBe('warm');
@@ -558,7 +601,10 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/:id/yield-curve-analysis', () => {
     it('returns yield curve analysis', async () => {
-      yieldCurve.getYieldCurveAnalysis.mockResolvedValue({ tenors: [], rates: [] });
+      yieldCurve.getYieldCurveAnalysis.mockResolvedValue({
+        tenors: [],
+        rates: [],
+      });
       const r = await controller.getYieldCurveAnalysis('i1');
       expect(yieldCurve.getYieldCurveAnalysis).toHaveBeenCalledWith('i1');
     });
@@ -569,7 +615,11 @@ describe('AlmController — Core Revenue Path', () => {
       yieldCurve.computeForwardNIISchedule.mockResolvedValue({ schedule: [] });
       const body = { shockBpsPerTenor: { '1Y': 50 }, quarters: 4 };
       await controller.computeForwardNII('i1', body);
-      expect(yieldCurve.computeForwardNIISchedule).toHaveBeenCalledWith('i1', body.shockBpsPerTenor, 4);
+      expect(yieldCurve.computeForwardNIISchedule).toHaveBeenCalledWith(
+        'i1',
+        body.shockBpsPerTenor,
+        4,
+      );
     });
   });
 
@@ -608,9 +658,15 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/:id/scenarios', () => {
     it('lists scenarios', async () => {
-      scenarioPersistence.listScenarios.mockResolvedValue({ data: [], total: 0 });
+      scenarioPersistence.listScenarios.mockResolvedValue({
+        data: [],
+        total: 0,
+      });
       const r = await controller.listScenarios('i1', {} as any);
-      expect(scenarioPersistence.listScenarios).toHaveBeenCalledWith('i1', expect.any(Object));
+      expect(scenarioPersistence.listScenarios).toHaveBeenCalledWith(
+        'i1',
+        expect.any(Object),
+      );
     });
   });
 
@@ -648,7 +704,9 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('Ingestion logs error propagation', () => {
     it('propagates error from listInstitutionLogs', async () => {
-      ingestionLogs.listInstitutionLogs.mockRejectedValue(new Error('DB error'));
+      ingestionLogs.listInstitutionLogs.mockRejectedValue(
+        new Error('DB error'),
+      );
       const req = { user: { userId: 'u1' } };
       await expect(
         controller.listIngestionLogs(req, 'i1', {} as any),
@@ -662,7 +720,9 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/scenarios/:scenarioId', () => {
     it('returns scenario by id', async () => {
-      scenarioPersistence.getScenario = jest.fn().mockResolvedValue({ id: 'sc1', name: 'Base' });
+      scenarioPersistence.getScenario = jest
+        .fn()
+        .mockResolvedValue({ id: 'sc1', name: 'Base' });
       const r = await controller.getScenario('sc1');
       expect(scenarioPersistence.getScenario).toHaveBeenCalledWith('sc1');
       expect(r.name).toBe('Base');
@@ -671,27 +731,42 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('POST /api/alm/scenarios/compare', () => {
     it('compares scenarios', async () => {
-      scenarioPersistence.compareScenarios = jest.fn().mockResolvedValue({ delta: 0.5 });
+      scenarioPersistence.compareScenarios = jest
+        .fn()
+        .mockResolvedValue({ delta: 0.5 });
       const dto = { scenarioIds: ['sc1', 'sc2'] };
       const r = await controller.compareScenarios(dto as any);
-      expect(scenarioPersistence.compareScenarios).toHaveBeenCalledWith(['sc1', 'sc2']);
+      expect(scenarioPersistence.compareScenarios).toHaveBeenCalledWith([
+        'sc1',
+        'sc2',
+      ]);
       expect(r.delta).toBe(0.5);
     });
   });
 
   describe('POST /api/alm/scenarios/:scenarioId/duplicate', () => {
     it('duplicates scenario', async () => {
-      scenarioPersistence.duplicateScenario = jest.fn().mockResolvedValue({ id: 'sc-dup' });
+      scenarioPersistence.duplicateScenario = jest
+        .fn()
+        .mockResolvedValue({ id: 'sc-dup' });
       const req = { user: { userId: 'u1' } };
-      const r = await controller.duplicateScenario(req, 'sc1', { name: 'Copy' });
-      expect(scenarioPersistence.duplicateScenario).toHaveBeenCalledWith('sc1', 'u1', 'Copy');
+      const r = await controller.duplicateScenario(req, 'sc1', {
+        name: 'Copy',
+      });
+      expect(scenarioPersistence.duplicateScenario).toHaveBeenCalledWith(
+        'sc1',
+        'u1',
+        'Copy',
+      );
       expect(r.id).toBe('sc-dup');
     });
   });
 
   describe('POST /api/alm/scenarios/:scenarioId/delete', () => {
     it('deletes scenario', async () => {
-      scenarioPersistence.deleteScenario = jest.fn().mockResolvedValue({ deleted: true });
+      scenarioPersistence.deleteScenario = jest
+        .fn()
+        .mockResolvedValue({ deleted: true });
       const r = await controller.deleteScenario('sc1');
       expect(scenarioPersistence.deleteScenario).toHaveBeenCalledWith('sc1');
       expect(r.deleted).toBe(true);
@@ -704,7 +779,9 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/:id/deposit-betas', () => {
     it('returns deposit betas', async () => {
-      depositBeta.getDepositBetas = jest.fn().mockResolvedValue([{ subcategory: 'savings', beta: 0.4 }]);
+      depositBeta.getDepositBetas = jest
+        .fn()
+        .mockResolvedValue([{ subcategory: 'savings', beta: 0.4 }]);
       const r = await controller.getDepositBetas('i1');
       expect(depositBeta.getDepositBetas).toHaveBeenCalledWith('i1');
       expect(r).toHaveLength(1);
@@ -713,22 +790,31 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('POST /api/alm/:id/deposit-betas', () => {
     it('updates deposit betas', async () => {
-      depositBeta.updateDepositBetas = jest.fn().mockResolvedValue({ updated: 2 });
+      depositBeta.updateDepositBetas = jest
+        .fn()
+        .mockResolvedValue({ updated: 2 });
       const body = { betas: [{ subcategory: 'savings', beta: 0.5 }] };
       const r = await controller.updateDepositBetas('i1', body);
-      expect(depositBeta.updateDepositBetas).toHaveBeenCalledWith('i1', body.betas);
+      expect(depositBeta.updateDepositBetas).toHaveBeenCalledWith(
+        'i1',
+        body.betas,
+      );
     });
   });
 
   describe('GET /api/alm/:id/deposit-beta-impact', () => {
     it('calculates impact with default shock', async () => {
-      depositBeta.calculateBetaImpact = jest.fn().mockResolvedValue({ impact: -1.2 });
+      depositBeta.calculateBetaImpact = jest
+        .fn()
+        .mockResolvedValue({ impact: -1.2 });
       const r = await controller.getDepositBetaImpact('i1');
       expect(depositBeta.calculateBetaImpact).toHaveBeenCalledWith('i1', 100);
     });
 
     it('calculates impact with custom shock', async () => {
-      depositBeta.calculateBetaImpact = jest.fn().mockResolvedValue({ impact: -2.4 });
+      depositBeta.calculateBetaImpact = jest
+        .fn()
+        .mockResolvedValue({ impact: -2.4 });
       const r = await controller.getDepositBetaImpact('i1', '200');
       expect(depositBeta.calculateBetaImpact).toHaveBeenCalledWith('i1', 200);
     });
@@ -740,7 +826,9 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/:id/liquidity-advanced', () => {
     it('returns advanced liquidity', async () => {
-      liquidityAdvanced.getAdvancedLiquidity = jest.fn().mockResolvedValue({ nsfr: 112, lcr: 135 });
+      liquidityAdvanced.getAdvancedLiquidity = jest
+        .fn()
+        .mockResolvedValue({ nsfr: 112, lcr: 135 });
       const r = await controller.getAdvancedLiquidity('i1');
       expect(liquidityAdvanced.getAdvancedLiquidity).toHaveBeenCalledWith('i1');
       expect(r.nsfr).toBe(112);
@@ -749,7 +837,9 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/:id/concentration', () => {
     it('returns concentration analysis', async () => {
-      concentration.getConcentrationAnalysis = jest.fn().mockResolvedValue({ hhi: 0.15 });
+      concentration.getConcentrationAnalysis = jest
+        .fn()
+        .mockResolvedValue({ hhi: 0.15 });
       const r = await controller.getConcentrationAnalysis('i1');
       expect(concentration.getConcentrationAnalysis).toHaveBeenCalledWith('i1');
       expect(r.hhi).toBe(0.15);
@@ -758,10 +848,17 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('POST /api/alm/:id/concentration/limits', () => {
     it('saves concentration limits', async () => {
-      concentration.saveConcentrationLimits = jest.fn().mockResolvedValue({ saved: 1 });
-      const body = { limits: [{ limitType: 'sector', limitName: 'RE', maxPct: 30 }] };
+      concentration.saveConcentrationLimits = jest
+        .fn()
+        .mockResolvedValue({ saved: 1 });
+      const body = {
+        limits: [{ limitType: 'sector', limitName: 'RE', maxPct: 30 }],
+      };
       const r = await controller.saveConcentrationLimits('i1', body);
-      expect(concentration.saveConcentrationLimits).toHaveBeenCalledWith('i1', body.limits);
+      expect(concentration.saveConcentrationLimits).toHaveBeenCalledWith(
+        'i1',
+        body.limits,
+      );
     });
   });
 
@@ -771,10 +868,17 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('POST /api/alm/:id/concentration/limits', () => {
     it('saves concentration limits', async () => {
-      concentration.saveConcentrationLimits = jest.fn().mockResolvedValue({ saved: 1 });
-      const body = { limits: [{ limitType: 'sector', limitName: 'RE', maxPct: 30 }] };
+      concentration.saveConcentrationLimits = jest
+        .fn()
+        .mockResolvedValue({ saved: 1 });
+      const body = {
+        limits: [{ limitType: 'sector', limitName: 'RE', maxPct: 30 }],
+      };
       const r = await controller.saveConcentrationLimits('i1', body);
-      expect(concentration.saveConcentrationLimits).toHaveBeenCalledWith('i1', body.limits);
+      expect(concentration.saveConcentrationLimits).toHaveBeenCalledWith(
+        'i1',
+        body.limits,
+      );
     });
   });
 
@@ -795,10 +899,20 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('POST /api/alm/:id/stress/custom', () => {
     it('runs custom stress scenario', async () => {
-      stressTesting.runCustomScenario = jest.fn().mockResolvedValue({ impact: -3 });
-      const params = { rateShockBps: 200, depositRunoffPct: 10, defaultRateIncreasePct: 2, energyCostShockPct: 5 };
+      stressTesting.runCustomScenario = jest
+        .fn()
+        .mockResolvedValue({ impact: -3 });
+      const params = {
+        rateShockBps: 200,
+        depositRunoffPct: 10,
+        defaultRateIncreasePct: 2,
+        energyCostShockPct: 5,
+      };
       const r = await controller.runCustomStressScenario('i1', params);
-      expect(stressTesting.runCustomScenario).toHaveBeenCalledWith('i1', params);
+      expect(stressTesting.runCustomScenario).toHaveBeenCalledWith(
+        'i1',
+        params,
+      );
     });
   });
 
@@ -840,12 +954,26 @@ describe('AlmController — Core Revenue Path', () => {
 
   describe('GET /api/alm/:id/report', () => {
     it('downloads PDF report', async () => {
-      reportsService.generateALMReport = jest.fn().mockResolvedValue(Buffer.from('pdf'));
-      enterprise.getInstitution.mockResolvedValue({ name: 'Test Coop' });
+      (controller as any).documentExports = {
+        generateInstitutionExport: jest.fn().mockResolvedValue({
+          manifest: {
+            kind: 'alm_report',
+            language: 'en',
+            audience: 'internal',
+            mimeType: 'application/pdf',
+            filename: 'alm-report-test-en-2026-04-07.pdf',
+          },
+          buffer: Buffer.from('pdf'),
+        }),
+      };
       const res = { set: jest.fn(), end: jest.fn() };
       await controller.downloadReport('i1', 'en', res);
-      expect(reportsService.generateALMReport).toHaveBeenCalledWith('i1', 'en');
-      expect(res.set).toHaveBeenCalledWith(expect.objectContaining({ 'Content-Type': 'application/pdf' }));
+      expect(
+        (controller as any).documentExports.generateInstitutionExport,
+      ).toHaveBeenCalledWith('i1', 'en');
+      expect(res.set).toHaveBeenCalledWith(
+        expect.objectContaining({ 'Content-Type': 'application/pdf' }),
+      );
       expect(res.end).toHaveBeenCalled();
     });
   });
@@ -966,7 +1094,9 @@ describe('AlmController — Core Revenue Path', () => {
     });
 
     it('optimizeCapital delegates', async () => {
-      const r = await controller.optimizeCapital('i1', { aggressiveness: 'moderate' });
+      const r = await controller.optimizeCapital('i1', {
+        aggressiveness: 'moderate',
+      });
       expect(r).toBeNull();
     });
 
@@ -1011,7 +1141,10 @@ describe('AlmController — Core Revenue Path', () => {
     });
 
     it('chatWithAnalyst delegates', async () => {
-      const r = await controller.chatWithAnalyst('i1', { message: 'test', history: [] });
+      const r = await controller.chatWithAnalyst('i1', {
+        message: 'test',
+        history: [],
+      });
       expect(r).toBeNull();
     });
 
@@ -1042,7 +1175,10 @@ describe('AlmController — Core Revenue Path', () => {
     });
 
     it('createWebhook delegates', async () => {
-      const r = await controller.createWebhook('i1', { url: 'https://x.io', events: ['a'] });
+      const r = await controller.createWebhook('i1', {
+        url: 'https://x.io',
+        events: ['a'],
+      });
       expect(r).toBeNull();
     });
 
@@ -1137,7 +1273,11 @@ describe('AlmController — Core Revenue Path', () => {
     });
 
     it('nlDocumentIngest delegates with file', async () => {
-      const file = { originalname: 'test.pdf', buffer: Buffer.from('pdf'), mimetype: 'application/pdf' };
+      const file = {
+        originalname: 'test.pdf',
+        buffer: Buffer.from('pdf'),
+        mimetype: 'application/pdf',
+      };
       const r = await controller.nlDocumentIngest('i1', file as any);
       expect(r).toBeNull();
     });
@@ -1162,32 +1302,45 @@ describe('AlmController — Core Revenue Path', () => {
         ]),
         runStressTest: jest.fn().mockResolvedValue({ scenarioName: 'Severe' }),
       };
-      Object.defineProperty(controller, 'stressV2', { value: stressV2Mock, writable: true });
-      const r = await controller.runStressV2('i1', { scenarioId: 'dfast-severe' });
+      Object.defineProperty(controller, 'stressV2', {
+        value: stressV2Mock,
+        writable: true,
+      });
+      const r = await controller.runStressV2('i1', {
+        scenarioId: 'dfast-severe',
+      });
       expect(r.scenarioName).toBe('Severe');
     });
 
     it('runStressV2 delegates without scenarioId (uses first preset)', async () => {
       const stressV2Mock = {
-        getPresetScenarios: jest.fn().mockReturnValue([
-          { id: 'dfast-severe', name: 'Severe Adverse' },
-        ]),
+        getPresetScenarios: jest
+          .fn()
+          .mockReturnValue([{ id: 'dfast-severe', name: 'Severe Adverse' }]),
         runStressTest: jest.fn().mockResolvedValue({ scenarioName: 'Severe' }),
       };
-      Object.defineProperty(controller, 'stressV2', { value: stressV2Mock, writable: true });
+      Object.defineProperty(controller, 'stressV2', {
+        value: stressV2Mock,
+        writable: true,
+      });
       const r = await controller.runStressV2('i1', {});
       expect(r.scenarioName).toBe('Severe');
     });
 
     it('runStressV2 uses first preset when scenarioId not found', async () => {
       const stressV2Mock = {
-        getPresetScenarios: jest.fn().mockReturnValue([
-          { id: 'dfast-severe', name: 'Severe Adverse' },
-        ]),
+        getPresetScenarios: jest
+          .fn()
+          .mockReturnValue([{ id: 'dfast-severe', name: 'Severe Adverse' }]),
         runStressTest: jest.fn().mockResolvedValue({ scenarioName: 'Severe' }),
       };
-      Object.defineProperty(controller, 'stressV2', { value: stressV2Mock, writable: true });
-      const r = await controller.runStressV2('i1', { scenarioId: 'nonexistent' });
+      Object.defineProperty(controller, 'stressV2', {
+        value: stressV2Mock,
+        writable: true,
+      });
+      const r = await controller.runStressV2('i1', {
+        scenarioId: 'nonexistent',
+      });
       expect(r.scenarioName).toBe('Severe');
     });
 
@@ -1332,7 +1485,10 @@ describe('AlmController — Core Revenue Path', () => {
     });
 
     it('commitSmartIngest delegates', async () => {
-      const r = await controller.commitSmartIngest('i1', { csvContent: 'a,b', mappings: {} });
+      const r = await controller.commitSmartIngest('i1', {
+        csvContent: 'a,b',
+        mappings: {},
+      });
       expect(r).toBeNull();
     });
 

@@ -197,7 +197,9 @@ describe('DataValidationMiddleware', () => {
     middleware.use(mockReq, mockRes, next);
     expect(mockRes.status).toHaveBeenCalledWith(400);
     expect(mockRes.json).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Each position must have a valid ticker' }),
+      expect.objectContaining({
+        message: 'Each position must have a valid ticker',
+      }),
     );
   });
 
@@ -212,7 +214,9 @@ describe('DataValidationMiddleware', () => {
     middleware.use(mockReq, mockRes, next);
     expect(mockRes.status).toHaveBeenCalledWith(400);
     expect(mockRes.json).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Quantity must be a positive number' }),
+      expect.objectContaining({
+        message: 'Quantity must be a positive number',
+      }),
     );
   });
 
@@ -232,7 +236,9 @@ describe('DataValidationMiddleware', () => {
   });
 
   it('rejects position with non-number price', () => {
-    mockReq.body.positions = [{ ticker: 'AAPL', quantity: 10, price: 'hundred' }];
+    mockReq.body.positions = [
+      { ticker: 'AAPL', quantity: 10, price: 'hundred' },
+    ];
     middleware.use(mockReq, mockRes, next);
     expect(mockRes.status).toHaveBeenCalledWith(400);
   });
@@ -376,7 +382,9 @@ describe('DataQualityService', () => {
     });
 
     it('includes timestamp in report', () => {
-      const report = service.validatePriceData([{ date: '2026-01-01', close: 50 }]);
+      const report = service.validatePriceData([
+        { date: '2026-01-01', close: 50 },
+      ]);
       expect(report.timestamp).toBeInstanceOf(Date);
     });
   });
@@ -391,7 +399,10 @@ describe('DataQualityService', () => {
     });
 
     it('returns "healthy" when success rate >= 99%', () => {
-      service.recordMetric('src1', { successfulRequests: 99, totalRequests: 0 });
+      service.recordMetric('src1', {
+        successfulRequests: 99,
+        totalRequests: 0,
+      });
       // After recordMetric, totalRequests is 1 from increment logic.
       // We need to set up the metric map directly for precise control.
       (service as any).qualityMetrics.set('src1', {

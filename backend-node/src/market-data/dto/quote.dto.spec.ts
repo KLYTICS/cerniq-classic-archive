@@ -210,7 +210,11 @@ describe('MarketDataHealthDto', () => {
   it('holds overall health status', () => {
     const dto = new MarketDataHealthDto();
     dto.status = 'healthy';
-    dto.freshnessSummary = { activeStreams: 5, staleStreams: 0, delayedStreams: 1 };
+    dto.freshnessSummary = {
+      activeStreams: 5,
+      staleStreams: 0,
+      delayedStreams: 1,
+    };
     dto.providers = [];
     dto.streams = [];
     dto.generatedAt = new Date();

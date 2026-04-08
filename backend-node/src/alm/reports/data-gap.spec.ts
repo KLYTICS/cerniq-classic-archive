@@ -12,7 +12,9 @@ describe('dataGap factory', () => {
   });
 
   it('respects an explicit WARNING severity', () => {
-    const gap = dataGap('cossec.peer', 'STALE_SNAPSHOT', { severity: 'WARNING' });
+    const gap = dataGap('cossec.peer', 'STALE_SNAPSHOT', {
+      severity: 'WARNING',
+    });
     expect(gap.severity).toBe('WARNING');
   });
 
@@ -57,7 +59,9 @@ describe('hasCriticalGap', () => {
 
 describe('mergeGaps', () => {
   it('drops undefined and null sources', () => {
-    const merged = mergeGaps(undefined, null, [dataGap('a', 'EMPTY_BALANCE_SHEET')]);
+    const merged = mergeGaps(undefined, null, [
+      dataGap('a', 'EMPTY_BALANCE_SHEET'),
+    ]);
     expect(merged).toHaveLength(1);
   });
 

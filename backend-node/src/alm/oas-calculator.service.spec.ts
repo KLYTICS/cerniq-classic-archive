@@ -68,24 +68,44 @@ describe('OASCalculatorService', () => {
     beforeEach(() => {
       const items = [
         {
-          id: 'i1', name: 'Consumer Loan', category: 'asset',
-          subcategory: 'consumer', balance: 100, rate: 0.065,
-          duration: 5, rateType: 'fixed',
+          id: 'i1',
+          name: 'Consumer Loan',
+          category: 'asset',
+          subcategory: 'consumer',
+          balance: 100,
+          rate: 0.065,
+          duration: 5,
+          rateType: 'fixed',
         },
         {
-          id: 'i2', name: 'Treasury Bond', category: 'asset',
-          subcategory: 'treasury', balance: 50, rate: 0.042,
-          duration: 10, rateType: 'fixed',
+          id: 'i2',
+          name: 'Treasury Bond',
+          category: 'asset',
+          subcategory: 'treasury',
+          balance: 50,
+          rate: 0.042,
+          duration: 10,
+          rateType: 'fixed',
         },
         {
-          id: 'i3', name: 'Mortgage Pool', category: 'asset',
-          subcategory: 'residential_mortgage', balance: 80, rate: 0.055,
-          duration: 15, rateType: 'fixed',
+          id: 'i3',
+          name: 'Mortgage Pool',
+          category: 'asset',
+          subcategory: 'residential_mortgage',
+          balance: 80,
+          rate: 0.055,
+          duration: 15,
+          rateType: 'fixed',
         },
         {
-          id: 'i4', name: 'Deposits', category: 'liability',
-          subcategory: 'deposits', balance: 150, rate: 0.02,
-          duration: 1, rateType: 'variable',
+          id: 'i4',
+          name: 'Deposits',
+          category: 'liability',
+          subcategory: 'deposits',
+          balance: 150,
+          rate: 0.02,
+          duration: 1,
+          rateType: 'variable',
         },
       ];
       const mockPrisma = {
@@ -111,7 +131,9 @@ describe('OASCalculatorService', () => {
 
     it('instruments with mortgage subcategory have positive option cost', async () => {
       const result = await svcReal.analyzePortfolio('inst-1');
-      const mortgage = result.instruments.find(i => i.instrumentName === 'Mortgage Pool');
+      const mortgage = result.instruments.find(
+        (i) => i.instrumentName === 'Mortgage Pool',
+      );
       if (mortgage) {
         expect(typeof mortgage.optionCost).toBe('number');
       }
@@ -119,7 +141,9 @@ describe('OASCalculatorService', () => {
 
     it('treasury bond has zero or near-zero option cost', async () => {
       const result = await svcReal.analyzePortfolio('inst-1');
-      const treasury = result.instruments.find(i => i.instrumentName === 'Treasury Bond');
+      const treasury = result.instruments.find(
+        (i) => i.instrumentName === 'Treasury Bond',
+      );
       if (treasury) {
         // Treasury has no embedded option, OAS ≈ zSpread
         expect(Math.abs(treasury.optionCost)).toBeLessThan(5);
@@ -148,9 +172,14 @@ describe('OASCalculatorService', () => {
     };
     const items = [
       {
-        id: 'i1', name: 'Bond', category: 'asset',
-        subcategory: 'corporate', balance: 100, rate: 0.06,
-        duration: 5, rateType: 'fixed',
+        id: 'i1',
+        name: 'Bond',
+        category: 'asset',
+        subcategory: 'corporate',
+        balance: 100,
+        rate: 0.06,
+        duration: 5,
+        rateType: 'fixed',
       },
     ];
     const mockPrisma = {

@@ -65,9 +65,24 @@ describe('CreditConcentrationVaRService', () => {
 
     beforeEach(() => {
       const segments = [
-        { segmentName: 'Commercial RE', balance: 5000, historicalLossRate: 0.03, lgd: 0.45 },
-        { segmentName: 'Consumer', balance: 3000, historicalLossRate: 0.04, lgd: 0.5 },
-        { segmentName: 'Mortgage', balance: 2000, historicalLossRate: 0.01, lgd: 0.35 },
+        {
+          segmentName: 'Commercial RE',
+          balance: 5000,
+          historicalLossRate: 0.03,
+          lgd: 0.45,
+        },
+        {
+          segmentName: 'Consumer',
+          balance: 3000,
+          historicalLossRate: 0.04,
+          lgd: 0.5,
+        },
+        {
+          segmentName: 'Mortgage',
+          balance: 2000,
+          historicalLossRate: 0.01,
+          lgd: 0.35,
+        },
       ];
       const mockPrisma = {
         loanSegment: { findMany: jest.fn().mockResolvedValue(segments) },
@@ -157,9 +172,13 @@ describe('CreditConcentrationVaRService', () => {
   // ── Edge case: zero-balance segments ───────────────────────
   it('returns demo result when all segments have zero balance', async () => {
     const mockPrisma = {
-      loanSegment: { findMany: jest.fn().mockResolvedValue([
-        { segmentName: 'Empty', balance: 0, historicalLossRate: 0, lgd: 0 },
-      ]) },
+      loanSegment: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([
+            { segmentName: 'Empty', balance: 0, historicalLossRate: 0, lgd: 0 },
+          ]),
+      },
     } as any;
     const svcZero = new CreditConcentrationVaRService(mockPrisma);
     const result = await svcZero.compute('inst-1');

@@ -210,7 +210,7 @@ describe('NetWorthAtRiskService', () => {
 
   it('normInv mid-range (pLow <= p <= pHigh) via confidence=0.90', () => {
     // confidence=0.90 is between pLow (0.02425) and pHigh (0.97575)
-    const result = service.calculateNWaR({ ...baseParams, confidence: 0.90 });
+    const result = service.calculateNWaR({ ...baseParams, confidence: 0.9 });
     expect(result.nwar).toBeGreaterThan(0);
   });
 });

@@ -122,9 +122,9 @@ describe('url.util', () => {
     });
 
     it('blocks data: protocol', () => {
-      expect(isSafeRedirect('data:text/html,<h1>hi</h1>', ['example.com'])).toBe(
-        false,
-      );
+      expect(
+        isSafeRedirect('data:text/html,<h1>hi</h1>', ['example.com']),
+      ).toBe(false);
     });
 
     it('returns false for invalid URL string', () => {

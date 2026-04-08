@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { apiClient } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
-import { Download } from 'lucide-react';
+import DocumentExportButtons from '@/components/exports/DocumentExportButtons';
 
 type DemoInstitution = { id: string };
 type NIIScenario = { shiftBps: number; niImpact: number };
@@ -173,26 +173,17 @@ function EmbedContent() {
       </div>
 
       {/* Download buttons */}
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          onClick={async () => {
-            try { await apiClient.downloadALMReport(results.institutionId, 'en'); }
-            catch { window.open(apiClient.getALMReportUrl(results.institutionId, 'en'), '_blank'); }
-          }}
-          className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-lg transition text-sm"
-        >
-          <Download className="h-4 w-4" /> Report PDF (EN)
-        </button>
-        <button
-          onClick={async () => {
-            try { await apiClient.downloadALMReport(results.institutionId, 'es'); }
-            catch { window.open(apiClient.getALMReportUrl(results.institutionId, 'es'), '_blank'); }
-          }}
-          className="flex items-center justify-center gap-2 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-white font-semibold py-3 rounded-lg transition text-sm"
-        >
-          <Download className="h-4 w-4" /> Informe PDF (ES)
-        </button>
-      </div>
+      {results.institutionId ? (
+        <DocumentExportButtons
+          manifestPath={`/api/alm/${results.institutionId}/exports`}
+          kinds={['alm_report']}
+          className="mt-1"
+        />
+      ) : (
+        <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-center text-xs text-slate-400">
+          Export-ready documents will appear once the demo workspace finishes provisioning.
+        </div>
+      )}
 
       {/* Footer */}
       <p className="text-center text-[10px] text-slate-600 mt-4">

@@ -548,7 +548,9 @@ describe('BillingController', () => {
     it('always returns a success message', async () => {
       billingService.requestMagicLink.mockResolvedValue(undefined);
 
-      const result = await controller.requestMagicLink({ email: 'test@test.com' });
+      const result = await controller.requestMagicLink({
+        email: 'test@test.com',
+      });
 
       expect(result.message).toContain('If this email has an account');
     });
@@ -556,7 +558,9 @@ describe('BillingController', () => {
     it('still returns success when the service throws', async () => {
       billingService.requestMagicLink.mockRejectedValue(new Error('Internal'));
 
-      const result = await controller.requestMagicLink({ email: 'bad@test.com' });
+      const result = await controller.requestMagicLink({
+        email: 'bad@test.com',
+      });
 
       expect(result.message).toContain('If this email has an account');
     });

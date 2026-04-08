@@ -109,7 +109,10 @@ describe('IncrementalVarService', () => {
     ];
     const result = service.calculateMarginalVaR({
       positions: zeroPositions,
-      correlationMatrix: [[1, 0], [0, 1]],
+      correlationMatrix: [
+        [1, 0],
+        [0, 1],
+      ],
     });
     expect(result[0].marginalVaR).toBe(0);
     expect(result[1].marginalVaR).toBe(0);

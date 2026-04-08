@@ -5,10 +5,11 @@ import { io, Socket } from 'socket.io-client';
 import Link from 'next/link';
 import {
   CheckCircle, Circle, Loader2, AlertTriangle,
-  Download, Eye, RefreshCw, Wifi, WifiOff,
+  Eye, RefreshCw, Wifi, WifiOff,
 } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
 import { unwrapApiData } from '@/lib/api-response';
+import DocumentExportButtons from '@/components/exports/DocumentExportButtons';
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
 
@@ -131,7 +132,6 @@ export default function ReportProgressWS({
   const [isComplete, setIsComplete] = useState(false);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [reportUrls, setReportUrls] = useState<{ es: string; en: string } | null>(null);
   const [wsFailedOver, setWsFailedOver] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
@@ -232,7 +232,6 @@ export default function ReportProgressWS({
       setIsComplete(true);
       setCurrentStep('COMPLETE');
       setPercentComplete(100);
-      setReportUrls({ es: data.reportUrl, en: data.reportUrlEn });
       stopTimer();
       onComplete?.();
     });
@@ -284,17 +283,10 @@ export default function ReportProgressWS({
               <Eye className="h-4 w-4" />
               {t('View report', 'Ver informe')}
             </Link>
-            {reportUrls && (
-              <a
-                href={reportUrls.es}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <Download className="h-4 w-4" />
-                {t('Download PDF', 'Descargar PDF')}
-              </a>
-            )}
+            <DocumentExportButtons
+              manifestPath={`/api/portal/jobs/${jobId}/exports`}
+              kinds={['alm_report']}
+            />
           </div>
         </div>
       </div>

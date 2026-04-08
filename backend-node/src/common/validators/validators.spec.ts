@@ -1,5 +1,8 @@
 import { IsBusinessEmailConstraint } from './is-business-email.validator';
-import { IsAfterDateConstraint, MaxDateSpanConstraint } from './date-range.validator';
+import {
+  IsAfterDateConstraint,
+  MaxDateSpanConstraint,
+} from './date-range.validator';
 import { PasswordComplexityPipe } from './password-complexity.validator';
 import { ParseUUIDPipe } from './is-uuid.validator';
 import { BadRequestException } from '@nestjs/common';
@@ -50,7 +53,11 @@ describe('IsBusinessEmailConstraint', () => {
 describe('IsAfterDateConstraint', () => {
   const validator = new IsAfterDateConstraint();
 
-  function makeArgs(startDateField: string, obj: any, property: string = 'endDate') {
+  function makeArgs(
+    startDateField: string,
+    obj: any,
+    property: string = 'endDate',
+  ) {
     return {
       constraints: [startDateField],
       object: obj,
@@ -59,27 +66,42 @@ describe('IsAfterDateConstraint', () => {
   }
 
   it('returns true when endDate is after startDate', () => {
-    const args = makeArgs('startDate', { startDate: '2025-01-01', endDate: '2025-06-01' });
+    const args = makeArgs('startDate', {
+      startDate: '2025-01-01',
+      endDate: '2025-06-01',
+    });
     expect(validator.validate('2025-06-01', args)).toBe(true);
   });
 
   it('returns false when endDate is before startDate', () => {
-    const args = makeArgs('startDate', { startDate: '2025-06-01', endDate: '2025-01-01' });
+    const args = makeArgs('startDate', {
+      startDate: '2025-06-01',
+      endDate: '2025-01-01',
+    });
     expect(validator.validate('2025-01-01', args)).toBe(false);
   });
 
   it('returns false when dates are equal', () => {
-    const args = makeArgs('startDate', { startDate: '2025-06-01', endDate: '2025-06-01' });
+    const args = makeArgs('startDate', {
+      startDate: '2025-06-01',
+      endDate: '2025-06-01',
+    });
     expect(validator.validate('2025-06-01', args)).toBe(false);
   });
 
   it('returns true when startDate is missing (let @IsDateString handle it)', () => {
-    const args = makeArgs('startDate', { startDate: null, endDate: '2025-06-01' });
+    const args = makeArgs('startDate', {
+      startDate: null,
+      endDate: '2025-06-01',
+    });
     expect(validator.validate('2025-06-01', args)).toBe(true);
   });
 
   it('returns true when endDate is empty', () => {
-    const args = makeArgs('startDate', { startDate: '2025-01-01', endDate: '' });
+    const args = makeArgs('startDate', {
+      startDate: '2025-01-01',
+      endDate: '',
+    });
     expect(validator.validate('', args)).toBe(true);
   });
 
@@ -102,17 +124,26 @@ describe('MaxDateSpanConstraint', () => {
   }
 
   it('returns true when span is within max days', () => {
-    const args = makeArgs('startDate', 30, { startDate: '2025-01-01', endDate: '2025-01-15' });
+    const args = makeArgs('startDate', 30, {
+      startDate: '2025-01-01',
+      endDate: '2025-01-15',
+    });
     expect(validator.validate('2025-01-15', args)).toBe(true);
   });
 
   it('returns false when span exceeds max days', () => {
-    const args = makeArgs('startDate', 30, { startDate: '2025-01-01', endDate: '2025-06-01' });
+    const args = makeArgs('startDate', 30, {
+      startDate: '2025-01-01',
+      endDate: '2025-06-01',
+    });
     expect(validator.validate('2025-06-01', args)).toBe(false);
   });
 
   it('returns true when startDate is missing', () => {
-    const args = makeArgs('startDate', 30, { startDate: null, endDate: '2025-01-15' });
+    const args = makeArgs('startDate', 30, {
+      startDate: null,
+      endDate: '2025-01-15',
+    });
     expect(validator.validate('2025-01-15', args)).toBe(true);
   });
 
