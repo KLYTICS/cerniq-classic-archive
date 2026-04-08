@@ -77,7 +77,11 @@ export class ApReportService {
 
       const isEs = lang === 'es';
       const t = (es: string, en: string) => (isEs ? es : en);
-      const fmtM = (v: number) => `$${((v || 0) / 1_000_000).toFixed(1)}M`;
+      // D1: nullable formatters. Render `—` for missing inputs instead of
+      // collapsing to "$0.0M" / "0.0%". The presenter is the last line of
+      // defense — silent zero here would defeat the gap manifest upstream.
+      const fmtM = (v: number | null | undefined) =>
+        v === null || v === undefined ? '—' : `$${(v / 1_000_000).toFixed(1)}M`;
       const fmtD = (v: number) =>
         new Intl.NumberFormat('en-US', {
           style: 'currency',
@@ -85,7 +89,8 @@ export class ApReportService {
           minimumFractionDigits: 0,
           maximumFractionDigits: 0,
         }).format(v || 0);
-      const fmtPct = (v: number) => `${(v || 0).toFixed(1)}%`;
+      const fmtPct = (v: number | null | undefined) =>
+        v === null || v === undefined ? '—' : `${v.toFixed(1)}%`;
       const PW = 612;
       const ML = 60;
       const MR = 60;
@@ -757,11 +762,20 @@ export class ApReportService {
         const lcrW = 180;
         const lcrH = 100;
 
+        // D1: when AP/LCR data is unavailable, every numeric field on the
+        // page is null. Use a neutral grey for the box accents and let the
+        // formatters render `—`. Never paint the green/amber/red traffic
+        // light on phantom data.
+        const isLcrImpactUnavailable =
+          lcrImpact.alertLevel === 'DATA_UNAVAILABLE' ||
+          lcrImpact.currentLcr === null;
+
         // Current LCR box
-        const currentClr =
-          lcrImpact.currentLcr >= 120
+        const currentClr = isLcrImpactUnavailable
+          ? '#64748B'
+          : lcrImpact.currentLcr! >= 120
             ? '#16A34A'
-            : lcrImpact.currentLcr >= 100
+            : lcrImpact.currentLcr! >= 100
               ? '#D97706'
               : '#DC2626';
         doc.rect(ML, y, lcrW, lcrH).fill('#F8FAFC');
@@ -802,10 +816,11 @@ export class ApReportService {
           });
 
         // Projected LCR box
-        const projClr =
-          lcrImpact.projectedLcr >= 120
+        const projClr = isLcrImpactUnavailable
+          ? '#64748B'
+          : lcrImpact.projectedLcr! >= 120
             ? '#16A34A'
-            : lcrImpact.projectedLcr >= 100
+            : lcrImpact.projectedLcr! >= 100
               ? '#D97706'
               : '#DC2626';
         const projX = ML + lcrW + 50;
@@ -839,18 +854,26 @@ export class ApReportService {
         y += lcrH + 20;
 
         // Delta badge
-        const deltaClr = lcrImpact.delta >= 0 ? '#16A34A' : '#DC2626';
+        const deltaClr =
+          lcrImpact.delta === null
+            ? '#64748B'
+            : lcrImpact.delta >= 0
+              ? '#16A34A'
+              : '#DC2626';
+        const deltaText =
+          lcrImpact.delta === null
+            ? t(
+                'Delta: — | Nivel de Alerta: DATOS NO DISPONIBLES',
+                'Delta: — | Alert Level: DATA UNAVAILABLE',
+              )
+            : `Delta: ${lcrImpact.delta >= 0 ? '+' : ''}${fmtPct(lcrImpact.delta)}  |  ${t('Nivel de Alerta', 'Alert Level')}: ${lcrImpact.alertLevel}`;
         doc.rect(ML, y, CW, 30).fill('#F8FAFC');
         doc.rect(ML, y, 4, 30).fill(deltaClr);
         doc
           .fill(deltaClr)
           .font('Helvetica-Bold')
           .fontSize(12)
-          .text(
-            `Delta: ${lcrImpact.delta >= 0 ? '+' : ''}${fmtPct(lcrImpact.delta)}  |  ${t('Nivel de Alerta', 'Alert Level')}: ${lcrImpact.alertLevel}`,
-            ML + 16,
-            y + 8,
-          );
+          .text(deltaText, ML + 16, y + 8);
         y += 45;
 
         // 30-day AP obligations detail
@@ -1191,12 +1214,28 @@ export class ApReportService {
       });
     }
 
-    // 4. LCR impact
-    if (lcrImpact && lcrImpact.alertLevel !== 'SAFE') {
+    // 4. LCR impact. D1: when AP/LCR data is unavailable, the recommendation
+    // is structurally different — we tell the user to load liquidity data,
+    // not to manage a phantom projected ratio.
+    if (
+      lcrImpact &&
+      (lcrImpact.alertLevel === 'DATA_UNAVAILABLE' ||
+        lcrImpact.projectedLcr === null)
+    ) {
       recs.push({
         action: t(
-          `Monitorear el impacto de las obligaciones AP en el LCR. El nivel proyectado de ${lcrImpact.projectedLcr.toFixed(1)}% esta en nivel ${lcrImpact.alertLevel}. Coordinar calendario de pagos con Tesoreria.`,
-          `Monitor the AP obligations impact on LCR. The projected level of ${lcrImpact.projectedLcr.toFixed(1)}% is at ${lcrImpact.alertLevel} level. Coordinate payment schedule with Treasury.`,
+          'No se pudo calcular el impacto AP sobre el LCR — faltan datos de liquidez. Cargar la posicion de liquidez vigente para habilitar el analisis AP/LCR.',
+          'AP impact on LCR could not be calculated — liquidity data is missing. Upload the current liquidity position to enable the AP/LCR analysis.',
+        ),
+        responsible: t('Tesorero / CFO', 'Treasurer / CFO'),
+        priority: 'HIGH',
+        timeline: t('Inmediato', 'Immediate'),
+      });
+    } else if (lcrImpact && lcrImpact.alertLevel !== 'SAFE') {
+      recs.push({
+        action: t(
+          `Monitorear el impacto de las obligaciones AP en el LCR. El nivel proyectado de ${lcrImpact.projectedLcr!.toFixed(1)}% esta en nivel ${lcrImpact.alertLevel}. Coordinar calendario de pagos con Tesoreria.`,
+          `Monitor the AP obligations impact on LCR. The projected level of ${lcrImpact.projectedLcr!.toFixed(1)}% is at ${lcrImpact.alertLevel} level. Coordinate payment schedule with Treasury.`,
         ),
         responsible: t('Tesorero / CFO', 'Treasurer / CFO'),
         priority: lcrImpact.alertLevel === 'CRITICAL' ? 'HIGH' : 'MEDIUM',

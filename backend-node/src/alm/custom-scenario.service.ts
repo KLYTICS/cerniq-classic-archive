@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
 import { ScenarioPersistenceService } from './scenarios/scenario-persistence.service';
+import { DataGap, dataGap } from './reports/data-gap';
 
 /** Round to n decimal places with NaN guard */
 function round(value: number, decimals: number): number {
@@ -29,11 +30,19 @@ export interface CustomScenarioResult {
     params: CustomScenarioParams;
     createdAt: string;
   };
-  niiImpact: number; // $ millions
-  eveChange: number; // $ millions
-  lcrImpact: number; // percentage points
-  capitalImpact: number; // percentage points
+  /**
+   * Numeric impacts. D1 (2026-04-07): when input data is incomplete (e.g.
+   * COSSEC compliance is data_unavailable, LCR is null), every impact is
+   * `null` instead of a phantom value computed on partial data. The
+   * `gaps[]` manifest names what's missing.
+   */
+  niiImpact: number | null; // $ millions
+  eveChange: number | null; // $ millions
+  lcrImpact: number | null; // percentage points
+  capitalImpact: number | null; // percentage points
   narrative: string;
+  overallStatus: 'computed' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -105,14 +114,70 @@ export class CustomScenarioService {
       );
     }
 
+    // D1 (2026-04-07): refuse to compute custom scenarios when any
+    // critical input is missing. The previous implementation used
+    // `?? 0` to silently coerce missing COSSEC/LCR data to zero, then
+    // the impact math (eveChange, capitalImpact) computed on phantom
+    // zeros and the scenario "succeeded" with garbage. Now we detect
+    // the data_unavailable state and return a structured result with
+    // null impacts + a CRITICAL gap manifest. Callers branch on
+    // `overallStatus === 'data_unavailable'`.
+    const inputGaps: DataGap[] = [];
+    if (cossec.overallStatus === 'data_unavailable') {
+      inputGaps.push(
+        dataGap('customScenario.cossec', 'COSSEC_INPUTS_INSUFFICIENT', {
+          severity: 'CRITICAL',
+          action:
+            'Custom scenario requires COSSEC compliance inputs. Upload balance sheet items first.',
+          context: { institutionId },
+        }),
+        ...(cossec.gaps ?? []),
+      );
+    }
+    if (liquidity.lcr === null || liquidity.status === 'data_unavailable') {
+      inputGaps.push(
+        dataGap('customScenario.lcr', 'NO_LIQUIDITY_POSITION', {
+          severity: 'CRITICAL',
+          action:
+            'Custom scenario requires a current liquidity position. Upload one before running scenarios.',
+          context: { institutionId },
+        }),
+        ...(liquidity.gaps ?? []),
+      );
+    }
+    if (inputGaps.length > 0) {
+      this.logger.warn({
+        event: 'custom_scenario_data_unavailable',
+        institutionId,
+        scenarioName: params.name,
+        gapCount: inputGaps.length,
+      });
+      return {
+        scenario: {
+          id: 'data-unavailable',
+          name: params.name,
+          params,
+          createdAt: new Date().toISOString(),
+        },
+        niiImpact: null,
+        eveChange: null,
+        lcrImpact: null,
+        capitalImpact: null,
+        narrative:
+          'Custom scenario could not be computed — required inputs are missing. See gaps manifest for the upload checklist.',
+        overallStatus: 'data_unavailable',
+        gaps: inputGaps,
+      };
+    }
+
     const baseNII = niiSensitivity.baseNII; // in $M
-    const baseLCR = liquidity.lcr;
-    const summary = cossec?.summary;
-    const totalAssets = summary?.totalAssets ?? 0;
-    const totalLoans = summary?.totalLoans ?? 0;
-    const totalShares = summary?.totalShares ?? 0;
-    const capitalRatio = summary?.capitalRatio ?? 0;
-    const gap = durationGap?.durationGap ?? 0;
+    const baseLCR = liquidity.lcr; // narrowed: not null after the guard above
+    const summary = cossec.summary;
+    const totalAssets = summary.totalAssets;
+    const totalLoans = summary.totalLoans;
+    const totalShares = summary.totalShares;
+    const capitalRatio = summary.capitalRatio;
+    const gap = durationGap.durationGap;
 
     // ── 1. NII Impact from rate shift ──
     // Find closest NII sensitivity scenario and interpolate
@@ -250,6 +315,7 @@ export class CustomScenarioService {
       lcrImpact,
       capitalImpact,
       narrative,
+      overallStatus: 'computed',
     };
   }
 

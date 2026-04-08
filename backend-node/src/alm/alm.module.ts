@@ -1,11 +1,15 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { ActionsModule } from '../actions/actions.module';
+import { AlmActionsBootstrap } from '../actions/alm-actions.bootstrap';
 import { AlmService } from './alm.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { AlmAdvisorService } from './alm-advisor.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
 import { ReportsService } from './reports/reports.service';
+import { ReportPreflightService } from './reports/report-preflight.service';
 import { WorkspaceOnboardingService } from './workspace-onboarding.service';
+import { InstitutionSeedService } from './institution-seed.service';
 import { CSVIngestionService } from './csv-ingestion.service';
 import { AnalysisRunsService } from './analysis-runs.service';
 import { IngestionLogsService } from './ingestion-logs.service';
@@ -112,16 +116,25 @@ import { AuthGuard } from '../auth/auth.guard';
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '24h' },
     }),
+    // Phase 3 (2026-04-07): import the action registry so AlmActionsBootstrap
+    // can register the first wave of ALM actions on module init.
+    ActionsModule,
   ],
   controllers: [AlmController, AlmAdvisorController, AlmAdvisorV2Controller],
   providers: [
+    // Phase 3: AlmActionsBootstrap implements OnModuleInit and registers
+    // institution.seed and alm.preflight as the first wave. Adding more
+    // actions: edit src/actions/alm-actions.bootstrap.ts.
+    AlmActionsBootstrap,
     // Core
     AlmService,
     AlmEnterpriseService,
     AlmAdvisorService,
     StressTestingService,
     ReportsService,
+    ReportPreflightService,
     WorkspaceOnboardingService,
+    InstitutionSeedService,
     CSVIngestionService,
     AnalysisRunsService,
     IngestionLogsService,
@@ -221,7 +234,9 @@ import { AuthGuard } from '../auth/auth.guard';
     AlmEnterpriseService,
     AlmAdvisorService,
     StressTestingService,
+    ReportPreflightService,
     WorkspaceOnboardingService,
+    InstitutionSeedService,
     CSVIngestionService,
     AnalysisRunsService,
     IngestionLogsService,

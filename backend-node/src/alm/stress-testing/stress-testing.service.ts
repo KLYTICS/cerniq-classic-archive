@@ -97,7 +97,18 @@ export interface RegulatoryScenario {
 
 export interface RegulatoryStressResult {
   scenarios: RegulatoryScenario[];
-  overallRating: 'resilient' | 'adequate' | 'vulnerable' | 'critical';
+  overallRating:
+    | 'resilient'
+    | 'adequate'
+    | 'vulnerable'
+    | 'critical'
+    | 'data_unavailable';
+  /**
+   * Populated when the stress engine refuses to compute scenarios (e.g. LCR
+   * input missing). When any CRITICAL gap is present, `scenarios` is empty
+   * and `overallRating` is `'data_unavailable'`. D1 (2026-04-07).
+   */
+  gaps?: import('../reports/data-gap').DataGap[];
 }
 
 export interface StressTestResult {
@@ -363,6 +374,35 @@ export class StressTestingService {
     const baseNII = niiSensitivity.baseNII;
     const baseLCR = liquidity.lcr;
     const gap = durationGap.durationGap;
+
+    // D1 (2026-04-07): refuse to run regulatory scenarios when the LCR input
+    // is unavailable. Previously this would silently use 0 as the base LCR
+    // and produce four scenarios that all read "compliant" or all read
+    // "breach" — neither is a real result. Surface a CRITICAL gap and let
+    // the orchestrator render explicit DATA UNAVAILABLE.
+    if (baseLCR === null) {
+      this.logger.warn({
+        event: 'regulatory_stress_data_unavailable',
+        institutionId,
+        reason: 'NO_LIQUIDITY_POSITION',
+      });
+      return {
+        scenarios: [],
+        overallRating: 'data_unavailable',
+        gaps: [
+          {
+            field: 'stress.regulatory.baseLCR',
+            reason: 'NO_LIQUIDITY_POSITION',
+            severity: 'CRITICAL',
+            action:
+              'Upload a current liquidity_positions row before running regulatory stress scenarios.',
+            context: { institutionId },
+          },
+          // Propagate any sub-gaps the LCR call already surfaced.
+          ...(liquidity.gaps ?? []),
+        ],
+      };
+    }
 
     // 4 regulatory scenarios
     const scenarios: RegulatoryScenario[] = [

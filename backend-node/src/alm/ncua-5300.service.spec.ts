@@ -57,21 +57,61 @@ describe('NCUA5300Service', () => {
 
   it('respects explicit quarter parameter', async () => {
     prisma.institution.findUnique.mockResolvedValue(null);
-    prisma.balanceSheetItem.findMany.mockResolvedValue([]);
+    // D1: empty balance sheet now refuses to compute, so provide a minimal
+    // BS so we can still test the quarter-parameter path.
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', subcategory: 'cash', balance: 100 },
+      { category: 'liability', subcategory: 'savings', balance: 90 },
+    ]);
 
     const result = await service.generateForm5300('inst_1', '2025Q4');
     expect(result.quarter).toBe('2025Q4');
   });
 
-  it('handles empty balance sheet gracefully', async () => {
+  // D1 (2026-04-07): the previous expectation here was that empty balance
+  // sheet would silently produce a "valid" form with all-zero summaries.
+  // That made phantom-zero NCUA filings indistinguishable from real ones.
+  // New contract: empty balance sheet → data_unavailable + CRITICAL gap.
+  it('refuses to generate Form 5300 on empty balance sheet, returns data_unavailable + CRITICAL gap', async () => {
     prisma.institution.findUnique.mockResolvedValue(null);
     prisma.balanceSheetItem.findMany.mockResolvedValue([]);
 
     const result = await service.generateForm5300('inst_1');
-    expect(result.summary.totalAssets).toBe(0);
-    expect(result.summary.totalLiabilities).toBe(0);
-    expect(result.summary.netWorth).toBe(0);
-    expect(result.summary.netWorthRatio).toBe(0);
+
+    expect(result.overallStatus).toBe('data_unavailable');
+    expect(result.fields).toEqual([]);
+    expect(result.validationResult.valid).toBe(false);
+
+    // Gap manifest carries the canonical statement.
+    expect(result.gaps).toBeDefined();
+    expect(result.gaps).toHaveLength(1);
+    expect(result.gaps![0]).toMatchObject({
+      field: 'form5300.balanceSheet',
+      reason: 'EMPTY_BALANCE_SHEET',
+      severity: 'CRITICAL',
+    });
+  });
+
+  it('always carries WARNING gaps for the hardcoded allowance and delinquency ratios', async () => {
+    prisma.institution.findUnique.mockResolvedValue(null);
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', subcategory: 'consumer_loans', balance: 100 },
+      { category: 'liability', subcategory: 'savings', balance: 90 },
+    ]);
+
+    const result = await service.generateForm5300('inst_1');
+    expect(result.gaps).toBeDefined();
+    expect(result.gaps!.length).toBeGreaterThanOrEqual(2);
+    const allowanceGap = result.gaps!.find(
+      (g) => g.field === 'form5300.allowance',
+    );
+    const delinquencyGap = result.gaps!.find(
+      (g) => g.field === 'form5300.delinquentLoans',
+    );
+    expect(allowanceGap).toBeDefined();
+    expect(allowanceGap!.severity).toBe('WARNING');
+    expect(delinquencyGap).toBeDefined();
+    expect(delinquencyGap!.severity).toBe('WARNING');
   });
 
   it('fields include both asset and liability schedules', async () => {

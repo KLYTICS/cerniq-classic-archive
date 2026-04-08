@@ -124,4 +124,40 @@ describe('ALCODashboardService', () => {
     });
     expect(r.overallHealth).toBe('adequate');
   });
+
+  // D1 (2026-04-07): when an upstream metric is null (e.g. LCR returned
+  // data_unavailable), the row renders with `value: '—'` and `status: 'info'`
+  // (neutral grey). Previously the dashboard required `number` inputs and
+  // would crash on null — or worse, callers would `?? 0` and create silent
+  // false-failures.
+  it('renders missing metrics as `—` with info status, never as red', () => {
+    const r = service.aggregate({
+      ...healthyParams,
+      lcr: null, // upstream LCR was data_unavailable
+    });
+    const lcrMetric = r.metrics.find((m) => m.name === 'LCR')!;
+    expect(lcrMetric.value).toBe('—');
+    expect(lcrMetric.status).toBe('info');
+    // The other metrics still render their real values.
+    const nimMetric = r.metrics.find((m) => m.name === 'NIM')!;
+    expect(nimMetric.status).toBe('green');
+  });
+
+  it('overallHealth is data_unavailable when more than half the metrics are missing', () => {
+    const r = service.aggregate({
+      nim: null,
+      eve: null,
+      nii: null,
+      lcr: null,
+      nsfr: null,
+      capitalRatio: null,
+      durationGap: null,
+      camelScore: 2,
+      earPct: 1.8,
+      roeAnnualized: 0.08,
+    });
+    expect(r.overallHealth).toBe('data_unavailable');
+    expect(r.interpretation).toMatch(/load institution data/i);
+    expect(r.interpretationEs).toMatch(/cargue/i);
+  });
 });

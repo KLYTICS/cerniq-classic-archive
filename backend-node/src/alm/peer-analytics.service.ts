@@ -1,19 +1,32 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 
 // ─── Peer Metrics ────────────────────────────────────────────
 
+/**
+ * D1 (2026-04-07): institutionValue and percentileRank are nullable. When the
+ * underlying metric is unavailable (e.g. EVE_Sensitivity is not yet wired to
+ * a real source), the row renders as `INSUFFICIENT_DATA` instead of
+ * defaulting to the peer median — which would have made missing data look
+ * like average performance.
+ */
 export interface PeerMetric {
   metricName: string;
   metricNameEs: string;
-  institutionValue: number;
+  institutionValue: number | null;
   peerMin: number;
   peerP25: number;
   peerMedian: number;
   peerP75: number;
   peerMax: number;
-  percentileRank: number; // 0–100
-  status: 'top_quartile' | 'above_median' | 'below_median' | 'bottom_quartile';
+  percentileRank: number | null; // 0–100, null when institutionValue is null
+  status:
+    | 'top_quartile'
+    | 'above_median'
+    | 'below_median'
+    | 'bottom_quartile'
+    | 'data_unavailable';
 }
 
 export interface PeerAnalyticsResult {
@@ -23,6 +36,8 @@ export interface PeerAnalyticsResult {
   peerCount: number;
   assetTier: string;
   metrics: PeerMetric[];
+  overallStatus?: 'computed' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 // PR cooperativa benchmark data by asset tier (from NCUA aggregate analysis)
@@ -105,17 +120,65 @@ export class PeerAnalyticsService {
     const institution = await this.prisma.institution.findUnique({
       where: { id: institutionId },
     });
-    const totalAssets = institution?.totalAssets ?? 200;
+    // D1 (2026-04-07): refuse to bucket the institution into a peer tier
+    // when totalAssets is missing. The previous behavior fell back to
+    // $200M (the medium tier) and ranked the institution against medium
+    // peers — a phantom comparison.
+    if (!institution || !institution.totalAssets) {
+      this.logger.warn({
+        event: 'peer_analytics_data_unavailable',
+        institutionId,
+        reason: 'MISSING_TOTAL_ASSETS',
+      });
+      return {
+        institutionId,
+        peerGroupName: 'Unknown',
+        peerGroupNameEs: 'Desconocido',
+        peerCount: 0,
+        assetTier: 'unknown',
+        metrics: [],
+        overallStatus: 'data_unavailable',
+        gaps: [
+          dataGap('peer.institution', 'MISSING_INSTITUTION', {
+            severity: 'CRITICAL',
+            action:
+              'Institution must have totalAssets set before peer analytics can determine the asset tier.',
+            context: { institutionId },
+          }),
+        ],
+      };
+    }
+    const totalAssets = Number(institution.totalAssets);
     const assetTier =
       totalAssets < 50 ? 'small' : totalAssets < 300 ? 'medium' : 'large';
 
     const peerData = PEER_BENCHMARKS[assetTier];
-    const institutionMetrics = await this.getInstitutionMetrics(institutionId);
+    const { metrics: institutionMetrics, gaps: metricGaps } =
+      await this.getInstitutionMetrics(institutionId);
 
     const metrics: PeerMetric[] = Object.keys(peerData).map((key) => {
       const bench = peerData[key];
       const label = METRIC_LABELS[key];
-      const instValue = institutionMetrics[key] ?? bench.p50;
+      // D1: when an institution metric is null (unavailable), do NOT
+      // substitute the peer median. The previous behavior made missing
+      // data look like average performance — exactly the kind of
+      // confidently-wrong number we exist to eliminate.
+      const instValue = institutionMetrics[key];
+
+      if (instValue === null || instValue === undefined) {
+        return {
+          metricName: label.en,
+          metricNameEs: label.es,
+          institutionValue: null,
+          peerMin: bench.min,
+          peerP25: bench.p25,
+          peerMedian: bench.p50,
+          peerP75: bench.p75,
+          peerMax: bench.max,
+          percentileRank: null,
+          status: 'data_unavailable',
+        };
+      }
 
       const percentile = this.computePercentileRank(
         instValue,
@@ -170,56 +233,124 @@ export class PeerAnalyticsService {
       peerCount: tierLabels[assetTier].count,
       assetTier,
       metrics,
+      overallStatus: 'computed',
+      gaps: metricGaps,
     };
   }
 
+  /**
+   * D1 (2026-04-07): every metric is nullable. NIM and Loan_to_Share are
+   * derived from real balance sheet items. EVE_Sensitivity, LCR,
+   * Deposit_Beta, and CECL_Coverage are NOT YET wired to real sources —
+   * they return null + a WARNING gap naming the source they should come
+   * from. The previous implementation hardcoded these to literal numbers
+   * (15.2, 115, 0.18, 1.3) and ranked the institution against peers using
+   * those literals — a phantom comparison.
+   */
   private async getInstitutionMetrics(
     institutionId: string,
-  ): Promise<Record<string, number>> {
-    // Pull actual metrics from balance sheet if available
+  ): Promise<{
+    metrics: Record<string, number | null>;
+    gaps: DataGap[];
+  }> {
     const items = await this.prisma.balanceSheetItem.findMany({
       where: { institutionId },
     });
+
+    const gaps: DataGap[] = [];
+
+    // Always-WARNING gaps for the metrics that are not yet wired to real
+    // sources. These tell the next contributor exactly which source to
+    // wire in to fix each one.
+    const unwiredGaps: DataGap[] = [
+      dataGap('peer.metrics.EVE_Sensitivity', 'CALCULATION_FAILED', {
+        severity: 'WARNING',
+        action:
+          'Wire EVE sensitivity (DurationService.calculateEVESensitivity) into PeerAnalyticsService.getInstitutionMetrics. Currently null.',
+      }),
+      dataGap('peer.metrics.LCR', 'CALCULATION_FAILED', {
+        severity: 'WARNING',
+        action:
+          'Wire LCR (AlmEnterpriseService.calculateLCR) into PeerAnalyticsService.getInstitutionMetrics. Currently null.',
+      }),
+      dataGap('peer.metrics.Deposit_Beta', 'CALCULATION_FAILED', {
+        severity: 'WARNING',
+        action:
+          'Wire deposit beta (DepositBetaService) into PeerAnalyticsService.getInstitutionMetrics. Currently null.',
+      }),
+      dataGap('peer.metrics.CECL_Coverage', 'CALCULATION_FAILED', {
+        severity: 'WARNING',
+        action:
+          'Wire CECL coverage (CECLService.getCECLAnalysis) into PeerAnalyticsService.getInstitutionMetrics. Currently null.',
+      }),
+    ];
+
     if (items.length === 0) {
+      gaps.push(
+        dataGap('peer.metrics.balanceSheet', 'EMPTY_BALANCE_SHEET', {
+          severity: 'CRITICAL',
+          action:
+            'Upload balance sheet items so peer analytics can compute NIM and Loan_to_Share.',
+        }),
+        ...unwiredGaps,
+      );
       return {
-        NIM: 3.5,
-        EVE_Sensitivity: 15.2,
-        LCR: 115,
-        Deposit_Beta: 0.18,
-        Loan_to_Share: 72,
-        CECL_Coverage: 1.3,
+        metrics: {
+          NIM: null,
+          EVE_Sensitivity: null,
+          LCR: null,
+          Deposit_Beta: null,
+          Loan_to_Share: null,
+          CECL_Coverage: null,
+        },
+        gaps,
       };
     }
 
     const assets = items.filter((i: any) => i.category === 'asset');
     const liabs = items.filter((i: any) => i.category === 'liability');
-    const totalAssets = assets.reduce((s: number, i: any) => s + i.balance, 0);
-    const totalLiabs = liabs.reduce((s: number, i: any) => s + i.balance, 0);
+    const totalAssets = assets.reduce(
+      (s: number, i: any) => s + Number(i.balance),
+      0,
+    );
+    const totalLiabs = liabs.reduce(
+      (s: number, i: any) => s + Number(i.balance),
+      0,
+    );
 
     const assetIncome = assets.reduce(
-      (s: number, i: any) => s + i.balance * i.rate,
+      (s: number, i: any) => s + Number(i.balance) * Number(i.rate),
       0,
     );
     const liabCost = liabs.reduce(
-      (s: number, i: any) => s + i.balance * i.rate,
+      (s: number, i: any) => s + Number(i.balance) * Number(i.rate),
       0,
     );
     const nim =
-      totalAssets > 0 ? ((assetIncome - liabCost) / totalAssets) * 100 : 3.5;
+      totalAssets > 0 ? ((assetIncome - liabCost) / totalAssets) * 100 : null;
 
     const loans = assets.filter(
       (i: any) => !['cash', 'securities'].includes(i.subcategory.toLowerCase()),
     );
-    const totalLoans = loans.reduce((s: number, i: any) => s + i.balance, 0);
-    const loanToShare = totalLiabs > 0 ? (totalLoans / totalLiabs) * 100 : 70;
+    const totalLoans = loans.reduce(
+      (s: number, i: any) => s + Number(i.balance),
+      0,
+    );
+    const loanToShare = totalLiabs > 0 ? (totalLoans / totalLiabs) * 100 : null;
+
+    gaps.push(...unwiredGaps);
 
     return {
-      NIM: Math.round(nim * 100) / 100,
-      EVE_Sensitivity: 15.2,
-      LCR: 115,
-      Deposit_Beta: 0.18,
-      Loan_to_Share: Math.round(loanToShare * 10) / 10,
-      CECL_Coverage: 1.3,
+      metrics: {
+        NIM: nim === null ? null : Math.round(nim * 100) / 100,
+        EVE_Sensitivity: null,
+        LCR: null,
+        Deposit_Beta: null,
+        Loan_to_Share:
+          loanToShare === null ? null : Math.round(loanToShare * 10) / 10,
+        CECL_Coverage: null,
+      },
+      gaps,
     };
   }
 

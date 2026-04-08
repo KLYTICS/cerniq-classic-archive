@@ -206,6 +206,9 @@ model Institution {
   totalAssets              Decimal   @map("total_assets") @db.Decimal(18, 2)
   currency                 String    @default("USD")
   reportingDate            DateTime  @map("reporting_date")
+  /// Stable idempotency key for fixture-based seeding. Real-world institutions leave this null.
+  /// (workspaceId, seedKey) is unique → seed pipeline can re-run safely between sessions.
+  seedKey                  String?   @map("seed_key")
   cossecRegistrationNumber String?   @map("cossec_registration_number")
   fiscalYearEnd            String?   @map("fiscal_year_end")       // "december" | "june" | "march"
   alcoMeetingFrequency     String?   @map("alco_meeting_frequency") // "monthly" | "quarterly"
@@ -241,6 +244,7 @@ model Institution {
   ssoConfiguration      SSOConfiguration?
   institutionAlerts     InstitutionAlert[]
 
+  @@unique([workspaceId, seedKey], name: "workspace_seed_key")
   @@index([workspaceId])
   @@index([type])
   @@map("institutions")

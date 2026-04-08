@@ -42,13 +42,19 @@ export interface APAnalysisResult {
 }
 
 export interface ApLcrImpact {
-  currentLcr: number;
-  projectedLcr: number;
-  hqla: number;
-  currentNetOutflows: number;
+  /**
+   * Null when LCR data is unavailable for the institution. The accompanying
+   * `alertLevel` will be `'DATA_UNAVAILABLE'` and the AP-LCR scenario should
+   * not be presented as a risk signal — the user needs to load liquidity data
+   * first. D1 (2026-04-07).
+   */
+  currentLcr: number | null;
+  projectedLcr: number | null;
+  hqla: number | null;
+  currentNetOutflows: number | null;
   apProjected30Day: number;
-  delta: number;
-  alertLevel: 'SAFE' | 'ADEQUATE' | 'WATCH' | 'CRITICAL';
+  delta: number | null;
+  alertLevel: 'SAFE' | 'ADEQUATE' | 'WATCH' | 'CRITICAL' | 'DATA_UNAVAILABLE';
   quarterlyAPTotal: number;
   vsLastQuarter: number;
 }
@@ -750,21 +756,41 @@ export class AnomalyDetectionService {
           ) / 100
         : 0;
 
-    // 4. Fetch current LCR from ALM engine
-    let currentLcr = 0;
-    let hqla = 0;
-    let currentNetOutflows = 0;
+    // 4. Fetch current LCR from ALM engine. D1 (2026-04-07): if the LCR
+    // service reports `data_unavailable`, the AP/LCR scenario itself is
+    // unanswerable — return a structured DATA_UNAVAILABLE result instead of
+    // pretending we have a baseline of 0.
+    const lcrResult = await this.almEnterprise
+      .calculateLCR(institutionId)
+      .catch((err) => {
+        this.logger.warn(
+          `LCR lookup failed for institution ${institutionId}: ${err}`,
+        );
+        return null;
+      });
 
-    try {
-      const lcrResult = await this.almEnterprise.calculateLCR(institutionId);
-      currentLcr = lcrResult.lcr;
-      hqla = lcrResult.hqla;
-      currentNetOutflows = lcrResult.netOutflows;
-    } catch (err) {
-      this.logger.warn(
-        `LCR lookup failed for institution ${institutionId}: ${err}`,
-      );
+    if (
+      !lcrResult ||
+      lcrResult.lcr === null ||
+      lcrResult.hqla === null ||
+      lcrResult.netOutflows === null
+    ) {
+      return {
+        currentLcr: null,
+        projectedLcr: null,
+        hqla: null,
+        currentNetOutflows: null,
+        apProjected30Day: Math.round(apProjected30Day * 100) / 100,
+        delta: null,
+        alertLevel: 'DATA_UNAVAILABLE',
+        quarterlyAPTotal: Math.round(quarterlyAPTotal * 100) / 100,
+        vsLastQuarter,
+      };
     }
+
+    const currentLcr = lcrResult.lcr;
+    const hqla = lcrResult.hqla;
+    const currentNetOutflows = lcrResult.netOutflows;
 
     // 5. Calculate projected LCR = hqla / (netOutflows + projectedAP)
     // Note: hqla and netOutflows from ALM are in millions; apProjected30Day is in dollars

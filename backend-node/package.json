@@ -23,7 +23,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:status": "bash ./scripts/prisma-migrate-safe.sh status",
     "prisma:deploy": "bash ./scripts/prisma-migrate-safe.sh apply",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "seed:institution": "npx ts-node scripts/seed-institution.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.79.0",

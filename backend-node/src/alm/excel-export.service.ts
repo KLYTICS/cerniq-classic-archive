@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AlmEnterpriseService } from './alm-enterprise.service';
+import { DataGap, mergeGaps } from './reports/data-gap';
 
 /** Round to n decimal places with NaN guard */
 function round(value: number, decimals: number): number {
@@ -66,6 +67,14 @@ export class ExcelExportService {
   ): string {
     const sheets: string[] = [];
 
+    // D1 (2026-04-07): the Gaps sheet is the gate. Reviewers reading the
+    // Excel export should look at this sheet first — if it has any CRITICAL
+    // entries, the workbook should not be shipped to a board or regulator.
+    // Other sheets render `DATA UNAVAILABLE` for the affected cells, but
+    // this is the canonical manifest that names every missing input.
+    const allGaps: DataGap[] = mergeGaps(summary?.gaps, cossec?.gaps);
+
+    sheets.push(this.buildGapsSheet(allGaps));
     sheets.push(this.buildExecutiveSummarySheet(summary, institutionId));
     sheets.push(this.buildCOSSECSheet(cossec));
     sheets.push(this.buildBalanceSheetSheet(balanceSheetItems));
@@ -108,6 +117,72 @@ export class ExcelExportService {
     ].join('\n');
   }
 
+  // ─── Sheet 0: Data Gaps (D1, 2026-04-07) ────────────────────────
+  //
+  // The first sheet a reviewer should look at. Lists every CRITICAL and
+  // WARNING gap surfaced by the ALM summary and COSSEC compliance calls.
+  // If `gaps.length === 0`, the sheet is just a header that says "no
+  // gaps detected" — that's the green-light state for shipping.
+
+  private buildGapsSheet(gaps: DataGap[]): string {
+    const rows: string[] = [];
+
+    rows.push(this.xmlRow([this.xmlStringCell('Data Gaps Manifest', 'title')]));
+    rows.push(this.xmlRow([]));
+
+    if (gaps.length === 0) {
+      rows.push(
+        this.xmlRow([
+          this.xmlStringCell(
+            'No data gaps detected. Every numeric field on the other sheets is backed by real data. This workbook is safe to ship.',
+            'pass',
+          ),
+        ]),
+      );
+      return this.wrapSheet('Data Gaps', rows);
+    }
+
+    const criticalCount = gaps.filter((g) => g.severity === 'CRITICAL').length;
+    const warningCount = gaps.filter((g) => g.severity === 'WARNING').length;
+
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell(
+          criticalCount > 0
+            ? `WARNING: ${criticalCount} CRITICAL gaps + ${warningCount} warnings. Do NOT ship this workbook to a board or regulator until the CRITICAL gaps are resolved.`
+            : `${warningCount} WARNINGS — review before shipping.`,
+          criticalCount > 0 ? 'fail' : 'warn',
+        ),
+      ]),
+    );
+    rows.push(this.xmlRow([]));
+
+    rows.push(
+      this.xmlRow([
+        this.xmlStringCell('Severity', 'header'),
+        this.xmlStringCell('Field', 'header'),
+        this.xmlStringCell('Reason', 'header'),
+        this.xmlStringCell('Action', 'header'),
+      ]),
+    );
+
+    for (const gap of gaps) {
+      rows.push(
+        this.xmlRow([
+          this.xmlStringCell(
+            gap.severity,
+            gap.severity === 'CRITICAL' ? 'fail' : 'warn',
+          ),
+          this.xmlStringCell(gap.field),
+          this.xmlStringCell(gap.reason),
+          this.xmlStringCell(gap.action ?? ''),
+        ]),
+      );
+    }
+
+    return this.wrapSheet('Data Gaps', rows);
+  }
+
   // ─── Sheet 1: Executive Summary ─────────────────────────────────
 
   private buildExecutiveSummarySheet(
@@ -131,8 +206,7 @@ export class ExcelExportService {
     );
     rows.push(this.xmlRow([])); // blank row
 
-    // Risk Score
-    const riskScore = summary?.riskScore ?? 'N/A';
+    // Risk Score. D1 (2026-04-07): nullable when LCR is data_unavailable.
     rows.push(
       this.xmlRow([
         this.xmlStringCell('Risk Score', 'header'),
@@ -142,7 +216,7 @@ export class ExcelExportService {
     rows.push(
       this.xmlRow([
         this.xmlStringCell('Overall Risk Score (0-100)'),
-        this.xmlNumberCell(riskScore),
+        this.xmlMaybeNumberCell(summary?.riskScore),
       ]),
     );
     rows.push(this.xmlRow([]));
@@ -181,7 +255,9 @@ export class ExcelExportService {
     );
     rows.push(this.xmlRow([]));
 
-    // Liquidity
+    // Liquidity. D1 (2026-04-07): use xmlMaybeNumberCell for the LCR fields
+    // so missing data renders as DATA UNAVAILABLE instead of phantom 0.
+    // The status string communicates the same thing in the Status row.
     rows.push(
       this.xmlRow([
         this.xmlStringCell('Liquidity', 'header'),
@@ -192,19 +268,19 @@ export class ExcelExportService {
     rows.push(
       this.xmlRow([
         this.xmlStringCell('LCR (%)'),
-        this.xmlNumberCell(liq?.lcr ?? 0),
+        this.xmlMaybeNumberCell(liq?.lcr),
       ]),
     );
     rows.push(
       this.xmlRow([
         this.xmlStringCell('HQLA ($M)'),
-        this.xmlNumberCell(liq?.hqla ?? 0),
+        this.xmlMaybeNumberCell(liq?.hqla),
       ]),
     );
     rows.push(
       this.xmlRow([
         this.xmlStringCell('Net Outflows ($M)'),
-        this.xmlNumberCell(liq?.netOutflows ?? 0),
+        this.xmlMaybeNumberCell(liq?.netOutflows),
       ]),
     );
     rows.push(
@@ -470,6 +546,23 @@ export class ExcelExportService {
     const style = styleId ? ` ss:StyleID="${styleId}"` : ' ss:StyleID="number"';
     const num = Number.isFinite(value) ? value : 0;
     return `<Cell${style}><Data ss:Type="Number">${num}</Data></Cell>`;
+  }
+
+  /**
+   * D1 (2026-04-07): nullable number cell. When the input is null/undefined,
+   * renders as the string `DATA UNAVAILABLE` instead of a phantom 0. Use this
+   * for any field that may be data_unavailable from the underlying ALM
+   * service. The presenter is the last line of defense against silent zeros.
+   */
+  private xmlMaybeNumberCell(
+    value: number | null | undefined,
+    styleId?: string,
+  ): string {
+    if (value === null || value === undefined || !Number.isFinite(value)) {
+      return this.xmlStringCell('DATA UNAVAILABLE');
+    }
+    const style = styleId ? ` ss:StyleID="${styleId}"` : ' ss:StyleID="number"';
+    return `<Cell${style}><Data ss:Type="Number">${value}</Data></Cell>`;
   }
 
   private xmlRow(cells: string[]): string {

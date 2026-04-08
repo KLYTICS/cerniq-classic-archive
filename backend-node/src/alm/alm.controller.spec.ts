@@ -113,26 +113,33 @@ describe('AlmController — Core Revenue Path', () => {
     liquidityAdvanced = {};
     concentration = {};
 
-    // Build args array matching constructor parameter count
+    // Build args array matching constructor parameter count.
+    //
+    // Phase 1 (2026-04-07): InstitutionSeedService at position 6.
+    // Phase 2 batch 4 (2026-04-07): ReportPreflightService inserted at
+    // position 4 (between reportsService and workspaceOnboarding).
+    // Every downstream slot is shifted by the cumulative offset of those
+    // two insertions. See docs/SESSION_HANDOFF.md §3 for the controller cursor.
     const paramCount = AlmController.length || 90;
     const args: any[] = Array.from({ length: paramCount }, () => mockSvc());
-    // Slot known services into the correct constructor positions
     args[0] = mockSvc(); // almService
     args[1] = enterprise;
     args[2] = stressTesting;
     args[3] = reportsService;
-    args[4] = workspaceOnboarding;
-    args[5] = csvIngestion;
-    args[6] = analysisRuns;
-    args[7] = ingestionLogs;
-    args[8] = complianceCalendar;
-    args[9] = scenarioPersistence;
-    args[10] = yieldCurve;
-    args[11] = cecl;
-    args[12] = ftp;
-    args[13] = depositBeta;
-    args[14] = liquidityAdvanced;
-    args[15] = concentration;
+    args[4] = mockSvc(); // reportPreflight (Phase 2 batch 4 — central preflight API)
+    args[5] = workspaceOnboarding;
+    args[6] = mockSvc(); // institutionSeed (Phase 1 — the idempotent seeder)
+    args[7] = csvIngestion;
+    args[8] = analysisRuns;
+    args[9] = ingestionLogs;
+    args[10] = complianceCalendar;
+    args[11] = scenarioPersistence;
+    args[12] = yieldCurve;
+    args[13] = cecl;
+    args[14] = ftp;
+    args[15] = depositBeta;
+    args[16] = liquidityAdvanced;
+    args[17] = concentration;
     controller = new (AlmController as any)(...args);
   });
 

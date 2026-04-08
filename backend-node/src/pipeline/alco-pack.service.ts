@@ -9,6 +9,10 @@ import {
   StressTestResult,
 } from '../alm/stress-testing/stress-testing.service';
 import { PrismaService } from '../prisma.service';
+import {
+  createReportFormatter,
+  inferMoneyScale,
+} from '../alm/reports/report-formatting';
 
 const PDFDocument = require('pdfkit');
 
@@ -80,8 +84,25 @@ export class AlcoPackService {
 
       const isEs = lang === 'es';
       const t = (es: string, en: string) => (isEs ? es : en);
-      const fmtM = (v: number) => `$${(v || 0).toFixed(1)}M`;
-      const fmtPct = (v: number) => `${(v || 0).toFixed(1)}%`;
+      const formatter = createReportFormatter(isEs ? 'es' : 'en', {
+        moneyScale: inferMoneyScale([
+          institution?.totalAssets,
+          summary?.institution?.totalAssets,
+          cossec?.summary?.totalAssets,
+          summary?.liquidity?.hqla,
+          summary?.liquidity?.netOutflows,
+        ]),
+      });
+      // D1: nullable fmtM. Renders `—` for missing inputs (D1 contract). The
+      // `|| 0` collapse pattern is exactly what we're killing — it would
+      // silently print "$0.0M" for a missing field.
+      const fmtM = (v: number | null | undefined) =>
+        v === null || v === undefined ? '—' : formatter.money(v);
+      // D1: nullable fmtPct so missing fields render as `—` instead of `0.0%`.
+      // The presenter is the last line of defense — silent zero here would
+      // sneak past the gap manifest. Always render `—` when input is null.
+      const fmtPct = (v: number | null | undefined) =>
+        v === null || v === undefined ? '—' : `${v.toFixed(1)}%`;
       const PW = 612;
       const ML = 60;
       const MR = 60;
@@ -500,20 +521,28 @@ export class AlcoPackService {
               ? 'warning'
               : 'fail',
         ],
+        // D1: when LCR is null (data unavailable), render as DATA UNAVAILABLE
+        // and route to neutral status. The presenter no longer pretends a
+        // missing input is a "fail" — that signal would conflict with the
+        // gap manifest the user is meant to see at the top of the report.
         [
           'LCR (Basel III)',
           fmtPct(summary.liquidity.lcr),
           '>= 100%',
-          summary.liquidity.lcr >= 120
-            ? 'PASS'
-            : summary.liquidity.lcr >= 100
-              ? 'WARN'
-              : 'FAIL',
-          summary.liquidity.lcr >= 120
-            ? 'pass'
-            : summary.liquidity.lcr >= 100
-              ? 'warning'
-              : 'fail',
+          summary.liquidity.lcr === null
+            ? 'DATA UNAVAILABLE'
+            : summary.liquidity.lcr >= 120
+              ? 'PASS'
+              : summary.liquidity.lcr >= 100
+                ? 'WARN'
+                : 'FAIL',
+          summary.liquidity.lcr === null
+            ? 'info'
+            : summary.liquidity.lcr >= 120
+              ? 'pass'
+              : summary.liquidity.lcr >= 100
+                ? 'warning'
+                : 'fail',
         ],
         [
           t('Margen de Interes Neto', 'Net Interest Margin'),
@@ -831,8 +860,15 @@ export class AlcoPackService {
       drawFooter();
 
       const liq = summary.liquidity;
-      const lcrColor =
-        liq.status === 'compliant'
+      // D1: when liquidity is data_unavailable, render the LCR page with an
+      // explicit DATA UNAVAILABLE big-number panel + a banner directing the
+      // user to the gap manifest. Never paint the green/amber/red traffic
+      // light on phantom data.
+      const isLcrUnavailable =
+        liq.status === 'data_unavailable' || liq.lcr === null;
+      const lcrColor = isLcrUnavailable
+        ? '#64748B'
+        : liq.status === 'compliant'
           ? '#16A34A'
           : liq.status === 'warning'
             ? '#D97706'
@@ -844,18 +880,23 @@ export class AlcoPackService {
       doc
         .fill(lcrColor)
         .font('Helvetica-Bold')
-        .fontSize(48)
-        .text(`${liq.lcr.toFixed(0)}%`, ML + 15, y + 10, {
-          width: 150,
-          align: 'center',
-        });
+        .fontSize(isLcrUnavailable ? 16 : 48)
+        .text(
+          isLcrUnavailable || liq.lcr === null
+            ? t('DATOS NO DISPONIBLES', 'DATA UNAVAILABLE')
+            : `${liq.lcr.toFixed(0)}%`,
+          ML + 15,
+          y + (isLcrUnavailable ? 35 : 10),
+          { width: 150, align: 'center' },
+        );
       doc
         .fill('#475569')
         .font('Helvetica-Bold')
         .fontSize(12)
         .text('LCR', ML + 15, y + 65, { width: 150, align: 'center' });
-      const lcrStatusText =
-        liq.status === 'compliant'
+      const lcrStatusText = isLcrUnavailable
+        ? t('SIN DATOS', 'NO DATA')
+        : liq.status === 'compliant'
           ? t('CUMPLE', 'COMPLIANT')
           : liq.status === 'warning'
             ? t('ALERTA', 'WARNING')
@@ -872,7 +913,9 @@ export class AlcoPackService {
         [t('Flujos Netos', 'Net Outflows'), fmtM(liq.netOutflows)],
         [
           t('Amortiguador', 'Buffer vs 100%'),
-          `${liq.buffer > 0 ? '+' : ''}${liq.buffer.toFixed(1)}%`,
+          liq.buffer === null
+            ? '—'
+            : `${liq.buffer > 0 ? '+' : ''}${liq.buffer.toFixed(1)}%`,
         ],
         [t('Requisito Basilea III', 'Basel III Requirement'), '>= 100%'],
         [t('Meta CERNIQ', 'CERNIQ Target'), '>= 120%'],
@@ -893,7 +936,10 @@ export class AlcoPackService {
 
       y += 120;
 
-      // Visual gauge bar for LCR
+      // Visual gauge bar for LCR. When LCR is unavailable, draw an empty
+      // grey bar with a label instead of a phantom-zero red bar — that
+      // would tell the regulator the cooperativa is in breach when it
+      // actually means we just don't have data.
       doc
         .fill('#1B3A6B')
         .font('Helvetica-Bold')
@@ -901,8 +947,13 @@ export class AlcoPackService {
         .text(t('NIVEL LCR', 'LCR LEVEL'), ML, y);
       y += 16;
       doc.rect(ML, y, CW, 22).fill('#E2E8F0');
-      const lcrBarW = Math.min(CW, Math.max(10, (liq.lcr / 200) * CW));
-      doc.rect(ML, y, lcrBarW, 22).fill(lcrColor);
+      const lcrBarW =
+        liq.lcr === null
+          ? 0
+          : Math.min(CW, Math.max(10, (liq.lcr / 200) * CW));
+      if (lcrBarW > 0) {
+        doc.rect(ML, y, lcrBarW, 22).fill(lcrColor);
+      }
       // Threshold markers
       const mark100 = (100 / 200) * CW;
       const mark120 = (120 / 200) * CW;

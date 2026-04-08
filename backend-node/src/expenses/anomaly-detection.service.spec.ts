@@ -269,11 +269,18 @@ describe('AnomalyDetectionService', () => {
 
   // ── calculateApLcrImpact — edge cases ────────────────────────
 
-  it('calculateApLcrImpact handles LCR lookup failure gracefully', async () => {
+  // D1 (2026-04-07): the previous expectation here was `currentLcr === 0`,
+  // codifying the silent zero. New contract: when LCR cannot be looked up,
+  // every numeric field is null and `alertLevel === 'DATA_UNAVAILABLE'`.
+  it('calculateApLcrImpact returns DATA_UNAVAILABLE when LCR lookup fails', async () => {
     mockPrisma.expense.findMany.mockResolvedValue([{ amount: 10000 }]);
     mockAlmEnterprise.calculateLCR.mockRejectedValue(new Error('LCR unavailable'));
     const result = await service.calculateApLcrImpact('org-1', 'inst-1');
-    expect(result.currentLcr).toBe(0);
+    expect(result.currentLcr).toBeNull();
+    expect(result.projectedLcr).toBeNull();
+    expect(result.hqla).toBeNull();
+    expect(result.delta).toBeNull();
+    expect(result.alertLevel).toBe('DATA_UNAVAILABLE');
   });
 
   it('calculateApLcrImpact computes vsLastQuarter', async () => {

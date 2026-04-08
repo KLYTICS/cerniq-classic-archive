@@ -100,13 +100,58 @@ describe('ExcelExportService', () => {
       expect(xml).toContain('<Workbook');
     });
 
-    it('should include all four worksheet tabs', async () => {
+    it('should include all worksheet tabs (Data Gaps + 4 content sheets)', async () => {
       const result = await service.exportToExcel('inst_001');
       const xml = result.toString('utf-8');
+      // D1 (2026-04-07): Data Gaps sheet is the first tab — reviewers
+      // open the workbook and see the gap manifest immediately. If it has
+      // any CRITICAL entries, the workbook should not be shipped.
+      expect(xml).toContain('ss:Name="Data Gaps"');
       expect(xml).toContain('ss:Name="Executive Summary"');
       expect(xml).toContain('ss:Name="COSSEC Ratios"');
       expect(xml).toContain('ss:Name="Balance Sheet"');
       expect(xml).toContain('ss:Name="NII Sensitivity"');
+    });
+
+    it('Data Gaps sheet shows green-light message when no gaps detected', async () => {
+      const xml = (await service.exportToExcel('inst_001')).toString('utf-8');
+      expect(xml).toContain('No data gaps detected');
+    });
+
+    it('renders DATA UNAVAILABLE for nullable LCR fields when liquidity is data_unavailable', async () => {
+      // D1: when ALMSummary returns data_unavailable LCR + a CRITICAL gap,
+      // the Excel cells use xmlMaybeNumberCell to render DATA UNAVAILABLE
+      // instead of phantom 0, AND the Data Gaps sheet surfaces the gap.
+      almEnterprise.getALMSummary.mockResolvedValueOnce({
+        institution: { name: 'Empty CU', reportingDate: '2026-01-01T00:00:00Z' },
+        riskScore: null,
+        durationGap: { assetDuration: 1, liabilityDuration: 1, durationGap: 0, riskProfile: 'neutral' },
+        liquidity: {
+          lcr: null,
+          hqla: null,
+          netOutflows: null,
+          status: 'data_unavailable',
+          buffer: null,
+        },
+        topRisks: [],
+        recommendations: [],
+        gaps: [
+          {
+            field: 'liquidity.lcr',
+            reason: 'NO_LIQUIDITY_POSITION',
+            severity: 'CRITICAL',
+            action: 'Upload liquidity data',
+          },
+        ],
+      });
+
+      const xml = (await service.exportToExcel('inst_002')).toString('utf-8');
+      // Data Gaps sheet surfaces the CRITICAL entry verbatim.
+      expect(xml).toContain('CRITICAL');
+      expect(xml).toContain('NO_LIQUIDITY_POSITION');
+      expect(xml).toContain('Do NOT ship');
+      // Executive Summary sheet renders DATA UNAVAILABLE for the LCR cell.
+      expect(xml).toContain('DATA UNAVAILABLE');
     });
 
     it('should include institution name in Executive Summary', async () => {

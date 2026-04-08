@@ -31,6 +31,7 @@ import { AuthModule } from './auth/auth.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { JobsModule } from './jobs/jobs.module';
 import { AlmModule } from './alm/alm.module';
+import { ActionsModule } from './actions/actions.module';
 import { EmailModule } from './email/email.module';
 import { LeadsModule } from './leads/leads.module';
 import { BillingModule } from './billing/billing.module';
@@ -96,6 +97,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     AnalyticsModule,
     // Data pipeline
     JobsModule,
+    // Phase 3: action registry — enterprise actions across the whole app
+    ActionsModule,
     // Asset Liability Management
     AlmModule,
     // Email notifications

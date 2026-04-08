@@ -435,14 +435,38 @@ describe('AlmEnterpriseService', () => {
       expect(result).toHaveProperty('status');
     });
 
-    it('returns breach with lcr=0 when fullAnalysis returns no LCR', async () => {
+    // D1 (2026-04-07): the previous behavior of this method was to silently
+    // return `{lcr: 0, status: 'breach'}` when no liquidity row existed and
+    // fullAnalysis couldn't derive LCR. That was the codebase's smoking gun
+    // — a regulator reading a CerniQ report with `lcr: 0, status: 'breach'`
+    // would conclude the cooperativa was in regulatory breach when the
+    // actual situation was "no data has been loaded yet". The new contract
+    // is asserted below.
+    it('returns data_unavailable with a CRITICAL gap when no LCR can be computed', async () => {
       mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue(null);
       mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
       mockAlmService.fullAnalysis.mockReturnValue({ lcr: null });
 
       const result = await service.calculateLCR('inst-1');
-      expect(result.lcr).toBe(0);
-      expect(result.status).toBe('breach');
+
+      // Numeric fields are null — never the silent zero of the old contract.
+      expect(result.lcr).toBeNull();
+      expect(result.hqla).toBeNull();
+      expect(result.netOutflows).toBeNull();
+      expect(result.buffer).toBeNull();
+
+      // Status communicates "we have no number" not "we computed a 0".
+      expect(result.status).toBe('data_unavailable');
+
+      // Gap manifest carries the canonical statement of what's missing.
+      expect(result.gaps).toBeDefined();
+      expect(result.gaps).toHaveLength(1);
+      expect(result.gaps![0]).toMatchObject({
+        field: 'liquidity.lcr',
+        reason: 'NO_LIQUIDITY_POSITION',
+        severity: 'CRITICAL',
+      });
+      expect(result.gaps![0].action).toMatch(/upload.*liquidity/i);
     });
   });
 
@@ -655,7 +679,43 @@ describe('AlmEnterpriseService', () => {
         liquidityPositions: [],
         primaryRegulator: 'COSSEC',
       });
-      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([]);
+      // D1: getCOSSECCompliance now refuses to compute on an empty balance
+      // sheet (returns the data_unavailable shell). The trend tests below
+      // need real ratios to trend on, so provide a minimal balance sheet
+      // here. Empty-balance-sheet behavior is asserted in its own spec
+      // below.
+      mockPrisma.balanceSheetItem.findMany.mockResolvedValue([
+        {
+          id: 'bsi-1',
+          category: 'asset',
+          subcategory: 'consumer_loans',
+          name: 'Loans',
+          balance: 60,
+          rate: 0.085,
+          duration: 3,
+          rateType: 'fixed',
+        },
+        {
+          id: 'bsi-2',
+          category: 'asset',
+          subcategory: 'cash_equivalents',
+          name: 'Cash',
+          balance: 10,
+          rate: 0.05,
+          duration: 0.1,
+          rateType: 'variable',
+        },
+        {
+          id: 'bsi-3',
+          category: 'liability',
+          subcategory: 'savings_deposits',
+          name: 'Savings',
+          balance: 50,
+          rate: 0.0175,
+          duration: 0.3,
+          rateType: 'variable',
+        },
+      ]);
       mockPrisma.liquidityPosition.findFirst = jest.fn().mockResolvedValue(null);
     });
 

@@ -24,20 +24,32 @@ describe('PeerAnalyticsService', () => {
     expect(result.metrics).toHaveLength(6);
   });
 
-  it('each metric should have percentile rank 0-100', async () => {
+  it('each metric percentileRank is 0-100 OR null when data unavailable', async () => {
     const result = await service.getPeerAnalytics('inst-1');
     for (const m of result.metrics) {
+      if (m.percentileRank === null) {
+        expect(m.status).toBe('data_unavailable');
+        expect(m.institutionValue).toBeNull();
+        continue;
+      }
       expect(m.percentileRank).toBeGreaterThanOrEqual(0);
       expect(m.percentileRank).toBeLessThanOrEqual(100);
     }
   });
 
-  it('NIM demo default should be around 3.5', async () => {
+  // D1 (2026-04-07): the previous expectation was that NIM defaulted to a
+  // hardcoded 3.5 when no balance sheet items existed. That literal 3.5
+  // was then ranked against peer benchmarks and presented as institutional
+  // performance — a phantom comparison. New contract: empty BS → NIM is
+  // null + status 'data_unavailable'.
+  it('NIM is null with status data_unavailable when balance sheet is empty', async () => {
     const result = await service.getPeerAnalytics('inst-1');
     const nim = result.metrics.find((m) =>
       m.metricName.includes('Net Interest Margin'),
     );
-    expect(nim!.institutionValue).toBeCloseTo(3.5, 1);
+    expect(nim!.institutionValue).toBeNull();
+    expect(nim!.status).toBe('data_unavailable');
+    expect(nim!.percentileRank).toBeNull();
   });
 
   it('small tier for < $50M assets', async () => {
@@ -66,8 +78,12 @@ describe('PeerAnalyticsService', () => {
     expect(result.peerGroupName).toContain('>');
   });
 
-  // ── null institution defaults to medium tier ────────────────
-  it('defaults to medium tier when institution is null', async () => {
+  // D1 (2026-04-07): the previous behavior fell back to $200M (medium tier)
+  // when institution.totalAssets was missing. That phantom tier
+  // determined which peer benchmarks the institution was compared
+  // against — a phantom comparison. New contract: missing institution OR
+  // missing totalAssets → data_unavailable + CRITICAL gap.
+  it('returns data_unavailable + CRITICAL gap when institution is null', async () => {
     const nullPrisma = {
       institution: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -76,32 +92,54 @@ describe('PeerAnalyticsService', () => {
     } as any;
     const svc = new PeerAnalyticsService(nullPrisma);
     const result = await svc.getPeerAnalytics('inst-1');
-    // totalAssets defaults to 200, which is medium
-    expect(result.assetTier).toBe('medium');
+    expect(result.overallStatus).toBe('data_unavailable');
+    expect(result.assetTier).toBe('unknown');
+    expect(result.metrics).toEqual([]);
+    expect(result.gaps).toBeDefined();
+    expect(result.gaps![0].field).toBe('peer.institution');
+    expect(result.gaps![0].severity).toBe('CRITICAL');
   });
 
   // ── percentile rank boundaries ──────────────────────────────
   describe('percentile rank computation', () => {
-    it('assigns top_quartile status for percentile >= 75', async () => {
-      // NIM = 4.5 should be top quartile for medium tier (p75 = 4.2)
+    it('assigns top_quartile status for high NIM (computed from real BS items)', async () => {
+      // D1 (2026-04-07): need real balance sheet items for NIM to be
+      // non-null. Provide a high-NIM institution and verify the rank
+      // lands in the top quartile.
       const highNimPrisma = {
         institution: {
           findUnique: jest.fn().mockResolvedValue({ totalAssets: 200 }),
         },
-        balanceSheetItem: { findMany: jest.fn().mockResolvedValue([]) },
+        balanceSheetItem: {
+          findMany: jest.fn().mockResolvedValue([
+            // Assets: $200M at 7% yield = $14M income
+            { category: 'asset', subcategory: 'loans', balance: 200, rate: 0.07 },
+            // Liabs: $150M at 1% cost = $1.5M expense
+            // NIM = (14 - 1.5) / 200 * 100 = 6.25% — top quartile for medium tier (p75=4.2)
+            { category: 'liability', subcategory: 'deposits', balance: 150, rate: 0.01 },
+          ]),
+        },
       } as any;
       const svc = new PeerAnalyticsService(highNimPrisma);
-      // Override default metrics by checking result
       const result = await svc.getPeerAnalytics('inst-1');
-      const nim = result.metrics.find(m => m.metricName.includes('Net Interest Margin'));
-      // Default NIM is 3.5 for medium tier, p50 = 3.6, so should be around 50th percentile
-      expect(nim!.percentileRank).toBeGreaterThanOrEqual(0);
+      const nim = result.metrics.find((m) =>
+        m.metricName.includes('Net Interest Margin'),
+      );
+      expect(nim!.percentileRank).not.toBeNull();
+      expect(nim!.percentileRank!).toBeGreaterThanOrEqual(75);
+      expect(nim!.status).toBe('top_quartile');
     });
 
     it('assigns bottom_quartile status for very low values', async () => {
       const result = await service.getPeerAnalytics('inst-1');
-      // Check that status mapping is consistent
+      // Check that status mapping is consistent. D1 (2026-04-07): metrics
+      // with null percentileRank get status 'data_unavailable' instead of
+      // a quartile bucket.
       for (const m of result.metrics) {
+        if (m.percentileRank === null) {
+          expect(m.status).toBe('data_unavailable');
+          continue;
+        }
         if (m.percentileRank >= 75) expect(m.status).toBe('top_quartile');
         else if (m.percentileRank >= 50) expect(m.status).toBe('above_median');
         else if (m.percentileRank >= 25) expect(m.status).toBe('below_median');
@@ -109,10 +147,11 @@ describe('PeerAnalyticsService', () => {
       }
     });
 
-    it('returns 0 percentile for value below min', async () => {
-      // This tests the clamp at 0 in computePercentileRank
+    it('returns 0 percentile for value below min (or null when unavailable)', async () => {
+      // This tests the clamp at 0 in computePercentileRank.
       const result = await service.getPeerAnalytics('inst-1');
       for (const m of result.metrics) {
+        if (m.percentileRank === null) continue;
         expect(m.percentileRank).toBeGreaterThanOrEqual(0);
         expect(m.percentileRank).toBeLessThanOrEqual(100);
       }
@@ -120,22 +159,36 @@ describe('PeerAnalyticsService', () => {
   });
 
   // ── "lower is better" metrics ───────────────────────────────
-  describe('lower-is-better metrics', () => {
-    it('EVE_Sensitivity has inverted percentile (lower value = higher rank)', async () => {
+  // D1 (2026-04-07): EVE_Sensitivity, Deposit_Beta, LCR, and CECL_Coverage
+  // are NOT YET wired to real sources — they return null + a WARNING gap
+  // naming the source they should come from. The previous behavior
+  // hardcoded these to literal numbers (15.2, 0.18, 115, 1.3) and ranked
+  // institutions against peers using the literals. The tests below now
+  // assert that those metrics are explicitly null until wired in.
+  describe('lower-is-better metrics (currently unwired)', () => {
+    it('EVE_Sensitivity is null + WARNING gap until DurationService is wired', async () => {
       const result = await service.getPeerAnalytics('inst-1');
-      const eve = result.metrics.find(m => m.metricName.includes('EVE Sensitivity'));
+      const eve = result.metrics.find((m) =>
+        m.metricName.includes('EVE Sensitivity'),
+      );
       expect(eve).toBeDefined();
-      // Default EVE_Sensitivity = 15.2, medium tier range min=3 max=40
-      // For lower-is-better, value is inverted. Percentile should be valid 0-100
-      expect(eve!.percentileRank).toBeGreaterThanOrEqual(0);
-      expect(eve!.percentileRank).toBeLessThanOrEqual(100);
+      expect(eve!.institutionValue).toBeNull();
+      expect(eve!.percentileRank).toBeNull();
+      expect(eve!.status).toBe('data_unavailable');
+      expect(
+        result.gaps?.some((g) => g.field === 'peer.metrics.EVE_Sensitivity'),
+      ).toBe(true);
     });
 
-    it('Deposit_Beta has inverted percentile', async () => {
+    it('Deposit_Beta is null + WARNING gap until DepositBetaService is wired', async () => {
       const result = await service.getPeerAnalytics('inst-1');
-      const beta = result.metrics.find(m => m.metricName.includes('Deposit Beta'));
+      const beta = result.metrics.find((m) =>
+        m.metricName.includes('Deposit Beta'),
+      );
       expect(beta).toBeDefined();
-      expect(beta!.percentileRank).toBeGreaterThanOrEqual(0);
+      expect(beta!.institutionValue).toBeNull();
+      expect(beta!.percentileRank).toBeNull();
+      expect(beta!.status).toBe('data_unavailable');
     });
   });
 

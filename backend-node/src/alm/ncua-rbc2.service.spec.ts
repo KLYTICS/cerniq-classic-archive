@@ -57,7 +57,12 @@ describe('NCUARBC2Service', () => {
     expect(result.surplus).toBeGreaterThan(0);
   });
 
-  it('handles empty balance sheet with fallback values', async () => {
+  // D1 (2026-04-07): the previous expectation here was that empty balance
+  // sheet would silently fall back to a hardcoded $445M institution size
+  // and produce a "valid" RBC2 filing. That was a regulatory exposure —
+  // filing RBC2 against phantom data is legally identical to lying to NCUA.
+  // New contract: empty balance sheet → data_unavailable result + CRITICAL gap.
+  it('refuses to compute RBC2 on empty balance sheet, returns data_unavailable + CRITICAL gap', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([]);
     prisma.institution.findUnique.mockResolvedValue({
       id: 'inst_1',
@@ -65,9 +70,46 @@ describe('NCUARBC2Service', () => {
     });
 
     const result = await service.computeRBC2('inst_1');
-    expect(result.totalRiskWeightedAssets).toBeGreaterThanOrEqual(0);
-    expect(result.components).toBeDefined();
-    expect(Array.isArray(result.components)).toBe(true);
+
+    // Numeric fields are null — never the silent zero of the old contract.
+    expect(result.totalRiskWeightedAssets).toBeNull();
+    expect(result.netWorth).toBeNull();
+    expect(result.riskBasedCapitalRatio).toBeNull();
+    expect(result.surplus).toBeNull();
+
+    // Status communicates "no data" not "computed and well-capitalized".
+    expect(result.overallStatus).toBe('data_unavailable');
+    expect(result.isWellCapitalized).toBe(false);
+    expect(result.components).toEqual([]);
+
+    // Gap manifest carries the canonical statement.
+    expect(result.gaps).toBeDefined();
+    expect(result.gaps).toHaveLength(1);
+    expect(result.gaps![0]).toMatchObject({
+      field: 'rbc2.balanceSheet',
+      reason: 'EMPTY_BALANCE_SHEET',
+      severity: 'CRITICAL',
+    });
+
+    // Narrative explicitly says the report could not be computed.
+    expect(result.narrativeEn).toMatch(/cannot be computed|missing/i);
+    expect(result.narrativeEs).toMatch(/no se puede calcular|insuficientes/i);
+  });
+
+  it('always carries a WARNING gap for the hardcoded duration component', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', subcategory: 'cash', balance: 100 },
+      { category: 'liability', subcategory: 'deposits', balance: 80 },
+    ]);
+    prisma.institution.findUnique.mockResolvedValue(null);
+
+    const result = await service.computeRBC2('inst_1');
+    expect(result.gaps).toBeDefined();
+    const irrGap = result.gaps!.find(
+      (g) => g.field === 'rbc2.irrCharge.durationGap',
+    );
+    expect(irrGap).toBeDefined();
+    expect(irrGap!.severity).toBe('WARNING');
   });
 
   it('components array includes IRR and concentration charges', async () => {

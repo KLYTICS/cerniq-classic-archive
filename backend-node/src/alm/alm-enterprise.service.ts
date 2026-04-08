@@ -14,11 +14,34 @@ import {
 } from './benchmarks/pr-cooperativa-benchmarks';
 import { getFramework, IRegulatoryFramework } from './frameworks';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
+import { DataGap, dataGap, mergeGaps } from './reports/data-gap';
 
 /** Round to n decimal places */
 function round(value: number, decimals: number): number {
   const factor = Math.pow(10, decimals);
   return Math.round(value * factor) / factor;
+}
+
+function asNumber(value: unknown): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    'toNumber' in value &&
+    typeof (value as { toNumber?: unknown }).toNumber === 'function'
+  ) {
+    const parsed = (value as { toNumber: () => number }).toNumber();
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 export interface DurationGapSummary {
@@ -45,12 +68,21 @@ export interface NIISensitivityResult {
   riskRating: 'low' | 'moderate' | 'high' | 'critical';
 }
 
+/**
+ * LCR summary. Locked decision D1 (2026-04-07): when liquidity inputs are
+ * missing, numeric fields are `null` (not 0) and `status` is `'data_unavailable'`.
+ * The `gaps[]` array enumerates exactly what's missing. Callers MUST handle
+ * the null case explicitly — that's the whole point of the contract: a real
+ * zero LCR (cooperativa actually in breach) is semantically distinct from
+ * "we don't have the data yet".
+ */
 export interface LCRSummary {
-  lcr: number;
-  hqla: number;
-  netOutflows: number;
-  status: 'compliant' | 'warning' | 'breach';
-  buffer: number;
+  lcr: number | null;
+  hqla: number | null;
+  netOutflows: number | null;
+  status: 'compliant' | 'warning' | 'breach' | 'data_unavailable';
+  buffer: number | null;
+  gaps?: DataGap[];
 }
 
 export interface COSSECCheck {
@@ -68,11 +100,17 @@ export interface CossecRatioResult {
   id: number;
   name: string;
   nameEs: string;
+  /**
+   * Numeric value of the ratio. When `status === 'data_unavailable'`, this
+   * field is `0` as a sentinel — but that 0 is **not** a real value. Callers
+   * MUST check `status` (or the parent `gaps[]` manifest) before rendering.
+   * D1 (2026-04-07).
+   */
   value: number;
   unit: string;
   threshold: string;
   thresholdDirection: 'gte' | 'lte' | 'range' | 'info';
-  status: 'pass' | 'warning' | 'fail' | 'info';
+  status: 'pass' | 'warning' | 'fail' | 'info' | 'data_unavailable';
   description: string;
   descriptionEs: string;
   examReadinessContribution: number;
@@ -88,7 +126,14 @@ export interface COSSECComplianceResult {
   checks: COSSECCheck[];
   ratios: CossecRatioResult[];
   examReadinessScore: number;
-  overallStatus: 'compliant' | 'conditional' | 'non-compliant';
+  overallStatus: 'compliant' | 'conditional' | 'non-compliant' | 'data_unavailable';
+  /**
+   * Populated when input data is incomplete (e.g. empty balance sheet). When
+   * any CRITICAL gap is present, `checks`/`ratios` are empty and the summary
+   * fields are zero — but the `data_unavailable` status communicates that
+   * those zeros are NOT real numbers. See `data-gap.ts` for the contract.
+   */
+  gaps?: DataGap[];
   summary: {
     totalAssets: number;
     totalLiabilities: number;
@@ -142,12 +187,26 @@ export interface ALMSummaryResult {
   liquidity: LCRSummary;
   topRisks: string[];
   recommendations: string[];
-  riskScore: number;
+  /**
+   * Composite 0-100 risk score (40% duration gap + 35% NII + 25% LCR). Null
+   * when any input component carries a CRITICAL gap — a partial score is
+   * more misleading than no score, so the presenter renders `—` and points
+   * the user at `gaps[]` instead. D1 (2026-04-07).
+   */
+  riskScore: number | null;
   fullAnalysis: FullAnalysisResult;
   /** Duration/convexity analytics from DurationService (MP-QUANT-02) */
   durationConvexity?: PortfolioDurationMetrics | null;
   /** EVE sensitivity with convexity adjustment across rate shocks */
   eveSensitivity?: EVESensitivityPoint[] | null;
+  /**
+   * Top-level gap manifest aggregated from every sub-calculation. When this
+   * array contains any `CRITICAL` gap, the report should not be shipped to
+   * regulators or boards — see `hasCriticalGap()` in `data-gap.ts`. The UI
+   * surfaces these as a banner above the report and as `—` markers in the
+   * affected cells. Locked decision D1 (2026-04-07).
+   */
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -393,18 +452,21 @@ export class AlmEnterpriseService {
     }
 
     const toInstrument = (item: (typeof items)[0]): InstrumentDto => {
+      const balance = asNumber(item.balance);
+      const rate = asNumber(item.rate);
+      const duration = asNumber(item.duration);
       const maturityYears = item.maturityDate
         ? Math.max(
             0,
             (item.maturityDate.getTime() - Date.now()) /
               (365.25 * 24 * 3600 * 1000),
           )
-        : item.duration; // use duration as proxy for maturity if no date
+        : duration; // use duration as proxy for maturity if no date
 
       return {
         name: item.name,
-        amount: item.balance * 1_000_000, // balance is in millions, AlmService expects dollars
-        rate: item.rate,
+        amount: balance * 1_000_000, // balance is in millions, AlmService expects dollars
+        rate,
         maturityYears: round(maturityYears, 2),
         isFloating: item.rateType === 'variable',
         repricingFrequencyMonths:
@@ -576,20 +638,20 @@ export class AlmEnterpriseService {
     });
 
     if (latestPosition) {
-      const hqla = latestPosition.hqlaLevel1 + latestPosition.hqlaLevel2;
-      const netOutflows =
-        latestPosition.cashOutflows - latestPosition.cashInflows;
+      const hqlaLevel1 = asNumber(latestPosition.hqlaLevel1);
+      const hqlaLevel2 = asNumber(latestPosition.hqlaLevel2);
+      const cashOutflows = asNumber(latestPosition.cashOutflows);
+      const cashInflows = asNumber(latestPosition.cashInflows);
+      const lcrValue = asNumber(latestPosition.lcr);
+      const hqla = hqlaLevel1 + hqlaLevel2;
+      const netOutflows = cashOutflows - cashInflows;
       return {
-        lcr: round(latestPosition.lcr, 2),
+        lcr: round(lcrValue, 2),
         hqla: round(hqla, 2),
         netOutflows: round(netOutflows, 2),
         status:
-          latestPosition.lcr >= 100
-            ? 'compliant'
-            : latestPosition.lcr >= 90
-              ? 'warning'
-              : 'breach',
-        buffer: round(latestPosition.lcr - 100, 2),
+          lcrValue >= 100 ? 'compliant' : lcrValue >= 90 ? 'warning' : 'breach',
+        buffer: round(lcrValue - 100, 2),
       };
     }
 
@@ -598,12 +660,30 @@ export class AlmEnterpriseService {
     const lcrResult = this.almService.fullAnalysis(bs).lcr;
 
     if (!lcrResult) {
+      // D1 (2026-04-07): never silently substitute zero. A real cooperativa
+      // with no liquidity row + insufficient balance sheet to derive LCR is
+      // semantically distinct from "lcr === 0". Emit a CRITICAL gap so the
+      // orchestrator (`getALMSummary`) and downstream presenters render the
+      // field as `DATA UNAVAILABLE` instead of "breach".
+      this.logger.warn({
+        event: 'lcr_data_unavailable',
+        institutionId,
+        reason: 'NO_LIQUIDITY_POSITION and balance-sheet derivation insufficient',
+      });
       return {
-        lcr: 0,
-        hqla: 0,
-        netOutflows: 0,
-        status: 'breach',
-        buffer: -100,
+        lcr: null,
+        hqla: null,
+        netOutflows: null,
+        status: 'data_unavailable',
+        buffer: null,
+        gaps: [
+          dataGap('liquidity.lcr', 'NO_LIQUIDITY_POSITION', {
+            severity: 'CRITICAL',
+            action:
+              'Upload a liquidity_positions row for this institution, or load enough balance sheet detail (HQLA + cash flows) for the system to derive LCR.',
+            context: { institutionId },
+          }),
+        ],
       };
     }
 
@@ -618,6 +698,57 @@ export class AlmEnterpriseService {
 
   // ─── COSSEC Compliance — Full 12-Ratio Engine ─────────────────
 
+  /**
+   * Build the structured `data_unavailable` shell returned by `getCOSSECCompliance`
+   * when the institution has no balance sheet items. The numeric summary fields
+   * are zero by necessity (the type doesn't admit null), but `overallStatus`
+   * is `'data_unavailable'` and the `gaps[]` array carries a CRITICAL gap so
+   * callers can branch on the manifest, not on phantom zeros.
+   */
+  private cossecDataUnavailableResult(
+    institution: { name: string; type: string; reportingDate: Date | string },
+  ): COSSECComplianceResult {
+    const reportingDate =
+      institution.reportingDate instanceof Date
+        ? institution.reportingDate.toISOString()
+        : String(institution.reportingDate);
+    return {
+      institutionName: institution.name,
+      institutionType: institution.type,
+      reportingDate,
+      checks: [],
+      ratios: [],
+      examReadinessScore: 0,
+      overallStatus: 'data_unavailable',
+      gaps: [
+        dataGap('cossec.balanceSheet', 'EMPTY_BALANCE_SHEET', {
+          severity: 'CRITICAL',
+          action:
+            'Upload balance sheet items (assets and liabilities) for this institution before running COSSEC compliance.',
+        }),
+      ],
+      summary: {
+        totalAssets: 0,
+        totalLiabilities: 0,
+        equity: 0,
+        totalLoans: 0,
+        totalShares: 0,
+        liquidAssets: 0,
+        capitalRatio: 0,
+        loanToShareRatio: 0,
+        liquidityRatio: 0,
+        earningAssets: 0,
+        interestIncome: 0,
+        interestExpense: 0,
+        nim: 0,
+        earningAssetsYield: 0,
+        costOfFunds: 0,
+        largestSectorPct: 0,
+        largestSectorName: '',
+      },
+    };
+  }
+
   async getCOSSECCompliance(
     institutionId: string,
   ): Promise<COSSECComplianceResult> {
@@ -625,6 +756,22 @@ export class AlmEnterpriseService {
     const items = await this.prisma.balanceSheetItem.findMany({
       where: { institutionId },
     });
+
+    // D1 (2026-04-07): refuse to compute the 12-ratio engine on an empty
+    // balance sheet. The previous implementation .reduce()'d to zero across
+    // every aggregation, producing a `COSSECComplianceResult` where every
+    // ratio was 0 — a regulator reading that report would conclude the
+    // cooperativa was insolvent. Emit a CRITICAL gap and return a structured
+    // `data_unavailable` shell so callers can render explicit DATA UNAVAILABLE
+    // markers instead of phantom zeros.
+    if (items.length === 0) {
+      this.logger.warn({
+        event: 'cossec_data_unavailable',
+        institutionId,
+        reason: 'EMPTY_BALANCE_SHEET',
+      });
+      return this.cossecDataUnavailableResult(institution);
+    }
 
     // ── Aggregate balance sheet ──
     const assetItems = items.filter((i: any) => i.category === 'asset');
@@ -920,22 +1067,45 @@ export class AlmEnterpriseService {
         true,
       ),
 
-      this.buildRatio(
-        9,
-        'LCR (Basel III)',
-        'LCR (Basilea III)',
-        lcr.lcr,
-        '%',
-        '>= 100%',
-        'gte',
-        lcr.lcr >= 120 ? 'pass' : lcr.lcr >= 100 ? 'warning' : 'fail',
-        `HQLA/Net outflows: ${round(lcr.lcr, 1)}%. Required: 100%. Target: 120%+.`,
-        `HQLA/Flujos netos: ${round(lcr.lcr, 1)}%. Requerido: 100%. Meta: 120%+.`,
-        5,
-        b.lcr,
-        lcr.lcr,
-        false,
-      ),
+      // Ratio #9 — LCR. When `lcr.lcr` is null (no liquidity data), emit a
+      // `data_unavailable` ratio shape so the array stays length-12 for
+      // downstream consumers, but the status communicates "not a real number".
+      // The parent COSSECComplianceResult.gaps array carries the canonical gap.
+      lcr.lcr === null
+        ? ({
+            id: 9,
+            name: 'LCR (Basel III)',
+            nameEs: 'LCR (Basilea III)',
+            value: 0, // sentinel — see status + parent gaps
+            unit: '%',
+            threshold: '>= 100%',
+            thresholdDirection: 'gte',
+            status: 'data_unavailable',
+            description:
+              'LCR cannot be calculated — liquidity inputs missing. See gaps manifest.',
+            descriptionEs:
+              'LCR no se puede calcular — faltan datos de liquidez. Ver manifiesto de brechas.',
+            examReadinessContribution: 0,
+            sectorMedian: null,
+            percentileRank: null,
+            percentileRankEs: null,
+          } as CossecRatioResult)
+        : this.buildRatio(
+            9,
+            'LCR (Basel III)',
+            'LCR (Basilea III)',
+            lcr.lcr,
+            '%',
+            '>= 100%',
+            'gte',
+            lcr.lcr >= 120 ? 'pass' : lcr.lcr >= 100 ? 'warning' : 'fail',
+            `HQLA/Net outflows: ${round(lcr.lcr, 1)}%. Required: 100%. Target: 120%+.`,
+            `HQLA/Flujos netos: ${round(lcr.lcr, 1)}%. Requerido: 100%. Meta: 120%+.`,
+            5,
+            b.lcr,
+            lcr.lcr,
+            false,
+          ),
 
       this.buildRatio(
         10,
@@ -994,9 +1164,10 @@ export class AlmEnterpriseService {
       .filter((r) => r.status === 'pass')
       .reduce((s, r) => s + r.examReadinessContribution, 0);
 
-    // Legacy checks (backward compat with old 4-check code)
+    // Legacy checks (backward compat with old 4-check code). Filter out both
+    // 'info' and 'data_unavailable' — these aren't real pass/warn/fail signals.
     const checks: COSSECCheck[] = ratios
-      .filter((r) => r.status !== 'info')
+      .filter((r) => r.status !== 'info' && r.status !== 'data_unavailable')
       .slice(0, 9)
       .map((r) => ({
         name: r.name,
@@ -1004,16 +1175,29 @@ export class AlmEnterpriseService {
         value: round(r.value, 2),
         threshold: parseFloat(r.threshold.replace(/[^0-9.-]/g, '')) || 0,
         unit: r.unit,
-        status: r.status === 'info' ? 'pass' : r.status,
+        // After the filter above, status is narrowed to pass | warning | fail.
+        status: r.status as 'pass' | 'warning' | 'fail',
         description: r.description,
         descriptionEs: r.descriptionEs,
       }));
 
-    const overallStatus = ratios.some((r) => r.status === 'fail')
-      ? 'non-compliant'
-      : ratios.some((r) => r.status === 'warning')
-        ? 'conditional'
-        : 'compliant';
+    // D1: a single CRITICAL data_unavailable ratio downgrades the WHOLE
+    // overall status to data_unavailable, even if other ratios pass. We do
+    // not want a presenter to render "compliant" overall while one ratio is
+    // missing — that's exactly the silent-zero failure mode.
+    const overallStatus: COSSECComplianceResult['overallStatus'] = ratios.some(
+      (r) => r.status === 'data_unavailable',
+    )
+      ? 'data_unavailable'
+      : ratios.some((r) => r.status === 'fail')
+        ? 'non-compliant'
+        : ratios.some((r) => r.status === 'warning')
+          ? 'conditional'
+          : 'compliant';
+
+    // Aggregate gaps from sub-calculations (currently just LCR; future:
+    // duration, NII, COSSEC-specific data shortfalls all flow through here).
+    const cossecGaps = mergeGaps(lcr.gaps);
 
     return {
       institutionName: institution.name,
@@ -1023,6 +1207,7 @@ export class AlmEnterpriseService {
       ratios,
       examReadinessScore,
       overallStatus,
+      ...(cossecGaps.length > 0 && { gaps: cossecGaps }),
       summary: {
         totalAssets,
         totalLiabilities,
@@ -1544,9 +1729,10 @@ export class AlmEnterpriseService {
       .filter((r) => r.status === 'pass')
       .reduce((s, r) => s + r.examReadinessContribution, 0);
 
-    // Legacy checks (backward compat)
+    // Legacy checks (backward compat). Filter info + data_unavailable —
+    // mirrors getCOSSECCompliance() above. See D1 in SESSION_HANDOFF.md §1.
     const checks: COSSECCheck[] = ratios
-      .filter((r) => r.status !== 'info')
+      .filter((r) => r.status !== 'info' && r.status !== 'data_unavailable')
       .slice(0, 9)
       .map((r) => ({
         name: r.name,
@@ -1554,16 +1740,20 @@ export class AlmEnterpriseService {
         value: round(r.value, 2),
         threshold: parseFloat(r.threshold.replace(/[^0-9.-]/g, '')) || 0,
         unit: r.unit,
-        status: r.status === 'info' ? 'pass' : r.status,
+        status: r.status as 'pass' | 'warning' | 'fail',
         description: r.description,
         descriptionEs: r.descriptionEs,
       }));
 
-    const overallStatus = ratios.some((r) => r.status === 'fail')
-      ? 'non-compliant'
-      : ratios.some((r) => r.status === 'warning')
-        ? 'conditional'
-        : 'compliant';
+    const overallStatus: COSSECComplianceResult['overallStatus'] = ratios.some(
+      (r) => r.status === 'data_unavailable',
+    )
+      ? 'data_unavailable'
+      : ratios.some((r) => r.status === 'fail')
+        ? 'non-compliant'
+        : ratios.some((r) => r.status === 'warning')
+          ? 'conditional'
+          : 'compliant';
 
     return {
       institutionName: institution.name,
@@ -1634,15 +1824,18 @@ export class AlmEnterpriseService {
     }
 
     // ─── Risk Score (0-100) ───
-    // Duration gap: 40% weight, NII sensitivity: 35%, LCR: 25%
+    // Duration gap: 40% weight, NII sensitivity: 35%, LCR: 25%. If any
+    // component score is null (data unavailable), the overall score is null
+    // too — partial scores are more misleading than no score, and the gaps
+    // manifest below tells the user exactly what's missing. D1 (2026-04-07).
     const durationGapScore = this.scoreDurationGap(durationGap.durationGap);
     const niiScore = this.scoreNII(niiSensitivity);
     const lcrScore = this.scoreLCR(liquidity.lcr);
 
-    const riskScore = round(
-      durationGapScore * 0.4 + niiScore * 0.35 + lcrScore * 0.25,
-      0,
-    );
+    const riskScore: number | null =
+      lcrScore === null
+        ? null
+        : round(durationGapScore * 0.4 + niiScore * 0.35 + lcrScore * 0.25, 0);
 
     // ─── Top Risks ───
     const topRisks = this.identifyTopRisks(
@@ -1657,6 +1850,13 @@ export class AlmEnterpriseService {
       niiSensitivity,
       liquidity,
     );
+
+    // ─── Gap manifest ───
+    // Aggregate every gap surfaced by sub-calculations into a single top-level
+    // array. Presenters use `hasCriticalGap(result.gaps)` to gate downloads
+    // and render the warning banner. New report-producing sub-calls should
+    // also populate `.gaps` and be added here.
+    const gaps = mergeGaps(liquidity.gaps);
 
     // Save computed scenarios to DB
     await this.persistScenarios(institutionId, niiSensitivity, fullAnalysis);
@@ -1679,6 +1879,7 @@ export class AlmEnterpriseService {
       fullAnalysis,
       durationConvexity,
       eveSensitivity,
+      ...(gaps.length > 0 && { gaps }),
     };
   }
 
@@ -1710,7 +1911,14 @@ export class AlmEnterpriseService {
   }
 
   /** Score LCR (0=worst, 100=best). >=100% is good. */
-  private scoreLCR(lcr: number): number {
+  /**
+   * Score the LCR ratio 0-100 (higher = better). Returns null when the LCR
+   * itself is unknown — the caller (`getALMSummary`) treats null as "this
+   * component cannot contribute to the weighted risk score" and propagates
+   * a null overall score rather than averaging in a phantom value.
+   */
+  private scoreLCR(lcr: number | null): number | null {
+    if (lcr === null) return null;
     if (lcr >= 150) return 95;
     if (lcr >= 120) return 85;
     if (lcr >= 100) return 70;
@@ -1745,9 +1953,13 @@ export class AlmEnterpriseService {
       );
     }
 
-    if (lcr.status === 'breach') {
+    if (lcr.status === 'data_unavailable') {
+      risks.push(
+        'LCR cannot be assessed — liquidity inputs missing (see gaps manifest)',
+      );
+    } else if (lcr.status === 'breach' && lcr.lcr !== null) {
       risks.push(`LCR below Basel III minimum (${lcr.lcr}% vs 100% required)`);
-    } else if (lcr.status === 'warning') {
+    } else if (lcr.status === 'warning' && lcr.lcr !== null) {
       risks.push(`LCR near minimum threshold (${lcr.lcr}%) — limited buffer`);
     }
 
@@ -1790,15 +2002,25 @@ export class AlmEnterpriseService {
       );
     }
 
-    if (lcr.buffer < 20 && lcr.status !== 'breach') {
+    if (lcr.status === 'data_unavailable') {
       recs.push(
-        'Build HQLA buffer — target LCR above 120% for adequate cushion',
+        'Upload a current liquidity_positions row so LCR can be calculated and recommendations made',
       );
-    }
-    if (lcr.status === 'breach') {
-      recs.push(
-        'URGENT: Increase HQLA holdings immediately to meet Basel III LCR requirement',
-      );
+    } else {
+      if (
+        lcr.buffer !== null &&
+        lcr.buffer < 20 &&
+        lcr.status !== 'breach'
+      ) {
+        recs.push(
+          'Build HQLA buffer — target LCR above 120% for adequate cushion',
+        );
+      }
+      if (lcr.status === 'breach') {
+        recs.push(
+          'URGENT: Increase HQLA holdings immediately to meet Basel III LCR requirement',
+        );
+      }
     }
 
     if (recs.length === 0) {

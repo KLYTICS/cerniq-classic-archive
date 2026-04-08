@@ -112,7 +112,9 @@ describe('CustomScenarioService', () => {
       rateShiftBps: 100,
       depositRunoff: 20,
     });
-    expect(withRunoff.lcrImpact).toBeLessThan(noRunoff.lcrImpact);
+    expect(noRunoff.lcrImpact).not.toBeNull();
+    expect(withRunoff.lcrImpact).not.toBeNull();
+    expect(withRunoff.lcrImpact!).toBeLessThan(noRunoff.lcrImpact!);
   });
 
   it('loan default increase impacts capital', async () => {
@@ -126,7 +128,9 @@ describe('CustomScenarioService', () => {
       rateShiftBps: 0,
       loanDefaultIncrease: 10,
     });
-    expect(withDefaults.capitalImpact).toBeLessThan(noDefaults.capitalImpact);
+    expect(noDefaults.capitalImpact).not.toBeNull();
+    expect(withDefaults.capitalImpact).not.toBeNull();
+    expect(withDefaults.capitalImpact!).toBeLessThan(noDefaults.capitalImpact!);
   });
 
   it('throws BadRequestException when institution data unavailable', async () => {
@@ -238,7 +242,9 @@ describe('CustomScenarioService', () => {
       rateShiftBps: -200,
       prepaymentMultiplier: 2.5,
     });
-    expect(highPrepay.niiImpact).toBeLessThan(noPrepay.niiImpact);
+    expect(noPrepay.niiImpact).not.toBeNull();
+    expect(highPrepay.niiImpact).not.toBeNull();
+    expect(highPrepay.niiImpact!).toBeLessThan(noPrepay.niiImpact!);
   });
 
   it('narrative contains scenario name and shock description', async () => {
@@ -263,6 +269,74 @@ describe('CustomScenarioService', () => {
       name: 'High',
       rateShiftBps: 250,
     });
-    expect(high.lcrImpact).toBeLessThan(low.lcrImpact);
+    expect(low.lcrImpact).not.toBeNull();
+    expect(high.lcrImpact).not.toBeNull();
+    expect(high.lcrImpact!).toBeLessThan(low.lcrImpact!);
+  });
+
+  // D1 (2026-04-07): when COSSEC compliance reports data_unavailable,
+  // the custom scenario refuses to compute and returns structured null
+  // impacts + a CRITICAL gap. Previously the `?? 0` chain would coerce
+  // missing data to zero and produce phantom scenarios.
+  it('returns data_unavailable when COSSEC inputs are missing', async () => {
+    almEnterprise.getCOSSECCompliance.mockResolvedValueOnce({
+      summary: {
+        totalAssets: 0,
+        totalLoans: 0,
+        totalShares: 0,
+        capitalRatio: 0,
+      },
+      overallStatus: 'data_unavailable',
+      gaps: [
+        {
+          field: 'cossec.balanceSheet',
+          reason: 'EMPTY_BALANCE_SHEET',
+          severity: 'CRITICAL',
+        },
+      ],
+    });
+
+    const result = await service.runCustomScenario('inst-1', {
+      name: 'Should Not Compute',
+      rateShiftBps: 100,
+    });
+
+    expect(result.overallStatus).toBe('data_unavailable');
+    expect(result.niiImpact).toBeNull();
+    expect(result.eveChange).toBeNull();
+    expect(result.lcrImpact).toBeNull();
+    expect(result.capitalImpact).toBeNull();
+    expect(result.gaps).toBeDefined();
+    expect(
+      result.gaps!.some((g) => g.field === 'customScenario.cossec'),
+    ).toBe(true);
+  });
+
+  it('returns data_unavailable when LCR is null', async () => {
+    almEnterprise.calculateLCR.mockResolvedValueOnce({
+      lcr: null,
+      hqla: null,
+      netOutflows: null,
+      status: 'data_unavailable',
+      buffer: null,
+      gaps: [
+        {
+          field: 'liquidity.lcr',
+          reason: 'NO_LIQUIDITY_POSITION',
+          severity: 'CRITICAL',
+        },
+      ],
+    });
+
+    const result = await service.runCustomScenario('inst-1', {
+      name: 'Should Not Compute',
+      rateShiftBps: 100,
+    });
+
+    expect(result.overallStatus).toBe('data_unavailable');
+    expect(result.lcrImpact).toBeNull();
+    expect(
+      result.gaps!.some((g) => g.field === 'customScenario.lcr'),
+    ).toBe(true);
   });
 });

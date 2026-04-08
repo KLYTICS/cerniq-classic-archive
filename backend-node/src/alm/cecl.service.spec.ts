@@ -323,10 +323,23 @@ describe('CECLService', () => {
 
   // ── getCECLAnalysis: routing by methodology ────────────────
   describe('getCECLAnalysis', () => {
-    it('uses demo segments when no segments exist', async () => {
+    // D1 (2026-04-07): the previous behavior fell back to DEMO segments
+    // when an institution had no loan segments configured, producing a
+    // real-looking CECL allowance computed against fake demo data — a
+    // worse failure than silent zero. New contract: empty segments →
+    // data_unavailable shell + CRITICAL gap.
+    it('refuses to compute CECL on missing loan segments, returns data_unavailable + CRITICAL gap', async () => {
       const result = await svc.getCECLAnalysis('inst-1');
-      expect(result.methodology).toBe('WARM');
-      expect(result.segments.length).toBeGreaterThan(0);
+      expect(result.overallStatus).toBe('data_unavailable');
+      expect(result.segments).toEqual([]);
+      expect(result.totalAllowance).toBe(0);
+      expect(result.gaps).toBeDefined();
+      expect(result.gaps).toHaveLength(1);
+      expect(result.gaps![0]).toMatchObject({
+        field: 'cecl.segments',
+        reason: 'EMPTY_BALANCE_SHEET',
+        severity: 'CRITICAL',
+      });
     });
 
     it('routes to vintage method when specified', async () => {

@@ -48,6 +48,14 @@ export interface CECLSegmentResult {
   coverageRatio: number; // allowance / balance
 }
 
+/**
+ * CECL summary. D1 (2026-04-07): when no segments are provided (or all
+ * segment balances are zero), the result reports `overallStatus: 'data_unavailable'`
+ * and the `gaps[]` manifest carries a CRITICAL entry. The previous behavior
+ * was to return `{totalBalance: 0, totalAllowance: 0}` — a "valid" zero
+ * CECL allowance for an institution with no loan data. That zero would
+ * appear on the audit pack as a measured zero, not as missing data.
+ */
 export interface CECLSummary {
   totalBalance: number;
   totalAllowance: number;
@@ -60,6 +68,8 @@ export interface CECLSummary {
     severelyAdverse: number;
     weighted: number;
   };
+  overallStatus?: 'computed' | 'data_unavailable';
+  gaps?: import('./reports/data-gap').DataGap[];
 }
 
 export interface CECLForecast {
@@ -153,6 +163,18 @@ export class CECLService {
       discountRate?: number;
     }>,
   ): CECLSummary {
+    // D1 (2026-04-07): refuse to compute CECL on empty segments. Returning
+    // a "valid" zero allowance for an institution with no loan data is
+    // exactly the silent-failure pattern that surfaces on audit packs as
+    // a measured zero. Surface a CRITICAL gap instead.
+    if (segments.length === 0 || segments.every((s) => !s.balance)) {
+      this.logger.warn({
+        event: 'cecl_data_unavailable',
+        methodology: 'WARM',
+        reason: 'EMPTY_SEGMENTS',
+      });
+      return this.dataUnavailableSummary('WARM', 'no segments provided');
+    }
     const results: CECLSegmentResult[] = segments.map((rawSeg) => {
       const seg = this.validateSegment(rawSeg);
       const adjRate = seg.historicalLossRate + seg.qualitativeAdj;
@@ -194,6 +216,35 @@ export class CECLService {
         totalBalance > 0 ? totalAllowance / totalBalance : 0,
       methodology: 'WARM',
       segments: results,
+      overallStatus: 'computed',
+    };
+  }
+
+  /**
+   * Build the structured `data_unavailable` shell returned when no segments
+   * are provided. The numeric fields are zero by necessity (the type doesn't
+   * admit null), but `overallStatus === 'data_unavailable'` and the gap
+   * manifest mean callers can tell phantom zero from measured zero.
+   */
+  private dataUnavailableSummary(
+    methodology: string,
+    reason: string,
+  ): CECLSummary {
+    return {
+      totalBalance: 0,
+      totalAllowance: 0,
+      weightedCoverageRatio: 0,
+      methodology,
+      segments: [],
+      overallStatus: 'data_unavailable',
+      gaps: [
+        {
+          field: 'cecl.segments',
+          reason: 'EMPTY_BALANCE_SHEET',
+          severity: 'CRITICAL',
+          action: `Provide loan segments (consumer, mortgage, commercial, etc.) before computing the CECL allowance under ${methodology}. ${reason}.`,
+        },
+      ],
     };
   }
 
@@ -210,6 +261,14 @@ export class CECLService {
       discountRate?: number;
     }>,
   ): CECLSummary {
+    if (segments.length === 0 || segments.every((s) => !s.balance)) {
+      this.logger.warn({
+        event: 'cecl_data_unavailable',
+        methodology: 'Vintage',
+        reason: 'EMPTY_SEGMENTS',
+      });
+      return this.dataUnavailableSummary('Vintage', 'no segments provided');
+    }
     const results: CECLSegmentResult[] = segments.map((rawSeg) => {
       const seg = this.validateSegment(rawSeg);
       // Vintage: cumulative loss curve based on age
@@ -260,6 +319,7 @@ export class CECLService {
         totalBalance > 0 ? totalAllowance / totalBalance : 0,
       methodology: 'Vintage',
       segments: results,
+      overallStatus: 'computed',
     };
   }
 
@@ -276,6 +336,14 @@ export class CECLService {
       discountRate?: number;
     }>,
   ): CECLSummary {
+    if (segments.length === 0 || segments.every((s) => !s.balance)) {
+      this.logger.warn({
+        event: 'cecl_data_unavailable',
+        methodology: 'PDxLGD',
+        reason: 'EMPTY_SEGMENTS',
+      });
+      return this.dataUnavailableSummary('PDxLGD', 'no segments provided');
+    }
     const scenarioResults: Record<string, CECLSegmentResult[]> = {};
     const scenarioTotals: Record<string, number> = {};
 
@@ -348,6 +416,7 @@ export class CECLService {
         severelyAdverse: scenarioTotals.severely_adverse,
         weighted: weightedAllowance,
       },
+      overallStatus: 'computed',
     };
   }
 
@@ -362,9 +431,21 @@ export class CECLService {
       orderBy: { balance: 'desc' },
     });
 
+    // D1 (2026-04-07): the previous behavior fell back to DEMO segments
+    // and produced a real-looking CECL allowance against fake data — a
+    // worse failure mode than silent zero. Now we refuse and surface a
+    // CRITICAL gap. Demo segments are still available via getDemoSegments()
+    // for explicit demo paths, but never as a silent substitute.
     if (segments.length === 0) {
-      // Return demo segments
-      return this.calculateWARM(this.getDemoSegments());
+      this.logger.warn({
+        event: 'cecl_data_unavailable',
+        institutionId,
+        reason: 'NO_LOAN_SEGMENTS',
+      });
+      return this.dataUnavailableSummary(
+        methodology ?? 'WARM',
+        'institution has no loan segments configured',
+      );
     }
 
     const segmentData = segments.map((s: any) => ({

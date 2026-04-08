@@ -19,7 +19,10 @@ import { AlmService } from './alm.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
 import { ReportsService } from './reports/reports.service';
+import { ReportPreflightService } from './reports/report-preflight.service';
 import { WorkspaceOnboardingService } from './workspace-onboarding.service';
+import { InstitutionSeedService } from './institution-seed.service';
+import { listFixtures } from './data/fixtures';
 import { CSVIngestionService } from './csv-ingestion.service';
 import { AnalysisRunsService } from './analysis-runs.service';
 import { IngestionLogsService } from './ingestion-logs.service';
@@ -145,7 +148,9 @@ export class AlmController {
     private readonly almEnterprise: AlmEnterpriseService,
     private readonly stressTesting: StressTestingService,
     private readonly reportsService: ReportsService,
+    private readonly reportPreflight: ReportPreflightService,
     private readonly workspaceOnboarding: WorkspaceOnboardingService,
+    private readonly institutionSeed: InstitutionSeedService,
     private readonly csvIngestion: CSVIngestionService,
     private readonly analysisRuns: AnalysisRunsService,
     private readonly ingestionLogs: IngestionLogsService,
@@ -576,6 +581,56 @@ export class AlmController {
       `Seeding demo data: type=${body.type}, workspace=${body.workspaceId}`,
     );
     return this.workspaceOnboarding.seedDemoData(body.workspaceId, body.type);
+  }
+
+  // ─── Institution fixture seeding (Phase 1, idempotent, transactional) ──
+  // Re-running this endpoint with the same (workspaceId, fixtureKey) is a
+  // supported no-op — see docs/SESSION_HANDOFF.md for the pickup contract.
+
+  @Get('fixtures')
+  @UseGuards(AuthGuard)
+  async listInstitutionFixtures() {
+    return {
+      fixtures: listFixtures().map((f) => ({
+        seedKey: f.seedKey,
+        name: f.name,
+        type: f.type,
+        totalAssets: f.totalAssets,
+        currency: f.currency,
+        reportingDate: f.reportingDate,
+        itemCount: f.items.length,
+      })),
+    };
+  }
+
+  @Post('institutions/seed')
+  @UseGuards(AuthGuard)
+  async seedInstitutionFromFixture(
+    @Body()
+    body: {
+      workspaceId: string;
+      fixture: string;
+    },
+  ) {
+    if (!body?.workspaceId || !body?.fixture) {
+      throw new BadRequestException('workspaceId and fixture are required');
+    }
+    this.logger.log(
+      `seedInstitutionFromFixture: workspace=${body.workspaceId}, fixture=${body.fixture}`,
+    );
+    return this.institutionSeed.seedFromFixture(body.workspaceId, body.fixture);
+  }
+
+  // ─── Report preflight (Phase 2 batch 4, D4 2026-04-07) ──────────────
+  // Central "is this report safe to ship?" API. Returns unified gap manifest
+  // from every ALM sub-call plus ready: boolean. Frontends gate download
+  // buttons on ready === true; the action registry uses it as a precheck.
+
+  @Get(':institutionId/preflight')
+  @UseGuards(AuthGuard)
+  async preflightReport(@Param('institutionId') institutionId: string) {
+    this.logger.log(`Report preflight for institution ${institutionId}`);
+    return this.reportPreflight.check(institutionId);
   }
 
   // ─── FTP (Funds Transfer Pricing) ────────────────────────────────

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 
 // ─── NCUA Account Code → CERNIQ Subcategory Mapping ────────
 
@@ -95,6 +96,14 @@ export interface Form5300Field {
   schedule: string;
 }
 
+/**
+ * Form 5300 result. D1 (2026-04-07): when input data is incomplete or
+ * derived from fallback ratios, the `gaps[]` manifest enumerates exactly
+ * what's missing or estimated. NCUA 5300 is a regulator filing — never
+ * submit a form whose `gaps[]` contains a CRITICAL entry. Use
+ * `hasCriticalGap(result.gaps)` from `reports/data-gap.ts` to gate
+ * submission.
+ */
 export interface Form5300Result {
   institutionId: string;
   quarter: string;
@@ -114,6 +123,8 @@ export interface Form5300Result {
     totalShares: number;
     totalInvestments: number;
   };
+  overallStatus: 'ready_to_file' | 'needs_review' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -136,6 +147,46 @@ export class NCUA5300Service {
     const now = new Date();
     const q =
       quarter ?? `${now.getFullYear()}Q${Math.ceil((now.getMonth() + 1) / 3)}`;
+
+    // D1 (2026-04-07): refuse to generate Form 5300 on an empty balance
+    // sheet. The previous behavior produced a "valid" form with all-zero
+    // fields whose validation passed (zero == zero == zero balances). A
+    // 5300 is a regulator filing — submitting one with phantom zeros is a
+    // legal exposure. Surface a CRITICAL gap and return a structured
+    // data_unavailable shell so callers can render explicit DATA UNAVAILABLE
+    // before any submission.
+    if (items.length === 0) {
+      this.logger.warn({
+        event: 'form5300_data_unavailable',
+        institutionId,
+        reason: 'EMPTY_BALANCE_SHEET',
+      });
+      return {
+        institutionId,
+        quarter: q,
+        charterNumber: institution?.cossecRegistrationNumber ?? null,
+        fields: [],
+        validationResult: { valid: false, errors: [], warnings: [] },
+        summary: {
+          totalAssets: 0,
+          totalLiabilities: 0,
+          netWorth: 0,
+          netWorthRatio: 0,
+          totalLoans: 0,
+          totalShares: 0,
+          totalInvestments: 0,
+        },
+        overallStatus: 'data_unavailable',
+        gaps: [
+          dataGap('form5300.balanceSheet', 'EMPTY_BALANCE_SHEET', {
+            severity: 'CRITICAL',
+            action:
+              'Upload balance sheet items before generating Form 5300. Filing with phantom data is a regulatory exposure.',
+            context: { institutionId, quarter: q },
+          }),
+        ],
+      };
+    }
 
     // Map balance sheet items to 5300 fields
     const fields: Form5300Field[] = [];
@@ -220,7 +271,14 @@ export class NCUA5300Service {
       },
     );
 
-    // Run edit checks
+    // Run edit checks. KNOWN LIMITATION (2026-04-07): allowance and
+    // delinquentLoans are derived from sector-typical ratios (1.3% and 1.8%
+    // of total loans respectively). These should come from real allowance
+    // and delinquency tables. Surfaced as WARNING gaps below so reviewers
+    // and auditors see that two of the edit-check inputs are sector defaults,
+    // not measured values from this institution.
+    const allowance = totalLoans * 0.013;
+    const delinquentLoans = totalLoans * 0.018;
     const checkFields: Record<string, number> = {
       totalAssets,
       totalLiabilities,
@@ -228,8 +286,8 @@ export class NCUA5300Service {
       totalLoans,
       totalShares,
       totalInvestments,
-      allowance: totalLoans * 0.013,
-      delinquentLoans: totalLoans * 0.018,
+      allowance,
+      delinquentLoans,
       sumShareSubs:
         Array.from(liabBySub.values()).reduce((s, v) => s + v, 0) -
         (liabBySub.get('borrowings') ?? 0),
@@ -246,6 +304,27 @@ export class NCUA5300Service {
           warnings.push({ code: check.code, description: check.description });
       }
     }
+
+    // Surface WARNING gaps for the placeholder ratios so the reviewer and
+    // any audit reading the result knows allowance/delinquency are sector
+    // defaults, not measured values.
+    const gaps: DataGap[] = [
+      dataGap('form5300.allowance', 'CALCULATION_FAILED', {
+        severity: 'WARNING',
+        action:
+          'Wire a real allowance source into Form5300Service so EC-005 (allowance ≤ 15% of loans) uses measured data instead of the 1.3%-of-loans sector default.',
+        context: { hardcodedRatio: 0.013 },
+      }),
+      dataGap('form5300.delinquentLoans', 'CALCULATION_FAILED', {
+        severity: 'WARNING',
+        action:
+          'Wire a real delinquency source into Form5300Service so EC-020 (delinquency ≤ 6% of loans) uses measured data instead of the 1.8%-of-loans sector default.',
+        context: { hardcodedRatio: 0.018 },
+      }),
+    ];
+
+    const overallStatus: Form5300Result['overallStatus'] =
+      errors.length > 0 ? 'needs_review' : 'ready_to_file';
 
     return {
       institutionId,
@@ -265,6 +344,8 @@ export class NCUA5300Service {
         totalShares: Math.round(totalShares * 10) / 10,
         totalInvestments: Math.round(totalInvestments * 10) / 10,
       },
+      overallStatus,
+      gaps,
     };
   }
 }
