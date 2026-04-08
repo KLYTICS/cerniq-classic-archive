@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
+import AlmSelectionRequired from '@/components/alm/AlmSelectionRequired';
 import { useTranslation } from '@/lib/i18n';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Layers, AlertTriangle } from 'lucide-react';
+import { Layers } from 'lucide-react';
 
 interface OASResult {
   instrumentId: string; instrumentName: string; category: string; balance: number;
@@ -35,7 +36,7 @@ export default function OASPage() {
     })();
   }, [selectedId]);
 
-  if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
+  if (!selectedId) return <AlmSelectionRequired moduleLabel="OAS Analysis" />;
   if (loading || !data) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
 
   const spreadChart = data.instruments.map(i => ({

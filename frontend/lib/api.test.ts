@@ -81,10 +81,18 @@ describe('APIClient', () => {
     // Admin methods
     expect(typeof apiClient.getDemoRequests).toBe('function');
     expect(typeof apiClient.getAdminStats).toBe('function');
+    expect(typeof apiClient.getAdminControlTowerSummary).toBe('function');
+    expect(typeof apiClient.runAdminControlTowerAction).toBe('function');
     expect(typeof apiClient.getAdminOps).toBe('function');
     expect(typeof apiClient.getAdminPipeline).toBe('function');
+    expect(typeof apiClient.runAdminPipelineAction).toBe('function');
     expect(typeof apiClient.getAdminRevenueMetrics).toBe('function');
     expect(typeof apiClient.getAdminAuditLogs).toBe('function');
+    expect(typeof apiClient.getAdminLeads).toBe('function');
+    expect(typeof apiClient.getAdminLeadMetrics).toBe('function');
+    expect(typeof apiClient.updateAdminLead).toBe('function');
+    expect(typeof apiClient.addAdminLeadNote).toBe('function');
+    expect(typeof apiClient.markAdminReportSent).toBe('function');
     expect(typeof apiClient.getExitMetrics).toBe('function');
   });
 

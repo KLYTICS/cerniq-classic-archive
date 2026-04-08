@@ -6,10 +6,7 @@ describe('ControlTowerService', () => {
       demoRequest: { count: jest.fn().mockResolvedValue(5) },
       institution: { count: jest.fn().mockResolvedValue(3) },
       user: {
-        count: jest
-          .fn()
-          .mockResolvedValueOnce(10)
-          .mockResolvedValueOnce(2),
+        count: jest.fn().mockResolvedValueOnce(10).mockResolvedValueOnce(2),
       },
       prospectInstitution: { count: jest.fn().mockResolvedValue(7) },
       subscription: {
@@ -113,7 +110,7 @@ describe('ControlTowerService', () => {
 
     expect(result.stats.demoRequests).toBe(5);
     expect(result.revenue.activeSubscriptions).toBe(4);
-    expect(result.featureBridge).toHaveLength(4);
+    expect(result.featureBridge).toHaveLength(7);
     expect(result.nextActions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ domain: 'demo_seats' }),
@@ -162,5 +159,94 @@ describe('ControlTowerService', () => {
       staleOnly: true,
       trigger: 'control_tower',
     });
+  });
+
+  it('opens a portal cycle for a specific user when requested', async () => {
+    const create = jest.fn().mockResolvedValue({
+      id: 'job-new',
+      status: 'AWAITING_DATA',
+    });
+
+    const service = new ControlTowerService(
+      {
+        demoRequest: { count: jest.fn() },
+        institution: { count: jest.fn() },
+        user: { count: jest.fn() },
+        prospectInstitution: { count: jest.fn() },
+        subscription: { count: jest.fn() },
+        workspace: {
+          findFirst: jest.fn().mockResolvedValue({ name: 'Coop Workspace' }),
+        },
+        reportJob: {
+          count: jest.fn(),
+          findMany: jest.fn(),
+          findFirst: jest
+            .fn()
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null),
+          create,
+          update: jest.fn(),
+        },
+        auditLog: { count: jest.fn() },
+      } as any,
+      { getOverview: jest.fn(), refreshAccounts: jest.fn() } as any,
+      { listAdminDemoSeats: jest.fn(), sweepExpired: jest.fn() } as any,
+      { runPipeline: jest.fn() } as any,
+      { log: jest.fn() } as any,
+      { getSnapshot: jest.fn() } as any,
+    );
+
+    const result = await service.runAction('open_portal_cycle', {
+      userId: 'user-1',
+    });
+
+    expect(result.status).toBe('success');
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: 'user-1',
+          status: 'AWAITING_DATA',
+          triggeredBy: 'admin_control_tower',
+        }),
+      }),
+    );
+  });
+
+  it('retries a failed pipeline job when given a target job id', async () => {
+    const update = jest.fn().mockResolvedValue({ id: 'job-failed' });
+
+    const service = new ControlTowerService(
+      {
+        demoRequest: { count: jest.fn() },
+        institution: { count: jest.fn() },
+        user: { count: jest.fn() },
+        prospectInstitution: { count: jest.fn() },
+        subscription: { count: jest.fn() },
+        reportJob: {
+          count: jest.fn(),
+          findMany: jest.fn(),
+          findFirst: jest.fn(),
+          create: jest.fn(),
+          update,
+        },
+        auditLog: { count: jest.fn() },
+      } as any,
+      { getOverview: jest.fn(), refreshAccounts: jest.fn() } as any,
+      { listAdminDemoSeats: jest.fn(), sweepExpired: jest.fn() } as any,
+      { runPipeline: jest.fn() } as any,
+      { log: jest.fn() } as any,
+      { getSnapshot: jest.fn() } as any,
+    );
+
+    const result = await service.runAction('retry_pipeline_job', {
+      jobId: 'job-failed',
+    });
+
+    expect(result.status).toBe('success');
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'job-failed' },
+      }),
+    );
   });
 });

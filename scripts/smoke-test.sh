@@ -24,6 +24,9 @@ ADMIN_KEY="${ADMIN_KEY:-}"
 ALLOW_PRODUCTION_MUTATIONS="${ALLOW_PRODUCTION_MUTATIONS:-0}"
 TEST_EMAIL="${TEST_EMAIL:-smoke_$(date +%s)@cerniq-test.io}"
 TEST_PASS="${TEST_PASS:-SmokeTest_$(date +%s)!}"
+EXPORT_AUTH_EMAIL="${EXPORT_AUTH_EMAIL:-}"
+EXPORT_AUTH_PASS="${EXPORT_AUTH_PASS:-}"
+EXPORT_MANIFEST_PATH="${EXPORT_MANIFEST_PATH:-}"
 AUTH_TOKEN=""
 AUTH_BEARER_TOKEN=""
 AUTH_COOKIE_JAR=""
@@ -189,6 +192,7 @@ else
   echo "  Mode:    🧪 full smoke"
 fi
 [ -n "$ADMIN_KEY" ] && echo "  Admin:   ✅ ADMIN_KEY provided" || echo "  Admin:   ⚠️  ADMIN_KEY not set (admin tests skipped)"
+[ -n "$EXPORT_MANIFEST_PATH" ] && echo "  Export:  ✅ EXPORT_MANIFEST_PATH provided" || echo "  Export:  ⚠️  EXPORT_MANIFEST_PATH not set (authenticated export smoke skipped)"
 blue "══════════════════════════════════════════════════════════"
 echo ""
 
@@ -235,6 +239,9 @@ echo ""
 ADMIN_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$API/api/admin/stats" 2>/dev/null || echo "000")
 if is_auth_rejected "$ADMIN_CODE"; then green "GET /api/admin/stats (no key — correctly rejected)"; PASS=$((PASS+1));
 else red "GET /api/admin/stats (no key — should 401/403)" "$ADMIN_CODE"; FAIL=$((FAIL+1)); fi
+CONTROL_TOWER_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$API/admin/api/control-tower/summary" 2>/dev/null || echo "000")
+if is_auth_rejected "$CONTROL_TOWER_CODE"; then green "GET /admin/api/control-tower/summary (no key — correctly rejected)"; PASS=$((PASS+1));
+else red "GET /admin/api/control-tower/summary (no key — should 401/403)" "$CONTROL_TOWER_CODE"; FAIL=$((FAIL+1)); fi
 echo ""
 
 # ════════════════════════════════════════════
@@ -627,7 +634,71 @@ else
   ADMIN_GET "GET /api/admin/prospects"          "/api/admin/prospects"
   ADMIN_GET "GET /admin/api/leads"              "/admin/api/leads"
   ADMIN_GET "GET /admin/api/leads/metrics"      "/admin/api/leads/metrics"
+  ADMIN_GET "GET /admin/api/control-tower/summary" "/admin/api/control-tower/summary"
   ADMIN_GET "GET /admin/api/pipeline"           "/admin/api/pipeline"
+fi
+echo ""
+
+# ════════════════════════════════════════════
+# SECTION 17B: AUTHENTICATED EXPORT MANIFEST (OPT-IN)
+# ════════════════════════════════════════════
+blue "──── 17B. Authenticated Export Manifest (opt-in) ────"
+if [ -z "$EXPORT_MANIFEST_PATH" ] || [ -z "$EXPORT_AUTH_EMAIL" ] || [ -z "$EXPORT_AUTH_PASS" ]; then
+  yellow "GET authenticated export manifest" "set EXPORT_MANIFEST_PATH + EXPORT_AUTH_EMAIL + EXPORT_AUTH_PASS to enable"
+  SKIP=$((SKIP+1))
+else
+  EXPORT_COOKIE_JAR=$(mktemp "${TMPDIR:-/tmp}/cerniq-export-cookies.XXXXXX")
+  trap 'rm -f "$AUTH_COOKIE_JAR" "$EXPORT_COOKIE_JAR"' EXIT
+
+  EXPORT_LOGIN_BODY="{\"email\":\"$EXPORT_AUTH_EMAIL\",\"password\":\"$EXPORT_AUTH_PASS\"}"
+  EXPORT_LOGIN_RESP=$(curl -s --max-time 15 \
+    -c "$EXPORT_COOKIE_JAR" -b "$EXPORT_COOKIE_JAR" \
+    -H "Content-Type: application/json" -d "$EXPORT_LOGIN_BODY" "$API/api/auth/login" 2>/dev/null || echo "{}")
+  EXPORT_LOGIN_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+    -c "$EXPORT_COOKIE_JAR" -b "$EXPORT_COOKIE_JAR" \
+    -H "Content-Type: application/json" -d "$EXPORT_LOGIN_BODY" "$API/api/auth/login" 2>/dev/null || echo "000")
+
+  if [[ "$EXPORT_LOGIN_CODE" =~ ^2 ]]; then
+    green "POST /api/auth/login (export smoke)"
+    PASS=$((PASS+1))
+    EXPORT_BEARER=$(echo "$EXPORT_LOGIN_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('accessToken', d.get('access_token','')))" 2>/dev/null || echo "")
+    EXPORT_AUTH_ARGS=(-b "$EXPORT_COOKIE_JAR")
+    [ -n "$EXPORT_BEARER" ] && EXPORT_AUTH_ARGS+=(-H "Authorization: Bearer $EXPORT_BEARER")
+    EXPORT_CODE=$(curl -s -o /tmp/cerniq-export-manifest.json -w "%{http_code}" --max-time 15 \
+      "${EXPORT_AUTH_ARGS[@]}" \
+      "$API$EXPORT_MANIFEST_PATH" 2>/dev/null || echo "000")
+
+    if [ "$EXPORT_CODE" = "200" ]; then
+      READY_COUNT=$(python3 - <<'PY'
+import json
+from pathlib import Path
+p = Path('/tmp/cerniq-export-manifest.json')
+try:
+    data = json.loads(p.read_text())
+    if isinstance(data, list):
+        ready = [m for m in data if m.get('status') == 'ready' and m.get('downloadUrl')]
+        print(len(ready))
+    else:
+        print(0)
+except Exception:
+    print(0)
+PY
+)
+      if [ "${READY_COUNT:-0}" -gt 0 ]; then
+        green "GET $EXPORT_MANIFEST_PATH (ready export manifest)"
+        PASS=$((PASS+1))
+      else
+        red "GET $EXPORT_MANIFEST_PATH (ready export manifest missing)" "200"
+        FAIL=$((FAIL+1))
+      fi
+    else
+      red "GET $EXPORT_MANIFEST_PATH" "$EXPORT_CODE"
+      FAIL=$((FAIL+1))
+    fi
+  else
+    red "POST /api/auth/login (export smoke)" "$EXPORT_LOGIN_CODE"
+    FAIL=$((FAIL+1))
+  fi
 fi
 echo ""
 

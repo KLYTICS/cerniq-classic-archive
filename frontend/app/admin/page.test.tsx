@@ -1,14 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { AnchorHTMLAttributes, ReactNode, SVGProps } from 'react';
-import AdminPage from './page';
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { AnchorHTMLAttributes, ReactNode, SVGProps } from "react";
+import AdminPage from "./page";
 
 const { getSummaryMock, runActionMock } = vi.hoisted(() => ({
   getSummaryMock: vi.fn(),
   runActionMock: vi.fn(),
 }));
 
-vi.mock('next/link', () => ({
+vi.mock("next/link", () => ({
   default: ({
     children,
     ...props
@@ -17,14 +17,14 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-vi.mock('@/lib/api', () => ({
+vi.mock("@/lib/api", () => ({
   apiClient: {
     getAdminControlTowerSummary: getSummaryMock,
     runAdminControlTowerAction: runActionMock,
   },
 }));
 
-vi.mock('lucide-react', () => {
+vi.mock("lucide-react", () => {
   const Icon = (props: SVGProps<SVGSVGElement>) => <svg {...props} />;
   return {
     Activity: Icon,
@@ -48,7 +48,7 @@ vi.mock('lucide-react', () => {
 });
 
 const summaryMock = {
-  generatedAt: '2026-04-08T18:00:00.000Z',
+  generatedAt: "2026-04-08T18:00:00.000Z",
   stats: {
     demoRequests: 12,
     institutions: 5,
@@ -66,12 +66,12 @@ const summaryMock = {
     counts: { awaitingData: 2, processing: 1, complete: 7, failed: 1 },
     recentJobs: [
       {
-        id: 'job-1',
-        institutionName: 'Coop One',
-        status: 'FAILED',
-        createdAt: '2026-04-08T10:00:00.000Z',
-        errorMessage: 'Validation failed',
-        user: { email: 'ops@coop.one' },
+        id: "job-1",
+        institutionName: "Coop One",
+        status: "FAILED",
+        createdAt: "2026-04-08T10:00:00.000Z",
+        errorMessage: "Validation failed",
+        user: { email: "ops@coop.one" },
       },
     ],
   },
@@ -84,14 +84,20 @@ const summaryMock = {
     },
     stalledJobs: [
       {
-        id: 'job-portal',
-        userId: 'user-1',
-        institutionName: 'Coop Portal',
-        status: 'VALIDATION_FAILED',
-        createdAt: '2026-04-08T09:00:00.000Z',
-        errorMessage: 'Missing column',
+        id: "job-portal",
+        userId: "user-1",
+        institutionName: "Coop Portal",
+        status: "VALIDATION_FAILED",
+        createdAt: "2026-04-08T09:00:00.000Z",
+        errorMessage: "Missing column",
       },
     ],
+  },
+  exports: {
+    completedJobs: 7,
+    onDemandFallbackJobs: 1,
+    readyManifestCount: 14,
+    degradedCount: 1,
   },
   demoSeats: {
     active: 4,
@@ -100,7 +106,7 @@ const summaryMock = {
     recent: [],
   },
   intelligence: {
-    workspace: { id: 'ws-1', name: 'Cerniq Intelligence' },
+    workspace: { id: "ws-1", name: "Cerniq Intelligence" },
     stats: {
       totalAccounts: 24,
       buyers: 15,
@@ -113,96 +119,98 @@ const summaryMock = {
     actions: [],
     recentRuns: [],
     handoff: {
-      summary: 'Refresh buyers and review competitor updates.',
+      summary: "Refresh buyers and review competitor updates.",
     },
   },
   sessionContinuity: {
-    workspaceRoot: '/Users/money/Desktop/Cerniq',
-    activeBranch: 'codex/control-tower',
-    latestStatusSummary: ['Public production verification is green.'],
-    latestStatusBlockers: ['GitHub Actions billing is still blocked.'],
-    lastAgentOutputTitle: 'Build admin control tower',
-    handoffUpdatedAt: '2026-04-08T18:00:00.000Z',
-    latestStatusUpdatedAt: '2026-04-08T18:00:00.000Z',
-    activeModes: ['ralph'],
-    stateFiles: ['hud-state.json'],
+    workspaceRoot: "/Users/money/Desktop/Cerniq",
+    activeBranch: "codex/control-tower",
+    latestStatusSummary: ["Public production verification is green."],
+    latestStatusBlockers: ["GitHub Actions billing is still blocked."],
+    lastAgentOutputTitle: "Build admin control tower",
+    handoffUpdatedAt: "2026-04-08T18:00:00.000Z",
+    latestStatusUpdatedAt: "2026-04-08T18:00:00.000Z",
+    activeModes: ["ralph"],
+    stateFiles: ["hud-state.json"],
     metrics: {
       turnCount: 8,
-      lastTurnAt: '2026-04-08T18:00:00.000Z',
+      lastTurnAt: "2026-04-08T18:00:00.000Z",
     },
-    recommendedCommands: ['cd backend-node', 'npm test'],
+    recommendedCommands: ["cd backend-node", "npm test"],
   },
   featureBridge: [
     {
-      id: 'portal',
-      label: 'Portal & report cycles',
-      status: 'warning',
-      detail: '2 awaiting, 1 validation failed, 1 processing',
-      href: '/admin/pipeline',
+      id: "portal",
+      label: "Portal & report cycles",
+      status: "warning",
+      detail: "2 awaiting, 1 validation failed, 1 processing",
+      href: "/admin/pipeline",
     },
   ],
   nextActions: [
     {
-      id: 'refresh-intelligence',
-      title: 'Refresh stale intelligence accounts',
-      domain: 'intelligence',
-      severity: 'medium',
-      action: 'refresh_intelligence',
+      id: "refresh-intelligence",
+      title: "Refresh stale intelligence accounts",
+      domain: "intelligence",
+      severity: "medium",
+      action: "refresh_intelligence",
     },
   ],
   safeActions: [
     {
-      action: 'refresh_intelligence',
-      label: 'Refresh stale intelligence',
-      description: 'Run a stale-only intelligence refresh pass.',
+      action: "refresh_intelligence",
+      label: "Refresh stale intelligence",
+      description: "Run a stale-only intelligence refresh pass.",
     },
   ],
 };
 
-describe('AdminPage', () => {
+describe("AdminPage", () => {
   beforeEach(() => {
-    sessionStorage.setItem('cerniq_admin_key', 'test-key');
+    sessionStorage.setItem("cerniq_admin_key", "test-key");
     getSummaryMock.mockReset();
     runActionMock.mockReset();
     getSummaryMock.mockResolvedValue(summaryMock);
     runActionMock.mockResolvedValue({
-      action: 'refresh_intelligence',
-      status: 'success',
-      summary: 'Refreshed stale intelligence accounts',
+      action: "refresh_intelligence",
+      status: "success",
+      summary: "Refreshed stale intelligence accounts",
       data: {},
     });
   });
 
-  it('renders the control tower summary and blocker/action panels', async () => {
+  it("renders the control tower summary and blocker/action panels", async () => {
     render(<AdminPage />);
 
     expect(
-      await screen.findByText('Run CERNIQ like one connected operating system.'),
+      await screen.findByText(
+        "Run CERNIQ like one connected operating system.",
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Refresh stale intelligence accounts'),
+      screen.getByText("Refresh stale intelligence accounts"),
     ).toBeInTheDocument();
-    expect(screen.getByText('Portal & report cycles')).toBeInTheDocument();
-    expect(screen.getByText('codex/control-tower')).toBeInTheDocument();
+    expect(screen.getByText("Portal & report cycles")).toBeInTheDocument();
+    expect(screen.getByText("codex/control-tower")).toBeInTheDocument();
   });
 
-  it('runs a safe action and refreshes the control tower', async () => {
+  it("runs a safe action and refreshes the control tower", async () => {
     render(<AdminPage />);
 
-    const actionButton = await screen.findByRole('button', {
+    const actionButton = await screen.findByRole("button", {
       name: /Refresh stale intelligence/i,
     });
     fireEvent.click(actionButton);
 
     await waitFor(() => {
       expect(runActionMock).toHaveBeenCalledWith({
-        action: 'refresh_intelligence',
+        action: "refresh_intelligence",
         userId: undefined,
         jobId: undefined,
       });
     });
     expect(
-      await screen.findByText('Refreshed stale intelligence accounts'),
+      await screen.findByText("Refreshed stale intelligence accounts"),
     ).toBeInTheDocument();
   });
 });

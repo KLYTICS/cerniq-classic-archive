@@ -1,36 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { apiClient, type AdminPipelineSnapshot, type AdminRevenueMetrics } from '@/lib/api';
 import { DollarSign, TrendingUp, Users, FileText, RefreshCw } from 'lucide-react';
-
-const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-const ADMIN_KEY_STORAGE = 'cerniq_admin_key';
-
-function loadAdminKey(): string {
-  if (typeof window === 'undefined') {
-    return '';
-  }
-  const sessionKey = sessionStorage.getItem(ADMIN_KEY_STORAGE) || '';
-  if (sessionKey) {
-    return sessionKey;
-  }
-  const legacyKey = localStorage.getItem('admin_key') || '';
-  if (legacyKey) {
-    sessionStorage.setItem(ADMIN_KEY_STORAGE, legacyKey);
-    localStorage.removeItem('admin_key');
-  }
-  return legacyKey;
-}
-
-interface RevenueMetrics {
-  revenueToday: number;
-  revenueMonth: number;
-  revenueYear: number;
-  mrr: number;
-  arr: number;
-  activeSubscriptions: number;
-  totalSubscriptions: number;
-}
 
 interface PipelineHealth {
   awaitingData: number;
@@ -40,75 +12,37 @@ interface PipelineHealth {
 }
 
 export default function AdminMetrics() {
-  const initialAdminKey = loadAdminKey();
-  const [revenue, setRevenue] = useState<RevenueMetrics | null>(null);
+  const [revenue, setRevenue] = useState<AdminRevenueMetrics | null>(null);
   const [pipeline, setPipeline] = useState<PipelineHealth | null>(null);
-  const [loading, setLoading] = useState(Boolean(initialAdminKey));
-  const [adminKey, setAdminKey] = useState(initialAdminKey);
-  const [authenticated, setAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchMetrics = useCallback(async (key: string) => {
+  const fetchMetrics = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const [revRes, pipeRes] = await Promise.all([
-        fetch(`${NODE_API_URL}/admin/api/revenue`, { headers: { 'x-admin-key': key } }),
-        fetch(`${NODE_API_URL}/admin/api/pipeline`, { headers: { 'x-admin-key': key } }),
+      const [revenueData, pipelineData]: [AdminRevenueMetrics, AdminPipelineSnapshot] = await Promise.all([
+        apiClient.getAdminRevenueMetrics(),
+        apiClient.getAdminPipeline(),
       ]);
-      if (revRes.ok) {
-        setRevenue(await revRes.json());
-        setAuthenticated(true);
-      }
-      if (pipeRes.ok) {
-        const data = await pipeRes.json();
-        setPipeline(data.health);
-      }
-    } catch { /* silent */ }
-    setLoading(false);
+      setRevenue(revenueData);
+      setPipeline(pipelineData.health);
+    } catch {
+      setError('Failed to load metrics');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (!adminKey) {
-      return;
-    }
-
     const timer = window.setTimeout(() => {
-      void fetchMetrics(adminKey);
+      void fetchMetrics();
     }, 0);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [adminKey, fetchMetrics]);
-
-  const handleLogin = () => {
-    sessionStorage.setItem(ADMIN_KEY_STORAGE, adminKey);
-    localStorage.removeItem('admin_key');
-    setLoading(true);
-    fetchMetrics(adminKey);
-  };
-
-  if (!authenticated && !loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 w-full max-w-sm">
-          <h1 className="text-lg font-bold text-white mb-4">Metrics Dashboard</h1>
-          <input
-            type="password"
-            value={adminKey}
-            onChange={(e) => setAdminKey(e.target.value)}
-            placeholder="Admin key"
-            className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 mb-3"
-            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-          />
-          <button
-            onClick={handleLogin}
-            className="w-full bg-amber-500 text-slate-900 py-2 rounded-lg text-sm font-medium hover:bg-amber-400 transition"
-          >
-            Authenticate
-          </button>
-        </div>
-      </div>
-    );
-  }
+  }, [fetchMetrics]);
 
   const fmt = (n: number) => n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n.toFixed(0)}`;
 
@@ -122,12 +56,18 @@ export default function AdminMetrics() {
             <p className="text-sm text-slate-400">KLYTICS LLC — CERNIQ SaaS</p>
           </div>
           <button
-            onClick={() => fetchMetrics(adminKey)}
+            onClick={() => fetchMetrics()}
             className="inline-flex items-center gap-2 bg-slate-700 text-slate-200 px-4 py-2 rounded-lg text-sm hover:bg-slate-600 transition"
           >
             <RefreshCw className="h-4 w-4" /> Refresh
           </button>
         </div>
+
+        {error ? (
+          <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </div>
+        ) : null}
 
         {/* Revenue Cards */}
         {revenue && (

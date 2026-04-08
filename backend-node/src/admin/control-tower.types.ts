@@ -1,77 +1,118 @@
-export type FeatureBridgeState =
-  | 'healthy'
-  | 'warning'
-  | 'critical'
-  | 'inactive';
+export type FeatureBridgeState = 'healthy' | 'warning' | 'active';
 
 export type OperatorActionKind =
   | 'refresh_intelligence'
   | 'open_portal_cycle'
   | 'sweep_demo_seats'
   | 'run_pipeline'
-  | 'force_regenerate_job'
-  | 'run_health_checks'
+  | 'retry_pipeline_job'
   | 'refresh_session_snapshot';
 
-export interface FeatureBridgeStatus {
-  key: string;
-  label: string;
-  state: FeatureBridgeState;
-  summary: string;
-  deepLink: string;
-  actionKind?: OperatorActionKind;
-  metric?: number;
+export interface OperatorActionRequest {
+  action: OperatorActionKind;
+  userId?: string;
+  jobId?: string;
 }
 
 export interface OperatorAction {
-  kind: OperatorActionKind;
+  action: OperatorActionKind;
   label: string;
   description: string;
-  requiresTarget?: boolean;
-  targetLabel?: string;
 }
 
 export interface OperatorActionResult {
-  kind: OperatorActionKind;
-  ok: boolean;
-  title: string;
+  action: OperatorActionKind;
+  status: 'success' | 'error';
   summary: string;
-  data?: Record<string, unknown> | null;
+  message?: string;
+  data?: unknown;
+}
+
+export interface FeatureBridgeStatus {
+  id: string;
+  label: string;
+  status: FeatureBridgeState;
+  href: string;
+  detail: string;
+  metricLabel: string;
+  metricValue: number;
+  nextActionLabel: string;
 }
 
 export interface SessionContinuitySnapshot {
   workspaceRoot: string;
-  branch: string | null;
-  latestStatusDate: string | null;
-  latestStatusSummary: string[];
+  branch: string;
+  dirtyFiles: number;
+  latestSessionSummary: string[];
+  latestHandoffObjective: string | null;
   blockers: string[];
   nextCommands: string[];
-  sessionHandoffExcerpt: string | null;
-  omxStateFiles: string[];
-  omxLogFiles: string[];
+  activeSkill: string | null;
+  activeSkillPhase: string | null;
+  recentAgentTurns: number;
+  lastHudTitle: string | null;
+  omxStateFiles: Array<{
+    file: string;
+    updatedAt: string;
+  }>;
+}
+
+export interface RawSessionContinuitySnapshot {
+  workspaceRoot: string;
+  activeBranch: string | null;
+  latestStatusSummary: string[];
+  latestStatusBlockers: string[];
+  lastAgentOutputTitle: string | null;
+  handoffUpdatedAt: string | null;
+  latestStatusUpdatedAt: string | null;
+  activeModes: string[];
+  stateFiles: string[];
+  metrics: {
+    turnCount: number | null;
+    lastTurnAt: string | null;
+  } | null;
+  recommendedCommands: string[];
 }
 
 export interface ControlTowerSummary {
   generatedAt: string;
-  overview: {
+  executive: {
     demoRequests: number;
     institutions: number;
     users: number;
     prospects: number;
+    recentUsers: number;
+    activeSubscriptions: number;
+    totalSubscriptions: number;
+    totalReportJobs: number;
+    completedReports: number;
+    failedReports: number;
+    mrr: number;
+    arr: number;
+  };
+  health: {
+    api: string;
+    database: string;
+    uptimeSeconds: number;
+    memoryPercent: number;
+    timestamp: string;
+  };
+  stats: {
+    demoRequests: number;
+    institutions: number;
+    users: number;
+    prospects: number;
+    recentUsers: number;
+    totalReportJobs: number;
+    completedReports: number;
+    failedReports: number;
+  };
+  revenue: {
     activeSubscriptions: number;
     totalSubscriptions: number;
     mrr: number;
     arr: number;
   };
-  blockers: Array<{
-    id: string;
-    severity: 'warning' | 'critical';
-    title: string;
-    summary: string;
-    deepLink?: string;
-    actionKind?: OperatorActionKind;
-    targetId?: string | null;
-  }>;
   pipeline: {
     health: {
       awaitingData: number;
@@ -83,39 +124,98 @@ export interface ControlTowerSummary {
       id: string;
       institutionName: string;
       status: string;
-      createdAt: string;
+      retryCount: number;
+      createdAt: Date | string;
+      completedAt: Date | string | null;
       errorMessage: string | null;
-      userId: string;
-      userEmail: string | null;
+      triggeredBy: string;
+      user?: { email?: string | null; name?: string | null };
     }>;
   };
   portal: {
-    awaitingData: number;
-    validationFailed: number;
-    processing: number;
-    stalledCycles: Array<{
+    counts: {
+      awaitingData: number;
+      validationFailed: number;
+      processing: number;
+      complete: number;
+      failed: number;
+      stalledActivations: number;
+    };
+    stalledJobs: Array<{
       id: string;
+      userId: string;
       institutionName: string;
       status: string;
-      createdAt: string;
-      userId: string;
-      userEmail: string | null;
+      errorMessage: string | null;
+      createdAt: Date | string;
+      user?: { email?: string | null; name?: string | null };
     }>;
+    recentActionableJobs: Array<{
+      id: string;
+      userId: string;
+      institutionName: string;
+      status: string;
+      errorMessage: string | null;
+      createdAt: Date | string;
+      user?: { email?: string | null; name?: string | null };
+    }>;
+  };
+  exports: {
+    completedJobs: number;
+    onDemandFallbackJobs: number;
+    readyManifestCount: number;
+    degradedCount: number;
   };
   demoSeats: {
     active: number;
     expired: number;
-    converted: number;
     expiringSoon: number;
+    recent: Array<Record<string, unknown>>;
   };
   intelligence: {
-    staleAccounts: number;
-    overdueActions: number;
-    hotChanges: number;
-    recentRuns: number;
-    handoffSummary: string | null;
+    workspace: { id: string; name: string };
+    stats: {
+      totalAccounts: number;
+      buyers: number;
+      competitors: number;
+      staleAccounts: number;
+      overdueActions: number;
+    };
+    hotChanges: Array<Record<string, unknown>>;
+    staleAccounts: Array<Record<string, unknown>>;
+    actions: Array<Record<string, unknown>>;
+    recentRuns: Array<Record<string, unknown>>;
+    recentArtifacts: Array<Record<string, unknown>>;
+    handoff: {
+      summary: string;
+      pinnedEntries: Array<Record<string, unknown>>;
+    };
   };
   continuity: SessionContinuitySnapshot;
-  features: FeatureBridgeStatus[];
-  actions: OperatorAction[];
+  sessionContinuity: RawSessionContinuitySnapshot;
+  featureBridge: FeatureBridgeStatus[];
+  nextActions: Array<{
+    id: string;
+    title: string;
+    domain: string;
+    severity: string;
+    href?: string;
+    action?: OperatorActionKind;
+  }>;
+  blockers: Array<{
+    key: string;
+    severity: 'high' | 'medium';
+    title: string;
+    description: string;
+    href?: string;
+    actionKey?: OperatorActionKind;
+    targetId?: string | null;
+  }>;
+  recommendedActions: Array<{
+    key: OperatorActionKind;
+    label: string;
+    description: string;
+    tone: string;
+  }>;
+  safeActions: OperatorAction[];
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { apiClient, type AdminOpsSnapshot } from '@/lib/api';
 import {
   Activity,
   ArrowLeft,
@@ -14,7 +15,6 @@ import {
   FileText,
 } from 'lucide-react';
 
-const ADMIN_KEY_STORAGE = 'cerniq_admin_key';
 const NODE_API_URL = (
   typeof window !== 'undefined'
     ? (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '')
@@ -39,72 +39,6 @@ interface ReportJob {
   completedAt: string | null;
   errorMessage: string | null;
   triggeredBy: string;
-}
-
-interface OpsData {
-  recentJobs: ReportJob[];
-  activeSubscriptions: number;
-  totalAnalysisRuns: number;
-}
-
-function AdminAuth({ onAuth }: { onAuth: () => void }) {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState(false);
-  const [checking, setChecking] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setChecking(true);
-    try {
-      const res = await fetch(`${NODE_API_URL}/api/admin/stats`, {
-        headers: { 'x-admin-key': password },
-      });
-      if (res.ok) {
-        sessionStorage.setItem(ADMIN_KEY_STORAGE, password);
-        onAuth();
-      } else {
-        setError(true);
-      }
-    } catch {
-      setError(true);
-    } finally {
-      setChecking(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-slate-900 border border-white/10 p-8 rounded-2xl w-full max-w-sm"
-      >
-        <h1 className="text-xl font-bold text-white mb-6 text-center">
-          Admin Access
-        </h1>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => {
-            setPassword(e.target.value);
-            setError(false);
-          }}
-          placeholder="Enter admin key"
-          className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500"
-          autoFocus
-        />
-        {error && (
-          <p className="text-red-400 text-sm mb-4">Invalid admin key</p>
-        )}
-        <button
-          type="submit"
-          disabled={checking}
-          className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-lg transition disabled:opacity-50"
-        >
-          {checking ? 'Verifying...' : 'Enter'}
-        </button>
-      </form>
-    </div>
-  );
 }
 
 function StatusDot({ status }: { status: string }) {
@@ -143,18 +77,11 @@ function jobStatusBadge(status: string) {
 }
 
 export default function OpsPage() {
-  const [authed, setAuthed] = useState(false);
   const [health, setHealth] = useState<HealthData | null>(null);
-  const [ops, setOps] = useState<OpsData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [ops, setOps] = useState<AdminOpsSnapshot | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-
-  useEffect(() => {
-    if (sessionStorage.getItem(ADMIN_KEY_STORAGE)) {
-      setAuthed(true);
-    }
-  }, []);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -163,15 +90,7 @@ export default function OpsPage() {
     try {
       const [healthRes, opsRes] = await Promise.allSettled([
         fetch(`${NODE_API_URL}/health`).then((r) => r.json()),
-        fetch(`${NODE_API_URL}/api/admin/ops`, {
-          headers: {
-            'x-admin-key':
-              sessionStorage.getItem(ADMIN_KEY_STORAGE) || '',
-          },
-        }).then((r) => {
-          if (!r.ok) throw new Error('Admin ops fetch failed');
-          return r.json();
-        }),
+        apiClient.getAdminOps(),
       ]);
 
       if (healthRes.status === 'fulfilled') {
@@ -197,15 +116,10 @@ export default function OpsPage() {
 
   // Initial fetch + auto-refresh every 30 seconds
   useEffect(() => {
-    if (!authed) return;
-    fetchAll();
+    void fetchAll();
     const interval = setInterval(fetchAll, 30000);
     return () => clearInterval(interval);
-  }, [authed, fetchAll]);
-
-  if (!authed) {
-    return <AdminAuth onAuth={() => setAuthed(true)} />;
-  }
+  }, [fetchAll]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">

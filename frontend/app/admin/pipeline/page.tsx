@@ -1,29 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { apiClient, type AdminPipelineSnapshot } from '@/lib/api';
 import {
   Clock, CheckCircle, AlertTriangle, Loader2, XCircle,
   RefreshCw, Play, RotateCcw,
 } from 'lucide-react';
-
-const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-const ADMIN_KEY_STORAGE = 'cerniq_admin_key';
-
-function loadAdminKey(): string {
-  if (typeof window === 'undefined') {
-    return '';
-  }
-  const sessionKey = sessionStorage.getItem(ADMIN_KEY_STORAGE) || '';
-  if (sessionKey) {
-    return sessionKey;
-  }
-  const legacyKey = localStorage.getItem('admin_key') || '';
-  if (legacyKey) {
-    sessionStorage.setItem(ADMIN_KEY_STORAGE, legacyKey);
-    localStorage.removeItem('admin_key');
-  }
-  return legacyKey;
-}
 
 interface PipelineJob {
   id: string;
@@ -56,83 +38,45 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function AdminPipeline() {
-  const initialAdminKey = loadAdminKey();
   const [jobs, setJobs] = useState<PipelineJob[]>([]);
   const [health, setHealth] = useState<PipelineHealth | null>(null);
-  const [loading, setLoading] = useState(Boolean(initialAdminKey));
+  const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
-  const [adminKey, setAdminKey] = useState(initialAdminKey);
-  const [authenticated, setAuthenticated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchJobs = useCallback(async (key: string) => {
+  const fetchJobs = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const url = statusFilter
-        ? `${NODE_API_URL}/admin/api/pipeline?status=${statusFilter}`
-        : `${NODE_API_URL}/admin/api/pipeline`;
-      const res = await fetch(url, { headers: { 'x-admin-key': key } });
-      if (res.ok) {
-        const data = await res.json();
-        setJobs(data.jobs || []);
-        setHealth(data.health || null);
-        setAuthenticated(true);
-      }
-    } catch { /* silent */ }
-    setLoading(false);
+      const data: AdminPipelineSnapshot = await apiClient.getAdminPipeline(statusFilter || undefined);
+      setJobs(data.jobs || []);
+      setHealth(data.health || null);
+    } catch {
+      setError('Failed to load pipeline');
+    } finally {
+      setLoading(false);
+    }
   }, [statusFilter]);
 
   useEffect(() => {
-    if (!adminKey) {
-      return;
-    }
-
     const timer = window.setTimeout(() => {
-      void fetchJobs(adminKey);
+      void fetchJobs();
     }, 0);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [adminKey, fetchJobs]);
-
-  const handleLogin = () => {
-    sessionStorage.setItem(ADMIN_KEY_STORAGE, adminKey);
-    localStorage.removeItem('admin_key');
-    setLoading(true);
-    fetchJobs(adminKey);
-  };
+  }, [fetchJobs]);
 
   const forceAction = async (jobId: string, action: string) => {
-    const body = action === 'force-fail' ? JSON.stringify({ reason: 'Manually failed by admin' }) : undefined;
-    await fetch(`${NODE_API_URL}/admin/api/pipeline/${jobId}/${action}`, {
-      method: 'POST',
-      headers: { 'x-admin-key': adminKey, 'Content-Type': 'application/json' },
-      body,
-    });
-    void fetchJobs(adminKey);
-  };
-
-  if (!authenticated && !loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 w-full max-w-sm">
-          <h1 className="text-lg font-bold text-white mb-4">Pipeline Admin</h1>
-          <input
-            type="password"
-            value={adminKey}
-            onChange={(e) => setAdminKey(e.target.value)}
-            placeholder="Admin key"
-            className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 mb-3"
-            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-          />
-          <button
-            onClick={handleLogin}
-            className="w-full bg-amber-500 text-slate-900 py-2 rounded-lg text-sm font-medium hover:bg-amber-400 transition"
-          >
-            Authenticate
-          </button>
-        </div>
-      </div>
+    await apiClient.runAdminPipelineAction(
+      jobId,
+      action as 'force-advance' | 'force-fail' | 'force-regenerate',
+      action === 'force-fail'
+        ? { reason: 'Manually failed by admin' }
+        : undefined,
     );
+    void fetchJobs();
   }
 
   return (
@@ -145,12 +89,18 @@ export default function AdminPipeline() {
             <p className="text-sm text-slate-400">Monitor and manage report generation jobs</p>
           </div>
           <button
-            onClick={() => fetchJobs(adminKey)}
+            onClick={() => fetchJobs()}
             className="inline-flex items-center gap-2 bg-slate-700 text-slate-200 px-4 py-2 rounded-lg text-sm hover:bg-slate-600 transition"
           >
             <RefreshCw className="h-4 w-4" /> Refresh
           </button>
         </div>
+
+        {error ? (
+          <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </div>
+        ) : null}
 
         {/* Health Cards */}
         {health && (

@@ -39,6 +39,7 @@ The CERNIQ backend exposes **113 confirmed HTTP endpoints** across **22 controll
 | Market Data | `market-data/market-data.controller.ts` | `/api/market-data` | 11 | Mixed (None, AdminKey) |
 | Pipeline Health | `jobs/pipeline-health.controller.ts` | `/api/health` | 1 | None |
 | Admin Jobs | `jobs/admin.controller.ts` | `/api/admin` | 1 | AdminKey |
+| Control Tower | `admin/control-tower.controller.ts` | `admin/api/control-tower` | 2 | AdminKey |
 | Organizations | `organizations/organizations.controller.ts` | `/api/organizations` | 5 | AuthGuard (class-level) |
 | Expenses | `expenses/expenses.controller.ts` | `/api/expenses` | 8 | AuthGuard (class-level) |
 | Portfolio | `portfolio/portfolio.controller.ts` | `/api/portfolios` | 7 | AuthGuard (class-level) |
@@ -327,6 +328,15 @@ Base path: `admin/api/pipeline` (note: no leading `/api`)
 | POST | `/admin/api/pipeline/:jobId/force-regenerate` | Re-queue job for regeneration | AdminKey | -- | `{ message }` |
 | GET | `/admin/api/revenue` | Revenue metrics (MRR, ARR, subscriptions) | AdminKey | -- | `{ revenueToday, revenueMonth, revenueYear, mrr, arr, activeSubscriptions }` |
 | SSE | `/api/jobs/:jobId/status` | Server-Sent Events for job status | **None** | -- | SSE stream: `{ status, completedAt, errorMessage }` |
+
+### Control Tower (`admin/control-tower.controller.ts`)
+
+Base path: `admin/api/control-tower`
+
+| Method | Path | Purpose | Auth | Request | Response |
+|--------|------|---------|------|---------|----------|
+| GET | `/admin/api/control-tower/summary` | Unified operator control-plane summary | AdminKey | -- | `ControlTowerSummary` |
+| POST | `/admin/api/control-tower/actions` | Run curated operator action | AdminKey | `{ action, userId?, jobId? }` | `{ action, status, summary, data? }` |
 
 ### Portal (`portal/portal.controller.ts`)
 

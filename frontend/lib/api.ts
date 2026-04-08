@@ -3,6 +3,7 @@ import { getMarketApiBase } from './marketTransport';
 import { getPublicApiBase, getPublicApiUrl } from './api-base';
 import { asRecord, unwrapApiData } from './api-response';
 import { ACCESS_REQUIRED_ROUTE } from './access';
+import { getStoredAdminKey } from './admin-session';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -731,7 +732,7 @@ class APIClient {
 
   // Admin (all admin endpoints require x-admin-key header)
   private adminHeaders() {
-    const key = typeof window !== 'undefined' ? sessionStorage.getItem('cerniq_admin_key') || '' : '';
+    const key = getStoredAdminKey();
     return { 'x-admin-key': key };
   }
 
@@ -786,6 +787,19 @@ class APIClient {
     return response.data;
   }
 
+  async runAdminPipelineAction(
+    jobId: string,
+    action: 'force-advance' | 'force-fail' | 'force-regenerate',
+    body?: Record<string, unknown>,
+  ) {
+    const response = await this.client.post(
+      `${NODE_API_URL}/admin/api/pipeline/${jobId}/${action}`,
+      body || {},
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
   async getAdminRevenueMetrics(): Promise<AdminRevenueMetrics> {
     const response = await this.client.get(`${NODE_API_URL}/admin/api/revenue`, {
       headers: this.adminHeaders(),
@@ -798,6 +812,50 @@ class APIClient {
       headers: this.adminHeaders(),
     });
     return Array.isArray(response.data) ? response.data : response.data.logs || [];
+  }
+
+  async getAdminLeads(status?: string) {
+    const suffix = status ? `?status=${encodeURIComponent(status)}` : '';
+    const response = await this.client.get(
+      `${NODE_API_URL}/admin/api/leads${suffix}`,
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async getAdminLeadMetrics() {
+    const response = await this.client.get(
+      `${NODE_API_URL}/admin/api/leads/metrics`,
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async updateAdminLead(id: string, body: Record<string, unknown>) {
+    const response = await this.client.put(
+      `${NODE_API_URL}/admin/api/leads/${id}`,
+      body,
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async addAdminLeadNote(id: string, note: string) {
+    const response = await this.client.post(
+      `${NODE_API_URL}/admin/api/leads/${id}/note`,
+      { note },
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async markAdminReportSent(id: string) {
+    const response = await this.client.post(
+      `${NODE_API_URL}/admin/api/leads/${id}/mark-report-sent`,
+      {},
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
   }
 
   async getExitMetrics() {

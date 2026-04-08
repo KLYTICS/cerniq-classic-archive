@@ -1,10 +1,10 @@
 export type OperatorActionKey =
-  | 'refresh_intelligence'
-  | 'open_portal_cycle'
-  | 'sweep_demo_seats'
-  | 'run_pipeline'
-  | 'retry_pipeline_job'
-  | 'refresh_session_snapshot';
+  | "refresh_intelligence"
+  | "open_portal_cycle"
+  | "sweep_demo_seats"
+  | "run_pipeline"
+  | "retry_pipeline_job"
+  | "refresh_session_snapshot";
 
 export interface SessionContinuitySnapshot {
   workspaceRoot: string;
@@ -70,6 +70,12 @@ export interface ControlTowerSummary {
       createdAt: string;
     }>;
   };
+  exports: {
+    completedJobs: number;
+    onDemandFallbackJobs: number;
+    readyManifestCount: number;
+    degradedCount: number;
+  };
   demoSeats: {
     active: number;
     expired: number;
@@ -91,7 +97,7 @@ export interface ControlTowerSummary {
   featureBridge: Array<{
     id: string;
     label: string;
-    status: 'healthy' | 'warning' | 'active';
+    status: "healthy" | "warning" | "active";
     detail: string;
     href: string;
   }>;
@@ -112,7 +118,7 @@ export interface ControlTowerSummary {
 
 export interface OperatorActionResult {
   action: OperatorActionKey;
-  status: 'success' | 'error';
+  status: "success" | "error";
   summary: string;
   data?: unknown;
 }
@@ -125,7 +131,7 @@ export function formatUsd(value: number): string {
 }
 
 export function formatStatusTone(status: string) {
-  if (status === 'healthy' || status === 'active') return 'emerald' as const;
-  if (status === 'warning' || status === 'attention') return 'amber' as const;
-  return 'slate' as const;
+  if (status === "healthy" || status === "active") return "emerald" as const;
+  if (status === "warning" || status === "attention") return "amber" as const;
+  return "slate" as const;
 }

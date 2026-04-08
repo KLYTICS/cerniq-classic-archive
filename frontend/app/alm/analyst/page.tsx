@@ -2,9 +2,10 @@
 
 import { useState, useCallback } from 'react';
 import { useALM } from '@/components/alm/ALMProvider';
+import AlmSelectionRequired from '@/components/alm/AlmSelectionRequired';
 import { useTranslation } from '@/lib/i18n';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { MessageSquare, AlertTriangle, Send } from 'lucide-react';
+import { MessageSquare, Send } from 'lucide-react';
 
 interface AnalystChartDatum {
   metric: string;
@@ -67,7 +68,7 @@ export default function AnalystPage() {
     } finally { setLoading(false); }
   }, [selectedId, locale]);
 
-  if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
+  if (!selectedId) return <AlmSelectionRequired moduleLabel="Conversational ALM Analyst" />;
 
   const prompts = locale === 'es' ? QUICK_PROMPTS_ES : QUICK_PROMPTS_EN;
 

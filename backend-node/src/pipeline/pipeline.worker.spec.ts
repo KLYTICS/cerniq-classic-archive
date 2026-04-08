@@ -293,6 +293,7 @@ describe('PipelineWorker', () => {
         expect.objectContaining({
           reportUrl: expect.any(String),
           reportUrlEn: expect.any(String),
+          manifestPath: '/api/portal/jobs/job_1/exports',
         }),
       );
     });

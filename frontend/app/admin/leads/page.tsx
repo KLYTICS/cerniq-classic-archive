@@ -2,13 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { apiClient } from '@/lib/api';
 import {
   Users, DollarSign, TrendingUp, Clock, RefreshCw,
   Pencil, FileText, Check, ArrowLeft, Sparkles,
 } from 'lucide-react';
-
-const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
-const ADMIN_KEY_STORAGE = 'cerniq_admin_key';
 
 interface Lead {
   id: string;
@@ -82,8 +80,6 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 export default function LeadsPipelinePage() {
-  const [adminKey, setAdminKey] = useState('');
-  const [authenticated, setAuthenticated] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(false);
@@ -92,117 +88,56 @@ export default function LeadsPipelinePage() {
   const [noteText, setNoteText] = useState('');
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Restore admin key from session
-  useEffect(() => {
-    const stored = sessionStorage.getItem(ADMIN_KEY_STORAGE);
-    if (stored) {
-      setAdminKey(stored);
-      setAuthenticated(true);
-    }
-  }, []);
-
-  const makeHeaders = useCallback(() => ({
-    'Content-Type': 'application/json',
-    'x-admin-key': adminKey,
-  }), [adminKey]);
-
   const fetchData = useCallback(async () => {
-    if (!adminKey) return;
     setLoading(true);
     try {
-      const params = statusFilter ? `?status=${statusFilter}` : '';
-      const [leadsRes, metricsRes] = await Promise.all([
-        fetch(`${NODE_API_URL}/admin/api/leads${params}`, { headers: makeHeaders() }),
-        fetch(`${NODE_API_URL}/admin/api/leads/metrics`, { headers: makeHeaders() }),
+      const [leadData, metricData] = await Promise.all([
+        apiClient.getAdminLeads(statusFilter || undefined),
+        apiClient.getAdminLeadMetrics(),
       ]);
-      if (!leadsRes.ok) throw new Error('Unauthorized');
-      setLeads(await leadsRes.json());
-      setMetrics(await metricsRes.json());
+      setLeads(leadData);
+      setMetrics(metricData);
       setFetchError(null);
-      setAuthenticated(true);
-      sessionStorage.setItem(ADMIN_KEY_STORAGE, adminKey);
     } catch (err: unknown) {
-      if (authenticated) setAuthenticated(false);
       setFetchError(getLeadPipelineError(err));
     } finally {
       setLoading(false);
     }
-  }, [adminKey, statusFilter, makeHeaders, authenticated]);
+  }, [statusFilter]);
 
   useEffect(() => {
-    if (authenticated) fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated, statusFilter]);
-
-  const login = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchData();
-  };
+    void fetchData();
+  }, [fetchData]);
 
   const updateStatus = async (id: string, status: string) => {
-    await fetch(`${NODE_API_URL}/admin/api/leads/${id}`, {
-      method: 'PUT', headers: makeHeaders(),
-      body: JSON.stringify({ status }),
-    });
-    fetchData();
+    await apiClient.updateAdminLead(id, { status });
+    void fetchData();
   };
 
   const addNote = async (id: string) => {
     if (!noteText.trim()) return;
-    await fetch(`${NODE_API_URL}/admin/api/leads/${id}/note`, {
-      method: 'POST', headers: makeHeaders(),
-      body: JSON.stringify({ note: noteText }),
-    });
+    await apiClient.addAdminLeadNote(id, noteText);
     setNoteText('');
     setEditingLead(null);
-    fetchData();
+    void fetchData();
   };
 
   const markReportSent = async (id: string) => {
-    await fetch(`${NODE_API_URL}/admin/api/leads/${id}/mark-report-sent`, {
-      method: 'POST', headers: makeHeaders(),
-    });
-    fetchData();
+    await apiClient.markAdminReportSent(id);
+    void fetchData();
   };
 
   const convertToWon = async (id: string) => {
     const amount = prompt('Revenue amount ($):');
     if (!amount) return;
     const dealType = prompt('Deal type (one_time / monthly / partner / enterprise):') || 'one_time';
-    await fetch(`${NODE_API_URL}/admin/api/leads/${id}`, {
-      method: 'PUT', headers: makeHeaders(),
-      body: JSON.stringify({ status: 'CLOSED_WON', revenueAmount: parseFloat(amount), dealType }),
+    await apiClient.updateAdminLead(id, {
+      status: 'CLOSED_WON',
+      revenueAmount: parseFloat(amount),
+      dealType,
     });
-    fetchData();
+    void fetchData();
   };
-
-  // ── Auth gate ──
-  if (!authenticated) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
-        <form onSubmit={login} className="w-full max-w-xs">
-          <div className="text-center mb-6">
-            <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center mx-auto mb-3">
-              <span className="text-slate-900 font-bold text-lg">C</span>
-            </div>
-            <h1 className="text-white font-bold text-lg">Lead Pipeline</h1>
-            <p className="text-slate-500 text-xs">Enter ADMIN_KEY to access</p>
-          </div>
-          <input
-            type="password"
-            value={adminKey}
-            onChange={(e) => setAdminKey(e.target.value)}
-            placeholder="Admin Key"
-            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500/50 mb-3"
-            autoFocus
-          />
-          <button type="submit" disabled={loading} className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-lg transition text-sm disabled:opacity-50">
-            {loading ? 'Verifying...' : 'Access Pipeline'}
-          </button>
-        </form>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">

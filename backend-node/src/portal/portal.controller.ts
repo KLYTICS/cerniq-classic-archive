@@ -247,6 +247,38 @@ export class PortalController {
   // ── ALCO Meeting Pack (8-page board-ready PDF) ──────
   // All roles can generate ALCO packs for completed jobs
 
+  @Get('jobs/:jobId/alco-pack')
+  @SkipAuditLog()
+  @Roles('OWNER', 'ANALYST', 'VIEWER')
+  @ApiOperation({
+    summary: 'Download an 8-page board-ready ALCO meeting pack PDF',
+  })
+  @ApiParam({ name: 'jobId', description: 'Completed report job UUID' })
+  @ApiQuery({
+    name: 'lang',
+    required: false,
+    description: 'Language (en or es, default: es)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'ALCO pack PDF binary stream',
+    content: { 'application/pdf': {} },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Job not complete or no institution linked',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Job not found' })
+  async downloadAlcoPack(
+    @Req() req: any,
+    @Res() res: any,
+    @Param('jobId') jobId: string,
+    @Query('lang') lang?: string,
+  ) {
+    return this.streamAlcoPackDocument(req, res, jobId, lang);
+  }
+
   @Post('jobs/:jobId/alco-pack')
   @SkipAuditLog()
   @Roles('OWNER', 'ANALYST', 'VIEWER')
@@ -275,6 +307,15 @@ export class PortalController {
     @Res() res: any,
     @Param('jobId') jobId: string,
     @Query('lang') lang?: string,
+  ) {
+    return this.streamAlcoPackDocument(req, res, jobId, lang);
+  }
+
+  private async streamAlcoPackDocument(
+    req: any,
+    res: any,
+    jobId: string,
+    lang?: string,
   ) {
     const userId = req.user.userId;
     const scope = await this.buildJobOwnerScope(userId);
@@ -929,9 +970,9 @@ export class PortalController {
     return access;
   }
 
-  private async loadPortalJobs(
-    scope: { userId?: string },
-  ): Promise<PortalOverviewJob[]> {
+  private async loadPortalJobs(scope: {
+    userId?: string;
+  }): Promise<PortalOverviewJob[]> {
     return this.prisma.reportJob.findMany({
       where: scope,
       orderBy: { createdAt: 'desc' },

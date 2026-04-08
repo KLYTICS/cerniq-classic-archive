@@ -166,6 +166,7 @@ export class PipelineWorker {
       this.pipelineGateway.emitComplete(job.id, {
         reportUrl: urlEs || keyEs,
         reportUrlEn: urlEn || keyEn,
+        manifestPath: `/api/portal/jobs/${job.id}/exports`,
       });
 
       // Increment reports used

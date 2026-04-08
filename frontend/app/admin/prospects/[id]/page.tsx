@@ -1,9 +1,10 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { apiClient, type ProspectDossierDetail } from '@/lib/api';
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { apiClient, type ProspectDossierDetail } from "@/lib/api";
+import DocumentExportButtons from "@/components/exports/DocumentExportButtons";
 import {
   ArrowLeft,
   CalendarClock,
@@ -15,18 +16,19 @@ import {
   ShieldAlert,
   Sparkles,
   Target,
-} from 'lucide-react';
-import { ErrorBanner } from '@/components/ui/cerniq';
+} from "lucide-react";
+import { ErrorBanner } from "@/components/ui/cerniq";
 
 function prettyDate(value?: string | null) {
-  if (!value) return '—';
+  if (!value) return "—";
   return new Date(value).toLocaleString();
 }
 
 function severityTone(value?: string | null) {
-  if (value === 'HIGH') return 'bg-red-500/15 text-red-300 border-red-500/30';
-  if (value === 'MEDIUM') return 'bg-amber-500/15 text-amber-300 border-amber-500/30';
-  return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+  if (value === "HIGH") return "bg-red-500/15 text-red-300 border-red-500/30";
+  if (value === "MEDIUM")
+    return "bg-amber-500/15 text-amber-300 border-amber-500/30";
+  return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
 }
 
 export default function ProspectDossierPage() {
@@ -45,7 +47,7 @@ export default function ProspectDossierPage() {
       const data = await apiClient.getProspectDossier(dossierId);
       setDossier(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load dossier');
+      setError(err instanceof Error ? err.message : "Failed to load dossier");
     } finally {
       setLoading(false);
     }
@@ -63,7 +65,9 @@ export default function ProspectDossierPage() {
       const data = await apiClient.refreshProspectDossier(dossierId);
       setDossier(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh dossier');
+      setError(
+        err instanceof Error ? err.message : "Failed to refresh dossier",
+      );
     } finally {
       setRefreshing(false);
     }
@@ -74,17 +78,9 @@ export default function ProspectDossierPage() {
     try {
       await apiClient.downloadProspectDossierCsv(dossierId);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to export dossier CSV');
-    }
-  };
-
-  const generateSample = async () => {
-    if (!dossierId) return;
-    try {
-      await apiClient.downloadProspectSampleReport(dossierId, 'es');
-      await load();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to generate sample report');
+      setError(
+        err instanceof Error ? err.message : "Failed to export dossier CSV",
+      );
     }
   };
 
@@ -93,15 +89,23 @@ export default function ProspectDossierPage() {
       await apiClient.completeIntelligenceAction(actionId);
       await load();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to complete action');
+      setError(
+        err instanceof Error ? err.message : "Failed to complete action",
+      );
     }
   };
 
   const latestFacts =
-    (dossier?.latestSnapshot?.factsJson as Record<string, unknown> | undefined) || {};
+    (dossier?.latestSnapshot?.factsJson as
+      | Record<string, unknown>
+      | undefined) || {};
   const prospectRecord = dossier?.prospect as Record<string, unknown> | null;
-  const qualification = latestFacts.qualification as Record<string, unknown> | undefined;
-  const leadScore = latestFacts.leadScore as Record<string, unknown> | undefined;
+  const qualification = latestFacts.qualification as
+    | Record<string, unknown>
+    | undefined;
+  const leadScore = latestFacts.leadScore as
+    | Record<string, unknown>
+    | undefined;
   const outreach = latestFacts.outreach as Record<string, unknown> | undefined;
 
   return (
@@ -109,7 +113,10 @@ export default function ProspectDossierPage() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
-            <Link href="/admin/prospects" className="mt-1 text-slate-500 transition hover:text-white">
+            <Link
+              href="/admin/prospects"
+              className="mt-1 text-slate-500 transition hover:text-white"
+            >
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div>
@@ -118,11 +125,12 @@ export default function ProspectDossierPage() {
                 Prospect Dossier
               </div>
               <h1 className="mt-2 text-2xl font-semibold text-white">
-                {dossier?.account.name || 'Loading dossier...'}
+                {dossier?.account.name || "Loading dossier..."}
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-400">
-                Persistent institutional intelligence, scored findings, action queue,
-                source history, and exported artifacts for one target institution.
+                Persistent institutional intelligence, scored findings, action
+                queue, source history, and exported artifacts for one target
+                institution.
               </p>
             </div>
           </div>
@@ -133,8 +141,10 @@ export default function ProspectDossierPage() {
               disabled={refreshing}
               className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:opacity-60"
             >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              {refreshing ? 'Refreshing...' : 'Refresh'}
+              <RefreshCw
+                className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+              />
+              {refreshing ? "Refreshing..." : "Refresh"}
             </button>
             <button
               onClick={exportCsv}
@@ -143,13 +153,13 @@ export default function ProspectDossierPage() {
               <Download className="h-4 w-4" />
               Export CSV
             </button>
-            <button
-              onClick={generateSample}
-              className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-200 transition hover:bg-cyan-500/20"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              Sample Report
-            </button>
+            {dossierId ? (
+              <DocumentExportButtons
+                manifestPath={`/admin/api/prospects/${dossierId}/dossier/sample-report/exports`}
+                kinds={["sample_report"]}
+                className="inline-flex"
+              />
+            ) : null}
           </div>
         </div>
 
@@ -211,18 +221,51 @@ export default function ProspectDossierPage() {
                   Institutional summary
                 </h2>
                 <p className="mt-3 text-sm leading-7 text-slate-300">
-                  {dossier.account.currentSummary || 'No summary generated yet.'}
+                  {dossier.account.currentSummary ||
+                    "No summary generated yet."}
                 </p>
 
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <KeyValue label="Institution Type" value={dossier.account.institutionalType || '—'} />
-                  <KeyValue label="Source of Truth" value={dossier.account.sourceOfTruth || '—'} />
-                  <KeyValue label="Location" value={String(prospectRecord?.location || latestFacts.location || '—')} />
-                  <KeyValue label="Estimated Assets" value={String((latestFacts.estimatedAssets as number | null) || prospectRecord?.estimatedAssets || '—')} />
-                  <KeyValue label="Qualification Grade" value={String(qualification?.grade || '—')} />
-                  <KeyValue label="Lead Tier" value={String(leadScore?.tier || '—')} />
-                  <KeyValue label="Outreach Status" value={String(prospectRecord?.outreachStatus || outreach?.status || '—')} />
-                  <KeyValue label="Last Refreshed" value={prettyDate(dossier.account.lastRefreshedAt)} />
+                  <KeyValue
+                    label="Institution Type"
+                    value={dossier.account.institutionalType || "—"}
+                  />
+                  <KeyValue
+                    label="Source of Truth"
+                    value={dossier.account.sourceOfTruth || "—"}
+                  />
+                  <KeyValue
+                    label="Location"
+                    value={String(
+                      prospectRecord?.location || latestFacts.location || "—",
+                    )}
+                  />
+                  <KeyValue
+                    label="Estimated Assets"
+                    value={String(
+                      (latestFacts.estimatedAssets as number | null) ||
+                        prospectRecord?.estimatedAssets ||
+                        "—",
+                    )}
+                  />
+                  <KeyValue
+                    label="Qualification Grade"
+                    value={String(qualification?.grade || "—")}
+                  />
+                  <KeyValue
+                    label="Lead Tier"
+                    value={String(leadScore?.tier || "—")}
+                  />
+                  <KeyValue
+                    label="Outreach Status"
+                    value={String(
+                      prospectRecord?.outreachStatus || outreach?.status || "—",
+                    )}
+                  />
+                  <KeyValue
+                    label="Last Refreshed"
+                    value={prettyDate(dossier.account.lastRefreshedAt)}
+                  />
                 </div>
               </section>
 
@@ -234,26 +277,33 @@ export default function ProspectDossierPage() {
                   <div>
                     <div className="font-medium text-white">Prospect</div>
                     <div className="mt-1 text-slate-400">
-                      {String(prospectRecord?.name || '—')}
+                      {String(prospectRecord?.name || "—")}
                     </div>
                   </div>
                   <div>
                     <div className="font-medium text-white">Lead Records</div>
                     <div className="mt-2 space-y-2">
                       {dossier.linkedLeads.length === 0 ? (
-                        <div className="text-slate-500">No linked leads yet.</div>
+                        <div className="text-slate-500">
+                          No linked leads yet.
+                        </div>
                       ) : (
-                        dossier.linkedLeads.map((lead: Record<string, unknown>) => (
-                          <div
-                            key={String(lead.id)}
-                            className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2"
-                          >
-                            <div className="font-medium text-white">{String(lead.name || '—')}</div>
-                            <div className="text-xs text-slate-400">
-                              {String(lead.email || '—')} • {String(lead.status || '—')}
+                        dossier.linkedLeads.map(
+                          (lead: Record<string, unknown>) => (
+                            <div
+                              key={String(lead.id)}
+                              className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2"
+                            >
+                              <div className="font-medium text-white">
+                                {String(lead.name || "—")}
+                              </div>
+                              <div className="text-xs text-slate-400">
+                                {String(lead.email || "—")} •{" "}
+                                {String(lead.status || "—")}
+                              </div>
                             </div>
-                          </div>
-                        ))
+                          ),
+                        )
                       )}
                     </div>
                   </div>
@@ -268,7 +318,9 @@ export default function ProspectDossierPage() {
                 </p>
                 <div className="mt-4 space-y-3">
                   {dossier.insights.length === 0 ? (
-                    <div className="text-sm text-slate-500">No findings captured yet.</div>
+                    <div className="text-sm text-slate-500">
+                      No findings captured yet.
+                    </div>
                   ) : (
                     dossier.insights.map((insight: Record<string, unknown>) => (
                       <div
@@ -277,14 +329,16 @@ export default function ProspectDossierPage() {
                       >
                         <span
                           className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-medium ${severityTone(
-                            String(insight.severity || 'LOW'),
+                            String(insight.severity || "LOW"),
                           )}`}
                         >
-                          {String(insight.severity || 'LOW')}
+                          {String(insight.severity || "LOW")}
                         </span>
-                        <div className="mt-2 font-medium text-white">{String(insight.title || 'Untitled')}</div>
+                        <div className="mt-2 font-medium text-white">
+                          {String(insight.title || "Untitled")}
+                        </div>
                         <div className="mt-2 text-sm leading-6 text-slate-400">
-                          {String(insight.description || '—')}
+                          {String(insight.description || "—")}
                         </div>
                       </div>
                     ))
@@ -298,7 +352,9 @@ export default function ProspectDossierPage() {
                 </p>
                 <div className="mt-4 space-y-3">
                   {dossier.actions.length === 0 ? (
-                    <div className="text-sm text-slate-500">No actions queued.</div>
+                    <div className="text-sm text-slate-500">
+                      No actions queued.
+                    </div>
                   ) : (
                     dossier.actions.map((action: Record<string, unknown>) => (
                       <div
@@ -307,14 +363,19 @@ export default function ProspectDossierPage() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <div className="font-medium text-white">{String(action.title || 'Untitled action')}</div>
+                            <div className="font-medium text-white">
+                              {String(action.title || "Untitled action")}
+                            </div>
                             <div className="mt-1 text-xs text-slate-500">
-                              {String(action.type || 'ACTION')} • score {String(action.actionScore || '0')}
+                              {String(action.type || "ACTION")} • score{" "}
+                              {String(action.actionScore || "0")}
                             </div>
                           </div>
                           <button
-                            onClick={() => void completeAction(String(action.id))}
-                            disabled={String(action.status) === 'DONE'}
+                            onClick={() =>
+                              void completeAction(String(action.id))
+                            }
+                            disabled={String(action.status) === "DONE"}
                             className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/20 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200 transition hover:bg-emerald-500/20 disabled:opacity-60"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -322,7 +383,7 @@ export default function ProspectDossierPage() {
                           </button>
                         </div>
                         <div className="mt-2 text-sm leading-6 text-slate-400">
-                          {String(action.description || '—')}
+                          {String(action.description || "—")}
                         </div>
                       </div>
                     ))
@@ -340,9 +401,11 @@ export default function ProspectDossierPage() {
                       key={String(source.id)}
                       className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
                     >
-                      <div className="font-medium text-white">{String(source.label || source.sourceType || 'Source')}</div>
+                      <div className="font-medium text-white">
+                        {String(source.label || source.sourceType || "Source")}
+                      </div>
                       <a
-                        href={String(source.url || '#')}
+                        href={String(source.url || "#")}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-2 inline-flex items-center gap-1 text-xs text-cyan-300 transition hover:text-cyan-200"
@@ -352,15 +415,21 @@ export default function ProspectDossierPage() {
                       </a>
                     </div>
                   ))}
-                  {dossier.artifacts.map((artifact: Record<string, unknown>) => (
-                    <div
-                      key={String(artifact.id)}
-                      className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
-                    >
-                      <div className="font-medium text-white">{String(artifact.title || 'Artifact')}</div>
-                      <div className="mt-1 text-sm text-slate-400">{String(artifact.summary || 'Generated artifact')}</div>
-                    </div>
-                  ))}
+                  {dossier.artifacts.map(
+                    (artifact: Record<string, unknown>) => (
+                      <div
+                        key={String(artifact.id)}
+                        className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                      >
+                        <div className="font-medium text-white">
+                          {String(artifact.title || "Artifact")}
+                        </div>
+                        <div className="mt-1 text-sm text-slate-400">
+                          {String(artifact.summary || "Generated artifact")}
+                        </div>
+                      </div>
+                    ),
+                  )}
                 </div>
               </section>
             </div>

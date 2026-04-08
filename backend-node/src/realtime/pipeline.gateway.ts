@@ -23,6 +23,7 @@ export interface PipelineProgressPayload {
 export interface PipelineCompletePayload {
   reportUrl: string;
   reportUrlEn: string;
+  manifestPath: string;
 }
 
 @WebSocketGateway({

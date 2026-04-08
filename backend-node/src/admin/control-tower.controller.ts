@@ -1,12 +1,14 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { IsIn, IsOptional, IsString } from 'class-validator';
 import { AdminGuard } from '../common/guards/admin.guard';
+import { ControlTowerService } from './control-tower.service';
 import {
-  ControlTowerService,
+  type ControlTowerSummary,
+  type OperatorActionRequest,
   type OperatorActionResult,
-} from './control-tower.service';
+} from './control-tower.types';
 
-class ControlTowerActionDto {
+class ControlTowerActionDto implements OperatorActionRequest {
   @IsIn([
     'refresh_intelligence',
     'open_portal_cycle',
@@ -38,7 +40,7 @@ export class ControlTowerController {
   constructor(private readonly controlTower: ControlTowerService) {}
 
   @Get('summary')
-  async getSummary() {
+  async getSummary(): Promise<ControlTowerSummary> {
     return this.controlTower.getSummary();
   }
 

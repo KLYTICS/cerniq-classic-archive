@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
+import AlmSelectionRequired from '@/components/alm/AlmSelectionRequired';
 import { useTranslation } from '@/lib/i18n';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
-import { DollarSign, AlertTriangle } from 'lucide-react';
+import { DollarSign } from 'lucide-react';
 
 interface RarocRanking {
   subcategory: string; category: string; totalBalance: number;
@@ -44,7 +45,7 @@ export default function FTPAttributionPage() {
     })();
   }, [selectedId]);
 
-  if (!selectedId) return <div className="flex-1 flex items-center justify-center p-6"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>;
+  if (!selectedId) return <AlmSelectionRequired moduleLabel="FTP Attribution" />;
   if (loading || !data) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
 
   // Waterfall data

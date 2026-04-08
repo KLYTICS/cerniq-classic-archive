@@ -1,4 +1,5 @@
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import AdminSessionBoundary from '@/components/admin/AdminSessionBoundary';
 import { notFound } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <ErrorBoundary context="admin">
-      {children}
+      <AdminSessionBoundary>{children}</AdminSessionBoundary>
     </ErrorBoundary>
   );
 }

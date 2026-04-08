@@ -109,10 +109,11 @@ describe('PipelineGateway', () => {
   });
 
   describe('emitComplete', () => {
-    it('should emit pipeline:complete with report URLs', () => {
+    it('should emit pipeline:complete with manifest metadata', () => {
       const completeData = {
         reportUrl: 'https://cerniq.io/reports/es/123.pdf',
         reportUrlEn: 'https://cerniq.io/reports/en/123.pdf',
+        manifestPath: '/api/portal/jobs/job-101/exports',
       };
 
       gateway.emitComplete('job-101', completeData);
@@ -124,6 +125,7 @@ describe('PipelineGateway', () => {
           jobId: 'job-101',
           reportUrl: completeData.reportUrl,
           reportUrlEn: completeData.reportUrlEn,
+          manifestPath: completeData.manifestPath,
           timestamp: expect.any(String),
         }),
       );

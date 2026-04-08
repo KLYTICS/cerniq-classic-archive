@@ -281,4 +281,41 @@ describe('InstitutionIntelligenceService', () => {
     expect(dossier.account.name).toBe('Cooperativa Demo');
     expect(dossier.insights).toHaveLength(1);
   });
+
+  it('lists manifest-driven prospect sample report exports', async () => {
+    prisma.workspace.findFirst.mockResolvedValue({ id: 'ws-1' });
+    prisma.prospectInstitution.findUnique.mockResolvedValue({
+      id: 'prospect-1',
+      name: 'Cooperativa Demo',
+      institutionType: 'cooperativa',
+      location: 'San Juan, PR',
+      estimatedAssets: 250_000_000,
+      publicDataSource: 'cossec',
+      outreachStatus: 'not_started',
+      contactRole: 'CFO',
+      contactEmail: null,
+      intelligenceAccountId: 'acct-1',
+      updatedAt: new Date('2026-04-01T00:00:00Z'),
+    });
+    prisma.intelligenceAccount.findUnique.mockResolvedValue({
+      id: 'acct-1',
+      workspaceId: 'ws-1',
+      name: 'Cooperativa Demo',
+      metadata: null,
+    });
+
+    const manifests =
+      await service.listProspectSampleReportExports('prospect-1');
+
+    expect(manifests).toHaveLength(2);
+    expect(manifests[0]).toEqual(
+      expect.objectContaining({
+        kind: 'sample_report',
+        audience: 'sample',
+      }),
+    );
+    expect(manifests[0].downloadUrl).toContain(
+      '/admin/api/prospects/prospect-1/dossier/sample-report',
+    );
+  });
 });

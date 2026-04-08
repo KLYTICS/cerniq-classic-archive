@@ -146,9 +146,13 @@ describe('PortalDocumentExportsService', () => {
 
     const manifests = await service.listJobExports('user-1', 'job-3');
 
-    // The relative paths still produce a manifest (legacy behavior), but the
-    // on-demand fallback does not duplicate them since alreadyHasManifestForLang.
     const almReports = manifests.filter((m) => m.kind === 'alm_report');
     expect(almReports).toHaveLength(2);
+    expect(
+      almReports.every((manifest) =>
+        manifest.downloadUrl?.includes('/api/portal/jobs/job-3/alm-report'),
+      ),
+    ).toBe(true);
+    expect(portalAlmReport.buildManifestStub).toHaveBeenCalledTimes(2);
   });
 });

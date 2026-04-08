@@ -217,6 +217,32 @@ describe('LeadsController', () => {
     });
   });
 
+  describe('GET admin/api/prospects/:id/dossier/sample-report/exports', () => {
+    it('returns sample report manifests for a dossier', async () => {
+      const manifests = [{ id: 'sample_report:prospect-1:es' }];
+      const intelligence = {
+        listProspectSampleReportExports: jest.fn().mockResolvedValue(manifests),
+      };
+      controller = new LeadsController(
+        leads as any,
+        qualification as any,
+        scoring as any,
+        outreach as any,
+        intelligence,
+        mockSvc(),
+        mockSvc(),
+      );
+
+      const result =
+        await controller.getProspectSampleReportExports('prospect-1');
+
+      expect(result).toEqual(manifests);
+      expect(intelligence.listProspectSampleReportExports).toHaveBeenCalledWith(
+        'prospect-1',
+      );
+    });
+  });
+
   describe('POST api/demo/track', () => {
     it('tracks demo step and returns tracked: true', async () => {
       const req = { headers: { 'x-request-id': 'sess-123' } };

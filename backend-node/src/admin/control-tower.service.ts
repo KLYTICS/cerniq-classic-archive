@@ -8,22 +8,11 @@ import {
   SessionContinuityService,
   type SessionContinuitySnapshot,
 } from './session-continuity.service';
-
-type ControlTowerAction =
-  | 'refresh_intelligence'
-  | 'open_portal_cycle'
-  | 'sweep_demo_seats'
-  | 'run_pipeline'
-  | 'retry_pipeline_job'
-  | 'refresh_session_snapshot';
-
-export interface OperatorActionResult {
-  action: ControlTowerAction;
-  status: 'success' | 'error';
-  summary: string;
-  message?: string;
-  data?: unknown;
-}
+import {
+  type ControlTowerSummary,
+  type OperatorActionKind,
+  type OperatorActionResult,
+} from './control-tower.types';
 
 @Injectable()
 export class ControlTowerService {
@@ -38,11 +27,12 @@ export class ControlTowerService {
     private readonly sessionContinuity: SessionContinuityService,
   ) {}
 
-  async getSummary() {
+  async getSummary(): Promise<ControlTowerSummary> {
     const [
       stats,
       revenue,
       pipeline,
+      exports,
       intelligenceOverview,
       demoSeatSnapshot,
       sessionContinuity,
@@ -51,6 +41,7 @@ export class ControlTowerService {
       this.getAdminStats(),
       this.getRevenueMetrics(),
       this.getPipelineSnapshot(),
+      this.getExportSnapshot(),
       this.safeIntelligenceOverview(),
       this.safeDemoSeatSnapshot(),
       this.sessionContinuity.getSnapshot(),
@@ -59,7 +50,13 @@ export class ControlTowerService {
 
     const portal = await this.getPortalSnapshot();
 
-    const featureBridge = [
+    const featureBridge: Array<{
+      id: string;
+      label: string;
+      status: 'healthy' | 'warning' | 'active';
+      detail: string;
+      href: string;
+    }> = [
       {
         id: 'portal',
         label: 'Portal & report cycles',
@@ -102,16 +99,49 @@ export class ControlTowerService {
           'Session continuity artifacts available',
         href: '/admin',
       },
+      {
+        id: 'metrics',
+        label: 'Revenue & metrics',
+        status: revenue.activeSubscriptions > 0 ? 'active' : 'healthy',
+        detail: `MRR ${formatUsd(revenue.mrr)} across ${revenue.activeSubscriptions} active subscriptions`,
+        href: '/admin/metrics',
+      },
+      {
+        id: 'audit',
+        label: 'Audit trail',
+        status: 'healthy',
+        detail: 'Live admin audit history and operator actions are available.',
+        href: '/admin/audit',
+      },
+      {
+        id: 'exports',
+        label: 'Financial report exports',
+        status:
+          exports.degradedCount > 0
+            ? 'warning'
+            : exports.readyManifestCount > 0
+              ? 'active'
+              : 'healthy',
+        detail: `${exports.readyManifestCount} ready report manifests, ${exports.onDemandFallbackJobs} on-demand fallback jobs`,
+        href: '/admin',
+      },
     ];
 
-    const nextActions = [
+    const nextActions: Array<{
+      id: string;
+      title: string;
+      domain: string;
+      severity: 'high' | 'medium';
+      href?: string;
+      action?: OperatorActionKind;
+    }> = [
       ...(portal.counts.validationFailed > 0
         ? [
             {
               id: 'portal-validation',
               title: 'Clear portal validation failures',
               domain: 'portal',
-              severity: 'high',
+              severity: 'high' as const,
               href: '/admin/pipeline',
             },
           ]
@@ -122,7 +152,7 @@ export class ControlTowerService {
               id: 'demo-seat-expiring',
               title: 'Review expiring demo seats',
               domain: 'demo_seats',
-              severity: 'medium',
+              severity: 'medium' as const,
               href: '/admin/demo-seats',
             },
           ]
@@ -133,8 +163,8 @@ export class ControlTowerService {
               id: 'refresh-intelligence',
               title: 'Refresh stale intelligence accounts',
               domain: 'intelligence',
-              severity: 'medium',
-              action: 'refresh_intelligence',
+              severity: 'medium' as const,
+              action: 'refresh_intelligence' as const,
             },
           ]
         : []),
@@ -144,7 +174,7 @@ export class ControlTowerService {
               id: 'session-blockers',
               title: 'Review session blockers',
               domain: 'session',
-              severity: 'medium',
+              severity: 'medium' as const,
               href: '/admin',
             },
           ]
@@ -174,22 +204,27 @@ export class ControlTowerService {
       },
     ];
 
-    const blockers = nextActions.map((action) => ({
-      key: action.id,
-      severity: action.severity,
-      title: action.title,
-      description: action.domain ? `${action.title} (${action.domain})` : action.title,
-      href: action.href,
-      actionKey: action.action,
-      targetId: null,
-    }));
+    const blockers: ControlTowerSummary['blockers'] = nextActions.map(
+      (action) => ({
+        key: action.id,
+        severity: action.severity,
+        title: action.title,
+        description: action.domain
+          ? `${action.title} (${action.domain})`
+          : action.title,
+        href: action.href,
+        actionKey: action.action,
+        targetId: null,
+      }),
+    );
 
-    const recommendedActions = [
+    const recommendedActions: ControlTowerSummary['recommendedActions'] = [
       ...safeActions.map((action) => ({
         key: action.action,
         label: action.label,
         description: action.description,
-        tone: action.action === 'refresh_intelligence' ? 'primary' : 'secondary',
+        tone:
+          action.action === 'refresh_intelligence' ? 'primary' : 'secondary',
       })),
     ];
 
@@ -207,16 +242,19 @@ export class ControlTowerService {
       lastHudTitle: sessionContinuity.lastAgentOutputTitle,
       omxStateFiles: sessionContinuity.stateFiles.map((file) => ({
         file,
-        updatedAt: sessionContinuity.latestStatusUpdatedAt || sessionContinuity.handoffUpdatedAt || new Date().toISOString(),
+        updatedAt:
+          sessionContinuity.latestStatusUpdatedAt ||
+          sessionContinuity.handoffUpdatedAt ||
+          new Date().toISOString(),
       })),
     };
 
     const featureBridgeCards = featureBridge.map((feature) => ({
-      key: feature.id,
-      title: feature.label,
+      id: feature.id,
+      label: feature.label,
       status: feature.status,
       href: feature.href,
-      description: feature.detail,
+      detail: feature.detail,
       metricLabel:
         feature.id === 'portal'
           ? 'Awaiting upload'
@@ -224,7 +262,13 @@ export class ControlTowerService {
             ? 'Active demo seats'
             : feature.id === 'intelligence'
               ? 'Tracked accounts'
-              : 'Continuity blockers',
+              : feature.id === 'metrics'
+                ? 'MRR'
+                : feature.id === 'audit'
+                  ? 'Recent users'
+                  : feature.id === 'exports'
+                    ? 'Ready manifests'
+                    : 'Continuity blockers',
       metricValue:
         feature.id === 'portal'
           ? portal.counts.awaitingData + portal.counts.validationFailed
@@ -232,7 +276,13 @@ export class ControlTowerService {
             ? demoSeatSnapshot.active
             : feature.id === 'intelligence'
               ? intelligenceOverview.stats.totalAccounts
-              : sessionContinuity.latestStatusBlockers.length,
+              : feature.id === 'metrics'
+                ? revenue.mrr
+                : feature.id === 'audit'
+                  ? stats.recentUsers
+                  : feature.id === 'exports'
+                    ? exports.readyManifestCount
+                    : sessionContinuity.latestStatusBlockers.length,
       nextActionLabel:
         feature.id === 'portal'
           ? 'Open pipeline'
@@ -240,7 +290,13 @@ export class ControlTowerService {
             ? 'Open demo seats'
             : feature.id === 'intelligence'
               ? 'Open intelligence'
-              : 'Review continuity',
+              : feature.id === 'metrics'
+                ? 'Open metrics'
+                : feature.id === 'audit'
+                  ? 'Open audit'
+                  : feature.id === 'exports'
+                    ? 'Review exports'
+                    : 'Review continuity',
     }));
 
     return {
@@ -254,6 +310,7 @@ export class ControlTowerService {
       revenue,
       pipeline,
       portal,
+      exports,
       demoSeats: demoSeatSnapshot,
       intelligence: intelligenceOverview,
       continuity,
@@ -267,7 +324,7 @@ export class ControlTowerService {
   }
 
   async runAction(
-    action: ControlTowerAction,
+    action: OperatorActionKind,
     payload: Record<string, unknown> = {},
   ): Promise<OperatorActionResult> {
     switch (action) {
@@ -323,10 +380,15 @@ export class ControlTowerService {
         return this.logAction(
           action,
           'Session continuity snapshot refreshed',
-          await this.sessionContinuity.getSnapshot(),
+          (await this.sessionContinuity.getSnapshot()) as unknown as Record<
+            string,
+            unknown
+          >,
         );
       default:
-        throw new BadRequestException(`Unsupported control-tower action: ${action}`);
+        throw new BadRequestException(
+          `Unsupported control-tower action: ${action}`,
+        );
     }
   }
 
@@ -340,25 +402,24 @@ export class ControlTowerService {
       totalReportJobs,
       completedReports,
       failedReports,
-    ] =
-      await Promise.all([
-        this.prisma.demoRequest.count(),
-        this.prisma.institution.count(),
-        this.prisma.user.count(),
-        this.prisma.prospectInstitution.count(),
-        this.prisma.user.count({
-          where: {
-            createdAt: {
-              gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-            },
+    ] = await Promise.all([
+      this.prisma.demoRequest.count(),
+      this.prisma.institution.count(),
+      this.prisma.user.count(),
+      this.prisma.prospectInstitution.count(),
+      this.prisma.user.count({
+        where: {
+          createdAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
           },
-        }),
-        this.prisma.reportJob.count(),
-        this.prisma.reportJob.count({ where: { status: 'COMPLETE' } }),
-        this.prisma.reportJob.count({
-          where: { status: { in: ['FAILED', 'VALIDATION_FAILED'] as any } },
-        }),
-      ]);
+        },
+      }),
+      this.prisma.reportJob.count(),
+      this.prisma.reportJob.count({ where: { status: 'COMPLETE' } }),
+      this.prisma.reportJob.count({
+        where: { status: { in: ['FAILED', 'VALIDATION_FAILED'] as any } },
+      }),
+    ]);
 
     return {
       demoRequests,
@@ -406,7 +467,13 @@ export class ControlTowerService {
         this.prisma.reportJob.count({
           where: {
             status: {
-              in: ['PROCESSING', 'GENERATING_PDF', 'UPLOADING', 'QUEUED', 'VALIDATING'] as any,
+              in: [
+                'PROCESSING',
+                'GENERATING_PDF',
+                'UPLOADING',
+                'QUEUED',
+                'VALIDATING',
+              ] as any,
             },
           },
         }),
@@ -438,36 +505,50 @@ export class ControlTowerService {
   }
 
   private async getPortalSnapshot() {
-    const [awaitingData, validationFailed, processing, failed, complete, stalledJobs] =
-      await Promise.all([
-        this.prisma.reportJob.count({ where: { status: 'AWAITING_DATA' } }),
-        this.prisma.reportJob.count({ where: { status: 'VALIDATION_FAILED' } }),
-        this.prisma.reportJob.count({
-          where: {
-            status: {
-              in: ['QUEUED', 'PROCESSING', 'GENERATING_PDF', 'UPLOADING', 'VALIDATING'] as any,
-            },
+    const [
+      awaitingData,
+      validationFailed,
+      processing,
+      failed,
+      complete,
+      stalledJobs,
+    ] = await Promise.all([
+      this.prisma.reportJob.count({ where: { status: 'AWAITING_DATA' } }),
+      this.prisma.reportJob.count({ where: { status: 'VALIDATION_FAILED' } }),
+      this.prisma.reportJob.count({
+        where: {
+          status: {
+            in: [
+              'QUEUED',
+              'PROCESSING',
+              'GENERATING_PDF',
+              'UPLOADING',
+              'VALIDATING',
+            ] as any,
           },
-        }),
-        this.prisma.reportJob.count({ where: { status: 'FAILED' } }),
-        this.prisma.reportJob.count({ where: { status: 'COMPLETE' } }),
-        this.prisma.reportJob.findMany({
-          where: {
-            status: { in: ['AWAITING_DATA', 'VALIDATION_FAILED', 'FAILED'] as any },
+        },
+      }),
+      this.prisma.reportJob.count({ where: { status: 'FAILED' } }),
+      this.prisma.reportJob.count({ where: { status: 'COMPLETE' } }),
+      this.prisma.reportJob.findMany({
+        where: {
+          status: {
+            in: ['AWAITING_DATA', 'VALIDATION_FAILED', 'FAILED'] as any,
           },
-          orderBy: { createdAt: 'desc' },
-          take: 6,
-          select: {
-            id: true,
-            userId: true,
-            institutionName: true,
-            status: true,
-            errorMessage: true,
-            createdAt: true,
-            user: { select: { email: true, name: true } },
-          },
-        }),
-      ]);
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+        select: {
+          id: true,
+          userId: true,
+          institutionName: true,
+          status: true,
+          errorMessage: true,
+          createdAt: true,
+          user: { select: { email: true, name: true } },
+        },
+      }),
+    ]);
 
     return {
       counts: {
@@ -524,6 +605,26 @@ export class ControlTowerService {
           seat.daysRemaining <= 3,
       ).length,
       recent: seats.slice(0, 6),
+    };
+  }
+
+  private async getExportSnapshot() {
+    const [completedJobs, onDemandFallbackJobs] = await Promise.all([
+      this.prisma.reportJob.count({ where: { status: 'COMPLETE' } }),
+      this.prisma.reportJob.count({
+        where: {
+          status: 'COMPLETE',
+          OR: [{ reportUrl: null }, { reportUrlEn: null }],
+        },
+      }),
+    ]);
+
+    const readyManifestCount = completedJobs * 2;
+    return {
+      completedJobs,
+      onDemandFallbackJobs,
+      readyManifestCount,
+      degradedCount: onDemandFallbackJobs,
     };
   }
 
@@ -594,7 +695,7 @@ export class ControlTowerService {
   }
 
   private logAction(
-    action: ControlTowerAction,
+    action: OperatorActionKind,
     summary: string,
     data: unknown,
   ): OperatorActionResult {
@@ -607,4 +708,11 @@ export class ControlTowerService {
 
     return { action, status: 'success', summary, message: summary, data };
   }
+}
+
+function formatUsd(value: number): string {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 10_000) return `$${(value / 1_000).toFixed(0)}K`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
+  return `$${value.toFixed(0)}`;
 }

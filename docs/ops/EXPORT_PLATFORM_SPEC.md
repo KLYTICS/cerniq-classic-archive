@@ -82,6 +82,6 @@ Portal job exports:
 
 ## Known Gaps
 
-- The portal WebSocket completion payload still carries report URLs directly; the UI now prefers the manifest endpoint after completion, but the socket payload itself is not yet normalized to the manifest shape.
 - CSV/Excel/JSON analytics exports are intentionally out of the unified V1 document scope.
-- Prospect dossier sample downloads under the admin path remain server-generated but are not yet migrated onto the shared manifest contract.
+- Admin/operator export health is surfaced in the control tower, but the control tower is not itself a report-rendering surface.
+- Prospect dossier CSV exports remain intentionally separate from the PDF manifest contract.

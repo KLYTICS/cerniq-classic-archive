@@ -1179,6 +1179,9 @@ curl -H "x-admin-key: $ADMIN_KEY" $API/api/admin/stats
 # Operations dashboard (recent jobs, subscriptions, analysis runs)
 curl -H "x-admin-key: $ADMIN_KEY" $API/api/admin/ops
 
+# Control tower summary (operator command center)
+curl -H "x-admin-key: $ADMIN_KEY" $API/admin/api/control-tower/summary
+
 # Pipeline jobs and health
 curl -H "x-admin-key: $ADMIN_KEY" $API/admin/api/pipeline
 

@@ -13,12 +13,10 @@ export interface SessionContinuitySnapshot {
   latestStatusUpdatedAt: string | null;
   activeModes: string[];
   stateFiles: string[];
-  metrics:
-    | {
-        turnCount: number | null;
-        lastTurnAt: string | null;
-      }
-    | null;
+  metrics: {
+    turnCount: number | null;
+    lastTurnAt: string | null;
+  } | null;
   recommendedCommands: string[];
 }
 
@@ -129,7 +127,10 @@ export class SessionContinuityService {
     if (marker === -1) return '';
     const nextHeading = markdown.indexOf('\n## ', marker + heading.length);
     return markdown
-      .slice(marker + heading.length, nextHeading === -1 ? undefined : nextHeading)
+      .slice(
+        marker + heading.length,
+        nextHeading === -1 ? undefined : nextHeading,
+      )
       .trim();
   }
 
@@ -185,6 +186,7 @@ export class SessionContinuityService {
       return execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
         cwd,
         encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
       }).trim();
     } catch {
       return null;

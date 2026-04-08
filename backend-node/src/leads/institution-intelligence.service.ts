@@ -5,6 +5,11 @@ import { LeadQualificationService } from './lead-qualification.service';
 import { LeadScoringService } from './lead-scoring.service';
 import { ProspectIntelligenceService } from '../alm/prospect-intelligence.service';
 import { SampleReportFactoryService } from '../alm/sample-report-factory.service';
+import {
+  buildManifestId,
+  createPdfManifest,
+} from '../alm/document-exports.util';
+import type { DocumentExportManifest } from '../alm/document-exports.types';
 
 type BuyerAccountSummary = {
   accountId: string;
@@ -528,6 +533,31 @@ export class InstitutionIntelligenceService {
       buffer,
       filename: `sample-alm-report-${charterNumber}-${lang}.pdf`,
     };
+  }
+
+  async listProspectSampleReportExports(
+    prospectId: string,
+  ): Promise<DocumentExportManifest[]> {
+    const account = await this.getOrCreateAccountForProspect(prospectId);
+    const charterNumber = this.syntheticCharterFromName(account.name);
+
+    return (['es', 'en'] as const).map((language) =>
+      createPdfManifest({
+        id: buildManifestId(
+          'sample_report',
+          `prospect-${prospectId}`,
+          language,
+        ),
+        kind: 'sample_report',
+        language,
+        audience: 'sample',
+        status: 'ready',
+        downloadUrl: `/admin/api/prospects/${prospectId}/dossier/sample-report?lang=${language}`,
+        sourceLabel: account.name,
+        generatedAt: new Date(),
+        watermark: null,
+      }),
+    );
   }
 
   private async refreshAccountInternal(accountId: string, runId?: string) {

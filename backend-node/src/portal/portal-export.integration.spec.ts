@@ -401,4 +401,43 @@ describe('Portal export endpoints (HTTP integration)', () => {
         .expect(400);
     });
   });
+
+  describe('GET /api/portal/jobs/:jobId/alco-pack', () => {
+    it('streams the ALCO pack PDF for a completed job via the manifest download URL', async () => {
+      prisma.reportJob.findFirst.mockResolvedValue({
+        id: 'j1',
+        userId: 'user-paid',
+        status: 'COMPLETE',
+        institutionId: 'inst-1',
+        institutionName: 'Cooperativa Test',
+      });
+      portalExports.generateAlcoPackExport.mockResolvedValue({
+        manifest: {
+          id: 'alco_pack:j1:en',
+          kind: 'alco_pack',
+          language: 'en',
+          audience: 'internal',
+          filename: 'board-package-cooperativa-test-en-2026-04-08.pdf',
+          mimeType: 'application/pdf',
+          status: 'ready',
+          downloadUrl: '/api/portal/jobs/j1/alco-pack?lang=en',
+          generatedAt: new Date().toISOString(),
+          expiresAt: null,
+          watermark: null,
+          sourceInstitutionId: 'inst-1',
+          sourceJobId: 'j1',
+        },
+        buffer: fakePdf,
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/api/portal/jobs/j1/alco-pack?lang=en')
+        .expect(200);
+
+      expect(res.headers['content-type']).toMatch(/application\/pdf/);
+      expect(res.headers['x-cerniq-document-kind']).toBe('alco_pack');
+      expect(res.headers['x-cerniq-document-language']).toBe('en');
+      expect(Buffer.from(res.body).equals(fakePdf)).toBe(true);
+    });
+  });
 });

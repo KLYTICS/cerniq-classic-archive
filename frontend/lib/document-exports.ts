@@ -1,19 +1,19 @@
-'use client';
+"use client";
 
 export type DocumentExportKind =
-  | 'alm_report'
-  | 'sample_report'
-  | 'alco_pack'
-  | 'preview_report';
+  | "alm_report"
+  | "sample_report"
+  | "alco_pack"
+  | "preview_report";
 
 export interface DocumentExportManifest {
   id: string;
   kind: DocumentExportKind;
-  language: 'en' | 'es';
-  audience: 'internal' | 'external' | 'sample';
+  language: "en" | "es";
+  audience: "internal" | "external" | "sample";
   filename: string;
   mimeType: string;
-  status: 'ready' | 'processing' | 'failed' | 'unavailable';
+  status: "ready" | "processing" | "failed" | "unavailable";
   downloadUrl: string | null;
   generatedAt: string | null;
   expiresAt: string | null;
@@ -22,17 +22,18 @@ export interface DocumentExportManifest {
   sourceJobId: string | null;
 }
 
-const ACCESS_TOKEN_KEY = 'cerniq_access_token';
+const ACCESS_TOKEN_KEY = "cerniq_access_token";
+const ADMIN_KEY_STORAGE = "cerniq_admin_key";
 
 function getAccessToken(): string {
-  if (typeof window === 'undefined') {
-    return '';
+  if (typeof window === "undefined") {
+    return "";
   }
 
   return (
     sessionStorage.getItem(ACCESS_TOKEN_KEY) ||
     localStorage.getItem(ACCESS_TOKEN_KEY) ||
-    ''
+    ""
   );
 }
 
@@ -41,7 +42,14 @@ function buildAuthenticatedHeaders(url: string): HeadersInit {
   const normalizedUrl = new URL(url, window.location.origin);
   const sameOrigin = normalizedUrl.origin === window.location.origin;
 
-  if (sameOrigin && normalizedUrl.pathname.startsWith('/api/')) {
+  if (sameOrigin && normalizedUrl.pathname.startsWith("/admin/api/")) {
+    const adminKey = sessionStorage.getItem(ADMIN_KEY_STORAGE) || "";
+    if (adminKey) {
+      headers["x-admin-key"] = adminKey;
+    }
+  }
+
+  if (sameOrigin && normalizedUrl.pathname.startsWith("/api/")) {
     const token = getAccessToken();
     if (token) {
       headers.Authorization = `Bearer ${token}`;
@@ -63,9 +71,9 @@ export async function fetchDocumentExports(
   manifestPath: string,
 ): Promise<DocumentExportManifest[]> {
   const response = await fetch(manifestPath, {
-    credentials: 'include',
+    credentials: "include",
     headers:
-      typeof window === 'undefined'
+      typeof window === "undefined"
         ? {}
         : buildAuthenticatedHeaders(manifestPath),
   });
@@ -76,7 +84,7 @@ export async function fetchDocumentExports(
 
   const data = await response.json();
   if (!Array.isArray(data)) {
-    throw new Error('Invalid export manifest payload');
+    throw new Error("Invalid export manifest payload");
   }
 
   return data as DocumentExportManifest[];
@@ -86,13 +94,13 @@ export async function downloadDocumentExport(
   manifest: DocumentExportManifest,
 ): Promise<void> {
   if (!manifest.downloadUrl) {
-    throw new Error('Document is not available for download yet');
+    throw new Error("Document is not available for download yet");
   }
 
   const response = await fetch(manifest.downloadUrl, {
-    credentials: 'include',
+    credentials: "include",
     headers:
-      typeof window === 'undefined'
+      typeof window === "undefined"
         ? {}
         : buildAuthenticatedHeaders(manifest.downloadUrl),
   });
@@ -103,11 +111,11 @@ export async function downloadDocumentExport(
 
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
+  const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = getDownloadFilename(
     manifest,
-    response.headers.get('content-disposition'),
+    response.headers.get("content-disposition"),
   );
   document.body.appendChild(anchor);
   anchor.click();
@@ -117,27 +125,27 @@ export async function downloadDocumentExport(
 
 export function labelForDocumentKind(
   kind: DocumentExportKind,
-  locale: 'en' | 'es',
+  locale: "en" | "es",
 ): string {
-  const isEs = locale === 'es';
+  const isEs = locale === "es";
   switch (kind) {
-    case 'alm_report':
-      return isEs ? 'Descargar informe' : 'Download report';
-    case 'sample_report':
-      return isEs ? 'Documento de muestra' : 'Sample document';
-    case 'alco_pack':
-      return isEs ? 'Paquete de junta' : 'Board package';
-    case 'preview_report':
-      return isEs ? 'Documento de vista previa' : 'Preview document';
+    case "alm_report":
+      return isEs ? "Descargar informe" : "Download report";
+    case "sample_report":
+      return isEs ? "Documento de muestra" : "Sample document";
+    case "alco_pack":
+      return isEs ? "Paquete de junta" : "Board package";
+    case "preview_report":
+      return isEs ? "Documento de vista previa" : "Preview document";
     default:
-      return isEs ? 'Descargar documento' : 'Download document';
+      return isEs ? "Descargar documento" : "Download document";
   }
 }
 
 export function groupLanguages(
   manifests: DocumentExportManifest[],
-): Array<'en' | 'es'> {
+): Array<"en" | "es"> {
   return Array.from(
     new Set(manifests.map((manifest) => manifest.language)),
-  ).sort() as Array<'en' | 'es'>;
+  ).sort() as Array<"en" | "es">;
 }

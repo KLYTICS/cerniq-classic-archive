@@ -348,6 +348,12 @@ export class LeadsController {
     res.send(report.buffer);
   }
 
+  @Get('admin/api/prospects/:id/dossier/sample-report/exports')
+  @UseGuards(AdminGuard)
+  async getProspectSampleReportExports(@Param('id') id: string) {
+    return this.intelligence.listProspectSampleReportExports(id);
+  }
+
   @Post('admin/api/intelligence/actions/:actionId/complete')
   @UseGuards(AdminGuard)
   async completeIntelligenceAction(@Param('actionId') actionId: string) {

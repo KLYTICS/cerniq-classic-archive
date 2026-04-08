@@ -971,6 +971,41 @@ describe('PortalController', () => {
     });
   });
 
+  describe('GET /api/portal/jobs/:jobId/alco-pack', () => {
+    it('downloads ALCO pack through the manifest-compatible GET route', async () => {
+      prisma.reportJob.findFirst.mockResolvedValue({
+        id: 'j1',
+        userId: 'user-1',
+        status: 'COMPLETE',
+        institutionId: 'inst-1',
+        institutionName: 'Coop Test',
+      });
+      portalExports.generateAlcoPackExport.mockResolvedValue({
+        manifest: {
+          filename: 'board-package-coop-test-en-2026-04-06.pdf',
+          mimeType: 'application/pdf',
+          kind: 'alco_pack',
+          language: 'en',
+          audience: 'internal',
+        },
+        buffer: Buffer.from('pdf-data'),
+      });
+
+      const res = { set: jest.fn(), end: jest.fn() };
+      await controller.downloadAlcoPack(mockReq(), res, 'j1', 'en');
+
+      expect(portalExports.generateAlcoPackExport).toHaveBeenCalledWith(
+        'user-1',
+        'j1',
+        'en',
+      );
+      expect(res.set).toHaveBeenCalledWith(
+        expect.objectContaining({ 'Content-Type': 'application/pdf' }),
+      );
+      expect(res.end).toHaveBeenCalled();
+    });
+  });
+
   // ── submitData: multi-period linking ─────────────────
 
   describe('submitData — multi-period linking', () => {

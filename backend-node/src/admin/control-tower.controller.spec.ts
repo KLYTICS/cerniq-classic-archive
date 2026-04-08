@@ -11,9 +11,7 @@ describe('ControlTowerController', () => {
 
     const moduleRef = await Test.createTestingModule({
       controllers: [ControlTowerController],
-      providers: [
-        { provide: ControlTowerService, useValue: controlTower },
-      ],
+      providers: [{ provide: ControlTowerService, useValue: controlTower }],
     }).compile();
 
     const controller = moduleRef.get(ControlTowerController);

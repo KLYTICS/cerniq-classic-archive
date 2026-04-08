@@ -45,7 +45,7 @@ export class PortalDocumentExportsService {
     const hasR2En =
       Boolean(job.reportUrlEn) && this.looksLikeAbsoluteUrl(job.reportUrlEn);
 
-    if (job.reportUrl) {
+    if (hasR2Es) {
       manifests.push(
         createPdfManifest({
           id: buildManifestId('alm_report', jobId, 'es'),
@@ -64,7 +64,7 @@ export class PortalDocumentExportsService {
       );
     }
 
-    if (job.reportUrlEn) {
+    if (hasR2En) {
       manifests.push(
         createPdfManifest({
           id: buildManifestId('alm_report', jobId, 'en'),
