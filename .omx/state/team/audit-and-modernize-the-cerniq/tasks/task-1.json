@@ -1,0 +1,11 @@
+{
+  "subject": "Implement: Audit and modernize the CERNIQ admin console. Split across frontend/a",
+  "description": "Implement the core functionality for: Audit and modernize the CERNIQ admin console. Split across frontend/admin UX alignment, backend/admin API contract validation, and verification. Report stale routes, broken integrations, missing feature bridges to current CERNIQ capabilities, and implement or recommend the highest-value fixes with evidence.",
+  "status": "pending",
+  "owner": "worker-1",
+  "role": "executor",
+  "id": "1",
+  "depends_on": [],
+  "version": 1,
+  "created_at": "2026-04-08T18:13:27.258Z"
+}
