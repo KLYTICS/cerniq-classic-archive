@@ -240,12 +240,24 @@ function WorkflowActionCard({
 
   const headline =
     workflowState === 'validation_failed'
-      ? t('This report needs corrected data before CERNIQ can continue.', 'Este informe necesita datos corregidos antes de continuar.')
+      ? t(
+          'This report needs corrected data before CERNIQ can continue.',
+          'Este informe necesita datos corregidos antes de continuar.',
+        )
       : workflowState === 'needs_upload'
-        ? t('Your next report cycle is ready for upload.', 'Su proximo ciclo de informe esta listo para cargar.')
+        ? t(
+            'Your next report cycle is ready for upload.',
+            'Su proximo ciclo de informe esta listo para cargar.',
+          )
         : workflowState === 'processing'
-          ? t('Submission received. CERNIQ is validating and generating the report now.', 'Carga recibida. CERNIQ esta validando y generando el informe ahora.')
-          : t('Open the next step for this workspace.', 'Abra el siguiente paso para este portal.');
+          ? t(
+              'Submission received. CERNIQ is validating and generating the report now.',
+              'Carga recibida. CERNIQ esta validando y generando el informe ahora.',
+            )
+          : t(
+              'Open the next step for this workspace.',
+              'Abra el siguiente paso para este portal.',
+            );
 
   return (
     <div className="cerniq-panel p-6">
@@ -281,7 +293,6 @@ function WorkflowActionCard({
             </div>
           ) : null}
         </div>
-
         <div className="flex shrink-0 flex-col gap-3">
           <Link
             href={nextAction.href}
@@ -370,7 +381,6 @@ export default function PortalHome() {
   const tier = (subscription?.tier || 'free') as SubscriptionTier;
   const trendFeature = useFeature(tier, 'trendCharts');
   const isDemoSeat = isActiveDemo(access) || tier === 'demo';
-
   const jobs = overview?.jobs || [];
   const latestJob = overview?.latestActionableJob || jobs[0] || null;
   const completedJobs = jobs.filter((job) => job.status === 'COMPLETE');
@@ -380,7 +390,9 @@ export default function PortalHome() {
   const isProcessing =
     overview?.workflowState === 'processing' &&
     isPortalProcessingStatus(latestJob?.status);
-  const isComplete = overview?.workflowState === 'report_ready' && latestJob?.status === 'COMPLETE';
+  const isComplete =
+    overview?.workflowState === 'report_ready' &&
+    latestJob?.status === 'COMPLETE';
 
   // The "demo report job" is the one tied to the demo seat. It is normally
   // the latest job, but a demo prospect could (eventually) have refined it
@@ -406,7 +418,10 @@ export default function PortalHome() {
 
       {/* Welcome banner (only when ?welcome=1) */}
       <Suspense fallback={null}>
-        <WelcomeBanner latestJob={latestJob} nextAction={overview?.nextAction || null} />
+        <WelcomeBanner
+          latestJob={latestJob}
+          nextAction={overview?.nextAction || null}
+        />
       </Suspense>
 
       {/* Demo seat banner — only for demo-tier users (provisioned from prospect) */}
@@ -429,14 +444,14 @@ export default function PortalHome() {
         workflowState={overview?.workflowState}
       />
 
-      {overview?.nextAction && (
+      {overview?.nextAction ? (
         <WorkflowActionCard
           workflowState={overview.workflowState}
           nextAction={overview.nextAction}
           validationSummary={overview.validationSummary}
           job={latestJob}
         />
-      )}
+      ) : null}
 
       {/* Progress Tracker */}
       <div className="cerniq-panel p-6">
@@ -578,7 +593,8 @@ export default function PortalHome() {
               actionLabel={t('Upload data', 'Cargar datos')}
               onAction={() => {
                 if (typeof window !== 'undefined') {
-                  window.location.href = overview?.nextAction?.href || '/portal/submit';
+                  window.location.href =
+                    overview?.nextAction?.href || '/portal/submit';
                 }
               }}
             />

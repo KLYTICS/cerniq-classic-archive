@@ -64,7 +64,7 @@ export default function WorkspaceCommandCenter({
       ['QUEUED', 'PROCESSING', 'GENERATING_PDF', 'UPLOADING', 'VALIDATING'].includes(job.status),
     ).length;
   const awaitingDataReports =
-    (counts?.awaitingData ?? 0) + (counts?.validationFailed ?? 0) ||
+    ((counts?.awaitingData ?? 0) + (counts?.validationFailed ?? 0)) ||
     jobs.filter((job) =>
       ['AWAITING_DATA', 'VALIDATION_FAILED'].includes(job.status),
     ).length;

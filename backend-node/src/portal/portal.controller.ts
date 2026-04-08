@@ -44,6 +44,7 @@ import { PortalDocumentExportsService } from './portal-document-exports.service'
 import { PortalAlmReportService } from './portal-alm-report.service';
 import { DemoSeatService } from './demo-seat.service';
 import { buildPdfResponseHeaders } from '../alm/document-exports.util';
+import { OnboardingOrchestratorService } from '../alm/onboarding-orchestrator.service';
 
 type PortalWorkflowState =
   | 'needs_report'
@@ -88,6 +89,7 @@ const PORTAL_ACTIONABLE_STATUSES = [
 
 type PortalOverviewJob = {
   id: string;
+  institutionId: string | null;
   institutionName: string;
   status: string;
   analysisPeriod: string | null;
@@ -102,6 +104,23 @@ type PortalOverviewJob = {
   errorMessage: string | null;
   userId: string;
   triggeredBy: string;
+};
+
+type PortalActivationSnapshot = {
+  institutionId: string;
+  activationScore: number;
+  daysSinceSignup: number;
+  isStalled: boolean;
+  stalledMilestone: string | null;
+  stalledMilestoneLabel: string | null;
+  stalledMilestoneLabelEs: string | null;
+  milestones: Array<{
+    id: string;
+    label: string;
+    labelEs: string;
+    completed: boolean;
+    completedAt: string | null;
+  }>;
 };
 
 class InviteDto {
@@ -136,6 +155,7 @@ export class PortalController {
     private readonly portalExports: PortalDocumentExportsService,
     private readonly portalAlmReport: PortalAlmReportService,
     private readonly demoSeats: DemoSeatService,
+    private readonly onboardingOrchestrator: OnboardingOrchestratorService,
   ) {}
 
   // ── List User's Report Jobs ─────────────────────────
@@ -165,6 +185,7 @@ export class PortalController {
   })
   async getOverview(@Req() req: any) {
     const userId = req.user.userId;
+    const access = await this.requirePaidPortalAccess(userId);
     const scope = await this.buildJobOwnerScope(userId);
     const jobs = await this.loadPortalJobs(scope);
     const counts = this.countPortalJobs(jobs);
@@ -178,13 +199,86 @@ export class PortalController {
       : null;
 
     return {
+      access,
       jobs,
       latestActionableJob,
       workflowState,
       counts,
+      activation: await this.buildActivationSnapshot(latestActionableJob),
       demoSeat: await this.loadDemoSeatContextPayload(userId),
       nextAction: this.buildNextAction(workflowState, latestActionableJob),
       validationSummary,
+    };
+  }
+
+  @Post('jobs/open-cycle')
+  @Roles('OWNER', 'ANALYST')
+  @ApiOperation({
+    summary:
+      'Create or reopen the next pending report cycle for the authenticated user',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'A pending or retryable report cycle is ready for upload',
+  })
+  async openReportCycle(@Req() req: any) {
+    const userId = req.user.userId;
+    await this.requirePaidPortalAccess(userId);
+
+    const jobs = await this.loadPortalJobs({ userId });
+    const existingJob =
+      jobs.find((job) => job.status === 'VALIDATION_FAILED') ||
+      jobs.find((job) => job.status === 'AWAITING_DATA') ||
+      null;
+
+    if (existingJob) {
+      return {
+        created: false,
+        reopened: existingJob.status === 'VALIDATION_FAILED',
+        nextActionHref: `/portal/submit?jobId=${existingJob.id}`,
+        job: existingJob,
+      };
+    }
+
+    const workspace = await this.prisma.workspace.findMany({
+      where: { ownerId: userId },
+      select: { name: true },
+      orderBy: { createdAt: 'asc' },
+      take: 1,
+    });
+
+    const seedJob = jobs[0] || null;
+    const latestCompletedJob = seedJob?.institutionId
+      ? await this.prisma.reportJob.findFirst({
+          where: {
+            userId,
+            institutionId: seedJob.institutionId,
+            status: 'COMPLETE',
+          },
+          orderBy: { completedAt: 'desc' },
+          select: { id: true },
+        })
+      : null;
+
+    const job = await this.prisma.reportJob.create({
+      data: {
+        userId,
+        institutionId: seedJob?.institutionId || null,
+        institutionName: this.resolveCycleInstitutionName(
+          seedJob,
+          workspace[0]?.name || null,
+        ),
+        status: 'AWAITING_DATA',
+        previousJobId: latestCompletedJob?.id || null,
+        triggeredBy: 'portal_open_cycle',
+      },
+    });
+
+    return {
+      created: true,
+      reopened: false,
+      nextActionHref: `/portal/submit?jobId=${job.id}`,
+      job,
     };
   }
 
@@ -929,9 +1023,9 @@ export class PortalController {
     return access;
   }
 
-  private async loadPortalJobs(scope: {
-    userId?: string;
-  }): Promise<PortalOverviewJob[]> {
+  private async loadPortalJobs(
+    scope: { userId?: string },
+  ): Promise<PortalOverviewJob[]> {
     return this.prisma.reportJob.findMany({
       where: scope,
       orderBy: { createdAt: 'desc' },
