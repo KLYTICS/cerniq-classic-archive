@@ -41,6 +41,10 @@ model User {
   analysisRuns        AnalysisRun[]
   ingestionLogs       IngestionLog[]
   passwordResetTokens PasswordResetToken[]
+  intelligenceRuns    IntelligenceRun[]
+  intelligenceActions IntelligenceAction[]
+  intelligenceArtifacts IntelligenceArtifact[]
+  workspaceMemoryEntries WorkspaceMemoryEntry[]
 
   @@unique([provider, providerId])
   @@map("users")
@@ -106,8 +110,10 @@ model Organization {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  members  OrganizationMember[]
-  expenses Expense[]
+  members            OrganizationMember[]
+  expenses           Expense[]
+  closeCycles        CloseCycle[]
+  glBalanceSnapshots GlBalanceSnapshot[]
 
   @@map("organizations")
 }
@@ -192,6 +198,10 @@ model Workspace {
   findings     Finding[]
   reports      Report[]
   institutions Institution[]
+  intelligenceAccounts IntelligenceAccount[]
+  intelligenceRuns IntelligenceRun[]
+  intelligenceArtifacts IntelligenceArtifact[]
+  workspaceMemoryEntries WorkspaceMemoryEntry[]
 
   @@map("workspaces")
 }
@@ -716,6 +726,99 @@ enum LeadPriority {
   LOW
 }
 
+enum IntelligenceAccountKind {
+  COMPETITOR
+  BUYER
+}
+
+enum IntelligenceAccountStatus {
+  TRACKED
+  WATCHLIST
+  ACTIVE
+  DORMANT
+  ARCHIVED
+}
+
+enum IntelligenceSourceType {
+  OFFICIAL_REGISTRY
+  PUBLIC_WEBSITE
+  PRICING_PAGE
+  DOCUMENT
+  MANUAL_UPLOAD
+  INTERNAL_NOTE
+  ENRICHMENT_API
+}
+
+enum IntelligenceSourceFetchPolicy {
+  MANUAL
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum IntelligenceSourceTrustLevel {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum IntelligenceInsightType {
+  PRICING_CHANGE
+  HIRING_SIGNAL
+  REGULATORY_SIGNAL
+  PRODUCT_SIGNAL
+  URGENCY_SIGNAL
+  THREAT_SIGNAL
+  CONTACT_SIGNAL
+  REFRESH_NOTE
+}
+
+enum IntelligenceInsightSeverity {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum IntelligenceActionStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  DISMISSED
+}
+
+enum IntelligenceActionType {
+  REVIEW_ACCOUNT
+  REFRESH_ACCOUNT
+  CONTACT_BUYER
+  UPDATE_CRM
+  GENERATE_REPORT
+  REVIEW_COMPETITOR
+}
+
+enum IntelligenceRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+enum IntelligenceArtifactType {
+  WEEKLY_BRIEF
+  COMPETITOR_TEAR_SHEET
+  BUYER_DOSSIER
+  ACCOUNT_EXPORT
+  ACTION_EXPORT
+  HANDOFF_REPORT
+}
+
+enum WorkspaceMemoryEntryType {
+  HANDOFF
+  DECISION
+  NOTE
+  ALERT
+}
+
 model Lead {
   id              String       @id @default(cuid())
   createdAt       DateTime     @default(now()) @map("created_at")
@@ -754,10 +857,14 @@ model Lead {
 
   // Enrichment
   publicDataSnapshot Json?     @map("public_data_snapshot")
+  intelligenceAccountId String? @map("intelligence_account_id")
+
+  intelligenceAccount IntelligenceAccount? @relation(fields: [intelligenceAccountId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([priority])
   @@index([email])
+  @@index([intelligenceAccountId])
   @@map("leads")
 }
 
@@ -770,17 +877,273 @@ model ProspectInstitution {
   location        String?
   estimatedAssets Decimal? @map("estimated_assets") @db.Decimal(18, 2)
   publicDataSource String? @map("public_data_source") // cossec | ncua | manual
-  outreachStatus  String   @default("not_started") @map("outreach_status") // not_started | sample_generated | sent | replied | meeting_set | closed
+  publicDataIdentifier String? @map("public_data_identifier") // charter_number for ncua, slug for cossec
+  outreachStatus  String   @default("not_started") @map("outreach_status") // not_started | sample_generated | portal_provisioned | sent | replied | meeting_set | closed
   contactName     String?  @map("contact_name")
   contactEmail    String?  @map("contact_email")
   contactRole     String?  @map("contact_role")
   notes           String?
   reportUrl       String?  @map("report_url")
+  intelligenceAccountId String? @map("intelligence_account_id")
+
+  // Demo portal provisioning (cerniq.io/portal demo seats)
+  demoUserId         String?   @map("demo_user_id") @db.Uuid
+  demoReportJobId    String?   @map("demo_report_job_id")
+  demoMagicLinkUrl   String?   @map("demo_magic_link_url")
+  demoProvisionedAt  DateTime? @map("demo_provisioned_at")
+  demoExpiresAt      DateTime? @map("demo_expires_at")
+  demoLastViewedAt   DateTime? @map("demo_last_viewed_at")
+
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
+  intelligenceAccount IntelligenceAccount? @relation(fields: [intelligenceAccountId], references: [id], onDelete: SetNull)
+
   @@index([outreachStatus])
+  @@index([intelligenceAccountId])
+  @@index([demoUserId])
+  @@index([demoExpiresAt])
   @@map("prospect_institutions")
+}
+
+model IntelligenceAccount {
+  id                String                    @id @default(cuid())
+  workspaceId       String                    @map("workspace_id") @db.Uuid
+  kind              IntelligenceAccountKind
+  status            IntelligenceAccountStatus @default(TRACKED)
+  name              String
+  normalizedName    String                    @map("normalized_name")
+  domain            String?
+  websiteUrl        String?                   @map("website_url")
+  region            String?
+  country           String?                   @default("Puerto Rico")
+  industry          String?
+  institutionalType String?                   @map("institutional_type")
+  sourceOfTruth     String?                   @map("source_of_truth")
+  currentSummary    String?                   @map("current_summary") @db.Text
+  freshnessScore    Int                       @default(0) @map("freshness_score")
+  opportunityScore  Int                       @default(0) @map("opportunity_score")
+  threatScore       Int                       @default(0) @map("threat_score")
+  actionScore       Int                       @default(0) @map("action_score")
+  lastRefreshedAt   DateTime?                 @map("last_refreshed_at")
+  lastChangedAt     DateTime?                 @map("last_changed_at")
+  nextRefreshAt     DateTime?                 @map("next_refresh_at")
+  metadata          Json?
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+
+  workspace      Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contacts       IntelligenceContact[]
+  sources        IntelligenceSource[]
+  snapshots      IntelligenceSnapshot[]
+  insights       IntelligenceInsight[]
+  actions        IntelligenceAction[]
+  artifacts      IntelligenceArtifact[]
+  memoryEntries  WorkspaceMemoryEntry[]
+  syncedLeads    Lead[]
+  syncedProspects ProspectInstitution[]
+
+  @@unique([workspaceId, kind, normalizedName])
+  @@index([workspaceId, kind])
+  @@index([status, nextRefreshAt])
+  @@index([domain])
+  @@map("intelligence_accounts")
+}
+
+model IntelligenceContact {
+  id                String   @id @default(cuid())
+  accountId         String   @map("account_id")
+  fullName          String   @map("full_name")
+  normalizedName    String   @map("normalized_name")
+  title             String?
+  department        String?
+  seniority         String?
+  email             String?
+  phone             String?
+  linkedinUrl       String?  @map("linkedin_url")
+  contactScore      Int      @default(0) @map("contact_score")
+  reachabilityScore Int      @default(0) @map("reachability_score")
+  metadata          Json?
+  lastVerifiedAt    DateTime? @map("last_verified_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  account IntelligenceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, normalizedName, title])
+  @@unique([accountId, email])
+  @@index([accountId, contactScore])
+  @@map("intelligence_contacts")
+}
+
+model IntelligenceSource {
+  id          String                       @id @default(cuid())
+  accountId   String                       @map("account_id")
+  label       String?
+  url         String
+  sourceType  IntelligenceSourceType       @map("source_type")
+  fetchPolicy IntelligenceSourceFetchPolicy @default(WEEKLY) @map("fetch_policy")
+  trustLevel  IntelligenceSourceTrustLevel @default(MEDIUM) @map("trust_level")
+  active      Boolean                      @default(true)
+  metadata    Json?
+  lastFetchedAt DateTime?                  @map("last_fetched_at")
+  lastHttpStatus Int?                      @map("last_http_status")
+  createdAt   DateTime                     @default(now()) @map("created_at")
+  updatedAt   DateTime                     @updatedAt @map("updated_at")
+
+  account   IntelligenceAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  snapshots IntelligenceSnapshot[]
+
+  @@unique([accountId, url])
+  @@index([accountId, active])
+  @@map("intelligence_sources")
+}
+
+model IntelligenceRun {
+  id              String                @id @default(cuid())
+  workspaceId     String                @map("workspace_id") @db.Uuid
+  initiatedByUserId String?             @map("initiated_by_user_id") @db.Uuid
+  trigger         String                @default("manual")
+  status          IntelligenceRunStatus @default(QUEUED)
+  accountCount    Int                   @default(0) @map("account_count")
+  snapshotCount   Int                   @default(0) @map("snapshot_count")
+  insightCount    Int                   @default(0) @map("insight_count")
+  errorMessage    String?               @map("error_message")
+  metadata        Json?
+  startedAt       DateTime              @default(now()) @map("started_at")
+  completedAt     DateTime?             @map("completed_at")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  initiatedByUser User? @relation(fields: [initiatedByUserId], references: [id], onDelete: SetNull)
+  snapshots IntelligenceSnapshot[]
+  insights IntelligenceInsight[]
+  artifacts IntelligenceArtifact[]
+
+  @@index([workspaceId, status])
+  @@index([startedAt])
+  @@map("intelligence_runs")
+}
+
+model IntelligenceSnapshot {
+  id           String    @id @default(cuid())
+  accountId    String    @map("account_id")
+  sourceId     String?   @map("source_id")
+  runId        String?   @map("run_id")
+  summary      String?   @db.Text
+  factsJson    Json      @map("facts_json")
+  rawMetadata  Json?     @map("raw_metadata")
+  changeHash   String    @map("change_hash")
+  capturedAt   DateTime  @default(now()) @map("captured_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  account IntelligenceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  source  IntelligenceSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  run     IntelligenceRun?    @relation(fields: [runId], references: [id], onDelete: SetNull)
+  insights IntelligenceInsight[]
+
+  @@unique([accountId, changeHash])
+  @@index([accountId, capturedAt])
+  @@map("intelligence_snapshots")
+}
+
+model IntelligenceInsight {
+  id          String                     @id @default(cuid())
+  accountId   String                     @map("account_id")
+  runId       String?                    @map("run_id")
+  snapshotId  String?                    @map("snapshot_id")
+  type        IntelligenceInsightType
+  severity    IntelligenceInsightSeverity @default(MEDIUM)
+  title       String
+  description String                     @db.Text
+  confidence  Float                      @default(0.5)
+  data        Json?
+  reviewedAt  DateTime?                  @map("reviewed_at")
+  createdAt   DateTime                   @default(now()) @map("created_at")
+  updatedAt   DateTime                   @updatedAt @map("updated_at")
+
+  account  IntelligenceAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  run      IntelligenceRun?     @relation(fields: [runId], references: [id], onDelete: SetNull)
+  snapshot IntelligenceSnapshot? @relation(fields: [snapshotId], references: [id], onDelete: SetNull)
+  actions  IntelligenceAction[]
+
+  @@index([accountId, severity, createdAt])
+  @@map("intelligence_insights")
+}
+
+model IntelligenceAction {
+  id               String                   @id @default(cuid())
+  accountId        String                   @map("account_id")
+  insightId        String?                  @map("insight_id")
+  assignedToUserId String?                  @map("assigned_to_user_id") @db.Uuid
+  type             IntelligenceActionType
+  status           IntelligenceActionStatus @default(OPEN)
+  title            String
+  description      String                   @db.Text
+  confidence       Float                    @default(0.5)
+  actionScore      Int                      @default(0) @map("action_score")
+  dueAt            DateTime?                @map("due_at")
+  completedAt      DateTime?                @map("completed_at")
+  metadata         Json?
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @updatedAt @map("updated_at")
+
+  account    IntelligenceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  insight    IntelligenceInsight? @relation(fields: [insightId], references: [id], onDelete: SetNull)
+  assignedTo User?               @relation(fields: [assignedToUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, dueAt])
+  @@index([accountId, actionScore])
+  @@map("intelligence_actions")
+}
+
+model IntelligenceArtifact {
+  id              String                   @id @default(cuid())
+  workspaceId     String                   @map("workspace_id") @db.Uuid
+  accountId       String?                  @map("account_id")
+  runId           String?                  @map("run_id")
+  createdByUserId String?                  @map("created_by_user_id") @db.Uuid
+  type            IntelligenceArtifactType
+  title           String
+  summary         String?                  @db.Text
+  defaultFormat   String                   @default("json") @map("default_format")
+  filtersJson     Json?                    @map("filters_json")
+  artifactData    Json?                    @map("artifact_data")
+  artifactText    String?                  @map("artifact_text") @db.Text
+  csvContent      String?                  @map("csv_content") @db.Text
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @updatedAt @map("updated_at")
+
+  workspace  Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  account    IntelligenceAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  run        IntelligenceRun?     @relation(fields: [runId], references: [id], onDelete: SetNull)
+  createdByUser User?             @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, type, createdAt])
+  @@map("intelligence_artifacts")
+}
+
+model WorkspaceMemoryEntry {
+  id           String                  @id @default(cuid())
+  workspaceId  String                  @map("workspace_id") @db.Uuid
+  accountId    String?                 @map("account_id")
+  authorUserId String?                 @map("author_user_id") @db.Uuid
+  type         WorkspaceMemoryEntryType
+  title        String
+  body         String                  @db.Text
+  pinned       Boolean                 @default(false)
+  metadata     Json?
+  createdAt    DateTime                @default(now()) @map("created_at")
+  updatedAt    DateTime                @updatedAt @map("updated_at")
+
+  workspace Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  account   IntelligenceAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  author    User?                @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, type, createdAt])
+  @@index([accountId, pinned])
+  @@map("workspace_memory_entries")
 }
 
 // ===== Sector Benchmarks =====
@@ -807,6 +1170,7 @@ model CooperativaBenchmark {
 
 enum SubscriptionTier {
   free
+  demo
   one_time
   monthly
   annual
@@ -1239,4 +1603,263 @@ model ProcessedWebhookEvent {
 
   @@index([processedAt])
   @@map("processed_webhook_events")
+}
+
+// ============================================================================
+// Close Cockpit — month-end financial close workflow
+// ----------------------------------------------------------------------------
+// One CloseCycle per (org, period). Owns Tasks, JournalEntries, Reconciliations
+// and a FluxNarrative. Bilingual EN/ES so PR cooperativa controllers and their
+// COSSEC examiners read the same artifacts.
+// ============================================================================
+
+model CloseCycle {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  periodYear     Int              @map("period_year")
+  periodMonth    Int              @map("period_month") // 1-12
+  status         CloseCycleStatus @default(OPEN)
+  openedAt       DateTime         @default(now()) @map("opened_at")
+  targetCloseAt  DateTime?        @map("target_close_at")
+  closedAt       DateTime?        @map("closed_at")
+  closedById     String?          @map("closed_by_id") @db.Uuid
+  // Materiality snapshot at the moment the cycle was opened — frozen so flux
+  // analysis stays reproducible even if the policy is later changed.
+  materialityAbs Decimal          @map("materiality_abs") @db.Decimal(14, 2)
+  materialityPct Float            @map("materiality_pct")
+  notesEn        String?          @map("notes_en")
+  notesEs        String?          @map("notes_es")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tasks            CloseTask[]
+  journalEntries   CloseJournalEntry[]
+  reconciliations  CloseReconciliation[]
+  fluxNarratives   CloseFluxNarrative[]
+  activities       CloseActivity[]
+
+  @@unique([organizationId, periodYear, periodMonth])
+  @@index([organizationId, status])
+  @@index([targetCloseAt])
+  @@map("close_cycles")
+}
+
+enum CloseCycleStatus {
+  OPEN          // pre-close work in progress
+  IN_REVIEW     // tie-outs done, controller reviewing
+  SIGNED_OFF    // CFO signed off, period locked
+  REOPENED      // reopened after sign-off (audit-tracked)
+}
+
+model CloseTask {
+  id            String          @id @default(uuid()) @db.Uuid
+  cycleId       String          @map("cycle_id") @db.Uuid
+  // Stable kind key (e.g. "bank_rec_operating", "ap_subledger_tie")
+  // so we can build a recurring monthly template per org without coupling
+  // to a free-form title.
+  kind          String
+  titleEn       String          @map("title_en")
+  titleEs       String          @map("title_es")
+  ownerId       String?         @map("owner_id") @db.Uuid
+  dueAt         DateTime?       @map("due_at")
+  status        CloseTaskStatus @default(PENDING)
+  // Encoded as task ids that must be completed before this one is workable.
+  blockedByIds  String[]        @default([]) @map("blocked_by_ids")
+  evidenceUrls  String[]        @default([]) @map("evidence_urls")
+  completedAt   DateTime?       @map("completed_at")
+  completedById String?         @map("completed_by_id") @db.Uuid
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  cycle CloseCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  @@index([cycleId, status])
+  @@index([ownerId])
+  @@index([dueAt])
+  @@map("close_tasks")
+}
+
+enum CloseTaskStatus {
+  PENDING
+  IN_PROGRESS
+  BLOCKED
+  REVIEW
+  DONE
+  WAIVED
+}
+
+model CloseJournalEntry {
+  id           String              @id @default(uuid()) @db.Uuid
+  cycleId      String              @map("cycle_id") @db.Uuid
+  reference    String              // human ref e.g. "JE-2026-04-001"
+  memoEn       String              @map("memo_en")
+  memoEs       String              @map("memo_es")
+  // Two-sided JE stored as a JSON array of {account, debit, credit, dimension?}
+  lines        Json
+  // Cached totals so the SUM(debit)==SUM(credit) constraint is enforced in
+  // the service layer and we can still query "unbalanced" entries fast.
+  totalDebit   Decimal             @map("total_debit")  @db.Decimal(14, 2)
+  totalCredit  Decimal             @map("total_credit") @db.Decimal(14, 2)
+  status       JournalEntryStatus  @default(DRAFT)
+  postedAt     DateTime?           @map("posted_at")
+  postedById   String?             @map("posted_by_id") @db.Uuid
+  approvedById String?             @map("approved_by_id") @db.Uuid
+  evidenceUrls String[]            @default([]) @map("evidence_urls")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+
+  cycle CloseCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  @@unique([cycleId, reference])
+  @@index([cycleId, status])
+  @@map("close_journal_entries")
+}
+
+enum JournalEntryStatus {
+  DRAFT
+  AWAITING_REVIEW
+  APPROVED
+  POSTED
+  REVERSED
+}
+
+model CloseReconciliation {
+  id              String                @id @default(uuid()) @db.Uuid
+  cycleId         String                @map("cycle_id") @db.Uuid
+  // GL account being reconciled e.g. "1010 — Operating Cash"
+  account         String
+  reconType       ReconciliationType    @map("recon_type")
+  glBalance       Decimal               @map("gl_balance")        @db.Decimal(14, 2)
+  externalBalance Decimal               @map("external_balance")  @db.Decimal(14, 2)
+  difference      Decimal               @db.Decimal(14, 2)
+  // Items the engine could not auto-match — JSON array of {description, amount, side}
+  unmatchedItems  Json                  @default("[]") @map("unmatched_items")
+  status          ReconciliationStatus  @default(OPEN)
+  preparedById    String?               @map("prepared_by_id") @db.Uuid
+  reviewedById    String?               @map("reviewed_by_id") @db.Uuid
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  cycle CloseCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  @@index([cycleId, status])
+  @@map("close_reconciliations")
+}
+
+enum ReconciliationType {
+  BANK
+  AP_SUBLEDGER
+  AR_SUBLEDGER
+  INTERCOMPANY
+  PREPAID
+  ACCRUAL
+  FIXED_ASSET
+}
+
+enum ReconciliationStatus {
+  OPEN
+  TIE
+  EXCEPTION
+  REVIEWED
+  SIGNED_OFF
+}
+
+model CloseFluxNarrative {
+  id            String   @id @default(uuid()) @db.Uuid
+  cycleId       String   @map("cycle_id") @db.Uuid
+  account       String
+  priorBalance  Decimal  @map("prior_balance")  @db.Decimal(14, 2)
+  currentBalance Decimal @map("current_balance") @db.Decimal(14, 2)
+  varianceAbs   Decimal  @map("variance_abs")   @db.Decimal(14, 2)
+  variancePct   Float    @map("variance_pct")
+  isMaterial    Boolean  @map("is_material")
+  narrativeEn   String   @map("narrative_en")
+  narrativeEs   String   @map("narrative_es")
+  // Confidence the narrator has in its own explanation (0..1). Surfaces in UI
+  // so reviewers know which narratives need a human pass.
+  confidence    Float
+  generatedAt   DateTime @default(now()) @map("generated_at")
+
+  cycle CloseCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  @@index([cycleId, isMaterial])
+  @@map("close_flux_narratives")
+}
+
+// ============================================================================
+// Close Cockpit — activity stream
+// ----------------------------------------------------------------------------
+// One row per mutation inside the cockpit. Written from inside the same
+// transaction as the mutation so the activity log can never drift from the
+// state it describes. Feeds the recent-activity strip at the top of the
+// cycle workspace and the audit binder's change history section.
+// ============================================================================
+
+model CloseActivity {
+  id         String             @id @default(uuid()) @db.Uuid
+  cycleId    String             @map("cycle_id") @db.Uuid
+  actorId    String?            @map("actor_id") @db.Uuid
+  kind       CloseActivityKind
+  /// Free-form, denormalized summary. English — the strip shows this verbatim
+  /// and translates icons, not prose.
+  summaryEn  String             @map("summary_en")
+  summaryEs  String             @map("summary_es")
+  /// JSON payload for structured querying later (taskId, reconId, je ref, …).
+  payload    Json               @default("{}")
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  cycle CloseCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  @@index([cycleId, createdAt])
+  @@map("close_activities")
+}
+
+enum CloseActivityKind {
+  CYCLE_OPENED
+  CYCLE_SIGNED_OFF
+  CYCLE_REOPENED
+  TASK_UPDATED
+  TASK_COMPLETED
+  TASK_WAIVED
+  TASK_CASCADED_UNBLOCK
+  TIE_OUT_RUN
+  JE_POSTED
+  FLUX_REFRESHED
+  GL_UPLOADED
+  RECON_REVIEWED
+}
+
+// ============================================================================
+// Close Cockpit — GL balance snapshots
+// ----------------------------------------------------------------------------
+// Org-scoped monthly balance snapshots uploaded via CSV or synced from an
+// accounting system. Primary source for the Close Cockpit tie-out / flux
+// "Pull from GL" / "Load from GL" flows. Replaces the legacy ALM bridge
+// that required a user to own both an Organization and a Workspace.
+//
+// Upsert key is (organizationId, account, periodYear, periodMonth) so
+// re-uploading the same file idempotently refreshes the balances without
+// creating duplicates. `uploadedAt` captures the most recent write.
+// ============================================================================
+
+model GlBalanceSnapshot {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  account        String
+  periodYear     Int      @map("period_year")
+  periodMonth    Int      @map("period_month") // 1..12
+  balance        Decimal  @db.Decimal(18, 2)
+  /// Freeform tag for provenance — e.g. "netsuite:2026-04-monthly.csv" or "manual".
+  sourceLabel    String?  @map("source_label")
+  uploadedById   String?  @map("uploaded_by_id") @db.Uuid
+  notes          String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, account, periodYear, periodMonth], name: "org_account_period")
+  @@index([organizationId, periodYear, periodMonth])
+  @@map("gl_balance_snapshots")
 }

@@ -1,17 +1,22 @@
 export type PlatformAccessReason =
   | 'paid'
+  | 'demo_active'
   | 'master_ceo'
   | 'owner_recovery_bypass'
   | 'subscription_required'
   | 'subscription_past_due'
-  | 'subscription_cancelled';
+  | 'subscription_cancelled'
+  | 'demo_expired';
 
 export interface PlatformAccessState {
   platformAccessAllowed: boolean;
   isMasterCeo: boolean;
   isPaid: boolean;
+  isDemo: boolean;
   effectiveTier: string;
   effectiveStatus: string | null;
+  effectivePeriodEnd: string | null;
+  daysRemaining: number | null;
   reason: PlatformAccessReason;
 }
 
@@ -39,6 +44,7 @@ export function normalizePlatformAccess(
     platformAccessAllowed: candidate.platformAccessAllowed,
     isMasterCeo: Boolean(candidate.isMasterCeo),
     isPaid: Boolean(candidate.isPaid),
+    isDemo: Boolean(candidate.isDemo),
     effectiveTier:
       typeof candidate.effectiveTier === 'string'
         ? candidate.effectiveTier
@@ -47,11 +53,25 @@ export function normalizePlatformAccess(
       typeof candidate.effectiveStatus === 'string'
         ? candidate.effectiveStatus
         : null,
+    effectivePeriodEnd:
+      typeof candidate.effectivePeriodEnd === 'string'
+        ? candidate.effectivePeriodEnd
+        : null,
+    daysRemaining:
+      typeof candidate.daysRemaining === 'number'
+        ? candidate.daysRemaining
+        : null,
     reason:
       typeof candidate.reason === 'string'
         ? (candidate.reason as PlatformAccessReason)
         : 'subscription_required',
   };
+}
+
+export function isActiveDemo(
+  access: PlatformAccessState | null | undefined,
+) {
+  return Boolean(access?.isDemo) && Boolean(access?.platformAccessAllowed);
 }
 
 export function hasPlatformAccess(

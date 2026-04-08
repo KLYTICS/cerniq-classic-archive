@@ -24,6 +24,7 @@ import { DepositBetaService } from './deposit-beta.service';
 import { LiquidityAdvancedService } from './liquidity-advanced.service';
 import { ConcentrationService } from './concentration.service';
 import { NCUADataPullService } from './data-pull/ncua-data-pull.service';
+import { CossecDataPullService } from './data-pull/cossec-data-pull.service';
 import { SampleReportFactoryService } from './sample-report-factory.service';
 // Phase IV services
 import { AlmAdvisorV2Service } from './alm-advisor-v2.service';
@@ -104,6 +105,8 @@ import { DataExportService } from './data-export.service';
 // Custom Scenario & Excel Export
 import { CustomScenarioService } from './custom-scenario.service';
 import { ExcelExportService } from './excel-export.service';
+import { PreviewReportService } from './preview-report.service';
+import { AlmDocumentExportsService } from './alm-document-exports.service';
 // Controllers
 import { AlmController } from './alm.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
@@ -149,6 +152,7 @@ import { AuthGuard } from '../auth/auth.guard';
     LiquidityAdvancedService,
     ConcentrationService,
     NCUADataPullService,
+    CossecDataPullService,
     SampleReportFactoryService,
     // Phase IV
     AlmAdvisorV2Service,
@@ -226,6 +230,8 @@ import { AuthGuard } from '../auth/auth.guard';
     // Custom Scenario & Excel Export
     CustomScenarioService,
     ExcelExportService,
+    PreviewReportService,
+    AlmDocumentExportsService,
     // Guards
     AuthGuard,
   ],
@@ -234,6 +240,7 @@ import { AuthGuard } from '../auth/auth.guard';
     AlmEnterpriseService,
     AlmAdvisorService,
     StressTestingService,
+    ReportsService,
     ReportPreflightService,
     WorkspaceOnboardingService,
     InstitutionSeedService,
@@ -250,6 +257,7 @@ import { AuthGuard } from '../auth/auth.guard';
     LiquidityAdvancedService,
     ConcentrationService,
     NCUADataPullService,
+    CossecDataPullService,
     SampleReportFactoryService,
     AlmAdvisorV2Service,
     LiquidityStressPackService,
@@ -321,6 +329,8 @@ import { AuthGuard } from '../auth/auth.guard';
     DataExportService,
     CustomScenarioService,
     ExcelExportService,
+    PreviewReportService,
+    AlmDocumentExportsService,
   ],
 })
 export class AlmModule {}

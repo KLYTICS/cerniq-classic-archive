@@ -176,6 +176,9 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
 }
 
 export function buildLoginRedirectUrl(pathname: string, search = ''): string {
+  if (pathname === '/portal' || pathname.startsWith('/portal/')) {
+    return `/portal/login?returnUrl=${encodeURIComponent(`${pathname}${search}`)}`;
+  }
   return `/login?returnUrl=${encodeURIComponent(`${pathname}${search}`)}`;
 }
 
@@ -283,6 +286,58 @@ export interface StressScenarioResult {
   verdict: StressScenarioVerdict;
   narrative: string;
   narrativeEs: string;
+}
+
+export interface IntelligenceAccountSummary {
+  accountId: string;
+  prospectId: string | null;
+  name: string;
+  status: string;
+  institutionalType: string | null;
+  location: string | null;
+  estimatedAssets: number | null;
+  freshnessScore: number;
+  opportunityScore: number;
+  actionScore: number;
+  sourceCount: number;
+  openActionCount: number;
+  latestSnapshotAt: string | null;
+  latestArtifactTitle: string | null;
+  linkedLeadStatus: string | null;
+  topInsight: {
+    title: string;
+    severity: string;
+    type: string;
+  } | null;
+}
+
+export interface ProspectDossierDetail {
+  account: {
+    id: string;
+    name: string;
+    status: string;
+    kind: string;
+    institutionalType: string | null;
+    sourceOfTruth: string | null;
+    freshnessScore: number;
+    opportunityScore: number;
+    threatScore: number;
+    actionScore: number;
+    lastRefreshedAt: string | null;
+    lastChangedAt: string | null;
+    nextRefreshAt: string | null;
+    currentSummary: string | null;
+    metadata?: Record<string, unknown> | null;
+  };
+  prospect: Record<string, unknown> | null;
+  linkedLeads: Array<Record<string, unknown>>;
+  sources: Array<Record<string, unknown>>;
+  snapshots: Array<Record<string, unknown>>;
+  latestSnapshot: Record<string, unknown> | null;
+  insights: Array<Record<string, unknown>>;
+  actions: Array<Record<string, unknown>>;
+  artifacts: Array<Record<string, unknown>>;
+  memoryEntries: Array<Record<string, unknown>>;
 }
 
 export interface SavedStressScenario {
@@ -603,6 +658,156 @@ class APIClient {
   async getAdminStats() {
     const response = await this.client.get(`${NODE_API_URL}/api/admin/stats`, { headers: this.adminHeaders() });
     return response.data;
+  }
+
+  async getIntelligenceOverview(workspaceId?: string) {
+    const qs = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : '';
+    const response = await this.client.get(`${NODE_API_URL}/admin/api/intelligence/overview${qs}`, {
+      headers: this.adminHeaders(),
+    });
+    return response.data;
+  }
+
+  async getIntelligenceAccounts(params?: {
+    workspaceId?: string;
+    kind?: string;
+    status?: string;
+    search?: string;
+  }) {
+    const qs = new URLSearchParams();
+    if (params?.workspaceId) qs.set('workspaceId', params.workspaceId);
+    if (params?.kind) qs.set('kind', params.kind);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    const response = await this.client.get(`${NODE_API_URL}/admin/api/intelligence/accounts${suffix}`, {
+      headers: this.adminHeaders(),
+    });
+    return response.data;
+  }
+
+  async getIntelligenceAccount(id: string) {
+    const response = await this.client.get(`${NODE_API_URL}/admin/api/intelligence/accounts/${id}`, {
+      headers: this.adminHeaders(),
+    });
+    return response.data;
+  }
+
+  async getIntelligenceTimeline(id: string) {
+    const response = await this.client.get(`${NODE_API_URL}/admin/api/intelligence/accounts/${id}/timeline`, {
+      headers: this.adminHeaders(),
+    });
+    return response.data;
+  }
+
+  async getIntelligenceActions(params?: {
+    workspaceId?: string;
+    status?: string;
+    kind?: string;
+  }) {
+    const qs = new URLSearchParams();
+    if (params?.workspaceId) qs.set('workspaceId', params.workspaceId);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.kind) qs.set('kind', params.kind);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    const response = await this.client.get(`${NODE_API_URL}/admin/api/intelligence/actions${suffix}`, {
+      headers: this.adminHeaders(),
+    });
+    return response.data;
+  }
+
+  async refreshIntelligence(body: {
+    workspaceId?: string;
+    accountIds?: string[];
+    kinds?: string[];
+    staleOnly?: boolean;
+    trigger?: string;
+  }) {
+    const response = await this.client.post(`${NODE_API_URL}/admin/api/intelligence/refresh`, body, {
+      headers: this.adminHeaders(),
+    });
+    return response.data;
+  }
+
+  async importIntelligenceAccounts(body: {
+    workspaceId?: string;
+    accounts: Array<Record<string, unknown>>;
+  }) {
+    const response = await this.client.post(`${NODE_API_URL}/admin/api/intelligence/accounts/import`, body, {
+      headers: this.adminHeaders(),
+    });
+    return response.data;
+  }
+
+  async generateIntelligenceReport(body: {
+    workspaceId?: string;
+    type: string;
+    title?: string;
+    accountIds?: string[];
+    includeClosedActions?: boolean;
+  }) {
+    const response = await this.client.post(`${NODE_API_URL}/admin/api/intelligence/reports`, body, {
+      headers: this.adminHeaders(),
+    });
+    return response.data;
+  }
+
+  async getIntelligenceHandoff(workspaceId?: string) {
+    const qs = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : '';
+    const response = await this.client.get(`${NODE_API_URL}/admin/api/intelligence/handoff${qs}`, {
+      headers: this.adminHeaders(),
+    });
+    return response.data;
+  }
+
+  async createIntelligenceMemoryEntry(body: {
+    workspaceId?: string;
+    accountId?: string;
+    type: string;
+    title: string;
+    body: string;
+    pinned?: boolean;
+  }) {
+    const response = await this.client.post(`${NODE_API_URL}/admin/api/intelligence/memory`, body, {
+      headers: this.adminHeaders(),
+    });
+    return response.data;
+  }
+
+  async downloadIntelligenceArtifact(id: string, format: 'csv' | 'json' = 'json') {
+    const response = await this.client.get(
+      `${NODE_API_URL}/admin/api/intelligence/artifacts/${id}/export?format=${format}`,
+      {
+        headers: this.adminHeaders(),
+        responseType: format === 'csv' ? 'blob' : 'json',
+      },
+    );
+
+    if (format === 'json') {
+      const blob = new Blob([JSON.stringify(response.data, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `intelligence-artifact-${id}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return response.data;
+    }
+
+    const blob = new Blob([response.data], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `intelligence-artifact-${id}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return true;
   }
 
   // Risk Analysis
@@ -1433,27 +1638,195 @@ class APIClient {
   // Prospect CRM
   async getProspects(stage?: string) {
     const params = stage ? `?stage=${stage}` : '';
-    const response = await this.client.get(`${NODE_API_URL}/api/admin/prospects${params}`, { headers: this.adminHeaders() });
+    const response = await this.client.get(`${NODE_API_URL}/admin/api/prospects${params}`, { headers: this.adminHeaders() });
     return response.data;
   }
 
   async createProspect(data: { name: string; email?: string; company?: string; role?: string; stage?: string; source?: string; notes?: string }) {
-    const response = await this.client.post(`${NODE_API_URL}/api/admin/prospects`, data, { headers: this.adminHeaders() });
+    const response = await this.client.post(`${NODE_API_URL}/admin/api/prospects`, data, { headers: this.adminHeaders() });
     return response.data;
   }
 
   async updateProspect(id: string, data: { stage?: string; notes?: string; name?: string; email?: string; company?: string; role?: string }) {
-    const response = await this.client.patch(`${NODE_API_URL}/api/admin/prospects/${id}`, data, { headers: this.adminHeaders() });
+    const response = await this.client.patch(`${NODE_API_URL}/admin/api/prospects/${id}`, data, { headers: this.adminHeaders() });
     return response.data;
   }
 
   async deleteProspect(id: string) {
-    const response = await this.client.delete(`${NODE_API_URL}/api/admin/prospects/${id}`, { headers: this.adminHeaders() });
+    const response = await this.client.delete(`${NODE_API_URL}/admin/api/prospects/${id}`, { headers: this.adminHeaders() });
     return response.data;
   }
 
   async seedProspects() {
-    const response = await this.client.post(`${NODE_API_URL}/api/admin/seed-prospects`, {}, { headers: this.adminHeaders() });
+    const response = await this.client.post(`${NODE_API_URL}/admin/api/prospects/seed`, {}, { headers: this.adminHeaders() });
+    return response.data;
+  }
+
+  async syncInstitutionIntelligence(limit?: number) {
+    const qs = typeof limit === 'number' ? `?limit=${limit}` : '';
+    const response = await this.client.post(`${NODE_API_URL}/admin/api/intelligence/sync${qs}`, {}, { headers: this.adminHeaders() });
+    return response.data;
+  }
+
+  async refreshInstitutionIntelligence(limit?: number, staleOnly: boolean = true) {
+    const params = new URLSearchParams();
+    if (typeof limit === 'number') params.set('limit', String(limit));
+    params.set('staleOnly', String(staleOnly));
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const response = await this.client.post(`${NODE_API_URL}/admin/api/intelligence/refresh${qs}`, {}, { headers: this.adminHeaders() });
+    return response.data;
+  }
+
+  async getInstitutionIntelligenceAccounts(limit?: number): Promise<IntelligenceAccountSummary[]> {
+    const qs = typeof limit === 'number' ? `?limit=${limit}` : '';
+    const response = await this.client.get(`${NODE_API_URL}/admin/api/intelligence/accounts${qs}`, { headers: this.adminHeaders() });
+    return response.data;
+  }
+
+  async getProspectDossier(id: string): Promise<ProspectDossierDetail> {
+    const response = await this.client.get(`${NODE_API_URL}/admin/api/prospects/${id}/dossier`, { headers: this.adminHeaders() });
+    return response.data;
+  }
+
+  async refreshProspectDossier(id: string): Promise<ProspectDossierDetail> {
+    const response = await this.client.post(`${NODE_API_URL}/admin/api/prospects/${id}/dossier/refresh`, {}, { headers: this.adminHeaders() });
+    return response.data;
+  }
+
+  async downloadProspectDossierCsv(id: string): Promise<void> {
+    const response = await this.client.get(`${NODE_API_URL}/admin/api/prospects/${id}/dossier/export.csv`, {
+      headers: this.adminHeaders(),
+      responseType: 'text',
+    });
+    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `prospect-dossier-${id}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  // ── Demo Portal Provisioning (sales: prospect → portal magic link) ──
+
+  async provisionDemoPortal(
+    prospectId: string,
+    options: {
+      contactEmail?: string;
+      contactName?: string;
+      ttlDays?: number;
+      preferredLanguage?: 'en' | 'es';
+      sendEmail?: boolean;
+    } = {},
+  ): Promise<{
+    prospectId: string;
+    userId: string;
+    institutionId: string;
+    reportJobId: string;
+    magicLinkUrl: string;
+    expiresAt: string;
+    provisionedAt: string;
+    contactEmail: string;
+    reused: boolean;
+    source: string;
+    asOfQuarter: string | null;
+    disclosure: string;
+    reportPortalUrl: string;
+  }> {
+    const response = await this.client.post(
+      `${NODE_API_URL}/admin/api/prospects/${prospectId}/provision-portal`,
+      options,
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async bulkProvisionDemoPortals(payload: {
+    prospectIds: string[];
+    ttlDays?: number;
+    sendEmail?: boolean;
+  }): Promise<{
+    total: number;
+    provisioned: number;
+    failed: Array<{ prospectId: string; error: string | null }>;
+    results: Array<{
+      prospectId: string;
+      magicLinkUrl: string;
+      expiresAt: string;
+      reused: boolean;
+    }>;
+  }> {
+    const response = await this.client.post(
+      `${NODE_API_URL}/admin/api/prospects/provision-portal/bulk`,
+      payload,
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async listDemoSeats(
+    filter: 'active' | 'expired' | 'all' = 'all',
+  ): Promise<
+    Array<{
+      prospectId: string;
+      institutionName: string;
+      contactEmail: string | null;
+      contactName: string | null;
+      institutionType: string;
+      location: string | null;
+      publicDataSource: string | null;
+      demoUserId: string | null;
+      reportJobId: string | null;
+      provisionedAt: string | null;
+      expiresAt: string | null;
+      lastViewedAt: string | null;
+      magicLinkUrl: string | null;
+      outreachStatus: string;
+      daysRemaining: number | null;
+      status: 'active' | 'expired';
+      hasBeenViewed: boolean;
+    }>
+  > {
+    const response = await this.client.get(
+      `${NODE_API_URL}/admin/api/demo-seats?filter=${filter}`,
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async sweepDemoSeats(): Promise<{
+    scanned: number;
+    expired: number;
+    expiredIds: string[];
+  }> {
+    const response = await this.client.post(
+      `${NODE_API_URL}/admin/api/demo-seats/sweep`,
+      {},
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async downloadProspectSampleReport(id: string, lang: 'en' | 'es' = 'es'): Promise<void> {
+    const response = await this.client.get(`${NODE_API_URL}/admin/api/prospects/${id}/dossier/sample-report?lang=${lang}`, {
+      headers: this.adminHeaders(),
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sample-report-${id}-${lang}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async completeIntelligenceAction(actionId: string) {
+    const response = await this.client.post(`${NODE_API_URL}/admin/api/intelligence/actions/${actionId}/complete`, {}, { headers: this.adminHeaders() });
     return response.data;
   }
 

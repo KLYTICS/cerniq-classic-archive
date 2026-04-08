@@ -7,7 +7,7 @@ import { usePortal } from './layout';
 import { useTranslation } from '@/lib/i18n';
 import {
   FileText, Upload, Download, Eye, ArrowRight, Lock, CheckCircle,
-  Calendar, ExternalLink, Briefcase,
+  Calendar, ExternalLink,
 } from 'lucide-react';
 import { SkeletonLoader, EmptyState, ErrorBanner } from '@/components/ui/cerniq';
 import { useFeature } from '@/lib/features';
@@ -15,9 +15,12 @@ import type { SubscriptionTier } from '@/lib/features';
 import ProgressTracker from '@/components/portal/ProgressTracker';
 import WorkspaceCommandCenter from '@/components/portal/WorkspaceCommandCenter';
 import ReportProgressWS from '@/components/portal/ReportProgressWS';
+import DocumentExportButtons from '@/components/exports/DocumentExportButtons';
+import DemoSeatBanner from '@/components/portal/DemoSeatBanner';
 import { rememberPortalUser } from '@/lib/subscription';
-import { getPublicApiUrl } from '@/lib/api-base';
+import { getBalanceSheetTemplateUrl, getPublicApiUrl } from '@/lib/api-base';
 import { unwrapApiData } from '@/lib/api-response';
+import { isActiveDemo } from '@/lib/access';
 
 interface ReportJob {
   id: string;
@@ -25,6 +28,20 @@ interface ReportJob {
   status: string;
   completedAt?: string;
   createdAt: string;
+}
+
+interface DemoSeatContext {
+  isDemo: boolean;
+  daysRemaining?: number | null;
+  expiresAt?: string | null;
+  seat: {
+    prospectId: string;
+    institutionName: string;
+    publicDataSource: string | null;
+    provisionedAt: string | null;
+    expiresAt: string | null;
+    reportJobId: string | null;
+  } | null;
 }
 
 /* ---------- helper: map job status to progress step ---------- */
@@ -128,59 +145,12 @@ function WelcomeBanner({ latestJob }: { latestJob?: ReportJob }) {
 
 /* ---------- ALCO Pack Button ---------- */
 function AlcoPackButton({ jobId, compact }: { jobId: string; compact?: boolean }) {
-  const [loading, setLoading] = useState(false);
-
-  const handleDownload = async () => {
-    setLoading(true);
-    try {
-      const token = typeof window !== 'undefined' ? (sessionStorage.getItem('cerniq_access_token') || localStorage.getItem('cerniq_access_token')) : null;
-      const res = await fetch(getPublicApiUrl(`/api/portal/jobs/${jobId}/alco-pack?lang=es`), {
-        method: 'POST',
-        credentials: 'include',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) {
-        throw new Error('Failed to generate ALCO pack');
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = res.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] || `ALCO_Pack_${jobId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      // Silently handle -- user can retry
-    }
-    setLoading(false);
-  };
-
-  if (compact) {
-    return (
-      <button
-        onClick={handleDownload}
-        disabled={loading}
-        aria-label={loading ? 'Generating ALCO Pack...' : 'Download ALCO Pack'}
-        className="inline-flex items-center gap-1 text-xs font-medium text-[#1B3A6B] hover:underline disabled:opacity-50"
-      >
-        <Briefcase className="h-3 w-3" />
-        {loading ? '...' : 'ALCO'}
-      </button>
-    );
-  }
-
   return (
-    <button
-      onClick={handleDownload}
-      disabled={loading}
-      aria-label={loading ? 'Generating ALCO Pack...' : 'Download ALCO Pack'}
-      className="inline-flex items-center gap-2 rounded-xl border border-[#1B3A6B]/20 bg-[#1B3A6B]/5 px-6 py-3 text-sm font-medium text-[#1B3A6B] hover:bg-[#1B3A6B]/10 transition-colors disabled:opacity-50"
-    >
-      <Briefcase className="h-4 w-4" />
-      {loading ? 'Generating...' : 'ALCO Pack'}
-    </button>
+    <DocumentExportButtons
+      manifestPath={`/api/portal/jobs/${jobId}/exports`}
+      kinds={['alco_pack']}
+      compact={compact}
+    />
   );
 }
 
@@ -214,14 +184,10 @@ function ReportReadyState({ job }: { job: ReportJob }) {
               <Eye className="h-4 w-4" />
               {t('View report', 'Ver informe')}
             </Link>
-            <a
-              href={getPublicApiUrl(`/api/portal/jobs/${job.id}/download`)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-            >
-              <Download className="h-4 w-4" />
-              {t('Download PDF', 'Descargar PDF')}
-            </a>
-            <AlcoPackButton jobId={job.id} />
+            <DocumentExportButtons
+              manifestPath={`/api/portal/jobs/${job.id}/exports`}
+              kinds={['alm_report', 'alco_pack']}
+            />
           </div>
 
           {/* Schedule review */}
@@ -302,16 +268,18 @@ function StatusBadge({ status }: { status: string }) {
 
 /* ---------- Main Page ---------- */
 export default function PortalHome() {
-  const { user, subscription } = usePortal();
+  const { user, subscription, access } = usePortal();
   const { locale } = useTranslation();
   const t = useCallback((en: string, es: string) => locale === 'en' ? en : es, [locale]);
 
   const [jobs, setJobs] = useState<ReportJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [demoContext, setDemoContext] = useState<DemoSeatContext | null>(null);
 
   const tier = (subscription?.tier || 'free') as SubscriptionTier;
   const trendFeature = useFeature(tier, 'trendCharts');
+  const isDemoSeat = isActiveDemo(access) || tier === 'demo';
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -329,15 +297,35 @@ export default function PortalHome() {
     setLoading(false);
   }, [t]);
 
+  const loadDemoContext = useCallback(async () => {
+    if (!isDemoSeat) {
+      setDemoContext(null);
+      return;
+    }
+    try {
+      const res = await fetch(getPublicApiUrl('/api/portal/demo-seat'), {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const payload = unwrapApiData<DemoSeatContext>(await res.json().catch(() => null));
+        setDemoContext(payload || null);
+      }
+    } catch {
+      // Non-fatal — banner just falls back to access-based defaults
+    }
+  }, [isDemoSeat]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       loadJobs();
+      loadDemoContext();
     }, 0);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [loadJobs]);
+  }, [loadJobs, loadDemoContext]);
 
   const latestJob = jobs[0];
   const completedJobs = jobs.filter(j => j.status === 'COMPLETE');
@@ -346,6 +334,18 @@ export default function PortalHome() {
 
   const isProcessing = latestJob && ['QUEUED', 'PROCESSING', 'GENERATING_PDF', 'UPLOADING', 'VALIDATING'].includes(latestJob.status);
   const isComplete = latestJob?.status === 'COMPLETE';
+
+  // The "demo report job" is the one tied to the demo seat. It is normally
+  // the latest job, but a demo prospect could (eventually) have refined it
+  // with a real upload — in which case we still want to surface the demo
+  // provenance until they fully commit.
+  const demoJob =
+    demoContext?.seat?.reportJobId
+      ? jobs.find((j) => j.id === demoContext.seat?.reportJobId) || null
+      : null;
+  const demoIsProcessing = demoJob
+    ? ['QUEUED', 'PROCESSING', 'GENERATING_PDF', 'UPLOADING', 'VALIDATING'].includes(demoJob.status)
+    : false;
 
   return (
     <div className="space-y-6">
@@ -360,6 +360,18 @@ export default function PortalHome() {
       <Suspense fallback={null}>
         <WelcomeBanner latestJob={latestJob} />
       </Suspense>
+
+      {/* Demo seat banner — only for demo-tier users (provisioned from prospect) */}
+      {isDemoSeat && (
+        <DemoSeatBanner
+          institutionName={demoContext?.seat?.institutionName || latestJob?.institutionName || null}
+          publicDataSource={demoContext?.seat?.publicDataSource || null}
+          daysRemaining={demoContext?.daysRemaining ?? access?.daysRemaining ?? null}
+          expiresAt={demoContext?.expiresAt || demoContext?.seat?.expiresAt || access?.effectivePeriodEnd || null}
+          reportJobId={demoContext?.seat?.reportJobId || latestJob?.id || null}
+          isProcessing={demoIsProcessing}
+        />
+      )}
 
       <WorkspaceCommandCenter
         userName={user?.name}
@@ -390,8 +402,10 @@ export default function PortalHome() {
         <ReportReadyState job={latestJob} />
       )}
 
-      {/* Next Step -- only show for non-processing, non-complete states */}
-      {!isProcessing && !isComplete && (
+      {/* Next Step -- only show for non-processing, non-complete states.
+          Demo seats hide this entirely because the DemoSeatBanner already
+          owns the primary CTA (open report or refine with real numbers). */}
+      {!isProcessing && !isComplete && !isDemoSeat && (
         <div className="cerniq-panel p-6">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">
             {t('Next step', 'Siguiente paso')}
@@ -426,7 +440,7 @@ export default function PortalHome() {
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
-                  href={getPublicApiUrl('/api/alm/templates/cooperativa')}
+                  href={getBalanceSheetTemplateUrl('cooperativa')}
                   className="cerniq-button-secondary px-4 py-2.5 text-sm"
                 >
                   <Download className="h-4 w-4" /> {t('Download template', 'Descargar plantilla')}

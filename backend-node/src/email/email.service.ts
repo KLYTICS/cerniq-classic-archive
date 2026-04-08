@@ -230,6 +230,75 @@ export class EmailService {
     }
   }
 
+  // ── Demo Portal Ready (sales: prospect → portal handoff) ─────
+
+  async sendDemoPortalReady(data: {
+    email: string;
+    name: string;
+    institutionName: string;
+    magicLinkUrl: string;
+    asOfQuarter: string;
+    disclosure: string;
+    expiresAt: Date;
+    language: 'es' | 'en';
+  }): Promise<void> {
+    if (!this.resend) {
+      this.logger.log(`[DRY RUN] Demo portal ready: ${data.email}`);
+      return;
+    }
+    const expiresLabel = data.expiresAt.toISOString().slice(0, 10);
+    const subject =
+      data.language === 'es'
+        ? `Su portal CERNIQ esta listo — ${data.institutionName}`
+        : `Your CERNIQ portal is ready — ${data.institutionName}`;
+    const ctaText =
+      data.language === 'es' ? 'Acceder al portal' : 'Open your portal';
+
+    const bodyEs = `<p>Hola ${data.name || ''},</p>
+       <p>Hemos preparado un portal CERNIQ para <strong>${data.institutionName}</strong> usando datos publicos de COSSEC (${data.asOfQuarter}). No necesita cargar nada — el informe ALM completo ya esta dentro.</p>
+       <p>Lo que encontrara:</p>
+       <ol style="color: #334155; line-height: 2;">
+         <li><strong>Informe ALM completo</strong> — brecha de duracion, sensibilidad NII, EVE, Monte Carlo</li>
+         <li><strong>Cumplimiento COSSEC</strong> — los 12 ratios calculados contra los umbrales vigentes</li>
+         <li><strong>Paquete de Junta (ALCO)</strong> — PDF de 8 paginas listo para imprimir</li>
+         <li><strong>Comparacion con la mediana del sector</strong> — donde esta su cooperativa frente a las 109 inscritas en COSSEC</li>
+       </ol>
+       <p style="background: #FEF3C7; padding: 12px; border-radius: 6px; font-size: 13px; color: #78350F;">${data.disclosure}. Acceso valido hasta ${expiresLabel}. Una vez dentro, puede refinar el informe con sus numeros reales en cualquier momento.</p>
+       <p>Si quiere que repasemos el informe juntos en una llamada de 15 minutos, responda a este email.</p>
+       ${this.SIGNATURE_ES}`;
+
+    const bodyEn = `<p>Hi ${data.name || ''},</p>
+       <p>We've prepared a CERNIQ portal for <strong>${data.institutionName}</strong> using public NCUA / COSSEC filings (${data.asOfQuarter}). Nothing for you to upload — the full ALM report is already inside.</p>
+       <p>What you'll find:</p>
+       <ol style="color: #334155; line-height: 2;">
+         <li><strong>Full ALM report</strong> — duration gap, NII sensitivity, EVE, Monte Carlo</li>
+         <li><strong>Regulatory compliance</strong> — all 12 ratios scored against current thresholds</li>
+         <li><strong>Board (ALCO) pack</strong> — print-ready 8-page PDF</li>
+         <li><strong>Sector benchmarking</strong> — where you sit vs. peers</li>
+       </ol>
+       <p style="background: #FEF3C7; padding: 12px; border-radius: 6px; font-size: 13px; color: #78350F;">${data.disclosure}. Access valid until ${expiresLabel}. Once inside, you can refine the report with your real numbers any time.</p>
+       <p>If you'd like to walk through the report together in a 15-minute call, reply to this email.</p>
+       ${this.SIGNATURE_EN}`;
+
+    try {
+      await this.resend.emails.send({
+        from: 'Erwin Kiess <onboarding@resend.dev>',
+        replyTo: this.adminEmail(),
+        to: data.email,
+        subject,
+        html: this.wrap(
+          data.language === 'es'
+            ? `${bodyEs}${this.DIVIDER}${bodyEn}`
+            : `${bodyEn}${this.DIVIDER}${bodyEs}`,
+          data.magicLinkUrl,
+          ctaText,
+        ),
+      });
+    } catch (err) {
+      this.logger.error(`Failed to send demo portal ready: ${err}`);
+    }
+  }
+
   // ── 4. Magic Link / Data Reminder ─────────────────────
 
   async sendMagicLinkEmail(data: {

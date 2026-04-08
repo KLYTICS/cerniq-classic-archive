@@ -2,7 +2,7 @@
  * Feature flag system — tier-based access control (SAAS-09)
  */
 
-export type SubscriptionTier = 'free' | 'one_time' | 'monthly' | 'annual' | 'partner';
+export type SubscriptionTier = 'free' | 'demo' | 'one_time' | 'monthly' | 'annual' | 'partner';
 
 export type FeatureKey =
   | 'demo'
@@ -25,6 +25,19 @@ const FEATURES_BY_TIER: Record<SubscriptionTier, Record<FeatureKey, boolean | nu
     alertEmails: false,
     multiClient: false,
     boardShareLink: false,
+    boardPresentation: false,
+  },
+  // Demo seats: full read-only access to the platform for the duration
+  // of the trial. Trend charts on, alerts off, no team invites.
+  demo: {
+    demo: true,
+    reportsPerMonth: 1,
+    trendCharts: true,
+    apiAccess: false,
+    whiteLabel: false,
+    alertEmails: false,
+    multiClient: false,
+    boardShareLink: true,
     boardPresentation: false,
   },
   one_time: {

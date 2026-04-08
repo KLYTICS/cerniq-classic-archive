@@ -156,11 +156,71 @@ export class AuthGuard implements CanActivate {
       }
     }
 
-    // Resolve the user's InstitutionRole from the database for RBAC enforcement.
-    // The JWT may not carry the InstitutionRole, so we fetch it from the DB.
+    // Resolve the user's InstitutionRole for RBAC enforcement.
+    //
+    // Auth method dispatch:
+    //   1. api_key        → always 'api_key' (no DB lookup)
+    //   2. token          → see the three-case breakdown below
+    //   3. other / legacy → fall back to DB record, then provisioned role
+    //
+    // ── Token role resolution ─────────────────────────────────────────
+    //
+    // The JWT `role` claim is a signal about how the real role should be
+    // resolved. There are three cases:
+    //
+    //   (a) role === 'authenticated'
+    //       This is a deliberate placeholder meaning "token is valid but
+    //       the real institution role should be looked up from the DB".
+    //       Our own issued tokens and the Supabase legacy path both use
+    //       this value for users who haven't had their role baked into
+    //       their session. We perform a DB lookup and fall back to the
+    //       placeholder when the DB doesn't have one.
+    //
+    //   (b) role is a specific string ('admin', 'analyst', …)
+    //       The token is authoritative. We use it directly and skip the
+    //       DB — re-querying here would risk privilege drift when the
+    //       DB disagrees with what we already verified via JWT.
+    //
+    //   (c) role is undefined / missing
+    //       The provisioned value from resolveApplicationUser (which
+    //       integrates JWT claims + user record mapping) is authoritative.
+    //       If that's also missing, we fall through to 'authenticated'
+    //       below — we deliberately do NOT hit the DB because the token
+    //       didn't request a DB resolution.
     let resolvedRole = user.role;
     if (user.authMethod === 'api_key') {
       resolvedRole = 'api_key';
+    } else if (user.authMethod === 'token') {
+      // NOTE: `user.role` here has already been defaulted to 'authenticated'
+      // by verifyLegacyToken when the JWT didn't carry a role. To distinguish
+      // "JWT explicitly said 'authenticated'" (case a) from "JWT had no role
+      // field at all" (case c), we inspect the raw claims instead.
+      const rawTokenRole =
+        typeof user.claims?.role === 'string' ? user.claims.role : undefined;
+
+      if (rawTokenRole === 'authenticated' && applicationUserId) {
+        // Case (a): placeholder role → look up the real role from the DB
+        try {
+          const dbUser = await this.prisma.user.findUnique({
+            where: { id: applicationUserId },
+            select: { role: true },
+          });
+          if (dbUser?.role) {
+            resolvedRole = dbUser.role;
+          } else {
+            resolvedRole = provisionedRole ?? user.role;
+          }
+        } catch (dbError) {
+          this.logger.warn(
+            `DB role lookup failed for user ${applicationUserId}, using token role`,
+            dbError,
+          );
+          resolvedRole = provisionedRole ?? user.role;
+        }
+      } else {
+        // Cases (b) and (c): trust the token/provisioned value, skip DB
+        resolvedRole = provisionedRole ?? user.role;
+      }
     } else if (applicationUserId) {
       try {
         const dbUser = await this.prisma.user.findUnique({
@@ -173,7 +233,6 @@ export class AuthGuard implements CanActivate {
           resolvedRole = provisionedRole;
         }
       } catch (dbError) {
-        // Fall back to token-based role on DB error — but log it
         this.logger.warn(
           `DB role lookup failed for user ${applicationUserId}, using token role`,
           dbError,

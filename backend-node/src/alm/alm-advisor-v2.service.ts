@@ -323,9 +323,22 @@ export class AlmAdvisorV2Service {
     lang: string,
   ): AsyncGenerator<string> {
     try {
-      const AnthropicModule = await import('@anthropic-ai/sdk');
-      const AnthropicClient = AnthropicModule.default;
-      const client = new AnthropicClient({
+      // Under `module: "nodenext"`, ts-node types `(await import(...)).default`
+      // as the whole module namespace rather than the default-exported class,
+      // which breaks constructability. We cast the module shape explicitly so
+      // both tsc --noEmit and ts-node agree on the construct signature.
+      type AnthropicCtor = new (opts?: { apiKey?: string }) => {
+        messages: {
+          stream: (opts: Record<string, unknown>) => AsyncIterable<{
+            type: string;
+            delta?: { type: string; text?: string };
+          }>;
+        };
+      };
+      const sdk = (await import('@anthropic-ai/sdk')) as unknown as {
+        default: AnthropicCtor;
+      };
+      const client = new sdk.default({
         apiKey: process.env.ANTHROPIC_API_KEY,
       });
       const systemPrompt = lang === 'es' ? ES_SYSTEM_PROMPT : EN_SYSTEM_PROMPT;

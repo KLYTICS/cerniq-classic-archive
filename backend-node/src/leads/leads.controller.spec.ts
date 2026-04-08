@@ -41,7 +41,16 @@ describe('LeadsController', () => {
       executeBulkOutreach: jest.fn().mockResolvedValue({ sent: 5, failed: 0 }),
     };
 
-    controller = new LeadsController(leads as any, qualification as any, scoring as any, outreach as any);
+    const intelligence = mockSvc();
+    const demoSeats = mockSvc();
+    controller = new LeadsController(
+      leads as any,
+      qualification as any,
+      scoring as any,
+      outreach as any,
+      intelligence as any,
+      demoSeats as any,
+    );
   });
 
   describe('POST /api/v1/leads/submit', () => {

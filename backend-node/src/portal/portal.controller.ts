@@ -37,10 +37,13 @@ import { IngestionLogsService } from '../alm/ingestion-logs.service';
 import { DataCryptoService } from '../crypto/data-crypto.service';
 import { BillingService } from '../billing/billing.service';
 import { AuditService } from '../audit/audit.service';
-import { AlcoPackService } from '../pipeline/alco-pack.service';
 import { IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
 import { SkipAuditLog } from '../common/decorators/audit-action.decorator';
 import { PlatformAccessService } from '../auth/platform-access.service';
+import { PortalDocumentExportsService } from './portal-document-exports.service';
+import { PortalAlmReportService } from './portal-alm-report.service';
+import { DemoSeatService } from './demo-seat.service';
+import { buildPdfResponseHeaders } from '../alm/document-exports.util';
 
 class InviteDto {
   @IsEmail()
@@ -70,8 +73,10 @@ export class PortalController {
     private readonly dataCrypto: DataCryptoService,
     private readonly billing: BillingService,
     private readonly audit: AuditService,
-    private readonly alcoPackService: AlcoPackService,
     private readonly platformAccess: PlatformAccessService,
+    private readonly portalExports: PortalDocumentExportsService,
+    private readonly portalAlmReport: PortalAlmReportService,
+    private readonly demoSeats: DemoSeatService,
   ) {}
 
   // ── List User's Report Jobs ─────────────────────────
@@ -88,11 +93,13 @@ export class PortalController {
   @ApiResponse({ status: 403, description: 'Paid subscription required' })
   async listJobs(@Req() req: any) {
     const userId = req.user.userId;
-    await this.requirePaidPortalAccess(userId);
+    const scope = await this.buildJobOwnerScope(userId);
 
     return this.prisma.reportJob.findMany({
-      where: { userId },
+      where: scope,
       orderBy: { createdAt: 'desc' },
+      // Master CEO can see across all users → cap to keep responses bounded.
+      take: scope.userId ? undefined : 200,
       select: {
         id: true,
         institutionName: true,
@@ -104,6 +111,8 @@ export class PortalController {
         reportUrl: true,
         reportUrlEn: true,
         reportLang: true,
+        userId: true,
+        triggeredBy: true,
       },
     });
   }
@@ -119,10 +128,10 @@ export class PortalController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Job not found' })
   async getJob(@Req() req: any, @Param('jobId') jobId: string) {
-    await this.requirePaidPortalAccess(req.user.userId);
+    const scope = await this.buildJobOwnerScope(req.user.userId);
 
     const job = await this.prisma.reportJob.findFirst({
-      where: { id: jobId, userId: req.user.userId },
+      where: { id: jobId, ...scope },
     });
     if (!job) throw new NotFoundException('Job not found');
 
@@ -136,6 +145,9 @@ export class PortalController {
         resourceId: jobId,
         ipAddress: req.ip,
         userAgent: req.headers?.['user-agent'],
+        metadata: scope.userId
+          ? undefined
+          : { masterCeoBypass: true, jobOwnerId: job.userId },
       });
     }
 
@@ -145,8 +157,20 @@ export class PortalController {
   @Get('jobs/:jobId/ingestion-logs')
   @Roles('OWNER', 'ANALYST', 'VIEWER')
   async getJobIngestionLogs(@Req() req: any, @Param('jobId') jobId: string) {
-    await this.requirePaidPortalAccess(req.user.userId);
-    return this.ingestionLogs.listJobLogs(req.user.userId, jobId);
+    const scope = await this.buildJobOwnerScope(req.user.userId);
+    // For master CEO bypass, look up the job's true owner so the ingestion-logs
+    // service can scope correctly. Normal users always pass their own id.
+    const ownerId = scope.userId || (await this.resolveJobOwner(jobId));
+    return this.ingestionLogs.listJobLogs(ownerId, jobId);
+  }
+
+  @Get('jobs/:jobId/exports')
+  @Roles('OWNER', 'ANALYST', 'VIEWER')
+  @ApiOperation({ summary: 'List document export manifests for a report job' })
+  async listJobExports(@Req() req: any, @Param('jobId') jobId: string) {
+    const scope = await this.buildJobOwnerScope(req.user.userId);
+    const ownerId = scope.userId || (await this.resolveJobOwner(jobId));
+    return this.portalExports.listJobExports(ownerId, jobId);
   }
 
   // ── ALCO Meeting Pack (8-page board-ready PDF) ──────
@@ -182,11 +206,9 @@ export class PortalController {
     @Query('lang') lang?: string,
   ) {
     const userId = req.user.userId;
-    await this.requirePaidPortalAccess(userId);
-
-    // Verify job belongs to user and is COMPLETE
+    const scope = await this.buildJobOwnerScope(userId);
     const job = await this.prisma.reportJob.findFirst({
-      where: { id: jobId, userId },
+      where: { id: jobId, ...scope },
     });
     if (!job) throw new NotFoundException('Job not found');
     if (job.status !== 'COMPLETE') {
@@ -198,17 +220,12 @@ export class PortalController {
       throw new BadRequestException('No institution linked to this job');
     }
 
-    const language = lang === 'en' ? 'en' : 'es'; // default Spanish for cooperativas
-    const pdfBuffer = await this.alcoPackService.buildALCOPack(
-      job.institutionId,
+    const language = lang === 'en' ? 'en' : 'es';
+    const document = await this.portalExports.generateAlcoPackExport(
+      job.userId,
+      jobId,
       language,
     );
-
-    const safeInstName = (job.institutionName || 'institution').replace(
-      /[^a-zA-Z0-9_-]/g,
-      '_',
-    );
-    const filename = `ALCO_Pack_${safeInstName}_${new Date().toISOString().slice(0, 10)}.pdf`;
 
     this.audit.log({
       userId,
@@ -218,6 +235,9 @@ export class PortalController {
       resourceId: jobId,
       ipAddress: req.ip,
       userAgent: req.headers?.['user-agent'],
+      metadata: scope.userId
+        ? undefined
+        : { masterCeoBypass: true, jobOwnerId: job.userId },
     });
 
     this.logger.log({
@@ -227,12 +247,144 @@ export class PortalController {
       language,
     });
 
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Content-Length': pdfBuffer.length.toString(),
+    res.set(buildPdfResponseHeaders(document.manifest, document.buffer.length));
+    res.end(document.buffer);
+  }
+
+  // ── ALM Report (on-demand streaming PDF) ────────────
+  // Used by demo seats (no R2 storage) and as a fallback when the
+  // pipeline-uploaded URL is missing or relative. Re-runs the ALM engine
+  // and Monte Carlo on every request — costlier than R2 but always fresh
+  // and always available.
+
+  @Get('jobs/:jobId/alm-report')
+  @SkipAuditLog()
+  @Roles('OWNER', 'ANALYST', 'VIEWER')
+  @ApiOperation({
+    summary: 'Stream the ALM report PDF for a job, generated on demand',
+  })
+  @ApiParam({ name: 'jobId', description: 'Report job UUID' })
+  @ApiQuery({
+    name: 'lang',
+    required: false,
+    description: 'Language (en or es, default: es)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'ALM report PDF binary stream',
+    content: { 'application/pdf': {} },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Job not found' })
+  async streamAlmReport(
+    @Req() req: any,
+    @Res() res: any,
+    @Param('jobId') jobId: string,
+    @Query('lang') lang?: string,
+  ) {
+    const userId = req.user.userId;
+    const scope = await this.buildJobOwnerScope(userId);
+    const ownerId = scope.userId || (await this.resolveJobOwner(jobId));
+
+    const language = lang === 'en' ? 'en' : 'es';
+    const document = await this.portalAlmReport.generateAlmReportExport(
+      ownerId,
+      jobId,
+      language,
+    );
+
+    // Mark engagement on the prospect record (the actual demo user, not the master).
+    void this.demoSeats.markViewed(ownerId);
+
+    this.audit.log({
+      userId,
+      action: 'alm_report_download',
+      resource: 'report_job',
+      resourceId: jobId,
+      metadata: {
+        language,
+        onDemand: true,
+        ...(scope.userId ? {} : { masterCeoBypass: true, jobOwnerId: ownerId }),
+      },
+      ipAddress: req.ip,
+      userAgent: req.headers?.['user-agent'],
     });
-    res.end(pdfBuffer);
+
+    res.set(buildPdfResponseHeaders(document.manifest, document.buffer.length));
+    res.end(document.buffer);
+  }
+
+  // ── Demo Seat Context (portal home banner) ──────────
+  // Returns provenance, expiry, and refresh state for the current user's
+  // demo seat (if any). Returns null for non-demo users. Master CEO can
+  // pass ?asUserId= to view any specific demo seat without leaving their
+  // own session.
+
+  @Get('demo-seat')
+  @Roles('OWNER', 'ANALYST', 'VIEWER')
+  @ApiOperation({
+    summary: 'Get demo-seat context for the authenticated user (or null)',
+  })
+  async getDemoSeatContext(
+    @Req() req: any,
+    @Query('asUserId') asUserId?: string,
+  ) {
+    const callerId = req.user.userId;
+    const callerAccess = await this.platformAccess.getAccessForUser(callerId);
+
+    // Master CEO impersonation: ?asUserId= lets them view any specific seat
+    let targetUserId = callerId;
+    if (asUserId && callerAccess.isMasterCeo) {
+      targetUserId = asUserId;
+    }
+
+    const targetAccess =
+      targetUserId === callerId
+        ? callerAccess
+        : await this.platformAccess.getAccessForUser(targetUserId);
+
+    if (!targetAccess.isDemo) {
+      return { isDemo: false, seat: null };
+    }
+
+    const seat = await this.demoSeats.getDemoSeatForUser(targetUserId);
+    // Master CEO views don't count as the prospect viewing their own report
+    if (targetUserId === callerId) {
+      void this.demoSeats.markViewed(callerId);
+    }
+
+    return {
+      isDemo: true,
+      daysRemaining: targetAccess.daysRemaining,
+      expiresAt: targetAccess.effectivePeriodEnd,
+      viewedAsMaster: targetUserId !== callerId,
+      seat: seat
+        ? {
+            prospectId: seat.id,
+            institutionName: seat.name,
+            publicDataSource: seat.publicDataSource,
+            provisionedAt: seat.demoProvisionedAt?.toISOString() || null,
+            expiresAt: seat.demoExpiresAt?.toISOString() || null,
+            reportJobId: seat.demoReportJobId,
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Look up the owner userId of a report job. Used by master CEO bypass
+   * paths to forward the correct ownerId to downstream services that
+   * still scope by user. Throws NotFoundException if the job doesn't exist.
+   */
+  private async resolveJobOwner(jobId: string): Promise<string> {
+    const job = await this.prisma.reportJob.findUnique({
+      where: { id: jobId },
+      select: { userId: true },
+    });
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
+    return job.userId;
   }
 
   // ── Submit Data for a Job ───────────────────────────
@@ -693,5 +845,28 @@ export class PortalController {
         this.platformAccess.buildForbiddenPayload(access),
       );
     }
+    return access;
+  }
+
+  /**
+   * Build the where-scope used by portal READ queries.
+   *
+   * - Normal users  → `{ userId }` (only their own jobs)
+   * - Master CEO    → `{}`         (sees ALL jobs across the platform)
+   *
+   * Used for: listJobs, getJob, listJobExports, generateAlcoPack,
+   * streamAlmReport, getJobIngestionLogs, getDemoSeatContext.
+   *
+   * Write endpoints (submitData, inviteUser) intentionally do NOT use this —
+   * the master CEO has admin endpoints for those operations.
+   */
+  private async buildJobOwnerScope(
+    userId: string,
+  ): Promise<{ userId?: string }> {
+    const access = await this.requirePaidPortalAccess(userId);
+    if (access.isMasterCeo) {
+      return {};
+    }
+    return { userId };
   }
 }
