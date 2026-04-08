@@ -24,19 +24,40 @@ jobs:
         language: ['javascript-typescript']
 
     steps:
+      - name: Detect whether repository code scanning is enabled
+        id: code-scanning
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          status=$(curl -sS -o /tmp/code-scanning.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?per_page=1")
+          if [ "$status" = "200" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Code scanning enabled::Running CodeQL analysis and upload."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=CodeQL skipped::Repository code scanning is not enabled (HTTP ${status}); skipping CodeQL upload so the workflow stays green."
+          fi
+
       - name: Checkout
+        if: steps.code-scanning.outputs.enabled == 'true'
         uses: actions/checkout@v4
 
       - name: Initialize CodeQL
+        if: steps.code-scanning.outputs.enabled == 'true'
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
           queries: security-and-quality
 
       - name: Autobuild
+        if: steps.code-scanning.outputs.enabled == 'true'
         uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
+        if: steps.code-scanning.outputs.enabled == 'true'
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"

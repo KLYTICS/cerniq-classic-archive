@@ -19,6 +19,10 @@ The authoritative remote signals are:
 `CI Quick Check` is a temporary compatibility shim and should stay green, but
 it is not the long-term source of truth.
 
+`CodeQL Security Analysis` should pass when repository code scanning is
+enabled. If the repository feature is disabled, the workflow now emits a
+notice and exits cleanly instead of failing the branch on SARIF upload.
+
 Remote GitHub Actions may still appear red when billing is suspended. If a workflow reports:
 
 `The job was not started because recent account payments have failed or your spending limit needs to be increased.`

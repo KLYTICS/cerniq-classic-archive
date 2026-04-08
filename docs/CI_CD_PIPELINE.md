@@ -29,6 +29,10 @@ This workflow now pulls shared setup/install behavior from:
 - `.github/actions/setup-node-project/action.yml`
 - `.github/actions/setup-python-project/action.yml`
 
+For the frontend E2E lane, CI starts built backend/frontend servers for
+Playwright instead of the default dev-server commands. That keeps the
+webServer boot path inside CI timeouts and avoids local-only startup drift.
+
 ### `ci.yml` — the quick check compatibility shim
 Fast-path type-check + prisma validate. It still exists to preserve the
 existing visible check surface while the centralized setup actions prove out.
