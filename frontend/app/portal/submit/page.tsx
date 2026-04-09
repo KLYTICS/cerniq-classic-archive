@@ -278,11 +278,13 @@ function ProcessingCard({
   itemsImported,
   warningCount,
   onComplete,
+  onStatusChange,
 }: {
   job: PortalOverviewJob;
   itemsImported?: number;
   warningCount?: number;
   onComplete: () => void;
+  onStatusChange: (status: string) => void;
 }) {
   const { locale } = useTranslation();
   const t = (en: string, es: string) => (locale === "en" ? en : es);
@@ -328,6 +330,7 @@ function ProcessingCard({
         jobId={job.id}
         institutionName={job.institutionName}
         initialStatus={job.status}
+        onStatusChange={onStatusChange}
         onComplete={onComplete}
       />
     </div>
@@ -568,10 +571,38 @@ export default function PortalSubmit() {
     }
   }, [selectedJob?.analysisPeriod]);
 
+  const localSubmittedStatus = submittedState?.valid ? submittedState.status : null;
+
   const displayJob =
     submittedState?.valid && submittedState.jobId
       ? {
           ...(selectedJob ||
+            (selectedJobId &&
+            selectedJobId === submittedState.jobId
+              ? {
+                  id: submittedState.jobId,
+                  institutionId: submittedState.institutionId || null,
+                  institutionName:
+                    submittedState.institutionName || "CERNIQ",
+                  status: submittedState.status,
+                  analysisPeriod,
+                  previousJobId: null,
+                  submittedAt: new Date().toISOString(),
+                  processingStartedAt: null,
+                  completedAt:
+                    submittedState.status === "COMPLETE"
+                      ? new Date().toISOString()
+                      : null,
+                  createdAt: new Date().toISOString(),
+                  reportUrl: null,
+                  reportUrlEn: null,
+                  reportLang: "es",
+                  errorMessage: null,
+                  userId: "",
+                  triggeredBy: "portal_submit",
+                  exportSummary: null,
+                }
+              : null) ||
             overview?.latestActionableJob || {
               id: submittedState.jobId,
               institutionId: submittedState.institutionId || null,
@@ -601,8 +632,12 @@ export default function PortalSubmit() {
       : selectedJob;
 
   const displayWorkflowState =
-    submittedState?.valid && displayJob
-      ? "processing"
+    localSubmittedStatus && displayJob
+      ? localSubmittedStatus === "COMPLETE"
+        ? "report_ready"
+        : localSubmittedStatus === "FAILED"
+          ? "export_degraded"
+          : "processing"
       : displayJob?.status === "VALIDATION_FAILED"
         ? "validation_failed"
         : displayJob?.status === "AWAITING_DATA"
@@ -843,8 +878,25 @@ export default function PortalSubmit() {
                     job={displayJob}
                     itemsImported={submittedState?.itemsImported}
                     warningCount={submittedState?.warningCount}
+                    onStatusChange={(status) => {
+                      setSubmittedState((current) =>
+                        current?.valid
+                          ? {
+                              ...current,
+                              status,
+                            }
+                          : current,
+                      );
+                    }}
                     onComplete={() => {
-                      setSubmittedState(null);
+                      setSubmittedState((current) =>
+                        current?.valid
+                          ? {
+                              ...current,
+                              status: "COMPLETE",
+                            }
+                          : current,
+                      );
                       void loadOverview();
                     }}
                   />

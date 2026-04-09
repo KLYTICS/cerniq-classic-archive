@@ -52,6 +52,7 @@ interface ReportProgressWSProps {
   institutionName: string;
   initialStatus?: string;
   onComplete?: () => void;
+  onStatusChange?: (status: string) => void;
 }
 
 const PROGRESS_POLL_INTERVAL_MS = 8000;
@@ -194,6 +195,7 @@ export default function ReportProgressWS({
   institutionName,
   initialStatus,
   onComplete,
+  onStatusChange,
 }: ReportProgressWSProps) {
   const { locale } = useTranslation();
   const t = (en: string, es: string) => (locale === "en" ? en : es);
@@ -228,11 +230,13 @@ export default function ReportProgressWS({
         setCurrentStep("COMPLETE");
         setPercentComplete(100);
         stopTimer();
+        onStatusChange?.("COMPLETE");
         onComplete?.();
       } else if (status === "FAILED") {
         setIsError(true);
         setErrorMessage("Report generation failed");
         stopTimer();
+        onStatusChange?.("FAILED");
       } else {
         setCurrentStep((previous) =>
           stepRank(step) > stepRank(previous) ? step : previous,
@@ -240,9 +244,10 @@ export default function ReportProgressWS({
         setPercentComplete((previous) =>
           Math.max(previous, mapJobStatusToPercent(status) || 10),
         );
+        onStatusChange?.(status);
       }
     },
-    [onComplete, stopTimer],
+    [onComplete, onStatusChange, stopTimer],
   );
 
   usePollFallback(
@@ -289,6 +294,7 @@ export default function ReportProgressWS({
       setCurrentStep(data.step);
       setPercentComplete(data.percentComplete);
       setCurrentMessage(locale === "en" ? data.message : data.messageEs);
+      onStatusChange?.(data.step === "COMPLETE" ? "COMPLETE" : data.step);
     });
 
     socket.on("pipeline:complete", (data: CompleteEvent) => {
@@ -301,6 +307,7 @@ export default function ReportProgressWS({
       setCurrentStep("COMPLETE");
       setPercentComplete(100);
       stopTimer();
+      onStatusChange?.("COMPLETE");
       onComplete?.();
     });
 
@@ -310,6 +317,7 @@ export default function ReportProgressWS({
       setIsError(true);
       setErrorMessage(data.error);
       stopTimer();
+      onStatusChange?.("FAILED");
     });
 
     return () => {
@@ -318,7 +326,7 @@ export default function ReportProgressWS({
       socketRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId]);
+  }, [jobId, locale, onComplete, onStatusChange, stopTimer]);
 
   // Find the current step index
   const currentStepIndex = PIPELINE_STEPS.findIndex(
