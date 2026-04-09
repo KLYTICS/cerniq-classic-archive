@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Clock, Search, X } from 'lucide-react';
 
@@ -232,6 +231,11 @@ export function CommandPalette() {
     }
   }, [results, safeIndex, router, closeAndReset]);
 
+  const openModule = useCallback((href: string) => {
+    closeAndReset();
+    router.push(href);
+  }, [closeAndReset, router]);
+
   if (!open) {
     return (
       <button
@@ -329,10 +333,10 @@ export function CommandPalette() {
                       {locale === 'es' ? 'Sugeridos' : 'Suggested'}
                     </div>
                   ) : null}
-                  <Link
+                  <button
                     id={`${listboxId}-opt-${i}`}
-                    href={mod.href}
-                    onClick={closeAndReset}
+                    type="button"
+                    onClick={() => openModule(mod.href)}
                     role="option"
                     aria-selected={active}
                     onMouseEnter={() => setActiveIndex(i)}
@@ -370,7 +374,7 @@ export function CommandPalette() {
                     }`}>
                       ↵
                     </kbd>
-                  </Link>
+                  </button>
                 </div>
               );
             })

@@ -9,10 +9,10 @@ const backendBaseUrl =
   'http://127.0.0.1:3100';
 const backendCommand =
   process.env.PLAYWRIGHT_BACKEND_COMMAND ||
-  'cd ../backend-node && PORT=3100 BACKEND_PORT=3100 npm run start:dev';
+  "sh -c 'cd ../backend-node && test -f dist/src/main.js || npm run build >/dev/null; PORT=3100 BACKEND_PORT=3100 npm run start:prod'";
 const frontendCommand =
   process.env.PLAYWRIGHT_FRONTEND_COMMAND ||
-  'NEXT_PUBLIC_NODE_API_URL=http://127.0.0.1:3100 npx next dev --port 3101';
+  "sh -c 'test -f .next/BUILD_ID && test -f .next/prerender-manifest.json || npm run build >/dev/null; NEXT_PUBLIC_NODE_API_URL=http://127.0.0.1:3100 NEXT_PUBLIC_API_URL=http://127.0.0.1:3100 npx next start --port 3101'";
 
 process.env.PLAYWRIGHT_BASE_URL ??= frontendBaseUrl;
 process.env.PLAYWRIGHT_BACKEND_URL ??= backendBaseUrl;
@@ -24,13 +24,13 @@ const webServer = skipWebServer
         command: backendCommand,
         url: `${backendBaseUrl}/health`,
         reuseExistingServer: !process.env.CI,
-        timeout: 30000,
+        timeout: 60000,
       },
       {
         command: frontendCommand,
         url: frontendBaseUrl,
         reuseExistingServer: !process.env.CI,
-        timeout: 30000,
+        timeout: 60000,
       },
     ];
 

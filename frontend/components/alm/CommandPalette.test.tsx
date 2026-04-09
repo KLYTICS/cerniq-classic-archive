@@ -221,6 +221,17 @@ describe('CommandPalette — keyboard nav', () => {
     expect(pushMock.mock.calls[0]![0]).toMatch(/^\/alm\//);
   });
 
+  it('clicking an option navigates via router.push', async () => {
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    await openPalette();
+
+    await user.click(screen.getAllByRole('option')[1]!);
+
+    expect(pushMock).toHaveBeenCalledTimes(1);
+    expect(pushMock.mock.calls[0]![0]).toMatch(/^\/alm\//);
+  });
+
   it('Enter does nothing when results are empty', async () => {
     const user = userEvent.setup();
     render(<CommandPalette />);
