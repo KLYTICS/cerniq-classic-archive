@@ -36,6 +36,8 @@ interface JobDetail {
   exportSummary?: PortalExportSummary | null;
 }
 
+const REPORT_VIEWER_TIMEOUT_MS = 10000;
+
 function formatDate(value?: string | null) {
   if (!value) {
     return "—";
@@ -78,6 +80,7 @@ export default function ReportViewer() {
   const params = useParams();
   const [job, setJob] = useState<JobDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [pdfLang, setPdfLang] = useState<"es" | "en">("es");
   const jobId =
     typeof params.id === "string"
@@ -107,11 +110,24 @@ export default function ReportViewer() {
       }
 
       setLoading(true);
+      setLoadError(null);
       try {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(
+          () => controller.abort(),
+          REPORT_VIEWER_TIMEOUT_MS,
+        );
         const res = await fetch(getPublicApiUrl(`/api/portal/jobs/${jobId}`), {
           credentials: "include",
+          signal: controller.signal,
         });
+        window.clearTimeout(timeoutId);
         if (!res.ok) {
+          setLoadError(
+            res.status === 404
+              ? "Report not found."
+              : "We could not load this report right now.",
+          );
           setJob(null);
           return null;
         }
@@ -120,6 +136,7 @@ export default function ReportViewer() {
           await res.json().catch(() => null),
         );
         if (!data) {
+          setLoadError("We could not load this report right now.");
           setJob(null);
           return null;
         }
@@ -133,6 +150,7 @@ export default function ReportViewer() {
         }
         return data;
       } catch {
+        setLoadError("We could not load this report right now.");
         setJob(null);
         return null;
       } finally {
@@ -163,10 +181,20 @@ export default function ReportViewer() {
     return (
       <div className="max-w-2xl mx-auto p-8 text-center">
         <AlertTriangle className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-        <p className="text-gray-500 mb-4">Report not found.</p>
-        <Link href="/portal" className="text-sm text-[#1B3A6B] hover:underline">
-          Back to dashboard
-        </Link>
+        <p className="text-gray-500 mb-4">{loadError || "Report not found."}</p>
+        <div className="flex items-center justify-center gap-3">
+          {jobId ? (
+            <button
+              onClick={() => void loadJob(true)}
+              className="text-sm text-[#1B3A6B] hover:underline"
+            >
+              Retry loading
+            </button>
+          ) : null}
+          <Link href="/portal" className="text-sm text-[#1B3A6B] hover:underline">
+            Back to dashboard
+          </Link>
+        </div>
       </div>
     );
   }

@@ -910,9 +910,18 @@ describe('PortalController', () => {
       ]);
       prisma.apiKey.count.mockResolvedValue(3);
 
-      const result = await controller.getSettings(mockReq());
+      const result = await controller.getSettings({
+        ...mockReq(),
+        user: { userId: 'user-1', role: 'OWNER' },
+      });
 
       expect(result.user.email).toBe('cfo@coop.pr');
+      expect(result.permissions).toEqual({
+        canManageWorkspace: true,
+        canManageSeats: true,
+        canManageApiKeys: true,
+        canManageBilling: true,
+      });
       expect(result.subscription.tier).toBe('annual');
       expect(result.workspaceCount).toBe(2);
       expect(result.reportMetrics).toEqual({
@@ -958,6 +967,36 @@ describe('PortalController', () => {
       await expect(controller.getSettings(mockReq())).rejects.toThrow(
         ForbiddenException,
       );
+    });
+
+    it('should return read-only permissions for paid non-owner roles', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'analyst@coop.pr',
+        name: 'Analyst',
+        role: 'ANALYST',
+        createdAt: new Date(),
+        lastLoginAt: new Date('2026-03-15'),
+      });
+      prisma.subscription.findUnique.mockResolvedValue({
+        tier: 'monthly',
+        status: 'active',
+        currentPeriodEnd: new Date('2027-01-01'),
+        reportsUsed: 1,
+      });
+      prisma.workspace.findMany.mockResolvedValue([]);
+
+      const result = await controller.getSettings({
+        ...mockReq(),
+        user: { userId: 'user-1', role: 'ANALYST' },
+      });
+
+      expect(result.permissions).toEqual({
+        canManageWorkspace: false,
+        canManageSeats: false,
+        canManageApiKeys: false,
+        canManageBilling: false,
+      });
     });
 
     it('should throw when user not found', async () => {

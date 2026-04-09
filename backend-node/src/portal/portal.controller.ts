@@ -110,6 +110,13 @@ type PortalOverviewJob = {
   exportSummary: PortalJobExportSummary | null;
 };
 
+type PortalSettingsPermissions = {
+  canManageWorkspace: boolean;
+  canManageSeats: boolean;
+  canManageApiKeys: boolean;
+  canManageBilling: boolean;
+};
+
 class InviteDto {
   @IsEmail()
   email: string;
@@ -890,13 +897,14 @@ export class PortalController {
   }
 
   // ── Settings ────────────────────────────────────────
-  // Only OWNER can access settings
+  // All paid portal roles can access settings; owner-only actions stay gated
 
   @Get('settings')
-  @Roles('OWNER')
+  @Roles('OWNER', 'ANALYST', 'VIEWER')
   async getSettings(@Req() req: any) {
     const userId = req.user.userId;
-    await this.requirePaidPortalAccess(userId);
+    const access = await this.requirePaidPortalAccess(userId);
+    const permissions = this.buildSettingsPermissions(req, access);
 
     const [
       user,
@@ -1009,6 +1017,7 @@ export class PortalController {
             role: req.user?.access?.isMasterCeo ? 'OWNER' : user.role,
           }
         : user,
+      permissions,
       subscription: subscription || { tier: 'free', status: 'active' },
       workspaceCount: workspaces.length,
       workspaces,
@@ -1152,6 +1161,22 @@ export class PortalController {
       );
     }
     return access;
+  }
+
+  private buildSettingsPermissions(
+    req: any,
+    access: Awaited<ReturnType<PortalController['requirePaidPortalAccess']>>,
+  ): PortalSettingsPermissions {
+    const normalizedRole =
+      typeof req?.user?.role === 'string' ? req.user.role.toUpperCase() : '';
+    const isOwner = access.isMasterCeo || normalizedRole === 'OWNER';
+
+    return {
+      canManageWorkspace: isOwner,
+      canManageSeats: isOwner,
+      canManageApiKeys: isOwner,
+      canManageBilling: isOwner,
+    };
   }
 
   private async loadPortalJobs(scope: {

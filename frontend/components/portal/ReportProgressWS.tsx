@@ -54,6 +54,9 @@ interface ReportProgressWSProps {
   onComplete?: () => void;
 }
 
+const PROGRESS_POLL_INTERVAL_MS = 8000;
+const PROGRESS_STALE_THRESHOLD_MS = 15000;
+
 function mapJobStatusToStep(status?: string): string {
   switch (status) {
     case "QUEUED":
@@ -89,6 +92,10 @@ function mapJobStatusToPercent(status?: string): number {
     default:
       return 0;
   }
+}
+
+function stepRank(step: string): number {
+  return PIPELINE_STEPS.findIndex((item) => item.key === step);
 }
 
 /* ---------- Pipeline steps definition ---------- */
@@ -176,7 +183,7 @@ function usePollFallback(
       } catch {
         // Silently retry on next interval
       }
-    }, 8000);
+    }, PROGRESS_POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [jobId, enabled, onStatusChange]);
 }
@@ -206,6 +213,7 @@ export default function ReportProgressWS({
   const [completionManifestPath, setCompletionManifestPath] = useState(
     `/api/portal/jobs/${jobId}/exports`,
   );
+  const [lastStatusSyncAt, setLastStatusSyncAt] = useState(Date.now());
 
   const socketRef = useRef<Socket | null>(null);
   const { formatted: elapsedFormatted, stop: stopTimer } = useElapsedTime();
@@ -213,6 +221,7 @@ export default function ReportProgressWS({
   // Polling fallback when WebSocket is not connected
   const handlePollStatus = useCallback(
     (status: string) => {
+      setLastStatusSyncAt(Date.now());
       const step = mapJobStatusToStep(status);
       if (status === "COMPLETE") {
         setIsComplete(true);
@@ -225,8 +234,12 @@ export default function ReportProgressWS({
         setErrorMessage("Report generation failed");
         stopTimer();
       } else {
-        setCurrentStep(step);
-        setPercentComplete(mapJobStatusToPercent(status) || 10);
+        setCurrentStep((previous) =>
+          stepRank(step) > stepRank(previous) ? step : previous,
+        );
+        setPercentComplete((previous) =>
+          Math.max(previous, mapJobStatusToPercent(status) || 10),
+        );
       }
     },
     [onComplete, stopTimer],
@@ -234,7 +247,7 @@ export default function ReportProgressWS({
 
   usePollFallback(
     jobId,
-    wsFailedOver && !isComplete && !isError,
+    !isComplete && !isError,
     handlePollStatus,
   );
 
@@ -255,6 +268,7 @@ export default function ReportProgressWS({
     socket.on("connect", () => {
       setConnected(true);
       setWsFailedOver(false);
+      setLastStatusSyncAt(Date.now());
       // Join the job room
       socket.emit("join", jobId);
     });
@@ -271,6 +285,7 @@ export default function ReportProgressWS({
 
     socket.on("pipeline:progress", (data: ProgressEvent) => {
       if (data.jobId !== jobId) return;
+      setLastStatusSyncAt(Date.now());
       setCurrentStep(data.step);
       setPercentComplete(data.percentComplete);
       setCurrentMessage(locale === "en" ? data.message : data.messageEs);
@@ -278,6 +293,7 @@ export default function ReportProgressWS({
 
     socket.on("pipeline:complete", (data: CompleteEvent) => {
       if (data.jobId !== jobId) return;
+      setLastStatusSyncAt(Date.now());
       setCompletionManifestPath(
         data.manifestPath || `/api/portal/jobs/${jobId}/exports`,
       );
@@ -290,6 +306,7 @@ export default function ReportProgressWS({
 
     socket.on("pipeline:error", (data: ErrorEvent) => {
       if (data.jobId !== jobId) return;
+      setLastStatusSyncAt(Date.now());
       setIsError(true);
       setErrorMessage(data.error);
       stopTimer();
@@ -307,6 +324,10 @@ export default function ReportProgressWS({
   const currentStepIndex = PIPELINE_STEPS.findIndex(
     (s) => s.key === currentStep,
   );
+  const isProgressStale =
+    !isComplete &&
+    !isError &&
+    Date.now() - lastStatusSyncAt > PROGRESS_STALE_THRESHOLD_MS;
 
   /* ---------- Completion celebration state ---------- */
   if (isComplete) {
@@ -397,7 +418,7 @@ export default function ReportProgressWS({
           <div className="flex items-center gap-1.5">
             {connected ? (
               <Wifi className="h-3.5 w-3.5 text-[#18C87A]" />
-            ) : wsFailedOver ? (
+            ) : wsFailedOver || isProgressStale ? (
               <WifiOff className="h-3.5 w-3.5 text-[#E8A020]" />
             ) : (
               <WifiOff className="h-3.5 w-3.5 text-slate-300" />
@@ -405,7 +426,7 @@ export default function ReportProgressWS({
             <span className="text-[10px] text-slate-400">
               {connected
                 ? t("Live", "En vivo")
-                : wsFailedOver
+                : wsFailedOver || isProgressStale
                   ? t("Polling", "Consultando")
                   : t("Connecting...", "Conectando...")}
             </span>
@@ -423,7 +444,12 @@ export default function ReportProgressWS({
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-[#1ABFFF]">
-            {currentMessage ||
+            {(isProgressStale
+              ? t(
+                  "Still processing, refreshing status...",
+                  "Todavia procesando, actualizando estado...",
+                )
+              : currentMessage) ||
               (locale === "en"
                 ? PIPELINE_STEPS[Math.max(0, currentStepIndex)]?.labelEn ||
                   "Processing..."

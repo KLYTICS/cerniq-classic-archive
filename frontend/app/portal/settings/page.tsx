@@ -30,6 +30,12 @@ interface PortalSettingsResponse {
     createdAt: string;
     lastLoginAt?: string | null;
   };
+  permissions: {
+    canManageWorkspace: boolean;
+    canManageSeats: boolean;
+    canManageApiKeys: boolean;
+    canManageBilling: boolean;
+  };
   subscription: PortalSubscription;
   workspaceCount: number;
   workspaces: Array<{
@@ -99,19 +105,6 @@ function defaultPreferences(): LocalPreferences {
   };
 }
 
-function getRequestStatus(error: unknown) {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'response' in error &&
-    typeof (error as { response?: { status?: unknown } }).response?.status === 'number'
-  ) {
-    return (error as { response?: { status: number } }).response?.status || null;
-  }
-
-  return null;
-}
-
 function getRequestMessage(error: unknown, fallback: string) {
   if (
     typeof error === 'object' &&
@@ -131,7 +124,6 @@ export default function PortalSettings() {
   const [keys, setKeys] = useState<ManagedApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [ownerLocked, setOwnerLocked] = useState(false);
   const [preferences, setPreferences] = useState<LocalPreferences>(defaultPreferences);
   const [saved, setSaved] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: '', name: '', role: 'ANALYST' as 'OWNER' | 'ANALYST' | 'VIEWER' });
@@ -150,7 +142,6 @@ export default function PortalSettings() {
     const loadWorkspaceConsole = async () => {
       setLoading(true);
       setError('');
-      setOwnerLocked(false);
 
       try {
         const [settingsResponse, keyResponse] = await Promise.all([
@@ -159,12 +150,8 @@ export default function PortalSettings() {
         ]);
         setSettings(settingsResponse);
         setKeys(keyResponse.keys || []);
-      } catch (portalError: unknown) {
-        if (getRequestStatus(portalError) === 403) {
-          setOwnerLocked(true);
-        } else {
-          setError('No se pudo cargar la consola administrativa. Intente de nuevo.');
-        }
+      } catch {
+        setError('No se pudo cargar la consola administrativa. Intente de nuevo.');
       } finally {
         setLoading(false);
       }
@@ -188,6 +175,12 @@ export default function PortalSettings() {
     () => keys.filter((key) => !key.revokedAt),
     [keys],
   );
+  const permissions = settings?.permissions || {
+    canManageWorkspace: false,
+    canManageSeats: false,
+    canManageApiKeys: false,
+    canManageBilling: false,
+  };
 
   const handleSavePreferences = () => {
     if (typeof window !== 'undefined') {
@@ -283,31 +276,6 @@ export default function PortalSettings() {
     );
   }
 
-  if (ownerLocked) {
-    return (
-      <div className="space-y-6">
-        <section className="cerniq-shell p-4 sm:p-6">
-          <div className="cerniq-panel p-6 sm:p-8">
-            <span className="cerniq-kicker mb-5">Workspace admin</span>
-            <h1 className="font-display text-3xl text-slate-950 sm:text-4xl">Owner access required.</h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-              This administrative console is reserved for account owners. Owners can manage seats,
-              API keys, workspace defaults, and billing operations from here.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link href="/portal" className="cerniq-button-secondary px-4 py-2.5 text-sm">
-                Return to workspace
-              </Link>
-              <Link href="/portal/billing" className="cerniq-button-primary px-4 py-2.5 text-sm">
-                Open billing
-              </Link>
-            </div>
-          </div>
-        </section>
-      </div>
-    );
-  }
-
   if (!settings) {
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
@@ -337,9 +305,15 @@ export default function PortalSettings() {
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link href="/portal/billing" className="inline-flex items-center gap-2 rounded-full bg-[#d39a2b] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(211,154,43,0.28)] transition hover:-translate-y-0.5 hover:bg-[#bb891f]">
-                  Manage billing
-                </Link>
+                {permissions.canManageBilling ? (
+                  <Link href="/portal/billing" className="inline-flex items-center gap-2 rounded-full bg-[#d39a2b] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(211,154,43,0.28)] transition hover:-translate-y-0.5 hover:bg-[#bb891f]">
+                    Manage billing
+                  </Link>
+                ) : (
+                  <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-5 py-3 text-sm font-semibold text-white/70">
+                    Billing managed by workspace owner
+                  </span>
+                )}
                 <Link href="/portal/submit" className="inline-flex items-center gap-2 rounded-full border border-white/14 bg-white/8 px-5 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/12">
                   Open report ops
                 </Link>
@@ -474,6 +448,12 @@ export default function PortalSettings() {
               Each provisioned seat receives a magic-link login and its own protected workspace access.
             </p>
 
+            {!permissions.canManageSeats ? (
+              <div className="mt-5 rounded-[1.4rem] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                Workspace owners manage seat provisioning. Analysts and viewers can review the current workspace state here.
+              </div>
+            ) : null}
+
             <form onSubmit={handleInvite} className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)_11rem_10rem]">
               <input
                 type="email"
@@ -481,6 +461,7 @@ export default function PortalSettings() {
                 value={inviteForm.email}
                 onChange={(event) => setInviteForm((current) => ({ ...current, email: event.target.value }))}
                 placeholder="analyst@institution.com"
+                disabled={!permissions.canManageSeats}
                 className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200/40"
               />
               <input
@@ -488,11 +469,13 @@ export default function PortalSettings() {
                 value={inviteForm.name}
                 onChange={(event) => setInviteForm((current) => ({ ...current, name: event.target.value }))}
                 placeholder="Operator name"
+                disabled={!permissions.canManageSeats}
                 className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200/40"
               />
               <select
                 value={inviteForm.role}
                 onChange={(event) => setInviteForm((current) => ({ ...current, role: event.target.value as 'OWNER' | 'ANALYST' | 'VIEWER' }))}
+                disabled={!permissions.canManageSeats}
                 className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200/40"
               >
                 <option value="ANALYST">Analyst</option>
@@ -501,7 +484,7 @@ export default function PortalSettings() {
               </select>
               <button
                 type="submit"
-                disabled={inviteLoading}
+                disabled={inviteLoading || !permissions.canManageSeats}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#d39a2b] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(211,154,43,0.28)] transition hover:bg-[#bb891f] disabled:opacity-60"
               >
                 <Send className="h-4 w-4" />
@@ -538,6 +521,11 @@ export default function PortalSettings() {
 
             {apiAccess.enabled ? (
               <>
+                {!permissions.canManageApiKeys ? (
+                  <div className="mt-5 rounded-[1.4rem] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                    API credentials can only be created or revoked by workspace owners.
+                  </div>
+                ) : null}
                 <form onSubmit={handleCreateKey} className="mt-5 space-y-3">
                   <input
                     type="text"
@@ -545,6 +533,7 @@ export default function PortalSettings() {
                     value={keyName}
                     onChange={(event) => setKeyName(event.target.value)}
                     placeholder="Treasury sync"
+                    disabled={!permissions.canManageApiKeys}
                     className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200/40"
                   />
                   <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
@@ -554,11 +543,12 @@ export default function PortalSettings() {
                       value={keyExpiryDays}
                       onChange={(event) => setKeyExpiryDays(event.target.value)}
                       placeholder="30"
+                      disabled={!permissions.canManageApiKeys}
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200/40"
                     />
                     <button
                       type="submit"
-                      disabled={keyLoading}
+                      disabled={keyLoading || !permissions.canManageApiKeys}
                       className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1f8dff] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(31,141,255,0.24)] transition hover:bg-[#1376de] disabled:opacity-60"
                     >
                       <Plus className="h-4 w-4" />
@@ -603,6 +593,7 @@ export default function PortalSettings() {
                         <button
                           type="button"
                           onClick={() => handleRevokeKey(key.id)}
+                          disabled={!permissions.canManageApiKeys}
                           className="text-xs font-semibold text-rose-600 hover:underline"
                         >
                           Revoke
@@ -693,6 +684,7 @@ export default function PortalSettings() {
               <button
                 type="button"
                 onClick={handleSavePreferences}
+                disabled={!permissions.canManageWorkspace}
                 className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 <Save className="h-4 w-4" />

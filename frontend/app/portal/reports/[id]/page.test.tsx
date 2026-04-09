@@ -507,7 +507,9 @@ describe("ReportViewer", () => {
     render(<ReportViewer />);
 
     await waitFor(() => {
-      expect(screen.getByText(/report not found/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/we could not load this report right now/i),
+      ).toBeInTheDocument();
     });
   });
 });

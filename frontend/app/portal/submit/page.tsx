@@ -57,6 +57,26 @@ interface SubmitResponse {
   nextHref?: string;
 }
 
+const REPORT_CYCLE_BOOTSTRAP_TIMEOUT_MS = 10000;
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }) as Promise<T>;
+}
+
 function FAQItem({
   questionEn,
   questionEs,
@@ -427,13 +447,43 @@ export default function PortalSubmit() {
   const [submittedState, setSubmittedState] = useState<SubmitResponse | null>(
     null,
   );
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const autoBootstrapAttemptedRef = useRef(false);
 
   const jobs = useMemo(() => overview?.jobs || [], [overview?.jobs]);
   const selectedJobFromQuery = searchParams.get("jobId");
   const shouldCreateCycle = searchParams.get("createCycle") === "1";
   const [bootstrappingCycle, setBootstrappingCycle] = useState(false);
+
+  const startReportCycleBootstrap = useCallback(async () => {
+    if (bootstrappingCycle) {
+      return;
+    }
+
+    setBootstrappingCycle(true);
+    setBootstrapError(null);
+
+    try {
+      const cycle = await withTimeout(
+        apiClient.openPortalReportCycle(),
+        REPORT_CYCLE_BOOTSTRAP_TIMEOUT_MS,
+        "Timed out while creating a report cycle.",
+      );
+      setSelectedJobId(cycle.jobId);
+      await loadOverview();
+    } catch {
+      setBootstrapError(
+        t(
+          "We could not open a report cycle right now. Please try again.",
+          "No pudimos abrir un ciclo de informe ahora mismo. Intente de nuevo.",
+        ),
+      );
+    } finally {
+      setBootstrappingCycle(false);
+    }
+  }, [bootstrappingCycle, loadOverview, t]);
 
   useEffect(() => {
     if (!overview) return;
@@ -460,7 +510,17 @@ export default function PortalSubmit() {
   }, [jobs, overview, selectedJobFromQuery, selectedJobId]);
 
   useEffect(() => {
-    if (!overview || !shouldCreateCycle || bootstrappingCycle) {
+    if (!shouldCreateCycle) {
+      autoBootstrapAttemptedRef.current = false;
+      return;
+    }
+
+    if (
+      !overview ||
+      !shouldCreateCycle ||
+      bootstrappingCycle ||
+      bootstrapError
+    ) {
       return;
     }
 
@@ -471,21 +531,16 @@ export default function PortalSubmit() {
       return;
     }
 
+    if (autoBootstrapAttemptedRef.current) {
+      return;
+    }
+    autoBootstrapAttemptedRef.current = true;
+
     let cancelled = false;
     const bootstrapCycle = async () => {
-      setBootstrappingCycle(true);
-      try {
-        const cycle = await apiClient.openPortalReportCycle();
-        if (!cancelled) {
-          setSelectedJobId(cycle.jobId);
-          await loadOverview();
-        }
-      } catch {
-        // Fall back to the standard empty state if cycle creation fails.
-      } finally {
-        if (!cancelled) {
-          setBootstrappingCycle(false);
-        }
+      await startReportCycleBootstrap();
+      if (cancelled) {
+        return;
       }
     };
 
@@ -493,7 +548,14 @@ export default function PortalSubmit() {
     return () => {
       cancelled = true;
     };
-  }, [bootstrappingCycle, jobs, loadOverview, overview, shouldCreateCycle]);
+  }, [
+    bootstrapError,
+    bootstrappingCycle,
+    jobs,
+    overview,
+    shouldCreateCycle,
+    startReportCycleBootstrap,
+  ]);
 
   const selectedJob =
     jobs.find((job) => job.id === selectedJobId) ||
@@ -749,6 +811,14 @@ export default function PortalSubmit() {
                   <SkeletonLoader variant="card" count={2} />
                 ) : bootstrappingCycle ? (
                   <SkeletonLoader variant="card" count={1} />
+                ) : bootstrapError ? (
+                  <ErrorBanner
+                    error={bootstrapError}
+                    onRetry={() => {
+                      void startReportCycleBootstrap();
+                    }}
+                    onDismiss={() => setBootstrapError(null)}
+                  />
                 ) : displayWorkflowState === "needs_report" ? (
                   <EmptyState
                     icon={ClipboardList}
@@ -765,17 +835,7 @@ export default function PortalSubmit() {
                       "Abrir ciclo de informe",
                     )}
                     onAction={() => {
-                      if (bootstrappingCycle) {
-                        return;
-                      }
-                      setBootstrappingCycle(true);
-                      void apiClient
-                        .openPortalReportCycle()
-                        .then(async (cycle) => {
-                          setSelectedJobId(cycle.jobId);
-                          await loadOverview();
-                        })
-                        .finally(() => setBootstrappingCycle(false));
+                      void startReportCycleBootstrap();
                     }}
                   />
                 ) : displayWorkflowState === "processing" && displayJob ? (

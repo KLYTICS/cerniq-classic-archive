@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -82,7 +83,18 @@ vi.mock('@/components/ui/cerniq', () => ({
       {actionLabel ? <button onClick={onAction}>{actionLabel}</button> : null}
     </div>
   ),
-  ErrorBanner: ({ error }: { error: string }) => <div>{error}</div>,
+  ErrorBanner: ({
+    error,
+    onRetry,
+  }: {
+    error: string;
+    onRetry?: () => void;
+  }) => (
+    <div>
+      <div>{error}</div>
+      {onRetry ? <button onClick={onRetry}>Try again / Intente de nuevo</button> : null}
+    </div>
+  ),
 }));
 
 vi.mock('@/components/portal/ReportProgressWS', () => ({
@@ -295,6 +307,85 @@ describe('PortalSubmit', () => {
     await waitFor(() => {
       expect(openPortalReportCycleMock).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('surfaces a retryable error when report-cycle bootstrap fails', async () => {
+    searchParams.set('createCycle', '1');
+    hookState.overview = {
+      ...overviewMock,
+      jobs: [],
+      latestActionableJob: null,
+      workflowState: 'needs_report',
+      counts: {
+        total: 0,
+        awaitingData: 0,
+        validationFailed: 0,
+        processing: 0,
+        complete: 0,
+      },
+    };
+    openPortalReportCycleMock.mockRejectedValueOnce(
+      new Error('Timed out while creating a report cycle.'),
+    );
+
+    render(<PortalSubmit />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'We could not open a report cycle right now. Please try again.',
+        ),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('retries report-cycle bootstrap after a bootstrap error', async () => {
+    searchParams.set('createCycle', '1');
+    hookState.overview = {
+      ...overviewMock,
+      jobs: [],
+      latestActionableJob: null,
+      workflowState: 'needs_report',
+      counts: {
+        total: 0,
+        awaitingData: 0,
+        validationFailed: 0,
+        processing: 0,
+        complete: 0,
+      },
+    };
+    openPortalReportCycleMock
+      .mockRejectedValueOnce(
+        new Error('Timed out while creating a report cycle.'),
+      )
+      .mockResolvedValueOnce({
+        jobId: 'job-created',
+        institutionId: 'inst-1',
+        institutionName: 'Coop Created',
+        status: 'AWAITING_DATA',
+        nextHref: '/portal/submit?jobId=job-created',
+      });
+
+    render(<PortalSubmit />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Try again / Intente de nuevo' }),
+      ).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Try again / Intente de nuevo' }),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(openPortalReportCycleMock.mock.calls.length).toBeGreaterThanOrEqual(
+      2,
+    );
+    expect(loadOverviewMock).toHaveBeenCalled();
   });
 
   it('shows degraded export delivery state for completed jobs without a full manifest package', () => {

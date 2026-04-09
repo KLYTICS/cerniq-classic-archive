@@ -1,5 +1,6 @@
 import {
   Controller,
+  ForbiddenException,
   Post,
   Put,
   Body,
@@ -203,6 +204,9 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createApiKey(@Req() req: any, @Body() dto: CreateApiKeyDto) {
+    if (String(req.user?.role || '').toUpperCase() !== 'OWNER') {
+      throw new ForbiddenException('Owner access required');
+    }
     return this.authService.createApiKey(
       req.user.userId,
       dto.name,
@@ -214,6 +218,9 @@ export class AuthController {
   @Throttle({ default: { ttl: 60000, limit: 20 } })
   @UseGuards(AuthGuard)
   async revokeApiKey(@Req() req: any, @Param('keyId') keyId: string) {
+    if (String(req.user?.role || '').toUpperCase() !== 'OWNER') {
+      throw new ForbiddenException('Owner access required');
+    }
     return this.authService.revokeApiKey(req.user.userId, keyId);
   }
 

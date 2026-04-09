@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
+import { ForbiddenException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthGuard } from './auth.guard';
@@ -263,7 +264,7 @@ describe('AuthController', () => {
       };
       authService.createApiKey.mockResolvedValue(newKey);
 
-      const req = { user: { userId: 'u7' } };
+      const req = { user: { userId: 'u7', role: 'OWNER' } };
       const result = await controller.createApiKey(req, {
         name: 'production',
       } as any);
@@ -279,7 +280,7 @@ describe('AuthController', () => {
     it('should revoke an API key', async () => {
       authService.revokeApiKey.mockResolvedValue({ message: 'Key revoked' });
 
-      const req = { user: { userId: 'u8' } };
+      const req = { user: { userId: 'u8', role: 'OWNER' } };
       await controller.revokeApiKey(req, 'k3');
 
       expect(authService.revokeApiKey).toHaveBeenCalledWith('u8', 'k3');
@@ -291,7 +292,7 @@ describe('AuthController', () => {
         key: 'ck_live_xxx',
       });
 
-      const req = { user: { userId: 'u9' } };
+      const req = { user: { userId: 'u9', role: 'OWNER' } };
       const result = await controller.createApiKey(req, {
         name: 'expiring',
         expiresInDays: 30,
@@ -302,6 +303,26 @@ describe('AuthController', () => {
         'expiring',
         30,
       );
+    });
+
+    it('should block non-owner users from creating API keys', async () => {
+      const req = { user: { userId: 'u11', role: 'ANALYST' } };
+
+      await expect(
+        controller.createApiKey(req, {
+          name: 'blocked',
+        } as any),
+      ).rejects.toThrow(ForbiddenException);
+      expect(authService.createApiKey).not.toHaveBeenCalled();
+    });
+
+    it('should block non-owner users from revoking API keys', async () => {
+      const req = { user: { userId: 'u12', role: 'VIEWER' } };
+
+      await expect(controller.revokeApiKey(req, 'k9')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(authService.revokeApiKey).not.toHaveBeenCalled();
     });
   });
 
