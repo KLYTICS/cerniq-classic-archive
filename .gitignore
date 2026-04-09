@@ -58,6 +58,7 @@ coverage/
 # OMX runtime state (intentionally local, not source-controlled)
 /.omx/metrics.json
 /.omx/state/*.json
+/.omx/state/**/*.json
 
 # Docker
 docker-compose.override.yml
