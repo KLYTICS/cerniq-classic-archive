@@ -218,6 +218,17 @@ All variables sourced from `.env.example` at project root. Set these in Railway 
 
 - [ ] `cerniq.io` A/CNAME record pointing to Vercel (frontend)
 - [ ] `api.cerniq.io` CNAME pointing to Railway backend (e.g., `<app>.up.railway.app`)
+
+### 5. Google OAuth Client Contract
+
+- [ ] Google OAuth client `183929444399-cf5e57is1uebpvc7acjektnknh80b8mq.apps.googleusercontent.com` is a `Web application` client
+- [ ] Authorized JavaScript origins include `https://cerniq.io`
+- [ ] Authorized JavaScript origins include `https://api.cerniq.io`
+- [ ] Authorized redirect URIs include `https://api.cerniq.io/api/auth/google/callback`
+- [ ] Railway `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` belong to the same Google OAuth client
+- [ ] Railway `FRONTEND_URL=https://cerniq.io`
+- [ ] Railway `AUTH_COOKIE_DOMAIN=.cerniq.io`
+- [ ] Smoke test confirms the first redirect from `https://cerniq.io/login` goes to Google with `redirect_uri=https://api.cerniq.io/api/auth/google/callback`
 - [ ] SSL certificates auto-provisioned by Vercel and Railway
 - [ ] Verify HTTPS redirect works for both domains
 - [ ] Update OAuth callback URLs to production:

@@ -80,6 +80,17 @@ export function hasPlatformAccess(
   return Boolean(access?.platformAccessAllowed);
 }
 
+export function hasFreeBuilderAccess(
+  access: PlatformAccessState | null | undefined,
+) {
+  return (
+    Boolean(access) &&
+    !hasPlatformAccess(access) &&
+    access?.effectiveTier === 'free' &&
+    access?.reason === 'subscription_required'
+  );
+}
+
 export function prefersPortalExperience(
   access: PlatformAccessState | null | undefined,
 ) {
@@ -107,6 +118,24 @@ export function isProtectedAppPath(pathname: string | null) {
   );
 }
 
+export function requiresPaidAccessPath(pathname: string | null) {
+  if (!pathname) {
+    return false;
+  }
+
+  const paidPrefixes = [
+    '/dashboard',
+    '/portal',
+    '/portfolios',
+    '/risk-analytics',
+    '/settings',
+  ];
+
+  return paidPrefixes.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 export function resolveAuthenticatedDestination(params: {
   access: PlatformAccessState | null | undefined;
   onboardingComplete: boolean;
@@ -114,12 +143,16 @@ export function resolveAuthenticatedDestination(params: {
 }) {
   const { access, onboardingComplete, portalPreferred = false } = params;
 
-  if (!hasPlatformAccess(access)) {
+  if (!hasPlatformAccess(access) && !hasFreeBuilderAccess(access)) {
     return ACCESS_REQUIRED_ROUTE;
   }
 
   if (portalPreferred || prefersPortalExperience(access)) {
-    return '/portal';
+    return '/portal/submit?createCycle=1';
+  }
+
+  if (hasFreeBuilderAccess(access)) {
+    return onboardingComplete ? '/alm' : '/onboarding';
   }
 
   return onboardingComplete ? '/dashboard' : '/onboarding';

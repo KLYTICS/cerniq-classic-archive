@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   ArrowRight,
@@ -227,10 +227,13 @@ function CurrencyInput({
 // ---------------------------------------------------------------------------
 export default function BalanceSheetWizard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedInstitutionId = searchParams.get('institutionId') || '';
   const [lang, setLang] = useState<Lang>('en');
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<'success' | 'error' | null>(null);
+  const [institutionId, setInstitutionId] = useState(requestedInstitutionId);
 
   // ---- Assets ----
   const [cashEquivalents, setCashEquivalents] = useState(0);
@@ -249,6 +252,33 @@ export default function BalanceSheetWizard() {
   const [interestExpense, setInterestExpense] = useState(0);
   const [nonInterestIncome, setNonInterestIncome] = useState(0);
   const [nonInterestExpense, setNonInterestExpense] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveInstitution = async () => {
+      if (requestedInstitutionId) {
+        setInstitutionId(requestedInstitutionId);
+        return;
+      }
+
+      try {
+        const institutions = await apiClient.getInstitutions();
+        if (!cancelled && Array.isArray(institutions) && institutions.length > 0) {
+          setInstitutionId(institutions[0].id);
+        }
+      } catch {
+        if (!cancelled) {
+          setInstitutionId('');
+        }
+      }
+    };
+
+    void resolveInstitution();
+    return () => {
+      cancelled = true;
+    };
+  }, [requestedInstitutionId]);
 
   // ---- Computed values ----
   const totalAssets = useMemo(
@@ -320,13 +350,7 @@ export default function BalanceSheetWizard() {
     setSubmitting(true);
     setSubmitResult(null);
 
-    // Read institution ID from localStorage (set by institution-type step)
-    const storedId =
-      typeof window !== 'undefined'
-        ? localStorage.getItem('cerniq_current_institution_id')
-        : null;
-
-    if (!storedId) {
+    if (!institutionId) {
       setSubmitResult('error');
       setSubmitting(false);
       return;
@@ -346,16 +370,16 @@ export default function BalanceSheetWizard() {
     ].filter((item) => item.balance > 0);
 
     try {
-      await apiClient.importBalanceSheetItems(storedId, items);
+      await apiClient.importBalanceSheetItems(institutionId, items);
       analytics.track(EVENTS.PORTAL_DATA_SUBMITTED, {
         source: 'balance_sheet_wizard',
-        institutionId: storedId,
+        institutionId,
         totalAssets,
         totalLiabilities,
         netWorthRatio: netWorthRatio.toFixed(2),
       });
       setSubmitResult('success');
-      setTimeout(() => router.push('/alm'), 1500);
+      setTimeout(() => router.push(`/alm?id=${institutionId}`), 1500);
     } catch {
       setSubmitResult('error');
     } finally {
@@ -417,6 +441,11 @@ export default function BalanceSheetWizard() {
           <p className="text-slate-400 mt-1 text-sm sm:text-base max-w-md mx-auto">
             {t('subtitle', lang)}
           </p>
+          {!institutionId && (
+            <p className="mt-3 text-sm text-amber-300">
+              Complete institution setup first so CERNIQ can save this balance sheet to a real workspace.
+            </p>
+          )}
         </div>
 
         {/* Progress bar */}

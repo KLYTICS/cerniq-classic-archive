@@ -232,3 +232,39 @@ Verification recorded for this export pass:
 - Targeted backend export/controller Jest suite: pass
 - Frontend targeted Vitest suite: pass
 - Frontend lint: pending rerun after latest cleanup
+
+## 2026-04-09 Manifest-Readiness Finish
+
+What changed:
+
+- `backend-node/src/portal/portal-document-exports.service.ts` now summarizes job export readiness and uses canonical manifest-backed report delivery for completed portal jobs whenever an institution-backed on-demand report path exists.
+- `backend-node/src/portal/portal.controller.ts` now enriches portal jobs and job detail payloads with `exportSummary`, and `workflowState` can now be `export_degraded` when a job is complete but the export package is partial or missing.
+- `frontend/app/portal/page.tsx`, `frontend/app/portal/submit/page.tsx`, and `frontend/app/portal/reports/[id]/page.tsx` now treat manifest readiness as the delivery source of truth.
+- `frontend/app/dashboard/report/[id]/page.tsx` is now a compatibility redirect into `/portal/reports/[id]`.
+- `frontend/app/get-started/page.tsx` remains the canonical first-touch intake for new users bringing real balance-sheet data.
+
+Verification completed in this session:
+
+- `npm run verify:frontend` -> pass
+- `cd backend-node && npx tsc --noEmit` -> pass
+- `cd frontend && npx tsc --noEmit` -> pass
+- `cd backend-node && npx jest src/portal/portal-document-exports.service.spec.ts src/portal/portal.controller.spec.ts src/realtime/pipeline.gateway.spec.ts --runInBand` -> pass
+- `cd frontend && npx vitest run app/portal/page.test.tsx app/portal/submit/page.test.tsx 'app/portal/reports/[id]/page.test.tsx' app/get-started/page.test.tsx` -> pass
+- `cd frontend && PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL=http://127.0.0.1:3101 PLAYWRIGHT_BACKEND_URL=http://127.0.0.1:3100 npx playwright test e2e/admin-control-tower.spec.ts e2e/financial-report-export.spec.ts e2e/get-started-intake.spec.ts` -> pass
+- `bash scripts/health-check.sh https://api.cerniq.io https://cerniq.io` -> pass
+- `bash scripts/smoke-test.sh https://api.cerniq.io` -> pass in read-only mode
+
+Still blocked on privileged production proof:
+
+- `scripts/smoke-test.sh` section `17B` still skips because this workspace does not contain `EXPORT_AUTH_EMAIL`, `EXPORT_AUTH_PASS`, or `EXPORT_MANIFEST_PATH`.
+- There is still no repo-tracked or env-provided live smoke identity or completed production job manifest path.
+- Do not call live `cerniq.io` exports “fully reliable” until section `17B` passes against a real completed portal job.
+
+Exact final gate command:
+
+```bash
+export EXPORT_AUTH_EMAIL="real-portal-user@..."
+export EXPORT_AUTH_PASS="real-password"
+export EXPORT_MANIFEST_PATH="/api/portal/jobs/<completed-job-id>/exports"
+bash scripts/smoke-test.sh https://api.cerniq.io
+```

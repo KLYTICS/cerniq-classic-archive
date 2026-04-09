@@ -83,7 +83,8 @@ function parseArgs(argv: string[]): CliArgs {
 }
 
 function printHelp() {
-  process.stdout.write(`test-file-exports — Exercise every CERNIQ file-export path
+  process.stdout
+    .write(`test-file-exports — Exercise every CERNIQ file-export path
 
 USAGE:
   ts-node scripts/test-file-exports.ts [<slug>] [flags]
@@ -137,6 +138,7 @@ async function main() {
 
   let tempInstitutionId: string | null = null;
   let tempWorkspaceId: string | null = null;
+  let tempUserId: string | null = null;
   const results: ExportResult[] = [];
 
   try {
@@ -157,8 +159,21 @@ async function main() {
     process.stderr.write(
       `[test-file-exports] Creating ephemeral workspace + institution...\n`,
     );
+    const tempUser = await prisma.user.create({
+      data: {
+        email: `test-file-exports-${Date.now()}@cerniq.local`,
+        name: '__TEST_FILE_EXPORTS__',
+        provider: 'system',
+        emailVerified: true,
+      },
+    });
+    tempUserId = tempUser.id;
+
     const workspace = await prisma.workspace.create({
-      data: { name: `__TEST_FILE_EXPORTS__${Date.now()}` },
+      data: {
+        name: `__TEST_FILE_EXPORTS__${Date.now()}`,
+        ownerId: tempUser.id,
+      },
     });
     tempWorkspaceId = workspace.id;
 
@@ -196,11 +211,9 @@ async function main() {
     if (args.language === 'es' || args.language === 'both') {
       results.push(
         await time('ALM Report (ES)', async () => {
-          const buffer = await reports.generateALMReport(
-            institution.id,
-            'es',
-            { watermark },
-          );
+          const buffer = await reports.generateALMReport(institution.id, 'es', {
+            watermark,
+          });
           const filename = `cerniq-alm-report-${args.slug}-es.pdf`;
           return writePdf(args.outDir, filename, buffer);
         }),
@@ -210,11 +223,9 @@ async function main() {
     if (args.language === 'en' || args.language === 'both') {
       results.push(
         await time('ALM Report (EN)', async () => {
-          const buffer = await reports.generateALMReport(
-            institution.id,
-            'en',
-            { watermark },
-          );
+          const buffer = await reports.generateALMReport(institution.id, 'en', {
+            watermark,
+          });
           const filename = `cerniq-alm-report-${args.slug}-en.pdf`;
           return writePdf(args.outDir, filename, buffer);
         }),
@@ -278,6 +289,11 @@ async function main() {
           .delete({ where: { id: tempWorkspaceId } })
           .catch(() => undefined);
       }
+      if (tempUserId) {
+        await prisma.user
+          .delete({ where: { id: tempUserId } })
+          .catch(() => undefined);
+      }
     } catch {
       // Best-effort cleanup — don't mask the real error
     }
@@ -312,9 +328,15 @@ function writePdf(outDir: string, filename: string, buffer: Buffer) {
 function printSummary(institutionName: string, results: ExportResult[]) {
   const out = process.stdout;
   out.write('\n');
-  out.write('  ╭──────────────────────────────────────────────────────────────╮\n');
-  out.write('  │  CERNIQ File Export Test — Results                           │\n');
-  out.write('  ╰──────────────────────────────────────────────────────────────╯\n');
+  out.write(
+    '  ╭──────────────────────────────────────────────────────────────╮\n',
+  );
+  out.write(
+    '  │  CERNIQ File Export Test — Results                           │\n',
+  );
+  out.write(
+    '  ╰──────────────────────────────────────────────────────────────╯\n',
+  );
   out.write('\n');
   out.write(`    Institution:  ${institutionName}\n`);
   out.write(`    Exports:      ${results.length} generated\n`);
@@ -327,7 +349,9 @@ function printSummary(institutionName: string, results: ExportResult[]) {
         : r.bytes >= 1000
           ? `${(r.bytes / 1000).toFixed(1)} KB`
           : `${r.bytes} B`;
-    out.write(`    ✓ ${r.label.padEnd(36)}  ${sizeLabel.padStart(10)}  ${r.durationMs}ms\n`);
+    out.write(
+      `    ✓ ${r.label.padEnd(36)}  ${sizeLabel.padStart(10)}  ${r.durationMs}ms\n`,
+    );
     out.write(`        ${r.path}\n`);
   }
 

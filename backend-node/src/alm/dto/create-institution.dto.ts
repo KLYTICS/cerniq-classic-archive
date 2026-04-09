@@ -64,4 +64,14 @@ export class CreateInstitutionDto {
   @IsString()
   @IsIn(['COSSEC', 'NCUA'])
   primaryRegulator?: string;
+
+  @ApiPropertyOptional({
+    description: 'Preferred report/UI language',
+    enum: ['en', 'es', 'both'],
+    default: 'es',
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['en', 'es', 'both'])
+  preferredLanguage?: string;
 }

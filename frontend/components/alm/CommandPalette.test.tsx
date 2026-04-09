@@ -13,7 +13,7 @@
  */
 
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { CommandPalette, __resetRecentCacheForTesting } from './CommandPalette';
@@ -39,8 +39,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  // Clean up any lingering keybind listeners between tests
-  document.body.innerHTML = '';
+  cleanup();
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -90,12 +89,20 @@ describe('CommandPalette — keyboard toggle', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('toggles closed on a second ⌘K', async () => {
+  it('keeps the palette open on a second ⌘K and does not toggle it closed', async () => {
     render(<CommandPalette />);
     await openPalette();
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     await openPalette();
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('renders the open dialog into document.body instead of the local container tree', async () => {
+    const { container } = render(<CommandPalette />);
+    await openPalette();
+
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.body.querySelector('[role="dialog"]')).toBeTruthy();
   });
 });
 

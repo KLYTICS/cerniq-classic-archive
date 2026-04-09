@@ -6,7 +6,7 @@ import { useALM } from '@/components/alm/ALMProvider';
 import AlmSelectionRequired from '@/components/alm/AlmSelectionRequired';
 import { useTranslation } from '@/lib/i18n';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Layers } from 'lucide-react';
+import { AlertTriangle, Layers } from 'lucide-react';
 
 interface OASResult {
   instrumentId: string; instrumentName: string; category: string; balance: number;

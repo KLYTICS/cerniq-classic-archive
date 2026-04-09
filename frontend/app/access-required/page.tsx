@@ -7,6 +7,7 @@ import { CreditCard, Lock, LogOut, ShieldAlert } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import {
   ACCESS_REQUIRED_ROUTE,
+  hasFreeBuilderAccess,
   hasPlatformAccess,
   prefersPortalExperience,
   resolveAuthenticatedDestination,
@@ -78,7 +79,7 @@ export default function AccessRequiredPage() {
       return;
     }
 
-    if (hasPlatformAccess(access)) {
+    if (hasPlatformAccess(access) || hasFreeBuilderAccess(access)) {
       router.replace(
         resolveAuthenticatedDestination({
           access,

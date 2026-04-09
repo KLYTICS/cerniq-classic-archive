@@ -2,18 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-github2';
 import { AuthService } from '../auth.service';
+import { resolveGithubCallbackUrl } from '../oauth-config.util';
 
 @Injectable()
 export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
   constructor(private authService: AuthService) {
-    const callbackURL = (
-      process.env.GITHUB_CALLBACK_URL ||
-      'https://api.cerniq.io/api/auth/github/callback'
-    ).trim();
     super({
       clientID: process.env.GITHUB_CLIENT_ID || 'not-configured',
       clientSecret: process.env.GITHUB_CLIENT_SECRET || 'not-configured',
-      callbackURL,
+      callbackURL: resolveGithubCallbackUrl(),
       scope: ['user:email'],
     });
   }

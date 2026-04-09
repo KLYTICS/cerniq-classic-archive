@@ -7,6 +7,7 @@ import { apiClient } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
 import {
   ACCESS_REQUIRED_ROUTE,
+  hasFreeBuilderAccess,
   hasPlatformAccess,
   normalizePlatformAccess,
   prefersPortalExperience,
@@ -25,11 +26,15 @@ export default function OnboardingPage() {
     setOnboardingComplete,
   } = useAuthStore();
 
-  const [companyName, setCompanyName] = useState('');
-  const [role, setRole] = useState('Portfolio Manager');
-  const [primaryGoal, setPrimaryGoal] = useState('risk_analytics');
-  const [riskPreference, setRiskPreference] = useState('balanced');
-  const [seedPortfolio, setSeedPortfolio] = useState(true);
+  const [institutionName, setInstitutionName] = useState('');
+  const [institutionType, setInstitutionType] = useState('cooperativa');
+  const [primaryRegulator, setPrimaryRegulator] = useState<'COSSEC' | 'NCUA'>(
+    'COSSEC',
+  );
+  const [totalAssets, setTotalAssets] = useState('');
+  const [preferredLanguage, setPreferredLanguage] = useState<'es' | 'en' | 'both'>(
+    'es',
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -61,12 +66,14 @@ export default function OnboardingPage() {
       router.replace('/login');
       return;
     }
-    if (access && !hasPlatformAccess(access)) {
+    if (access && !hasPlatformAccess(access) && !hasFreeBuilderAccess(access)) {
       router.replace(ACCESS_REQUIRED_ROUTE);
       return;
     }
     if (onboardingComplete) {
-      router.replace('/dashboard');
+      router.replace(
+        hasFreeBuilderAccess(access) ? '/alm' : '/portal/submit?createCycle=1',
+      );
       return;
     }
     // ALM/billing subscription buyers should go to /portal, not onboarding
@@ -77,7 +84,7 @@ export default function OnboardingPage() {
         (isRememberedPortalUser() ||
          new URLSearchParams(window.location.search).get('welcome') === '1');
       if (portalUser) {
-        router.replace('/portal');
+        router.replace('/portal/submit?createCycle=1');
         return;
       }
 
@@ -90,7 +97,12 @@ export default function OnboardingPage() {
         );
         setAccess(nextAccess);
 
-        if (!cancelled && nextAccess && !hasPlatformAccess(nextAccess)) {
+        if (
+          !cancelled &&
+          nextAccess &&
+          !hasPlatformAccess(nextAccess) &&
+          !hasFreeBuilderAccess(nextAccess)
+        ) {
           router.replace(ACCESS_REQUIRED_ROUTE);
           return;
         }
@@ -102,7 +114,7 @@ export default function OnboardingPage() {
 
         if (!cancelled && shouldUsePortal) {
           rememberPortalUser();
-          router.replace('/portal');
+          router.replace('/portal/submit?createCycle=1');
         }
       } catch {
         // If profile can't be loaded we keep the standard onboarding path.
@@ -123,60 +135,48 @@ export default function OnboardingPage() {
     setError('');
 
     try {
-      if (companyName.trim()) {
-        try {
-          await apiClient.createWorkspace(user.id, {
-            name: `${companyName.trim()} Workspace`,
-            company_name: companyName.trim(),
-          });
-        } catch (workspaceError) {
-          console.warn('Workspace provisioning failed during onboarding:', workspaceError);
-        }
-      }
-
-      if (seedPortfolio) {
-        try {
-          const created = await apiClient.createPortfolio(user.id, {
-            name: 'AI Macro Starter',
-            description: 'Seeded by onboarding for VaR, CVaR, and Monte Carlo workflows',
-            benchmark: 'QQQ',
-            initial_capital: 250000,
-            initialCash: 250000,
-            currency: 'USD',
-          });
-
-          if (created?.id) {
-            const starterPositions = [
-              { symbol: 'NVDA', ticker: 'NVDA', quantity: 120, price: 860 },
-              { symbol: 'MSFT', ticker: 'MSFT', quantity: 80, price: 415 },
-              { symbol: 'AMZN', ticker: 'AMZN', quantity: 100, price: 180 },
-              { symbol: 'TSM', ticker: 'TSM', quantity: 110, price: 145 },
-            ];
-
-            await Promise.all(
-              starterPositions.map((position) =>
-                apiClient.addPosition(created.id, user.id, position),
-              ),
-            );
-          }
-        } catch (portfolioError) {
-          console.warn('Starter portfolio provisioning failed during onboarding:', portfolioError);
-        }
-      }
+      const trimmedInstitutionName = institutionName.trim();
+      const workspaceName = trimmedInstitutionName
+        ? `${trimmedInstitutionName} Workspace`
+        : `${user.email.split('@')[0]} Workspace`;
+      const existingWorkspaces = await apiClient.getMyWorkspaces().catch(() => []);
+      const primaryWorkspace =
+        Array.isArray(existingWorkspaces) && existingWorkspaces.length > 0
+          ? existingWorkspaces[0]
+          : await apiClient.createMyWorkspace(workspaceName);
+      const numericAssets = Number(totalAssets.replace(/[^0-9.-]/g, ''));
+      const createdInstitution = await apiClient.createInstitution({
+        name: trimmedInstitutionName,
+        type: institutionType,
+        totalAssets: Number.isFinite(numericAssets) ? numericAssets : 0,
+        reportingDate: new Date().toISOString().slice(0, 10),
+        workspaceId: primaryWorkspace.id,
+        primaryRegulator,
+        preferredLanguage,
+      });
 
       localStorage.setItem(
         `cerniq_profile_${user.id}`,
         JSON.stringify({
-          companyName: companyName.trim() || null,
-          role,
-          primaryGoal,
-          riskPreference,
+          institutionName: trimmedInstitutionName,
+          institutionType,
+          primaryRegulator,
+          totalAssets: totalAssets.trim() || null,
+          preferredLanguage,
           completedAt: new Date().toISOString(),
         }),
       );
       setOnboardingComplete(true);
-      analytics.track(EVENTS.ONBOARDING_COMPLETED, { role, primaryGoal, riskPreference });
-      router.push('/dashboard');
+      analytics.track(EVENTS.ONBOARDING_COMPLETED, {
+        institutionType,
+        primaryRegulator,
+        preferredLanguage,
+      });
+      router.push(
+        hasFreeBuilderAccess(access)
+          ? `/onboarding/balance-sheet?institutionId=${createdInstitution.id}`
+          : '/portal/submit?createCycle=1',
+      );
     } catch (submitError: unknown) {
       setError(getSubmitErrorMessage(submitError));
     } finally {
@@ -197,74 +197,89 @@ export default function OnboardingPage() {
       <div className="max-w-2xl mx-auto bg-slate-900/70 border border-cyan-500/20 rounded-2xl p-8">
         <h1 className="text-3xl font-bold mb-2">Welcome to CERNIQ</h1>
         <p className="text-slate-300 mb-8">
-          Configure your workspace to unlock analisis ALM, Monte Carlo, VaR/CVaR, and cumplimiento COSSEC.
+          Set up your institution once so CERNIQ can route you into the correct ALM intake and reporting flow.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm text-slate-300 mb-1">Firm / Team Name</label>
+            <label className="block text-sm text-slate-300 mb-1">Institution Name</label>
             <input
               type="text"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="Aperture Capital"
+              value={institutionName}
+              onChange={(e) => setInstitutionName(e.target.value)}
+              placeholder="Cooperativa de Ahorro y Credito"
               className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              required
             />
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Role</label>
+              <label className="block text-sm text-slate-300 mb-1">Institution Type</label>
               <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
+                value={institutionType}
+                onChange={(e) => {
+                  const nextType = e.target.value;
+                  setInstitutionType(nextType);
+                  if (nextType === 'cooperativa') {
+                    setPrimaryRegulator('COSSEC');
+                  } else if (nextType === 'credit_union') {
+                    setPrimaryRegulator('NCUA');
+                  }
+                }}
                 className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               >
-                <option>Portfolio Manager</option>
-                <option>Risk Lead</option>
-                <option>CIO</option>
-                <option>Quant Analyst</option>
-                <option>Treasury / ALM</option>
+                <option value="cooperativa">Cooperativa</option>
+                <option value="credit_union">Credit Union</option>
+                <option value="bank">Community Bank</option>
+                <option value="family_office">Family Office</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Risk Preference</label>
+              <label className="block text-sm text-slate-300 mb-1">Primary Regulator</label>
               <select
-                value={riskPreference}
-                onChange={(e) => setRiskPreference(e.target.value)}
+                value={primaryRegulator}
+                onChange={(e) =>
+                  setPrimaryRegulator(e.target.value as 'COSSEC' | 'NCUA')
+                }
                 className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               >
-                <option value="conservative">Conservative</option>
-                <option value="balanced">Balanced</option>
-                <option value="aggressive">Aggressive</option>
+                <option value="COSSEC">COSSEC</option>
+                <option value="NCUA">NCUA</option>
               </select>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm text-slate-300 mb-1">Primary Goal</label>
-            <select
-              value={primaryGoal}
-              onChange={(e) => setPrimaryGoal(e.target.value)}
-              className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              <option value="risk_analytics">Risk Analytics (VaR/CVaR + Stress)</option>
-              <option value="monte_carlo">Monte Carlo Scenario Planning</option>
-              <option value="valuation">Cyclical Valuation Intelligence</option>
-              <option value="spendcheck">SpendCheck Audit Automation</option>
-              <option value="alm">ALM and Treasury Management</option>
-            </select>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-slate-300 mb-1">Approximate Total Assets</label>
+              <input
+                type="text"
+                value={totalAssets}
+                onChange={(e) => setTotalAssets(e.target.value)}
+                placeholder="250000000"
+                className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-slate-300 mb-1">Preferred Language</label>
+              <select
+                value={preferredLanguage}
+                onChange={(e) =>
+                  setPreferredLanguage(e.target.value as 'es' | 'en' | 'both')
+                }
+                className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              >
+                <option value="es">Spanish</option>
+                <option value="en">English</option>
+                <option value="both">Both</option>
+              </select>
+            </div>
           </div>
 
-          <label className="flex items-center gap-3 text-sm text-slate-300">
-            <input
-              type="checkbox"
-              checked={seedPortfolio}
-              onChange={(e) => setSeedPortfolio(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
-            />
-            Seed a starter portfolio for immediate VaR/CVaR and Monte Carlo analysis
-          </label>
+          <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-sm text-slate-300">
+            Free access remains preview-first. CERNIQ will create your institution, then route you into balance-sheet intake and dry-run ALM analysis. Enterprise PDF delivery remains inside paid/demo portal cycles.
+          </div>
 
           {error && (
             <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -278,7 +293,7 @@ export default function OnboardingPage() {
               disabled={saving}
               className="flex-1 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-3 font-semibold text-white disabled:opacity-60"
             >
-              {saving ? 'Provisioning Workspace...' : 'Complete Setup'}
+              {saving ? 'Provisioning Institution...' : 'Continue to Balance-Sheet Intake'}
             </button>
             <button
               type="button"
@@ -286,7 +301,7 @@ export default function OnboardingPage() {
               onClick={() => {
                 setOnboardingComplete(true);
                 analytics.track(EVENTS.ONBOARDING_SKIPPED);
-                router.push('/dashboard');
+                router.push('/alm');
               }}
               className="rounded-lg border border-slate-600 px-4 py-3 text-slate-200 hover:bg-slate-800 disabled:opacity-60"
             >

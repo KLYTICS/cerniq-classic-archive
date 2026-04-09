@@ -1,20 +1,39 @@
 export type PortalWorkflowState =
-  | 'needs_report'
-  | 'needs_upload'
-  | 'validation_failed'
-  | 'processing'
-  | 'report_ready';
+  | "needs_report"
+  | "needs_upload"
+  | "validation_failed"
+  | "processing"
+  | "export_degraded"
+  | "report_ready";
+
+export type PortalExportStatus =
+  | "not_applicable"
+  | "ready"
+  | "partial"
+  | "missing";
+
+export interface PortalExportSummary {
+  manifestPath: string;
+  status: PortalExportStatus;
+  readyCount: number;
+  totalCount: number;
+  readyReportLanguages: Array<"en" | "es">;
+  missingReportLanguages: Array<"en" | "es">;
+  readyBoardPackLanguages: Array<"en" | "es">;
+  missingBoardPackLanguages: Array<"en" | "es">;
+}
 
 export const PORTAL_PROCESSING_STATUSES = [
-  'VALIDATING',
-  'QUEUED',
-  'PROCESSING',
-  'GENERATING_PDF',
-  'UPLOADING',
+  "VALIDATING",
+  "QUEUED",
+  "PROCESSING",
+  "GENERATING_PDF",
+  "UPLOADING",
 ] as const;
 
 export interface PortalOverviewJob {
   id: string;
+  institutionId?: string | null;
   institutionName: string;
   status: string;
   analysisPeriod: string | null;
@@ -29,6 +48,7 @@ export interface PortalOverviewJob {
   errorMessage: string | null;
   userId: string;
   triggeredBy: string;
+  exportSummary?: PortalExportSummary | null;
 }
 
 export interface PortalValidationIssue {
@@ -92,12 +112,29 @@ export interface PortalOverview {
 export function isPortalProcessingStatus(status?: string | null): boolean {
   return Boolean(
     status &&
-      PORTAL_PROCESSING_STATUSES.includes(
-        status as (typeof PORTAL_PROCESSING_STATUSES)[number],
-      ),
+    PORTAL_PROCESSING_STATUSES.includes(
+      status as (typeof PORTAL_PROCESSING_STATUSES)[number],
+    ),
   );
 }
 
 export function isPortalActionRequiredStatus(status?: string | null): boolean {
-  return status === 'AWAITING_DATA' || status === 'VALIDATION_FAILED';
+  return status === "AWAITING_DATA" || status === "VALIDATION_FAILED";
+}
+
+export function isPortalReportReady(job?: PortalOverviewJob | null): boolean {
+  return Boolean(
+    job?.status === "COMPLETE" && job.exportSummary?.status === "ready",
+  );
+}
+
+export function isPortalExportDegraded(
+  job?: PortalOverviewJob | null,
+): boolean {
+  return Boolean(
+    job?.status === "COMPLETE" &&
+    job.exportSummary &&
+    job.exportSummary.status !== "ready" &&
+    job.exportSummary.status !== "not_applicable",
+  );
 }

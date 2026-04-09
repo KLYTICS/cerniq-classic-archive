@@ -47,6 +47,7 @@ describe('PortalController', () => {
         findMany: jest.fn(),
         findFirst: jest.fn(),
         findUnique: jest.fn(),
+        create: jest.fn(),
         update: jest.fn(),
         count: jest.fn().mockResolvedValue(0),
       },
@@ -59,12 +60,16 @@ describe('PortalController', () => {
       },
       subscription: { findUnique: jest.fn() },
       institution: {
+        findFirst: jest.fn().mockResolvedValue(null),
         findMany: jest.fn().mockResolvedValue([]),
       },
       apiKey: {
         count: jest.fn().mockResolvedValue(0),
       },
       workspace: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: 'ws-1', ownerId: 'user-1' }),
         findMany: jest.fn(),
         create: jest.fn(),
       },
@@ -107,6 +112,20 @@ describe('PortalController', () => {
     portalExports = {
       listJobExports: jest.fn(),
       generateAlcoPackExport: jest.fn(),
+      summarizeJobExportsForRecord: jest
+        .fn()
+        .mockImplementation((job: any) => ({
+          manifestPath: `/api/portal/jobs/${job.id}/exports`,
+          status: job.status === 'COMPLETE' ? 'ready' : 'not_applicable',
+          readyCount: job.status === 'COMPLETE' ? 4 : 0,
+          totalCount: job.status === 'COMPLETE' ? 4 : 0,
+          readyReportLanguages: job.status === 'COMPLETE' ? ['es', 'en'] : [],
+          missingReportLanguages: job.status === 'COMPLETE' ? [] : ['es', 'en'],
+          readyBoardPackLanguages:
+            job.status === 'COMPLETE' ? ['es', 'en'] : [],
+          missingBoardPackLanguages:
+            job.status === 'COMPLETE' ? [] : ['es', 'en'],
+        })),
     };
 
     portalAlmReport = {
@@ -337,6 +356,109 @@ describe('PortalController', () => {
       );
       expect(result.nextAction.href).toBe('/portal/submit?jobId=job-failed');
     });
+
+    it('marks completed jobs without a full export package as degraded', async () => {
+      prisma.reportJob.findMany.mockResolvedValue([
+        {
+          id: 'job-complete',
+          institutionId: 'inst-1',
+          institutionName: 'Coop Export',
+          status: 'COMPLETE',
+          analysisPeriod: 'Q1-2026',
+          previousJobId: null,
+          submittedAt: new Date('2026-04-08T11:00:00Z'),
+          processingStartedAt: new Date('2026-04-08T11:01:00Z'),
+          completedAt: new Date('2026-04-08T11:10:00Z'),
+          createdAt: new Date('2026-04-08T10:00:00Z'),
+          reportUrl: null,
+          reportUrlEn: null,
+          reportLang: 'es',
+          errorMessage: null,
+          userId: 'user-1',
+          triggeredBy: 'portal_submit',
+        },
+      ]);
+      portalExports.summarizeJobExportsForRecord.mockReturnValue({
+        manifestPath: '/api/portal/jobs/job-complete/exports',
+        status: 'partial',
+        readyCount: 2,
+        totalCount: 4,
+        readyReportLanguages: ['es', 'en'],
+        missingReportLanguages: [],
+        readyBoardPackLanguages: [],
+        missingBoardPackLanguages: ['es', 'en'],
+      });
+
+      const result = await controller.getOverview(mockReq());
+
+      expect(result.workflowState).toBe('export_degraded');
+      expect(result.latestActionableJob?.exportSummary).toEqual(
+        expect.objectContaining({
+          status: 'partial',
+          missingBoardPackLanguages: ['es', 'en'],
+        }),
+      );
+      expect(result.nextAction.href).toBe('/portal/reports/job-complete');
+    });
+  });
+
+  describe('POST /api/portal/jobs/open-cycle', () => {
+    it('reuses the latest actionable job when one already exists', async () => {
+      prisma.reportJob.findFirst.mockResolvedValueOnce({
+        id: 'job-open',
+        institutionId: 'inst-1',
+        institutionName: 'Coop Open',
+        status: 'AWAITING_DATA',
+      });
+
+      const result = await controller.openReportCycle(mockReq(), {});
+
+      expect(result).toEqual({
+        jobId: 'job-open',
+        institutionId: 'inst-1',
+        institutionName: 'Coop Open',
+        status: 'AWAITING_DATA',
+        nextHref: '/portal/submit?jobId=job-open',
+      });
+      expect(prisma.reportJob.create).not.toHaveBeenCalled();
+    });
+
+    it('creates a new actionable job and institution when none exists', async () => {
+      prisma.reportJob.findFirst.mockResolvedValueOnce(null);
+      prisma.workspace.findMany.mockResolvedValue([{ id: 'ws-1' }]);
+      prisma.institution.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      almEnterprise.createInstitution.mockResolvedValue({
+        id: 'inst-new',
+        name: 'Coop Bootstrap',
+        preferredLanguage: 'es',
+      });
+      prisma.reportJob.create.mockResolvedValue({
+        id: 'job-bootstrap',
+        institutionId: 'inst-new',
+        institutionName: 'Coop Bootstrap',
+        status: 'AWAITING_DATA',
+      });
+
+      const result = await controller.openReportCycle(mockReq(), {
+        institutionName: 'Coop Bootstrap',
+      });
+
+      expect(almEnterprise.createInstitution).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: 'ws-1',
+          name: 'Coop Bootstrap',
+        }),
+      );
+      expect(result).toEqual({
+        jobId: 'job-bootstrap',
+        institutionId: 'inst-new',
+        institutionName: 'Coop Bootstrap',
+        status: 'AWAITING_DATA',
+        nextHref: '/portal/submit?jobId=job-bootstrap',
+      });
+    });
   });
 
   // ── getJob ─────────────────────────────────────
@@ -348,7 +470,14 @@ describe('PortalController', () => {
 
       const result = await controller.getJob(mockReq(), 'j1');
 
-      expect(result).toEqual(job);
+      expect(result).toEqual(
+        expect.objectContaining({
+          ...job,
+          exportSummary: expect.objectContaining({
+            manifestPath: '/api/portal/jobs/j1/exports',
+          }),
+        }),
+      );
     });
 
     it('should throw NotFoundException for missing job', async () => {
@@ -516,6 +645,11 @@ describe('PortalController', () => {
           totalLiabilities: 800000,
         },
       });
+      prisma.workspace.findFirst.mockResolvedValue({
+        id: 'ws-1',
+        ownerId: 'user-1',
+      });
+      prisma.institution.findFirst.mockResolvedValue(null);
       almEnterprise.createInstitution.mockResolvedValue({ id: 'inst-new' });
       almEnterprise.importBalanceSheetItems.mockResolvedValue({ count: 2 });
       prisma.reportJob.update.mockResolvedValue({});
@@ -536,7 +670,12 @@ describe('PortalController', () => {
       expect(result.nextHref).toBe('/portal/reports/j1');
 
       // Verify pipeline steps executed
-      expect(almEnterprise.createInstitution).toHaveBeenCalled();
+      expect(almEnterprise.createInstitution).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: 'ws-1',
+          name: 'Cooperativa Test',
+        }),
+      );
       expect(almEnterprise.importBalanceSheetItems).toHaveBeenCalledWith(
         'inst-new',
         expect.any(Array),

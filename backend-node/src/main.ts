@@ -23,6 +23,7 @@ import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
 import { SensitiveFieldRedactorInterceptor } from './common/interceptors/sensitive-field-redactor.interceptor';
 import { SanitizePipe } from './common/pipes/sanitize.pipe';
+import { getGoogleOAuthWarnings } from './auth/oauth-config.util';
 
 async function bootstrap() {
   // --- Env var validation ---
@@ -49,6 +50,9 @@ async function bootstrap() {
     console.warn(
       'WARN: DATA_ENCRYPTION_KEY not set — PII encryption disabled.',
     );
+  for (const warning of getGoogleOAuthWarnings()) {
+    console.warn(`WARN: ${warning}`);
+  }
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true, // Required for Stripe webhook signature verification

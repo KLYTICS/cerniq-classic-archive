@@ -473,6 +473,14 @@ interface AuthUser {
   workspaceId?: string;
 }
 
+interface PortalCycleResponse {
+  jobId: string;
+  institutionId: string | null;
+  institutionName: string | null;
+  status: string;
+  nextHref: string;
+}
+
 interface AuthResponse {
   access_token?: string;
   user?: AuthUser;
@@ -1559,9 +1567,24 @@ class APIClient {
     workspaceId: string;
     currency?: string;
     primaryRegulator?: string;
+    preferredLanguage?: 'en' | 'es' | 'both';
   }) {
     const response = await this.client.post(`${NODE_API_URL}/api/alm/institutions`, data);
     return response.data?.data ?? response.data;
+  }
+
+  async openPortalReportCycle(data: {
+    institutionName?: string;
+    institutionType?: string;
+    primaryRegulator?: 'COSSEC' | 'NCUA';
+    preferredLanguage?: 'en' | 'es' | 'both';
+    totalAssets?: number | string;
+  } = {}): Promise<PortalCycleResponse> {
+    const response = await this.client.post(
+      `${NODE_API_URL}/api/portal/jobs/open-cycle`,
+      data,
+    );
+    return unwrapApiData<PortalCycleResponse>(response.data);
   }
 
   async getInstitution(institutionId: string) {

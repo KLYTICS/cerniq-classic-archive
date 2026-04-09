@@ -98,6 +98,16 @@ test.describe("Financial report export flow", () => {
                   errorMessage: null,
                   userId: "portal-user-1",
                   triggeredBy: "portal_submit",
+                  exportSummary: {
+                    manifestPath: "/api/portal/jobs/job-complete/exports",
+                    status: "ready",
+                    readyCount: 4,
+                    totalCount: 4,
+                    readyReportLanguages: ["es", "en"],
+                    missingReportLanguages: [],
+                    readyBoardPackLanguages: ["es", "en"],
+                    missingBoardPackLanguages: [],
+                  },
                 },
               ],
               latestActionableJob: {
@@ -117,6 +127,16 @@ test.describe("Financial report export flow", () => {
                 errorMessage: null,
                 userId: "portal-user-1",
                 triggeredBy: "portal_submit",
+                exportSummary: {
+                  manifestPath: "/api/portal/jobs/job-complete/exports",
+                  status: "ready",
+                  readyCount: 4,
+                  totalCount: 4,
+                  readyReportLanguages: ["es", "en"],
+                  missingReportLanguages: [],
+                  readyBoardPackLanguages: ["es", "en"],
+                  missingBoardPackLanguages: [],
+                },
               },
               workflowState: "report_ready",
               counts: {

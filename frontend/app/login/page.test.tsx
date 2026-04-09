@@ -195,4 +195,44 @@ describe("LoginPage", () => {
 
     expect(mockPush).not.toHaveBeenCalledWith("/access-required");
   });
+
+  it("routes free authenticated users into onboarding instead of access-required", async () => {
+    mockLogin.mockResolvedValue({
+      user: { id: "user-2", email: "free@cerniq.io" },
+    });
+    mockGetCurrentUser.mockResolvedValue({
+      id: "user-2",
+      email: "free@cerniq.io",
+      access: {
+        platformAccessAllowed: false,
+        isMasterCeo: false,
+        isPaid: false,
+        isDemo: false,
+        effectiveTier: "free",
+        effectiveStatus: null,
+        effectivePeriodEnd: null,
+        daysRemaining: null,
+        reason: "subscription_required",
+      },
+    });
+
+    render(<LoginPage />);
+
+    fireEvent.change(screen.getByLabelText("Email"), {
+      target: { value: "free@cerniq.io" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "password123" },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/onboarding");
+    });
+
+    expect(mockPush).not.toHaveBeenCalledWith("/access-required");
+  });
 });

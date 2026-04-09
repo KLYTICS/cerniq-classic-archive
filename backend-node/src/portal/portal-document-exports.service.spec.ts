@@ -67,6 +67,13 @@ describe('PortalDocumentExportsService', () => {
     expect(manifests.map((manifest) => manifest.kind)).toEqual(
       expect.arrayContaining(['alm_report', 'alco_pack']),
     );
+    expect(
+      manifests
+        .filter((manifest) => manifest.kind === 'alm_report')
+        .every((manifest) =>
+          manifest.downloadUrl?.includes('/api/portal/jobs/job-1/alm-report'),
+        ),
+    ).toBe(true);
   });
 
   it('builds an ALCO pack export payload', async () => {
@@ -154,5 +161,51 @@ describe('PortalDocumentExportsService', () => {
       ),
     ).toBe(true);
     expect(portalAlmReport.buildManifestStub).toHaveBeenCalledTimes(2);
+  });
+
+  it('summarizes a complete job as ready when report and board-pack exports exist in both languages', () => {
+    const summary = service.summarizeJobExportsForRecord({
+      id: 'job-ready',
+      userId: 'user-1',
+      institutionId: 'inst-1',
+      institutionName: 'Cooperativa Test',
+      status: 'COMPLETE',
+      reportUrl: null,
+      reportUrlEn: null,
+      createdAt: new Date('2026-04-05T12:00:00.000Z'),
+      completedAt: new Date('2026-04-06T12:00:00.000Z'),
+      triggeredBy: 'portal_submit',
+    });
+
+    expect(summary).toEqual(
+      expect.objectContaining({
+        status: 'ready',
+        readyReportLanguages: ['es', 'en'],
+        readyBoardPackLanguages: ['es', 'en'],
+      }),
+    );
+  });
+
+  it('summarizes a complete legacy job as partial when only raw report URLs exist', () => {
+    const summary = service.summarizeJobExportsForRecord({
+      id: 'job-legacy',
+      userId: 'user-1',
+      institutionId: null,
+      institutionName: 'Legacy Coop',
+      status: 'COMPLETE',
+      reportUrl: 'https://r2.example.com/report-es.pdf',
+      reportUrlEn: 'https://r2.example.com/report-en.pdf',
+      createdAt: new Date('2026-04-05T12:00:00.000Z'),
+      completedAt: new Date('2026-04-06T12:00:00.000Z'),
+      triggeredBy: 'portal_submit',
+    });
+
+    expect(summary).toEqual(
+      expect.objectContaining({
+        status: 'partial',
+        readyReportLanguages: ['es', 'en'],
+        missingBoardPackLanguages: ['es', 'en'],
+      }),
+    );
   });
 });

@@ -7,6 +7,7 @@ import {
   ACCESS_REQUIRED_ROUTE,
   hasPlatformAccess,
   isProtectedAppPath,
+  requiresPaidAccessPath,
 } from '@/lib/access';
 import { APP_NAVIGATION_EVENT, buildLoginRedirectUrl } from '@/lib/api';
 
@@ -112,6 +113,7 @@ export default function AuthInitializer() {
     if (
       access &&
       !hasPlatformAccess(access) &&
+      requiresPaidAccessPath(pathname) &&
       pathname !== ACCESS_REQUIRED_ROUTE
     ) {
       router.replace(ACCESS_REQUIRED_ROUTE);

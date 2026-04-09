@@ -21,8 +21,8 @@ export interface PipelineProgressPayload {
 }
 
 export interface PipelineCompletePayload {
-  reportUrl: string;
-  reportUrlEn: string;
+  reportUrl?: string | null;
+  reportUrlEn?: string | null;
   manifestPath: string;
 }
 
@@ -107,7 +107,8 @@ export class PipelineGateway
   }
 
   /**
-   * Emit completion event with report download URLs.
+   * Emit completion event with manifest metadata. Raw report URLs remain
+   * compatibility-only fields for older clients.
    */
   emitComplete(jobId: string, data: PipelineCompletePayload) {
     this.server.to(`job:${jobId}`).emit('pipeline:complete', {

@@ -138,3 +138,25 @@ What must be rechecked immediately after Actions billing is restored:
 - Added manifest-driven frontend download handling across ALM, portal, demo/embed, and preview surfaces.
 - Fixed the ALM report watermark gap so review watermarks are actually rendered, not just passed as options.
 - Added `docs/ops/EXPORT_PLATFORM_SPEC.md` and `docs/ops/EXPORT_ACCEPTANCE_CHECKLIST.md` for cross-session continuation.
+
+## 2026-04-09 Export Reliability Update
+
+- Portal overview and report detail now expose manifest-backed export readiness instead of treating `COMPLETE` status alone as delivery-ready.
+- Portal home and submit flows now surface a degraded export-delivery state when only part of the package is available.
+- Portal report viewer now renders a recovery state when the export package is incomplete instead of assuming an iframe-safe PDF URL always exists.
+- Legacy `/dashboard/report/[id]` now redirects into the manifest-backed portal report route.
+- `/get-started` is the canonical first-touch intake for new users bringing balance-sheet data, with deterministic preview-or-paid outcomes.
+
+Local verification completed:
+
+- `npm run verify:frontend` -> pass
+- `cd backend-node && npx jest src/portal/portal-document-exports.service.spec.ts src/portal/portal.controller.spec.ts src/realtime/pipeline.gateway.spec.ts --runInBand` -> pass
+- `cd frontend && npx vitest run app/portal/page.test.tsx app/portal/submit/page.test.tsx 'app/portal/reports/[id]/page.test.tsx' app/get-started/page.test.tsx` -> pass
+- `cd frontend && PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL=http://127.0.0.1:3101 PLAYWRIGHT_BACKEND_URL=http://127.0.0.1:3100 npx playwright test e2e/admin-control-tower.spec.ts e2e/financial-report-export.spec.ts e2e/get-started-intake.spec.ts` -> pass
+- `bash scripts/health-check.sh https://api.cerniq.io https://cerniq.io` -> pass
+- `bash scripts/smoke-test.sh https://api.cerniq.io` -> pass in read-only mode; authenticated export smoke still skipped without live credentials
+
+Remaining non-green gate:
+
+- Authenticated production export smoke still requires `EXPORT_AUTH_EMAIL`, `EXPORT_AUTH_PASS`, and `EXPORT_MANIFEST_PATH`.
+- Until those are provided and `scripts/smoke-test.sh` section `17B` passes against a real completed production job, live `cerniq.io` export reliability remains unproven even though local and public-read-only gates are green.

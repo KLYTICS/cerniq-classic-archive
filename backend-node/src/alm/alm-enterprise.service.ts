@@ -233,6 +233,7 @@ export class AlmEnterpriseService {
     currency?: string;
     reportingDate: string;
     primaryRegulator?: string;
+    preferredLanguage?: string;
   }) {
     return this.prisma.institution.create({
       data: {
@@ -243,6 +244,7 @@ export class AlmEnterpriseService {
         currency: data.currency || 'USD',
         reportingDate: new Date(data.reportingDate),
         primaryRegulator: data.primaryRegulator || 'COSSEC',
+        preferredLanguage: data.preferredLanguage || 'es',
       },
     });
   }

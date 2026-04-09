@@ -35,9 +35,9 @@ interface ProgressEvent {
 
 interface CompleteEvent {
   jobId: string;
-  reportUrl: string;
-  reportUrlEn: string;
-  manifestPath?: string;
+  reportUrl?: string | null;
+  reportUrlEn?: string | null;
+  manifestPath: string;
   timestamp: string;
 }
 
@@ -52,6 +52,43 @@ interface ReportProgressWSProps {
   institutionName: string;
   initialStatus?: string;
   onComplete?: () => void;
+}
+
+function mapJobStatusToStep(status?: string): string {
+  switch (status) {
+    case "QUEUED":
+    case "PROCESSING":
+    case "VALIDATING":
+      return "VALIDATING";
+    case "GENERATING_PDF":
+      return "PDF_GENERATION";
+    case "UPLOADING":
+      return "UPLOADING";
+    case "COMPLETE":
+      return "COMPLETE";
+    case "FAILED":
+      return "FAILED";
+    default:
+      return "VALIDATING";
+  }
+}
+
+function mapJobStatusToPercent(status?: string): number {
+  switch (status) {
+    case "QUEUED":
+      return 5;
+    case "PROCESSING":
+    case "VALIDATING":
+      return 30;
+    case "GENERATING_PDF":
+      return 80;
+    case "UPLOADING":
+      return 95;
+    case "COMPLETE":
+      return 100;
+    default:
+      return 0;
+  }
 }
 
 /* ---------- Pipeline steps definition ---------- */
@@ -156,9 +193,11 @@ export default function ReportProgressWS({
 
   const [connected, setConnected] = useState(false);
   const [currentStep, setCurrentStep] = useState<string>(
-    initialStatus || "VALIDATING",
+    mapJobStatusToStep(initialStatus),
   );
-  const [percentComplete, setPercentComplete] = useState(0);
+  const [percentComplete, setPercentComplete] = useState(
+    mapJobStatusToPercent(initialStatus),
+  );
   const [currentMessage, setCurrentMessage] = useState("");
   const [isComplete, setIsComplete] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -171,29 +210,10 @@ export default function ReportProgressWS({
   const socketRef = useRef<Socket | null>(null);
   const { formatted: elapsedFormatted, stop: stopTimer } = useElapsedTime();
 
-  // Map a DB status to the closest pipeline step for poll fallback
-  const mapDbStatusToStep = useCallback((status: string) => {
-    switch (status) {
-      case "QUEUED":
-      case "PROCESSING":
-        return "VALIDATING";
-      case "GENERATING_PDF":
-        return "PDF_GENERATION";
-      case "UPLOADING":
-        return "UPLOADING";
-      case "COMPLETE":
-        return "COMPLETE";
-      case "FAILED":
-        return "FAILED";
-      default:
-        return "VALIDATING";
-    }
-  }, []);
-
   // Polling fallback when WebSocket is not connected
   const handlePollStatus = useCallback(
     (status: string) => {
-      const step = mapDbStatusToStep(status);
+      const step = mapJobStatusToStep(status);
       if (status === "COMPLETE") {
         setIsComplete(true);
         setCurrentStep("COMPLETE");
@@ -206,17 +226,10 @@ export default function ReportProgressWS({
         stopTimer();
       } else {
         setCurrentStep(step);
-        // Estimate percent based on DB status
-        const statusPercent: Record<string, number> = {
-          QUEUED: 5,
-          PROCESSING: 30,
-          GENERATING_PDF: 70,
-          UPLOADING: 90,
-        };
-        setPercentComplete(statusPercent[status] || 10);
+        setPercentComplete(mapJobStatusToPercent(status) || 10);
       }
     },
-    [mapDbStatusToStep, onComplete, stopTimer],
+    [onComplete, stopTimer],
   );
 
   usePollFallback(

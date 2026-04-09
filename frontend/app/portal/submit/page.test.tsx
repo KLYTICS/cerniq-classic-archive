@@ -16,11 +16,13 @@ const {
   searchParams,
   trackMock,
   loadOverviewMock,
+  openPortalReportCycleMock,
   hookState,
 } = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
   trackMock: vi.fn(),
   loadOverviewMock: vi.fn(),
+  openPortalReportCycleMock: vi.fn(),
   hookState: {
     overview: null as unknown,
     loading: false,
@@ -61,12 +63,40 @@ vi.mock('@/components/portal/ProgressTracker', () => ({
   ),
 }));
 
+vi.mock('@/components/ui/cerniq', () => ({
+  SkeletonLoader: () => <div>Loading skeleton</div>,
+  EmptyState: ({
+    title,
+    description,
+    actionLabel,
+    onAction,
+  }: {
+    title: string;
+    description: string;
+    actionLabel?: string;
+    onAction?: () => void;
+  }) => (
+    <div>
+      <div>{title}</div>
+      <div>{description}</div>
+      {actionLabel ? <button onClick={onAction}>{actionLabel}</button> : null}
+    </div>
+  ),
+  ErrorBanner: ({ error }: { error: string }) => <div>{error}</div>,
+}));
+
 vi.mock('@/components/portal/ReportProgressWS', () => ({
   default: ({ jobId }: { jobId: string }) => <div>Progress stream {jobId}</div>,
 }));
 
 vi.mock('@/components/exports/DocumentExportButtons', () => ({
   default: () => <div>Export buttons</div>,
+}));
+
+vi.mock('@/lib/api', () => ({
+  apiClient: {
+    openPortalReportCycle: openPortalReportCycleMock,
+  },
 }));
 
 vi.mock('lucide-react', () => {
@@ -163,8 +193,10 @@ class MockFileReader {
 describe('PortalSubmit', () => {
   beforeEach(() => {
     searchParams.delete('jobId');
+    searchParams.delete('createCycle');
     trackMock.mockReset();
     loadOverviewMock.mockReset();
+    openPortalReportCycleMock.mockReset();
     hookState.overview = overviewMock;
     hookState.loading = false;
     hookState.error = null;
@@ -233,5 +265,127 @@ describe('PortalSubmit', () => {
     expect(
       screen.getByText(/category, subcategory, name, balance, rate, duration/i),
     ).toBeInTheDocument();
+  });
+
+  it('bootstraps a report cycle when createCycle=1 and no actionable job exists', async () => {
+    searchParams.set('createCycle', '1');
+    hookState.overview = {
+      ...overviewMock,
+      jobs: [],
+      latestActionableJob: null,
+      workflowState: 'needs_report',
+      counts: {
+        total: 0,
+        awaitingData: 0,
+        validationFailed: 0,
+        processing: 0,
+        complete: 0,
+      },
+    };
+    openPortalReportCycleMock.mockResolvedValue({
+      jobId: 'job-created',
+      institutionId: 'inst-1',
+      institutionName: 'Coop Created',
+      status: 'AWAITING_DATA',
+      nextHref: '/portal/submit?jobId=job-created',
+    });
+
+    render(<PortalSubmit />);
+
+    await waitFor(() => {
+      expect(openPortalReportCycleMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('shows degraded export delivery state for completed jobs without a full manifest package', () => {
+    hookState.overview = {
+      ...overviewMock,
+      jobs: [
+        {
+          id: 'job-complete',
+          institutionId: 'inst-1',
+          institutionName: 'Coop Export',
+          status: 'COMPLETE',
+          analysisPeriod: 'Q1-2026',
+          previousJobId: null,
+          submittedAt: '2026-04-08T10:00:00.000Z',
+          processingStartedAt: '2026-04-08T10:05:00.000Z',
+          completedAt: '2026-04-08T10:10:00.000Z',
+          createdAt: '2026-04-08T09:00:00.000Z',
+          reportUrl: null,
+          reportUrlEn: null,
+          reportLang: 'es',
+          errorMessage: null,
+          userId: 'user-1',
+          triggeredBy: 'portal_submit',
+          exportSummary: {
+            manifestPath: '/api/portal/jobs/job-complete/exports',
+            status: 'partial',
+            readyCount: 2,
+            totalCount: 4,
+            readyReportLanguages: ['es', 'en'],
+            missingReportLanguages: [],
+            readyBoardPackLanguages: [],
+            missingBoardPackLanguages: ['es', 'en'],
+          },
+        },
+      ],
+      latestActionableJob: {
+        id: 'job-complete',
+        institutionId: 'inst-1',
+        institutionName: 'Coop Export',
+        status: 'COMPLETE',
+        analysisPeriod: 'Q1-2026',
+        previousJobId: null,
+        submittedAt: '2026-04-08T10:00:00.000Z',
+        processingStartedAt: '2026-04-08T10:05:00.000Z',
+        completedAt: '2026-04-08T10:10:00.000Z',
+        createdAt: '2026-04-08T09:00:00.000Z',
+        reportUrl: null,
+        reportUrlEn: null,
+        reportLang: 'es',
+        errorMessage: null,
+        userId: 'user-1',
+        triggeredBy: 'portal_submit',
+        exportSummary: {
+          manifestPath: '/api/portal/jobs/job-complete/exports',
+          status: 'partial',
+          readyCount: 2,
+          totalCount: 4,
+          readyReportLanguages: ['es', 'en'],
+          missingReportLanguages: [],
+          readyBoardPackLanguages: [],
+          missingBoardPackLanguages: ['es', 'en'],
+        },
+      },
+      workflowState: 'export_degraded',
+      counts: {
+        total: 1,
+        awaitingData: 0,
+        validationFailed: 0,
+        processing: 0,
+        complete: 1,
+      },
+      nextAction: {
+        labelEn: 'Review export availability',
+        labelEs: 'Revisar disponibilidad de exportacion',
+        href: '/portal/reports/job-complete',
+        jobId: 'job-complete',
+        explanationEn:
+          'The report job finished, but one or more export files still need recovery before delivery is fully complete.',
+        explanationEs:
+          'El trabajo del informe termino, pero uno o mas archivos de exportacion todavia necesitan recuperarse antes de completar la entrega.',
+      },
+      validationSummary: null,
+    };
+
+    render(<PortalSubmit />);
+
+    expect(
+      screen.getByText(
+        'The report finished, but export delivery still needs recovery.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/2 of 4 export artifacts are ready/i)).toBeInTheDocument();
   });
 });

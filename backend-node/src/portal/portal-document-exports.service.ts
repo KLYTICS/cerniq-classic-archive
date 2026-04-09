@@ -12,6 +12,36 @@ import {
 } from '../alm/document-exports.types';
 import { PortalAlmReportService } from './portal-alm-report.service';
 
+type PortalExportableJobRecord = {
+  id: string;
+  userId: string;
+  institutionId: string | null;
+  institutionName: string;
+  status: string;
+  reportUrl: string | null;
+  reportUrlEn: string | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  triggeredBy?: string | null;
+};
+
+export type PortalJobExportStatus =
+  | 'not_applicable'
+  | 'ready'
+  | 'partial'
+  | 'missing';
+
+export interface PortalJobExportSummary {
+  manifestPath: string;
+  status: PortalJobExportStatus;
+  readyCount: number;
+  totalCount: number;
+  readyReportLanguages: Array<'en' | 'es'>;
+  missingReportLanguages: Array<'en' | 'es'>;
+  readyBoardPackLanguages: Array<'en' | 'es'>;
+  missingBoardPackLanguages: Array<'en' | 'es'>;
+}
+
 @Injectable()
 export class PortalDocumentExportsService {
   constructor(
@@ -33,6 +63,65 @@ export class PortalDocumentExportsService {
       throw new NotFoundException('Job not found');
     }
 
+    return this.buildJobExportManifests(job);
+  }
+
+  summarizeJobExportsForRecord(
+    job: PortalExportableJobRecord,
+  ): PortalJobExportSummary {
+    const manifestPath = `/api/portal/jobs/${job.id}/exports`;
+    if (job.status !== 'COMPLETE') {
+      return {
+        manifestPath,
+        status: 'not_applicable',
+        readyCount: 0,
+        totalCount: 0,
+        readyReportLanguages: [],
+        missingReportLanguages: ['es', 'en'],
+        readyBoardPackLanguages: [],
+        missingBoardPackLanguages: ['es', 'en'],
+      };
+    }
+
+    const manifests = this.buildJobExportManifests(job);
+    const readyManifests = manifests.filter(
+      (manifest) => manifest.status === 'ready',
+    );
+    const readyReportLanguages = this.collectReadyLanguages(
+      readyManifests,
+      'alm_report',
+    );
+    const readyBoardPackLanguages = this.collectReadyLanguages(
+      readyManifests,
+      'alco_pack',
+    );
+    const missingReportLanguages = this.missingLanguages(readyReportLanguages);
+    const missingBoardPackLanguages = this.missingLanguages(
+      readyBoardPackLanguages,
+    );
+    const status =
+      missingReportLanguages.length === 0 &&
+      missingBoardPackLanguages.length === 0
+        ? 'ready'
+        : readyManifests.length > 0
+          ? 'partial'
+          : 'missing';
+
+    return {
+      manifestPath,
+      status,
+      readyCount: readyManifests.length,
+      totalCount: manifests.length,
+      readyReportLanguages,
+      missingReportLanguages,
+      readyBoardPackLanguages,
+      missingBoardPackLanguages,
+    };
+  }
+
+  private buildJobExportManifests(
+    job: PortalExportableJobRecord,
+  ): DocumentExportManifest[] {
     const manifests: DocumentExportManifest[] = [];
     const generatedAt = job.completedAt || job.createdAt;
     const expiresAt = job.completedAt
@@ -44,11 +133,36 @@ export class PortalDocumentExportsService {
       Boolean(job.reportUrl) && this.looksLikeAbsoluteUrl(job.reportUrl);
     const hasR2En =
       Boolean(job.reportUrlEn) && this.looksLikeAbsoluteUrl(job.reportUrlEn);
+    const canUseCanonicalReportManifest =
+      job.status === 'COMPLETE' && Boolean(job.institutionId);
 
-    if (hasR2Es) {
+    if (canUseCanonicalReportManifest) {
+      manifests.push(
+        this.portalAlmReport.buildManifestStub({
+          jobId: job.id,
+          institutionId: job.institutionId,
+          institutionName: job.institutionName,
+          language: 'es',
+          generatedAt,
+          expiresAt: null,
+          triggeredBy: job.triggeredBy,
+        }),
+      );
+      manifests.push(
+        this.portalAlmReport.buildManifestStub({
+          jobId: job.id,
+          institutionId: job.institutionId,
+          institutionName: job.institutionName,
+          language: 'en',
+          generatedAt,
+          expiresAt: null,
+          triggeredBy: job.triggeredBy,
+        }),
+      );
+    } else if (hasR2Es) {
       manifests.push(
         createPdfManifest({
-          id: buildManifestId('alm_report', jobId, 'es'),
+          id: buildManifestId('alm_report', job.id, 'es'),
           kind: 'alm_report',
           language: 'es',
           audience: 'internal',
@@ -64,10 +178,10 @@ export class PortalDocumentExportsService {
       );
     }
 
-    if (hasR2En) {
+    if (!canUseCanonicalReportManifest && hasR2En) {
       manifests.push(
         createPdfManifest({
-          id: buildManifestId('alm_report', jobId, 'en'),
+          id: buildManifestId('alm_report', job.id, 'en'),
           kind: 'alm_report',
           language: 'en',
           audience: 'internal',
@@ -88,10 +202,12 @@ export class PortalDocumentExportsService {
     // URL is missing/relative, expose the streaming endpoint as a fallback manifest.
     // This guarantees a working "Download report" button regardless of storage state.
     const needsOnDemandEs =
+      !canUseCanonicalReportManifest &&
       job.status === 'COMPLETE' &&
       job.institutionId &&
       (!hasR2Es || isDemoProvisioned);
     const needsOnDemandEn =
+      !canUseCanonicalReportManifest &&
       job.status === 'COMPLETE' &&
       job.institutionId &&
       (!hasR2En || isDemoProvisioned);
@@ -130,7 +246,7 @@ export class PortalDocumentExportsService {
       manifests.push(
         ...(['es', 'en'] as const).map((language) =>
           createPdfManifest({
-            id: buildManifestId('alco_pack', jobId, language),
+            id: buildManifestId('alco_pack', job.id, language),
             kind: 'alco_pack',
             language,
             audience: 'internal',
@@ -195,5 +311,24 @@ export class PortalDocumentExportsService {
   private looksLikeAbsoluteUrl(url: string | null | undefined): boolean {
     if (!url) return false;
     return /^https?:\/\//i.test(url);
+  }
+
+  private collectReadyLanguages(
+    manifests: DocumentExportManifest[],
+    kind: 'alm_report' | 'alco_pack',
+  ): Array<'en' | 'es'> {
+    return (['es', 'en'] as const).filter((language) =>
+      manifests.some(
+        (manifest) => manifest.kind === kind && manifest.language === language,
+      ),
+    );
+  }
+
+  private missingLanguages(
+    readyLanguages: Array<'en' | 'es'>,
+  ): Array<'en' | 'es'> {
+    return (['es', 'en'] as const).filter(
+      (language) => !readyLanguages.includes(language),
+    );
   }
 }

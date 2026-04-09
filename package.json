@@ -13,6 +13,7 @@
     "verify:frontend": "cd frontend && npm run lint && npm run test && npm run test:coverage && npm run build",
     "verify:backend": "cd backend-node && npx eslint \"{src,apps,libs,test}/**/*.ts\" && npx eslint \"{src,apps,libs,test}/**/*.ts\" --quiet && npx tsc --noEmit && npx prisma validate && npm run test && npm run build",
     "verify:local:critical": "npm run deploy:prepare && npm run verify:frontend && npm run verify:backend && cd frontend && npm run test:e2e:critical",
+    "smoke:exports": "cd backend-node && npx ts-node scripts/test-file-exports.ts",
     "smoke:preview": "node scripts/run-preview-smoke.mjs",
     "smoke:production": "curl -fsS https://cerniq.io >/dev/null && curl -fsS https://cerniq.io/login >/dev/null && curl -fsS https://cerniq.io/pricing >/dev/null && curl -fsS https://cerniq.io/portal/login >/dev/null && curl -fsS https://api.cerniq.io/health >/dev/null && cd frontend && npm run test:e2e:production"
   },

@@ -10,6 +10,7 @@ import { useAuthStore } from "@/lib/store";
 import { useTranslation } from "@/lib/i18n";
 import {
   normalizePlatformAccess,
+  hasFreeBuilderAccess,
   prefersPortalExperience,
   resolveAuthenticatedDestination,
 } from "@/lib/access";
@@ -127,7 +128,7 @@ async function resolvePostLoginDestination({
   const fallbackDestination =
     returnUrl ||
     (fallbackPortalPreferred
-      ? "/portal"
+      ? "/portal/submit?createCycle=1"
       : onboardingComplete
         ? "/dashboard"
         : "/onboarding");
@@ -153,7 +154,7 @@ async function resolvePostLoginDestination({
         rememberPortalUser();
       }
 
-      if (!access?.platformAccessAllowed) {
+      if (!access?.platformAccessAllowed && !hasFreeBuilderAccess(access)) {
         return "/access-required";
       }
 

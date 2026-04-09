@@ -113,6 +113,17 @@ describe('AuthInitializer', () => {
     expect(mockReplace).toHaveBeenCalledWith('/access-required');
   });
 
+  it('does not redirect free builder users away from /alm', () => {
+    mockState.initialized = true;
+    mockState.isAuthenticated = true;
+    mockState.access = { platformAccessAllowed: false };
+    mockUsePathname.mockReturnValue('/alm');
+
+    render(<AuthInitializer />);
+
+    expect(mockReplace).not.toHaveBeenCalledWith('/access-required');
+  });
+
   it('redirects anonymous users on protected routes to login with a returnUrl', () => {
     mockState.initialized = true;
     mockUsePathname.mockReturnValue('/dashboard');

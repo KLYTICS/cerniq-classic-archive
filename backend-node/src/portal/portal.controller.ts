@@ -40,7 +40,10 @@ import { AuditService } from '../audit/audit.service';
 import { IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
 import { SkipAuditLog } from '../common/decorators/audit-action.decorator';
 import { PlatformAccessService } from '../auth/platform-access.service';
-import { PortalDocumentExportsService } from './portal-document-exports.service';
+import {
+  PortalDocumentExportsService,
+  type PortalJobExportSummary,
+} from './portal-document-exports.service';
 import { PortalAlmReportService } from './portal-alm-report.service';
 import { DemoSeatService } from './demo-seat.service';
 import { buildPdfResponseHeaders } from '../alm/document-exports.util';
@@ -50,6 +53,7 @@ type PortalWorkflowState =
   | 'needs_upload'
   | 'validation_failed'
   | 'processing'
+  | 'export_degraded'
   | 'report_ready';
 
 type PortalValidationIssue = {
@@ -88,6 +92,7 @@ const PORTAL_ACTIONABLE_STATUSES = [
 
 type PortalOverviewJob = {
   id: string;
+  institutionId: string | null;
   institutionName: string;
   status: string;
   analysisPeriod: string | null;
@@ -102,6 +107,7 @@ type PortalOverviewJob = {
   errorMessage: string | null;
   userId: string;
   triggeredBy: string;
+  exportSummary: PortalJobExportSummary | null;
 };
 
 class InviteDto {
@@ -188,6 +194,62 @@ export class PortalController {
     };
   }
 
+  @Post('jobs/open-cycle')
+  @Roles('OWNER', 'ANALYST', 'VIEWER')
+  @ApiOperation({
+    summary:
+      'Create or reuse the current actionable report cycle for the authenticated user',
+  })
+  async openReportCycle(
+    @Req() req: any,
+    @Body()
+    body: {
+      institutionName?: string;
+      institutionType?: string;
+      primaryRegulator?: 'COSSEC' | 'NCUA';
+      preferredLanguage?: 'en' | 'es' | 'both';
+      totalAssets?: number | string;
+    } = {},
+  ) {
+    const userId = req.user.userId;
+    await this.requirePaidPortalAccess(userId);
+
+    const actionableJob = await this.prisma.reportJob.findFirst({
+      where: {
+        userId,
+        status: {
+          in: ['AWAITING_DATA', 'VALIDATION_FAILED'],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (actionableJob) {
+      return this.buildCycleResponse(actionableJob);
+    }
+
+    const institution =
+      (await this.findLatestInstitutionForUser(userId)) ||
+      (await this.ensureInstitutionForUser(userId, body));
+
+    const createdJob = await this.prisma.reportJob.create({
+      data: {
+        userId,
+        institutionId: institution?.id || null,
+        institutionName:
+          institution?.name ||
+          body.institutionName?.trim() ||
+          'Pending Institution',
+        reportLang:
+          institution?.preferredLanguage || body.preferredLanguage || 'es',
+        status: 'AWAITING_DATA',
+        triggeredBy: 'portal_cycle_bootstrap',
+      },
+    });
+
+    return this.buildCycleResponse(createdJob);
+  }
+
   // ── Get Job Detail ──────────────────────────────────
   // All roles can view job details (report download)
 
@@ -222,7 +284,10 @@ export class PortalController {
       });
     }
 
-    return job;
+    return {
+      ...job,
+      exportSummary: this.portalExports.summarizeJobExportsForRecord(job),
+    };
   }
 
   @Get('jobs/:jobId/ingestion-logs')
@@ -547,7 +612,15 @@ export class PortalController {
     @Req() req: any,
     @Param('jobId') jobId: string,
     @UploadedFile() file: Express.Multer.File,
-    @Body() body: { institutionName?: string; analysisPeriod?: string },
+    @Body()
+    body: {
+      institutionName?: string;
+      institutionType?: string;
+      primaryRegulator?: 'COSSEC' | 'NCUA';
+      preferredLanguage?: 'en' | 'es' | 'both';
+      totalAssets?: number | string;
+      analysisPeriod?: string;
+    },
   ) {
     const userId = req.user.userId;
     await this.requirePaidPortalAccess(userId);
@@ -609,12 +682,15 @@ export class PortalController {
     if (job.institutionId) {
       institution = await this.almEnterprise.getInstitution(job.institutionId);
     } else {
-      institution = await this.almEnterprise.createInstitution({
-        name: instName,
-        type: 'cooperativa',
-        totalAssets: 0,
-        reportingDate: new Date().toISOString().split('T')[0],
-        workspaceId: '',
+      institution = await this.ensureInstitutionForUser(userId, {
+        institutionName: instName,
+        institutionType: body.institutionType,
+        primaryRegulator: body.primaryRegulator,
+        preferredLanguage: body.preferredLanguage,
+        totalAssets:
+          this.normalizeTotalAssets(body.totalAssets) ||
+          parseResult.summary?.totalAssets ||
+          0,
       });
     }
 
@@ -960,6 +1036,114 @@ export class PortalController {
       .join(' | ');
   }
 
+  private buildCycleResponse(job: {
+    id: string;
+    institutionId?: string | null;
+    institutionName?: string | null;
+    status: string;
+  }) {
+    return {
+      jobId: job.id,
+      institutionId: job.institutionId || null,
+      institutionName: job.institutionName || null,
+      status: job.status,
+      nextHref: `/portal/submit?jobId=${job.id}`,
+    };
+  }
+
+  private normalizeTotalAssets(value: unknown): number {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const normalized = Number(value.replace(/[^0-9.-]/g, ''));
+      return Number.isFinite(normalized) ? normalized : 0;
+    }
+    return 0;
+  }
+
+  private async resolvePrimaryWorkspace(userId: string, fallbackName?: string) {
+    const existingWorkspace = await this.prisma.workspace.findFirst({
+      where: { ownerId: userId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (existingWorkspace) {
+      return existingWorkspace;
+    }
+
+    return this.prisma.workspace.create({
+      data: {
+        ownerId: userId,
+        name: fallbackName?.trim() || 'My Institution',
+      },
+    });
+  }
+
+  private async findLatestInstitutionForUser(userId: string) {
+    const workspaces = await this.prisma.workspace.findMany({
+      where: { ownerId: userId },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (workspaces.length === 0) {
+      return null;
+    }
+
+    return this.prisma.institution.findFirst({
+      where: {
+        workspaceId: {
+          in: workspaces.map((workspace: { id: string }) => workspace.id),
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  private async ensureInstitutionForUser(
+    userId: string,
+    input: {
+      institutionName?: string;
+      institutionType?: string;
+      primaryRegulator?: 'COSSEC' | 'NCUA';
+      preferredLanguage?: 'en' | 'es' | 'both';
+      totalAssets?: number | string;
+    },
+  ) {
+    const institutionName = input.institutionName?.trim();
+    if (!institutionName) {
+      return null;
+    }
+
+    const workspace = await this.resolvePrimaryWorkspace(
+      userId,
+      institutionName,
+    );
+
+    const existingInstitution = await this.prisma.institution.findFirst({
+      where: {
+        workspaceId: workspace.id,
+        name: institutionName,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (existingInstitution) {
+      return existingInstitution;
+    }
+
+    return this.almEnterprise.createInstitution({
+      workspaceId: workspace.id,
+      name: institutionName,
+      type: input.institutionType || 'cooperativa',
+      totalAssets: this.normalizeTotalAssets(input.totalAssets),
+      reportingDate: new Date().toISOString().slice(0, 10),
+      primaryRegulator: input.primaryRegulator || 'COSSEC',
+      preferredLanguage: input.preferredLanguage || 'es',
+    });
+  }
+
   private async requirePaidPortalAccess(userId: string) {
     const access = await this.platformAccess.getAccessForUser(userId);
     if (!access.platformAccessAllowed) {
@@ -973,28 +1157,35 @@ export class PortalController {
   private async loadPortalJobs(scope: {
     userId?: string;
   }): Promise<PortalOverviewJob[]> {
-    return this.prisma.reportJob.findMany({
-      where: scope,
-      orderBy: { createdAt: 'desc' },
-      take: scope.userId ? undefined : 200,
-      select: {
-        id: true,
-        institutionName: true,
-        status: true,
-        analysisPeriod: true,
-        previousJobId: true,
-        submittedAt: true,
-        processingStartedAt: true,
-        completedAt: true,
-        createdAt: true,
-        reportUrl: true,
-        reportUrlEn: true,
-        reportLang: true,
-        errorMessage: true,
-        userId: true,
-        triggeredBy: true,
-      },
-    });
+    const jobs: Array<Omit<PortalOverviewJob, 'exportSummary'>> =
+      await this.prisma.reportJob.findMany({
+        where: scope,
+        orderBy: { createdAt: 'desc' },
+        take: scope.userId ? undefined : 200,
+        select: {
+          id: true,
+          institutionId: true,
+          institutionName: true,
+          status: true,
+          analysisPeriod: true,
+          previousJobId: true,
+          submittedAt: true,
+          processingStartedAt: true,
+          completedAt: true,
+          createdAt: true,
+          reportUrl: true,
+          reportUrlEn: true,
+          reportLang: true,
+          errorMessage: true,
+          userId: true,
+          triggeredBy: true,
+        },
+      });
+
+    return jobs.map((job: Omit<PortalOverviewJob, 'exportSummary'>) => ({
+      ...job,
+      exportSummary: this.portalExports.summarizeJobExportsForRecord(job),
+    }));
   }
 
   private countPortalJobs(jobs: PortalOverviewJob[]) {
@@ -1068,7 +1259,9 @@ export class PortalController {
       return 'processing';
     }
     if (job.status === 'COMPLETE') {
-      return 'report_ready';
+      return job.exportSummary?.status === 'ready'
+        ? 'report_ready'
+        : 'export_degraded';
     }
     return 'needs_report';
   }
@@ -1110,6 +1303,17 @@ export class PortalController {
             'Your upload has been accepted and the report is moving through the CERNIQ pipeline.',
           explanationEs:
             'Su carga fue aceptada y el informe esta avanzando por la tuberia de CERNIQ.',
+        };
+      case 'export_degraded':
+        return {
+          labelEn: 'Review export availability',
+          labelEs: 'Revisar disponibilidad de exportacion',
+          href: job ? `/portal/reports/${job.id}` : '/portal',
+          jobId: job?.id ?? null,
+          explanationEn:
+            'The report job finished, but one or more export files still need recovery before delivery is fully complete.',
+          explanationEs:
+            'El trabajo del informe termino, pero uno o mas archivos de exportacion todavia necesitan recuperarse antes de completar la entrega.',
         };
       case 'report_ready':
         return {

@@ -73,7 +73,17 @@ describe('BillingService', () => {
       },
       workspace: {
         findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn().mockResolvedValue({ id: 'ws-auto' }),
+      },
+      institution: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({
+          id: 'inst-auto',
+          name: 'Cooperativa ABC',
+          preferredLanguage: 'es',
+        }),
       },
       prospectInstitution: {
         findFirst: jest.fn().mockResolvedValue(null),
@@ -423,6 +433,7 @@ describe('BillingService', () => {
 
       expect(prisma.reportJob.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
+          institutionId: 'inst-auto',
           status: 'AWAITING_DATA',
           triggeredBy: 'payment',
           institutionName: 'Cooperativa ABC',
@@ -1156,6 +1167,12 @@ describe('BillingService', () => {
 
       expect(prisma.workspace.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ name: 'Coop WS', ownerId: 'user-ws' }),
+      });
+      expect(prisma.institution.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          workspaceId: 'ws-auto',
+          name: 'Coop WS',
+        }),
       });
     });
 

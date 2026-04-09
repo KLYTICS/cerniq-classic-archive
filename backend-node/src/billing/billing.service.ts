@@ -113,6 +113,7 @@ export class BillingService {
     if (!customerEmail || !metadata) return;
 
     const tier = (metadata.tier || 'one_time') as BillingTier;
+    const institutionName = metadata.institutionName?.trim() || '';
 
     // 1. Find or create user
     let user = await this.prisma.user.findUnique({
@@ -210,28 +211,22 @@ export class BillingService {
     }
 
     // 4. Auto-create workspace if none exists
-    const existingWorkspace = await this.prisma.workspace.findFirst({
-      where: { ownerId: user.id },
+    const workspace = await this.ensurePrimaryWorkspace(
+      user.id,
+      institutionName || 'My Institution',
+    );
+    const institution = await this.ensureInstitutionForWorkspace({
+      workspaceId: workspace.id,
+      institutionName,
     });
-    if (!existingWorkspace) {
-      await this.prisma.workspace.create({
-        data: {
-          name: metadata.institutionName || 'My Institution',
-          ownerId: user.id,
-        },
-      });
-      this.logger.log({
-        event: 'workspace.auto_created',
-        userId: user.id,
-        institutionName: metadata.institutionName || 'My Institution',
-      });
-    }
 
     // 5. Create report job for one-time / first report
     await this.prisma.reportJob.create({
       data: {
         userId: user.id,
-        institutionName: metadata.institutionName || 'Pending',
+        institutionId: institution?.id || null,
+        institutionName: institution?.name || institutionName || 'Pending',
+        reportLang: institution?.preferredLanguage || 'es',
         status: 'AWAITING_DATA',
         triggeredBy: 'payment',
       },
@@ -312,11 +307,20 @@ export class BillingService {
         where: { userId: sub.userId },
         orderBy: { createdAt: 'desc' },
       });
+      const institution = latestJob?.institutionId
+        ? await this.prisma.institution.findUnique({
+            where: { id: latestJob.institutionId },
+          })
+        : await this.findLatestInstitutionForUser(sub.userId);
 
       await this.prisma.reportJob.create({
         data: {
           userId: sub.userId,
-          institutionName: latestJob?.institutionName || 'Pending',
+          institutionId: institution?.id || latestJob?.institutionId || null,
+          institutionName:
+            institution?.name || latestJob?.institutionName || 'Pending',
+          reportLang:
+            institution?.preferredLanguage || latestJob?.reportLang || 'es',
           status: 'AWAITING_DATA',
           triggeredBy: 'monthly_cron',
         },
@@ -406,6 +410,88 @@ export class BillingService {
       event: 'subscription.cancelled',
       userId: sub.userId,
       customerId,
+    });
+  }
+
+  private async ensurePrimaryWorkspace(userId: string, fallbackName: string) {
+    const existingWorkspace = await this.prisma.workspace.findFirst({
+      where: { ownerId: userId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (existingWorkspace) {
+      return existingWorkspace;
+    }
+
+    const createdWorkspace = await this.prisma.workspace.create({
+      data: {
+        name: fallbackName || 'My Institution',
+        ownerId: userId,
+      },
+    });
+
+    this.logger.log({
+      event: 'workspace.auto_created',
+      userId,
+      institutionName: fallbackName || 'My Institution',
+    });
+
+    return createdWorkspace;
+  }
+
+  private async ensureInstitutionForWorkspace(input: {
+    workspaceId: string;
+    institutionName?: string;
+  }) {
+    const institutionName = input.institutionName?.trim();
+    if (!institutionName) {
+      return null;
+    }
+
+    const existingInstitution = await this.prisma.institution.findFirst({
+      where: {
+        workspaceId: input.workspaceId,
+        name: institutionName,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (existingInstitution) {
+      return existingInstitution;
+    }
+
+    return this.prisma.institution.create({
+      data: {
+        workspaceId: input.workspaceId,
+        name: institutionName,
+        type: 'cooperativa',
+        totalAssets: 0,
+        currency: 'USD',
+        reportingDate: new Date(),
+        primaryRegulator: 'COSSEC',
+        preferredLanguage: 'es',
+      },
+    });
+  }
+
+  private async findLatestInstitutionForUser(userId: string) {
+    const workspaces = await this.prisma.workspace.findMany({
+      where: { ownerId: userId },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (workspaces.length === 0) {
+      return null;
+    }
+
+    return this.prisma.institution.findFirst({
+      where: {
+        workspaceId: {
+          in: workspaces.map((workspace: { id: string }) => workspace.id),
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
     });
   }
 

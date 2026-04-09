@@ -1,5 +1,7 @@
 "use client";
 
+import { unwrapApiData } from "./api-response";
+
 export type DocumentExportKind =
   | "alm_report"
   | "sample_report"
@@ -82,7 +84,7 @@ export async function fetchDocumentExports(
     throw new Error(`Unable to load exports (${response.status})`);
   }
 
-  const data = await response.json();
+  const data = unwrapApiData<unknown>(await response.json());
   if (!Array.isArray(data)) {
     throw new Error("Invalid export manifest payload");
   }

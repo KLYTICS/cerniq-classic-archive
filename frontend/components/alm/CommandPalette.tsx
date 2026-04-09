@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Clock, Search, X } from 'lucide-react';
@@ -170,10 +171,18 @@ export function CommandPalette() {
   // Global ⌘K / Ctrl+K listener
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const isOpen = e.key === 'k' && (e.metaKey || e.ctrlKey);
-      if (isOpen) {
+      const isShortcut =
+        e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey);
+      if (isShortcut) {
         e.preventDefault();
-        setOpen((current) => !current);
+        if (e.repeat) {
+          return;
+        }
+        setOpen(true);
+        queueMicrotask(() => {
+          inputRef.current?.focus();
+          inputRef.current?.select();
+        });
       } else if (e.key === 'Escape' && open) {
         e.preventDefault();
         closeAndReset();
@@ -238,9 +247,9 @@ export function CommandPalette() {
     );
   }
 
-  return (
+  const dialog = (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-slate-950/30 backdrop-blur-sm p-4 pt-[12vh]"
+      className="fixed inset-0 z-[9999] flex items-start justify-center bg-slate-950/30 backdrop-blur-sm p-4 pt-[12vh]"
       role="dialog"
       aria-modal="true"
       aria-labelledby={`${listboxId}-label`}
@@ -385,4 +394,10 @@ export function CommandPalette() {
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') {
+    return dialog;
+  }
+
+  return createPortal(dialog, document.body);
 }

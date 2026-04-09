@@ -102,7 +102,7 @@ export default function InstitutionTypePage() {
         type: selected,
         institutionId: result.institutionId,
       });
-      router.push('/alm');
+      router.push(`/alm?id=${result.institutionId}`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to set up demo';
       setError(message);
@@ -113,7 +113,7 @@ export default function InstitutionTypePage() {
 
   const handleSkip = () => {
     analytics.track(EVENTS.ONBOARDING_SKIPPED, { step: 'institution-type' });
-    router.push('/alm');
+    router.push('/onboarding/balance-sheet');
   };
 
   return (
@@ -123,7 +123,7 @@ export default function InstitutionTypePage() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">What type of institution?</h1>
           <p className="text-slate-400 max-w-md mx-auto">
-            We&apos;ll set up a demo with realistic data so you can see ALM Intelligence in action immediately.
+            This is an optional demo shortcut. For real production data entry, use the main onboarding and balance-sheet intake flow.
           </p>
         </div>
 
@@ -182,7 +182,7 @@ export default function InstitutionTypePage() {
             onClick={handleSkip}
             className="text-slate-400 hover:text-white text-sm transition"
           >
-            Skip — I&apos;ll add data manually
+            Skip demo — go to manual intake
           </button>
           <button
             onClick={handleContinue}
