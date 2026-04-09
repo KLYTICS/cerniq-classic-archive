@@ -59,6 +59,11 @@ Outbound:
 
 - `python -m pytest services/outbound/tests -q`
 
+Cleanliness:
+
+- `npm run verify:clean`
+- `git status --short` should remain empty after canonical local verification
+
 Public production verification:
 
 - `bash scripts/health-check.sh https://api.cerniq.io https://cerniq.io`
@@ -97,9 +102,10 @@ Production-authenticated or mutating smoke:
 - The CSV onboarding template is part of the public production gate through the frontend-hosted asset at `/templates/cerniq-balance-sheet-v1.csv`, not a backend API requirement.
 - In read-only public-production mode, market-data quote/snapshot probes are advisory because upstream providers can transiently return `404` while the ALM wedge remains fully operational.
 - Repo-level wrapper checks `npm run verify:backend`, `npm run verify:frontend`, and `npm run smoke:production` should all execute cleanly on a locally green worktree.
+- Repo-level wrapper checks are only fully green when they also leave the tracked worktree clean.
+- Volatile OMX runtime state and generated Playwright report/test output must never remain tracked source artifacts.
 - If `ALM Quality Gate` fails on `Prisma Schema Drift`, generate and commit the missing Prisma migration instead of weakening the workflow.
 
 ## Known Non-Blocking Debt
 
-- `backend-node/package.json` still defines `npm run lint` with `--fix`; prefer the non-mutating command above when preserving a dirty worktree.
 - GitHub Actions can remain red until repository/account billing is restored, even when the repo is locally green.

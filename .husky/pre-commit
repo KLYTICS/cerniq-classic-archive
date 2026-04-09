@@ -1,3 +1,4 @@
 # Quick typecheck on staged backend files
 # Full linting runs in CI — this catches obvious errors fast
 cd backend-node && npx tsc --noEmit --incremental 2>/dev/null || echo "TypeScript check: warnings found (see CI for details)"
+cd .. && bash scripts/verify-clean-worktree.sh --staged-only

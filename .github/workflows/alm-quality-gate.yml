@@ -78,6 +78,8 @@ jobs:
       - name: TypeScript strict check
         working-directory: backend-node
         run: npx tsc --noEmit --project tsconfig.json
+      - name: Verify clean worktree
+        run: bash scripts/verify-clean-worktree.sh
 
   # ─── Targeted jest run: ALM + actions + expenses + pipeline ──────
   # Scoped subset of the full suite that covers everything our Phase 1/2/3
@@ -105,6 +107,8 @@ jobs:
         env:
           JWT_SECRET: ${{ env.CI_JWT_SECRET }}
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+      - name: Verify clean worktree
+        run: bash scripts/verify-clean-worktree.sh
 
   # ─── Dedicated golden drift job — the ALM math immune system ─────
   # Runs src/alm/golden-reconciliation.spec.ts in isolation with a rich
@@ -130,6 +134,8 @@ jobs:
         run: bash scripts/ci/golden-drift-report.sh
         env:
           JWT_SECRET: ${{ env.CI_JWT_SECRET }}
+      - name: Verify clean worktree
+        run: bash scripts/verify-clean-worktree.sh
 
   # ─── Schema drift: does schema.prisma match migration history? ───
   # Catches the cross-session failure mode where one session edits
@@ -165,6 +171,8 @@ jobs:
         run: bash scripts/ci/check-schema-drift.sh
         env:
           SHADOW_DATABASE_URL: ${{ env.SHADOW_DATABASE_URL }}
+      - name: Verify clean worktree
+        run: bash scripts/verify-clean-worktree.sh
 
   # ─── Session handoff freshness — non-blocking warning ───────────
   # Emits a GitHub warning annotation (yellow in PR review UI) when
@@ -182,6 +190,8 @@ jobs:
           fetch-depth: 0
       - name: Check handoff doc freshness
         run: bash scripts/ci/check-session-freshness.sh
+      - name: Verify clean worktree
+        run: bash scripts/verify-clean-worktree.sh
 
   # ─── Quality gate aggregator — writes ci-status.json artifact ────
   # Runs AFTER all other jobs (always, even on failure) so we always

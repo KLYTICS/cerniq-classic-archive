@@ -100,6 +100,9 @@ jobs:
           JWT_SECRET: ${{ env.CI_BUILD_JWT_SECRET }}
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
 
+      - name: Verify clean worktree
+        run: bash scripts/verify-clean-worktree.sh
+
   # Frontend Next.js — lint, build
   frontend-test:
     name: Frontend Build
@@ -146,6 +149,9 @@ jobs:
           if [ "$FIRST_LOAD" -gt "$BUDGET" ]; then
             echo "::warning::Bundle size ($FIRST_LOAD bytes) exceeds budget ($BUDGET bytes)"
           fi
+
+      - name: Verify clean worktree
+        run: bash scripts/verify-clean-worktree.sh
 
   backend-e2e:
     name: Backend E2E & Security
@@ -207,6 +213,9 @@ jobs:
           JWT_SECRET: ${{ env.CI_JWT_SECRET }}
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
 
+      - name: Verify clean worktree
+        run: bash scripts/verify-clean-worktree.sh
+
   # Outbound Python engine — lint, test
   outbound-test:
     name: Outbound Engine Tests
@@ -227,6 +236,9 @@ jobs:
       - name: Run tests
         working-directory: services/outbound
         run: python -m pytest tests/ -v --tb=short
+
+      - name: Verify clean worktree
+        run: bash scripts/verify-clean-worktree.sh
 
   # Deploy Backend to Railway (main branch only)
   deploy-backend:
@@ -350,6 +362,9 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 14
+
+      - name: Verify clean worktree
+        run: bash scripts/verify-clean-worktree.sh
 
   release-gate:
     name: Release Gate
