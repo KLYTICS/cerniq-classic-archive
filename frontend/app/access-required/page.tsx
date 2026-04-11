@@ -135,16 +135,16 @@ export default function AccessRequiredPage() {
 
   if (!initialized || (!isAuthenticated && !allowGuestRedirect)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#071122] text-white">
+      <div className="cerniq-dashboard-page flex min-h-screen items-center justify-center text-[var(--dashboard-text-primary)]">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#071122] px-4 py-10 text-white">
+    <div className="cerniq-dashboard-page min-h-screen px-4 py-10 text-[var(--dashboard-text-primary)]">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <div className="rounded-[2rem] border border-[#2b4168] bg-[#121c33]/95 p-8 shadow-[0_30px_120px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-10">
+        <div className="cerniq-dashboard-elevated-surface rounded-[2rem] border p-8 shadow-[0_30px_120px_rgba(113,88,40,0.18)] backdrop-blur-xl sm:p-10">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-300">
             <ShieldAlert className="h-7 w-7" />
           </div>
@@ -152,25 +152,25 @@ export default function AccessRequiredPage() {
           <p className="mt-6 text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200/70">
             Platform Closed
           </p>
-          <h1 className="mt-3 font-display text-4xl text-white sm:text-5xl">
+          <h1 className="mt-3 font-display text-4xl text-[var(--dashboard-text-primary)] sm:text-5xl">
             Access now requires a paid plan.
           </h1>
-          <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+          <p className="mt-5 max-w-2xl text-sm leading-7 text-[var(--dashboard-text-secondary)] sm:text-base">
             {reasonCopy(access?.reason)}
           </p>
 
-          <div className="mt-8 grid gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 sm:grid-cols-3">
+          <div className="mt-8 grid gap-4 rounded-3xl border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.68)] p-5 sm:grid-cols-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
                 Account
               </p>
-              <p className="mt-2 text-sm text-white">{user?.email || 'Unknown user'}</p>
+              <p className="mt-2 text-sm text-[var(--dashboard-text-primary)]">{user?.email || 'Unknown user'}</p>
             </div>
             <div>
               <p className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
                 Tier
               </p>
-              <p className="mt-2 text-sm capitalize text-white">
+              <p className="mt-2 text-sm capitalize text-[var(--dashboard-text-primary)]">
                 {access?.effectiveTier || 'free'}
               </p>
             </div>
@@ -178,7 +178,7 @@ export default function AccessRequiredPage() {
               <p className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
                 Status
               </p>
-              <p className="mt-2 text-sm capitalize text-white">
+              <p className="mt-2 text-sm capitalize text-[var(--dashboard-text-primary)]">
                 {access?.effectiveStatus || 'none'}
               </p>
             </div>
@@ -197,7 +197,7 @@ export default function AccessRequiredPage() {
               <button
                 onClick={openBillingPortal}
                 disabled={openingBilling}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/8 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/12 disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.82)] px-5 py-3 text-sm font-semibold text-[var(--dashboard-text-primary)] transition hover:bg-white disabled:opacity-60"
               >
                 <CreditCard className="h-4 w-4" />
                 {openingBilling ? 'Opening billing...' : 'Recover billing'}
@@ -206,7 +206,7 @@ export default function AccessRequiredPage() {
 
             <button
               onClick={() => void handleLogout()}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-transparent px-5 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/6 hover:text-white"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-transparent px-5 py-3 text-sm font-semibold text-[var(--dashboard-text-secondary)] transition hover:bg-[rgba(247,228,188,0.32)] hover:text-[var(--dashboard-text-primary)]"
             >
               <LogOut className="h-4 w-4" />
               Log out
@@ -214,7 +214,7 @@ export default function AccessRequiredPage() {
           </div>
 
           {billingError && (
-            <p className="mt-4 text-sm text-rose-300">{billingError}</p>
+            <p className="mt-4 text-sm text-rose-600">{billingError}</p>
           )}
         </div>
 

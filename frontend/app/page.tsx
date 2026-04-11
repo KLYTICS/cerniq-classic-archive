@@ -254,7 +254,7 @@ export default function LandingPage() {
     try {
       const checkoutUrl = await createCheckoutSession({
         tier,
-        successUrl: "/portal/login?billing=success",
+        successUrl: "/login?billing=success&returnUrl=%2Fdashboard",
         cancelUrl: "/pricing",
       });
       window.location.href = checkoutUrl;
@@ -266,12 +266,11 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen overflow-x-clip text-slate-950">
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-        {/* -- NAV -- */}
+    <div className="cerniq-dashboard-page min-h-screen overflow-x-clip text-[var(--dashboard-text-primary)]">
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         <nav
           aria-label="Main navigation"
-          className="mb-6 flex items-center justify-between gap-4 rounded-full border border-slate-200/80 bg-white/80 px-4 py-3 backdrop-blur-xl sm:px-6"
+          className="sticky top-3 z-30 mb-5 flex items-center justify-between gap-4 rounded-full border border-[rgba(216,192,139,0.76)] bg-[rgba(255,251,239,0.84)] px-4 py-3 shadow-[0_16px_40px_rgba(113,88,40,0.08)] backdrop-blur-xl sm:px-6"
         >
           <button
             onClick={() => router.push("/")}
@@ -311,7 +310,7 @@ export default function LandingPage() {
             </div>
             <button
               onClick={() => router.push("/demo")}
-              className="hidden rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 sm:inline-flex"
+              className="hidden rounded-full border border-[rgba(216,192,139,0.8)] bg-[rgba(255,251,239,0.88)] px-4 py-2 text-sm font-semibold text-[var(--dashboard-text-secondary)] transition hover:bg-white sm:inline-flex"
             >
               {t("Try Demo", "Ver Demo")}
             </button>
@@ -321,33 +320,33 @@ export default function LandingPage() {
                   .getElementById("pricing")
                   ?.scrollIntoView({ behavior: "smooth" })
               }
-              className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:border-cyan-300/50 hover:text-slate-950 sm:inline-flex"
+              className="hidden rounded-full border border-[rgba(216,192,139,0.72)] px-4 py-2 text-sm text-[var(--dashboard-text-secondary)] transition hover:border-cyan-300/50 hover:text-[var(--dashboard-text-primary)] sm:inline-flex"
             >
               {t("Pricing", "Precios")}
             </button>
             <button
               onClick={() => router.push("/why-cerniq")}
-              className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:border-cyan-300/50 hover:text-slate-950 sm:inline-flex"
+              className="hidden rounded-full border border-[rgba(216,192,139,0.72)] px-4 py-2 text-sm text-[var(--dashboard-text-secondary)] transition hover:border-cyan-300/50 hover:text-[var(--dashboard-text-primary)] sm:inline-flex"
             >
               {t("Why CERNIQ", "Por qué CERNIQ")}
             </button>
             <button
               onClick={() => router.push("/compliance")}
-              className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:border-cyan-300/50 hover:text-slate-950 lg:inline-flex"
+              className="hidden rounded-full border border-[rgba(216,192,139,0.72)] px-4 py-2 text-sm text-[var(--dashboard-text-secondary)] transition hover:border-cyan-300/50 hover:text-[var(--dashboard-text-primary)] lg:inline-flex"
             >
               {t("Compliance", "Cumplimiento")}
             </button>
             <button
               onClick={() => router.push("/roi")}
-              className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:border-cyan-300/50 hover:text-slate-950 lg:inline-flex"
+              className="hidden rounded-full border border-[rgba(216,192,139,0.72)] px-4 py-2 text-sm text-[var(--dashboard-text-secondary)] transition hover:border-cyan-300/50 hover:text-[var(--dashboard-text-primary)] lg:inline-flex"
             >
               {t("ROI Calculator", "Calculadora ROI")}
             </button>
             <button
               onClick={() => router.push("/login")}
-              className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:border-cyan-300/50 hover:text-slate-950"
+              className="rounded-full border border-[rgba(216,192,139,0.72)] px-4 py-2 text-sm text-[var(--dashboard-text-secondary)] transition hover:border-cyan-300/50 hover:text-[var(--dashboard-text-primary)]"
             >
-              Login
+              Sign In
             </button>
             <button
               onClick={() =>
@@ -362,68 +361,141 @@ export default function LandingPage() {
           </div>
         </nav>
 
-        <main className="space-y-4 pb-16">
-          {/* -- HERO -- */}
-          <section className="cerniq-shell p-3 sm:p-4 lg:p-6">
-            <div className="cerniq-panel min-h-[320px] p-5 sm:p-6 lg:p-8">
-              <div className="cerniq-data-wave opacity-55" />
-              <div className="relative z-10 mx-auto flex max-w-4xl flex-col">
-                <span className="cerniq-kicker mb-4 w-fit">
-                  {t(
-                    "ALM Intelligence for Credit Unions & Community Banks",
-                    "Inteligencia ALM para cooperativas, credit unions y bancos comunitarios",
-                  )}
-                </span>
-                <CerniqLockup
-                  tagline={t(
-                    "Institutional ALM Intelligence",
-                    "Inteligencia ALM Institucional",
-                  )}
-                />
-                <div className="mt-5 space-y-3">
-                  <h1 className="font-display text-2xl leading-tight text-slate-950 sm:text-4xl">
+        <main className="space-y-5 pb-16">
+          <section className="-mx-4 overflow-hidden rounded-b-[2.75rem] border-b border-[rgba(216,192,139,0.72)] sm:-mx-6 lg:-mx-8">
+            <div className="relative isolate min-h-[calc(100svh-7rem)] overflow-hidden bg-[linear-gradient(180deg,rgba(255,248,235,0.96)_0%,rgba(254,241,215,0.96)_44%,rgba(249,236,208,0.98)_100%)]">
+              <div className="absolute inset-0 bg-[linear-gradient(rgba(216,192,139,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(216,192,139,0.14)_1px,transparent_1px)] bg-[size:10rem_10rem] opacity-50" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(255,251,239,0.96),transparent_26rem),radial-gradient(circle_at_78%_18%,rgba(232,160,32,0.12),transparent_24rem),radial-gradient(circle_at_78%_68%,rgba(27,58,107,0.1),transparent_22rem)]" />
+              <div className="absolute right-[-6rem] top-12 h-72 w-72 rounded-full border border-white/40 bg-white/20 blur-3xl" />
+              <div className="absolute left-[-4rem] bottom-[-5rem] h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(247,228,188,0.66),rgba(247,228,188,0))]" />
+
+              <div className="relative z-10 mx-auto grid max-w-7xl gap-10 px-4 py-10 sm:px-6 lg:min-h-[calc(100svh-7rem)] lg:grid-cols-[minmax(0,1.08fr)_minmax(22rem,0.92fr)] lg:items-center lg:px-8 lg:py-14">
+                <div className="max-w-3xl animate-fade-in">
+                  <span className="cerniq-kicker w-fit">
                     {t(
-                      "Institutional ALM Intelligence for Credit Unions & Cooperativas",
-                      "Inteligencia ALM institucional para cooperativas y credit unions",
+                      "Dashboard-native ALM Intelligence",
+                      "Inteligencia ALM nativa del dashboard",
+                    )}
+                  </span>
+                  <div className="mt-6">
+                    <CerniqLockup
+                      tagline={t(
+                        "Institutional ALM Intelligence",
+                        "Inteligencia ALM Institucional",
+                      )}
+                    />
+                  </div>
+                  <h1 className="mt-8 max-w-4xl font-display text-[clamp(2.8rem,7vw,5.8rem)] leading-[0.92] tracking-[-0.04em] text-[var(--dashboard-text-primary)]">
+                    {t(
+                      "From balance sheet to board-ready ALM decisions in one secure workspace.",
+                      "Del balance general a decisiones ALM listas para junta en un solo espacio seguro.",
                     )}
                   </h1>
-                  <p className="max-w-3xl text-sm leading-7 text-slate-700">
+                  <p className="mt-6 max-w-2xl text-base leading-8 text-[var(--dashboard-text-secondary)] sm:text-lg">
                     {t(
-                      "Upload your balance sheet. Get a 14-page compliance-ready ALM report with 12 regulatory ratios, Monte Carlo stress testing, and sector benchmarking — in hours, not weeks.",
-                      "Cargue su hoja de balance. Reciba un informe ALM de 14 paginas con 12 ratios regulatorios, pruebas de estres Monte Carlo y benchmarking sectorial — en horas, no semanas.",
+                      "CERNIQ gives cooperativas, credit unions, and community banks a dashboard-first ALM workflow: upload the balance sheet, monitor the analysis, and deliver bilingual reporting without waiting weeks for a consultant handoff.",
+                      "CERNIQ ofrece a cooperativas, credit unions y bancos comunitarios un flujo ALM centrado en dashboard: cargue el balance, supervise el analisis y entregue informes bilingues sin esperar semanas por un handoff de consultoria.",
                     )}
                   </p>
 
-                  {/* Urgency hook rotator */}
-                  <div className="h-6 flex items-center">
+                  <div className="mt-5 flex h-6 items-center">
                     <p
-                      className={`text-sm font-semibold text-amber-600 transition-opacity duration-400 ${urgencyFade ? "opacity-100" : "opacity-0"}`}
+                      className={`text-sm font-semibold text-[#9b742f] transition-opacity duration-400 ${urgencyFade ? "opacity-100" : "opacity-0"}`}
                     >
                       {urgencyHooks[urgencyIndex]}
                     </p>
                   </div>
+
+                  <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                    <button
+                      onClick={() => router.push("/get-started")}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-[#d39a2b] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(211,154,43,0.24)] transition hover:-translate-y-0.5 hover:bg-[#bb891f]"
+                    >
+                      {t(
+                        "Open The Workspace",
+                        "Abrir el espacio de trabajo",
+                      )}
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleCheckout("one_time")}
+                      disabled={checkoutTier === "one_time"}
+                      className="cerniq-button-secondary disabled:opacity-60"
+                    >
+                      {checkoutTier === "one_time"
+                        ? t("Processing...", "Procesando...")
+                        : t("Start — $750", "Comenzar — $750")}
+                    </button>
+                  </div>
+
+                  <div className="mt-8 flex flex-wrap gap-3 text-sm">
+                    <span className="cerniq-mini-stat">200+ ALM modules</span>
+                    <span className="cerniq-mini-stat">170+ quant models</span>
+                    <span className="cerniq-mini-stat">EN / ES delivery</span>
+                  </div>
                 </div>
 
-                <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                  <button
-                    onClick={() => router.push("/get-started")}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5"
-                  >
-                    {t(
-                      "Start With Your Balance Sheet",
-                      "Comenzar con su balance",
-                    )}
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleCheckout("one_time")}
-                    disabled={checkoutTier === "one_time"}
-                    className="cerniq-button-secondary disabled:opacity-60"
-                  >
-                    {checkoutTier === "one_time"
-                      ? t("Processing...", "Procesando...")
-                      : t("Start — $750", "Comenzar — $750")}
-                  </button>
+                <div className="animate-fade-in [animation-delay:120ms]">
+                  <div className="relative overflow-hidden rounded-[2.5rem] border border-[rgba(216,192,139,0.76)] bg-[linear-gradient(145deg,rgba(18,24,37,0.96),rgba(32,47,72,0.92)_52%,rgba(211,154,43,0.28)_100%)] p-6 text-white shadow-[0_32px_90px_rgba(47,32,10,0.2)] sm:p-8">
+                    <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.07)_1px,transparent_1px)] bg-[size:6.5rem_6.5rem] opacity-40" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(255,255,255,0.16),transparent_20%),radial-gradient(circle_at_84%_24%,rgba(255,213,140,0.28),transparent_18%),radial-gradient(circle_at_54%_84%,rgba(255,255,255,0.12),transparent_22%)]" />
+
+                    <div className="relative z-10">
+                      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/72">
+                        Live Workspace
+                      </p>
+                      <div className="mt-5 flex items-end justify-between gap-6">
+                        <div>
+                          <p className="text-sm text-white/68">
+                            {t("Current cycle", "Ciclo actual")}
+                          </p>
+                          <p className="mt-2 font-display text-4xl leading-none">
+                            Q2 ALM
+                          </p>
+                        </div>
+                        <div className="rounded-full border border-white/12 bg-white/8 px-3 py-1.5 text-xs uppercase tracking-[0.22em] text-[#ffd58c]">
+                          Board-ready
+                        </div>
+                      </div>
+
+                      <div className="mt-8 grid gap-3">
+                        {[
+                          {
+                            label: t("Liquidity coverage", "Cobertura de liquidez"),
+                            value: "115.5%",
+                            status: t("Healthy", "Saludable"),
+                          },
+                          {
+                            label: t("Delivery window", "Ventana de entrega"),
+                            value: "24h",
+                            status: t("Tracked in dashboard", "Seguimiento en dashboard"),
+                          },
+                          {
+                            label: t("Reporting stack", "Stack de reportes"),
+                            value: "EN / ES",
+                            status: t("Board + regulator", "Junta + regulador"),
+                          },
+                        ].map((item) => (
+                          <div
+                            key={item.label}
+                            className="flex items-center justify-between rounded-[1.4rem] border border-white/10 bg-white/8 px-4 py-4 backdrop-blur-[2px]"
+                          >
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.18em] text-white/54">
+                                {item.label}
+                              </p>
+                              <p className="mt-2 text-2xl font-semibold text-white">
+                                {item.value}
+                              </p>
+                            </div>
+                            <p className="max-w-[10rem] text-right text-sm leading-5 text-white/72">
+                              {item.status}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -952,7 +1024,7 @@ export default function LandingPage() {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-slate-700">
                       <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
-                      {t("Portal access", "Acceso al portal")}
+                      {t("Workspace access", "Acceso al espacio")}
                     </div>
                     <div className="flex items-center gap-2 text-sm text-slate-700">
                       <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />

@@ -118,7 +118,7 @@ describe("GetStartedPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("redirects paid users directly into the upload workflow", async () => {
+  it("redirects paid users directly into the dashboard workspace", async () => {
     authState.isAuthenticated = true;
     authState.user = { id: "user-1", email: "qa@cerniq.io" };
     authState.access = {
@@ -136,7 +136,7 @@ describe("GetStartedPage", () => {
     render(<GetStartedPage />);
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith("/portal/submit?createCycle=1");
+      expect(replaceMock).toHaveBeenCalledWith("/dashboard");
     });
   });
 });

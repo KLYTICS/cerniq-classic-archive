@@ -27,7 +27,7 @@ export function FeatureGate({ tier, feature, children, fallback }: FeatureGatePr
           <Lock className="h-8 w-8 text-amber-500 mx-auto mb-3" />
           <p className="text-gray-900 text-sm font-medium mb-2">{upgradePrompt}</p>
           <Link
-            href="/portal/billing"
+            href="/pricing"
             onClick={() => analytics.track(EVENTS.UPGRADE_PROMPT_CLICKED, { feature, tier })}
             className="text-amber-600 text-xs hover:underline"
           >

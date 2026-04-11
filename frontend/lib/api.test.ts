@@ -96,6 +96,17 @@ describe('APIClient', () => {
     expect(typeof apiClient.getExitMetrics).toBe('function');
   });
 
+  it('redirects legacy portal auth requests into the dashboard-first login flow', async () => {
+    const { buildLoginRedirectUrl } = await import('./api');
+
+    expect(buildLoginRedirectUrl('/portal')).toBe(
+      '/login?mode=magic-link&returnUrl=%2Fdashboard',
+    );
+    expect(buildLoginRedirectUrl('/portal/reports/job-1')).toBe(
+      '/login?mode=magic-link&returnUrl=%2Fdashboard',
+    );
+  });
+
   it('marks passive profile checks to skip auth redirects', async () => {
     const { apiClient } = await import('./api');
     const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;

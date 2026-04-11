@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import OpenAI from 'openai';
 import { PrismaService } from '../prisma.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 
@@ -23,6 +24,12 @@ interface AdvisorResponse {
 export class AlmAdvisorService {
   private readonly logger = new Logger(AlmAdvisorService.name);
   private anthropic: any;
+  private openai: OpenAI | null = null;
+  private readonly anthropicModel =
+    (process.env.AI_ADVISOR_ANTHROPIC_MODEL || '').trim() ||
+    'claude-sonnet-4-20250514';
+  private readonly openaiModel =
+    (process.env.AI_ADVISOR_OPENAI_MODEL || '').trim() || 'gpt-4.1-mini';
 
   /** In-memory daily-limit tracker: key = "institutionId:YYYY-MM-DD" */
   private readonly dailyCounts = new Map<string, number>();
@@ -32,11 +39,13 @@ export class AlmAdvisorService {
     private readonly prisma: PrismaService,
     private readonly almEnterprise: AlmEnterpriseService,
   ) {
-    const key = (process.env.ANTHROPIC_API_KEY || '').trim();
-    if (key) {
+    const anthropicKey = (process.env.ANTHROPIC_API_KEY || '').trim();
+    const openaiKey = (process.env.OPENAI_API_KEY || '').trim();
+
+    if (anthropicKey) {
       try {
         const Anthropic = require('@anthropic-ai/sdk');
-        this.anthropic = new Anthropic({ apiKey: key });
+        this.anthropic = new Anthropic({ apiKey: anthropicKey });
         this.logger.log('Anthropic SDK initialised for AI Advisor');
       } catch (err) {
         this.logger.warn(
@@ -44,8 +53,24 @@ export class AlmAdvisorService {
           err,
         );
       }
-    } else {
-      this.logger.warn('ANTHROPIC_API_KEY not set — AI Advisor disabled');
+    }
+
+    if (!this.anthropic && openaiKey) {
+      try {
+        this.openai = new OpenAI({ apiKey: openaiKey });
+        this.logger.log('OpenAI SDK initialised for AI Advisor fallback');
+      } catch (err) {
+        this.logger.warn(
+          'Failed to initialise OpenAI SDK — AI Advisor fallback unavailable',
+          err,
+        );
+      }
+    }
+
+    if (!this.anthropic && !this.openai) {
+      this.logger.warn(
+        'ANTHROPIC_API_KEY and OPENAI_API_KEY not set — AI Advisor disabled',
+      );
     }
   }
 
@@ -58,11 +83,11 @@ export class AlmAdvisorService {
     language: string = 'es',
   ): Promise<AdvisorResponse> {
     // ── Gate: SDK availability ──
-    if (!this.anthropic) {
+    if (!this.anthropic && !this.openai) {
       const msg =
         language === 'es'
-          ? 'El asesor IA no esta disponible. Configure ANTHROPIC_API_KEY en las variables de entorno.'
-          : 'The AI Advisor is not available. Please configure ANTHROPIC_API_KEY in the environment variables.';
+          ? 'El asesor IA no esta disponible. Configure ANTHROPIC_API_KEY u OPENAI_API_KEY en las variables de entorno.'
+          : 'The AI Advisor is not available. Please configure ANTHROPIC_API_KEY or OPENAI_API_KEY in the environment variables.';
       return { response: msg, tokensUsed: 0 };
     }
 
@@ -91,33 +116,21 @@ export class AlmAdvisorService {
     ];
 
     try {
-      const completion = await this.anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages,
-      });
-
-      const responseText =
-        completion.content?.[0]?.type === 'text'
-          ? completion.content[0].text
-          : 'No response generated.';
-
-      const tokensUsed =
-        (completion.usage?.input_tokens || 0) +
-        (completion.usage?.output_tokens || 0);
+      const { response, tokensUsed } = this.anthropic
+        ? await this.askWithAnthropic(systemPrompt, messages)
+        : await this.askWithOpenAI(systemPrompt, messages);
 
       // ── Increment counter ──
       this.dailyCounts.set(limitKey, currentCount + 1);
 
       // ── Persist query (best-effort) ──
-      this.persistQuery(institutionId, message, responseText, tokensUsed).catch(
+      this.persistQuery(institutionId, message, response, tokensUsed).catch(
         (err) => this.logger.warn('Failed to persist advisor query', err),
       );
 
-      return { response: responseText, tokensUsed };
+      return { response, tokensUsed };
     } catch (err: any) {
-      this.logger.error('Anthropic API call failed', err?.message || err);
+      this.logger.error('AI Advisor provider call failed', err?.message || err);
       const msg =
         language === 'es'
           ? 'Ocurrio un error al procesar tu consulta. Por favor intenta de nuevo.'
@@ -127,6 +140,68 @@ export class AlmAdvisorService {
   }
 
   // ─── System Prompt Builder ───────────────────────────────────
+
+  private async askWithAnthropic(
+    systemPrompt: string,
+    messages: AdvisorMessage[],
+  ): Promise<AdvisorResponse> {
+    const completion = await this.anthropic.messages.create({
+      model: this.anthropicModel,
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages,
+    });
+
+    return {
+      response:
+        completion.content?.[0]?.type === 'text'
+          ? completion.content[0].text
+          : 'No response generated.',
+      tokensUsed:
+        (completion.usage?.input_tokens || 0) +
+        (completion.usage?.output_tokens || 0),
+    };
+  }
+
+  private async askWithOpenAI(
+    systemPrompt: string,
+    messages: AdvisorMessage[],
+  ): Promise<AdvisorResponse> {
+    if (!this.openai) {
+      throw new Error('OpenAI client is not initialised');
+    }
+
+    const completion = await this.openai.chat.completions.create({
+      model: this.openaiModel,
+      max_tokens: 2048,
+      temperature: 0.2,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages.map((message) => ({
+          role: message.role,
+          content: message.content,
+        })),
+      ],
+    });
+
+    const content = completion.choices[0]?.message?.content;
+    const responseText = Array.isArray(content)
+      ? content
+          .map((item) =>
+            typeof item === 'object' && item && 'text' in item
+              ? String(item.text)
+              : '',
+          )
+          .join('')
+      : content || 'No response generated.';
+
+    return {
+      response: responseText,
+      tokensUsed:
+        (completion.usage?.prompt_tokens || 0) +
+        (completion.usage?.completion_tokens || 0),
+    };
+  }
 
   async buildSystemPrompt(
     institutionId: string,

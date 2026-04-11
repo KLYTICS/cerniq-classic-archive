@@ -28,16 +28,19 @@ const COLUMNS: DataTableColumn<Row>[] = [
 
 describe('DataTable', () => {
   it('renders rows and columns', () => {
-    render(<DataTable columns={COLUMNS} rows={ROWS} rowKey={(r) => r.id} />);
+    const { container } = render(<DataTable columns={COLUMNS} rows={ROWS} rowKey={(r) => r.id} />);
     expect(screen.getByText('Account')).toBeInTheDocument();
     expect(screen.getByText('Balance')).toBeInTheDocument();
     expect(screen.getByText('Cash')).toBeInTheDocument();
     expect(screen.getByText('$300')).toBeInTheDocument();
+    expect(container.firstChild).toHaveClass('cerniq-dashboard-surface');
   });
 
   it('shows empty state when rows are empty', () => {
     render(<DataTable columns={COLUMNS} rows={[]} rowKey={(r: Row) => r.id} emptyMessage="Nothing here" />);
-    expect(screen.getByText('Nothing here')).toBeInTheDocument();
+    const message = screen.getByText('Nothing here');
+    expect(message).toBeInTheDocument();
+    expect(message.closest('div')).toHaveClass('cerniq-dashboard-surface');
   });
 
   it('sorts ascending by clicking a sortable header', () => {

@@ -25,21 +25,21 @@ export function EmptyState({
   onAction,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/80 px-6 py-12 text-center">
-      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-slate-50">
-        <Icon className="h-7 w-7 text-slate-400" />
+    <div className="cerniq-dashboard-elevated-surface flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-12 text-center">
+      <div className="cerniq-dashboard-muted-surface mb-4 flex h-14 w-14 items-center justify-center rounded-full border">
+        <Icon className="cerniq-dashboard-muted-text h-7 w-7" />
       </div>
 
       {/* Bilingual title: English primary */}
-      <h3 className="font-display text-lg font-bold text-[#1B3A6B]">{title}</h3>
+      <h3 className="cerniq-dashboard-text font-display text-lg font-bold">{title}</h3>
       {titleEs && (
-        <p className="mt-0.5 text-xs text-slate-400">{titleEs}</p>
+        <p className="cerniq-dashboard-muted-text mt-0.5 text-xs">{titleEs}</p>
       )}
 
       {/* Bilingual description */}
-      <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-500">{description}</p>
+      <p className="cerniq-dashboard-subtext mt-3 max-w-sm text-sm leading-relaxed">{description}</p>
       {descriptionEs && (
-        <p className="mt-1 max-w-sm text-xs text-slate-400">{descriptionEs}</p>
+        <p className="cerniq-dashboard-muted-text mt-1 max-w-sm text-xs">{descriptionEs}</p>
       )}
 
       {/* Amber CTA */}

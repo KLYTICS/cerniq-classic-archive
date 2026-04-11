@@ -132,8 +132,8 @@ export default function PricingPage() {
         ),
         t("Bilingual report delivery", "Entrega bilingue de informes"),
         t(
-          "Portal access for report retrieval",
-          "Acceso al portal para recuperacion de informes",
+          "Dashboard workspace for report retrieval",
+          "Espacio de dashboard para recuperacion de informes",
         ),
         t(
           "12 COSSEC/NCUA ratios updated monthly",
@@ -162,7 +162,7 @@ export default function PricingPage() {
       featured: false,
       bullets: [
         t("Multi-client workflow", "Flujo de trabajo multi-cliente"),
-        t("Partner access portal", "Portal de acceso para partners"),
+        t("Partner workspace access", "Acceso al espacio para partners"),
         t("White-label delivery support", "Soporte de entrega white-label"),
         t("Client management dashboard", "Panel de administracion de clientes"),
       ],
@@ -202,7 +202,7 @@ export default function PricingPage() {
     try {
       const checkoutUrl = await createCheckoutSession({
         tier: tier as "one_time" | "monthly" | "annual" | "partner",
-        successUrl: "/portal/login?billing=success",
+        successUrl: "/login?billing=success&returnUrl=%2Fdashboard",
         cancelUrl: "/pricing",
       });
       window.location.href = checkoutUrl;

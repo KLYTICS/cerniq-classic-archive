@@ -46,7 +46,7 @@ export class CheckoutRequestDto {
 
   @ApiProperty({
     description: 'URL to redirect after successful payment',
-    example: 'https://cerniq.io/portal?payment=success',
+    example: 'https://cerniq.io/login?billing=success&returnUrl=%2Fdashboard',
   })
   @IsString()
   successUrl: string;

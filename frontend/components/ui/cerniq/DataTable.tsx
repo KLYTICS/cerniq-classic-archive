@@ -75,22 +75,22 @@ export function DataTable<T>({
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white px-6 py-10 text-center text-sm text-slate-500">
+      <div className="cerniq-dashboard-surface cerniq-dashboard-subtext rounded-xl px-6 py-10 text-center text-sm">
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <div className="cerniq-dashboard-surface overflow-hidden rounded-xl">
       {caption ? (
-        <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+        <div className="cerniq-dashboard-muted-surface cerniq-dashboard-subtext border-b px-4 py-2 text-[11px] font-semibold uppercase tracking-wider">
           {caption}
         </div>
       ) : null}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 bg-slate-50">
+          <thead className="cerniq-dashboard-muted-surface sticky top-0">
             <tr>
               {columns.map((col) => {
                 const align = col.align === 'right' ? 'text-right' : 'text-left';
@@ -102,8 +102,8 @@ export function DataTable<T>({
                     key={col.key}
                     scope="col"
                     style={{ width: col.width }}
-                    className={`${align} ${hide} border-b border-slate-200 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600 ${
-                      sortable ? 'cursor-pointer select-none hover:bg-slate-100' : ''
+                    className={`${align} ${hide} cerniq-dashboard-subtext border-b cerniq-dashboard-border px-3 py-2 text-[10px] font-semibold uppercase tracking-wider ${
+                      sortable ? 'cursor-pointer select-none hover:bg-[rgba(247,228,188,0.75)]' : ''
                     }`}
                     onClick={sortable ? () => toggleSort(col) : undefined}
                   >
@@ -129,9 +129,13 @@ export function DataTable<T>({
               return (
                 <tr
                   key={key}
-                  className={`border-b border-slate-100 transition-colors last:border-b-0 ${
-                    isSelected ? 'bg-blue-50/40' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
-                  } ${onRowClick ? 'cursor-pointer hover:bg-slate-50' : ''}`}
+                  className={`border-b cerniq-dashboard-border transition-colors last:border-b-0 ${
+                    isSelected
+                      ? 'bg-[rgba(247,228,188,0.82)]'
+                      : i % 2 === 0
+                        ? 'bg-[rgba(255,251,239,0.9)]'
+                        : 'bg-[rgba(247,228,188,0.32)]'
+                  } ${onRowClick ? 'cursor-pointer hover:bg-[rgba(247,228,188,0.56)]' : ''}`}
                   onClick={() => {
                     if (selectable) setSelectedKey(key);
                     onRowClick?.(row);
@@ -139,7 +143,9 @@ export function DataTable<T>({
                 >
                   {columns.map((col) => {
                     const align = col.align === 'right' ? 'text-right' : 'text-left';
-                    const num = col.numeric ? 'font-mono tabular-nums text-slate-900' : 'text-slate-700';
+                    const num = col.numeric
+                      ? 'font-mono tabular-nums cerniq-dashboard-text'
+                      : 'cerniq-dashboard-subtext';
                     const hide = col.hideOnMobile ? 'hidden sm:table-cell' : '';
                     return (
                       <td key={col.key} className={`${align} ${num} ${hide} px-3 py-2`}>

@@ -82,30 +82,30 @@ export function MetricStrip({ items, density = 'compact', className = '' }: Metr
 
   return (
     <div
-      className={`flex flex-wrap items-stretch overflow-hidden rounded-xl border border-slate-200 bg-white ${className}`}
+      className={`cerniq-dashboard-surface flex flex-wrap items-stretch overflow-hidden rounded-xl ${className}`}
       role="list"
     >
       {items.map((item, i) => {
         const deltaColor =
           item.delta == null
-            ? 'text-slate-400'
+            ? 'cerniq-dashboard-muted-text'
             : item.delta > 0
               ? 'text-emerald-600'
               : item.delta < 0
                 ? 'text-rose-600'
-                : 'text-slate-500';
+                : 'cerniq-dashboard-subtext';
 
         const cellClass = `flex min-w-[140px] flex-1 flex-col gap-0.5 px-4 ${padY} ${
-          i > 0 ? 'border-l border-slate-100' : ''
-        } ${item.onClick ? 'cursor-pointer hover:bg-slate-50' : ''}`;
+          i > 0 ? 'border-l cerniq-dashboard-border' : ''
+        } ${item.onClick ? 'cursor-pointer hover:bg-[rgba(247,228,188,0.45)]' : ''}`;
 
         const inner = (
           <>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+            <span className="cerniq-dashboard-subtext text-[10px] font-semibold uppercase tracking-wider">
               {item.label}
             </span>
             <div className="flex items-baseline">
-              <span className="font-mono text-lg font-semibold tabular-nums text-slate-900">
+              <span className="cerniq-dashboard-text font-mono text-lg font-semibold tabular-nums">
                 {item.value}
               </span>
               {item.spark ? <Sparkline points={item.spark} /> : null}
@@ -125,7 +125,7 @@ export function MetricStrip({ items, density = 'compact', className = '' }: Metr
               type="button"
               onClick={item.onClick}
               title={item.tooltip}
-              className={`${cellClass} text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500`}
+              className={`${cellClass} text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500`}
               role="listitem"
             >
               {inner}

@@ -78,7 +78,7 @@ export default function GetStartedPage() {
 
     if (hasPlatformAccess(access) && prefersPortalExperience(access)) {
       rememberPortalUser();
-      router.replace("/portal/submit?createCycle=1");
+      router.replace("/dashboard");
     }
   }, [initialized, isAuthenticated, access, router]);
 
@@ -96,7 +96,7 @@ export default function GetStartedPage() {
         customerEmail: email || user?.email,
         customerName: name || user?.name,
         institutionName,
-        successUrl: "/portal/login?billing=success",
+        successUrl: "/login?billing=success&returnUrl=%2Fdashboard",
         cancelUrl: "/get-started",
       });
       window.location.href = checkoutUrl;
@@ -136,7 +136,7 @@ export default function GetStartedPage() {
     initialized && isAuthenticated && access && !hasPlatformAccess(access);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="cerniq-dashboard-page min-h-screen text-[var(--dashboard-text-primary)]">
       <div className="mx-auto max-w-5xl px-6 py-10">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">
@@ -148,12 +148,12 @@ export default function GetStartedPage() {
           <p className="mt-5 text-base leading-8 text-slate-300">
             Free users preview the output. Paid users enter the secure upload
             workflow. There is no ambiguous handoff between demo, pricing, and
-            portal anymore.
+            the live workspace anymore.
           </p>
         </div>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <section className="rounded-3xl border border-white/10 bg-slate-900/70 p-6">
+          <section className="cerniq-dashboard-elevated-surface rounded-3xl border p-6">
             <h2 className="text-xl font-semibold text-white">
               {blockedByPayment
                 ? "Unlock secure upload"
@@ -161,7 +161,7 @@ export default function GetStartedPage() {
                   ? "Next step selected"
                   : "Tell us what you want to analyze"}
             </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
+            <p className="mt-2 text-sm leading-6 text-[var(--dashboard-text-secondary)]">
               {blockedByPayment
                 ? "Your account is recognized, but secure upload is only available after activation."
                 : submitted
@@ -182,7 +182,7 @@ export default function GetStartedPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full rounded-2xl border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-4 py-3 text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   required
                 />
                 <input
@@ -190,7 +190,7 @@ export default function GetStartedPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@institution.com"
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full rounded-2xl border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-4 py-3 text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   required
                 />
                 <input
@@ -198,13 +198,13 @@ export default function GetStartedPage() {
                   value={institutionName}
                   onChange={(e) => setInstitutionName(e.target.value)}
                   placeholder="Institution name"
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full rounded-2xl border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-4 py-3 text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   required
                 />
                 <select
                   value={institutionType}
                   onChange={(e) => setInstitutionType(e.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full rounded-2xl border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-4 py-3 text-[var(--dashboard-text-primary)] focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   required
                 >
                   {INSTITUTION_OPTIONS.map((option) => (
@@ -218,7 +218,7 @@ export default function GetStartedPage() {
                   value={totalAssets}
                   onChange={(e) => setTotalAssets(e.target.value)}
                   placeholder="Total assets (optional)"
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full rounded-2xl border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-4 py-3 text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
                 <button
                   type="submit"
@@ -235,14 +235,14 @@ export default function GetStartedPage() {
                   <div className="flex items-start gap-3">
                     <CheckCircle2 className="mt-0.5 h-5 w-5 text-cyan-300" />
                     <div>
-                      <p className="font-semibold text-white">
+                      <p className="font-semibold text-[var(--dashboard-text-primary)]">
                         {blockedByPayment
                           ? "Secure upload is the next step"
                           : "Your intake is captured"}
                       </p>
-                      <p className="mt-1 text-sm text-slate-300">
+                      <p className="mt-1 text-sm text-[var(--dashboard-text-secondary)]">
                         {blockedByPayment
-                          ? "Upgrade once and we will land you directly in the portal upload workflow."
+                          ? "Upgrade once and we will land you directly in the dashboard workspace."
                           : "Preview the report style now or unlock the secure upload workflow for your real data."}
                       </p>
                     </div>
@@ -252,7 +252,7 @@ export default function GetStartedPage() {
                 <div className="flex flex-wrap gap-3">
                   <Link
                     href={previewHref}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                    className="inline-flex items-center gap-2 rounded-full border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-5 py-3 text-sm font-semibold text-[var(--dashboard-text-primary)] transition hover:bg-white"
                   >
                     <FileText className="h-4 w-4" />
                     Preview sample output
@@ -268,19 +268,19 @@ export default function GetStartedPage() {
                       : "Unlock secure upload — $750"}
                   </button>
                   <Link
-                    href="/portal/login"
-                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                    href="/login?mode=magic-link&returnUrl=%2Fdashboard"
+                    className="inline-flex items-center gap-2 rounded-full border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-5 py-3 text-sm font-semibold text-[var(--dashboard-text-primary)] transition hover:bg-white"
                   >
                     <Upload className="h-4 w-4" />
-                    Already paid? Open portal
+                    Already paid? Open workspace
                   </Link>
                 </div>
               </div>
             )}
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-slate-900/70 p-6">
-            <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+          <section className="cerniq-dashboard-elevated-surface rounded-3xl border p-6">
+            <p className="text-xs uppercase tracking-[0.22em] text-[var(--dashboard-text-muted)]">
               Deterministic states
             </p>
             <div className="mt-5 space-y-4">
@@ -289,8 +289,8 @@ export default function GetStartedPage() {
                 description="Use the public preview to judge report quality before purchase."
               />
               <StateCard
-                title="2. Upload-ready portal cycle"
-                description="Paid users land directly in `/portal/submit?createCycle=1`."
+                title="2. Dashboard-first workspace"
+                description="Paid users land directly in `/dashboard` instead of the unfinished portal upload flow."
               />
               <StateCard
                 title="3. Blocked by payment"
@@ -312,9 +312,9 @@ function StateCard({
   description: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <p className="font-semibold text-white">{title}</p>
-      <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p>
+    <div className="cerniq-dashboard-muted-surface rounded-2xl border p-4">
+      <p className="font-semibold text-[var(--dashboard-text-primary)]">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-[var(--dashboard-text-secondary)]">{description}</p>
     </div>
   );
 }

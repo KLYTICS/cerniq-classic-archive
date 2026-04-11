@@ -27,7 +27,7 @@ function MagicLinkInner() {
 
 export default function MagicLinkHandler() {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="min-h-screen bg-transparent flex items-center justify-center">
       <Suspense fallback={
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-[#1B3A6B] border-t-transparent rounded-full animate-spin" />

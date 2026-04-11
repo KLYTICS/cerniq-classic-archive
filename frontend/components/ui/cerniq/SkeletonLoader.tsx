@@ -4,7 +4,7 @@ import React from 'react';
 
 /* ─── Shimmer animation (CSS-only) ─── */
 const shimmerStyle: React.CSSProperties = {
-  background: 'linear-gradient(90deg, #CBD5E1 25%, #F8FAFC 50%, #CBD5E1 75%)',
+  background: 'linear-gradient(90deg, #E6D2A6 25%, #FFFBEF 50%, #E6D2A6 75%)',
   backgroundSize: '200% 100%',
   animation: 'cerniq-shimmer 1.5s infinite ease-in-out',
 };
@@ -13,7 +13,7 @@ const shimmerStyle: React.CSSProperties = {
 
 function CardSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+    <div className="cerniq-dashboard-surface rounded-2xl p-5 space-y-3">
       <div className="h-3 w-20 rounded-full" style={shimmerStyle} />
       <div className="h-7 w-2/3 rounded-lg" style={shimmerStyle} />
       <div className="h-3 w-1/2 rounded-full" style={shimmerStyle} />
@@ -24,9 +24,9 @@ function CardSkeleton() {
 
 function TableSkeleton() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    <div className="cerniq-dashboard-surface overflow-hidden rounded-2xl">
       {/* Header row */}
-      <div className="flex gap-4 border-b border-slate-100 bg-slate-50/60 px-6 py-3">
+      <div className="cerniq-dashboard-muted-surface flex gap-4 border-b px-6 py-3">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="h-3 flex-1 rounded-full" style={shimmerStyle} />
         ))}
@@ -35,7 +35,7 @@ function TableSkeleton() {
       {Array.from({ length: 5 }).map((_, rowIdx) => (
         <div
           key={rowIdx}
-          className={`flex gap-4 px-6 py-4 ${rowIdx > 0 ? 'border-t border-slate-100' : ''}`}
+          className={`flex gap-4 px-6 py-4 ${rowIdx > 0 ? 'border-t cerniq-dashboard-border' : ''}`}
         >
           {[1, 2, 3, 4].map((i) => (
             <div
@@ -55,7 +55,7 @@ function TableSkeleton() {
 
 function MetricSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 space-y-2">
+    <div className="cerniq-dashboard-surface rounded-2xl px-4 py-3 space-y-2">
       <div className="h-2.5 w-24 rounded-full" style={shimmerStyle} />
       <div className="h-2 w-16 rounded-full" style={shimmerStyle} />
       <div className="h-7 w-20 rounded-lg mt-1" style={shimmerStyle} />

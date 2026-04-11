@@ -94,7 +94,7 @@ export function hasFreeBuilderAccess(
 export function prefersPortalExperience(
   access: PlatformAccessState | null | undefined,
 ) {
-  return Boolean(access?.isMasterCeo || access?.effectiveTier !== 'free');
+  return Boolean(access && !access.isMasterCeo && access.effectiveTier !== 'free');
 }
 
 export function isProtectedAppPath(pathname: string | null) {
@@ -141,19 +141,11 @@ export function resolveAuthenticatedDestination(params: {
   onboardingComplete: boolean;
   portalPreferred?: boolean;
 }) {
-  const { access, onboardingComplete, portalPreferred = false } = params;
+  const { access } = params;
 
   if (!hasPlatformAccess(access) && !hasFreeBuilderAccess(access)) {
     return ACCESS_REQUIRED_ROUTE;
   }
 
-  if (portalPreferred || prefersPortalExperience(access)) {
-    return '/portal/submit?createCycle=1';
-  }
-
-  if (hasFreeBuilderAccess(access)) {
-    return onboardingComplete ? '/alm' : '/onboarding';
-  }
-
-  return onboardingComplete ? '/dashboard' : '/onboarding';
+  return '/dashboard';
 }

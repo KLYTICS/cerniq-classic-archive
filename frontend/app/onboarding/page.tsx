@@ -72,11 +72,11 @@ export default function OnboardingPage() {
     }
     if (onboardingComplete) {
       router.replace(
-        hasFreeBuilderAccess(access) ? '/alm' : '/portal/submit?createCycle=1',
+        hasFreeBuilderAccess(access) ? '/alm' : '/dashboard',
       );
       return;
     }
-    // ALM/billing subscription buyers should go to /portal, not onboarding
+    // ALM/billing subscription buyers should go to the main workspace, not onboarding.
     // Check if user arrived via magic link (portal flow) or has a subscription indicator
     let cancelled = false;
     const redirectPortalUsers = async () => {
@@ -84,7 +84,7 @@ export default function OnboardingPage() {
         (isRememberedPortalUser() ||
          new URLSearchParams(window.location.search).get('welcome') === '1');
       if (portalUser) {
-        router.replace('/portal/submit?createCycle=1');
+        router.replace('/dashboard');
         return;
       }
 
@@ -114,7 +114,7 @@ export default function OnboardingPage() {
 
         if (!cancelled && shouldUsePortal) {
           rememberPortalUser();
-          router.replace('/portal/submit?createCycle=1');
+          router.replace('/dashboard');
         }
       } catch {
         // If profile can't be loaded we keep the standard onboarding path.
@@ -175,7 +175,7 @@ export default function OnboardingPage() {
       router.push(
         hasFreeBuilderAccess(access)
           ? `/onboarding/balance-sheet?institutionId=${createdInstitution.id}`
-          : '/portal/submit?createCycle=1',
+          : '/dashboard',
       );
     } catch (submitError: unknown) {
       setError(getSubmitErrorMessage(submitError));
@@ -186,36 +186,36 @@ export default function OnboardingPage() {
 
   if (!initialized || !isAuthenticated || onboardingComplete) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="cerniq-dashboard-page min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-cyan-400" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 text-white px-6 py-12">
-      <div className="max-w-2xl mx-auto bg-slate-900/70 border border-cyan-500/20 rounded-2xl p-8">
-        <h1 className="text-3xl font-bold mb-2">Welcome to CERNIQ</h1>
-        <p className="text-slate-300 mb-8">
+    <div className="cerniq-dashboard-page min-h-screen px-6 py-12 text-[var(--dashboard-text-primary)]">
+      <div className="cerniq-dashboard-elevated-surface max-w-2xl mx-auto rounded-2xl border p-8">
+        <h1 className="mb-2 text-3xl font-bold">Welcome to CERNIQ</h1>
+        <p className="mb-8 text-[var(--dashboard-text-secondary)]">
           Set up your institution once so CERNIQ can route you into the correct ALM intake and reporting flow.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm text-slate-300 mb-1">Institution Name</label>
+            <label className="mb-1 block text-sm text-[var(--dashboard-text-secondary)]">Institution Name</label>
             <input
               type="text"
               value={institutionName}
               onChange={(e) => setInstitutionName(e.target.value)}
               placeholder="Cooperativa de Ahorro y Credito"
-              className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full rounded-lg border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               required
             />
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Institution Type</label>
+              <label className="mb-1 block text-sm text-[var(--dashboard-text-secondary)]">Institution Type</label>
               <select
                 value={institutionType}
                 onChange={(e) => {
@@ -227,7 +227,7 @@ export default function OnboardingPage() {
                     setPrimaryRegulator('NCUA');
                   }
                 }}
-                className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full rounded-lg border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               >
                 <option value="cooperativa">Cooperativa</option>
                 <option value="credit_union">Credit Union</option>
@@ -236,13 +236,13 @@ export default function OnboardingPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Primary Regulator</label>
+              <label className="mb-1 block text-sm text-[var(--dashboard-text-secondary)]">Primary Regulator</label>
               <select
                 value={primaryRegulator}
                 onChange={(e) =>
                   setPrimaryRegulator(e.target.value as 'COSSEC' | 'NCUA')
                 }
-                className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full rounded-lg border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               >
                 <option value="COSSEC">COSSEC</option>
                 <option value="NCUA">NCUA</option>
@@ -252,23 +252,23 @@ export default function OnboardingPage() {
 
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Approximate Total Assets</label>
+              <label className="mb-1 block text-sm text-[var(--dashboard-text-secondary)]">Approximate Total Assets</label>
               <input
                 type="text"
                 value={totalAssets}
                 onChange={(e) => setTotalAssets(e.target.value)}
                 placeholder="250000000"
-                className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full rounded-lg border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               />
             </div>
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Preferred Language</label>
+              <label className="mb-1 block text-sm text-[var(--dashboard-text-secondary)]">Preferred Language</label>
               <select
                 value={preferredLanguage}
                 onChange={(e) =>
                   setPreferredLanguage(e.target.value as 'es' | 'en' | 'both')
                 }
-                className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full rounded-lg border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               >
                 <option value="es">Spanish</option>
                 <option value="en">English</option>
@@ -277,12 +277,12 @@ export default function OnboardingPage() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-sm text-slate-300">
-            Free access remains preview-first. CERNIQ will create your institution, then route you into balance-sheet intake and dry-run ALM analysis. Enterprise PDF delivery remains inside paid/demo portal cycles.
+          <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-sm text-[var(--dashboard-text-secondary)]">
+            Free access remains preview-first. CERNIQ will create your institution, then route you into balance-sheet intake and dry-run ALM analysis. Enterprise PDF delivery remains inside paid and demo workspace cycles.
           </div>
 
           {error && (
-            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
@@ -303,7 +303,7 @@ export default function OnboardingPage() {
                 analytics.track(EVENTS.ONBOARDING_SKIPPED);
                 router.push('/alm');
               }}
-              className="rounded-lg border border-slate-600 px-4 py-3 text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+              className="rounded-lg border border-[var(--dashboard-border)] px-4 py-3 text-[var(--dashboard-text-secondary)] hover:bg-[rgba(247,228,188,0.42)] disabled:opacity-60"
             >
               Skip
             </button>

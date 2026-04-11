@@ -4,7 +4,7 @@ import { MetricStrip } from './MetricStrip';
 
 describe('MetricStrip', () => {
   it('renders all items', () => {
-    render(
+    const { container } = render(
       <MetricStrip
         items={[
           { label: 'Open cycles', value: 3 },
@@ -16,6 +16,7 @@ describe('MetricStrip', () => {
     expect(screen.getByText('Open cycles')).toBeInTheDocument();
     expect(screen.getByText('In review')).toBeInTheDocument();
     expect(screen.getByText('4.2')).toBeInTheDocument();
+    expect(container.firstChild).toHaveClass('cerniq-dashboard-surface');
   });
 
   it('applies positive delta in green', () => {

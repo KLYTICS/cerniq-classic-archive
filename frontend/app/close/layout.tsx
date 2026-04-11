@@ -9,5 +9,9 @@ import { ToastProvider } from '@/components/ui/Toast';
  * both client navigation and static prerender.
  */
 export default function CloseLayout({ children }: { children: React.ReactNode }) {
-  return <ToastProvider>{children}</ToastProvider>;
+  return (
+    <ToastProvider>
+      <div className="cerniq-dashboard-theme cerniq-dashboard-page">{children}</div>
+    </ToastProvider>
+  );
 }

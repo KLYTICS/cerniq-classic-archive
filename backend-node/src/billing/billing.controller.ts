@@ -284,7 +284,7 @@ export class BillingController {
       userAgent: req.headers?.['user-agent'],
     });
 
-    return res.redirect(`${frontendUrl}/portal`);
+    return res.redirect(`${frontendUrl}/dashboard`);
   }
 
   private async queueMagicLinkRequest(email: string) {

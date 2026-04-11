@@ -110,6 +110,15 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
   --panel: rgba(255, 255, 255, 0.94);
   --font-manrope: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-space-grotesk: "Avenir Next", "Trebuchet MS", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --dashboard-base: #FEF1D7;
+  --dashboard-surface: #FFF6E6;
+  --dashboard-surface-elevated: #FFFBEF;
+  --dashboard-muted-surface: #F7E4BC;
+  --dashboard-border: #E6D2A6;
+  --dashboard-border-strong: #D8C08B;
+  --dashboard-text-primary: #18120C;
+  --dashboard-text-secondary: #34281A;
+  --dashboard-text-muted: #5B4730;
 }
 
 @theme inline {
@@ -179,6 +188,251 @@ body::before {
   background:
     radial-gradient(circle at top center, rgba(88, 215, 255, 0.035), transparent 32%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.72), transparent 35%);
+}
+
+.cerniq-dashboard-theme {
+  color: var(--dashboard-text-primary);
+}
+
+.cerniq-customer-theme {
+  color: var(--dashboard-text-primary);
+}
+
+.cerniq-dashboard-page {
+  min-height: 100vh;
+  background-color: var(--dashboard-base);
+  background-image:
+    radial-gradient(circle at 12% 10%, rgba(255, 251, 239, 0.92), transparent 22rem),
+    radial-gradient(circle at 88% 8%, rgba(247, 228, 188, 0.72), transparent 24rem),
+    linear-gradient(180deg, #fff8eb 0%, var(--dashboard-base) 36%, #f9ecd0 100%);
+  color: var(--dashboard-text-primary);
+}
+
+body.cerniq-customer-theme {
+  background-color: var(--dashboard-base);
+  background-image:
+    radial-gradient(circle at 12% 10%, rgba(255, 251, 239, 0.92), transparent 22rem),
+    radial-gradient(circle at 88% 8%, rgba(247, 228, 188, 0.72), transparent 24rem),
+    linear-gradient(180deg, #fff8eb 0%, var(--dashboard-base) 36%, #f9ecd0 100%);
+  color: var(--dashboard-text-primary);
+}
+
+.cerniq-dashboard-surface,
+.cerniq-dashboard-elevated-surface,
+.cerniq-dashboard-muted-surface {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 1.25rem;
+}
+
+.cerniq-dashboard-surface {
+  border: 1px solid var(--dashboard-border);
+  background: linear-gradient(180deg, var(--dashboard-surface-elevated), var(--dashboard-surface));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 18px 36px rgba(113, 88, 40, 0.08);
+}
+
+.cerniq-dashboard-elevated-surface {
+  border: 1px solid rgba(230, 210, 166, 0.88);
+  background: rgba(255, 251, 239, 0.96);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    0 16px 32px rgba(113, 88, 40, 0.06);
+}
+
+.cerniq-dashboard-muted-surface {
+  border: 1px solid rgba(216, 192, 139, 0.72);
+  background: rgba(247, 228, 188, 0.62);
+}
+
+.cerniq-dashboard-border {
+  border-color: var(--dashboard-border);
+}
+
+.cerniq-dashboard-border-strong {
+  border-color: var(--dashboard-border-strong);
+}
+
+.cerniq-dashboard-text {
+  color: var(--dashboard-text-primary);
+}
+
+.cerniq-dashboard-subtext {
+  color: var(--dashboard-text-secondary);
+}
+
+.cerniq-dashboard-muted-text {
+  color: var(--dashboard-text-muted);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .cerniq-shell {
+  border-color: rgba(216, 192, 139, 0.82);
+  background: linear-gradient(180deg, rgba(255, 251, 239, 0.985) 0%, rgba(255, 246, 230, 0.99) 100%);
+  box-shadow:
+    0 24px 60px rgba(113, 88, 40, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .cerniq-shell::before {
+  background:
+    radial-gradient(circle at top center, rgba(232, 160, 32, 0.06), transparent 32%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.66), transparent 35%);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .cerniq-panel,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .cerniq-surface-card {
+  border-color: rgba(216, 192, 139, 0.74);
+  background: linear-gradient(180deg, rgba(255, 251, 239, 0.985), rgba(255, 246, 230, 0.992));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 16px 32px rgba(113, 88, 40, 0.08);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .cerniq-panel::before,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .cerniq-surface-card::before {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.62), transparent 34%),
+    radial-gradient(circle at 85% 15%, rgba(232, 160, 32, 0.05), transparent 24%);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .cerniq-panel-soft {
+  background: linear-gradient(180deg, rgba(255, 251, 239, 0.94), rgba(255, 246, 230, 0.95));
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .cerniq-section-label,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .cerniq-caption,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .cerniq-subtle-copy {
+  color: var(--dashboard-text-secondary);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .cerniq-kicker {
+  border-color: rgba(216, 192, 139, 0.72);
+  background: rgba(255, 251, 239, 0.92);
+  color: rgba(109, 91, 63, 0.96);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .cerniq-button-secondary {
+  border-color: rgba(216, 192, 139, 0.72);
+  background: rgba(255, 251, 239, 0.94);
+  color: rgba(63, 51, 34, 0.92);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .cerniq-button-secondary:hover {
+  border-color: rgba(232, 160, 32, 0.45);
+  box-shadow: 0 8px 24px rgba(113, 88, 40, 0.08);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .cerniq-mini-stat {
+  border-color: rgba(216, 192, 139, 0.62);
+  background: rgba(255, 251, 239, 0.92);
+  color: rgba(63, 51, 34, 0.88);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .border-slate-300,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .border-gray-300 {
+  border-color: var(--dashboard-border-strong);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .border-slate-200,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="border-slate-200/"],
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .border-gray-200,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="border-gray-200/"] {
+  border-color: var(--dashboard-border);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .border-slate-100,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="border-slate-100/"],
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .border-gray-100,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="border-gray-100/"] {
+  border-color: rgba(230, 210, 166, 0.68);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .bg-white,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-white/80"],
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-white/85"],
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-white/86"],
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-white/90"],
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-white/92"],
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-white/98"] {
+  background-color: rgba(255, 246, 230, 0.94);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-white/70"],
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-white/60"],
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-white/50"] {
+  background-color: rgba(255, 246, 230, 0.8);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .bg-slate-50,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-slate-50/"],
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .bg-gray-50,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-gray-50/"] {
+  background-color: rgba(247, 228, 188, 0.64);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .bg-slate-100,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-slate-100/"],
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .bg-gray-100,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-gray-100/"] {
+  background-color: rgba(232, 214, 177, 0.92);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-slate-950,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-slate-900,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-slate-800,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-slate-700,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-slate-600,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-gray-900,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-gray-800,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-gray-700 {
+  color: var(--dashboard-text-primary);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-slate-500,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-gray-600,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-gray-500,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-gray-400 {
+  color: var(--dashboard-text-secondary);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-slate-400,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-slate-300,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .text-gray-300 {
+  color: var(--dashboard-text-muted);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .bg-slate-50 .text-slate-500,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .bg-slate-50 .text-slate-400,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .bg-slate-100 .text-slate-500,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .bg-slate-100 .text-slate-400,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .bg-gray-50 .text-gray-500,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .bg-gray-50 .text-gray-400,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .bg-gray-100 .text-gray-500,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .bg-gray-100 .text-gray-400,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-slate-50/"] .text-slate-500,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-slate-50/"] .text-slate-400,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-slate-100/"] .text-slate-500,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) [class*="bg-slate-100/"] .text-slate-400 {
+  color: var(--dashboard-text-primary);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .hover\:bg-slate-50:hover,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .hover\:bg-gray-50:hover {
+  background-color: rgba(247, 228, 188, 0.62);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .hover\:bg-slate-100:hover,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .hover\:bg-gray-100:hover {
+  background-color: rgba(247, 228, 188, 0.82);
+}
+
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .hover\:text-slate-950:hover,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .hover\:text-slate-800:hover,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .hover\:text-slate-700:hover,
+:is(body.cerniq-customer-theme, .cerniq-dashboard-theme) .hover\:text-gray-700:hover {
+  color: var(--dashboard-text-primary);
 }
 
 .cerniq-panel {

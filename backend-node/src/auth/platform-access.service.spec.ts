@@ -41,4 +41,19 @@ describe('PlatformAccessService', () => {
       reason: 'subscription_required',
     });
   });
+
+  it('always allows the master CEO account by email', () => {
+    const service = new PlatformAccessService({} as any);
+    const access = service.evaluateAccess(
+      'data.ai.kiess@gmail.com',
+      { tier: 'free', status: null },
+      'VIEWER',
+    );
+
+    expect(access).toMatchObject({
+      platformAccessAllowed: true,
+      isMasterCeo: true,
+      reason: 'master_ceo',
+    });
+  });
 });

@@ -155,7 +155,15 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     expect(
-      screen.getByRole("button", { name: /sign in/i }),
+      screen.getByRole("button", { name: /^sign in$/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the secure workspace access action", () => {
+    render(<LoginPage />);
+
+    expect(
+      screen.getByRole("button", { name: /email secure sign-in link/i }),
     ).toBeInTheDocument();
   });
 
@@ -165,7 +173,7 @@ describe("LoginPage", () => {
     expect(screen.getByText(/Don't have an account/i)).toBeInTheDocument();
   });
 
-  it("falls back to an authenticated destination instead of access-required when profile resolution is transiently unavailable", async () => {
+  it("falls back to dashboard instead of access-required when profile resolution is transiently unavailable", async () => {
     mockLogin.mockResolvedValue({
       user: { id: "user-1", email: "owner@cerniq.io" },
     });
@@ -181,7 +189,7 @@ describe("LoginPage", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+      fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
     });
 
     await waitFor(() => {
@@ -190,13 +198,13 @@ describe("LoginPage", () => {
         null,
       );
       expect(mockSetAccess).toHaveBeenLastCalledWith(null);
-      expect(mockPush).toHaveBeenCalledWith("/onboarding");
+      expect(mockPush).toHaveBeenCalledWith("/dashboard");
     });
 
     expect(mockPush).not.toHaveBeenCalledWith("/access-required");
   });
 
-  it("routes free authenticated users into onboarding instead of access-required", async () => {
+  it("routes free authenticated users to dashboard instead of access-required", async () => {
     mockLogin.mockResolvedValue({
       user: { id: "user-2", email: "free@cerniq.io" },
     });
@@ -226,13 +234,57 @@ describe("LoginPage", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+      fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
     });
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/onboarding");
+      expect(mockPush).toHaveBeenCalledWith("/dashboard");
     });
 
     expect(mockPush).not.toHaveBeenCalledWith("/access-required");
+  });
+
+  it("routes the master account to dashboard after profile resolution", async () => {
+    mockLogin.mockResolvedValue({
+      user: { id: "master-1", email: "data.ai.kiess@gmail.com" },
+    });
+    mockGetCurrentUser.mockResolvedValue({
+      id: "master-1",
+      email: "data.ai.kiess@gmail.com",
+      access: {
+        platformAccessAllowed: true,
+        isMasterCeo: true,
+        isPaid: false,
+        isDemo: false,
+        effectiveTier: "free",
+        effectiveStatus: null,
+        effectivePeriodEnd: null,
+        daysRemaining: null,
+        reason: "master_ceo",
+      },
+    });
+
+    render(<LoginPage />);
+
+    fireEvent.change(screen.getByLabelText("Email"), {
+      target: { value: "data.ai.kiess@gmail.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "ErwinKiess!CERNIQ2026" },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockSetAccess).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          isMasterCeo: true,
+          reason: "master_ceo",
+        }),
+      );
+      expect(mockPush).toHaveBeenCalledWith("/dashboard");
+    });
   });
 });

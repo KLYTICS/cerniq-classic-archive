@@ -14,7 +14,7 @@ import { CommandPalette } from '@/components/alm/CommandPalette';
 function LanguageToggle() {
   const { locale, setLocale } = useTranslation();
   return (
-    <div className="flex items-center gap-0.5 rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+    <div className="cerniq-dashboard-elevated-surface flex items-center gap-0.5 rounded-full p-1 shadow-sm">
       <button
         onClick={() => setLocale('en')}
         className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${locale === 'en' ? 'bg-cyan-500 text-slate-950' : 'text-slate-500 hover:text-slate-950'
@@ -171,7 +171,7 @@ function ALMShell({ children }: { children: React.ReactNode }) {
   const { authRedirecting, bootstrapError, refresh } = useALM();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f7fbff] text-slate-950">
+    <div className="cerniq-dashboard-theme flex h-screen overflow-hidden bg-[var(--dashboard-base)] text-slate-950">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -202,7 +202,7 @@ export default function ALMLayout({ children }: { children: React.ReactNode }) {
   return (
     <Suspense
       fallback={
-        <div className="flex h-screen items-center justify-center bg-[#f7fbff]">
+        <div className="cerniq-dashboard-theme cerniq-dashboard-page flex h-screen items-center justify-center">
           <div className="flex flex-col items-center gap-3">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" />
             <p className="text-sm text-slate-500">{t('alm.loadingAlm')}</p>

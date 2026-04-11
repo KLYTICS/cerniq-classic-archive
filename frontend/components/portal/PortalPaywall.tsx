@@ -39,7 +39,7 @@ const PLANS: Array<{
     name: 'Monitoring Access',
     price: '$299',
     cadence: '/month',
-    summary: 'Recurring upload-to-report workflow, portal access, and bilingual ALM delivery.',
+    summary: 'Recurring upload-to-report workflow, workspace access, and bilingual ALM delivery.',
   },
   {
     tier: 'one_time',
@@ -84,7 +84,7 @@ export default function PortalPaywall({ path, subscription, user }: PortalPaywal
         tier,
         customerEmail: user.email,
         customerName: user.name,
-        successUrl: '/portal/login?billing=success',
+        successUrl: '/login?billing=success&returnUrl=%2Fdashboard',
         cancelUrl: path.startsWith('/portal') ? path : '/portal',
       });
 
@@ -108,11 +108,11 @@ export default function PortalPaywall({ path, subscription, user }: PortalPaywal
             <div className="relative z-10">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/76">
                 <LockKeyhole className="h-3.5 w-3.5" />
-                Paid portal access
+                Paid workspace access
               </span>
 
               <div className="mt-6">
-                <CerniqLockup tagline="Client Portal" />
+                <CerniqLockup tagline="Client Workspace" />
               </div>
 
               <div className="mt-8 space-y-4">
@@ -120,7 +120,7 @@ export default function PortalPaywall({ path, subscription, user }: PortalPaywal
                   Your CERNIQ workspace is ready. Payment unlocks the live reporting floor.
                 </h1>
                 <p className="max-w-2xl text-sm leading-7 text-white/72 sm:text-base">
-                  Su cuenta ya existe, pero el portal de produccion se abre cuando activa un plan.
+                  Su cuenta ya existe, pero el espacio de trabajo de produccion se abre cuando activa un plan.
                   In this workspace you can upload balance sheets, receive bilingual PDF reports,
                   and track delivery without leaving CERNIQ.
                 </p>
@@ -184,7 +184,7 @@ export default function PortalPaywall({ path, subscription, user }: PortalPaywal
                 <Link href="/pricing" className="cerniq-button-secondary px-4 py-2.5 text-sm">
                   View pricing
                 </Link>
-                <a href="mailto:erwin@cerniq.io?subject=CERNIQ%20Portal%20Access" className="inline-flex items-center text-sm font-medium text-[#9b742f] hover:underline">
+                <a href="mailto:erwin@cerniq.io?subject=CERNIQ%20Workspace%20Access" className="inline-flex items-center text-sm font-medium text-[#9b742f] hover:underline">
                   Contact sales
                 </a>
               </div>
@@ -200,7 +200,7 @@ export default function PortalPaywall({ path, subscription, user }: PortalPaywal
 
       <div className="flex items-start gap-3 rounded-[1.5rem] border border-[rgba(166,188,215,0.45)] bg-white/86 px-5 py-4 text-sm text-slate-600 shadow-[0_16px_30px_rgba(56,85,123,0.08)]">
         <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#1f8dff]" />
-        Payments are processed securely by Stripe. CERNIQ never stores raw card details in the portal.
+        Payments are processed securely by Stripe. CERNIQ never stores raw card details in the workspace.
       </div>
     </div>
   );

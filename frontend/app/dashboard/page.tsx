@@ -452,7 +452,7 @@ export default function DashboardPage() {
   }, [initialized]);
 
   return (
-    <div className="min-h-screen overflow-x-clip px-4 py-4 text-slate-950 sm:px-5 lg:px-6">
+    <div className="cerniq-dashboard-theme cerniq-dashboard-page min-h-screen overflow-x-clip px-4 py-4 text-slate-950 sm:px-5 lg:px-6">
       <div className="mx-auto max-w-7xl space-y-4">
 
         {/* -- Top Nav -- */}
@@ -853,7 +853,7 @@ export default function DashboardPage() {
                 'Cargue su hoja de balance para comenzar su primer analisis ALM. Nuestro equipo generara su informe en menos de 24 horas.',
               )}
               actionLabel={t('Upload balance sheet', 'Cargar balance')}
-              onAction={() => router.push('/portal/submit')}
+              onAction={() => router.push('/dashboard/upload')}
             />
           </section>
         )}
@@ -865,21 +865,21 @@ export default function DashboardPage() {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <button
-              onClick={() => router.push('/portal/submit')}
+              onClick={() => router.push('/dashboard/upload')}
               className="flex items-center justify-center gap-2 rounded-full bg-[#E8A020] px-6 py-3 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#d4911c] hover:shadow-lg"
             >
               <FileText className="h-4 w-4" />
               {t('Generate ALM Report', 'Generar Informe ALM')}
             </button>
             <button
-              onClick={() => router.push('/portal/submit')}
+              onClick={() => router.push('/dashboard/upload')}
               className="flex items-center justify-center gap-2 rounded-full bg-[#E8A020] px-6 py-3 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#d4911c] hover:shadow-lg"
             >
               <Upload className="h-4 w-4" />
               {t('Update Balance Sheet', 'Actualizar Balance Sheet')}
             </button>
             <button
-              onClick={() => router.push('/portal/submit')}
+              onClick={() => router.push('/alm')}
               className="flex items-center justify-center gap-2 rounded-full bg-[#E8A020] px-6 py-3 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#d4911c] hover:shadow-lg"
             >
               <Users className="h-4 w-4" />

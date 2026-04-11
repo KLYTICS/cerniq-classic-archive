@@ -25,4 +25,12 @@ test.describe('ALM strict-auth routes', () => {
   test('loads /dashboard without a broken redirect loop', async ({ page }) => {
     await expectPublicAppRoute(page, '/dashboard');
   });
+
+  test('renders the dashboard cream theme shell', async ({ page }) => {
+    await page.goto('/dashboard');
+    const shell = page.locator('.cerniq-dashboard-theme').first();
+    await expect(shell).toBeVisible();
+    const backgroundColor = await shell.evaluate((node) => getComputedStyle(node).backgroundColor);
+    expect(backgroundColor).toBe('rgb(254, 241, 215)');
+  });
 });

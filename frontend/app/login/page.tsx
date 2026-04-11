@@ -11,10 +11,8 @@ import { useTranslation } from "@/lib/i18n";
 import {
   normalizePlatformAccess,
   hasFreeBuilderAccess,
-  prefersPortalExperience,
   resolveAuthenticatedDestination,
 } from "@/lib/access";
-import { isRememberedPortalUser, rememberPortalUser } from "@/lib/subscription";
 import { getPublicApiUrl } from "@/lib/api-base";
 import { ArrowRight } from "lucide-react";
 
@@ -122,16 +120,9 @@ async function resolvePostLoginDestination({
 }) {
   const onboardingComplete =
     localStorage.getItem(`cerniq_onboarding_${userId}`) === "true";
-  const fallbackPortalPreferred = Boolean(
-    isRememberedPortalUser() || returnUrl?.startsWith("/portal"),
-  );
-  const fallbackDestination =
-    returnUrl ||
-    (fallbackPortalPreferred
-      ? "/portal/submit?createCycle=1"
-      : onboardingComplete
-        ? "/dashboard"
-        : "/onboarding");
+  const normalizedReturnUrl =
+    returnUrl && returnUrl.startsWith("/portal") ? "/dashboard" : returnUrl;
+  const fallbackDestination = normalizedReturnUrl || "/dashboard";
 
   for (const [index, delayMs] of PROFILE_RESOLUTION_DELAYS_MS.entries()) {
     if (delayMs > 0) {
@@ -147,25 +138,17 @@ async function resolvePostLoginDestination({
       );
       setAccess(access);
 
-      const portalPreferred = Boolean(
-        isRememberedPortalUser() || prefersPortalExperience(access),
-      );
-      if (portalPreferred && access?.platformAccessAllowed) {
-        rememberPortalUser();
-      }
-
       if (!access?.platformAccessAllowed && !hasFreeBuilderAccess(access)) {
         return "/access-required";
       }
 
-      if (returnUrl) {
-        return returnUrl;
+      if (normalizedReturnUrl) {
+        return normalizedReturnUrl;
       }
 
       return resolveAuthenticatedDestination({
         access,
         onboardingComplete,
-        portalPreferred,
       });
     } catch {
       if (index === PROFILE_RESOLUTION_DELAYS_MS.length - 1) {
@@ -216,9 +199,9 @@ function LanguageToggle() {
 
 function AuthShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#071122] text-white">
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.06)_1px,transparent_1px)] bg-[size:140px_140px]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.12),transparent_28%),radial-gradient(circle_at_80%_70%,rgba(96,165,250,0.18),transparent_32%),radial-gradient(circle_at_50%_100%,rgba(255,255,255,0.08),transparent_26%)]" />
+    <div className="cerniq-dashboard-page relative min-h-screen overflow-hidden text-[var(--dashboard-text-primary)]">
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(216,192,139,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(216,192,139,0.18)_1px,transparent_1px)] bg-[size:140px_140px]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(232,160,32,0.08),transparent_28%),radial-gradient(circle_at_80%_70%,rgba(27,58,107,0.08),transparent_32%),radial-gradient(circle_at_50%_100%,rgba(255,255,255,0.22),transparent_26%)]" />
       <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-10">
         {children}
       </div>
@@ -232,6 +215,10 @@ function LoginContent() {
   const [isLogin, setIsLogin] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [magicEmail, setMagicEmail] = useState("");
+  const [magicError, setMagicError] = useState("");
+  const [magicSent, setMagicSent] = useState(false);
+  const [magicLoading, setMagicLoading] = useState(false);
 
   const { initialized, isAuthenticated, user, setAccess, setSession } =
     useAuthStore();
@@ -239,6 +226,8 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const { t } = useTranslation();
   const returnUrl = searchParams.get("returnUrl");
+  const billingSuccess = searchParams.get("billing") === "success";
+  const magicMode = billingSuccess || searchParams.get("mode") === "magic-link";
   const currentUserId = user?.id;
 
   useEffect(() => {
@@ -306,17 +295,45 @@ function LoginContent() {
     }
   };
 
+  const handleMagicLinkRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!magicEmail.trim()) {
+      return;
+    }
+
+    setMagicError("");
+    setMagicLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/magic/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: magicEmail.trim() }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Unable to send access link");
+      }
+
+      setMagicSent(true);
+    } catch {
+      setMagicError("Unable to send login link. Please try again.");
+    } finally {
+      setMagicLoading(false);
+    }
+  };
+
   return (
     <AuthShell>
-      <div className="w-full max-w-xl rounded-[2rem] border border-[#3b4f72] bg-[#121c33]/96 p-6 shadow-[0_30px_120px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-8">
+      <div className="cerniq-dashboard-elevated-surface w-full max-w-xl rounded-[2rem] border p-6 shadow-[0_30px_120px_rgba(113,88,40,0.18)] backdrop-blur-xl sm:p-8">
         <div className="mb-10 flex items-start justify-between gap-4">
           <Link href="/" className="flex items-center gap-3">
             <CerniqMark size="sm" />
             <div>
-              <div className="font-display text-3xl uppercase tracking-[0.08em] text-white">
+              <div className="font-display text-3xl uppercase tracking-[0.08em] text-[var(--dashboard-text-primary)]">
                 Cerniq
               </div>
-              <div className="text-xs uppercase tracking-[0.34em] text-cyan-200/70">
+              <div className="text-xs uppercase tracking-[0.34em] text-cyan-700/80">
                 {t("login.tagline")}
               </div>
             </div>
@@ -325,10 +342,10 @@ function LoginContent() {
         </div>
 
         <div className="space-y-5 text-center">
-          <h1 className="font-display text-3xl text-white">
+          <h1 className="font-display text-3xl text-[var(--dashboard-text-primary)]">
             {isLogin ? t("login.signInToAccount") : t("login.createAccount")}
           </h1>
-          <ul className="mx-auto max-w-sm space-y-2 text-sm text-slate-400">
+          <ul className="mx-auto max-w-sm space-y-2 text-sm text-[var(--dashboard-text-secondary)]">
             <li className="flex items-center gap-2">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400" />
               {t("login.featureALM")}
@@ -348,6 +365,82 @@ function LoginContent() {
           </ul>
         </div>
 
+        <section
+          className={`mt-10 rounded-[1.75rem] border px-5 py-5 sm:px-6 ${
+            magicMode
+              ? "border-emerald-300/70 bg-[linear-gradient(180deg,rgba(236,253,245,0.96),rgba(255,251,239,0.92))]"
+              : "border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.82)]"
+          }`}
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-800/80">
+                Secure Workspace Access
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-[var(--dashboard-text-primary)]">
+                {billingSuccess
+                  ? "Payment confirmed"
+                  : "Need a secure sign-in link?"}
+              </h2>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--dashboard-text-secondary)]">
+                {billingSuccess
+                  ? "Enter the same email you used at checkout and we will send a secure access link for your dashboard."
+                  : "Paid customers can open CERNIQ from a secure email link instead of a password. Verified links land in the dashboard."}
+              </p>
+            </div>
+            {magicMode ? (
+              <span className="inline-flex h-fit items-center rounded-full border border-emerald-300/80 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
+                Dashboard-first
+              </span>
+            ) : null}
+          </div>
+
+          {magicSent ? (
+            <div className="mt-5 rounded-2xl border border-emerald-300/70 bg-emerald-50 px-4 py-4 text-sm text-emerald-800">
+              If <strong>{magicEmail}</strong> has an account, we sent a secure sign-in link. It expires in 24 hours.
+            </div>
+          ) : (
+            <form onSubmit={handleMagicLinkRequest} className="mt-5 space-y-4">
+              <div>
+                <label
+                  htmlFor="workspace-email"
+                  className="mb-2 block text-sm font-medium text-[var(--dashboard-text-secondary)]"
+                >
+                  Work email
+                </label>
+                <input
+                  id="workspace-email"
+                  type="email"
+                  value={magicEmail}
+                  onChange={(e) => setMagicEmail(e.target.value)}
+                  className="w-full rounded-2xl border border-[var(--dashboard-border)] bg-white/80 px-5 py-4 text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
+                  placeholder="cfo@institution.com"
+                  required
+                  autoComplete="email"
+                />
+              </div>
+
+              {magicError ? (
+                <div
+                  role="alert"
+                  className="rounded-2xl border border-red-400/30 bg-red-500/12 px-4 py-3 text-sm text-red-700"
+                >
+                  {magicError}
+                </div>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={magicLoading || !magicEmail.trim()}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--dashboard-border-strong)] bg-[var(--dashboard-surface-elevated)] px-5 py-4 text-base font-semibold text-[var(--dashboard-text-primary)] transition hover:bg-white disabled:opacity-50"
+              >
+                {magicLoading ? "Sending access link..." : "Email secure sign-in link"}
+                {!magicLoading ? <ArrowRight className="h-4 w-4" /> : null}
+              </button>
+            </form>
+          )}
+        </section>
+
         <form
           onSubmit={handleSubmit}
           className="mt-10 space-y-6"
@@ -358,7 +451,7 @@ function LoginContent() {
           <div>
             <label
               htmlFor="login-email"
-              className="mb-2 block text-sm font-medium text-slate-200"
+              className="mb-2 block text-sm font-medium text-[var(--dashboard-text-secondary)]"
             >
               {t("login.email")}
             </label>
@@ -367,7 +460,7 @@ function LoginContent() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-2xl border border-[#41577d] bg-[#202a43] px-5 py-4 text-white placeholder:text-slate-500 focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
+              className="w-full rounded-2xl border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-5 py-4 text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
               placeholder={t("login.emailPlaceholder")}
               required
               autoComplete="email"
@@ -377,7 +470,7 @@ function LoginContent() {
           <div>
             <label
               htmlFor="login-password"
-              className="mb-2 block text-sm font-medium text-slate-200"
+              className="mb-2 block text-sm font-medium text-[var(--dashboard-text-secondary)]"
             >
               {t("login.password")}
             </label>
@@ -386,7 +479,7 @@ function LoginContent() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-2xl border border-[#41577d] bg-[#202a43] px-5 py-4 text-white placeholder:text-slate-500 focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
+              className="w-full rounded-2xl border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-5 py-4 text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
               placeholder="••••••••"
               required
               minLength={8}
@@ -400,7 +493,7 @@ function LoginContent() {
                       ? `/reset-password?email=${encodeURIComponent(email.trim())}`
                       : "/reset-password"
                   }
-                  className="text-sm text-cyan-300 transition hover:text-cyan-200"
+                  className="text-sm text-cyan-700 transition hover:text-cyan-600"
                 >
                   {t("login.forgotPassword")}
                 </Link>
@@ -411,7 +504,7 @@ function LoginContent() {
           {error ? (
             <div
               role="alert"
-              className="rounded-2xl border border-red-400/30 bg-red-500/12 px-4 py-3 text-sm text-red-200"
+              className="rounded-2xl border border-red-400/30 bg-red-500/12 px-4 py-3 text-sm text-red-700"
             >
               {error}
             </div>
@@ -435,7 +528,7 @@ function LoginContent() {
           <>
             <div className="my-8 flex items-center gap-4">
               <div className="h-px flex-1 bg-white/12" />
-              <span className="text-sm text-slate-400">
+              <span className="text-sm text-[var(--dashboard-text-muted)]">
                 {t("login.orContinueWith")}
               </span>
               <div className="h-px flex-1 bg-white/12" />
@@ -447,7 +540,7 @@ function LoginContent() {
               {ENABLE_GOOGLE_OAUTH ? (
                 <a
                   href={getPublicApiUrl("/api/auth/google")}
-                  className="flex items-center justify-center gap-3 rounded-2xl border border-[#41577d] bg-[#202a43] px-4 py-4 text-base font-medium text-white transition hover:bg-[#27324e]"
+                  className="flex items-center justify-center gap-3 rounded-2xl border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.9)] px-4 py-4 text-base font-medium text-[var(--dashboard-text-primary)] transition hover:bg-white"
                 >
                   <svg className="h-5 w-5" viewBox="0 0 24 24">
                     <path
@@ -474,7 +567,7 @@ function LoginContent() {
               {ENABLE_GITHUB_OAUTH ? (
                 <a
                   href={getPublicApiUrl("/api/auth/github")}
-                  className="flex items-center justify-center gap-3 rounded-2xl border border-[#41577d] bg-[#202a43] px-4 py-4 text-base font-medium text-white transition hover:bg-[#27324e]"
+                  className="flex items-center justify-center gap-3 rounded-2xl border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.9)] px-4 py-4 text-base font-medium text-[var(--dashboard-text-primary)] transition hover:bg-white"
                 >
                   <svg
                     className="h-5 w-5"
@@ -497,7 +590,7 @@ function LoginContent() {
         <button
           type="button"
           onClick={() => setIsLogin(!isLogin)}
-          className="mt-8 w-full text-center text-sm text-slate-400 transition hover:text-white"
+          className="mt-8 w-full text-center text-sm text-[var(--dashboard-text-muted)] transition hover:text-[var(--dashboard-text-primary)]"
         >
           {isLogin ? t("login.noAccount") : t("login.hasAccount")}
         </button>

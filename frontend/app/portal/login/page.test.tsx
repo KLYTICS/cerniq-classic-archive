@@ -1,60 +1,31 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import type { AnchorHTMLAttributes, ReactNode, SVGProps } from 'react';
-import PortalLogin from './page';
+import { describe, it, expect, vi } from 'vitest';
 
-const searchParams = new URLSearchParams();
+const redirectMock = vi.fn();
 
 vi.mock('next/navigation', () => ({
-  useSearchParams: () => searchParams,
+  redirect: redirectMock,
 }));
 
-vi.mock('next/link', () => ({
-  default: ({
-    children,
-    ...props
-  }: { children: ReactNode } & AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props}>{children}</a>,
-}));
+describe('PortalLoginPage', () => {
+  it('redirects the legacy portal login route to the dashboard-first login screen', async () => {
+    const { default: PortalLoginPage } = await import('./page');
 
-vi.mock('@/lib/analytics', () => ({
-  analytics: { track: vi.fn() },
-  EVENTS: { PORTAL_LOGIN_REQUESTED: 'Portal Login Requested' },
-}));
+    await PortalLoginPage({});
 
-vi.mock('lucide-react', () => {
-  const Icon = (props: SVGProps<SVGSVGElement>) => <svg {...props} />;
-  return {
-    Mail: Icon,
-    ArrowLeft: Icon,
-    CheckCircle: Icon,
-  };
-});
-
-describe('PortalLogin', () => {
-  beforeEach(() => {
-    searchParams.delete('billing');
+    expect(redirectMock).toHaveBeenCalledWith(
+      '/login?mode=magic-link&returnUrl=%2Fdashboard',
+    );
   });
 
-  it('renders the standard portal login copy', () => {
-    render(<PortalLogin />);
+  it('preserves the billing success flag while redirecting', async () => {
+    const { default: PortalLoginPage } = await import('./page');
 
-    expect(screen.getByText('Sign in')).toBeInTheDocument();
-    expect(
-      screen.getByText('Enter your email to receive a secure login link.'),
-    ).toBeInTheDocument();
-    expect(screen.queryByText('Payment confirmed')).not.toBeInTheDocument();
-  });
+    await PortalLoginPage({
+      searchParams: Promise.resolve({ billing: 'success' }),
+    });
 
-  it('shows post-checkout guidance when billing success is present', () => {
-    searchParams.set('billing', 'success');
-
-    render(<PortalLogin />);
-
-    expect(screen.getByText('Payment confirmed')).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /Your subscription is active\. Enter the same email you used at checkout/i,
-      ),
-    ).toBeInTheDocument();
+    expect(redirectMock).toHaveBeenCalledWith(
+      '/login?mode=magic-link&returnUrl=%2Fdashboard&billing=success',
+    );
   });
 });

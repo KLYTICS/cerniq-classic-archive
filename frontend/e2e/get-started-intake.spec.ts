@@ -45,7 +45,7 @@ test.describe("Get started intake flow", () => {
       page.getByRole("button", { name: "Unlock secure upload — $750" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Already paid? Open portal" }),
-    ).toHaveAttribute("href", "/portal/login");
+      page.getByRole("link", { name: "Already paid? Open workspace" }),
+    ).toHaveAttribute("href", "/login?mode=magic-link&returnUrl=%2Fdashboard");
   });
 });

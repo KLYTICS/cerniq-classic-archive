@@ -178,7 +178,7 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
 
 export function buildLoginRedirectUrl(pathname: string, search = ''): string {
   if (pathname === '/portal' || pathname.startsWith('/portal/')) {
-    return `/portal/login?returnUrl=${encodeURIComponent(`${pathname}${search}`)}`;
+    return '/login?mode=magic-link&returnUrl=%2Fdashboard';
   }
   return `/login?returnUrl=${encodeURIComponent(`${pathname}${search}`)}`;
 }

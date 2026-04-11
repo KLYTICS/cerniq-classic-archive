@@ -45,8 +45,8 @@ function ThankYouContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#0F172A] to-[#1B3A6B] flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+      <div className="cerniq-dashboard-page flex min-h-screen items-center justify-center px-4">
+        <div className="cerniq-dashboard-elevated-surface max-w-md w-full rounded-2xl p-8 text-center shadow-xl">
           <div className="text-4xl mb-4">!</div>
           <h1 className="text-2xl font-bold text-slate-800 mb-2">Something went wrong</h1>
           <p className="text-slate-500">
@@ -58,8 +58,8 @@ function ThankYouContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0F172A] to-[#1B3A6B] flex items-center justify-center px-4">
-      <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8">
+    <div className="cerniq-dashboard-page flex min-h-screen items-center justify-center px-4">
+      <div className="cerniq-dashboard-elevated-surface max-w-lg w-full rounded-2xl p-8 shadow-xl">
         {/* Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
@@ -189,8 +189,8 @@ function ThankYouContent() {
 export default function ThankYouPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-b from-[#0F172A] to-[#1B3A6B] flex items-center justify-center">
-        <div className="text-white text-lg">Loading...</div>
+      <div className="cerniq-dashboard-page flex min-h-screen items-center justify-center">
+        <div className="text-lg text-[var(--dashboard-text-primary)]">Loading...</div>
       </div>
     }>
       <ThankYouContent />

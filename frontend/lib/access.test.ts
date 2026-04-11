@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ACCESS_REQUIRED_ROUTE,
   hasFreeBuilderAccess,
+  prefersPortalExperience,
   requiresPaidAccessPath,
   resolveAuthenticatedDestination,
 } from './access';
@@ -46,7 +47,7 @@ describe('access helpers', () => {
     expect(requiresPaidAccessPath('/alm')).toBe(false);
   });
 
-  it('routes free builder users into onboarding or alm instead of access required', () => {
+  it('routes all allowed authenticated users to dashboard by default', () => {
     const freeAccess = {
       platformAccessAllowed: false,
       isMasterCeo: false,
@@ -64,13 +65,13 @@ describe('access helpers', () => {
         access: freeAccess,
         onboardingComplete: false,
       }),
-    ).toBe('/onboarding');
+    ).toBe('/dashboard');
     expect(
       resolveAuthenticatedDestination({
         access: freeAccess,
         onboardingComplete: true,
       }),
-    ).toBe('/alm');
+    ).toBe('/dashboard');
     expect(
       resolveAuthenticatedDestination({
         access: {
@@ -81,5 +82,21 @@ describe('access helpers', () => {
         onboardingComplete: true,
       }),
     ).toBe(ACCESS_REQUIRED_ROUTE);
+  });
+
+  it('does not mark the master account as portal-preferring anymore', () => {
+    expect(
+      prefersPortalExperience({
+        platformAccessAllowed: true,
+        isMasterCeo: true,
+        isPaid: false,
+        isDemo: false,
+        effectiveTier: 'free',
+        effectiveStatus: null,
+        effectivePeriodEnd: null,
+        daysRemaining: null,
+        reason: 'master_ceo',
+      }),
+    ).toBe(false);
   });
 });

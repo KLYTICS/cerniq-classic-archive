@@ -164,8 +164,8 @@ export class EmailService {
            </ul>
            <p>Estimated time: <strong>24-48 business hours</strong>. We will notify you by email when your report is ready.</p>
            ${this.SIGNATURE_EN}`,
-          `${this.frontendUrl()}/portal`,
-          'Ver estado en portal / Check status in portal',
+          `${this.frontendUrl()}/dashboard`,
+          'Ver estado en dashboard / Check status in dashboard',
         ),
       });
     } catch (err) {
@@ -688,7 +688,7 @@ export class EmailService {
            <p>Your monthly renewal has been processed and a new reporting cycle has begun. To generate your ALM report for this period, submit your updated balance sheet through your portal.</p>
            <p>If you need help, reply directly.</p>
            ${this.SIGNATURE_EN}`,
-          `${this.frontendUrl()}/portal/submit`,
+          `${this.frontendUrl()}/dashboard/upload`,
           'Enviar datos / Submit data',
         ),
       });
@@ -776,7 +776,7 @@ export class EmailService {
            <p>The process takes less than 10 minutes — you just need to upload a CSV file with your asset and liability positions. The template is available in your portal.</p>
            <p>If you need help with the format, reply directly and I'll assist you.</p>
            ${this.SIGNATURE_EN}`,
-          `${this.frontendUrl()}/portal/submit`,
+          `${this.frontendUrl()}/dashboard/upload`,
           'Enviar datos ahora / Submit data now',
         ),
       });

@@ -122,8 +122,8 @@ export default function DevelopersPage() {
               </h3>
               <p className="text-gray-400 text-sm mb-3">
                 Sign in to the{" "}
-                <a href="/portal" className="text-cyan-400 hover:underline">
-                  CERNIQ Portal
+                <a href="/dashboard" className="text-cyan-400 hover:underline">
+                  CERNIQ Dashboard
                 </a>{" "}
                 and navigate to{" "}
                 <a

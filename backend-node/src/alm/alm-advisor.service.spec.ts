@@ -1,4 +1,16 @@
+import OpenAI from 'openai';
 import { AlmAdvisorService } from './alm-advisor.service';
+
+jest.mock('openai', () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({
+    chat: {
+      completions: {
+        create: jest.fn(),
+      },
+    },
+  })),
+}));
 
 describe('AlmAdvisorService', () => {
   let service: AlmAdvisorService;
@@ -10,6 +22,7 @@ describe('AlmAdvisorService', () => {
 
   beforeEach(() => {
     delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
     jest.clearAllMocks();
     service = new AlmAdvisorService(mockPrisma, mockAlmEnterprise);
   });
@@ -29,18 +42,29 @@ describe('AlmAdvisorService', () => {
     delete process.env.ANTHROPIC_API_KEY;
   });
 
+  it('creates service with OPENAI_API_KEY set when Anthropic is absent', () => {
+    process.env.OPENAI_API_KEY = 'sk-openai-test-key';
+    const svc2 = new AlmAdvisorService(mockPrisma, mockAlmEnterprise);
+    expect(svc2).toBeDefined();
+    expect((svc2 as any).openai).toBeDefined();
+    expect(OpenAI).toHaveBeenCalledWith({ apiKey: 'sk-openai-test-key' });
+    delete process.env.OPENAI_API_KEY;
+  });
+
   // ─── ask: no SDK ────────────────────────────────────────
 
   describe('ask — no SDK available', () => {
     it('returns unavailable message in Spanish', async () => {
       const result = await service.ask('inst-1', 'Hola', [], 'es');
       expect(result.response).toContain('no esta disponible');
+      expect(result.response).toContain('OPENAI_API_KEY');
       expect(result.tokensUsed).toBe(0);
     });
 
     it('returns unavailable message in English', async () => {
       const result = await service.ask('inst-1', 'Hello', [], 'en');
       expect(result.response).toContain('not available');
+      expect(result.response).toContain('OPENAI_API_KEY');
       expect(result.tokensUsed).toBe(0);
     });
   });
@@ -159,6 +183,57 @@ describe('AlmAdvisorService', () => {
       await service.ask('inst-1', 'Test', [], 'en');
       const dayKey = `inst-1:${new Date().toISOString().slice(0, 10)}`;
       expect((service as any).dailyCounts.get(dayKey)).toBeUndefined();
+    });
+  });
+
+  describe('ask — OpenAI fallback', () => {
+    let createMock: jest.Mock;
+
+    beforeEach(() => {
+      createMock = jest.fn().mockResolvedValue({
+        choices: [
+          { message: { content: 'Liquidity buffer is 15% above minimum.' } },
+        ],
+        usage: { prompt_tokens: 320, completion_tokens: 80 },
+      });
+      (service as any).anthropic = null;
+      (service as any).openai = {
+        chat: {
+          completions: {
+            create: createMock,
+          },
+        },
+      };
+    });
+
+    it('returns OpenAI response with token count', async () => {
+      const result = await service.ask('inst-1', 'How is liquidity?', [], 'en');
+      expect(result.response).toContain('Liquidity buffer');
+      expect(result.tokensUsed).toBe(400);
+    });
+
+    it('sends the system prompt and history to OpenAI', async () => {
+      await service.ask(
+        'inst-1',
+        'Follow-up question',
+        [
+          { role: 'user', content: 'First question' },
+          { role: 'assistant', content: 'First answer' },
+        ],
+        'en',
+      );
+
+      const callArgs = createMock.mock.calls[0][0];
+      expect(callArgs.messages[0].role).toBe('system');
+      expect(callArgs.messages[1].content).toBe('First question');
+      expect(callArgs.messages[3].content).toBe('Follow-up question');
+    });
+
+    it('handles OpenAI errors gracefully', async () => {
+      createMock.mockRejectedValueOnce(new Error('OpenAI timeout'));
+      const result = await service.ask('inst-1', 'Test', [], 'en');
+      expect(result.response).toContain('error occurred');
+      expect(result.tokensUsed).toBe(0);
     });
   });
 

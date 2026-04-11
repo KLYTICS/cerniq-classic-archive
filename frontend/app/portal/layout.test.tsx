@@ -113,7 +113,9 @@ describe('PortalLayout', () => {
     );
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith('/portal/login');
+      expect(replaceMock).toHaveBeenCalledWith(
+        '/login?mode=magic-link&returnUrl=%2Fdashboard',
+      );
     });
 
     expect(screen.queryByText('Protected portal content')).not.toBeInTheDocument();

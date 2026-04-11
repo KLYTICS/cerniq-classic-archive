@@ -83,25 +83,25 @@ export default function FileUploadPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white p-8">
+        <div className="min-h-screen bg-transparent px-8 py-10 text-[var(--dashboard-text-primary)]">
             <div className="max-w-3xl mx-auto">
                 <h1 className="text-3xl font-bold mb-2">Upload Financial Data</h1>
-                <p className="text-gray-400 mb-8">Upload your AP export (CSV) or vendor contracts (PDF) to start the audit.</p>
+                <p className="mb-8 text-[var(--dashboard-text-secondary)]">Upload your AP export (CSV) or vendor contracts (PDF) to start the audit.</p>
 
                 {status === 'complete' ? (
                     <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-8 text-center animate-in fade-in zoom-in duration-300">
                         <div className="text-5xl mb-4">🎉</div>
                         <h2 className="text-2xl font-bold text-green-200 mb-2">Analysis Complete!</h2>
-                        <p className="text-gray-300 mb-6">We found potential leaks in your data.</p>
+                        <p className="mb-6 text-[var(--dashboard-text-secondary)]">We found potential leaks in your data.</p>
 
                         <div className="grid grid-cols-2 gap-4 max-w-md mx-auto mb-8">
-                            <div className="bg-slate-900 p-4 rounded-xl border border-white/5">
-                                <div className="text-2xl font-bold text-white">{analysisResult?.invoices_parsed}</div>
-                                <div className="text-xs text-gray-500">Invoices Parsed</div>
+                            <div className="cerniq-dashboard-surface rounded-xl p-4">
+                                <div className="text-2xl font-bold text-[var(--dashboard-text-primary)]">{analysisResult?.invoices_parsed}</div>
+                                <div className="text-xs text-[var(--dashboard-text-muted)]">Invoices Parsed</div>
                             </div>
-                            <div className="bg-slate-900 p-4 rounded-xl border border-white/5">
+                            <div className="cerniq-dashboard-surface rounded-xl p-4">
                                 <div className="text-2xl font-bold text-amber-400">{analysisResult?.findings_found}</div>
-                                <div className="text-xs text-gray-500">Potential Leaks</div>
+                                <div className="text-xs text-[var(--dashboard-text-muted)]">Potential Leaks</div>
                             </div>
                         </div>
 
@@ -116,14 +116,14 @@ export default function FileUploadPage() {
                     <div
                         onDragOver={handleDragOver}
                         onDrop={handleDrop}
-                        className={`border-2 border-dashed rounded-2xl p-12 text-center transition ${file ? 'border-amber-500 bg-amber-500/10' : 'border-white/10 hover:border-amber-500/50 hover:bg-white/5'
+                        className={`rounded-2xl border-2 border-dashed p-12 text-center transition ${file ? 'border-amber-500 bg-amber-500/10' : 'border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.75)] hover:border-amber-500/50 hover:bg-[rgba(255,246,230,0.92)]'
                             }`}
                     >
                         {file ? (
                             <div>
                                 <div className="text-4xl mb-4">📄</div>
                                 <div className="font-bold text-lg mb-1">{file.name}</div>
-                                <div className="text-sm text-gray-400 mb-6">{(file.size / 1024).toFixed(2)} KB</div>
+                                <div className="mb-6 text-sm text-[var(--dashboard-text-muted)]">{(file.size / 1024).toFixed(2)} KB</div>
 
                                 {loading ? (
                                     <div className="flex flex-col items-center">
@@ -136,7 +136,7 @@ export default function FileUploadPage() {
                                     <div className="flex justify-center gap-4">
                                         <button
                                             onClick={() => setFile(null)}
-                                            className="px-6 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition"
+                                            className="rounded-lg px-6 py-2 text-[var(--dashboard-text-secondary)] transition hover:bg-[rgba(247,228,188,0.48)] hover:text-[var(--dashboard-text-primary)]"
                                         >
                                             Cancel
                                         </button>
@@ -151,11 +151,11 @@ export default function FileUploadPage() {
                             </div>
                         ) : (
                             <div>
-                                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
+                                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(247,228,188,0.52)] text-3xl">
                                     📂
                                 </div>
                                 <h3 className="text-xl font-bold mb-2">Drag & Drop File Here</h3>
-                                <p className="text-gray-400 mb-6">or click to browse from your computer</p>
+                                <p className="mb-6 text-[var(--dashboard-text-secondary)]">or click to browse from your computer</p>
                                 <input
                                     type="file"
                                     className="hidden"
@@ -165,11 +165,11 @@ export default function FileUploadPage() {
                                 />
                                 <label
                                     htmlFor="file-upload"
-                                    className="cursor-pointer bg-white text-slate-900 px-6 py-3 rounded-lg font-bold hover:bg-gray-100 transition inline-block"
+                                    className="inline-block cursor-pointer rounded-lg bg-[var(--dashboard-surface-elevated)] px-6 py-3 font-bold text-[var(--dashboard-text-primary)] transition hover:bg-white"
                                 >
                                     Browse Files
                                 </label>
-                                <div className="mt-8 text-xs text-gray-500">
+                                <div className="mt-8 text-xs text-[var(--dashboard-text-muted)]">
                                     Supported: AP Exports (CSV), Contracts (PDF)
                                 </div>
                             </div>
@@ -178,7 +178,7 @@ export default function FileUploadPage() {
                 )}
 
                 {error && (
-                    <div className="mt-6 bg-red-500/10 border border-red-500/20 text-red-200 p-4 rounded-xl text-center">
+                    <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-center text-red-700">
                         {error}
                     </div>
                 )}

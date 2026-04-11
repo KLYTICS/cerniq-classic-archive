@@ -20,7 +20,7 @@ export default function PlatformPage({
   maxWidthClassName = 'max-w-7xl',
 }: PlatformPageProps) {
   return (
-    <div className="min-h-screen overflow-x-clip px-4 py-6 text-slate-950 sm:px-6 lg:px-8">
+    <div className="cerniq-dashboard-theme cerniq-dashboard-page overflow-x-clip px-4 py-6 text-slate-950 sm:px-6 lg:px-8">
       <div className={`mx-auto space-y-6 ${maxWidthClassName}`}>
         <section className="cerniq-shell p-6 sm:p-8">
           <div className="cerniq-data-wave" />

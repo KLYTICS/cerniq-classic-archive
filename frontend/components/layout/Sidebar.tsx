@@ -90,11 +90,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       <aside
         role="navigation"
         aria-label="Main navigation"
-        className={`fixed top-0 left-0 z-50 flex h-full w-64 flex-col border-r border-slate-200/80 bg-[rgba(255,255,255,0.98)] shadow-[0_24px_80px_rgba(41,85,133,0.14)] backdrop-blur-xl transition-transform duration-200 ${
+        className={`fixed top-0 left-0 z-50 flex h-full w-64 flex-col border-r border-[rgba(216,192,139,0.78)] bg-[rgba(255,251,239,0.98)] shadow-[0_24px_80px_rgba(113,88,40,0.12)] backdrop-blur-xl transition-transform duration-200 ${
           open ? 'translate-x-0' : '-translate-x-full'
         } lg:static lg:z-auto lg:translate-x-0`}
       >
-        <div className="border-b border-slate-200/80 p-4">
+        <div className="border-b border-[rgba(216,192,139,0.76)] p-4">
           <div className="mb-3 flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center gap-2" onClick={onClose}>
               <CerniqLockup compact />
@@ -108,7 +108,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             </button>
           </div>
 
-          <div className="rounded-[1.2rem] border border-cyan-200/70 bg-gradient-to-br from-cyan-50 via-white to-sky-50 px-3.5 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+          <div className="rounded-[1.2rem] border border-[rgba(216,192,139,0.78)] bg-gradient-to-br from-[rgba(255,251,239,0.98)] via-[rgba(255,246,230,0.98)] to-[rgba(247,228,188,0.65)] px-3.5 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
             <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-800/80">CERNIQ ALM</p>
             <p className="mt-2 text-xs leading-5 text-slate-600">{t('sidebar.description')}</p>
           </div>
@@ -252,7 +252,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           </div>
         </nav>
 
-        <div className="border-t border-slate-200/80 p-3">
+        <div className="border-t border-[rgba(216,192,139,0.76)] p-3">
           <button
             onClick={handleLogout}
             className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 transition hover:bg-cyan-50 hover:text-cyan-800"

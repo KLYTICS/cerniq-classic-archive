@@ -124,7 +124,7 @@ export default function PortalLayout({
               setSubscription(null);
               setAccess(null);
               setLoading(false);
-              router.replace('/portal/login');
+              router.replace('/login?mode=magic-link&returnUrl=%2Fdashboard');
             }
             return;
           }
@@ -192,7 +192,7 @@ export default function PortalLayout({
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7fbff]">
+      <div className="cerniq-dashboard-page flex min-h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" />
           <span className="text-sm text-slate-500">Loading portal...</span>
@@ -203,7 +203,7 @@ export default function PortalLayout({
 
   if (!user && !sessionError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7fbff]">
+      <div className="cerniq-dashboard-page flex min-h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" />
           <span className="text-sm text-slate-500">Loading portal...</span>
@@ -214,13 +214,13 @@ export default function PortalLayout({
 
   if (sessionError && !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7fbff] px-4">
-        <div className="w-full max-w-md rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-[0_30px_80px_rgba(41,85,133,0.14)]">
+      <div className="cerniq-dashboard-page flex min-h-screen items-center justify-center px-4">
+        <div className="cerniq-dashboard-elevated-surface w-full max-w-md rounded-[1.75rem] border p-8 text-center shadow-[0_30px_80px_rgba(113,88,40,0.14)]">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700/70">
             Session recovery
           </p>
           <h1 className="mt-3 text-2xl font-semibold text-slate-950">
-            Portal access is still settling
+            Workspace access is still settling
           </h1>
           <p className="mt-3 text-sm leading-6 text-slate-600">
             {sessionError}
@@ -233,10 +233,10 @@ export default function PortalLayout({
               Retry session check
             </button>
             <Link
-              href="/portal/login"
+              href="/login?mode=magic-link&returnUrl=%2Fdashboard"
               className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              Back to portal login
+              Back to sign in
             </Link>
           </div>
         </div>
@@ -254,13 +254,13 @@ export default function PortalLayout({
   return (
     <PortalContext.Provider value={{ user, subscription, access, loading }}>
       <ErrorBoundary context="portal">
-        <div className="flex min-h-screen bg-[#f7fbff] text-slate-950">
-          <aside className="flex w-72 flex-col border-r border-slate-200/80 bg-[rgba(255,255,255,0.98)] shadow-[0_24px_80px_rgba(41,85,133,0.14)]">
-            <div className="border-b border-slate-200/80 p-5">
+        <div className="flex min-h-screen bg-[var(--dashboard-base)] text-slate-950">
+          <aside className="flex w-72 flex-col border-r border-[rgba(216,192,139,0.78)] bg-[rgba(255,251,239,0.98)] shadow-[0_24px_80px_rgba(113,88,40,0.12)]">
+            <div className="border-b border-[rgba(216,192,139,0.76)] p-5">
               <Link href="/portal" className="inline-flex">
                 <CerniqLockup compact tagline="Client Portal" />
               </Link>
-              <div className="mt-4 rounded-[1.35rem] border border-cyan-200/60 bg-gradient-to-br from-cyan-50 via-white to-sky-50 px-4 py-4">
+              <div className="mt-4 rounded-[1.35rem] border border-[rgba(216,192,139,0.78)] bg-gradient-to-br from-[rgba(255,251,239,0.98)] via-[rgba(255,246,230,0.98)] to-[rgba(247,228,188,0.65)] px-4 py-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-700/80">
                   Report delivery
                 </p>
@@ -291,7 +291,7 @@ export default function PortalLayout({
               })}
             </nav>
 
-            <div className="space-y-1 border-t border-slate-200/80 p-3">
+            <div className="space-y-1 border-t border-[rgba(216,192,139,0.76)] p-3">
               <a
                 href="mailto:soporte@cerniq.io"
                 className="flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm text-slate-600 transition hover:bg-slate-50 hover:text-slate-950"
@@ -309,7 +309,7 @@ export default function PortalLayout({
             </div>
 
             {user && (
-              <div className="border-t border-slate-200/80 p-4">
+              <div className="border-t border-[rgba(216,192,139,0.76)] p-4">
                 <p className="truncate text-xs text-slate-500">{user.email}</p>
                 <p className="mt-0.5 text-[10px] capitalize text-slate-400">
                   {subscription?.tier || 'free'} plan

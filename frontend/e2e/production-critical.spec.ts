@@ -128,6 +128,7 @@ test.describe('Production-critical paths', () => {
     await expectSettledPath(page, '/');
     await expect(page).toHaveTitle(/CERNIQ/i);
     await expect(page.locator('body')).toContainText(/Cerniq/i);
+    await expect(page.locator('.cerniq-dashboard-page').first()).toBeVisible();
     await expectNoFatalUi(page);
 
     await assertNoErrors();
@@ -140,7 +141,12 @@ test.describe('Production-critical paths', () => {
     expect(response?.ok()).toBeTruthy();
     await expectSettledPath(page, '/login');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(
+      page.getByRole('textbox', { name: /^Email$/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /Email secure sign-in link/i }),
+    ).toBeVisible();
     await expectNoFatalUi(page);
 
     await assertNoErrors();
@@ -163,14 +169,15 @@ test.describe('Production-critical paths', () => {
     await assertNoErrors();
   });
 
-  test('portal login page loads and stays on the intended route', async ({ page }) => {
+  test('portal login route redirects into the dashboard-first login flow', async ({ page }) => {
     const assertNoErrors = attachErrorTracker(page);
 
     const response = await page.goto('/portal/login');
     expect(response?.ok()).toBeTruthy();
-    await expectSettledPath(page, '/portal/login');
-    await expect(page.getByRole('heading', { level: 1, name: /CERNIQ Portal/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Send Login Link/i })).toBeVisible();
+    await expectSettledPath(page, '/login');
+    await expect(
+      page.getByRole('button', { name: /Email secure sign-in link/i }),
+    ).toBeVisible();
     await expectNoFatalUi(page);
 
     await assertNoErrors();
@@ -217,7 +224,7 @@ test.describe('Production-critical paths', () => {
 
     await page.goto('/portal');
     await expectSettledPath(page, '/portal');
-    await expect(page.locator('body')).toContainText(/Paid portal access/i);
+    await expect(page.locator('body')).toContainText(/Paid workspace access/i);
 
     await page.getByRole('button', { name: /Unlock with/i }).first().click();
     await page.waitForURL((url) => url.hostname === 'checkout.stripe.com', {

@@ -355,17 +355,17 @@ export default function TickerDetailPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#1B3A6B]/80 to-slate-900 flex items-center justify-center">
-                <div className="text-white text-xl">Loading {symbol}...</div>
+            <div className="flex min-h-screen items-center justify-center bg-transparent">
+                <div className="text-xl text-[var(--dashboard-text-primary)]">Loading {symbol}...</div>
             </div>
         );
     }
 
     if (error || !quote) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#1B3A6B]/80 to-slate-900 flex items-center justify-center">
+            <div className="flex min-h-screen items-center justify-center bg-transparent">
                 <div className="text-center">
-                    <div className="text-red-400 text-xl mb-4">
+                    <div className="mb-4 text-xl text-red-500">
                         {error || `Could not load data for ${symbol}`}
                     </div>
                     <button
@@ -382,22 +382,22 @@ export default function TickerDetailPage() {
     const isPositive = quote.changePercent >= 0;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#1B3A6B]/80 to-slate-900">
+        <div className="min-h-screen bg-transparent text-[var(--dashboard-text-primary)]">
             {/* Header */}
-            <div className="bg-white/5 backdrop-blur-md border-b border-white/10">
+            <div className="border-b border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.78)] backdrop-blur-md">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     <button
                         onClick={() => router.push('/dashboard')}
-                        className="text-amber-400 hover:text-amber-300 mb-4 flex items-center gap-2"
+                        className="mb-4 flex items-center gap-2 text-amber-700 hover:text-amber-600"
                     >
                         ← Back to Dashboard
                     </button>
                     <div className="flex items-end justify-between">
                         <div>
                             <div className="flex items-center gap-4">
-                                <h1 className="text-4xl font-bold text-white">{symbol}</h1>
+                                <h1 className="text-4xl font-bold text-[var(--dashboard-text-primary)]">{symbol}</h1>
                                 {profile ? (
-                                    <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.24em] text-slate-200">
+                                    <span className="rounded-full border border-[var(--dashboard-border)] bg-[rgba(247,228,188,0.48)] px-3 py-1 text-xs uppercase tracking-[0.24em] text-[var(--dashboard-text-secondary)]">
                                         {profile.assetType}
                                     </span>
                                 ) : null}
@@ -411,25 +411,25 @@ export default function TickerDetailPage() {
                                 />
                             </div>
                             {profile ? (
-                                <p className="text-gray-400 mt-1">
+                                <p className="mt-1 text-[var(--dashboard-text-secondary)]">
                                     {[profile.longName || profile.shortName, profile.exchange, profile.marketState].filter(Boolean).join(' • ')}
                                 </p>
                             ) : fundamentals ? (
-                                <p className="text-gray-400 mt-1">
+                                <p className="mt-1 text-[var(--dashboard-text-secondary)]">
                                     {fundamentals.sector} • {fundamentals.industry}
                                 </p>
                             ) : null}
                         </div>
                         <div className="text-right">
-                            <div className="text-4xl font-bold text-white">${quote.price.toFixed(2)}</div>
+                            <div className="text-4xl font-bold text-[var(--dashboard-text-primary)]">${quote.price.toFixed(2)}</div>
                             <div className={`text-xl font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
                                 {isPositive ? '↑' : '↓'} ${Math.abs(quote.change).toFixed(2)} ({Math.abs(quote.changePercent).toFixed(2)}%)
                             </div>
-                            <div className="mt-2 flex items-center justify-end gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
+                            <div className="mt-2 flex items-center justify-end gap-2 text-xs uppercase tracking-[0.24em] text-[var(--dashboard-text-muted)]">
                                 <Activity className={`h-3.5 w-3.5 ${connected ? 'text-emerald-400' : 'text-amber-400'}`} />
                                 {connected ? 'Live stream' : 'Snapshot'}
                             </div>
-                            <div className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">
+                            <div className="mt-2 text-xs uppercase tracking-[0.18em] text-[var(--dashboard-text-muted)]">
                                 {quote.session || 'UNKNOWN'} • {quote.freshnessState || 'UNAVAILABLE'}{quote.provider ? ` • ${quote.provider}` : ''}
                             </div>
                         </div>
@@ -444,26 +444,27 @@ export default function TickerDetailPage() {
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10 mb-8"
+                        className="cerniq-dashboard-surface mb-8 rounded-xl p-6"
                     >
-                        <h3 className="text-xl font-semibold text-white mb-4">30-Day Price Chart</h3>
+                        <h3 className="mb-4 text-xl font-semibold text-[var(--dashboard-text-primary)]">30-Day Price Chart</h3>
                         <ResponsiveContainer width="100%" height={300}>
                             <LineChart data={historical}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" />
-                                <XAxis dataKey="date" stroke="#9ca3af" />
-                                <YAxis stroke="#9ca3af" domain={['auto', 'auto']} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#D8C08B" />
+                                <XAxis dataKey="date" stroke="#8D7958" />
+                                <YAxis stroke="#8D7958" domain={['auto', 'auto']} />
                                 <Tooltip
                                     contentStyle={{
-                                        backgroundColor: '#1e293b',
-                                        border: '1px solid #475569',
+                                        backgroundColor: '#FFFBEF',
+                                        border: '1px solid #D8C08B',
                                         borderRadius: '8px',
+                                        color: '#3F3322',
                                     }}
-                                    labelStyle={{ color: '#cbd5e1' }}
+                                    labelStyle={{ color: '#6D5B3F' }}
                                 />
                                 <Line
                                     type="monotone"
                                     dataKey="close"
-                                    stroke="#8b5cf6"
+                                    stroke="#1B3A6B"
                                     strokeWidth={2}
                                     dot={false}
                                 />
@@ -478,9 +479,9 @@ export default function TickerDetailPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
-                        className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10"
+                        className="cerniq-dashboard-surface rounded-xl p-6"
                     >
-                        <h3 className="text-xl font-semibold text-white mb-4">Key Statistics</h3>
+                        <h3 className="mb-4 text-xl font-semibold text-[var(--dashboard-text-primary)]">Key Statistics</h3>
                         <div className="space-y-3">
                             <StatRow label="Open" value={`$${quote.open.toFixed(2)}`} />
                             <StatRow label="High" value={`$${quote.high.toFixed(2)}`} />
@@ -499,9 +500,9 @@ export default function TickerDetailPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2 }}
-                            className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10"
+                            className="cerniq-dashboard-surface rounded-xl p-6"
                         >
-                            <h3 className="text-xl font-semibold text-white mb-4">Fundamentals</h3>
+                            <h3 className="mb-4 text-xl font-semibold text-[var(--dashboard-text-primary)]">Fundamentals</h3>
                             <div className="space-y-3">
                                 {fundamentals.peRatio && <StatRow label="P/E Ratio" value={fundamentals.peRatio.toFixed(2)} />}
                                 {fundamentals.forwardPE && <StatRow label="Forward P/E" value={fundamentals.forwardPE.toFixed(2)} />}
@@ -529,9 +530,9 @@ export default function TickerDetailPage() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.25 }}
-                                className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10"
+                                className="cerniq-dashboard-surface rounded-xl p-6"
                             >
-                                <h3 className="text-xl font-semibold text-white mb-4">Instrument Profile</h3>
+                                <h3 className="mb-4 text-xl font-semibold text-[var(--dashboard-text-primary)]">Instrument Profile</h3>
                                 <div className="space-y-3">
                                     {profile.categoryName && <StatRow label="Category" value={profile.categoryName} />}
                                     {profile.family && <StatRow label="Family" value={profile.family} />}
@@ -541,16 +542,16 @@ export default function TickerDetailPage() {
                                     {profile.ytdReturn !== undefined ? <StatRow label="YTD Return" value={`${(profile.ytdReturn * 100).toFixed(2)}%`} /> : null}
                                 </div>
                                 {profile.description ? (
-                                    <p className="mt-5 text-sm leading-6 text-slate-300">{profile.description}</p>
+                                    <p className="mt-5 text-sm leading-6 text-[var(--dashboard-text-secondary)]">{profile.description}</p>
                                 ) : null}
                                 {profile.topHoldings && profile.topHoldings.length > 0 ? (
                                     <div className="mt-5">
-                                        <div className="text-sm font-semibold text-white">Top Holdings</div>
+                                        <div className="text-sm font-semibold text-[var(--dashboard-text-primary)]">Top Holdings</div>
                                         <div className="mt-3 space-y-2">
                                             {profile.topHoldings.slice(0, 5).map((holding) => (
                                                 <div key={`${holding.symbol}-${holding.name}`} className="flex items-center justify-between text-sm">
-                                                    <span className="text-slate-200">{holding.symbol}</span>
-                                                    <span className="text-slate-400">{holding.weight.toFixed(2)}%</span>
+                                                    <span className="text-[var(--dashboard-text-primary)]">{holding.symbol}</span>
+                                                    <span className="text-[var(--dashboard-text-muted)]">{holding.weight.toFixed(2)}%</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -563,15 +564,15 @@ export default function TickerDetailPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.3 }}
-                            className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10"
+                            className="cerniq-dashboard-surface rounded-xl p-6"
                         >
                             <div className="flex items-center gap-2">
                                 <Newspaper className="h-5 w-5 text-amber-300" />
-                                <h3 className="text-xl font-semibold text-white">Latest News</h3>
+                                <h3 className="text-xl font-semibold text-[var(--dashboard-text-primary)]">Latest News</h3>
                             </div>
                             <div className="mt-4 space-y-3">
                                 {news.length === 0 ? (
-                                    <p className="text-sm text-slate-400">No headlines available yet for {symbol}.</p>
+                                    <p className="text-sm text-[var(--dashboard-text-muted)]">No headlines available yet for {symbol}.</p>
                                 ) : (
                                     news.slice(0, 5).map((item) => (
                                         <a
@@ -579,10 +580,10 @@ export default function TickerDetailPage() {
                                             href={item.link}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="block rounded-xl border border-white/10 bg-white/5 px-4 py-3 transition hover:border-white/20 hover:bg-white/10"
+                                            className="block rounded-xl border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.82)] px-4 py-3 transition hover:border-[var(--dashboard-border-strong)] hover:bg-[rgba(255,246,230,0.96)]"
                                         >
-                                            <div className="text-sm font-semibold text-white">{item.title}</div>
-                                            <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
+                                            <div className="text-sm font-semibold text-[var(--dashboard-text-primary)]">{item.title}</div>
+                                            <div className="mt-1 text-xs uppercase tracking-[0.18em] text-[var(--dashboard-text-muted)]">
                                                 {item.publisher} • {new Date(item.publishedAt).toLocaleString()}
                                             </div>
                                         </a>
@@ -621,8 +622,8 @@ export default function TickerDetailPage() {
 function StatRow({ label, value }: { label: string; value: string }) {
     return (
         <div className="flex justify-between items-center">
-            <span className="text-gray-400">{label}</span>
-            <span className="text-white font-medium">{value}</span>
+            <span className="text-[var(--dashboard-text-secondary)]">{label}</span>
+            <span className="font-medium text-[var(--dashboard-text-primary)]">{value}</span>
         </div>
     );
 }

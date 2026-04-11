@@ -41,7 +41,7 @@ export interface DataRowProps {
 }
 
 const TONE_CLASSES: Record<DataRowStatus['tone'], string> = {
-  neutral: 'bg-slate-100 text-slate-700 border-slate-200',
+  neutral: 'bg-[rgba(247,228,188,0.62)] cerniq-dashboard-subtext border-[var(--dashboard-border)]',
   good: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   warn: 'bg-amber-50 text-amber-800 border-amber-200',
   bad: 'bg-rose-50 text-rose-700 border-rose-200',
@@ -67,15 +67,15 @@ export function DataRow({
   ariaLabel,
 }: DataRowProps) {
   const interactive = Boolean(onClick || href);
-  const baseClass = `group flex items-center gap-3 border-b border-slate-100 px-4 py-2 text-sm last:border-b-0 ${
-    selected ? 'bg-blue-50/40' : 'bg-white'
-  } ${interactive ? 'cursor-pointer hover:bg-slate-50' : ''}`;
+  const baseClass = `group flex items-center gap-3 border-b cerniq-dashboard-border px-4 py-2 text-sm last:border-b-0 ${
+    selected ? 'bg-[rgba(247,228,188,0.82)]' : 'bg-[rgba(255,251,239,0.92)]'
+  } ${interactive ? 'cursor-pointer hover:bg-[rgba(247,228,188,0.5)]' : ''}`;
 
   const inner = (
     <>
       {cells.map((cell, i) => {
         const align = cell.align === 'right' ? 'text-right justify-end' : 'text-left';
-        const num = cell.numeric ? 'font-mono tabular-nums text-slate-900' : 'text-slate-700';
+        const num = cell.numeric ? 'font-mono tabular-nums cerniq-dashboard-text' : 'cerniq-dashboard-subtext';
         const hide = cell.hideOnMobile ? 'hidden sm:flex' : 'flex';
         return (
           <div
@@ -84,7 +84,7 @@ export function DataRow({
             style={{ flex: cell.weight ?? 1, minWidth: 0 }}
           >
             {cell.label ? (
-              <span className="text-[10px] uppercase tracking-wide text-slate-400 sm:hidden">
+              <span className="cerniq-dashboard-muted-text text-[10px] uppercase tracking-wide sm:hidden">
                 {cell.label}
               </span>
             ) : null}
