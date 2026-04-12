@@ -86,6 +86,9 @@ ENV/
 /platform/
 /projects/
 
+# Git worktrees (never track sibling worktree contents)
+/Cerniq-*/
+
 # Data cache
 /data/*.parquet
 /data/*.csv
