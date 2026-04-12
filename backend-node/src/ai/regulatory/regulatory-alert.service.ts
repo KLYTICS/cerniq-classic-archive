@@ -4,6 +4,15 @@ import { ImpactExtractorService } from './impact-extractor.service';
 import { AlertDeliveryService } from './alert-delivery.service';
 import { PrismaService } from '../../prisma.service';
 
+export interface PipelineResult {
+  scanned: number;
+  newPublications: number;
+  alertsDelivered: number;
+  extractionFailures: number;
+  deliveryFailures: number;
+  failedPublicationIds: string[];
+}
+
 @Injectable()
 export class RegulatoryAlertService {
   private readonly logger = new Logger(RegulatoryAlertService.name);
@@ -15,15 +24,15 @@ export class RegulatoryAlertService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async runFullPipeline(): Promise<{
-    scanned: number;
-    newPublications: number;
-    alertsDelivered: number;
-  }> {
+  async runFullPipeline(): Promise<PipelineResult> {
     this.logger.log('Starting regulatory alert pipeline...');
     const { scanned, newFound } = await this.scraper.runDailyScan();
 
     let totalAlerts = 0;
+    let extractionFailures = 0;
+    let deliveryFailures = 0;
+    const failedPublicationIds: string[] = [];
+
     if (newFound > 0) {
       const unprocessed = await this.prisma.regulatoryPublication.findMany({
         where: { processedAt: null },
@@ -39,10 +48,29 @@ export class RegulatoryAlertService {
             impact,
           );
           totalAlerts += delivered;
+
+          await this.markProcessed(pub.id, impact);
         } catch (err) {
+          extractionFailures++;
+          failedPublicationIds.push(pub.id);
+          const errorMessage =
+            err instanceof Error ? err.message : String(err);
+
           this.logger.error(
-            `Extract failed for publication ${pub.id}, delivering fallback alert: ${err}`,
+            `Extract failed for publication ${pub.id} (${pub.title ?? 'untitled'}): ${errorMessage}`,
           );
+
+          // Record failure metadata so the publication isn't retried
+          // indefinitely — the daily scan already found it; blindly
+          // retrying without fixing the root cause just burns cycles.
+          await this.markProcessed(pub.id, {
+            extractionFailed: true,
+            error: errorMessage,
+            failedAt: new Date().toISOString(),
+            severity: 'UNKNOWN',
+          });
+
+          // Deliver fallback alert that clearly communicates the gap
           try {
             const fallbackImpact = {
               severity: 'UNKNOWN' as const,
@@ -50,6 +78,8 @@ export class RegulatoryAlertService {
               affectedSubcategories: [],
               deadline: null,
               keyQuote: null,
+              _extractionFailed: true,
+              _failureReason: errorMessage,
             };
             const delivered =
               await this.delivery.mapAndDeliverToAllInstitutions(
@@ -58,6 +88,7 @@ export class RegulatoryAlertService {
               );
             totalAlerts += delivered;
           } catch (deliveryErr) {
+            deliveryFailures++;
             this.logger.error(
               `Fallback delivery also failed for publication ${pub.id}: ${deliveryErr}`,
             );
@@ -66,10 +97,24 @@ export class RegulatoryAlertService {
       }
     }
 
+    if (extractionFailures > 0) {
+      this.logger.warn(
+        `Pipeline completed with ${extractionFailures} extraction failure(s): [${failedPublicationIds.join(', ')}]`,
+      );
+    }
+
     this.logger.log(
-      `Pipeline complete: ${scanned} sources scanned, ${newFound} new, ${totalAlerts} alerts`,
+      `Pipeline complete: ${scanned} scanned, ${newFound} new, ${totalAlerts} alerts, ${extractionFailures} extraction failures, ${deliveryFailures} delivery failures`,
     );
-    return { scanned, newPublications: newFound, alertsDelivered: totalAlerts };
+
+    return {
+      scanned,
+      newPublications: newFound,
+      alertsDelivered: totalAlerts,
+      extractionFailures,
+      deliveryFailures,
+      failedPublicationIds,
+    };
   }
 
   async getRecentPublications(limit: number = 20) {
@@ -77,5 +122,25 @@ export class RegulatoryAlertService {
       orderBy: { publishedAt: 'desc' },
       take: limit,
     });
+  }
+
+  /** Mark a publication as processed with its impact or error metadata. */
+  private async markProcessed(
+    publicationId: string,
+    impactJson: object,
+  ): Promise<void> {
+    try {
+      await this.prisma.regulatoryPublication.update({
+        where: { id: publicationId },
+        data: {
+          processedAt: new Date(),
+          impactJson: impactJson as any,
+        },
+      });
+    } catch (updateErr) {
+      this.logger.error(
+        `Failed to mark publication ${publicationId} as processed: ${updateErr}`,
+      );
+    }
   }
 }

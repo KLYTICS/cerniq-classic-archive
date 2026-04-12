@@ -15,11 +15,13 @@ describe('RegulatoryAlertService', () => {
   const mockPrisma = {
     regulatoryPublication: {
       findMany: jest.fn(),
+      update: jest.fn(),
     },
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPrisma.regulatoryPublication.update.mockResolvedValue({});
     service = new RegulatoryAlertService(
       mockScraper as any,
       mockExtractor as any,
@@ -40,38 +42,54 @@ describe('RegulatoryAlertService', () => {
       expect(result.scanned).toBe(5);
       expect(result.newPublications).toBe(0);
       expect(result.alertsDelivered).toBe(0);
+      expect(result.extractionFailures).toBe(0);
+      expect(result.deliveryFailures).toBe(0);
+      expect(result.failedPublicationIds).toEqual([]);
       expect(mockExtractor.extract).not.toHaveBeenCalled();
     });
 
-    it('should process new publications and deliver alerts', async () => {
-      mockScraper.runDailyScan.mockResolvedValue({ scanned: 3, newFound: 2 });
-      mockPrisma.regulatoryPublication.findMany.mockResolvedValue([
-        { id: 'pub-1' },
-        { id: 'pub-2' },
-      ]);
-      mockExtractor.extract.mockResolvedValue({
+    it('should process new publications, deliver alerts, and mark as processed', async () => {
+      const impact = {
         severity: 'HIGH',
         requirements: ['Review capital ratios'],
         affectedSubcategories: ['capital'],
         deadline: null,
         keyQuote: 'Important update',
-      });
+      };
+      mockScraper.runDailyScan.mockResolvedValue({ scanned: 3, newFound: 2 });
+      mockPrisma.regulatoryPublication.findMany.mockResolvedValue([
+        { id: 'pub-1', title: 'Circular A' },
+        { id: 'pub-2', title: 'Circular B' },
+      ]);
+      mockExtractor.extract.mockResolvedValue(impact);
       mockDelivery.mapAndDeliverToAllInstitutions.mockResolvedValue(3);
 
       const result = await service.runFullPipeline();
       expect(result.scanned).toBe(3);
       expect(result.newPublications).toBe(2);
-      expect(result.alertsDelivered).toBe(6); // 3 per pub x 2 pubs
+      expect(result.alertsDelivered).toBe(6);
+      expect(result.extractionFailures).toBe(0);
       expect(mockExtractor.extract).toHaveBeenCalledTimes(2);
       expect(mockDelivery.mapAndDeliverToAllInstitutions).toHaveBeenCalledTimes(
         2,
       );
+      // Both publications marked as processed with real impact data
+      expect(mockPrisma.regulatoryPublication.update).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.regulatoryPublication.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'pub-1' },
+          data: expect.objectContaining({
+            processedAt: expect.any(Date),
+            impactJson: impact,
+          }),
+        }),
+      );
     });
 
-    it('should continue pipeline when extractor fails, delivering fallback alert', async () => {
+    it('should track extraction failures and mark publication with error metadata', async () => {
       mockScraper.runDailyScan.mockResolvedValue({ scanned: 1, newFound: 1 });
       mockPrisma.regulatoryPublication.findMany.mockResolvedValue([
-        { id: 'pub-err' },
+        { id: 'pub-err', title: 'Circular Rota' },
       ]);
       mockExtractor.extract.mockRejectedValue(new Error('AI unavailable'));
       mockDelivery.mapAndDeliverToAllInstitutions.mockResolvedValue(2);
@@ -81,17 +99,37 @@ describe('RegulatoryAlertService', () => {
       expect(result.scanned).toBe(1);
       expect(result.newPublications).toBe(1);
       expect(result.alertsDelivered).toBe(2);
+      expect(result.extractionFailures).toBe(1);
+      expect(result.failedPublicationIds).toEqual(['pub-err']);
+      // Fallback alert includes extraction failure metadata
       expect(mockDelivery.mapAndDeliverToAllInstitutions).toHaveBeenCalledWith(
         'pub-err',
-        expect.objectContaining({ severity: 'UNKNOWN' }),
+        expect.objectContaining({
+          severity: 'UNKNOWN',
+          _extractionFailed: true,
+          _failureReason: 'AI unavailable',
+        }),
+      );
+      // Publication marked as processed with error metadata (not retried forever)
+      expect(mockPrisma.regulatoryPublication.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'pub-err' },
+          data: expect.objectContaining({
+            processedAt: expect.any(Date),
+            impactJson: expect.objectContaining({
+              extractionFailed: true,
+              error: 'AI unavailable',
+            }),
+          }),
+        }),
       );
     });
 
-    it('should continue to next publication even when both extract and fallback delivery fail', async () => {
+    it('should track delivery failures separately from extraction failures', async () => {
       mockScraper.runDailyScan.mockResolvedValue({ scanned: 2, newFound: 2 });
       mockPrisma.regulatoryPublication.findMany.mockResolvedValue([
-        { id: 'pub-broken' },
-        { id: 'pub-good' },
+        { id: 'pub-broken', title: 'Circular Fallida' },
+        { id: 'pub-good', title: 'Circular Buena' },
       ]);
       mockExtractor.extract
         .mockRejectedValueOnce(new Error('AI down'))
@@ -102,6 +140,7 @@ describe('RegulatoryAlertService', () => {
           deadline: null,
           keyQuote: 'Update',
         });
+      // First call is fallback delivery (fails), second is good pub delivery
       mockDelivery.mapAndDeliverToAllInstitutions
         .mockRejectedValueOnce(new Error('delivery down'))
         .mockResolvedValueOnce(5);
@@ -109,7 +148,36 @@ describe('RegulatoryAlertService', () => {
       const result = await service.runFullPipeline();
 
       expect(result.alertsDelivered).toBe(5);
+      expect(result.extractionFailures).toBe(1);
+      expect(result.deliveryFailures).toBe(1);
+      expect(result.failedPublicationIds).toEqual(['pub-broken']);
       expect(mockExtractor.extract).toHaveBeenCalledTimes(2);
+      // Both publications still marked as processed
+      expect(mockPrisma.regulatoryPublication.update).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not break if marking publication as processed fails', async () => {
+      mockScraper.runDailyScan.mockResolvedValue({ scanned: 1, newFound: 1 });
+      mockPrisma.regulatoryPublication.findMany.mockResolvedValue([
+        { id: 'pub-1', title: 'Circular' },
+      ]);
+      mockExtractor.extract.mockResolvedValue({
+        severity: 'LOW',
+        requirements: [],
+        affectedSubcategories: [],
+        deadline: null,
+        keyQuote: null,
+      });
+      mockDelivery.mapAndDeliverToAllInstitutions.mockResolvedValue(1);
+      mockPrisma.regulatoryPublication.update.mockRejectedValue(
+        new Error('DB down'),
+      );
+
+      const result = await service.runFullPipeline();
+
+      // Pipeline still succeeds — persistence failure is best-effort
+      expect(result.alertsDelivered).toBe(1);
+      expect(result.extractionFailures).toBe(0);
     });
   });
 
