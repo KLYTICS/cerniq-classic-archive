@@ -16,6 +16,7 @@ import {
 import { apiClient } from "@/lib/api";
 import { createCheckoutSession, type CheckoutTier } from "@/lib/billing";
 import { analytics, EVENTS } from "@/lib/analytics";
+import { PRICING, getCtaLabel } from "@/lib/pricing";
 import { CerniqMark, CerniqLockup } from "@/components/brand/CerniqLogo";
 
 const DEMO_VIDEO_URL = (
@@ -932,41 +933,35 @@ export default function LandingPage() {
                   </button>
                 </div>
 
-                {/* Monthly ALM Platform - $299/mo */}
+                {/* Pilot — Bible-mandated $2,500/mo */}
                 <div className="cerniq-panel cerniq-card-hover flex flex-col p-5 border-cyan-300/25 shadow-[0_20px_60px_rgba(34,211,238,0.12)]">
                   <span className="mb-3 w-fit rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] uppercase tracking-[0.26em] text-cyan-700">
                     {t("Recommended", "Recomendado")}
                   </span>
                   <p className="font-display text-xl text-slate-950">
-                    {t("Monthly ALM Platform", "Plataforma ALM Mensual")}
+                    {t(PRICING.PILOT.description, PRICING.PILOT.descriptionEs)}
                   </p>
                   <div className="mt-4">
                     <span className="font-display text-4xl text-slate-950">
-                      $299
+                      {PRICING.PILOT.label}
                     </span>
                     <span className="ml-1 text-sm text-slate-500">
-                      {t("/month", "/mes")}
+                      {t(PRICING.PILOT.cadence, PRICING.PILOT.cadenceEs)}
                     </span>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
                     {t(
-                      "Ongoing access to the upload, analysis, and report delivery workflow.",
-                      "Acceso continuo al flujo de carga, analisis y entrega de informes.",
+                      "Full platform access. 90-day pilot, cancel anytime.",
+                      "Acceso completo a la plataforma. Piloto de 90 dias, cancele en cualquier momento.",
                     )}
                   </p>
                   <div className="mt-5 flex-1 space-y-3">
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
-                      {t("Recurring reports", "Informes recurrentes")}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
-                      {t("Workspace access", "Acceso al espacio")}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
-                      {t("Bilingual PDF delivery", "Entrega bilingue PDF")}
-                    </div>
+                    {PRICING.PILOT.bullets.map((b) => (
+                      <div key={b.en} className="flex items-center gap-2 text-sm text-slate-700">
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
+                        {t(b.en, b.es)}
+                      </div>
+                    ))}
                   </div>
                   <button
                     onClick={() => handleCheckout("monthly")}
@@ -975,42 +970,36 @@ export default function LandingPage() {
                   >
                     {checkoutTier === "monthly"
                       ? t("Processing...", "Procesando...")
-                      : t("Subscribe — $299/mo", "Suscribirse — $299/mes")}
+                      : getCtaLabel("monthly", lang)}
                   </button>
                 </div>
 
-                {/* Annual ALM Platform - $2,400/yr */}
+                {/* Standard — Bible-mandated $3,500/mo annual contract */}
                 <div className="cerniq-panel cerniq-card-hover flex flex-col p-5">
                   <p className="font-display text-xl text-slate-950">
-                    {t("Annual ALM Platform", "Plataforma ALM Anual")}
+                    {t(PRICING.STANDARD.description, PRICING.STANDARD.descriptionEs)}
                   </p>
                   <div className="mt-4">
                     <span className="font-display text-4xl text-slate-950">
-                      $2,400
+                      {PRICING.STANDARD.label}
                     </span>
                     <span className="ml-1 text-sm text-slate-500">
-                      {t("/year", "/ano")}
+                      {t(PRICING.STANDARD.cadence, PRICING.STANDARD.cadenceEs)}
                     </span>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
                     {t(
-                      "Save $1,188 vs. monthly plan. Ideal for budget planning.",
-                      "Ahorre $1,188 vs. plan mensual. Ideal para planificacion presupuestaria.",
+                      "Annual commitment with priority support and unlimited users.",
+                      "Compromiso anual con soporte prioritario y usuarios ilimitados.",
                     )}
                   </p>
                   <div className="mt-5 flex-1 space-y-3">
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
-                      {t("4+ annual reports", "4+ informes anuales")}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
-                      {t("Predictable fixed price", "Precio fijo predecible")}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
-                      {t("Priority support", "Soporte prioritario")}
-                    </div>
+                    {PRICING.STANDARD.bullets.map((b) => (
+                      <div key={b.en} className="flex items-center gap-2 text-sm text-slate-700">
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
+                        {t(b.en, b.es)}
+                      </div>
+                    ))}
                   </div>
                   <button
                     onClick={() => handleCheckout("annual")}
@@ -1019,7 +1008,7 @@ export default function LandingPage() {
                   >
                     {checkoutTier === "annual"
                       ? t("Processing...", "Procesando...")
-                      : t("Buy Annual — $2,400", "Comprar anual — $2,400")}
+                      : getCtaLabel("annual", lang)}
                   </button>
                 </div>
               </div>

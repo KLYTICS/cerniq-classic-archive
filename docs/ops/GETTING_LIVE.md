@@ -145,20 +145,20 @@ Write down all three values. You will paste them into Railway.
   - Type: **One time**
 - Save. Copy the Price ID (starts with `price_`). This is `STRIPE_PRICE_ONE_TIME`.
 
-**Product 2: Monthly Platform**
-- Name: `CERNIQ Platform -- Monthly`
-- Description: `Unlimited ALM reports, real-time dashboard, monthly compliance alerts`
+**Product 2: Pilot Platform**
+- Name: `CERNIQ Platform -- Pilot`
+- Description: `Full ALM intelligence platform, 90-day pilot, cancel anytime`
 - Click **Add a price**:
-  - Amount: `$299.00`
+  - Amount: `$2,500.00`
   - Type: **Recurring**, Billing period: **Monthly**
 - Save. Copy the Price ID. This is `STRIPE_PRICE_MONTHLY`.
 
-**Product 3: Annual Package**
-- Name: `CERNIQ Annual Compliance Package`
-- Description: `4 quarterly ALM reports + monthly monitoring + board presentation`
+**Product 3: Standard Platform (Annual)**
+- Name: `CERNIQ Platform -- Standard`
+- Description: `Annual contract, unlimited users, priority support, HJM Monte Carlo engine`
 - Click **Add a price**:
-  - Amount: `$2,400.00`
-  - Type: **Recurring**, Billing period: **Yearly**
+  - Amount: `$3,500.00`
+  - Type: **Recurring**, Billing period: **Monthly**
 - Save. Copy the Price ID. This is `STRIPE_PRICE_ANNUAL`.
 
 **Product 4: Partner Access**
@@ -482,7 +482,7 @@ Open a browser and check these pages:
 | Page | URL | What to See |
 |------|-----|-------------|
 | Landing page | `https://cerniq.io` | Navy header, CERNIQ logo, "Risk Intelligence Platform" |
-| Pricing | `https://cerniq.io/pricing` | 4 tiers: $750, $299/mo, $2,400/yr, $499/mo |
+| Pricing | `https://cerniq.io/pricing` | 4 tiers: $750 setup, $2,500/mo pilot, $3,500/mo standard, $499/mo partner |
 | Login | `https://cerniq.io/login` | Email/password form, Google/GitHub buttons |
 | ALM Dashboard | `https://cerniq.io/alm` | ALM intelligence page (may require login) |
 | API Docs | `https://api.cerniq.io/api/v1/docs` | Swagger UI with CERNIQ branding |

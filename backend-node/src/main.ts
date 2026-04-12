@@ -50,6 +50,14 @@ async function bootstrap() {
     console.warn(
       'WARN: DATA_ENCRYPTION_KEY not set — PII encryption disabled.',
     );
+  if (isProd && !process.env.ANTHROPIC_API_KEY)
+    console.warn(
+      'WARN: ANTHROPIC_API_KEY not set — CERNIQ Analyst falls back to local data-only mode.',
+    );
+  if (isProd && !process.env.REDIS_URL)
+    console.warn(
+      'WARN: REDIS_URL not set — using in-memory rate limiting and cache.',
+    );
   for (const warning of getGoogleOAuthWarnings()) {
     console.warn(`WARN: ${warning}`);
   }

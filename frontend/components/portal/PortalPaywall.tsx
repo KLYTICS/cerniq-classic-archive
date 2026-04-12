@@ -36,10 +36,10 @@ const PLANS: Array<{
   {
     tier: 'monthly',
     eyebrow: 'Most teams choose this',
-    name: 'Monitoring Access',
-    price: '$299',
+    name: 'Pilot Access',
+    price: '$2,500',
     cadence: '/month',
-    summary: 'Recurring upload-to-report workflow, workspace access, and bilingual ALM delivery.',
+    summary: 'Full ALM platform access. 90-day pilot, cancel anytime.',
   },
   {
     tier: 'one_time',

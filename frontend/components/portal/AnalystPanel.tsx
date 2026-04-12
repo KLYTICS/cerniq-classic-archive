@@ -104,98 +104,98 @@ export default function AnalystPanel({
       abortRef.current = controller;
 
       try {
-        const res = await fetch(
-          getPublicApiUrl(`/api/analyst/${institutionId}/message`),
-          {
-            method: 'POST',
-            credentials: 'include',
-            headers,
-            body: JSON.stringify({ message: text.trim() }),
-            signal: controller.signal,
-          },
-        );
+        // Use SSE streaming endpoint for token-by-token delivery
+        const sseUrl = new URL(getPublicApiUrl(`/api/analyst/${institutionId}/stream`));
+        sseUrl.searchParams.set('message', text.trim());
+        if (token) sseUrl.searchParams.set('token', token);
 
-        if (res.status === 429) {
-          const body = await res.json().catch(() => ({}));
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: 'system',
-              content: body.message ?? t(
-                'Daily query limit reached. Resets at midnight PR time.',
-                'Limite diario alcanzado. Se restablece a medianoche hora de PR.',
-              ),
-            },
-          ]);
-          if (body.queriesUsed != null) {
-            setRateLimit({ used: body.queriesUsed, max: body.queriesMax ?? 20, remaining: 0 });
-          }
-          return;
-        }
+        const eventSource = new EventSource(sseUrl.toString());
+        let fullText = '';
+        const toolsUsed: string[] = [];
+        let rateLimited = false;
 
-        if (!res.ok) {
-          throw new Error(`API error: ${res.status}`);
-        }
+        await new Promise<void>((resolve, reject) => {
+          controller.signal.addEventListener('abort', () => {
+            eventSource.close();
+            resolve();
+          });
 
-        // The analyst endpoint returns JSON (non-streaming for now — tool dispatch or system prompt)
-        const data = await res.json();
+          eventSource.onmessage = (ev) => {
+            try {
+              const data = JSON.parse(ev.data);
 
-        if (data.type === 'tool_result') {
-          // Direct tool execution result
-          const toolName = data.name;
-          const toolData = data.data;
-          setActiveTools([toolName]);
+              switch (data.type) {
+                case 'token':
+                  fullText += data.text ?? '';
+                  setMessages((prev) => {
+                    const last = prev[prev.length - 1];
+                    if (last?.role === 'assistant' && last === prev[prev.length - 1]) {
+                      return [...prev.slice(0, -1), { ...last, content: fullText, toolsUsed: [...toolsUsed] }];
+                    }
+                    return [...prev, { role: 'assistant', content: fullText, toolsUsed: [...toolsUsed] }];
+                  });
+                  break;
 
-          // Format the tool result as a readable response
-          let content = '';
-          if (toolName === 'get_ratios' && Array.isArray(toolData)) {
-            content = toolData.map((r: any) =>
-              `**${r.nameEs}**: ${r.value !== null ? `${r.value}${r.unit}` : '—'} (${r.status}) ${r.gap !== null && r.status === 'INCUMPLE' ? `[gap: ${Math.abs(r.gap).toFixed(2)}${r.unit}]` : ''}`
-            ).join('\n');
-          } else if (toolName === 'get_nim_sensitivity' && toolData.scenarios) {
-            content = `**Base NII**: ${toolData.baseNII}M | **Risk**: ${toolData.riskRating}\n\n` +
-              toolData.scenarios.map((s: any) =>
-                `${s.shiftBps >= 0 ? '+' : ''}${s.shiftBps}bps: $${s.niiChange?.toFixed(2) ?? '?'}M (${s.niiChangePct?.toFixed(1) ?? '?'}%)`
-              ).join('\n');
-            if (toolData.bpValue) {
-              content += `\n\n**Value per bp**: $${toolData.bpValue.toFixed(0)}`;
+                case 'tool_use':
+                  toolsUsed.push(data.name);
+                  setActiveTools([...toolsUsed]);
+                  break;
+
+                case 'done':
+                  if (data.queriesUsed != null) {
+                    setRateLimit({ used: data.queriesUsed, max: data.queriesMax ?? 20, remaining: (data.queriesMax ?? 20) - data.queriesUsed });
+                  }
+                  eventSource.close();
+                  resolve();
+                  break;
+
+                case 'rate_limited':
+                  rateLimited = true;
+                  setMessages((prev) => [
+                    ...prev,
+                    { role: 'system', content: data.message ?? t('Daily limit reached.', 'Limite diario alcanzado.') },
+                  ]);
+                  if (data.queriesUsed != null) {
+                    setRateLimit({ used: data.queriesUsed, max: data.queriesMax ?? 20, remaining: 0 });
+                  }
+                  eventSource.close();
+                  resolve();
+                  break;
+
+                case 'error':
+                  eventSource.close();
+                  reject(new Error(data.message ?? 'Stream error'));
+                  break;
+              }
+            } catch {
+              // Malformed SSE data — ignore
             }
-          } else if (toolName === 'get_peer_benchmarks' && toolData.benchmarks) {
-            content = `**${toolData.source}**\n\n` +
-              toolData.benchmarks.map((b: any) =>
-                `${b.indicator}: ${b.sectorAverage}${b.unit}`
-              ).join('\n');
-          } else if (toolName === 'get_regulatory_thresholds' && toolData.thresholds) {
-            content = `**${toolData.source}**\n\n` +
-              toolData.thresholds.map((t: any) =>
-                `${t.indicator}: min ${t.minimum}${t.unit} — *${t.regulatoryReference}*`
-              ).join('\n');
-          } else {
-            content = '```json\n' + JSON.stringify(toolData, null, 2) + '\n```';
-          }
+          };
 
-          setMessages((prev) => [
-            ...prev,
-            { role: 'assistant', content, toolsUsed: [toolName] },
-          ]);
-        } else if (data.type === 'system_prompt') {
-          // System prompt preview — turn it into a summary
+          eventSource.onerror = () => {
+            eventSource.close();
+            // If we got no text and no rate limit, fall back to JSON endpoint
+            if (!fullText && !rateLimited) {
+              reject(new Error('SSE connection failed'));
+            } else {
+              resolve();
+            }
+          };
+        });
+
+        // If SSE sent no text (empty response), ensure we have at least a placeholder
+        if (!fullText && !rateLimited) {
           setMessages((prev) => [
             ...prev,
             {
               role: 'assistant',
               content: t(
-                'I have your institution data loaded. Ask me anything about your ALM position, COSSEC compliance, or rate risk.',
-                'Tengo los datos de su institucion cargados. Pregunteme sobre su posicion ALM, cumplimiento COSSEC, o riesgo de tasa.',
+                'I have your institution data loaded. Ask me about rates, compliance, or risk.',
+                'Tengo los datos de su institucion. Pregunteme sobre tasas, cumplimiento, o riesgo.',
               ),
             },
           ]);
         }
-
-        // Update rate limit
-        setRateLimit((prev) =>
-          prev ? { ...prev, used: prev.used + 1, remaining: Math.max(0, prev.remaining - 1) } : prev,
-        );
       } catch (err: any) {
         if (err.name === 'AbortError') return;
         setMessages((prev) => [

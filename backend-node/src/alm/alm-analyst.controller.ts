@@ -4,14 +4,18 @@ import {
   Get,
   Param,
   Body,
+  Query,
   UseGuards,
   Logger,
   HttpCode,
   HttpStatus,
   HttpException,
+  Sse,
 } from '@nestjs/common';
+import { Observable } from 'rxjs';
 import { AlmAnalystService } from './alm-analyst.service';
 import { AuthGuard } from '../auth/auth.guard';
+import { createStructuredSSEStream } from '../common/streaming/sse.util';
 
 @Controller('api/analyst')
 @UseGuards(AuthGuard)
@@ -59,6 +63,31 @@ export class AlmAnalystController {
     // Otherwise build the system prompt (useful for debug/preview)
     const systemPrompt = await this.analyst.buildSystemPrompt(institutionId);
     return { type: 'system_prompt', prompt: systemPrompt };
+  }
+
+  /**
+   * SSE /api/analyst/:institutionId/stream?message=...
+   *
+   * Token-by-token streaming via Server-Sent Events.
+   * The frontend connects with EventSource and receives structured events:
+   *   {type:'token', text:'...'} — partial text
+   *   {type:'tool_use', name:'get_ratios'} — Claude invoked a tool
+   *   {type:'done', queriesUsed:N, queriesMax:20} — stream complete
+   *   {type:'error', message:'...'} — recoverable error
+   *   {type:'rate_limited', message:'...', queriesUsed:20, queriesMax:20}
+   */
+  @Sse(':institutionId/stream')
+  @UseGuards(AuthGuard)
+  streamAnalyst(
+    @Param('institutionId') institutionId: string,
+    @Query('message') message: string,
+  ): Observable<MessageEvent> {
+    this.logger.log(
+      `Analyst SSE stream for ${institutionId}: "${message?.slice(0, 80)}..."`,
+    );
+    return createStructuredSSEStream(
+      this.analyst.processMessage(institutionId, message ?? ''),
+    );
   }
 
   @Get(':institutionId/rate-limit')

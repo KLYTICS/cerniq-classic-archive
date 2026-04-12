@@ -39,14 +39,14 @@ const TIER_DETAILS: Record<string, { name: string; price: string; features: stri
     features: ['One ALM report (ES + EN)', 'Board-ready PDF', 'Share link'],
   },
   monthly: {
-    name: 'Monthly Monitoring',
-    price: '$299/mo',
-    features: ['Unlimited reports', 'Quarterly trend charts', 'Email alerts', 'Share links'],
+    name: 'Pilot (90-day)',
+    price: '$2,500/mo',
+    features: ['Full ALM platform', 'AI-powered Analyst', 'Cancel anytime', 'Bilingual reports'],
   },
   annual: {
-    name: 'Annual Package',
-    price: '$2,400/yr',
-    features: ['Everything in Monthly', 'Board presentation template', '2 months free'],
+    name: 'Standard (Annual)',
+    price: '$3,500/mo',
+    features: ['Everything in Pilot', 'Unlimited users', 'Priority support', 'HJM Monte Carlo engine'],
   },
   partner: {
     name: 'Partner / Multi-Client',
@@ -179,7 +179,7 @@ export default function PortalBilling() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <p className="text-center text-[11px] text-white/50">
-                Starts at $299/mo — cancel any time
+                Starts at $2,500/mo — cancel any time
               </p>
             </div>
           </div>
