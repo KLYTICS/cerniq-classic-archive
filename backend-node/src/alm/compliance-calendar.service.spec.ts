@@ -314,13 +314,13 @@ describe('ComplianceCalendarService', () => {
       const origNow = Date.now;
       Date.now = () => mockNow.getTime();
       const OrigDate = global.Date;
-      // @ts-expect-error test-only Date shim for deterministic time travel
+      // @ts-expect-error test-only Date shim
       global.Date = class extends realDateCtor {
         constructor(...args: any[]) {
           if (args.length === 0) {
             super(mockNow.getTime());
           } else {
-            // @ts-expect-error forwarding constructor args to built-in Date
+            // @ts-expect-error forwarding Date constructor args in test shim
             super(...args);
           }
         }

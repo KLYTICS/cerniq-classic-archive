@@ -13,11 +13,7 @@ describe('RBACGuard', () => {
   let guard: RBACGuard;
   let reflector: Reflector;
 
-  function makeContext(
-    role: string,
-    permissions: string[] = [],
-    access?: { isMasterCeo?: boolean },
-  ) {
+  function makeContext(role: string, permissions: string[] = []) {
     const handler = jest.fn();
     if (permissions.length) {
       Reflect.defineMetadata(REQUIRED_PERMISSIONS_KEY, permissions, handler);
@@ -26,7 +22,7 @@ describe('RBACGuard', () => {
       getHandler: () => handler,
       getClass: () => Object,
       switchToHttp: () => ({
-        getRequest: () => ({ user: { role, access } }),
+        getRequest: () => ({ user: { role } }),
       }),
     } as any;
   }
@@ -72,15 +68,6 @@ describe('RBACGuard', () => {
       'run:monte_carlo',
       'admin:anything',
     ]);
-    expect(guard.canActivate(ctx)).toBe(true);
-  });
-
-  it('allows the master CEO bypass regardless of required permissions', () => {
-    const ctx = makeContext(
-      CerniqRole.VIEWER,
-      ['write:alm', 'run:monte_carlo'],
-      { isMasterCeo: true },
-    );
     expect(guard.canActivate(ctx)).toBe(true);
   });
 

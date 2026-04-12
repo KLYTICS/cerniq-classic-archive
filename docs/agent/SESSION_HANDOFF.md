@@ -7,10 +7,10 @@ Preserve the current enterprise-hardening worktree, keep local quality gates gre
 ## Current State
 
 - Date: 2026-04-08
-- Workspace: `/Users/money/Desktop/Cerniq`
-- Active branch: `codex/full-green-rescue-2026-04-08`
-- Base HEAD at pickup: `7d2c55731fe54d7944316050fc27bfa435eeb48f`
-- Strategy: preserve the dirty worktree and harden in place
+- Workspace: `/Users/money/Desktop/Cerniq-export-local-green`
+- Active branch: `codex/export-local-green`
+- Base HEAD at pickup: `38078b9bbe6c1a55228986efe8c55f28d6459c91`
+- Strategy: clean integration worktree for export/report hardening plus full local-green validation
 
 Current validated state on this branch:
 
@@ -19,21 +19,21 @@ Current validated state on this branch:
 - Backend non-mutating ESLint: pass
 - Backend build: pass
 - Backend E2E/security: pass (`4` suites, `64` tests)
-- Backend tests: pass (`453` suites, `5705` tests)
+- Backend tests: pass (`445` suites, `5630` tests)
 - Frontend lint: pass
 - Frontend build: pass
-- Frontend tests: pass (`67` files, `543` tests)
-- Frontend default Playwright: pass (`51` passed, `2` preview-only skips)
+- Frontend tests: pass (`57` files, `475` tests)
+- Frontend default Playwright: pass (`51` passed, `2` preview-only skips) using webpack dev override in this symlinked worktree
 - Frontend production-critical Playwright: pass (`5` tests against `cerniq.io`)
 - Outbound pytest: pass (`82` tests)
-- Public production gate: pass (`13/13` checks)
+- Public production gate: pass (`12/12` checks)
 - Public production smoke: pass (`31` checks, `0` failures, `4` intentional production-safe skips)
 
 ## Gaps
 
-- GitHub Actions is still blocked from reaching green because recent runs on PR `#24` are not starting due to repository/account Actions billing or spending-limit issues.
+- GitHub Actions is still blocked from reaching green because recent runs are not starting due to repository/account Actions billing or spending-limit issues.
 - Full authenticated production smoke is intentionally not part of the default live gate; it requires explicit opt-in and safe credentials.
-- The remaining non-green state is operational, not code-related; the branch itself is locally validated and pushed.
+- Portal iframe signed-URL rendering was left outside this export-hardening branch and remains a follow-up verification item.
 
 ## Affected Areas
 
@@ -44,7 +44,7 @@ Current validated state on this branch:
 
 ## Current Gate Status
 
-Validated locally on 2026-04-08 using:
+Validated locally on 2026-03-31 using:
 
 - `docs/ops/REPO_GREEN_CHECKLIST.md`
 
@@ -52,21 +52,21 @@ Observed results:
 
 - Backend non-mutating ESLint: pass
 - Backend E2E/security: `4` suites passed, `64` tests passed
-- Backend tests: `453` suites passed, `5705` tests passed
-- Frontend tests: `67` files passed, `543` tests passed
-- Frontend default Playwright: `51` passed, `2` skipped by design
+- Backend tests: `367` suites passed, `2643` tests passed
+- Frontend tests: `47` files passed, `257` tests passed
+- Frontend default Playwright: `55` passed, `2` skipped by design
 - Frontend production-critical Playwright: `5` tests passed
 - Outbound pytest: `82` tests passed
-- Public production gate: `13/13` checks passed
+- Public production gate: `12/12` checks passed
 - Public production smoke: `31` passed, `0` failed, `4` skipped by design
 
 Additional validation:
 
-- `npm run test -- --detectOpenHandles --runInBand` completed successfully with `453/453` suites passed
+- `npm run test -- --detectOpenHandles --runInBand` completed successfully with `367/367` suites passed
 - `npm run verify:backend` completed successfully from the repo root
 - `npm run verify:frontend` completed successfully from the repo root
 - `npm run smoke:production` completed successfully from the repo root
-- `cd frontend && npx playwright test --reporter=github` completed successfully with `51` passed and `2` preview-only skips
+- `cd frontend && REDIS_URL=redis://localhost:6380 JWT_SECRET=... DATABASE_URL=postgresql://test:test@localhost:5433/cerniq_test NEXT_PUBLIC_NODE_API_URL=http://localhost:43100 npx playwright test --reporter=github` completed successfully with `55` passed and `2` preview-only skips
 - `bash scripts/health-check.sh https://api.cerniq.io https://cerniq.io` completed successfully
 - `bash scripts/smoke-test.sh https://api.cerniq.io` completed successfully in read-only production mode
 - `cd frontend && npm run test:e2e:production` completed successfully against live production
@@ -127,7 +127,7 @@ Additional validation:
 
 ## Remote GitHub Status
 
-- Branch/PR context: `codex/full-green-rescue-2026-04-08`
+- Branch/PR context: `codex/enterprise-green-recovery`, PR `#24`
 - As of 2026-03-31, the most recent branch runs are still the 2026-03-30 push-triggered failures across:
   - `CERNIQ CI/CD`
   - `CI Quick Check`
@@ -195,8 +195,7 @@ npm run test:e2e:production
 cd ..
 bash scripts/health-check.sh https://api.cerniq.io https://cerniq.io
 bash scripts/smoke-test.sh https://api.cerniq.io
-cd frontend && npx playwright test --reporter=github
-gh run list --branch codex/full-green-rescue-2026-04-08 --limit 10
+gh run list --branch codex/enterprise-green-recovery --limit 10
 # After billing is restored, rerun the newest blocked runs shown above
 ```
 
