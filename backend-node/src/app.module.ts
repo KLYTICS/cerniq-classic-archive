@@ -47,6 +47,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { CloseModule } from './close/close.module';
 import { ModelRegistryModule } from './model-registry/model-registry.module';
+import { GovernanceModule } from './governance/governance.module';
 import { AdminModule } from './admin/admin.module';
 import { ExitMetricsService } from './admin/exit-metrics.service';
 
@@ -135,6 +136,8 @@ import { ExitMetricsService } from './admin/exit-metrics.service';
     CloseModule,
     // FAANG Audit P1: Formal model governance registry
     ModelRegistryModule,
+    // FAANG Audit P1: Governed scenarios + benchmarks
+    GovernanceModule,
   ],
   controllers: [AppController],
   providers: [

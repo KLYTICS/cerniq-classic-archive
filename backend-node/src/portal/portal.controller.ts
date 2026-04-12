@@ -1818,10 +1818,10 @@ export class PortalController {
 
   // ── Local PDF download (fallback when R2 is not configured) ──
 
-  @Get('reports/download/:key(*)')
+  @Get('reports/download/:key')
   @Roles('OWNER', 'ANALYST', 'VIEWER')
   @ApiOperation({ summary: 'Download a report PDF from local buffer storage' })
-  @ApiParam({ name: 'key', description: 'Report storage key' })
+  @ApiParam({ name: 'key', description: 'Report storage key (URL-encoded)' })
   async downloadLocalReport(
     @Req() req: any,
     @Res() res: any,
@@ -1830,7 +1830,7 @@ export class PortalController {
     const userId = req.user.userId;
     await this.requirePaidPortalAccess(userId);
 
-    // Verify user owns a job that references this key
+    // Key arrives URL-encoded from getSignedUrl (e.g. "reports%2Fjob_1%2Freport_es.pdf")
     const decodedKey = decodeURIComponent(key);
     const jobIdMatch = decodedKey.match(/^reports\/([^/]+)\//);
     if (!jobIdMatch) throw new NotFoundException('Invalid report key');

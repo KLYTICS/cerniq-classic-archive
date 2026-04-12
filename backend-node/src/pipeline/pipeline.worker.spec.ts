@@ -17,7 +17,14 @@ describe('PipelineWorker', () => {
     type: 'cooperativa',
     currency: 'USD',
     primaryRegulator: 'COSSEC',
-    balanceSheetItems: [],
+    balanceSheetItems: [
+      { id: 'bs_1', category: 'asset', subcategory: 'loans', name: 'Commercial Loans', balance: 80000000, rate: 0.055, duration: 4.2, rateType: 'fixed' },
+      { id: 'bs_2', category: 'asset', subcategory: 'cash', name: 'Cash & Equivalents', balance: 25000000, rate: 0.015, duration: 0.1, rateType: 'variable' },
+      { id: 'bs_3', category: 'asset', subcategory: 'securities', name: 'Gov Securities', balance: 45000000, rate: 0.035, duration: 3.5, rateType: 'fixed' },
+      { id: 'bs_4', category: 'liability', subcategory: 'deposits', name: 'Member Deposits', balance: 120000000, rate: 0.02, duration: 1.5, rateType: 'variable' },
+      { id: 'bs_5', category: 'liability', subcategory: 'borrowings', name: 'FHLB Advances', balance: 15000000, rate: 0.04, duration: 2.0, rateType: 'fixed' },
+      { id: 'bs_6', category: 'equity', subcategory: 'equity', name: 'Member Equity', balance: 15000000, rate: 0, duration: 0, rateType: 'fixed' },
+    ],
     interestRateScenarios: [],
     liquidityPositions: [],
   };

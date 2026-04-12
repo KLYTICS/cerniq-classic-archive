@@ -404,113 +404,58 @@ export class AlmEnterpriseService {
    * Convert DB balance sheet items into the stateless BalanceSheetDto
    * format expected by the existing AlmService calculation engine.
    */
+  /**
+   * Build a BalanceSheetDto from pre-fetched items (pure, no DB).
+   * Used by getALMSummary's pinned transaction to avoid redundant reads.
+   */
+  private buildBalanceSheetDtoFromItems(items: any[]): BalanceSheetDto {
+    if (items.length === 0) {
+      return {
+        assets: [{ name: 'No assets', amount: 0, rate: 0, maturityYears: 0, isFloating: false }],
+        liabilities: [{ name: 'No liabilities', amount: 0, rate: 0, maturityYears: 0, isFloating: false }],
+        equity: 0,
+      };
+    }
+
+    const toInstrument = (item: any): InstrumentDto => {
+      const balance = asNumber(item.balance);
+      const rate = asNumber(item.rate);
+      const duration = asNumber(item.duration);
+      const maturityYears = item.maturityDate
+        ? Math.max(0, (item.maturityDate.getTime() - Date.now()) / (365.25 * 24 * 3600 * 1000))
+        : duration;
+      return {
+        name: item.name,
+        amount: balance * 1_000_000,
+        rate,
+        maturityYears: round(maturityYears, 2),
+        isFloating: item.rateType === 'variable',
+        repricingFrequencyMonths:
+          item.rateType === 'variable' && item.repriceDate
+            ? Math.max(1, round((item.repriceDate.getTime() - Date.now()) / (30 * 24 * 3600 * 1000), 0))
+            : item.rateType === 'variable' ? 3 : undefined,
+      };
+    };
+
+    const assets = items.filter((i: any) => i.category === 'asset').map(toInstrument);
+    const liabilities = items.filter((i: any) => i.category === 'liability').map(toInstrument);
+    const totalAssets = assets.reduce((s: any, a: any) => s + a.amount, 0);
+    const totalLiabilities = liabilities.reduce((s: any, l: any) => s + l.amount, 0);
+
+    return {
+      assets: assets.length > 0 ? assets : [{ name: 'No assets', amount: 0, rate: 0, maturityYears: 0, isFloating: false }],
+      liabilities: liabilities.length > 0 ? liabilities : [{ name: 'No liabilities', amount: 0, rate: 0, maturityYears: 0, isFloating: false }],
+      equity: totalAssets - totalLiabilities,
+    };
+  }
+
   private async buildBalanceSheetDto(
     institutionId: string,
   ): Promise<BalanceSheetDto> {
     const items = await this.prisma.balanceSheetItem.findMany({
       where: { institutionId },
     });
-
-    if (items.length === 0) {
-      // Return empty-but-valid balance sheet
-      return {
-        assets: [
-          {
-            name: 'No assets',
-            amount: 0,
-            rate: 0,
-            maturityYears: 0,
-            isFloating: false,
-          },
-        ],
-        liabilities: [
-          {
-            name: 'No liabilities',
-            amount: 0,
-            rate: 0,
-            maturityYears: 0,
-            isFloating: false,
-          },
-        ],
-        equity: 0,
-      };
-    }
-
-    const toInstrument = (item: (typeof items)[0]): InstrumentDto => {
-      const balance = asNumber(item.balance);
-      const rate = asNumber(item.rate);
-      const duration = asNumber(item.duration);
-      const maturityYears = item.maturityDate
-        ? Math.max(
-            0,
-            (item.maturityDate.getTime() - Date.now()) /
-              (365.25 * 24 * 3600 * 1000),
-          )
-        : duration; // use duration as proxy for maturity if no date
-
-      return {
-        name: item.name,
-        amount: balance * 1_000_000, // balance is in millions, AlmService expects dollars
-        rate,
-        maturityYears: round(maturityYears, 2),
-        isFloating: item.rateType === 'variable',
-        repricingFrequencyMonths:
-          item.rateType === 'variable' && item.repriceDate
-            ? Math.max(
-                1,
-                round(
-                  (item.repriceDate.getTime() - Date.now()) /
-                    (30 * 24 * 3600 * 1000),
-                  0,
-                ),
-              )
-            : item.rateType === 'variable'
-              ? 3
-              : undefined, // default quarterly for variable
-      };
-    };
-
-    const assets = items
-      .filter((i: any) => i.category === 'asset')
-      .map(toInstrument);
-    const liabilities = items
-      .filter((i: any) => i.category === 'liability')
-      .map(toInstrument);
-
-    const totalAssets = assets.reduce((s: any, a: any) => s + a.amount, 0);
-    const totalLiabilities = liabilities.reduce(
-      (s: any, l: any) => s + l.amount,
-      0,
-    );
-    const equity = totalAssets - totalLiabilities;
-
-    return {
-      assets:
-        assets.length > 0
-          ? assets
-          : [
-              {
-                name: 'No assets',
-                amount: 0,
-                rate: 0,
-                maturityYears: 0,
-                isFloating: false,
-              },
-            ],
-      liabilities:
-        liabilities.length > 0
-          ? liabilities
-          : [
-              {
-                name: 'No liabilities',
-                amount: 0,
-                rate: 0,
-                maturityYears: 0,
-                isFloating: false,
-              },
-            ],
-      equity,
-    };
+    return this.buildBalanceSheetDtoFromItems(items);
   }
 
   async getBalanceSheetSnapshot(
@@ -1773,31 +1718,166 @@ export class AlmEnterpriseService {
     };
   }
 
+  /**
+   * Pure duration gap computation from pre-fetched items (no DB calls).
+   */
+  private calculateDurationGapFromItems(
+    items: any[],
+    bs: BalanceSheetDto,
+  ): DurationGapSummary {
+    if (items.length > 0) {
+      const portfolio = this.durationService.calculatePortfolioMetrics(items);
+      const gap = portfolio.leverageAdjustedDurationGap;
+      const riskProfile: 'asset-sensitive' | 'liability-sensitive' | 'neutral' =
+        Math.abs(gap) < 0.5 ? 'neutral' : gap > 0 ? 'asset-sensitive' : 'liability-sensitive';
+      return {
+        assetDuration: round(portfolio.assetDuration, 2),
+        liabilityDuration: round(portfolio.liabilityDuration, 2),
+        durationGap: round(gap, 2),
+        riskProfile,
+        assetConvexity: round(portfolio.assetConvexity, 4),
+        liabilityConvexity: round(portfolio.liabilityConvexity, 4),
+        leverageAdjustedDurationGap: round(portfolio.leverageAdjustedDurationGap, 4),
+      };
+    }
+
+    // Fallback to AlmService when no raw items
+    const result = this.almService.durationGapAnalysis(bs);
+    const gap = result.durationGap;
+    return {
+      assetDuration: round(result.assetDuration, 2),
+      liabilityDuration: round(result.liabilityDuration, 2),
+      durationGap: round(gap, 2),
+      riskProfile: Math.abs(gap) < 0.5 ? 'neutral' : gap > 0 ? 'asset-sensitive' : 'liability-sensitive',
+    };
+  }
+
+  /**
+   * Pure NII sensitivity from pre-built BalanceSheetDto (no DB calls).
+   */
+  private calculateNIISensitivityFromBs(
+    bs: BalanceSheetDto,
+    rateShocksBps?: number[],
+  ): NIISensitivityResult {
+    const niiResult = this.almService.niiSimulation(bs, rateShocksBps);
+    const eveResult = this.almService.eveAnalysis(bs, rateShocksBps);
+    const scenarios = niiResult.scenarios
+      .filter((s) => s.shockBps !== 0)
+      .map((s) => {
+        const eveScenario = eveResult.scenarios.find((e) => e.shockBps === s.shockBps);
+        return {
+          name: s.shockBps > 0 ? `+${s.shockBps}bps` : `${s.shockBps}bps`,
+          shiftBps: s.shockBps,
+          niImpact: round(s.change / 1_000_000, 2),
+          niImpactPct: round(s.changePct * 100, 2),
+          mveImpact: eveScenario ? round(eveScenario.change / 1_000_000, 2) : 0,
+          mveImpactPct: eveScenario ? round(eveScenario.changePct * 100, 2) : 0,
+        };
+      });
+    const worstPct = Math.max(...scenarios.map((s) => Math.abs(s.niImpactPct)));
+    let riskRating: 'low' | 'moderate' | 'high' | 'critical';
+    if (worstPct < 5) riskRating = 'low';
+    else if (worstPct < 10) riskRating = 'moderate';
+    else if (worstPct < 20) riskRating = 'high';
+    else riskRating = 'critical';
+    return { scenarios, baseNII: round(niiResult.baseNII / 1_000_000, 2), riskRating };
+  }
+
+  /**
+   * Pure LCR computation from a pre-fetched liquidity position (no DB calls).
+   */
+  private calculateLCRFromPosition(
+    latestPosition: any | null,
+    bs: BalanceSheetDto,
+  ): LCRSummary {
+    if (latestPosition) {
+      const hqlaLevel1 = asNumber(latestPosition.hqlaLevel1);
+      const hqlaLevel2 = asNumber(latestPosition.hqlaLevel2);
+      const cashOutflows = asNumber(latestPosition.cashOutflows);
+      const cashInflows = asNumber(latestPosition.cashInflows);
+      const lcrValue = asNumber(latestPosition.lcr);
+      const hqla = hqlaLevel1 + hqlaLevel2;
+      const netOutflows = cashOutflows - cashInflows;
+      return {
+        lcr: round(lcrValue, 2),
+        hqla: round(hqla, 2),
+        netOutflows: round(netOutflows, 2),
+        status: lcrValue >= 100 ? 'compliant' : lcrValue >= 90 ? 'warning' : 'breach',
+        buffer: round(lcrValue - 100, 2),
+      };
+    }
+
+    // Fall back to deriving from balance sheet
+    const lcrResult = this.almService.fullAnalysis(bs).lcr;
+    if (!lcrResult) {
+      return {
+        lcr: null,
+        hqla: null,
+        netOutflows: null,
+        status: 'data_unavailable',
+        buffer: null,
+        gaps: [
+          dataGap('liquidity.lcr', 'NO_LIQUIDITY_POSITION', {
+            severity: 'CRITICAL',
+            action: 'Upload a liquidity_positions row for this institution, or load enough balance sheet detail (HQLA + cash flows) for the system to derive LCR.',
+          }),
+        ],
+      } as any;
+    }
+
+    return {
+      lcr: round(lcrResult.lcr, 2),
+      hqla: round(lcrResult.hqlaTotal, 2),
+      netOutflows: round(lcrResult.totalNetOutflows, 2),
+      status: lcrResult.lcr >= 100 ? 'compliant' : lcrResult.lcr >= 90 ? 'warning' : 'breach',
+      buffer: round(lcrResult.lcr - 100, 2),
+    };
+  }
+
   async getALMSummary(
     institutionId: string,
     rateShocksBps?: number[],
   ): Promise<ALMSummaryResult> {
-    const institution = await this.getInstitution(institutionId);
-    const bs = await this.buildBalanceSheetDto(institutionId);
-    const fullAnalysis = this.almService.fullAnalysis(bs, rateShocksBps);
-
-    const durationGap = await this.calculateDurationGap(institutionId);
-    const niiSensitivity = await this.calculateNIISensitivity(
-      institutionId,
-      rateShocksBps,
+    // ─── Pinned Snapshot ───
+    // All data reads in a single RepeatableRead transaction so the report
+    // sees a consistent database state. Without this, a balance sheet update
+    // between reads could produce a report where duration gap was computed
+    // from different items than the NII sensitivity.
+    const snapshot = await this.prisma.$transaction(
+      async (tx: any) => {
+        const institution = await tx.institution.findUnique({
+          where: { id: institutionId },
+        });
+        const balanceSheetItems = await tx.balanceSheetItem.findMany({
+          where: { institutionId },
+        });
+        const latestLiquidityPosition = await tx.liquidityPosition.findFirst({
+          where: { institutionId },
+          orderBy: { date: 'desc' },
+        });
+        return { institution, balanceSheetItems, latestLiquidityPosition };
+      },
+      { isolationLevel: 'RepeatableRead' as any },
     );
-    const liquidity = await this.calculateLCR(institutionId);
+
+    if (!snapshot.institution) {
+      throw new NotFoundException(`Institution ${institutionId} not found`);
+    }
+
+    // ─── Pure computation on the pinned snapshot ───
+    const bs = this.buildBalanceSheetDtoFromItems(snapshot.balanceSheetItems);
+    const fullAnalysis = this.almService.fullAnalysis(bs, rateShocksBps);
+    const durationGap = this.calculateDurationGapFromItems(snapshot.balanceSheetItems, bs);
+    const niiSensitivity = this.calculateNIISensitivityFromBs(bs, rateShocksBps);
+    const liquidity = this.calculateLCRFromPosition(snapshot.latestLiquidityPosition, bs);
 
     // ─── Duration/Convexity Analytics (MP-QUANT-02) ───
     let durationConvexity: PortfolioDurationMetrics | null = null;
     let eveSensitivity: EVESensitivityPoint[] | null = null;
     try {
-      const items = await this.prisma.balanceSheetItem.findMany({
-        where: { institutionId },
-      });
-      if (items.length > 0) {
+      if (snapshot.balanceSheetItems.length > 0) {
         const analysis = this.durationService.fullDurationAnalysis(
-          items,
+          snapshot.balanceSheetItems,
           rateShocksBps || [-200, -100, 100, 200, 300],
         );
         durationConvexity = analysis.portfolio;
@@ -1810,6 +1890,8 @@ export class AlmEnterpriseService {
         error: (err as Error).message,
       });
     }
+
+    const institution = snapshot.institution;
 
     // ─── Risk Score (0-100) ───
     // Duration gap: 40% weight, NII sensitivity: 35%, LCR: 25%. If any

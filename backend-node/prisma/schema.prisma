@@ -2016,6 +2016,118 @@ model ModelValidationArtifact {
 }
 
 // ============================================================================
+// GOVERNED SCENARIO LIBRARY — FAANG Audit P1 item #2
+// Separates approved institutional scenarios from user-saved working scenarios.
+// ============================================================================
+
+enum GovernedEntityStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  SUPERSEDED
+  RETIRED
+}
+
+enum ScenarioScope {
+  INSTITUTION    // Specific to one institution
+  SECTOR         // Sector-wide (e.g. all PR cooperativas)
+  REGULATORY     // Mandated by regulator (COSSEC, NCUA, FRB)
+}
+
+model GovernedScenario {
+  id               String                @id @default(cuid())
+  /// Unique machine key, e.g. "stress.cossec-baseline-2026", "stress.hurricane-maria-replay"
+  scenarioKey      String                @unique @map("scenario_key")
+  displayName      String                @map("display_name")
+  description      String
+  version          String                @default("1.0.0")
+  scope            ScenarioScope
+  status           GovernedEntityStatus  @default(DRAFT)
+  /// Source of the scenario: "COSSEC_2026_EXAM_GUIDE", "FRB_CCAR_2025", "INTERNAL_RISK_COMMITTEE"
+  source           String
+  /// Who owns/maintains this scenario
+  ownerName        String                @map("owner_name")
+  /// JSON: the full parameter set (rateShockBps, depositRunoffPct, creditLossPct, etc.)
+  parameters       Json
+  /// What this scenario is approved for: "regulatory_filing", "board_report", "internal_analysis"
+  approvedUses     String[]              @default([]) @map("approved_uses")
+  /// JSON: provenance — when it was created, from what regulatory guidance, any modifications
+  provenance       Json?
+
+  approvedAt       DateTime?             @map("approved_at")
+  approvedBy       String?               @map("approved_by")
+  retiredAt        DateTime?             @map("retired_at")
+  retiredReason    String?               @map("retired_reason")
+
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  @@index([scope])
+  @@index([status])
+  @@index([scope, status])
+  @@map("governed_scenarios")
+}
+
+// ============================================================================
+// GOVERNED BENCHMARK DATASETS — FAANG Audit P1 item #3
+// Yield curves and benchmark packs with provenance, versioning, and refresh.
+// ============================================================================
+
+enum BenchmarkType {
+  YIELD_CURVE       // Treasury curve, SOFR curve, COSSEC reference curve
+  PEER_BENCHMARK    // Peer group statistics (NIM, LCR, CECL by asset tier)
+  REGULATORY_LIMIT  // Regulatory thresholds (COSSEC, NCUA)
+  MARKET_INDEX      // Market indices, spreads
+}
+
+enum RefreshPolicy {
+  MANUAL            // Updated only by explicit human action
+  DAILY             // Auto-refresh daily from source
+  WEEKLY            // Auto-refresh weekly
+  MONTHLY           // Auto-refresh monthly
+  QUARTERLY         // Auto-refresh quarterly
+  ON_PUBLICATION    // Refresh when source publishes new data
+}
+
+model GovernedBenchmark {
+  id               String                @id @default(cuid())
+  /// Unique machine key, e.g. "curve.treasury-par-2026-q1", "peer.pr-cooperativa-250m"
+  datasetKey       String                @unique @map("dataset_key")
+  displayName      String                @map("display_name")
+  description      String
+  benchmarkType    BenchmarkType         @map("benchmark_type")
+  version          String                @default("1.0.0")
+  status           GovernedEntityStatus  @default(DRAFT)
+  /// ISO date for the observation: "2026-03-31", "2026-Q1"
+  asOfDate         DateTime              @map("as_of_date")
+  /// Where this data comes from: "FED_H15", "COSSEC_EXAM_MANUAL", "FDIC_CALL_REPORTS"
+  source           String
+  ownerName        String                @map("owner_name")
+  refreshPolicy    RefreshPolicy         @map("refresh_policy")
+  /// JSON: the actual benchmark data (rate tenors, peer statistics, thresholds)
+  data             Json
+  /// JSON: provenance — source URL, extraction method, any transformations applied
+  provenance       Json?
+  /// What to do when the source is unavailable: "use_prior_version", "block_report", "warn"
+  fallbackPolicy   String?               @map("fallback_policy")
+  /// SHA-256 checksum of the data field for immutability verification
+  dataChecksum     String?               @map("data_checksum")
+
+  approvedAt       DateTime?             @map("approved_at")
+  approvedBy       String?               @map("approved_by")
+  retiredAt        DateTime?             @map("retired_at")
+
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  @@index([benchmarkType])
+  @@index([status])
+  @@index([benchmarkType, status])
+  @@index([asOfDate])
+  @@map("governed_benchmarks")
+}
+
+// ============================================================================
 // Close Cockpit — GL balance snapshots
 // ----------------------------------------------------------------------------
 // Org-scoped monthly balance snapshots uploaded via CSV or synced from an

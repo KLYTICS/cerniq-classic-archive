@@ -49,9 +49,9 @@ describe('ReportStorageService', () => {
       expect(mockSend).not.toHaveBeenCalled();
     });
 
-    it('getSignedUrl returns empty string', async () => {
+    it('getSignedUrl returns local API path when S3 not configured', async () => {
       const result = await service.getSignedUrl('reports/test.pdf');
-      expect(result).toBe('');
+      expect(result).toBe('/api/portal/reports/download/reports%2Ftest.pdf');
       expect(mockGetSignedUrl).not.toHaveBeenCalled();
     });
 
@@ -64,9 +64,9 @@ describe('ReportStorageService', () => {
       expect(result).toBe('reports/data.csv');
     });
 
-    it('getSignedUrl accepts custom expiry', async () => {
+    it('getSignedUrl accepts custom expiry (still returns local path)', async () => {
       const result = await service.getSignedUrl('reports/test.pdf', 3600);
-      expect(result).toBe('');
+      expect(result).toBe('/api/portal/reports/download/reports%2Ftest.pdf');
     });
   });
 

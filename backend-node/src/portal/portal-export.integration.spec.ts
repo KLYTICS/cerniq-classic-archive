@@ -34,6 +34,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { PortalDocumentExportsService } from './portal-document-exports.service';
 import { PortalAlmReportService } from './portal-alm-report.service';
 import { DemoSeatService } from './demo-seat.service';
+import { ReportStorageService } from '../pipeline/report-storage.service';
 
 describe('Portal export endpoints (HTTP integration)', () => {
   let app: INestApplication;
@@ -119,6 +120,15 @@ describe('Portal export endpoints (HTTP integration)', () => {
         { provide: PortalDocumentExportsService, useValue: portalExports },
         { provide: PortalAlmReportService, useValue: portalAlmReport },
         { provide: DemoSeatService, useValue: demoSeats },
+        {
+          provide: ReportStorageService,
+          useValue: {
+            isCloudConfigured: false,
+            upload: jest.fn().mockResolvedValue('test-key'),
+            getSignedUrl: jest.fn().mockResolvedValue('/api/portal/reports/download/test-key'),
+            getLocalBuffer: jest.fn().mockReturnValue(null),
+          },
+        },
       ],
     })
       .overrideGuard(AuthGuard)
