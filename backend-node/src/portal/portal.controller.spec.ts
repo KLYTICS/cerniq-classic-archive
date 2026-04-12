@@ -149,7 +149,7 @@ describe('PortalController', () => {
 
     reportStorage = {
       getLocalBuffer: jest.fn().mockReturnValue(null),
-      isCloudConfigured: false,
+      isCloudConfigured: jest.fn().mockReturnValue(false),
     };
 
     platformAccess = {

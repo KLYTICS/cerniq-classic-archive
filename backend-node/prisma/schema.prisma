@@ -253,6 +253,7 @@ model Institution {
   webhookSubscriptions  WebhookSubscription[]
   ssoConfiguration      SSOConfiguration?
   institutionAlerts     InstitutionAlert[]
+  camelCertifications   CamelCertification[]
 
   @@unique([workspaceId, seedKey], name: "workspace_seed_key")
   @@index([workspaceId])
@@ -1636,6 +1637,27 @@ model InstitutionAlert {
   @@map("institution_alerts")
 }
 
+// ===== CAMEL Certification =====
+
+model CamelCertification {
+  id              String   @id @default(cuid())
+  institutionId   String   @map("institution_id")
+  period          String   // e.g. "2026-Q1"
+  certifiedBy     String   @map("certified_by") // name of certifier
+  title           String   // role/title of certifier
+  htmlHash        String   @map("html_hash") // SHA-256 of the generated HTML at certification time
+  camelComposite  Decimal  @map("camel_composite") @db.Decimal(4, 2) // composite score (1.0-5.0)
+  language        String   @default("es") // language the report was generated in
+  certifiedAt     DateTime @map("certified_at") // when the certifier signed off
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, period], name: "institution_period_cert")
+  @@index([institutionId, certifiedAt(sort: Desc)])
+  @@map("camel_certifications")
+}
+
 // ===== Webhook Idempotency =====
 
 model ProcessedWebhookEvent {
@@ -1879,6 +1901,118 @@ enum CloseActivityKind {
   FLUX_REFRESHED
   GL_UPLOADED
   RECON_REVIEWED
+}
+
+// ============================================================================
+// MODEL REGISTRY — FAANG Audit P1: Formal model governance
+// Every production-facing model is discoverable, owned, versioned, approvable.
+// ============================================================================
+
+enum ModelStatus {
+  DRAFT           // Under development, not callable in production reports
+  CANDIDATE       // Submitted for validation review
+  APPROVED        // Validated and cleared for production use
+  DEPRECATED      // Superseded by a newer version, still callable but flagged
+  RETIRED         // Removed from production, not callable
+}
+
+enum ModelCategory {
+  ALM_CORE        // Duration, NII, EVE, LCR, NSFR, BPV
+  CREDIT_RISK     // CECL, KMV, PD/LGD, concentration, migration
+  LIQUIDITY       // Liquidity gap, buffer, survival, stress
+  INTEREST_RATE   // HJM, Hull-White, CIR, Vasicek, GARCH, SABR
+  STRESS_TEST     // Monte Carlo, regulatory stress, reverse stress
+  CAPITAL         // RBC2, CAR, economic capital, optimization
+  REGULATORY      // COSSEC, NCUA 5300, CAMEL, compliance
+  PRICING         // FTP, deposit/loan pricing, NIM attribution
+  RISK_METRICS    // VaR, CVaR, CFaR, EaR, tail risk
+  REPORTING       // Board report, ALCO dashboard, Excel export
+  PEER_ANALYTICS  // Peer benchmarking, EWS, sector analysis
+  PORTFOLIO       // Black-Litterman, HRP, MVO, LDI
+}
+
+enum ModelRiskTier {
+  TIER_1   // High-impact: directly drives regulatory filings or capital decisions
+  TIER_2   // Medium-impact: informs reports and dashboards shown to committees
+  TIER_3   // Low-impact: internal analytics, advisory, peer comparison
+}
+
+model ModelRegistryEntry {
+  id                   String          @id @default(cuid())
+  /// Unique machine key, e.g. "alm.duration-gap", "credit.cecl-warm", "rate.hjm-2f"
+  modelKey             String          @unique @map("model_key")
+  /// Human-readable name, e.g. "Duration Gap Analysis"
+  displayName          String          @map("display_name")
+  /// Human-readable description
+  description          String
+  /// Semantic version, e.g. "1.0.0", "1.1.0"
+  version              String          @default("1.0.0")
+  category             ModelCategory
+  riskTier             ModelRiskTier   @map("risk_tier")
+  status               ModelStatus     @default(DRAFT)
+
+  /// Who owns this model (userId or team name)
+  ownerId              String?         @map("owner_id")
+  ownerName            String          @map("owner_name")
+
+  /// The service file that implements this model (relative to src/)
+  serviceFile          String          @map("service_file")
+  /// The primary function name
+  entryFunction        String          @map("entry_function")
+
+  /// When the model was approved for production
+  approvedAt           DateTime?       @map("approved_at")
+  approvedBy           String?         @map("approved_by")
+  /// When the model was retired
+  retiredAt            DateTime?       @map("retired_at")
+  retiredBy            String?         @map("retired_by")
+  retiredReason        String?         @map("retired_reason")
+
+  /// JSON: calibration params, assumptions, methodology notes
+  calibrationMetadata  Json?           @map("calibration_metadata")
+  /// JSON: required input fields this model needs (for preflight integration)
+  requiredInputs       Json?           @map("required_inputs")
+  /// JSON: what this model outputs
+  outputSchema         Json?           @map("output_schema")
+  /// JSON: known limitations, caveats, regulatory references
+  limitations          Json?
+
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+
+  validationArtifacts  ModelValidationArtifact[]
+
+  @@index([category])
+  @@index([status])
+  @@index([riskTier])
+  @@index([category, status])
+  @@map("model_registry_entries")
+}
+
+model ModelValidationArtifact {
+  id                 String   @id @default(cuid())
+  modelRegistryId    String   @map("model_registry_id")
+  /// Type of artifact: "backtest", "benchmark", "peer_comparison", "golden_test", "methodology_doc"
+  artifactType       String   @map("artifact_type")
+  /// Human-readable label
+  label              String
+  /// Storage locator: file path, URL, or checksum reference
+  storageLocator     String   @map("storage_locator")
+  /// SHA-256 checksum for immutability verification
+  checksum           String?
+  /// Who produced this artifact
+  producedBy         String   @map("produced_by")
+  /// When it was produced
+  producedAt         DateTime @map("produced_at")
+  /// JSON: tolerance thresholds, pass/fail criteria, test parameters
+  validationMetadata Json?    @map("validation_metadata")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  model ModelRegistryEntry @relation(fields: [modelRegistryId], references: [id], onDelete: Cascade)
+
+  @@index([modelRegistryId])
+  @@index([artifactType])
+  @@map("model_validation_artifacts")
 }
 
 // ============================================================================

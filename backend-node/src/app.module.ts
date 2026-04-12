@@ -46,6 +46,7 @@ import { ComplianceModule } from './compliance/compliance.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { CloseModule } from './close/close.module';
+import { ModelRegistryModule } from './model-registry/model-registry.module';
 import { AdminModule } from './admin/admin.module';
 import { ExitMetricsService } from './admin/exit-metrics.service';
 
@@ -132,6 +133,8 @@ import { ExitMetricsService } from './admin/exit-metrics.service';
     AdminModule,
     // Month-end Close Cockpit (CFO → CPA workflow)
     CloseModule,
+    // FAANG Audit P1: Formal model governance registry
+    ModelRegistryModule,
   ],
   controllers: [AppController],
   providers: [

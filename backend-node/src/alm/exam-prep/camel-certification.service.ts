@@ -362,6 +362,7 @@ function narrativeEn(def: CossecRatioDefinition, value: number, badge: Complianc
 export interface CertificationResult {
   html: string;
   hash: string;
+  composite: number;
 }
 
 export interface CertifyInput {
@@ -442,27 +443,53 @@ export class CAMELCertificationService {
       hash,
     });
 
-    return { html, hash };
+    return { html, hash, composite: camelResult.composite };
   }
 
   /**
-   * Certify a report (store audit trail).
-   * Returns a certification ID.
+   * Certify a report: persist to CamelCertification table + audit trail.
+   * Upserts by (institutionId, period) — re-certifying the same period
+   * overwrites the previous certification.
    */
   async certify(
     institutionId: string,
     period: string,
     input: CertifyInput,
     userId?: string,
-  ): Promise<{ certificationId: string; hash: string; certifiedAt: string }> {
-    const { html, hash } = await this.generateCertification(
+  ): Promise<{ certificationId: string; hash: string; certifiedAt: string; composite: number }> {
+    const { hash, composite } = await this.generateCertification(
       institutionId,
       period,
       'es',
     );
 
-    const certificationId = crypto.randomUUID();
-    const certifiedAt = new Date().toISOString();
+    const certifiedAt = new Date();
+
+    // Persist certification record (upsert — one cert per period)
+    const record = await this.prisma.camelCertification.upsert({
+      where: {
+        institution_period_cert: {
+          institutionId,
+          period,
+        },
+      },
+      update: {
+        certifiedBy: input.certifiedBy,
+        title: input.title,
+        htmlHash: hash,
+        camelComposite: composite,
+        certifiedAt,
+      },
+      create: {
+        institutionId,
+        period,
+        certifiedBy: input.certifiedBy,
+        title: input.title,
+        htmlHash: hash,
+        camelComposite: composite,
+        certifiedAt,
+      },
+    });
 
     // Log certification event via audit service
     this.audit.log({
@@ -470,22 +497,60 @@ export class CAMELCertificationService {
       institutionId,
       action: 'CAMEL_CERTIFICATION',
       resource: 'camel_certification',
-      resourceId: certificationId,
+      resourceId: record.id,
       outcome: 'success',
       metadata: {
         period,
         certifiedBy: input.certifiedBy,
         title: input.title,
         hash,
-        certifiedAt,
+        composite,
+        certifiedAt: certifiedAt.toISOString(),
       },
     });
 
     this.logger.log(
-      `CAMEL certification ${certificationId} created for ${institutionId}, period=${period}, by=${input.certifiedBy}`,
+      `CAMEL certification ${record.id} created for ${institutionId}, period=${period}, composite=${composite}, by=${input.certifiedBy}`,
     );
 
-    return { certificationId, hash, certifiedAt };
+    return {
+      certificationId: record.id,
+      hash,
+      certifiedAt: certifiedAt.toISOString(),
+      composite,
+    };
+  }
+
+  /**
+   * List all certifications for an institution, most recent first.
+   * Used by COSSEC examiners to review certification history.
+   */
+  async listCertifications(
+    institutionId: string,
+    limit = 20,
+  ): Promise<Array<{
+    id: string;
+    period: string;
+    certifiedBy: string;
+    title: string;
+    htmlHash: string;
+    camelComposite: number;
+    certifiedAt: Date;
+  }>> {
+    const certs = await this.prisma.camelCertification.findMany({
+      where: { institutionId },
+      orderBy: { certifiedAt: 'desc' },
+      take: limit,
+    });
+    return certs.map((c: any) => ({
+      id: c.id,
+      period: c.period,
+      certifiedBy: c.certifiedBy,
+      title: c.title,
+      htmlHash: c.htmlHash,
+      camelComposite: Number(c.camelComposite),
+      certifiedAt: c.certifiedAt,
+    }));
   }
 
   // ─── HTML Builder ──────────────────────────────────────────────

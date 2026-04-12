@@ -122,6 +122,9 @@ describe('CAMELCertificationService', () => {
     auditLog: {
       create: jest.fn().mockResolvedValue({}),
     },
+    camelCertification: {
+      upsert: jest.fn().mockResolvedValue({ id: 'cert-mock-id' }),
+    },
   } as any;
 
   const mockCamelScorer = {
@@ -521,20 +524,41 @@ describe('CAMELCertificationService', () => {
 
   // ── Certify method ─────────────────────────────────────────────
 
-  it('should create certification record via audit', async () => {
+  it('should persist certification and log audit', async () => {
     const result = await service.certify(
       'inst-test',
       '2026-Q1',
       { certifiedBy: 'Juan Rodriguez', title: 'CEO' },
       'user-123',
     );
-    expect(result.certificationId).toBeTruthy();
+    expect(result.certificationId).toBe('cert-mock-id');
     expect(result.hash).toBeTruthy();
     expect(result.certifiedAt).toBeTruthy();
+    expect(result.composite).toBeGreaterThanOrEqual(1);
+    expect(result.composite).toBeLessThanOrEqual(5);
+    // Persisted via upsert
+    expect(mockPrisma.camelCertification.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          institution_period_cert: {
+            institutionId: 'inst-test',
+            period: '2026-Q1',
+          },
+        },
+        create: expect.objectContaining({
+          institutionId: 'inst-test',
+          period: '2026-Q1',
+          certifiedBy: 'Juan Rodriguez',
+          title: 'CEO',
+        }),
+      }),
+    );
+    // Audit logged
     expect(mockAudit.log).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'CAMEL_CERTIFICATION',
         resource: 'camel_certification',
+        resourceId: 'cert-mock-id',
         userId: 'user-123',
         institutionId: 'inst-test',
       }),

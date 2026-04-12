@@ -38,6 +38,25 @@ export class CAMELCertificationController {
     private readonly certificationService: CAMELCertificationService,
   ) {}
 
+  // ── Certification History ──────────────────────────────────────
+
+  @Get(':institutionId/certifications')
+  @Roles('OWNER', 'ANALYST')
+  @ApiOperation({
+    summary: 'List CAMEL certifications for an institution',
+    description: 'Returns certification history for COSSEC examiner review.',
+  })
+  @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
+  @ApiResponse({ status: 200, description: 'Certification history' })
+  async listCertifications(
+    @Param('institutionId') institutionId: string,
+    @Query('limit') limit?: string,
+  ) {
+    const take = Math.min(Math.max(Number(limit) || 20, 1), 100);
+    return this.certificationService.listCertifications(institutionId, take);
+  }
+
   // ── HTML Preview ───────────────────────────────────────────────
 
   @Get(':institutionId/certification/:period')
