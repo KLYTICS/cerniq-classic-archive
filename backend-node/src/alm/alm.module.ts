@@ -49,6 +49,8 @@ import { TreasuryRatesService } from './treasury-rates.service';
 // Phase VI services
 import { CAMELScorerService } from './exam-prep/camel-scorer.service';
 import { ExamPrepService } from './exam-prep/exam-prep.service';
+import { CAMELCertificationService } from './exam-prep/camel-certification.service';
+import { CAMELCertificationController } from './exam-prep/camel-certification.controller';
 import { BoardReportService } from './board-report.service';
 import { ChatAnalystService } from './chat-analyst.service';
 import { NCUA5300Service } from './ncua-5300.service';
@@ -123,7 +125,7 @@ import { AuthGuard } from '../auth/auth.guard';
     // can register the first wave of ALM actions on module init.
     ActionsModule,
   ],
-  controllers: [AlmController, AlmAdvisorController, AlmAdvisorV2Controller],
+  controllers: [AlmController, AlmAdvisorController, AlmAdvisorV2Controller, CAMELCertificationController],
   providers: [
     // Phase 3: AlmActionsBootstrap implements OnModuleInit and registers
     // institution.seed and alm.preflight as the first wave. Adding more
@@ -177,6 +179,7 @@ import { AuthGuard } from '../auth/auth.guard';
     // Phase VI
     CAMELScorerService,
     ExamPrepService,
+    CAMELCertificationService,
     BoardReportService,
     ChatAnalystService,
     NCUA5300Service,
@@ -279,6 +282,7 @@ import { AuthGuard } from '../auth/auth.guard';
     TreasuryRatesService,
     CAMELScorerService,
     ExamPrepService,
+    CAMELCertificationService,
     BoardReportService,
     ChatAnalystService,
     NCUA5300Service,
