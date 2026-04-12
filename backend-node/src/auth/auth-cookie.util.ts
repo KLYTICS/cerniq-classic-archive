@@ -13,6 +13,27 @@ function parseBoolean(raw: string | undefined, fallback: boolean): boolean {
   );
 }
 
+/**
+ * Returns true when the frontend origin and backend origin live on different
+ * hosts (e.g. cerniq.io vs api.cerniq.io). In that scenario cookies must use
+ * SameSite=none so the browser includes them on cross-origin requests.
+ */
+function isCrossDomain(): boolean {
+  try {
+    const frontendHost = new URL(resolveFrontendUrl()).hostname.toLowerCase();
+    const backendUrl = (process.env.BACKEND_URL || '').trim();
+    if (backendUrl) {
+      const backendHost = new URL(backendUrl).hostname.toLowerCase();
+      return frontendHost !== backendHost;
+    }
+    // No explicit BACKEND_URL — in production the frontend is typically on a
+    // different host than the API, so assume cross-domain.
+    return isProduction;
+  } catch {
+    return false;
+  }
+}
+
 function resolveCookieSameSite(): 'lax' | 'strict' | 'none' {
   const configured = (process.env.AUTH_COOKIE_SAMESITE || '')
     .trim()
@@ -24,6 +45,12 @@ function resolveCookieSameSite(): 'lax' | 'strict' | 'none' {
     configured === 'lax'
   ) {
     return configured;
+  }
+
+  // Cross-domain production setup (e.g. cerniq.io → api.cerniq.io) requires
+  // SameSite=none so the browser sends cookies on cross-origin requests.
+  if (isProduction && isCrossDomain()) {
+    return 'none';
   }
 
   return 'lax';
@@ -76,11 +103,19 @@ export function resolveFrontendUrl(): string {
 
 export function getAuthCookieOptions() {
   const cookieDomain = resolveCookieDomain();
+  const sameSite = resolveCookieSameSite();
+
+  // Browsers require Secure=true when SameSite=none. Force it on regardless
+  // of the AUTH_COOKIE_SECURE env var to prevent silent cookie rejection.
+  const secure =
+    sameSite === 'none'
+      ? true
+      : parseBoolean(process.env.AUTH_COOKIE_SECURE, isProduction);
 
   return {
     httpOnly: true,
-    secure: parseBoolean(process.env.AUTH_COOKIE_SECURE, isProduction),
-    sameSite: resolveCookieSameSite(),
+    secure,
+    sameSite,
     path: '/',
     ...(cookieDomain ? { domain: cookieDomain } : {}),
   };

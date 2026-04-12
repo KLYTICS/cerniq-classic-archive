@@ -8,16 +8,19 @@ import { EmailModule } from '../email/email.module';
 import { AlmModule } from '../alm/alm.module';
 import { PortalModule } from '../portal/portal.module';
 import { InstitutionIntelligenceService } from './institution-intelligence.service';
+import { FreeReportService } from './free-report.service';
+import { FreeReportController } from './free-report.controller';
 
 @Module({
   imports: [EmailModule, AlmModule, forwardRef(() => PortalModule)],
-  controllers: [LeadsController],
+  controllers: [LeadsController, FreeReportController],
   providers: [
     LeadsService,
     LeadQualificationService,
     LeadScoringService,
     OutreachExecutionService,
     InstitutionIntelligenceService,
+    FreeReportService,
   ],
   exports: [
     LeadsService,
@@ -25,6 +28,7 @@ import { InstitutionIntelligenceService } from './institution-intelligence.servi
     LeadScoringService,
     OutreachExecutionService,
     InstitutionIntelligenceService,
+    FreeReportService,
   ],
 })
 export class LeadsModule {}
