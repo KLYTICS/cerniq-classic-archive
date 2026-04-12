@@ -16,15 +16,29 @@
  * controller, audit pipeline) has to remember to call all of them and
  * merge gaps manually. Preflight makes it one call.
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { AlmEnterpriseService } from '../alm-enterprise.service';
 import { StressTestingService } from '../stress-testing/stress-testing.service';
+import { ModelRegistryService } from '../../model-registry/model-registry.service';
 import { DataGap, hasCriticalGap, mergeGaps } from './data-gap';
 import type {
   ALMSummaryResult,
   COSSECComplianceResult,
 } from '../alm-enterprise.service';
 import type { RegulatoryStressResult } from '../stress-testing/stress-testing.service';
+
+/**
+ * Model lineage record — which model produced which part of the report.
+ * Bound to the preflight result so every generated report traces back
+ * to the exact model version and approval state.
+ */
+export interface ModelLineageEntry {
+  modelKey: string;
+  version: string;
+  status: string;
+  approvedAt: string | null;
+  approvedBy: string | null;
+}
 
 export interface PreflightResult {
   institutionId: string;
@@ -50,6 +64,12 @@ export interface PreflightResult {
    */
   gaps: DataGap[];
   /**
+   * FAANG Audit P1: Model lineage — every model used in this preflight
+   * with its version and approval state. Auditors can trace any number
+   * in the report back to the exact model that produced it.
+   */
+  modelLineage: ModelLineageEntry[];
+  /**
    * The full sub-call results. Callers that want to render a report can
    * use these directly without re-fetching. Each sub-result still carries
    * its own `.gaps` field for narrow consumers, but the top-level `gaps`
@@ -62,6 +82,22 @@ export interface PreflightResult {
   };
 }
 
+/** Model keys that participate in a standard ALM preflight report. */
+const PREFLIGHT_MODEL_KEYS = [
+  'alm.duration-gap',
+  'alm.nii-sensitivity',
+  'alm.lcr',
+  'alm.nsfr',
+  'alm.eve',
+  'reg.cossec-compliance',
+  'stress.regulatory',
+  'stress.monte-carlo',
+  'credit.cecl-warm',
+  'report.preflight',
+  'report.board',
+  'report.excel-export',
+];
+
 @Injectable()
 export class ReportPreflightService {
   private readonly logger = new Logger(ReportPreflightService.name);
@@ -69,6 +105,7 @@ export class ReportPreflightService {
   constructor(
     private readonly almEnterprise: AlmEnterpriseService,
     private readonly stressTesting: StressTestingService,
+    @Optional() private readonly modelRegistry?: ModelRegistryService,
   ) {}
 
   /**
@@ -130,12 +167,19 @@ export class ReportPreflightService {
     const warningCount = gaps.length - criticalCount;
     const ready = !hasCriticalGap(gaps);
 
+    // FAANG Audit P1: Collect model lineage for audit traceability.
+    // Uses @Optional() injection — if the registry isn't available
+    // (e.g. in unit tests without the full module graph), lineage
+    // degrades gracefully to an empty array.
+    const modelLineage = await this.collectModelLineage();
+
     this.logger.log({
       event: 'preflight_result',
       institutionId,
       ready,
       criticalCount,
       warningCount,
+      modelCount: modelLineage.length,
     });
 
     return {
@@ -145,6 +189,7 @@ export class ReportPreflightService {
       criticalCount,
       warningCount,
       gaps,
+      modelLineage,
       results: { summary, cossec, regulatoryStress },
     };
   }
@@ -162,6 +207,36 @@ export class ReportPreflightService {
    * the consumer (this preflight) only reads `.gaps` from the shells —
    * never the numeric fields.
    */
+  /**
+   * Collect model lineage from the registry for all models that participate
+   * in a standard preflight. Degrades to empty array if the registry is
+   * unavailable (unit tests, missing module import).
+   */
+  private async collectModelLineage(): Promise<ModelLineageEntry[]> {
+    if (!this.modelRegistry) return [];
+    try {
+      const entries: ModelLineageEntry[] = [];
+      for (const key of PREFLIGHT_MODEL_KEYS) {
+        try {
+          const model = await this.modelRegistry.getByKey(key);
+          entries.push({
+            modelKey: model.modelKey,
+            version: model.version,
+            status: model.status,
+            approvedAt: model.approvedAt?.toISOString() ?? null,
+            approvedBy: model.approvedBy ?? null,
+          });
+        } catch {
+          // Model not yet registered — skip, don't fail preflight
+        }
+      }
+      return entries;
+    } catch {
+      this.logger.warn('Model lineage collection failed — returning empty lineage');
+      return [];
+    }
+  }
+
   private errorToShell<T>(field: string, err: Error, institutionId: string): T {
     this.logger.warn({
       event: 'preflight_subcall_threw',

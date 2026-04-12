@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ActionsModule } from '../actions/actions.module';
+import { ModelRegistryModule } from '../model-registry/model-registry.module';
 import { AlmActionsBootstrap } from '../actions/alm-actions.bootstrap';
 import { AlmService } from './alm.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
@@ -130,6 +131,8 @@ import { HJMModule } from './quant/hjm.module';
     ActionsModule,
     // HJM two-factor forward curve engine (calibration + Monte Carlo + NestJS services)
     HJMModule,
+    // FAANG Audit P1: model governance registry for report lineage
+    ModelRegistryModule,
   ],
   controllers: [
     AlmController,

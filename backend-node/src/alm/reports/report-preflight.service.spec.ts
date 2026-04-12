@@ -210,6 +210,54 @@ describe('ReportPreflightService', () => {
     expect(maxInFlight).toBe(3);
   });
 
+  it('returns empty modelLineage when no registry is injected (graceful degradation)', async () => {
+    const result = await service.check('inst-1');
+    expect(result.modelLineage).toEqual([]);
+  });
+
+  it('populates modelLineage when registry is available', async () => {
+    const mockRegistry = {
+      getByKey: jest.fn().mockImplementation((key: string) => {
+        if (key === 'alm.duration-gap') {
+          return Promise.resolve({
+            modelKey: 'alm.duration-gap',
+            version: '1.0.0',
+            status: 'APPROVED',
+            approvedAt: new Date('2026-04-12'),
+            approvedBy: 'system-seed',
+          });
+        }
+        if (key === 'alm.lcr') {
+          return Promise.resolve({
+            modelKey: 'alm.lcr',
+            version: '1.1.0',
+            status: 'APPROVED',
+            approvedAt: new Date('2026-04-12'),
+            approvedBy: 'system-seed',
+          });
+        }
+        return Promise.reject(new Error('not found'));
+      }),
+    };
+    const serviceWithRegistry = new ReportPreflightService(
+      almEnterprise as any,
+      stressTesting as any,
+      mockRegistry as any,
+    );
+    const result = await serviceWithRegistry.check('inst-1');
+
+    expect(result.modelLineage.length).toBeGreaterThanOrEqual(2);
+    const dg = result.modelLineage.find((m) => m.modelKey === 'alm.duration-gap');
+    expect(dg).toBeDefined();
+    expect(dg!.version).toBe('1.0.0');
+    expect(dg!.status).toBe('APPROVED');
+    expect(dg!.approvedBy).toBe('system-seed');
+
+    const lcr = result.modelLineage.find((m) => m.modelKey === 'alm.lcr');
+    expect(lcr).toBeDefined();
+    expect(lcr!.version).toBe('1.1.0');
+  });
+
   it('returns the full sub-call results for caller use', async () => {
     const summary = goodSummary();
     const cossec = goodCossec();
