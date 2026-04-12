@@ -125,7 +125,6 @@ import { AuthGuard } from '../auth/auth.guard';
     // can register the first wave of ALM actions on module init.
     ActionsModule,
   ],
-  controllers: [AlmController, AlmAdvisorController, AlmAdvisorV2Controller, CAMELCertificationController],
   providers: [
     // Phase 3: AlmActionsBootstrap implements OnModuleInit and registers
     // institution.seed and alm.preflight as the first wave. Adding more
