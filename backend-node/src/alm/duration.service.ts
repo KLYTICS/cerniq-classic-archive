@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { asNumber } from './reports/report-formatting';
 
 /**
  * Represents a balance sheet line item for duration/convexity calculation.
@@ -66,28 +67,6 @@ export interface EVESensitivityPoint {
 function round(value: number, decimals: number): number {
   const factor = Math.pow(10, decimals);
   return Math.round(value * factor) / factor;
-}
-
-function asNumber(value: unknown): number {
-  if (typeof value === 'number') {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  if (
-    value !== null &&
-    typeof value === 'object' &&
-    'toNumber' in value &&
-    typeof (value as { toNumber?: unknown }).toNumber === 'function'
-  ) {
-    const parsed = (value as { toNumber: () => number }).toNumber();
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 @Injectable()

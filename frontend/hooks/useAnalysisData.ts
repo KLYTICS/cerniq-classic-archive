@@ -31,13 +31,15 @@ export interface ComplianceRatio {
   id: string;
   nameEn: string;
   nameEs: string;
-  value: number;
+  value: number | null;
   threshold?: number;
   thresholdLow?: number;
   thresholdHigh?: number;
   sectorMedian: number;
   format: 'percent' | 'years';
   invertThreshold?: boolean;
+  /** Backend may surface 'data_unavailable' when inputs are missing (D1). */
+  status?: 'compliant' | 'non_compliant' | 'warning' | 'data_unavailable';
 }
 
 export interface AnalysisData {
@@ -58,20 +60,20 @@ export interface AnalysisData {
     liabilityBreakdown: BalanceSheetBreakdown[];
   } | null;
   interestRateRisk: {
-    durationGap: number;
-    assetDuration: number;
-    liabilityDuration: number;
-    nim: number;
+    durationGap: number | null;
+    assetDuration: number | null;
+    liabilityDuration: number | null;
+    nim: number | null;
     earningAssetYield: number;
     costOfFunds: number;
     scenarios: RateScenario[];
   } | null;
   liquidity: {
-    lcr: number;
-    nsfr: number;
+    lcr: number | null;
+    nsfr: number | null;
     hqlaLevel1: number;
     hqlaLevel2: number;
-    hqlaTotal: number;
+    hqlaTotal: number | null;
     cashOutflows: number;
     cashInflows: number;
     loanToDeposit: number;

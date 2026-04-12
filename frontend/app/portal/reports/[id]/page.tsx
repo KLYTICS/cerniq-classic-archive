@@ -290,7 +290,7 @@ function OverviewTab({
             {
               label: t("NIM", "Margen NII"),
               ...gapOr(gapForField, "interestRateRisk.nim", irr?.nim, fmtPct),
-              delta: !gapForField("interestRateRisk.nim") && irr ? (irr.nim - 0.029) * 100 : undefined,
+              delta: !gapForField("interestRateRisk.nim") && irr && irr.nim != null ? (irr.nim - 0.029) * 100 : undefined,
               deltaFormat: "percent" as const,
               tooltip: gapForField("interestRateRisk.nim")?.reason ?? t("vs sector median 2.9%", "vs mediana sector 2.9%"),
             },
@@ -914,7 +914,8 @@ function ComplianceGrid({
 }) {
   const t = (en: string, es: string) => (locale === "en" ? en : es);
 
-  function getStatus(ratio: ComplianceRatio): "pass" | "warning" | "fail" {
+  function getStatus(ratio: ComplianceRatio): "pass" | "warning" | "fail" | "unavailable" {
+    if (ratio.status === "data_unavailable" || ratio.value === null) return "unavailable";
     if (ratio.thresholdLow !== undefined && ratio.thresholdHigh !== undefined) {
       if (ratio.value >= ratio.thresholdLow && ratio.value <= ratio.thresholdHigh) return "pass";
       return Math.abs(ratio.value - ratio.sectorMedian) < Math.abs(ratio.sectorMedian * 0.3) ? "warning" : "fail";
@@ -926,6 +927,7 @@ function ComplianceGrid({
   }
 
   function formatValue(ratio: ComplianceRatio): string {
+    if (ratio.value === null) return "—";
     if (ratio.format === "years") return `${ratio.value.toFixed(2)}y`;
     return fmtPct(ratio.value);
   }
@@ -934,12 +936,14 @@ function ComplianceGrid({
     pass: <CheckCircle className="h-5 w-5 text-emerald-500" />,
     warning: <Minus className="h-5 w-5 text-amber-500" />,
     fail: <XCircle className="h-5 w-5 text-rose-500" />,
+    unavailable: <Minus className="h-5 w-5 text-slate-300" />,
   };
 
   const statusBg = {
     pass: "bg-emerald-50 border-emerald-200",
     warning: "bg-amber-50 border-amber-200",
     fail: "bg-rose-50 border-rose-200",
+    unavailable: "bg-slate-50 border-slate-200",
   };
 
   if (detailed) {
@@ -1427,13 +1431,21 @@ export default function ReportSuite() {
           {currentManifest && (
             <button
               onClick={() => void download(currentManifest)}
-              disabled={downloadingId === currentManifest.id}
+              disabled={downloadingId === currentManifest.id || gapSummary.hasCritical}
+              title={gapSummary.hasCritical
+                ? t(
+                    `Download blocked: ${gapSummary.criticalCount} critical data gap(s) must be resolved before sharing this report.`,
+                    `Descarga bloqueada: ${gapSummary.criticalCount} brecha(s) de datos critica(s) deben resolverse antes de compartir este informe.`,
+                  )
+                : undefined}
               className="inline-flex items-center gap-2 rounded-xl bg-[#1B3A6B] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#15305a] disabled:opacity-60"
             >
               <Download className="h-4 w-4" />
               {downloadingId === currentManifest.id
                 ? t("Preparing...", "Preparando...")
-                : t("Download Report", "Descargar Informe")}
+                : gapSummary.hasCritical
+                  ? t("Gaps must be resolved", "Resolver brechas primero")
+                  : t("Download Report", "Descargar Informe")}
             </button>
           )}
           {boardPackManifest && (
