@@ -12,6 +12,14 @@ export class ReportStorageService {
   private client: S3Client | null = null;
   private bucket: string;
 
+  /**
+   * In-memory buffer cache for local-mode (no R2 configured).
+   * Keyed by storage key (e.g. "reports/{jobId}/report_es.pdf").
+   * Cleared after DATA_RETENTION entries to prevent unbounded growth.
+   */
+  private readonly localBuffers = new Map<string, Buffer>();
+  private static readonly MAX_LOCAL_BUFFERS = 200;
+
   constructor() {
     const endpoint = process.env.R2_ENDPOINT || process.env.AWS_S3_ENDPOINT;
     const accessKeyId =
@@ -30,9 +38,14 @@ export class ReportStorageService {
       this.logger.log('Report storage (S3/R2) initialized');
     } else {
       this.logger.warn(
-        'Report storage not configured — reports will use local paths',
+        'Report storage not configured — using in-memory buffer storage (not suitable for multi-instance deployment)',
       );
     }
+  }
+
+  /** Whether cloud storage (R2/S3) is configured. */
+  get isCloudConfigured(): boolean {
+    return this.client !== null;
   }
 
   async upload(
@@ -41,7 +54,14 @@ export class ReportStorageService {
     contentType = 'application/pdf',
   ): Promise<string> {
     if (!this.client) {
-      this.logger.warn(`Storage not configured, skipping upload for ${key}`);
+      // Local fallback: store buffer in memory and return an API-servable path
+      this.localBuffers.set(key, buffer);
+      // Evict oldest if over limit
+      if (this.localBuffers.size > ReportStorageService.MAX_LOCAL_BUFFERS) {
+        const oldest = this.localBuffers.keys().next().value;
+        if (oldest) this.localBuffers.delete(oldest);
+      }
+      this.logger.warn(`Stored ${key} in memory (${(buffer.length / 1024).toFixed(0)}KB) — R2 not configured`);
       return key;
     }
 
@@ -59,12 +79,23 @@ export class ReportStorageService {
   }
 
   async getSignedUrl(key: string, expirySeconds = 86400): Promise<string> {
-    if (!this.client) return '';
+    if (!this.client) {
+      // Local fallback: return an API path that the portal controller can serve
+      return `/api/portal/reports/download/${encodeURIComponent(key)}`;
+    }
 
     return getSignedUrl(
       this.client,
       new GetObjectCommand({ Bucket: this.bucket, Key: key }),
       { expiresIn: expirySeconds },
     );
+  }
+
+  /**
+   * Retrieve a locally-stored buffer by key. Returns null if not found
+   * or if cloud storage is configured (use signed URLs instead).
+   */
+  getLocalBuffer(key: string): Buffer | null {
+    return this.localBuffers.get(key) ?? null;
   }
 }

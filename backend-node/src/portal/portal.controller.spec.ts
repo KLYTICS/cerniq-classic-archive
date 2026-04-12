@@ -15,6 +15,7 @@ import { PlatformAccessService } from '../auth/platform-access.service';
 import { PortalDocumentExportsService } from './portal-document-exports.service';
 import { PortalAlmReportService } from './portal-alm-report.service';
 import { DemoSeatService } from './demo-seat.service';
+import { ReportStorageService } from '../pipeline/report-storage.service';
 
 jest.mock('../prisma.service', () => ({
   PrismaService: jest.fn().mockImplementation(() => ({})),
@@ -34,6 +35,7 @@ describe('PortalController', () => {
   let platformAccess: Record<string, jest.Mock>;
   let portalAlmReport: Record<string, jest.Mock>;
   let demoSeats: Record<string, jest.Mock>;
+  let reportStorage: Record<string, jest.Mock>;
 
   const mockReq = (userId = 'user-1') => ({
     user: { userId },
@@ -145,6 +147,11 @@ describe('PortalController', () => {
       getDemoSeatForUser: jest.fn().mockResolvedValue(null),
     };
 
+    reportStorage = {
+      getLocalBuffer: jest.fn().mockReturnValue(null),
+      isCloudConfigured: false,
+    };
+
     platformAccess = {
       getAccessForUser: jest.fn().mockResolvedValue({
         platformAccessAllowed: true,
@@ -183,6 +190,7 @@ describe('PortalController', () => {
         { provide: PortalDocumentExportsService, useValue: portalExports },
         { provide: PortalAlmReportService, useValue: portalAlmReport },
         { provide: DemoSeatService, useValue: demoSeats },
+        { provide: ReportStorageService, useValue: reportStorage },
       ],
     })
       .overrideGuard(AuthGuard)

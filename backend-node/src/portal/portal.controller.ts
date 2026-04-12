@@ -46,6 +46,7 @@ import {
 } from './portal-document-exports.service';
 import { PortalAlmReportService } from './portal-alm-report.service';
 import { DemoSeatService } from './demo-seat.service';
+import { ReportStorageService } from '../pipeline/report-storage.service';
 import { buildPdfResponseHeaders } from '../alm/document-exports.util';
 
 type PortalWorkflowState =
@@ -149,6 +150,7 @@ export class PortalController {
     private readonly portalExports: PortalDocumentExportsService,
     private readonly portalAlmReport: PortalAlmReportService,
     private readonly demoSeats: DemoSeatService,
+    private readonly reportStorage: ReportStorageService,
   ) {}
 
   // ── List User's Report Jobs ─────────────────────────
@@ -1812,5 +1814,49 @@ export class PortalController {
       return {};
     }
     return { userId };
+  }
+
+  // ── Local PDF download (fallback when R2 is not configured) ──
+
+  @Get('reports/download/:key(*)')
+  @Roles('OWNER', 'ANALYST', 'VIEWER')
+  @ApiOperation({ summary: 'Download a report PDF from local buffer storage' })
+  @ApiParam({ name: 'key', description: 'Report storage key' })
+  async downloadLocalReport(
+    @Req() req: any,
+    @Res() res: any,
+    @Param('key') key: string,
+  ) {
+    const userId = req.user.userId;
+    await this.requirePaidPortalAccess(userId);
+
+    // Verify user owns a job that references this key
+    const decodedKey = decodeURIComponent(key);
+    const jobIdMatch = decodedKey.match(/^reports\/([^/]+)\//);
+    if (!jobIdMatch) throw new NotFoundException('Invalid report key');
+
+    const jobId = jobIdMatch[1];
+    const job = await this.prisma.reportJob.findFirst({
+      where: { id: jobId, userId, status: 'COMPLETE' },
+    });
+    if (!job) throw new NotFoundException('Report not found');
+
+    const buffer = this.reportStorage.getLocalBuffer(decodedKey);
+    if (!buffer) {
+      throw new NotFoundException(
+        'Report buffer not available — it may have been evicted from memory. Please regenerate the report.',
+      );
+    }
+
+    const lang = decodedKey.includes('_en.pdf') ? 'en' : 'es';
+    const filename = `CERNIQ_ALM_Report_${job.institutionName?.replace(/[^a-zA-Z0-9]/g, '_') || 'Report'}_${lang.toUpperCase()}.pdf`;
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': buffer.length,
+      'Cache-Control': 'private, max-age=3600',
+    });
+    res.send(buffer);
   }
 }

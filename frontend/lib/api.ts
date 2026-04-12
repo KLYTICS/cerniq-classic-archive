@@ -34,7 +34,7 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function getAccessToken(): string {
+export function getAccessToken(): string {
   if (typeof window === 'undefined') {
     return '';
   }

@@ -69,14 +69,29 @@ export class PipelineWorker {
         messageEs: 'Validando datos del balance...',
       });
 
-      // Step 2: Load institution data
+      // Step 2: Load institution data and validate
       const institution = await this.loadInstitutionData(
         job.userId,
         job.institutionId,
       );
       if (!institution) {
-        throw new Error(`No institution data found for job ${job.id}`);
+        throw new Error(
+          `No institution data found for job ${job.id}. ` +
+          `institutionId=${job.institutionId || 'null'}, userId=${job.userId}`,
+        );
       }
+      if (!institution.balanceSheetItems || institution.balanceSheetItems.length === 0) {
+        throw new Error(
+          `Institution "${institution.name}" (${institution.id}) has no balance sheet items. ` +
+          `CSV import may have failed or was empty.`,
+        );
+      }
+      this.logger.log({
+        event: 'pipeline.institution_loaded',
+        jobId: job.id,
+        institutionId: institution.id,
+        balanceSheetItems: institution.balanceSheetItems.length,
+      });
 
       this.pipelineGateway.emitProgress(job.id, {
         step: 'COSSEC_CALC',
@@ -175,23 +190,34 @@ export class PipelineWorker {
         data: { reportsUsed: { increment: 1 } },
       });
 
-      // Step 7: Notify client
+      // Step 7: Notify client (failure here must NOT revert the COMPLETE status)
       if (job.user?.email) {
-        await this.email.sendReportReady({
-          email: job.user.email,
-          name: job.user.name || '',
-          institutionName: job.institutionName,
-          portalUrl: `${process.env.FRONTEND_URL || ''}/portal/reports/${job.id}`,
-        });
+        try {
+          const portalUrl = `${process.env.FRONTEND_URL || 'https://cerniq.io'}/portal/reports/${job.id}`;
+          await this.email.sendReportReady({
+            email: job.user.email,
+            name: job.user.name || '',
+            institutionName: job.institutionName,
+            portalUrl,
+          });
 
-        // Schedule C2 follow-up (24h after delivery)
-        await this.prisma.emailSequence.create({
-          data: {
-            userId: job.userId,
-            sequenceKey: 'C2',
-            scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          },
-        });
+          // Schedule C2 follow-up (24h after delivery)
+          await this.prisma.emailSequence.create({
+            data: {
+              userId: job.userId,
+              sequenceKey: 'C2',
+              scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            },
+          });
+        } catch (emailErr: any) {
+          // Log email failure but do NOT throw — the report is already COMPLETE
+          this.logger.error({
+            event: 'pipeline.email.failed',
+            jobId: job.id,
+            error: emailErr.message,
+            note: 'Report generated successfully but notification email failed. Customer must check portal manually.',
+          });
+        }
       }
 
       this.logger.log({ event: 'pipeline.job.complete', jobId: job.id });

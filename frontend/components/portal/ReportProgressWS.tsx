@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { unwrapApiData } from "@/lib/api-response";
+import { getAccessToken } from "@/lib/api";
 import DocumentExportButtons from "@/components/exports/DocumentExportButtons";
 
 const NODE_API_URL = (process.env.NEXT_PUBLIC_NODE_API_URL || "")
@@ -164,11 +165,7 @@ function usePollFallback(
     if (!enabled) return;
     const interval = setInterval(async () => {
       try {
-        const token =
-          typeof window !== "undefined"
-            ? sessionStorage.getItem("cerniq_access_token") ||
-              localStorage.getItem("cerniq_access_token")
-            : null;
+        const token = getAccessToken() || null;
         const res = await fetch(`${NODE_API_URL}/api/portal/jobs/${jobId}`, {
           credentials: "include",
           headers: token ? { Authorization: `Bearer ${token}` } : {},

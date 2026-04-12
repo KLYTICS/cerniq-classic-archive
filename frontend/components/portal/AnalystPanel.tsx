@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Bot, User, Sparkles, X, Loader2, Bookmark, Zap } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
 import { getPublicApiUrl } from '@/lib/api-base';
+import { getAccessToken } from '@/lib/api';
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -51,7 +52,17 @@ export default function AnalystPanel({
   const { locale } = useTranslation();
   const t = (en: string, es: string) => (locale === 'en' ? en : es);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const storageKey = `cerniq_analyst_${institutionId}`;
+
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem(storageKey);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const [inputText, setInputText] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
@@ -63,6 +74,22 @@ export default function AnalystPanel({
 
   const quickQuestions = locale === 'es' ? QUICK_QUESTIONS_ES : QUICK_QUESTIONS_EN;
 
+  // Persist conversation to localStorage (skip while streaming to avoid partial writes)
+  useEffect(() => {
+    if (streaming) return;
+    try {
+      if (messages.length > 0) {
+        // Keep last 50 messages to prevent localStorage bloat
+        const toStore = messages.slice(-50);
+        localStorage.setItem(storageKey, JSON.stringify(toStore));
+      } else {
+        localStorage.removeItem(storageKey);
+      }
+    } catch {
+      // localStorage full or unavailable — degrade silently
+    }
+  }, [messages, streaming, storageKey]);
+
   // Auto-scroll
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -70,7 +97,7 @@ export default function AnalystPanel({
 
   // Load initial rate limit
   useEffect(() => {
-    const token = sessionStorage.getItem('capex_access_token');
+    const token = getAccessToken() || null;
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -94,7 +121,7 @@ export default function AnalystPanel({
       setStreaming(true);
       setActiveTools([]);
 
-      const token = sessionStorage.getItem('capex_access_token');
+      const token = getAccessToken() || null;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -218,7 +245,7 @@ export default function AnalystPanel({
 
   const saveInsight = useCallback(
     async (messageContent: string) => {
-      const token = sessionStorage.getItem('capex_access_token');
+      const token = getAccessToken() || null;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 

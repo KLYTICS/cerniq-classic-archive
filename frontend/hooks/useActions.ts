@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getPublicApiUrl } from '@/lib/api-base';
+import { getAccessToken } from '@/lib/api';
 
 export interface ActionMeta {
   id: string;
@@ -37,7 +38,7 @@ export function useActions(opts: { autoLoad?: boolean } = {}) {
     setLoading(true);
     setError(null);
     try {
-      const token = typeof window !== 'undefined' ? sessionStorage.getItem('capex_access_token') : null;
+      const token = getAccessToken() || null;
       const headers: Record<string, string> = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
