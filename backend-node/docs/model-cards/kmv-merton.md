@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Name** | Vasicek Single-Factor Portfolio Credit Risk Model with PR-Specific LGD Calibration |
-| **Version** | 1.0.0 |
+| **Version** | 1.1.0 (April 2026 — phantom fallback eliminated, DataGap convention applied) |
 | **Implementation** | `backend-node/src/alm/quant/credit/` |
 | **LGD Calibration** | FDIC Loss Share (2009–2024), CRIM assessments (2018–2025), FEMA IA (2017–2019) |
 | **Regulatory Reference** | Basel III Pillar 1 — IRB Credit Risk (BCBS d424); COSSEC Circular 2024-01 §III — Credit Risk Assessment |
@@ -112,7 +112,7 @@ UL = N(N⁻¹(PD)/√(1−ρ) + √(ρ/(1−ρ))·N⁻¹(0.999)) × LGD × EAD �
 ```
 
 Where:
-- N() = standard normal CDF — Hart (1968) rational polynomial approximation (6-coefficient, accurate to 7 decimal places)
+- N() = standard normal CDF — Abramowitz & Stegun 26.2.17 approximation (accurate to ~7.5e-8)
 - N⁻¹() = standard normal inverse CDF — Beasley-Springer-Moro algorithm (accurate to 8 decimal places for p ∈ [0.0001, 0.9999])
 - ρ = asset correlation from PR-adjusted table
 - 0.999 = 99.9% confidence level (Basel III standard)
