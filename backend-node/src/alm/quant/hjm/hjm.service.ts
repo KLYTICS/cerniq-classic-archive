@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../prisma.service';
 import { ForwardCurve } from './forward-curve';
 import { calibrateHJM } from './calibration';
-import { runHJMMonteCarlo } from './monte-carlo';
+import { runHJMMonteCarloAsync } from './hjm-worker';
 import {
   HJMMonteCarloResult,
   HJMParams,
@@ -97,7 +97,7 @@ export class HJMService {
     // HJM params (use provided, or calibrated, or defaults)
     const hjmParams = opts?.hjmParams ?? DEFAULT_HJM_PARAMS;
 
-    const result = runHJMMonteCarlo({
+    const result = await runHJMMonteCarloAsync({
       forwardCurve: snapshot,
       hjmParams,
       repricingBuckets: buckets,

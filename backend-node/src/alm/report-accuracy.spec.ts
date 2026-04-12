@@ -29,7 +29,7 @@ const emptyInstitution = {
 };
 
 function makeMockPrisma() {
-  return {
+  const prisma: any = {
     institution: {
       findUnique: jest.fn().mockResolvedValue(emptyInstitution),
     },
@@ -44,7 +44,9 @@ function makeMockPrisma() {
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       createMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
-  } as any;
+    $transaction: jest.fn(async (fn: any) => fn(prisma)),
+  };
+  return prisma;
 }
 
 function makeMockAlmService() {

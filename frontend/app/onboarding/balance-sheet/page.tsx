@@ -229,29 +229,59 @@ export default function BalanceSheetWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedInstitutionId = searchParams.get('institutionId') || '';
-  const [lang, setLang] = useState<Lang>('en');
-  const [step, setStep] = useState(0);
+  // ---- Auto-save key ----
+  const autoSaveKey = `cerniq_bs_wizard_${requestedInstitutionId || 'draft'}`;
+
+  function loadSaved<T>(field: string, fallback: T): T {
+    if (typeof window === 'undefined') return fallback;
+    try {
+      const raw = localStorage.getItem(autoSaveKey);
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw);
+      return field in parsed ? parsed[field] : fallback;
+    } catch { return fallback; }
+  }
+
+  const [lang, setLang] = useState<Lang>(() => loadSaved('lang', 'en' as Lang));
+  const [step, setStep] = useState(() => loadSaved('step', 0));
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<'success' | 'error' | null>(null);
   const [institutionId, setInstitutionId] = useState(requestedInstitutionId);
 
   // ---- Assets ----
-  const [cashEquivalents, setCashEquivalents] = useState(0);
-  const [investmentSecurities, setInvestmentSecurities] = useState(0);
-  const [netLoansLeases, setNetLoansLeases] = useState(0);
-  const [fixedAssets, setFixedAssets] = useState(0);
-  const [otherAssets, setOtherAssets] = useState(0);
+  const [cashEquivalents, setCashEquivalents] = useState(() => loadSaved('cashEquivalents', 0));
+  const [investmentSecurities, setInvestmentSecurities] = useState(() => loadSaved('investmentSecurities', 0));
+  const [netLoansLeases, setNetLoansLeases] = useState(() => loadSaved('netLoansLeases', 0));
+  const [fixedAssets, setFixedAssets] = useState(() => loadSaved('fixedAssets', 0));
+  const [otherAssets, setOtherAssets] = useState(() => loadSaved('otherAssets', 0));
 
   // ---- Liabilities ----
-  const [memberDeposits, setMemberDeposits] = useState(0);
-  const [borrowedFunds, setBorrowedFunds] = useState(0);
-  const [otherLiabilities, setOtherLiabilities] = useState(0);
+  const [memberDeposits, setMemberDeposits] = useState(() => loadSaved('memberDeposits', 0));
+  const [borrowedFunds, setBorrowedFunds] = useState(() => loadSaved('borrowedFunds', 0));
+  const [otherLiabilities, setOtherLiabilities] = useState(() => loadSaved('otherLiabilities', 0));
 
   // ---- Income ----
-  const [interestIncome, setInterestIncome] = useState(0);
-  const [interestExpense, setInterestExpense] = useState(0);
-  const [nonInterestIncome, setNonInterestIncome] = useState(0);
-  const [nonInterestExpense, setNonInterestExpense] = useState(0);
+  const [interestIncome, setInterestIncome] = useState(() => loadSaved('interestIncome', 0));
+  const [interestExpense, setInterestExpense] = useState(() => loadSaved('interestExpense', 0));
+  const [nonInterestIncome, setNonInterestIncome] = useState(() => loadSaved('nonInterestIncome', 0));
+  const [nonInterestExpense, setNonInterestExpense] = useState(() => loadSaved('nonInterestExpense', 0));
+
+  // ---- Auto-save effect ----
+  useEffect(() => {
+    if (submitting || submitResult === 'success') return;
+    try {
+      localStorage.setItem(autoSaveKey, JSON.stringify({
+        lang, step, cashEquivalents, investmentSecurities, netLoansLeases,
+        fixedAssets, otherAssets, memberDeposits, borrowedFunds, otherLiabilities,
+        interestIncome, interestExpense, nonInterestIncome, nonInterestExpense,
+      }));
+    } catch { /* localStorage full — degrade silently */ }
+  }, [
+    autoSaveKey, lang, step, submitting, submitResult,
+    cashEquivalents, investmentSecurities, netLoansLeases, fixedAssets, otherAssets,
+    memberDeposits, borrowedFunds, otherLiabilities,
+    interestIncome, interestExpense, nonInterestIncome, nonInterestExpense,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -379,6 +409,7 @@ export default function BalanceSheetWizard() {
         netWorthRatio: netWorthRatio.toFixed(2),
       });
       setSubmitResult('success');
+      try { localStorage.removeItem(autoSaveKey); } catch {}
       setTimeout(() => router.push(`/alm?id=${institutionId}`), 1500);
     } catch {
       setSubmitResult('error');

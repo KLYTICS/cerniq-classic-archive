@@ -7,39 +7,45 @@ describe('AlmEnterpriseService', () => {
   let mockAlmService: any;
   let mockDurationService: any;
 
-  const makeMockPrisma = () => ({
-    institution: {
-      create: jest.fn(),
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      count: jest.fn(),
-      update: jest.fn(),
-    },
-    workspace: {
-      findMany: jest.fn(),
-    },
-    balanceSheetItem: {
-      createMany: jest.fn(),
-      deleteMany: jest.fn(),
-      findMany: jest.fn(),
-      count: jest.fn(),
-    },
-    liquidityPosition: {
-      create: jest.fn(),
-      findFirst: jest.fn(),
-      findMany: jest.fn(),
-    },
-    interestRateScenario: {
-      deleteMany: jest.fn(),
-      createMany: jest.fn(),
-    },
-    analysisRun: {
-      findFirst: jest.fn(),
-    },
-    reportJob: {
-      findFirst: jest.fn(),
-    },
-  });
+  const makeMockPrisma = () => {
+    const prisma: any = {
+      institution: {
+        create: jest.fn(),
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        count: jest.fn(),
+        update: jest.fn(),
+      },
+      workspace: {
+        findMany: jest.fn(),
+      },
+      balanceSheetItem: {
+        createMany: jest.fn(),
+        deleteMany: jest.fn(),
+        findMany: jest.fn(),
+        count: jest.fn(),
+      },
+      liquidityPosition: {
+        create: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+      },
+      interestRateScenario: {
+        deleteMany: jest.fn(),
+        createMany: jest.fn(),
+      },
+      analysisRun: {
+        findFirst: jest.fn(),
+      },
+      reportJob: {
+        findFirst: jest.fn(),
+      },
+      // $transaction executes the callback with the same mock models,
+      // so pinned-transaction reads see the same mocked data.
+      $transaction: jest.fn(async (fn: any) => fn(prisma)),
+    };
+    return prisma;
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
