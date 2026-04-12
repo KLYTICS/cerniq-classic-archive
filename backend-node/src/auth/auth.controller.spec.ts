@@ -584,6 +584,194 @@ describe('AuthController', () => {
     });
   });
 
+  // ── Magic Link Auth ──────────────────────────────────────────
+
+  describe('POST /api/auth/magic-link', () => {
+    it('should return 200 with success message for valid email', async () => {
+      authService.requestMagicLinkForEmail = jest.fn().mockResolvedValue(undefined);
+
+      const result = await controller.requestMagicLink({
+        email: 'cfo@cooperativa.coop',
+      } as any);
+
+      expect(authService.requestMagicLinkForEmail).toHaveBeenCalledWith(
+        'cfo@cooperativa.coop',
+      );
+      expect(result.message).toContain('sign-in link');
+    });
+
+    it('should return 200 even when service throws (no email enumeration)', async () => {
+      authService.requestMagicLinkForEmail = jest
+        .fn()
+        .mockRejectedValue(new Error('DB error'));
+
+      const result = await controller.requestMagicLink({
+        email: 'nobody@test.com',
+      } as any);
+
+      // Should still return success message
+      expect(result.message).toContain('sign-in link');
+    });
+  });
+
+  describe('GET /api/auth/magic-link/verify', () => {
+    it('should verify token, set cookies, and redirect to /portal', async () => {
+      const user = { id: 'ml-user-1', email: 'cfo@coop.com', name: 'CFO' };
+      authService.verifyMagicLinkToken = jest.fn().mockResolvedValue(user);
+      authService.generateTokens = jest.fn().mockResolvedValue({
+        accessToken: 'ml-at',
+        refreshToken: 'ml-rt',
+      });
+
+      const req = { ip: '10.0.0.1', headers: { 'user-agent': 'jest' } };
+      const res = {
+        ...mockRes(),
+        redirect: jest.fn(),
+      };
+
+      await controller.verifyMagicLink(
+        'valid-token',
+        'cfo@coop.com',
+        undefined,
+        req,
+        res,
+      );
+
+      expect(authService.verifyMagicLinkToken).toHaveBeenCalledWith(
+        'valid-token',
+        'cfo@coop.com',
+      );
+      expect(authService.generateTokens).toHaveBeenCalledWith(user);
+      expect(res.cookie).toHaveBeenCalledWith(
+        'access_token',
+        'ml-at',
+        expect.any(Object),
+      );
+      expect(res.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('/portal'),
+      );
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'ml-user-1',
+          action: 'login',
+          resource: 'magic_link',
+          outcome: 'success',
+        }),
+      );
+    });
+
+    it('should return 401 for expired token', async () => {
+      authService.verifyMagicLinkToken = jest.fn().mockResolvedValue(null);
+
+      const req = { ip: '10.0.0.1', headers: {} };
+      const res = {
+        ...mockRes(),
+        redirect: jest.fn(),
+      };
+
+      await controller.verifyMagicLink(
+        'expired-token',
+        'cfo@coop.com',
+        undefined,
+        req,
+        res,
+      );
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: expect.stringContaining('expired') }),
+      );
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'login',
+          resource: 'magic_link',
+          outcome: 'failure',
+        }),
+      );
+    });
+
+    it('should return 401 for already-used token (single-use)', async () => {
+      authService.verifyMagicLinkToken = jest.fn().mockResolvedValue(null);
+
+      const req = { ip: '10.0.0.1', headers: {} };
+      const res = {
+        ...mockRes(),
+        redirect: jest.fn(),
+      };
+
+      await controller.verifyMagicLink(
+        'used-token',
+        'cfo@coop.com',
+        undefined,
+        req,
+        res,
+      );
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: expect.stringContaining('expired') }),
+      );
+    });
+
+    it('should redirect to returnUrl when provided', async () => {
+      const user = { id: 'ml-user-2', email: 'test@coop.com', name: 'Test' };
+      authService.verifyMagicLinkToken = jest.fn().mockResolvedValue(user);
+      authService.generateTokens = jest.fn().mockResolvedValue({
+        accessToken: 'at-2',
+        refreshToken: 'rt-2',
+      });
+
+      const req = { ip: '10.0.0.1', headers: {} };
+      const res = {
+        ...mockRes(),
+        redirect: jest.fn(),
+      };
+
+      await controller.verifyMagicLink(
+        'valid-token',
+        'test@coop.com',
+        '/dashboard',
+        req,
+        res,
+      );
+
+      expect(res.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('/dashboard'),
+      );
+    });
+
+    it('should reject absolute returnUrl to prevent open redirect', async () => {
+      const user = { id: 'ml-user-3', email: 'test@coop.com', name: 'Test' };
+      authService.verifyMagicLinkToken = jest.fn().mockResolvedValue(user);
+      authService.generateTokens = jest.fn().mockResolvedValue({
+        accessToken: 'at-3',
+        refreshToken: 'rt-3',
+      });
+
+      const req = { ip: '10.0.0.1', headers: {} };
+      const res = {
+        ...mockRes(),
+        redirect: jest.fn(),
+      };
+
+      await controller.verifyMagicLink(
+        'valid-token',
+        'test@coop.com',
+        'https://evil.com/steal',
+        req,
+        res,
+      );
+
+      // Should redirect to /portal, not the external URL
+      expect(res.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('/portal'),
+      );
+      expect(res.redirect).toHaveBeenCalledWith(
+        expect.not.stringContaining('evil.com'),
+      );
+    });
+  });
+
   // ── OAuth (google/github) ────────────────────────────────────
 
   describe('OAuth endpoints', () => {

@@ -5,6 +5,7 @@ import {
   Put,
   Body,
   Get,
+  Query,
   Param,
   Req,
   Res,
@@ -36,6 +37,7 @@ import {
   PasswordResetConfirmDto,
   ChangePasswordDto,
   RefreshTokenDto,
+  MagicLinkRequestDto,
 } from './dto/auth.dto';
 import { CreateApiKeyDto } from './dto/api-key.dto';
 import { AuditService } from '../audit/audit.service';
@@ -236,6 +238,87 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   resetPassword(@Body() dto: PasswordResetConfirmDto) {
     return this.authService.resetPassword(dto.token, dto.newPassword);
+  }
+
+  // ── Magic Link Auth ───────────────────────────────────
+
+  @Post('magic-link')
+  @Throttle({ default: { ttl: 3600000, limit: 5 } })
+  @HttpCode(HttpStatus.OK)
+  @SkipAuditLog()
+  @ApiOperation({
+    summary: 'Request a magic link sign-in email',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Always returns 200 to prevent email enumeration. If the email is valid, a magic link is sent.',
+  })
+  @ApiResponse({ status: 429, description: 'Rate limit exceeded (max 5/hr)' })
+  async requestMagicLink(@Body() dto: MagicLinkRequestDto) {
+    try {
+      await this.authService.requestMagicLinkForEmail(dto.email);
+    } catch (err) {
+      // Never reveal whether the email exists or not
+    }
+    return {
+      message: 'If this email is valid, a secure sign-in link was sent.',
+    };
+  }
+
+  @Get('magic-link/verify')
+  @Throttle({ default: { ttl: 900000, limit: 10 } })
+  @ApiOperation({
+    summary: 'Verify a magic link token and set authentication cookies',
+  })
+  @ApiResponse({
+    status: 302,
+    description:
+      'Redirects to /portal on success or returns 401 on failure',
+  })
+  async verifyMagicLink(
+    @Query('token') token: string,
+    @Query('email') email: string,
+    @Query('returnUrl') returnUrl: string | undefined,
+    @Req() req: any,
+    @Res() res: any,
+  ) {
+    const user = await this.authService.verifyMagicLinkToken(token, email);
+
+    if (!user) {
+      this.audit.log({
+        action: 'login',
+        resource: 'magic_link',
+        outcome: 'failure',
+        metadata: { reason: 'invalid_or_expired_token', email },
+        ipAddress: req.ip,
+        userAgent: req.headers?.['user-agent'],
+      });
+
+      return res.status(HttpStatus.UNAUTHORIZED).json({
+        error: 'Link expired or already used',
+      });
+    }
+
+    const tokens = await this.authService.generateTokens(user);
+    setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+
+    this.audit.log({
+      userId: user.id,
+      action: 'login',
+      resource: 'magic_link',
+      outcome: 'success',
+      metadata: { method: 'magic_link' },
+      ipAddress: req.ip,
+      userAgent: req.headers?.['user-agent'],
+    });
+
+    // Validate returnUrl to prevent open redirect
+    const safeReturnUrl =
+      returnUrl && returnUrl.startsWith('/') ? returnUrl : '/portal';
+
+    const frontendUrl = resolveFrontendUrl();
+    return res.redirect(`${frontendUrl}${safeReturnUrl}`);
   }
 
   @Get('google')

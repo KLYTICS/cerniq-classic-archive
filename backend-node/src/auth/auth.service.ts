@@ -944,6 +944,194 @@ export class AuthService {
     return { revoked: true };
   }
 
+  // ── Magic Link Auth ───────────────────────────────────
+
+  /**
+   * Request a magic link for the given email. If the user doesn't exist,
+   * auto-create them (cooperativa CFOs sign up via magic link).
+   * Returns the generated user regardless of creation path so the controller
+   * can fire-and-forget the email send.
+   */
+  async requestMagicLinkForEmail(email: string): Promise<void> {
+    const normalizedEmail = this.normalizeEmail(email);
+    if (!normalizedEmail) {
+      // Don't reveal anything — just return silently
+      return;
+    }
+
+    let user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    // Auto-create the user if they don't exist (cooperativa CFO flow)
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          provider: 'magic_link',
+          emailVerified: true,
+        },
+      });
+
+      // Auto-create a default workspace for the new user
+      await this.prisma.workspace.create({
+        data: {
+          name: `${normalizedEmail.split('@')[0]}'s Workspace`,
+          ownerId: user.id,
+        },
+      });
+
+      this.logger.log({
+        event: 'magic_link_user_auto_created',
+        userId: user.id,
+        email: normalizedEmail,
+      });
+    }
+
+    // Generate token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await this.prisma.magicLink.create({
+      data: {
+        userId: user.id,
+        token,
+        expiresAt,
+      },
+    });
+
+    // Send magic link email (fire-and-forget)
+    const frontendUrl = (process.env.FRONTEND_URL || 'https://cerniq.io')
+      .trim()
+      .replace(/\/+$/, '');
+    const verifyUrl = `${frontendUrl}/auth/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(normalizedEmail)}`;
+
+    this.sendMagicLinkAuthEmail(normalizedEmail, user.name || '', verifyUrl).catch(
+      () => {},
+    );
+
+    this.logger.log({
+      event: 'magic_link_requested',
+      userId: user.id,
+      email: normalizedEmail,
+    });
+  }
+
+  /**
+   * Verify a magic link token and email combination.
+   * Returns the user if valid, null otherwise.
+   * Token is single-use: marked as used on successful verification.
+   */
+  async verifyMagicLinkToken(
+    token: string,
+    email: string,
+  ): Promise<{ id: string; email: string; name?: string | null } | null> {
+    if (!token || !email) {
+      return null;
+    }
+
+    const normalizedEmail = this.normalizeEmail(email);
+    if (!normalizedEmail) {
+      return null;
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true, email: true, name: true },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    // Find valid magic link for this user with matching token
+    const magicLink = await this.prisma.magicLink.findFirst({
+      where: {
+        userId: user.id,
+        token,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!magicLink) {
+      return null;
+    }
+
+    // Mark token as used (single-use)
+    await this.prisma.magicLink.update({
+      where: { id: magicLink.id },
+      data: { usedAt: new Date() },
+    });
+
+    // Update lastLoginAt
+    await this.prisma.user
+      .update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      })
+      .catch(() => {
+        /* best-effort */
+      });
+
+    this.logger.log({
+      event: 'magic_link_verified',
+      userId: user.id,
+      email: normalizedEmail,
+    });
+
+    return user;
+  }
+
+  private async sendMagicLinkAuthEmail(
+    email: string,
+    name: string,
+    verifyUrl: string,
+  ): Promise<void> {
+    try {
+      const { Resend } = require('resend');
+      const apiKey = process.env.RESEND_API_KEY;
+      if (!apiKey) {
+        this.logger.warn(
+          'RESEND_API_KEY not set — magic link email not sent',
+        );
+        return;
+      }
+      const resend = new Resend(apiKey);
+      await resend.emails.send({
+        from: 'CERNIQ <onboarding@resend.dev>',
+        replyTo: process.env.ERWIN_EMAIL || 'eskiessalfonso@gmail.com',
+        to: email,
+        subject: 'Acceso seguro a CERNIQ / Secure sign-in link',
+        html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#F8FAFC;font-family:Georgia,serif;">
+          <div style="max-width:580px;margin:0 auto;">
+            <div style="background:#1B3A6B;padding:24px 32px;border-radius:8px 8px 0 0;">
+              <span style="color:#FFF;font-size:22px;font-weight:bold;">CERNIQ</span>
+            </div>
+            <div style="background:#FFF;padding:32px;border:1px solid #E2E8F0;border-top:none;line-height:1.7;color:#1E293B;font-size:15px;">
+              <p>Hola ${name || ''},</p>
+              <p>Haga clic en el bot\u00f3n de abajo para acceder a su panel de CERNIQ. Este enlace es v\u00e1lido por <strong>1 hora</strong> y solo puede usarse una vez.</p>
+              <div style="margin:28px 0;text-align:center;">
+                <a href="${verifyUrl}" style="background:#E8A020;color:#FFF;padding:16px 36px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;">Acceder a CERNIQ / Sign in to CERNIQ</a>
+              </div>
+              <p style="color:#64748B;font-size:13px;">Si usted no solicit\u00f3 este enlace, puede ignorar este correo.</p>
+              <hr style="border:none;border-top:2px solid #E2E8F0;margin:32px 0;">
+              <p>Hi ${name || ''},</p>
+              <p>Click the button above to access your CERNIQ dashboard. This link is valid for <strong>1 hour</strong> and can only be used once.</p>
+              <p style="color:#64748B;font-size:13px;">If you didn't request this link, you can safely ignore this email.</p>
+            </div>
+            <div style="background:#F1F5F9;padding:16px 32px;border-radius:0 0 8px 8px;border:1px solid #E2E8F0;border-top:none;">
+              <p style="margin:0;font-size:11px;color:#64748B;">CERNIQ &middot; KLYTICS LLC &middot; San Juan, Puerto Rico</p>
+            </div>
+          </div>
+        </body></html>`,
+      });
+      this.logger.log({ event: 'magic_link_auth_email_sent', email });
+    } catch (err) {
+      this.logger.error(`Failed to send magic link auth email: ${err}`);
+    }
+  }
+
   private normalizeEmail(email?: string | null) {
     return (email || '').trim().toLowerCase() || null;
   }

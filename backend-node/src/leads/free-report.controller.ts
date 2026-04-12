@@ -1,8 +1,11 @@
 import {
   Controller,
   Post,
+  Get,
+  Param,
   Body,
   Req,
+  Res,
   Logger,
   HttpCode,
   BadRequestException,
@@ -11,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { FreeReportService } from './free-report.service';
+import { PrismaService } from '../prisma.service';
 import { TokenBucketLimiter } from '../common/utils/rate-limit.util';
 
 // ─── DTO (validated inline — no external dep needed) ────────
@@ -42,7 +46,10 @@ export class FreeReportController {
     refillRate: 3 / 86_400,
   });
 
-  constructor(private readonly freeReport: FreeReportService) {}
+  constructor(
+    private readonly freeReport: FreeReportService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Post('api/leads/free-report')
   @SkipThrottle() // We handle our own rate limiting below
@@ -113,7 +120,45 @@ export class FreeReportController {
       healthGrade: result.healthGrade,
       niiHook: result.niiHookFormatted,
       matched: result.matched,
+      pdfGenerated: true,
     };
+  }
+
+  // ── Tracking Pixel ──────────────────────────────────────
+
+  /** 1x1 transparent PNG returned for email open tracking. */
+  private static readonly TRANSPARENT_1X1_PNG = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQAB' +
+      'Nl7BcQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+
+  @Get('api/leads/track/:leadId')
+  @SkipThrottle()
+  async trackOpen(@Param('leadId') leadId: string, @Res() res: any): Promise<void> {
+    // Fire-and-forget: merge openedAt into the Lead's publicDataSnapshot JSON field
+    this.prisma.$executeRaw`
+      UPDATE leads
+      SET public_data_snapshot = COALESCE(public_data_snapshot, '{}'::jsonb) || ${JSON.stringify({ openedAt: new Date().toISOString() })}::jsonb
+      WHERE id = ${leadId}
+    `.catch((err: unknown) => {
+      this.logger.warn({
+        event: 'tracking_pixel.update_failed',
+        leadId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+
+    this.logger.log({ event: 'tracking_pixel.opened', leadId });
+
+    res.set({
+      'Content-Type': 'image/png',
+      'Content-Length': FreeReportController.TRANSPARENT_1X1_PNG.length,
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+    });
+    res.end(FreeReportController.TRANSPARENT_1X1_PNG);
   }
 
   // ── Helpers ──

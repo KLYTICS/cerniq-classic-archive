@@ -5,6 +5,8 @@ import {
   type CossecCooperativaSnapshot,
 } from '../alm/data-pull/cossec-snapshots/cossec-2025q4';
 import { COSSEC_BENCHMARK_Q3_2025 } from './prospect-seed';
+import { FreeReportPdfService } from './free-report-pdf.service';
+import { FreeReportEmailService } from './free-report-email.service';
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -50,7 +52,11 @@ export interface FreeReportResult {
 export class FreeReportService {
   private readonly logger = new Logger(FreeReportService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pdfService: FreeReportPdfService,
+    private readonly emailService: FreeReportEmailService,
+  ) {}
 
   async generateFreeReport(params: FreeReportParams): Promise<FreeReportResult> {
     const { institutionName, email, firstName } = params;
@@ -155,16 +161,7 @@ export class FreeReportService {
       }
     }
 
-    this.logger.log({
-      event: 'free_report.generated',
-      matched: !!match,
-      slug: match?.slug ?? null,
-      inputName: institutionName,
-      healthScore,
-      leadId: lead.id,
-    });
-
-    return {
+    const result: FreeReportResult = {
       matched: !!match,
       institutionName: match ? match.name : institutionName,
       slug: match?.slug ?? null,
@@ -186,6 +183,43 @@ export class FreeReportService {
         ? `PRELIMINARY — Built from COSSEC public filings, ${match.asOfQuarter}`
         : `PRELIMINARY — Based on sector averages (COSSEC ${COSSEC_BENCHMARK_Q3_2025.period}). Specific data will be used once your institution is identified.`,
     };
+
+    this.logger.log({
+      event: 'free_report.generated',
+      matched: result.matched,
+      slug: result.slug,
+      inputName: institutionName,
+      healthScore: result.healthScore,
+      leadId: result.leadId,
+    });
+
+    // Generate PDF and send email asynchronously (fire-and-forget)
+    // We don't block the API response on PDF generation + email delivery.
+    this.generateAndSendPdf(result, email).catch((err) => {
+      this.logger.error({
+        event: 'free_report.pdf_email_failed',
+        leadId: result.leadId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+
+    return result;
+  }
+
+  /**
+   * Generate the 3-page PDF and send it via email.
+   * Called fire-and-forget from generateFreeReport so the API response is fast.
+   */
+  private async generateAndSendPdf(result: FreeReportResult, recipientEmail: string): Promise<void> {
+    const pdfBuffer = await this.pdfService.generateFreeReportPdf(result);
+
+    this.logger.log({
+      event: 'free_report.pdf_generated',
+      leadId: result.leadId,
+      pdfSizeBytes: pdfBuffer.length,
+    });
+
+    await this.emailService.sendFreeReportEmail(result, pdfBuffer, recipientEmail);
   }
 
   // ─── Fuzzy Matching ──────────────────────────────────────────

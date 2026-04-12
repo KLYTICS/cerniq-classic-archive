@@ -40,8 +40,8 @@ describe('KMVMertonService', () => {
     const high = service.solveAssetValue(120, 0.15, 350, 0.05, 1);
 
     // High leverage should have lower or equal DD
-    expect(high.distanceToDefault).toBeLessThanOrEqual(low.distanceToDefault);
-    expect(high.leverage).toBeGreaterThanOrEqual(low.leverage);
+    expect(high.distanceToDefault!).toBeLessThanOrEqual(low.distanceToDefault!);
+    expect(high.leverage!).toBeGreaterThanOrEqual(low.leverage!);
   });
 
   it('maps distance-to-default to credit rating', () => {
@@ -52,8 +52,8 @@ describe('KMVMertonService', () => {
     // More leveraged -> weaker rating than healthy
     const leveraged = service.solveAssetValue(50, 0.15, 450, 0.05, 1);
     const ratingOrder = ['D', 'CCC', 'B', 'BB', 'BBB', 'A', 'AA', 'AAA'];
-    const healthyIdx = ratingOrder.indexOf(healthy.impliedRating);
-    const leveragedIdx = ratingOrder.indexOf(leveraged.impliedRating);
+    const healthyIdx = ratingOrder.indexOf(healthy.impliedRating!);
+    const leveragedIdx = ratingOrder.indexOf(leveraged.impliedRating!);
     expect(leveragedIdx).toBeLessThanOrEqual(healthyIdx);
   });
 
@@ -70,29 +70,44 @@ describe('KMVMertonService', () => {
     const result = await service.computeKMV('inst_1');
     expect(result.assetValue).toBeGreaterThan(0);
     expect(result.distanceToDefault).toBeGreaterThan(0);
-    expect(result.leverage).toBeCloseTo(435 / result.assetValue, 1);
+    expect(result.leverage).toBeCloseTo(435 / result.assetValue!, 1);
   });
 
-  it('uses institution totalAssets when no balance sheet items', async () => {
-    prisma.institution.findUnique.mockResolvedValue({
-      id: 'inst_2',
-      totalAssets: 600,
-    });
-    prisma.balanceSheetItem.findMany.mockResolvedValue([]);
-
-    const result = await service.computeKMV('inst_2');
-    expect(result.assetValue).toBeGreaterThan(0);
-    expect(result.debtFaceValue).toBeGreaterThan(0);
-  });
-
-  it('falls back to default 445 when no institution or items', async () => {
+  it('returns data_unavailable when no balance sheet items and no institution', async () => {
     prisma.institution.findUnique.mockResolvedValue(null);
     prisma.balanceSheetItem.findMany.mockResolvedValue([]);
 
     const result = await service.computeKMV('inst_missing');
-    expect(result.assetValue).toBeGreaterThan(0);
-    // Default totalAssets = 445, liabilities = 445 * 0.87
-    expect(result.debtFaceValue).toBeCloseTo(445 * 0.87, 0);
+    expect(result.assetValue).toBeNull();
+    expect(result.distanceToDefault).toBeNull();
+    expect(result.gaps).toBeDefined();
+    expect(result.gaps!.length).toBe(1);
+    expect(result.gaps![0].reason).toBe('KMV_INPUTS_INSUFFICIENT');
+    expect(result.gaps![0].severity).toBe('CRITICAL');
+  });
+
+  it('returns data_unavailable when institution exists but no BS items', async () => {
+    prisma.institution.findUnique.mockResolvedValue({
+      id: 'inst_2',
+      totalAssets: 0,
+    });
+    prisma.balanceSheetItem.findMany.mockResolvedValue([]);
+
+    const result = await service.computeKMV('inst_2');
+    expect(result.assetValue).toBeNull();
+    expect(result.gaps).toBeDefined();
+    expect(result.gaps![0].reason).toBe('KMV_INPUTS_INSUFFICIENT');
+  });
+
+  it('returns data_unavailable when assets exist but no liabilities', async () => {
+    prisma.institution.findUnique.mockResolvedValue({ id: 'inst_3' });
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', balance: 500, rate: 0.05, duration: 3 },
+    ]);
+
+    const result = await service.computeKMV('inst_3');
+    expect(result.assetValue).toBeNull();
+    expect(result.gaps![0].reason).toBe('KMV_INPUTS_INSUFFICIENT');
   });
 
   it('covers all rating categories from ddToRating', () => {

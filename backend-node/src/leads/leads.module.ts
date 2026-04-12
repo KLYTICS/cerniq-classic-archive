@@ -9,6 +9,8 @@ import { AlmModule } from '../alm/alm.module';
 import { PortalModule } from '../portal/portal.module';
 import { InstitutionIntelligenceService } from './institution-intelligence.service';
 import { FreeReportService } from './free-report.service';
+import { FreeReportPdfService } from './free-report-pdf.service';
+import { FreeReportEmailService } from './free-report-email.service';
 import { FreeReportController } from './free-report.controller';
 
 @Module({
@@ -21,6 +23,8 @@ import { FreeReportController } from './free-report.controller';
     OutreachExecutionService,
     InstitutionIntelligenceService,
     FreeReportService,
+    FreeReportPdfService,
+    FreeReportEmailService,
   ],
   exports: [
     LeadsService,
@@ -29,6 +33,8 @@ import { FreeReportController } from './free-report.controller';
     OutreachExecutionService,
     InstitutionIntelligenceService,
     FreeReportService,
+    FreeReportPdfService,
+    FreeReportEmailService,
   ],
 })
 export class LeadsModule {}

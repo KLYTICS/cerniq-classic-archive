@@ -38,7 +38,8 @@ export type DataGapReason =
   | 'MIXED_CURRENCIES'
   | 'STALE_SNAPSHOT'
   | 'CALCULATION_FAILED'
-  | 'DEPENDENCY_REJECTED';
+  | 'DEPENDENCY_REJECTED'
+  | 'KMV_INPUTS_INSUFFICIENT';
 
 export interface DataGap {
   /**

@@ -72,3 +72,12 @@ export class RefreshTokenDto {
   @IsString()
   refreshToken?: string;
 }
+
+export class MagicLinkRequestDto {
+  @ApiProperty({
+    description: 'Email address to send magic link',
+    example: 'cfo@cooperativa.coop',
+  })
+  @IsEmail()
+  email: string;
+}

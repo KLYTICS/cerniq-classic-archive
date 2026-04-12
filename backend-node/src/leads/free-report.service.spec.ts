@@ -14,6 +14,14 @@ const mockPrisma = {
   },
 } as any;
 
+const mockPdfService = {
+  generateFreeReportPdf: jest.fn().mockResolvedValue(Buffer.from('mock-pdf')),
+} as any;
+
+const mockEmailService = {
+  sendFreeReportEmail: jest.fn().mockResolvedValue(undefined),
+} as any;
+
 // ─── Service Tests ───────────────────────────────────────────
 
 describe('FreeReportService', () => {
@@ -21,7 +29,7 @@ describe('FreeReportService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new FreeReportService(mockPrisma);
+    service = new FreeReportService(mockPrisma, mockPdfService, mockEmailService);
 
     mockPrisma.lead.create.mockResolvedValue({ id: 'lead-test-001' });
     mockPrisma.prospectInstitution.findFirst.mockResolvedValue(null);
@@ -283,6 +291,11 @@ describe('FreeReportController — rate limiting', () => {
     }),
   } as any;
 
+  const mockControllerPrisma = {
+    lead: { update: jest.fn() },
+    $executeRaw: jest.fn().mockResolvedValue(1),
+  } as any;
+
   const mockReq = {
     headers: { 'x-forwarded-for': '192.168.1.100' },
     ip: '192.168.1.100',
@@ -290,7 +303,7 @@ describe('FreeReportController — rate limiting', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    controller = new FreeReportController(mockService);
+    controller = new FreeReportController(mockService, mockControllerPrisma);
   });
 
   it('allows first 3 requests from same IP', async () => {

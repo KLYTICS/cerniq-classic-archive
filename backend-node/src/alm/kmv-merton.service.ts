@@ -1,18 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 
 // KMV-Merton (1974) — Structural Default Model
 // Equity as call option on firm assets → solve for asset value and vol → Distance-to-Default
 
 export interface KMVResult {
-  assetValue: number;
-  assetVol: number;
-  distanceToDefault: number;
-  impliedDefaultProbability: number;
-  leverage: number;
-  impliedRating: string;
-  equityValue: number;
-  debtFaceValue: number;
+  assetValue: number | null;
+  assetVol: number | null;
+  distanceToDefault: number | null;
+  impliedDefaultProbability: number | null;
+  leverage: number | null;
+  impliedRating: string | null;
+  equityValue: number | null;
+  debtFaceValue: number | null;
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -29,26 +31,68 @@ export class KMVMertonService {
       where: { institutionId },
     });
 
+    const assetItems = items.filter((i: any) => i.category === 'asset');
+    const liabilityItems = items.filter((i: any) => i.category === 'liability');
+
     const totalAssets =
-      items
-        .filter((i: any) => i.category === 'asset')
-        .reduce((s: number, i: any) => s + i.balance, 0) ||
+      assetItems.reduce((s: number, i: any) => s + i.balance, 0) ||
       inst?.totalAssets ||
-      445;
+      0;
+
+    // Refuse to compute on missing data — D1 convention
+    if (totalAssets === 0) {
+      this.logger.warn(
+        `KMV-Merton: no balance sheet data for institution ${institutionId}. Returning data_unavailable.`,
+      );
+      return this.dataUnavailableResult();
+    }
+
     const totalLiabilities =
-      items
-        .filter((i: any) => i.category === 'liability')
-        .reduce((s: number, i: any) => s + i.balance, 0) || totalAssets * 0.87;
+      liabilityItems.reduce((s: number, i: any) => s + i.balance, 0);
+
+    if (totalLiabilities === 0) {
+      this.logger.warn(
+        `KMV-Merton: no liability data for institution ${institutionId}. Returning data_unavailable.`,
+      );
+      return this.dataUnavailableResult();
+    }
+
     const equity = totalAssets - totalLiabilities;
+
+    if (equity <= 0) {
+      this.logger.warn(
+        `KMV-Merton: negative equity (${equity}) for institution ${institutionId}. Cannot solve.`,
+      );
+      return this.dataUnavailableResult();
+    }
 
     // For cooperativas: use net worth as equity proxy, total deposits + borrowings as debt
     const E = equity;
-    const D = totalLiabilities; // short-term + 0.5 × long-term (KMV convention)
+    const D = totalLiabilities; // short-term + 0.5 x long-term (KMV convention)
     const sigmaE = 0.15; // equity volatility proxy (cooperativas are less volatile)
     const r = 0.0475; // risk-free rate
     const T = 1; // 1-year default horizon
 
     return this.solveAssetValue(E, sigmaE, D, r, T);
+  }
+
+  private dataUnavailableResult(): KMVResult {
+    return {
+      assetValue: null,
+      assetVol: null,
+      distanceToDefault: null,
+      impliedDefaultProbability: null,
+      leverage: null,
+      impliedRating: null,
+      equityValue: null,
+      debtFaceValue: null,
+      gaps: [
+        dataGap('credit.kmv', 'KMV_INPUTS_INSUFFICIENT', {
+          severity: 'CRITICAL',
+          action: 'Upload balance sheet with both asset and liability items',
+        }),
+      ],
+    };
   }
 
   solveAssetValue(
