@@ -41,6 +41,7 @@ import { useDocumentExports } from "@/hooks/useDocumentExports";
 import { useAnalysisData, type AnalysisData, type ComplianceRatio } from "@/hooks/useAnalysisData";
 import { useTranslation } from "@/lib/i18n";
 import ReportProgressWS from "@/components/portal/ReportProgressWS";
+import { MetricStrip } from "@/components/ui/cerniq/MetricStrip";
 import type { PortalExportSummary } from "@/lib/portal-overview";
 
 /* ───── types ───── */
@@ -251,73 +252,55 @@ function OverviewTab({
         )}
       </div>
 
-      {/* Key metrics grid */}
+      {/* Key metrics — Bloomberg-density strip */}
       {bs && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricTile
-            label={t("Total Assets", "Activos Totales")}
-            value={fmtCurrency(bs.totalAssets)}
-            icon={TrendingUp}
-          />
-          <MetricTile
-            label={t("Duration Gap", "Brecha de Duración")}
-            value={irr ? `${fmtYears(irr.durationGap)} ${t("years", "años")}` : "—"}
-            subtext={t("Target: -1 to +3y", "Objetivo: -1 a +3a")}
-            icon={Activity}
-            tone={irr ? (irr.durationGap >= -1 && irr.durationGap <= 3 ? "good" : "warning") : undefined}
-          />
-          <MetricTile
-            label={t("Net Interest Margin", "Margen de Interés Neto")}
-            value={irr ? fmtPct(irr.nim) : "—"}
-            subtext={t("Sector median: 2.9%", "Mediana: 2.9%")}
-            icon={TrendingUp}
-            tone={irr ? (irr.nim >= 0.025 ? "good" : "warning") : undefined}
-          />
-          <MetricTile
-            label={t("Capital Adequacy", "Adecuación de Capital")}
-            value={bs.totalAssets > 0 ? fmtPct(bs.totalEquity / bs.totalAssets) : "—"}
-            subtext={t("Threshold: 8%", "Umbral: 8%")}
-            icon={Shield}
-            tone={
-              bs.totalAssets > 0
-                ? bs.totalEquity / bs.totalAssets >= 0.08
-                  ? "good"
-                  : "warning"
-                : undefined
-            }
-          />
-        </div>
-      )}
-
-      {/* Liquidity row */}
-      {liq && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          <MetricTile
-            label={t("Liquidity Coverage", "Cobertura de Liquidez")}
-            value={fmtPct(liq.lcr)}
-            subtext={t("Required: 100%", "Requerido: 100%")}
-            icon={Droplets}
-            tone={liq.lcr >= 1.0 ? "good" : "warning"}
-          />
-          <MetricTile
-            label={t("HQLA Total", "HQLA Total")}
-            value={fmtCurrency(liq.hqlaTotal)}
-            icon={Shield}
-          />
-          <MetricTile
-            label={t("Loan-to-Deposit", "Préstamos/Depósitos")}
-            value={fmtPct(liq.loanToDeposit)}
-            subtext={t("Target: <80%", "Objetivo: <80%")}
-            icon={Activity}
-            tone={liq.loanToDeposit <= 0.8 ? "good" : "warning"}
-          />
-        </div>
+        <MetricStrip
+          density="comfortable"
+          items={[
+            { label: t("Total Assets", "Activos Totales"), value: fmtCurrency(bs.totalAssets) },
+            {
+              label: t("Duration Gap", "Brecha Duración"),
+              value: irr ? `${fmtYears(irr.durationGap)}y` : "—",
+              tooltip: t("Target: -1 to +3y", "Objetivo: -1 a +3a"),
+            },
+            {
+              label: t("NIM", "Margen NII"),
+              value: irr ? fmtPct(irr.nim) : "—",
+              delta: irr ? (irr.nim - 0.029) * 100 : undefined,
+              deltaFormat: "percent",
+              tooltip: t("vs sector median 2.9%", "vs mediana sector 2.9%"),
+            },
+            {
+              label: t("Capital Ratio", "Ratio Capital"),
+              value: bs.totalAssets > 0 ? fmtPct(bs.totalEquity / bs.totalAssets) : "—",
+              tooltip: t("COSSEC threshold: 8%", "Umbral COSSEC: 8%"),
+            },
+            ...(liq
+              ? [
+                  {
+                    label: "LCR",
+                    value: fmtPct(liq.lcr),
+                    tooltip: t("Required: 100%", "Requerido: 100%"),
+                  },
+                  {
+                    label: "HQLA",
+                    value: fmtCurrency(liq.hqlaTotal),
+                  },
+                  {
+                    label: t("Loan/Deposit", "Prést./Dep."),
+                    value: fmtPct(liq.loanToDeposit),
+                    tooltip: t("Target: <80%", "Objetivo: <80%"),
+                  },
+                ]
+              : []),
+          ]}
+        />
       )}
 
       {/* NII Sensitivity chart */}
       {irr && irr.scenarios.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h3 className="text-sm font-semibold text-slate-700 mb-4">
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
             {t("NII Sensitivity by Rate Scenario", "Sensibilidad NII por Escenario de Tasa")}
           </h3>
           <ResponsiveContainer width="100%" height={280}>
@@ -365,8 +348,8 @@ function OverviewTab({
 
       {/* COSSEC Compliance summary */}
       {comp && comp.ratios.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h3 className="text-sm font-semibold text-slate-700 mb-4">
+        <div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
             {t("COSSEC Compliance Summary", "Resumen de Cumplimiento COSSEC")}
           </h3>
           <ComplianceGrid ratios={comp.ratios} locale={locale} />
@@ -426,30 +409,26 @@ function BalanceSheetTab({ analysis, locale }: { analysis: AnalysisData | null; 
 
   return (
     <div className="space-y-8 p-6 sm:p-8">
-      {/* Summary cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <MetricTile
-          label={t("Total Assets", "Activos Totales")}
-          value={fmtCurrency(bs.totalAssets)}
-          icon={TrendingUp}
-        />
-        <MetricTile
-          label={t("Total Liabilities", "Pasivos Totales")}
-          value={fmtCurrency(bs.totalLiabilities)}
-          icon={Activity}
-        />
-        <MetricTile
-          label={t("Total Equity", "Capital Total")}
-          value={fmtCurrency(bs.totalEquity)}
-          icon={Shield}
-          tone={bs.totalEquity > 0 ? "good" : "warning"}
-        />
-      </div>
+      {/* Balance sheet summary — dense strip */}
+      <MetricStrip
+        density="comfortable"
+        items={[
+          { label: t("Total Assets", "Activos Totales"), value: fmtCurrency(bs.totalAssets) },
+          { label: t("Total Liabilities", "Pasivos Totales"), value: fmtCurrency(bs.totalLiabilities) },
+          {
+            label: t("Total Equity", "Capital Total"),
+            value: fmtCurrency(bs.totalEquity),
+            delta: bs.totalAssets > 0 ? (bs.totalEquity / bs.totalAssets) * 100 : undefined,
+            deltaFormat: "percent",
+            tooltip: t("Equity / Assets", "Capital / Activos"),
+          },
+        ]}
+      />
 
       {/* Composition charts */}
       <div className="grid gap-6 lg:grid-cols-2">
         {assetPieData.length > 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
             <h3 className="text-sm font-semibold text-slate-700 mb-4">
               {t("Asset Composition", "Composición de Activos")}
             </h3>
@@ -482,7 +461,7 @@ function BalanceSheetTab({ analysis, locale }: { analysis: AnalysisData | null; 
         )}
 
         {liabilityPieData.length > 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
             <h3 className="text-sm font-semibold text-slate-700 mb-4">
               {t("Liability Composition", "Composición de Pasivos")}
             </h3>
@@ -599,55 +578,42 @@ function InterestRateTab({ analysis, locale }: { analysis: AnalysisData | null; 
 
   return (
     <div className="space-y-8 p-6 sm:p-8">
-      {/* Duration analysis */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <MetricTile
-          label={t("Asset Duration", "Duración de Activos")}
-          value={`${fmtYears(irr.assetDuration)} ${t("years", "años")}`}
-          icon={TrendingUp}
-        />
-        <MetricTile
-          label={t("Liability Duration", "Duración de Pasivos")}
-          value={`${fmtYears(irr.liabilityDuration)} ${t("years", "años")}`}
-          icon={Activity}
-        />
-        <MetricTile
-          label={t("Duration Gap", "Brecha de Duración")}
-          value={`${fmtYears(irr.durationGap)} ${t("years", "años")}`}
-          subtext={t("Target: -1 to +3y", "Objetivo: -1 a +3a")}
-          icon={Activity}
-          tone={
-            irr.durationGap >= -1 && irr.durationGap <= 3 ? "good" : "warning"
-          }
-        />
-      </div>
-
-      {/* Yield / Cost analysis */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <MetricTile
-          label={t("Earning Asset Yield", "Rendimiento de Activos")}
-          value={fmtPct(irr.earningAssetYield)}
-          subtext={t("Sector median: 4.8%", "Mediana: 4.8%")}
-          icon={TrendingUp}
-        />
-        <MetricTile
-          label={t("Cost of Funds", "Costo de Fondos")}
-          value={fmtPct(irr.costOfFunds)}
-          subtext={t("Sector median: 1.9%", "Mediana: 1.9%")}
-          icon={Activity}
-        />
-        <MetricTile
-          label={t("Net Interest Margin", "Margen de Interés Neto")}
-          value={fmtPct(irr.nim)}
-          subtext={t("Threshold: 2.5%+", "Umbral: 2.5%+")}
-          icon={TrendingUp}
-          tone={irr.nim >= 0.025 ? "good" : "warning"}
-        />
-      </div>
+      {/* Duration analysis — dense strip */}
+      <MetricStrip
+        density="comfortable"
+        items={[
+          { label: t("Asset Duration", "Duración Activos"), value: `${fmtYears(irr.assetDuration)}y` },
+          { label: t("Liability Duration", "Duración Pasivos"), value: `${fmtYears(irr.liabilityDuration)}y` },
+          {
+            label: t("Duration Gap", "Brecha Duración"),
+            value: `${fmtYears(irr.durationGap)}y`,
+            tooltip: t("Target: -1 to +3y", "Objetivo: -1 a +3a"),
+          },
+          {
+            label: t("Earning Yield", "Rendimiento"),
+            value: fmtPct(irr.earningAssetYield),
+            delta: irr.earningAssetYield ? (irr.earningAssetYield - 0.048) * 100 : undefined,
+            deltaFormat: "percent",
+            tooltip: t("vs sector 4.8%", "vs sector 4.8%"),
+          },
+          {
+            label: t("Cost of Funds", "Costo Fondos"),
+            value: fmtPct(irr.costOfFunds),
+            tooltip: t("Sector median: 1.9%", "Mediana: 1.9%"),
+          },
+          {
+            label: "NIM",
+            value: fmtPct(irr.nim),
+            delta: irr.nim ? (irr.nim - 0.025) * 100 : undefined,
+            deltaFormat: "percent",
+            tooltip: t("Threshold: 2.5%+", "Umbral: 2.5%+"),
+          },
+        ]}
+      />
 
       {/* Scenario analysis chart */}
       {irr.scenarios.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
           <h3 className="text-sm font-semibold text-slate-700 mb-2">
             {t(
               "NII & EVE Sensitivity — 7 Rate Scenarios",
@@ -809,39 +775,32 @@ function LiquidityTab({ analysis, locale }: { analysis: AnalysisData | null; loc
 
   return (
     <div className="space-y-8 p-6 sm:p-8">
-      {/* Key liquidity metrics */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricTile
-          label={t("LCR", "RCL")}
-          value={fmtPct(liq.lcr)}
-          subtext={t("Required: 100%", "Requerido: 100%")}
-          icon={Droplets}
-          tone={liq.lcr >= 1.0 ? "good" : "warning"}
-        />
-        <MetricTile
-          label={t("NSFR", "RFEN")}
-          value={fmtPct(liq.nsfr)}
-          subtext={t("Required: 100%", "Requerido: 100%")}
-          icon={Shield}
-          tone={liq.nsfr >= 1.0 ? "good" : "warning"}
-        />
-        <MetricTile
-          label={t("HQLA Total", "HQLA Total")}
-          value={fmtCurrency(liq.hqlaTotal)}
-          icon={TrendingUp}
-        />
-        <MetricTile
-          label={t("Loan-to-Deposit", "Préstamos/Depósitos")}
-          value={fmtPct(liq.loanToDeposit)}
-          subtext={t("Target: <80%", "Objetivo: <80%")}
-          icon={Activity}
-          tone={liq.loanToDeposit <= 0.8 ? "good" : "warning"}
-        />
-      </div>
+      {/* Key liquidity metrics — dense strip */}
+      <MetricStrip
+        density="comfortable"
+        items={[
+          {
+            label: "LCR",
+            value: fmtPct(liq.lcr),
+            tooltip: t("Required: 100%", "Requerido: 100%"),
+          },
+          {
+            label: "NSFR",
+            value: fmtPct(liq.nsfr),
+            tooltip: t("Required: 100%", "Requerido: 100%"),
+          },
+          { label: "HQLA", value: fmtCurrency(liq.hqlaTotal) },
+          {
+            label: t("Loan/Deposit", "Prést./Dep."),
+            value: fmtPct(liq.loanToDeposit),
+            tooltip: t("Target: <80%", "Objetivo: <80%"),
+          },
+        ]}
+      />
 
       {/* Cash flow composition */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6">
-        <h3 className="text-sm font-semibold text-slate-700 mb-4">
+      <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
           {t("Liquidity Composition", "Composición de Liquidez")}
         </h3>
         <ResponsiveContainer width="100%" height={300}>
@@ -1020,26 +979,48 @@ function ComplianceGrid({
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {ratios.map((ratio) => {
-        const status = getStatus(ratio);
-        return (
-          <div
-            key={ratio.id}
-            className={`flex items-center gap-3 rounded-xl border p-4 ${statusBg[status]}`}
-          >
-            {statusIcon[status]}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-slate-700 truncate">
-                {locale === "en" ? ratio.nameEn : ratio.nameEs}
-              </p>
-              <p className="text-lg font-bold text-slate-900 tabular-nums">
-                {formatValue(ratio)}
-              </p>
-            </div>
-          </div>
-        );
-      })}
+    <div className="overflow-hidden rounded-lg border border-slate-200">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-slate-50/60 border-b border-slate-200">
+            <th className="w-8 px-3 py-2" />
+            <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              {t("Ratio", "Razón")}
+            </th>
+            <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              {t("Value", "Valor")}
+            </th>
+            <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              {t("Threshold", "Umbral")}
+            </th>
+            <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              {t("Peer", "Sector")}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {ratios.map((ratio) => {
+            const status = getStatus(ratio);
+            return (
+              <tr key={ratio.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                <td className="px-3 py-2 text-center">{statusIcon[status]}</td>
+                <td className="px-3 py-2 text-xs font-medium text-slate-700 truncate max-w-[200px]">
+                  {locale === "en" ? ratio.nameEn : ratio.nameEs}
+                </td>
+                <td className="px-3 py-2 text-right font-mono text-sm font-semibold text-slate-900 tabular-nums">
+                  {formatValue(ratio)}
+                </td>
+                <td className="px-3 py-2 text-right font-mono text-xs text-slate-500 tabular-nums">
+                  {ratio.threshold != null ? (ratio.format === "years" ? `${ratio.threshold.toFixed(1)}y` : fmtPct(ratio.threshold)) : "—"}
+                </td>
+                <td className="px-3 py-2 text-right font-mono text-xs text-slate-500 tabular-nums">
+                  {ratio.sectorMedian != null ? (ratio.format === "years" ? `${ratio.sectorMedian.toFixed(1)}y` : fmtPct(ratio.sectorMedian)) : "—"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

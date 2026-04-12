@@ -48,37 +48,23 @@ interface ModuleCardProps {
 
 function ModuleCard({ mod, locale, migrated, compact }: ModuleCardProps) {
   const Icon = mod.icon;
-  const paddingClass = compact ? 'p-2' : 'p-3';
-  const iconBoxClass = compact ? 'h-6 w-6' : 'h-8 w-8';
-  const iconClass = compact ? 'h-3 w-3' : 'h-4 w-4';
-  const titleClass = compact ? 'text-[11px]' : 'text-xs';
+  const iconClass = compact ? 'h-3 w-3' : 'h-3.5 w-3.5';
+  const titleClass = compact ? 'text-[10px]' : 'text-[11px]';
 
   return (
     <Link
       href={mod.href}
-      className={`group relative flex items-start gap-2 rounded-xl border border-slate-200 bg-white ${paddingClass} transition hover:border-slate-300 hover:shadow-sm ${migrated ? '' : 'opacity-70'}`}
+      className={`group flex items-center gap-2 rounded-md border border-transparent px-2 py-1.5 transition hover:border-slate-200 hover:bg-slate-50 ${migrated ? '' : 'opacity-60'}`}
     >
-      <div className={`flex ${iconBoxClass} shrink-0 items-center justify-center rounded-lg border border-slate-100 bg-slate-50 group-hover:border-slate-200`}>
-        <Icon className={`${iconClass} text-slate-500 group-hover:text-slate-700`} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1">
-          <p className={`truncate ${titleClass} font-semibold text-slate-800 group-hover:text-slate-950`}>
-            {mod.name[locale]}
-          </p>
-          {migrated ? (
-            <Check
-              className="h-2.5 w-2.5 shrink-0 text-emerald-600"
-              aria-label={locale === 'es' ? 'Listo' : 'Ready'}
-            />
-          ) : null}
-        </div>
-        <p className="mt-0.5 line-clamp-1 text-[9px] text-slate-400">
-          {mod.description[locale]}
-        </p>
-      </div>
+      <Icon className={`${iconClass} shrink-0 text-slate-400 group-hover:text-slate-600`} />
+      <p className={`truncate ${titleClass} font-medium text-slate-700 group-hover:text-slate-900`}>
+        {mod.name[locale]}
+      </p>
+      {migrated ? (
+        <Check className="h-2.5 w-2.5 shrink-0 text-emerald-500" aria-label={locale === 'es' ? 'Listo' : 'Ready'} />
+      ) : null}
       {mod.status !== 'ga' ? (
-        <span className="absolute -right-0.5 -top-0.5 rounded px-1 py-px text-[7px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200">
+        <span className="ml-auto shrink-0 rounded px-1 py-px text-[7px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 border border-amber-200">
           {mod.status}
         </span>
       ) : null}
@@ -134,7 +120,7 @@ export function ModuleStatusGrid({
                 </span>
               </div>
             )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-0.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {modules.map((mod) => (
                 <ModuleCard
                   key={mod.slug}

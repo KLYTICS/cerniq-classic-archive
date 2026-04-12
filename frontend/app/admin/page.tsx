@@ -15,6 +15,7 @@ import {
   hasStoredAdminKey,
   persistAdminKey,
 } from "@/lib/admin-session";
+import { MetricStrip } from "@/components/ui/cerniq/MetricStrip";
 import {
   Activity,
   AlertTriangle,
@@ -377,11 +378,14 @@ export default function AdminPage() {
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {topMetrics.map((metric) => (
-                <StatCard key={metric.label} {...metric} />
-              ))}
-            </div>
+            <MetricStrip
+              density="comfortable"
+              items={topMetrics.map((m) => ({
+                label: m.label,
+                value: m.value,
+                tooltip: m.detail,
+              }))}
+            />
 
             <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
               <section className="rounded-3xl border border-white/10 bg-slate-900/75 p-6">
