@@ -15,3 +15,6 @@ export type { DataRowCell, DataRowStatus, DataRowProps } from './DataRow';
 
 export { DataTable } from './DataTable';
 export type { DataTableColumn, DataTableProps } from './DataTable';
+
+export { DataGapBanner, GapCell, MetricCell } from './DataGapBanner';
+export type { DataGapBannerProps, GapCellProps, MetricCellProps } from './DataGapBanner';

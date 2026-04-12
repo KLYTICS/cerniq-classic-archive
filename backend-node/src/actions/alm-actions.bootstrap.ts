@@ -23,6 +23,9 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ActionRegistryService } from './action-registry.service';
 import { InstitutionSeedService } from '../alm/institution-seed.service';
 import { ReportPreflightService } from '../alm/reports/report-preflight.service';
+import { StressTestingService } from '../alm/stress-testing/stress-testing.service';
+import { ReportsService } from '../alm/reports/reports.service';
+import { BoardReportService } from '../alm/board-report.service';
 
 @Injectable()
 export class AlmActionsBootstrap implements OnModuleInit {
@@ -32,6 +35,9 @@ export class AlmActionsBootstrap implements OnModuleInit {
     private readonly registry: ActionRegistryService,
     private readonly institutionSeed: InstitutionSeedService,
     private readonly reportPreflight: ReportPreflightService,
+    private readonly stressTesting: StressTestingService,
+    private readonly reports: ReportsService,
+    private readonly boardReport: BoardReportService,
   ) {}
 
   onModuleInit(): void {
@@ -101,6 +107,99 @@ export class AlmActionsBootstrap implements OnModuleInit {
           durationMs: 0, // dispatcher will fill in
           criticalGapCount: preflight.criticalCount,
           warningGapCount: preflight.warningCount,
+        };
+      },
+    );
+
+    // ── Second-wave actions (Bible Vol2 §9 + SESSION_HANDOFF §2.3) ──
+
+    this.registry.register(
+      {
+        id: 'alm.run-stress-test',
+        label: {
+          en: 'Run regulatory stress test',
+          es: 'Ejecutar prueba de estrés regulatoria',
+        },
+        module: 'alm',
+        description: {
+          en: 'Runs COSSEC/Basel regulatory stress scenarios against the institution. Returns scenario results with overall rating.',
+          es: 'Ejecuta escenarios de estrés regulatorio COSSEC/Basel contra la institución. Retorna resultados con calificación general.',
+        },
+        requiresConfirm: true,
+        audit: true,
+        estimatedDurationMs: 3000,
+      },
+      async (input) => {
+        const institutionId = String(input.institutionId ?? '');
+        if (!institutionId) {
+          return { success: false, error: 'institutionId is required', durationMs: 0 };
+        }
+        const result = await this.stressTesting.runRegulatoryStress(institutionId);
+        return {
+          success: result.overallRating !== 'data_unavailable',
+          data: result,
+          durationMs: 0,
+        };
+      },
+    );
+
+    this.registry.register(
+      {
+        id: 'alm.generate-report',
+        label: {
+          en: 'Generate ALM report (PDF)',
+          es: 'Generar informe ALM (PDF)',
+        },
+        module: 'alm',
+        description: {
+          en: 'Generates the full bilingual ALM report PDF. Requires balance sheet data to be uploaded. Returns the PDF buffer URL.',
+          es: 'Genera el informe ALM bilingüe completo en PDF. Requiere datos de balance cargados. Retorna la URL del PDF.',
+        },
+        requiresConfirm: true,
+        audit: true,
+        estimatedDurationMs: 15000,
+      },
+      async (input) => {
+        const institutionId = String(input.institutionId ?? '');
+        const lang = String(input.lang ?? 'es');
+        if (!institutionId) {
+          return { success: false, error: 'institutionId is required', durationMs: 0 };
+        }
+        const buffer = await this.reports.generateALMReport(institutionId, lang);
+        return {
+          success: Boolean(buffer),
+          data: { generated: true, lang, sizeBytes: buffer?.length ?? 0 },
+          durationMs: 0,
+        };
+      },
+    );
+
+    this.registry.register(
+      {
+        id: 'alm.export-board-package',
+        label: {
+          en: 'Export board package',
+          es: 'Exportar paquete para junta',
+        },
+        module: 'alm',
+        description: {
+          en: 'Generates board-ready quarterly report with KPI summary, risk alerts, and regulatory pulse. All data nullable per D1 — no phantom numbers.',
+          es: 'Genera informe trimestral para junta con resumen KPI, alertas de riesgo y pulso regulatorio. Todos los datos nulables según D1.',
+        },
+        requiresConfirm: false,
+        audit: true,
+        estimatedDurationMs: 5000,
+      },
+      async (input) => {
+        const institutionId = String(input.institutionId ?? '');
+        if (!institutionId) {
+          return { success: false, error: 'institutionId is required', durationMs: 0 };
+        }
+        const boardData = await this.boardReport.generateBoardReportData(institutionId);
+        return {
+          success: true,
+          data: boardData,
+          durationMs: 0,
         };
       },
     );

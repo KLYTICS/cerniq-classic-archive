@@ -11,36 +11,7 @@ import {
 import { createCheckoutSession } from "@/lib/billing";
 import { analytics, EVENTS } from "@/lib/analytics";
 import { CerniqMark } from "@/components/brand/CerniqLogo";
-
-function getCtaLabel(tierId: string, lang: "en" | "es") {
-  if (lang === "en") {
-    switch (tierId) {
-      case "one_time":
-        return "Start — $750";
-      case "monthly":
-        return "Subscribe — $299/mo";
-      case "annual":
-        return "Buy Annual — $2,400";
-      case "partner":
-        return "Contact Sales";
-      default:
-        return "Get Started";
-    }
-  } else {
-    switch (tierId) {
-      case "one_time":
-        return "Comenzar — $750";
-      case "monthly":
-        return "Suscribirse — $299/mes";
-      case "annual":
-        return "Comprar anual — $2,400";
-      case "partner":
-        return "Contactar ventas";
-      default:
-        return "Comenzar";
-    }
-  }
-}
+import { PRICING_TIERS, getCtaLabel } from "@/lib/pricing";
 
 export default function PricingPage() {
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
@@ -99,75 +70,15 @@ export default function PricingPage() {
           },
         ];
 
-  const tiers = [
-    {
-      id: "one_time",
-      name: t("ALM Report", "Informe ALM"),
-      price: "$750",
-      cadence: t("one-time", "unico"),
-      featured: false,
-      bullets: [
-        t(
-          "One 14+ page bilingual ALM report",
-          "Un informe ALM bilingue de 14+ paginas",
-        ),
-        t(
-          "Data review & guided setup",
-          "Revision de datos y configuracion guiada",
-        ),
-        t("Board-ready bilingual PDF", "PDF bilingue listo para junta"),
-        t("12 COSSEC/NCUA ratios", "12 ratios COSSEC/NCUA"),
-      ],
-    },
-    {
-      id: "monthly",
-      name: t("Monthly ALM Platform", "Plataforma ALM Mensual"),
-      price: "$299",
-      cadence: t("/month", "/mes"),
-      featured: true,
-      bullets: [
-        t(
-          "Recurring upload-to-report workflow",
-          "Flujo recurrente de carga a informe",
-        ),
-        t("Bilingual report delivery", "Entrega bilingue de informes"),
-        t(
-          "Dashboard workspace for report retrieval",
-          "Espacio de dashboard para recuperacion de informes",
-        ),
-        t(
-          "12 COSSEC/NCUA ratios updated monthly",
-          "12 ratios COSSEC/NCUA actualizados mensualmente",
-        ),
-      ],
-    },
-    {
-      id: "annual",
-      name: t("Annual ALM Platform", "Plataforma ALM Anual"),
-      price: "$2,400",
-      cadence: t("/year", "/ano"),
-      featured: false,
-      bullets: [
-        t("4+ annual reports included", "4+ informes anuales incluidos"),
-        t("Predictable fixed pricing", "Precio fijo predecible"),
-        t("Priority support", "Soporte prioritario"),
-        t("Save $1,188 vs. monthly", "Ahorre $1,188 vs. mensual"),
-      ],
-    },
-    {
-      id: "partner",
-      name: t("CPA Partner", "Partner CPA"),
-      price: "$499",
-      cadence: t("/month", "/mes"),
-      featured: false,
-      bullets: [
-        t("Multi-client workflow", "Flujo de trabajo multi-cliente"),
-        t("Partner workspace access", "Acceso al espacio para partners"),
-        t("White-label delivery support", "Soporte de entrega white-label"),
-        t("Client management dashboard", "Panel de administracion de clientes"),
-      ],
-    },
-  ];
+  // Pricing tiers from single source of truth (lib/pricing.ts)
+  const tiers = PRICING_TIERS.map((tier) => ({
+    id: tier.id,
+    name: t(tier.description, tier.descriptionEs),
+    price: t(tier.label, tier.labelEs),
+    cadence: t(tier.cadence, tier.cadenceEs),
+    featured: tier.featured,
+    bullets: tier.bullets.map((b) => t(b.en, b.es)),
+  }));
 
   const faqItems = [
     {
@@ -665,7 +576,7 @@ export default function PricingPage() {
                 >
                   {loadingTier === "one_time"
                     ? t("Processing...", "Procesando...")
-                    : t("Start — $750", "Comenzar — $750")}
+                    : getCtaLabel("one_time", lang)}
                 </button>
                 <Link href="/" className="cerniq-button-secondary">
                   {t("Back to home", "Volver al inicio")}

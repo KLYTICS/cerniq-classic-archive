@@ -90,6 +90,13 @@ export interface AnalysisData {
     triggeredBy: string;
     completedAt: string | null;
   } | null;
+  /** Data gaps surfaced by the ALM engine (D1 contract). */
+  gaps?: Array<{
+    field: string;
+    reason: string;
+    severity: 'CRITICAL' | 'WARNING';
+    action: string;
+  }>;
 }
 
 export function useAnalysisData(jobId: string | null | undefined) {

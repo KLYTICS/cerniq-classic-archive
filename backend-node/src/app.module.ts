@@ -13,6 +13,7 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { ApiVersionMiddleware } from './common/middleware/api-version.middleware';
 import { RequestLoggingMiddleware } from './common/middleware/request-logging.middleware';
+import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 import { CorrelationInterceptor } from './common/interceptors/correlation.interceptor';
 import { MarketDataModule } from './market-data/market-data.module';
 import { TickerModule } from './ticker/ticker.module';
@@ -167,5 +168,11 @@ export class AppModule implements NestModule {
         RequestLoggingMiddleware,
       )
       .forRoutes('*');
+
+    // RLS tenant context: sets PostgreSQL session variables for row-level security.
+    // Applied to all api/* routes; no-ops gracefully for unauthenticated requests.
+    consumer
+      .apply(TenantContextMiddleware)
+      .forRoutes('api/*');
   }
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   ArrowLeft,
   Download,
@@ -13,6 +14,7 @@ import {
   Eye,
   Shield,
   TrendingUp,
+  Sparkles,
   Activity,
   Droplets,
   CheckCircle,
@@ -39,10 +41,17 @@ import { getPublicApiUrl } from "@/lib/api-base";
 import { unwrapApiData } from "@/lib/api-response";
 import { useDocumentExports } from "@/hooks/useDocumentExports";
 import { useAnalysisData, type AnalysisData, type ComplianceRatio } from "@/hooks/useAnalysisData";
+import { useReportDataGaps } from "@/hooks/useReportDataGaps";
+import { DataGapBanner } from "@/components/ui/cerniq/DataGapBanner";
 import { useTranslation } from "@/lib/i18n";
 import ReportProgressWS from "@/components/portal/ReportProgressWS";
 import { MetricStrip } from "@/components/ui/cerniq/MetricStrip";
 import type { PortalExportSummary } from "@/lib/portal-overview";
+
+const AnalystPanel = dynamic(() => import("@/components/portal/AnalystPanel"), {
+  ssr: false,
+  loading: () => null,
+});
 
 /* ───── types ───── */
 
@@ -97,6 +106,19 @@ const PIE_COLORS = [
 ];
 
 /* ───── helpers ───── */
+
+/** Format a value or return gap em-dash with tooltip. */
+function gapOr(
+  gapForField: (f: string) => import("@/hooks/useReportDataGaps").DataGap | undefined,
+  field: string,
+  value: number | null | undefined,
+  formatter: (v: number) => string,
+): { value: string; tooltip?: string } {
+  const gap = gapForField(field);
+  if (gap) return { value: "—", tooltip: `${gap.severity}: ${gap.reason}` };
+  if (value === null || value === undefined) return { value: "—" };
+  return { value: formatter(value) };
+}
 
 function fmtPct(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
@@ -216,10 +238,12 @@ function OverviewTab({
   job,
   analysis,
   locale,
+  gapForField,
 }: {
   job: JobDetail;
   analysis: AnalysisData | null;
   locale: string;
+  gapForField: (field: string) => import("@/hooks/useReportDataGaps").DataGap | undefined;
 }) {
   const t = (en: string, es: string) => (locale === "en" ? en : es);
 
@@ -252,7 +276,7 @@ function OverviewTab({
         )}
       </div>
 
-      {/* Key metrics — Bloomberg-density strip */}
+      {/* Key metrics — Bloomberg-density strip, gap-aware (D1) */}
       {bs && (
         <MetricStrip
           density="comfortable"
@@ -260,31 +284,31 @@ function OverviewTab({
             { label: t("Total Assets", "Activos Totales"), value: fmtCurrency(bs.totalAssets) },
             {
               label: t("Duration Gap", "Brecha Duración"),
-              value: irr ? `${fmtYears(irr.durationGap)}y` : "—",
-              tooltip: t("Target: -1 to +3y", "Objetivo: -1 a +3a"),
+              ...gapOr(gapForField, "duration.gap", irr?.durationGap, (v) => `${fmtYears(v)}y`),
+              tooltip: gapForField("duration.gap")?.reason ?? t("Target: -1 to +3y", "Objetivo: -1 a +3a"),
             },
             {
               label: t("NIM", "Margen NII"),
-              value: irr ? fmtPct(irr.nim) : "—",
-              delta: irr ? (irr.nim - 0.029) * 100 : undefined,
-              deltaFormat: "percent",
-              tooltip: t("vs sector median 2.9%", "vs mediana sector 2.9%"),
+              ...gapOr(gapForField, "interestRateRisk.nim", irr?.nim, fmtPct),
+              delta: !gapForField("interestRateRisk.nim") && irr ? (irr.nim - 0.029) * 100 : undefined,
+              deltaFormat: "percent" as const,
+              tooltip: gapForField("interestRateRisk.nim")?.reason ?? t("vs sector median 2.9%", "vs mediana sector 2.9%"),
             },
             {
               label: t("Capital Ratio", "Ratio Capital"),
               value: bs.totalAssets > 0 ? fmtPct(bs.totalEquity / bs.totalAssets) : "—",
               tooltip: t("COSSEC threshold: 8%", "Umbral COSSEC: 8%"),
             },
+            {
+              label: "LCR",
+              ...gapOr(gapForField, "liquidity.lcr", liq?.lcr, fmtPct),
+              tooltip: gapForField("liquidity.lcr")?.reason ?? t("Required: 100%", "Requerido: 100%"),
+            },
             ...(liq
               ? [
                   {
-                    label: "LCR",
-                    value: fmtPct(liq.lcr),
-                    tooltip: t("Required: 100%", "Requerido: 100%"),
-                  },
-                  {
                     label: "HQLA",
-                    value: fmtCurrency(liq.hqlaTotal),
+                    ...gapOr(gapForField, "liquidity.hqlaTotal", liq.hqlaTotal, fmtCurrency),
                   },
                   {
                     label: t("Loan/Deposit", "Prést./Dep."),
@@ -570,7 +594,7 @@ function BalanceSheetTab({ analysis, locale }: { analysis: AnalysisData | null; 
 
 /* ───── Interest Rate Risk Tab ───── */
 
-function InterestRateTab({ analysis, locale }: { analysis: AnalysisData | null; locale: string }) {
+function InterestRateTab({ analysis, locale, gapForField }: { analysis: AnalysisData | null; locale: string; gapForField: (field: string) => import("@/hooks/useReportDataGaps").DataGap | undefined }) {
   const t = (en: string, es: string) => (locale === "en" ? en : es);
   const irr = analysis?.interestRateRisk;
 
@@ -578,22 +602,22 @@ function InterestRateTab({ analysis, locale }: { analysis: AnalysisData | null; 
 
   return (
     <div className="space-y-8 p-6 sm:p-8">
-      {/* Duration analysis — dense strip */}
+      {/* Duration analysis — dense strip, gap-aware (D1) */}
       <MetricStrip
         density="comfortable"
         items={[
-          { label: t("Asset Duration", "Duración Activos"), value: `${fmtYears(irr.assetDuration)}y` },
-          { label: t("Liability Duration", "Duración Pasivos"), value: `${fmtYears(irr.liabilityDuration)}y` },
+          { label: t("Asset Duration", "Duración Activos"), ...gapOr(gapForField, "duration.assetDuration", irr.assetDuration, (v) => `${fmtYears(v)}y`) },
+          { label: t("Liability Duration", "Duración Pasivos"), ...gapOr(gapForField, "duration.liabilityDuration", irr.liabilityDuration, (v) => `${fmtYears(v)}y`) },
           {
             label: t("Duration Gap", "Brecha Duración"),
-            value: `${fmtYears(irr.durationGap)}y`,
-            tooltip: t("Target: -1 to +3y", "Objetivo: -1 a +3a"),
+            ...gapOr(gapForField, "duration.gap", irr.durationGap, (v) => `${fmtYears(v)}y`),
+            tooltip: gapForField("duration.gap")?.reason ?? t("Target: -1 to +3y", "Objetivo: -1 a +3a"),
           },
           {
             label: t("Earning Yield", "Rendimiento"),
             value: fmtPct(irr.earningAssetYield),
             delta: irr.earningAssetYield ? (irr.earningAssetYield - 0.048) * 100 : undefined,
-            deltaFormat: "percent",
+            deltaFormat: "percent" as const,
             tooltip: t("vs sector 4.8%", "vs sector 4.8%"),
           },
           {
@@ -603,10 +627,10 @@ function InterestRateTab({ analysis, locale }: { analysis: AnalysisData | null; 
           },
           {
             label: "NIM",
-            value: fmtPct(irr.nim),
-            delta: irr.nim ? (irr.nim - 0.025) * 100 : undefined,
-            deltaFormat: "percent",
-            tooltip: t("Threshold: 2.5%+", "Umbral: 2.5%+"),
+            ...gapOr(gapForField, "interestRateRisk.nim", irr.nim, fmtPct),
+            delta: !gapForField("interestRateRisk.nim") && irr.nim ? (irr.nim - 0.025) * 100 : undefined,
+            deltaFormat: "percent" as const,
+            tooltip: gapForField("interestRateRisk.nim")?.reason ?? t("Threshold: 2.5%+", "Umbral: 2.5%+"),
           },
         ]}
       />
@@ -735,7 +759,7 @@ function InterestRateTab({ analysis, locale }: { analysis: AnalysisData | null; 
 
 /* ───── Liquidity Tab ───── */
 
-function LiquidityTab({ analysis, locale }: { analysis: AnalysisData | null; locale: string }) {
+function LiquidityTab({ analysis, locale, gapForField }: { analysis: AnalysisData | null; locale: string; gapForField: (field: string) => import("@/hooks/useReportDataGaps").DataGap | undefined }) {
   const t = (en: string, es: string) => (locale === "en" ? en : es);
   const liq = analysis?.liquidity;
 
@@ -775,21 +799,21 @@ function LiquidityTab({ analysis, locale }: { analysis: AnalysisData | null; loc
 
   return (
     <div className="space-y-8 p-6 sm:p-8">
-      {/* Key liquidity metrics — dense strip */}
+      {/* Key liquidity metrics — dense strip, gap-aware (D1) */}
       <MetricStrip
         density="comfortable"
         items={[
           {
             label: "LCR",
-            value: fmtPct(liq.lcr),
-            tooltip: t("Required: 100%", "Requerido: 100%"),
+            ...gapOr(gapForField, "liquidity.lcr", liq.lcr, fmtPct),
+            tooltip: gapForField("liquidity.lcr")?.reason ?? t("Required: 100%", "Requerido: 100%"),
           },
           {
             label: "NSFR",
-            value: fmtPct(liq.nsfr),
-            tooltip: t("Required: 100%", "Requerido: 100%"),
+            ...gapOr(gapForField, "liquidity.nsfr", liq.nsfr, fmtPct),
+            tooltip: gapForField("liquidity.nsfr")?.reason ?? t("Required: 100%", "Requerido: 100%"),
           },
-          { label: "HQLA", value: fmtCurrency(liq.hqlaTotal) },
+          { label: "HQLA", ...gapOr(gapForField, "liquidity.hqlaTotal", liq.hqlaTotal, fmtCurrency) },
           {
             label: t("Loan/Deposit", "Prést./Dep."),
             value: fmtPct(liq.loanToDeposit),
@@ -1104,6 +1128,7 @@ export default function ReportSuite() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ReportTab>("overview");
   const [pdfLang, setPdfLang] = useState<"es" | "en">("es");
+  const [analystOpen, setAnalystOpen] = useState(false);
 
   const jobId =
     typeof params.id === "string"
@@ -1128,6 +1153,8 @@ export default function ReportSuite() {
     data: analysisData,
     loading: analysisLoading,
   } = useAnalysisData(job?.status === "COMPLETE" ? jobId : undefined);
+
+  const gapSummary = useReportDataGaps(analysisData?.gaps);
 
   const loadJob = useCallback(
     async (trackView = false) => {
@@ -1430,6 +1457,16 @@ export default function ReportSuite() {
         </div>
       )}
 
+      {/* ── Data gap warning (D1 contract) ── */}
+      {gapSummary.hasGaps && (
+        <DataGapBanner
+          gaps={gapSummary.gaps}
+          criticalCount={gapSummary.criticalCount}
+          warningCount={gapSummary.warningCount}
+          className="mx-6 mt-3"
+        />
+      )}
+
       {/* ── Tab navigation ── */}
       <TabNav
         active={activeTab}
@@ -1448,16 +1485,16 @@ export default function ReportSuite() {
         ) : (
           <>
             {activeTab === "overview" && (
-              <OverviewTab job={job} analysis={analysisData} locale={locale} />
+              <OverviewTab job={job} analysis={analysisData} locale={locale} gapForField={gapSummary.gapForField} />
             )}
             {activeTab === "balance-sheet" && (
               <BalanceSheetTab analysis={analysisData} locale={locale} />
             )}
             {activeTab === "interest-rate" && (
-              <InterestRateTab analysis={analysisData} locale={locale} />
+              <InterestRateTab analysis={analysisData} locale={locale} gapForField={gapSummary.gapForField} />
             )}
             {activeTab === "liquidity" && (
-              <LiquidityTab analysis={analysisData} locale={locale} />
+              <LiquidityTab analysis={analysisData} locale={locale} gapForField={gapSummary.gapForField} />
             )}
             {activeTab === "compliance" && (
               <ComplianceTab analysis={analysisData} locale={locale} />
@@ -1468,6 +1505,29 @@ export default function ReportSuite() {
           </>
         )}
       </div>
+
+      {/* ── CERNIQ Analyst floating trigger ── */}
+      {!analystOpen && job.institutionId && (
+        <button
+          onClick={() => setAnalystOpen(true)}
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-[#1B3A6B] px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-[#15305a] hover:-translate-y-0.5"
+          aria-label={t("Open CERNIQ Analyst", "Abrir CERNIQ Analyst")}
+        >
+          <Sparkles className="h-4 w-4 text-amber-300" />
+          {t("Ask Analyst", "Preguntar al Analista")}
+        </button>
+      )}
+
+      {/* ── CERNIQ Analyst slide-out panel ── */}
+      {analystOpen && job.institutionId && (
+        <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md shadow-2xl">
+          <AnalystPanel
+            institutionId={job.institutionId}
+            institutionName={job.institutionName}
+            onClose={() => setAnalystOpen(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -113,7 +113,11 @@ import { AlmDocumentExportsService } from './alm-document-exports.service';
 import { AlmController } from './alm.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
 import { AlmAdvisorV2Controller } from './alm-advisor-v2.controller';
+import { AlmAnalystService } from './alm-analyst.service';
+import { AlmAnalystController } from './alm-analyst.controller';
 import { AuthGuard } from '../auth/auth.guard';
+// Quant engine modules
+import { HJMModule } from './quant/hjm.module';
 
 @Module({
   imports: [
@@ -124,6 +128,15 @@ import { AuthGuard } from '../auth/auth.guard';
     // Phase 3 (2026-04-07): import the action registry so AlmActionsBootstrap
     // can register the first wave of ALM actions on module init.
     ActionsModule,
+    // HJM two-factor forward curve engine (calibration + Monte Carlo + NestJS services)
+    HJMModule,
+  ],
+  controllers: [
+    AlmController,
+    AlmAdvisorController,
+    AlmAdvisorV2Controller,
+    AlmAnalystController,
+    CAMELCertificationController,
   ],
   providers: [
     // Phase 3: AlmActionsBootstrap implements OnModuleInit and registers
@@ -234,6 +247,7 @@ import { AuthGuard } from '../auth/auth.guard';
     ExcelExportService,
     PreviewReportService,
     AlmDocumentExportsService,
+    AlmAnalystService,
     // Guards
     AuthGuard,
   ],
@@ -334,6 +348,7 @@ import { AuthGuard } from '../auth/auth.guard';
     ExcelExportService,
     PreviewReportService,
     AlmDocumentExportsService,
+    AlmAnalystService,
   ],
 })
 export class AlmModule {}

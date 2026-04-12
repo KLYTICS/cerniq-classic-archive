@@ -174,7 +174,7 @@ describe('CommandPalette — search', () => {
     const input = screen.getByRole('combobox');
     await user.type(input, 'xyzxyzxyzxyz');
 
-    expect(screen.getByText(/no modules found/i)).toBeInTheDocument();
+    expect(screen.getByText(/no results found/i)).toBeInTheDocument();
     expect(screen.queryAllByRole('option')).toHaveLength(0);
   });
 });

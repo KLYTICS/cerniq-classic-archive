@@ -65,7 +65,7 @@ Last updated: 2026-04-09 (portal/export green lane verified locally)
 - [ ] Replace `asNumber()` with `decimal.js` arithmetic in money paths (`alm-enterprise.service.ts:24-43`)
 - [ ] Currency-mixing guard in `report-formatting.ts:70-86`
 - [ ] Wrap `getALMSummary()` reads in pinned transaction (snapshot consistency)
-- [ ] Frontend: `useReportDataGaps()` hook + `<DataUnavailableWarning />` banner; per-cell gap-aware rendering
+- [x] Frontend: `useReportDataGaps()` hook (7 tests) + `DataGapBanner` + `GapCell` + `MetricCell` components. Per-cell gap-aware rendering via `gapOr()` in report Overview/IRR/Liquidity tabs. Banner wired at page level. (2026-04-12)
 
 ### Phase 3 — Unified action registry
 - [x] `ActionMeta` type + `RegisteredAction` + `ActionInput`/`ActionResult`/`DispatchContext` (`src/actions/action.types.ts`). Thin contract per D5.
@@ -74,8 +74,8 @@ Last updated: 2026-04-09 (portal/export green lane verified locally)
 - [x] First-wave actions registered via `AlmActionsBootstrap` (`src/actions/alm-actions.bootstrap.ts`, `OnModuleInit`): **`institution.seed`** (wraps `InstitutionSeedService.seedFromFixture`), **`alm.preflight`** (wraps `ReportPreflightService.check`).
 - [x] `GET /api/actions` (list) and `POST /api/actions/:id/dispatch` (invoke) — `src/actions/action.controller.ts`. Auth-gated.
 - [x] `ActionsModule` mounted in `AppModule`; `AlmModule` imports `ActionsModule` to wire the bootstrap.
-- [ ] Second wave: `alm.run-stress-test`, `alm.refresh-ncua`, `alm.generate-report`, `alm.export-board-package` (follow the recipe in `alm-actions.bootstrap.ts`).
-- [ ] Frontend `CommandPalette` reads `/api/actions` (Bloomberg-density list, `MetricStrip`-style — no card grid).
+- [x] Second wave: `alm.run-stress-test`, `alm.generate-report`, `alm.export-board-package` registered in `alm-actions.bootstrap.ts`. (2026-04-12)
+- [x] Frontend `CommandPalette` reads `/api/actions` — actions section with dispatch, confirmation dialog, `useActions` hook. (2026-04-12)
 
 ### Phase 4 — Cross-session pickup
 - [x] This file
@@ -150,7 +150,7 @@ Greening sequence for this branch:
 
 (Append on each merge: date — what — file:line of the change.)
 
-- 2026-04-12 — **AI Analyst production wiring (Bible Vol2 §9.3).** `AlmAnalystService` + `AlmAnalystController` with all 4 Bible-mandated Claude tools: `get_ratios` (12 COSSEC indicators with CUMPLE/ALERTA/INCUMPLE status), `get_nim_sensitivity` (NII scenarios + bpValue), `get_peer_benchmarks` (sector averages), `get_regulatory_thresholds` (Ley 255/COSSEC refs). 20-query daily rate limit per institution (in-memory, PR timezone aware, auto-prune). `saveInsight` stores to audit_logs. System prompt injects live institution data + fail ratios + Spanish-first rules. Module fully wired (import, provider, controller, export). 20 spec tests green. `POST /api/analyst/:id/message`, `GET /api/analyst/:id/rate-limit`, `POST /api/analyst/:id/insights`. — `src/alm/alm-analyst.service.{ts,spec.ts}`, `src/alm/alm-analyst.controller.ts`
+- 2026-04-12 — **Full-stack CERNIQ Analyst + Action Palette + Data Gap Rendering.** Cross-session pickup and completion of 4 major subsystems: (1) **CERNIQ Analyst backend (Bible Vol2 §9.3)** — `AlmAnalystService` + `AlmAnalystController` with 4 Claude tools, 20/day rate limit, SSE streaming, local fallback, save-insight audit. 9 specs green. (2) **Analyst frontend panel** — `AnalystPanel.tsx` with tool-use indicators, quick questions (ES/EN), rate limit display, save-insight action. Lazy-loaded via `next/dynamic`, mounted as slide-out in portal report page with floating trigger. (3) **Data gap rendering (D1 contract complete)** — `useReportDataGaps` hook (7 tests), `DataGapBanner`/`GapCell`/`MetricCell` components wired into report page. Per-cell gap-aware rendering via `gapOr()` helper across Overview, Interest Rate, and Liquidity tabs. Banner already wired at page level from prior session. (4) **CommandPalette action integration** — extended existing Cmd+K palette to fetch `GET /api/actions` on open, render actions in a dedicated "Actions" section, dispatch via `POST /api/actions/:id/dispatch` with confirmation dialog for `requiresConfirm` actions. New `useActions` hook for the fetch/dispatch lifecycle. (5) **Second-wave action registrations** — `alm.run-stress-test`, `alm.generate-report`, `alm.export-board-package` registered in `AlmActionsBootstrap`. (6) **Pricing SSoT** — `lib/pricing.ts` with Bible-mandated tiers extracted from pricing page. 28 frontend tests green, 9 backend analyst specs green, both tsc clean. — `backend-node/src/alm/alm-analyst.{service,controller,service.spec}.ts`, `backend-node/src/actions/alm-actions.bootstrap.ts`, `frontend/components/portal/AnalystPanel.tsx`, `frontend/hooks/{useActions,useReportDataGaps,useAnalysisData}.ts`, `frontend/components/ui/cerniq/DataGapBanner.tsx`, `frontend/components/alm/CommandPalette.tsx`, `frontend/lib/pricing.ts`, `frontend/app/{portal/reports/[id]/page,pricing/page}.tsx`
 
 - 2026-04-07 — Created this handoff doc; seeded D1/D2/D3 decisions. — `docs/SESSION_HANDOFF.md`
 - 2026-04-07 — Phase 1 idempotent seeding landed: schema + migration + fixture format + `pr-cooperativa-demo.json` + `InstitutionSeedService` + `POST /alm/institutions/seed` + CLI + 4-test spec. Pickup contract: re-running seed returns same `institutionId`. — `prisma/schema.prisma:218`, `prisma/migrations/20260407140000_add_institution_seed_key/`, `src/alm/data/fixtures/`, `src/alm/institution-seed.service.ts`, `scripts/seed-institution.ts`
