@@ -5,9 +5,11 @@ import type { PortalOverview } from "@/lib/portal-overview";
 import PortalHome from "./page";
 
 const searchParams = new URLSearchParams();
+const pushMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParams,
+  useRouter: () => ({ push: pushMock, replace: vi.fn() }),
 }));
 
 vi.mock("next/link", () => ({
@@ -25,6 +27,7 @@ vi.mock("@/lib/i18n", () => ({
 
 vi.mock("@/lib/features", () => ({
   useFeature: () => ({ enabled: true }),
+  getFeature: () => ({ enabled: true }),
 }));
 
 vi.mock("./layout", () => ({
@@ -43,14 +46,6 @@ vi.mock("@/lib/access", () => ({
   isActiveDemo: () => false,
 }));
 
-vi.mock("@/components/portal/WorkspaceCommandCenter", () => ({
-  default: () => <div>Workspace command center</div>,
-}));
-
-vi.mock("@/components/portal/ProgressTracker", () => ({
-  default: () => <div>Progress tracker</div>,
-}));
-
 vi.mock("@/components/portal/ReportProgressWS", () => ({
   default: () => <div>Report progress</div>,
 }));
@@ -63,45 +58,67 @@ vi.mock("@/components/portal/DemoSeatBanner", () => ({
   default: () => <div>Demo banner</div>,
 }));
 
+vi.mock("@/components/portal/ReportSuite", () => ({
+  default: () => <div data-testid="report-suite">Report suite</div>,
+}));
+
+vi.mock("@/components/ui/cerniq", () => ({
+  MetricStrip: ({ items }: { items: Array<{ label: string; value: unknown }> }) => (
+    <div data-testid="metric-strip">
+      {items.map((item) => (
+        <span key={item.label}>
+          {item.label}: {String(item.value)}
+        </span>
+      ))}
+    </div>
+  ),
+  SkeletonLoader: () => <div>Loading...</div>,
+  ErrorBanner: ({ error }: { error: string }) => <div>{error}</div>,
+  DataTable: ({
+    rows,
+    caption,
+  }: {
+    rows: Array<{ id: string; institutionName: string }>;
+    caption: string;
+    columns: unknown[];
+    rowKey: (row: unknown) => string;
+  }) => (
+    <table aria-label={caption}>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.id}>
+            <td>{row.institutionName}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ),
+}));
+
+const baseJob = {
+  id: "job-awaiting",
+  institutionId: null as string | null,
+  institutionName: "Coop San Juan",
+  status: "AWAITING_DATA",
+  analysisPeriod: null as string | null,
+  previousJobId: null as string | null,
+  submittedAt: null as string | null,
+  processingStartedAt: null as string | null,
+  completedAt: null as string | null,
+  createdAt: "2026-04-08T10:00:00.000Z",
+  reportUrl: null as string | null,
+  reportUrlEn: null as string | null,
+  reportLang: "es",
+  errorMessage: null as string | null,
+  userId: "user-1",
+  triggeredBy: "portal_submit_seed",
+};
+
 const overviewState = {
   overview: {
-    jobs: [
-      {
-        id: "job-awaiting",
-        institutionName: "Coop San Juan",
-        status: "AWAITING_DATA",
-        analysisPeriod: null,
-        previousJobId: null,
-        submittedAt: null,
-        processingStartedAt: null,
-        completedAt: null,
-        createdAt: "2026-04-08T10:00:00.000Z",
-        reportUrl: null,
-        reportUrlEn: null,
-        reportLang: "es",
-        errorMessage: null,
-        userId: "user-1",
-        triggeredBy: "portal_submit_seed",
-      },
-    ],
-    latestActionableJob: {
-      id: "job-awaiting",
-      institutionName: "Coop San Juan",
-      status: "AWAITING_DATA",
-      analysisPeriod: null,
-      previousJobId: null,
-      submittedAt: null,
-      processingStartedAt: null,
-      completedAt: null,
-      createdAt: "2026-04-08T10:00:00.000Z",
-      reportUrl: null,
-      reportUrlEn: null,
-      reportLang: "es",
-      errorMessage: null,
-      userId: "user-1",
-      triggeredBy: "portal_submit_seed",
-    },
-    workflowState: "needs_upload",
+    jobs: [baseJob],
+    latestActionableJob: baseJob,
+    workflowState: "needs_upload" as PortalOverview["workflowState"],
     counts: {
       total: 1,
       awaitingData: 1,
@@ -135,102 +152,65 @@ vi.mock("@/hooks/usePortalOverview", () => ({
 vi.mock("lucide-react", () => {
   const Icon = (props: SVGProps<SVGSVGElement>) => <svg {...props} />;
   return {
-    FileText: Icon,
     Upload: Icon,
     Download: Icon,
     Eye: Icon,
     ArrowRight: Icon,
-    Lock: Icon,
-    CheckCircle: Icon,
-    Calendar: Icon,
-    ExternalLink: Icon,
     AlertTriangle: Icon,
-    BarChart3: Icon,
-    CreditCard: Icon,
-    Settings2: Icon,
-    ShieldCheck: Icon,
-    Sparkles: Icon,
+    Play: Icon,
+    CheckCircle2: Icon,
+    Loader2: Icon,
+    Lock: Icon,
+    Circle: Icon,
   };
 });
 
 describe("PortalHome", () => {
   beforeEach(() => {
     searchParams.delete("welcome");
+    pushMock.mockReset();
   });
 
-  it("surfaces the actionable upload state from the shared overview", () => {
+  it("shows action bar with upload prompt when latest job is awaiting data", () => {
     render(<PortalHome />);
 
     expect(
-      screen.getByText("Your next report cycle is ready for upload."),
+      screen.getByText(/waiting for the CSV/i),
     ).toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: /Upload balance-sheet data/i })[0],
     ).toHaveAttribute("href", "/portal/submit?jobId=job-awaiting");
   });
 
-  it("surfaces degraded export delivery when a completed job is missing part of the package", () => {
+  it("shows report ready strip when a completed job exists", () => {
+    const completedJob = {
+      ...baseJob,
+      id: "job-complete",
+      institutionId: "inst-1",
+      institutionName: "Coop Export",
+      status: "COMPLETE",
+      analysisPeriod: "Q1-2026",
+      submittedAt: "2026-04-08T10:00:00.000Z",
+      processingStartedAt: "2026-04-08T10:05:00.000Z",
+      completedAt: "2026-04-08T10:10:00.000Z",
+      triggeredBy: "portal_submit",
+      exportSummary: {
+        manifestPath: "/api/portal/jobs/job-complete/exports",
+        status: "ready" as const,
+        readyCount: 4,
+        totalCount: 4,
+        readyReportLanguages: ["es" as const, "en" as const],
+        missingReportLanguages: [] as Array<"en" | "es">,
+        readyBoardPackLanguages: ["es" as const, "en" as const],
+        missingBoardPackLanguages: [] as Array<"en" | "es">,
+      },
+    };
+
     overviewState.overview = {
       ...overviewState.overview,
-      jobs: [
-        {
-          id: "job-complete",
-          institutionId: "inst-1",
-          institutionName: "Coop Export",
-          status: "COMPLETE",
-          analysisPeriod: "Q1-2026",
-          previousJobId: null,
-          submittedAt: "2026-04-08T10:00:00.000Z",
-          processingStartedAt: "2026-04-08T10:05:00.000Z",
-          completedAt: "2026-04-08T10:10:00.000Z",
-          createdAt: "2026-04-08T09:00:00.000Z",
-          reportUrl: null,
-          reportUrlEn: null,
-          reportLang: "es",
-          errorMessage: null,
-          userId: "user-1",
-          triggeredBy: "portal_submit",
-          exportSummary: {
-            manifestPath: "/api/portal/jobs/job-complete/exports",
-            status: "partial",
-            readyCount: 2,
-            totalCount: 4,
-            readyReportLanguages: ["es", "en"],
-            missingReportLanguages: [],
-            readyBoardPackLanguages: [],
-            missingBoardPackLanguages: ["es", "en"],
-          },
-        },
-      ],
-      latestActionableJob: {
-        id: "job-complete",
-        institutionId: "inst-1",
-        institutionName: "Coop Export",
-        status: "COMPLETE",
-        analysisPeriod: "Q1-2026",
-        previousJobId: null,
-        submittedAt: "2026-04-08T10:00:00.000Z",
-        processingStartedAt: "2026-04-08T10:05:00.000Z",
-        completedAt: "2026-04-08T10:10:00.000Z",
-        createdAt: "2026-04-08T09:00:00.000Z",
-        reportUrl: null,
-        reportUrlEn: null,
-        reportLang: "es",
-        errorMessage: null,
-        userId: "user-1",
-        triggeredBy: "portal_submit",
-        exportSummary: {
-          manifestPath: "/api/portal/jobs/job-complete/exports",
-          status: "partial",
-          readyCount: 2,
-          totalCount: 4,
-          readyReportLanguages: ["es", "en"],
-          missingReportLanguages: [],
-          readyBoardPackLanguages: [],
-          missingBoardPackLanguages: ["es", "en"],
-        },
-      },
-      workflowState: "export_degraded",
+      jobs: [completedJob],
+      latestActionableJob: completedJob,
+      workflowState: "report_ready",
       counts: {
         total: 1,
         awaitingData: 0,
@@ -239,25 +219,33 @@ describe("PortalHome", () => {
         complete: 1,
       },
       nextAction: {
-        labelEn: "Review export availability",
-        labelEs: "Revisar disponibilidad de exportacion",
+        labelEn: "View report",
+        labelEs: "Ver informe",
         href: "/portal/reports/job-complete",
         jobId: "job-complete",
-        explanationEn:
-          "The report job finished, but one or more export files still need recovery before delivery is fully complete.",
-        explanationEs:
-          "El trabajo del informe termino, pero uno o mas archivos de exportacion todavia necesitan recuperarse antes de completar la entrega.",
+        explanationEn: "Your report is ready.",
+        explanationEs: "Su informe esta listo.",
       },
-      validationSummary: null,
     } satisfies PortalOverview;
 
     render(<PortalHome />);
 
     expect(
-      screen.getByRole("heading", { name: /export package needs attention/i }),
+      screen.getByText(/ALM report for Coop Export is ready/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/2 of 4 export artifacts are ready/i),
-    ).toBeInTheDocument();
+      screen.getAllByRole("link", { name: /View Report/i })[0],
+    ).toHaveAttribute("href", "/portal/reports/job-complete");
+  });
+
+  it("renders the report suite component", () => {
+    render(<PortalHome />);
+    expect(screen.getByTestId("report-suite")).toBeInTheDocument();
+  });
+
+  it("renders metric strip with counts", () => {
+    render(<PortalHome />);
+    expect(screen.getByTestId("metric-strip")).toBeInTheDocument();
+    expect(screen.getByText(/Reports: 1/)).toBeInTheDocument();
   });
 });

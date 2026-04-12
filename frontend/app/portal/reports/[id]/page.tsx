@@ -4,18 +4,46 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  FileText,
-  Download,
   ArrowLeft,
-  AlertTriangle,
+  Download,
   Globe,
+  AlertTriangle,
+  FileText,
+  Upload,
+  Eye,
+  Shield,
+  TrendingUp,
+  Activity,
+  Droplets,
+  CheckCircle,
+  XCircle,
+  Minus,
+  BarChart3,
+  PieChart as PieChartIcon,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 import { analytics, EVENTS } from "@/lib/analytics";
 import { getPublicApiUrl } from "@/lib/api-base";
 import { unwrapApiData } from "@/lib/api-response";
 import { useDocumentExports } from "@/hooks/useDocumentExports";
+import { useAnalysisData, type AnalysisData, type ComplianceRatio } from "@/hooks/useAnalysisData";
+import { useTranslation } from "@/lib/i18n";
 import ReportProgressWS from "@/components/portal/ReportProgressWS";
 import type { PortalExportSummary } from "@/lib/portal-overview";
+
+/* ───── types ───── */
 
 interface JobDetail {
   id: string;
@@ -36,60 +64,1074 @@ interface JobDetail {
   exportSummary?: PortalExportSummary | null;
 }
 
+type ReportTab =
+  | "overview"
+  | "balance-sheet"
+  | "interest-rate"
+  | "liquidity"
+  | "compliance"
+  | "full-report";
+
+/* ───── constants ───── */
+
 const REPORT_VIEWER_TIMEOUT_MS = 10000;
 
+const PROCESSING_STATUSES = [
+  "QUEUED",
+  "PROCESSING",
+  "GENERATING_PDF",
+  "UPLOADING",
+  "VALIDATING",
+];
+
+const PIE_COLORS = [
+  "#1B3A6B",
+  "#E8A020",
+  "#1ABFFF",
+  "#18C87A",
+  "#7C3AED",
+  "#F43F5E",
+  "#0EA5E9",
+  "#D97706",
+];
+
+/* ───── helpers ───── */
+
+function fmtPct(value: number): string {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function fmtYears(value: number): string {
+  return `${value.toFixed(2)}`;
+}
+
+function fmtCurrency(value: number): string {
+  if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
+  if (value >= 1e3) return `$${(value / 1e3).toFixed(0)}K`;
+  return `$${value.toFixed(0)}`;
+}
+
+function fmtBps(value: number): string {
+  return value >= 0 ? `+${value}bps` : `${value}bps`;
+}
+
 function formatDate(value?: string | null) {
-  if (!value) {
-    return "—";
-  }
-
+  if (!value) return "—";
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "—";
-  }
-
-  return parsed.toLocaleString();
+  return Number.isNaN(parsed.getTime()) ? "—" : parsed.toLocaleDateString();
 }
 
-function formatStatusLabel(status: string) {
-  return status.replace(/_/g, " ");
+/* ───── Tab navigation ───── */
+
+function TabNav({
+  active,
+  onChange,
+  hasAnalysis,
+  hasPdf,
+  locale,
+}: {
+  active: ReportTab;
+  onChange: (tab: ReportTab) => void;
+  hasAnalysis: boolean;
+  hasPdf: boolean;
+  locale: string;
+}) {
+  const t = (en: string, es: string) => (locale === "en" ? en : es);
+
+  const tabs: Array<{
+    id: ReportTab;
+    label: string;
+    icon: React.ElementType;
+    enabled: boolean;
+  }> = [
+    {
+      id: "overview",
+      label: t("Overview", "Resumen"),
+      icon: Eye,
+      enabled: true,
+    },
+    {
+      id: "balance-sheet",
+      label: t("Balance Sheet", "Balance General"),
+      icon: PieChartIcon,
+      enabled: hasAnalysis,
+    },
+    {
+      id: "interest-rate",
+      label: t("Interest Rate Risk", "Riesgo de Tasa"),
+      icon: Activity,
+      enabled: hasAnalysis,
+    },
+    {
+      id: "liquidity",
+      label: t("Liquidity", "Liquidez"),
+      icon: Droplets,
+      enabled: hasAnalysis,
+    },
+    {
+      id: "compliance",
+      label: t("COSSEC Compliance", "Cumplimiento COSSEC"),
+      icon: Shield,
+      enabled: hasAnalysis,
+    },
+    {
+      id: "full-report",
+      label: t("Full Report PDF", "Informe PDF"),
+      icon: FileText,
+      enabled: hasPdf,
+    },
+  ];
+
+  return (
+    <nav
+      className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-white px-6"
+      aria-label="Report sections"
+    >
+      {tabs
+        .filter((tab) => tab.enabled)
+        .map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => onChange(id)}
+            className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition ${
+              active === id
+                ? "border-[#1B3A6B] text-[#1B3A6B]"
+                : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
+            }`}
+            aria-current={active === id ? "page" : undefined}
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+          </button>
+        ))}
+    </nav>
+  );
 }
 
-function statusTone(status: string) {
-  if (status === "COMPLETE") {
-    return "bg-emerald-100 text-emerald-800";
-  }
-  if (status === "FAILED" || status === "VALIDATION_FAILED") {
-    return "bg-rose-100 text-rose-800";
-  }
-  if (
-    [
-      "QUEUED",
-      "PROCESSING",
-      "GENERATING_PDF",
-      "UPLOADING",
-      "VALIDATING",
-    ].includes(status)
-  ) {
-    return "bg-amber-100 text-amber-800";
-  }
-  return "bg-slate-100 text-slate-700";
+/* ───── Overview Tab ───── */
+
+function OverviewTab({
+  job,
+  analysis,
+  locale,
+}: {
+  job: JobDetail;
+  analysis: AnalysisData | null;
+  locale: string;
+}) {
+  const t = (en: string, es: string) => (locale === "en" ? en : es);
+
+  const inst = analysis?.institution;
+  const bs = analysis?.balanceSheet;
+  const irr = analysis?.interestRateRisk;
+  const liq = analysis?.liquidity;
+  const comp = analysis?.compliance;
+
+  return (
+    <div className="space-y-8 p-6 sm:p-8">
+      {/* Institution header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="font-display text-3xl font-bold text-slate-900">
+            {job.institutionName}
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            {inst?.type && (
+              <span className="capitalize">{inst.type.replace(/_/g, " ")}</span>
+            )}
+            {inst?.totalAssets ? ` · ${fmtCurrency(inst.totalAssets)} ${t("total assets", "activos totales")}` : ""}
+            {job.analysisPeriod ? ` · ${job.analysisPeriod}` : ""}
+          </p>
+        </div>
+        {job.completedAt && (
+          <span className="text-xs text-slate-400">
+            {t("Generated", "Generado")} {formatDate(job.completedAt)}
+          </span>
+        )}
+      </div>
+
+      {/* Key metrics grid */}
+      {bs && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricTile
+            label={t("Total Assets", "Activos Totales")}
+            value={fmtCurrency(bs.totalAssets)}
+            icon={TrendingUp}
+          />
+          <MetricTile
+            label={t("Duration Gap", "Brecha de Duración")}
+            value={irr ? `${fmtYears(irr.durationGap)} ${t("years", "años")}` : "—"}
+            subtext={t("Target: -1 to +3y", "Objetivo: -1 a +3a")}
+            icon={Activity}
+            tone={irr ? (irr.durationGap >= -1 && irr.durationGap <= 3 ? "good" : "warning") : undefined}
+          />
+          <MetricTile
+            label={t("Net Interest Margin", "Margen de Interés Neto")}
+            value={irr ? fmtPct(irr.nim) : "—"}
+            subtext={t("Sector median: 2.9%", "Mediana: 2.9%")}
+            icon={TrendingUp}
+            tone={irr ? (irr.nim >= 0.025 ? "good" : "warning") : undefined}
+          />
+          <MetricTile
+            label={t("Capital Adequacy", "Adecuación de Capital")}
+            value={bs.totalAssets > 0 ? fmtPct(bs.totalEquity / bs.totalAssets) : "—"}
+            subtext={t("Threshold: 8%", "Umbral: 8%")}
+            icon={Shield}
+            tone={
+              bs.totalAssets > 0
+                ? bs.totalEquity / bs.totalAssets >= 0.08
+                  ? "good"
+                  : "warning"
+                : undefined
+            }
+          />
+        </div>
+      )}
+
+      {/* Liquidity row */}
+      {liq && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <MetricTile
+            label={t("Liquidity Coverage", "Cobertura de Liquidez")}
+            value={fmtPct(liq.lcr)}
+            subtext={t("Required: 100%", "Requerido: 100%")}
+            icon={Droplets}
+            tone={liq.lcr >= 1.0 ? "good" : "warning"}
+          />
+          <MetricTile
+            label={t("HQLA Total", "HQLA Total")}
+            value={fmtCurrency(liq.hqlaTotal)}
+            icon={Shield}
+          />
+          <MetricTile
+            label={t("Loan-to-Deposit", "Préstamos/Depósitos")}
+            value={fmtPct(liq.loanToDeposit)}
+            subtext={t("Target: <80%", "Objetivo: <80%")}
+            icon={Activity}
+            tone={liq.loanToDeposit <= 0.8 ? "good" : "warning"}
+          />
+        </div>
+      )}
+
+      {/* NII Sensitivity chart */}
+      {irr && irr.scenarios.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h3 className="text-sm font-semibold text-slate-700 mb-4">
+            {t("NII Sensitivity by Rate Scenario", "Sensibilidad NII por Escenario de Tasa")}
+          </h3>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart
+              data={irr.scenarios.map((s) => ({
+                name: fmtBps(s.shiftBps),
+                nii: s.niImpact,
+                eve: s.mveImpact,
+              }))}
+              margin={{ top: 8, right: 16, bottom: 0, left: 16 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 12, fill: "#64748b" }}
+              />
+              <YAxis
+                tick={{ fontSize: 12, fill: "#64748b" }}
+                tickFormatter={(v) => fmtCurrency(v)}
+              />
+              <Tooltip
+                formatter={(value) => fmtCurrency(Number(value ?? 0))}
+                contentStyle={{
+                  borderRadius: 12,
+                  border: "1px solid #e2e8f0",
+                  fontSize: 13,
+                }}
+              />
+              <Bar
+                dataKey="nii"
+                name={t("NII Impact", "Impacto NII")}
+                fill="#1B3A6B"
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar
+                dataKey="eve"
+                name={t("EVE Impact", "Impacto EVE")}
+                fill="#E8A020"
+                radius={[4, 4, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* COSSEC Compliance summary */}
+      {comp && comp.ratios.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h3 className="text-sm font-semibold text-slate-700 mb-4">
+            {t("COSSEC Compliance Summary", "Resumen de Cumplimiento COSSEC")}
+          </h3>
+          <ComplianceGrid ratios={comp.ratios} locale={locale} />
+        </div>
+      )}
+
+      {/* No analysis data fallback */}
+      {!bs && (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 py-12 text-center">
+          <BarChart3 className="mx-auto h-10 w-10 text-slate-300" />
+          <p className="mt-3 text-sm text-slate-500">
+            {t(
+              "Structured analysis data is not yet available for this report.",
+              "Los datos de análisis estructurado aún no están disponibles para este informe.",
+            )}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            {t(
+              "Switch to the Full Report PDF tab to view the generated report.",
+              "Cambie a la pestaña PDF del Informe Completo para ver el informe generado.",
+            )}
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }
 
-export default function ReportViewer() {
+/* ───── Balance Sheet Tab ───── */
+
+function BalanceSheetTab({ analysis, locale }: { analysis: AnalysisData | null; locale: string }) {
+  const t = (en: string, es: string) => (locale === "en" ? en : es);
+  const bs = analysis?.balanceSheet;
+
+  if (!bs) return null;
+
+  const subcategoryLabels: Record<string, string> = {
+    loans: t("Loans", "Préstamos"),
+    securities: t("Securities", "Valores"),
+    cash: t("Cash & Equivalents", "Efectivo"),
+    deposits: t("Deposits", "Depósitos"),
+    borrowings: t("Borrowings", "Préstamos Obtenidos"),
+    equity: t("Equity", "Capital"),
+  };
+
+  const assetPieData = bs.assetBreakdown.map((g, i) => ({
+    name: subcategoryLabels[g.subcategory] || g.subcategory,
+    value: g.total,
+    fill: PIE_COLORS[i % PIE_COLORS.length],
+  }));
+
+  const liabilityPieData = bs.liabilityBreakdown.map((g, i) => ({
+    name: subcategoryLabels[g.subcategory] || g.subcategory,
+    value: g.total,
+    fill: PIE_COLORS[(i + 3) % PIE_COLORS.length],
+  }));
+
+  return (
+    <div className="space-y-8 p-6 sm:p-8">
+      {/* Summary cards */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MetricTile
+          label={t("Total Assets", "Activos Totales")}
+          value={fmtCurrency(bs.totalAssets)}
+          icon={TrendingUp}
+        />
+        <MetricTile
+          label={t("Total Liabilities", "Pasivos Totales")}
+          value={fmtCurrency(bs.totalLiabilities)}
+          icon={Activity}
+        />
+        <MetricTile
+          label={t("Total Equity", "Capital Total")}
+          value={fmtCurrency(bs.totalEquity)}
+          icon={Shield}
+          tone={bs.totalEquity > 0 ? "good" : "warning"}
+        />
+      </div>
+
+      {/* Composition charts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {assetPieData.length > 0 && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6">
+            <h3 className="text-sm font-semibold text-slate-700 mb-4">
+              {t("Asset Composition", "Composición de Activos")}
+            </h3>
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={assetPieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={90}
+                  innerRadius={50}
+                  paddingAngle={2}
+                >
+                  {assetPieData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(v) => fmtCurrency(Number(v ?? 0))} />
+                <Legend
+                  verticalAlign="bottom"
+                  iconType="circle"
+                  iconSize={8}
+                  wrapperStyle={{ fontSize: 12 }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {liabilityPieData.length > 0 && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6">
+            <h3 className="text-sm font-semibold text-slate-700 mb-4">
+              {t("Liability Composition", "Composición de Pasivos")}
+            </h3>
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={liabilityPieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={90}
+                  innerRadius={50}
+                  paddingAngle={2}
+                >
+                  {liabilityPieData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(v) => fmtCurrency(Number(v ?? 0))} />
+                <Legend
+                  verticalAlign="bottom"
+                  iconType="circle"
+                  iconSize={8}
+                  wrapperStyle={{ fontSize: 12 }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* Line items table */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-100 px-6 py-4">
+          <h3 className="text-sm font-semibold text-slate-700">
+            {t("Balance Sheet Detail", "Detalle del Balance General")}
+          </h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50/60 text-left">
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  {t("Item", "Partida")}
+                </th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  {t("Category", "Categoría")}
+                </th>
+                <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  {t("Balance", "Saldo")}
+                </th>
+                <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  {t("Rate", "Tasa")}
+                </th>
+                <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  {t("Duration", "Duración")}
+                </th>
+                <th className="px-6 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  {t("Type", "Tipo")}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {bs.items.map((item, i) => (
+                <tr key={`${item.name}-${i}`} className="hover:bg-slate-50/50">
+                  <td className="px-6 py-3 font-medium text-slate-900">
+                    {item.name}
+                  </td>
+                  <td className="px-6 py-3">
+                    <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 capitalize">
+                      {item.subcategory}
+                    </span>
+                  </td>
+                  <td className="px-6 py-3 text-right tabular-nums text-slate-700">
+                    {fmtCurrency(item.balance)}
+                  </td>
+                  <td className="px-6 py-3 text-right tabular-nums text-slate-700">
+                    {fmtPct(item.rate)}
+                  </td>
+                  <td className="px-6 py-3 text-right tabular-nums text-slate-700">
+                    {fmtYears(item.duration)}y
+                  </td>
+                  <td className="px-6 py-3 text-center">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                        item.rateType === "fixed"
+                          ? "bg-blue-50 text-blue-700"
+                          : item.rateType === "variable"
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {item.rateType}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───── Interest Rate Risk Tab ───── */
+
+function InterestRateTab({ analysis, locale }: { analysis: AnalysisData | null; locale: string }) {
+  const t = (en: string, es: string) => (locale === "en" ? en : es);
+  const irr = analysis?.interestRateRisk;
+
+  if (!irr) return null;
+
+  return (
+    <div className="space-y-8 p-6 sm:p-8">
+      {/* Duration analysis */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MetricTile
+          label={t("Asset Duration", "Duración de Activos")}
+          value={`${fmtYears(irr.assetDuration)} ${t("years", "años")}`}
+          icon={TrendingUp}
+        />
+        <MetricTile
+          label={t("Liability Duration", "Duración de Pasivos")}
+          value={`${fmtYears(irr.liabilityDuration)} ${t("years", "años")}`}
+          icon={Activity}
+        />
+        <MetricTile
+          label={t("Duration Gap", "Brecha de Duración")}
+          value={`${fmtYears(irr.durationGap)} ${t("years", "años")}`}
+          subtext={t("Target: -1 to +3y", "Objetivo: -1 a +3a")}
+          icon={Activity}
+          tone={
+            irr.durationGap >= -1 && irr.durationGap <= 3 ? "good" : "warning"
+          }
+        />
+      </div>
+
+      {/* Yield / Cost analysis */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MetricTile
+          label={t("Earning Asset Yield", "Rendimiento de Activos")}
+          value={fmtPct(irr.earningAssetYield)}
+          subtext={t("Sector median: 4.8%", "Mediana: 4.8%")}
+          icon={TrendingUp}
+        />
+        <MetricTile
+          label={t("Cost of Funds", "Costo de Fondos")}
+          value={fmtPct(irr.costOfFunds)}
+          subtext={t("Sector median: 1.9%", "Mediana: 1.9%")}
+          icon={Activity}
+        />
+        <MetricTile
+          label={t("Net Interest Margin", "Margen de Interés Neto")}
+          value={fmtPct(irr.nim)}
+          subtext={t("Threshold: 2.5%+", "Umbral: 2.5%+")}
+          icon={TrendingUp}
+          tone={irr.nim >= 0.025 ? "good" : "warning"}
+        />
+      </div>
+
+      {/* Scenario analysis chart */}
+      {irr.scenarios.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h3 className="text-sm font-semibold text-slate-700 mb-2">
+            {t(
+              "NII & EVE Sensitivity — 7 Rate Scenarios",
+              "Sensibilidad NII y EVE — 7 Escenarios de Tasa",
+            )}
+          </h3>
+          <p className="text-xs text-slate-400 mb-4">
+            {t(
+              "Impact on Net Interest Income and Economic Value of Equity under parallel rate shocks",
+              "Impacto en Ingreso Neto por Intereses y Valor Económico del Capital bajo choques paralelos de tasa",
+            )}
+          </p>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart
+              data={irr.scenarios.map((s) => ({
+                scenario: fmtBps(s.shiftBps),
+                nii: s.niImpact,
+                eve: s.mveImpact,
+              }))}
+              margin={{ top: 8, right: 16, bottom: 0, left: 16 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis
+                dataKey="scenario"
+                tick={{ fontSize: 12, fill: "#64748b" }}
+              />
+              <YAxis
+                tick={{ fontSize: 12, fill: "#64748b" }}
+                tickFormatter={(v) => fmtCurrency(v)}
+              />
+              <Tooltip
+                formatter={(value, name) => [
+                  fmtCurrency(Number(value ?? 0)),
+                  String(name),
+                ]}
+                contentStyle={{
+                  borderRadius: 12,
+                  border: "1px solid #e2e8f0",
+                  fontSize: 13,
+                }}
+              />
+              <Legend />
+              <Bar
+                dataKey="nii"
+                name={t("NII Impact ($)", "Impacto NII ($)")}
+                fill="#1B3A6B"
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar
+                dataKey="eve"
+                name={t("EVE Impact ($)", "Impacto EVE ($)")}
+                fill="#E8A020"
+                radius={[4, 4, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Scenario detail table */}
+      {irr.scenarios.length > 0 && (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className="border-b border-slate-100 px-6 py-4">
+            <h3 className="text-sm font-semibold text-slate-700">
+              {t("Scenario Detail", "Detalle de Escenarios")}
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50/60 text-left">
+                  <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    {t("Scenario", "Escenario")}
+                  </th>
+                  <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    {t("Rate Shift", "Cambio de Tasa")}
+                  </th>
+                  <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    {t("NII Impact", "Impacto NII")}
+                  </th>
+                  <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    {t("EVE Impact", "Impacto EVE")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {irr.scenarios.map((s) => (
+                  <tr key={s.shiftBps} className="hover:bg-slate-50/50">
+                    <td className="px-6 py-3 font-medium text-slate-900">
+                      {s.name}
+                    </td>
+                    <td className="px-6 py-3 text-right tabular-nums text-slate-700">
+                      {fmtBps(s.shiftBps)}
+                    </td>
+                    <td
+                      className={`px-6 py-3 text-right tabular-nums ${
+                        s.niImpact >= 0 ? "text-emerald-700" : "text-rose-700"
+                      }`}
+                    >
+                      {fmtCurrency(s.niImpact)}
+                    </td>
+                    <td
+                      className={`px-6 py-3 text-right tabular-nums ${
+                        s.mveImpact >= 0 ? "text-emerald-700" : "text-rose-700"
+                      }`}
+                    >
+                      {fmtCurrency(s.mveImpact)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ───── Liquidity Tab ───── */
+
+function LiquidityTab({ analysis, locale }: { analysis: AnalysisData | null; locale: string }) {
+  const t = (en: string, es: string) => (locale === "en" ? en : es);
+  const liq = analysis?.liquidity;
+
+  if (!liq) {
+    return (
+      <div className="flex items-center justify-center py-20 text-slate-400 text-sm">
+        {t(
+          "Liquidity data is not available for this report.",
+          "Los datos de liquidez no están disponibles para este informe.",
+        )}
+      </div>
+    );
+  }
+
+  const flowData = [
+    {
+      name: t("HQLA L1", "HQLA N1"),
+      value: liq.hqlaLevel1,
+      fill: "#1B3A6B",
+    },
+    {
+      name: t("HQLA L2", "HQLA N2"),
+      value: liq.hqlaLevel2,
+      fill: "#1ABFFF",
+    },
+    {
+      name: t("Cash Outflows", "Flujos de Salida"),
+      value: liq.cashOutflows,
+      fill: "#F43F5E",
+    },
+    {
+      name: t("Cash Inflows", "Flujos de Entrada"),
+      value: liq.cashInflows,
+      fill: "#18C87A",
+    },
+  ];
+
+  return (
+    <div className="space-y-8 p-6 sm:p-8">
+      {/* Key liquidity metrics */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricTile
+          label={t("LCR", "RCL")}
+          value={fmtPct(liq.lcr)}
+          subtext={t("Required: 100%", "Requerido: 100%")}
+          icon={Droplets}
+          tone={liq.lcr >= 1.0 ? "good" : "warning"}
+        />
+        <MetricTile
+          label={t("NSFR", "RFEN")}
+          value={fmtPct(liq.nsfr)}
+          subtext={t("Required: 100%", "Requerido: 100%")}
+          icon={Shield}
+          tone={liq.nsfr >= 1.0 ? "good" : "warning"}
+        />
+        <MetricTile
+          label={t("HQLA Total", "HQLA Total")}
+          value={fmtCurrency(liq.hqlaTotal)}
+          icon={TrendingUp}
+        />
+        <MetricTile
+          label={t("Loan-to-Deposit", "Préstamos/Depósitos")}
+          value={fmtPct(liq.loanToDeposit)}
+          subtext={t("Target: <80%", "Objetivo: <80%")}
+          icon={Activity}
+          tone={liq.loanToDeposit <= 0.8 ? "good" : "warning"}
+        />
+      </div>
+
+      {/* Cash flow composition */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6">
+        <h3 className="text-sm font-semibold text-slate-700 mb-4">
+          {t("Liquidity Composition", "Composición de Liquidez")}
+        </h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart
+            data={flowData}
+            margin={{ top: 8, right: 16, bottom: 0, left: 16 }}
+            layout="vertical"
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <XAxis
+              type="number"
+              tick={{ fontSize: 12, fill: "#64748b" }}
+              tickFormatter={(v) => fmtCurrency(v)}
+            />
+            <YAxis
+              type="category"
+              dataKey="name"
+              tick={{ fontSize: 12, fill: "#64748b" }}
+              width={120}
+            />
+            <Tooltip
+              formatter={(v) => fmtCurrency(Number(v ?? 0))}
+              contentStyle={{
+                borderRadius: 12,
+                border: "1px solid #e2e8f0",
+                fontSize: 13,
+              }}
+            />
+            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+              {flowData.map((entry) => (
+                <Cell key={entry.name} fill={entry.fill} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+/* ───── Compliance Tab ───── */
+
+function ComplianceTab({ analysis, locale }: { analysis: AnalysisData | null; locale: string }) {
+  const t = (en: string, es: string) => (locale === "en" ? en : es);
+  const comp = analysis?.compliance;
+
+  if (!comp || comp.ratios.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-20 text-slate-400 text-sm">
+        {t(
+          "Compliance data is not available for this report.",
+          "Los datos de cumplimiento no están disponibles.",
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8 p-6 sm:p-8">
+      <div>
+        <h2 className="font-display text-2xl font-bold text-slate-900">
+          {t("COSSEC Regulatory Compliance", "Cumplimiento Regulatorio COSSEC")}
+        </h2>
+        <p className="mt-2 text-sm text-slate-500">
+          {t(
+            "Key regulatory ratios compared against COSSEC thresholds and sector medians for 91 active cooperativas.",
+            "Razones regulatorias clave comparadas con umbrales de COSSEC y medianas del sector de 91 cooperativas activas.",
+          )}
+        </p>
+      </div>
+
+      <ComplianceGrid ratios={comp.ratios} locale={locale} detailed />
+    </div>
+  );
+}
+
+/* ───── Compliance grid (reused in overview + compliance tab) ───── */
+
+function ComplianceGrid({
+  ratios,
+  locale,
+  detailed,
+}: {
+  ratios: ComplianceRatio[];
+  locale: string;
+  detailed?: boolean;
+}) {
+  const t = (en: string, es: string) => (locale === "en" ? en : es);
+
+  function getStatus(ratio: ComplianceRatio): "pass" | "warning" | "fail" {
+    if (ratio.thresholdLow !== undefined && ratio.thresholdHigh !== undefined) {
+      if (ratio.value >= ratio.thresholdLow && ratio.value <= ratio.thresholdHigh) return "pass";
+      return Math.abs(ratio.value - ratio.sectorMedian) < Math.abs(ratio.sectorMedian * 0.3) ? "warning" : "fail";
+    }
+    if (ratio.invertThreshold) {
+      return ratio.value <= (ratio.threshold || 0) ? "pass" : ratio.value <= (ratio.threshold || 0) * 1.3 ? "warning" : "fail";
+    }
+    return ratio.value >= (ratio.threshold || 0) ? "pass" : ratio.value >= (ratio.threshold || 0) * 0.8 ? "warning" : "fail";
+  }
+
+  function formatValue(ratio: ComplianceRatio): string {
+    if (ratio.format === "years") return `${ratio.value.toFixed(2)}y`;
+    return fmtPct(ratio.value);
+  }
+
+  const statusIcon = {
+    pass: <CheckCircle className="h-5 w-5 text-emerald-500" />,
+    warning: <Minus className="h-5 w-5 text-amber-500" />,
+    fail: <XCircle className="h-5 w-5 text-rose-500" />,
+  };
+
+  const statusBg = {
+    pass: "bg-emerald-50 border-emerald-200",
+    warning: "bg-amber-50 border-amber-200",
+    fail: "bg-rose-50 border-rose-200",
+  };
+
+  if (detailed) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50/60">
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  {t("Status", "Estado")}
+                </th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  {t("Ratio", "Razón")}
+                </th>
+                <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  {t("Value", "Valor")}
+                </th>
+                <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  {t("Threshold", "Umbral")}
+                </th>
+                <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  {t("Sector Median", "Mediana Sector")}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {ratios.map((ratio) => {
+                const status = getStatus(ratio);
+                return (
+                  <tr key={ratio.id} className="hover:bg-slate-50/50">
+                    <td className="px-6 py-4">{statusIcon[status]}</td>
+                    <td className="px-6 py-4 font-medium text-slate-900">
+                      {locale === "en" ? ratio.nameEn : ratio.nameEs}
+                    </td>
+                    <td className="px-6 py-4 text-right tabular-nums font-semibold text-slate-900">
+                      {formatValue(ratio)}
+                    </td>
+                    <td className="px-6 py-4 text-right tabular-nums text-slate-500">
+                      {ratio.thresholdLow !== undefined
+                        ? `${ratio.thresholdLow}–${ratio.thresholdHigh}${ratio.format === "years" ? "y" : ""}`
+                        : ratio.threshold !== undefined
+                          ? ratio.format === "years"
+                            ? `${ratio.threshold}y`
+                            : fmtPct(ratio.threshold)
+                          : "—"}
+                    </td>
+                    <td className="px-6 py-4 text-right tabular-nums text-slate-500">
+                      {ratio.format === "years"
+                        ? `${ratio.sectorMedian}y`
+                        : fmtPct(ratio.sectorMedian)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {ratios.map((ratio) => {
+        const status = getStatus(ratio);
+        return (
+          <div
+            key={ratio.id}
+            className={`flex items-center gap-3 rounded-xl border p-4 ${statusBg[status]}`}
+          >
+            {statusIcon[status]}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-slate-700 truncate">
+                {locale === "en" ? ratio.nameEn : ratio.nameEs}
+              </p>
+              <p className="text-lg font-bold text-slate-900 tabular-nums">
+                {formatValue(ratio)}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ───── Full Report PDF Tab ───── */
+
+function FullReportTab({
+  pdfUrl,
+  locale,
+}: {
+  pdfUrl: string | null;
+  locale: string;
+}) {
+  const t = (en: string, es: string) => (locale === "en" ? en : es);
+
+  if (!pdfUrl) {
+    return (
+      <div className="flex items-center justify-center py-20 text-slate-400 text-sm">
+        {t("PDF report is not available yet.", "El PDF del informe aún no está disponible.")}
+      </div>
+    );
+  }
+
+  return (
+    <iframe
+      src={pdfUrl}
+      className="w-full h-full min-h-[800px]"
+      title="ALM Report PDF"
+    />
+  );
+}
+
+/* ───── Metric tile (shared) ───── */
+
+function MetricTile({
+  label,
+  value,
+  subtext,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  subtext?: string;
+  icon: React.ElementType;
+  tone?: "good" | "warning";
+}) {
+  const bg =
+    tone === "good"
+      ? "border-emerald-200 bg-emerald-50/50"
+      : tone === "warning"
+        ? "border-amber-200 bg-amber-50/50"
+        : "border-slate-200 bg-white";
+
+  return (
+    <div className={`rounded-2xl border p-5 ${bg}`}>
+      <div className="flex items-center gap-2 text-slate-500">
+        <Icon className="h-4 w-4" />
+        <span className="text-[11px] font-semibold uppercase tracking-wider">
+          {label}
+        </span>
+      </div>
+      <p className="mt-3 font-display text-2xl font-semibold text-slate-900 tabular-nums">
+        {value}
+      </p>
+      {subtext && <p className="mt-1 text-xs text-slate-500">{subtext}</p>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   MAIN REPORT SUITE PAGE
+   ═══════════════════════════════════════════════════ */
+
+export default function ReportSuite() {
   const params = useParams();
+  const { locale } = useTranslation();
+  const t = (en: string, es: string) => (locale === "en" ? en : es);
   const [job, setJob] = useState<JobDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ReportTab>("overview");
   const [pdfLang, setPdfLang] = useState<"es" | "en">("es");
+
   const jobId =
     typeof params.id === "string"
       ? params.id
       : Array.isArray(params.id)
         ? params.id[0]
         : undefined;
+
   const {
-    manifests,
     readyManifests,
     error: exportError,
     loading: exportsLoading,
@@ -100,6 +1142,11 @@ export default function ReportViewer() {
     jobId ? `/api/portal/jobs/${jobId}/exports` : undefined,
     { enabled: Boolean(jobId) },
   );
+
+  const {
+    data: analysisData,
+    loading: analysisLoading,
+  } = useAnalysisData(job?.status === "COMPLETE" ? jobId : undefined);
 
   const loadJob = useCallback(
     async (trackView = false) => {
@@ -126,7 +1173,7 @@ export default function ReportViewer() {
           setLoadError(
             res.status === 404
               ? "Report not found."
-              : "We could not load this report right now.",
+              : "Could not load this report right now.",
           );
           setJob(null);
           return null;
@@ -136,7 +1183,7 @@ export default function ReportViewer() {
           await res.json().catch(() => null),
         );
         if (!data) {
-          setLoadError("We could not load this report right now.");
+          setLoadError("Could not load this report right now.");
           setJob(null);
           return null;
         }
@@ -150,7 +1197,7 @@ export default function ReportViewer() {
         }
         return data;
       } catch {
-        setLoadError("We could not load this report right now.");
+        setLoadError("Could not load this report right now.");
         setJob(null);
         return null;
       } finally {
@@ -160,7 +1207,7 @@ export default function ReportViewer() {
     [jobId],
   );
 
-  const handleRefreshDeliveryState = useCallback(async () => {
+  const handleComplete = useCallback(async () => {
     await refresh();
     await loadJob();
   }, [loadJob, refresh]);
@@ -169,6 +1216,7 @@ export default function ReportViewer() {
     void loadJob(true);
   }, [loadJob]);
 
+  /* ── Loading state ── */
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -177,126 +1225,223 @@ export default function ReportViewer() {
     );
   }
 
+  /* ── Error / not found ── */
   if (!job) {
     return (
       <div className="max-w-2xl mx-auto p-8 text-center">
-        <AlertTriangle className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-        <p className="text-gray-500 mb-4">{loadError || "Report not found."}</p>
+        <AlertTriangle className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+        <p className="text-slate-500 mb-4">{loadError || "Report not found."}</p>
         <div className="flex items-center justify-center gap-3">
-          {jobId ? (
+          {jobId && (
             <button
               onClick={() => void loadJob(true)}
               className="text-sm text-[#1B3A6B] hover:underline"
             >
-              Retry loading
+              Retry
             </button>
-          ) : null}
+          )}
           <Link href="/portal" className="text-sm text-[#1B3A6B] hover:underline">
-            Back to dashboard
+            {t("Back to dashboard", "Volver al panel")}
           </Link>
         </div>
       </div>
     );
   }
 
+  /* ── Processing state ── */
+  const isProcessing = PROCESSING_STATUSES.includes(job.status);
+  if (isProcessing) {
+    return (
+      <div className="h-full flex flex-col">
+        <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-6 py-4">
+          <Link href="/portal" className="text-slate-400 hover:text-slate-600">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h1 className="text-sm font-semibold text-slate-900">
+              {job.institutionName}
+            </h1>
+            <p className="text-xs text-slate-400">
+              {t("Processing...", "Procesando...")}
+            </p>
+          </div>
+        </header>
+        <div className="flex-1 p-6">
+          <ReportProgressWS
+            jobId={job.id}
+            institutionName={job.institutionName}
+            initialStatus={job.status}
+            onComplete={handleComplete}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Awaiting data ── */
+  if (job.status === "AWAITING_DATA" || job.status === "VALIDATION_FAILED") {
+    return (
+      <div className="h-full flex flex-col">
+        <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-6 py-4">
+          <Link href="/portal" className="text-slate-400 hover:text-slate-600">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h1 className="text-sm font-semibold text-slate-900">
+              {job.institutionName}
+            </h1>
+            <p className="text-xs text-slate-400">
+              {t("Awaiting data submission", "Esperando envío de datos")}
+            </p>
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-sm">
+            <Upload className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+            <h2 className="text-lg font-semibold text-slate-900 mb-2">
+              {job.status === "VALIDATION_FAILED"
+                ? t("Fix Validation Errors", "Corregir Errores")
+                : t("Submit Balance Sheet", "Enviar Balance")}
+            </h2>
+            <p className="text-sm text-slate-500 mb-6">
+              {t(
+                "Upload your balance sheet CSV to generate this report.",
+                "Suba su CSV de balance para generar este informe.",
+              )}
+            </p>
+            <Link
+              href={`/portal/submit?jobId=${job.id}`}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#E8A020] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#d19218]"
+            >
+              <Upload className="h-4 w-4" />
+              {t("Upload Data", "Subir Datos")}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Failed state ── */
+  if (job.status === "FAILED") {
+    return (
+      <div className="h-full flex flex-col">
+        <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-6 py-4">
+          <Link href="/portal" className="text-slate-400 hover:text-slate-600">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h1 className="text-sm font-semibold text-slate-900">
+              {job.institutionName}
+            </h1>
+            <p className="text-xs text-rose-500">{t("Failed", "Error")}</p>
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-sm">
+            <AlertTriangle className="h-12 w-12 text-rose-300 mx-auto mb-4" />
+            <h2 className="text-lg font-semibold text-slate-900 mb-2">
+              {t("Generation Failed", "Error de Generación")}
+            </h2>
+            <p className="text-sm text-slate-500 mb-2">
+              {t(
+                "There was an issue generating this report. Our team has been notified.",
+                "Hubo un problema generando este informe. Nuestro equipo ha sido notificado.",
+              )}
+            </p>
+            {job.errorMessage && (
+              <p className="text-xs text-rose-500 bg-rose-50 p-3 rounded-lg">
+                {job.errorMessage}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Complete state: Full report suite ── */
+
   const reportManifests = readyManifests.filter(
-    (manifest) => manifest.kind === "alm_report",
+    (m) => m.kind === "alm_report",
   );
   const currentManifest =
-    reportManifests.find((manifest) => manifest.language === pdfLang) ||
+    reportManifests.find((m) => m.language === pdfLang) ||
     reportManifests[0] ||
     null;
   const boardPackManifest =
     readyManifests.find(
-      (manifest) =>
-        manifest.kind === "alco_pack" && manifest.language === pdfLang,
+      (m) => m.kind === "alco_pack" && m.language === pdfLang,
     ) ||
-    readyManifests.find((manifest) => manifest.kind === "alco_pack") ||
+    readyManifests.find((m) => m.kind === "alco_pack") ||
     null;
-  const currentUrl = currentManifest?.downloadUrl || null;
-  const exportLanguages =
-    reportManifests
-      .map((manifest) => manifest.language.toUpperCase())
-      .join(" / ") || "—";
-  const exportCount = readyManifests.length;
-  const isProcessing = [
-    "QUEUED",
-    "PROCESSING",
-    "GENERATING_PDF",
-    "UPLOADING",
-    "VALIDATING",
-  ].includes(job.status);
-  const isExportDegraded =
-    job.status === "COMPLETE" &&
-    job.exportSummary &&
-    job.exportSummary.status !== "ready";
+  const currentPdfUrl = currentManifest?.downloadUrl || null;
+  const hasAnalysis = Boolean(analysisData?.balanceSheet) || analysisLoading;
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0">
+      {/* ── Header ── */}
+      <header className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4 shrink-0 flex-wrap">
         <div className="flex items-center gap-3">
-          <Link href="/portal" className="text-gray-400 hover:text-gray-600">
+          <Link href="/portal" className="text-slate-400 hover:text-slate-600">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="text-sm font-semibold text-gray-900">
+            <h1 className="text-sm font-semibold text-slate-900">
               {job.institutionName}
             </h1>
-            <p className="text-xs text-gray-400">
-              {job.completedAt
-                ? `Generated ${new Date(job.completedAt).toLocaleDateString()}`
-                : `Status: ${formatStatusLabel(job.status)}`}
+            <p className="text-xs text-slate-400">
+              {job.analysisPeriod || ""}{" "}
+              {job.completedAt &&
+                `· ${t("Generated", "Generado")} ${formatDate(job.completedAt)}`}
             </p>
           </div>
         </div>
 
-        {job.status === "COMPLETE" && (
-          <div className="flex items-center gap-2">
-            {/* Language toggle */}
-            {reportManifests.length > 1 && (
-              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setPdfLang("es")}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition ${pdfLang === "es" ? "bg-white shadow-sm text-gray-900" : "text-gray-500"}`}
-                >
-                  <Globe className="h-3 w-3" /> ES
-                </button>
-                <button
-                  onClick={() => setPdfLang("en")}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition ${pdfLang === "en" ? "bg-white shadow-sm text-gray-900" : "text-gray-500"}`}
-                >
-                  <Globe className="h-3 w-3" /> EN
-                </button>
-              </div>
-            )}
-            {currentManifest && (
+        <div className="flex items-center gap-2">
+          {/* Language toggle */}
+          {reportManifests.length > 1 && (
+            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
               <button
-                onClick={() => void download(currentManifest)}
-                disabled={downloadingId === currentManifest.id}
-                className="inline-flex items-center gap-2 bg-[#1B3A6B] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#15305a] transition disabled:opacity-60"
+                onClick={() => setPdfLang("es")}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition ${pdfLang === "es" ? "bg-white shadow-sm text-slate-900" : "text-slate-500"}`}
               >
-                <Download className="h-4 w-4" />
-                {downloadingId === currentManifest.id
-                  ? "Preparing..."
-                  : "Download report"}
+                <Globe className="h-3 w-3" /> ES
               </button>
-            )}
-            {boardPackManifest && (
               <button
-                onClick={() => void download(boardPackManifest)}
-                disabled={downloadingId === boardPackManifest.id}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                onClick={() => setPdfLang("en")}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition ${pdfLang === "en" ? "bg-white shadow-sm text-slate-900" : "text-slate-500"}`}
               >
-                <Download className="h-4 w-4" />
-                {downloadingId === boardPackManifest.id
-                  ? "Preparing..."
-                  : "Board package"}
+                <Globe className="h-3 w-3" /> EN
               </button>
-            )}
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+          {currentManifest && (
+            <button
+              onClick={() => void download(currentManifest)}
+              disabled={downloadingId === currentManifest.id}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#1B3A6B] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#15305a] disabled:opacity-60"
+            >
+              <Download className="h-4 w-4" />
+              {downloadingId === currentManifest.id
+                ? t("Preparing...", "Preparando...")
+                : t("Download Report", "Descargar Informe")}
+            </button>
+          )}
+          {boardPackManifest && (
+            <button
+              onClick={() => void download(boardPackManifest)}
+              disabled={downloadingId === boardPackManifest.id}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+            >
+              <Download className="h-4 w-4" />
+              {downloadingId === boardPackManifest.id
+                ? t("Preparing...", "Preparando...")
+                : t("Board Pack", "Pack Junta")}
+            </button>
+          )}
+        </div>
+      </header>
 
       {exportError && (
         <div className="border-b border-rose-100 bg-rose-50 px-6 py-2 text-xs text-rose-700">
@@ -304,194 +1449,42 @@ export default function ReportViewer() {
         </div>
       )}
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto">
-        <div className="grid gap-3 border-b border-slate-200 bg-slate-50 px-6 py-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-              Status
-            </p>
-            <div className="mt-3 flex items-center gap-2">
-              <span
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusTone(job.status)}`}
-              >
-                {formatStatusLabel(job.status)}
-              </span>
-              <span className="text-xs text-slate-500">
-                {job.reportLang?.toUpperCase() || "ES"}
-              </span>
-            </div>
-            <p className="mt-3 text-xs text-slate-500">
-              Triggered by {job.triggeredBy || "payment"}
-            </p>
-          </div>
+      {/* ── Tab navigation ── */}
+      <TabNav
+        active={activeTab}
+        onChange={setActiveTab}
+        hasAnalysis={hasAnalysis}
+        hasPdf={Boolean(currentPdfUrl)}
+        locale={locale}
+      />
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-              Reporting period
-            </p>
-            <p className="mt-3 text-sm font-semibold text-slate-900">
-              {job.analysisPeriod || "Current cycle"}
-            </p>
-            <p className="mt-2 text-xs text-slate-500">
-              Created {formatDate(job.createdAt)}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-              Processing timeline
-            </p>
-            <p className="mt-3 text-xs text-slate-600">
-              Submitted: {formatDate(job.submittedAt)}
-            </p>
-            <p className="mt-2 text-xs text-slate-600">
-              Started: {formatDate(job.processingStartedAt)}
-            </p>
-            <p className="mt-2 text-xs text-slate-600">
-              Completed: {formatDate(job.completedAt)}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-              Exports
-            </p>
-            <p className="mt-3 text-sm font-semibold text-slate-900">
-              {exportCount} ready artifact{exportCount === 1 ? "" : "s"}
-            </p>
-            <p className="mt-2 text-xs text-slate-600">
-              Languages: {exportLanguages}
-            </p>
-            <p className="mt-2 text-xs text-slate-500">
-              {job.exportSummary?.status === "ready"
-                ? "Full manifest-backed delivery is available"
-                : job.exportSummary?.status === "partial"
-                  ? "Partial export package available — recovery still in progress"
-                  : job.exportSummary?.status === "missing"
-                    ? "No ready export package yet — manifest recovery required"
-                    : "Using manifest/on-demand delivery"}
-            </p>
-          </div>
-        </div>
-
-        {job.status === "COMPLETE" && currentUrl ? (
-          <iframe
-            src={currentUrl}
-            className="w-full h-full min-h-[800px]"
-            title={`ALM Report — ${job.institutionName}`}
-          />
-        ) : isExportDegraded ? (
-          <div className="flex items-center justify-center h-full min-h-[400px]">
-            <div className="text-center max-w-lg">
-              <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto mb-4" />
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                Export package still needs recovery
-              </h2>
-              <p className="text-sm text-gray-500 mb-3">
-                CERNIQ completed the report job, but the full export package is
-                not ready yet.
-              </p>
-              {job.exportSummary ? (
-                <p className="text-xs text-slate-400 mb-4">
-                  {job.exportSummary.readyCount} of{" "}
-                  {job.exportSummary.totalCount} export artifacts are currently
-                  ready.
-                </p>
-              ) : null}
-              {readyManifests.length > 0 ? (
-                <div className="mb-4 flex flex-wrap justify-center gap-2">
-                  {readyManifests
-                    .filter(
-                      (manifest) =>
-                        manifest.kind === "alm_report" ||
-                        manifest.kind === "alco_pack",
-                    )
-                    .map((manifest) => (
-                      <button
-                        key={manifest.id}
-                        onClick={() => void download(manifest)}
-                        disabled={downloadingId === manifest.id}
-                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-                      >
-                        <Download className="h-4 w-4" />
-                        {manifest.kind === "alm_report"
-                          ? `Download report (${manifest.language.toUpperCase()})`
-                          : `Board package (${manifest.language.toUpperCase()})`}
-                      </button>
-                    ))}
-                </div>
-              ) : null}
-              <button
-                onClick={() => void handleRefreshDeliveryState()}
-                disabled={exportsLoading}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-              >
-                <Download className="h-4 w-4" />
-                {exportsLoading ? "Checking exports..." : "Retry export check"}
-              </button>
-              {exportError ? (
-                <p className="mt-3 text-xs text-rose-600">{exportError}</p>
-              ) : null}
-              {!exportsLoading && manifests.length === 0 ? (
-                <p className="mt-3 text-xs text-slate-500">
-                  No export manifests are currently available for this completed
-                  job.
-                </p>
-              ) : null}
-            </div>
-          </div>
-        ) : isProcessing ? (
-          <div className="p-6">
-            <ReportProgressWS
-              jobId={job.id}
-              institutionName={job.institutionName}
-              initialStatus={job.status}
-              onComplete={handleRefreshDeliveryState}
-            />
-          </div>
-        ) : job.status === "FAILED" ? (
-          <div className="flex items-center justify-center h-full min-h-[400px]">
-            <div className="text-center max-w-sm">
-              <AlertTriangle className="h-12 w-12 text-red-300 mx-auto mb-4" />
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                Generation Failed
-              </h2>
-              <p className="text-sm text-gray-500 mb-2">
-                There was an issue generating this report. Our team has been
-                notified.
-              </p>
-              {job.errorMessage && (
-                <p className="text-xs text-red-500 bg-red-50 p-3 rounded-lg">
-                  {job.errorMessage}
-                </p>
-              )}
-            </div>
+      {/* ── Tab content ── */}
+      <div className="flex-1 overflow-auto bg-slate-50/30">
+        {analysisLoading && activeTab !== "full-report" && activeTab !== "overview" ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#1B3A6B]" />
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full min-h-[400px]">
-            <div className="text-center max-w-sm">
-              <FileText className="h-12 w-12 text-gray-200 mx-auto mb-4" />
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                Awaiting Data
-              </h2>
-              <p className="text-sm text-gray-500 mb-4">
-                Submit your balance sheet data to start generating this report.
-              </p>
-              <div className="mb-4 rounded-lg border border-slate-200 bg-white px-4 py-3 text-left text-xs text-slate-600">
-                <p>Reporting period: {job.analysisPeriod || "Current cycle"}</p>
-                <p className="mt-1">
-                  Previous cycle: {job.previousJobId || "—"}
-                </p>
-              </div>
-              <Link
-                href={`/portal/submit?jobId=${job.id}`}
-                className="inline-flex items-center gap-2 bg-[#1B3A6B] text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-[#15305a] transition"
-              >
-                Submit Data
-              </Link>
-            </div>
-          </div>
+          <>
+            {activeTab === "overview" && (
+              <OverviewTab job={job} analysis={analysisData} locale={locale} />
+            )}
+            {activeTab === "balance-sheet" && (
+              <BalanceSheetTab analysis={analysisData} locale={locale} />
+            )}
+            {activeTab === "interest-rate" && (
+              <InterestRateTab analysis={analysisData} locale={locale} />
+            )}
+            {activeTab === "liquidity" && (
+              <LiquidityTab analysis={analysisData} locale={locale} />
+            )}
+            {activeTab === "compliance" && (
+              <ComplianceTab analysis={analysisData} locale={locale} />
+            )}
+            {activeTab === "full-report" && (
+              <FullReportTab pdfUrl={currentPdfUrl} locale={locale} />
+            )}
+          </>
         )}
       </div>
     </div>

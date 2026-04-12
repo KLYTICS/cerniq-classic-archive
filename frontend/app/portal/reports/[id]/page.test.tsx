@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { AnchorHTMLAttributes, ReactNode, SVGProps } from "react";
-import ReportViewer from "./page";
+import ReportSuite from "./page";
 
 const { useDocumentExportsMock, analyticsTrackMock, fetchMock } = vi.hoisted(
   () => ({
@@ -33,8 +33,16 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+vi.mock("@/lib/i18n", () => ({
+  useTranslation: () => ({ locale: "en" }),
+}));
+
 vi.mock("@/hooks/useDocumentExports", () => ({
   useDocumentExports: useDocumentExportsMock,
+}));
+
+vi.mock("@/hooks/useAnalysisData", () => ({
+  useAnalysisData: () => ({ data: null, loading: false, error: null, reload: vi.fn() }),
 }));
 
 vi.mock("@/components/portal/ReportProgressWS", () => ({
@@ -62,19 +70,50 @@ vi.mock("@/lib/analytics", () => ({
   },
 }));
 
-vi.mock("lucide-react", () => {
-  const Icon = (props: SVGProps<SVGSVGElement>) => <svg {...props} />;
+vi.mock("recharts", () => {
+  const Noop = ({ children }: { children?: ReactNode }) => (
+    <div>{children}</div>
+  );
   return {
-    FileText: Icon,
-    Download: Icon,
-    ArrowLeft: Icon,
-    Clock: Icon,
-    AlertTriangle: Icon,
-    Globe: Icon,
+    ResponsiveContainer: Noop,
+    BarChart: Noop,
+    Bar: () => null,
+    XAxis: () => null,
+    YAxis: () => null,
+    CartesianGrid: () => null,
+    Tooltip: () => null,
+    Legend: () => null,
+    PieChart: Noop,
+    Pie: Noop,
+    Cell: () => null,
   };
 });
 
-describe("ReportViewer", () => {
+vi.mock("lucide-react", () => {
+  const Icon = (props: SVGProps<SVGSVGElement>) => <svg {...props} />;
+  return {
+    ArrowLeft: Icon,
+    Download: Icon,
+    Globe: Icon,
+    AlertTriangle: Icon,
+    FileText: Icon,
+    Upload: Icon,
+    Eye: Icon,
+    Shield: Icon,
+    TrendingUp: Icon,
+    Activity: Icon,
+    Droplets: Icon,
+    CheckCircle: Icon,
+    XCircle: Icon,
+    Minus: Icon,
+    BarChart3: Icon,
+    PieChart: Icon,
+    Clock: Icon,
+    Sparkles: Icon,
+  };
+});
+
+describe("ReportSuite", () => {
   beforeEach(() => {
     fetchMock.mockReset();
     analyticsTrackMock.mockReset();
@@ -83,7 +122,7 @@ describe("ReportViewer", () => {
     vi.stubGlobal("fetch", fetchMock);
   });
 
-  it("renders a completed report with both report and board-package downloads", async () => {
+  it("renders a completed report with download buttons", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -105,7 +144,6 @@ describe("ReportViewer", () => {
     });
 
     const downloadMock = vi.fn();
-    const refreshMock = vi.fn();
     useDocumentExportsMock.mockReturnValue({
       manifests: [
         {
@@ -155,29 +193,20 @@ describe("ReportViewer", () => {
       loading: false,
       downloadingId: null,
       download: downloadMock,
-      refresh: refreshMock,
+      refresh: vi.fn(),
     });
 
-    render(<ReportViewer />);
+    render(<ReportSuite />);
 
     expect(
       await screen.findByRole("button", { name: /download report/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Q1-2026")).toBeInTheDocument();
-    expect(screen.getByText(/2 ready artifacts/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/triggered by portal_cycle_bootstrap/i),
+      screen.getByRole("button", { name: /board pack/i }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /board package/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByTitle("ALM Report — Cooperativa Test")).toHaveAttribute(
-      "src",
-      "/api/portal/jobs/job-1/alm-report?lang=es",
-    );
 
     fireEvent.click(screen.getByRole("button", { name: /download report/i }));
-    fireEvent.click(screen.getByRole("button", { name: /board package/i }));
+    fireEvent.click(screen.getByRole("button", { name: /board pack/i }));
 
     expect(downloadMock).toHaveBeenNthCalledWith(
       1,
@@ -218,7 +247,7 @@ describe("ReportViewer", () => {
       refresh: vi.fn(),
     });
 
-    render(<ReportViewer />);
+    render(<ReportSuite />);
 
     expect(
       await screen.findByRole("button", {
@@ -230,7 +259,6 @@ describe("ReportViewer", () => {
       institutionName: "Cooperativa Test",
       initialStatus: "PROCESSING",
     });
-    expect(screen.getByText(/submitted:/i)).toBeInTheDocument();
   });
 
   it("reloads the report and refreshes exports when processing completes", async () => {
@@ -269,16 +297,6 @@ describe("ReportViewer", () => {
           reportUrl: null,
           reportUrlEn: null,
           errorMessage: null,
-          exportSummary: {
-            manifestPath: "/api/portal/jobs/job-1/exports",
-            status: "ready",
-            readyCount: 2,
-            totalCount: 4,
-            readyReportLanguages: ["es", "en"],
-            missingReportLanguages: [],
-            readyBoardPackLanguages: [],
-            missingBoardPackLanguages: ["es", "en"],
-          },
         }),
       } as Response);
 
@@ -312,7 +330,7 @@ describe("ReportViewer", () => {
       };
     });
 
-    render(<ReportViewer />);
+    render(<ReportSuite />);
 
     await screen.findByRole("button", {
       name: /progress stream job-1 \(processing\)/i,
@@ -333,14 +351,13 @@ describe("ReportViewer", () => {
     });
   });
 
-  it("shows an explicit export error banner and failed-state copy", async () => {
+  it("shows failed-state copy and error message", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         id: "job-1",
         institutionName: "Cooperativa Test",
         status: "FAILED",
-        retryCount: 2,
         completedAt: null,
         createdAt: "2026-04-08T10:00:00.000Z",
         errorMessage: "PDF generation failed",
@@ -350,25 +367,22 @@ describe("ReportViewer", () => {
     useDocumentExportsMock.mockReturnValue({
       manifests: [],
       readyManifests: [],
-      error: "Unable to load exports (500)",
+      error: null,
       loading: false,
       downloadingId: null,
       download: vi.fn(),
       refresh: vi.fn(),
     });
 
-    render(<ReportViewer />);
+    render(<ReportSuite />);
 
     expect(
-      await screen.findByText(/unable to load exports \(500\)/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /generation failed/i }),
+      await screen.findByRole("heading", { name: /generation failed/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/pdf generation failed/i)).toBeInTheDocument();
   });
 
-  it("shows awaiting-data metadata and deep-links back to the selected job upload flow", async () => {
+  it("shows awaiting-data state with upload link", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -393,104 +407,20 @@ describe("ReportViewer", () => {
       refresh: vi.fn(),
     });
 
-    render(<ReportViewer />);
+    render(<ReportSuite />);
 
     expect(
-      await screen.findByRole("heading", { name: /awaiting data/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /submit data/i })).toHaveAttribute(
-      "href",
-      "/portal/submit?jobId=job-1",
-    );
-    expect(
-      screen.getByText(/previous cycle: job-previous/i),
-    ).toBeInTheDocument();
-  });
-
-  it("shows a degraded export state when the job is complete but the manifest package is partial", async () => {
-    const refreshMock = vi.fn();
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        id: "job-1",
-        institutionId: "inst-1",
-        institutionName: "Cooperativa Test",
-        status: "COMPLETE",
-        analysisPeriod: "Q1-2026",
-        submittedAt: "2026-04-08T10:15:00.000Z",
-        processingStartedAt: "2026-04-08T10:20:00.000Z",
-        completedAt: "2026-04-08T12:00:00.000Z",
-        createdAt: "2026-04-08T10:00:00.000Z",
-        reportLang: "es",
-        triggeredBy: "portal_cycle_bootstrap",
-        reportUrl: null,
-        reportUrlEn: null,
-        errorMessage: null,
-        exportSummary: {
-          manifestPath: "/api/portal/jobs/job-1/exports",
-          status: "partial",
-          readyCount: 1,
-          totalCount: 4,
-          readyReportLanguages: ["es"],
-          missingReportLanguages: ["en"],
-          readyBoardPackLanguages: [],
-          missingBoardPackLanguages: ["es", "en"],
-        },
-      }),
-    });
-
-    useDocumentExportsMock.mockReturnValue({
-      manifests: [
-        {
-          id: "alco_pack:job-1:es",
-          kind: "alco_pack",
-          language: "es",
-          status: "ready",
-          filename: "board-package-cooperativa-test-es.pdf",
-          generatedAt: "2026-04-08T12:01:00.000Z",
-          expiresAt: null,
-          downloadUrl: "/api/portal/jobs/job-1/alco-pack?lang=es",
-        },
-      ],
-      readyManifests: [
-        {
-          id: "alco_pack:job-1:es",
-          kind: "alco_pack",
-          language: "es",
-          status: "ready",
-          filename: "board-package-cooperativa-test-es.pdf",
-          generatedAt: "2026-04-08T12:01:00.000Z",
-          expiresAt: null,
-          downloadUrl: "/api/portal/jobs/job-1/alco-pack?lang=es",
-        },
-      ],
-      error: null,
-      loading: false,
-      downloadingId: null,
-      download: vi.fn(),
-      refresh: refreshMock,
-    });
-
-    render(<ReportViewer />);
-
-    expect(
-      await screen.findByRole("heading", {
-        name: /export package still needs recovery/i,
-      }),
+      await screen.findByRole("heading", { name: /submit balance sheet/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/1 of 4 export artifacts are currently ready/i),
-    ).toBeInTheDocument();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: /retry export check/i }),
-    );
-    expect(refreshMock).toHaveBeenCalledTimes(1);
+      screen.getByRole("link", { name: /upload data/i }),
+    ).toHaveAttribute("href", "/portal/submit?jobId=job-1");
   });
 
   it("shows not-found state when the portal job cannot be loaded", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: false,
+      status: 404,
       json: async () => null,
     });
 
@@ -504,12 +434,10 @@ describe("ReportViewer", () => {
       refresh: vi.fn(),
     });
 
-    render(<ReportViewer />);
+    render(<ReportSuite />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/we could not load this report right now/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/report not found/i)).toBeInTheDocument();
     });
   });
 });

@@ -114,7 +114,7 @@ describe('PortalLayout', () => {
 
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith(
-        '/login?mode=magic-link&returnUrl=%2Fdashboard',
+        '/login?mode=magic-link&returnUrl=%2Fportal',
       );
     });
 

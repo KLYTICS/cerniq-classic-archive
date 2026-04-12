@@ -1036,6 +1036,337 @@ export class PortalController {
     };
   }
 
+  // ── Analysis Data for Interactive Report Suite ────
+  @Get('jobs/:jobId/analysis-data')
+  @Roles('OWNER', 'ANALYST', 'VIEWER')
+  @ApiOperation({
+    summary:
+      'Get structured analysis data for the interactive report suite display',
+  })
+  @ApiParam({ name: 'jobId', description: 'Report job UUID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Structured analysis data with balance sheet, risk metrics, and compliance',
+  })
+  async getJobAnalysisData(
+    @Req() req: any,
+    @Param('jobId') jobId: string,
+  ) {
+    const userId = req.user.userId;
+    const scope = await this.buildJobOwnerScope(userId);
+    const job = await this.prisma.reportJob.findFirst({
+      where: { id: jobId, ...scope },
+    });
+    if (!job) throw new NotFoundException('Job not found');
+
+    this.audit.log({
+      userId,
+      institutionId: job.institutionId || undefined,
+      action: 'analysis_data_view',
+      resource: 'report_job',
+      resourceId: jobId,
+      ipAddress: req.ip,
+      userAgent: req.headers?.['user-agent'],
+      metadata: scope.userId
+        ? undefined
+        : { masterCeoBypass: true, jobOwnerId: job.userId },
+    });
+
+    if (!job.institutionId) {
+      return {
+        institution: null,
+        balanceSheet: null,
+        interestRateRisk: null,
+        liquidity: null,
+        compliance: null,
+        analysisRun: null,
+      };
+    }
+
+    const [institution, balanceSheetItems, scenarios, liquidityPos, analysisRun] =
+      await Promise.all([
+        this.prisma.institution.findUnique({
+          where: { id: job.institutionId },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            totalAssets: true,
+            currency: true,
+            reportingDate: true,
+            cossecRegistrationNumber: true,
+            preferredLanguage: true,
+          },
+        }),
+        this.prisma.balanceSheetItem.findMany({
+          where: { institutionId: job.institutionId },
+          orderBy: [{ category: 'asc' }, { subcategory: 'asc' }, { balance: 'desc' }],
+        }),
+        this.prisma.interestRateScenario.findMany({
+          where: { institutionId: job.institutionId },
+          orderBy: { shiftBps: 'asc' },
+        }),
+        this.prisma.liquidityPosition.findFirst({
+          where: { institutionId: job.institutionId },
+          orderBy: { date: 'desc' },
+        }),
+        this.prisma.analysisRun.findFirst({
+          where: {
+            institutionId: job.institutionId,
+            status: 'COMPLETED',
+          },
+          orderBy: { completedAt: 'desc' },
+          select: {
+            id: true,
+            resultSummary: true,
+            completedAt: true,
+            modelVersion: true,
+            analysisType: true,
+            scenarioSet: true,
+          },
+        }),
+      ]);
+
+    const toNum = (v: unknown): number => {
+      if (typeof v === 'number') return v;
+      if (v && typeof v === 'object' && 'toNumber' in v)
+        return (v as { toNumber(): number }).toNumber();
+      return Number(v) || 0;
+    };
+
+    type BSItem = {
+      category: string;
+      subcategory: string;
+      name: string;
+      balance: number;
+      rate: number;
+      duration: number;
+      rateType: string;
+    };
+
+    const items: BSItem[] = balanceSheetItems.map((item: any) => ({
+      category: item.category as string,
+      subcategory: item.subcategory as string,
+      name: item.name as string,
+      balance: toNum(item.balance),
+      rate: toNum(item.rate),
+      duration: toNum(item.duration),
+      rateType: item.rateType as string,
+    }));
+
+    const assets = items.filter((i) => i.category === 'asset');
+    const liabilities = items.filter((i) => i.category === 'liability');
+    const equityItems = items.filter(
+      (i) => i.subcategory === 'equity' || i.category === 'equity',
+    );
+
+    const totalAssets = assets.reduce((s, i) => s + i.balance, 0);
+    const totalLiabilities = liabilities.reduce((s, i) => s + i.balance, 0);
+    const totalEquity =
+      equityItems.length > 0
+        ? equityItems.reduce((s, i) => s + i.balance, 0)
+        : totalAssets - totalLiabilities;
+
+    const weightedAssetDuration =
+      totalAssets > 0
+        ? assets.reduce((s, i) => s + i.duration * i.balance, 0) / totalAssets
+        : 0;
+    const weightedLiabilityDuration =
+      totalLiabilities > 0
+        ? liabilities.reduce((s, i) => s + i.duration * i.balance, 0) /
+          totalLiabilities
+        : 0;
+    const durationGap = weightedAssetDuration - weightedLiabilityDuration;
+
+    const weightedAssetYield =
+      totalAssets > 0
+        ? assets.reduce((s, i) => s + i.rate * i.balance, 0) / totalAssets
+        : 0;
+    const weightedLiabilityCost =
+      totalLiabilities > 0
+        ? liabilities.reduce((s, i) => s + i.rate * i.balance, 0) /
+          totalLiabilities
+        : 0;
+    const nim = weightedAssetYield - weightedLiabilityCost;
+
+    const loanItems = assets.filter((i) => i.subcategory === 'loans');
+    const depositItems = liabilities.filter((i) => i.subcategory === 'deposits');
+    const totalLoans = loanItems.reduce((s, i) => s + i.balance, 0);
+    const totalDeposits = depositItems.reduce((s, i) => s + i.balance, 0);
+    const loanToDeposit = totalDeposits > 0 ? totalLoans / totalDeposits : 0;
+
+    const capitalAdequacy = totalAssets > 0 ? totalEquity / totalAssets : 0;
+
+    const lcr = liquidityPos ? toNum(liquidityPos.lcr) : null;
+    const nsfr = liquidityPos ? toNum(liquidityPos.nsfr) : null;
+
+    const complianceRatios = [
+      {
+        id: 'capital_adequacy',
+        nameEn: 'Capital Adequacy',
+        nameEs: 'Adecuación de Capital',
+        value: capitalAdequacy,
+        threshold: 0.08,
+        sectorMedian: 0.092,
+        format: 'percent',
+      },
+      {
+        id: 'duration_gap',
+        nameEn: 'Duration Gap',
+        nameEs: 'Brecha de Duración',
+        value: durationGap,
+        thresholdLow: -1,
+        thresholdHigh: 3,
+        sectorMedian: 1.8,
+        format: 'years',
+      },
+      {
+        id: 'nim',
+        nameEn: 'Net Interest Margin',
+        nameEs: 'Margen de Interés Neto',
+        value: nim,
+        threshold: 0.025,
+        sectorMedian: 0.029,
+        format: 'percent',
+      },
+      {
+        id: 'loan_to_deposit',
+        nameEn: 'Loan-to-Deposit Ratio',
+        nameEs: 'Razón Préstamos/Depósitos',
+        value: loanToDeposit,
+        threshold: 0.80,
+        sectorMedian: 0.783,
+        format: 'percent',
+      },
+      {
+        id: 'earning_asset_yield',
+        nameEn: 'Earning Asset Yield',
+        nameEs: 'Rendimiento de Activos Productivos',
+        value: weightedAssetYield,
+        threshold: 0.035,
+        sectorMedian: 0.048,
+        format: 'percent',
+      },
+      {
+        id: 'cost_of_funds',
+        nameEn: 'Cost of Funds',
+        nameEs: 'Costo de Fondos',
+        value: weightedLiabilityCost,
+        threshold: 0.03,
+        sectorMedian: 0.019,
+        format: 'percent',
+        invertThreshold: true,
+      },
+      ...(lcr !== null
+        ? [
+            {
+              id: 'lcr',
+              nameEn: 'Liquidity Coverage Ratio',
+              nameEs: 'Razón de Cobertura de Liquidez',
+              value: lcr,
+              threshold: 1.0,
+              sectorMedian: 1.18,
+              format: 'percent',
+            },
+          ]
+        : []),
+      ...(nsfr !== null
+        ? [
+            {
+              id: 'nsfr',
+              nameEn: 'Net Stable Funding Ratio',
+              nameEs: 'Razón de Financiamiento Estable Neto',
+              value: nsfr,
+              threshold: 1.0,
+              sectorMedian: 1.12,
+              format: 'percent',
+            },
+          ]
+        : []),
+    ];
+
+    return {
+      institution: institution
+        ? {
+            name: institution.name,
+            type: institution.type,
+            totalAssets: toNum(institution.totalAssets),
+            currency: institution.currency || 'USD',
+            reportingDate: institution.reportingDate,
+            cossecNumber: institution.cossecRegistrationNumber,
+          }
+        : null,
+      balanceSheet: {
+        totalAssets,
+        totalLiabilities,
+        totalEquity,
+        items,
+        assetBreakdown: this.groupBySubcategory(assets),
+        liabilityBreakdown: this.groupBySubcategory(liabilities),
+      },
+      interestRateRisk: {
+        durationGap,
+        assetDuration: weightedAssetDuration,
+        liabilityDuration: weightedLiabilityDuration,
+        nim,
+        earningAssetYield: weightedAssetYield,
+        costOfFunds: weightedLiabilityCost,
+        scenarios: scenarios.map((s: any) => ({
+          name: s.name,
+          shiftBps: s.shiftBps,
+          niImpact: toNum(s.niImpact),
+          mveImpact: toNum(s.mveImpact),
+        })),
+      },
+      liquidity: liquidityPos
+        ? {
+            lcr: lcr!,
+            nsfr: nsfr!,
+            hqlaLevel1: toNum(liquidityPos.hqlaLevel1),
+            hqlaLevel2: toNum(liquidityPos.hqlaLevel2),
+            hqlaTotal:
+              toNum(liquidityPos.hqlaLevel1) + toNum(liquidityPos.hqlaLevel2),
+            cashOutflows: toNum(liquidityPos.cashOutflows),
+            cashInflows: toNum(liquidityPos.cashInflows),
+            loanToDeposit,
+          }
+        : null,
+      compliance: { ratios: complianceRatios },
+      analysisRun: analysisRun
+        ? {
+            resultSummary: analysisRun.resultSummary,
+            completedAt: analysisRun.completedAt?.toISOString() || null,
+            modelVersion: analysisRun.modelVersion,
+          }
+        : null,
+      jobMeta: {
+        status: job.status,
+        analysisPeriod: job.analysisPeriod,
+        triggeredBy: job.triggeredBy,
+        completedAt: job.completedAt?.toISOString() || null,
+      },
+    };
+  }
+
+  private groupBySubcategory(
+    items: Array<{ subcategory: string; balance: number; name: string }>,
+  ): Array<{ subcategory: string; total: number; count: number }> {
+    const groups = new Map<string, { total: number; count: number }>();
+    for (const item of items) {
+      const existing = groups.get(item.subcategory) || {
+        total: 0,
+        count: 0,
+      };
+      existing.total += item.balance;
+      existing.count += 1;
+      groups.set(item.subcategory, existing);
+    }
+    return Array.from(groups.entries()).map(([subcategory, data]) => ({
+      subcategory,
+      ...data,
+    }));
+  }
+
   private formatValidationErrors(
     errors: Array<{ row: number; field: string; message: string }>,
   ): string {

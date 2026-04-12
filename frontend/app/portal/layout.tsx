@@ -124,7 +124,7 @@ export default function PortalLayout({
               setSubscription(null);
               setAccess(null);
               setLoading(false);
-              router.replace('/login?mode=magic-link&returnUrl=%2Fdashboard');
+              router.replace('/login?mode=magic-link&returnUrl=%2Fportal');
             }
             return;
           }
@@ -254,7 +254,7 @@ export default function PortalLayout({
   return (
     <PortalContext.Provider value={{ user, subscription, access, loading }}>
       <ErrorBoundary context="portal">
-        <div className="flex min-h-screen bg-[var(--dashboard-base)] text-slate-950">
+        <div className="cerniq-dashboard-theme flex min-h-screen bg-[var(--dashboard-base)] text-slate-950">
           <aside className="flex w-72 flex-col border-r border-[rgba(216,192,139,0.78)] bg-[rgba(255,251,239,0.98)] shadow-[0_24px_80px_rgba(113,88,40,0.12)]">
             <div className="border-b border-[rgba(216,192,139,0.76)] p-5">
               <Link href="/portal" className="inline-flex">
