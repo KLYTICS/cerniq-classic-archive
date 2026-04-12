@@ -10,9 +10,13 @@ test.describe('Navigation & Layout', () => {
   test('should render landing page content with value proposition', async ({ page }) => {
     await page.goto('/');
     const body = page.locator('body');
-    // Landing page describes ALM reporting for cooperativas and credit unions
-    await expect(body).toContainText(/ALM/i);
-    await expect(body).toContainText(/cerniq/i);
+    await expect(body).toContainText(/Dashboard-native ALM Intelligence/i);
+    await expect(body).toContainText(/From balance sheet to board-ready ALM decisions/i);
+    await expect(
+      page.getByRole('button', { name: /Request Demo|Solicitar Demo/i }).first(),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: /Start|Comenzar/i }).first()).toBeVisible();
+    await expect(body).not.toContainText(/Live Workspace|Current cycle|Q2 ALM/i);
   });
 
   test('should have navigation links on the landing page', async ({ page }) => {

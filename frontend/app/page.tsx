@@ -369,8 +369,8 @@ export default function LandingPage() {
               <div className="absolute right-[-6rem] top-12 h-72 w-72 rounded-full border border-white/40 bg-white/20 blur-3xl" />
               <div className="absolute left-[-4rem] bottom-[-5rem] h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(247,228,188,0.66),rgba(247,228,188,0))]" />
 
-              <div className="relative z-10 mx-auto grid max-w-7xl gap-10 px-4 py-10 sm:px-6 lg:min-h-[calc(100svh-7rem)] lg:grid-cols-[minmax(0,1.08fr)_minmax(22rem,0.92fr)] lg:items-center lg:px-8 lg:py-14">
-                <div className="max-w-3xl animate-fade-in">
+              <div className="relative z-10 mx-auto flex max-w-7xl px-4 py-10 sm:px-6 lg:min-h-[calc(100svh-7rem)] lg:items-center lg:px-8 lg:py-14">
+                <div className="max-w-4xl animate-fade-in">
                   <span className="cerniq-kicker w-fit">
                     {t(
                       "Dashboard-native ALM Intelligence",
@@ -385,7 +385,7 @@ export default function LandingPage() {
                       )}
                     />
                   </div>
-                  <h1 className="mt-8 max-w-4xl font-display text-[clamp(2.8rem,7vw,5.8rem)] leading-[0.92] tracking-[-0.04em] text-[var(--dashboard-text-primary)]">
+                  <h1 className="mt-8 max-w-4xl font-display text-[clamp(2.6rem,6vw,4.9rem)] leading-[0.94] tracking-[-0.04em] text-[var(--dashboard-text-primary)]">
                     {t(
                       "From balance sheet to board-ready ALM decisions in one secure workspace.",
                       "Del balance general a decisiones ALM listas para junta en un solo espacio seguro.",
@@ -432,69 +432,6 @@ export default function LandingPage() {
                     <span className="cerniq-mini-stat">200+ ALM modules</span>
                     <span className="cerniq-mini-stat">170+ quant models</span>
                     <span className="cerniq-mini-stat">EN / ES delivery</span>
-                  </div>
-                </div>
-
-                <div className="animate-fade-in [animation-delay:120ms]">
-                  <div className="relative overflow-hidden rounded-[2.5rem] border border-[rgba(216,192,139,0.76)] bg-[linear-gradient(145deg,rgba(18,24,37,0.96),rgba(32,47,72,0.92)_52%,rgba(211,154,43,0.28)_100%)] p-6 text-white shadow-[0_32px_90px_rgba(47,32,10,0.2)] sm:p-8">
-                    <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.07)_1px,transparent_1px)] bg-[size:6.5rem_6.5rem] opacity-40" />
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(255,255,255,0.16),transparent_20%),radial-gradient(circle_at_84%_24%,rgba(255,213,140,0.28),transparent_18%),radial-gradient(circle_at_54%_84%,rgba(255,255,255,0.12),transparent_22%)]" />
-
-                    <div className="relative z-10">
-                      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/72">
-                        Live Workspace
-                      </p>
-                      <div className="mt-5 flex items-end justify-between gap-6">
-                        <div>
-                          <p className="text-sm text-white/68">
-                            {t("Current cycle", "Ciclo actual")}
-                          </p>
-                          <p className="mt-2 font-display text-4xl leading-none">
-                            Q2 ALM
-                          </p>
-                        </div>
-                        <div className="rounded-full border border-white/12 bg-white/8 px-3 py-1.5 text-xs uppercase tracking-[0.22em] text-[#ffd58c]">
-                          Board-ready
-                        </div>
-                      </div>
-
-                      <div className="mt-8 grid gap-3">
-                        {[
-                          {
-                            label: t("Liquidity coverage", "Cobertura de liquidez"),
-                            value: "115.5%",
-                            status: t("Healthy", "Saludable"),
-                          },
-                          {
-                            label: t("Delivery window", "Ventana de entrega"),
-                            value: "24h",
-                            status: t("Tracked in dashboard", "Seguimiento en dashboard"),
-                          },
-                          {
-                            label: t("Reporting stack", "Stack de reportes"),
-                            value: "EN / ES",
-                            status: t("Board + regulator", "Junta + regulador"),
-                          },
-                        ].map((item) => (
-                          <div
-                            key={item.label}
-                            className="flex items-center justify-between rounded-[1.4rem] border border-white/10 bg-white/8 px-4 py-4 backdrop-blur-[2px]"
-                          >
-                            <div>
-                              <p className="text-xs uppercase tracking-[0.18em] text-white/54">
-                                {item.label}
-                              </p>
-                              <p className="mt-2 text-2xl font-semibold text-white">
-                                {item.value}
-                              </p>
-                            </div>
-                            <p className="max-w-[10rem] text-right text-sm leading-5 text-white/72">
-                              {item.status}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>

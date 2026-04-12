@@ -129,6 +129,19 @@ test.describe('Production-critical paths', () => {
     await expect(page).toHaveTitle(/CERNIQ/i);
     await expect(page.locator('body')).toContainText(/Cerniq/i);
     await expect(page.locator('.cerniq-dashboard-page').first()).toBeVisible();
+    await expect(page.locator('body')).toContainText(/Dashboard-native ALM Intelligence/i);
+    await expect(page.locator('body')).toContainText(
+      /From balance sheet to board-ready ALM decisions/i,
+    );
+    await expect(
+      page.getByRole('button', { name: /Request Demo|Solicitar Demo/i }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /Start|Comenzar/i }).first(),
+    ).toBeVisible();
+    await expect(page.locator('body')).not.toContainText(
+      /Live Workspace|Current cycle|Q2 ALM/i,
+    );
     await expectNoFatalUi(page);
 
     await assertNoErrors();
