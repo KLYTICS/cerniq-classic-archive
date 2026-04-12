@@ -67,6 +67,30 @@ function normalizePercentValue(value: unknown): number {
   return Math.abs(numeric) <= 1 ? numeric * 100 : numeric;
 }
 
+/**
+ * Validates that all currency codes in a report are consistent. Call this
+ * before creating a formatter when data comes from multiple sources (e.g.,
+ * balance sheet + liquidity positions + peer benchmarks). Returns a DataGap
+ * descriptor if currencies are mixed, or null if they're consistent.
+ *
+ * PR cooperativas are all USD today, but this guard catches the case where
+ * a non-PR institution's data leaks into a report through peer analytics or
+ * cross-entity aggregation.
+ */
+export function detectMixedCurrencies(
+  currencies: Array<string | null | undefined>,
+): { field: string; reason: 'MIXED_CURRENCIES'; severity: 'WARNING'; action: string; context: { found: string[] } } | null {
+  const present = [...new Set(currencies.filter((c): c is string => !!c))];
+  if (present.length <= 1) return null;
+  return {
+    field: 'report.currency',
+    reason: 'MIXED_CURRENCIES',
+    severity: 'WARNING',
+    action: `Report contains mixed currencies (${present.join(', ')}). Monetary comparisons may be misleading.`,
+    context: { found: present },
+  };
+}
+
 export function createReportFormatter(
   language: ReportLanguage,
   options: {
