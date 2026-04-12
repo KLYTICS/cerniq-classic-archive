@@ -2,11 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 
 export interface RegulatoryImpact {
-  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  severity: 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
   requirements: string[];
   affectedSubcategories: string[];
   deadline: string | null;
-  keyQuote: string;
+  keyQuote: string | null;
 }
 
 @Injectable()

@@ -58,20 +58,23 @@ export class InstitutionSeedService {
         fixture,
       );
 
-      const institution = existing
-        ? await tx.institution.update({
-            where: { id: existing.id },
-            data: institutionData,
-          })
-        : await tx.institution.create({
-            data: institutionData,
-          });
+      let institution: typeof existing;
+      let institutionDelta: 'created' | 'updated' | 'unchanged';
 
-      const institutionDelta: 'created' | 'updated' | 'unchanged' = !existing
-        ? 'created'
-        : this.institutionFieldsEqual(existing, institutionData)
-          ? 'unchanged'
-          : 'updated';
+      if (!existing) {
+        institution = await tx.institution.create({ data: institutionData });
+        institutionDelta = 'created';
+      } else if (this.institutionFieldsEqual(existing, institutionData)) {
+        // Data is identical — skip the write entirely.
+        institution = existing;
+        institutionDelta = 'unchanged';
+      } else {
+        institution = await tx.institution.update({
+          where: { id: existing.id },
+          data: institutionData,
+        });
+        institutionDelta = 'updated';
+      }
 
       // ── 2. Replace balance sheet items atomically ─────────────────────────
       // Items are leaves (no child relations), so a deleteMany + createMany inside

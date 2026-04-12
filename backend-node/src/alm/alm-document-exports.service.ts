@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { ReportsService } from './reports/reports.service';
 import { PreviewReportService } from './preview-report.service';
@@ -11,6 +11,8 @@ import {
 
 @Injectable()
 export class AlmDocumentExportsService {
+  private readonly logger = new Logger(AlmDocumentExportsService.name);
+
   constructor(
     private readonly almEnterprise: AlmEnterpriseService,
     private readonly reportsService: ReportsService,
@@ -45,25 +47,47 @@ export class AlmDocumentExportsService {
     language: 'en' | 'es' = 'en',
   ): Promise<GeneratedDocumentExport> {
     const institution = await this.almEnterprise.getInstitution(institutionId);
-    const buffer = await this.reportsService.generateALMReport(
-      institutionId,
-      language,
-    );
-    return {
-      manifest: createPdfManifest({
-        id: buildManifestId('alm_report', institutionId, language),
-        kind: 'alm_report',
+
+    try {
+      const buffer = await this.reportsService.generateALMReport(
+        institutionId,
         language,
-        audience: 'internal',
-        status: 'ready',
-        downloadUrl: `/api/alm/${institutionId}/report?lang=${language}`,
-        sourceInstitutionId: institutionId,
-        institutionName: institution.name,
-        generatedAt: new Date(),
-        watermark: null,
-      }),
-      buffer,
-    };
+      );
+      return {
+        manifest: createPdfManifest({
+          id: buildManifestId('alm_report', institutionId, language),
+          kind: 'alm_report',
+          language,
+          audience: 'internal',
+          status: 'ready',
+          downloadUrl: `/api/alm/${institutionId}/report?lang=${language}`,
+          sourceInstitutionId: institutionId,
+          institutionName: institution.name,
+          generatedAt: new Date(),
+          watermark: null,
+        }),
+        buffer,
+      };
+    } catch (err) {
+      this.logger.error(
+        `Report generation failed for institution ${institutionId}: ${err}`,
+      );
+      return {
+        manifest: createPdfManifest({
+          id: buildManifestId('alm_report', institutionId, language),
+          kind: 'alm_report',
+          language,
+          audience: 'internal',
+          status: 'failed',
+          downloadUrl: null,
+          sourceInstitutionId: institutionId,
+          institutionName: institution.name,
+          generatedAt: new Date(),
+          watermark: null,
+        }),
+        buffer: Buffer.alloc(0),
+      };
+    }
   }
 
   listSampleExports(charterNumber: string): DocumentExportManifest[] {
@@ -85,23 +109,42 @@ export class AlmDocumentExportsService {
     charterNumber: string,
     language: 'en' | 'es' = 'en',
   ): Promise<GeneratedDocumentExport> {
-    const buffer = await this.sampleReportFactory.generateSampleReport(
-      charterNumber,
-      language,
-    );
-    return {
-      manifest: createPdfManifest({
-        id: buildManifestId('sample_report', charterNumber, language),
-        kind: 'sample_report',
+    try {
+      const buffer = await this.sampleReportFactory.generateSampleReport(
+        charterNumber,
         language,
-        audience: 'sample',
-        status: 'ready',
-        downloadUrl: `/api/alm/sample-report/${encodeURIComponent(charterNumber)}?lang=${language}`,
-        sourceLabel: charterNumber,
-        generatedAt: new Date(),
-      }),
-      buffer,
-    };
+      );
+      return {
+        manifest: createPdfManifest({
+          id: buildManifestId('sample_report', charterNumber, language),
+          kind: 'sample_report',
+          language,
+          audience: 'sample',
+          status: 'ready',
+          downloadUrl: `/api/alm/sample-report/${encodeURIComponent(charterNumber)}?lang=${language}`,
+          sourceLabel: charterNumber,
+          generatedAt: new Date(),
+        }),
+        buffer,
+      };
+    } catch (err) {
+      this.logger.error(
+        `Sample report generation failed for charter ${charterNumber}: ${err}`,
+      );
+      return {
+        manifest: createPdfManifest({
+          id: buildManifestId('sample_report', charterNumber, language),
+          kind: 'sample_report',
+          language,
+          audience: 'sample',
+          status: 'failed',
+          downloadUrl: null,
+          sourceLabel: charterNumber,
+          generatedAt: new Date(),
+        }),
+        buffer: Buffer.alloc(0),
+      };
+    }
   }
 
   listPreviewExports(slug: string): DocumentExportManifest[] {
@@ -125,22 +168,41 @@ export class AlmDocumentExportsService {
     language: 'en' | 'es' = 'es',
   ): Promise<GeneratedDocumentExport> {
     const preview = this.previewReports.getPreviewDefinition(slug);
-    const buffer = await this.previewReports.generatePreviewReport(
-      slug,
-      language,
-    );
-    return {
-      manifest: createPdfManifest({
-        id: buildManifestId('preview_report', slug, language),
-        kind: 'preview_report',
+    try {
+      const buffer = await this.previewReports.generatePreviewReport(
+        slug,
         language,
-        audience: 'sample',
-        status: 'ready',
-        downloadUrl: `/api/alm/previews/${encodeURIComponent(slug)}/report?lang=${language}`,
-        sourceLabel: preview.name,
-        generatedAt: new Date(),
-      }),
-      buffer,
-    };
+      );
+      return {
+        manifest: createPdfManifest({
+          id: buildManifestId('preview_report', slug, language),
+          kind: 'preview_report',
+          language,
+          audience: 'sample',
+          status: 'ready',
+          downloadUrl: `/api/alm/previews/${encodeURIComponent(slug)}/report?lang=${language}`,
+          sourceLabel: preview.name,
+          generatedAt: new Date(),
+        }),
+        buffer,
+      };
+    } catch (err) {
+      this.logger.error(
+        `Preview report generation failed for slug ${slug}: ${err}`,
+      );
+      return {
+        manifest: createPdfManifest({
+          id: buildManifestId('preview_report', slug, language),
+          kind: 'preview_report',
+          language,
+          audience: 'sample',
+          status: 'failed',
+          downloadUrl: null,
+          sourceLabel: preview.name,
+          generatedAt: new Date(),
+        }),
+        buffer: Buffer.alloc(0),
+      };
+    }
   }
 }

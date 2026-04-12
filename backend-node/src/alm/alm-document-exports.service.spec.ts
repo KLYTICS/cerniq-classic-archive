@@ -80,4 +80,49 @@ describe('AlmDocumentExportsService', () => {
       '/api/alm/previews/cooperativa-oriental/report',
     );
   });
+
+  describe('error handling — failed generation returns error manifest', () => {
+    it('returns failed manifest with null downloadUrl when institution report generation throws', async () => {
+      reportsService.generateALMReport.mockRejectedValue(
+        new Error('PDF engine crash'),
+      );
+
+      const result = await service.generateInstitutionExport('inst-1', 'en');
+
+      expect(result.manifest.status).toBe('failed');
+      expect(result.manifest.downloadUrl).toBeNull();
+      expect(result.manifest.kind).toBe('alm_report');
+      expect(result.manifest.sourceInstitutionId).toBe('inst-1');
+      expect(result.buffer.length).toBe(0);
+    });
+
+    it('returns failed manifest when sample report generation throws', async () => {
+      sampleReportFactory.generateSampleReport.mockRejectedValue(
+        new Error('NCUA pull timeout'),
+      );
+
+      const result = await service.generateSampleExport('99999', 'es');
+
+      expect(result.manifest.status).toBe('failed');
+      expect(result.manifest.downloadUrl).toBeNull();
+      expect(result.manifest.kind).toBe('sample_report');
+      expect(result.buffer.length).toBe(0);
+    });
+
+    it('returns failed manifest when preview report generation throws', async () => {
+      previewReports.generatePreviewReport.mockRejectedValue(
+        new Error('PDFKit OOM'),
+      );
+
+      const result = await service.generatePreviewExport(
+        'cooperativa-oriental',
+        'es',
+      );
+
+      expect(result.manifest.status).toBe('failed');
+      expect(result.manifest.downloadUrl).toBeNull();
+      expect(result.manifest.kind).toBe('preview_report');
+      expect(result.buffer.length).toBe(0);
+    });
+  });
 });

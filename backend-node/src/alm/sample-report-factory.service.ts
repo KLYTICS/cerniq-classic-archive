@@ -38,38 +38,45 @@ export class SampleReportFactoryService {
       },
     });
 
-    try {
-      // 3. Import balance sheet items
-      await this.prisma.balanceSheetItem.createMany({
-        data: ncuaData.items.map((item) => ({
-          institutionId: tempInstitution.id,
-          category: item.category,
-          subcategory: item.subcategory,
-          name: item.name,
-          balance: item.balance,
-          rate: item.rate,
-          duration: item.duration,
-          rateType: item.rateType,
-        })),
-      });
+    // 3. Import balance sheet items
+    await this.prisma.balanceSheetItem.createMany({
+      data: ncuaData.items.map((item) => ({
+        institutionId: tempInstitution.id,
+        category: item.category,
+        subcategory: item.subcategory,
+        name: item.name,
+        balance: item.balance,
+        rate: item.rate,
+        duration: item.duration,
+        rateType: item.rateType,
+      })),
+    });
 
+    let buffer: Buffer;
+    try {
       // 4. Generate ALM report with watermark
-      const buffer = await this.reportsService.generateALMReport(
+      buffer = await this.reportsService.generateALMReport(
         tempInstitution.id,
         lang,
         { watermark: 'SAMPLE REPORT — For Demonstration Purposes Only' },
       );
-
-      return buffer;
-    } finally {
-      // 5. Cleanup: delete temp data
-      await this.prisma.balanceSheetItem.deleteMany({
-        where: { institutionId: tempInstitution.id },
-      });
-      await this.prisma.institution.delete({
-        where: { id: tempInstitution.id },
-      });
+    } catch (err) {
+      // Leave temp data for inspection — log the institution ID so admins can debug
+      this.logger.error(
+        `Report generation failed for charter ${charterNumber} (tempInstitutionId=${tempInstitution.id}). Temp data preserved for debugging.`,
+      );
+      throw err;
     }
+
+    // 5. Cleanup: only delete temp data after successful generation
+    await this.prisma.balanceSheetItem.deleteMany({
+      where: { institutionId: tempInstitution.id },
+    });
+    await this.prisma.institution.delete({
+      where: { id: tempInstitution.id },
+    });
+
+    return buffer;
   }
 
   async generateAndSaveForProspect(

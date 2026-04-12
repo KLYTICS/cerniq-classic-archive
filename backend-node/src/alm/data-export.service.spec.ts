@@ -139,14 +139,22 @@ describe('DataExportService', () => {
       expect(csv).toContain('"Coop, Test ""Inc"""');
     });
 
-    it('should output empty string for null values in CSV', async () => {
+    it('should output DATA_UNAVAILABLE for null values in CSV', async () => {
       prisma.analysisRun.findFirst.mockResolvedValue(makeRun(null));
 
       const result = await service.exportMetrics('inst_001', 'csv');
       const csv = result as string;
       const values = csv.split('\n')[1].split(',');
-      const emptyCount = values.filter((v) => v === '').length;
-      expect(emptyCount).toBeGreaterThan(5);
+      const unavailableCount = values.filter(
+        (v) => v === 'DATA_UNAVAILABLE',
+      ).length;
+      // All numeric/status fields should be DATA_UNAVAILABLE when resultSummary is null
+      expect(unavailableCount).toBeGreaterThan(5);
+      // No empty strings for null fields
+      const emptyNumericFields = values
+        .slice(3) // skip institutionId, institutionName, reportDate (always populated)
+        .filter((v) => v === '');
+      expect(emptyNumericFields).toHaveLength(0);
     });
   });
 

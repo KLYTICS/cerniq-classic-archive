@@ -90,14 +90,15 @@ describe('SampleReportFactoryService', () => {
     );
   });
 
-  it('cleans up even when report generation fails', async () => {
+  it('preserves temp data when report generation fails (for debugging)', async () => {
     reportsService.generateALMReport.mockRejectedValue(new Error('PDF fail'));
 
     await expect(service.generateSampleReport('12345')).rejects.toThrow(
       'PDF fail',
     );
-    expect(prisma.balanceSheetItem.deleteMany).toHaveBeenCalled();
-    expect(prisma.institution.delete).toHaveBeenCalled();
+    // Temp data must NOT be cleaned up — preserved for admin inspection
+    expect(prisma.balanceSheetItem.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.institution.delete).not.toHaveBeenCalled();
   });
 
   it('generateAndSaveForProspect returns success on happy path', async () => {

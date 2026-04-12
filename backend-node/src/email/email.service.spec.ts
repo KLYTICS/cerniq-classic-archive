@@ -454,7 +454,7 @@ describe('EmailService', () => {
         name: 'Test',
       });
       const call = mockSend.mock.calls[0][0];
-      expect(call.html).toContain('portal/submit');
+      expect(call.html).toContain('dashboard/upload');
     });
   });
 

@@ -68,14 +68,48 @@ describe('RegulatoryAlertService', () => {
       );
     });
 
-    it('should handle extractor errors gracefully within pipeline', async () => {
+    it('should continue pipeline when extractor fails, delivering fallback alert', async () => {
       mockScraper.runDailyScan.mockResolvedValue({ scanned: 1, newFound: 1 });
       mockPrisma.regulatoryPublication.findMany.mockResolvedValue([
         { id: 'pub-err' },
       ]);
       mockExtractor.extract.mockRejectedValue(new Error('AI unavailable'));
+      mockDelivery.mapAndDeliverToAllInstitutions.mockResolvedValue(2);
 
-      await expect(service.runFullPipeline()).rejects.toThrow('AI unavailable');
+      const result = await service.runFullPipeline();
+
+      expect(result.scanned).toBe(1);
+      expect(result.newPublications).toBe(1);
+      expect(result.alertsDelivered).toBe(2);
+      expect(mockDelivery.mapAndDeliverToAllInstitutions).toHaveBeenCalledWith(
+        'pub-err',
+        expect.objectContaining({ severity: 'UNKNOWN' }),
+      );
+    });
+
+    it('should continue to next publication even when both extract and fallback delivery fail', async () => {
+      mockScraper.runDailyScan.mockResolvedValue({ scanned: 2, newFound: 2 });
+      mockPrisma.regulatoryPublication.findMany.mockResolvedValue([
+        { id: 'pub-broken' },
+        { id: 'pub-good' },
+      ]);
+      mockExtractor.extract
+        .mockRejectedValueOnce(new Error('AI down'))
+        .mockResolvedValueOnce({
+          severity: 'HIGH',
+          requirements: ['Check capital'],
+          affectedSubcategories: ['capital'],
+          deadline: null,
+          keyQuote: 'Update',
+        });
+      mockDelivery.mapAndDeliverToAllInstitutions
+        .mockRejectedValueOnce(new Error('delivery down'))
+        .mockResolvedValueOnce(5);
+
+      const result = await service.runFullPipeline();
+
+      expect(result.alertsDelivered).toBe(5);
+      expect(mockExtractor.extract).toHaveBeenCalledTimes(2);
     });
   });
 

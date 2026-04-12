@@ -32,12 +32,37 @@ export class RegulatoryAlertService {
       });
 
       for (const pub of unprocessed) {
-        const impact = await this.extractor.extract(pub.id);
-        const delivered = await this.delivery.mapAndDeliverToAllInstitutions(
-          pub.id,
-          impact,
-        );
-        totalAlerts += delivered;
+        try {
+          const impact = await this.extractor.extract(pub.id);
+          const delivered = await this.delivery.mapAndDeliverToAllInstitutions(
+            pub.id,
+            impact,
+          );
+          totalAlerts += delivered;
+        } catch (err) {
+          this.logger.error(
+            `Extract failed for publication ${pub.id}, delivering fallback alert: ${err}`,
+          );
+          try {
+            const fallbackImpact = {
+              severity: 'UNKNOWN' as const,
+              requirements: [],
+              affectedSubcategories: [],
+              deadline: null,
+              keyQuote: null,
+            };
+            const delivered =
+              await this.delivery.mapAndDeliverToAllInstitutions(
+                pub.id,
+                fallbackImpact,
+              );
+            totalAlerts += delivered;
+          } catch (deliveryErr) {
+            this.logger.error(
+              `Fallback delivery also failed for publication ${pub.id}: ${deliveryErr}`,
+            );
+          }
+        }
       }
     }
 

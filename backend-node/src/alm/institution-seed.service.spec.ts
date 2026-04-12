@@ -4,8 +4,8 @@
  * The whole reason this service exists is so a seed run can be repeated without
  * duplicating data. These specs lock that contract in: the FIRST run creates,
  * the SECOND run with identical input produces the same institutionId, and the
- * delta correctly reports `unchanged` for the liquidity position (the institution
- * equality check is still a TODO and reports `updated` until you wire it up).
+ * delta correctly reports `unchanged` for both the institution (equality check
+ * on fixture-shaped fields) and the liquidity position.
  */
 import { InstitutionSeedService } from './institution-seed.service';
 

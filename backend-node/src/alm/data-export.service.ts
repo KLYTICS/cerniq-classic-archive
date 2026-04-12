@@ -199,7 +199,7 @@ export class DataExportService {
       .map((key) => {
         const val = metrics[key];
         if (val === null || val === undefined) {
-          return '';
+          return 'DATA_UNAVAILABLE';
         }
         // Escape strings that might contain commas or quotes
         if (typeof val === 'string') {

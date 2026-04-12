@@ -147,6 +147,13 @@ export class PreviewReportService {
       const doc = new PDFDocument({
         size: 'letter',
         margins: { top: 60, bottom: 60, left: 60, right: 60 },
+        info: {
+          Title: `PREVIEW — ${preview.name}`,
+          Subject: 'Preview document generated from public data and benchmark assumptions. Not a substitute for a full institution analysis.',
+          Author: 'CerniQ ALM Platform',
+          Creator: 'CerniQ Preview Report Generator',
+          Keywords: 'preview, demonstration, benchmark, CerniQ',
+        },
       });
       const chunks: Buffer[] = [];
       doc.on('data', (chunk: Buffer) => chunks.push(chunk));
