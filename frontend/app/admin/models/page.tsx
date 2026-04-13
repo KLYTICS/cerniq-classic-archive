@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getPublicApiUrl } from '@/lib/api-base';
 import { MetricStrip, type MetricStripItem } from '@/components/ui/cerniq/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/ui/cerniq/DataTable';
@@ -97,6 +98,7 @@ async function fetchWithAuth(path: string) {
 }
 
 export default function AdminModelsPage() {
+  const router = useRouter();
   const [models, setModels] = useState<RegistryModel[]>([]);
   const [summary, setSummary] = useState<RegistrySummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -164,7 +166,12 @@ export default function AdminModelsPage() {
       header: 'Model Key',
       width: '200px',
       cell: (row) => (
-        <span className="font-mono text-xs text-slate-800">{row.modelKey}</span>
+        <button
+          onClick={() => router.push(`/admin/models/${row.id}`)}
+          className="font-mono text-xs text-cyan-700 hover:underline text-left"
+        >
+          {row.modelKey}
+        </button>
       ),
       sortValue: (row) => row.modelKey,
     },

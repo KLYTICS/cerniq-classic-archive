@@ -49,9 +49,13 @@ export class AlmDocumentExportsService {
     const institution = await this.almEnterprise.getInstitution(institutionId);
 
     try {
-      const buffer = await this.reportsService.generateALMReport(
+      const { buffer } = await this.reportsService.generateAndRecordArtifact(
         institutionId,
-        language,
+        {
+          language,
+          storageLocator: `/api/alm/${institutionId}/report?lang=${language}`,
+          generatedBy: 'document-export',
+        },
       );
       return {
         manifest: createPdfManifest({

@@ -656,6 +656,8 @@ export default function AdminPage() {
                     ["Ops", "/admin/ops"],
                     ["Metrics", "/admin/metrics"],
                     ["Audit", "/admin/audit"],
+                    ["Model Registry", "/admin/models"],
+                    ["Governance", "/admin/governance"],
                   ].map(([label, href]) => (
                     <Link
                       key={href}

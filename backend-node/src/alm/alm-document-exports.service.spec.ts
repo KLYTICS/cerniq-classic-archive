@@ -17,6 +17,7 @@ describe('AlmDocumentExportsService', () => {
     };
     reportsService = {
       generateALMReport: jest.fn().mockResolvedValue(Buffer.from('alm-report')),
+      generateAndRecordArtifact: jest.fn().mockResolvedValue({ buffer: Buffer.from('alm-report') }),
     };
     sampleReportFactory = {
       generateSampleReport: jest
@@ -83,7 +84,7 @@ describe('AlmDocumentExportsService', () => {
 
   describe('error handling — failed generation returns error manifest', () => {
     it('returns failed manifest with null downloadUrl when institution report generation throws', async () => {
-      reportsService.generateALMReport.mockRejectedValue(
+      reportsService.generateAndRecordArtifact.mockRejectedValue(
         new Error('PDF engine crash'),
       );
 

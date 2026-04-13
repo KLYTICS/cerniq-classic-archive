@@ -159,6 +159,9 @@ function isDependencyDegraded(status: string | undefined): boolean {
   return status === 'degraded' || status === 'down' || status === 'unhealthy';
 }
 
+/** Services whose degradation marks the platform as degraded. */
+const CORE_HEALTH_KEYS = new Set(['api', 'database', 'cache']);
+
 export function determineOverallHealthStatus(params: {
   dbConnected: boolean;
   checks: Record<string, string>;
@@ -173,10 +176,14 @@ export function determineOverallHealthStatus(params: {
       ? params.memory.primaryPercent >= 90
       : params.memory.primaryPercent >= 95;
 
-  if (
-    memoryThreshold ||
-    Object.values(params.checks).some(isDependencyDegraded)
-  ) {
+  // Only core services (api, database, cache) determine overall health.
+  // Optional services (marketData) are informational — their failure
+  // should not mark the platform as degraded for load balancers.
+  const coreDegraded = Object.entries(params.checks).some(
+    ([key, status]) => CORE_HEALTH_KEYS.has(key) && isDependencyDegraded(status),
+  );
+
+  if (memoryThreshold || coreDegraded) {
     return 'degraded';
   }
 
@@ -477,14 +484,20 @@ export class AppController {
       latencyMs: 0,
     };
 
-    const allUp = Object.values(services).every(
-      (s) => s.status === 'up' || s.status === 'healthy',
-    );
+    // Core services (DB, cache) determine overall health.
+    // Optional services (marketData) are informational only — their
+    // failure should not drag the platform to "degraded" for load
+    // balancers or uptime monitors.
+    const coreServices = ['database', 'cache'] as const;
+    const allCoreUp = coreServices.every((key) => {
+      const s = services[key];
+      return s && (s.status === 'up' || s.status === 'healthy');
+    });
 
     const detailedPoolStats = this.prisma.getPoolStats();
 
     return {
-      status: allUp ? 'healthy' : 'degraded',
+      status: allCoreUp ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
       version: '2.0.0',
       uptime: process.uptime(),

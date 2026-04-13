@@ -8,6 +8,8 @@ import { StressTestingService } from '../alm/stress-testing/stress-testing.servi
 import { ComplianceCalendarService } from '../alm/compliance-calendar.service';
 import { DataCryptoService } from '../crypto/data-crypto.service';
 import { PipelineGateway } from '../realtime/pipeline.gateway';
+import { ReportArtifactService } from '../alm/reports/report-artifact.service';
+import { ReportPreflightService } from '../alm/reports/report-preflight.service';
 
 const PDFDocument = require('pdfkit');
 
@@ -28,6 +30,8 @@ export class PipelineWorker {
     private readonly complianceCalendar: ComplianceCalendarService,
     private readonly dataCrypto: DataCryptoService,
     private readonly pipelineGateway: PipelineGateway,
+    private readonly reportArtifact: ReportArtifactService,
+    private readonly reportPreflight: ReportPreflightService,
   ) {}
 
   @Cron('*/2 * * * *') // Every 2 minutes
@@ -165,6 +169,45 @@ export class PipelineWorker {
         this.storage.getSignedUrl(keyEs, 30 * 24 * 60 * 60), // 30-day expiry
         this.storage.getSignedUrl(keyEn, 30 * 24 * 60 * 60),
       ]);
+
+      // Step 5b: Record immutable report artifacts (FAANG Audit P1 #4)
+      // Captures SHA-256 checksum, model lineage, and preflight gaps for audit trail
+      try {
+        const preflight = await this.reportPreflight.check(institution.id);
+        await Promise.all([
+          this.reportArtifact.record({
+            institutionId: institution.id,
+            reportJobId: job.id,
+            format: 'PDF_ES',
+            language: 'es',
+            content: pdfEs,
+            storageLocator: keyEs,
+            modelLineage: preflight.modelLineage ?? [],
+            preflightGaps: preflight.gaps,
+            preflightReady: preflight.ready,
+            generatedBy: 'pipeline',
+          }),
+          this.reportArtifact.record({
+            institutionId: institution.id,
+            reportJobId: job.id,
+            format: 'PDF_EN',
+            language: 'en',
+            content: pdfEn,
+            storageLocator: keyEn,
+            modelLineage: preflight.modelLineage ?? [],
+            preflightGaps: preflight.gaps,
+            preflightReady: preflight.ready,
+            generatedBy: 'pipeline',
+          }),
+        ]);
+      } catch (artifactErr: any) {
+        // Artifact recording failure must NOT block report delivery
+        this.logger.warn({
+          event: 'pipeline.artifact_recording_failed',
+          jobId: job.id,
+          error: artifactErr.message,
+        });
+      }
 
       // Step 6: Complete
       await this.prisma.reportJob.update({

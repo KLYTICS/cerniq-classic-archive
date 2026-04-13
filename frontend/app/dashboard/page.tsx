@@ -66,6 +66,16 @@ const ALM_STATUS_ROWS: {
 
 const MODULE_CARDS = [
   {
+    titleEn: 'Client Portal',
+    titleEs: 'Portal de Cliente',
+    descEn: 'Upload balance sheets, view reports, and download bilingual PDFs.',
+    descEs: 'Suba balances, vea informes y descargue PDFs bilingues.',
+    href: '/portal',
+    icon: FileText,
+    accentEn: 'Reports',
+    accentEs: 'Informes',
+  },
+  {
     titleEn: 'ALM Intelligence',
     titleEs: 'Inteligencia ALM',
     descEn: 'Duration gap, NII sensitivity, balance sheet analysis.',
@@ -588,6 +598,24 @@ export default function DashboardPage() {
                         'No hay analisis disponible -- cargue su balance para comenzar.',
                       )}
                 </p>
+
+                {/* Portal CTA — primary action */}
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    onClick={() => router.push('/portal')}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#1B3A6B] px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-[#15305a] hover:-translate-y-0.5"
+                  >
+                    <FileText className="h-4 w-4" />
+                    {t('Open Portal', 'Abrir Portal')}
+                  </button>
+                  <button
+                    onClick={() => router.push('/portal/submit')}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                  >
+                    <Upload className="h-4 w-4" />
+                    {t('Upload Balance Sheet', 'Subir Balance')}
+                  </button>
+                </div>
 
                 {/* Quick Stats Row */}
                 <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">

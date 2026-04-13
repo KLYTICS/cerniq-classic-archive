@@ -7,10 +7,13 @@ import { PrismaService } from '../prisma.service';
  * Designed to run as a daily cron job.
  *
  * Retention periods (configurable via env vars):
- * - Audit logs: 365 days (COSSEC compliance requires 1 year)
+ * - Audit logs: 2555 days (7 years — matches security page claim, COSSEC compliance)
  * - Demo requests: 90 days
  * - Analysis runs: 180 days
  * - Ingestion logs: 90 days
+ *
+ * FAANG Audit FA-06: Security claims must match code. The security page
+ * advertises 7-year audit log retention. This default enforces it.
  */
 @Injectable()
 export class DataRetentionService {
@@ -33,7 +36,7 @@ export class DataRetentionService {
     };
 
     const retentionDays = {
-      auditLogs: parseInt(process.env.RETENTION_AUDIT_LOGS_DAYS || '365', 10),
+      auditLogs: parseInt(process.env.RETENTION_AUDIT_LOGS_DAYS || '2555', 10),
       demoRequests: parseInt(
         process.env.RETENTION_DEMO_REQUESTS_DAYS || '90',
         10,

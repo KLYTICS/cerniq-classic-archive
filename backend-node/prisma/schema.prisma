@@ -254,6 +254,7 @@ model Institution {
   ssoConfiguration      SSOConfiguration?
   institutionAlerts     InstitutionAlert[]
   camelCertifications   CamelCertification[]
+  reportArtifacts       ReportArtifact[]
 
   @@unique([workspaceId, seedKey], name: "workspace_seed_key")
   @@index([workspaceId])
@@ -1260,11 +1261,66 @@ model AnalysisRun {
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   createdByUser User      @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  reportArtifacts ReportArtifact[]
 
   @@index([institutionId, createdAt])
   @@index([createdByUserId, createdAt])
   @@index([status])
   @@map("analysis_runs")
+}
+
+// ============================================================================
+// IMMUTABLE REPORT ARTIFACT — FAANG Audit P1 #4
+// Binds every distributed PDF to one AnalysisRun + model lineage snapshot.
+// Once created, artifacts are append-only — no updates, no deletes.
+// ============================================================================
+
+enum ReportArtifactFormat {
+  PDF_ES
+  PDF_EN
+  EXCEL
+  JSON_BINDER
+  CSV_TEMPLATE
+}
+
+model ReportArtifact {
+  id                  String               @id @default(cuid())
+  institutionId       String               @map("institution_id")
+  /// The analysis run that produced the inputs for this report
+  analysisRunId       String?              @map("analysis_run_id")
+  /// Report job that triggered generation (portal flow)
+  reportJobId         String?              @map("report_job_id")
+  format              ReportArtifactFormat
+  /// Language of the artifact (null for non-text formats like Excel)
+  language            String?
+  /// Template version used to render the report
+  templateVersion     String               @default("alm-v1") @map("template_version")
+  /// SHA-256 of the generated artifact content
+  contentChecksum     String               @map("content_checksum")
+  /// Size in bytes
+  sizeBytes           Int                  @map("size_bytes")
+  /// Where the artifact is stored: R2 key, local path, or inline reference
+  storageLocator      String               @map("storage_locator")
+  /// JSON: snapshot of model versions used (from preflight modelLineage)
+  modelLineageSnapshot Json                @map("model_lineage_snapshot")
+  /// JSON: snapshot of dataset versions used (governed benchmarks, yield curves)
+  datasetVersions     Json?                @map("dataset_versions")
+  /// JSON: the preflight gaps that were present when this report was generated
+  preflightGaps       Json?                @map("preflight_gaps")
+  /// Whether preflight declared ready=true at generation time
+  preflightReady      Boolean              @default(false) @map("preflight_ready")
+  /// Who triggered the generation
+  generatedBy         String?              @map("generated_by")
+  generatedAt         DateTime             @default(now()) @map("generated_at")
+
+  institution  Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  analysisRun  AnalysisRun? @relation(fields: [analysisRunId], references: [id], onDelete: SetNull)
+
+  @@index([institutionId, generatedAt])
+  @@index([analysisRunId])
+  @@index([reportJobId])
+  @@index([contentChecksum])
+  @@map("report_artifacts")
 }
 
 model IngestionLog {

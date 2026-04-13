@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import {
   ALMSummaryResult,
   AlmEnterpriseService,
@@ -16,6 +16,9 @@ import {
   ReportLanguage,
   toneFromStatus,
 } from './report-formatting';
+import { ReportArtifactService } from './report-artifact.service';
+import { ReportPreflightService } from './report-preflight.service';
+import type { ArtifactRecord } from './report-artifact.service';
 
 const PDFDocument = require('pdfkit');
 
@@ -102,6 +105,8 @@ export class ReportsService {
   constructor(
     private readonly almEnterprise: AlmEnterpriseService,
     private readonly stressTesting: StressTestingService,
+    @Optional() private readonly artifactService?: ReportArtifactService,
+    @Optional() private readonly preflightService?: ReportPreflightService,
   ) {}
 
   async generateALMReport(
@@ -176,6 +181,96 @@ export class ReportsService {
         reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
+  }
+
+  /**
+   * Generate an ALM report AND record it as an immutable artifact.
+   *
+   * Runs preflight first to capture model lineage and gaps, then generates
+   * the report buffer, then records the artifact with SHA-256 checksum.
+   * Use this instead of `generateALMReport()` when the report will be
+   * distributed (portal, exports, action dispatch).
+   *
+   * Gracefully degrades: if artifact or preflight services are not injected,
+   * falls back to raw generation with no artifact recording.
+   */
+  async generateAndRecordArtifact(
+    institutionId: string,
+    opts?: {
+      language?: string;
+      watermark?: string;
+      analysisRunId?: string;
+      reportJobId?: string;
+      storageLocator?: string;
+      generatedBy?: string;
+    },
+  ): Promise<{ buffer: Buffer; artifact?: ArtifactRecord }> {
+    const lang = opts?.language === 'es' ? 'es' : 'en';
+    const format = lang === 'es' ? 'PDF_ES' : 'PDF_EN';
+
+    // 1. Run preflight (optional — provides model lineage + gaps)
+    let modelLineage: any[] = [];
+    let preflightGaps: any[] | undefined;
+    let preflightReady: boolean | undefined;
+
+    if (this.preflightService) {
+      try {
+        const preflight = await this.preflightService.check(institutionId);
+        modelLineage = preflight.modelLineage;
+        preflightGaps = preflight.gaps;
+        preflightReady = preflight.ready;
+      } catch (err) {
+        this.logger.warn({
+          event: 'preflight_failed_during_artifact_generation',
+          institutionId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    // 2. Generate the report buffer
+    const buffer = await this.generateALMReport(
+      institutionId,
+      opts?.language,
+      opts?.watermark ? { watermark: opts.watermark } : undefined,
+    );
+
+    // 3. Record the immutable artifact (if service available)
+    if (this.artifactService) {
+      try {
+        const artifact = await this.artifactService.record({
+          institutionId,
+          analysisRunId: opts?.analysisRunId,
+          reportJobId: opts?.reportJobId,
+          format: format as any,
+          language: lang,
+          content: buffer,
+          storageLocator: opts?.storageLocator ?? `local://generated/${institutionId}/${format.toLowerCase()}-${Date.now()}`,
+          modelLineage,
+          preflightGaps,
+          preflightReady,
+          generatedBy: opts?.generatedBy,
+        });
+
+        this.logger.log({
+          event: 'report_artifact_recorded',
+          institutionId,
+          artifactId: artifact.id,
+          checksum: artifact.contentChecksum,
+          format,
+        });
+
+        return { buffer, artifact };
+      } catch (err) {
+        this.logger.error({
+          event: 'artifact_recording_failed',
+          institutionId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    return { buffer };
   }
 
   private buildPayload(input: {

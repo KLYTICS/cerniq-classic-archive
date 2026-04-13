@@ -9,6 +9,8 @@ import { AlmAdvisorService } from './alm-advisor.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
 import { ReportsService } from './reports/reports.service';
 import { ReportPreflightService } from './reports/report-preflight.service';
+import { ReportArtifactService } from './reports/report-artifact.service';
+import { ReportArtifactController } from './reports/report-artifact.controller';
 import { WorkspaceOnboardingService } from './workspace-onboarding.service';
 import { InstitutionSeedService } from './institution-seed.service';
 import { CSVIngestionService } from './csv-ingestion.service';
@@ -140,6 +142,7 @@ import { HJMModule } from './quant/hjm.module';
     AlmAdvisorV2Controller,
     AlmAnalystController,
     CAMELCertificationController,
+    ReportArtifactController,
   ],
   providers: [
     // Phase 3: AlmActionsBootstrap implements OnModuleInit and registers
@@ -153,6 +156,7 @@ import { HJMModule } from './quant/hjm.module';
     StressTestingService,
     ReportsService,
     ReportPreflightService,
+    ReportArtifactService,
     WorkspaceOnboardingService,
     InstitutionSeedService,
     CSVIngestionService,
@@ -261,6 +265,7 @@ import { HJMModule } from './quant/hjm.module';
     StressTestingService,
     ReportsService,
     ReportPreflightService,
+    ReportArtifactService,
     WorkspaceOnboardingService,
     InstitutionSeedService,
     CSVIngestionService,

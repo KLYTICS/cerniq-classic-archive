@@ -24,37 +24,29 @@ import { ResponseEnvelopeInterceptor } from './common/interceptors/response-enve
 import { SensitiveFieldRedactorInterceptor } from './common/interceptors/sensitive-field-redactor.interceptor';
 import { SanitizePipe } from './common/pipes/sanitize.pipe';
 import { getGoogleOAuthWarnings } from './auth/oauth-config.util';
+import { validateEnv } from './config/env.schema';
 
 async function bootstrap() {
-  // --- Env var validation ---
-  const jwtSecret = process.env.JWT_SECRET;
-  if (!jwtSecret || jwtSecret.length < 32) {
-    console.error(
-      'FATAL: JWT_SECRET must be set and at least 32 characters. Exiting.',
-    );
-    process.exit(1);
-  }
-  if (!process.env.DATABASE_URL) {
-    console.error('FATAL: DATABASE_URL must be set. Exiting.');
-    process.exit(1);
-  }
+  // --- Zod-based env validation (exits on failure with formatted error) ---
+  const env = validateEnv();
+
   // Warn on missing but non-fatal integrations
-  const isProd = process.env.NODE_ENV === 'production';
-  if (isProd && !process.env.ADMIN_KEY)
+  const isProd = env.NODE_ENV === 'production';
+  if (isProd && !env.ADMIN_KEY)
     console.warn('WARN: ADMIN_KEY not set — admin endpoints disabled.');
-  if (isProd && !process.env.STRIPE_SECRET_KEY)
+  if (isProd && !env.STRIPE_SECRET_KEY)
     console.warn('WARN: STRIPE_SECRET_KEY not set — billing disabled.');
-  if (isProd && !process.env.RESEND_API_KEY)
+  if (isProd && !env.RESEND_API_KEY)
     console.warn('WARN: RESEND_API_KEY not set — email delivery disabled.');
-  if (isProd && !process.env.DATA_ENCRYPTION_KEY)
+  if (isProd && !env.DATA_ENCRYPTION_KEY)
     console.warn(
       'WARN: DATA_ENCRYPTION_KEY not set — PII encryption disabled.',
     );
-  if (isProd && !process.env.ANTHROPIC_API_KEY)
+  if (isProd && !env.ANTHROPIC_API_KEY)
     console.warn(
       'WARN: ANTHROPIC_API_KEY not set — CERNIQ Analyst falls back to local data-only mode.',
     );
-  if (isProd && !process.env.REDIS_URL)
+  if (isProd && !env.REDIS_URL)
     console.warn(
       'WARN: REDIS_URL not set — using in-memory rate limiting and cache.',
     );

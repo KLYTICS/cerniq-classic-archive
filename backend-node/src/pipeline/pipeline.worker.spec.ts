@@ -10,6 +10,8 @@ describe('PipelineWorker', () => {
   let complianceCalendar: any;
   let dataCrypto: any;
   let pipelineGateway: any;
+  let reportArtifact: any;
+  let reportPreflight: any;
 
   const defaultInstitution = {
     id: 'inst_1',
@@ -191,6 +193,24 @@ describe('PipelineWorker', () => {
       emitError: jest.fn(),
     };
 
+    reportArtifact = {
+      record: jest.fn().mockResolvedValue({
+        id: 'artifact-1',
+        contentChecksum: 'sha256:abc',
+        sizeBytes: 1024,
+      }),
+    };
+
+    reportPreflight = {
+      check: jest.fn().mockResolvedValue({
+        ready: true,
+        gaps: [],
+        modelLineage: [
+          { modelKey: 'alm.lcr', version: '1.1.0', status: 'APPROVED' },
+        ],
+      }),
+    };
+
     worker = new PipelineWorker(
       prisma,
       storage,
@@ -200,6 +220,8 @@ describe('PipelineWorker', () => {
       complianceCalendar,
       dataCrypto,
       pipelineGateway,
+      reportArtifact,
+      reportPreflight,
     );
   });
 
@@ -311,6 +333,38 @@ describe('PipelineWorker', () => {
         expect.objectContaining({
           where: { userId: 'user_1' },
           data: { reportsUsed: { increment: 1 } },
+        }),
+      );
+    });
+
+    it('records immutable artifacts for both PDFs', async () => {
+      await worker.processQueue();
+      expect(reportPreflight.check).toHaveBeenCalledWith('inst_1');
+      expect(reportArtifact.record).toHaveBeenCalledTimes(2);
+      expect(reportArtifact.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          institutionId: 'inst_1',
+          reportJobId: 'job_1',
+          format: 'PDF_ES',
+          language: 'es',
+          generatedBy: 'pipeline',
+        }),
+      );
+      expect(reportArtifact.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          format: 'PDF_EN',
+          language: 'en',
+        }),
+      );
+    });
+
+    it('continues to COMPLETE even if artifact recording fails', async () => {
+      reportArtifact.record.mockRejectedValue(new Error('DB constraint'));
+      await worker.processQueue();
+      // Job should still be COMPLETE despite artifact failure
+      expect(prisma.reportJob.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'COMPLETE' }),
         }),
       );
     });

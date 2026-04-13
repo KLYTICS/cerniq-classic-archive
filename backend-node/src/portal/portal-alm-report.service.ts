@@ -77,10 +77,15 @@ export class PortalAlmReportService {
       triggeredBy: job.triggeredBy,
     });
 
-    const buffer = await this.reports.generateALMReport(
+    const { buffer } = await this.reports.generateAndRecordArtifact(
       job.institutionId,
-      language,
-      watermark ? { watermark } : undefined,
+      {
+        language,
+        watermark: watermark ?? undefined,
+        reportJobId: job.id,
+        storageLocator: this.buildDownloadUrl(jobId, language),
+        generatedBy: userId,
+      },
     );
 
     return {

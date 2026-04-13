@@ -165,10 +165,19 @@ export class AlmActionsBootstrap implements OnModuleInit {
         if (!institutionId) {
           return { success: false, error: 'institutionId is required', durationMs: 0 };
         }
-        const buffer = await this.reports.generateALMReport(institutionId, lang);
+        const { buffer, artifact } = await this.reports.generateAndRecordArtifact(
+          institutionId,
+          { language: lang, generatedBy: 'action:alm.generate-report' },
+        );
         return {
           success: Boolean(buffer),
-          data: { generated: true, lang, sizeBytes: buffer?.length ?? 0 },
+          data: {
+            generated: true,
+            lang,
+            sizeBytes: buffer?.length ?? 0,
+            artifactId: artifact?.id,
+            checksum: artifact?.contentChecksum,
+          },
           durationMs: 0,
         };
       },

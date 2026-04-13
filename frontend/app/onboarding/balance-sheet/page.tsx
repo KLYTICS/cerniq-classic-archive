@@ -120,6 +120,30 @@ const T: Record<string, Record<Lang, string>> = {
     en: 'Failed to submit. Please try again.',
     es: 'Error al enviar. Intente de nuevo.',
   },
+  rateAndDuration: {
+    en: 'Rate & Duration',
+    es: 'Tasa y Duraci\u00f3n',
+  },
+  avgRate: {
+    en: 'Avg Rate (%)',
+    es: 'Tasa Prom. (%)',
+  },
+  durationYrs: {
+    en: 'Duration (yrs)',
+    es: 'Duraci\u00f3n (a\u00f1os)',
+  },
+  rateTypeLabel: {
+    en: 'Rate Type',
+    es: 'Tipo de Tasa',
+  },
+  fixed: {
+    en: 'Fixed',
+    es: 'Fija',
+  },
+  variable: {
+    en: 'Variable',
+    es: 'Variable',
+  },
   institutionIdMissing: {
     en: 'No institution selected. Please complete previous onboarding steps.',
     es: 'No hay instituci\u00f3n seleccionada. Complete los pasos anteriores.',
@@ -223,6 +247,72 @@ function CurrencyInput({
 }
 
 // ---------------------------------------------------------------------------
+// Rate & Duration inline row — appears below each balance input
+// ---------------------------------------------------------------------------
+function RateDurationRow({
+  rate,
+  onRateChange,
+  duration,
+  onDurationChange,
+  rateType,
+  onRateTypeChange,
+  lang,
+  visible,
+}: {
+  rate: number;
+  onRateChange: (v: number) => void;
+  duration: number;
+  onDurationChange: (v: number) => void;
+  rateType: 'fixed' | 'variable';
+  onRateTypeChange: (v: 'fixed' | 'variable') => void;
+  lang: Lang;
+  visible: boolean;
+}) {
+  if (!visible) return null;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-slate-700/50 bg-slate-800/40 px-3 py-2">
+      <div className="flex items-center gap-1.5">
+        <label className="text-[10px] text-slate-500 whitespace-nowrap">{t('avgRate', lang)}</label>
+        <input
+          type="number"
+          step={0.1}
+          min={0}
+          max={100}
+          value={rate || ''}
+          onChange={(e) => onRateChange(e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)))}
+          className="w-16 rounded border border-slate-600 bg-slate-800 px-1.5 py-1 text-xs text-white tabular-nums focus:outline-none focus:ring-1 focus:ring-cyan-500"
+          placeholder="0.0"
+        />
+      </div>
+      <div className="flex items-center gap-1.5">
+        <label className="text-[10px] text-slate-500 whitespace-nowrap">{t('durationYrs', lang)}</label>
+        <input
+          type="number"
+          step={0.1}
+          min={0}
+          max={50}
+          value={duration || ''}
+          onChange={(e) => onDurationChange(e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)))}
+          className="w-16 rounded border border-slate-600 bg-slate-800 px-1.5 py-1 text-xs text-white tabular-nums focus:outline-none focus:ring-1 focus:ring-cyan-500"
+          placeholder="0.0"
+        />
+      </div>
+      <div className="flex items-center gap-1.5">
+        <label className="text-[10px] text-slate-500 whitespace-nowrap">{t('rateTypeLabel', lang)}</label>
+        <select
+          value={rateType}
+          onChange={(e) => onRateTypeChange(e.target.value as 'fixed' | 'variable')}
+          className="rounded border border-slate-600 bg-slate-800 px-1.5 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+        >
+          <option value="fixed">{t('fixed', lang)}</option>
+          <option value="variable">{t('variable', lang)}</option>
+        </select>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main wizard
 // ---------------------------------------------------------------------------
 export default function BalanceSheetWizard() {
@@ -260,6 +350,39 @@ export default function BalanceSheetWizard() {
   const [borrowedFunds, setBorrowedFunds] = useState(() => loadSaved('borrowedFunds', 0));
   const [otherLiabilities, setOtherLiabilities] = useState(() => loadSaved('otherLiabilities', 0));
 
+  // ---- Rate & Duration per item (sensible defaults per subcategory) ----
+  const [cashRate, setCashRate] = useState(() => loadSaved('cashRate', 1.5));
+  const [cashDuration, setCashDuration] = useState(() => loadSaved('cashDuration', 0.1));
+  const [cashRateType, setCashRateType] = useState<'fixed' | 'variable'>(() => loadSaved('cashRateType', 'variable'));
+
+  const [investRate, setInvestRate] = useState(() => loadSaved('investRate', 3.5));
+  const [investDuration, setInvestDuration] = useState(() => loadSaved('investDuration', 3.5));
+  const [investRateType, setInvestRateType] = useState<'fixed' | 'variable'>(() => loadSaved('investRateType', 'fixed'));
+
+  const [loanRate, setLoanRate] = useState(() => loadSaved('loanRate', 5.5));
+  const [loanDuration, setLoanDuration] = useState(() => loadSaved('loanDuration', 4.2));
+  const [loanRateType, setLoanRateType] = useState<'fixed' | 'variable'>(() => loadSaved('loanRateType', 'fixed'));
+
+  const [fixedAssetRate, setFixedAssetRate] = useState(() => loadSaved('fixedAssetRate', 0));
+  const [fixedAssetDuration, setFixedAssetDuration] = useState(() => loadSaved('fixedAssetDuration', 0));
+  const [fixedAssetRateType, setFixedAssetRateType] = useState<'fixed' | 'variable'>(() => loadSaved('fixedAssetRateType', 'fixed'));
+
+  const [otherAssetRate, setOtherAssetRate] = useState(() => loadSaved('otherAssetRate', 0));
+  const [otherAssetDuration, setOtherAssetDuration] = useState(() => loadSaved('otherAssetDuration', 0));
+  const [otherAssetRateType, setOtherAssetRateType] = useState<'fixed' | 'variable'>(() => loadSaved('otherAssetRateType', 'fixed'));
+
+  const [depositRate, setDepositRate] = useState(() => loadSaved('depositRate', 2.0));
+  const [depositDuration, setDepositDuration] = useState(() => loadSaved('depositDuration', 1.5));
+  const [depositRateType, setDepositRateType] = useState<'fixed' | 'variable'>(() => loadSaved('depositRateType', 'variable'));
+
+  const [borrowRate, setBorrowRate] = useState(() => loadSaved('borrowRate', 4.0));
+  const [borrowDuration, setBorrowDuration] = useState(() => loadSaved('borrowDuration', 2.0));
+  const [borrowRateType, setBorrowRateType] = useState<'fixed' | 'variable'>(() => loadSaved('borrowRateType', 'fixed'));
+
+  const [otherLiabRate, setOtherLiabRate] = useState(() => loadSaved('otherLiabRate', 0));
+  const [otherLiabDuration, setOtherLiabDuration] = useState(() => loadSaved('otherLiabDuration', 0));
+  const [otherLiabRateType, setOtherLiabRateType] = useState<'fixed' | 'variable'>(() => loadSaved('otherLiabRateType', 'fixed'));
+
   // ---- Income ----
   const [interestIncome, setInterestIncome] = useState(() => loadSaved('interestIncome', 0));
   const [interestExpense, setInterestExpense] = useState(() => loadSaved('interestExpense', 0));
@@ -274,6 +397,14 @@ export default function BalanceSheetWizard() {
         lang, step, cashEquivalents, investmentSecurities, netLoansLeases,
         fixedAssets, otherAssets, memberDeposits, borrowedFunds, otherLiabilities,
         interestIncome, interestExpense, nonInterestIncome, nonInterestExpense,
+        cashRate, cashDuration, cashRateType,
+        investRate, investDuration, investRateType,
+        loanRate, loanDuration, loanRateType,
+        fixedAssetRate, fixedAssetDuration, fixedAssetRateType,
+        otherAssetRate, otherAssetDuration, otherAssetRateType,
+        depositRate, depositDuration, depositRateType,
+        borrowRate, borrowDuration, borrowRateType,
+        otherLiabRate, otherLiabDuration, otherLiabRateType,
       }));
     } catch { /* localStorage full — degrade silently */ }
   }, [
@@ -281,6 +412,14 @@ export default function BalanceSheetWizard() {
     cashEquivalents, investmentSecurities, netLoansLeases, fixedAssets, otherAssets,
     memberDeposits, borrowedFunds, otherLiabilities,
     interestIncome, interestExpense, nonInterestIncome, nonInterestExpense,
+    cashRate, cashDuration, cashRateType,
+    investRate, investDuration, investRateType,
+    loanRate, loanDuration, loanRateType,
+    fixedAssetRate, fixedAssetDuration, fixedAssetRateType,
+    otherAssetRate, otherAssetDuration, otherAssetRateType,
+    depositRate, depositDuration, depositRateType,
+    borrowRate, borrowDuration, borrowRateType,
+    otherLiabRate, otherLiabDuration, otherLiabRateType,
   ]);
 
   useEffect(() => {
@@ -388,15 +527,15 @@ export default function BalanceSheetWizard() {
 
     const items = [
       // Assets
-      { category: 'asset', subcategory: 'cash', name: 'Cash & Equivalents', balance: cashEquivalents, rateType: 'fixed', rate: 0, duration: 0 },
-      { category: 'asset', subcategory: 'investments', name: 'Investment Securities', balance: investmentSecurities, rateType: 'fixed', rate: 0, duration: 0 },
-      { category: 'asset', subcategory: 'loans', name: 'Net Loans & Leases', balance: netLoansLeases, rateType: 'fixed', rate: 0, duration: 0 },
-      { category: 'asset', subcategory: 'fixed_assets', name: 'Fixed Assets', balance: fixedAssets, rateType: 'fixed', rate: 0, duration: 0 },
-      { category: 'asset', subcategory: 'other', name: 'Other Assets', balance: otherAssets, rateType: 'fixed', rate: 0, duration: 0 },
+      { category: 'asset', subcategory: 'cash', name: 'Cash & Equivalents', balance: cashEquivalents, rateType: cashRateType, rate: cashRate / 100, duration: cashDuration },
+      { category: 'asset', subcategory: 'investments', name: 'Investment Securities', balance: investmentSecurities, rateType: investRateType, rate: investRate / 100, duration: investDuration },
+      { category: 'asset', subcategory: 'loans', name: 'Net Loans & Leases', balance: netLoansLeases, rateType: loanRateType, rate: loanRate / 100, duration: loanDuration },
+      { category: 'asset', subcategory: 'fixed_assets', name: 'Fixed Assets', balance: fixedAssets, rateType: fixedAssetRateType, rate: fixedAssetRate / 100, duration: fixedAssetDuration },
+      { category: 'asset', subcategory: 'other', name: 'Other Assets', balance: otherAssets, rateType: otherAssetRateType, rate: otherAssetRate / 100, duration: otherAssetDuration },
       // Liabilities
-      { category: 'liability', subcategory: 'deposits', name: 'Member Deposits / Shares', balance: memberDeposits, rateType: 'fixed', rate: 0, duration: 0 },
-      { category: 'liability', subcategory: 'borrowings', name: 'Borrowed Funds', balance: borrowedFunds, rateType: 'fixed', rate: 0, duration: 0 },
-      { category: 'liability', subcategory: 'other', name: 'Other Liabilities', balance: otherLiabilities, rateType: 'fixed', rate: 0, duration: 0 },
+      { category: 'liability', subcategory: 'deposits', name: 'Member Deposits / Shares', balance: memberDeposits, rateType: depositRateType, rate: depositRate / 100, duration: depositDuration },
+      { category: 'liability', subcategory: 'borrowings', name: 'Borrowed Funds', balance: borrowedFunds, rateType: borrowRateType, rate: borrowRate / 100, duration: borrowDuration },
+      { category: 'liability', subcategory: 'other', name: 'Other Liabilities', balance: otherLiabilities, rateType: otherLiabRateType, rate: otherLiabRate / 100, duration: otherLiabDuration },
     ].filter((item) => item.balance > 0);
 
     try {
@@ -555,12 +694,27 @@ export default function BalanceSheetWizard() {
                 <DollarSign className="h-5 w-5 text-cyan-400" />
                 {t('assets', lang)}
               </h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <CurrencyInput id="cashEquivalents" label={t('cashEquivalents', lang)} value={cashEquivalents} onChange={setCashEquivalents} />
-                <CurrencyInput id="investmentSecurities" label={t('investmentSecurities', lang)} value={investmentSecurities} onChange={setInvestmentSecurities} />
-                <CurrencyInput id="netLoansLeases" label={t('netLoansLeases', lang)} value={netLoansLeases} onChange={setNetLoansLeases} />
-                <CurrencyInput id="fixedAssets" label={t('fixedAssets', lang)} value={fixedAssets} onChange={setFixedAssets} />
-                <CurrencyInput id="otherAssets" label={t('otherAssets', lang)} value={otherAssets} onChange={setOtherAssets} />
+              <div className="space-y-3">
+                <div>
+                  <CurrencyInput id="cashEquivalents" label={t('cashEquivalents', lang)} value={cashEquivalents} onChange={setCashEquivalents} />
+                  <RateDurationRow rate={cashRate} onRateChange={setCashRate} duration={cashDuration} onDurationChange={setCashDuration} rateType={cashRateType} onRateTypeChange={setCashRateType} lang={lang} visible={cashEquivalents > 0} />
+                </div>
+                <div>
+                  <CurrencyInput id="investmentSecurities" label={t('investmentSecurities', lang)} value={investmentSecurities} onChange={setInvestmentSecurities} />
+                  <RateDurationRow rate={investRate} onRateChange={setInvestRate} duration={investDuration} onDurationChange={setInvestDuration} rateType={investRateType} onRateTypeChange={setInvestRateType} lang={lang} visible={investmentSecurities > 0} />
+                </div>
+                <div>
+                  <CurrencyInput id="netLoansLeases" label={t('netLoansLeases', lang)} value={netLoansLeases} onChange={setNetLoansLeases} />
+                  <RateDurationRow rate={loanRate} onRateChange={setLoanRate} duration={loanDuration} onDurationChange={setLoanDuration} rateType={loanRateType} onRateTypeChange={setLoanRateType} lang={lang} visible={netLoansLeases > 0} />
+                </div>
+                <div>
+                  <CurrencyInput id="fixedAssets" label={t('fixedAssets', lang)} value={fixedAssets} onChange={setFixedAssets} />
+                  <RateDurationRow rate={fixedAssetRate} onRateChange={setFixedAssetRate} duration={fixedAssetDuration} onDurationChange={setFixedAssetDuration} rateType={fixedAssetRateType} onRateTypeChange={setFixedAssetRateType} lang={lang} visible={fixedAssets > 0} />
+                </div>
+                <div>
+                  <CurrencyInput id="otherAssets" label={t('otherAssets', lang)} value={otherAssets} onChange={setOtherAssets} />
+                  <RateDurationRow rate={otherAssetRate} onRateChange={setOtherAssetRate} duration={otherAssetDuration} onDurationChange={setOtherAssetDuration} rateType={otherAssetRateType} onRateTypeChange={setOtherAssetRateType} lang={lang} visible={otherAssets > 0} />
+                </div>
                 <CurrencyInput id="totalAssets" label={t('totalAssets', lang)} value={totalAssets} readOnly computed />
               </div>
             </div>
@@ -573,10 +727,19 @@ export default function BalanceSheetWizard() {
                 <Building2 className="h-5 w-5 text-cyan-400" />
                 {t('liabilities', lang)}
               </h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <CurrencyInput id="memberDeposits" label={t('memberDeposits', lang)} value={memberDeposits} onChange={setMemberDeposits} />
-                <CurrencyInput id="borrowedFunds" label={t('borrowedFunds', lang)} value={borrowedFunds} onChange={setBorrowedFunds} />
-                <CurrencyInput id="otherLiabilities" label={t('otherLiabilities', lang)} value={otherLiabilities} onChange={setOtherLiabilities} />
+              <div className="space-y-3">
+                <div>
+                  <CurrencyInput id="memberDeposits" label={t('memberDeposits', lang)} value={memberDeposits} onChange={setMemberDeposits} />
+                  <RateDurationRow rate={depositRate} onRateChange={setDepositRate} duration={depositDuration} onDurationChange={setDepositDuration} rateType={depositRateType} onRateTypeChange={setDepositRateType} lang={lang} visible={memberDeposits > 0} />
+                </div>
+                <div>
+                  <CurrencyInput id="borrowedFunds" label={t('borrowedFunds', lang)} value={borrowedFunds} onChange={setBorrowedFunds} />
+                  <RateDurationRow rate={borrowRate} onRateChange={setBorrowRate} duration={borrowDuration} onDurationChange={setBorrowDuration} rateType={borrowRateType} onRateTypeChange={setBorrowRateType} lang={lang} visible={borrowedFunds > 0} />
+                </div>
+                <div>
+                  <CurrencyInput id="otherLiabilities" label={t('otherLiabilities', lang)} value={otherLiabilities} onChange={setOtherLiabilities} />
+                  <RateDurationRow rate={otherLiabRate} onRateChange={setOtherLiabRate} duration={otherLiabDuration} onDurationChange={setOtherLiabDuration} rateType={otherLiabRateType} onRateTypeChange={setOtherLiabRateType} lang={lang} visible={otherLiabilities > 0} />
+                </div>
                 <CurrencyInput id="totalLiabilities" label={t('totalLiabilities', lang)} value={totalLiabilities} readOnly computed />
               </div>
             </div>

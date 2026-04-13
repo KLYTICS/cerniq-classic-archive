@@ -57,6 +57,21 @@ describe('DataRetentionService', () => {
     expect(result.ingestionLogs).toBe(3);
   });
 
+  it('defaults audit log retention to 7 years (2555 days) per security page claim', async () => {
+    mockPrisma.auditLog.deleteMany.mockResolvedValue({ count: 0 });
+    mockPrisma.demoRequest.deleteMany.mockResolvedValue({ count: 0 });
+    mockPrisma.analysisRun.deleteMany.mockResolvedValue({ count: 0 });
+    mockPrisma.ingestionLog.deleteMany.mockResolvedValue({ count: 0 });
+
+    await service.runRetentionPolicy();
+
+    const cutoffArg = mockPrisma.auditLog.deleteMany.mock.calls[0][0].where.createdAt.lt as Date;
+    const daysAgo = (Date.now() - cutoffArg.getTime()) / 86_400_000;
+    // Should be approximately 2555 days ago (7 years), not 365
+    expect(daysAgo).toBeGreaterThan(2500);
+    expect(daysAgo).toBeLessThan(2600);
+  });
+
   it('runRetentionPolicy calls deleteMany with date cutoff', async () => {
     mockPrisma.auditLog.deleteMany.mockResolvedValue({ count: 0 });
     mockPrisma.demoRequest.deleteMany.mockResolvedValue({ count: 0 });

@@ -240,10 +240,28 @@ describe('AppController', () => {
 
   // ── determineOverallHealthStatus ───────────────────────────────────
 
-  it('marks health degraded for degraded dependencies', () => {
+  it('stays ok when only optional services (marketData) are degraded', () => {
     const status = determineOverallHealthStatus({
       dbConnected: true,
       checks: { api: 'up', cache: 'up', marketData: 'degraded' },
+      memory: {
+        source: 'container',
+        primaryPercent: 42,
+        heapPercent: 50,
+        rssPercent: 42,
+        heapUsedMB: 64,
+        heapTotalMB: 128,
+        rssMB: 256,
+        limitMB: 512,
+      },
+    });
+    expect(status).toBe('ok');
+  });
+
+  it('marks health degraded when a core service (cache) is degraded', () => {
+    const status = determineOverallHealthStatus({
+      dbConnected: true,
+      checks: { api: 'up', cache: 'degraded', marketData: 'up' },
       memory: {
         source: 'container',
         primaryPercent: 42,
@@ -348,10 +366,28 @@ describe('AppController', () => {
     expect(status).toBe('degraded');
   });
 
-  it('marks health degraded for "unhealthy" dependency status', () => {
+  it('stays ok when only optional service is unhealthy', () => {
     const status = determineOverallHealthStatus({
       dbConnected: true,
       checks: { api: 'up', marketData: 'unhealthy' },
+      memory: {
+        source: 'heap',
+        primaryPercent: 30,
+        heapPercent: 30,
+        rssPercent: null,
+        heapUsedMB: 30,
+        heapTotalMB: 100,
+        rssMB: 50,
+        limitMB: null,
+      },
+    });
+    expect(status).toBe('ok');
+  });
+
+  it('marks health degraded when core api service is unhealthy', () => {
+    const status = determineOverallHealthStatus({
+      dbConnected: true,
+      checks: { api: 'unhealthy', marketData: 'up' },
       memory: {
         source: 'heap',
         primaryPercent: 30,
