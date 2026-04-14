@@ -1783,13 +1783,68 @@ class APIClient {
     URL.revokeObjectURL(url);
   }
 
+  /**
+   * Seed an institution for the onboarding / demo flow.
+   *
+   * Routing strategy (Phase 1.5 — 2026-04-14):
+   * - `cooperativa` routes through the **idempotent** fixture endpoint
+   *   `POST /api/alm/institutions/seed` using the `pr-cooperativa-demo`
+   *   fixture. Re-invocation returns the same `institutionId` (keyed by
+   *   `(workspaceId, seedKey)`), which matches the Phase 1 pickup contract
+   *   and is the path seeded in CI for golden reconciliation.
+   * - `bank` / `credit_union` / `family_office` stay on the legacy
+   *   `POST /api/alm/seed-demo` endpoint until dedicated fixtures ship
+   *   for each (tracked as follow-ons to Phase 1.5).
+   *
+   * No silent fallback — errors propagate so the UI surfaces real
+   * failure states instead of navigating the user to a phantom
+   * `demo-bank-id` that doesn't exist in the database (D1 convention).
+   */
   async seedDemoInstitution(workspaceId: string, type: 'bank' | 'credit_union' | 'family_office' | 'cooperativa') {
-    try {
-      const response = await this.client.post(`${NODE_API_URL}/api/alm/seed-demo`, { workspaceId, type });
-      return response.data?.data ?? response.data;
-    } catch {
-      return { success: true, institutionId: 'demo-bank-id', institution: { id: 'demo-bank-id', name: 'FirstBank Puerto Rico', type, totalAssets: 18900, currency: 'USD' } };
+    if (type === 'cooperativa') {
+      const result = await this.seedInstitutionFromFixture(
+        workspaceId,
+        'pr-cooperativa-demo',
+      );
+      return {
+        success: true,
+        institutionId: result.institutionId,
+        institution: {
+          id: result.institutionId,
+          name: result.fixture?.name ?? 'Cooperativa demo',
+          type: 'cooperativa' as const,
+          seedKey: result.seedKey,
+        },
+        delta: result.delta,
+      };
     }
+    const response = await this.client.post(`${NODE_API_URL}/api/alm/seed-demo`, { workspaceId, type });
+    return response.data?.data ?? response.data;
+  }
+
+  /**
+   * Direct handle on the idempotent fixture seeder. Callers that want
+   * explicit control over which fixture to seed (future: multi-tenant
+   * demos, CI smoke-tests) should use this instead of `seedDemoInstitution`.
+   *
+   * Return shape mirrors the backend `SeedResult` — see
+   * `backend-node/src/alm/data/fixtures/_schema.ts`.
+   */
+  async seedInstitutionFromFixture(workspaceId: string, fixture: string): Promise<{
+    institutionId: string;
+    seedKey: string;
+    delta: {
+      institution: 'created' | 'updated' | 'unchanged';
+      balanceSheetItems: { before: number; after: number; replaced: boolean };
+      liquidityPosition: 'created' | 'updated' | 'unchanged';
+    };
+    fixture: { seedKey: string; name: string; itemCount: number };
+  }> {
+    const response = await this.client.post(
+      `${NODE_API_URL}/api/alm/institutions/seed`,
+      { workspaceId, fixture },
+    );
+    return response.data?.data ?? response.data;
   }
 
   // --- AI Advisor ---

@@ -230,6 +230,95 @@ describe('APIClient', () => {
     expect(mod1.apiClient).toBe(mod2.apiClient);
   });
 
+  describe('seedDemoInstitution (Phase 1.5 fixture routing)', () => {
+    it('routes cooperativa through the idempotent fixture endpoint', async () => {
+      const { apiClient } = await import('./api');
+      mockAxiosInstance.post.mockResolvedValueOnce({
+        data: {
+          institutionId: 'inst-coop-1',
+          seedKey: 'pr-cooperativa-demo',
+          delta: {
+            institution: 'created',
+            balanceSheetItems: { before: 0, after: 10, replaced: true },
+            liquidityPosition: 'created',
+          },
+          fixture: {
+            seedKey: 'pr-cooperativa-demo',
+            name: 'CoopAhorro San Juan',
+            itemCount: 10,
+          },
+        },
+      });
+
+      const result = await apiClient.seedDemoInstitution('ws-1', 'cooperativa');
+
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        expect.stringContaining('/api/alm/institutions/seed'),
+        { workspaceId: 'ws-1', fixture: 'pr-cooperativa-demo' },
+      );
+      expect(result.institutionId).toBe('inst-coop-1');
+      expect(result.institution.seedKey).toBe('pr-cooperativa-demo');
+      expect(result.delta.institution).toBe('created');
+    });
+
+    it('routes non-cooperativa types through the legacy seed-demo endpoint', async () => {
+      const { apiClient } = await import('./api');
+      mockAxiosInstance.post.mockResolvedValueOnce({
+        data: { institutionId: 'inst-bank-1' },
+      });
+
+      await apiClient.seedDemoInstitution('ws-1', 'bank');
+
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        expect.stringContaining('/api/alm/seed-demo'),
+        { workspaceId: 'ws-1', type: 'bank' },
+      );
+    });
+
+    it('propagates errors instead of returning a phantom demo-bank-id (D1)', async () => {
+      const { apiClient } = await import('./api');
+      const boom = new Error('backend unavailable');
+      mockAxiosInstance.post.mockRejectedValueOnce(boom);
+
+      await expect(
+        apiClient.seedDemoInstitution('ws-1', 'cooperativa'),
+      ).rejects.toBe(boom);
+    });
+
+    it('is idempotent across repeated calls for the same fixture', async () => {
+      const { apiClient } = await import('./api');
+      const first = {
+        data: {
+          institutionId: 'inst-coop-1',
+          seedKey: 'pr-cooperativa-demo',
+          delta: {
+            institution: 'created',
+            balanceSheetItems: { before: 0, after: 10, replaced: true },
+            liquidityPosition: 'created',
+          },
+          fixture: { seedKey: 'pr-cooperativa-demo', name: 'CoopAhorro San Juan', itemCount: 10 },
+        },
+      };
+      const second = {
+        data: {
+          ...first.data,
+          delta: {
+            institution: 'unchanged',
+            balanceSheetItems: { before: 10, after: 10, replaced: false },
+            liquidityPosition: 'unchanged',
+          },
+        },
+      };
+      mockAxiosInstance.post.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+
+      const a = await apiClient.seedDemoInstitution('ws-1', 'cooperativa');
+      const b = await apiClient.seedDemoInstitution('ws-1', 'cooperativa');
+
+      expect(a.institutionId).toBe(b.institutionId);
+      expect(b.delta.institution).toBe('unchanged');
+    });
+  });
+
   it('routes email/password login through the backend even when Supabase envs are set', async () => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://project.supabase.co');
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'anon-key');
