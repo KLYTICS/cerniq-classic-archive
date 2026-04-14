@@ -102,3 +102,7 @@ temp/
 
 # Firebase
 firebase-debug.log
+
+# Local IDE + agent runtime state (per-developer, never commit)
+.cursor/
+.claude/
