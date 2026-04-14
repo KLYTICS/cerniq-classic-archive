@@ -67,11 +67,13 @@ function fail(msg) {
 
 function run(cmd, args, opts = {}) {
   try {
-    return execFileSync(cmd, args, {
+    const { trim = true, ...rest } = opts;
+    const raw = execFileSync(cmd, args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
-      ...opts,
-    }).trim();
+      ...rest,
+    });
+    return trim ? raw.trim() : raw;
   } catch {
     return '';
   }
@@ -113,11 +115,18 @@ function classifyLane(path) {
 }
 
 function modifiedPaths(worktreePath) {
-  const out = run('git', ['-C', worktreePath, 'status', '--porcelain=v1'], {});
+  // trim: false preserves the leading-space indicator for worktree-only
+  // changes. porcelain=v1 format is strictly `XY PATH` (2 status chars +
+  // 1 separator space + path), so slice(3) is the correct path start.
+  const out = run(
+    'git',
+    ['-C', worktreePath, 'status', '--porcelain=v1'],
+    { trim: false },
+  );
   if (!out) return [];
   return out
     .split('\n')
-    .map((line) => line.slice(3).trim())
+    .map((line) => line.slice(3))
     .filter((p) => p && !p.startsWith('"'));
 }
 
