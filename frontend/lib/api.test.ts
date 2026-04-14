@@ -230,25 +230,25 @@ describe('APIClient', () => {
     expect(mod1.apiClient).toBe(mod2.apiClient);
   });
 
-  describe('seedDemoInstitution (Phase 1.5 fixture routing)', () => {
+  describe('seedDemoInstitution (Phase 1 complete — all types through fixtures)', () => {
+    const fixtureResponse = (seedKey: string, name: string) => ({
+      data: {
+        institutionId: `inst-${seedKey}`,
+        seedKey,
+        delta: {
+          institution: 'created',
+          balanceSheetItems: { before: 0, after: 10, replaced: true },
+          liquidityPosition: 'created',
+        },
+        fixture: { seedKey, name, itemCount: 10 },
+      },
+    });
+
     it('routes cooperativa through the idempotent fixture endpoint', async () => {
       const { apiClient } = await import('./api');
-      mockAxiosInstance.post.mockResolvedValueOnce({
-        data: {
-          institutionId: 'inst-coop-1',
-          seedKey: 'pr-cooperativa-demo',
-          delta: {
-            institution: 'created',
-            balanceSheetItems: { before: 0, after: 10, replaced: true },
-            liquidityPosition: 'created',
-          },
-          fixture: {
-            seedKey: 'pr-cooperativa-demo',
-            name: 'CoopAhorro San Juan',
-            itemCount: 10,
-          },
-        },
-      });
+      mockAxiosInstance.post.mockResolvedValueOnce(
+        fixtureResponse('pr-cooperativa-demo', 'CoopAhorro San Juan'),
+      );
 
       const result = await apiClient.seedDemoInstitution('ws-1', 'cooperativa');
 
@@ -256,24 +256,40 @@ describe('APIClient', () => {
         expect.stringContaining('/api/alm/institutions/seed'),
         { workspaceId: 'ws-1', fixture: 'pr-cooperativa-demo' },
       );
-      expect(result.institutionId).toBe('inst-coop-1');
+      expect(result.institutionId).toBe('inst-pr-cooperativa-demo');
       expect(result.institution.seedKey).toBe('pr-cooperativa-demo');
       expect(result.delta.institution).toBe('created');
     });
 
-    it('routes non-cooperativa types through the legacy seed-demo endpoint', async () => {
-      const { apiClient } = await import('./api');
-      mockAxiosInstance.post.mockResolvedValueOnce({
-        data: { institutionId: 'inst-bank-1' },
-      });
+    it.each([
+      ['bank', 'pr-bank-demo', 'Banco Comunidad PR'],
+      ['credit_union', 'pr-credit-union-demo', 'CoopAhorro PR'],
+      ['family_office', 'pr-family-office-demo', 'Caribbean Family Capital'],
+    ] as const)(
+      'routes %s through the fixture endpoint (not legacy seed-demo)',
+      async (type, fixture, name) => {
+        const { apiClient } = await import('./api');
+        mockAxiosInstance.post.mockResolvedValueOnce(
+          fixtureResponse(fixture, name),
+        );
 
-      await apiClient.seedDemoInstitution('ws-1', 'bank');
+        const result = await apiClient.seedDemoInstitution('ws-1', type);
 
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
-        expect.stringContaining('/api/alm/seed-demo'),
-        { workspaceId: 'ws-1', type: 'bank' },
-      );
-    });
+        // Every institution type — including legacy ones — now uses the
+        // idempotent fixture endpoint. The deprecated /api/alm/seed-demo
+        // path must never be hit from the frontend.
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+          expect.stringContaining('/api/alm/institutions/seed'),
+          { workspaceId: 'ws-1', fixture },
+        );
+        expect(mockAxiosInstance.post).not.toHaveBeenCalledWith(
+          expect.stringContaining('/api/alm/seed-demo'),
+          expect.anything(),
+        );
+        expect(result.institution.type).toBe(type);
+        expect(result.institution.seedKey).toBe(fixture);
+      },
+    );
 
     it('propagates errors instead of returning a phantom demo-bank-id (D1)', async () => {
       const { apiClient } = await import('./api');

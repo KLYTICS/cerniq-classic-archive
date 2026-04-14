@@ -574,6 +574,21 @@ export class AlmController {
     return '\uFEFF' + csv;
   }
 
+  /**
+   * @deprecated Use `POST /api/alm/institutions/seed` with a fixture key instead.
+   *
+   * This legacy endpoint creates a fresh (non-idempotent) institution each call.
+   * Re-invocation produces duplicates. As of 2026-04-14 the frontend migrated
+   * all four institution types to the idempotent fixture path (Phase 1
+   * complete); this endpoint is retained only for out-of-tree callers (CLI
+   * tests, ad-hoc scripts) and will be removed once those callers migrate.
+   *
+   * Fixture mapping:
+   *   bank          -> pr-bank-demo
+   *   credit_union  -> pr-credit-union-demo
+   *   family_office -> pr-family-office-demo
+   *   cooperativa   -> pr-cooperativa-demo
+   */
   @Post('seed-demo')
   @UseGuards(AuthGuard)
   async seedDemoData(
@@ -583,8 +598,8 @@ export class AlmController {
       type: 'bank' | 'credit_union' | 'family_office' | 'cooperativa';
     },
   ) {
-    this.logger.log(
-      `Seeding demo data: type=${body.type}, workspace=${body.workspaceId}`,
+    this.logger.warn(
+      `[DEPRECATED] POST /api/alm/seed-demo (type=${body.type}, workspace=${body.workspaceId}) — migrate caller to POST /api/alm/institutions/seed with a fixture key`,
     );
     return this.workspaceOnboarding.seedDemoData(body.workspaceId, body.type);
   }

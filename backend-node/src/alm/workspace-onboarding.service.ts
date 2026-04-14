@@ -41,6 +41,17 @@ export class WorkspaceOnboardingService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * @deprecated Use `InstitutionSeedService.seedFromFixture()` instead.
+   *
+   * This path was the original (non-idempotent) onboarding seeder — every
+   * call creates a new institution, so re-running produces duplicates. It
+   * is kept only to satisfy the deprecated `POST /api/alm/seed-demo`
+   * endpoint for out-of-tree callers. All four profile shapes below are
+   * mirrored as fixtures under `src/alm/data/fixtures/*.json` and consumed
+   * by `InstitutionSeedService`, which upserts by `(workspaceId, seedKey)`.
+   * New code must not call this method.
+   */
   async seedDemoData(
     workspaceId: string,
     type: InstitutionType,

@@ -1786,40 +1786,46 @@ class APIClient {
   /**
    * Seed an institution for the onboarding / demo flow.
    *
-   * Routing strategy (Phase 1.5 — 2026-04-14):
-   * - `cooperativa` routes through the **idempotent** fixture endpoint
-   *   `POST /api/alm/institutions/seed` using the `pr-cooperativa-demo`
-   *   fixture. Re-invocation returns the same `institutionId` (keyed by
-   *   `(workspaceId, seedKey)`), which matches the Phase 1 pickup contract
-   *   and is the path seeded in CI for golden reconciliation.
-   * - `bank` / `credit_union` / `family_office` stay on the legacy
-   *   `POST /api/alm/seed-demo` endpoint until dedicated fixtures ship
-   *   for each (tracked as follow-ons to Phase 1.5).
+   * Routing strategy (Phase 1 complete — 2026-04-14):
+   * All four institution types now route through the **idempotent** fixture
+   * endpoint `POST /api/alm/institutions/seed`. Re-invocation returns the
+   * same `institutionId` (keyed by `(workspaceId, seedKey)`), which matches
+   * the Phase 1 pickup contract. The legacy `POST /api/alm/seed-demo`
+   * endpoint is deprecated and no longer called from the frontend.
    *
-   * No silent fallback — errors propagate so the UI surfaces real
-   * failure states instead of navigating the user to a phantom
-   * `demo-bank-id` that doesn't exist in the database (D1 convention).
+   * | type           | fixture                     |
+   * |----------------|-----------------------------|
+   * | cooperativa    | `pr-cooperativa-demo`       |
+   * | bank           | `pr-bank-demo`              |
+   * | credit_union   | `pr-credit-union-demo`      |
+   * | family_office  | `pr-family-office-demo`     |
+   *
+   * No silent fallback — errors propagate so the UI surfaces real failure
+   * states instead of navigating the user to a phantom `demo-bank-id` that
+   * doesn't exist in the database (D1 convention).
    */
   async seedDemoInstitution(workspaceId: string, type: 'bank' | 'credit_union' | 'family_office' | 'cooperativa') {
-    if (type === 'cooperativa') {
-      const result = await this.seedInstitutionFromFixture(
-        workspaceId,
-        'pr-cooperativa-demo',
-      );
-      return {
-        success: true,
-        institutionId: result.institutionId,
-        institution: {
-          id: result.institutionId,
-          name: result.fixture?.name ?? 'Cooperativa demo',
-          type: 'cooperativa' as const,
-          seedKey: result.seedKey,
-        },
-        delta: result.delta,
-      };
-    }
-    const response = await this.client.post(`${NODE_API_URL}/api/alm/seed-demo`, { workspaceId, type });
-    return response.data?.data ?? response.data;
+    const fixtureByType = {
+      bank: 'pr-bank-demo',
+      credit_union: 'pr-credit-union-demo',
+      family_office: 'pr-family-office-demo',
+      cooperativa: 'pr-cooperativa-demo',
+    } as const;
+    const result = await this.seedInstitutionFromFixture(
+      workspaceId,
+      fixtureByType[type],
+    );
+    return {
+      success: true,
+      institutionId: result.institutionId,
+      institution: {
+        id: result.institutionId,
+        name: result.fixture?.name ?? `${type} demo`,
+        type,
+        seedKey: result.seedKey,
+      },
+      delta: result.delta,
+    };
   }
 
   /**
