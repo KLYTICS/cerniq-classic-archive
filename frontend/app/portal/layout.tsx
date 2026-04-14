@@ -14,6 +14,7 @@ import {
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { CerniqLockup } from '@/components/brand/CerniqLogo';
 import PortalPaywall from '@/components/portal/PortalPaywall';
+import { buildLoginUrlForReturnUrl } from '@/lib/auth-redirect';
 import {
   normalizePlatformAccess,
   type PlatformAccessState,
@@ -124,7 +125,11 @@ export default function PortalLayout({
               setSubscription(null);
               setAccess(null);
               setLoading(false);
-              router.replace('/login?mode=magic-link&returnUrl=%2Fportal');
+              router.replace(
+                buildLoginUrlForReturnUrl('/portal', {
+                  forceMagicLink: true,
+                }),
+              );
             }
             return;
           }
@@ -233,7 +238,9 @@ export default function PortalLayout({
               Retry session check
             </button>
             <Link
-              href="/login?mode=magic-link&returnUrl=%2Fdashboard"
+              href={buildLoginUrlForReturnUrl('/portal', {
+                forceMagicLink: true,
+              })}
               className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               Back to sign in

@@ -77,12 +77,12 @@ export default async function Image() {
             maxWidth: '900px',
           }}
         >
-          Goldman-grade ALM analytics at credit union pricing
+          Best-in-class ALM reporting at credit union pricing
         </div>
 
         {/* Subheadline */}
         <div style={{ fontSize: '22px', color: '#94a3b8', marginBottom: '40px', maxWidth: '800px', lineHeight: 1.4 }}>
-          200+ modules. 170+ quant models. COSSEC/NCUA compliant. Bilingual EN/ES. From $750.
+          14-page board-ready reports. COSSEC 12-ratio engine. Bilingual EN/ES. From $750.
         </div>
 
         {/* Stats row */}
@@ -90,7 +90,7 @@ export default async function Image() {
           {[
             { value: '62', label: 'ALM Modules' },
             { value: '34', label: 'Quant Models' },
-            { value: '142', label: 'API Endpoints' },
+            { value: '12', label: 'COSSEC Ratios' },
             { value: 'EN/ES', label: 'Bilingual' },
           ].map((stat) => (
             <div key={stat.label} style={{ display: 'flex', flexDirection: 'column' }}>

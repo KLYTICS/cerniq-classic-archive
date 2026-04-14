@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/demo' },
   openGraph: {
     title: 'Try CERNIQ — Interactive ALM Demo',
-    description: '6-step walkthrough with live data: COSSEC scoring, ALM reports, stress testing, AI advisor, and 170+ quant models.',
+    description: '6-step walkthrough with live data: COSSEC scoring, ALM reports, stress testing, and AI advisor.',
     url: 'https://cerniq.io/demo',
   },
 };

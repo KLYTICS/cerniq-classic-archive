@@ -182,12 +182,18 @@ test.describe('Production-critical paths', () => {
     await assertNoErrors();
   });
 
-  test('portal login route redirects into the dashboard-first login flow', async ({ page }) => {
+  test('portal login route redirects into a portal-intent login flow', async ({ page }) => {
     const assertNoErrors = attachErrorTracker(page);
 
     const response = await page.goto('/portal/login');
     expect(response?.ok()).toBeTruthy();
     await expectSettledPath(page, '/login');
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('returnUrl'))
+      .toBe('/portal');
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('mode'))
+      .toBe('magic-link');
     await expect(
       page.getByRole('button', { name: /Email secure sign-in link/i }),
     ).toBeVisible();

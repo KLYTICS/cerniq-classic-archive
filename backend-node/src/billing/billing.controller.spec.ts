@@ -537,7 +537,9 @@ describe('BillingController', () => {
         name: 'Owner',
       });
       expect(res.cookie).toHaveBeenCalledTimes(2);
-      expect(res.redirect).toHaveBeenCalledWith('https://cerniq.io/dashboard');
+      expect(res.redirect).toHaveBeenCalledWith(
+        'https://cerniq.io/auth/callback?returnUrl=%2Fportal',
+      );
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({ outcome: 'success' }),
       );

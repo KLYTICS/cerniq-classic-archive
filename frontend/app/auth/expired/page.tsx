@@ -1,10 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Clock, ArrowRight } from 'lucide-react';
 import { analytics, EVENTS } from '@/lib/analytics';
+import { buildLoginUrlForReturnUrl } from '@/lib/auth-redirect';
 
 export default function MagicLinkExpired() {
+  const searchParams = useSearchParams();
+
   if (typeof window !== 'undefined') analytics.track(EVENTS.MAGIC_LINK_EXPIRED);
 
   return (
@@ -21,7 +25,9 @@ export default function MagicLinkExpired() {
             This login link has expired or has already been used. Login links are valid for 24 hours and can only be used once.
           </p>
           <Link
-            href="/login?mode=magic-link&returnUrl=%2Fdashboard"
+            href={buildLoginUrlForReturnUrl(searchParams.get('returnUrl'), {
+              forceMagicLink: true,
+            })}
             className="inline-flex items-center gap-2 bg-[#1B3A6B] text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-[#15305a] transition"
           >
             Request New Access Link <ArrowRight className="h-4 w-4" />

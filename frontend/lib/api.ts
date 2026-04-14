@@ -4,6 +4,7 @@ import { getPublicApiBase, getPublicApiUrl } from './api-base';
 import { asRecord, unwrapApiData } from './api-response';
 import { ACCESS_REQUIRED_ROUTE } from './access';
 import { getStoredAdminKey } from './admin-session';
+import { buildLoginUrlForReturnUrl } from './auth-redirect';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -177,10 +178,7 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
 }
 
 export function buildLoginRedirectUrl(pathname: string, search = ''): string {
-  if (pathname === '/portal' || pathname.startsWith('/portal/')) {
-    return '/login?mode=magic-link&returnUrl=%2Fdashboard';
-  }
-  return `/login?returnUrl=${encodeURIComponent(`${pathname}${search}`)}`;
+  return buildLoginUrlForReturnUrl(`${pathname}${search}`);
 }
 
 function requestAppNavigation(detail: AppNavigationDetail) {

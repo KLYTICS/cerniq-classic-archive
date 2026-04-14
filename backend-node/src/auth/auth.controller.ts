@@ -26,8 +26,10 @@ import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
 import { AllowBlockedAccess } from './allow-blocked-access.decorator';
 import {
+  buildFrontendAuthCallbackRedirect,
   clearAuthCookies,
   resolveFrontendUrl,
+  sanitizeFrontendReturnUrl,
   setAuthCookies,
 } from './auth-cookie.util';
 import {
@@ -257,8 +259,8 @@ export class AuthController {
   @ApiResponse({ status: 429, description: 'Rate limit exceeded (max 5/hr)' })
   async requestMagicLink(@Body() dto: MagicLinkRequestDto) {
     try {
-      await this.authService.requestMagicLinkForEmail(dto.email);
-    } catch (err) {
+      await this.authService.requestMagicLinkForEmail(dto.email, dto.returnUrl);
+    } catch (_err) {
       // Never reveal whether the email exists or not
     }
     return {
@@ -274,7 +276,7 @@ export class AuthController {
   @ApiResponse({
     status: 302,
     description:
-      'Redirects to /portal on success or returns 401 on failure',
+      'Redirects to /auth/callback on success or returns 401 on failure',
   })
   async verifyMagicLink(
     @Query('token') token: string,
@@ -313,12 +315,9 @@ export class AuthController {
       userAgent: req.headers?.['user-agent'],
     });
 
-    // Validate returnUrl to prevent open redirect
-    const safeReturnUrl =
-      returnUrl && returnUrl.startsWith('/') ? returnUrl : '/portal';
+    const safeReturnUrl = sanitizeFrontendReturnUrl(returnUrl);
 
-    const frontendUrl = resolveFrontendUrl();
-    return res.redirect(`${frontendUrl}${safeReturnUrl}`);
+    return res.redirect(buildFrontendAuthCallbackRedirect(safeReturnUrl));
   }
 
   @Get('google')

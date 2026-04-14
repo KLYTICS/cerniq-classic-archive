@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CheckCircle2, FileText, Lock, Upload } from "lucide-react";
 import { apiClient } from "@/lib/api";
+import { buildLoginUrlForReturnUrl } from "@/lib/auth-redirect";
 import { createCheckoutSession } from "@/lib/billing";
 import { useAuthStore } from "@/lib/store";
 import {
@@ -96,7 +97,10 @@ export default function GetStartedPage() {
         customerEmail: email || user?.email,
         customerName: name || user?.name,
         institutionName,
-        successUrl: "/login?billing=success&returnUrl=%2Fdashboard",
+        successUrl: buildLoginUrlForReturnUrl("/portal", {
+          billingSuccess: true,
+          forceMagicLink: true,
+        }),
         cancelUrl: "/get-started",
       });
       window.location.href = checkoutUrl;
@@ -268,7 +272,9 @@ export default function GetStartedPage() {
                       : "Unlock secure upload — $750"}
                   </button>
                   <Link
-                    href="/login?mode=magic-link&returnUrl=%2Fdashboard"
+                    href={buildLoginUrlForReturnUrl("/portal", {
+                      forceMagicLink: true,
+                    })}
                     className="inline-flex items-center gap-2 rounded-full border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-5 py-3 text-sm font-semibold text-[var(--dashboard-text-primary)] transition hover:bg-white"
                   >
                     <Upload className="h-4 w-4" />

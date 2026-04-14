@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Book a Demo — CERNIQ ALM Intelligence',
-  description: 'Schedule a 20-minute walkthrough of CERNIQ with live demo data. See how 200+ ALM modules and 170+ quant models work for your institution.',
+  description: 'Schedule a 20-minute walkthrough of CERNIQ with live demo data. See how bilingual ALM reporting works for your institution.',
   alternates: { canonical: '/contact' },
   openGraph: {
     title: 'Book a Demo — CERNIQ',

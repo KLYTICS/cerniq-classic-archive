@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { buildLoginUrlForReturnUrl } from '@/lib/auth-redirect';
 
 export default async function PortalLoginPage({
   searchParams,
@@ -11,14 +12,10 @@ export default async function PortalLoginPage({
       ? resolvedSearchParams.billing
       : undefined;
 
-  const nextUrl = new URLSearchParams({
-    mode: 'magic-link',
-    returnUrl: '/dashboard',
-  });
-
-  if (billing === 'success') {
-    nextUrl.set('billing', 'success');
-  }
-
-  redirect(`/login?${nextUrl.toString()}`);
+  redirect(
+    buildLoginUrlForReturnUrl('/portal', {
+      billingSuccess: billing === 'success',
+      forceMagicLink: true,
+    }),
+  );
 }

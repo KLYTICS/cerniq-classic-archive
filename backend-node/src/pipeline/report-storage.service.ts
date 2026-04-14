@@ -37,6 +37,12 @@ export class ReportStorageService {
       });
       this.logger.log('Report storage (S3/R2) initialized');
     } else {
+      if (process.env.NODE_ENV === 'production') {
+        this.logger.error(
+          'CRITICAL: R2/S3 storage not configured in production — reports will use volatile in-memory buffer. ' +
+          'Set R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY to enable persistent storage.',
+        );
+      }
       this.logger.warn(
         'Report storage not configured — using in-memory buffer storage (not suitable for multi-instance deployment)',
       );

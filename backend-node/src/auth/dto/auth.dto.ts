@@ -80,4 +80,12 @@ export class MagicLinkRequestDto {
   })
   @IsEmail()
   email: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional in-app return path after sign-in completes',
+    example: '/portal',
+  })
+  @IsOptional()
+  @IsString()
+  returnUrl?: string;
 }

@@ -17,6 +17,7 @@ const {
   mockGetCurrentUser,
   mockSetAccess,
   mockSetSession,
+  mockSearchParams,
 } = vi.hoisted(() => ({
   mockPush: vi.fn(),
   mockReplace: vi.fn(),
@@ -25,11 +26,12 @@ const {
   mockGetCurrentUser: vi.fn(),
   mockSetAccess: vi.fn(),
   mockSetSession: vi.fn(),
+  mockSearchParams: new URLSearchParams(),
 }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush, back: vi.fn(), replace: mockReplace }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams,
   usePathname: () => "/login",
 }));
 
@@ -123,6 +125,9 @@ describe("LoginPage", () => {
     mockGetCurrentUser.mockReset();
     mockSetAccess.mockReset();
     mockSetSession.mockReset();
+    mockSearchParams.forEach((_, key) => {
+      mockSearchParams.delete(key);
+    });
     window.localStorage.clear();
   });
 
@@ -285,6 +290,42 @@ describe("LoginPage", () => {
         }),
       );
       expect(mockPush).toHaveBeenCalledWith("/dashboard");
+    });
+  });
+
+  it("preserves a portal returnUrl after successful sign in", async () => {
+    mockSearchParams.set("returnUrl", "/portal");
+    mockLogin.mockResolvedValue({
+      user: { id: "user-portal", email: "portal@cerniq.io" },
+    });
+    mockGetCurrentUser.mockResolvedValue({
+      id: "user-portal",
+      email: "portal@cerniq.io",
+      access: {
+        platformAccessAllowed: true,
+        isMasterCeo: false,
+        isPaid: true,
+        isDemo: false,
+        effectiveTier: "monthly",
+        effectiveStatus: "active",
+      },
+    });
+
+    render(<LoginPage />);
+
+    fireEvent.change(screen.getByLabelText("Email"), {
+      target: { value: "portal@cerniq.io" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "password123" },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/portal");
     });
   });
 });

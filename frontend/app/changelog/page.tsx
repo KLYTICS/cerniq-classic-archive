@@ -15,7 +15,7 @@ const RELEASES = [
       { icon: Shield, text: 'Compliance Coverage Matrix — 20 requirements × COSSEC/NCUA/Basel III' },
       { icon: TrendingUp, text: 'Behavioral Duration (Hutchison-Pennacchi NMD) — corrects EVE overestimation' },
       { icon: Globe, text: 'All demo data updated to FirstBank Puerto Rico $18.9B (2025-2026)' },
-      { icon: Layers, text: 'ALM Module Index — browsable grid of all 70+ modules in 9 domains' },
+      { icon: Layers, text: 'ALM Module Index — browsable grid of ALM modules across 9 domains' },
       { icon: DollarSign, text: 'Competitive comparison table vs Moody\'s Analytics and QRM/Empyrean on pricing page' },
     ],
   },
@@ -23,7 +23,7 @@ const RELEASES = [
     version: '2.3',
     date: 'March 21, 2026',
     items: [
-      { icon: Cpu, text: 'V9 Quant Frontier — 14 Goldman/JP Morgan-grade backend services (Black-Litterman, CVaR, HRP, CreditMetrics, KMV-Merton, PCA, FRTB-ES, Fed Futures, Copula, WWR, Cap/Floor, RBC2)' },
+      { icon: Cpu, text: 'V9 Quant Frontier — 14 advanced backend services (Black-Litterman, CVaR, HRP, CreditMetrics, KMV-Merton, PCA, FRTB-ES, Fed Futures, Copula, WWR, Cap/Floor, RBC2)' },
       { icon: Shield, text: 'V10 Reliability — circuit breaker, graceful degradation, auto-narrative engine, DAG pipeline orchestrator' },
       { icon: Brain, text: 'Climate Risk (hurricane AAL), NIM Attribution (7-factor), HMM Regime Detection (Viterbi 4-state)' },
       { icon: Zap, text: 'Enterprise dashboard redesign — dense 3-panel command center with 8 KPIs' },

@@ -129,7 +129,7 @@ export default function PortalBilling() {
                 When you upgrade, your existing workspace, institution, and
                 report are preserved intact — you don&apos;t re-enter anything.
                 The demo seat becomes a full CERNIQ subscription with the
-                entire 200+ module platform unlocked.
+                entire ALM platform unlocked.
               </p>
 
               <ul className="mt-5 space-y-2 text-sm text-white/80">
@@ -147,7 +147,7 @@ export default function PortalBilling() {
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
-                  Full platform: Monte Carlo, VaR, IRRBB, CECL, 200+ modules
+                  Full platform: Monte Carlo, VaR, IRRBB, CECL, full ALM suite
                 </li>
               </ul>
             </div>

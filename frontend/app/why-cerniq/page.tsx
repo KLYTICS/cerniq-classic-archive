@@ -45,8 +45,8 @@ export default function WhyCerniqPage() {
           </h1>
           <p className="mt-4 text-lg text-slate-600 leading-relaxed">
             {t(
-              '200+ analytical modules, 170+ quant models, bilingual reporting — all for less than what you pay a consultant for one report.',
-              '200+ módulos analíticos, 170+ modelos cuantitativos, informes bilingües — todo por menos de lo que paga a un consultor por un informe.'
+              'COSSEC 12-ratio engine, stress testing, duration gap, NII sensitivity, bilingual reporting — all for less than what you pay a consultant for one report.',
+              'Motor COSSEC de 12 razones, pruebas de estrés, brecha de duración, sensibilidad NII, informes bilingües — todo por menos de lo que paga a un consultor por un informe.'
             )}
           </p>
         </section>
@@ -56,7 +56,7 @@ export default function WhyCerniqPage() {
           {[
             { value: '62', label: t('ALM Modules', 'Módulos ALM'), icon: Layers, color: 'cyan' },
             { value: '34', label: t('Quant Models', 'Modelos Quant'), icon: Cpu, color: 'violet' },
-            { value: '142', label: t('API Endpoints', 'Endpoints API'), icon: Zap, color: 'amber' },
+            { value: '12', label: t('COSSEC Ratios', 'Razones COSSEC'), icon: Zap, color: 'amber' },
             { value: '$2,400', label: t('/year starting', '/año desde'), icon: DollarSign, color: 'emerald' },
           ].map((s) => (
             <div key={s.label} className={`rounded-xl border border-${s.color}-200 bg-${s.color}-50/50 p-5 text-center`}>
@@ -83,10 +83,10 @@ export default function WhyCerniqPage() {
               },
               {
                 icon: Cpu,
-                title: t('Goldman-Grade Quant Engine', 'Motor Cuantitativo Nivel Goldman'),
+                title: t('Institutional-Grade Quant Engine', 'Motor Cuantitativo de Nivel Institucional'),
                 body: t(
-                  'Nelson-Siegel yield curves, Vasicek Monte Carlo, CreditMetrics, KMV-Merton, FRTB Expected Shortfall, Black-Litterman — the same math used by the largest banks.',
-                  'Curvas Nelson-Siegel, Monte Carlo Vasicek, CreditMetrics, KMV-Merton, FRTB Expected Shortfall, Black-Litterman — la misma matemática de los bancos más grandes.'
+                  'Nelson-Siegel yield curves, Vasicek Monte Carlo, CreditMetrics, KMV-Merton, FRTB Expected Shortfall, Black-Litterman — rigorous financial models built for regulatory reporting.',
+                  'Curvas Nelson-Siegel, Monte Carlo Vasicek, CreditMetrics, KMV-Merton, FRTB Expected Shortfall, Black-Litterman — modelos financieros rigurosos para reportes regulatorios.'
                 ),
               },
               {
@@ -101,16 +101,16 @@ export default function WhyCerniqPage() {
                 icon: DollarSign,
                 title: t('90% Cost Reduction', 'Reducción de Costos 90%'),
                 body: t(
-                  "Moody's charges $150K+/year. QRM charges $80K+. CERNIQ: $2,400/year for the same analytical depth. We automated what consultants do manually.",
-                  "Moody's cobra $150K+/año. QRM cobra $80K+. CERNIQ: $2,400/año por la misma profundidad analítica. Automatizamos lo que los consultores hacen manualmente."
+                  "Manual ALM reporting costs $15K+ per engagement. CERNIQ: $2,400/year with automated bilingual reports in minutes, not weeks.",
+                  "Los informes ALM manuales cuestan $15K+ por compromiso. CERNIQ: $2,400/año con informes bilingües automatizados en minutos, no semanas."
                 ),
               },
               {
                 icon: TrendingUp,
                 title: t('PR-Specific Intelligence', 'Inteligencia Específica para PR'),
                 body: t(
-                  '94-institution deposit beta library, hurricane AAL (NOAA-calibrated), FEMA flood zone overlays, COSSEC 12-schedule compliance. Built for the Caribbean.',
-                  'Biblioteca de beta de depósitos de 94 instituciones, AAL de huracanes (calibrado NOAA), capas de zonas de inundación FEMA, cumplimiento COSSEC 12 schedules. Construido para el Caribe.'
+                  'PR cooperativa peer benchmarks, COSSEC 12-ratio compliance engine, sector-specific stress scenarios including hurricane risk, and bilingual regulatory guidance. Built for the Caribbean.',
+                  'Benchmarks de cooperativas PR, motor de cumplimiento COSSEC de 12 razones, escenarios de estrés específicos del sector incluyendo riesgo de huracán, y guía regulatoria bilingüe. Construido para el Caribe.'
                 ),
               },
               {

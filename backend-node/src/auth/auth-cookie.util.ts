@@ -101,6 +101,29 @@ export function resolveFrontendUrl(): string {
   return 'https://cerniq.io';
 }
 
+export function sanitizeFrontendReturnUrl(
+  value: string | undefined,
+  fallback = '/dashboard',
+): string {
+  const trimmed = (value || '').trim();
+
+  if (!trimmed || !trimmed.startsWith('/') || trimmed.startsWith('//')) {
+    return fallback;
+  }
+
+  return trimmed;
+}
+
+export function buildFrontendAuthCallbackRedirect(
+  returnUrl: string | undefined,
+  fallback = '/dashboard',
+): string {
+  const frontendUrl = resolveFrontendUrl();
+  const safeReturnUrl = sanitizeFrontendReturnUrl(returnUrl, fallback);
+
+  return `${frontendUrl}/auth/callback?returnUrl=${encodeURIComponent(safeReturnUrl)}`;
+}
+
 export function getAuthCookieOptions() {
   const cookieDomain = resolveCookieDomain();
   const sameSite = resolveCookieSameSite();

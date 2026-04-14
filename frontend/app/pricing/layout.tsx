@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/pricing' },
   openGraph: {
     title: 'CERNIQ Pricing — 83-93% Savings vs. Traditional Consultants',
-    description: 'One-time ALM report $750, pilot $2,500/mo, standard $3,500/mo. Goldman-grade analytics at credit union pricing.',
+    description: 'One-time ALM report $750, pilot $2,500/mo, standard $3,500/mo. Best-in-class ALM at credit union pricing.',
     url: 'https://cerniq.io/pricing',
   },
 };

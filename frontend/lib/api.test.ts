@@ -96,14 +96,14 @@ describe('APIClient', () => {
     expect(typeof apiClient.getExitMetrics).toBe('function');
   });
 
-  it('redirects legacy portal auth requests into the dashboard-first login flow', async () => {
+  it('preserves portal return URLs in the magic-link login flow', async () => {
     const { buildLoginRedirectUrl } = await import('./api');
 
     expect(buildLoginRedirectUrl('/portal')).toBe(
-      '/login?mode=magic-link&returnUrl=%2Fdashboard',
+      '/login?returnUrl=%2Fportal&mode=magic-link',
     );
     expect(buildLoginRedirectUrl('/portal/reports/job-1')).toBe(
-      '/login?mode=magic-link&returnUrl=%2Fdashboard',
+      '/login?returnUrl=%2Fportal%2Freports%2Fjob-1&mode=magic-link',
     );
   });
 

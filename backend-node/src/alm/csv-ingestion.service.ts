@@ -211,9 +211,41 @@ export class CSVIngestionService {
       }
 
       const balance = parseFloat(this.getField(row, headerMap, 'balance'));
+      if (isNaN(balance) || balance < 0) {
+        errors.push({
+          row: i + 1,
+          field: 'balance',
+          value: String(balance),
+          message: `Balance must be a non-negative number (got ${balance})`,
+          messageEs: `El balance debe ser un numero no negativo (recibido ${balance})`,
+        });
+        continue;
+      }
+      if (balance > 999_999_999_999) {
+        errors.push({
+          row: i + 1,
+          field: 'balance',
+          value: String(balance),
+          message: `Balance exceeds maximum ($999B) — check for data entry error`,
+          messageEs: `El balance excede el maximo ($999B) — verifique si hay error de entrada`,
+        });
+        continue;
+      }
+
       const rawRate = parseFloat(this.getField(row, headerMap, 'rate'));
       // Auto-detect: if rate > 1, treat as percentage (5.25 → 0.0525); if ≤ 1, treat as decimal
       const rate = rawRate > 1 ? rawRate / 100 : rawRate;
+
+      if (isNaN(rate) || rate < 0 || rate > 1) {
+        errors.push({
+          row: i + 1,
+          field: 'rate',
+          value: String(rawRate),
+          message: `Rate must be between 0% and 100% (got ${rawRate})`,
+          messageEs: `La tasa debe estar entre 0% y 100% (recibido ${rawRate})`,
+        });
+        continue;
+      }
 
       if (rawRate > 1) {
         warnings.push(
@@ -228,6 +260,18 @@ export class CSVIngestionService {
       ).toLowerCase();
       const rateType = rawRateType === 'fijo' ? 'fixed' : rawRateType;
 
+      const duration = parseFloat(this.getField(row, headerMap, 'duration'));
+      if (isNaN(duration) || duration < 0 || duration > 600) {
+        errors.push({
+          row: i + 1,
+          field: 'duration',
+          value: String(duration),
+          message: `Duration must be between 0 and 600 months (got ${duration})`,
+          messageEs: `La duracion debe estar entre 0 y 600 meses (recibido ${duration})`,
+        });
+        continue;
+      }
+
       const repriceDateRaw = this.getField(row, headerMap, 'repricedate');
       const maturityDateRaw = this.getField(row, headerMap, 'maturitydate');
 
@@ -237,7 +281,7 @@ export class CSVIngestionService {
         name: this.getField(row, headerMap, 'name'),
         balance,
         rate,
-        duration: parseFloat(this.getField(row, headerMap, 'duration')),
+        duration,
         repriceDate: repriceDateRaw || undefined,
         maturityDate: maturityDateRaw || undefined,
         rateType,

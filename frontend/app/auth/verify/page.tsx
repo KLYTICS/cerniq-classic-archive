@@ -6,25 +6,28 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Clock, ArrowRight } from 'lucide-react';
 import { getPublicApiUrl } from '@/lib/api-base';
 import { analytics, EVENTS } from '@/lib/analytics';
+import {
+  buildLoginUrlForReturnUrl,
+  sanitizePostAuthReturnUrl,
+} from '@/lib/auth-redirect';
 
 function VerifyInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'verifying' | 'error'>('verifying');
+  const token = searchParams.get('token');
+  const email = searchParams.get('email');
+  const returnUrl = sanitizePostAuthReturnUrl(searchParams.get('returnUrl'));
 
   useEffect(() => {
-    const token = searchParams.get('token');
-    const email = searchParams.get('email');
-
     if (!token || !email) {
-      setStatus('error');
       return;
     }
 
     analytics.track(EVENTS.MAGIC_LINK_CLICKED);
 
     const verifyUrl = getPublicApiUrl(
-      `/api/auth/magic-link/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`,
+      `/api/auth/magic-link/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}&returnUrl=${encodeURIComponent(returnUrl)}`,
     );
 
     fetch(verifyUrl, {
@@ -42,14 +45,14 @@ function VerifyInner() {
           return;
         }
         // Fallback: if somehow we got a 200 JSON response, go to portal
-        router.push('/portal');
+        router.push(returnUrl);
       })
       .catch(() => {
         setStatus('error');
       });
-  }, [searchParams, router]);
+  }, [email, returnUrl, router, token]);
 
-  if (status === 'error') {
+  if (!token || !email || status === 'error') {
     return (
       <div className="w-full max-w-sm text-center">
         <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-[#1B3A6B]">
@@ -66,7 +69,9 @@ function VerifyInner() {
             are valid for 1 hour and can only be used once.
           </p>
           <Link
-            href="/login?mode=magic-link"
+            href={buildLoginUrlForReturnUrl(returnUrl, {
+              forceMagicLink: true,
+            })}
             className="inline-flex items-center gap-2 rounded-lg bg-[#1B3A6B] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#15305a]"
           >
             Request New Link <ArrowRight className="h-4 w-4" />

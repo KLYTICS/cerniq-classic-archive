@@ -3,18 +3,13 @@
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
+import {
+  buildLoginUrlForReturnUrl,
+  sanitizePostAuthReturnUrl,
+} from '@/lib/auth-redirect';
 
-function sanitizeReturnUrl(value: string | null) {
-  if (!value || !value.startsWith('/')) {
-    return '/dashboard';
-  }
-
-  if (value === '/portal' || value.startsWith('/portal/')) {
-    return '/dashboard';
-  }
-
-  return value;
-}
+const PROFILE_RESOLUTION_DELAYS_MS =
+  process.env.NODE_ENV === 'test' ? [0, 1, 1] : [0, 350, 900];
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -22,25 +17,57 @@ export default function AuthCallbackPage() {
   const initialized = useAuthStore((state) => state.initialized);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
+  const hydrateFromStorage = useAuthStore((state) => state.hydrateFromStorage);
   useEffect(() => {
     if (!initialized) {
       return;
     }
 
-    const returnUrl = sanitizeReturnUrl(searchParams.get('returnUrl'));
+    const returnUrl = sanitizePostAuthReturnUrl(searchParams.get('returnUrl'));
+    let cancelled = false;
 
-    if (!isAuthenticated || !user?.id) {
-      router.replace(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
-      return;
-    }
+    const routeAuthenticatedUser = () => {
+      const latestState = useAuthStore.getState();
 
-    if (returnUrl !== '/dashboard') {
+      if (!latestState.isAuthenticated || !latestState.user?.id) {
+        return false;
+      }
+
       router.replace(returnUrl);
-      return;
-    }
+      return true;
+    };
 
-    router.replace('/dashboard');
+    void (async () => {
+      if (routeAuthenticatedUser()) {
+        return;
+      }
+
+      for (const delayMs of PROFILE_RESOLUTION_DELAYS_MS) {
+        if (delayMs > 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+        }
+
+        await hydrateFromStorage();
+
+        if (cancelled) {
+          return;
+        }
+
+        if (routeAuthenticatedUser()) {
+          return;
+        }
+      }
+
+      if (!cancelled) {
+        router.replace(buildLoginUrlForReturnUrl(returnUrl));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
+    hydrateFromStorage,
     initialized,
     isAuthenticated,
     router,

@@ -1843,6 +1843,12 @@ export class PortalController {
 
     const buffer = this.reportStorage.getLocalBuffer(decodedKey);
     if (!buffer) {
+      // Fallback: if the job has a cloud-stored URL, redirect there instead of 404
+      const isEn = decodedKey.includes('_en.pdf');
+      const fallbackUrl = isEn ? job.reportUrlEn : job.reportUrl;
+      if (fallbackUrl && fallbackUrl.startsWith('http')) {
+        return res.redirect(302, fallbackUrl);
+      }
       throw new NotFoundException(
         'Report buffer not available — it may have been evicted from memory. Please regenerate the report.',
       );

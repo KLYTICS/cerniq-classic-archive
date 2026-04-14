@@ -14,6 +14,7 @@ import {
   resolveAuthenticatedDestination,
 } from "@/lib/access";
 import { getPublicApiUrl } from "@/lib/api-base";
+import { sanitizePostAuthReturnUrl } from "@/lib/auth-redirect";
 import { ArrowRight } from "lucide-react";
 
 const PROFILE_RESOLUTION_DELAYS_MS =
@@ -120,8 +121,7 @@ async function resolvePostLoginDestination({
 }) {
   const onboardingComplete =
     localStorage.getItem(`cerniq_onboarding_${userId}`) === "true";
-  const normalizedReturnUrl =
-    returnUrl && returnUrl.startsWith("/portal") ? "/dashboard" : returnUrl;
+  const normalizedReturnUrl = sanitizePostAuthReturnUrl(returnUrl);
   const fallbackDestination = normalizedReturnUrl || "/dashboard";
 
   for (const [index, delayMs] of PROFILE_RESOLUTION_DELAYS_MS.entries()) {
@@ -308,7 +308,10 @@ function LoginContent() {
       const res = await fetch("/api/auth/magic/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: magicEmail.trim() }),
+        body: JSON.stringify({
+          email: magicEmail.trim(),
+          returnUrl: sanitizePostAuthReturnUrl(returnUrl),
+        }),
       });
 
       if (!res.ok) {

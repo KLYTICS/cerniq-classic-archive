@@ -14,6 +14,7 @@ import {
   MASTER_ACCOUNT_EMAIL,
   PlatformAccessService,
 } from './platform-access.service';
+import { sanitizeFrontendReturnUrl } from './auth-cookie.util';
 
 const BCRYPT_SALT_ROUNDS = 12;
 const ACCESS_TOKEN_EXPIRY = '24h';
@@ -952,7 +953,10 @@ export class AuthService {
    * Returns the generated user regardless of creation path so the controller
    * can fire-and-forget the email send.
    */
-  async requestMagicLinkForEmail(email: string): Promise<void> {
+  async requestMagicLinkForEmail(
+    email: string,
+    returnUrl?: string,
+  ): Promise<void> {
     const normalizedEmail = this.normalizeEmail(email);
     if (!normalizedEmail) {
       // Don't reveal anything — just return silently
@@ -1004,11 +1008,19 @@ export class AuthService {
     const frontendUrl = (process.env.FRONTEND_URL || 'https://cerniq.io')
       .trim()
       .replace(/\/+$/, '');
-    const verifyUrl = `${frontendUrl}/auth/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(normalizedEmail)}`;
+    const safeReturnUrl = sanitizeFrontendReturnUrl(returnUrl, '');
+    const verifyParams = new URLSearchParams({
+      token,
+      email: normalizedEmail,
+      ...(safeReturnUrl ? { returnUrl: safeReturnUrl } : {}),
+    });
+    const verifyUrl = `${frontendUrl}/auth/verify?${verifyParams.toString()}`;
 
-    this.sendMagicLinkAuthEmail(normalizedEmail, user.name || '', verifyUrl).catch(
-      () => {},
-    );
+    this.sendMagicLinkAuthEmail(
+      normalizedEmail,
+      user.name || '',
+      verifyUrl,
+    ).catch(() => {});
 
     this.logger.log({
       event: 'magic_link_requested',
@@ -1092,9 +1104,7 @@ export class AuthService {
       const { Resend } = require('resend');
       const apiKey = process.env.RESEND_API_KEY;
       if (!apiKey) {
-        this.logger.warn(
-          'RESEND_API_KEY not set — magic link email not sent',
-        );
+        this.logger.warn('RESEND_API_KEY not set — magic link email not sent');
         return;
       }
       const resend = new Resend(apiKey);

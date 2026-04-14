@@ -26,7 +26,11 @@ import { CheckoutRequestDto } from './billing.dto';
 import { AuthService } from '../auth/auth.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { AllowBlockedAccess } from '../auth/allow-blocked-access.decorator';
-import { resolveFrontendUrl, setAuthCookies } from '../auth/auth-cookie.util';
+import {
+  buildFrontendAuthCallbackRedirect,
+  resolveFrontendUrl,
+  setAuthCookies,
+} from '../auth/auth-cookie.util';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma.service';
 import { SkipAuditLog } from '../common/decorators/audit-action.decorator';
@@ -256,7 +260,7 @@ export class BillingController {
   ) {
     const frontendUrl = resolveFrontendUrl();
     if (!token) {
-      return res.redirect(`${frontendUrl}/auth/expired`);
+      return res.redirect(`${frontendUrl}/auth/expired?returnUrl=%2Fportal`);
     }
 
     const user = await this.billing.verifyMagicLink(token);
@@ -269,7 +273,7 @@ export class BillingController {
         ipAddress: req.ip,
         userAgent: req.headers?.['user-agent'],
       });
-      return res.redirect(`${frontendUrl}/auth/expired`);
+      return res.redirect(`${frontendUrl}/auth/expired?returnUrl=%2Fportal`);
     }
 
     const tokens = await this.authService.generateTokens(user);
@@ -284,7 +288,9 @@ export class BillingController {
       userAgent: req.headers?.['user-agent'],
     });
 
-    return res.redirect(`${frontendUrl}/dashboard`);
+    return res.redirect(
+      buildFrontendAuthCallbackRedirect('/portal', '/portal'),
+    );
   }
 
   private async queueMagicLinkRequest(email: string) {

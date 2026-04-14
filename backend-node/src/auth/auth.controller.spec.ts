@@ -588,7 +588,9 @@ describe('AuthController', () => {
 
   describe('POST /api/auth/magic-link', () => {
     it('should return 200 with success message for valid email', async () => {
-      authService.requestMagicLinkForEmail = jest.fn().mockResolvedValue(undefined);
+      authService.requestMagicLinkForEmail = jest
+        .fn()
+        .mockResolvedValue(undefined);
 
       const result = await controller.requestMagicLink({
         email: 'cfo@cooperativa.coop',
@@ -596,6 +598,7 @@ describe('AuthController', () => {
 
       expect(authService.requestMagicLinkForEmail).toHaveBeenCalledWith(
         'cfo@cooperativa.coop',
+        undefined,
       );
       expect(result.message).toContain('sign-in link');
     });
@@ -612,10 +615,26 @@ describe('AuthController', () => {
       // Should still return success message
       expect(result.message).toContain('sign-in link');
     });
+
+    it('passes through an in-app returnUrl for portal-intent magic links', async () => {
+      authService.requestMagicLinkForEmail = jest
+        .fn()
+        .mockResolvedValue(undefined);
+
+      await controller.requestMagicLink({
+        email: 'cfo@cooperativa.coop',
+        returnUrl: '/portal',
+      } as any);
+
+      expect(authService.requestMagicLinkForEmail).toHaveBeenCalledWith(
+        'cfo@cooperativa.coop',
+        '/portal',
+      );
+    });
   });
 
   describe('GET /api/auth/magic-link/verify', () => {
-    it('should verify token, set cookies, and redirect to /portal', async () => {
+    it('should verify token, set cookies, and redirect to auth callback', async () => {
       const user = { id: 'ml-user-1', email: 'cfo@coop.com', name: 'CFO' };
       authService.verifyMagicLinkToken = jest.fn().mockResolvedValue(user);
       authService.generateTokens = jest.fn().mockResolvedValue({
@@ -648,7 +667,7 @@ describe('AuthController', () => {
         expect.any(Object),
       );
       expect(res.redirect).toHaveBeenCalledWith(
-        expect.stringContaining('/portal'),
+        expect.stringContaining('/auth/callback?returnUrl=%2Fdashboard'),
       );
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -736,7 +755,7 @@ describe('AuthController', () => {
       );
 
       expect(res.redirect).toHaveBeenCalledWith(
-        expect.stringContaining('/dashboard'),
+        expect.stringContaining('/auth/callback?returnUrl=%2Fdashboard'),
       );
     });
 
@@ -762,9 +781,9 @@ describe('AuthController', () => {
         res,
       );
 
-      // Should redirect to /portal, not the external URL
+      // Should redirect to the safe default, not the external URL
       expect(res.redirect).toHaveBeenCalledWith(
-        expect.stringContaining('/portal'),
+        expect.stringContaining('/auth/callback?returnUrl=%2Fdashboard'),
       );
       expect(res.redirect).toHaveBeenCalledWith(
         expect.not.stringContaining('evil.com'),

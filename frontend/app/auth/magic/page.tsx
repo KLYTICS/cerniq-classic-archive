@@ -9,11 +9,16 @@ function MagicLinkInner() {
 
   useEffect(() => {
     const token = searchParams.get('token');
+    const returnUrl = searchParams.get('returnUrl');
     if (token) {
       analytics.track(EVENTS.MAGIC_LINK_CLICKED);
-      window.location.href = `/api/auth/magic?token=${encodeURIComponent(token)}`;
+      const params = new URLSearchParams({
+        token,
+        ...(returnUrl ? { returnUrl } : {}),
+      });
+      window.location.href = `/api/auth/magic?${params.toString()}`;
     } else {
-      window.location.href = '/auth/expired';
+      window.location.href = '/auth/expired?returnUrl=%2Fportal';
     }
   }, [searchParams]);
 

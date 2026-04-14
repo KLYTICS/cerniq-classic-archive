@@ -430,9 +430,9 @@ export default function LandingPage() {
                   </div>
 
                   <div className="mt-8 flex flex-wrap gap-3 text-sm">
-                    <span className="cerniq-mini-stat">200+ ALM modules</span>
-                    <span className="cerniq-mini-stat">170+ quant models</span>
-                    <span className="cerniq-mini-stat">EN / ES delivery</span>
+                    <span className="cerniq-mini-stat">14-page board report</span>
+                    <span className="cerniq-mini-stat">COSSEC 12-ratio engine</span>
+                    <span className="cerniq-mini-stat">EN / ES bilingual</span>
                   </div>
                 </div>
               </div>
@@ -444,26 +444,26 @@ export default function LandingPage() {
             <div className="mx-auto grid max-w-5xl grid-cols-2 sm:grid-cols-4 gap-4 text-center">
               <div>
                 <p className="text-3xl font-bold tabular-nums text-slate-950">
-                  200+
+                  14
                 </p>
                 <p className="text-xs text-slate-500">
-                  {t("ALM Modules", "Módulos ALM")}
+                  {t("Page Board Report", "Páginas de Informe")}
                 </p>
               </div>
               <div>
                 <p className="text-3xl font-bold tabular-nums text-slate-950">
-                  170+
+                  12
                 </p>
                 <p className="text-xs text-slate-500">
-                  {t("Quant Models", "Modelos Cuantitativos")}
+                  {t("COSSEC Ratios", "Razones COSSEC")}
                 </p>
               </div>
               <div>
                 <p className="text-3xl font-bold tabular-nums text-slate-950">
-                  200+
+                  &lt;5 min
                 </p>
                 <p className="text-xs text-slate-500">
-                  {t("API Endpoints", "Endpoints API")}
+                  {t("Upload to Report", "Carga a Informe")}
                 </p>
               </div>
               <div>
@@ -612,8 +612,8 @@ export default function LandingPage() {
               </p>
               <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
                 {t(
-                  "Goldman Sachs-grade models, credit union pricing",
-                  "Modelos nivel Goldman Sachs, precio de cooperativa",
+                  "Best-in-class ALM models, credit union pricing",
+                  "Modelos ALM de primer nivel, precio de cooperativa",
                 )}
               </h2>
               <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

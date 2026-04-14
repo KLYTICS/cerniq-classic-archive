@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { CerniqLockup } from '@/components/brand/CerniqLogo';
 import { analytics, EVENTS } from '@/lib/analytics';
+import { buildLoginUrlForReturnUrl } from '@/lib/auth-redirect';
 import { createCheckoutSession, type CheckoutTier } from '@/lib/billing';
 import type { PortalSubscription } from '@/lib/subscription';
 
@@ -84,7 +85,10 @@ export default function PortalPaywall({ path, subscription, user }: PortalPaywal
         tier,
         customerEmail: user.email,
         customerName: user.name,
-        successUrl: '/login?billing=success&returnUrl=%2Fdashboard',
+        successUrl: buildLoginUrlForReturnUrl('/portal', {
+          billingSuccess: true,
+          forceMagicLink: true,
+        }),
         cancelUrl: path.startsWith('/portal') ? path : '/portal',
       });
 

@@ -1591,8 +1591,8 @@ export default function DemoPage() {
                   <div className="cerniq-panel p-6">
                     <h2 className="font-display text-xl text-slate-950 mb-2">
                       {lang === "en"
-                        ? "34 Quant Models — Goldman-Grade, Credit Union Pricing"
-                        : "34 Modelos Cuantitativos — Nivel Goldman, Precio Cooperativa"}
+                        ? "34 Quant Models — Institutional-Grade, Credit Union Pricing"
+                        : "34 Modelos Cuantitativos — Nivel Institucional, Precio Cooperativa"}
                     </h2>
                     <p className="text-sm text-slate-600 mb-5">
                       {lang === "en"

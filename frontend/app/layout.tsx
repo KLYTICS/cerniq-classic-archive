@@ -10,16 +10,16 @@ import { ToastProvider } from '@/components/Toast';
 import { WebVitals } from '@/components/WebVitals';
 
 export const metadata: Metadata = {
-  title: "CERNIQ — Institutional ALM Intelligence | 200+ Modules, 170+ Quant Models, COSSEC/NCUA Compliant",
-  description: "Enterprise ALM platform with 200+ analytical modules, 170+ quant models (Nelson-Siegel, Svensson, Hull-White, GARCH, CIR, SABR, Monte Carlo, CreditMetrics, Black-Litterman, CreditRisk+, NSFR, EaR, Duration-Convexity), COSSEC/NCUA/Basel III compliance, and bilingual EN/ES reporting. From $750.",
+  title: "CERNIQ — Bilingual ALM Reporting for Credit Unions | COSSEC/NCUA Compliant",
+  description: "Upload a balance sheet, get a 14-page bilingual board-ready ALM report in minutes. COSSEC 12-ratio engine, stress testing, duration gap, NII sensitivity, CECL, peer analytics. Built for Puerto Rico cooperativas. From $750.",
   keywords: "ALM software, asset liability management, credit union ALM, COSSEC compliance, NCUA ratios, Monte Carlo stress testing, NII sensitivity, EVE analysis, duration gap, CECL credit loss, yield curve modeling, bilingual ALM reports, Puerto Rico cooperativas, Basel IRRBB, CAMEL scoring, institutional risk intelligence, CERNIQ",
   metadataBase: new URL("https://cerniq.io"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "CERNIQ — 200+ ALM Modules, 170+ Quant Models, From $750",
-    description: "Goldman Sachs-grade ALM intelligence at credit union pricing. COSSEC, NCUA, and Basel III compliant. Bilingual EN/ES reports. Try the interactive demo.",
+    title: "CERNIQ — Bilingual ALM Reporting | From $750",
+    description: "Best-in-class ALM reporting for PR cooperativas and credit unions. COSSEC/NCUA compliant. Bilingual board-ready reports in minutes.",
     url: "https://cerniq.io",
     siteName: "CERNIQ",
     locale: "en_US",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "CERNIQ — Institutional ALM Intelligence",
-    description: "200+ modules, 170+ quant models, COSSEC/NCUA/Basel III compliant. From $750.",
+    description: "Bilingual ALM reporting for credit unions. COSSEC/NCUA compliant. From $750.",
   },
   robots: {
     index: true,
@@ -62,7 +62,7 @@ export default function RootLayout({
               name: 'CERNIQ',
               applicationCategory: 'FinanceApplication',
               operatingSystem: 'Web',
-              description: 'Institutional ALM intelligence platform with 200+ analytical modules, 170+ quant models, and COSSEC/NCUA/Basel III compliance.',
+              description: 'Bilingual ALM reporting for Puerto Rico cooperativas and credit unions. COSSEC/NCUA compliant. 14-page board-ready reports in minutes.',
               url: 'https://cerniq.io',
               offers: {
                 '@type': 'Offer',
