@@ -94,10 +94,18 @@ export default function InstitutionTypePage() {
     setLoading(true);
     setError(null);
     try {
-      // Use a default workspace ID — in production, get from user context
-      const user = await apiClient.getCurrentUser();
-      const workspaceId = user?.workspaceId || 'default';
-      const result = await apiClient.seedDemoInstitution(workspaceId, selected);
+      // Provision a real workspace before seeding. The prior `|| 'default'`
+      // fallback sent a literal non-UUID string to POST /api/alm/institutions/seed,
+      // which violated D1 (no silent fallbacks) and surfaced as an opaque
+      // FK error on the user's first click. Mirrors the pattern in
+      // /onboarding/page.tsx:142-146 — reuse the first workspace, otherwise
+      // create one named for the demo type.
+      const existingWorkspaces = await apiClient.getMyWorkspaces().catch(() => []);
+      const primaryWorkspace =
+        Array.isArray(existingWorkspaces) && existingWorkspaces.length > 0
+          ? existingWorkspaces[0]
+          : await apiClient.createMyWorkspace(`${selected} Demo Workspace`);
+      const result = await apiClient.seedDemoInstitution(primaryWorkspace.id, selected);
       analytics.track(EVENTS.DEMO_DATA_SEEDED, {
         type: selected,
         institutionId: result.institutionId,
