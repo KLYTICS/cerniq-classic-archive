@@ -53,8 +53,7 @@ export class RegulatoryAlertService {
         } catch (err) {
           extractionFailures++;
           failedPublicationIds.push(pub.id);
-          const errorMessage =
-            err instanceof Error ? err.message : String(err);
+          const errorMessage = err instanceof Error ? err.message : String(err);
 
           this.logger.error(
             `Extract failed for publication ${pub.id} (${pub.title ?? 'untitled'}): ${errorMessage}`,

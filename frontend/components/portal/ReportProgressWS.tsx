@@ -212,10 +212,19 @@ export default function ReportProgressWS({
   const [completionManifestPath, setCompletionManifestPath] = useState(
     `/api/portal/jobs/${jobId}/exports`,
   );
-  const [lastStatusSyncAt, setLastStatusSyncAt] = useState(Date.now());
+  // Lazy initializers keep Date.now() out of the render body
+  // (react-hooks/purity). `nowMs` is advanced via an interval ticker below.
+  const [lastStatusSyncAt, setLastStatusSyncAt] = useState(() => Date.now());
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const socketRef = useRef<Socket | null>(null);
   const { formatted: elapsedFormatted, stop: stopTimer } = useElapsedTime();
+
+  // 5s ticker drives the staleness check without polluting the render body.
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 5000);
+    return () => clearInterval(id);
+  }, []);
 
   // Polling fallback when WebSocket is not connected
   const handlePollStatus = useCallback(
@@ -322,7 +331,7 @@ export default function ReportProgressWS({
       socket.close();
       socketRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [jobId, locale, onComplete, onStatusChange, stopTimer]);
 
   // Find the current step index
@@ -332,7 +341,7 @@ export default function ReportProgressWS({
   const isProgressStale =
     !isComplete &&
     !isError &&
-    Date.now() - lastStatusSyncAt > PROGRESS_STALE_THRESHOLD_MS;
+    nowMs - lastStatusSyncAt > PROGRESS_STALE_THRESHOLD_MS;
 
   /* ---------- Completion celebration state ---------- */
   if (isComplete) {

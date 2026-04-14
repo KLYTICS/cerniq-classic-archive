@@ -65,9 +65,7 @@ export class HJMCalibrationService {
    * @param historicalRates Array of daily rate observations (min 60 days)
    * @returns HJMParams with { sigma1, sigma2, rho, explainedVariance, tenors, calibratedAt }
    */
-  calibrateHJM(
-    historicalRates: HistoricalRateInput[],
-  ): HJMParams {
+  calibrateHJM(historicalRates: HistoricalRateInput[]): HJMParams {
     this.logger.log(
       `HJM calibration starting with ${historicalRates.length} observations`,
     );

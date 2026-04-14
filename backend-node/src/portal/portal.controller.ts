@@ -1048,12 +1048,10 @@ export class PortalController {
   @ApiParam({ name: 'jobId', description: 'Report job UUID' })
   @ApiResponse({
     status: 200,
-    description: 'Structured analysis data with balance sheet, risk metrics, and compliance',
+    description:
+      'Structured analysis data with balance sheet, risk metrics, and compliance',
   })
-  async getJobAnalysisData(
-    @Req() req: any,
-    @Param('jobId') jobId: string,
-  ) {
+  async getJobAnalysisData(@Req() req: any, @Param('jobId') jobId: string) {
     const userId = req.user.userId;
     const scope = await this.buildJobOwnerScope(userId);
     const job = await this.prisma.reportJob.findFirst({
@@ -1085,49 +1083,58 @@ export class PortalController {
       };
     }
 
-    const [institution, balanceSheetItems, scenarios, liquidityPos, analysisRun] =
-      await Promise.all([
-        this.prisma.institution.findUnique({
-          where: { id: job.institutionId },
-          select: {
-            id: true,
-            name: true,
-            type: true,
-            totalAssets: true,
-            currency: true,
-            reportingDate: true,
-            cossecRegistrationNumber: true,
-            preferredLanguage: true,
-          },
-        }),
-        this.prisma.balanceSheetItem.findMany({
-          where: { institutionId: job.institutionId },
-          orderBy: [{ category: 'asc' }, { subcategory: 'asc' }, { balance: 'desc' }],
-        }),
-        this.prisma.interestRateScenario.findMany({
-          where: { institutionId: job.institutionId },
-          orderBy: { shiftBps: 'asc' },
-        }),
-        this.prisma.liquidityPosition.findFirst({
-          where: { institutionId: job.institutionId },
-          orderBy: { date: 'desc' },
-        }),
-        this.prisma.analysisRun.findFirst({
-          where: {
-            institutionId: job.institutionId,
-            status: 'COMPLETED',
-          },
-          orderBy: { completedAt: 'desc' },
-          select: {
-            id: true,
-            resultSummary: true,
-            completedAt: true,
-            modelVersion: true,
-            analysisType: true,
-            scenarioSet: true,
-          },
-        }),
-      ]);
+    const [
+      institution,
+      balanceSheetItems,
+      scenarios,
+      liquidityPos,
+      analysisRun,
+    ] = await Promise.all([
+      this.prisma.institution.findUnique({
+        where: { id: job.institutionId },
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          totalAssets: true,
+          currency: true,
+          reportingDate: true,
+          cossecRegistrationNumber: true,
+          preferredLanguage: true,
+        },
+      }),
+      this.prisma.balanceSheetItem.findMany({
+        where: { institutionId: job.institutionId },
+        orderBy: [
+          { category: 'asc' },
+          { subcategory: 'asc' },
+          { balance: 'desc' },
+        ],
+      }),
+      this.prisma.interestRateScenario.findMany({
+        where: { institutionId: job.institutionId },
+        orderBy: { shiftBps: 'asc' },
+      }),
+      this.prisma.liquidityPosition.findFirst({
+        where: { institutionId: job.institutionId },
+        orderBy: { date: 'desc' },
+      }),
+      this.prisma.analysisRun.findFirst({
+        where: {
+          institutionId: job.institutionId,
+          status: 'COMPLETED',
+        },
+        orderBy: { completedAt: 'desc' },
+        select: {
+          id: true,
+          resultSummary: true,
+          completedAt: true,
+          modelVersion: true,
+          analysisType: true,
+          scenarioSet: true,
+        },
+      }),
+    ]);
 
     const toNum = (v: unknown): number => {
       if (typeof v === 'number') return v;
@@ -1192,7 +1199,9 @@ export class PortalController {
     const nim = weightedAssetYield - weightedLiabilityCost;
 
     const loanItems = assets.filter((i) => i.subcategory === 'loans');
-    const depositItems = liabilities.filter((i) => i.subcategory === 'deposits');
+    const depositItems = liabilities.filter(
+      (i) => i.subcategory === 'deposits',
+    );
     const totalLoans = loanItems.reduce((s, i) => s + i.balance, 0);
     const totalDeposits = depositItems.reduce((s, i) => s + i.balance, 0);
     const loanToDeposit = totalDeposits > 0 ? totalLoans / totalDeposits : 0;
@@ -1236,7 +1245,7 @@ export class PortalController {
         nameEn: 'Loan-to-Deposit Ratio',
         nameEs: 'Razón Préstamos/Depósitos',
         value: loanToDeposit,
-        threshold: 0.80,
+        threshold: 0.8,
         sectorMedian: 0.783,
         format: 'percent',
       },

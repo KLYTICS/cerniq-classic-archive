@@ -247,7 +247,9 @@ describe('ReportPreflightService', () => {
     const result = await serviceWithRegistry.check('inst-1');
 
     expect(result.modelLineage.length).toBeGreaterThanOrEqual(2);
-    const dg = result.modelLineage.find((m) => m.modelKey === 'alm.duration-gap');
+    const dg = result.modelLineage.find(
+      (m) => m.modelKey === 'alm.duration-gap',
+    );
     expect(dg).toBeDefined();
     expect(dg!.version).toBe('1.0.0');
     expect(dg!.status).toBe('APPROVED');

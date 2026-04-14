@@ -6,7 +6,12 @@
  * code never imports from @prisma/client directly (see prisma.service.ts quirk).
  */
 
-export type ModelStatus = 'DRAFT' | 'CANDIDATE' | 'APPROVED' | 'DEPRECATED' | 'RETIRED';
+export type ModelStatus =
+  | 'DRAFT'
+  | 'CANDIDATE'
+  | 'APPROVED'
+  | 'DEPRECATED'
+  | 'RETIRED';
 
 export type ModelCategory =
   | 'ALM_CORE'

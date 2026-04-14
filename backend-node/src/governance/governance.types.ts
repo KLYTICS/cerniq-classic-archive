@@ -5,10 +5,25 @@
  * and governed benchmarks.
  */
 
-export type GovernedEntityStatus = 'DRAFT' | 'UNDER_REVIEW' | 'APPROVED' | 'SUPERSEDED' | 'RETIRED';
+export type GovernedEntityStatus =
+  | 'DRAFT'
+  | 'UNDER_REVIEW'
+  | 'APPROVED'
+  | 'SUPERSEDED'
+  | 'RETIRED';
 export type ScenarioScope = 'INSTITUTION' | 'SECTOR' | 'REGULATORY';
-export type BenchmarkType = 'YIELD_CURVE' | 'PEER_BENCHMARK' | 'REGULATORY_LIMIT' | 'MARKET_INDEX';
-export type RefreshPolicy = 'MANUAL' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ON_PUBLICATION';
+export type BenchmarkType =
+  | 'YIELD_CURVE'
+  | 'PEER_BENCHMARK'
+  | 'REGULATORY_LIMIT'
+  | 'MARKET_INDEX';
+export type RefreshPolicy =
+  | 'MANUAL'
+  | 'DAILY'
+  | 'WEEKLY'
+  | 'MONTHLY'
+  | 'QUARTERLY'
+  | 'ON_PUBLICATION';
 
 export interface GovernedScenarioSeed {
   scenarioKey: string;

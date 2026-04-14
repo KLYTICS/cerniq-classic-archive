@@ -245,7 +245,9 @@ export class ReportsService {
           format: format as any,
           language: lang,
           content: buffer,
-          storageLocator: opts?.storageLocator ?? `local://generated/${institutionId}/${format.toLowerCase()}-${Date.now()}`,
+          storageLocator:
+            opts?.storageLocator ??
+            `local://generated/${institutionId}/${format.toLowerCase()}-${Date.now()}`,
           modelLineage,
           preflightGaps,
           preflightReady,

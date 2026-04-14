@@ -24,7 +24,11 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { ModelRegistryService } from './model-registry.service';
-import type { ModelCategory, ModelStatus, ModelRiskTier } from './model-registry.types';
+import type {
+  ModelCategory,
+  ModelStatus,
+  ModelRiskTier,
+} from './model-registry.types';
 
 @Controller('api/model-registry')
 @UseGuards(AuthGuard)
@@ -57,10 +61,7 @@ export class ModelRegistryController {
 
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)
-  approve(
-    @Param('id') id: string,
-    @Body() body: { approvedBy: string },
-  ) {
+  approve(@Param('id') id: string, @Body() body: { approvedBy: string }) {
     return this.registry.approve(id, { approvedBy: body.approvedBy });
   }
 
@@ -70,7 +71,10 @@ export class ModelRegistryController {
     @Param('id') id: string,
     @Body() body: { retiredBy: string; reason: string },
   ) {
-    return this.registry.retire(id, { retiredBy: body.retiredBy, reason: body.reason });
+    return this.registry.retire(id, {
+      retiredBy: body.retiredBy,
+      reason: body.reason,
+    });
   }
 
   @Post(':id/review')
@@ -83,7 +87,8 @@ export class ModelRegistryController {
   @HttpCode(HttpStatus.CREATED)
   addArtifact(
     @Param('id') id: string,
-    @Body() body: {
+    @Body()
+    body: {
       artifactType: string;
       label: string;
       storageLocator: string;

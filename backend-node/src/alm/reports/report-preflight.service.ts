@@ -232,7 +232,9 @@ export class ReportPreflightService {
       }
       return entries;
     } catch {
-      this.logger.warn('Model lineage collection failed — returning empty lineage');
+      this.logger.warn(
+        'Model lineage collection failed — returning empty lineage',
+      );
       return [];
     }
   }

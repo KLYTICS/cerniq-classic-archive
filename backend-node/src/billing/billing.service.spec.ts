@@ -223,12 +223,15 @@ describe('BillingService', () => {
       // Use same-origin URLs (matches default FRONTEND_URL=https://cerniq.io)
       await service.createCheckoutSession({
         tier: 'monthly',
-        successUrl: 'https://cerniq.io/login?billing=success&returnUrl=%2Fdashboard',
+        successUrl:
+          'https://cerniq.io/login?billing=success&returnUrl=%2Fdashboard',
         cancelUrl: 'https://cerniq.io/pricing',
       });
 
       const callArgs = stripeMock.checkout.sessions.create.mock.calls[0][0];
-      expect(callArgs.success_url).toBe('https://cerniq.io/login?billing=success&returnUrl=%2Fdashboard');
+      expect(callArgs.success_url).toBe(
+        'https://cerniq.io/login?billing=success&returnUrl=%2Fdashboard',
+      );
       expect(callArgs.cancel_url).toBe('https://cerniq.io/pricing');
     });
 

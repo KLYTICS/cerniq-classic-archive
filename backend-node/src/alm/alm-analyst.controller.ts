@@ -46,7 +46,8 @@ export class AlmAnalystController {
       throw new HttpException(
         {
           statusCode: 429,
-          message: 'Ha alcanzado el límite de 20 consultas diarias. El límite se restablece a medianoche hora de Puerto Rico.',
+          message:
+            'Ha alcanzado el límite de 20 consultas diarias. El límite se restablece a medianoche hora de Puerto Rico.',
           queriesUsed: rl.used,
           queriesMax: rl.max,
         },

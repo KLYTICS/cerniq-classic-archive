@@ -50,7 +50,8 @@ const COSSEC_RATIOS: CossecRatioDefinition[] = [
     id: 3,
     nameEs: 'Margen de Interés Neto (NIM)',
     nameEn: 'Net Interest Margin (NIM)',
-    formulaEs: 'NIM = (Ingreso por Intereses - Gasto por Intereses) / Activos Productivos',
+    formulaEs:
+      'NIM = (Ingreso por Intereses - Gasto por Intereses) / Activos Productivos',
     formulaEn: 'NIM = (Interest Income - Interest Expense) / Earning Assets',
     threshold: 2.5,
     thresholdLabel: '≥ 2.50%',
@@ -220,21 +221,27 @@ interface ComputedRatioValues {
   loanToDeposit: number;
 }
 
-function extractRatioValues(compliance: any, summary: any): ComputedRatioValues {
+function extractRatioValues(
+  compliance: any,
+  summary: any,
+): ComputedRatioValues {
   const s = compliance?.summary || {};
   const totalAssets = s.totalAssets || 0;
   const equity = s.equity || 0;
   const totalLoans = s.totalLoans || 0;
   const totalShares = s.totalShares || 0;
   const liquidAssets = s.liquidAssets || 0;
-  const nim = s.nim ?? (compliance?.ratios?.find((r: any) => r.id === 12)?.value ?? 0);
+  const nim =
+    s.nim ?? compliance?.ratios?.find((r: any) => r.id === 12)?.value ?? 0;
 
   // NWR
   const nwr = totalAssets > 0 ? (equity / totalAssets) * 100 : 0;
 
   // LCR: from compliance ratios or summary
   const lcrRatio = compliance?.ratios?.find((r: any) => r.id === 9);
-  const lcr = lcrRatio?.value ?? (totalAssets > 0 ? (liquidAssets / totalAssets) * 100 * 6.67 : 0);
+  const lcr =
+    lcrRatio?.value ??
+    (totalAssets > 0 ? (liquidAssets / totalAssets) * 100 * 6.67 : 0);
 
   // NCR: estimated from compliance ratios
   const ncrRatio = compliance?.ratios?.find((r: any) => r.id === 2);
@@ -253,7 +260,8 @@ function extractRatioValues(compliance: any, summary: any): ComputedRatioValues 
   const roe = equity > 0 ? (netIncome / equity) * 100 : 0;
 
   // Efficiency ratio
-  const efficiencyRatio = compliance?.ratios?.find((r: any) => r.id === 8)?.value ?? 78;
+  const efficiencyRatio =
+    compliance?.ratios?.find((r: any) => r.id === 8)?.value ?? 78;
 
   // Loan concentration: loans / equity
   const loanConcentration = equity > 0 ? (totalLoans / equity) * 100 : 0;
@@ -293,8 +301,13 @@ function round(value: number, decimals: number): number {
 
 // ─── Narrative generators ──────────────────────────────────────────
 
-function narrativeEs(def: CossecRatioDefinition, value: number, badge: ComplianceBadge): string {
-  const valStr = def.unit === 'años' ? `${value.toFixed(2)} años` : `${value.toFixed(2)}%`;
+function narrativeEs(
+  def: CossecRatioDefinition,
+  value: number,
+  badge: ComplianceBadge,
+): string {
+  const valStr =
+    def.unit === 'años' ? `${value.toFixed(2)} años` : `${value.toFixed(2)}%`;
 
   const statusPhrase =
     badge === 'CUMPLE'
@@ -329,8 +342,13 @@ function narrativeEs(def: CossecRatioDefinition, value: number, badge: Complianc
   return `La ${def.nameEs} de ${valStr} ${statusPhrase} umbral mínimo de COSSEC de ${def.thresholdLabel.replace(/[<>≥≤]\s*/, '')}. ${badge === 'CUMPLE' ? 'La institución mantiene niveles adecuados en esta métrica.' : 'Se recomienda implementar medidas para fortalecer esta razón.'}`;
 }
 
-function narrativeEn(def: CossecRatioDefinition, value: number, badge: ComplianceBadgeEn): string {
-  const valStr = def.unit === 'años' ? `${value.toFixed(2)} years` : `${value.toFixed(2)}%`;
+function narrativeEn(
+  def: CossecRatioDefinition,
+  value: number,
+  badge: ComplianceBadgeEn,
+): string {
+  const valStr =
+    def.unit === 'años' ? `${value.toFixed(2)} years` : `${value.toFixed(2)}%`;
 
   if (def.thresholdDirection === 'lte') {
     const action =
@@ -412,20 +430,23 @@ export class CAMELCertificationService {
       this.almEnterprise.getRegulatoryCompliance(institutionId),
     ]);
 
-    const summary = summarySettled.status === 'fulfilled' ? summarySettled.value : null;
-    const compliance = complianceSettled.status === 'fulfilled' ? complianceSettled.value : null;
+    const summary =
+      summarySettled.status === 'fulfilled' ? summarySettled.value : null;
+    const compliance =
+      complianceSettled.status === 'fulfilled' ? complianceSettled.value : null;
 
     // Extract computed ratio values
     const ratioValues = extractRatioValues(compliance, summary);
 
     // Compute verification hash
-    const hashInput = JSON.stringify({
-      institutionId,
-      period,
-      camelResult,
-      ratioValues,
-      summary: summary ? { riskScore: summary.riskScore } : null,
-    }) + period;
+    const hashInput =
+      JSON.stringify({
+        institutionId,
+        period,
+        camelResult,
+        ratioValues,
+        summary: summary ? { riskScore: summary.riskScore } : null,
+      }) + period;
     const hash = crypto.createHash('sha256').update(hashInput).digest('hex');
 
     // Parse period for display
@@ -456,7 +477,12 @@ export class CAMELCertificationService {
     period: string,
     input: CertifyInput,
     userId?: string,
-  ): Promise<{ certificationId: string; hash: string; certifiedAt: string; composite: number }> {
+  ): Promise<{
+    certificationId: string;
+    hash: string;
+    certifiedAt: string;
+    composite: number;
+  }> {
     const { hash, composite } = await this.generateCertification(
       institutionId,
       period,
@@ -528,15 +554,17 @@ export class CAMELCertificationService {
   async listCertifications(
     institutionId: string,
     limit = 20,
-  ): Promise<Array<{
-    id: string;
-    period: string;
-    certifiedBy: string;
-    title: string;
-    htmlHash: string;
-    camelComposite: number;
-    certifiedAt: Date;
-  }>> {
+  ): Promise<
+    Array<{
+      id: string;
+      period: string;
+      certifiedBy: string;
+      title: string;
+      htmlHash: string;
+      camelComposite: number;
+      certifiedAt: Date;
+    }>
+  > {
     const certs = await this.prisma.camelCertification.findMany({
       where: { institutionId },
       orderBy: { certifiedAt: 'desc' },
@@ -565,7 +593,16 @@ export class CAMELCertificationService {
     period: string;
     hash: string;
   }): string {
-    const { lang, institution, camelResult, ratioValues, quarter, year, period, hash } = params;
+    const {
+      lang,
+      institution,
+      camelResult,
+      ratioValues,
+      quarter,
+      year,
+      period,
+      hash,
+    } = params;
     const isEs = lang === 'es';
 
     const institutionName = institution.name || 'Institución';
@@ -602,7 +639,16 @@ export class CAMELCertificationService {
           ? `${value.toFixed(2)}`
           : `${value.toFixed(2)}%`;
 
-      return { def, value, badge: displayBadge, color, narrative, name, formula, valueDisplay };
+      return {
+        def,
+        value,
+        badge: displayBadge,
+        color,
+        narrative,
+        name,
+        formula,
+        valueDisplay,
+      };
     });
 
     // CAMEL component table
@@ -634,9 +680,13 @@ export class CAMELCertificationService {
         ? 'Informe de Autoevaluaci\u00F3n Regulatoria'
         : 'Regulatory Self-Assessment Report',
       institution: isEs ? 'Instituci\u00F3n' : 'Institution',
-      license: isEs ? 'N\u00FAmero de Licencia COSSEC' : 'COSSEC License Number',
+      license: isEs
+        ? 'N\u00FAmero de Licencia COSSEC'
+        : 'COSSEC License Number',
       period: isEs ? 'Per\u00EDodo' : 'Period',
-      ratioTableTitle: isEs ? 'Tabla de 12 Razones COSSEC' : 'COSSEC 12-Ratio Table',
+      ratioTableTitle: isEs
+        ? 'Tabla de 12 Razones COSSEC'
+        : 'COSSEC 12-Ratio Table',
       ratioCol: isEs ? 'Raz\u00F3n' : 'Ratio',
       formulaCol: isEs ? 'F\u00F3rmula' : 'Formula',
       valueCol: isEs ? 'Valor' : 'Value',
@@ -649,18 +699,31 @@ export class CAMELCertificationService {
       ratingCol: isEs ? 'Calificaci\u00F3n' : 'Rating',
       detailCol: isEs ? 'Detalle' : 'Detail',
       compositeLabel: isEs ? 'Puntaje Compuesto' : 'Composite Score',
-      compositeRating: isEs ? camelResult.compositeRatingEs : camelResult.compositeRating,
+      compositeRating: isEs
+        ? camelResult.compositeRatingEs
+        : camelResult.compositeRating,
       readiness: isEs ? 'Preparaci\u00F3n para Examen' : 'Exam Readiness',
-      readinessValue: camelResult.examReadiness === 'READY'
-        ? (isEs ? 'PREPARADO' : 'READY')
-        : camelResult.examReadiness === 'NEEDS_WORK'
-          ? (isEs ? 'NECESITA MEJORAS' : 'NEEDS WORK')
-          : (isEs ? 'EN RIESGO' : 'AT RISK'),
-      signatureTitle: isEs ? 'Bloque de Certificaci\u00F3n' : 'Certification Block',
+      readinessValue:
+        camelResult.examReadiness === 'READY'
+          ? isEs
+            ? 'PREPARADO'
+            : 'READY'
+          : camelResult.examReadiness === 'NEEDS_WORK'
+            ? isEs
+              ? 'NECESITA MEJORAS'
+              : 'NEEDS WORK'
+            : isEs
+              ? 'EN RIESGO'
+              : 'AT RISK',
+      signatureTitle: isEs
+        ? 'Bloque de Certificaci\u00F3n'
+        : 'Certification Block',
       certifiedBy: isEs ? 'Certificado por' : 'Certified by',
       titleLabel: isEs ? 'Cargo' : 'Title',
       dateLabel: isEs ? 'Fecha' : 'Date',
-      hashLabel: isEs ? 'Hash de verificaci\u00F3n CERNIQ' : 'CERNIQ Verification Hash',
+      hashLabel: isEs
+        ? 'Hash de verificaci\u00F3n CERNIQ'
+        : 'CERNIQ Verification Hash',
       footer: isEs
         ? 'Generado por CERNIQ \u2014 cerniq.io | Este documento fue preparado con datos proporcionados por la instituci\u00F3n.'
         : 'Generated by CERNIQ \u2014 cerniq.io | This document was prepared with data provided by the institution.',
@@ -980,7 +1043,8 @@ export class CAMELCertificationService {
 
 function parsePeriod(period: string): { quarter: string; year: string } {
   // Expected formats: "2026-Q1", "Q1-2026", "2026Q1", "Q1 2026"
-  const match = period.match(/(\d{4})[- ]?Q(\d)/i) || period.match(/Q(\d)[- ]?(\d{4})/i);
+  const match =
+    period.match(/(\d{4})[- ]?Q(\d)/i) || period.match(/Q(\d)[- ]?(\d{4})/i);
   if (match) {
     // Determine which capture group has the year
     const year = match[1].length === 4 ? match[1] : match[2];
@@ -992,4 +1056,11 @@ function parsePeriod(period: string): { quarter: string; year: string } {
 }
 
 // Re-export for testing
-export { COSSEC_RATIOS, getComplianceBadge, narrativeEs, narrativeEn, parsePeriod, extractRatioValues };
+export {
+  COSSEC_RATIOS,
+  getComplianceBadge,
+  narrativeEs,
+  narrativeEn,
+  parsePeriod,
+  extractRatioValues,
+};

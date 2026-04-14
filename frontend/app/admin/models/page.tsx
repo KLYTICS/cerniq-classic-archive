@@ -122,8 +122,8 @@ export default function AdminModelsPage() {
       ]);
       setModels(modelsData);
       setSummary(summaryData);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load model registry');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load model registry');
     } finally {
       setLoading(false);
     }

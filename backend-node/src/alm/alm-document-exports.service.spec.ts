@@ -17,7 +17,9 @@ describe('AlmDocumentExportsService', () => {
     };
     reportsService = {
       generateALMReport: jest.fn().mockResolvedValue(Buffer.from('alm-report')),
-      generateAndRecordArtifact: jest.fn().mockResolvedValue({ buffer: Buffer.from('alm-report') }),
+      generateAndRecordArtifact: jest
+        .fn()
+        .mockResolvedValue({ buffer: Buffer.from('alm-report') }),
     };
     sampleReportFactory = {
       generateSampleReport: jest

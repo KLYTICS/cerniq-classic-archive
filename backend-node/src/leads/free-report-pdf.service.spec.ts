@@ -78,7 +78,10 @@ describe('FreeReportPdfService', () => {
       const buffer = await service.generateFreeReportPdf(mockResult);
       // pdfkit encodes strings with non-ASCII chars in UTF-16BE with BOM prefix.
       // We search for the UTF-16BE encoded "Caguas" bytes: \x00C \x00a \x00g \x00u \x00a \x00s
-      const caguasUtf16 = Buffer.from('\x00C\x00a\x00g\x00u\x00a\x00s', 'binary');
+      const caguasUtf16 = Buffer.from(
+        '\x00C\x00a\x00g\x00u\x00a\x00s',
+        'binary',
+      );
       expect(buffer.includes(caguasUtf16)).toBe(true);
     });
 

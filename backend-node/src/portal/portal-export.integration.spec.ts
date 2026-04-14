@@ -125,7 +125,9 @@ describe('Portal export endpoints (HTTP integration)', () => {
           useValue: {
             isCloudConfigured: false,
             upload: jest.fn().mockResolvedValue('test-key'),
-            getSignedUrl: jest.fn().mockResolvedValue('/api/portal/reports/download/test-key'),
+            getSignedUrl: jest
+              .fn()
+              .mockResolvedValue('/api/portal/reports/download/test-key'),
             getLocalBuffer: jest.fn().mockReturnValue(null),
           },
         },

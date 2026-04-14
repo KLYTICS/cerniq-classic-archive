@@ -22,14 +22,19 @@ function createMockPrisma() {
       findMany: jest.fn(({ where, orderBy, include }: any = {}) => {
         let result = [...models];
         if (where) {
-          if (where.status) result = result.filter((m) => m.status === where.status);
-          if (where.category) result = result.filter((m) => m.category === where.category);
-          if (where.riskTier) result = result.filter((m) => m.riskTier === where.riskTier);
+          if (where.status)
+            result = result.filter((m) => m.status === where.status);
+          if (where.category)
+            result = result.filter((m) => m.category === where.category);
+          if (where.riskTier)
+            result = result.filter((m) => m.riskTier === where.riskTier);
         }
         if (include?.validationArtifacts) {
           result = result.map((m) => ({
             ...m,
-            validationArtifacts: artifacts.filter((a) => a.modelRegistryId === m.id),
+            validationArtifacts: artifacts.filter(
+              (a) => a.modelRegistryId === m.id,
+            ),
           }));
         }
         return Promise.resolve(result);
@@ -42,7 +47,9 @@ function createMockPrisma() {
         if (include?.validationArtifacts) {
           return Promise.resolve({
             ...found,
-            validationArtifacts: artifacts.filter((a) => a.modelRegistryId === found.id),
+            validationArtifacts: artifacts.filter(
+              (a) => a.modelRegistryId === found.id,
+            ),
           });
         }
         return Promise.resolve(found);
@@ -83,7 +90,11 @@ function createMockPrisma() {
     },
     modelValidationArtifact: {
       create: jest.fn(({ data }: any) => {
-        const newArtifact = { id: `artifact-${idCounter++}`, ...data, createdAt: new Date() };
+        const newArtifact = {
+          id: `artifact-${idCounter++}`,
+          ...data,
+          createdAt: new Date(),
+        };
         artifacts.push(newArtifact);
         return Promise.resolve(newArtifact);
       }),
@@ -188,7 +199,9 @@ describe('ModelRegistryService', () => {
   });
 
   it('throws NotFoundException for missing id', async () => {
-    await expect(service.getById('nonexistent')).rejects.toThrow(NotFoundException);
+    await expect(service.getById('nonexistent')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('gets a model by modelKey', async () => {
@@ -198,14 +211,18 @@ describe('ModelRegistryService', () => {
   });
 
   it('throws NotFoundException for missing modelKey', async () => {
-    await expect(service.getByKey('nonexistent')).rejects.toThrow(NotFoundException);
+    await expect(service.getByKey('nonexistent')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   // ── Approve ──
 
   it('approves a DRAFT model', async () => {
     const created = await seedModel({ status: 'DRAFT' });
-    const approved = await service.approve(created.id, { approvedBy: 'reviewer@cerniq.io' });
+    const approved = await service.approve(created.id, {
+      approvedBy: 'reviewer@cerniq.io',
+    });
     expect(approved.status).toBe('APPROVED');
     expect(approved.approvedBy).toBe('reviewer@cerniq.io');
     expect(approved.approvedAt).toBeInstanceOf(Date);
@@ -213,7 +230,9 @@ describe('ModelRegistryService', () => {
 
   it('approves a CANDIDATE model', async () => {
     const created = await seedModel({ status: 'CANDIDATE' });
-    const approved = await service.approve(created.id, { approvedBy: 'reviewer' });
+    const approved = await service.approve(created.id, {
+      approvedBy: 'reviewer',
+    });
     expect(approved.status).toBe('APPROVED');
   });
 
@@ -255,15 +274,18 @@ describe('ModelRegistryService', () => {
 
   it('deprecates an approved model', async () => {
     const created = await seedModel({ status: 'APPROVED' });
-    const deprecated = await service.deprecate(created.id, 'New version available');
+    const deprecated = await service.deprecate(
+      created.id,
+      'New version available',
+    );
     expect(deprecated.status).toBe('DEPRECATED');
   });
 
   it('rejects deprecating a retired model', async () => {
     const created = await seedModel({ status: 'RETIRED' });
-    await expect(
-      service.deprecate(created.id, 'test'),
-    ).rejects.toThrow(ConflictException);
+    await expect(service.deprecate(created.id, 'test')).rejects.toThrow(
+      ConflictException,
+    );
   });
 
   // ── Submit for Review ──
@@ -276,7 +298,9 @@ describe('ModelRegistryService', () => {
 
   it('rejects submitting non-DRAFT model for review', async () => {
     const created = await seedModel({ status: 'APPROVED' });
-    await expect(service.submitForReview(created.id)).rejects.toThrow(ConflictException);
+    await expect(service.submitForReview(created.id)).rejects.toThrow(
+      ConflictException,
+    );
   });
 
   // ── Validation Artifacts ──
@@ -312,8 +336,17 @@ describe('ModelRegistryService', () => {
 
   it('returns correct summary statistics', async () => {
     await seedModel({ status: 'APPROVED' });
-    await seedModel({ modelKey: 'credit.cecl', category: 'CREDIT_RISK', status: 'DRAFT' });
-    await seedModel({ modelKey: 'stress.mc', category: 'STRESS_TEST', riskTier: 'TIER_2', status: 'APPROVED' });
+    await seedModel({
+      modelKey: 'credit.cecl',
+      category: 'CREDIT_RISK',
+      status: 'DRAFT',
+    });
+    await seedModel({
+      modelKey: 'stress.mc',
+      category: 'STRESS_TEST',
+      riskTier: 'TIER_2',
+      status: 'APPROVED',
+    });
 
     const summary = await service.getSummary();
     expect(summary.total).toBe(3);
@@ -328,7 +361,11 @@ describe('ModelRegistryService', () => {
   it('returns only APPROVED models, optionally filtered by category', async () => {
     await seedModel({ status: 'APPROVED' });
     await seedModel({ modelKey: 'draft.x', status: 'DRAFT' });
-    await seedModel({ modelKey: 'credit.x', category: 'CREDIT_RISK', status: 'APPROVED' });
+    await seedModel({
+      modelKey: 'credit.x',
+      category: 'CREDIT_RISK',
+      status: 'APPROVED',
+    });
 
     const all = await service.getApprovedModels();
     expect(all).toHaveLength(2);

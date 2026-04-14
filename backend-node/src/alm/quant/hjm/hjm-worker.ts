@@ -39,21 +39,28 @@ export async function runHJMMonteCarloAsync(
       if (!settled) {
         settled = true;
         worker.terminate();
-        reject(new Error(`HJM Monte Carlo worker timed out after ${WORKER_TIMEOUT_MS}ms`));
+        reject(
+          new Error(
+            `HJM Monte Carlo worker timed out after ${WORKER_TIMEOUT_MS}ms`,
+          ),
+        );
       }
     }, WORKER_TIMEOUT_MS);
 
-    worker.on('message', (msg: { ok: boolean; result?: HJMMonteCarloResult; error?: string }) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      worker.terminate();
-      if (msg.ok && msg.result) {
-        resolve(msg.result);
-      } else {
-        reject(new Error(msg.error ?? 'HJM worker returned error'));
-      }
-    });
+    worker.on(
+      'message',
+      (msg: { ok: boolean; result?: HJMMonteCarloResult; error?: string }) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        worker.terminate();
+        if (msg.ok && msg.result) {
+          resolve(msg.result);
+        } else {
+          reject(new Error(msg.error ?? 'HJM worker returned error'));
+        }
+      },
+    );
 
     worker.on('error', (err) => {
       if (settled) return;

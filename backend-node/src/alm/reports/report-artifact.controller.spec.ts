@@ -23,7 +23,11 @@ function createMockService() {
     listForAnalysisRun: jest.fn().mockResolvedValue([mockArtifact]),
     getById: jest.fn().mockResolvedValue(mockArtifact),
     findByChecksum: jest.fn().mockResolvedValue(mockArtifact),
-    verify: jest.fn().mockResolvedValue({ valid: true, stored: 'sha256:abc123', computed: 'sha256:abc123' }),
+    verify: jest.fn().mockResolvedValue({
+      valid: true,
+      stored: 'sha256:abc123',
+      computed: 'sha256:abc123',
+    }),
   };
 }
 
@@ -37,8 +41,10 @@ describe('ReportArtifactController', () => {
       controllers: [ReportArtifactController],
       providers: [{ provide: ReportArtifactService, useValue: service }],
     })
-      .overrideGuard(AuthGuard).useValue({ canActivate: () => true })
-      .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
       .compile();
     controller = module.get(ReportArtifactController);
   });

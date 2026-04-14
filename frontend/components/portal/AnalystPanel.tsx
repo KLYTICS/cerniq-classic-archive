@@ -223,8 +223,8 @@ export default function AnalystPanel({
             },
           ]);
         }
-      } catch (err: any) {
-        if (err.name === 'AbortError') return;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') return;
         setMessages((prev) => [
           ...prev,
           {

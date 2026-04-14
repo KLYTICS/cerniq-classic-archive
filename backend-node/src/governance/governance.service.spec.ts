@@ -36,7 +36,12 @@ function createMockStore(uniqueKey: string) {
         Object.assign(existing, update, { updatedAt: new Date() });
         return Promise.resolve(existing);
       }
-      const newItem = { id: `item-${idCounter++}`, ...create, createdAt: new Date(), updatedAt: new Date() };
+      const newItem = {
+        id: `item-${idCounter++}`,
+        ...create,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       items.push(newItem);
       return Promise.resolve(newItem);
     }),
@@ -115,7 +120,9 @@ describe('GovernedScenarioService', () => {
   });
 
   it('throws NotFoundException for missing key', async () => {
-    await expect(service.getByKey('nonexistent')).rejects.toThrow(NotFoundException);
+    await expect(service.getByKey('nonexistent')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('approves a draft scenario', async () => {
@@ -127,7 +134,9 @@ describe('GovernedScenarioService', () => {
 
   it('rejects double approval', async () => {
     const s = await seed({ status: 'APPROVED' });
-    await expect(service.approve(s.id, 'reviewer')).rejects.toThrow(ConflictException);
+    await expect(service.approve(s.id, 'reviewer')).rejects.toThrow(
+      ConflictException,
+    );
   });
 
   it('retires a scenario with reason', async () => {
@@ -139,7 +148,9 @@ describe('GovernedScenarioService', () => {
 
   it('rejects retiring already retired', async () => {
     const s = await seed({ status: 'RETIRED' });
-    await expect(service.retire(s.id, 'test')).rejects.toThrow(ConflictException);
+    await expect(service.retire(s.id, 'test')).rejects.toThrow(
+      ConflictException,
+    );
   });
 
   it('getApproved returns only approved scenarios', async () => {
@@ -217,7 +228,9 @@ describe('GovernedBenchmarkService', () => {
   });
 
   it('throws NotFoundException for missing key', async () => {
-    await expect(service.getByKey('nonexistent')).rejects.toThrow(NotFoundException);
+    await expect(service.getByKey('nonexistent')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('approves a draft benchmark', async () => {
@@ -228,7 +241,9 @@ describe('GovernedBenchmarkService', () => {
 
   it('rejects double approval', async () => {
     const b = await seed({ status: 'APPROVED' });
-    await expect(service.approve(b.id, 'reviewer')).rejects.toThrow(ConflictException);
+    await expect(service.approve(b.id, 'reviewer')).rejects.toThrow(
+      ConflictException,
+    );
   });
 
   it('retires a benchmark', async () => {

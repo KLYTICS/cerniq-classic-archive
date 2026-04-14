@@ -29,7 +29,11 @@ describe('FreeReportService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new FreeReportService(mockPrisma, mockPdfService, mockEmailService);
+    service = new FreeReportService(
+      mockPrisma,
+      mockPdfService,
+      mockEmailService,
+    );
 
     mockPrisma.lead.create.mockResolvedValue({ id: 'lead-test-001' });
     mockPrisma.prospectInstitution.findFirst.mockResolvedValue(null);
@@ -333,9 +337,7 @@ describe('FreeReportController — rate limiting', () => {
     }
 
     // 4th request should be rate-limited
-    await expect(
-      controller.requestFreeReport(body, mockReq),
-    ).rejects.toThrow();
+    await expect(controller.requestFreeReport(body, mockReq)).rejects.toThrow();
   });
 
   it('allows requests from different IPs independently', async () => {
@@ -363,9 +365,9 @@ describe('FreeReportController — rate limiting', () => {
       firstName: 'Test',
     };
 
-    await expect(
-      controller.requestFreeReport(body, mockReq),
-    ).rejects.toThrow('A valid email address is required.');
+    await expect(controller.requestFreeReport(body, mockReq)).rejects.toThrow(
+      'A valid email address is required.',
+    );
   });
 
   it('rejects missing institutionName', async () => {
@@ -375,9 +377,9 @@ describe('FreeReportController — rate limiting', () => {
       firstName: 'Test',
     };
 
-    await expect(
-      controller.requestFreeReport(body, mockReq),
-    ).rejects.toThrow('institutionName is required.');
+    await expect(controller.requestFreeReport(body, mockReq)).rejects.toThrow(
+      'institutionName is required.',
+    );
   });
 
   it('rejects missing firstName', async () => {
@@ -387,8 +389,8 @@ describe('FreeReportController — rate limiting', () => {
       firstName: '',
     };
 
-    await expect(
-      controller.requestFreeReport(body, mockReq),
-    ).rejects.toThrow('firstName is required.');
+    await expect(controller.requestFreeReport(body, mockReq)).rejects.toThrow(
+      'firstName is required.',
+    );
   });
 });

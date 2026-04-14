@@ -56,9 +56,7 @@ export class ReportArtifactController {
   })
   @ApiParam({ name: 'analysisRunId', description: 'AnalysisRun UUID' })
   @ApiResponse({ status: 200, description: 'Artifact list for run' })
-  async listForAnalysisRun(
-    @Param('analysisRunId') analysisRunId: string,
-  ) {
+  async listForAnalysisRun(@Param('analysisRunId') analysisRunId: string) {
     return this.artifactService.listForAnalysisRun(analysisRunId);
   }
 

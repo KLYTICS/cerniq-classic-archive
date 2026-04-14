@@ -1,4 +1,8 @@
-import { asNumber, detectMixedCurrencies, createReportFormatter } from './report-formatting';
+import {
+  asNumber,
+  detectMixedCurrencies,
+  createReportFormatter,
+} from './report-formatting';
 
 describe('asNumber', () => {
   it('passes through finite numbers', () => {

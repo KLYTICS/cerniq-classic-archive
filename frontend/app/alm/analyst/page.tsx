@@ -43,6 +43,12 @@ interface PreflightData {
   warningCount: number;
   gaps: Array<{ field: string; severity: string }>;
   modelLineage?: Array<{ modelKey: string; version: string; status: string }>;
+  // Preflight returns sub-results keyed by report producer. Only the two
+  // shapes we render below are typed here; add more as the sidebar grows.
+  results?: {
+    summary?: ALMSummary;
+    cossec?: COSSECData;
+  };
 }
 
 interface ALMSummary {
@@ -97,8 +103,8 @@ function RatioSidebar({
       if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
       setPreflight(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load');
     } finally {
       setLoading(false);
     }
@@ -127,8 +133,8 @@ function RatioSidebar({
     );
   }
 
-  const summary = (preflight as any)?.results?.summary as ALMSummary | undefined;
-  const cossec = (preflight as any)?.results?.cossec as COSSECData | undefined;
+  const summary = preflight?.results?.summary;
+  const cossec = preflight?.results?.cossec;
 
   // Build ratio list from preflight results
   const ratios: RatioItem[] = [];

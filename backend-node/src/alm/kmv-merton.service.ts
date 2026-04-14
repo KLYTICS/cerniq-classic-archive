@@ -47,8 +47,10 @@ export class KMVMertonService {
       return this.dataUnavailableResult();
     }
 
-    const totalLiabilities =
-      liabilityItems.reduce((s: number, i: any) => s + i.balance, 0);
+    const totalLiabilities = liabilityItems.reduce(
+      (s: number, i: any) => s + i.balance,
+      0,
+    );
 
     if (totalLiabilities === 0) {
       this.logger.warn(

@@ -187,8 +187,9 @@ export default function ModelDetailPage() {
     try {
       const data = await fetchWithAuth(`/api/model-registry/${modelId}`);
       setModel(data);
-    } catch (err: any) {
-      setError(err.message === '404' ? 'Model not found' : `Failed to load: ${err.message}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg === '404' ? 'Model not found' : `Failed to load: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -214,8 +215,8 @@ export default function ModelDetailPage() {
       setConfirmAction(null);
       setRetireReason('');
       await load();
-    } catch (err: any) {
-      setError(`Action failed: ${err.message}`);
+    } catch (err: unknown) {
+      setError(`Action failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setActionLoading(false);
     }

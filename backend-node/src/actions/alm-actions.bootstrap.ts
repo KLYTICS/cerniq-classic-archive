@@ -132,9 +132,14 @@ export class AlmActionsBootstrap implements OnModuleInit {
       async (input) => {
         const institutionId = String(input.institutionId ?? '');
         if (!institutionId) {
-          return { success: false, error: 'institutionId is required', durationMs: 0 };
+          return {
+            success: false,
+            error: 'institutionId is required',
+            durationMs: 0,
+          };
         }
-        const result = await this.stressTesting.runRegulatoryStress(institutionId);
+        const result =
+          await this.stressTesting.runRegulatoryStress(institutionId);
         return {
           success: result.overallRating !== 'data_unavailable',
           data: result,
@@ -163,12 +168,17 @@ export class AlmActionsBootstrap implements OnModuleInit {
         const institutionId = String(input.institutionId ?? '');
         const lang = String(input.lang ?? 'es');
         if (!institutionId) {
-          return { success: false, error: 'institutionId is required', durationMs: 0 };
+          return {
+            success: false,
+            error: 'institutionId is required',
+            durationMs: 0,
+          };
         }
-        const { buffer, artifact } = await this.reports.generateAndRecordArtifact(
-          institutionId,
-          { language: lang, generatedBy: 'action:alm.generate-report' },
-        );
+        const { buffer, artifact } =
+          await this.reports.generateAndRecordArtifact(institutionId, {
+            language: lang,
+            generatedBy: 'action:alm.generate-report',
+          });
         return {
           success: Boolean(buffer),
           data: {
@@ -202,9 +212,14 @@ export class AlmActionsBootstrap implements OnModuleInit {
       async (input) => {
         const institutionId = String(input.institutionId ?? '');
         if (!institutionId) {
-          return { success: false, error: 'institutionId is required', durationMs: 0 };
+          return {
+            success: false,
+            error: 'institutionId is required',
+            durationMs: 0,
+          };
         }
-        const boardData = await this.boardReport.generateBoardReportData(institutionId);
+        const boardData =
+          await this.boardReport.generateBoardReportData(institutionId);
         return {
           success: true,
           data: boardData,

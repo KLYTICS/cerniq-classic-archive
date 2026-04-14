@@ -45,7 +45,11 @@ export interface CreditRiskPortfolioResult {
   economicCapital: number;
   coverageRatio: number | null; // loanLossReserve / totalEL
   elAsPercent: number; // EL as % of total portfolio
-  capitalAdequacy: 'adequate' | 'marginal' | 'insufficient' | 'data_unavailable';
+  capitalAdequacy:
+    | 'adequate'
+    | 'marginal'
+    | 'insufficient'
+    | 'data_unavailable';
   interpretation: string;
   interpretationEs: string;
 }

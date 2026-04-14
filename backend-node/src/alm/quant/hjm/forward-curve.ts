@@ -129,7 +129,10 @@ export class ForwardCurve {
       if (tenor <= this.tenors[i]) {
         const t =
           (tenor - this.tenors[i - 1]) / (this.tenors[i] - this.tenors[i - 1]);
-        return this.spotRates[i - 1] + t * (this.spotRates[i] - this.spotRates[i - 1]);
+        return (
+          this.spotRates[i - 1] +
+          t * (this.spotRates[i] - this.spotRates[i - 1])
+        );
       }
     }
 

@@ -31,7 +31,9 @@ const DT = 1 / 252;
  * Uses antithetic variates for variance reduction (each path generates
  * a mirror path, halving the variance of the estimator).
  */
-export function runHJMMonteCarlo(input: HJMMonteCarloInput): HJMMonteCarloResult {
+export function runHJMMonteCarlo(
+  input: HJMMonteCarloInput,
+): HJMMonteCarloResult {
   const startMs = Date.now();
 
   const numPaths = Math.min(input.numPaths, MAX_PATHS);
@@ -52,7 +54,11 @@ export function runHJMMonteCarlo(input: HJMMonteCarloInput): HJMMonteCarloResult
   const nTenors = tenors.length;
 
   // Precompute baseline NII from the current curve
-  const baselineNII = computeNII(repricingBuckets, forwardCurve.spotRates, tenors);
+  const baselineNII = computeNII(
+    repricingBuckets,
+    forwardCurve.spotRates,
+    tenors,
+  );
 
   // Initialize PRNG
   const rng = createSeededRNG(seed);
@@ -179,7 +185,7 @@ function simulatePath(
     // Generate correlated normal increments
     const z1 = boxMuller(rng) * sign;
     const z2 = boxMuller(rng) * sign;
-    const dW1 = (L11 * z1) * Math.sqrt(DT);
+    const dW1 = L11 * z1 * Math.sqrt(DT);
     const dW2 = (L21 * z1 + L22 * z2) * Math.sqrt(DT);
 
     // Drift correction (HJM no-arbitrage)
@@ -192,9 +198,7 @@ function simulatePath(
 
       // f(t+dt, T) = f(t, T) + mu*dt + sigma1*dW1 + sigma2*tau*dW2
       forwards[k] +=
-        drifts[k] * DT +
-        params.sigma1 * dW1 +
-        params.sigma2 * tau * dW2;
+        drifts[k] * DT + params.sigma1 * dW1 + params.sigma2 * tau * dW2;
 
       // Floor at 0 (negative rates not modeled for PR cooperativas)
       if (forwards[k] < 0) forwards[k] = 0;
@@ -214,7 +218,12 @@ function simulatePath(
   }
 
   // EVE change: reprice at terminal curve vs initial curve
-  const eveChange = computeEVEChange(buckets, forwards, initialForwards, tenors);
+  const eveChange = computeEVEChange(
+    buckets,
+    forwards,
+    initialForwards,
+    tenors,
+  );
 
   return { nii: cumulativeNII, eveChange };
 }
@@ -291,8 +300,7 @@ function interpolateRate(
 
   for (let i = 1; i < tenors.length; i++) {
     if (tenor <= tenors[i]) {
-      const t =
-        (tenor - tenors[i - 1]) / (tenors[i] - tenors[i - 1]);
+      const t = (tenor - tenors[i - 1]) / (tenors[i] - tenors[i - 1]);
       return rates[i - 1] + t * (rates[i] - rates[i - 1]);
     }
   }

@@ -35,7 +35,9 @@ export class FreeReportEmailService {
     recipientEmail?: string,
   ): Promise<void> {
     const email = recipientEmail || result.leadId; // fallback — caller should always pass email
-    const apiBaseUrl = (process.env.API_BASE_URL || 'https://api.cerniq.io').replace(/\/+$/, '');
+    const apiBaseUrl = (
+      process.env.API_BASE_URL || 'https://api.cerniq.io'
+    ).replace(/\/+$/, '');
 
     if (!this.resend) {
       this.logger.log({

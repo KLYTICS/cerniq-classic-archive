@@ -58,31 +58,51 @@ export class FreeReportService {
     private readonly emailService: FreeReportEmailService,
   ) {}
 
-  async generateFreeReport(params: FreeReportParams): Promise<FreeReportResult> {
+  async generateFreeReport(
+    params: FreeReportParams,
+  ): Promise<FreeReportResult> {
     const { institutionName, email, firstName } = params;
 
     // 1. Fuzzy-match against COSSEC snapshot data
     const match = this.fuzzyMatch(institutionName);
 
     // 2. Compute metrics — from match or sector averages
-    const totalAssets = match ? match.totalAssets : COSSEC_BENCHMARK_Q3_2025.totalAssetsMedian;
-    const capitalRatioPct = match ? match.capitalRatioPct : COSSEC_BENCHMARK_Q3_2025.capitalRatioMedian;
-    const liquidityRatioPct = match ? match.liquidityRatioPct : COSSEC_BENCHMARK_Q3_2025.liquidityRatioMedian;
-    const niiMarginPct = match ? match.niiMarginPct : COSSEC_BENCHMARK_Q3_2025.niiMarginMedian;
-    const assetGrowthYoyPct = match ? match.assetGrowthYoyPct : COSSEC_BENCHMARK_Q3_2025.assetGrowthYoy;
-    const loanToDepositPct = match ? match.loanToDepositPct : COSSEC_BENCHMARK_Q3_2025.loanToShareMedian;
+    const totalAssets = match
+      ? match.totalAssets
+      : COSSEC_BENCHMARK_Q3_2025.totalAssetsMedian;
+    const capitalRatioPct = match
+      ? match.capitalRatioPct
+      : COSSEC_BENCHMARK_Q3_2025.capitalRatioMedian;
+    const liquidityRatioPct = match
+      ? match.liquidityRatioPct
+      : COSSEC_BENCHMARK_Q3_2025.liquidityRatioMedian;
+    const niiMarginPct = match
+      ? match.niiMarginPct
+      : COSSEC_BENCHMARK_Q3_2025.niiMarginMedian;
+    const assetGrowthYoyPct = match
+      ? match.assetGrowthYoyPct
+      : COSSEC_BENCHMARK_Q3_2025.assetGrowthYoy;
+    const loanToDepositPct = match
+      ? match.loanToDepositPct
+      : COSSEC_BENCHMARK_Q3_2025.loanToShareMedian;
 
     // NII hook: 1bp shift on 60% of rate-sensitive assets
-    const niiHookDollars = round(totalAssets * 0.60 * 0.0001, 2);
+    const niiHookDollars = round(totalAssets * 0.6 * 0.0001, 2);
     const niiHookFormatted = formatDollars(niiHookDollars);
 
     // Net worth ratio vs sector median
-    const netWorthRatioVsSector = round(capitalRatioPct - COSSEC_BENCHMARK_Q3_2025.capitalRatioMedian, 2);
+    const netWorthRatioVsSector = round(
+      capitalRatioPct - COSSEC_BENCHMARK_Q3_2025.capitalRatioMedian,
+      2,
+    );
 
     // LCR estimate — simplified: liquidityRatioPct mapped to LCR scale
     // COSSEC cooperativas target >= 100% LCR; we estimate from liquidity ratio
     const lcrEstimate = round(liquidityRatioPct * 4.5, 1); // ~22% liquidity ≈ 99% LCR
-    const sectorLcrMedian = round(COSSEC_BENCHMARK_Q3_2025.liquidityRatioMedian * 4.5, 1);
+    const sectorLcrMedian = round(
+      COSSEC_BENCHMARK_Q3_2025.liquidityRatioMedian * 4.5,
+      1,
+    );
     const lcrStatus: FreeReportResult['lcrStatus'] =
       lcrEstimate >= 100 ? 'adequate' : lcrEstimate >= 90 ? 'watch' : 'below';
 
@@ -96,7 +116,13 @@ export class FreeReportService {
     });
 
     const healthGrade: FreeReportResult['healthGrade'] =
-      healthScore >= 80 ? 'A' : healthScore >= 65 ? 'B' : healthScore >= 50 ? 'C' : 'D';
+      healthScore >= 80
+        ? 'A'
+        : healthScore >= 65
+          ? 'B'
+          : healthScore >= 50
+            ? 'C'
+            : 'D';
 
     // 3. Create Lead record
     const lead = await this.prisma.lead.create({
@@ -210,7 +236,10 @@ export class FreeReportService {
    * Generate the 3-page PDF and send it via email.
    * Called fire-and-forget from generateFreeReport so the API response is fast.
    */
-  private async generateAndSendPdf(result: FreeReportResult, recipientEmail: string): Promise<void> {
+  private async generateAndSendPdf(
+    result: FreeReportResult,
+    recipientEmail: string,
+  ): Promise<void> {
     const pdfBuffer = await this.pdfService.generateFreeReportPdf(result);
 
     this.logger.log({
@@ -219,7 +248,11 @@ export class FreeReportService {
       pdfSizeBytes: pdfBuffer.length,
     });
 
-    await this.emailService.sendFreeReportEmail(result, pdfBuffer, recipientEmail);
+    await this.emailService.sendFreeReportEmail(
+      result,
+      pdfBuffer,
+      recipientEmail,
+    );
   }
 
   // ─── Fuzzy Matching ──────────────────────────────────────────
@@ -285,7 +318,13 @@ export class FreeReportService {
     assetGrowthYoyPct: number;
     loanToDepositPct: number;
   }): number {
-    const { capitalRatioPct, liquidityRatioPct, niiMarginPct, assetGrowthYoyPct, loanToDepositPct } = metrics;
+    const {
+      capitalRatioPct,
+      liquidityRatioPct,
+      niiMarginPct,
+      assetGrowthYoyPct,
+      loanToDepositPct,
+    } = metrics;
 
     // Capital adequacy (0-20): 7% is floor (COSSEC minimum), 12%+ is excellent
     const capitalScore = clamp(((capitalRatioPct - 7) / 5) * 20, 0, 20);
@@ -310,7 +349,9 @@ export class FreeReportService {
             ? 8
             : 4;
 
-    return Math.round(capitalScore + liquidityScore + niiScore + growthScore + loanScore);
+    return Math.round(
+      capitalScore + liquidityScore + niiScore + growthScore + loanScore,
+    );
   }
 
   // ─── String Utilities ─────────────────────────────────────

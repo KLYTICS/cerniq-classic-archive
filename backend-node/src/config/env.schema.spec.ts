@@ -78,7 +78,11 @@ describe('env.schema', () => {
   });
 
   it('parses THROTTLE_TTL and THROTTLE_LIMIT as numbers', () => {
-    Object.assign(process.env, { ...VALID_ENV, THROTTLE_TTL: '60', THROTTLE_LIMIT: '100' });
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      THROTTLE_TTL: '60',
+      THROTTLE_LIMIT: '100',
+    });
     const env = validateEnv();
     expect(env.THROTTLE_TTL).toBe(60);
     expect(env.THROTTLE_LIMIT).toBe(100);

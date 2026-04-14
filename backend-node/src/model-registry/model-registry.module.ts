@@ -24,7 +24,12 @@ import { ModelRegistrySeeder } from './model-registry.seeder';
       signOptions: { expiresIn: '24h' },
     }),
   ],
-  providers: [ModelRegistryService, ModelRegistrySeeder, PrismaService, AuthGuard],
+  providers: [
+    ModelRegistryService,
+    ModelRegistrySeeder,
+    PrismaService,
+    AuthGuard,
+  ],
   controllers: [ModelRegistryController],
   exports: [ModelRegistryService],
 })

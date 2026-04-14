@@ -3,7 +3,11 @@ import {
   normalCDF,
   normalInverse,
 } from './credit-risk-portfolio';
-import { computeEffectiveLGD, PR_LGD_TABLE, PR_ASSET_CORRELATION } from './lgd-table';
+import {
+  computeEffectiveLGD,
+  PR_LGD_TABLE,
+  PR_ASSET_CORRELATION,
+} from './lgd-table';
 import { estimatePD } from './pd-model';
 import { LoanPortfolioInput, LoanType } from './types';
 
@@ -69,7 +73,7 @@ describe('normalInverse (Beasley-Springer-Moro)', () => {
   });
 
   it('N(N_inv(p)) ≈ p roundtrip', () => {
-    const probabilities = [0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99];
+    const probabilities = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99];
     for (const p of probabilities) {
       expect(normalCDF(normalInverse(p))).toBeCloseTo(p, 4);
     }
@@ -125,7 +129,7 @@ describe('PR_ASSET_CORRELATION', () => {
   it('all correlations are in Basel III plausible range (0.04–0.30)', () => {
     for (const [, rho] of Object.entries(PR_ASSET_CORRELATION)) {
       expect(rho).toBeGreaterThanOrEqual(0.04);
-      expect(rho).toBeLessThanOrEqual(0.30);
+      expect(rho).toBeLessThanOrEqual(0.3);
     }
   });
 
@@ -142,13 +146,13 @@ describe('PR_ASSET_CORRELATION', () => {
 describe('computeEffectiveLGD', () => {
   it('residential without hurricane = base + CRIM discount', () => {
     const lgd = computeEffectiveLGD('RESIDENTIAL_MORTGAGE', false);
-    expect(lgd).toBeCloseTo(0.25 + 0.20, 6); // 45%
+    expect(lgd).toBeCloseTo(0.25 + 0.2, 6); // 45%
   });
 
   it('residential with hurricane adds 10% adjustment', () => {
     const lgdNoHurricane = computeEffectiveLGD('RESIDENTIAL_MORTGAGE', false);
     const lgdHurricane = computeEffectiveLGD('RESIDENTIAL_MORTGAGE', true);
-    expect(lgdHurricane - lgdNoHurricane).toBeCloseTo(0.10, 6);
+    expect(lgdHurricane - lgdNoHurricane).toBeCloseTo(0.1, 6);
   });
 
   it('consumer unsecured is unchanged by hurricane zone', () => {
@@ -179,7 +183,7 @@ describe('estimatePD', () => {
   it('returns PD in [0.001, 0.999]', () => {
     const pd = estimatePD('RESIDENTIAL_MORTGAGE', {
       dscr: 1.5,
-      ltv: 0.70,
+      ltv: 0.7,
       delinquencyRate: 0.03,
     });
     expect(pd).toBeGreaterThanOrEqual(0.001);
@@ -189,12 +193,12 @@ describe('estimatePD', () => {
   it('higher DSCR → lower PD (all else equal)', () => {
     const pdLow = estimatePD('RESIDENTIAL_MORTGAGE', {
       dscr: 1.0,
-      ltv: 0.70,
+      ltv: 0.7,
       delinquencyRate: 0.03,
     });
     const pdHigh = estimatePD('RESIDENTIAL_MORTGAGE', {
       dscr: 2.0,
-      ltv: 0.70,
+      ltv: 0.7,
       delinquencyRate: 0.03,
     });
     expect(pdHigh).toBeLessThan(pdLow);
@@ -203,12 +207,12 @@ describe('estimatePD', () => {
   it('higher LTV → higher PD (all else equal)', () => {
     const pdLow = estimatePD('RESIDENTIAL_MORTGAGE', {
       dscr: 1.5,
-      ltv: 0.50,
+      ltv: 0.5,
       delinquencyRate: 0.03,
     });
     const pdHigh = estimatePD('RESIDENTIAL_MORTGAGE', {
       dscr: 1.5,
-      ltv: 0.90,
+      ltv: 0.9,
       delinquencyRate: 0.03,
     });
     expect(pdHigh).toBeGreaterThan(pdLow);
@@ -217,13 +221,13 @@ describe('estimatePD', () => {
   it('higher delinquency → higher PD', () => {
     const pdLow = estimatePD('COMMERCIAL_BUSINESS', {
       dscr: 1.5,
-      ltv: 0.60,
+      ltv: 0.6,
       delinquencyRate: 0.01,
     });
     const pdHigh = estimatePD('COMMERCIAL_BUSINESS', {
       dscr: 1.5,
-      ltv: 0.60,
-      delinquencyRate: 0.10,
+      ltv: 0.6,
+      delinquencyRate: 0.1,
     });
     expect(pdHigh).toBeGreaterThan(pdLow);
   });
@@ -351,10 +355,7 @@ describe('computeCreditRisk', () => {
   it('economic capital = sum of UL across categories', () => {
     const result = computeCreditRisk(makePortfolio());
 
-    const sumUL = result.byCategory.reduce(
-      (s, c) => s + c.unexpectedLoss,
-      0,
-    );
+    const sumUL = result.byCategory.reduce((s, c) => s + c.unexpectedLoss, 0);
     expect(result.economicCapital).toBeCloseTo(sumUL, 2);
   });
 
@@ -362,10 +363,7 @@ describe('computeCreditRisk', () => {
     const portfolio = makePortfolio({ loanLossReserve: 5_000_000 });
     const result = computeCreditRisk(portfolio);
 
-    expect(result.coverageRatio).toBeCloseTo(
-      5_000_000 / result.totalEL,
-      4,
-    );
+    expect(result.coverageRatio).toBeCloseTo(5_000_000 / result.totalEL, 4);
   });
 
   it('empty portfolio returns data_unavailable', () => {
@@ -409,9 +407,7 @@ describe('computeCreditRisk', () => {
     const result = computeCreditRisk(makePortfolio());
 
     for (const cat of result.byCategory) {
-      expect(cat.assetCorrelation).toBe(
-        PR_ASSET_CORRELATION[cat.loanType],
-      );
+      expect(cat.assetCorrelation).toBe(PR_ASSET_CORRELATION[cat.loanType]);
     }
   });
 });

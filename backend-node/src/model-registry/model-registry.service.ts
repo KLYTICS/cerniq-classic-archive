@@ -12,7 +12,12 @@
  *   - Validation artifacts are child records (cascade delete on model removal).
  *   - All queries return plain objects — no Prisma model leakage.
  */
-import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import type {
   ModelRegistryFilter,
@@ -57,7 +62,8 @@ export class ModelRegistryService {
       where: { modelKey },
       include: { validationArtifacts: true },
     });
-    if (!model) throw new NotFoundException(`Model key "${modelKey}" not found`);
+    if (!model)
+      throw new NotFoundException(`Model key "${modelKey}" not found`);
     return model;
   }
 
@@ -105,10 +111,14 @@ export class ModelRegistryService {
   async approve(id: string, input: ApproveModelInput) {
     const model = await this.getById(id);
     if (model.status === 'APPROVED') {
-      throw new ConflictException(`Model "${model.modelKey}" is already approved`);
+      throw new ConflictException(
+        `Model "${model.modelKey}" is already approved`,
+      );
     }
     if (model.status === 'RETIRED') {
-      throw new ConflictException(`Cannot approve retired model "${model.modelKey}". Create a new version instead.`);
+      throw new ConflictException(
+        `Cannot approve retired model "${model.modelKey}". Create a new version instead.`,
+      );
     }
 
     const updated = await this.prisma.modelRegistryEntry.update({
@@ -130,7 +140,9 @@ export class ModelRegistryService {
   async retire(id: string, input: RetireModelInput) {
     const model = await this.getById(id);
     if (model.status === 'RETIRED') {
-      throw new ConflictException(`Model "${model.modelKey}" is already retired`);
+      throw new ConflictException(
+        `Model "${model.modelKey}" is already retired`,
+      );
     }
 
     const updated = await this.prisma.modelRegistryEntry.update({
@@ -142,7 +154,9 @@ export class ModelRegistryService {
         retiredReason: input.reason,
       },
     });
-    this.logger.log(`Model retired: ${model.modelKey} by ${input.retiredBy} — ${input.reason}`);
+    this.logger.log(
+      `Model retired: ${model.modelKey} by ${input.retiredBy} — ${input.reason}`,
+    );
     return updated;
   }
 
@@ -150,7 +164,9 @@ export class ModelRegistryService {
   async deprecate(id: string, reason: string) {
     const model = await this.getById(id);
     if (model.status === 'RETIRED') {
-      throw new ConflictException(`Cannot deprecate retired model "${model.modelKey}"`);
+      throw new ConflictException(
+        `Cannot deprecate retired model "${model.modelKey}"`,
+      );
     }
     return this.prisma.modelRegistryEntry.update({
       where: { id },
@@ -162,7 +178,9 @@ export class ModelRegistryService {
   async submitForReview(id: string) {
     const model = await this.getById(id);
     if (model.status !== 'DRAFT') {
-      throw new ConflictException(`Only DRAFT models can be submitted for review. Current: ${model.status}`);
+      throw new ConflictException(
+        `Only DRAFT models can be submitted for review. Current: ${model.status}`,
+      );
     }
     return this.prisma.modelRegistryEntry.update({
       where: { id },
@@ -171,15 +189,18 @@ export class ModelRegistryService {
   }
 
   /** Add a validation artifact to a model. */
-  async addValidationArtifact(modelId: string, artifact: {
-    artifactType: string;
-    label: string;
-    storageLocator: string;
-    checksum?: string;
-    producedBy: string;
-    producedAt: Date;
-    validationMetadata?: Record<string, unknown>;
-  }) {
+  async addValidationArtifact(
+    modelId: string,
+    artifact: {
+      artifactType: string;
+      label: string;
+      storageLocator: string;
+      checksum?: string;
+      producedBy: string;
+      producedAt: Date;
+      validationMetadata?: Record<string, unknown>;
+    },
+  ) {
     await this.getById(modelId); // ensure model exists
     return this.prisma.modelValidationArtifact.create({
       data: {
@@ -194,15 +215,27 @@ export class ModelRegistryService {
     const [total, byStatus, byCategory, byTier] = await Promise.all([
       this.prisma.modelRegistryEntry.count(),
       this.prisma.modelRegistryEntry.groupBy({ by: ['status'], _count: true }),
-      this.prisma.modelRegistryEntry.groupBy({ by: ['category'], _count: true }),
-      this.prisma.modelRegistryEntry.groupBy({ by: ['riskTier'], _count: true }),
+      this.prisma.modelRegistryEntry.groupBy({
+        by: ['category'],
+        _count: true,
+      }),
+      this.prisma.modelRegistryEntry.groupBy({
+        by: ['riskTier'],
+        _count: true,
+      }),
     ]);
 
     return {
       total,
-      byStatus: Object.fromEntries(byStatus.map((s: any) => [s.status, s._count])),
-      byCategory: Object.fromEntries(byCategory.map((c: any) => [c.category, c._count])),
-      byTier: Object.fromEntries(byTier.map((t: any) => [t.riskTier, t._count])),
+      byStatus: Object.fromEntries(
+        byStatus.map((s: any) => [s.status, s._count]),
+      ),
+      byCategory: Object.fromEntries(
+        byCategory.map((c: any) => [c.category, c._count]),
+      ),
+      byTier: Object.fromEntries(
+        byTier.map((t: any) => [t.riskTier, t._count]),
+      ),
     };
   }
 

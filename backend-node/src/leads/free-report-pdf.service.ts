@@ -73,10 +73,7 @@ export class FreeReportPdfService {
   // ─── Shared Helpers ───────────────────────────────────────
 
   private renderHeader(doc: any): void {
-    doc
-      .save()
-      .rect(0, 0, PAGE_WIDTH, 60)
-      .fill(NAVY);
+    doc.save().rect(0, 0, PAGE_WIDTH, 60).fill(NAVY);
 
     doc
       .font(FONT_SANS_BOLD)
@@ -180,10 +177,7 @@ export class FreeReportPdfService {
 
     // Asset tier badge
     const tierText = this.formatAssetTier(r.totalAssets);
-    doc
-      .save()
-      .roundedRect(MARGIN, y, 90, 22, 4)
-      .fill(NAVY);
+    doc.save().roundedRect(MARGIN, y, 90, 22, 4).fill(NAVY);
     doc
       .font(FONT_SANS_BOLD)
       .fontSize(10)
@@ -205,17 +199,18 @@ export class FreeReportPdfService {
       .font(FONT_SANS)
       .fontSize(8)
       .fillColor(MID_GRAY)
-      .text(`Datos: ${r.asOfQuarter} | ${r.matched ? 'Datos institucionales' : 'Promedios sectoriales'}`, MARGIN, y);
+      .text(
+        `Datos: ${r.asOfQuarter} | ${r.matched ? 'Datos institucionales' : 'Promedios sectoriales'}`,
+        MARGIN,
+        y,
+      );
 
     y += 24;
 
     // ── Health Score (large gauge) ──────────────────────────
     const scoreColor = this.gradeColor(r.healthGrade);
 
-    doc
-      .save()
-      .roundedRect(MARGIN, y, CONTENT_WIDTH, 100, 8)
-      .fill(LIGHT_GRAY);
+    doc.save().roundedRect(MARGIN, y, CONTENT_WIDTH, 100, 8).fill(LIGHT_GRAY);
 
     // Large score number
     doc
@@ -277,33 +272,51 @@ export class FreeReportPdfService {
 
     // Card 2: LCR Status
     const lcrLabel =
-      r.lcrStatus === 'adequate' ? 'Adecuado' : r.lcrStatus === 'watch' ? 'Vigilancia' : 'Por debajo';
-    this.renderInsightCard(doc, MARGIN + cardWidth + 10, y, cardWidth, cardHeight, {
-      title: 'LCR vs Sector',
-      value: `${r.lcrEstimate.toFixed(0)}%`,
-      subtitle: lcrLabel,
-      color: this.lcrColor(r.lcrStatus),
-    });
+      r.lcrStatus === 'adequate'
+        ? 'Adecuado'
+        : r.lcrStatus === 'watch'
+          ? 'Vigilancia'
+          : 'Por debajo';
+    this.renderInsightCard(
+      doc,
+      MARGIN + cardWidth + 10,
+      y,
+      cardWidth,
+      cardHeight,
+      {
+        title: 'LCR vs Sector',
+        value: `${r.lcrEstimate.toFixed(0)}%`,
+        subtitle: lcrLabel,
+        color: this.lcrColor(r.lcrStatus),
+      },
+    );
 
     // Card 3: NIM vs Sector
     const niiMarginPct = this.estimateNiiMargin(r);
     const nimDiff = niiMarginPct - COSSEC_BENCHMARK_Q3_2025.niiMarginMedian;
-    const nimLabel = nimDiff >= 0 ? `+${nimDiff.toFixed(1)}pp vs sector` : `${nimDiff.toFixed(1)}pp vs sector`;
+    const nimLabel =
+      nimDiff >= 0
+        ? `+${nimDiff.toFixed(1)}pp vs sector`
+        : `${nimDiff.toFixed(1)}pp vs sector`;
     const nimColor = nimDiff >= 0 ? SUCCESS_GREEN : WARNING_AMBER;
-    this.renderInsightCard(doc, MARGIN + (cardWidth + 10) * 2, y, cardWidth, cardHeight, {
-      title: 'NIM vs Sector',
-      value: `${niiMarginPct.toFixed(1)}%`,
-      subtitle: nimLabel,
-      color: nimColor,
-    });
+    this.renderInsightCard(
+      doc,
+      MARGIN + (cardWidth + 10) * 2,
+      y,
+      cardWidth,
+      cardHeight,
+      {
+        title: 'NIM vs Sector',
+        value: `${niiMarginPct.toFixed(1)}%`,
+        subtitle: nimLabel,
+        color: nimColor,
+      },
+    );
 
     y += cardHeight + 24;
 
     // ── NII Hook — prominently displayed ─────────────────────
-    doc
-      .save()
-      .roundedRect(MARGIN, y, CONTENT_WIDTH, 80, 8)
-      .fill(NAVY);
+    doc.save().roundedRect(MARGIN, y, CONTENT_WIDTH, 80, 8).fill(NAVY);
 
     doc
       .font(FONT_SANS_BOLD)
@@ -398,7 +411,8 @@ export class FreeReportPdfService {
     // A more precise approach would pass niiMarginPct through the result,
     // but to avoid changing the interface we use the benchmark.
     return r.matched
-      ? COSSEC_BENCHMARK_Q3_2025.niiMarginMedian + (r.netWorthRatioVsSector > 0 ? 0.3 : -0.2)
+      ? COSSEC_BENCHMARK_Q3_2025.niiMarginMedian +
+          (r.netWorthRatioVsSector > 0 ? 0.3 : -0.2)
       : COSSEC_BENCHMARK_Q3_2025.niiMarginMedian;
   }
 
@@ -446,11 +460,38 @@ export class FreeReportPdfService {
     // Bar chart: Institution vs COSSEC min vs Sector avg
     const barMaxPct = Math.max(nwrPct, sectorAvg, cossecMin) * 1.3;
 
-    this.drawLabeledBar(doc, MARGIN, y, CONTENT_WIDTH, 'Su cooperativa', nwrPct, barMaxPct, nwrPct >= cossecMin ? SUCCESS_GREEN : DANGER_RED);
+    this.drawLabeledBar(
+      doc,
+      MARGIN,
+      y,
+      CONTENT_WIDTH,
+      'Su cooperativa',
+      nwrPct,
+      barMaxPct,
+      nwrPct >= cossecMin ? SUCCESS_GREEN : DANGER_RED,
+    );
     y += 32;
-    this.drawLabeledBar(doc, MARGIN, y, CONTENT_WIDTH, 'Mínimo COSSEC (6%)', cossecMin, barMaxPct, DANGER_RED);
+    this.drawLabeledBar(
+      doc,
+      MARGIN,
+      y,
+      CONTENT_WIDTH,
+      'Mínimo COSSEC (6%)',
+      cossecMin,
+      barMaxPct,
+      DANGER_RED,
+    );
     y += 32;
-    this.drawLabeledBar(doc, MARGIN, y, CONTENT_WIDTH, 'Mediana sector', sectorAvg, barMaxPct, '#2563EB');
+    this.drawLabeledBar(
+      doc,
+      MARGIN,
+      y,
+      CONTENT_WIDTH,
+      'Mediana sector',
+      sectorAvg,
+      barMaxPct,
+      '#2563EB',
+    );
     y += 48;
 
     // NWR interpretation
@@ -476,7 +517,11 @@ export class FreeReportPdfService {
       .font(FONT_SANS_BOLD)
       .fontSize(13)
       .fillColor(NAVY)
-      .text('2. Razón de Cobertura de Liquidez (LCR) / Liquidity Coverage Ratio', MARGIN, y);
+      .text(
+        '2. Razón de Cobertura de Liquidez (LCR) / Liquidity Coverage Ratio',
+        MARGIN,
+        y,
+      );
     y += 24;
 
     const lcrPct = r.lcrEstimate;
@@ -499,11 +544,38 @@ export class FreeReportPdfService {
 
     const lcrBarMax = Math.max(lcrPct, sectorLcr, baselMin) * 1.3;
 
-    this.drawLabeledBar(doc, MARGIN, y, CONTENT_WIDTH, 'Su cooperativa', lcrPct, lcrBarMax, this.lcrColor(r.lcrStatus));
+    this.drawLabeledBar(
+      doc,
+      MARGIN,
+      y,
+      CONTENT_WIDTH,
+      'Su cooperativa',
+      lcrPct,
+      lcrBarMax,
+      this.lcrColor(r.lcrStatus),
+    );
     y += 32;
-    this.drawLabeledBar(doc, MARGIN, y, CONTENT_WIDTH, 'Mínimo Basel III (100%)', baselMin, lcrBarMax, DANGER_RED);
+    this.drawLabeledBar(
+      doc,
+      MARGIN,
+      y,
+      CONTENT_WIDTH,
+      'Mínimo Basel III (100%)',
+      baselMin,
+      lcrBarMax,
+      DANGER_RED,
+    );
     y += 32;
-    this.drawLabeledBar(doc, MARGIN, y, CONTENT_WIDTH, 'Mediana sector', sectorLcr, lcrBarMax, '#2563EB');
+    this.drawLabeledBar(
+      doc,
+      MARGIN,
+      y,
+      CONTENT_WIDTH,
+      'Mediana sector',
+      sectorLcr,
+      lcrBarMax,
+      '#2563EB',
+    );
     y += 48;
 
     const lcrInterpretation =
@@ -582,12 +654,14 @@ export class FreeReportPdfService {
 
     // Table header
     const colWidths = [120, 140, 140, CONTENT_WIDTH - 400];
-    const cols = [MARGIN, MARGIN + colWidths[0], MARGIN + colWidths[0] + colWidths[1], MARGIN + colWidths[0] + colWidths[1] + colWidths[2]];
+    const cols = [
+      MARGIN,
+      MARGIN + colWidths[0],
+      MARGIN + colWidths[0] + colWidths[1],
+      MARGIN + colWidths[0] + colWidths[1] + colWidths[2],
+    ];
 
-    doc
-      .save()
-      .rect(MARGIN, y, CONTENT_WIDTH, 22)
-      .fill(NAVY);
+    doc.save().rect(MARGIN, y, CONTENT_WIDTH, 22).fill(NAVY);
 
     doc.font(FONT_SANS_BOLD).fontSize(8).fillColor(WHITE);
     doc.text('Escenario', cols[0] + 6, y + 6, { width: colWidths[0] });
@@ -688,10 +762,7 @@ export class FreeReportPdfService {
     y += 40;
 
     // ── CTA Box ─────────────────────────────────────────────
-    doc
-      .save()
-      .roundedRect(MARGIN, y, CONTENT_WIDTH, 70, 8)
-      .fill(NAVY);
+    doc.save().roundedRect(MARGIN, y, CONTENT_WIDTH, 70, 8).fill(NAVY);
 
     doc
       .font(FONT_SANS_BOLD)
@@ -754,7 +825,10 @@ export class FreeReportPdfService {
         label: s.label,
         bpsChange: s.bps === 0 ? '—' : `${s.bps > 0 ? '+' : ''}${s.bps} bps`,
         niiImpact: s.bps === 0 ? '—' : this.formatDollars(impact),
-        pctOfNii: s.bps === 0 ? 'Base' : `${pctChange > 0 ? '+' : ''}${pctChange.toFixed(1)}%`,
+        pctOfNii:
+          s.bps === 0
+            ? 'Base'
+            : `${pctChange > 0 ? '+' : ''}${pctChange.toFixed(1)}%`,
       };
     });
   }

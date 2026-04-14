@@ -485,13 +485,9 @@ describe('CAMELCertificationService', () => {
       '2026-Q1',
       'es',
     );
-    expect(result.html).toContain(
-      'Generado por CERNIQ',
-    );
+    expect(result.html).toContain('Generado por CERNIQ');
     expect(result.html).toContain('cerniq.io');
-    expect(result.html).toContain(
-      'datos proporcionados por la institución',
-    );
+    expect(result.html).toContain('datos proporcionados por la institución');
   });
 
   it('should include CERNIQ footer disclaimer in English', async () => {

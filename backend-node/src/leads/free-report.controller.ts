@@ -135,7 +135,10 @@ export class FreeReportController {
 
   @Get('api/leads/track/:leadId')
   @SkipThrottle()
-  async trackOpen(@Param('leadId') leadId: string, @Res() res: any): Promise<void> {
+  async trackOpen(
+    @Param('leadId') leadId: string,
+    @Res() res: any,
+  ): Promise<void> {
     // Fire-and-forget: merge openedAt into the Lead's publicDataSnapshot JSON field
     this.prisma.$executeRaw`
       UPDATE leads

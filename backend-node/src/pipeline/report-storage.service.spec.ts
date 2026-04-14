@@ -98,7 +98,7 @@ describe('ReportStorageService', () => {
       await service.upload('reports/200.pdf', Buffer.from('fresh'));
       expect((service as any).localBuffers.size).toBe(200);
       expect(service.getLocalBuffer('reports/0.pdf')).not.toBeNull(); // kept (touched)
-      expect(service.getLocalBuffer('reports/1.pdf')).toBeNull();      // evicted
+      expect(service.getLocalBuffer('reports/1.pdf')).toBeNull(); // evicted
       expect(service.getLocalBuffer('reports/200.pdf')).not.toBeNull(); // kept (newest)
     });
 

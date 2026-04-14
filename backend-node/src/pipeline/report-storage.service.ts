@@ -49,7 +49,7 @@ export class ReportStorageService {
       if (process.env.NODE_ENV === 'production') {
         this.logger.error(
           'CRITICAL: R2/S3 storage not configured in production — reports will use volatile in-memory buffer. ' +
-          'Set R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY to enable persistent storage.',
+            'Set R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY to enable persistent storage.',
         );
       }
       this.logger.warn(

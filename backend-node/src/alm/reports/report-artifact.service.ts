@@ -72,7 +72,7 @@ export class ReportArtifactService {
         storageLocator: input.storageLocator,
         modelLineageSnapshot: input.modelLineage as any,
         datasetVersions: input.datasetVersions ?? undefined,
-        preflightGaps: input.preflightGaps as any ?? undefined,
+        preflightGaps: (input.preflightGaps as any) ?? undefined,
         preflightReady: input.preflightReady ?? false,
         generatedBy: input.generatedBy,
       },
@@ -106,7 +106,10 @@ export class ReportArtifactService {
   }
 
   /** List artifacts for an institution, most recent first. */
-  async listForInstitution(institutionId: string, limit = 50): Promise<ArtifactRecord[]> {
+  async listForInstitution(
+    institutionId: string,
+    limit = 50,
+  ): Promise<ArtifactRecord[]> {
     return this.prisma.reportArtifact.findMany({
       where: { institutionId },
       orderBy: { generatedAt: 'desc' },
@@ -126,7 +129,10 @@ export class ReportArtifactService {
    * Verify an artifact's integrity by comparing a computed checksum
    * against the stored checksum.
    */
-  async verify(id: string, content: Buffer): Promise<{ valid: boolean; stored: string; computed: string }> {
+  async verify(
+    id: string,
+    content: Buffer,
+  ): Promise<{ valid: boolean; stored: string; computed: string }> {
     const artifact = await this.getById(id);
     const computed = `sha256:${crypto.createHash('sha256').update(content).digest('hex')}`;
     return {

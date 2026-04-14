@@ -18,22 +18,74 @@ const COSSEC_THRESHOLDS: Record<
   string,
   { min: number; unit: string; ref: string; nameEs: string }
 > = {
-  nwr: { min: 6, unit: '%', ref: 'Ley 255-2002 Art. 43', nameEs: 'Razón de Capital Neto (NWR)' },
-  lcr: { min: 100, unit: '%', ref: 'COSSEC Reglamento — Liquidez Mínima', nameEs: 'Razón de Cobertura de Liquidez (LCR)' },
-  nim: { min: 2.5, unit: '%', ref: 'COSSEC Examen Art. 5.2', nameEs: 'Margen de Interés Neto (NIM)' },
-  ncr: { min: 0, unit: '%', ref: 'OCIF CC-2023-01 — Morosidad', nameEs: 'Razón de Morosidad (NCR)' },
-  coverage: { min: 100, unit: '%', ref: 'COSSEC Examen Art. 6.1', nameEs: 'Razón de Cobertura de Provisión' },
-  roa: { min: 0.5, unit: '%', ref: 'COSSEC Examen Art. 4.3', nameEs: 'Rendimiento sobre Activos (ROA)' },
-  concentration: { min: 0, unit: '%', ref: 'COSSEC Examen Art. 8.2', nameEs: 'Razón de Concentración' },
-  durationGap: { min: 0, unit: 'yrs', ref: 'COSSEC Examen Art. 7.3', nameEs: 'Brecha de Duración' },
-  niiSensitivity: { min: 0, unit: '%', ref: 'COSSEC Examen Art. 7.4', nameEs: 'Sensibilidad NII (±200bps)' },
+  nwr: {
+    min: 6,
+    unit: '%',
+    ref: 'Ley 255-2002 Art. 43',
+    nameEs: 'Razón de Capital Neto (NWR)',
+  },
+  lcr: {
+    min: 100,
+    unit: '%',
+    ref: 'COSSEC Reglamento — Liquidez Mínima',
+    nameEs: 'Razón de Cobertura de Liquidez (LCR)',
+  },
+  nim: {
+    min: 2.5,
+    unit: '%',
+    ref: 'COSSEC Examen Art. 5.2',
+    nameEs: 'Margen de Interés Neto (NIM)',
+  },
+  ncr: {
+    min: 0,
+    unit: '%',
+    ref: 'OCIF CC-2023-01 — Morosidad',
+    nameEs: 'Razón de Morosidad (NCR)',
+  },
+  coverage: {
+    min: 100,
+    unit: '%',
+    ref: 'COSSEC Examen Art. 6.1',
+    nameEs: 'Razón de Cobertura de Provisión',
+  },
+  roa: {
+    min: 0.5,
+    unit: '%',
+    ref: 'COSSEC Examen Art. 4.3',
+    nameEs: 'Rendimiento sobre Activos (ROA)',
+  },
+  concentration: {
+    min: 0,
+    unit: '%',
+    ref: 'COSSEC Examen Art. 8.2',
+    nameEs: 'Razón de Concentración',
+  },
+  durationGap: {
+    min: 0,
+    unit: 'yrs',
+    ref: 'COSSEC Examen Art. 7.3',
+    nameEs: 'Brecha de Duración',
+  },
+  niiSensitivity: {
+    min: 0,
+    unit: '%',
+    ref: 'COSSEC Examen Art. 7.4',
+    nameEs: 'Sensibilidad NII (±200bps)',
+  },
 };
 
 // ─── PR Cooperative Sector Averages (COSSEC Q4 2025) ────────────────────
 
 const SECTOR_AVERAGES: Record<string, number> = {
-  nwr: 9.2, lcr: 142, nim: 3.85, ncr: 2.1, coverage: 128,
-  roa: 0.78, concentration: 24, durationGap: 1.8, niiSensitivity: 5.2,
+  nwr: 9.2,
+  lcr: 142,
+  nim: 3.85,
+  ncr: 2.1,
+  coverage: 128,
+  roa: 0.78,
+  concentration: 24,
+  durationGap: 1.8,
+  niiSensitivity: 5.2,
 };
 
 // ─── Claude Tool Definitions ────────────────────────────────────────────
@@ -41,23 +93,43 @@ const SECTOR_AVERAGES: Record<string, number> = {
 export const ANALYST_CLAUDE_TOOLS = [
   {
     name: 'get_ratios',
-    description: 'Obtiene los indicadores CAMEL actuales de la institución con su valor, umbral COSSEC, y estado.',
-    input_schema: { type: 'object' as const, properties: {}, required: [] as string[] },
+    description:
+      'Obtiene los indicadores CAMEL actuales de la institución con su valor, umbral COSSEC, y estado.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+      required: [] as string[],
+    },
   },
   {
     name: 'get_nim_sensitivity',
-    description: 'Obtiene la tabla de sensibilidad de NIM bajo diferentes escenarios de tasas (+100, +200, +300, -100, -200 bps).',
-    input_schema: { type: 'object' as const, properties: {}, required: [] as string[] },
+    description:
+      'Obtiene la tabla de sensibilidad de NIM bajo diferentes escenarios de tasas (+100, +200, +300, -100, -200 bps).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+      required: [] as string[],
+    },
   },
   {
     name: 'get_peer_benchmarks',
-    description: 'Obtiene promedios del sector cooperativo de PR supervisado por COSSEC para comparación.',
-    input_schema: { type: 'object' as const, properties: {}, required: [] as string[] },
+    description:
+      'Obtiene promedios del sector cooperativo de PR supervisado por COSSEC para comparación.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+      required: [] as string[],
+    },
   },
   {
     name: 'get_regulatory_thresholds',
-    description: 'Obtiene los umbrales mínimos de COSSEC para cada indicador, incluyendo la referencia legal.',
-    input_schema: { type: 'object' as const, properties: {}, required: [] as string[] },
+    description:
+      'Obtiene los umbrales mínimos de COSSEC para cada indicador, incluyendo la referencia legal.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+      required: [] as string[],
+    },
   },
 ];
 
@@ -106,7 +178,11 @@ export class AlmAnalystService {
     return `${institutionId}:${today}`;
   }
 
-  checkRateLimit(institutionId: string): { allowed: boolean; used: number; max: number } {
+  checkRateLimit(institutionId: string): {
+    allowed: boolean;
+    used: number;
+    max: number;
+  } {
     const key = this.getDailyKey(institutionId);
     const used = this.dailyCounts.get(key) ?? 0;
     return { allowed: used < 20, used, max: 20 };
@@ -125,7 +201,11 @@ export class AlmAnalystService {
     }
   }
 
-  getRateLimitStatus(institutionId: string): { used: number; max: number; remaining: number } {
+  getRateLimitStatus(institutionId: string): {
+    used: number;
+    max: number;
+    remaining: number;
+  } {
     const { used, max } = this.checkRateLimit(institutionId);
     return { used, max, remaining: max - used };
   }
@@ -137,14 +217,20 @@ export class AlmAnalystService {
 
     if (cossec.overallStatus === 'data_unavailable') {
       return Object.entries(COSSEC_THRESHOLDS).map(([key, t]) => ({
-        key, nameEs: t.nameEs, value: null, threshold: t.min, unit: t.unit,
-        status: 'NO_DISPONIBLE' as const, gap: null,
-        regulatoryRef: t.ref, sectorAverage: SECTOR_AVERAGES[key] ?? 0,
+        key,
+        nameEs: t.nameEs,
+        value: null,
+        threshold: t.min,
+        unit: t.unit,
+        status: 'NO_DISPONIBLE' as const,
+        gap: null,
+        regulatoryRef: t.ref,
+        sectorAverage: SECTOR_AVERAGES[key] ?? 0,
       }));
     }
 
     const ratioMap: Record<string, number | null> = {};
-    for (const r of (cossec.ratios ?? [])) {
+    for (const r of cossec.ratios ?? []) {
       ratioMap[this.normalizeRatioKey(r.name)] = r.value;
     }
 
@@ -158,28 +244,48 @@ export class AlmAnalystService {
           status = value <= 5 ? 'CUMPLE' : value <= 8 ? 'ALERTA' : 'INCUMPLE';
           gap = value - 5;
         } else {
-          status = value >= t.min ? 'CUMPLE' : value >= t.min * 0.85 ? 'ALERTA' : 'INCUMPLE';
+          status =
+            value >= t.min
+              ? 'CUMPLE'
+              : value >= t.min * 0.85
+                ? 'ALERTA'
+                : 'INCUMPLE';
           gap = value - t.min;
         }
       }
 
       return {
-        key, nameEs: t.nameEs, value, threshold: t.min, unit: t.unit,
-        status, gap, regulatoryRef: t.ref, sectorAverage: SECTOR_AVERAGES[key] ?? 0,
+        key,
+        nameEs: t.nameEs,
+        value,
+        threshold: t.min,
+        unit: t.unit,
+        status,
+        gap,
+        regulatoryRef: t.ref,
+        sectorAverage: SECTOR_AVERAGES[key] ?? 0,
       };
     });
   }
 
-  async fetchNIISensitivity(institutionId: string): Promise<Record<string, any>> {
+  async fetchNIISensitivity(
+    institutionId: string,
+  ): Promise<Record<string, any>> {
     const summary = await this.almEnterprise.getALMSummary(institutionId);
     const nii = summary.niiSensitivity;
-    if (!nii?.scenarios) return { status: 'data_unavailable', message: 'No hay datos de sensibilidad NII.' };
+    if (!nii?.scenarios)
+      return {
+        status: 'data_unavailable',
+        message: 'No hay datos de sensibilidad NII.',
+      };
 
     return {
       baseNII: nii.baseNII,
       riskRating: nii.riskRating,
       scenarios: nii.scenarios.map((s: any) => ({
-        shiftBps: s.shiftBps, niiChange: s.niImpact, niiChangePct: s.niImpactPct,
+        shiftBps: s.shiftBps,
+        niiChange: s.niImpact,
+        niiChangePct: s.niImpactPct,
       })),
       bpValue: (() => {
         const s200 = nii.scenarios.find((s: any) => s.shiftBps === 200);
@@ -203,7 +309,10 @@ export class AlmAnalystService {
     return {
       source: 'COSSEC Reglamento + Ley 255-2002',
       thresholds: Object.entries(COSSEC_THRESHOLDS).map(([key, t]) => ({
-        indicator: t.nameEs, minimum: t.min, unit: t.unit, regulatoryReference: t.ref,
+        indicator: t.nameEs,
+        minimum: t.min,
+        unit: t.unit,
+        regulatoryReference: t.ref,
       })),
     };
   }
@@ -212,37 +321,58 @@ export class AlmAnalystService {
 
   async executeTool(institutionId: string, toolName: string): Promise<string> {
     switch (toolName) {
-      case 'get_ratios': return JSON.stringify(await this.fetchRatios(institutionId), null, 2);
-      case 'get_nim_sensitivity': return JSON.stringify(await this.fetchNIISensitivity(institutionId), null, 2);
-      case 'get_peer_benchmarks': return JSON.stringify(this.fetchPeerBenchmarks(), null, 2);
-      case 'get_regulatory_thresholds': return JSON.stringify(this.fetchRegulatoryThresholds(), null, 2);
-      default: return JSON.stringify({ error: `Unknown tool: ${toolName}` });
+      case 'get_ratios':
+        return JSON.stringify(await this.fetchRatios(institutionId), null, 2);
+      case 'get_nim_sensitivity':
+        return JSON.stringify(
+          await this.fetchNIISensitivity(institutionId),
+          null,
+          2,
+        );
+      case 'get_peer_benchmarks':
+        return JSON.stringify(this.fetchPeerBenchmarks(), null, 2);
+      case 'get_regulatory_thresholds':
+        return JSON.stringify(this.fetchRegulatoryThresholds(), null, 2);
+      default:
+        return JSON.stringify({ error: `Unknown tool: ${toolName}` });
     }
   }
 
   // ─── System Prompt ────────────────────────────────────────────────────
 
   async buildSystemPrompt(institutionId: string): Promise<string> {
-    const institution = await this.prisma.institution.findUnique({ where: { id: institutionId } });
+    const institution = await this.prisma.institution.findUnique({
+      where: { id: institutionId },
+    });
     const ratios = await this.fetchRatios(institutionId);
 
     const instName = institution?.name ?? 'Institución';
     const today = new Date().toLocaleDateString('es-PR', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
       timeZone: 'America/Puerto_Rico',
     });
 
-    const ratioBlock = ratios.map((r) =>
-      `- ${r.nameEs}: ${r.value !== null ? `${r.value}${r.unit}` : 'NO DISPONIBLE'} ` +
-      `(mínimo: ${r.threshold}${r.unit}, sector: ${r.sectorAverage}${r.unit}, estado: ${r.status})`
-    ).join('\n');
+    const ratioBlock = ratios
+      .map(
+        (r) =>
+          `- ${r.nameEs}: ${r.value !== null ? `${r.value}${r.unit}` : 'NO DISPONIBLE'} ` +
+          `(mínimo: ${r.threshold}${r.unit}, sector: ${r.sectorAverage}${r.unit}, estado: ${r.status})`,
+      )
+      .join('\n');
 
     const failRatios = ratios.filter((r) => r.status === 'INCUMPLE');
-    const failBlock = failRatios.length > 0
-      ? failRatios.map((r) =>
-          `⚠ ${r.nameEs}: ${r.value}${r.unit} — incumple ${r.threshold}${r.unit} por ${Math.abs(r.gap ?? 0).toFixed(2)}${r.unit}. ${r.regulatoryRef}`
-        ).join('\n')
-      : 'Todos los indicadores cumplen.';
+    const failBlock =
+      failRatios.length > 0
+        ? failRatios
+            .map(
+              (r) =>
+                `⚠ ${r.nameEs}: ${r.value}${r.unit} — incumple ${r.threshold}${r.unit} por ${Math.abs(r.gap ?? 0).toFixed(2)}${r.unit}. ${r.regulatoryRef}`,
+            )
+            .join('\n')
+        : 'Todos los indicadores cumplen.';
 
     return `Eres CERNIQ Analyst, asesor senior de riesgo ALM para instituciones de Puerto Rico supervisadas por COSSEC.
 
@@ -275,7 +405,8 @@ REGLAS:
     if (!rl.allowed) {
       yield {
         type: 'rate_limited',
-        message: 'Ha alcanzado el límite de 20 consultas diarias. El límite se restablece a medianoche hora de Puerto Rico.',
+        message:
+          'Ha alcanzado el límite de 20 consultas diarias. El límite se restablece a medianoche hora de Puerto Rico.',
         queriesUsed: rl.used,
         queriesMax: rl.max,
       };
@@ -295,7 +426,9 @@ REGLAS:
       type AnthropicCtor = new (opts?: { apiKey?: string }) => {
         messages: { create: (opts: Record<string, unknown>) => Promise<any> };
       };
-      const sdk = (await import('@anthropic-ai/sdk')) as unknown as { default: AnthropicCtor };
+      const sdk = (await import('@anthropic-ai/sdk')) as unknown as {
+        default: AnthropicCtor;
+      };
       const client = new sdk.default({ apiKey });
 
       const messages: Array<{ role: string; content: any }> = [];
@@ -321,12 +454,18 @@ REGLAS:
           }
         }
 
-        const toolUseBlocks = response.content.filter((b: any) => b.type === 'tool_use');
+        const toolUseBlocks = response.content.filter(
+          (b: any) => b.type === 'tool_use',
+        );
         const toolResults: any[] = [];
         for (const toolBlock of toolUseBlocks) {
           yield { type: 'tool_use', name: toolBlock.name };
           const result = await this.executeTool(institutionId, toolBlock.name);
-          toolResults.push({ type: 'tool_result', tool_use_id: toolBlock.id, content: result });
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: toolBlock.id,
+            content: result,
+          });
         }
 
         messages.push({ role: 'assistant', content: response.content });
@@ -350,7 +489,11 @@ REGLAS:
         }
       }
 
-      yield { type: 'done', queriesUsed: this.checkRateLimit(institutionId).used, queriesMax: 20 };
+      yield {
+        type: 'done',
+        queriesUsed: this.checkRateLimit(institutionId).used,
+        queriesMax: 20,
+      };
     } catch (err: any) {
       this.logger.error(`Analyst streaming failed: ${err.message}`, err.stack);
       yield { type: 'error', message: err.message };
@@ -399,7 +542,11 @@ REGLAS:
     for (const chunk of chunks) {
       yield { type: 'token', text: chunk };
     }
-    yield { type: 'done', queriesUsed: this.checkRateLimit(institutionId).used, queriesMax: 20 };
+    yield {
+      type: 'done',
+      queriesUsed: this.checkRateLimit(institutionId).used,
+      queriesMax: 20,
+    };
   }
 
   // ─── Save Insight ─────────────────────────────────────────────────────
@@ -418,7 +565,10 @@ REGLAS:
         resource: 'analyst_insight',
         outcome: 'success',
         changes: { message, tags },
-        metadata: { source: 'cerniq_analyst', savedAt: new Date().toISOString() },
+        metadata: {
+          source: 'cerniq_analyst',
+          savedAt: new Date().toISOString(),
+        },
       },
     });
     return { id: log.id };
@@ -428,13 +578,16 @@ REGLAS:
 
   private normalizeRatioKey(name: string): string {
     const n = name.toLowerCase().replace(/[^a-z]/g, '');
-    if (n.includes('networth') || n.includes('nwr') || n.includes('capital')) return 'nwr';
+    if (n.includes('networth') || n.includes('nwr') || n.includes('capital'))
+      return 'nwr';
     if (n.includes('lcr') || n.includes('liquidity')) return 'lcr';
     if (n.includes('nim') || n.includes('margin')) return 'nim';
-    if (n.includes('noncurrent') || n.includes('ncr') || n.includes('delinq')) return 'ncr';
+    if (n.includes('noncurrent') || n.includes('ncr') || n.includes('delinq'))
+      return 'ncr';
     if (n.includes('coverage') || n.includes('provision')) return 'coverage';
     if (n.includes('roa') || n.includes('returnasset')) return 'roa';
-    if (n.includes('concentration') || n.includes('concentra')) return 'concentration';
+    if (n.includes('concentration') || n.includes('concentra'))
+      return 'concentration';
     if (n.includes('duration') || n.includes('duracion')) return 'durationGap';
     if (n.includes('nii') || n.includes('sensitivity')) return 'niiSensitivity';
     return n;

@@ -172,8 +172,8 @@ export default function GovernanceAdminPage() {
       ]);
       setScenarios(scenarioData);
       setBenchmarks(benchmarkData);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load governance data');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load governance data');
     } finally {
       setLoading(false);
     }
@@ -186,8 +186,8 @@ export default function GovernanceAdminPage() {
     try {
       await postWithAuth(`/api/governance/${entity}/${id}/approve`, { approvedBy: 'admin' });
       await load();
-    } catch (err: any) {
-      setError(`Approve failed: ${err.message}`);
+    } catch (err: unknown) {
+      setError(`Approve failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setActionLoading(null);
     }
@@ -202,8 +202,8 @@ export default function GovernanceAdminPage() {
         reason ? { reason } : {},
       );
       await load();
-    } catch (err: any) {
-      setError(`Retire failed: ${err.message}`);
+    } catch (err: unknown) {
+      setError(`Retire failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setActionLoading(null);
     }

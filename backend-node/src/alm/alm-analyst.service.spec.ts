@@ -37,11 +37,46 @@ const mockALMSummary = {
     baseNII: 12.5,
     riskRating: 'moderate',
     scenarios: [
-      { name: '-200bps', shiftBps: -200, niImpact: -1.8, niImpactPct: -14.4, mveImpact: 2.1, mveImpactPct: 1.7 },
-      { name: '-100bps', shiftBps: -100, niImpact: -0.9, niImpactPct: -7.2, mveImpact: 1.0, mveImpactPct: 0.8 },
-      { name: '+100bps', shiftBps: 100, niImpact: 0.75, niImpactPct: 6.0, mveImpact: -0.9, mveImpactPct: -0.7 },
-      { name: '+200bps', shiftBps: 200, niImpact: 1.4, niImpactPct: 11.2, mveImpact: -1.7, mveImpactPct: -1.4 },
-      { name: '+300bps', shiftBps: 300, niImpact: 1.95, niImpactPct: 15.6, mveImpact: -2.5, mveImpactPct: -2.0 },
+      {
+        name: '-200bps',
+        shiftBps: -200,
+        niImpact: -1.8,
+        niImpactPct: -14.4,
+        mveImpact: 2.1,
+        mveImpactPct: 1.7,
+      },
+      {
+        name: '-100bps',
+        shiftBps: -100,
+        niImpact: -0.9,
+        niImpactPct: -7.2,
+        mveImpact: 1.0,
+        mveImpactPct: 0.8,
+      },
+      {
+        name: '+100bps',
+        shiftBps: 100,
+        niImpact: 0.75,
+        niImpactPct: 6.0,
+        mveImpact: -0.9,
+        mveImpactPct: -0.7,
+      },
+      {
+        name: '+200bps',
+        shiftBps: 200,
+        niImpact: 1.4,
+        niImpactPct: 11.2,
+        mveImpact: -1.7,
+        mveImpactPct: -1.4,
+      },
+      {
+        name: '+300bps',
+        shiftBps: 300,
+        niImpact: 1.95,
+        niImpactPct: 15.6,
+        mveImpact: -2.5,
+        mveImpactPct: -2.0,
+      },
     ],
   },
 };
@@ -65,8 +100,12 @@ describe('AlmAnalystService', () => {
         {
           provide: PrismaService,
           useValue: {
-            institution: { findUnique: jest.fn().mockResolvedValue(mockInstitution) },
-            auditLog: { create: jest.fn().mockResolvedValue({ id: 'log-001' }) },
+            institution: {
+              findUnique: jest.fn().mockResolvedValue(mockInstitution),
+            },
+            auditLog: {
+              create: jest.fn().mockResolvedValue({ id: 'log-001' }),
+            },
           },
         },
         {
@@ -148,7 +187,9 @@ describe('AlmAnalystService', () => {
       const events = await collectEvents(
         service.processMessage('inst-empty', 'Como estamos?'),
       );
-      expect(events.filter((e) => e.type === 'token').length).toBeGreaterThan(0);
+      expect(events.filter((e) => e.type === 'token').length).toBeGreaterThan(
+        0,
+      );
     });
 
     it('every stream ends with done event', async () => {

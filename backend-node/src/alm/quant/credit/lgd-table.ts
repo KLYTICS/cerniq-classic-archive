@@ -31,8 +31,8 @@ import { LGDConfig, LoanType } from './types';
 export const PR_LGD_TABLE: Record<LoanType, LGDConfig> = {
   RESIDENTIAL_MORTGAGE: {
     baseLGD: 0.25,
-    hurricaneAdjustment: 0.10, // +10% LGD in hurricane zones
-    crimDiscount: 0.20, // CRIM assesses at 80% of market → 20% discount on recovery
+    hurricaneAdjustment: 0.1, // +10% LGD in hurricane zones
+    crimDiscount: 0.2, // CRIM assesses at 80% of market → 20% discount on recovery
     description:
       'Residential mortgage — PR CRIM assessment gap + Maria exposure',
     descriptionEs:
@@ -41,7 +41,7 @@ export const PR_LGD_TABLE: Record<LoanType, LGDConfig> = {
   COMMERCIAL_REAL_ESTATE: {
     baseLGD: 0.35,
     hurricaneAdjustment: 0.15, // commercial RE hit harder by hurricane
-    crimDiscount: 0.20,
+    crimDiscount: 0.2,
     description:
       'Commercial real estate — higher hurricane damage, CRIM discount',
     descriptionEs:
@@ -52,21 +52,19 @@ export const PR_LGD_TABLE: Record<LoanType, LGDConfig> = {
     hurricaneAdjustment: 0, // no collateral → no hurricane adjustment
     crimDiscount: 0,
     description: 'Consumer unsecured — no collateral, high base LGD',
-    descriptionEs:
-      'Consumo sin garantia — sin colateral, LGD base alta',
+    descriptionEs: 'Consumo sin garantia — sin colateral, LGD base alta',
   },
   AUTO_LOAN: {
-    baseLGD: 0.40,
+    baseLGD: 0.4,
     hurricaneAdjustment: 0, // vehicles are mobile → minimal hurricane effect
     crimDiscount: 0,
     description: 'Auto loan — standard depreciation-driven LGD',
-    descriptionEs:
-      'Prestamo auto — LGD por depreciacion estandar',
+    descriptionEs: 'Prestamo auto — LGD por depreciacion estandar',
   },
   COMMERCIAL_BUSINESS: {
     baseLGD: 0.45,
     hurricaneAdjustment: 0.05, // partial real estate collateral
-    crimDiscount: 0.10, // mixed collateral, partial CRIM exposure
+    crimDiscount: 0.1, // mixed collateral, partial CRIM exposure
     description:
       'Commercial business — mixed collateral, partial CRIM exposure',
     descriptionEs:
@@ -94,7 +92,7 @@ export const PR_ASSET_CORRELATION: Record<LoanType, number> = {
   COMMERCIAL_REAL_ESTATE: 0.22, // Basel 0.20 + 0.02 local market
   CONSUMER_UNSECURED: 0.12, // Basel 0.08 + 0.04 island economy
   AUTO_LOAN: 0.12, // Basel 0.10 + 0.02
-  COMMERCIAL_BUSINESS: 0.20, // Basel 0.18 + 0.02
+  COMMERCIAL_BUSINESS: 0.2, // Basel 0.18 + 0.02
 };
 
 /**

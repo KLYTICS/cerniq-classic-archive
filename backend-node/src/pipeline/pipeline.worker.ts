@@ -81,13 +81,16 @@ export class PipelineWorker {
       if (!institution) {
         throw new Error(
           `No institution data found for job ${job.id}. ` +
-          `institutionId=${job.institutionId || 'null'}, userId=${job.userId}`,
+            `institutionId=${job.institutionId || 'null'}, userId=${job.userId}`,
         );
       }
-      if (!institution.balanceSheetItems || institution.balanceSheetItems.length === 0) {
+      if (
+        !institution.balanceSheetItems ||
+        institution.balanceSheetItems.length === 0
+      ) {
         throw new Error(
           `Institution "${institution.name}" (${institution.id}) has no balance sheet items. ` +
-          `CSV import may have failed or was empty.`,
+            `CSV import may have failed or was empty.`,
         );
       }
       this.logger.log({

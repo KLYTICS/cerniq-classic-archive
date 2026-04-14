@@ -6,7 +6,12 @@
  * this service manages the governed (approved) scenarios that carry
  * regulatory weight.
  */
-import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import type { ScenarioFilter, GovernedScenarioSeed } from './governance.types';
 
@@ -33,8 +38,11 @@ export class GovernedScenarioService {
   }
 
   async getByKey(scenarioKey: string) {
-    const s = await this.prisma.governedScenario.findUnique({ where: { scenarioKey } });
-    if (!s) throw new NotFoundException(`Scenario key "${scenarioKey}" not found`);
+    const s = await this.prisma.governedScenario.findUnique({
+      where: { scenarioKey },
+    });
+    if (!s)
+      throw new NotFoundException(`Scenario key "${scenarioKey}" not found`);
     return s;
   }
 
@@ -72,8 +80,10 @@ export class GovernedScenarioService {
 
   async approve(id: string, approvedBy: string) {
     const s = await this.getById(id);
-    if (s.status === 'APPROVED') throw new ConflictException('Already approved');
-    if (s.status === 'RETIRED') throw new ConflictException('Cannot approve retired scenario');
+    if (s.status === 'APPROVED')
+      throw new ConflictException('Already approved');
+    if (s.status === 'RETIRED')
+      throw new ConflictException('Cannot approve retired scenario');
     return this.prisma.governedScenario.update({
       where: { id },
       data: { status: 'APPROVED', approvedAt: new Date(), approvedBy },
@@ -92,6 +102,9 @@ export class GovernedScenarioService {
   async getApproved(scope?: string) {
     const where: Record<string, unknown> = { status: 'APPROVED' };
     if (scope) where.scope = scope;
-    return this.prisma.governedScenario.findMany({ where, orderBy: { scenarioKey: 'asc' } });
+    return this.prisma.governedScenario.findMany({
+      where,
+      orderBy: { scenarioKey: 'asc' },
+    });
   }
 }

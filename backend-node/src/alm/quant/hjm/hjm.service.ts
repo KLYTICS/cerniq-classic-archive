@@ -191,9 +191,7 @@ export class HJMService {
     }
 
     // Only return buckets with actual positions
-    return buckets.filter(
-      (b) => b.assetBalance > 0 || b.liabilityBalance > 0,
-    );
+    return buckets.filter((b) => b.assetBalance > 0 || b.liabilityBalance > 0);
   }
 
   private dataUnavailableResult(seed: number): HJMMonteCarloResult {

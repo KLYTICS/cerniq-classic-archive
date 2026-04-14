@@ -177,8 +177,6 @@ export class AppModule implements NestModule {
 
     // RLS tenant context: sets PostgreSQL session variables for row-level security.
     // Applied to all api/* routes; no-ops gracefully for unauthenticated requests.
-    consumer
-      .apply(TenantContextMiddleware)
-      .forRoutes('api/*');
+    consumer.apply(TenantContextMiddleware).forRoutes('api/*');
   }
 }

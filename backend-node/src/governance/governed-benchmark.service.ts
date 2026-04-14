@@ -6,10 +6,18 @@
  * remains for institution-specific curves; this service manages the
  * governed (institution-independent) reference datasets.
  */
-import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma.service';
-import type { BenchmarkFilter, GovernedBenchmarkSeed } from './governance.types';
+import type {
+  BenchmarkFilter,
+  GovernedBenchmarkSeed,
+} from './governance.types';
 
 @Injectable()
 export class GovernedBenchmarkService {
@@ -34,8 +42,11 @@ export class GovernedBenchmarkService {
   }
 
   async getByKey(datasetKey: string) {
-    const b = await this.prisma.governedBenchmark.findUnique({ where: { datasetKey } });
-    if (!b) throw new NotFoundException(`Benchmark key "${datasetKey}" not found`);
+    const b = await this.prisma.governedBenchmark.findUnique({
+      where: { datasetKey },
+    });
+    if (!b)
+      throw new NotFoundException(`Benchmark key "${datasetKey}" not found`);
     return b;
   }
 
@@ -78,8 +89,10 @@ export class GovernedBenchmarkService {
 
   async approve(id: string, approvedBy: string) {
     const b = await this.getById(id);
-    if (b.status === 'APPROVED') throw new ConflictException('Already approved');
-    if (b.status === 'RETIRED') throw new ConflictException('Cannot approve retired benchmark');
+    if (b.status === 'APPROVED')
+      throw new ConflictException('Already approved');
+    if (b.status === 'RETIRED')
+      throw new ConflictException('Cannot approve retired benchmark');
     return this.prisma.governedBenchmark.update({
       where: { id },
       data: { status: 'APPROVED', approvedAt: new Date(), approvedBy },
@@ -98,6 +111,9 @@ export class GovernedBenchmarkService {
   async getApproved(benchmarkType?: string) {
     const where: Record<string, unknown> = { status: 'APPROVED' };
     if (benchmarkType) where.benchmarkType = benchmarkType;
-    return this.prisma.governedBenchmark.findMany({ where, orderBy: { datasetKey: 'asc' } });
+    return this.prisma.governedBenchmark.findMany({
+      where,
+      orderBy: { datasetKey: 'asc' },
+    });
   }
 }

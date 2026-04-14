@@ -79,7 +79,13 @@ function normalizePercentValue(value: unknown): number {
  */
 export function detectMixedCurrencies(
   currencies: Array<string | null | undefined>,
-): { field: string; reason: 'MIXED_CURRENCIES'; severity: 'WARNING'; action: string; context: { found: string[] } } | null {
+): {
+  field: string;
+  reason: 'MIXED_CURRENCIES';
+  severity: 'WARNING';
+  action: string;
+  context: { found: string[] };
+} | null {
   const present = [...new Set(currencies.filter((c): c is string => !!c))];
   if (present.length <= 1) return null;
   return {

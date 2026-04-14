@@ -109,9 +109,7 @@ export function calibrateHJM(history: RateTimeSeries): HJMParams {
     eigenvalue1: ev1,
     eigenvalue2: ev2,
     varianceExplained: totalVariance > 0 ? (ev1 + ev2) / totalVariance : 0,
-    tenors: commonLabels.map(
-      (l) => HJM_TENOR_LABELS.indexOf(l as (typeof HJM_TENOR_LABELS)[number]),
-    ),
+    tenors: commonLabels.map((l) => HJM_TENOR_LABELS.indexOf(l)),
     calibratedAt: new Date().toISOString(),
     sampleSize: T,
     lookbackYears: Math.round(lookbackYears * 10) / 10,
@@ -207,7 +205,9 @@ function deflateMatrix(
   eigenvector: number[],
   n: number,
 ): number[][] {
-  const result: number[][] = Array.from({ length: n }, () => new Array(n).fill(0));
+  const result: number[][] = Array.from({ length: n }, () =>
+    new Array(n).fill(0),
+  );
 
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {

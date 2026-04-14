@@ -25,7 +25,11 @@ import {
 import { AuthGuard } from '../auth/auth.guard';
 import { GovernedScenarioService } from './governed-scenario.service';
 import { GovernedBenchmarkService } from './governed-benchmark.service';
-import type { ScenarioScope, BenchmarkType, GovernedEntityStatus } from './governance.types';
+import type {
+  ScenarioScope,
+  BenchmarkType,
+  GovernedEntityStatus,
+} from './governance.types';
 
 @Controller('api/governance')
 @UseGuards(AuthGuard)
@@ -61,10 +65,7 @@ export class GovernanceController {
 
   @Post('scenarios/:id/retire')
   @HttpCode(HttpStatus.OK)
-  retireScenario(
-    @Param('id') id: string,
-    @Body() body: { reason: string },
-  ) {
+  retireScenario(@Param('id') id: string, @Body() body: { reason: string }) {
     return this.scenarios.retire(id, body.reason);
   }
 

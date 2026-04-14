@@ -65,7 +65,8 @@ describe('DataRetentionService', () => {
 
     await service.runRetentionPolicy();
 
-    const cutoffArg = mockPrisma.auditLog.deleteMany.mock.calls[0][0].where.createdAt.lt as Date;
+    const cutoffArg = mockPrisma.auditLog.deleteMany.mock.calls[0][0].where
+      .createdAt.lt as Date;
     const daysAgo = (Date.now() - cutoffArg.getTime()) / 86_400_000;
     // Should be approximately 2555 days ago (7 years), not 365
     expect(daysAgo).toBeGreaterThan(2500);

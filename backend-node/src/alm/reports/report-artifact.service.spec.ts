@@ -16,12 +16,18 @@ function createMockPrisma() {
   return {
     reportArtifact: {
       create: jest.fn(({ data }: any) => {
-        const a = { id: `artifact-${idCounter++}`, ...data, generatedAt: new Date() };
+        const a = {
+          id: `artifact-${idCounter++}`,
+          ...data,
+          generatedAt: new Date(),
+        };
         artifacts.push(a);
         return Promise.resolve(a);
       }),
       findFirst: jest.fn(({ where }: any) => {
-        const found = artifacts.find((a) => a.contentChecksum === where.contentChecksum);
+        const found = artifacts.find(
+          (a) => a.contentChecksum === where.contentChecksum,
+        );
         return Promise.resolve(found ?? null);
       }),
       findUnique: jest.fn(({ where }: any) => {
@@ -30,8 +36,14 @@ function createMockPrisma() {
       }),
       findMany: jest.fn(({ where, take }: any) => {
         let result = [...artifacts];
-        if (where?.institutionId) result = result.filter((a) => a.institutionId === where.institutionId);
-        if (where?.analysisRunId) result = result.filter((a) => a.analysisRunId === where.analysisRunId);
+        if (where?.institutionId)
+          result = result.filter(
+            (a) => a.institutionId === where.institutionId,
+          );
+        if (where?.analysisRunId)
+          result = result.filter(
+            (a) => a.analysisRunId === where.analysisRunId,
+          );
         if (take) result = result.slice(0, take);
         return Promise.resolve(result);
       }),
@@ -63,8 +75,20 @@ describe('ReportArtifactService', () => {
     content: sampleContent,
     storageLocator: 'r2://cerniq-reports/inst-1/2026-04/alm-report-es.pdf',
     modelLineage: [
-      { modelKey: 'alm.lcr', version: '1.1.0', status: 'APPROVED', approvedAt: '2026-04-12', approvedBy: 'system-seed' },
-      { modelKey: 'reg.cossec-compliance', version: '1.0.0', status: 'APPROVED', approvedAt: '2026-04-12', approvedBy: 'system-seed' },
+      {
+        modelKey: 'alm.lcr',
+        version: '1.1.0',
+        status: 'APPROVED',
+        approvedAt: '2026-04-12',
+        approvedBy: 'system-seed',
+      },
+      {
+        modelKey: 'reg.cossec-compliance',
+        version: '1.0.0',
+        status: 'APPROVED',
+        approvedAt: '2026-04-12',
+        approvedBy: 'system-seed',
+      },
     ],
     preflightReady: true,
   });
@@ -126,13 +150,19 @@ describe('ReportArtifactService', () => {
   });
 
   it('throws NotFoundException for missing id', async () => {
-    await expect(service.getById('nonexistent')).rejects.toThrow(NotFoundException);
+    await expect(service.getById('nonexistent')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('lists artifacts for an institution', async () => {
     await service.record(sampleInput());
     await service.record({ ...sampleInput(), content: Buffer.from('second') });
-    await service.record({ ...sampleInput(), institutionId: 'inst-2', content: Buffer.from('other') });
+    await service.record({
+      ...sampleInput(),
+      institutionId: 'inst-2',
+      content: Buffer.from('other'),
+    });
 
     const list = await service.listForInstitution('inst-1');
     expect(list).toHaveLength(2);
@@ -140,8 +170,17 @@ describe('ReportArtifactService', () => {
 
   it('lists artifacts for an analysis run', async () => {
     await service.record({ ...sampleInput(), analysisRunId: 'run-1' });
-    await service.record({ ...sampleInput(), analysisRunId: 'run-1', format: 'PDF_EN', content: Buffer.from('en') });
-    await service.record({ ...sampleInput(), analysisRunId: 'run-2', content: Buffer.from('other') });
+    await service.record({
+      ...sampleInput(),
+      analysisRunId: 'run-1',
+      format: 'PDF_EN',
+      content: Buffer.from('en'),
+    });
+    await service.record({
+      ...sampleInput(),
+      analysisRunId: 'run-2',
+      content: Buffer.from('other'),
+    });
 
     const list = await service.listForAnalysisRun('run-1');
     expect(list).toHaveLength(2);
@@ -170,7 +209,12 @@ describe('ReportArtifactService', () => {
       analysisRunId: 'run-123',
       reportJobId: 'job-456',
       preflightGaps: [
-        { field: 'liquidity.lcr', reason: 'NO_LIQUIDITY_POSITION', severity: 'CRITICAL', action: 'Upload liquidity data' },
+        {
+          field: 'liquidity.lcr',
+          reason: 'NO_LIQUIDITY_POSITION',
+          severity: 'CRITICAL',
+          action: 'Upload liquidity data',
+        },
       ],
       preflightReady: false,
     });

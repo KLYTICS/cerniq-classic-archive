@@ -21,12 +21,12 @@ interface CookieUtilModule {
     accessToken: string,
     refreshToken: string,
   ) => void;
-  clearAuthCookies: (res: {
-    clearCookie: (...args: any[]) => void;
-  }) => void;
+  clearAuthCookies: (res: { clearCookie: (...args: any[]) => void }) => void;
 }
 
-function loadModule(envOverrides: Record<string, string | undefined> = {}): CookieUtilModule {
+function loadModule(
+  envOverrides: Record<string, string | undefined> = {},
+): CookieUtilModule {
   // Apply env overrides before the module evaluates its top-level constants
   for (const [key, value] of Object.entries(envOverrides)) {
     if (value === undefined) {
@@ -37,7 +37,7 @@ function loadModule(envOverrides: Record<string, string | undefined> = {}): Cook
   }
 
   jest.resetModules();
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+
   return require('./auth-cookie.util');
 }
 

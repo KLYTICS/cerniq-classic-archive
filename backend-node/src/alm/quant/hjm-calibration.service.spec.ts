@@ -7,8 +7,14 @@
 //   4. Edge cases and input validation
 
 import { ForwardCurve } from './forward-curve';
-import { HJMCalibrationService, type HistoricalRateInput } from './hjm-calibration.service';
-import { HJMMonteCarloService, type BalanceSheetSummary } from './hjm-monte-carlo.service';
+import {
+  HJMCalibrationService,
+  type HistoricalRateInput,
+} from './hjm-calibration.service';
+import {
+  HJMMonteCarloService,
+  type BalanceSheetSummary,
+} from './hjm-monte-carlo.service';
 import { calibrateHJM, computeDriftCorrection } from './hjm/calibration';
 import { runHJMMonteCarlo } from './hjm/monte-carlo';
 import type {
@@ -48,17 +54,64 @@ const TEST_HJM_PARAMS: HJMParams = {
 };
 
 const TEST_BUCKETS: RepricingBucket[] = [
-  { tenor: 0.25, assetBalance: 50, assetRate: 0.048, liabilityBalance: 30, liabilityRate: 0.02 },
-  { tenor: 1, assetBalance: 120, assetRate: 0.044, liabilityBalance: 100, liabilityRate: 0.025 },
-  { tenor: 3, assetBalance: 80, assetRate: 0.042, liabilityBalance: 60, liabilityRate: 0.03 },
-  { tenor: 5, assetBalance: 60, assetRate: 0.045, liabilityBalance: 40, liabilityRate: 0.035 },
-  { tenor: 10, assetBalance: 40, assetRate: 0.05, liabilityBalance: 20, liabilityRate: 0.04 },
+  {
+    tenor: 0.25,
+    assetBalance: 50,
+    assetRate: 0.048,
+    liabilityBalance: 30,
+    liabilityRate: 0.02,
+  },
+  {
+    tenor: 1,
+    assetBalance: 120,
+    assetRate: 0.044,
+    liabilityBalance: 100,
+    liabilityRate: 0.025,
+  },
+  {
+    tenor: 3,
+    assetBalance: 80,
+    assetRate: 0.042,
+    liabilityBalance: 60,
+    liabilityRate: 0.03,
+  },
+  {
+    tenor: 5,
+    assetBalance: 60,
+    assetRate: 0.045,
+    liabilityBalance: 40,
+    liabilityRate: 0.035,
+  },
+  {
+    tenor: 10,
+    assetBalance: 40,
+    assetRate: 0.05,
+    liabilityBalance: 20,
+    liabilityRate: 0.04,
+  },
 ];
 
 /** Generate synthetic rate history for calibration tests. */
-function generateSyntheticHistory(days: number, seed: number = 42): HistoricalRateInput[] {
-  const labels = ['1M', '3M', '6M', '1Y', '2Y', '3Y', '5Y', '7Y', '10Y', '20Y', '30Y'];
-  const baseRates = [0.048, 0.046, 0.044, 0.042, 0.041, 0.040, 0.041, 0.042, 0.043, 0.045, 0.046];
+function generateSyntheticHistory(
+  days: number,
+  seed: number = 42,
+): HistoricalRateInput[] {
+  const labels = [
+    '1M',
+    '3M',
+    '6M',
+    '1Y',
+    '2Y',
+    '3Y',
+    '5Y',
+    '7Y',
+    '10Y',
+    '20Y',
+    '30Y',
+  ];
+  const baseRates = [
+    0.048, 0.046, 0.044, 0.042, 0.041, 0.04, 0.041, 0.042, 0.043, 0.045, 0.046,
+  ];
   const history: HistoricalRateInput[] = [];
 
   // Deterministic PRNG (xorshift32)
@@ -195,8 +248,12 @@ describe('ForwardCurve', () => {
 
     // 1.5Y should be between 1Y and 2Y
     const rate15Y = curve.interpolate(1.5);
-    expect(rate15Y).toBeGreaterThanOrEqual(Math.min(SPOT_RATES['1Y'], SPOT_RATES['2Y']));
-    expect(rate15Y).toBeLessThanOrEqual(Math.max(SPOT_RATES['1Y'], SPOT_RATES['2Y']));
+    expect(rate15Y).toBeGreaterThanOrEqual(
+      Math.min(SPOT_RATES['1Y'], SPOT_RATES['2Y']),
+    );
+    expect(rate15Y).toBeLessThanOrEqual(
+      Math.max(SPOT_RATES['1Y'], SPOT_RATES['2Y']),
+    );
 
     // Extrapolate flat
     expect(curve.interpolate(0)).toBe(SPOT_RATES['1M']);
@@ -250,7 +307,9 @@ describe('calibrateHJM', () => {
 
   it('rejects insufficient data (<60 observations)', () => {
     const shortHistory = generateSyntheticHistory(30);
-    expect(() => calibrateHJM(toTimeSeries(shortHistory))).toThrow(/at least 60/);
+    expect(() => calibrateHJM(toTimeSeries(shortHistory))).toThrow(
+      /at least 60/,
+    );
   });
 
   it('rejects data with fewer than 3 common tenors', () => {
@@ -322,7 +381,9 @@ describe('HJMCalibrationService', () => {
 // ─── Monte Carlo Tests ──────────────────────────────────────────
 
 describe('runHJMMonteCarlo', () => {
-  const makeInput = (overrides?: Partial<HJMMonteCarloInput>): HJMMonteCarloInput => {
+  const makeInput = (
+    overrides?: Partial<HJMMonteCarloInput>,
+  ): HJMMonteCarloInput => {
     const curve = new ForwardCurve(SPOT_RATES);
     return {
       forwardCurve: curve.toSnapshot(),

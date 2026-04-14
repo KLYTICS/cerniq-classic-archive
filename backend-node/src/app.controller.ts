@@ -180,7 +180,8 @@ export function determineOverallHealthStatus(params: {
   // Optional services (marketData) are informational — their failure
   // should not mark the platform as degraded for load balancers.
   const coreDegraded = Object.entries(params.checks).some(
-    ([key, status]) => CORE_HEALTH_KEYS.has(key) && isDependencyDegraded(status),
+    ([key, status]) =>
+      CORE_HEALTH_KEYS.has(key) && isDependencyDegraded(status),
   );
 
   if (memoryThreshold || coreDegraded) {

@@ -38,17 +38,64 @@ const TEST_HJM_PARAMS: HJMParams = {
 };
 
 const TEST_BUCKETS = [
-  { tenor: 0.25, assetBalance: 50, assetRate: 0.048, liabilityBalance: 30, liabilityRate: 0.02 },
-  { tenor: 1, assetBalance: 120, assetRate: 0.044, liabilityBalance: 100, liabilityRate: 0.025 },
-  { tenor: 3, assetBalance: 80, assetRate: 0.042, liabilityBalance: 60, liabilityRate: 0.03 },
-  { tenor: 5, assetBalance: 60, assetRate: 0.045, liabilityBalance: 40, liabilityRate: 0.035 },
-  { tenor: 10, assetBalance: 40, assetRate: 0.05, liabilityBalance: 20, liabilityRate: 0.04 },
+  {
+    tenor: 0.25,
+    assetBalance: 50,
+    assetRate: 0.048,
+    liabilityBalance: 30,
+    liabilityRate: 0.02,
+  },
+  {
+    tenor: 1,
+    assetBalance: 120,
+    assetRate: 0.044,
+    liabilityBalance: 100,
+    liabilityRate: 0.025,
+  },
+  {
+    tenor: 3,
+    assetBalance: 80,
+    assetRate: 0.042,
+    liabilityBalance: 60,
+    liabilityRate: 0.03,
+  },
+  {
+    tenor: 5,
+    assetBalance: 60,
+    assetRate: 0.045,
+    liabilityBalance: 40,
+    liabilityRate: 0.035,
+  },
+  {
+    tenor: 10,
+    assetBalance: 40,
+    assetRate: 0.05,
+    liabilityBalance: 20,
+    liabilityRate: 0.04,
+  },
 ];
 
 /** Generate synthetic rate history for calibration tests. */
-function generateSyntheticHistory(days: number, seed: number = 42): RateTimeSeries {
-  const labels = ['1M', '3M', '6M', '1Y', '2Y', '3Y', '5Y', '7Y', '10Y', '20Y', '30Y'];
-  const baseRates = [0.048, 0.046, 0.044, 0.042, 0.041, 0.040, 0.041, 0.042, 0.043, 0.045, 0.046];
+function generateSyntheticHistory(
+  days: number,
+  seed: number = 42,
+): RateTimeSeries {
+  const labels = [
+    '1M',
+    '3M',
+    '6M',
+    '1Y',
+    '2Y',
+    '3Y',
+    '5Y',
+    '7Y',
+    '10Y',
+    '20Y',
+    '30Y',
+  ];
+  const baseRates = [
+    0.048, 0.046, 0.044, 0.042, 0.041, 0.04, 0.041, 0.042, 0.043, 0.045, 0.046,
+  ];
   const history: RateTimeSeries = [];
 
   // Simple random walk with mean reversion
@@ -133,7 +180,10 @@ describe('ForwardCurve', () => {
     const withSpread = curve.withPRSpread();
 
     for (let i = 0; i < curve.tenors.length; i++) {
-      expect(withSpread.spotRates[i]).toBeCloseTo(curve.spotRates[i] + 0.0085, 8);
+      expect(withSpread.spotRates[i]).toBeCloseTo(
+        curve.spotRates[i] + 0.0085,
+        8,
+      );
     }
   });
 
@@ -141,8 +191,12 @@ describe('ForwardCurve', () => {
     const curve = new ForwardCurve(SPOT_RATES);
     // 1.5Y should be between 1Y and 2Y rates
     const rate15Y = curve.interpolate(1.5);
-    expect(rate15Y).toBeGreaterThanOrEqual(Math.min(SPOT_RATES['1Y'], SPOT_RATES['2Y']));
-    expect(rate15Y).toBeLessThanOrEqual(Math.max(SPOT_RATES['1Y'], SPOT_RATES['2Y']));
+    expect(rate15Y).toBeGreaterThanOrEqual(
+      Math.min(SPOT_RATES['1Y'], SPOT_RATES['2Y']),
+    );
+    expect(rate15Y).toBeLessThanOrEqual(
+      Math.max(SPOT_RATES['1Y'], SPOT_RATES['2Y']),
+    );
   });
 
   it('extrapolates flat beyond curve boundaries', () => {
@@ -249,7 +303,9 @@ describe('computeDriftCorrection', () => {
 // ─── Monte Carlo Tests ───────────────────────────────────────────
 
 describe('runHJMMonteCarlo', () => {
-  const makeInput = (overrides?: Partial<HJMMonteCarloInput>): HJMMonteCarloInput => {
+  const makeInput = (
+    overrides?: Partial<HJMMonteCarloInput>,
+  ): HJMMonteCarloInput => {
     const curve = new ForwardCurve(SPOT_RATES);
     return {
       forwardCurve: curve.toSnapshot(),

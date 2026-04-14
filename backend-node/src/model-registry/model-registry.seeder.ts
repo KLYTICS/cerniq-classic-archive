@@ -24,7 +24,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'alm.duration-gap',
     displayName: 'Duration Gap Analysis',
-    description: 'Modified duration + leverage-adjusted gap analysis with convexity. Primary ALM metric for interest rate risk.',
+    description:
+      'Modified duration + leverage-adjusted gap analysis with convexity. Primary ALM metric for interest rate risk.',
     version: '1.0.0',
     category: 'ALM_CORE',
     riskTier: 'TIER_1',
@@ -33,12 +34,16 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'calculateDurationGap',
     requiredInputs: ['balanceSheetItems'],
-    limitations: ['Assumes parallel rate shifts', 'Does not model prepayment optionality'],
+    limitations: [
+      'Assumes parallel rate shifts',
+      'Does not model prepayment optionality',
+    ],
   },
   {
     modelKey: 'alm.nii-sensitivity',
     displayName: 'NII Sensitivity Analysis',
-    description: 'Net Interest Income shock analysis under ±200bps parallel shifts with EVE impact.',
+    description:
+      'Net Interest Income shock analysis under ±200bps parallel shifts with EVE impact.',
     version: '1.0.0',
     category: 'ALM_CORE',
     riskTier: 'TIER_1',
@@ -52,7 +57,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'alm.lcr',
     displayName: 'Liquidity Coverage Ratio',
-    description: 'LCR per BCBS 128: HQLA / Net Cash Outflows over 30-day stress horizon.',
+    description:
+      'LCR per BCBS 128: HQLA / Net Cash Outflows over 30-day stress horizon.',
     version: '1.1.0',
     category: 'ALM_CORE',
     riskTier: 'TIER_1',
@@ -61,12 +67,15 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'calculateLCR',
     requiredInputs: ['liquidityPosition'],
-    limitations: ['Returns data_unavailable when liquidityPosition missing (D1 locked)'],
+    limitations: [
+      'Returns data_unavailable when liquidityPosition missing (D1 locked)',
+    ],
   },
   {
     modelKey: 'alm.nsfr',
     displayName: 'Net Stable Funding Ratio',
-    description: 'NSFR per BCBS 295: Available Stable Funding / Required Stable Funding.',
+    description:
+      'NSFR per BCBS 295: Available Stable Funding / Required Stable Funding.',
     version: '1.0.0',
     category: 'ALM_CORE',
     riskTier: 'TIER_1',
@@ -79,7 +88,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'alm.eve',
     displayName: 'Economic Value of Equity',
-    description: 'EVE sensitivity analysis under rate shocks. Measures balance sheet value change.',
+    description:
+      'EVE sensitivity analysis under rate shocks. Measures balance sheet value change.',
     version: '1.0.0',
     category: 'ALM_CORE',
     riskTier: 'TIER_1',
@@ -92,7 +102,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'alm.bpv',
     displayName: 'Basis Point Value (DV01)',
-    description: 'Dollar value of a 1bp parallel rate move across the balance sheet.',
+    description:
+      'Dollar value of a 1bp parallel rate move across the balance sheet.',
     version: '1.0.0',
     category: 'ALM_CORE',
     riskTier: 'TIER_2',
@@ -107,7 +118,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'credit.cecl-warm',
     displayName: 'CECL — WARM Method',
-    description: 'Weighted Average Remaining Maturity CECL allowance computation.',
+    description:
+      'Weighted Average Remaining Maturity CECL allowance computation.',
     version: '1.0.0',
     category: 'CREDIT_RISK',
     riskTier: 'TIER_1',
@@ -134,7 +146,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'credit.cecl-pd-lgd',
     displayName: 'CECL — PD x LGD Method',
-    description: 'PD × LGD with 3-scenario macro weighting (baseline/adverse/severely adverse).',
+    description:
+      'PD × LGD with 3-scenario macro weighting (baseline/adverse/severely adverse).',
     version: '1.0.0',
     category: 'CREDIT_RISK',
     riskTier: 'TIER_1',
@@ -147,7 +160,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'credit.kmv-merton',
     displayName: 'KMV-Merton Structural Credit',
-    description: 'Merton structural model — Distance to Default from equity value and volatility.',
+    description:
+      'Merton structural model — Distance to Default from equity value and volatility.',
     version: '1.1.0',
     category: 'CREDIT_RISK',
     riskTier: 'TIER_2',
@@ -155,12 +169,19 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     ownerName: OWNER,
     serviceFile: 'alm/kmv-merton.service.ts',
     entryFunction: 'computeKMV',
-    requiredInputs: ['equityValue', 'equityVolatility', 'debtFaceValue', 'riskFreeRate', 'maturity'],
+    requiredInputs: [
+      'equityValue',
+      'equityVolatility',
+      'debtFaceValue',
+      'riskFreeRate',
+      'maturity',
+    ],
   },
   {
     modelKey: 'credit.portfolio-risk',
     displayName: 'Credit Risk Portfolio',
-    description: 'Portfolio-level PD, default correlation, and Expected Loss (PD × LGD × EAD).',
+    description:
+      'Portfolio-level PD, default correlation, and Expected Loss (PD × LGD × EAD).',
     version: '1.0.0',
     category: 'CREDIT_RISK',
     riskTier: 'TIER_1',
@@ -173,7 +194,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'credit.pd-model',
     displayName: 'PD Estimation (Logistic)',
-    description: 'Logistic regression PD model: 1/(1+exp(-logit)) by loan type.',
+    description:
+      'Logistic regression PD model: 1/(1+exp(-logit)) by loan type.',
     version: '1.0.0',
     category: 'CREDIT_RISK',
     riskTier: 'TIER_2',
@@ -188,7 +210,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'rate.hjm-2f',
     displayName: 'HJM Two-Factor Monte Carlo',
-    description: 'Heath-Jarrow-Morton 2-factor forward curve Monte Carlo rate path generation.',
+    description:
+      'Heath-Jarrow-Morton 2-factor forward curve Monte Carlo rate path generation.',
     version: '1.0.0',
     category: 'INTEREST_RATE',
     riskTier: 'TIER_1',
@@ -197,13 +220,21 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     serviceFile: 'alm/quant/hjm/hjm.service.ts',
     entryFunction: 'runForInstitution',
     requiredInputs: ['yieldCurve', 'historicalRates'],
-    calibrationMetadata: { factors: 2, paths: 10000, method: 'PCA eigendecomposition' },
-    limitations: ['Currently in-process (no worker thread)', 'Calibration requires >=24 months history'],
+    calibrationMetadata: {
+      factors: 2,
+      paths: 10000,
+      method: 'PCA eigendecomposition',
+    },
+    limitations: [
+      'Currently in-process (no worker thread)',
+      'Calibration requires >=24 months history',
+    ],
   },
   {
     modelKey: 'rate.hull-white-1f',
     displayName: 'Hull-White One-Factor',
-    description: 'One-factor Hull-White short-rate tree simulation with theta calibration.',
+    description:
+      'One-factor Hull-White short-rate tree simulation with theta calibration.',
     version: '1.0.0',
     category: 'INTEREST_RATE',
     riskTier: 'TIER_2',
@@ -216,7 +247,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'rate.vasicek-mc',
     displayName: 'Vasicek Monte Carlo',
-    description: 'Vasicek short-rate Monte Carlo simulation with convergence testing.',
+    description:
+      'Vasicek short-rate Monte Carlo simulation with convergence testing.',
     version: '1.0.0',
     category: 'INTEREST_RATE',
     riskTier: 'TIER_2',
@@ -224,13 +256,19 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     ownerName: OWNER,
     serviceFile: 'alm/monte-carlo.service.ts',
     entryFunction: 'runSimulation',
-    requiredInputs: ['currentRate', 'longTermMean', 'meanReversion', 'volatility'],
+    requiredInputs: [
+      'currentRate',
+      'longTermMean',
+      'meanReversion',
+      'volatility',
+    ],
     calibrationMetadata: { convergenceThreshold: '1% standard error of mean' },
   },
   {
     modelKey: 'rate.cir',
     displayName: 'Cox-Ingersoll-Ross Model',
-    description: 'CIR short-rate simulation with square-root volatility (non-negative rates).',
+    description:
+      'CIR short-rate simulation with square-root volatility (non-negative rates).',
     version: '1.0.0',
     category: 'INTEREST_RATE',
     riskTier: 'TIER_2',
@@ -238,12 +276,18 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     ownerName: OWNER,
     serviceFile: 'alm/cir-model.service.ts',
     entryFunction: 'simulate',
-    requiredInputs: ['currentRate', 'longTermMean', 'meanReversion', 'volatility'],
+    requiredInputs: [
+      'currentRate',
+      'longTermMean',
+      'meanReversion',
+      'volatility',
+    ],
   },
   {
     modelKey: 'rate.garch',
     displayName: 'GARCH(1,1) Volatility',
-    description: 'GARCH(1,1) parameter estimation, conditional variance filtering, and multi-step forecast.',
+    description:
+      'GARCH(1,1) parameter estimation, conditional variance filtering, and multi-step forecast.',
     version: '1.0.0',
     category: 'INTEREST_RATE',
     riskTier: 'TIER_2',
@@ -257,7 +301,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'rate.black-litterman',
     displayName: 'Black-Litterman Portfolio',
-    description: 'Black-Litterman portfolio optimization combining market equilibrium with investor views.',
+    description:
+      'Black-Litterman portfolio optimization combining market equilibrium with investor views.',
     version: '1.0.0',
     category: 'PORTFOLIO',
     riskTier: 'TIER_2',
@@ -272,7 +317,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'stress.regulatory',
     displayName: 'Regulatory Stress Test',
-    description: 'FRB CCAR/DFAST regulatory stress scenarios with COSSEC-specific overlays.',
+    description:
+      'FRB CCAR/DFAST regulatory stress scenarios with COSSEC-specific overlays.',
     version: '1.0.0',
     category: 'STRESS_TEST',
     riskTier: 'TIER_1',
@@ -286,7 +332,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'stress.monte-carlo',
     displayName: 'Monte Carlo Stress Simulation',
-    description: 'Full Monte Carlo stress test execution with fan chart generation.',
+    description:
+      'Full Monte Carlo stress test execution with fan chart generation.',
     version: '1.0.0',
     category: 'STRESS_TEST',
     riskTier: 'TIER_1',
@@ -299,7 +346,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'stress.custom-scenario',
     displayName: 'Custom Scenario Engine',
-    description: 'User-defined rate/credit scenario execution with impact analysis.',
+    description:
+      'User-defined rate/credit scenario execution with impact analysis.',
     version: '1.0.0',
     category: 'STRESS_TEST',
     riskTier: 'TIER_2',
@@ -315,7 +363,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'reg.cossec-compliance',
     displayName: 'COSSEC 12-Ratio Compliance',
-    description: 'Full COSSEC regulatory compliance engine — 12 ratios with thresholds and trend deltas.',
+    description:
+      'Full COSSEC regulatory compliance engine — 12 ratios with thresholds and trend deltas.',
     version: '1.0.0',
     category: 'REGULATORY',
     riskTier: 'TIER_1',
@@ -324,12 +373,16 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'getCOSSECCompliance',
     requiredInputs: ['balanceSheetItems'],
-    limitations: ['Returns data_unavailable on empty BS (D1)', 'PR-specific: COSSEC thresholds only'],
+    limitations: [
+      'Returns data_unavailable on empty BS (D1)',
+      'PR-specific: COSSEC thresholds only',
+    ],
   },
   {
     modelKey: 'reg.ncua-5300',
     displayName: 'NCUA 5300 Report Generator',
-    description: 'NCUA 5300 regulatory report generation with edit-check validation.',
+    description:
+      'NCUA 5300 regulatory report generation with edit-check validation.',
     version: '1.0.0',
     category: 'REGULATORY',
     riskTier: 'TIER_1',
@@ -338,12 +391,16 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     serviceFile: 'alm/ncua-5300.service.ts',
     entryFunction: 'generateForm5300',
     requiredInputs: ['balanceSheetItems'],
-    limitations: ['Allowance/delinquency still sector-default ratios (WARNING gap)', 'Do not file when data_unavailable'],
+    limitations: [
+      'Allowance/delinquency still sector-default ratios (WARNING gap)',
+      'Do not file when data_unavailable',
+    ],
   },
   {
     modelKey: 'reg.ncua-rbc2',
     displayName: 'NCUA Risk-Based Capital (RBC2)',
-    description: 'Risk-Based Capital per 12 CFR 702.204 with asset classification.',
+    description:
+      'Risk-Based Capital per 12 CFR 702.204 with asset classification.',
     version: '1.0.0',
     category: 'REGULATORY',
     riskTier: 'TIER_1',
@@ -352,12 +409,15 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     serviceFile: 'alm/ncua-rbc2.service.ts',
     entryFunction: 'computeRBC2',
     requiredInputs: ['balanceSheetItems'],
-    limitations: ['Hardcoded durationGap=2.1 (WARNING gap until DurationService wired)'],
+    limitations: [
+      'Hardcoded durationGap=2.1 (WARNING gap until DurationService wired)',
+    ],
   },
   {
     modelKey: 'reg.camel-certification',
     displayName: 'CAMEL Certification Engine',
-    description: 'CAMEL rating computation (Capital, Assets, Management, Earnings, Liquidity) with HTML certification.',
+    description:
+      'CAMEL rating computation (Capital, Assets, Management, Earnings, Liquidity) with HTML certification.',
     version: '1.0.0',
     category: 'REGULATORY',
     riskTier: 'TIER_1',
@@ -385,7 +445,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'capital.optimizer',
     displayName: 'Capital Allocation Optimizer',
-    description: 'Capital allocation across aggressive/moderate/conservative modes.',
+    description:
+      'Capital allocation across aggressive/moderate/conservative modes.',
     version: '1.0.0',
     category: 'CAPITAL',
     riskTier: 'TIER_2',
@@ -413,7 +474,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'risk.early-warning',
     displayName: 'Early Warning System',
-    description: 'Isolation forest anomaly detection across financial indicators.',
+    description:
+      'Isolation forest anomaly detection across financial indicators.',
     version: '1.0.0',
     category: 'RISK_METRICS',
     riskTier: 'TIER_2',
@@ -428,7 +490,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'pricing.deposit-beta',
     displayName: 'Deposit Beta',
-    description: 'Beta coefficient for deposit rate elasticity — measures pass-through of rate changes.',
+    description:
+      'Beta coefficient for deposit rate elasticity — measures pass-through of rate changes.',
     version: '1.0.0',
     category: 'PRICING',
     riskTier: 'TIER_2',
@@ -441,7 +504,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'pricing.ftp',
     displayName: 'Funds Transfer Pricing',
-    description: 'FTP framework for internal pricing of assets and liabilities.',
+    description:
+      'FTP framework for internal pricing of assets and liabilities.',
     version: '1.0.0',
     category: 'PRICING',
     riskTier: 'TIER_2',
@@ -454,7 +518,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'pricing.nim-attribution',
     displayName: 'NIM Attribution',
-    description: 'Net Interest Margin attribution decomposed into rate, volume, and mix effects.',
+    description:
+      'Net Interest Margin attribution decomposed into rate, volume, and mix effects.',
     version: '1.0.0',
     category: 'PRICING',
     riskTier: 'TIER_2',
@@ -469,7 +534,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'report.board',
     displayName: 'Board Report Generator',
-    description: 'Executive board report with KPIs (NIM, LCR, NSFR, CECL, etc.). All data-gap-aware.',
+    description:
+      'Executive board report with KPIs (NIM, LCR, NSFR, CECL, etc.). All data-gap-aware.',
     version: '1.1.0',
     category: 'REPORTING',
     riskTier: 'TIER_1',
@@ -483,7 +549,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'report.alco-dashboard',
     displayName: 'ALCO Dashboard Aggregator',
-    description: 'ALCO committee dashboard KPI aggregation. All inputs nullable, data-gap-aware.',
+    description:
+      'ALCO committee dashboard KPI aggregation. All inputs nullable, data-gap-aware.',
     version: '1.1.0',
     category: 'REPORTING',
     riskTier: 'TIER_2',
@@ -496,7 +563,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'report.excel-export',
     displayName: 'Excel Workbook Export',
-    description: 'Multi-sheet Excel workbook with Data Gaps sheet at index 0. All cells data-gap-aware.',
+    description:
+      'Multi-sheet Excel workbook with Data Gaps sheet at index 0. All cells data-gap-aware.',
     version: '1.1.0',
     category: 'REPORTING',
     riskTier: 'TIER_2',
@@ -509,7 +577,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'report.preflight',
     displayName: 'Report Preflight Check',
-    description: 'Central "is the report safe to ship?" API. Aggregates gaps from ALM, COSSEC, and stress.',
+    description:
+      'Central "is the report safe to ship?" API. Aggregates gaps from ALM, COSSEC, and stress.',
     version: '1.0.0',
     category: 'REPORTING',
     riskTier: 'TIER_1',
@@ -524,7 +593,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'peer.benchmarking',
     displayName: 'Peer Group Benchmarking',
-    description: 'Asset-tier-specific peer group comparison with percentile ranking.',
+    description:
+      'Asset-tier-specific peer group comparison with percentile ranking.',
     version: '1.0.0',
     category: 'PEER_ANALYTICS',
     riskTier: 'TIER_3',
@@ -540,7 +610,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'portfolio.hrp',
     displayName: 'Hierarchical Risk Parity',
-    description: 'HRP portfolio construction via hierarchical clustering of asset covariance.',
+    description:
+      'HRP portfolio construction via hierarchical clustering of asset covariance.',
     version: '1.0.0',
     category: 'PORTFOLIO',
     riskTier: 'TIER_3',
@@ -568,7 +639,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'liquidity.buffer-sizing',
     displayName: 'Liquidity Buffer Sizing',
-    description: 'Optimal liquidity buffer size given stress scenarios and risk appetite.',
+    description:
+      'Optimal liquidity buffer size given stress scenarios and risk appetite.',
     version: '1.0.0',
     category: 'LIQUIDITY',
     riskTier: 'TIER_2',
@@ -581,7 +653,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'liquidity.maturity-ladder',
     displayName: 'Maturity Ladder',
-    description: 'Maturity profile analysis across time buckets for gap identification.',
+    description:
+      'Maturity profile analysis across time buckets for gap identification.',
     version: '1.0.0',
     category: 'LIQUIDITY',
     riskTier: 'TIER_2',
@@ -596,7 +669,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'alm.duration-convexity',
     displayName: 'Duration & Convexity Analysis',
-    description: 'Portfolio duration, convexity, and scenario analysis with key rate durations.',
+    description:
+      'Portfolio duration, convexity, and scenario analysis with key rate durations.',
     version: '1.0.0',
     category: 'ALM_CORE',
     riskTier: 'TIER_2',
@@ -609,7 +683,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
   {
     modelKey: 'alm.behavioral-duration',
     displayName: 'Behavioral Duration Model',
-    description: 'Behavioral model of deposit duration adjusted for withdrawal optionality.',
+    description:
+      'Behavioral model of deposit duration adjusted for withdrawal optionality.',
     version: '1.0.0',
     category: 'ALM_CORE',
     riskTier: 'TIER_2',
@@ -628,13 +703,17 @@ export class ModelRegistrySeeder implements OnModuleInit {
   constructor(private readonly registry: ModelRegistryService) {}
 
   async onModuleInit() {
-    this.logger.log(`Seeding ${PRODUCTION_MODELS.length} production models into registry...`);
+    this.logger.log(
+      `Seeding ${PRODUCTION_MODELS.length} production models into registry...`,
+    );
     let created = 0;
     let updated = 0;
 
     for (const model of PRODUCTION_MODELS) {
       try {
-        const existing = await this.registry.getByKey(model.modelKey).catch(() => null);
+        const existing = await this.registry
+          .getByKey(model.modelKey)
+          .catch(() => null);
         await this.registry.upsert(model);
         if (existing) {
           updated++;
@@ -642,7 +721,9 @@ export class ModelRegistrySeeder implements OnModuleInit {
           created++;
         }
       } catch (err: any) {
-        this.logger.warn(`Failed to seed model ${model.modelKey}: ${err.message}`);
+        this.logger.warn(
+          `Failed to seed model ${model.modelKey}: ${err.message}`,
+        );
       }
     }
 
@@ -660,7 +741,11 @@ export class ModelRegistrySeeder implements OnModuleInit {
    * checksums for immutability verification.
    */
   private async linkGoldenTestArtifacts() {
-    const GOLDEN_MAP: Array<{ modelKey: string; goldenFile: string; label: string }> = [
+    const GOLDEN_MAP: Array<{
+      modelKey: string;
+      goldenFile: string;
+      label: string;
+    }> = [
       {
         modelKey: 'reg.cossec-compliance',
         goldenFile: 'pr-cooperativa-demo.cossec.json',
@@ -685,7 +770,9 @@ export class ModelRegistrySeeder implements OnModuleInit {
 
     const goldenDir = path.resolve(__dirname, '../../test/golden');
     if (!fs.existsSync(goldenDir)) {
-      this.logger.debug('Golden test directory not found — skipping artifact linkage');
+      this.logger.debug(
+        'Golden test directory not found — skipping artifact linkage',
+      );
       return;
     }
 
@@ -703,13 +790,17 @@ export class ModelRegistrySeeder implements OnModuleInit {
         const checksum = `sha256:${crypto.createHash('sha256').update(content).digest('hex')}`;
 
         // Check if this exact artifact already exists (idempotent)
-        const existing = (model as any).validationArtifacts?.find(
-          (a: any) => a.artifactType === 'golden_test' && a.storageLocator === `test/golden/${goldenFile}`,
+        const existing = model.validationArtifacts?.find(
+          (a: any) =>
+            a.artifactType === 'golden_test' &&
+            a.storageLocator === `test/golden/${goldenFile}`,
         );
         if (existing) {
           // Update checksum if file changed
           if (existing.checksum !== checksum) {
-            this.logger.log(`Golden test checksum changed for ${modelKey}: ${goldenFile}`);
+            this.logger.log(
+              `Golden test checksum changed for ${modelKey}: ${goldenFile}`,
+            );
           }
           continue;
         }
@@ -728,12 +819,16 @@ export class ModelRegistrySeeder implements OnModuleInit {
         });
         linked++;
       } catch (err: any) {
-        this.logger.warn(`Failed to link golden artifact for ${modelKey}: ${err.message}`);
+        this.logger.warn(
+          `Failed to link golden artifact for ${modelKey}: ${err.message}`,
+        );
       }
     }
 
     if (linked > 0) {
-      this.logger.log(`Linked ${linked} golden test artifacts to registry models`);
+      this.logger.log(
+        `Linked ${linked} golden test artifacts to registry models`,
+      );
     }
   }
 }
