@@ -2,3 +2,8 @@
 # Full linting runs in CI — this catches obvious errors fast
 cd backend-node && npx tsc --noEmit --incremental 2>/dev/null || echo "TypeScript check: warnings found (see CI for details)"
 cd .. && bash scripts/verify-clean-worktree.sh --staged-only
+
+# Phase 4 landing-gate: src/app/lib changes must bring a same-day
+# SESSION_HANDOFF.md entry. Bypass with SKIP_LANDING=1 for non-landing
+# commits (hotfix, flake, WIP branch).
+node scripts/ci/check-landing-entry.mjs

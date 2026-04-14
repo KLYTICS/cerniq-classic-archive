@@ -2,7 +2,7 @@
 
 > **Read this first.** This is the canonical pickup point for any Claude session continuing the FAANG-quality polish work on (1) institution seeding, (2) enterprise actions, (3) report accuracy. Update this file whenever you land work — the next session reads it before touching code.
 
-Last updated: 2026-04-14 (pnpm cerniq:status shipped — Phase 4 now 3/4, overall 96%)
+Last updated: 2026-04-14 (cross-terminal tooling — Phase 4 at 100%, overall 97%+)
 
 ---
 
@@ -81,7 +81,7 @@ Last updated: 2026-04-14 (pnpm cerniq:status shipped — Phase 4 now 3/4, overal
 - [x] This file
 - [x] **Session-aware CI/CD quality gate** (`alm-quality-gate.yml` + `scripts/ci/*` + `docs/CI_CD_PIPELINE.md`) — golden drift, schema drift, session freshness warning, `ci-status.json` artifact, path-filtered triggers, concurrency cancellation. The CI immune system for cross-session work. (2026-04-08)
 - [x] `pnpm cerniq:status` script that prints phase progress from this file's checkboxes (`scripts/cerniq-status.mjs`, no deps, stale-threshold 7d, exits 1 when stale so CI can gate on it; `--verbose` expands open checkboxes). (2026-04-14)
-- [ ] Each merged change appends to `## 5. Recent landings` below
+- [x] Each merged change appends to `## 5. Recent landings` below — now enforced by `scripts/ci/check-landing-entry.mjs` in `.husky/pre-commit`. Blocks any commit touching `backend-node/{src,prisma}/` or `frontend/{app,components,lib,e2e}/` unless the commit also stages a **new** same-day bullet in this section. Bypass for non-landing commits with `SKIP_LANDING=1`. (2026-04-14)
 
 ### Phase 5 — FAANG Audit P1: Model Governance (2026-04-12)
 - [x] **Model Registry Prisma schema** — `ModelRegistryEntry` + `ModelValidationArtifact` entities. 3 enums (`ModelStatus`, `ModelCategory`, `ModelRiskTier`). 12 categories, 5 statuses, 3 risk tiers. Indexed by category, status, riskTier, and composite category+status. Migration at `20260412180000_add_model_registry`.
@@ -180,6 +180,8 @@ Greening sequence for this branch:
 ## 5. Recent landings
 
 (Append on each merge: date — what — file:line of the change.)
+
+- 2026-04-14 — **Cross-terminal coordination: `pnpm cerniq:cross` + pre-commit landing-gate.** Two complementary additions for multi-worktree FAANG-bar work. (1) **`scripts/cerniq-cross.mjs`** — parses `git worktree list --porcelain`, skips prunable/stale entries, shows per-worktree branch / HEAD / modified-file count / lane classification (auth, billing, portal, alm, pipeline, ai, admin, schema, frontend-pages, frontend-ui, e2e, docs, ops, ci) / latest Recent-landings line. Maintains an owner-map and flags **path collisions** — same file modified in two live worktrees — which is the #1 source of cross-terminal friction. Exits 1 when any collision is detected so CI can gate on it. Verified-on-boot: surfaced a real-world collision (`docs/CERNIQ_MASTER_BIBLE_v2.md` modified concurrently by another terminal) during its first run — the tool works on live data. (2) **`scripts/ci/check-landing-entry.mjs` + `.husky/pre-commit`** — Phase 4 convention ("each merged change appends to `## 5. Recent landings`") is now **machine-enforced**. Compares staged vs HEAD bullet-counts for today's date on `docs/SESSION_HANDOFF.md` — commit is refused if `backend-node/{src,prisma}/` or `frontend/{app,components,lib,e2e}/` changes don't bring a **new** same-day bullet. Bypass: `SKIP_LANDING=1` for genuinely non-landing work (hotfix, flake, WIP). All three gate paths smoke-tested (no-src→pass, src-without-landing→block, bypass-env→pass). Phase 4 now **100%** (3 → 4 of 4). — `scripts/cerniq-cross.mjs`, `scripts/ci/check-landing-entry.mjs`, `.husky/pre-commit`, `package.json`, `docs/SESSION_HANDOFF.md`
 
 - 2026-04-14 — **Operator status board + gitignore hygiene.** New `pnpm cerniq:status` (`scripts/cerniq-status.mjs`) parses `docs/SESSION_HANDOFF.md`, prints per-phase completion bar, freshness vs 7-day threshold, and totals. No runtime deps — cold-start <300ms. Exits 1 when the handoff has gone stale so CI/hooks can gate on it. `--verbose` flag expands every open checkbox line. Closes the Phase 4 checklist item that's been open since 2026-04-07. Plus `.gitignore` now covers `.cursor/` and `.claude/` so per-developer IDE + agent-runtime state stops showing as untracked. Current snapshot: **Overall 96% (71/74), 5 phases 100%, Phase 1 at 10/12 (legacy `seedDemoData()` retirement + frontend-onboarding call to `/alm/institutions/seed` still open), Phase 4 now 3/4 (only "append-to-recent-landings on each merge" open).** — `scripts/cerniq-status.mjs`, `package.json`, `.gitignore`, `docs/SESSION_HANDOFF.md`
 
