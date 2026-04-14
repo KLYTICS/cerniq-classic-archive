@@ -68,6 +68,67 @@ describe('ReportStorageService', () => {
       const result = await service.getSignedUrl('reports/test.pdf', 3600);
       expect(result).toBe('/api/portal/reports/download/reports%2Ftest.pdf');
     });
+
+    // ── LRU + byte-cap eviction (local fallback mode) ──────────────────
+
+    it('getLocalBuffer returns the stored buffer', async () => {
+      await service.upload('reports/a.pdf', Buffer.from('alpha'));
+      const result = service.getLocalBuffer('reports/a.pdf');
+      expect(result?.toString()).toBe('alpha');
+    });
+
+    it('getLocalBuffer returns null for unknown key', () => {
+      expect(service.getLocalBuffer('reports/nope.pdf')).toBeNull();
+    });
+
+    it('evicts LRU entry when count cap (MAX_LOCAL_BUFFERS=200) is exceeded', async () => {
+      // Fill to exactly the cap, then read the first one to mark it recent,
+      // then insert one more. The oldest un-read key must be evicted, not the
+      // one we just touched — that's the LRU contract.
+      for (let i = 0; i < 200; i++) {
+        await service.upload(`reports/${i}.pdf`, Buffer.from(`p${i}`));
+      }
+      expect((service as any).localBuffers.size).toBe(200);
+
+      // Touch key #0 so it becomes most-recently-used.
+      expect(service.getLocalBuffer('reports/0.pdf')).not.toBeNull();
+
+      // Adding the 201st entry must evict the oldest un-touched key (#1),
+      // NOT the freshly-touched #0.
+      await service.upload('reports/200.pdf', Buffer.from('fresh'));
+      expect((service as any).localBuffers.size).toBe(200);
+      expect(service.getLocalBuffer('reports/0.pdf')).not.toBeNull(); // kept (touched)
+      expect(service.getLocalBuffer('reports/1.pdf')).toBeNull();      // evicted
+      expect(service.getLocalBuffer('reports/200.pdf')).not.toBeNull(); // kept (newest)
+    });
+
+    it('evicts entries to honor byte cap even when count cap not hit', async () => {
+      // Synthetic 300MB + 300MB inserts — byte cap is 512MB, so the second
+      // insert must evict the first even though count is well under 200.
+      const big = Buffer.alloc(300 * 1024 * 1024); // 300MB zero-filled
+      await service.upload('reports/big1.pdf', big);
+      expect(service.getLocalBuffer('reports/big1.pdf')).not.toBeNull();
+      expect(service.getLocalBytes()).toBe(big.length);
+
+      await service.upload('reports/big2.pdf', big);
+      // The second insert pushed total past 512MB; big1 must have been evicted.
+      expect(service.getLocalBuffer('reports/big1.pdf')).toBeNull();
+      expect(service.getLocalBuffer('reports/big2.pdf')).not.toBeNull();
+      expect(service.getLocalBytes()).toBe(big.length);
+    });
+
+    it('re-inserting the same key does not double-count bytes', async () => {
+      const first = Buffer.from('first-version');
+      const second = Buffer.from('second-version-longer');
+      await service.upload('reports/same.pdf', first);
+      await service.upload('reports/same.pdf', second);
+
+      expect((service as any).localBuffers.size).toBe(1);
+      expect(service.getLocalBytes()).toBe(second.length);
+      expect(service.getLocalBuffer('reports/same.pdf')?.toString()).toBe(
+        'second-version-longer',
+      );
+    });
   });
 
   // ── Configured (with S3/R2 credentials) ────────────────────────────

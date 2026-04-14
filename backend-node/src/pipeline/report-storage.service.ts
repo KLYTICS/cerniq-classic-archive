@@ -13,12 +13,21 @@ export class ReportStorageService {
   private bucket: string;
 
   /**
-   * In-memory buffer cache for local-mode (no R2 configured).
+   * In-memory LRU buffer cache for local-mode (no R2 configured).
    * Keyed by storage key (e.g. "reports/{jobId}/report_es.pdf").
-   * Cleared after DATA_RETENTION entries to prevent unbounded growth.
+   *
+   * Eviction policy: least-recently-used. A read via `getLocalBuffer()` bumps
+   * the entry to most-recent; inserts evict the oldest entry when either
+   * `MAX_LOCAL_BUFFERS` or `MAX_LOCAL_BYTES` is exceeded. Without LRU,
+   * a popular report generated early could be evicted before it was downloaded
+   * while 200 experimental runs sat warm, producing silent 404s.
    */
   private readonly localBuffers = new Map<string, Buffer>();
+  private localBytes = 0;
   private static readonly MAX_LOCAL_BUFFERS = 200;
+  /** 512 MiB — enough headroom that a handful of 10-50 MB PDFs can coexist with
+   *  smaller artifacts, but bounded so a single test run can't balloon RSS. */
+  private static readonly MAX_LOCAL_BYTES = 512 * 1024 * 1024;
 
   constructor() {
     const endpoint = process.env.R2_ENDPOINT || process.env.AWS_S3_ENDPOINT;
@@ -60,14 +69,22 @@ export class ReportStorageService {
     contentType = 'application/pdf',
   ): Promise<string> {
     if (!this.client) {
-      // Local fallback: store buffer in memory and return an API-servable path
-      this.localBuffers.set(key, buffer);
-      // Evict oldest if over limit
-      if (this.localBuffers.size > ReportStorageService.MAX_LOCAL_BUFFERS) {
-        const oldest = this.localBuffers.keys().next().value;
-        if (oldest) this.localBuffers.delete(oldest);
+      // Local fallback: store buffer in memory and return an API-servable path.
+      // Re-insert semantics: if the key already exists, remove it first so the
+      // re-inserted entry sits at the end of the Map (most-recently-used).
+      const existing = this.localBuffers.get(key);
+      if (existing) {
+        this.localBytes -= existing.length;
+        this.localBuffers.delete(key);
       }
-      this.logger.warn(`Stored ${key} in memory (${(buffer.length / 1024).toFixed(0)}KB) — R2 not configured`);
+      this.localBuffers.set(key, buffer);
+      this.localBytes += buffer.length;
+      this.evictLRUIfNeeded();
+      this.logger.warn(
+        `Stored ${key} in memory (${(buffer.length / 1024).toFixed(0)}KB; ` +
+          `cache: ${this.localBuffers.size} entries, ` +
+          `${(this.localBytes / 1024 / 1024).toFixed(1)}MB) — R2 not configured`,
+      );
       return key;
     }
 
@@ -100,8 +117,36 @@ export class ReportStorageService {
   /**
    * Retrieve a locally-stored buffer by key. Returns null if not found
    * or if cloud storage is configured (use signed URLs instead).
+   *
+   * Touches the entry: a successful read moves the key to the most-recent
+   * position in the LRU order so popular artifacts aren't evicted while cold
+   * ones sit warm.
    */
   getLocalBuffer(key: string): Buffer | null {
-    return this.localBuffers.get(key) ?? null;
+    const buffer = this.localBuffers.get(key);
+    if (!buffer) return null;
+    // LRU touch — delete + re-set moves the key to the end of iteration order.
+    this.localBuffers.delete(key);
+    this.localBuffers.set(key, buffer);
+    return buffer;
+  }
+
+  /** Evict least-recently-used entries until both count and byte caps are satisfied. */
+  private evictLRUIfNeeded(): void {
+    while (
+      this.localBuffers.size > ReportStorageService.MAX_LOCAL_BUFFERS ||
+      this.localBytes > ReportStorageService.MAX_LOCAL_BYTES
+    ) {
+      const oldest = this.localBuffers.keys().next().value;
+      if (!oldest) break;
+      const oldBuffer = this.localBuffers.get(oldest);
+      this.localBuffers.delete(oldest);
+      if (oldBuffer) this.localBytes -= oldBuffer.length;
+    }
+  }
+
+  /** Test/ops introspection — total bytes currently held in the local cache. */
+  getLocalBytes(): number {
+    return this.localBytes;
   }
 }
