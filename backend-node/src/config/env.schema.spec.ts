@@ -70,6 +70,12 @@ describe('env.schema', () => {
   });
 
   it('allows all optional fields to be absent', () => {
+    // Explicitly unset optional env vars that the CI runner may inject
+    // (e.g. REDIS_URL from service containers) so the "absent" assertion
+    // reflects the schema's behavior, not the environment that runs it.
+    delete process.env.STRIPE_SECRET_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.REDIS_URL;
     Object.assign(process.env, VALID_ENV);
     const env = validateEnv();
     expect(env.STRIPE_SECRET_KEY).toBeUndefined();

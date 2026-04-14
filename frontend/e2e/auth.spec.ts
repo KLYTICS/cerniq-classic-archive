@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 async function waitForLoginPage(page: Page) {
   await page.goto('/login');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 15000 });
-  await expect(page.locator('input[type="email"]')).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('#login-email')).toBeVisible({ timeout: 15000 });
 }
 
 test.describe('Authentication', () => {
@@ -22,7 +22,7 @@ test.describe('Authentication', () => {
 
   test('should render email and password fields', async ({ page }) => {
     await waitForLoginPage(page);
-    const emailInput = page.locator('input[type="email"]');
+    const emailInput = page.locator('#login-email');
     const passwordInput = page.locator('input[type="password"]');
     await expect(emailInput).toBeVisible();
     await expect(passwordInput).toBeVisible();
@@ -34,7 +34,7 @@ test.describe('Authentication', () => {
     await waitForLoginPage(page);
     const submitButton = page.getByRole('button', { name: /sign in|iniciar/i });
     await expect(submitButton).toBeVisible();
-    await expect(page.locator('input[type="email"]')).toHaveAttribute('required', '');
+    await expect(page.locator('#login-email')).toHaveAttribute('required', '');
     await expect(page.locator('input[type="password"]')).toHaveAttribute('required', '');
     await expect(page).toHaveURL(/login/);
   });

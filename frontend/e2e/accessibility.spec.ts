@@ -3,7 +3,11 @@ import { test, expect, type Page } from '@playwright/test';
 async function waitForHydratedLogin(page: Page) {
   await page.goto('/login');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 15000 });
-  await expect(page.locator('label')).toHaveCount(2, { timeout: 15000 });
+  // Wait for the core login-email label to confirm hydration. Don't pin an
+  // exact label count — the page also renders the workspace-email input,
+  // and any future accessible form element would trip an exact-count match
+  // without reflecting an actual accessibility regression.
+  await expect(page.locator('label[for="login-email"]')).toBeVisible({ timeout: 15000 });
 }
 
 test.describe('Accessibility Basics', () => {
