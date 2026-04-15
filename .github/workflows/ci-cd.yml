@@ -348,7 +348,7 @@ jobs:
           CI: true
           PLAYWRIGHT_BACKEND_URL: http://127.0.0.1:3100
           PLAYWRIGHT_BACKEND_COMMAND: cd ../backend-node && PORT=3100 BACKEND_PORT=3100 npm run start:prod
-          PLAYWRIGHT_FRONTEND_COMMAND: NEXT_PUBLIC_NODE_API_URL=http://127.0.0.1:3100 NEXT_PUBLIC_API_URL=http://127.0.0.1:3100 npx next start --port 3101
+          PLAYWRIGHT_FRONTEND_COMMAND: ENABLE_ADMIN=1 NEXT_PUBLIC_NODE_API_URL=http://127.0.0.1:3100 NEXT_PUBLIC_API_URL=http://127.0.0.1:3100 npx next start --port 3101
           NEXT_PUBLIC_NODE_API_URL: http://127.0.0.1:3100
           NEXT_PUBLIC_API_URL: http://127.0.0.1:3100
           REDIS_URL: ${{ env.CI_REDIS_URL }}

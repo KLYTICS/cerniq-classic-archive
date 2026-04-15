@@ -205,11 +205,16 @@ test.describe("Financial report export flow", () => {
     // ReportReadyStrip renders "ALM report for <institutionName> is ready"
     // (institutionName is "Coop Export" in the mock above).
     await expect(page.getByText(/ALM report for .* is ready/i)).toBeVisible();
+    // Both ReportReadyStrip and ReportSuite render DocumentExportButtons
+    // from the same manifest, so each language button appears twice on the
+    // page. Using .first() scopes the assertion to the strip (rendered first
+    // in the DOM) — validating the download surface exists without depending
+    // on render-order being unique.
     await expect(
-      page.getByRole("button", { name: /Download report \(ES\)/i }),
+      page.getByRole("button", { name: /Download report \(ES\)/i }).first(),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /Download report \(EN\)/i }),
+      page.getByRole("button", { name: /Download report \(EN\)/i }).first(),
     ).toBeVisible();
   });
 });
