@@ -33,8 +33,11 @@ on:
       - 'backend-node/package.json'
       - 'backend-node/package-lock.json'
       - 'docs/SESSION_HANDOFF.md'
+      - 'docs/SESSION_COORDINATION.md'
       - '.github/workflows/alm-quality-gate.yml'
       - 'scripts/ci/**'
+      - 'scripts/session/**'
+      - '.husky/pre-commit'
   pull_request:
     branches: [main]
     paths:
@@ -45,6 +48,10 @@ on:
       - 'backend-node/prisma/**'
       - 'backend-node/test/golden/**'
       - 'docs/SESSION_HANDOFF.md'
+      - 'docs/SESSION_COORDINATION.md'
+      - 'scripts/ci/**'
+      - 'scripts/session/**'
+      - '.husky/pre-commit'
 
 # Cancel stale runs when a newer push lands. With multiple parallel Claude
 # sessions pushing back-to-back, this prevents queue buildup and makes the
@@ -193,6 +200,30 @@ jobs:
       - name: Verify clean worktree
         run: bash scripts/verify-clean-worktree.sh
 
+  # ─── Session coordinator unit tests ─────────────────────────────
+  # Pins the claim-conflict policy used by the pre-commit claim-gate
+  # (scripts/ci/check-claim-conflicts.mjs). A regression in pathsConflict /
+  # findConflicts / isStale could silently mis-warn on cross-session
+  # overlap at commit time. See docs/SESSION_COORDINATION.md §3. Hard
+  # gate — contributes to the ci-status.json verdict.
+  coordinator-tests:
+    name: Session Coordinator Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Run coordinator unit tests
+        run: node --test scripts/session/_lib.test.mjs
+      - name: Verify pre-commit claim-gate is wired
+        run: |
+          grep -q "check-claim-conflicts.mjs" .husky/pre-commit \
+            || { echo "::error::.husky/pre-commit is missing check-claim-conflicts.mjs — claim-gate disabled"; exit 1; }
+      - name: Verify clean worktree
+        run: bash scripts/verify-clean-worktree.sh
+
   # ─── Quality gate aggregator — writes ci-status.json artifact ────
   # Runs AFTER all other jobs (always, even on failure) so we always
   # publish a ci-status.json artifact. The next Claude session downloads
@@ -206,6 +237,7 @@ jobs:
       - alm-tests
       - golden-drift
       - schema-drift
+      - coordinator-tests
       - session-freshness
     if: always()
     steps:
@@ -215,6 +247,7 @@ jobs:
         env:
           JOB_TYPECHECK: ${{ needs.typecheck.result }}
           JOB_ALM_TESTS: ${{ needs.alm-tests.result }}
+          JOB_COORDINATOR: ${{ needs.coordinator-tests.result }}
           JOB_GOLDEN_DRIFT: ${{ needs.golden-drift.result }}
           JOB_SCHEMA_DRIFT: ${{ needs.schema-drift.result }}
           JOB_SESSION_FRESHNESS: ${{ needs.session-freshness.result }}

@@ -35,6 +35,7 @@ TYPECHECK_RESULT="${JOB_TYPECHECK:-unknown}"
 ALM_TESTS_RESULT="${JOB_ALM_TESTS:-unknown}"
 GOLDEN_DRIFT_RESULT="${JOB_GOLDEN_DRIFT:-unknown}"
 SCHEMA_DRIFT_RESULT="${JOB_SCHEMA_DRIFT:-unknown}"
+COORDINATOR_RESULT="${JOB_COORDINATOR:-unknown}"
 SESSION_FRESHNESS_RESULT="${JOB_SESSION_FRESHNESS:-unknown}"
 
 # Overall verdict: green only if every hard gate passed. session-freshness is
@@ -43,7 +44,8 @@ VERDICT="red"
 if [ "$TYPECHECK_RESULT" = "success" ] \
   && [ "$ALM_TESTS_RESULT" = "success" ] \
   && [ "$GOLDEN_DRIFT_RESULT" = "success" ] \
-  && [ "$SCHEMA_DRIFT_RESULT" = "success" ]; then
+  && [ "$SCHEMA_DRIFT_RESULT" = "success" ] \
+  && [ "$COORDINATOR_RESULT" = "success" ]; then
   VERDICT="green"
 fi
 
@@ -88,6 +90,7 @@ cat > "$OUT_FILE" <<EOF
     "almTests": "$ALM_TESTS_RESULT",
     "goldenDrift": "$GOLDEN_DRIFT_RESULT",
     "schemaDrift": "$SCHEMA_DRIFT_RESULT",
+    "coordinatorTests": "$COORDINATOR_RESULT",
     "sessionFreshness": "$SESSION_FRESHNESS_RESULT"
   },
   "sessionHandoff": {

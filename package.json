@@ -16,6 +16,13 @@
     "verify:local:critical": "npm run deploy:prepare && npm run verify:frontend && npm run verify:backend && cd frontend && npm run test:e2e:critical && cd .. && npm run verify:clean",
     "cerniq:status": "node scripts/cerniq-status.mjs",
     "cerniq:cross": "node scripts/cerniq-cross.mjs",
+    "session:register": "node scripts/session/register.mjs",
+    "session:claim": "node scripts/session/claim.mjs",
+    "session:release": "node scripts/session/release.mjs",
+    "session:list": "node scripts/session/list.mjs",
+    "session:status": "node scripts/session/status.mjs",
+    "session:handoff": "node scripts/session/handoff.mjs",
+    "test:session": "node --test scripts/session/_lib.test.mjs",
     "smoke:exports": "cd backend-node && npx ts-node scripts/test-file-exports.ts",
     "smoke:preview": "node scripts/run-preview-smoke.mjs",
     "smoke:production": "curl -fsS https://cerniq.io >/dev/null && curl -fsS https://cerniq.io/login >/dev/null && curl -fsS https://cerniq.io/pricing >/dev/null && curl -fsS https://cerniq.io/portal/login >/dev/null && curl -fsS https://api.cerniq.io/health >/dev/null && cd frontend && npm run test:e2e:production"

@@ -178,6 +178,7 @@ Greening sequence for this branch:
 ---
 
 ## 5. Recent landings
+- 2026-04-15 — **Cross-terminal session coordination scaffold (Round 1+2).** Shipped the repo-level session coordinator: 7 npm scripts (`session:register|claim|release|list|status|handoff` + `test:session`), pre-commit claim-gate at `scripts/ci/check-claim-conflicts.mjs` reading both coordination layers (.omx/state/team/sessions/ + ~/.claude/peers/claims/cerniq__*.json), 23/23 node:test passing, and CI integration — new `coordinator-tests` job in `alm-quality-gate.yml` contributes to `ci-status.json` verdict. Archived misnamed `docs/TERMINAL_COORDINATION.md` (was a stale 2026-03-31 status snapshot). Full protocol at `docs/SESSION_COORDINATION.md`. Warn-only by default (`STRICT_CLAIMS=1` to block, `SKIP_CLAIMS=1` to skip). — `scripts/session/_lib.mjs`, `scripts/session/_lib.test.mjs`, `scripts/ci/check-claim-conflicts.mjs:1-130`, `.github/workflows/alm-quality-gate.yml:189-211`
 
 (Append on each merge: date — what — file:line of the change.)
 

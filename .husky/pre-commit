@@ -7,3 +7,9 @@ cd .. && bash scripts/verify-clean-worktree.sh --staged-only
 # SESSION_HANDOFF.md entry. Bypass with SKIP_LANDING=1 for non-landing
 # commits (hotfix, flake, WIP branch).
 node scripts/ci/check-landing-entry.mjs
+
+# Advisory: warn when staged files overlap another live session's claims.
+# Checks two layers: .omx/state/team/sessions/ (repo) + ~/.claude/peers/claims/
+# (user-global). Warn-only by default. STRICT_CLAIMS=1 to block, SKIP_CLAIMS=1
+# to skip. See docs/SESSION_COORDINATION.md.
+node scripts/ci/check-claim-conflicts.mjs
