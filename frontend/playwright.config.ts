@@ -12,7 +12,7 @@ const backendCommand =
   "sh -c 'cd ../backend-node && test -f dist/src/main.js || npm run build >/dev/null; PORT=3100 BACKEND_PORT=3100 npm run start:prod'";
 const frontendCommand =
   process.env.PLAYWRIGHT_FRONTEND_COMMAND ||
-  "sh -c 'test -f .next/BUILD_ID && test -f .next/prerender-manifest.json || npm run build >/dev/null; NEXT_PUBLIC_NODE_API_URL=http://127.0.0.1:3100 NEXT_PUBLIC_API_URL=http://127.0.0.1:3100 npx next start --port 3101'";
+  "sh -c 'test -f .next/BUILD_ID && test -f .next/prerender-manifest.json || npm run build >/dev/null; ENABLE_ADMIN=1 NEXT_PUBLIC_NODE_API_URL=http://127.0.0.1:3100 NEXT_PUBLIC_API_URL=http://127.0.0.1:3100 npx next start --port 3101'";
 
 process.env.PLAYWRIGHT_BASE_URL ??= frontendBaseUrl;
 process.env.PLAYWRIGHT_BACKEND_URL ??= backendBaseUrl;

@@ -202,7 +202,9 @@ test.describe("Financial report export flow", () => {
 
     await page.goto("/portal");
 
-    await expect(page.getByText("Your ALM Report is Ready")).toBeVisible();
+    // ReportReadyStrip renders "ALM report for <institutionName> is ready"
+    // (institutionName is "Coop Export" in the mock above).
+    await expect(page.getByText(/ALM report for .* is ready/i)).toBeVisible();
     await expect(
       page.getByRole("button", { name: /Download report \(ES\)/i }),
     ).toBeVisible();
