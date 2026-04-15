@@ -50,7 +50,9 @@ describe('Institution fixture registry', () => {
 
     it('has required top-level fields', () => {
       expect(fx.name).toBeTruthy();
-      expect(fx.type).toMatch(/^(bank|credit_union|family_office|cooperativa)$/);
+      expect(fx.type).toMatch(
+        /^(bank|credit_union|family_office|cooperativa)$/,
+      );
       expect(fx.currency).toMatch(/^[A-Z]{3}$/);
       expect(fx.reportingDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(fx.totalAssets).toBeGreaterThan(0);
@@ -69,7 +71,9 @@ describe('Institution fixture registry', () => {
         .reduce((s, i) => s + i.balance, 0);
       // Tolerance: equity can slightly inflate the asset side over raw totalAssets,
       // but the combined assets should land within a conservative 5% band.
-      expect(Math.abs(assetSum - fx.totalAssets) / fx.totalAssets).toBeLessThan(0.05);
+      expect(Math.abs(assetSum - fx.totalAssets) / fx.totalAssets).toBeLessThan(
+        0.05,
+      );
     });
 
     it('every item passes the D1/CSV-ingestion validation rules', () => {
@@ -108,7 +112,10 @@ describe('Institution fixture registry', () => {
   // a fixture below. If a type is added to the UI without a matching fixture,
   // this test breaks — catching the Phase 1 regression at compile/test time.
   it('frontend institution-type map resolves to a loadable fixture', () => {
-    const frontendMap: Record<'bank' | 'credit_union' | 'family_office' | 'cooperativa', string> = {
+    const frontendMap: Record<
+      'bank' | 'credit_union' | 'family_office' | 'cooperativa',
+      string
+    > = {
       bank: 'pr-bank-demo',
       credit_union: 'pr-credit-union-demo',
       family_office: 'pr-family-office-demo',
