@@ -54,6 +54,10 @@ coverage/
 .nyc_output/
 /frontend/playwright-report/
 /frontend/test-results/
+/.playwright-cli/
+
+# Word/docx source drops (authoritative copies live in docs/ as .md)
+*.docx
 
 # OMX runtime state (intentionally local, not source-controlled)
 /.omx/metrics.json
