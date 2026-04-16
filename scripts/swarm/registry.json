@@ -1,0 +1,298 @@
+{
+  "$schema_version": 3,
+  "doc": "Vol.4 100-CLI Swarm Dispatch Model v3. Maps CLIs across 14 department swarms to 11 terminals. Includes Autonomy Tier system (0-3+X). Coexists with Vol.3 50-terminal model at .cerniq/terminals.json.",
+  "updated_at": "2026-04-16",
+  "autonomy_tiers": {
+    "0": { "name": "SILENT", "description": "Read, grep, test, typecheck, lint, health checks", "trace": "none" },
+    "1": { "name": "AUTO+AUDIT", "description": "Code edits (claimed scope), branches, draft PRs, builds, staging deploys", "trace": ".omx/state/audit/" },
+    "2": { "name": "AUTO+REVIEW", "description": "Merge to main (CI green), email drafts, new API routes, auth/schema changes", "trace": ".omx/state/approvals/pending/" },
+    "3": { "name": "PRE-APPROVE", "description": "Prod deploy, prod migrations, customer emails, Stripe writes, secret rotation, COSSEC cert", "trace": ".omx/state/approvals/pending/ (blocks until approved)" },
+    "X": { "name": "FORBIDDEN", "description": "Force push main, DROP without WHERE, hardcode secrets, self-approve PRs, Float for money", "trace": "refused + logged" }
+  },
+  "terminals": {
+    "T-01": { "name": "Command & Control", "operator": "Erwin", "scope": "admin, approvals, overrides" },
+    "T-02": { "name": "Engineering Backend", "operator": "swarm", "scope": "backend-node/src/" },
+    "T-03": { "name": "Engineering Frontend", "operator": "swarm", "scope": "frontend/" },
+    "T-04": { "name": "GTM / Sales", "operator": "swarm", "scope": "services/outbound/" },
+    "T-05": { "name": "Monitoring & Alerts", "operator": "swarm", "scope": "health checks, uptime" },
+    "T-06": { "name": "ALM / Quant", "operator": "swarm", "scope": "backend-node/src/alm/" },
+    "T-07": { "name": "DevOps / Infra", "operator": "swarm", "scope": "infra, CI/CD, Railway, Vercel" },
+    "T-08": { "name": "Compliance", "operator": "swarm", "scope": "COSSEC, NCUA, audit" },
+    "T-09": { "name": "Product & RevOps", "operator": "swarm", "scope": "product strategy, Stripe, pipeline" },
+    "T-10": { "name": "Dispatch / Erwin", "operator": "Erwin", "scope": "mission dispatch, fleet oversight" },
+    "T-11": { "name": "QA & Testing", "operator": "swarm", "scope": "tests, e2e, coverage, regression" }
+  },
+  "swarms": {
+    "engineering-backend": {
+      "terminal": "T-02",
+      "bible": "docs/CERNIQ_Vol4_SWARM_MASTER_BIBLE.md §2-A",
+      "cli_prefix": "E",
+      "cli_range": [1, 8],
+      "quality_gates": {
+        "test": "cd backend-node && npm run test",
+        "typecheck": "cd backend-node && npx tsc --noEmit",
+        "prisma": "cd backend-node && npx prisma validate",
+        "lint": "cd backend-node && npm run lint"
+      },
+      "scope_paths": ["backend-node/src/", "backend-node/prisma/"]
+    },
+    "engineering-frontend": {
+      "terminal": "T-03",
+      "bible": "docs/CERNIQ_Vol4_SWARM_MASTER_BIBLE.md §2-A",
+      "cli_prefix": "E",
+      "cli_range": [9, 16],
+      "quality_gates": {
+        "build": "cd frontend && npm run build",
+        "typecheck": "cd frontend && npx tsc --noEmit",
+        "lint": "cd frontend && npm run lint"
+      },
+      "scope_paths": ["frontend/app/", "frontend/components/", "frontend/lib/"]
+    },
+    "engineering-general": {
+      "terminal": "T-02",
+      "bible": "docs/CERNIQ_Vol4_SWARM_MASTER_BIBLE.md §2-A",
+      "cli_prefix": "E",
+      "cli_range": [17, 24],
+      "quality_gates": {
+        "test": "npm run test:backend",
+        "typecheck": "cd backend-node && npx tsc --noEmit"
+      },
+      "scope_paths": ["backend-node/src/", "scripts/", "docs/"]
+    },
+    "gtm-sales": {
+      "terminal": "T-04",
+      "bible": "docs/CERNIQ_Vol5_GTM_WAR_ROOM_BIBLE.md",
+      "cli_prefix": "S",
+      "cli_range": [1, 20],
+      "quality_gates": {
+        "test": "cd services/outbound && python3 -m pytest tests/"
+      },
+      "scope_paths": ["services/outbound/"]
+    },
+    "monitoring": {
+      "terminal": "T-05",
+      "bible": "docs/CERNIQ_Vol6_TERMINAL_FLEET_OPS_BIBLE.md §2-T05",
+      "cli_prefix": "MON",
+      "cli_range": [1, 2],
+      "quality_gates": {
+        "smoke": "npm run smoke:production"
+      },
+      "scope_paths": [".omx/state/health/", ".omx/state/alerts/"]
+    },
+    "alm-quant": {
+      "terminal": "T-06",
+      "bible": "docs/CERNIQ_GLOBAL_FINANCE_ENGINEERING_BIBLE.md",
+      "cli_prefix": "Q",
+      "cli_range": [1, 15],
+      "quality_gates": {
+        "test": "cd backend-node && npx jest --testPathPattern=alm",
+        "typecheck": "cd backend-node && npx tsc --noEmit",
+        "prisma": "cd backend-node && npx prisma validate"
+      },
+      "scope_paths": ["backend-node/src/alm/"]
+    },
+    "devops-infra": {
+      "terminal": "T-07",
+      "bible": "docs/CERNIQ_Vol6_TERMINAL_FLEET_OPS_BIBLE.md §2-T07",
+      "cli_prefix": "D",
+      "cli_range": [1, 8],
+      "quality_gates": {
+        "ci": "cd backend-node && npx tsc --noEmit && npx prisma validate"
+      },
+      "scope_paths": [".github/workflows/", "infrastructure/", "docker-compose*.yml"]
+    },
+    "compliance": {
+      "terminal": "T-08",
+      "bible": "docs/CERNIQ_Vol10_COMPLIANCE_REGULATORY_BIBLE.md",
+      "cli_prefix": "C",
+      "cli_range": [1, 4],
+      "quality_gates": {
+        "test": "cd backend-node && npx jest --testPathPattern=compliance"
+      },
+      "scope_paths": ["backend-node/src/compliance/", "docs/"]
+    },
+    "product": {
+      "terminal": "T-09",
+      "bible": "docs/CERNIQ_Vol8_WAVE03_PRODUCT_BIBLE.md",
+      "cli_prefix": "P",
+      "cli_range": [1, 10],
+      "quality_gates": {},
+      "scope_paths": ["docs/"]
+    },
+    "revops": {
+      "terminal": "T-09",
+      "bible": "docs/CERNIQ_Vol7_REVENUE_INTELLIGENCE_BIBLE.md",
+      "cli_prefix": "R",
+      "cli_range": [1, 3],
+      "quality_gates": {
+        "stripe": "curl -fsS https://api.cerniq.io/health"
+      },
+      "scope_paths": ["backend-node/src/billing/"]
+    },
+    "command": {
+      "terminal": "T-01",
+      "bible": "docs/CERNIQ_Vol6_TERMINAL_FLEET_OPS_BIBLE.md §2-T01",
+      "cli_prefix": "CMD",
+      "cli_range": [1, 5],
+      "quality_gates": {},
+      "scope_paths": [".omx/state/", "scripts/swarm/"]
+    },
+    "dispatch": {
+      "terminal": "T-10",
+      "bible": "docs/CERNIQ_Vol6_TERMINAL_FLEET_OPS_BIBLE.md §2-T10",
+      "cli_prefix": "OPS",
+      "cli_range": [1, 9],
+      "quality_gates": {},
+      "scope_paths": [".omx/state/missions/", "docs/"]
+    },
+    "architecture": {
+      "terminal": "T-01",
+      "bible": "docs/CERNIQ_Vol4_SWARM_MASTER_BIBLE.md",
+      "cli_prefix": "A",
+      "cli_range": [1, 2],
+      "quality_gates": {},
+      "scope_paths": ["docs/architecture/", "docs/api-contracts/", ".omx/state/approvals/"],
+      "tier_overrides": {
+        "max_auto": 2,
+        "notes": "Architecture can approve cross-scope requests (Tier 2) but not prod actions"
+      }
+    },
+    "qa-testing": {
+      "terminal": "T-11",
+      "bible": "docs/CERNIQ_Vol4_SWARM_MASTER_BIBLE.md §2-A",
+      "cli_prefix": "QA",
+      "cli_range": [1, 4],
+      "quality_gates": {
+        "backend-test": "cd backend-node && npm run test",
+        "frontend-test": "cd frontend && npx vitest run",
+        "e2e": "cd frontend && npx playwright test --reporter=list"
+      },
+      "scope_paths": [
+        "backend-node/src/**/*.spec.ts",
+        "backend-node/test/",
+        "frontend/__tests__/",
+        "frontend/e2e/",
+        "test_data/",
+        ".playwright-cli/"
+      ]
+    }
+  },
+  "clis": [
+    { "id": "E-01", "swarm": "engineering-backend", "role": "Backend API lead", "priority": "P0" },
+    { "id": "E-02", "swarm": "engineering-backend", "role": "Auth & RBAC engineer", "priority": "P1" },
+    { "id": "E-03", "swarm": "engineering-backend", "role": "Agent runtime engineer", "priority": "P0" },
+    { "id": "E-04", "swarm": "engineering-backend", "role": "Queue & BullMQ engineer", "priority": "P1" },
+    { "id": "E-05", "swarm": "engineering-backend", "role": "Observability & OTel engineer", "priority": "P1" },
+    { "id": "E-06", "swarm": "engineering-backend", "role": "Trust & validation engineer", "priority": "P1" },
+    { "id": "E-07", "swarm": "engineering-backend", "role": "Billing & Stripe engineer", "priority": "P2" },
+    { "id": "E-08", "swarm": "engineering-backend", "role": "Email & notifications engineer", "priority": "P2" },
+    { "id": "E-09", "swarm": "engineering-frontend", "role": "Frontend lead / routing", "priority": "P0" },
+    { "id": "E-10", "swarm": "engineering-frontend", "role": "ALM visualization engineer", "priority": "P0" },
+    { "id": "E-11", "swarm": "engineering-frontend", "role": "Portal & dashboard engineer", "priority": "P1" },
+    { "id": "E-12", "swarm": "engineering-frontend", "role": "Agent UX / copilot frontend", "priority": "P1" },
+    { "id": "E-13", "swarm": "engineering-frontend", "role": "Demo & marketing pages", "priority": "P1" },
+    { "id": "E-14", "swarm": "engineering-frontend", "role": "i18n & bilingual UX", "priority": "P1" },
+    { "id": "E-15", "swarm": "engineering-frontend", "role": "Design system & a11y", "priority": "P2" },
+    { "id": "E-16", "swarm": "engineering-frontend", "role": "Performance & Lighthouse", "priority": "P2" },
+    { "id": "E-17", "swarm": "engineering-general", "role": "Full-stack Wave 03 lead", "priority": "P0" },
+    { "id": "E-18", "swarm": "engineering-general", "role": "COSSEC PDF parser service", "priority": "P0" },
+    { "id": "E-19", "swarm": "engineering-general", "role": "NCUA Form 5300 integration", "priority": "P0" },
+    { "id": "E-20", "swarm": "engineering-general", "role": "AI Advisor / Claude integration", "priority": "P1" },
+    { "id": "E-21", "swarm": "engineering-general", "role": "CPA white-label schema", "priority": "P1" },
+    { "id": "E-22", "swarm": "engineering-general", "role": "Benchmark / peer comparison", "priority": "P1" },
+    { "id": "E-23", "swarm": "engineering-general", "role": "Report PDF generation", "priority": "P1" },
+    { "id": "E-24", "swarm": "engineering-general", "role": "API v2 design", "priority": "P2" },
+
+    { "id": "S-01", "swarm": "gtm-sales", "role": "Lead research agent operator", "priority": "P0" },
+    { "id": "S-02", "swarm": "gtm-sales", "role": "Enrichment agent operator", "priority": "P0" },
+    { "id": "S-03", "swarm": "gtm-sales", "role": "Messaging agent (bilingual)", "priority": "P0" },
+    { "id": "S-04", "swarm": "gtm-sales", "role": "Outreach agent (Resend)", "priority": "P0" },
+    { "id": "S-05", "swarm": "gtm-sales", "role": "CRM sync agent", "priority": "P1" },
+    { "id": "S-06", "swarm": "gtm-sales", "role": "Follow-up cadence agent", "priority": "P1" },
+    { "id": "S-07", "swarm": "gtm-sales", "role": "Demo analytics tracker", "priority": "P1" },
+    { "id": "S-08", "swarm": "gtm-sales", "role": "Tier 1 cooperativa closer", "priority": "P0" },
+    { "id": "S-09", "swarm": "gtm-sales", "role": "CPA channel development", "priority": "P0" },
+    { "id": "S-10", "swarm": "gtm-sales", "role": "Landing page optimizer", "priority": "P1" },
+    { "id": "S-11", "swarm": "gtm-sales", "role": "Social proof builder", "priority": "P2" },
+    { "id": "S-12", "swarm": "gtm-sales", "role": "Competitive intel monitor", "priority": "P2" },
+    { "id": "S-13", "swarm": "gtm-sales", "role": "PR cooperativa segment analyst", "priority": "P1" },
+    { "id": "S-14", "swarm": "gtm-sales", "role": "Pricing experiment runner", "priority": "P2" },
+    { "id": "S-15", "swarm": "gtm-sales", "role": "Onboarding flow optimizer", "priority": "P1" },
+    { "id": "S-16", "swarm": "gtm-sales", "role": "Email deliverability monitor", "priority": "P1" },
+    { "id": "S-17", "swarm": "gtm-sales", "role": "Referral program operator", "priority": "P2" },
+    { "id": "S-18", "swarm": "gtm-sales", "role": "Event/webinar coordinator", "priority": "P2" },
+    { "id": "S-19", "swarm": "gtm-sales", "role": "COSSEC relationship builder", "priority": "P1" },
+    { "id": "S-20", "swarm": "gtm-sales", "role": "Strategic partnerships lead", "priority": "P2" },
+
+    { "id": "MON-01", "swarm": "monitoring", "role": "Service health poller", "priority": "P0" },
+    { "id": "MON-02", "swarm": "monitoring", "role": "Alert escalation handler", "priority": "P0" },
+
+    { "id": "Q-01", "swarm": "alm-quant", "role": "Duration gap / NII lead", "priority": "P0" },
+    { "id": "Q-02", "swarm": "alm-quant", "role": "EVE / mark-to-market", "priority": "P0" },
+    { "id": "Q-03", "swarm": "alm-quant", "role": "Liquidity (LCR/NSFR)", "priority": "P0" },
+    { "id": "Q-04", "swarm": "alm-quant", "role": "Monte Carlo / Vasicek", "priority": "P0" },
+    { "id": "Q-05", "swarm": "alm-quant", "role": "CECL / credit loss", "priority": "P1" },
+    { "id": "Q-06", "swarm": "alm-quant", "role": "Capital adequacy (CAMEL)", "priority": "P0" },
+    { "id": "Q-07", "swarm": "alm-quant", "role": "Yield curve / PCA", "priority": "P1" },
+    { "id": "Q-08", "swarm": "alm-quant", "role": "Stress testing scenarios", "priority": "P1" },
+    { "id": "Q-09", "swarm": "alm-quant", "role": "VaR / CVaR calculation", "priority": "P1" },
+    { "id": "Q-10", "swarm": "alm-quant", "role": "Deposit behavior modeling", "priority": "P1" },
+    { "id": "Q-11", "swarm": "alm-quant", "role": "Prepayment modeling", "priority": "P2" },
+    { "id": "Q-12", "swarm": "alm-quant", "role": "Climate risk (TCFD)", "priority": "P2" },
+    { "id": "Q-13", "swarm": "alm-quant", "role": "Module benchmark validation", "priority": "P0" },
+    { "id": "Q-14", "swarm": "alm-quant", "role": "Golden reconciliation tests", "priority": "P0" },
+    { "id": "Q-15", "swarm": "alm-quant", "role": "NCUA Form 5300 field mapping", "priority": "P1" },
+
+    { "id": "D-01", "swarm": "devops-infra", "role": "Railway backend deployment", "priority": "P0" },
+    { "id": "D-02", "swarm": "devops-infra", "role": "Vercel frontend deployment", "priority": "P0" },
+    { "id": "D-03", "swarm": "devops-infra", "role": "GitHub Actions CI/CD", "priority": "P0" },
+    { "id": "D-04", "swarm": "devops-infra", "role": "Prisma migrations (prod)", "priority": "P0" },
+    { "id": "D-05", "swarm": "devops-infra", "role": "Docker & container ops", "priority": "P1" },
+    { "id": "D-06", "swarm": "devops-infra", "role": "Redis / BullMQ infra", "priority": "P1" },
+    { "id": "D-07", "swarm": "devops-infra", "role": "Secret rotation & env mgmt", "priority": "P1" },
+    { "id": "D-08", "swarm": "devops-infra", "role": "Disaster recovery & backups", "priority": "P1" },
+
+    { "id": "C-01", "swarm": "compliance", "role": "COSSEC validator", "priority": "P0" },
+    { "id": "C-02", "swarm": "compliance", "role": "NCUA sync / Form 5300", "priority": "P0" },
+    { "id": "C-03", "swarm": "compliance", "role": "Audit log reviewer", "priority": "P1" },
+    { "id": "C-04", "swarm": "compliance", "role": "Regulatory report generator (bilingual)", "priority": "P1" },
+
+    { "id": "P-01", "swarm": "product", "role": "Product strategist", "priority": "P1" },
+    { "id": "P-02", "swarm": "product", "role": "UX researcher", "priority": "P1" },
+    { "id": "P-03", "swarm": "product", "role": "Spec writer (NestJS+Next.js)", "priority": "P0" },
+    { "id": "P-04", "swarm": "product", "role": "Roadmap tracker", "priority": "P1" },
+    { "id": "P-05", "swarm": "product", "role": "Competitive intel", "priority": "P2" },
+    { "id": "P-06", "swarm": "product", "role": "Data analyst (usage queries)", "priority": "P1" },
+    { "id": "P-07", "swarm": "product", "role": "Feature flag manager", "priority": "P2" },
+    { "id": "P-08", "swarm": "product", "role": "User feedback synthesizer", "priority": "P2" },
+    { "id": "P-09", "swarm": "product", "role": "Onboarding flow designer", "priority": "P1" },
+    { "id": "P-10", "swarm": "product", "role": "Pricing analyst", "priority": "P1" },
+
+    { "id": "R-01", "swarm": "revops", "role": "Pipeline monitor (MRR/ARR)", "priority": "P0" },
+    { "id": "R-02", "swarm": "revops", "role": "Cohort analyst (LTV/CAC)", "priority": "P1" },
+    { "id": "R-03", "swarm": "revops", "role": "Stripe ops (payments, dunning)", "priority": "P0" },
+
+    { "id": "CMD-01", "swarm": "command", "role": "Fleet commander (Erwin)", "priority": "P0" },
+    { "id": "CMD-02", "swarm": "command", "role": "Approval gateway", "priority": "P0" },
+    { "id": "CMD-03", "swarm": "command", "role": "Cross-swarm arbitrator", "priority": "P1" },
+    { "id": "CMD-04", "swarm": "command", "role": "Security override operator", "priority": "P1" },
+    { "id": "CMD-05", "swarm": "command", "role": "Budget & cost controller", "priority": "P1" },
+    { "id": "OPS-01", "swarm": "dispatch", "role": "Mission dispatcher", "priority": "P0" },
+    { "id": "OPS-02", "swarm": "dispatch", "role": "Session coordinator", "priority": "P0" },
+    { "id": "OPS-03", "swarm": "dispatch", "role": "Landing gate enforcer", "priority": "P0" },
+    { "id": "OPS-04", "swarm": "dispatch", "role": "Handoff protocol runner", "priority": "P1" },
+    { "id": "OPS-05", "swarm": "dispatch", "role": "Fleet health aggregator", "priority": "P1" },
+    { "id": "OPS-06", "swarm": "dispatch", "role": "Quality gate enforcer", "priority": "P1" },
+    { "id": "OPS-07", "swarm": "dispatch", "role": "Bible sync verifier", "priority": "P2" },
+    { "id": "OPS-08", "swarm": "dispatch", "role": "Cross-swarm dependency tracker", "priority": "P1" },
+    { "id": "OPS-09", "swarm": "dispatch", "role": "Incident post-mortem writer", "priority": "P2" },
+
+    { "id": "A-01", "swarm": "architecture", "role": "Cross-cutting architect / ADR lead", "priority": "P1" },
+    { "id": "A-02", "swarm": "architecture", "role": "API contract reviewer / dependency governance", "priority": "P1" },
+
+    { "id": "QA-01", "swarm": "qa-testing", "role": "Integration test orchestrator", "priority": "P0" },
+    { "id": "QA-02", "swarm": "qa-testing", "role": "Playwright E2E suite lead", "priority": "P0" },
+    { "id": "QA-03", "swarm": "qa-testing", "role": "Coverage analyst / gap detector", "priority": "P1" },
+    { "id": "QA-04", "swarm": "qa-testing", "role": "Regression test runner / load testing", "priority": "P1" }
+  ]
+}

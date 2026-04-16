@@ -1,0 +1,69 @@
+name: Swarm Guards
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan for secrets in diff
+        run: |
+          SECRETS=$(git diff origin/main...HEAD -- '*.ts' '*.tsx' '*.js' '*.mjs' '*.py' '*.json' '*.yml' '*.yaml' | \
+            grep -iE '(RESEND_API|STRIPE_SECRET|DATABASE_URL|JWT_SECRET|SUPABASE_SERVICE|ANTHROPIC_API|sk-[a-zA-Z0-9]{20,}|password\s*=\s*["\x27][^"\x27]+["\x27])' || true)
+          if [ -n "$SECRETS" ]; then
+            echo "::error::Secrets detected in PR diff"
+            echo "$SECRETS" | head -10
+            exit 1
+          fi
+          echo "No secrets found"
+
+  scope-audit:
+    name: Scope Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: List changed files
+        id: changes
+        run: |
+          FILES=$(git diff --name-only origin/main...HEAD)
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+          echo "$FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "count=$(echo "$FILES" | wc -l | tr -d ' ')" >> $GITHUB_OUTPUT
+      - name: Validate registry
+        run: node -e "JSON.parse(require('fs').readFileSync('scripts/swarm/registry.json','utf8')); console.log('Registry valid')"
+      - name: Report scope coverage
+        run: |
+          echo "## Scope Audit" >> $GITHUB_STEP_SUMMARY
+          echo "**${{ steps.changes.outputs.count }} files changed**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.changes.outputs.files }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  financial-decimal-check:
+    name: Financial Decimal Guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for Float/number in financial code
+        run: |
+          VIOLATIONS=$(git diff origin/main...HEAD -- 'backend-node/src/alm/**' 'backend-node/src/reports/**' 'backend-node/src/compliance/**' | \
+            grep -n '^\+.*\b\(number\|float\|parseFloat\|toFixed\)\b' | \
+            grep -iv 'Decimal\|decimal\|import\|test\|spec\|\.d\.ts' || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::warning::Potential Float usage in financial code (Decimal required):"
+            echo "$VIOLATIONS" | head -10
+          fi
+          echo "Financial decimal check complete"

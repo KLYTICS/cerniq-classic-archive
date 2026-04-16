@@ -25,7 +25,21 @@
     "test:session": "node --test scripts/session/_lib.test.mjs",
     "smoke:exports": "cd backend-node && npx ts-node scripts/test-file-exports.ts",
     "smoke:preview": "node scripts/run-preview-smoke.mjs",
-    "smoke:production": "curl -fsS https://cerniq.io >/dev/null && curl -fsS https://cerniq.io/login >/dev/null && curl -fsS https://cerniq.io/pricing >/dev/null && curl -fsS https://cerniq.io/portal/login >/dev/null && curl -fsS https://api.cerniq.io/health >/dev/null && cd frontend && npm run test:e2e:production"
+    "smoke:production": "curl -fsS https://cerniq.io >/dev/null && curl -fsS https://cerniq.io/login >/dev/null && curl -fsS https://cerniq.io/pricing >/dev/null && curl -fsS https://cerniq.io/portal/login >/dev/null && curl -fsS https://api.cerniq.io/health >/dev/null && cd frontend && npm run test:e2e:production",
+    "swarm:boot": "node scripts/swarm/boot.mjs",
+    "swarm:dispatch": "node scripts/swarm/dispatch.mjs",
+    "swarm:gate": "node scripts/swarm/gate.mjs",
+    "swarm:health": "node scripts/swarm/health.mjs",
+    "swarm:escalate": "node scripts/swarm/escalate.mjs",
+    "swarm:fleet": "node scripts/swarm/fleet.mjs",
+    "swarm:metrics": "node scripts/swarm/metrics.mjs",
+    "swarm:handoff": "node scripts/swarm/handoff.mjs",
+    "swarm:landing": "node scripts/swarm/landing.mjs",
+    "swarm:cross": "node scripts/swarm/cross.mjs",
+    "approval": "node scripts/swarm/approval.mjs",
+    "approval:auto": "node scripts/swarm/approval-auto.mjs",
+    "audit": "node scripts/swarm/audit.mjs",
+    "scope:check": "node scripts/swarm/scope-check.mjs"
   },
   "devDependencies": {
     "husky": "^9.1.7",
