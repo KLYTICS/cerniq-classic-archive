@@ -6,7 +6,8 @@ import { useTranslation } from '@/lib/i18n';
 import { copilotQuery } from '@/lib/agents-api';
 import { SkeletonLoader, ErrorBanner } from '@/components/ui/cerniq';
 import type { CFOCopilotOutput, CFOCopilotFollowup } from '@/types/agents';
-import { Send, Bot, User, Globe } from 'lucide-react';
+import { Send, Bot, User, Globe, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import ScenarioInput, { type ScenarioParams } from '@/components/alm/scenario-input';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -33,6 +34,7 @@ export default function CopilotPage() {
   const [sending, setSending] = useState(false);
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
+  const [scenarioOpen, setScenarioOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,6 +72,27 @@ export default function CopilotPage() {
       }
     },
     [selectedId, sessionId, isEs, sending],
+  );
+
+  // J2: structured scenario → bilingual natural-language query
+  // Composes a deterministic prompt from the slider state so the LLM
+  // gets precise inputs (no ambiguity about bp vs %, no paraphrase
+  // drift) while the conversational thread stays readable.
+  const runScenario = useCallback(
+    (p: ScenarioParams) => {
+      const sign = p.rateShockBps >= 0 ? '+' : '';
+      const msgEn =
+        `Run scenario "${p.scenarioType}": rate shock ${sign}${p.rateShockBps}bps, ` +
+        `deposit runoff ${p.depositRunoffPct}%, prepayment ×${p.prepaymentMultiplier.toFixed(2)}, ` +
+        `credit-loss override ${p.creditLossOverridePct}%. Report NII/EVE impact, LCR/NSFR deltas, and CAMEL pressure.`;
+      const msgEs =
+        `Ejecutar escenario "${p.scenarioType}": choque de tasa ${sign}${p.rateShockBps}pb, ` +
+        `fuga de depósitos ${p.depositRunoffPct}%, prepago ×${p.prepaymentMultiplier.toFixed(2)}, ` +
+        `override pérdida crediticia ${p.creditLossOverridePct}%. Reporte impacto NII/EVE, deltas LCR/NSFR, y presión CAMEL.`;
+      setScenarioOpen(false);
+      void sendMessage(isEs ? msgEs : msgEn);
+    },
+    [sendMessage, isEs],
   );
 
   if (!selectedId) {
@@ -179,6 +202,34 @@ export default function CopilotPage() {
           </button>
         </div>
       )}
+
+      {/* J2: Scenario composer (collapsible) */}
+      <div className="border-t border-slate-200 bg-slate-50">
+        <button
+          type="button"
+          onClick={() => setScenarioOpen((o) => !o)}
+          className="flex w-full items-center justify-between px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-700"
+          aria-expanded={scenarioOpen}
+          aria-controls="copilot-scenario-input"
+        >
+          <span className="flex items-center gap-1.5">
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            {isEs ? 'Compositor de Escenario' : 'Scenario Composer'}
+          </span>
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform ${scenarioOpen ? 'rotate-180' : ''}`}
+            aria-hidden
+          />
+        </button>
+        {scenarioOpen && (
+          <div id="copilot-scenario-input" className="border-t border-slate-200 bg-white px-4 py-3">
+            <ScenarioInput
+              onRun={runScenario}
+              locale={isEs ? 'es' : 'en'}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Input */}
       <div className="border-t border-slate-200 px-4 py-3 bg-white">

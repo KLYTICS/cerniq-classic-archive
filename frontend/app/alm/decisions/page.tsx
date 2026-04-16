@@ -24,6 +24,7 @@ import {
   type AgentStreamEvent,
 } from '@/types/agents';
 import { Play, ChevronDown, ChevronRight, Download, Globe } from 'lucide-react';
+import HealthScoreWidget from '@/components/alm/health-score-widget';
 
 const SEVERITY_CLS: Record<string, string> = {
   HIGH: 'text-rose-700 bg-rose-50 border-rose-200',
@@ -263,9 +264,9 @@ export default function DecisionsPage() {
 
       {output ? (
         <>
-          {/* Health snapshot */}
+          {/* Health snapshot: overall gauge (I1) + sub-metrics strip */}
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-2">
               <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
                 {isEs ? 'Salud' : 'Health'}
               </span>
@@ -281,7 +282,16 @@ export default function DecisionsPage() {
                 {output.healthSnapshot.label} · {output.healthSnapshot.trend}
               </span>
             </div>
-            <MetricStrip items={healthItems} density="comfortable" />
+            <div className="flex items-start gap-4">
+              <HealthScoreWidget
+                score={output.healthSnapshot.overall}
+                variant="full"
+                locale={isEs ? 'es' : 'en'}
+              />
+              <div className="flex-1">
+                <MetricStrip items={healthItems} density="comfortable" />
+              </div>
+            </div>
           </div>
 
           {/* Top 5 risks */}

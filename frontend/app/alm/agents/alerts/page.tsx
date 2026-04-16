@@ -14,7 +14,7 @@
  */
 
 import { Suspense } from 'react';
-import { AlertFeed } from '@/components/agents/alert-feed';
+import AlertFeed from '@/components/agents/alert-feed';
 import { useInstitutionId } from '@/lib/hooks/useInstitutionId';
 import { useTranslation } from '@/lib/i18n';
 
