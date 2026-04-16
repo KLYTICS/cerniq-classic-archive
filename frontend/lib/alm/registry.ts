@@ -17,7 +17,7 @@
 
 import type { LucideIcon } from 'lucide-react';
 import {
-  Activity, AlertOctagon, ArrowDownUp, ArrowUpDown, BarChart3, Bot, Brain,
+  Activity, AlertOctagon, ArrowDownUp, ArrowUpDown, BarChart3, Bell, Bot, Brain,
   CloudLightning, Cpu, DollarSign, FileText, Gauge, GitBranch, Globe,
   Landmark, Layers, LineChart, Link2, MessageSquare, ScrollText, Shield, ShieldCheck,
   SlidersHorizontal, Target, Timer, TrendingDown, TrendingUp, Zap,
@@ -61,7 +61,7 @@ export const ALM_CATEGORIES: readonly AlmCategory[] = [
 export type AlmModuleSlug =
   // core
   | 'overview' | 'balance-sheet' | 'balance-sheet-sim' | 'advisor-v2' | 'analyst' | 'alco-dashboard' | 'modules' | 'reseller'
-  | 'decisions' | 'agents' | 'copilot'
+  | 'decisions' | 'agents' | 'copilot' | 'agent-alerts'
   // rate
   | 'sensitivity' | 'sensitivity-report' | 'yield-curve' | 'svensson' | 'hull-white' | 'pca-yield-curve'
   | 'repricing-gap' | 'rate-shock-v2' | 'key-rate-durations' | 'behavioral-duration' | 'sofr-exposure'
@@ -127,6 +127,7 @@ export const ALM_MODULES: readonly AlmModule[] = [
   { slug: 'decisions',         href: '/alm/decisions',         category: 'core', tier: 'core',     status: 'ga',   icon: Target,           name: { en: 'Decision Panel',       es: 'Panel de Decisiones'     }, description: { en: 'ALM agent output: health, risks, decision queue, trace', es: 'Salida agente ALM: salud, riesgos, cola decisiones'    }, endpoint: '/api/v1/agents/{id}/runs' },
   { slug: 'agents',            href: '/alm/agents',            category: 'core', tier: 'core',     status: 'ga',   icon: Bot,              name: { en: 'Agent Activity',       es: 'Actividad Agentes'       }, description: { en: 'Run feed, alert center, cost tracking',                  es: 'Feed ejecuciones, centro alertas, seguimiento costos'  }, endpoint: '/api/v1/agents/{id}/runs' },
   { slug: 'copilot',           href: '/alm/copilot',           category: 'core', tier: 'core',     status: 'ga',   icon: MessageSquare,    name: { en: 'CFO Copilot',          es: 'Copiloto CFO'            }, description: { en: 'Real-time scenario Q&A, bilingual, tool-backed',         es: 'Q&A escenarios en tiempo real, bilingüe, con herramientas' }, endpoint: '/api/v1/agents/{id}/copilot' },
+  { slug: 'agent-alerts',      href: '/alm/agents/alerts',     category: 'core', tier: 'core',     status: 'ga',   icon: Bell,             name: { en: 'Agent Alerts',         es: 'Alertas de Agentes'      }, description: { en: 'Live feed from Risk Monitor + ALM Decision agents',      es: 'Feed en vivo de agentes Monitor Riesgo + Decisión ALM' }, endpoint: '/api/v1/agents/{id}/alerts' },
 
   // ─ Rate Risk ────────────────────────────────────────────────────────────────
   { slug: 'sensitivity',         href: '/alm/sensitivity',         category: 'rate', tier: 'core',     status: 'ga', icon: TrendingUp,        name: { en: 'Rate Sensitivity',     es: 'Sensibilidad de Tasa'    }, description: { en: 'NII/EVE impact across ±200bp parallel shifts',           es: 'Impacto NII/EVE en cambios ±200bp'                     }, regulatoryRefs: ['Basel IRRBB'], endpoint: '/api/alm/{id}/sensitivity' },
