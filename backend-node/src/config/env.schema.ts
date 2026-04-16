@@ -95,6 +95,57 @@ const envSchema = z.object({
     .optional()
     .transform((v) => (v ? Number(v) : undefined))
     .pipe(z.number().int().positive().optional()),
+
+  // ── Agent Execution Layer (Vol.1/Vol.2) ──────────────────────────
+  //
+  // Concurrency cap on the BullMQ agent worker. Each worker slot can
+  // hold one LLM call in flight. Defaults to 5 in .env.example. Keep
+  // below Anthropic's per-key concurrent-request ceiling (~10 for
+  // standard tier as of 2026-04) unless Railway is scaled horizontally.
+  AGENT_WORKER_CONCURRENCY: z
+    .string()
+    .optional()
+    .transform((v) => (v ? Number(v) : undefined))
+    .pipe(z.number().int().min(1).max(50).optional()),
+
+  // Kill-switch for the daily/weekly/monthly Risk Monitor cron. Any
+  // truthy value disables all 3 schedules. Use during maintenance
+  // windows or when debugging cost spikes.
+  AGENT_SCHEDULER_DISABLED: z.string().optional(),
+
+  // Monthly per-institution LLM cost cap in USD cents. The cost
+  // circuit-breaker short-circuits new runs once spend crosses this
+  // threshold. Default 10000 (= $100). Set to '0' to disable.
+  LLM_COST_CAP_USD_CENTS: z
+    .string()
+    .optional()
+    .transform((v) => (v ? Number(v) : undefined))
+    .pipe(z.number().int().nonnegative().optional()),
+
+  // ── Data Retention (days) ────────────────────────────────────────
+  // Audit logs default to 2555 days (7 years) to match the security
+  // page commitment. Regulators typically require 5-7 years for
+  // COSSEC/NCUA examination records.
+  RETENTION_AUDIT_LOGS_DAYS: z
+    .string()
+    .optional()
+    .transform((v) => (v ? Number(v) : undefined))
+    .pipe(z.number().int().positive().optional()),
+  RETENTION_DEMO_REQUESTS_DAYS: z
+    .string()
+    .optional()
+    .transform((v) => (v ? Number(v) : undefined))
+    .pipe(z.number().int().positive().optional()),
+  RETENTION_ANALYSIS_RUNS_DAYS: z
+    .string()
+    .optional()
+    .transform((v) => (v ? Number(v) : undefined))
+    .pipe(z.number().int().positive().optional()),
+  RETENTION_INGESTION_LOGS_DAYS: z
+    .string()
+    .optional()
+    .transform((v) => (v ? Number(v) : undefined))
+    .pipe(z.number().int().positive().optional()),
 });
 
 export type Env = z.infer<typeof envSchema>;
