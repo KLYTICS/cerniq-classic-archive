@@ -49,6 +49,8 @@ import { CloseModule } from './close/close.module';
 import { ModelRegistryModule } from './model-registry/model-registry.module';
 import { GovernanceModule } from './governance/governance.module';
 import { AdminModule } from './admin/admin.module';
+import { AgentsModule } from './agents/agents.module';
+import { AgentApiModule } from './agent-api/agent-api.module';
 import { ExitMetricsService } from './admin/exit-metrics.service';
 
 @Module({
@@ -138,6 +140,12 @@ import { ExitMetricsService } from './admin/exit-metrics.service';
     ModelRegistryModule,
     // FAANG Audit P1: Governed scenarios + benchmarks
     GovernanceModule,
+    // Agent Execution Layer (Blueprint §1): runtime for the 12-agent catalog.
+    // Depends on AlmModule for the quantitative tools exposed to the LLM.
+    AgentsModule,
+    // Per-tenant HTTP surface for agent runs, alerts, copilot, SSE, trace export.
+    // Depends on AgentsModule for the runner + event bus, PrismaModule for RLS.
+    AgentApiModule,
   ],
   controllers: [AppController],
   providers: [

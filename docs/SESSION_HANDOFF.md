@@ -178,6 +178,8 @@ Greening sequence for this branch:
 ---
 
 ## 5. Recent landings
+- 2026-04-16 — **Agent Execution Layer scaffold (Blueprint §1).** Landed the full agent runtime substrate: 3 Prisma tables (agent_runs with idempotency, hash-chained agent_audit_logs, dedup'd agent_alerts) + 6 enums, forward-only migration at `20260415120000_add_agent_execution_layer`. Core services: `AgentRunService` (lifecycle + race-safe idempotency via P2002 retry), `AgentAuditService` (sha256 hash chain — `canonicalJson` + `chainHash` + `verifyChain` for regulator-grade tamper detection), `AgentRunnerService` (LLM-loop executor: resolve definition → validate input → tool-call loop → `parseAgentOutput` with fence/pluck fallbacks → Zod contract validation → audit-chain completion). 14 real ALM tools via `AlmToolsFactory` wrapping `QuantSwarmService`, `YieldCurve`, `LiquidityAdvanced`, `CECL`, `Concentration`, `IRRPolicy`, `PeerAnalytics`, `RepricingGap`, `MonteCarlo`, `AssetEWS`, `CAMELScorer`, `FTP`, `DepositBeta`, `AlmAdvisorV2`. 4 agent definitions (ALM_DECISION, COMMITTEE_REPORT, RISK_MONITOR, CFO_COPILOT) with system prompts, allowed-tool scope enforcement, output schemas, and `buildUserMessage()`. `AgentTriggerService` for upload/schedule event routing with derived idempotency keys. `LlmBridgeService` wrapping `@anthropic-ai/sdk` pinned to `claude-opus-4-6`. SSE stream endpoint via `AgentEventBusService`. `AgentsModule` mounted in `AppModule`. **35/35 agent specs green + 6234/6234 full backend suite green.** Reconciled with a prior parallel session's in-flight scaffold — preserved their 14 tool wrappers, 4 definitions, 4 prompts, 5 contracts, and SSE controller while replacing the core runtime with hash-chained audit + idempotent run service + LLM-loop runner. — `backend-node/src/agents/**`, `backend-node/prisma/schema.prisma:2216-2391`, `backend-node/prisma/migrations/20260415120000_add_agent_execution_layer/migration.sql`
+
 - 2026-04-15 — **Cross-terminal session coordination scaffold (Round 1+2).** Shipped the repo-level session coordinator: 7 npm scripts (`session:register|claim|release|list|status|handoff` + `test:session`), pre-commit claim-gate at `scripts/ci/check-claim-conflicts.mjs` reading both coordination layers (.omx/state/team/sessions/ + ~/.claude/peers/claims/cerniq__*.json), 23/23 node:test passing, and CI integration — new `coordinator-tests` job in `alm-quality-gate.yml` contributes to `ci-status.json` verdict. Archived misnamed `docs/TERMINAL_COORDINATION.md` (was a stale 2026-03-31 status snapshot). Full protocol at `docs/SESSION_COORDINATION.md`. Warn-only by default (`STRICT_CLAIMS=1` to block, `SKIP_CLAIMS=1` to skip). — `scripts/session/_lib.mjs`, `scripts/session/_lib.test.mjs`, `scripts/ci/check-claim-conflicts.mjs:1-130`, `.github/workflows/alm-quality-gate.yml:189-211`
 
 (Append on each merge: date — what — file:line of the change.)
@@ -325,3 +327,43 @@ Ordered by **how many other reports the fix unblocks**, not by how broken the pa
 | AP/LCR impact report (`calculateApLcrImpact`) | 🟢 **Safe** (Phase 2 vertical slice) | All numeric fields nullable. New `'DATA_UNAVAILABLE'` alert level. Recommendations branch to "upload liquidity data" instead of phantom delta. |
 
 > **One-line summary for the next session:** *Phase 1 (seeding) + Phase 2 batches 1-4 (reports) + Phase 3 skeleton (actions) are all shippable. Every report-producing service refuses phantom data. ReportPreflight is the central "is it safe?" API. Golden reconciliation pins ALM math to canonical outputs — drift fails CI. Action registry dispatches with audit + permission. **All three pillars of the original ask have a foundation.** Next biggest leverage: second-wave action registrations (`alm.run-stress-test`, `alm.generate-report`, `alm.export-board-package`), frontend command palette + gap-aware rendering, decimal.js for precision. Recipe to copy for new actions: `src/actions/alm-actions.bootstrap.ts`.*
+
+---
+
+## 7. Agent Trust & Replay Layer (2026-04-15)
+
+Scaffolded in parallel with peer session `sid=6ac49d91` (Agent Execution Layer). **Zero overlap — peer owns `src/agents/`, `src/swarm/`, `schema.prisma`. This layer consumes their outputs.**
+
+### What landed (53 tests green, 0 type errors)
+
+| Module | Path | Files | Purpose |
+|--------|------|-------|---------|
+| **agent-trust** | `backend-node/src/agent-trust/` | 14 | Post-generation audit gate: NumberCitationValidator (Vol2 #2), PiiRedactorService (Vol2 LLM Security #5), PromptInjectionShield (Vol2 rules 1-2), HedgeLanguageDetector (Vol3 failure taxonomy), OutputSchemaValidator (Vol2 rule #3), AgentTrustService (orchestrator). |
+| **agent-eval** | `backend-node/src/agent-eval/` | 10 | Deterministic regression harness: RegressionScorerService (6-dim, Vol2 weights 25/25/20/15/10/5), GoldenRunnerService (AGENT_EXECUTOR port), ReplayRunnerService (audit-defence replay). 80% deploy gate + 5pt regression-drop constants. |
+| **agent-observability-otel** | `backend-node/src/agent-observability-otel/` | 7 | OTel semantic conventions (`cerniq.agent.*`), AgentSpanFactory, SSE→span bridge, HTTP correlation interceptor. Plugs into existing `src/telemetry.ts` NodeSDK. |
+| **golden fixture** | `backend-node/test/agent-golden/alm-decision/` | 1 | Reference case golden-001 (high rate risk, PR cooperativa). |
+| **cockpit UI** | `frontend/app/cockpit/` | 6 | Decision Dashboard (§6.1 — MetricStrip + alerts + live runs), Activity Feed (§6.2 — SSE-driven table), Decision Panel (§6.3 — brief + risk table + audit trace). Bloomberg-density components reused. |
+
+### Contract seams (swap-in points for peer merge)
+
+| File | What to swap | When |
+|------|-------------|------|
+| `src/agent-trust/contracts.ts` | Replace local read-model types with `@prisma/client` AgentRun/AgentAuditLog/AgentAlert + peer's `src/agents/contracts/` | After peer commits schema.prisma + agent types |
+| `src/agent-eval/agent-executor.port.ts` | Provide AGENT_EXECUTOR token → peer's AgentRunnerService in AppModule | After peer lands `src/agents/runner/` |
+| `frontend/app/cockpit/_types/read-model.ts` | Replace with shared `@cerniq/agent-types` or import from API codegen | After API controller types stabilise |
+
+### How to wire into AppModule
+
+```ts
+// In app.module.ts imports:
+import { AgentTrustModule } from './agent-trust';
+import { AgentEvalModule } from './agent-eval';
+import { AgentOtelModule } from './agent-observability-otel';
+
+// In providers (for global interceptor):
+{ provide: APP_INTERCEPTOR, useClass: AgentCorrelationInterceptor }
+```
+
+### Coordination note
+
+Peer claim `cerniq:backend-node/src/agents,backend-node/prisma/schema.prisma,backend-node/src/swarm` was active during this session. If that claim is still active, do NOT edit those paths. Run `claude-peers status` to verify before touching any agent-adjacent code.

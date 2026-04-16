@@ -28,22 +28,22 @@ model User {
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime        @updatedAt @map("updated_at")
 
-  organizationMembers OrganizationMember[]
-  expenses            Expense[]
-  portfolios          Portfolio[]
-  refreshTokens       RefreshToken[]
-  apiKeys             ApiKey[]
-  workspaces          Workspace[]
-  subscription        Subscription?
-  reportJobs          ReportJob[]
-  magicLinks          MagicLink[]
-  partnerConfig       PartnerConfig?
-  analysisRuns        AnalysisRun[]
-  ingestionLogs       IngestionLog[]
-  passwordResetTokens PasswordResetToken[]
-  intelligenceRuns    IntelligenceRun[]
-  intelligenceActions IntelligenceAction[]
-  intelligenceArtifacts IntelligenceArtifact[]
+  organizationMembers    OrganizationMember[]
+  expenses               Expense[]
+  portfolios             Portfolio[]
+  refreshTokens          RefreshToken[]
+  apiKeys                ApiKey[]
+  workspaces             Workspace[]
+  subscription           Subscription?
+  reportJobs             ReportJob[]
+  magicLinks             MagicLink[]
+  partnerConfig          PartnerConfig?
+  analysisRuns           AnalysisRun[]
+  ingestionLogs          IngestionLog[]
+  passwordResetTokens    PasswordResetToken[]
+  intelligenceRuns       IntelligenceRun[]
+  intelligenceActions    IntelligenceAction[]
+  intelligenceArtifacts  IntelligenceArtifact[]
   workspaceMemoryEntries WorkspaceMemoryEntry[]
 
   @@unique([provider, providerId])
@@ -84,15 +84,15 @@ model PasswordResetToken {
 }
 
 model ApiKey {
-  id        String    @id @default(cuid())
-  userId    String    @map("user_id") @db.Uuid
-  name      String
-  keyPrefix String    @map("key_prefix")
-  keyHash   String    @unique @map("key_hash")
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id") @db.Uuid
+  name       String
+  keyPrefix  String    @map("key_prefix")
+  keyHash    String    @unique @map("key_hash")
   lastUsedAt DateTime? @map("last_used_at")
-  revokedAt DateTime?  @map("revoked_at")
-  expiresAt DateTime?  @map("expires_at")
-  createdAt DateTime   @default(now()) @map("created_at")
+  revokedAt  DateTime? @map("revoked_at")
+  expiresAt  DateTime? @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -119,12 +119,12 @@ model Organization {
 }
 
 model OrganizationMember {
-  id             String   @id @default(uuid()) @db.Uuid
-  organizationId String   @map("organization_id") @db.Uuid
-  userId         String   @map("user_id") @db.Uuid
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  userId         String     @map("user_id") @db.Uuid
   role           MemberRole
-  invitedBy      String?  @map("invited_by") @db.Uuid
-  joinedAt       DateTime @default(now()) @map("joined_at")
+  invitedBy      String?    @map("invited_by") @db.Uuid
+  joinedAt       DateTime   @default(now()) @map("joined_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -140,28 +140,28 @@ enum MemberRole {
 }
 
 model Expense {
-  id             String        @id @default(uuid()) @db.Uuid
-  organizationId String        @map("organization_id") @db.Uuid
-  userId         String?       @map("user_id") @db.Uuid
-  merchantName   String        @map("merchant_name")
-  amount         Decimal       @db.Decimal(12, 2)
-  currency       String        @default("USD")
-  category       String?
-  description    String?
-  transactionDate DateTime     @map("transaction_date")
-  receiptUrl     String?       @map("receipt_url")
-  status         ExpenseStatus @default(DRAFT)
-  aiExtracted    Boolean       @default(false) @map("ai_extracted")
-  aiConfidence   Float?        @map("ai_confidence")
-  aiData         Json?         @map("ai_data")
-  invoiceHash    String?       @map("invoice_hash")
-  anomalyFlags   String[]      @default([]) @map("anomaly_flags")
-  riskScore      Int           @default(0) @map("risk_score")
-  reviewStatus   String        @default("PENDING") @map("review_status")
-  approvedBy     String?       @map("approved_by") @db.Uuid
-  approvedAt     DateTime?     @map("approved_at")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  id              String        @id @default(uuid()) @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  userId          String?       @map("user_id") @db.Uuid
+  merchantName    String        @map("merchant_name")
+  amount          Decimal       @db.Decimal(12, 2)
+  currency        String        @default("USD")
+  category        String?
+  description     String?
+  transactionDate DateTime      @map("transaction_date")
+  receiptUrl      String?       @map("receipt_url")
+  status          ExpenseStatus @default(DRAFT)
+  aiExtracted     Boolean       @default(false) @map("ai_extracted")
+  aiConfidence    Float?        @map("ai_confidence")
+  aiData          Json?         @map("ai_data")
+  invoiceHash     String?       @map("invoice_hash")
+  anomalyFlags    String[]      @default([]) @map("anomaly_flags")
+  riskScore       Int           @default(0) @map("risk_score")
+  reviewStatus    String        @default("PENDING") @map("review_status")
+  approvedBy      String?       @map("approved_by") @db.Uuid
+  approvedAt      DateTime?     @map("approved_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -192,15 +192,15 @@ model Workspace {
   ownerId   String?  @map("owner_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
 
-  owner        User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  uploads      Upload[]
-  invoices     Invoice[]
-  findings     Finding[]
-  reports      Report[]
-  institutions Institution[]
-  intelligenceAccounts IntelligenceAccount[]
-  intelligenceRuns IntelligenceRun[]
-  intelligenceArtifacts IntelligenceArtifact[]
+  owner                  User?                  @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  uploads                Upload[]
+  invoices               Invoice[]
+  findings               Finding[]
+  reports                Report[]
+  institutions           Institution[]
+  intelligenceAccounts   IntelligenceAccount[]
+  intelligenceRuns       IntelligenceRun[]
+  intelligenceArtifacts  IntelligenceArtifact[]
   workspaceMemoryEntries WorkspaceMemoryEntry[]
 
   @@map("workspaces")
@@ -212,7 +212,7 @@ model Institution {
   id                       String    @id @default(cuid())
   workspaceId              String    @map("workspace_id") @db.Uuid
   name                     String
-  type                     String    // bank | credit_union | family_office | cooperativa
+  type                     String // bank | credit_union | family_office | cooperativa
   totalAssets              Decimal   @map("total_assets") @db.Decimal(18, 2)
   currency                 String    @default("USD")
   reportingDate            DateTime  @map("reporting_date")
@@ -220,7 +220,7 @@ model Institution {
   /// (workspaceId, seedKey) is unique → seed pipeline can re-run safely between sessions.
   seedKey                  String?   @map("seed_key")
   cossecRegistrationNumber String?   @map("cossec_registration_number")
-  fiscalYearEnd            String?   @map("fiscal_year_end")       // "december" | "june" | "march"
+  fiscalYearEnd            String?   @map("fiscal_year_end") // "december" | "june" | "march"
   alcoMeetingFrequency     String?   @map("alco_meeting_frequency") // "monthly" | "quarterly"
   alcoNextDate             DateTime? @map("alco_next_date")
   lastExamDate             DateTime? @map("last_exam_date")
@@ -265,8 +265,8 @@ model Institution {
 model BalanceSheetItem {
   id            String    @id @default(cuid())
   institutionId String    @map("institution_id")
-  category      String    // asset | liability
-  subcategory   String    // loans | securities | deposits | borrowings | equity | cash
+  category      String // asset | liability
+  subcategory   String // loans | securities | deposits | borrowings | equity | cash
   name          String
   balance       Decimal   @db.Decimal(18, 2) // in millions
   rate          Decimal   @db.Decimal(8, 6) // current yield/cost as decimal (0.055 = 5.5%)
@@ -316,25 +316,25 @@ model LiquidityPosition {
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
-  @@index([institutionId])
   @@unique([institutionId, date])
+  @@index([institutionId])
   @@map("liquidity_positions")
 }
 
 // ===== Quant Powerhouse Models =====
 
 model SavedScenario {
-  id              String   @id @default(cuid())
-  institutionId   String   @map("institution_id")
-  createdBy       String   @map("created_by") // userId
-  name            String
-  description     String?
-  scenarioType    String   @map("scenario_type") // custom | parallel | steepening | flattening | pr_specific | hurricane | recession
-  parameters      Json     // ScenarioParams: rateShockBps, depositRunoffPct, etc.
-  results         Json?    // ScenarioResult: nimImpact, lcrBefore/After, verdict, etc.
-  tags            String[] @default([])
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(cuid())
+  institutionId String   @map("institution_id")
+  createdBy     String   @map("created_by") // userId
+  name          String
+  description   String?
+  scenarioType  String   @map("scenario_type") // custom | parallel | steepening | flattening | pr_specific | hurricane | recession
+  parameters    Json // ScenarioParams: rateShockBps, depositRunoffPct, etc.
+  results       Json? // ScenarioResult: nimImpact, lcrBefore/After, verdict, etc.
+  tags          String[] @default([])
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -344,15 +344,15 @@ model SavedScenario {
 }
 
 model YieldCurve {
-  id              String   @id @default(cuid())
-  institutionId   String   @map("institution_id")
-  name            String
-  asOfDate        DateTime @map("as_of_date")
-  tenors          Json     // Array of { tenor: number, rate: number } e.g., [{ tenor: 0.25, rate: 0.045 }, ...]
-  source          String   @default("manual") // manual | fed_h15 | interpolated
-  isBase          Boolean  @default(false) @map("is_base") // marks the institution's current base curve
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(cuid())
+  institutionId String   @map("institution_id")
+  name          String
+  asOfDate      DateTime @map("as_of_date")
+  tenors        Json // Array of { tenor: number, rate: number } e.g., [{ tenor: 0.25, rate: 0.045 }, ...]
+  source        String   @default("manual") // manual | fed_h15 | interpolated
+  isBase        Boolean  @default(false) @map("is_base") // marks the institution's current base curve
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -381,15 +381,15 @@ model LoanSegment {
 }
 
 model DepositTier {
-  id              String   @id @default(cuid())
-  institutionId   String   @map("institution_id")
-  tierName        String   @map("tier_name") // insured_core | uninsured | brokered | large_single
-  balance         Decimal  @db.Decimal(18, 2) // in millions
-  insuredPct      Decimal  @map("insured_pct") @db.Decimal(8, 6) // 0.0-1.0
-  flightRate      Decimal  @map("flight_rate") @db.Decimal(8, 6) // monthly runoff rate under stress (0.0-1.0)
-  avgRate         Decimal  @map("avg_rate") @db.Decimal(8, 6) // current cost as decimal
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(cuid())
+  institutionId String   @map("institution_id")
+  tierName      String   @map("tier_name") // insured_core | uninsured | brokered | large_single
+  balance       Decimal  @db.Decimal(18, 2) // in millions
+  insuredPct    Decimal  @map("insured_pct") @db.Decimal(8, 6) // 0.0-1.0
+  flightRate    Decimal  @map("flight_rate") @db.Decimal(8, 6) // monthly runoff rate under stress (0.0-1.0)
+  avgRate       Decimal  @map("avg_rate") @db.Decimal(8, 6) // current cost as decimal
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -398,16 +398,16 @@ model DepositTier {
 }
 
 model ConcentrationLimit {
-  id              String   @id @default(cuid())
-  institutionId   String   @map("institution_id")
-  limitType       String   @map("limit_type") // sector | single_name | geography | product
-  limitName       String   @map("limit_name") // e.g., "Commercial RE", "Top 10 Borrowers"
-  maxPct          Decimal  @map("max_pct") @db.Decimal(8, 6) // policy limit as decimal (0.25 = 25%)
-  currentPct      Decimal  @map("current_pct") @db.Decimal(8, 6) // actual exposure as decimal
-  currentBalance  Decimal? @map("current_balance") @db.Decimal(18, 2) // actual $ exposure in millions
-  status          String   @default("compliant") // compliant | warning | breach
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(cuid())
+  institutionId  String   @map("institution_id")
+  limitType      String   @map("limit_type") // sector | single_name | geography | product
+  limitName      String   @map("limit_name") // e.g., "Commercial RE", "Top 10 Borrowers"
+  maxPct         Decimal  @map("max_pct") @db.Decimal(8, 6) // policy limit as decimal (0.25 = 25%)
+  currentPct     Decimal  @map("current_pct") @db.Decimal(8, 6) // actual exposure as decimal
+  currentBalance Decimal? @map("current_balance") @db.Decimal(18, 2) // actual $ exposure in millions
+  status         String   @default("compliant") // compliant | warning | breach
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -437,16 +437,16 @@ model LoanCohort {
 }
 
 model CeclVintageAllowance {
-  id                String   @id @default(cuid())
-  institutionId     String   @map("institution_id")
-  runAt             DateTime @default(now()) @map("run_at")
-  methodology       String   // "vintage" | "warm" | "pdlgd"
-  baseAllowance     Decimal  @map("base_allowance") @db.Decimal(18, 2)
-  adverseAllowance  Decimal  @map("adverse_allowance") @db.Decimal(18, 2)
-  severeAllowance   Decimal  @map("severe_allowance") @db.Decimal(18, 2)
-  segmentBreakdown  Json     @map("segment_breakdown")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  id               String   @id @default(cuid())
+  institutionId    String   @map("institution_id")
+  runAt            DateTime @default(now()) @map("run_at")
+  methodology      String // "vintage" | "warm" | "pdlgd"
+  baseAllowance    Decimal  @map("base_allowance") @db.Decimal(18, 2)
+  adverseAllowance Decimal  @map("adverse_allowance") @db.Decimal(18, 2)
+  severeAllowance  Decimal  @map("severe_allowance") @db.Decimal(18, 2)
+  segmentBreakdown Json     @map("segment_breakdown")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -455,15 +455,15 @@ model CeclVintageAllowance {
 }
 
 model IRRPolicyLimit {
-  id             String   @id @default(cuid())
-  institutionId  String   @map("institution_id")
-  limitType      String   @map("limit_type") // EVE_PCT | NII_AT_RISK | DURATION_GAP | REPRICING_GAP
-  scenario       String   // "+200bps" | "-100bps" | "base"
-  watchPct       Decimal  @map("watch_pct") @db.Decimal(8, 6) // e.g. 15.0
-  warningPct     Decimal  @map("warning_pct") @db.Decimal(8, 6) // e.g. 18.0
-  breachPct      Decimal  @map("breach_pct") @db.Decimal(8, 6) // e.g. 20.0
-  regulatoryRef  String   @map("regulatory_ref") // "OCIF CC-2022-03 §IV.B"
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(cuid())
+  institutionId String   @map("institution_id")
+  limitType     String   @map("limit_type") // EVE_PCT | NII_AT_RISK | DURATION_GAP | REPRICING_GAP
+  scenario      String // "+200bps" | "-100bps" | "base"
+  watchPct      Decimal  @map("watch_pct") @db.Decimal(8, 6) // e.g. 15.0
+  warningPct    Decimal  @map("warning_pct") @db.Decimal(8, 6) // e.g. 18.0
+  breachPct     Decimal  @map("breach_pct") @db.Decimal(8, 6) // e.g. 20.0
+  regulatoryRef String   @map("regulatory_ref") // "OCIF CC-2022-03 §IV.B"
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -472,15 +472,15 @@ model IRRPolicyLimit {
 }
 
 model PolicyBreachLog {
-  id             String    @id @default(cuid())
-  institutionId  String    @map("institution_id")
-  limitType      String    @map("limit_type")
-  breachLevel    String    @map("breach_level") // WATCH | WARNING | BREACH
-  actualValue    Decimal   @map("actual_value") @db.Decimal(18, 6)
-  limitValue     Decimal   @map("limit_value") @db.Decimal(18, 6)
-  detectedAt     DateTime  @default(now()) @map("detected_at")
-  resolvedAt     DateTime? @map("resolved_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  id            String    @id @default(cuid())
+  institutionId String    @map("institution_id")
+  limitType     String    @map("limit_type")
+  breachLevel   String    @map("breach_level") // WATCH | WARNING | BREACH
+  actualValue   Decimal   @map("actual_value") @db.Decimal(18, 6)
+  limitValue    Decimal   @map("limit_value") @db.Decimal(18, 6)
+  detectedAt    DateTime  @default(now()) @map("detected_at")
+  resolvedAt    DateTime? @map("resolved_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -489,11 +489,11 @@ model PolicyBreachLog {
 }
 
 model ColumnMappingMemory {
-  id             String   @id @default(cuid())
-  institutionId  String   @map("institution_id")
-  csvColumnName  String   @map("csv_column_name")
-  cerniqField    String   @map("cerniq_field")
-  confirmedAt    DateTime @default(now()) @map("confirmed_at")
+  id            String   @id @default(cuid())
+  institutionId String   @map("institution_id")
+  csvColumnName String   @map("csv_column_name")
+  cerniqField   String   @map("cerniq_field")
+  confirmedAt   DateTime @default(now()) @map("confirmed_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -516,9 +516,9 @@ model BoardReport {
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
+  @@unique([institutionId, reportMonth])
   @@index([institutionId])
   @@index([reportMonth])
-  @@unique([institutionId, reportMonth])
   @@map("board_reports")
 }
 
@@ -541,16 +541,16 @@ model Upload {
 }
 
 model Invoice {
-  id            String   @id @default(uuid()) @db.Uuid
-  workspaceId   String   @map("workspace_id") @db.Uuid
-  uploadId      String?  @map("upload_id") @db.Uuid
-  vendorName    String   @map("vendor_name")
-  invoiceNumber String?  @map("invoice_number")
+  id            String    @id @default(uuid()) @db.Uuid
+  workspaceId   String    @map("workspace_id") @db.Uuid
+  uploadId      String?   @map("upload_id") @db.Uuid
+  vendorName    String    @map("vendor_name")
+  invoiceNumber String?   @map("invoice_number")
   invoiceDate   DateTime? @map("invoice_date")
-  amount        Decimal  @db.Decimal(12, 2)
+  amount        Decimal   @db.Decimal(12, 2)
   description   String?
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   upload    Upload?   @relation(fields: [uploadId], references: [id], onDelete: SetNull)
@@ -565,7 +565,7 @@ model Finding {
   invoiceId   String?  @map("invoice_id") @db.Uuid
   vendorName  String   @map("vendor_name")
   issueType   String   @map("issue_type") // duplicate, subscription, price_drift
-  severity    String   // high, medium, low
+  severity    String // high, medium, low
   amount      Decimal? @db.Decimal(12, 2)
   description String
   status      String   @default("open") // open, dismissed, resolved
@@ -580,7 +580,7 @@ model Finding {
 }
 
 model Report {
-  id        String   @id @default(uuid()) @db.Uuid
+  id          String   @id @default(uuid()) @db.Uuid
   workspaceId String   @map("workspace_id") @db.Uuid
   title       String
   summary     Json
@@ -633,20 +633,20 @@ model Portfolio {
 }
 
 model Position {
-  id             String   @id @default(uuid()) @db.Uuid
-  portfolioId    String   @map("portfolio_id") @db.Uuid
-  ticker         String?
-  quantity       Decimal  @db.Decimal(18, 8)
-  avgCost        Decimal  @map("avg_cost") @db.Decimal(18, 2)
-  addedAt        DateTime @default(now()) @map("added_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(uuid()) @db.Uuid
+  portfolioId String   @map("portfolio_id") @db.Uuid
+  ticker      String?
+  quantity    Decimal  @db.Decimal(18, 8)
+  avgCost     Decimal  @map("avg_cost") @db.Decimal(18, 2)
+  addedAt     DateTime @default(now()) @map("added_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
   asset     Ticker?   @relation(fields: [ticker], references: [ticker], onDelete: SetNull)
 
+  @@unique([portfolioId, ticker])
   @@index([ticker])
   @@map("positions")
-  @@unique([portfolioId, ticker])
 }
 
 // ===== Pipeline Models =====
@@ -822,43 +822,43 @@ enum WorkspaceMemoryEntryType {
 }
 
 model Lead {
-  id              String       @id @default(cuid())
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Contact
   name            String
   email           String
   phone           String?
-  role            String       @default("CFO")
-  institutionName String       @map("institution_name")
-  institutionType String       @map("institution_type") // cooperativa | credit_union | community_bank | cpa_consultant | other
+  role            String  @default("CFO")
+  institutionName String  @map("institution_name")
+  institutionType String  @map("institution_type") // cooperativa | credit_union | community_bank | cpa_consultant | other
   message         String?
 
   // Source tracking
-  source          String       @default("landing_page") // landing_page | demo | outreach | referral
-  utmSource       String?      @map("utm_source")
-  utmCampaign     String?      @map("utm_campaign")
-  referredBy      String?      @map("referred_by")
+  source      String  @default("landing_page") // landing_page | demo | outreach | referral
+  utmSource   String? @map("utm_source")
+  utmCampaign String? @map("utm_campaign")
+  referredBy  String? @map("referred_by")
 
   // Pipeline state
-  status          LeadStatus   @default(NEW)
-  priority        LeadPriority @default(MEDIUM)
-  assignedTo      String?      @map("assigned_to")
-  notes           String?
-  nextFollowUp    DateTime?    @map("next_follow_up")
+  status       LeadStatus   @default(NEW)
+  priority     LeadPriority @default(MEDIUM)
+  assignedTo   String?      @map("assigned_to")
+  notes        String?
+  nextFollowUp DateTime?    @map("next_follow_up")
 
   // Outcome
-  convertedAt     DateTime?    @map("converted_at")
-  revenueAmount   Decimal?     @map("revenue_amount") @db.Decimal(18, 2)
-  dealType        String?      @map("deal_type") // one_time | monthly | partner | enterprise
+  convertedAt   DateTime? @map("converted_at")
+  revenueAmount Decimal?  @map("revenue_amount") @db.Decimal(18, 2)
+  dealType      String?   @map("deal_type") // one_time | monthly | partner | enterprise
 
   // Report job
-  reportJobId     String?      @map("report_job_id")
-  reportSentAt    DateTime?    @map("report_sent_at")
+  reportJobId  String?   @map("report_job_id")
+  reportSentAt DateTime? @map("report_sent_at")
 
   // Enrichment
-  publicDataSnapshot Json?     @map("public_data_snapshot")
+  publicDataSnapshot    Json?   @map("public_data_snapshot")
   intelligenceAccountId String? @map("intelligence_account_id")
 
   intelligenceAccount IntelligenceAccount? @relation(fields: [intelligenceAccountId], references: [id], onDelete: SetNull)
@@ -873,28 +873,28 @@ model Lead {
 // ===== Prospect Pipeline (Outbound) =====
 
 model ProspectInstitution {
-  id              String   @id @default(cuid())
-  name            String
-  institutionType String   @map("institution_type")
-  location        String?
-  estimatedAssets Decimal? @map("estimated_assets") @db.Decimal(18, 2)
-  publicDataSource String? @map("public_data_source") // cossec | ncua | manual
-  publicDataIdentifier String? @map("public_data_identifier") // charter_number for ncua, slug for cossec
-  outreachStatus  String   @default("not_started") @map("outreach_status") // not_started | sample_generated | portal_provisioned | sent | replied | meeting_set | closed
-  contactName     String?  @map("contact_name")
-  contactEmail    String?  @map("contact_email")
-  contactRole     String?  @map("contact_role")
-  notes           String?
-  reportUrl       String?  @map("report_url")
-  intelligenceAccountId String? @map("intelligence_account_id")
+  id                    String   @id @default(cuid())
+  name                  String
+  institutionType       String   @map("institution_type")
+  location              String?
+  estimatedAssets       Decimal? @map("estimated_assets") @db.Decimal(18, 2)
+  publicDataSource      String?  @map("public_data_source") // cossec | ncua | manual
+  publicDataIdentifier  String?  @map("public_data_identifier") // charter_number for ncua, slug for cossec
+  outreachStatus        String   @default("not_started") @map("outreach_status") // not_started | sample_generated | portal_provisioned | sent | replied | meeting_set | closed
+  contactName           String?  @map("contact_name")
+  contactEmail          String?  @map("contact_email")
+  contactRole           String?  @map("contact_role")
+  notes                 String?
+  reportUrl             String?  @map("report_url")
+  intelligenceAccountId String?  @map("intelligence_account_id")
 
   // Demo portal provisioning (cerniq.io/portal demo seats)
-  demoUserId         String?   @map("demo_user_id") @db.Uuid
-  demoReportJobId    String?   @map("demo_report_job_id")
-  demoMagicLinkUrl   String?   @map("demo_magic_link_url")
-  demoProvisionedAt  DateTime? @map("demo_provisioned_at")
-  demoExpiresAt      DateTime? @map("demo_expires_at")
-  demoLastViewedAt   DateTime? @map("demo_last_viewed_at")
+  demoUserId             String?   @map("demo_user_id") @db.Uuid
+  demoReportJobId        String?   @map("demo_report_job_id")
+  demoMagicLinkUrl       String?   @map("demo_magic_link_url")
+  demoProvisionedAt      DateTime? @map("demo_provisioned_at")
+  demoExpiresAt          DateTime? @map("demo_expires_at")
+  demoLastViewedAt       DateTime? @map("demo_last_viewed_at")
   // Conversion attribution — set by billing.service.closeConvertedDemoProspect
   // when a demo user runs Stripe checkout. Powers the DemoSeatAnalyticsService
   // funnel metrics + the admin revenue-attribution dashboard. Null when the
@@ -903,10 +903,10 @@ model ProspectInstitution {
   demoConvertedAmountUsd Decimal?  @map("demo_converted_amount_usd") @db.Decimal(12, 2)
   demoConvertedToTier    String?   @map("demo_converted_to_tier") // monthly | annual | one_time | partner
 
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  intelligenceAccount IntelligenceAccount? @relation(fields: [intelligenceAccountId], references: [id], onDelete: SetNull)
+  intelligenceAccount IntelligenceAccount?      @relation(fields: [intelligenceAccountId], references: [id], onDelete: SetNull)
   engagementEvents    DemoSeatEngagementEvent[]
 
   @@index([outreachStatus])
@@ -976,15 +976,15 @@ model IntelligenceAccount {
   createdAt         DateTime                  @default(now()) @map("created_at")
   updatedAt         DateTime                  @updatedAt @map("updated_at")
 
-  workspace      Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  contacts       IntelligenceContact[]
-  sources        IntelligenceSource[]
-  snapshots      IntelligenceSnapshot[]
-  insights       IntelligenceInsight[]
-  actions        IntelligenceAction[]
-  artifacts      IntelligenceArtifact[]
-  memoryEntries  WorkspaceMemoryEntry[]
-  syncedLeads    Lead[]
+  workspace       Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contacts        IntelligenceContact[]
+  sources         IntelligenceSource[]
+  snapshots       IntelligenceSnapshot[]
+  insights        IntelligenceInsight[]
+  actions         IntelligenceAction[]
+  artifacts       IntelligenceArtifact[]
+  memoryEntries   WorkspaceMemoryEntry[]
+  syncedLeads     Lead[]
   syncedProspects ProspectInstitution[]
 
   @@unique([workspaceId, kind, normalizedName])
@@ -995,22 +995,22 @@ model IntelligenceAccount {
 }
 
 model IntelligenceContact {
-  id                String   @id @default(cuid())
-  accountId         String   @map("account_id")
-  fullName          String   @map("full_name")
-  normalizedName    String   @map("normalized_name")
+  id                String    @id @default(cuid())
+  accountId         String    @map("account_id")
+  fullName          String    @map("full_name")
+  normalizedName    String    @map("normalized_name")
   title             String?
   department        String?
   seniority         String?
   email             String?
   phone             String?
-  linkedinUrl       String?  @map("linkedin_url")
-  contactScore      Int      @default(0) @map("contact_score")
-  reachabilityScore Int      @default(0) @map("reachability_score")
+  linkedinUrl       String?   @map("linkedin_url")
+  contactScore      Int       @default(0) @map("contact_score")
+  reachabilityScore Int       @default(0) @map("reachability_score")
   metadata          Json?
   lastVerifiedAt    DateTime? @map("last_verified_at")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   account IntelligenceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -1021,21 +1021,21 @@ model IntelligenceContact {
 }
 
 model IntelligenceSource {
-  id          String                       @id @default(cuid())
-  accountId   String                       @map("account_id")
-  label       String?
-  url         String
-  sourceType  IntelligenceSourceType       @map("source_type")
-  fetchPolicy IntelligenceSourceFetchPolicy @default(WEEKLY) @map("fetch_policy")
-  trustLevel  IntelligenceSourceTrustLevel @default(MEDIUM) @map("trust_level")
-  active      Boolean                      @default(true)
-  metadata    Json?
-  lastFetchedAt DateTime?                  @map("last_fetched_at")
-  lastHttpStatus Int?                      @map("last_http_status")
-  createdAt   DateTime                     @default(now()) @map("created_at")
-  updatedAt   DateTime                     @updatedAt @map("updated_at")
+  id             String                        @id @default(cuid())
+  accountId      String                        @map("account_id")
+  label          String?
+  url            String
+  sourceType     IntelligenceSourceType        @map("source_type")
+  fetchPolicy    IntelligenceSourceFetchPolicy @default(WEEKLY) @map("fetch_policy")
+  trustLevel     IntelligenceSourceTrustLevel  @default(MEDIUM) @map("trust_level")
+  active         Boolean                       @default(true)
+  metadata       Json?
+  lastFetchedAt  DateTime?                     @map("last_fetched_at")
+  lastHttpStatus Int?                          @map("last_http_status")
+  createdAt      DateTime                      @default(now()) @map("created_at")
+  updatedAt      DateTime                      @updatedAt @map("updated_at")
 
-  account   IntelligenceAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account   IntelligenceAccount    @relation(fields: [accountId], references: [id], onDelete: Cascade)
   snapshots IntelligenceSnapshot[]
 
   @@unique([accountId, url])
@@ -1044,26 +1044,26 @@ model IntelligenceSource {
 }
 
 model IntelligenceRun {
-  id              String                @id @default(cuid())
-  workspaceId     String                @map("workspace_id") @db.Uuid
-  initiatedByUserId String?             @map("initiated_by_user_id") @db.Uuid
-  trigger         String                @default("manual")
-  status          IntelligenceRunStatus @default(QUEUED)
-  accountCount    Int                   @default(0) @map("account_count")
-  snapshotCount   Int                   @default(0) @map("snapshot_count")
-  insightCount    Int                   @default(0) @map("insight_count")
-  errorMessage    String?               @map("error_message")
-  metadata        Json?
-  startedAt       DateTime              @default(now()) @map("started_at")
-  completedAt     DateTime?             @map("completed_at")
-  createdAt       DateTime              @default(now()) @map("created_at")
-  updatedAt       DateTime              @updatedAt @map("updated_at")
+  id                String                @id @default(cuid())
+  workspaceId       String                @map("workspace_id") @db.Uuid
+  initiatedByUserId String?               @map("initiated_by_user_id") @db.Uuid
+  trigger           String                @default("manual")
+  status            IntelligenceRunStatus @default(QUEUED)
+  accountCount      Int                   @default(0) @map("account_count")
+  snapshotCount     Int                   @default(0) @map("snapshot_count")
+  insightCount      Int                   @default(0) @map("insight_count")
+  errorMessage      String?               @map("error_message")
+  metadata          Json?
+  startedAt         DateTime              @default(now()) @map("started_at")
+  completedAt       DateTime?             @map("completed_at")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  initiatedByUser User? @relation(fields: [initiatedByUserId], references: [id], onDelete: SetNull)
-  snapshots IntelligenceSnapshot[]
-  insights IntelligenceInsight[]
-  artifacts IntelligenceArtifact[]
+  workspace       Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  initiatedByUser User?                  @relation(fields: [initiatedByUserId], references: [id], onDelete: SetNull)
+  snapshots       IntelligenceSnapshot[]
+  insights        IntelligenceInsight[]
+  artifacts       IntelligenceArtifact[]
 
   @@index([workspaceId, status])
   @@index([startedAt])
@@ -1071,20 +1071,20 @@ model IntelligenceRun {
 }
 
 model IntelligenceSnapshot {
-  id           String    @id @default(cuid())
-  accountId    String    @map("account_id")
-  sourceId     String?   @map("source_id")
-  runId        String?   @map("run_id")
-  summary      String?   @db.Text
-  factsJson    Json      @map("facts_json")
-  rawMetadata  Json?     @map("raw_metadata")
-  changeHash   String    @map("change_hash")
-  capturedAt   DateTime  @default(now()) @map("captured_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id          String   @id @default(cuid())
+  accountId   String   @map("account_id")
+  sourceId    String?  @map("source_id")
+  runId       String?  @map("run_id")
+  summary     String?  @db.Text
+  factsJson   Json     @map("facts_json")
+  rawMetadata Json?    @map("raw_metadata")
+  changeHash  String   @map("change_hash")
+  capturedAt  DateTime @default(now()) @map("captured_at")
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  account IntelligenceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  source  IntelligenceSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
-  run     IntelligenceRun?    @relation(fields: [runId], references: [id], onDelete: SetNull)
+  account  IntelligenceAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  source   IntelligenceSource?   @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  run      IntelligenceRun?      @relation(fields: [runId], references: [id], onDelete: SetNull)
   insights IntelligenceInsight[]
 
   @@unique([accountId, changeHash])
@@ -1093,22 +1093,22 @@ model IntelligenceSnapshot {
 }
 
 model IntelligenceInsight {
-  id          String                     @id @default(cuid())
-  accountId   String                     @map("account_id")
-  runId       String?                    @map("run_id")
-  snapshotId  String?                    @map("snapshot_id")
+  id          String                      @id @default(cuid())
+  accountId   String                      @map("account_id")
+  runId       String?                     @map("run_id")
+  snapshotId  String?                     @map("snapshot_id")
   type        IntelligenceInsightType
   severity    IntelligenceInsightSeverity @default(MEDIUM)
   title       String
-  description String                     @db.Text
-  confidence  Float                      @default(0.5)
+  description String                      @db.Text
+  confidence  Float                       @default(0.5)
   data        Json?
-  reviewedAt  DateTime?                  @map("reviewed_at")
-  createdAt   DateTime                   @default(now()) @map("created_at")
-  updatedAt   DateTime                   @updatedAt @map("updated_at")
+  reviewedAt  DateTime?                   @map("reviewed_at")
+  createdAt   DateTime                    @default(now()) @map("created_at")
+  updatedAt   DateTime                    @updatedAt @map("updated_at")
 
-  account  IntelligenceAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  run      IntelligenceRun?     @relation(fields: [runId], references: [id], onDelete: SetNull)
+  account  IntelligenceAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  run      IntelligenceRun?      @relation(fields: [runId], references: [id], onDelete: SetNull)
   snapshot IntelligenceSnapshot? @relation(fields: [snapshotId], references: [id], onDelete: SetNull)
   actions  IntelligenceAction[]
 
@@ -1133,9 +1133,9 @@ model IntelligenceAction {
   createdAt        DateTime                 @default(now()) @map("created_at")
   updatedAt        DateTime                 @updatedAt @map("updated_at")
 
-  account    IntelligenceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account    IntelligenceAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   insight    IntelligenceInsight? @relation(fields: [insightId], references: [id], onDelete: SetNull)
-  assignedTo User?               @relation(fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  assignedTo User?                @relation(fields: [assignedToUserId], references: [id], onDelete: SetNull)
 
   @@index([status, dueAt])
   @@index([accountId, actionScore])
@@ -1159,27 +1159,27 @@ model IntelligenceArtifact {
   createdAt       DateTime                 @default(now()) @map("created_at")
   updatedAt       DateTime                 @updatedAt @map("updated_at")
 
-  workspace  Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  account    IntelligenceAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  run        IntelligenceRun?     @relation(fields: [runId], references: [id], onDelete: SetNull)
-  createdByUser User?             @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  workspace     Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  account       IntelligenceAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  run           IntelligenceRun?     @relation(fields: [runId], references: [id], onDelete: SetNull)
+  createdByUser User?                @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, type, createdAt])
   @@map("intelligence_artifacts")
 }
 
 model WorkspaceMemoryEntry {
-  id           String                  @id @default(cuid())
-  workspaceId  String                  @map("workspace_id") @db.Uuid
-  accountId    String?                 @map("account_id")
-  authorUserId String?                 @map("author_user_id") @db.Uuid
+  id           String                   @id @default(cuid())
+  workspaceId  String                   @map("workspace_id") @db.Uuid
+  accountId    String?                  @map("account_id")
+  authorUserId String?                  @map("author_user_id") @db.Uuid
   type         WorkspaceMemoryEntryType
   title        String
-  body         String                  @db.Text
-  pinned       Boolean                 @default(false)
+  body         String                   @db.Text
+  pinned       Boolean                  @default(false)
   metadata     Json?
-  createdAt    DateTime                @default(now()) @map("created_at")
-  updatedAt    DateTime                @updatedAt @map("updated_at")
+  createdAt    DateTime                 @default(now()) @map("created_at")
+  updatedAt    DateTime                 @updatedAt @map("updated_at")
 
   workspace Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   account   IntelligenceAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
@@ -1193,18 +1193,18 @@ model WorkspaceMemoryEntry {
 // ===== Sector Benchmarks =====
 
 model CooperativaBenchmark {
-  id                    String   @id @default(cuid())
-  period                String   // Q3 2025
-  totalAssetsMedian     Decimal? @map("total_assets_median") @db.Decimal(18, 2)
-  capitalRatioMedian    Decimal? @map("capital_ratio_median") @db.Decimal(10, 6)
-  loanToShareMedian     Decimal? @map("loan_to_share_median") @db.Decimal(10, 6)
-  liquidityRatioMedian  Decimal? @map("liquidity_ratio_median") @db.Decimal(10, 6)
-  niiMarginMedian       Decimal? @map("nii_margin_median") @db.Decimal(10, 6)
-  assetGrowthYoy        Decimal? @map("asset_growth_yoy") @db.Decimal(10, 6)
-  memberCountTotal      Int?     @map("member_count_total")
-  activeInstitutions    Int?     @map("active_institutions")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(cuid())
+  period               String // Q3 2025
+  totalAssetsMedian    Decimal? @map("total_assets_median") @db.Decimal(18, 2)
+  capitalRatioMedian   Decimal? @map("capital_ratio_median") @db.Decimal(10, 6)
+  loanToShareMedian    Decimal? @map("loan_to_share_median") @db.Decimal(10, 6)
+  liquidityRatioMedian Decimal? @map("liquidity_ratio_median") @db.Decimal(10, 6)
+  niiMarginMedian      Decimal? @map("nii_margin_median") @db.Decimal(10, 6)
+  assetGrowthYoy       Decimal? @map("asset_growth_yoy") @db.Decimal(10, 6)
+  memberCountTotal     Int?     @map("member_count_total")
+  activeInstitutions   Int?     @map("active_institutions")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   @@unique([period])
   @@map("cooperativa_benchmarks")
@@ -1242,25 +1242,25 @@ enum IngestionLogStatus {
 }
 
 model AnalysisRun {
-  id                 String            @id @default(cuid())
-  institutionId      String            @map("institution_id")
-  createdByUserId    String            @map("created_by_user_id") @db.Uuid
-  status             AnalysisRunStatus @default(RUNNING)
-  analysisType       String            @default("full_analysis") @map("analysis_type")
-  triggeredBy        String            @default("manual") @map("triggered_by")
-  modelVersion       String            @default("alm-v1") @map("model_version")
-  scenarioSet        String            @default("base_parallel_shocks") @map("scenario_set")
-  assumptions        Json?
-  parameterSnapshot  Json              @map("parameter_snapshot")
-  balanceSheetSnapshot Json            @map("balance_sheet_snapshot")
-  resultSummary      Json?             @map("result_summary")
-  errorMessage       String?           @map("error_message")
-  createdAt          DateTime          @default(now()) @map("created_at")
-  completedAt        DateTime?         @map("completed_at")
-  updatedAt          DateTime          @updatedAt @map("updated_at")
+  id                   String            @id @default(cuid())
+  institutionId        String            @map("institution_id")
+  createdByUserId      String            @map("created_by_user_id") @db.Uuid
+  status               AnalysisRunStatus @default(RUNNING)
+  analysisType         String            @default("full_analysis") @map("analysis_type")
+  triggeredBy          String            @default("manual") @map("triggered_by")
+  modelVersion         String            @default("alm-v1") @map("model_version")
+  scenarioSet          String            @default("base_parallel_shocks") @map("scenario_set")
+  assumptions          Json?
+  parameterSnapshot    Json              @map("parameter_snapshot")
+  balanceSheetSnapshot Json              @map("balance_sheet_snapshot")
+  resultSummary        Json?             @map("result_summary")
+  errorMessage         String?           @map("error_message")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  completedAt          DateTime?         @map("completed_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
 
-  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  createdByUser User      @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  institution     Institution      @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  createdByUser   User             @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
   reportArtifacts ReportArtifact[]
 
   @@index([institutionId, createdAt])
@@ -1284,37 +1284,37 @@ enum ReportArtifactFormat {
 }
 
 model ReportArtifact {
-  id                  String               @id @default(cuid())
-  institutionId       String               @map("institution_id")
+  id                   String               @id @default(cuid())
+  institutionId        String               @map("institution_id")
   /// The analysis run that produced the inputs for this report
-  analysisRunId       String?              @map("analysis_run_id")
+  analysisRunId        String?              @map("analysis_run_id")
   /// Report job that triggered generation (portal flow)
-  reportJobId         String?              @map("report_job_id")
-  format              ReportArtifactFormat
+  reportJobId          String?              @map("report_job_id")
+  format               ReportArtifactFormat
   /// Language of the artifact (null for non-text formats like Excel)
-  language            String?
+  language             String?
   /// Template version used to render the report
-  templateVersion     String               @default("alm-v1") @map("template_version")
+  templateVersion      String               @default("alm-v1") @map("template_version")
   /// SHA-256 of the generated artifact content
-  contentChecksum     String               @map("content_checksum")
+  contentChecksum      String               @map("content_checksum")
   /// Size in bytes
-  sizeBytes           Int                  @map("size_bytes")
+  sizeBytes            Int                  @map("size_bytes")
   /// Where the artifact is stored: R2 key, local path, or inline reference
-  storageLocator      String               @map("storage_locator")
+  storageLocator       String               @map("storage_locator")
   /// JSON: snapshot of model versions used (from preflight modelLineage)
-  modelLineageSnapshot Json                @map("model_lineage_snapshot")
+  modelLineageSnapshot Json                 @map("model_lineage_snapshot")
   /// JSON: snapshot of dataset versions used (governed benchmarks, yield curves)
-  datasetVersions     Json?                @map("dataset_versions")
+  datasetVersions      Json?                @map("dataset_versions")
   /// JSON: the preflight gaps that were present when this report was generated
-  preflightGaps       Json?                @map("preflight_gaps")
+  preflightGaps        Json?                @map("preflight_gaps")
   /// Whether preflight declared ready=true at generation time
-  preflightReady      Boolean              @default(false) @map("preflight_ready")
+  preflightReady       Boolean              @default(false) @map("preflight_ready")
   /// Who triggered the generation
-  generatedBy         String?              @map("generated_by")
-  generatedAt         DateTime             @default(now()) @map("generated_at")
+  generatedBy          String?              @map("generated_by")
+  generatedAt          DateTime             @default(now()) @map("generated_at")
 
-  institution  Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  analysisRun  AnalysisRun? @relation(fields: [analysisRunId], references: [id], onDelete: SetNull)
+  institution Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  analysisRun AnalysisRun? @relation(fields: [analysisRunId], references: [id], onDelete: SetNull)
 
   @@index([institutionId, generatedAt])
   @@index([analysisRunId])
@@ -1343,8 +1343,8 @@ model IngestionLog {
   errors           Json?
   createdAt        DateTime           @default(now()) @map("created_at")
 
-  institution Institution? @relation(fields: [institutionId], references: [id], onDelete: SetNull)
-  createdByUser User       @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  institution   Institution? @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  createdByUser User         @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
 
   @@index([institutionId, createdAt])
   @@index([createdByUserId, createdAt])
@@ -1353,19 +1353,19 @@ model IngestionLog {
 }
 
 model Subscription {
-  id                String             @id @default(cuid())
-  userId            String             @unique @map("user_id") @db.Uuid
-  tier              SubscriptionTier   @default(free)
-  status            SubscriptionStatus @default(active)
-  stripeCustomerId  String?            @map("stripe_customer_id")
-  stripeSessionId   String?            @map("stripe_session_id")
-  stripePriceId     String?            @map("stripe_price_id")
-  stripeSubscriptionId String?         @map("stripe_subscription_id")
-  currentPeriodEnd  DateTime?          @map("current_period_end")
-  cancelledAt       DateTime?          @map("cancelled_at")
-  reportsUsed       Int                @default(0) @map("reports_used")
-  createdAt         DateTime           @default(now()) @map("created_at")
-  updatedAt         DateTime           @updatedAt @map("updated_at")
+  id                   String             @id @default(cuid())
+  userId               String             @unique @map("user_id") @db.Uuid
+  tier                 SubscriptionTier   @default(free)
+  status               SubscriptionStatus @default(active)
+  stripeCustomerId     String?            @map("stripe_customer_id")
+  stripeSessionId      String?            @map("stripe_session_id")
+  stripePriceId        String?            @map("stripe_price_id")
+  stripeSubscriptionId String?            @map("stripe_subscription_id")
+  currentPeriodEnd     DateTime?          @map("current_period_end")
+  cancelledAt          DateTime?          @map("cancelled_at")
+  reportsUsed          Int                @default(0) @map("reports_used")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1391,15 +1391,15 @@ model ReportJob {
   institutionId       String?         @map("institution_id")
   institutionName     String          @map("institution_name")
   status              ReportJobStatus @default(AWAITING_DATA)
-  analysisPeriod      String?         @map("analysis_period")   // e.g. "Q1-2026", "Annual-2026"
-  previousJobId       String?         @map("previous_job_id")   // links to prior period job for trend tracking
+  analysisPeriod      String?         @map("analysis_period") // e.g. "Q1-2026", "Annual-2026"
+  previousJobId       String?         @map("previous_job_id") // links to prior period job for trend tracking
   submittedAt         DateTime?       @map("submitted_at")
   processingStartedAt DateTime?       @map("processing_started_at")
   completedAt         DateTime?       @map("completed_at")
   reportUrl           String?         @map("report_url")
   reportUrlEn         String?         @map("report_url_en")
   reportLang          String          @default("es") @map("report_lang")
-  rawData             String?         @map("raw_data")       // AES-256-GCM encrypted CSV snapshot; nulled 90 days after completion
+  rawData             String?         @map("raw_data") // AES-256-GCM encrypted CSV snapshot; nulled 90 days after completion
   rawDataPurgedAt     DateTime?       @map("raw_data_purged_at")
   errorMessage        String?         @map("error_message")
   retryCount          Int             @default(0) @map("retry_count")
@@ -1453,13 +1453,13 @@ model EmailSequence {
 // ===== Partner White-Label =====
 
 model PartnerConfig {
-  id            String  @id @default(cuid())
-  userId        String  @unique @map("user_id") @db.Uuid
-  firmName      String  @map("firm_name")
-  firmLogoUrl   String? @map("firm_logo_url")
-  firmAddress   String? @map("firm_address")
-  coverFooter   String? @map("cover_footer")
-  primaryColor  String  @default("#1B3A6B") @map("primary_color")
+  id           String  @id @default(cuid())
+  userId       String  @unique @map("user_id") @db.Uuid
+  firmName     String  @map("firm_name")
+  firmLogoUrl  String? @map("firm_logo_url")
+  firmAddress  String? @map("firm_address")
+  coverFooter  String? @map("cover_footer")
+  primaryColor String  @default("#1B3A6B") @map("primary_color")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1485,7 +1485,7 @@ model Prospect {
   company   String?
   role      String?
   stage     ProspectStage @default(lead)
-  source    String?       // demo_request | manual | referral | outbound
+  source    String? // demo_request | manual | referral | outbound
   notes     String?
   createdAt DateTime      @default(now()) @map("created_at")
   updatedAt DateTime      @updatedAt @map("updated_at")
@@ -1501,8 +1501,8 @@ model AuditLog {
   id            String   @id @default(uuid()) @db.Uuid
   userId        String?  @map("user_id") @db.Uuid
   institutionId String?  @map("institution_id")
-  action        String   // login, data_upload, report_download, team_invite, payment_initiated, settings_change, data_deleted
-  resource      String   // alm_report, institution, user, subscription, magic_link
+  action        String // login, data_upload, report_download, team_invite, payment_initiated, settings_change, data_deleted
+  resource      String // alm_report, institution, user, subscription, magic_link
   resourceId    String?  @map("resource_id")
   outcome       String   @default("success") // success, failure, denied
   changes       Json?
@@ -1541,32 +1541,32 @@ model Feedback {
 // ===== Phase VI: Growth Platform Models =====
 
 model WebhookSubscription {
-  id             String   @id @default(cuid())
-  institutionId  String   @map("institution_id")
-  url            String   // target URL for webhook delivery
-  events         String[] // ["policy.breach","rate.move","compliance.deadline","report.ready","ews.alert"]
-  secretKey      String   @map("secret_key") // HMAC-SHA256 signing key
-  isActive       Boolean  @default(true) @map("is_active")
+  id              String    @id @default(cuid())
+  institutionId   String    @map("institution_id")
+  url             String // target URL for webhook delivery
+  events          String[] // ["policy.breach","rate.move","compliance.deadline","report.ready","ews.alert"]
+  secretKey       String    @map("secret_key") // HMAC-SHA256 signing key
+  isActive        Boolean   @default(true) @map("is_active")
   lastDeliveredAt DateTime? @map("last_delivered_at")
-  failureCount   Int      @default(0) @map("failure_count")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  failureCount    Int       @default(0) @map("failure_count")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
+  @@unique([institutionId, url])
   @@index([institutionId])
   @@index([isActive])
-  @@unique([institutionId, url])
   @@map("webhook_subscriptions")
 }
 
 model Reseller {
   id              String   @id @default(cuid())
-  name            String   // "Ernst & Young PR"
+  name            String // "Ernst & Young PR"
   slug            String   @unique // "ey-pr" → ey-pr.cerniq.io
   logoUrl         String?  @map("logo_url")
   primaryColor    String   @default("#1B3A6B") @map("primary_color")
-  domain          String?  // custom domain: alm.ey-pr.com
+  domain          String? // custom domain: alm.ey-pr.com
   revenueSharePct Decimal  @map("revenue_share_pct") @db.Decimal(8, 6) // 0.20 = 20%
   billingModel    String   @default("PASS_THROUGH") @map("billing_model") // PASS_THROUGH | RESELLER_BILLS
   isActive        Boolean  @default(true) @map("is_active")
@@ -1600,20 +1600,20 @@ model ProspectAnalysis {
 // ===== Phase VII: Enterprise Infrastructure Models =====
 
 model SSOConfiguration {
-  id              String   @id @default(cuid())
-  institutionId   String   @unique @map("institution_id")
-  protocol        String   // "SAML2" | "OIDC"
-  samlEntityId    String?  @map("saml_entity_id")
-  samlIdpUrl      String?  @map("saml_idp_url")
-  samlIdpCert     String?  @map("saml_idp_cert") // PEM-encoded
-  oidcIssuer      String?  @map("oidc_issuer")
-  oidcClientId    String?  @map("oidc_client_id")
-  oidcClientSecret String? @map("oidc_client_secret") // encrypted at rest
-  jitProvisioning Boolean  @default(true) @map("jit_provisioning")
-  defaultRole     String   @default("viewer") @map("default_role")
-  groupRoleMapping Json?   @map("group_role_mapping") // { "admins": "cfo", "board": "board_member" }
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id               String   @id @default(cuid())
+  institutionId    String   @unique @map("institution_id")
+  protocol         String // "SAML2" | "OIDC"
+  samlEntityId     String?  @map("saml_entity_id")
+  samlIdpUrl       String?  @map("saml_idp_url")
+  samlIdpCert      String?  @map("saml_idp_cert") // PEM-encoded
+  oidcIssuer       String?  @map("oidc_issuer")
+  oidcClientId     String?  @map("oidc_client_id")
+  oidcClientSecret String?  @map("oidc_client_secret") // encrypted at rest
+  jitProvisioning  Boolean  @default(true) @map("jit_provisioning")
+  defaultRole      String   @default("viewer") @map("default_role")
+  groupRoleMapping Json?    @map("group_role_mapping") // { "admins": "cfo", "board": "board_member" }
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -1621,14 +1621,14 @@ model SSOConfiguration {
 }
 
 model UsageMeterEvent {
-  id              String   @id @default(cuid())
-  institutionId   String   @map("institution_id")
-  eventType       String   @map("event_type") // compute_job | api_call | report_generated | seat
-  quantity        Int      @default(1)
-  metadata        Json?
-  billedAt        DateTime? @map("billed_at")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id            String    @id @default(cuid())
+  institutionId String    @map("institution_id")
+  eventType     String    @map("event_type") // compute_job | api_call | report_generated | seat
+  quantity      Int       @default(1)
+  metadata      Json?
+  billedAt      DateTime? @map("billed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   @@index([institutionId, eventType, createdAt])
   @@index([billedAt])
@@ -1636,15 +1636,15 @@ model UsageMeterEvent {
 }
 
 model DataDeletionRequest {
-  id              String    @id @default(cuid())
-  institutionId   String    @map("institution_id")
-  requestedBy     String    @map("requested_by") // userId
-  regulation      String    // GDPR | CCPA | PR_ACT_81
-  status          String    @default("pending") // pending | processing | completed | rejected
-  dataScope       String    @map("data_scope") // full | member_pii_only
-  completedAt     DateTime? @map("completed_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id            String    @id @default(cuid())
+  institutionId String    @map("institution_id")
+  requestedBy   String    @map("requested_by") // userId
+  regulation    String // GDPR | CCPA | PR_ACT_81
+  status        String    @default("pending") // pending | processing | completed | rejected
+  dataScope     String    @map("data_scope") // full | member_pii_only
+  completedAt   DateTime? @map("completed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   @@index([institutionId])
   @@index([status])
@@ -1658,7 +1658,7 @@ model RegulatoryPublication {
   id          String    @id @default(cuid())
   url         String    @unique
   title       String
-  regulator   String    // COSSEC | OCIF | NCUA
+  regulator   String // COSSEC | OCIF | NCUA
   publishedAt DateTime  @map("published_at")
   rawText     String    @db.Text
   impactJson  Json?     @map("impact_json")
@@ -1675,17 +1675,17 @@ model InstitutionAlert {
   id                String    @id @default(cuid())
   institutionId     String    @map("institution_id")
   publicationId     String    @map("publication_id")
-  severity          String    // HIGH | MEDIUM | LOW
-  alertTextEs       String    @db.Text @map("alert_text_es")
-  alertTextEn       String?   @db.Text @map("alert_text_en")
+  severity          String // HIGH | MEDIUM | LOW
+  alertTextEs       String    @map("alert_text_es") @db.Text
+  alertTextEn       String?   @map("alert_text_en") @db.Text
   affectedItems     String[]  @map("affected_items")
-  recommendedAction String    @db.Text @map("recommended_action")
+  recommendedAction String    @map("recommended_action") @db.Text
   readAt            DateTime? @map("read_at")
   dismissedAt       DateTime? @map("dismissed_at")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  institution Institution          @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  institution Institution           @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   publication RegulatoryPublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
 
   @@index([institutionId, createdAt(sort: Desc)])
@@ -1696,16 +1696,16 @@ model InstitutionAlert {
 // ===== CAMEL Certification =====
 
 model CamelCertification {
-  id              String   @id @default(cuid())
-  institutionId   String   @map("institution_id")
-  period          String   // e.g. "2026-Q1"
-  certifiedBy     String   @map("certified_by") // name of certifier
-  title           String   // role/title of certifier
-  htmlHash        String   @map("html_hash") // SHA-256 of the generated HTML at certification time
-  camelComposite  Decimal  @map("camel_composite") @db.Decimal(4, 2) // composite score (1.0-5.0)
-  language        String   @default("es") // language the report was generated in
-  certifiedAt     DateTime @map("certified_at") // when the certifier signed off
-  createdAt       DateTime @default(now()) @map("created_at")
+  id             String   @id @default(cuid())
+  institutionId  String   @map("institution_id")
+  period         String // e.g. "2026-Q1"
+  certifiedBy    String   @map("certified_by") // name of certifier
+  title          String // role/title of certifier
+  htmlHash       String   @map("html_hash") // SHA-256 of the generated HTML at certification time
+  camelComposite Decimal  @map("camel_composite") @db.Decimal(4, 2) // composite score (1.0-5.0)
+  language       String   @default("es") // language the report was generated in
+  certifiedAt    DateTime @map("certified_at") // when the certifier signed off
+  createdAt      DateTime @default(now()) @map("created_at")
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
@@ -1752,12 +1752,12 @@ model CloseCycle {
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
 
-  organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  tasks            CloseTask[]
-  journalEntries   CloseJournalEntry[]
-  reconciliations  CloseReconciliation[]
-  fluxNarratives   CloseFluxNarrative[]
-  activities       CloseActivity[]
+  organization    Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tasks           CloseTask[]
+  journalEntries  CloseJournalEntry[]
+  reconciliations CloseReconciliation[]
+  fluxNarratives  CloseFluxNarrative[]
+  activities      CloseActivity[]
 
   @@unique([organizationId, periodYear, periodMonth])
   @@index([organizationId, status])
@@ -1766,10 +1766,10 @@ model CloseCycle {
 }
 
 enum CloseCycleStatus {
-  OPEN          // pre-close work in progress
-  IN_REVIEW     // tie-outs done, controller reviewing
-  SIGNED_OFF    // CFO signed off, period locked
-  REOPENED      // reopened after sign-off (audit-tracked)
+  OPEN // pre-close work in progress
+  IN_REVIEW // tie-outs done, controller reviewing
+  SIGNED_OFF // CFO signed off, period locked
+  REOPENED // reopened after sign-off (audit-tracked)
 }
 
 model CloseTask {
@@ -1812,14 +1812,14 @@ enum CloseTaskStatus {
 model CloseJournalEntry {
   id           String              @id @default(uuid()) @db.Uuid
   cycleId      String              @map("cycle_id") @db.Uuid
-  reference    String              // human ref e.g. "JE-2026-04-001"
+  reference    String // human ref e.g. "JE-2026-04-001"
   memoEn       String              @map("memo_en")
   memoEs       String              @map("memo_es")
   // Two-sided JE stored as a JSON array of {account, debit, credit, dimension?}
   lines        Json
   // Cached totals so the SUM(debit)==SUM(credit) constraint is enforced in
   // the service layer and we can still query "unbalanced" entries fast.
-  totalDebit   Decimal             @map("total_debit")  @db.Decimal(14, 2)
+  totalDebit   Decimal             @map("total_debit") @db.Decimal(14, 2)
   totalCredit  Decimal             @map("total_credit") @db.Decimal(14, 2)
   status       JournalEntryStatus  @default(DRAFT)
   postedAt     DateTime?           @map("posted_at")
@@ -1853,21 +1853,21 @@ enum JournalEntryStatus {
 }
 
 model CloseReconciliation {
-  id              String                @id @default(uuid()) @db.Uuid
-  cycleId         String                @map("cycle_id") @db.Uuid
+  id              String               @id @default(uuid()) @db.Uuid
+  cycleId         String               @map("cycle_id") @db.Uuid
   // GL account being reconciled e.g. "1010 — Operating Cash"
   account         String
-  reconType       ReconciliationType    @map("recon_type")
-  glBalance       Decimal               @map("gl_balance")        @db.Decimal(14, 2)
-  externalBalance Decimal               @map("external_balance")  @db.Decimal(14, 2)
-  difference      Decimal               @db.Decimal(14, 2)
+  reconType       ReconciliationType   @map("recon_type")
+  glBalance       Decimal              @map("gl_balance") @db.Decimal(14, 2)
+  externalBalance Decimal              @map("external_balance") @db.Decimal(14, 2)
+  difference      Decimal              @db.Decimal(14, 2)
   // Items the engine could not auto-match — JSON array of {description, amount, side}
-  unmatchedItems  Json                  @default("[]") @map("unmatched_items")
-  status          ReconciliationStatus  @default(OPEN)
-  preparedById    String?               @map("prepared_by_id") @db.Uuid
-  reviewedById    String?               @map("reviewed_by_id") @db.Uuid
-  createdAt       DateTime              @default(now()) @map("created_at")
-  updatedAt       DateTime              @updatedAt @map("updated_at")
+  unmatchedItems  Json                 @default("[]") @map("unmatched_items")
+  status          ReconciliationStatus @default(OPEN)
+  preparedById    String?              @map("prepared_by_id") @db.Uuid
+  reviewedById    String?              @map("reviewed_by_id") @db.Uuid
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
 
   cycle CloseCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
 
@@ -1894,20 +1894,20 @@ enum ReconciliationStatus {
 }
 
 model CloseFluxNarrative {
-  id            String   @id @default(uuid()) @db.Uuid
-  cycleId       String   @map("cycle_id") @db.Uuid
-  account       String
-  priorBalance  Decimal  @map("prior_balance")  @db.Decimal(14, 2)
-  currentBalance Decimal @map("current_balance") @db.Decimal(14, 2)
-  varianceAbs   Decimal  @map("variance_abs")   @db.Decimal(14, 2)
-  variancePct   Float    @map("variance_pct")
-  isMaterial    Boolean  @map("is_material")
-  narrativeEn   String   @map("narrative_en")
-  narrativeEs   String   @map("narrative_es")
+  id             String   @id @default(uuid()) @db.Uuid
+  cycleId        String   @map("cycle_id") @db.Uuid
+  account        String
+  priorBalance   Decimal  @map("prior_balance") @db.Decimal(14, 2)
+  currentBalance Decimal  @map("current_balance") @db.Decimal(14, 2)
+  varianceAbs    Decimal  @map("variance_abs") @db.Decimal(14, 2)
+  variancePct    Float    @map("variance_pct")
+  isMaterial     Boolean  @map("is_material")
+  narrativeEn    String   @map("narrative_en")
+  narrativeEs    String   @map("narrative_es")
   // Confidence the narrator has in its own explanation (0..1). Surfaces in UI
   // so reviewers know which narratives need a human pass.
-  confidence    Float
-  generatedAt   DateTime @default(now()) @map("generated_at")
+  confidence     Float
+  generatedAt    DateTime @default(now()) @map("generated_at")
 
   cycle CloseCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
 
@@ -1925,17 +1925,17 @@ model CloseFluxNarrative {
 // ============================================================================
 
 model CloseActivity {
-  id         String             @id @default(uuid()) @db.Uuid
-  cycleId    String             @map("cycle_id") @db.Uuid
-  actorId    String?            @map("actor_id") @db.Uuid
-  kind       CloseActivityKind
+  id        String            @id @default(uuid()) @db.Uuid
+  cycleId   String            @map("cycle_id") @db.Uuid
+  actorId   String?           @map("actor_id") @db.Uuid
+  kind      CloseActivityKind
   /// Free-form, denormalized summary. English — the strip shows this verbatim
   /// and translates icons, not prose.
-  summaryEn  String             @map("summary_en")
-  summaryEs  String             @map("summary_es")
+  summaryEn String            @map("summary_en")
+  summaryEs String            @map("summary_es")
   /// JSON payload for structured querying later (taskId, reconId, je ref, …).
-  payload    Json               @default("{}")
-  createdAt  DateTime           @default(now()) @map("created_at")
+  payload   Json              @default("{}")
+  createdAt DateTime          @default(now()) @map("created_at")
 
   cycle CloseCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
 
@@ -1965,78 +1965,78 @@ enum CloseActivityKind {
 // ============================================================================
 
 enum ModelStatus {
-  DRAFT           // Under development, not callable in production reports
-  CANDIDATE       // Submitted for validation review
-  APPROVED        // Validated and cleared for production use
-  DEPRECATED      // Superseded by a newer version, still callable but flagged
-  RETIRED         // Removed from production, not callable
+  DRAFT // Under development, not callable in production reports
+  CANDIDATE // Submitted for validation review
+  APPROVED // Validated and cleared for production use
+  DEPRECATED // Superseded by a newer version, still callable but flagged
+  RETIRED // Removed from production, not callable
 }
 
 enum ModelCategory {
-  ALM_CORE        // Duration, NII, EVE, LCR, NSFR, BPV
-  CREDIT_RISK     // CECL, KMV, PD/LGD, concentration, migration
-  LIQUIDITY       // Liquidity gap, buffer, survival, stress
-  INTEREST_RATE   // HJM, Hull-White, CIR, Vasicek, GARCH, SABR
-  STRESS_TEST     // Monte Carlo, regulatory stress, reverse stress
-  CAPITAL         // RBC2, CAR, economic capital, optimization
-  REGULATORY      // COSSEC, NCUA 5300, CAMEL, compliance
-  PRICING         // FTP, deposit/loan pricing, NIM attribution
-  RISK_METRICS    // VaR, CVaR, CFaR, EaR, tail risk
-  REPORTING       // Board report, ALCO dashboard, Excel export
-  PEER_ANALYTICS  // Peer benchmarking, EWS, sector analysis
-  PORTFOLIO       // Black-Litterman, HRP, MVO, LDI
+  ALM_CORE // Duration, NII, EVE, LCR, NSFR, BPV
+  CREDIT_RISK // CECL, KMV, PD/LGD, concentration, migration
+  LIQUIDITY // Liquidity gap, buffer, survival, stress
+  INTEREST_RATE // HJM, Hull-White, CIR, Vasicek, GARCH, SABR
+  STRESS_TEST // Monte Carlo, regulatory stress, reverse stress
+  CAPITAL // RBC2, CAR, economic capital, optimization
+  REGULATORY // COSSEC, NCUA 5300, CAMEL, compliance
+  PRICING // FTP, deposit/loan pricing, NIM attribution
+  RISK_METRICS // VaR, CVaR, CFaR, EaR, tail risk
+  REPORTING // Board report, ALCO dashboard, Excel export
+  PEER_ANALYTICS // Peer benchmarking, EWS, sector analysis
+  PORTFOLIO // Black-Litterman, HRP, MVO, LDI
 }
 
 enum ModelRiskTier {
-  TIER_1   // High-impact: directly drives regulatory filings or capital decisions
-  TIER_2   // Medium-impact: informs reports and dashboards shown to committees
-  TIER_3   // Low-impact: internal analytics, advisory, peer comparison
+  TIER_1 // High-impact: directly drives regulatory filings or capital decisions
+  TIER_2 // Medium-impact: informs reports and dashboards shown to committees
+  TIER_3 // Low-impact: internal analytics, advisory, peer comparison
 }
 
 model ModelRegistryEntry {
-  id                   String          @id @default(cuid())
+  id          String        @id @default(cuid())
   /// Unique machine key, e.g. "alm.duration-gap", "credit.cecl-warm", "rate.hjm-2f"
-  modelKey             String          @unique @map("model_key")
+  modelKey    String        @unique @map("model_key")
   /// Human-readable name, e.g. "Duration Gap Analysis"
-  displayName          String          @map("display_name")
+  displayName String        @map("display_name")
   /// Human-readable description
-  description          String
+  description String
   /// Semantic version, e.g. "1.0.0", "1.1.0"
-  version              String          @default("1.0.0")
-  category             ModelCategory
-  riskTier             ModelRiskTier   @map("risk_tier")
-  status               ModelStatus     @default(DRAFT)
+  version     String        @default("1.0.0")
+  category    ModelCategory
+  riskTier    ModelRiskTier @map("risk_tier")
+  status      ModelStatus   @default(DRAFT)
 
   /// Who owns this model (userId or team name)
-  ownerId              String?         @map("owner_id")
-  ownerName            String          @map("owner_name")
+  ownerId   String? @map("owner_id")
+  ownerName String  @map("owner_name")
 
   /// The service file that implements this model (relative to src/)
-  serviceFile          String          @map("service_file")
+  serviceFile   String @map("service_file")
   /// The primary function name
-  entryFunction        String          @map("entry_function")
+  entryFunction String @map("entry_function")
 
   /// When the model was approved for production
-  approvedAt           DateTime?       @map("approved_at")
-  approvedBy           String?         @map("approved_by")
+  approvedAt    DateTime? @map("approved_at")
+  approvedBy    String?   @map("approved_by")
   /// When the model was retired
-  retiredAt            DateTime?       @map("retired_at")
-  retiredBy            String?         @map("retired_by")
-  retiredReason        String?         @map("retired_reason")
+  retiredAt     DateTime? @map("retired_at")
+  retiredBy     String?   @map("retired_by")
+  retiredReason String?   @map("retired_reason")
 
   /// JSON: calibration params, assumptions, methodology notes
-  calibrationMetadata  Json?           @map("calibration_metadata")
+  calibrationMetadata Json? @map("calibration_metadata")
   /// JSON: required input fields this model needs (for preflight integration)
-  requiredInputs       Json?           @map("required_inputs")
+  requiredInputs      Json? @map("required_inputs")
   /// JSON: what this model outputs
-  outputSchema         Json?           @map("output_schema")
+  outputSchema        Json? @map("output_schema")
   /// JSON: known limitations, caveats, regulatory references
-  limitations          Json?
+  limitations         Json?
 
-  createdAt            DateTime        @default(now()) @map("created_at")
-  updatedAt            DateTime        @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  validationArtifacts  ModelValidationArtifact[]
+  validationArtifacts ModelValidationArtifact[]
 
   @@index([category])
   @@index([status])
@@ -2085,38 +2085,38 @@ enum GovernedEntityStatus {
 }
 
 enum ScenarioScope {
-  INSTITUTION    // Specific to one institution
-  SECTOR         // Sector-wide (e.g. all PR cooperativas)
-  REGULATORY     // Mandated by regulator (COSSEC, NCUA, FRB)
+  INSTITUTION // Specific to one institution
+  SECTOR // Sector-wide (e.g. all PR cooperativas)
+  REGULATORY // Mandated by regulator (COSSEC, NCUA, FRB)
 }
 
 model GovernedScenario {
-  id               String                @id @default(cuid())
+  id           String               @id @default(cuid())
   /// Unique machine key, e.g. "stress.cossec-baseline-2026", "stress.hurricane-maria-replay"
-  scenarioKey      String                @unique @map("scenario_key")
-  displayName      String                @map("display_name")
-  description      String
-  version          String                @default("1.0.0")
-  scope            ScenarioScope
-  status           GovernedEntityStatus  @default(DRAFT)
+  scenarioKey  String               @unique @map("scenario_key")
+  displayName  String               @map("display_name")
+  description  String
+  version      String               @default("1.0.0")
+  scope        ScenarioScope
+  status       GovernedEntityStatus @default(DRAFT)
   /// Source of the scenario: "COSSEC_2026_EXAM_GUIDE", "FRB_CCAR_2025", "INTERNAL_RISK_COMMITTEE"
-  source           String
+  source       String
   /// Who owns/maintains this scenario
-  ownerName        String                @map("owner_name")
+  ownerName    String               @map("owner_name")
   /// JSON: the full parameter set (rateShockBps, depositRunoffPct, creditLossPct, etc.)
-  parameters       Json
+  parameters   Json
   /// What this scenario is approved for: "regulatory_filing", "board_report", "internal_analysis"
-  approvedUses     String[]              @default([]) @map("approved_uses")
+  approvedUses String[]             @default([]) @map("approved_uses")
   /// JSON: provenance — when it was created, from what regulatory guidance, any modifications
-  provenance       Json?
+  provenance   Json?
 
-  approvedAt       DateTime?             @map("approved_at")
-  approvedBy       String?               @map("approved_by")
-  retiredAt        DateTime?             @map("retired_at")
-  retiredReason    String?               @map("retired_reason")
+  approvedAt    DateTime? @map("approved_at")
+  approvedBy    String?   @map("approved_by")
+  retiredAt     DateTime? @map("retired_at")
+  retiredReason String?   @map("retired_reason")
 
-  createdAt        DateTime              @default(now()) @map("created_at")
-  updatedAt        DateTime              @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([scope])
   @@index([status])
@@ -2130,51 +2130,51 @@ model GovernedScenario {
 // ============================================================================
 
 enum BenchmarkType {
-  YIELD_CURVE       // Treasury curve, SOFR curve, COSSEC reference curve
-  PEER_BENCHMARK    // Peer group statistics (NIM, LCR, CECL by asset tier)
-  REGULATORY_LIMIT  // Regulatory thresholds (COSSEC, NCUA)
-  MARKET_INDEX      // Market indices, spreads
+  YIELD_CURVE // Treasury curve, SOFR curve, COSSEC reference curve
+  PEER_BENCHMARK // Peer group statistics (NIM, LCR, CECL by asset tier)
+  REGULATORY_LIMIT // Regulatory thresholds (COSSEC, NCUA)
+  MARKET_INDEX // Market indices, spreads
 }
 
 enum RefreshPolicy {
-  MANUAL            // Updated only by explicit human action
-  DAILY             // Auto-refresh daily from source
-  WEEKLY            // Auto-refresh weekly
-  MONTHLY           // Auto-refresh monthly
-  QUARTERLY         // Auto-refresh quarterly
-  ON_PUBLICATION    // Refresh when source publishes new data
+  MANUAL // Updated only by explicit human action
+  DAILY // Auto-refresh daily from source
+  WEEKLY // Auto-refresh weekly
+  MONTHLY // Auto-refresh monthly
+  QUARTERLY // Auto-refresh quarterly
+  ON_PUBLICATION // Refresh when source publishes new data
 }
 
 model GovernedBenchmark {
-  id               String                @id @default(cuid())
+  id             String               @id @default(cuid())
   /// Unique machine key, e.g. "curve.treasury-par-2026-q1", "peer.pr-cooperativa-250m"
-  datasetKey       String                @unique @map("dataset_key")
-  displayName      String                @map("display_name")
-  description      String
-  benchmarkType    BenchmarkType         @map("benchmark_type")
-  version          String                @default("1.0.0")
-  status           GovernedEntityStatus  @default(DRAFT)
+  datasetKey     String               @unique @map("dataset_key")
+  displayName    String               @map("display_name")
+  description    String
+  benchmarkType  BenchmarkType        @map("benchmark_type")
+  version        String               @default("1.0.0")
+  status         GovernedEntityStatus @default(DRAFT)
   /// ISO date for the observation: "2026-03-31", "2026-Q1"
-  asOfDate         DateTime              @map("as_of_date")
+  asOfDate       DateTime             @map("as_of_date")
   /// Where this data comes from: "FED_H15", "COSSEC_EXAM_MANUAL", "FDIC_CALL_REPORTS"
-  source           String
-  ownerName        String                @map("owner_name")
-  refreshPolicy    RefreshPolicy         @map("refresh_policy")
+  source         String
+  ownerName      String               @map("owner_name")
+  refreshPolicy  RefreshPolicy        @map("refresh_policy")
   /// JSON: the actual benchmark data (rate tenors, peer statistics, thresholds)
-  data             Json
+  data           Json
   /// JSON: provenance — source URL, extraction method, any transformations applied
-  provenance       Json?
+  provenance     Json?
   /// What to do when the source is unavailable: "use_prior_version", "block_report", "warn"
-  fallbackPolicy   String?               @map("fallback_policy")
+  fallbackPolicy String?              @map("fallback_policy")
   /// SHA-256 checksum of the data field for immutability verification
-  dataChecksum     String?               @map("data_checksum")
+  dataChecksum   String?              @map("data_checksum")
 
-  approvedAt       DateTime?             @map("approved_at")
-  approvedBy       String?               @map("approved_by")
-  retiredAt        DateTime?             @map("retired_at")
+  approvedAt DateTime? @map("approved_at")
+  approvedBy String?   @map("approved_by")
+  retiredAt  DateTime? @map("retired_at")
 
-  createdAt        DateTime              @default(now()) @map("created_at")
-  updatedAt        DateTime              @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([benchmarkType])
   @@index([status])
@@ -2215,4 +2215,177 @@ model GlBalanceSnapshot {
   @@unique([organizationId, account, periodYear, periodMonth], name: "org_account_period")
   @@index([organizationId, periodYear, periodMonth])
   @@map("gl_balance_snapshots")
+}
+
+// ============================================================================
+// AGENT EXECUTION LAYER (Blueprint §1)
+//
+// Three tables form the substrate for the 12 CERNIQ agents:
+//   • agent_runs         — one row per agent invocation (lifecycle + metering)
+//   • agent_audit_logs   — append-only, hash-chained trace of every tool call
+//                          and LLM turn inside a run (regulator-grade)
+//   • agent_alerts       — outputs of the Risk Monitor agent; deduped by
+//                          (institution, dedup_key) to avoid alert fatigue
+//
+// Tenant isolation: every row carries institutionId (primary scope) and,
+// where applicable, organizationId. Indexes are built for the two hot reads:
+// "recent runs for this institution" and "all open alerts for this org".
+// ============================================================================
+
+enum AgentId {
+  ALM_DECISION
+  COMMITTEE_REPORT
+  RISK_MONITOR
+  CFO_COPILOT
+  STRESS_TESTING
+  CAPITAL_OPTIMIZER
+  REGULATORY_COMPLIANCE
+  EXAM_PREP
+  LOAN_PRICING
+  DEPOSIT_STRATEGY
+  PEER_INTELLIGENCE
+  BOARD_NARRATIVE
+}
+
+enum AgentRunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  TIMED_OUT
+}
+
+enum AgentTriggerKind {
+  UPLOAD
+  SCHEDULE
+  USER_QUERY
+  API
+  CHAIN
+}
+
+enum AgentAuditStepKind {
+  RUN_STARTED
+  TOOL_CALL
+  TOOL_RESULT
+  LLM_TURN
+  CONTRACT_VALIDATION
+  RUN_COMPLETED
+  RUN_FAILED
+}
+
+enum AgentAlertSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum AgentAlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  SUPPRESSED
+}
+
+model AgentRun {
+  id                String           @id @default(cuid())
+  agentId           AgentId          @map("agent_id")
+  agentVersion      String           @default("1.0.0") @map("agent_version")
+  promptVersion     String           @default("1.0.0") @map("prompt_version")
+  institutionId     String?          @map("institution_id")
+  organizationId    String?          @map("organization_id") @db.Uuid
+  triggeredByUserId String?          @map("triggered_by_user_id") @db.Uuid
+  triggerKind       AgentTriggerKind @default(API) @map("trigger_kind")
+  triggerRef        String?          @map("trigger_ref")
+  /// Scoped to (agentId, idempotencyKey): replaying the same key short-circuits
+  /// to the existing run instead of producing duplicates. Cross-instance safe.
+  idempotencyKey    String           @map("idempotency_key")
+  status            AgentRunStatus   @default(QUEUED)
+  input             Json
+  output            Json?
+  errorMessage      String?          @map("error_message")
+  errorCode         String?          @map("error_code")
+  toolCallCount     Int              @default(0) @map("tool_call_count")
+  llmTurnCount      Int              @default(0) @map("llm_turn_count")
+  inputTokens       Int?             @map("input_tokens")
+  outputTokens      Int?             @map("output_tokens")
+  costUsdCents      Int?             @map("cost_usd_cents")
+  durationMs        Int?             @map("duration_ms")
+  /// sha256 hash of the final audit log entry — anchor for the hash chain.
+  auditRootHash     String?          @map("audit_root_hash")
+  startedAt         DateTime?        @map("started_at")
+  completedAt       DateTime?        @map("completed_at")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  auditLogs AgentAuditLog[]
+  alerts    AgentAlert[]
+
+  @@unique([agentId, idempotencyKey], name: "agent_idempotency")
+  @@index([institutionId, agentId, createdAt(sort: Desc)])
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@index([agentId, status])
+  @@map("agent_runs")
+}
+
+model AgentAuditLog {
+  id         String             @id @default(cuid())
+  runId      String             @map("run_id")
+  /// Monotonically increasing within a run; forms the hash chain ordering.
+  stepIndex  Int                @map("step_index")
+  stepKind   AgentAuditStepKind @map("step_kind")
+  toolName   String?            @map("tool_name")
+  payload    Json
+  /// Hash of the preceding step's `hash` field. Null only on the first step.
+  prevHash   String?            @map("prev_hash")
+  /// sha256(prevHash || runId || stepIndex || stepKind || payload_json).
+  hash       String
+  durationMs Int?               @map("duration_ms")
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  run AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, stepIndex], name: "run_step")
+  @@index([runId, createdAt])
+  @@index([toolName])
+  @@map("agent_audit_logs")
+}
+
+model AgentAlert {
+  id             String             @id @default(cuid())
+  runId          String?            @map("run_id")
+  agentId        AgentId            @map("agent_id")
+  institutionId  String             @map("institution_id")
+  organizationId String?            @map("organization_id") @db.Uuid
+  category       String
+  severity       AgentAlertSeverity
+  metric         String
+  currentValue   Decimal?           @map("current_value") @db.Decimal(24, 6)
+  threshold      Decimal?           @db.Decimal(24, 6)
+  delta          Decimal?           @db.Decimal(24, 6)
+  trend          String?
+  finding        String
+  findingEs      String?            @map("finding_es")
+  recommendation String
+  regulatoryRef  String?            @map("regulatory_ref")
+  deadline       DateTime?
+  /// Stable hash of (metric, severity, institutionId, threshold bucket).
+  /// Service layer suppresses duplicate OPEN alerts sharing this key.
+  dedupKey       String             @map("dedup_key")
+  status         AgentAlertStatus   @default(OPEN)
+  acknowledgedBy String?            @map("acknowledged_by") @db.Uuid
+  acknowledgedAt DateTime?          @map("acknowledged_at")
+  resolvedAt     DateTime?          @map("resolved_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  run AgentRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([institutionId, dedupKey, status])
+  @@index([institutionId, severity, createdAt(sort: Desc)])
+  @@index([agentId, severity, status])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("agent_alerts")
 }
