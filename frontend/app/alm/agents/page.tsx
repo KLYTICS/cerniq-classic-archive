@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useALM } from '@/components/alm/ALMProvider';
+import { useInstitutionId } from '@/lib/hooks/useInstitutionId';
 import { useTranslation } from '@/lib/i18n';
 import { useAgentStream } from '@/hooks/useAgentStream';
 import { listRuns, listAlerts, ackAlert } from '@/lib/agents-api';
@@ -44,7 +44,8 @@ function timeAgo(iso: string): string {
 }
 
 export default function AgentsPage() {
-  const { selectedId } = useALM();
+  // Phase-2 layered resolver (see /alm/decisions for rationale).
+  const selectedId = useInstitutionId();
   const { locale } = useTranslation();
   const isEs = locale === 'es';
 

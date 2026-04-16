@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useALM } from '@/components/alm/ALMProvider';
+import { useInstitutionId } from '@/lib/hooks/useInstitutionId';
 import { useTranslation } from '@/lib/i18n';
 import { useAgentStream } from '@/hooks/useAgentStream';
 import { listRuns, triggerAgentRun, getRunTrace } from '@/lib/agents-api';
@@ -51,7 +51,11 @@ function fmtMs(ms: number): string {
 }
 
 export default function DecisionsPage() {
-  const { selectedId } = useALM();
+  // Phase-2 layered resolver: ?institutionId=… URL param wins (for email +
+  // Slack deep-links), otherwise falls back to the ALM shell's selector.
+  // Returns `string | undefined` — every downstream guard (`if (!selectedId)`)
+  // already treats empty-string as absent, so this is a drop-in source swap.
+  const selectedId = useInstitutionId();
   const { t, locale } = useTranslation();
   const isEs = locale === 'es';
 

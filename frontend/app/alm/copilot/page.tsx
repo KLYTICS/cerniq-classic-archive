@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useALM } from '@/components/alm/ALMProvider';
+import { useInstitutionId } from '@/lib/hooks/useInstitutionId';
 import { useTranslation } from '@/lib/i18n';
 import { copilotQuery } from '@/lib/agents-api';
 import { SkeletonLoader, ErrorBanner } from '@/components/ui/cerniq';
@@ -25,7 +25,8 @@ const QUICK_QUESTIONS: { en: string; es: string }[] = [
 ];
 
 export default function CopilotPage() {
-  const { selectedId } = useALM();
+  // Phase-2 layered resolver (see /alm/decisions for rationale).
+  const selectedId = useInstitutionId();
   const { locale } = useTranslation();
   const isEs = locale === 'es';
 
