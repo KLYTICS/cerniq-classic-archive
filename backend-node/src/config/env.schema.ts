@@ -53,6 +53,10 @@ const envSchema = z.object({
 
   // ── Security ─────────────────────────────────────────────────────
   DATA_ENCRYPTION_KEY: z.string().optional(),
+  API_KEY_PEPPER: z
+    .string()
+    .min(32, 'API_KEY_PEPPER must be at least 32 characters')
+    .optional(),
   ALLOWED_ORIGINS: z.string().optional(),
 
   // ── AI / Claude ──────────────────────────────────────────────────

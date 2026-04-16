@@ -11,9 +11,33 @@ export function apiKeyPrefix(token: string): string {
   return token.slice(0, 16);
 }
 
-export function hashApiKey(token: string): string {
+function getPepper(): string {
   const pepper = (process.env.API_KEY_PEPPER || '').trim();
-  return crypto.createHash('sha256').update(`${token}:${pepper}`).digest('hex');
+  if (!pepper || pepper.length < 32) {
+    throw new Error(
+      'API_KEY_PEPPER must be at least 32 characters. Set it in your environment.',
+    );
+  }
+  return pepper;
+}
+
+export function hashApiKey(token: string): string {
+  return crypto
+    .createHmac('sha256', getPepper())
+    .update(token)
+    .digest('hex');
+}
+
+export function hashApiKeyTimingSafe(
+  token: string,
+  expected: string,
+): boolean {
+  const computed = hashApiKey(token);
+  if (computed.length !== expected.length) return false;
+  return crypto.timingSafeEqual(
+    Buffer.from(computed, 'hex'),
+    Buffer.from(expected, 'hex'),
+  );
 }
 
 export function isReadOnlyMethod(method: string): boolean {

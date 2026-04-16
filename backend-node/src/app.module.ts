@@ -51,6 +51,18 @@ import { GovernanceModule } from './governance/governance.module';
 import { AdminModule } from './admin/admin.module';
 import { AgentsModule } from './agents/agents.module';
 import { AgentApiModule } from './agent-api/agent-api.module';
+import { AgentTrustModule } from './agent-trust/agent-trust.module';
+import { AgentEvalModule } from './agent-eval/agent-eval.module';
+import { AgentOtelModule } from './agent-observability-otel/agent-otel.module';
+import { AiAdvisorModule } from './ai-advisor/ai-advisor.module';
+import { CpaModule } from './cpa/cpa.module';
+import { CossecModule } from './cossec/cossec.module';
+import { RealtimeAlmModule } from './realtime-alm/realtime-alm.module';
+import { EnterpriseModule } from './enterprise/enterprise.module';
+import { NcuaModule } from './ncua/ncua.module';
+import { ExamPrepModule } from './exam-prep/exam-prep.module';
+import { RevenueModule } from './revenue/revenue.module';
+import { ComplianceRegistryModule } from './compliance-registry/compliance-registry.module';
 import { ExitMetricsService } from './admin/exit-metrics.service';
 
 @Module({
@@ -146,6 +158,30 @@ import { ExitMetricsService } from './admin/exit-metrics.service';
     // Per-tenant HTTP surface for agent runs, alerts, copilot, SSE, trace export.
     // Depends on AgentsModule for the runner + event bus, PrismaModule for RLS.
     AgentApiModule,
+    // Agent trust layer: PII redaction, prompt injection shield, output schema validation.
+    AgentTrustModule,
+    // Agent eval harness: golden-case regression, replay runner, regression scoring.
+    AgentEvalModule,
+    // Agent observability: OpenTelemetry spans for tool calls, LLM turns, run lifecycle.
+    AgentOtelModule,
+    // Wave 03: AI Advisor — bilingual conversational ALM analysis (Claude claude-sonnet-4-6).
+    AiAdvisorModule,
+    // Wave 03: CPA White-Label — multi-tenant CPA firm management + branded reports.
+    CpaModule,
+    // Wave 02 Gap: COSSEC examination findings parser ingest + sample report generator.
+    CossecModule,
+    // Wave 03: Real-time ALM dashboard — SOFR/Treasury feeds, rate alerts, WebSocket push.
+    RealtimeAlmModule,
+    // Wave 03: Enterprise API — bulk report batches, webhook delivery, HMAC-signed callbacks.
+    EnterpriseModule,
+    // Wave 03: NCUA Form 5300 integration — US credit union data import + field mapping.
+    NcuaModule,
+    // Wave 03: Exam Prep Suite — COSSEC readiness scoring, evidence package generation.
+    ExamPrepModule,
+    // Revenue Intelligence — MRR/ARR, churn, pipeline health, conversion funnels.
+    RevenueModule,
+    // 62-module COSSEC compliance registry — queryable regulatory coverage map.
+    ComplianceRegistryModule,
   ],
   controllers: [AppController],
   providers: [

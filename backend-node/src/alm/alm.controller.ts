@@ -12,7 +12,10 @@ import {
   Res,
   UploadedFile,
   BadRequestException,
+  Optional,
+  Inject,
 } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
@@ -236,6 +239,7 @@ export class AlmController {
     private readonly customScenario: CustomScenarioService,
     private readonly excelExport: ExcelExportService,
     private readonly documentExports: AlmDocumentExportsService,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -312,13 +316,16 @@ export class AlmController {
   @ApiResponse({ status: 400, description: 'Invalid balance sheet data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async importBalanceSheetItems(
+    @Req() req: any,
     @Param('institutionId') institutionId: string,
     @Body() dto: BulkBalanceSheetImportDto,
   ) {
     this.logger.log(
       `Importing ${dto.items.length} balance sheet items for institution ${institutionId}`,
     );
-    return this.almEnterprise.importBalanceSheetItems(institutionId, dto.items);
+    const result = await this.almEnterprise.importBalanceSheetItems(institutionId, dto.items);
+    this.fireAgentTrigger(institutionId, `import:${institutionId}:${Date.now()}`, req.user?.userId);
+    return result;
   }
 
   @Get('institutions/:institutionId/balance-sheet-items')
@@ -548,12 +555,32 @@ export class AlmController {
       importedCount: importResult.count,
     });
 
+    this.fireAgentTrigger(institutionId, log.id, req.user?.userId);
+
     return {
       ...result,
       imported: true,
       importedCount: importResult.count,
       ingestionLogId: log.id,
     };
+  }
+
+  private fireAgentTrigger(
+    institutionId: string,
+    balanceSheetId: string,
+    triggeredByUserId?: string,
+  ): void {
+    try {
+      const { AgentTriggerService } = require('../agents/trigger/agent-trigger.service');
+      const trigger = this.moduleRef.get(AgentTriggerService, { strict: false });
+      trigger.onBalanceSheetUploaded({
+        balanceSheetId,
+        institutionId,
+        triggeredByUserId: triggeredByUserId ?? null,
+      });
+    } catch {
+      this.logger.debug('AgentTriggerService not available — agent trigger skipped');
+    }
   }
 
   @Get('templates/:type')

@@ -274,17 +274,23 @@ export class AuthGuard implements CanActivate {
     return true;
   }
 
+  private static readonly MAX_TOKEN_BYTES = 2048;
+  private static readonly BASE64URL_RE = /^[A-Za-z0-9_-]+\.[\w_-]+\.[\w_-]+$/;
+
   private extractToken(request: any): string | null {
-    // Try HttpOnly cookie first
+    let raw: string | null = null;
     if (request.cookies?.access_token) {
-      return request.cookies.access_token;
+      raw = request.cookies.access_token;
+    } else {
+      const authHeader = request.headers?.authorization;
+      if (authHeader?.startsWith('Bearer ')) {
+        raw = authHeader.substring(7);
+      }
     }
-    // Fall back to Authorization header
-    const authHeader = request.headers?.authorization;
-    if (authHeader?.startsWith('Bearer ')) {
-      return authHeader.substring(7);
-    }
-    return null;
+    if (!raw) return null;
+    if (Buffer.byteLength(raw, 'utf8') > AuthGuard.MAX_TOKEN_BYTES) return null;
+    if (!AuthGuard.BASE64URL_RE.test(raw)) return null;
+    return raw;
   }
 
   private extractApiKey(request: any): string | null {

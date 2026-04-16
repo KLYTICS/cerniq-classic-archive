@@ -150,6 +150,9 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
+    "setupFiles": [
+      "./test-setup.ts"
+    ],
     "transformIgnorePatterns": [
       "node_modules/(?!(uuid)/)"
     ]

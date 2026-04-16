@@ -85,7 +85,8 @@ Write down all three values. You will paste them into Railway.
 | `ADMIN_KEY` | Paste the `openssl rand -hex 16` output | `a1b2c3d4e5f6...` (32 chars) |
 | `NODE_ENV` | Type: `production` | `production` |
 | `FRONTEND_URL` | Type: `https://cerniq.io` | `https://cerniq.io` |
-| `ERWIN_EMAIL` | Your email for operator alerts | `eskiessalfonso@gmail.com` |
+| `ERWIN_EMAIL` | Your email for operator alerts | `eskiessalfonso@g
+mail.com` |
 | `RESEND_API_KEY` | See Step 1D below | `re_xxxx...` |
 | `STRIPE_SECRET_KEY` | See Step 1E below | `sk_test_xxxx...` |
 | `STRIPE_WEBHOOK_SECRET` | See Step 1F below | `whsec_xxxx...` |

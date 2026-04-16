@@ -21,6 +21,22 @@ env:
   PLAYWRIGHT_BACKEND_URL: http://localhost:43100
 
 jobs:
+  # Secrets scanning — blocks merge if credentials detected
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # Backend NestJS — lint, test, build
   backend-test:
     name: Backend Tests
@@ -371,6 +387,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs:
+      - secrets-scan
       - backend-test
       - backend-e2e
       - frontend-test

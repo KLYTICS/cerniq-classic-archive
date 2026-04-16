@@ -218,7 +218,8 @@ describe('AlmController — Core Revenue Path', () => {
         count: 1,
         warnings: [],
       });
-      const r = await controller.importBalanceSheetItems('i1', dto as any);
+      const req = { user: { userId: 'u1' } };
+      const r = await controller.importBalanceSheetItems(req, 'i1', dto as any);
       expect(enterprise.importBalanceSheetItems).toHaveBeenCalledWith(
         'i1',
         dto.items,

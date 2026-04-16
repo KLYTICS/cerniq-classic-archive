@@ -119,6 +119,13 @@ import { AlmAdvisorV2Controller } from './alm-advisor-v2.controller';
 import { AlmAnalystService } from './alm-analyst.service';
 import { AlmAnalystController } from './alm-analyst.controller';
 import { AuthGuard } from '../auth/auth.guard';
+// Agent tool-layer services (wired into AlmToolsFactory)
+import { DepositDecayService } from './deposit-decay.service';
+import { DepositPricingEngineService } from './deposit-pricing-engine.service';
+import { CostOfFundsService } from './cost-of-funds.service';
+import { UdepositUmixUoptimizerService } from './deposit-mix-optimizer.service';
+import { MaturityLadderService } from './maturity-ladder.service';
+import { CapitalAdequacyRatioService } from './capital-adequacy-ratio.service';
 // Quant engine modules
 import { HJMModule } from './quant/hjm.module';
 
@@ -255,6 +262,13 @@ import { HJMModule } from './quant/hjm.module';
     PreviewReportService,
     AlmDocumentExportsService,
     AlmAnalystService,
+    // Agent tool-layer services
+    DepositDecayService,
+    DepositPricingEngineService,
+    CostOfFundsService,
+    UdepositUmixUoptimizerService,
+    MaturityLadderService,
+    CapitalAdequacyRatioService,
     // Guards
     AuthGuard,
   ],
@@ -357,6 +371,12 @@ import { HJMModule } from './quant/hjm.module';
     PreviewReportService,
     AlmDocumentExportsService,
     AlmAnalystService,
+    DepositDecayService,
+    DepositPricingEngineService,
+    CostOfFundsService,
+    UdepositUmixUoptimizerService,
+    MaturityLadderService,
+    CapitalAdequacyRatioService,
   ],
 })
 export class AlmModule {}

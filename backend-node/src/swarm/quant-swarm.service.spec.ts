@@ -13,7 +13,27 @@ describe('QuantSwarmService', () => {
     getPeerAnalytics: jest.fn().mockResolvedValue(result),
     scoreInstitution: jest.fn().mockResolvedValue(result),
     computeClimateRisk: jest.fn().mockResolvedValue(result),
+    computeEWS: jest.fn().mockResolvedValue(result),
+    calculate: jest.fn().mockResolvedValue(result),
+    getRepricingGap: jest.fn().mockResolvedValue(result),
+    getDepositBetas: jest.fn().mockResolvedValue(result),
     computeHealthScore: jest.fn().mockResolvedValue({ overall: 75 }),
+  });
+
+  const makeFullServices = (mockSvc: ReturnType<typeof makeMockService>) => ({
+    yieldCurve: mockSvc,
+    liquidity: mockSvc,
+    cecl: mockSvc,
+    concentration: mockSvc,
+    ftp: mockSvc,
+    peers: mockSvc,
+    camel: mockSvc,
+    climate: mockSvc,
+    earlyWarning: mockSvc,
+    capitalAdequacy: mockSvc,
+    repricingGap: mockSvc,
+    depositBeta: mockSvc,
+    advisor: mockSvc,
   });
 
   beforeEach(() => {
@@ -25,24 +45,17 @@ describe('QuantSwarmService', () => {
     expect(service).toBeDefined();
   });
 
-  it('runFullSwarm returns results from all 8 models', async () => {
+  it('runFullSwarm returns results from all 12 models', async () => {
     const mockSvc = makeMockService({ score: 80 });
-    const result = await service.runFullSwarm('inst-1', {
-      yieldCurve: mockSvc,
-      liquidity: mockSvc,
-      cecl: mockSvc,
-      concentration: mockSvc,
-      ftp: mockSvc,
-      peers: mockSvc,
-      camel: mockSvc,
-      climate: mockSvc,
-      advisor: mockSvc,
-    });
+    const result = await service.runFullSwarm('inst-1', makeFullServices(mockSvc));
     expect(result.institutionId).toBe('inst-1');
-    expect(result.completedModels).toHaveLength(8);
+    expect(result.completedModels).toHaveLength(12);
     expect(result.failedModels).toHaveLength(0);
     expect(result.healthScore).toBe(75);
     expect(result.computeTimeMs).toBeGreaterThanOrEqual(0);
+    expect(result.confidence.score).toBe(100);
+    expect(result.confidence.label).toBe('HIGH');
+    expect(result.confidence.missingCritical).toEqual([]);
   });
 
   it('handles partial model failures gracefully', async () => {
@@ -53,20 +66,13 @@ describe('QuantSwarmService', () => {
         .fn()
         .mockRejectedValue(new Error('rate shock failed')),
     };
-    const result = await service.runFullSwarm('inst-1', {
-      yieldCurve: failingSvc,
-      liquidity: mockSvc,
-      cecl: mockSvc,
-      concentration: mockSvc,
-      ftp: mockSvc,
-      peers: mockSvc,
-      camel: mockSvc,
-      climate: mockSvc,
-      advisor: mockSvc,
-    });
+    const services = makeFullServices(mockSvc);
+    services.yieldCurve = failingSvc;
+    const result = await service.runFullSwarm('inst-1', services);
     expect(result.failedModels).toContain('rateShock');
-    expect(result.completedModels).toHaveLength(7);
+    expect(result.completedModels).toHaveLength(11);
     expect(result.rateShock).toBeNull();
+    expect(result.confidence.missingCritical).toContain('rateShock');
   });
 
   it('returns default health score of 50 when advisor fails', async () => {
@@ -77,33 +83,31 @@ describe('QuantSwarmService', () => {
         .fn()
         .mockRejectedValue(new Error('advisor down')),
     };
-    const result = await service.runFullSwarm('inst-1', {
-      yieldCurve: mockSvc,
-      liquidity: mockSvc,
-      cecl: mockSvc,
-      concentration: mockSvc,
-      ftp: mockSvc,
-      peers: mockSvc,
-      camel: mockSvc,
-      climate: mockSvc,
-      advisor: failingAdvisor,
-    });
+    const services = makeFullServices(mockSvc);
+    services.advisor = failingAdvisor;
+    const result = await service.runFullSwarm('inst-1', services);
     expect(result.healthScore).toBe(50);
   });
 
   it('computeTimeMs is a positive number', async () => {
     const mockSvc = makeMockService({ score: 80 });
-    const result = await service.runFullSwarm('inst-1', {
-      yieldCurve: mockSvc,
-      liquidity: mockSvc,
-      cecl: mockSvc,
-      concentration: mockSvc,
-      ftp: mockSvc,
-      peers: mockSvc,
-      camel: mockSvc,
-      climate: mockSvc,
-      advisor: mockSvc,
-    });
+    const result = await service.runFullSwarm('inst-1', makeFullServices(mockSvc));
     expect(result.computeTimeMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('confidence drops when critical models fail', async () => {
+    const mockSvc = makeMockService({ score: 80 });
+    const failSvc = {
+      ...mockSvc,
+      computeEWS: jest.fn().mockRejectedValue(new Error('ews down')),
+      getAdvancedLiquidity: jest.fn().mockRejectedValue(new Error('liq down')),
+    };
+    const services = makeFullServices(mockSvc);
+    services.earlyWarning = failSvc;
+    services.liquidity = failSvc;
+    const result = await service.runFullSwarm('inst-1', services);
+    expect(result.confidence.score).toBeLessThan(80);
+    expect(result.confidence.missingCritical).toContain('earlyWarning');
+    expect(result.confidence.missingCritical).toContain('liquidity');
   });
 });

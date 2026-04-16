@@ -8,6 +8,8 @@ import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma.service';
 import { AuthGuard } from './auth.guard';
 
+const FAKE_JWT = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.fakesig';
+
 describe('AuthGuard (enhanced)', () => {
   const originalEnv = { ...process.env };
 
@@ -113,7 +115,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer some-token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -134,7 +136,7 @@ describe('AuthGuard (enhanced)', () => {
 
       const request: any = {
         headers: {},
-        cookies: { access_token: 'cookie-token' },
+        cookies: { access_token: FAKE_JWT },
         method: 'GET',
       };
 
@@ -171,7 +173,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer legacy-jwt' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -197,7 +199,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer refresh-jwt' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -225,7 +227,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer supabase-token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -256,7 +258,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -282,7 +284,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer bad-token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -305,7 +307,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -333,7 +335,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -358,7 +360,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -376,7 +378,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -721,7 +723,7 @@ describe('AuthGuard (enhanced)', () => {
       );
 
       const request: any = {
-        headers: { authorization: 'Bearer token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -750,7 +752,7 @@ describe('AuthGuard (enhanced)', () => {
       );
 
       const request: any = {
-        headers: { authorization: 'Bearer token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -779,7 +781,7 @@ describe('AuthGuard (enhanced)', () => {
       );
 
       const request: any = {
-        headers: { authorization: 'Bearer token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -833,7 +835,7 @@ describe('AuthGuard (enhanced)', () => {
 
       const request: any = {
         headers: {
-          authorization: 'Bearer token',
+          authorization: `Bearer ${FAKE_JWT}`,
           'x-organization-id': 'org-999',
         },
         cookies: {},
@@ -856,7 +858,7 @@ describe('AuthGuard (enhanced)', () => {
 
       const request: any = {
         headers: {
-          authorization: 'Bearer token',
+          authorization: `Bearer ${FAKE_JWT}`,
           'x-klytics-org-id': 'klytics-org-1',
         },
         cookies: {},
@@ -880,7 +882,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -903,7 +905,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -933,7 +935,7 @@ describe('AuthGuard (enhanced)', () => {
 
       const request: any = {
         headers: {
-          authorization: 'Bearer token',
+          authorization: `Bearer ${FAKE_JWT}`,
           'x-organization-id': 'org-1',
         },
         cookies: {},
@@ -965,7 +967,7 @@ describe('AuthGuard (enhanced)', () => {
 
       const request: any = {
         headers: {
-          authorization: 'Bearer token',
+          authorization: `Bearer ${FAKE_JWT}`,
           'x-organization-id': 'org-unauthorized',
         },
         cookies: {},
@@ -993,7 +995,7 @@ describe('AuthGuard (enhanced)', () => {
 
       const request: any = {
         headers: {
-          authorization: 'Bearer token',
+          authorization: `Bearer ${FAKE_JWT}`,
           'x-organization-id': 'org-1',
         },
         cookies: {},
@@ -1040,7 +1042,7 @@ describe('AuthGuard (enhanced)', () => {
 
       const request: any = {
         headers: {
-          authorization: 'Bearer token',
+          authorization: `Bearer ${FAKE_JWT}`,
           'x-organization-id': 'org-1',
         },
         cookies: {},
@@ -1081,7 +1083,7 @@ describe('AuthGuard (enhanced)', () => {
 
       const request: any = {
         headers: {
-          authorization: 'Bearer token',
+          authorization: `Bearer ${FAKE_JWT}`,
           'x-organization-id': 'org-1',
         },
         cookies: {},
@@ -1111,7 +1113,7 @@ describe('AuthGuard (enhanced)', () => {
 
       const request: any = {
         headers: {
-          authorization: 'Bearer token',
+          authorization: `Bearer ${FAKE_JWT}`,
           'x-organization-id': 'org-1',
         },
         cookies: {},
@@ -1135,7 +1137,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -1156,7 +1158,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };
@@ -1177,7 +1179,7 @@ describe('AuthGuard (enhanced)', () => {
 
       const request: any = {
         headers: {
-          authorization: 'Bearer token',
+          authorization: `Bearer ${FAKE_JWT}`,
           'x-organization-id': ['org-array-1', 'org-array-2'],
         },
         cookies: {},
@@ -1207,7 +1209,7 @@ describe('AuthGuard (enhanced)', () => {
       });
 
       const request: any = {
-        headers: { authorization: 'Bearer sb-token' },
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
         cookies: {},
         method: 'GET',
       };

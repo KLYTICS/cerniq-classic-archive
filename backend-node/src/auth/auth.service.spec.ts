@@ -12,6 +12,15 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
 describe('AuthService', () => {
+  const originalEnv = { ...process.env };
+  beforeAll(() => {
+    process.env.API_KEY_PEPPER =
+      'test-pepper-must-be-at-least-32-characters-long';
+  });
+  afterAll(() => {
+    process.env = { ...originalEnv };
+  });
+
   let service: AuthService;
   let prisma: {
     user: {

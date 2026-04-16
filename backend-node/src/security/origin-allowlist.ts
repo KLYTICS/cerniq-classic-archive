@@ -72,8 +72,17 @@ function buildAllowedOriginsSet(): Set<string> {
   return origins;
 }
 
-export function isAllowedOrigin(origin: string | undefined | null): boolean {
+export function isAllowedOrigin(
+  origin: string | undefined | null,
+  method?: string,
+): boolean {
   if (!origin) {
+    const m = (method || '').toUpperCase();
+    const isMutating =
+      m === 'POST' || m === 'PUT' || m === 'PATCH' || m === 'DELETE';
+    if (isMutating && isProduction()) {
+      return false;
+    }
     return true;
   }
 
@@ -107,4 +116,20 @@ export function corsOriginCallback(
     return;
   }
   callback(new Error(`CORS origin not allowed: ${origin || 'unknown'}`), false);
+}
+
+export function corsOriginCallbackWithMethod(method: string) {
+  return (
+    origin: string | undefined,
+    callback: (error: Error | null, allow?: boolean) => void,
+  ): void => {
+    if (isAllowedOrigin(origin, method)) {
+      callback(null, true);
+      return;
+    }
+    callback(
+      new Error(`CORS origin not allowed: ${origin || 'unknown'}`),
+      false,
+    );
+  };
 }

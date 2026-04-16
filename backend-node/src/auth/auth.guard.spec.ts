@@ -6,6 +6,8 @@ import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
 import { PlatformAccessService } from './platform-access.service';
 
+const FAKE_JWT = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.fakesig';
+
 describe('AuthGuard', () => {
   const originalEnv = { ...process.env };
 
@@ -152,7 +154,7 @@ describe('AuthGuard', () => {
 
     const fetchSpy = jest.spyOn(global, 'fetch');
     const request: Record<string, unknown> = {
-      cookies: { access_token: 'legacy-token' },
+      cookies: { access_token: FAKE_JWT },
       headers: {},
       method: 'GET',
     };
@@ -218,7 +220,7 @@ describe('AuthGuard', () => {
     });
 
     const request: Record<string, unknown> = {
-      cookies: { access_token: 'ceo-token' },
+      cookies: { access_token: FAKE_JWT },
       headers: {},
       method: 'GET',
     };
@@ -267,12 +269,12 @@ describe('AuthGuard', () => {
     });
 
     const request: Record<string, unknown> = {
-      headers: { authorization: 'Bearer my-jwt-token' },
+      headers: { authorization: `Bearer ${FAKE_JWT}` },
       method: 'GET',
     };
 
     await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
-    expect(jwtService.verify).toHaveBeenCalledWith('my-jwt-token');
+    expect(jwtService.verify).toHaveBeenCalledWith(FAKE_JWT);
   });
 
   it('sets X-API-Key-Expires-In-Days header when key expires within 14 days', async () => {
@@ -426,7 +428,7 @@ describe('AuthGuard', () => {
     });
 
     const request: Record<string, unknown> = {
-      cookies: { access_token: 'valid-token' },
+      cookies: { access_token: FAKE_JWT },
       headers: {},
       method: 'GET',
     };
@@ -467,7 +469,7 @@ describe('AuthGuard', () => {
     });
 
     const request: Record<string, unknown> = {
-      headers: { authorization: 'Bearer some-token' },
+      headers: { authorization: `Bearer ${FAKE_JWT}` },
       method: 'GET',
     };
 
@@ -507,7 +509,7 @@ describe('AuthGuard', () => {
     });
 
     const request: Record<string, unknown> = {
-      cookies: { access_token: 'valid-token' },
+      cookies: { access_token: FAKE_JWT },
       headers: {},
       method: 'GET',
     };
@@ -546,7 +548,7 @@ describe('AuthGuard', () => {
     });
 
     const request: Record<string, unknown> = {
-      cookies: { access_token: 'valid-token' },
+      cookies: { access_token: FAKE_JWT },
       headers: {},
       method: 'GET',
     };

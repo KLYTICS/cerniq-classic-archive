@@ -33,6 +33,8 @@
     "swarm:escalate": "node scripts/swarm/escalate.mjs",
     "swarm:fleet": "node scripts/swarm/fleet.mjs",
     "swarm:metrics": "node scripts/swarm/metrics.mjs",
+    "swarm:doctor": "node scripts/swarm/doctor.mjs",
+    "swarm:orient": "node scripts/swarm/orient.mjs",
     "swarm:handoff": "node scripts/swarm/handoff.mjs",
     "swarm:landing": "node scripts/swarm/landing.mjs",
     "swarm:cross": "node scripts/swarm/cross.mjs",
