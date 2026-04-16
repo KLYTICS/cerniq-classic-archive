@@ -45,6 +45,7 @@ model User {
   intelligenceActions    IntelligenceAction[]
   intelligenceArtifacts  IntelligenceArtifact[]
   workspaceMemoryEntries WorkspaceMemoryEntry[]
+  cpaFirmMemberships     CpaFirmUser[]
 
   @@unique([provider, providerId])
   @@map("users")
@@ -230,10 +231,14 @@ model Institution {
   contactEmail             String?   @map("contact_email")
   contactPhone             String?   @map("contact_phone")
   preferredLanguage        String    @default("es") @map("preferred_language") // "es" | "en" | "both"
+  ncuaCharterNumber        String?   @unique @map("ncua_charter_number")
+  regulatoryBody           String    @default("COSSEC") @map("regulatory_body") // COSSEC | NCUA | STATE
+  state                    String?   @map("state") // US state for NCUA institutions
+  lastNcuaSyncAt           DateTime? @map("last_ncua_sync_at")
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @updatedAt @map("updated_at")
 
-  workspace             Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace             Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   balanceSheetItems     BalanceSheetItem[]
   interestRateScenarios InterestRateScenario[]
   liquidityPositions    LiquidityPosition[]
@@ -255,6 +260,10 @@ model Institution {
   institutionAlerts     InstitutionAlert[]
   camelCertifications   CamelCertification[]
   reportArtifacts       ReportArtifact[]
+  cpaClients            CpaClientRelationship[]
+  conversations         ConversationHistory[]
+  examAssessments       ExamReadinessAssessment[]
+  rateAlertThresholds   RateAlertThreshold[]
 
   @@unique([workspaceId, seedKey], name: "workspace_seed_key")
   @@index([workspaceId])
@@ -903,11 +912,20 @@ model ProspectInstitution {
   demoConvertedAmountUsd Decimal?  @map("demo_converted_amount_usd") @db.Decimal(12, 2)
   demoConvertedToTier    String?   @map("demo_converted_to_tier") // monthly | annual | one_time | partner
 
+  // COSSEC exam enrichment
+  sampleReportUrl         String?   @map("sample_report_url")
+  sampleReportGeneratedAt DateTime? @map("sample_report_generated_at")
+  cossecFindingsCount     Int       @default(0) @map("cossec_findings_count")
+  cossecLastExamYear      Int?      @map("cossec_last_exam_year")
+  almRiskScore            Decimal?  @map("alm_risk_score") @db.Decimal(10, 2)
+  outreachPersonalized    Boolean   @default(false) @map("outreach_personalized")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   intelligenceAccount IntelligenceAccount?      @relation(fields: [intelligenceAccountId], references: [id], onDelete: SetNull)
   engagementEvents    DemoSeatEngagementEvent[]
+  cossecFindings      CossecExamFinding[]
 
   @@index([outreachStatus])
   @@index([intelligenceAccountId])
@@ -2388,4 +2406,319 @@ model AgentAlert {
   @@index([agentId, severity, status])
   @@index([status, createdAt(sort: Desc)])
   @@map("agent_alerts")
+}
+
+// ===== Wave 03 Enums =====
+
+enum CossecFindingSeverity {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum CpaTier {
+  CPA_STANDARD
+  CPA_PRO
+}
+
+enum CpaUserRole {
+  CPA_ADMIN
+  CPA_ANALYST
+  CPA_VIEWER
+}
+
+enum ConversationRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum ExamCategoryStatus {
+  PASS
+  WARN
+  FAIL
+}
+
+enum EnterpriseBatchStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum EnterprisePriority {
+  NORMAL
+  HIGH
+}
+
+enum AlertDirection {
+  ABOVE
+  BELOW
+}
+
+// ===== Wave 03 Models =====
+
+/// COSSEC examination findings parsed from PDF reports.
+/// Powers the exam-prep agent (W3-4) and personalized outreach.
+model CossecExamFinding {
+  id                    String                @id @default(cuid())
+  prospectInstitutionId String                @map("prospect_institution_id")
+  institutionName       String                @map("institution_name")
+  examYear              Int                   @map("exam_year")
+  examDate              DateTime?             @map("exam_date")
+  category              String // ALM_POLICY | DURATION_GAP | LIQUIDITY | CAPITAL_ADEQUACY | CONCENTRATION | GOVERNANCE | DATA_QUALITY | OPERATIONAL | CREDIT_RISK | INTEREST_RATE | COMPLIANCE | OTHER
+  severity              CossecFindingSeverity
+  findingText           String                @map("finding_text")
+  findingTextEs         String?               @map("finding_text_es")
+  recommendation        String
+  recommendationEs      String?               @map("recommendation_es")
+  circularLetterRef     String?               @map("circular_letter_ref")
+  rawPdfSource          String?               @map("raw_pdf_source")
+  parserConfidence      Decimal               @map("parser_confidence") @db.Decimal(3, 2)
+  resolvedAt            DateTime?             @map("resolved_at")
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+
+  prospectInstitution ProspectInstitution @relation(fields: [prospectInstitutionId], references: [id], onDelete: Cascade)
+
+  @@index([prospectInstitutionId, examYear])
+  @@index([category, severity])
+  @@index([examYear])
+  @@map("cossec_exam_findings")
+}
+
+/// CPA firm entity for white-label multi-tenant.
+/// Partners at $499/mo get branded reports for their cooperativa clients.
+model CpaFirm {
+  id                  String   @id @default(cuid())
+  name                String
+  slug                String   @unique
+  contactName         String   @map("contact_name")
+  contactEmail        String   @map("contact_email")
+  contactPhone        String?  @map("contact_phone")
+  logoUrl             String?  @map("logo_url")
+  brandPrimaryColor   String?  @default("#1e3a5f") @map("brand_primary_color")
+  brandSecondaryColor String?  @map("brand_secondary_color")
+  website             String?
+  tier                CpaTier
+  stripeCustomerId    String?  @unique @map("stripe_customer_id")
+  monthlyPriceUsd     Decimal  @map("monthly_price_usd") @db.Decimal(12, 2)
+  maxClients          Int      @default(15) @map("max_clients")
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  clients CpaClientRelationship[]
+  users   CpaFirmUser[]
+
+  @@index([tier])
+  @@index([isActive])
+  @@map("cpa_firms")
+}
+
+/// Links a CPA firm to a cooperativa institution it manages.
+model CpaClientRelationship {
+  id                     String    @id @default(cuid())
+  cpaFirmId              String    @map("cpa_firm_id")
+  institutionId          String    @map("institution_id")
+  assignedAt             DateTime  @default(now()) @map("assigned_at")
+  removedAt              DateTime? @map("removed_at")
+  reportBrandingOverride Json?     @map("report_branding_override")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  cpaFirm     CpaFirm     @relation(fields: [cpaFirmId], references: [id], onDelete: Cascade)
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([cpaFirmId, institutionId])
+  @@index([cpaFirmId])
+  @@index([institutionId])
+  @@map("cpa_client_relationships")
+}
+
+/// Users belonging to a CPA firm (admin, analyst, viewer).
+model CpaFirmUser {
+  id        String      @id @default(cuid())
+  cpaFirmId String      @map("cpa_firm_id")
+  userId    String      @map("user_id") @db.Uuid
+  role      CpaUserRole
+  invitedBy String?     @map("invited_by") @db.Uuid
+  joinedAt  DateTime    @default(now()) @map("joined_at")
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  cpaFirm CpaFirm @relation(fields: [cpaFirmId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cpaFirmId, userId])
+  @@index([userId])
+  @@map("cpa_firm_users")
+}
+
+/// AI Advisor conversation threads (W3-1).
+/// Each row is a single message in a chat session.
+model ConversationHistory {
+  id                   String           @id @default(cuid())
+  institutionId        String           @map("institution_id")
+  userId               String           @map("user_id") @db.Uuid
+  sessionId            String           @map("session_id")
+  role                 ConversationRole
+  content              String
+  contentEs            String?          @map("content_es")
+  tokenCount           Int?             @map("token_count")
+  modelId              String?          @map("model_id")
+  latencyMs            Int?             @map("latency_ms")
+  almModulesReferenced String[]         @map("alm_modules_referenced")
+  metadata             Json?
+  createdAt            DateTime         @default(now()) @map("created_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, sessionId, createdAt])
+  @@index([userId, createdAt])
+  @@index([sessionId])
+  @@map("conversation_history")
+}
+
+/// Regulatory exam prep scoring (W3-4).
+/// Captures overall readiness grade plus per-category breakdown.
+model ExamReadinessAssessment {
+  id                 String    @id @default(cuid())
+  institutionId      String    @map("institution_id")
+  assessedBy         String    @map("assessed_by") @db.Uuid
+  overallGrade       String    @map("overall_grade") // A | B | C | D | F
+  overallScore       Decimal   @map("overall_score") @db.Decimal(10, 2)
+  examType           String    @default("COSSEC_ANNUAL") @map("exam_type")
+  assessmentDate     DateTime  @default(now()) @map("assessment_date")
+  evidencePackageUrl String?   @map("evidence_package_url")
+  notes              String?
+  nextExamDate       DateTime? @map("next_exam_date")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  institution    Institution         @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  categoryScores ExamCategoryScore[]
+
+  @@index([institutionId, assessmentDate(sort: Desc)])
+  @@index([overallGrade])
+  @@map("exam_readiness_assessments")
+}
+
+/// Individual category scores within an exam readiness assessment.
+model ExamCategoryScore {
+  id                String             @id @default(cuid())
+  assessmentId      String             @map("assessment_id")
+  category          String // ALM_POLICY | DURATION_GAP | LIQUIDITY | CAPITAL_ADEQUACY | CONCENTRATION | GOVERNANCE | DATA_QUALITY | OPERATIONAL | CREDIT_RISK | INTEREST_RATE | COMPLIANCE | OTHER
+  weight            Decimal            @db.Decimal(8, 4)
+  score             Decimal            @db.Decimal(10, 2)
+  maxScore          Decimal            @default(100) @map("max_score") @db.Decimal(10, 2)
+  status            ExamCategoryStatus
+  finding           String?
+  recommendation    String?
+  circularLetterRef String?            @map("circular_letter_ref")
+  createdAt         DateTime           @default(now()) @map("created_at")
+
+  assessment ExamReadinessAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([assessmentId])
+  @@index([category, status])
+  @@map("exam_category_scores")
+}
+
+/// Enterprise tier batch report jobs (W3-7).
+/// Supports bulk report generation, custom analysis, and scheduled runs.
+model EnterpriseBatch {
+  id             String                @id @default(cuid())
+  organizationId String                @map("organization_id") @db.Uuid
+  requestedBy    String                @map("requested_by") @db.Uuid
+  batchType      String                @map("batch_type") // BULK_REPORT | CUSTOM_ANALYSIS | SCHEDULED
+  status         EnterpriseBatchStatus @default(QUEUED)
+  priority       EnterprisePriority    @default(NORMAL)
+  totalItems     Int                   @map("total_items")
+  completedItems Int                   @default(0) @map("completed_items")
+  failedItems    Int                   @default(0) @map("failed_items")
+  inputConfig    Json                  @map("input_config")
+  outputUrls     String[]              @map("output_urls")
+  errorLog       Json?                 @map("error_log")
+  webhookUrl     String?               @map("webhook_url")
+  webhookSecret  String?               @map("webhook_secret")
+  startedAt      DateTime?             @map("started_at")
+  completedAt    DateTime?             @map("completed_at")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  webhookDeliveryLogs WebhookDeliveryLog[]
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([status])
+  @@index([requestedBy])
+  @@map("enterprise_batches")
+}
+
+/// Tracks webhook delivery attempts for enterprise API.
+/// Supports retry logic with exponential backoff.
+model WebhookDeliveryLog {
+  id              String    @id @default(cuid())
+  batchId         String?   @map("batch_id")
+  targetUrl       String    @map("target_url")
+  httpMethod      String    @default("POST") @map("http_method")
+  requestHeaders  Json?     @map("request_headers")
+  requestBody     Json?     @map("request_body")
+  responseStatus  Int?      @map("response_status")
+  responseBody    String?   @map("response_body")
+  signatureHeader String?   @map("signature_header")
+  attempt         Int       @default(1)
+  maxAttempts     Int       @default(3) @map("max_attempts")
+  deliveredAt     DateTime? @map("delivered_at")
+  failedAt        DateTime? @map("failed_at")
+  nextRetryAt     DateTime? @map("next_retry_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  batch EnterpriseBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  @@index([batchId, createdAt])
+  @@index([targetUrl, createdAt])
+  @@index([nextRetryAt])
+  @@map("webhook_delivery_logs")
+}
+
+/// Real-time market data for W3-5 dashboard.
+/// Stores SOFR, Treasury curve, PR deposit index, Fed Funds snapshots.
+model MarketDataSnapshot {
+  id            String   @id @default(cuid())
+  dataType      String   @map("data_type") // SOFR | TREASURY_CURVE | PR_DEPOSIT_INDEX | FED_FUNDS
+  tenorMonths   Int?     @map("tenor_months")
+  value         Decimal  @db.Decimal(18, 8)
+  previousValue Decimal? @map("previous_value") @db.Decimal(18, 8)
+  changePercent Decimal? @map("change_percent") @db.Decimal(10, 6)
+  source        String // FRED | TREASURY_GOV | COSSEC | MANUAL
+  asOfDate      DateTime @map("as_of_date")
+  fetchedAt     DateTime @default(now()) @map("fetched_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([dataType, asOfDate(sort: Desc)])
+  @@index([dataType, tenorMonths, asOfDate(sort: Desc)])
+  @@map("market_data_snapshots")
+}
+
+/// Configurable thresholds for real-time rate alerts.
+/// Each institution can set warn/breach levels per metric.
+model RateAlertThreshold {
+  id            String         @id @default(cuid())
+  institutionId String         @map("institution_id")
+  metric        String // DURATION_GAP | NII_SENSITIVITY | EVE_CHANGE | LCR | NET_WORTH_RATIO
+  warnLevel     Decimal        @map("warn_level") @db.Decimal(24, 6)
+  breachLevel   Decimal        @map("breach_level") @db.Decimal(24, 6)
+  direction     AlertDirection
+  isActive      Boolean        @default(true) @map("is_active")
+  notifyEmail   Boolean        @default(true) @map("notify_email")
+  notifyWebhook Boolean        @default(false) @map("notify_webhook")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, metric])
+  @@map("rate_alert_thresholds")
 }

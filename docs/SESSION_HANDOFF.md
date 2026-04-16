@@ -2,7 +2,7 @@
 
 > **Read this first.** This is the canonical pickup point for any Claude session continuing the FAANG-quality polish work on (1) institution seeding, (2) enterprise actions, (3) report accuracy. Update this file whenever you land work — the next session reads it before touching code.
 
-Last updated: 2026-04-14 (CI fully green — env.schema CI hygiene + login e2e locator drift fixed)
+Last updated: 2026-04-15 (Agent Execution Layer scaffold + frontend UX + eval harness: 64+35 tests green)
 
 ---
 
@@ -178,6 +178,14 @@ Greening sequence for this branch:
 ---
 
 ## 5. Recent landings
+- 2026-04-16 — **Agent Execution Layer DB land: RLS + performance indexes.** Two forward-only, idempotent Prisma migrations complete the three-table agent substrate from `20260415120000_add_agent_execution_layer`. **(1) `20260415130000_agent_tables_rls`** — extends the existing `rls_tenant_isolation` pattern to `agent_runs`, `agent_audit_logs`, `agent_alerts`. 8 policies: `tenant_isolation_agent_runs`, `admin_bypass_agent_runs`, `tenant_isolation_agent_audit_logs` (sub-select via `run_id` FK — no `institution_id` column on audit rows by design), `admin_bypass_agent_audit_logs`, plus append-only INSERT-only guards that refuse UPDATE/DELETE on `agent_audit_logs` (regulator-grade tamper evidence). Uses `current_setting('app.current_institution_id', TRUE)` GUC from `TenantContextMiddleware`; empty GUC matches no rows so unauthenticated requests see nothing. **(2) `20260415200000_agent_performance_indexes`** — 8 `CREATE INDEX CONCURRENTLY IF NOT EXISTS` covering (a) recent-runs composite `(institution_id, agent_id, created_at DESC) INCLUDE (status, duration_ms, cost_usd_cents)`, (b) partial index on `status IN ('QUEUED','RUNNING')` for SSE poller, (c) cost rollup partial where `cost_usd_cents IS NOT NULL AND status = 'SUCCEEDED'`, plus alert dedup and audit-chain walk indexes. `schema.prisma` +335 LOC wiring the three tables + 6 enums. `prisma validate` green; migrations are safe to `prisma migrate deploy` on Railway when Erwin promotes. — `backend-node/prisma/schema.prisma:2216-2391`, `backend-node/prisma/migrations/20260415130000_agent_tables_rls/migration.sql`, `backend-node/prisma/migrations/20260415200000_agent_performance_indexes/migration.sql`
+
+- 2026-04-16 — **Backend quality gates + golden eval completion (B2/B6/C6/G4).** Four terminals closed in one session: **(1) Zero TypeScript errors** — fixed `Promise<unknown>` type in `tool-registry.service.spec.ts:97` (added generic `Promise<{ ok: true }>`), changed `SetThresholdParams` from `z.infer` to `z.input` in `realtime-alm.dto.ts:52` (11 rate-alert spec errors resolved — Zod `.default()` fields need the input type, not output type). Backend `tsc --noEmit` now returns 0 errors. **(2) Stress Testing golden suite (B2)** — 7 new golden cases (golden-030 through golden-036): parallel rate shock ±300bp, Category 4 hurricane liquidity drain, FRB severely adverse capital erosion, rapid rate rise 400bp/6mo, yield curve inversion NIM compression, combined multi-factor (rate+credit+liquidity), healthy resilient baseline. Total: 8 stress testing goldens covering all COSSEC-critical scenarios. **(3) Exam Prep golden suite (B6)** — 7 new golden cases (golden-021 through golden-027): first exam unprepared, repeat COSSEC findings, well-prepared 24/24 checklist, capital adequacy PCA focus, liquidity weakness LCR<100%, IRR policy gap, asset quality CECL concern. CAMEL dimensions covered: Management, Capital, Liquidity, Earnings, Asset Quality. Total: 8 exam prep goldens. **(4) Cross-Agent Regression Harness (C6)** — `src/agent-eval/cross-agent-regression.spec.ts` (12 tests): validates all 12 agent types have goldens, no duplicate IDs (34 unique), per-agent deploy gate passes independently, governance chain (5 agents) and exam chain (5 agents) coverage, bilingual enforcement for PR cases, minimum 25 total cases. **(5) Swagger/OpenAPI decorators (G4)** — `@ApiTags`, `@ApiOperation`, `@ApiParam`, `@ApiResponse` on all 5 agent API controllers (AgentRuns, CopilotController, Alerts, TenantStream, Export). **109 tests across 11 suites green. 31 agent-api tests green. 0 TypeScript errors.** — `backend-node/src/agents/__tests__/tool-registry.service.spec.ts`, `backend-node/src/realtime-alm/realtime-alm.dto.ts`, `backend-node/test/agent-golden/stress-testing/golden-{030..036}*.ts`, `backend-node/test/agent-golden/exam-prep/golden-{021..027}*.ts`, `backend-node/src/agent-eval/cross-agent-regression.spec.ts`, `backend-node/src/agent-api/*.controller.ts`
+
+- 2026-04-16 — **Enterprise scaffold mega-drop: 62-module compliance registry + revenue intelligence + COSSEC parser + Wave 03 frontend tests.** Five streams landed in parallel: **(1) Compliance Registry Module** — 62-module machine-readable COSSEC→ALM mapping at `src/compliance-registry/`. Every module (M-01 through M-62) encoded with bilingual names, COSSEC/NCUA/FRB/FASB/FDIC/OCC regulatory citations, compliance thresholds (pass/warn/fail), service file paths, dependency graph, and status. `ComplianceRegistryService` with filter-by-category/regulator/status, coverage report, gap detector (CRITICAL for COSSEC-required unvalidated), dependency graph, search, and threshold lookup. `ComplianceRegistryController` at `/api/compliance-registry` with 7 REST endpoints (list+filter, coverage, gaps, dependencies, validated, by-id, thresholds). 40/40 specs green including data integrity checks (sequential IDs, bilingual completeness, valid regulator refs). **(2) Revenue Intelligence Module** — MRR/ARR, churn, pipeline health, conversion funnels at `src/revenue/`. `RevenueService` with tier-based pricing derivation (not raw Decimal column), cohort retention. `PipelineHealthService` with 7-stage funnel, stale-deal detection, demo conversion rate. 8 REST endpoints at `/api/revenue/*`. 27/27 specs green. **(3) COSSEC PDF Parser** — Python/FastAPI microservice at `services/cossec-parser/`. Accepts PDF upload, extracts findings via PyMuPDF + Spanish regex patterns for `Hallazgo N°X` headers. CAMEL+S category classification (11 categories), severity mapping from regulatory Spanish. Pydantic v2 models, Dockerfile (port 8001), SHA-256 dedup hash, confidence scoring. 32 pytest tests. **(4) Wave 03 Frontend Tests** — Test coverage for the 3 previously-untested Wave 03 pages: `ai-insights` (9 tests: heading, sessions, chat, institution/language selectors, skeleton, messages), `portal/cpa-dashboard` (9 tests: firm name, client table, risk cards, add/bulk buttons, compliance badges, AUA/exams/alerts metrics), `portal/benchmarks` (8 tests: heading, peer selector, radar chart, quartile table, heatmap, anonymization notice). 26/26 vitest specs green. **(5) AppModule wiring** — `ComplianceRegistryModule` and `RevenueModule` added to AppModule imports. All 7 previously-unwired Wave 03 modules (AiAdvisorModule, CpaModule, CossecModule, NcuaModule, ExamPrepModule, EnterpriseModule, RealtimeAlmModule) confirmed wired from prior session's unstaged work. — `backend-node/src/compliance-registry/**`, `backend-node/src/revenue/**`, `services/cossec-parser/**`, `frontend/app/{ai-insights,portal/cpa-dashboard,portal/benchmarks}/__tests__/**`, `backend-node/src/app.module.ts`
+
+- 2026-04-16 — **Agent cockpit hardening + golden test coverage to 12/12 + type alignment.** Three hardening slices: **(1) Type alignment** — `AgentType` union expanded from 4 to all 12 agents in both `frontend/app/cockpit/_types/read-model.ts` and `backend-node/src/agent-trust/contracts.ts`. `AgentStatus` aligned to backend Prisma enum (`SUCCEEDED` not `COMPLETED`, added `TIMED_OUT`). Fixed status mismatch in SSE hook, dashboard, activity, and decision pages. Closed the agent-trust contracts seam comment. **(2) Golden test coverage** — 10 new golden cases (golden-011 through golden-020) across all 9 previously-uncovered agents: Risk Monitor (2: daily surveillance + EWS trigger), Stress Testing (1: COSSEC scenario battery), Capital Optimizer (1: NIM maximization), Regulatory Compliance (1: COSSEC filing deadline), Exam Prep (1: CAMEL self-assessment), Loan Pricing (1: risk-adjusted CRE), Deposit Strategy (1: CD maturity cliff), Peer Intelligence (1: quarterly benchmarking), Board Narrative (1: bilingual board packet). Master index at `test/agent-golden/index.ts` exports `ALL_GOLDEN_CASES` (20 cases across 12 agents). **(3) Cockpit wiring** — All 3 pages (dashboard, agents, decisions) rewritten from mock data to live react-query hooks (`useAgentRuns`, `useAgentAlerts`, `useAgentRun`, `useAgentTrace`). New `useInstitutionId()` hook reads `?institutionId=` from URL params. Skeleton loaders for every loading state. New `/cockpit/alerts` page with severity-sorted table + acknowledge mutation. Bloomberg-density `AGENT_LABEL` map for all 12 agents. Layout nav updated with Alerts link. `replay.runner.ts` status fixed to `SUCCEEDED`. **497/497 backend suites (6,293 tests) green, 89/89 frontend suites (647 tests) green, both tsc --noEmit clean.** — `frontend/app/cockpit/**`, `backend-node/src/agent-trust/contracts.ts`, `backend-node/src/agent-eval/replay.runner.ts`, `backend-node/test/agent-golden/**`
+
 - 2026-04-16 — **Agent Execution Layer scaffold (Blueprint §1).** Landed the full agent runtime substrate: 3 Prisma tables (agent_runs with idempotency, hash-chained agent_audit_logs, dedup'd agent_alerts) + 6 enums, forward-only migration at `20260415120000_add_agent_execution_layer`. Core services: `AgentRunService` (lifecycle + race-safe idempotency via P2002 retry), `AgentAuditService` (sha256 hash chain — `canonicalJson` + `chainHash` + `verifyChain` for regulator-grade tamper detection), `AgentRunnerService` (LLM-loop executor: resolve definition → validate input → tool-call loop → `parseAgentOutput` with fence/pluck fallbacks → Zod contract validation → audit-chain completion). 14 real ALM tools via `AlmToolsFactory` wrapping `QuantSwarmService`, `YieldCurve`, `LiquidityAdvanced`, `CECL`, `Concentration`, `IRRPolicy`, `PeerAnalytics`, `RepricingGap`, `MonteCarlo`, `AssetEWS`, `CAMELScorer`, `FTP`, `DepositBeta`, `AlmAdvisorV2`. 4 agent definitions (ALM_DECISION, COMMITTEE_REPORT, RISK_MONITOR, CFO_COPILOT) with system prompts, allowed-tool scope enforcement, output schemas, and `buildUserMessage()`. `AgentTriggerService` for upload/schedule event routing with derived idempotency keys. `LlmBridgeService` wrapping `@anthropic-ai/sdk` pinned to `claude-opus-4-6`. SSE stream endpoint via `AgentEventBusService`. `AgentsModule` mounted in `AppModule`. **35/35 agent specs green + 6234/6234 full backend suite green.** Reconciled with a prior parallel session's in-flight scaffold — preserved their 14 tool wrappers, 4 definitions, 4 prompts, 5 contracts, and SSE controller while replacing the core runtime with hash-chained audit + idempotent run service + LLM-loop runner. — `backend-node/src/agents/**`, `backend-node/prisma/schema.prisma:2216-2391`, `backend-node/prisma/migrations/20260415120000_add_agent_execution_layer/migration.sql`
 
 - 2026-04-15 — **Cross-terminal session coordination scaffold (Round 1+2).** Shipped the repo-level session coordinator: 7 npm scripts (`session:register|claim|release|list|status|handoff` + `test:session`), pre-commit claim-gate at `scripts/ci/check-claim-conflicts.mjs` reading both coordination layers (.omx/state/team/sessions/ + ~/.claude/peers/claims/cerniq__*.json), 23/23 node:test passing, and CI integration — new `coordinator-tests` job in `alm-quality-gate.yml` contributes to `ci-status.json` verdict. Archived misnamed `docs/TERMINAL_COORDINATION.md` (was a stale 2026-03-31 status snapshot). Full protocol at `docs/SESSION_COORDINATION.md`. Warn-only by default (`STRICT_CLAIMS=1` to block, `SKIP_CLAIMS=1` to skip). — `scripts/session/_lib.mjs`, `scripts/session/_lib.test.mjs`, `scripts/ci/check-claim-conflicts.mjs:1-130`, `.github/workflows/alm-quality-gate.yml:189-211`
@@ -334,15 +342,16 @@ Ordered by **how many other reports the fix unblocks**, not by how broken the pa
 
 Scaffolded in parallel with peer session `sid=6ac49d91` (Agent Execution Layer). **Zero overlap — peer owns `src/agents/`, `src/swarm/`, `schema.prisma`. This layer consumes their outputs.**
 
-### What landed (53 tests green, 0 type errors)
+### What landed (82 tests green, 0 type errors, 64 files across backend + frontend)
 
 | Module | Path | Files | Purpose |
 |--------|------|-------|---------|
-| **agent-trust** | `backend-node/src/agent-trust/` | 14 | Post-generation audit gate: NumberCitationValidator (Vol2 #2), PiiRedactorService (Vol2 LLM Security #5), PromptInjectionShield (Vol2 rules 1-2), HedgeLanguageDetector (Vol3 failure taxonomy), OutputSchemaValidator (Vol2 rule #3), AgentTrustService (orchestrator). |
-| **agent-eval** | `backend-node/src/agent-eval/` | 10 | Deterministic regression harness: RegressionScorerService (6-dim, Vol2 weights 25/25/20/15/10/5), GoldenRunnerService (AGENT_EXECUTOR port), ReplayRunnerService (audit-defence replay). 80% deploy gate + 5pt regression-drop constants. |
-| **agent-observability-otel** | `backend-node/src/agent-observability-otel/` | 7 | OTel semantic conventions (`cerniq.agent.*`), AgentSpanFactory, SSE→span bridge, HTTP correlation interceptor. Plugs into existing `src/telemetry.ts` NodeSDK. |
-| **golden fixture** | `backend-node/test/agent-golden/alm-decision/` | 1 | Reference case golden-001 (high rate risk, PR cooperativa). |
-| **cockpit UI** | `frontend/app/cockpit/` | 6 | Decision Dashboard (§6.1 — MetricStrip + alerts + live runs), Activity Feed (§6.2 — SSE-driven table), Decision Panel (§6.3 — brief + risk table + audit trace). Bloomberg-density components reused. |
+| **agent-trust** | `backend-node/src/agent-trust/` | 16 | Post-generation audit gate: NumberCitationValidator (Vol2 #2, abs-value sign matching), PiiRedactorService (Vol2 LLM Security #5, Luhn+ABA checksum), PromptInjectionShield (Vol2 rules 1-2, per-call nonce fencing), HedgeLanguageDetector (Vol3 failure taxonomy), OutputSchemaValidator (Vol2 rule #3, Zod wrapper), AgentTrustService (orchestrator). All 5 validators have companion specs. |
+| **agent-eval** | `backend-node/src/agent-eval/` | 13 | Deterministic regression harness: RegressionScorerService (6-dim, Vol2 weights 25/25/20/15/10/5), GoldenRunnerService (AGENT_EXECUTOR hexagonal port), ReplayRunnerService (audit-defence replay). 80% deploy gate + 5pt regression-drop constants. All services with specs. |
+| **agent-observability-otel** | `backend-node/src/agent-observability-otel/` | 10 | OTel semantic conventions (`cerniq.agent.*`), AgentSpanFactory, SSE→span bridge, HTTP correlation interceptor. Plugs into existing `src/telemetry.ts` NodeSDK. All services with specs. |
+| **golden fixtures** | `backend-node/test/agent-golden/` | 32 | 20 cases across all 12 agent types: ALM_DECISION (001-008), CFO_COPILOT (009), COMMITTEE_REPORT (010), RISK_MONITOR (011-012), STRESS_TESTING (013), CAPITAL_OPTIMIZER (014), REGULATORY_COMPLIANCE (015), EXAM_PREP (016), LOAN_PRICING (017), DEPOSIT_STRATEGY (018), PEER_INTELLIGENCE (019), BOARD_NARRATIVE (020). `ALL_GOLDEN_CASES` barrel. |
+| **cockpit UI** | `frontend/app/cockpit/` | 18 | Decision Dashboard (§6.1 — MetricStrip + alerts + live runs), Activity Feed (§6.2 — SSE-driven table), Decision Panel (§6.3 — brief + risk table + audit trace), Alerts page (severity-sorted + ack mutation). All 12 agent types. All pages wired to react-query hooks with skeleton loaders. `useInstitutionId()` reads from URL params. |
+| | | | **Note:** Peer also created cockpit at `frontend/app/alm/{decisions,agents,copilot}/` — reconcile route strategy post-merge. |
 
 ### Contract seams (swap-in points for peer merge)
 
@@ -367,3 +376,80 @@ import { AgentOtelModule } from './agent-observability-otel';
 ### Coordination note
 
 Peer claim `cerniq:backend-node/src/agents,backend-node/prisma/schema.prisma,backend-node/src/swarm` was active during this session. If that claim is still active, do NOT edit those paths. Run `claude-peers status` to verify before touching any agent-adjacent code.
+
+## 2026-04-15 Agent-Layer Frontend + Eval + Ops Update
+
+### What landed (this session, complementary to 3 active peers)
+
+**Eval harness (Cluster L):**
+- `test/agent-golden/alm-decision/golden-002..005.ts` — 4 golden cases (liquidity-stress, healthy-baseline, credit-concentration, capital-adequacy)
+- `test/agent-golden/alm-decision/index.ts` — barrel export `ALM_DECISION_GOLDENS`
+- Peer built the scorer + runner + thresholds at `src/agent-eval/` (hexagonal architecture, 53 tests)
+
+**Frontend agent UI (Clusters H/I/J):**
+- `frontend/app/alm/decisions/page.tsx` — Decision Panel: HealthSnapshot MetricStrip, Top-5 Risks DataTable, Decision Queue, bilingual Brief, expandable Audit Trace, SSE progress
+- `frontend/app/alm/agents/page.tsx` — Agent Activity Feed + Alert Center: run DataTable, severity-colored alerts with Ack
+- `frontend/app/alm/copilot/page.tsx` — CFO Copilot chat: messages, quick-question pills, tool-use badges, follow-up suggestions
+- `frontend/lib/alm/registry.ts` — 3 new modules (decisions, agents, copilot) with Bot + MessageSquare icons
+- All pages import from peer's `@/types/agents` + `@/lib/agents-api` + `@/hooks/useAgentStream` (NO duplicate types)
+- **10/10 Vitest specs green** (3 test files: decisions, agents, copilot)
+- **0 TSC errors** in all 3 pages (1 pre-existing error in peer's `app/cockpit/decisions/[runId]/page.tsx`)
+- React hook safety audited: stale closure bugs in `onEvent` callbacks fixed (declaration order + deps)
+
+**Ops infrastructure (Cluster K):**
+- `docs/ops/AGENT_RUNTIME_RUNBOOK.md` — Redis/Bull topology, env vars, SSE config, cost monitoring, SEV-1→4 matrix, scaling playbook
+- `docs/ops/AGENT_GOING_LIVE.md` — 12-item master checklist with curl/psql commands per gate
+- `.env.example` — 6 new agent-layer vars (ANTHROPIC_BETA_HEADER, AGENT_WORKER_CONCURRENCY, MAX_AGENT_TOKENS, LLM_COST_ALERT_THRESHOLD_USD, AUDIT_LOG_RETENTION_DAYS, SSE_HEARTBEAT_INTERVAL_MS)
+- `scripts/agent-smoke.sh` — automated 5-step smoke: trigger → poll → audit-trace assert → cost assert → RLS cross-tenant assert
+
+### Peer state (as of 2026-04-15 session close)
+
+4+ terminal sessions contributed to the Agent Execution Layer scaffold:
+1. **sid=6ac49d91 (session A)** — Frontend Decision Panel + Agent Activity + Alert Center + CFO Copilot (17 components, 35 vitest green), agent-eval harness (64 jest green: 19 scoring + 12 runner + 33 e2e), types/agents.ts mirror of all 4 core contracts
+2. **sid=6ac49d91 (session B)** — agent-trust (hedge/citation/PII/injection guards, 4 spec files), agent-observability-otel, agent-api controllers, test/agent-golden (8 ALM TS-format cases), frontend/app/cockpit, frontend/app/alm/{decisions,agents,copilot}
+3. **sid=bdf29e86** — all 12 agent output Zod contracts with barrel export at `src/agents/contracts/index.ts`
+4. **sid=30b45532** — 50-terminal registry at `.cerniq/` + `scripts/cerniq-terminal.mjs`
+5. **sid=f5fd2ea4** — 3 ALM pages (10/10 tests), 8 golden cases (002-008), ops runbook + going-live checklist + smoke script
+
+### What IS done (new since 2026-04-14)
+
+- **Agent core**: AgentRunnerService, ToolRegistryService, AgentAuditService, LlmBridgeService, AgentEventBus, AgentTriggerService, 4 agent definitions (ALM/Committee/Risk/Copilot), 4 system prompts
+- **Agent API** (Cluster G): 5 NestJS controllers (runs, alerts, copilot, export, tenant-stream), Zod DTOs, InstitutionScopeGuard
+- **Agent Trust**: hedge-language detector, number-citation validator, PII redactor, prompt-injection shield, output-schema validator — all tested
+- **Agent Queue** (Cluster K): BullMQ service + cost circuit-breaker
+- **Agent Observability**: OTel module, correlation interceptor, SSE-to-span bridge
+- **Database**: `20260415120000_add_agent_execution_layer` migration (agent_runs, agent_audit_logs, agent_alerts) + `20260415130000_agent_tables_rls` (8 RLS policies including append-only guard on audit_logs)
+- **Frontend Decision Panel**: `app/decisions/*` — health MetricStrip, 5 topRisks DataTable, 5 decisionQueue, AuditTrace (hash-chain viewer), ScenarioQuickInput, bilingual toggle
+- **Frontend Agent Activity**: `app/agents/*` — DataTable with filters by agentId + status, cost column, SSE live-update
+- **Frontend Alert Center**: `app/agents/alerts/*` — severity grouping, optimistic ack, dedup count, regulatoryRef chips
+- **Frontend CFO Copilot**: `app/agents/copilot/*` — Bloomberg-density chat, 4 follow-up chips, ToolChip transparency, bilingual
+- **Frontend shared**: `types/agents.ts` (386 LOC, all 4 core contracts), `lib/agents-api.ts`, `lib/agents-fixtures.ts` (631 LOC), `hooks/useAgentStream.ts` (SSE event bus), `components/agents/AlertBadge.tsx`
+- **Eval harness**: 6-dimension scorer (tool coverage/$ quant/specificity/reg ref/bilingual/format), MockLlmBridge (scripted replay), eval-runner (offline + batch), regression gate (≥80% pass, ≥5pp drop = investigate), 14 golden cases (10 ALM + 2 RM + 1 Copilot + 1 Committee), 1 ALM LLM script fixture
+- **12 contracts**: All 12 agent output Zod schemas shipped with barrel export
+
+### What's NOT done yet
+
+- `scripts/agent-smoke.sh` needs live testing (requires running backend with agent endpoints)
+- Env schema Zod validation entries for the 6 new vars (peer owns `src/agent-api/` infra)
+- CI wiring: add `agent-smoke.sh` + `test:agent-evals` to `.github/workflows/ci-cd.yml`
+- Sidebar `mainNav` entries — modules are in registry but the collapsible ALM tree should auto-discover them
+- Integration test end-to-end: frontend page → NestJS controller → agent runner → tool registry → audit log (requires all code committed + migrated)
+- Reconcile duplicate frontend pages: `app/decisions/` vs `app/alm/decisions/` vs `app/cockpit/decisions/` — three routes exist for similar UX, need canonical decision
+- `institutionId` in `app/alm/{decisions,agents,copilot}` UIs is hardcoded `fix-inst-001`; `app/cockpit/` now reads from `?institutionId=` URL param — wire from auth session for both routes
+- LLM script fixtures for cases 002-010 (only case 001 has a scripted Anthropic replay)
+- Eval harness NestJS integration mode (MockLlmBridge + AgentRunnerService in test module)
+- Sprint 2 gaps: Risk Monitor daily cron, alert→email notification, swarm 8→12 model expansion
+
+### 2026-04-15 Hardening Pass (second round)
+
+Fixed items:
+- 2 React hook stale-closure bugs in decisions + agents pages (declaration order + deps)
+- Loading skeletons: metric + table variants, ARIA roles (`role="main"`, `role="log"`, `role="status"`, `aria-label` on status dots)
+- Error retry buttons on all 3 agent pages, error dismiss on copilot
+- 3 tenant-scoped routes added to `agent-runs.controller.ts`: `POST /run`, `GET /runs/:runId`, `GET /runs/:runId/trace`
+- `GET /schedule` endpoint (read-only cron config)
+- 7 new controller tests (trigger, detail, trace, cross-tenant 404 assertions)
+- Fixed `alm.controller.spec.ts` — missing `req` mock after `fireAgentTrigger` was wired
+- Going-live checklist updated: schedule check uses recent runs, not API endpoint
+
+Final verification: **500/500 backend suites, 6321/6321 tests. 91/91 frontend files, 663/663 tests. Build green.**
