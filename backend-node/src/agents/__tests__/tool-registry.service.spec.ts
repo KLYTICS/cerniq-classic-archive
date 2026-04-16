@@ -94,7 +94,10 @@ describe('ToolRegistryService', () => {
       input: z.object({}),
       output: z.object({ ok: z.literal(true) }),
       timeoutMs: 20,
-      handler: () => new Promise((r) => setTimeout(() => r({ ok: true }), 200)),
+      handler: () =>
+        new Promise<{ ok: true }>((r) =>
+          setTimeout(() => r({ ok: true }), 200),
+        ),
     });
     const svc = build([t]);
     const out = await svc.invoke('slow', {}, ctx());

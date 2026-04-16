@@ -11,13 +11,20 @@ import { LlmBridgeService } from './runner/llm-bridge.service';
 import { ToolRegistryService } from './registry/tool-registry.service';
 import { AlmToolsFactory } from './registry/tools/alm-tools';
 import { AgentTriggerService } from './trigger/agent-trigger.service';
+import { AgentSchedulerService } from './scheduler/agent-scheduler.service';
+import { AgentAlertNotifierService } from './alert-notifier/agent-alert-notifier.service';
 import { QuantSwarmService } from '../swarm/quant-swarm.service';
+import { CapitalAdequacyAdapterService } from '../swarm/capital-adequacy-adapter.service';
+import { EmailModule } from '../email/email.module';
+import { AgentQueueModule } from '../queue/agent/agent-queue.module';
+import { AgentChainService } from './runner/agent-chain.service';
 
 @Module({
-  imports: [PrismaModule, AlmModule],
+  imports: [PrismaModule, AlmModule, EmailModule, AgentQueueModule],
   controllers: [AgentsController],
   providers: [
     QuantSwarmService,
+    CapitalAdequacyAdapterService,
     AgentEventBusService,
     AgentAuditService,
     AgentRunService,
@@ -26,7 +33,10 @@ import { QuantSwarmService } from '../swarm/quant-swarm.service';
     ToolRegistryService,
     AlmToolsFactory,
     AgentTriggerService,
+    AgentSchedulerService,
+    AgentAlertNotifierService,
+    AgentChainService,
   ],
-  exports: [AgentRunnerService, AgentTriggerService, AgentEventBusService],
+  exports: [AgentRunnerService, AgentTriggerService, AgentEventBusService, AgentChainService],
 })
 export class AgentsModule {}
