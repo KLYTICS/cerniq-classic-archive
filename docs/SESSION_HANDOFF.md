@@ -153,6 +153,61 @@ Last updated: 2026-04-15 (Agent Execution Layer scaffold + frontend UX + eval ha
 
 ---
 
+## 4.7 Follow-up sprint (T5–T10, post-mega-drop 2026-04-16)
+
+The T1–T4 items from the FAANG-level gap analysis landed in this session
+(push, useInstitutionId wire-through, env.schema Zod validators,
+Playwright e2e for 308 redirects). These remain open and are the next
+highest-leverage moves. Each has a concrete file target and effort estimate.
+
+- **T5 — Sidebar auto-render for `agent-alerts` module** (20 min). The
+  registry entry at `frontend/lib/alm/registry.ts:130` now points at
+  `/alm/agents/alerts` with a `Bell` icon, but the collapsible ALM nav
+  may not surface it until the nav component re-reads `ALM_MODULES`.
+  Verify by visual inspection at `/alm/modules` + any sidebar consumer.
+
+- **T6 — LLM script fixtures for goldens 002-010** (~1h per case ≈ 9h
+  total). Only `alm-decision/001.script.ts` exists for scripted Anthropic
+  replay. Without scripts, the other 33 goldens can score via
+  `RegressionScorerService` but can't run deterministically through
+  `MockLlmBridge`. Pattern to copy:
+  `backend-node/test/agent-evals/cases/alm-decision/001.script.ts`.
+
+- **T7 — `agents-contract-drift.test.ts` enforcement** (30 min). File
+  exists at `frontend/types/__tests__/`. Audit what it asserts — if it's
+  a stub, upgrade it to compare TS types in `frontend/types/agents.ts`
+  against the backend Zod schemas at `backend-node/src/agents/contracts/*`
+  so bilingual (es+en) + nullable gap-aware fields can't drift silently.
+
+- **T8 — A11y sweep via axe-core** (~45 min) on the 4 new Wave-03 pages
+  (`ai-insights`, `enterprise`, `market-data`, `portal/benchmarks`,
+  `portal/cpa-dashboard`, `portal/exam-prep`) and the 4 terminal
+  components (`health-score-widget`, `alert-feed`, `scenario-input`,
+  `follow-up-pills`). Add `@axe-core/playwright` + an
+  `accessibility.spec.ts` addition. FAANG keyboard-trap / contrast bar
+  before customer launch.
+
+- **T9 — Sentry smoke verification** (15 min). Add a dev-gated endpoint
+  `GET /admin/sentry-smoke` that throws; verify it shows up in the
+  Sentry dashboard within 1 minute. One-time check; then remove the
+  endpoint before prod cut-over.
+
+- **T10 — `scripts/agent-smoke.sh` against live backend** (30 min, needs
+  Erwin ops). The 5-step smoke (trigger → poll → audit-trace assert →
+  cost assert → RLS cross-tenant assert) requires a running backend with
+  Redis + real `ANTHROPIC_API_KEY`. Ship-gate before first live demo.
+
+**Ops-side (cannot be automated, Erwin must do):**
+- Railway `prisma migrate deploy` against the 2 new migrations
+  (`20260415130000_agent_tables_rls` + `20260415200000_agent_performance_indexes`)
+- Set 4 new env vars: `AGENT_WORKER_CONCURRENCY`, `AGENT_SCHEDULER_DISABLED`,
+  `LLM_COST_CAP_USD_CENTS`, `RETENTION_AUDIT_LOGS_DAYS`
+- UptimeRobot + SPF/DKIM/DMARC for `erwin@cerniq.io` in Resend
+- Confirm CI green on all 3 workflows after push (CI Quick Check, ALM
+  Quality Gate, CodeQL Security Analysis)
+
+---
+
 ## 4.5 Green-phase branch authority (2026-04-08)
 
 - **Merge authority branch:** `codex/ci-green-integration-2026-04-08`
