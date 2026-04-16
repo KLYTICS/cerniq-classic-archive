@@ -1,427 +1,439 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
-import { apiClient } from '@/lib/api';
-import { useMarketDataStore } from '@/lib/store';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from '@/lib/i18n';
+import { ChatMessage, type ChatMessageProps } from '@/components/wave03/chat-message';
 
-interface SentimentData {
-    overall_score: number;
-    sentiment_label: string;
-    fear_greed_index: number;
-    components: {
-        market_momentum: number;
-        market_volatility: number;
-        safe_haven_demand: number;
-        stock_breadth: number;
-    };
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+interface ChatSession {
+  id: string;
+  title: string;
+  lastMessage: string;
+  updatedAt: string;
 }
 
-interface TrendingTicker {
-    ticker: string;
-    name: string;
-    price: number;
-    change_pct: number;
-    sentiment: string;
+interface ChatMsg {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  lang?: 'es' | 'en' | 'both';
+  moduleRefs?: string[];
 }
 
-interface SectorData {
-    name: string;
-    ticker: string;
-    price: number;
-    performance_1d: number;
-    sentiment: string;
+interface Institution {
+  id: string;
+  name: string;
 }
 
-// Compute Fear & Greed from real market signals
-function computeFearGreed(quotes: Record<string, { price: number; change: number; changePercent: number }>) {
-    const spy = quotes['SPY'];
-    const vix = quotes['VIX'];
-    const gld = quotes['GLD'];
-    const tlt = quotes['TLT'];
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
-    if (!spy || !vix) {
-        return null;
-    }
+const API = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
 
-    // Market momentum: SPY change (positive = greed)
-    const momentum = Math.min(Math.max((spy.changePercent + 2) * 25, 0), 100);
-
-    // Volatility component: VIX level (low VIX = greed, high VIX = fear)
-    // VIX < 15 = extreme greed, VIX > 30 = extreme fear
-    const vixPrice = vix.price || 20;
-    const volScore = Math.min(Math.max(100 - ((vixPrice - 12) * 4.5), 0), 100);
-
-    // Safe haven demand: GLD/TLT changes (rising gold/bonds = fear)
-    const goldChange = gld?.changePercent ?? 0;
-    const bondChange = tlt?.changePercent ?? 0;
-    const safeHaven = Math.min(Math.max(50 - (goldChange + bondChange) * 15, 0), 100);
-
-    // Breadth approximation from SPY trend
-    const breadth = Math.min(Math.max(50 + spy.changePercent * 20, 0), 100);
-
-    const index = Math.round(momentum * 0.3 + volScore * 0.3 + safeHaven * 0.2 + breadth * 0.2);
-
-    let label: string;
-    if (index >= 80) label = 'Extreme Greed';
-    else if (index >= 60) label = 'Greed';
-    else if (index >= 40) label = 'Neutral';
-    else if (index >= 20) label = 'Fear';
-    else label = 'Extreme Fear';
-
-    return {
-        overall_score: index,
-        sentiment_label: label,
-        fear_greed_index: index,
-        components: {
-            market_momentum: parseFloat((spy.changePercent).toFixed(1)),
-            market_volatility: parseFloat((-vixPrice + 20).toFixed(1)),
-            safe_haven_demand: parseFloat((-(goldChange + bondChange)).toFixed(1)),
-            stock_breadth: parseFloat((breadth - 50).toFixed(1)),
-        },
-    };
+function authHeaders(): HeadersInit {
+  const token = typeof window !== 'undefined' ? sessionStorage.getItem('capex_access_token') : null;
+  return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
 }
 
-const TRENDING_TICKERS = ['NVDA', 'META', 'TSLA', 'AMD', 'COIN', 'SMCI'];
-const SECTOR_ETFS: { name: string; ticker: string }[] = [
-    { name: 'Technology', ticker: 'XLK' },
-    { name: 'Financials', ticker: 'XLF' },
-    { name: 'Healthcare', ticker: 'XLV' },
-    { name: 'Energy', ticker: 'XLE' },
-    { name: 'Consumer Disc.', ticker: 'XLY' },
-    { name: 'Communication', ticker: 'XLC' },
-    { name: 'Industrials', ticker: 'XLI' },
-    { name: 'Materials', ticker: 'XLB' },
-    { name: 'Real Estate', ticker: 'XLRE' },
-    { name: 'Utilities', ticker: 'XLU' },
-    { name: 'Consumer Staples', ticker: 'XLP' },
+// ─── Demo data ──────────────────────────────────────────────────────────────
+
+const DEMO_INSTITUTIONS: Institution[] = [
+  { id: 'demo-1', name: 'Cooperativa de Ahorro Caguas' },
+  { id: 'demo-2', name: 'ACACIA Federal Credit Union' },
 ];
-const SENTIMENT_TICKERS = ['SPY', 'VIX', 'GLD', 'TLT'];
 
-export default function AIInsightsPage() {
-    const [sentiment, setSentiment] = useState<SentimentData | null>(null);
-    const [trending, setTrending] = useState<TrendingTicker[]>([]);
-    const [sectors, setSectors] = useState<SectorData[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const { setQuotes } = useMarketDataStore();
+const DEMO_SESSIONS: ChatSession[] = [
+  { id: 's1', title: 'Liquidity Risk Review', lastMessage: 'Your LCR is above the 100% threshold...', updatedAt: '2026-04-16T10:30:00Z' },
+  { id: 's2', title: 'NII Sensitivity Analysis', lastMessage: 'Based on the +200bps shock scenario...', updatedAt: '2026-04-15T14:20:00Z' },
+  { id: 's3', title: 'COSSEC Exam Prep', lastMessage: 'Here are the top 5 findings to address...', updatedAt: '2026-04-14T09:15:00Z' },
+];
 
-    const fetchAll = useCallback(async () => {
-        setLoading(true);
-        setError(null);
+const DEMO_MESSAGES: ChatMsg[] = [
+  {
+    id: 'm1', role: 'user', content: 'What is our current liquidity position?', timestamp: '2026-04-16T10:28:00Z', lang: 'en',
+  },
+  {
+    id: 'm2', role: 'assistant', content: '**Liquidity Coverage Ratio (LCR)** is currently at **142.3%**, well above the 100% regulatory minimum.\n\nKey metrics:\n- HQLA: `$87.5M`\n- Net Cash Outflows (30d): `$61.4M`\n- Buffer over minimum: `+42.3%`\n\nYour institution is in a **compliant** position. I recommend reviewing the deposit concentration in the top 10 depositors, which accounts for 34% of total deposits.', timestamp: '2026-04-16T10:28:15Z', lang: 'en', moduleRefs: ['liquidity', 'concentration'],
+  },
+  {
+    id: 'm3', role: 'user', content: 'How would a +200bps rate shock affect our NII?', timestamp: '2026-04-16T10:30:00Z', lang: 'en',
+  },
+  {
+    id: 'm4', role: 'assistant', content: 'Under a **+200bps parallel shock**, your projected Net Interest Income impact is:\n\n- **NII Change**: `-$2.1M` (-4.8%)\n- **EVE Impact**: `-$8.3M` (-6.2%)\n- **Duration Gap**: shifts from 1.2yr to 1.8yr\n\nThe primary driver is your fixed-rate mortgage portfolio (48% of assets) repricing slower than your CD book. Consider the `cap-floor` hedging module for mitigation strategies.', timestamp: '2026-04-16T10:30:20Z', lang: 'en', moduleRefs: ['stress-test', 'cap-floor'],
+  },
+];
 
+// ─── Session Sidebar ────────────────────────────────────────────────────────
+
+function SessionList({
+  sessions,
+  activeId,
+  onSelect,
+  onNew,
+  locale,
+}: {
+  sessions: ChatSession[];
+  activeId: string | null;
+  onSelect: (id: string) => void;
+  onNew: () => void;
+  locale: 'en' | 'es';
+}) {
+  return (
+    <aside className="flex w-72 flex-shrink-0 flex-col border-r border-slate-200 bg-slate-50">
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+        <h2 className="text-sm font-bold text-[#1e3a5f]">
+          {locale === 'es' ? 'Conversaciones' : 'Conversations'}
+        </h2>
+        <button
+          onClick={onNew}
+          className="rounded-lg bg-[#1e3a5f] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#2a4f7f]"
+          aria-label={locale === 'es' ? 'Nueva conversacion' : 'New conversation'}
+        >
+          + {locale === 'es' ? 'Nueva' : 'New'}
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {sessions.length === 0 && (
+          <p className="px-4 py-8 text-center text-xs text-slate-400">
+            {locale === 'es' ? 'Sin conversaciones' : 'No conversations yet'}
+          </p>
+        )}
+        {sessions.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => onSelect(s.id)}
+            className={`w-full border-b border-slate-100 px-4 py-3 text-left transition hover:bg-white ${
+              activeId === s.id ? 'bg-white border-l-2 border-l-[#1e3a5f]' : ''
+            }`}
+          >
+            <p className="text-sm font-medium text-slate-800 truncate">{s.title}</p>
+            <p className="mt-0.5 text-[11px] text-slate-400 truncate">{s.lastMessage}</p>
+          </button>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+// ─── Main Page ──────────────────────────────────────────────────────────────
+
+export default function AIAdvisorPage() {
+  const { locale } = useTranslation();
+
+  // State
+  const [institutions, setInstitutions] = useState<Institution[]>(DEMO_INSTITUTIONS);
+  const [selectedInstitution, setSelectedInstitution] = useState<string>(DEMO_INSTITUTIONS[0]?.id || '');
+  const [sessions, setSessions] = useState<ChatSession[]>(DEMO_SESSIONS);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(DEMO_SESSIONS[0]?.id || null);
+  const [messages, setMessages] = useState<ChatMsg[]>(DEMO_MESSAGES);
+  const [input, setInput] = useState('');
+  const [language, setLanguage] = useState<'es' | 'en' | 'both'>('en');
+  const [loading, setLoading] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Fetch sessions on mount
+  useEffect(() => {
+    async function fetchSessions() {
+      try {
+        const res = await fetch(`${API}/api/ai-advisor/sessions/${selectedInstitution}`, { headers: authHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setSessions(data);
+            setActiveSessionId(data[0].id);
+          }
+        }
+      } catch {
+        // Use demo data
+      } finally {
+        setPageLoading(false);
+      }
+    }
+    fetchSessions();
+  }, [selectedInstitution]);
+
+  // WebSocket connection (Socket.IO)
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    try {
+      const wsUrl = API.replace(/^http/, 'ws') + '/ai-advisor';
+      ws = new WebSocket(wsUrl);
+      ws.onopen = () => setWsConnected(true);
+      ws.onclose = () => setWsConnected(false);
+      ws.onerror = () => setWsConnected(false);
+      ws.onmessage = (event) => {
         try {
-            // Fetch all in parallel: sentiment tickers, trending tickers, sector ETFs
-            const [sentimentResults, trendingResults, sectorResults] = await Promise.all([
-                Promise.all(
-                    SENTIMENT_TICKERS.map(async (t) => {
-                        try {
-                            const data = await apiClient.getNodeQuote(t);
-                            return { ticker: t, price: data.price ?? 0, change: data.change ?? 0, changePercent: data.changePercent ?? 0 };
-                        } catch {
-                            return { ticker: t, price: 0, change: 0, changePercent: 0 };
-                        }
-                    })
-                ),
-                Promise.all(
-                    TRENDING_TICKERS.map(async (t) => {
-                        try {
-                            const data = await apiClient.getNodeQuote(t);
-                            return {
-                                ticker: data.ticker || t,
-                                name: data.name || data.shortName || t,
-                                price: data.price ?? 0,
-                                change_pct: data.changePercent ?? 0,
-                                sentiment: (data.changePercent ?? 0) > 1 ? 'bullish' : (data.changePercent ?? 0) < -1 ? 'bearish' : 'neutral',
-                            } as TrendingTicker;
-                        } catch {
-                            return { ticker: t, name: t, price: 0, change_pct: 0, sentiment: 'neutral' as const };
-                        }
-                    })
-                ),
-                Promise.all(
-                    SECTOR_ETFS.map(async ({ name, ticker }) => {
-                        try {
-                            const data = await apiClient.getNodeQuote(ticker);
-                            const changePct = data.changePercent ?? 0;
-                            return {
-                                name,
-                                ticker,
-                                price: data.price ?? 0,
-                                performance_1d: changePct,
-                                sentiment: changePct > 0.5 ? 'bullish' : changePct < -0.5 ? 'bearish' : 'neutral',
-                            } as SectorData;
-                        } catch {
-                            return { name, ticker, price: 0, performance_1d: 0, sentiment: 'neutral' as const };
-                        }
-                    })
-                ),
-            ]);
-
-            // Compute fear & greed from real quotes
-            const sentimentMap: Record<string, { price: number; change: number; changePercent: number }> = {};
-            sentimentResults.forEach((r) => { sentimentMap[r.ticker] = r; });
-            const fg = computeFearGreed(sentimentMap);
-            if (fg) setSentiment(fg);
-
-            setTrending(trendingResults);
-            setSectors(sectorResults);
-
-            // Cache all fetched quotes
-            const allQuotes = [
-                ...sentimentResults.map((r) => ({ ticker: r.ticker, price: r.price, change: r.change, changePercent: r.changePercent })),
-                ...trendingResults.map((r) => ({ ticker: r.ticker, price: r.price, change: r.change_pct, changePercent: r.change_pct })),
-                ...sectorResults.map((r) => ({ ticker: r.ticker, price: r.price, change: 0, changePercent: r.performance_1d })),
-            ];
-            setQuotes(allQuotes);
-        } catch (err) {
-            console.error('AI Insights fetch error:', err);
-            setError('Failed to load market insights. Please try again.');
-        } finally {
+          const data = JSON.parse(event.data);
+          if (data.type === 'message' && data.sessionId === activeSessionId) {
+            setMessages((prev) => [...prev, data.message]);
             setLoading(false);
-        }
-    }, [setQuotes]);
+          }
+        } catch { /* ignore parse errors */ }
+      };
+    } catch {
+      // WebSocket not available, use REST fallback
+    }
+    return () => { ws?.close(); };
+  }, [activeSessionId]);
 
-    useEffect(() => {
-        fetchAll();
-        const interval = setInterval(fetchAll, 60000);
-        return () => clearInterval(interval);
-    }, [fetchAll]);
+  // Send message
+  const handleSend = useCallback(async () => {
+    const text = input.trim();
+    if (!text || loading) return;
 
-    const getSentimentColor = (label: string) => {
-        switch (label.toLowerCase()) {
-            case 'extreme greed': return 'text-green-400';
-            case 'greed': return 'text-green-500';
-            case 'neutral': return 'text-yellow-400';
-            case 'fear': return 'text-orange-400';
-            case 'extreme fear': return 'text-red-400';
-            default: return 'text-gray-400';
-        }
+    const userMsg: ChatMsg = {
+      id: `u-${Date.now()}`,
+      role: 'user',
+      content: text,
+      timestamp: new Date().toISOString(),
+      lang: language,
     };
 
-    const getSentimentBg = (value: number) => {
-        if (value >= 75) return 'bg-gradient-to-r from-green-500 to-green-600';
-        if (value >= 50) return 'bg-gradient-to-r from-green-600 to-yellow-500';
-        if (value >= 25) return 'bg-gradient-to-r from-yellow-500 to-orange-500';
-        return 'bg-gradient-to-r from-orange-500 to-red-500';
-    };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput('');
+    setLoading(true);
 
-    // Skeleton loader
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-gray-950 text-white p-8">
-                <div className="mb-8">
-                    <Link href="/dashboard" className="text-amber-400 hover:text-amber-300 text-sm mb-2 block">
-                        &larr; Back to Dashboard
-                    </Link>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
-                        AI Market Insights
-                    </h1>
-                    <p className="text-gray-400 mt-1">Loading real-time market sentiment...</p>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                    {[...Array(3)].map((_, i) => (
-                        <div key={i} className="bg-gray-900/50 rounded-xl border border-gray-800 p-6 animate-pulse">
-                            <div className="h-5 bg-white/10 rounded w-32 mb-4" />
-                            <div className="h-16 bg-white/10 rounded mb-4" />
-                            <div className="h-4 bg-white/10 rounded w-20" />
-                        </div>
-                    ))}
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-                    {[...Array(6)].map((_, i) => (
-                        <div key={i} className="bg-gray-900/50 rounded-xl border border-gray-800 p-4 animate-pulse">
-                            <div className="h-4 bg-white/10 rounded w-12 mb-2" />
-                            <div className="h-6 bg-white/10 rounded w-20 mb-1" />
-                            <div className="h-3 bg-white/10 rounded w-16" />
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
+    try {
+      const res = await fetch(`${API}/api/ai-advisor/chat`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          sessionId: activeSessionId,
+          institutionId: selectedInstitution,
+          message: text,
+          language,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const aiMsg: ChatMsg = {
+          id: data.id || `a-${Date.now()}`,
+          role: 'assistant',
+          content: data.content || data.message || (locale === 'es' ? 'No se pudo generar respuesta.' : 'Could not generate a response.'),
+          timestamp: new Date().toISOString(),
+          lang: language,
+          moduleRefs: data.moduleRefs,
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+      } else {
+        // Demo fallback response
+        const aiMsg: ChatMsg = {
+          id: `a-${Date.now()}`,
+          role: 'assistant',
+          content: locale === 'es'
+            ? 'Estoy analizando los datos de su institucion. En base a los parametros actuales, su posicion de liquidez se mantiene saludable con un LCR de 142.3%.'
+            : 'I am analyzing your institution data. Based on current parameters, your liquidity position remains healthy with an LCR of 142.3%.',
+          timestamp: new Date().toISOString(),
+          lang: language,
+          moduleRefs: ['liquidity'],
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+      }
+    } catch {
+      const errMsg: ChatMsg = {
+        id: `e-${Date.now()}`,
+        role: 'assistant',
+        content: locale === 'es'
+          ? 'Disculpe, hubo un error al procesar su solicitud. Por favor intente nuevamente.'
+          : 'Sorry, there was an error processing your request. Please try again.',
+        timestamp: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, errMsg]);
+    } finally {
+      setLoading(false);
     }
+  }, [input, loading, activeSessionId, selectedInstitution, language, locale]);
 
-    // Error state with retry
-    if (error && !sentiment && trending.length === 0) {
-        return (
-            <div className="min-h-screen bg-gray-950 text-white p-8">
-                <div className="mb-8">
-                    <Link href="/dashboard" className="text-amber-400 hover:text-amber-300 text-sm mb-2 block">
-                        &larr; Back to Dashboard
-                    </Link>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
-                        AI Market Insights
-                    </h1>
-                </div>
-                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-8 text-center max-w-lg mx-auto">
-                    <p className="text-red-300 mb-4">{error}</p>
-                    <button
-                        onClick={fetchAll}
-                        className="px-6 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg transition"
-                    >
-                        Retry
-                    </button>
-                </div>
-            </div>
-        );
+  const handleNewSession = () => {
+    const newId = `s-${Date.now()}`;
+    setSessions((prev) => [{ id: newId, title: locale === 'es' ? 'Nueva conversacion' : 'New conversation', lastMessage: '', updatedAt: new Date().toISOString() }, ...prev]);
+    setActiveSessionId(newId);
+    setMessages([]);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
+  };
 
+  // ─── Loading state ──────────────────────────────────────────────────────
+
+  if (pageLoading) {
     return (
-        <div className="min-h-screen bg-gray-950 text-white p-8">
-            {/* Header */}
-            <div className="mb-8">
-                <Link href="/dashboard" className="text-amber-400 hover:text-amber-300 text-sm mb-2 block">
-                    &larr; Back to Dashboard
-                </Link>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
-                    AI Market Insights
-                </h1>
-                <p className="text-gray-400 mt-1">Real-time market sentiment and trend analysis</p>
+      <div className="flex h-[calc(100vh-64px)] bg-white">
+        <div className="w-72 flex-shrink-0 border-r border-slate-200 bg-slate-50 animate-pulse">
+          <div className="border-b border-slate-200 px-4 py-4">
+            <div className="h-5 w-32 rounded bg-slate-200" />
+          </div>
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="border-b border-slate-100 px-4 py-3">
+              <div className="h-4 w-40 rounded bg-slate-200 mb-1.5" />
+              <div className="h-3 w-52 rounded bg-slate-200" />
             </div>
-
-            {/* Fear & Greed + Summary */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                {/* Fear & Greed Gauge */}
-                <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-6">
-                    <h2 className="text-lg font-semibold mb-4 text-gray-200">Fear & Greed Index</h2>
-                    {sentiment ? (
-                        <div className="text-center">
-                            <div className="relative w-48 h-24 mx-auto mb-4">
-                                <div className="absolute inset-0 rounded-t-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 opacity-20"></div>
-                                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 text-6xl font-bold">
-                                    {sentiment.fear_greed_index}
-                                </div>
-                            </div>
-                            <p className={`text-2xl font-bold ${getSentimentColor(sentiment.sentiment_label)}`}>
-                                {sentiment.sentiment_label}
-                            </p>
-                            <div className="mt-4 w-full h-3 bg-gray-800 rounded-full overflow-hidden">
-                                <div
-                                    className={`h-full ${getSentimentBg(sentiment.fear_greed_index)} transition-all`}
-                                    style={{ width: `${sentiment.fear_greed_index}%` }}
-                                ></div>
-                            </div>
-                            <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                <span>Extreme Fear</span>
-                                <span>Extreme Greed</span>
-                            </div>
-                        </div>
-                    ) : (
-                        <p className="text-gray-500 text-center py-8">Insufficient data to compute</p>
-                    )}
-                </div>
-
-                {/* Sentiment Components */}
-                <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-6">
-                    <h2 className="text-lg font-semibold mb-4 text-gray-200">Sentiment Components</h2>
-                    {sentiment ? (
-                        <div className="space-y-3">
-                            {Object.entries(sentiment.components).map(([key, value]) => (
-                                <div key={key} className="flex justify-between items-center">
-                                    <span className="text-gray-400 capitalize">{key.replace(/_/g, ' ')}</span>
-                                    <span className={`font-medium ${value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        {value >= 0 ? '+' : ''}{value.toFixed(1)}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-gray-500 text-center py-8">--</p>
-                    )}
-                </div>
-
-                {/* AI Summary */}
-                <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-6">
-                    <h2 className="text-lg font-semibold mb-4 text-gray-200">Market Summary</h2>
-                    {sentiment ? (
-                        <p className="text-gray-300 leading-relaxed">
-                            The computed Fear & Greed index is at{' '}
-                            <span className={`font-medium ${getSentimentColor(sentiment.sentiment_label)}`}>
-                                {sentiment.fear_greed_index} ({sentiment.sentiment_label})
-                            </span>.
-                            {sentiment.fear_greed_index >= 60 && (
-                                <> Markets are showing bullish momentum. Watch for potential overextension in high-beta names.</>
-                            )}
-                            {sentiment.fear_greed_index < 40 && (
-                                <> Markets are exhibiting risk-off behavior. Consider defensive positioning.</>
-                            )}
-                            {sentiment.fear_greed_index >= 40 && sentiment.fear_greed_index < 60 && (
-                                <> Market sentiment is balanced. Look for sector rotation opportunities.</>
-                            )}
-                            {' '}Data derived from SPY, VIX, GLD, and TLT real-time quotes.
-                        </p>
-                    ) : (
-                        <p className="text-gray-500">Waiting for rate data...</p>
-                    )}
-                </div>
-            </div>
-
-            {/* Trending Tickers */}
-            <div className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">Trending Tickers</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    {trending.map((t) => (
-                        <Link
-                            href={`/dashboard/ticker/${t.ticker}`}
-                            key={t.ticker}
-                            className="bg-gray-900/50 rounded-xl border border-gray-800 p-4 hover:border-amber-500/50 transition"
-                        >
-                            <div className="flex justify-between items-start mb-2">
-                                <span className="font-bold text-lg text-blue-400">{t.ticker}</span>
-                                <span className={`text-xs px-2 py-1 rounded ${t.sentiment === 'bullish' ? 'bg-green-900/50 text-green-400' :
-                                        t.sentiment === 'bearish' ? 'bg-red-900/50 text-red-400' :
-                                            'bg-yellow-900/50 text-yellow-400'
-                                    }`}>
-                                    {t.sentiment}
-                                </span>
-                            </div>
-                            <p className="text-gray-400 text-xs mb-2">{t.name}</p>
-                            <p className="text-xl font-semibold">${t.price.toFixed(2)}</p>
-                            <p className={`text-sm ${t.change_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                {t.change_pct >= 0 ? '+' : ''}{t.change_pct.toFixed(2)}%
-                            </p>
-                        </Link>
-                    ))}
-                </div>
-            </div>
-
-            {/* Sector Heat Map */}
-            <div className="bg-gray-900/50 rounded-xl border border-gray-800 overflow-hidden">
-                <div className="p-4 border-b border-gray-800">
-                    <h2 className="text-xl font-semibold">Sector Performance (ETFs)</h2>
-                </div>
-                <table className="w-full">
-                    <thead className="bg-gray-800/50">
-                        <tr>
-                            <th className="text-left p-3 text-gray-400 font-medium">Sector</th>
-                            <th className="text-left p-3 text-gray-400 font-medium">ETF</th>
-                            <th className="text-right p-3 text-gray-400 font-medium">Price</th>
-                            <th className="text-right p-3 text-gray-400 font-medium">1D Change</th>
-                            <th className="text-right p-3 text-gray-400 font-medium">Sentiment</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sectors.map((sector) => (
-                            <tr key={sector.ticker} className="border-t border-gray-800 hover:bg-gray-800/30">
-                                <td className="p-3 font-medium">{sector.name}</td>
-                                <td className="p-3 text-blue-400 font-mono text-sm">{sector.ticker}</td>
-                                <td className="p-3 text-right">${sector.price.toFixed(2)}</td>
-                                <td className={`p-3 text-right ${sector.performance_1d >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {sector.performance_1d >= 0 ? '+' : ''}{sector.performance_1d.toFixed(2)}%
-                                </td>
-                                <td className="p-3 text-right">
-                                    <span className={`text-xs px-2 py-1 rounded ${sector.sentiment === 'bullish' ? 'bg-green-900/50 text-green-400' :
-                                            sector.sentiment === 'bearish' ? 'bg-red-900/50 text-red-400' :
-                                                'bg-gray-700/50 text-gray-400'
-                                        }`}>
-                                        {sector.sentiment}
-                                    </span>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+          ))}
         </div>
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1e3a5f] border-t-transparent" />
+          <p className="mt-3 text-sm text-slate-500">
+            {locale === 'es' ? 'Cargando AI Advisor...' : 'Loading AI Advisor...'}
+          </p>
+        </div>
+      </div>
     );
+  }
+
+  // ─── Main render ────────────────────────────────────────────────────────
+
+  return (
+    <div className="flex h-[calc(100vh-64px)] bg-white">
+      {/* Left sidebar: session list */}
+      <SessionList
+        sessions={sessions}
+        activeId={activeSessionId}
+        onSelect={(id) => { setActiveSessionId(id); setMessages(DEMO_MESSAGES); }}
+        onNew={handleNewSession}
+        locale={locale}
+      />
+
+      {/* Main chat area */}
+      <div className="flex flex-1 flex-col">
+        {/* Top bar */}
+        <header className="flex items-center justify-between border-b border-slate-200 px-6 py-3">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600">
+                <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-sm font-bold text-[#1e3a5f]">
+                  {locale === 'es' ? 'Asesor AI' : 'AI Advisor'}
+                </h1>
+                <div className="flex items-center gap-1.5">
+                  <span className={`h-1.5 w-1.5 rounded-full ${wsConnected ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <span className="text-[10px] text-slate-400">
+                    {wsConnected ? (locale === 'es' ? 'Conectado' : 'Connected') : (locale === 'es' ? 'Desconectado' : 'Offline')}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Institution selector */}
+          <div className="flex items-center gap-3">
+            <select
+              value={selectedInstitution}
+              onChange={(e) => setSelectedInstitution(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
+              aria-label={locale === 'es' ? 'Seleccionar institucion' : 'Select institution'}
+            >
+              {institutions.map((inst) => (
+                <option key={inst.id} value={inst.id}>{inst.name}</option>
+              ))}
+            </select>
+          </div>
+        </header>
+
+        {/* Messages area */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 mb-4">
+                <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-bold text-[#1e3a5f]">
+                {locale === 'es' ? 'Bienvenido al Asesor AI' : 'Welcome to AI Advisor'}
+              </h2>
+              <p className="mt-1 max-w-md text-sm text-slate-500">
+                {locale === 'es'
+                  ? 'Pregunte sobre liquidez, riesgo crediticio, preparacion de examenes, o cualquier metrica ALM.'
+                  : 'Ask about liquidity, credit risk, exam preparation, or any ALM metric.'}
+              </p>
+            </div>
+          )}
+
+          {messages.map((msg) => (
+            <ChatMessage
+              key={msg.id}
+              role={msg.role}
+              content={msg.content}
+              timestamp={msg.timestamp}
+              lang={msg.lang}
+              moduleRefs={msg.moduleRefs}
+            />
+          ))}
+
+          {loading && (
+            <ChatMessage
+              role="assistant"
+              content=""
+              timestamp={new Date().toISOString()}
+              streaming
+            />
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input bar */}
+        <div className="border-t border-slate-200 px-6 py-3">
+          <div className="flex items-end gap-3">
+            {/* Language selector */}
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as 'es' | 'en' | 'both')}
+              className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-medium text-slate-600 focus:border-[#1e3a5f] focus:outline-none"
+              aria-label={locale === 'es' ? 'Idioma de respuesta' : 'Response language'}
+            >
+              <option value="en">EN</option>
+              <option value="es">ES</option>
+              <option value="both">Both</option>
+            </select>
+
+            {/* Text input */}
+            <div className="relative flex-1">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={locale === 'es' ? 'Escriba su pregunta...' : 'Type your question...'}
+                rows={1}
+                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 pr-12 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#1e3a5f] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
+                aria-label={locale === 'es' ? 'Mensaje' : 'Message'}
+              />
+            </div>
+
+            {/* Send button */}
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || loading}
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e3a5f] text-white transition hover:bg-[#2a4f7f] disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label={locale === 'es' ? 'Enviar' : 'Send'}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

@@ -17,9 +17,9 @@
 
 import type { LucideIcon } from 'lucide-react';
 import {
-  Activity, AlertOctagon, ArrowDownUp, ArrowUpDown, BarChart3, Brain,
+  Activity, AlertOctagon, ArrowDownUp, ArrowUpDown, BarChart3, Bot, Brain,
   CloudLightning, Cpu, DollarSign, FileText, Gauge, GitBranch, Globe,
-  Landmark, Layers, LineChart, Link2, ScrollText, Shield, ShieldCheck,
+  Landmark, Layers, LineChart, Link2, MessageSquare, ScrollText, Shield, ShieldCheck,
   SlidersHorizontal, Target, Timer, TrendingDown, TrendingUp, Zap,
 } from 'lucide-react';
 
@@ -61,6 +61,7 @@ export const ALM_CATEGORIES: readonly AlmCategory[] = [
 export type AlmModuleSlug =
   // core
   | 'overview' | 'balance-sheet' | 'balance-sheet-sim' | 'advisor-v2' | 'analyst' | 'alco-dashboard' | 'modules' | 'reseller'
+  | 'decisions' | 'agents' | 'copilot'
   // rate
   | 'sensitivity' | 'sensitivity-report' | 'yield-curve' | 'svensson' | 'hull-white' | 'pca-yield-curve'
   | 'repricing-gap' | 'rate-shock-v2' | 'key-rate-durations' | 'behavioral-duration' | 'sofr-exposure'
@@ -123,6 +124,9 @@ export const ALM_MODULES: readonly AlmModule[] = [
   { slug: 'alco-dashboard',    href: '/alm/alco-dashboard',    category: 'core', tier: 'core',     status: 'ga', icon: Gauge,            name: { en: 'ALCO Dashboard',       es: 'Tablero ALCO'            }, description: { en: 'Asset/Liability Committee meeting cockpit',               es: 'Cabina de mando del Comité ALCO'                       } },
   { slug: 'modules',           href: '/alm/modules',           category: 'core', tier: 'core',     status: 'ga', icon: Layers,           name: { en: 'Module Index',         es: 'Índice de Módulos'       }, description: { en: 'Every analytical capability in one view',                 es: 'Todas las capacidades analíticas en una vista'         } },
   { slug: 'reseller',          href: '/alm/reseller',          category: 'core', tier: 'advanced', status: 'beta', icon: Landmark,         name: { en: 'Reseller Console',     es: 'Consola Reseller'        }, description: { en: 'Partner client portfolio, MRR, and tier management',     es: 'Portafolio clientes socio, MRR, gestión de niveles'    } },
+  { slug: 'decisions',         href: '/alm/decisions',         category: 'core', tier: 'core',     status: 'ga',   icon: Target,           name: { en: 'Decision Panel',       es: 'Panel de Decisiones'     }, description: { en: 'ALM agent output: health, risks, decision queue, trace', es: 'Salida agente ALM: salud, riesgos, cola decisiones'    }, endpoint: '/api/v1/agents/{id}/runs' },
+  { slug: 'agents',            href: '/alm/agents',            category: 'core', tier: 'core',     status: 'ga',   icon: Bot,              name: { en: 'Agent Activity',       es: 'Actividad Agentes'       }, description: { en: 'Run feed, alert center, cost tracking',                  es: 'Feed ejecuciones, centro alertas, seguimiento costos'  }, endpoint: '/api/v1/agents/{id}/runs' },
+  { slug: 'copilot',           href: '/alm/copilot',           category: 'core', tier: 'core',     status: 'ga',   icon: MessageSquare,    name: { en: 'CFO Copilot',          es: 'Copiloto CFO'            }, description: { en: 'Real-time scenario Q&A, bilingual, tool-backed',         es: 'Q&A escenarios en tiempo real, bilingüe, con herramientas' }, endpoint: '/api/v1/agents/{id}/copilot' },
 
   // ─ Rate Risk ────────────────────────────────────────────────────────────────
   { slug: 'sensitivity',         href: '/alm/sensitivity',         category: 'rate', tier: 'core',     status: 'ga', icon: TrendingUp,        name: { en: 'Rate Sensitivity',     es: 'Sensibilidad de Tasa'    }, description: { en: 'NII/EVE impact across ±200bp parallel shifts',           es: 'Impacto NII/EVE en cambios ±200bp'                     }, regulatoryRefs: ['Basel IRRBB'], endpoint: '/api/alm/{id}/sensitivity' },
