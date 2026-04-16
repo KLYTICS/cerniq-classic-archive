@@ -6,10 +6,11 @@ import { AuditModule } from '../audit/audit.module';
 import { ControlTowerController } from './control-tower.controller';
 import { ControlTowerService } from './control-tower.service';
 import { SessionContinuityService } from './session-continuity.service';
+import { SentrySmokeController } from './sentry-smoke.controller';
 
 @Module({
   imports: [IntelligenceModule, JobsModule, PortalModule, AuditModule],
-  controllers: [ControlTowerController],
+  controllers: [ControlTowerController, SentrySmokeController],
   providers: [ControlTowerService, SessionContinuityService],
   exports: [ControlTowerService],
 })
