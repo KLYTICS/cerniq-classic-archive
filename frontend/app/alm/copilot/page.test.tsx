@@ -34,9 +34,14 @@ vi.mock('@/components/alm/ALMProvider', () => ({
   }),
 }));
 
-vi.mock('lucide-react', () => {
-  const Icon = ({ ...props }: Record<string, unknown>) => <svg {...props} />;
-  return { Send: Icon, Bot: Icon, User: Icon, Globe: Icon };
+// Passthrough lucide-react rather than a hand-rolled mock — Phase 3 wired
+// ScenarioInput into this page, which transitively pulls ~12 additional
+// icons. Maintaining a manual allowlist becomes a liability as the page
+// grows. The real lucide-react icons are just SVG components; no need
+// to stub them.
+vi.mock('lucide-react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('lucide-react')>();
+  return { ...actual };
 });
 
 describe('CopilotPage', () => {

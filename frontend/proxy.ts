@@ -55,7 +55,12 @@ const LEGACY_REDIRECTS: ReadonlyArray<{ from: string; to: string }> = [
   { from: '/decisions', to: '/alm/decisions' },
 ];
 
-function resolveLegacyRedirect(pathname: string): string | null {
+/**
+ * Exported for unit testing. Pure function — no request/response coupling.
+ * Returns the canonical destination for a legacy path, or null when the
+ * input is already canonical (or unknown).
+ */
+export function resolveLegacyRedirect(pathname: string): string | null {
   for (const { from, to } of LEGACY_REDIRECTS) {
     if (pathname === from || pathname.startsWith(`${from}/`)) {
       const suffix = pathname.slice(from.length);

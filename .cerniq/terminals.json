@@ -770,8 +770,9 @@
       "agent": null,
       "task": "NestJS controllers + DTOs (POST run, GET runs, GET trace, POST copilot)",
       "files": [
-        "backend-node/src/agents/api/agents.controller.ts",
-        "backend-node/src/agents/api/agent-trigger.dto.ts"
+        "backend-node/src/agent-api/agent-runs.controller.ts",
+        "backend-node/src/agent-api/copilot.controller.ts",
+        "backend-node/src/agent-api/dto/agent-api.dto.ts"
       ],
       "reads": [
         "backend-node/src/agents/runner/agent-runner.service.ts"
@@ -798,7 +799,7 @@
       "agent": null,
       "task": "SSE stream endpoint + heartbeat + per-run channel auth",
       "files": [
-        "backend-node/src/agents/api/agents-stream.controller.ts"
+        "backend-node/src/agent-api/agent-tenant-stream.controller.ts"
       ],
       "reads": [
         "backend-node/src/agents/runner/agent-notifier.service.ts"
@@ -821,7 +822,7 @@
       "agent": null,
       "task": "JWT auth guard + institution-scope guard (sets app.institution_id)",
       "files": [
-        "backend-node/src/agents/api/agent-scope.guard.ts"
+        "backend-node/src/agent-api/guards/institution-scope.guard.ts"
       ],
       "reads": [
         "backend-node/src/auth"
@@ -845,7 +846,7 @@
       "agent": null,
       "task": "OpenAPI/Swagger doc + postman collection for agent endpoints",
       "files": [
-        "backend-node/src/agents/api/agents.swagger.ts"
+        "backend-node/src/agent-api/agent-runs.controller.ts"
       ],
       "reads": [],
       "hours_est": 3,
@@ -865,7 +866,7 @@
       "agent": null,
       "task": "Decision Panel main page — brief + risk table + recommendation queue",
       "files": [
-        "frontend/app/decisions/page.tsx"
+        "frontend/app/alm/decisions/page.tsx"
       ],
       "reads": [
         "backend-node/src/agents/contracts/alm-decision.contracts.ts"
@@ -887,7 +888,7 @@
       "agent": null,
       "task": "Audit trace viewer — expandable step-by-step w/ tool call detail",
       "files": [
-        "frontend/app/decisions/AuditTrace.tsx"
+        "frontend/app/alm/decisions/page.tsx"
       ],
       "reads": [
         "backend-node/src/agents/contracts/common.contracts.ts"
@@ -908,7 +909,7 @@
       "agent": null,
       "task": "RecommendationRow component — Pending/In-Progress/Done workflow",
       "files": [
-        "frontend/app/decisions/RecommendationRow.tsx"
+        "frontend/app/alm/decisions/page.tsx"
       ],
       "reads": [],
       "hours_est": 3,
@@ -927,7 +928,7 @@
       "agent": null,
       "task": "ScenarioQuickInput — side-by-side scenario testing, links to Copilot",
       "files": [
-        "frontend/app/decisions/ScenarioQuickInput.tsx"
+        "frontend/components/alm/scenario-input.tsx"
       ],
       "reads": [],
       "hours_est": 4,
@@ -987,7 +988,7 @@
       "agent": null,
       "task": "Agent activity feed (/agents) — last 10 runs with status + summary",
       "files": [
-        "frontend/app/agents/page.tsx"
+        "frontend/app/alm/agents/page.tsx"
       ],
       "reads": [],
       "hours_est": 4,
@@ -1006,7 +1007,7 @@
       "agent": null,
       "task": "CFO Copilot chat interface + streaming response",
       "files": [
-        "frontend/app/agents/copilot/page.tsx"
+        "frontend/app/alm/copilot/page.tsx"
       ],
       "reads": [
         "backend-node/src/agents/contracts/cfo-copilot.contracts.ts"
@@ -1028,7 +1029,7 @@
       "agent": null,
       "task": "Scenario input form with multi-shock sliders",
       "files": [
-        "frontend/app/agents/copilot/ScenarioInput.tsx"
+        "frontend/components/alm/scenario-input.tsx"
       ],
       "reads": [],
       "hours_est": 4,
@@ -1048,7 +1049,7 @@
       "agent": null,
       "task": "Follow-up suggestions component — context-aware 4-pill",
       "files": [
-        "frontend/app/agents/copilot/FollowUpSuggestions.tsx"
+        "frontend/components/agents/follow-up-pills.tsx"
       ],
       "reads": [],
       "hours_est": 3,
