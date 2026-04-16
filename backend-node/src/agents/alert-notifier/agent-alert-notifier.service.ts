@@ -147,24 +147,41 @@ export class AgentAlertNotifierService implements OnModuleInit, OnModuleDestroy 
     ).replace(/\/+$/, '');
     const dashboardUrl = `${frontendUrl}/agents/alerts`;
 
-    await (this.email as any).sendAgentAlert?.({
-      to: data.to,
-      severity: data.severity,
-      metric: data.metric,
-      finding: data.finding,
-      recommendation: data.recommendation,
-      institutionName: data.institutionName,
-      dashboardUrl,
-    }) ??
-      // Fallback: use the raw Resend send path if sendAgentAlert doesn't
-      // exist yet (we're adding this method pattern; the EmailService may
-      // not have it). This inline template follows the existing bilingual
-      // pattern from EmailService.
-      this.sendViaResendDirect(data, {
-        severityColor,
-        severityLabel,
+    // Deterministic dispatch: prefer EmailService.sendAgentAlert when it
+    // exists, otherwise fall back to the inline Resend path. The previous
+    // `await X?.() ?? fallback` form would double-send if sendAgentAlert
+    // resolves to `undefined` (the idiomatic return of a send helper),
+    // because `undefined ?? fallback` then fires fallback as well.
+    const agentAlertFn = (
+      this.email as {
+        sendAgentAlert?: (payload: {
+          to: string;
+          severity: string;
+          metric: string;
+          finding: string;
+          recommendation: string;
+          institutionName: string;
+          dashboardUrl: string;
+        }) => Promise<unknown>;
+      }
+    ).sendAgentAlert;
+    if (typeof agentAlertFn === 'function') {
+      await agentAlertFn.call(this.email, {
+        to: data.to,
+        severity: data.severity,
+        metric: data.metric,
+        finding: data.finding,
+        recommendation: data.recommendation,
+        institutionName: data.institutionName,
         dashboardUrl,
       });
+      return;
+    }
+    await this.sendViaResendDirect(data, {
+      severityColor,
+      severityLabel,
+      dashboardUrl,
+    });
   }
 
   private async sendViaResendDirect(

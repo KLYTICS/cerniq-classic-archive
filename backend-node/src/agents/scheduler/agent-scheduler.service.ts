@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma.service';
 import { AgentTriggerService } from '../trigger/agent-trigger.service';
 import { AgentCostCircuitBreakerService } from '../../queue/agent/agent-cost-circuit-breaker.service';
+import { isSchedulerDisabled } from './scheduler-flag.util';
 
 // AgentSchedulerService is the heartbeat of the Risk Monitor agent — the
 // "subscription anchor" (Vol.3 §Sprint 2). It runs on three cadences:
@@ -40,8 +41,7 @@ export class AgentSchedulerService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    const off = process.env.AGENT_SCHEDULER_DISABLED;
-    if (off === 'true' || off === '1') {
+    if (isSchedulerDisabled()) {
       this.enabled = false;
       this.logger.warn('Agent scheduler DISABLED by AGENT_SCHEDULER_DISABLED env');
     }

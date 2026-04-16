@@ -98,4 +98,167 @@ describe('env.schema', () => {
     Object.assign(process.env, { ...VALID_ENV, NODE_ENV: 'staging' });
     expect(() => validateEnv()).toThrow('process.exit called');
   });
+
+  // ── Wave-03 agent runtime vars ────────────────────────────────────
+  // Each var maps to a concrete production dependency (scheduler kill-
+  // switch, queue concurrency, token budget, cost circuit-breaker,
+  // audit retention, SSE keepalive, Anthropic beta header).
+  describe('agent runtime env vars', () => {
+    it('parses AGENT_WORKER_CONCURRENCY as a bounded integer', () => {
+      Object.assign(process.env, { ...VALID_ENV, AGENT_WORKER_CONCURRENCY: '8' });
+      const env = validateEnv();
+      expect(env.AGENT_WORKER_CONCURRENCY).toBe(8);
+    });
+
+    it('rejects AGENT_WORKER_CONCURRENCY below 1', () => {
+      Object.assign(process.env, { ...VALID_ENV, AGENT_WORKER_CONCURRENCY: '0' });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('rejects AGENT_WORKER_CONCURRENCY above 50', () => {
+      Object.assign(process.env, { ...VALID_ENV, AGENT_WORKER_CONCURRENCY: '51' });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('parses MAX_AGENT_TOKENS as a positive integer', () => {
+      Object.assign(process.env, { ...VALID_ENV, MAX_AGENT_TOKENS: '4096' });
+      const env = validateEnv();
+      expect(env.MAX_AGENT_TOKENS).toBe(4096);
+    });
+
+    it('accepts LLM_COST_ALERT_THRESHOLD_USD of 0 (alert on anything)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_COST_ALERT_THRESHOLD_USD: '0',
+      });
+      const env = validateEnv();
+      expect(env.LLM_COST_ALERT_THRESHOLD_USD).toBe(0);
+    });
+
+    it('rejects negative LLM_COST_ALERT_THRESHOLD_USD', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_COST_ALERT_THRESHOLD_USD: '-1',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('parses LLM_COST_CAP_USD_CENTS as a positive integer', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_COST_CAP_USD_CENTS: '10000',
+      });
+      const env = validateEnv();
+      expect(env.LLM_COST_CAP_USD_CENTS).toBe(10000);
+    });
+
+    it('rejects LLM_COST_CAP_USD_CENTS=0 (zero cap would block all runs)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_COST_CAP_USD_CENTS: '0',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('rejects non-numeric LLM_COST_CAP_USD_CENTS (no silent-disable-on-typo)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_COST_CAP_USD_CENTS: 'abc',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('parses AUDIT_LOG_RETENTION_DAYS (7y=2555 default lives in code)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AUDIT_LOG_RETENTION_DAYS: '2555',
+      });
+      const env = validateEnv();
+      expect(env.AUDIT_LOG_RETENTION_DAYS).toBe(2555);
+    });
+
+    it('rejects SSE_HEARTBEAT_INTERVAL_MS below 100ms', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        SSE_HEARTBEAT_INTERVAL_MS: '50',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('accepts AGENT_SCHEDULER_DISABLED only in canonical truthy/falsy form', () => {
+      for (const v of ['true', 'false', '1', '0']) {
+        Object.assign(process.env, {
+          ...VALID_ENV,
+          AGENT_SCHEDULER_DISABLED: v,
+        });
+        const env = validateEnv();
+        expect(env.AGENT_SCHEDULER_DISABLED).toBe(v);
+      }
+    });
+
+    it('rejects AGENT_SCHEDULER_DISABLED=yes (avoids truthy ambiguity)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AGENT_SCHEDULER_DISABLED: 'yes',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('accepts ANTHROPIC_BETA_HEADER as an arbitrary string', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        ANTHROPIC_BETA_HEADER: 'prompt-caching-2024-07-31',
+      });
+      const env = validateEnv();
+      expect(env.ANTHROPIC_BETA_HEADER).toBe('prompt-caching-2024-07-31');
+    });
+  });
+
+  // ── URL-typed vars (fail fast on Railway typos) ──────────────────
+  describe('URL validation', () => {
+    it('accepts a well-formed FRONTEND_URL', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        FRONTEND_URL: 'https://cerniq.io',
+      });
+      const env = validateEnv();
+      expect(env.FRONTEND_URL).toBe('https://cerniq.io');
+    });
+
+    it('rejects a malformed FRONTEND_URL', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        FRONTEND_URL: 'cerniq.io', // missing scheme
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('accepts GOOGLE_CALLBACK_URL / GITHUB_CALLBACK_URL URLs', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        GOOGLE_CALLBACK_URL: 'https://api.cerniq.io/api/auth/google/callback',
+        GITHUB_CALLBACK_URL: 'https://api.cerniq.io/api/auth/github/callback',
+      });
+      const env = validateEnv();
+      expect(env.GOOGLE_CALLBACK_URL).toContain('google/callback');
+      expect(env.GITHUB_CALLBACK_URL).toContain('github/callback');
+    });
+
+    it('accepts an email-formatted ERWIN_EMAIL', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        ERWIN_EMAIL: 'erwin@cerniq.io',
+      });
+      const env = validateEnv();
+      expect(env.ERWIN_EMAIL).toBe('erwin@cerniq.io');
+    });
+
+    it('rejects a non-email ERWIN_EMAIL', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        ERWIN_EMAIL: 'not-an-email',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+  });
 });

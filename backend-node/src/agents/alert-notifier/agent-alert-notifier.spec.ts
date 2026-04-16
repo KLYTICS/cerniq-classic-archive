@@ -98,4 +98,67 @@ describe('AgentAlertNotifierService', () => {
     // No email sent — institution lookup happened but no valid email
     expect(mockPrisma.institution.findUnique).toHaveBeenCalled();
   });
+
+  // ── Single-send contract (regression guard for the `await … ?? fallback`
+  // ── bug where a void-returning sendAgentAlert would trigger the Resend
+  // ── fallback as well, emailing the CFO twice per alert).
+  describe('single-send dispatch contract', () => {
+    const baseAlert = {
+      id: 'alert-1',
+      runId: 'run-1',
+      severity: 'CRITICAL',
+      status: 'OPEN',
+      metric: 'LCR',
+      finding: 'LCR breach',
+      findingEs: 'LCR incumplido',
+      recommendation: 'Raise HQLA',
+      regulatoryRef: null,
+    };
+
+    const seedHappyPath = () => {
+      mockPrisma.agentAlert.findMany.mockResolvedValue([baseAlert]);
+      mockPrisma.agentRun.findUnique.mockResolvedValue({
+        institutionId: 'inst-1',
+        agentId: 'RISK_MONITOR',
+      });
+      mockPrisma.institution.findUnique.mockResolvedValue({
+        name: 'Coop',
+        contactEmail: 'cfo@coop.pr',
+        contactName: 'CFO',
+        preferredLanguage: 'es',
+        workspace: { owner: { email: null, name: null } },
+      });
+    };
+
+    it('calls EmailService.sendAgentAlert exactly once when present and never falls back to Resend', async () => {
+      seedHappyPath();
+      const sendAgentAlert = jest.fn().mockResolvedValue(undefined);
+      (mockEmail as any).sendAgentAlert = sendAgentAlert;
+
+      // Spy on the Resend fallback path to prove it was never entered.
+      // We override on the instance (not the prototype) so the spy is
+      // visible to the call site via `this.sendViaResendDirect(...)`.
+      const resendSpy = jest
+        .spyOn(service as any, 'sendViaResendDirect')
+        .mockResolvedValue(undefined);
+
+      await service.onRunCompleted('run-1');
+
+      expect(sendAgentAlert).toHaveBeenCalledTimes(1);
+      expect(resendSpy).not.toHaveBeenCalled();
+    });
+
+    it('falls back to Resend exactly once when sendAgentAlert is absent', async () => {
+      seedHappyPath();
+      expect((mockEmail as any).sendAgentAlert).toBeUndefined();
+
+      const resendSpy = jest
+        .spyOn(service as any, 'sendViaResendDirect')
+        .mockResolvedValue(undefined);
+
+      await service.onRunCompleted('run-1');
+
+      expect(resendSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });

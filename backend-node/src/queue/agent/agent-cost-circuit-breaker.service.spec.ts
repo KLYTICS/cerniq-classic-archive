@@ -80,4 +80,53 @@ describe('AgentCostCircuitBreakerService', () => {
     expect(monthStart.getUTCDate()).toBe(1);
     cleanup();
   });
+
+  // ── Env resolution table ─────────────────────────────────────────
+  // Honors the documented .env.example name (LLM_COST_ALERT_THRESHOLD_USD)
+  // AND the precise legacy name (LLM_COST_CAP_USD_CENTS). Cents takes
+  // precedence when both are set. Previously only cents was honored
+  // silently — an operator editing the documented USD var saw no
+  // effect, and a typo in cents silently disabled the breaker.
+  describe('resolveCapCents', () => {
+    const resolve = (env: Record<string, string | undefined>) =>
+      AgentCostCircuitBreakerService.resolveCapCents(env as NodeJS.ProcessEnv);
+
+    it('defaults to 10000 cents ($100) when both env vars are unset', () => {
+      expect(resolve({})).toBe(10000);
+    });
+
+    it('honors LLM_COST_CAP_USD_CENTS precisely', () => {
+      expect(resolve({ LLM_COST_CAP_USD_CENTS: '25000' })).toBe(25000);
+    });
+
+    it('honors LLM_COST_ALERT_THRESHOLD_USD in USD', () => {
+      expect(resolve({ LLM_COST_ALERT_THRESHOLD_USD: '250' })).toBe(25000);
+    });
+
+    it('converts fractional USD with rounding (no float drift)', () => {
+      // 100.1 USD * 100 = 10010.000000000002 in IEEE-754. Must round.
+      expect(resolve({ LLM_COST_ALERT_THRESHOLD_USD: '100.1' })).toBe(10010);
+    });
+
+    it('prefers LLM_COST_CAP_USD_CENTS over LLM_COST_ALERT_THRESHOLD_USD when both are set', () => {
+      expect(
+        resolve({
+          LLM_COST_CAP_USD_CENTS: '30000',
+          LLM_COST_ALERT_THRESHOLD_USD: '99',
+        }),
+      ).toBe(30000);
+    });
+
+    it('returns null (disabled) on malformed LLM_COST_CAP_USD_CENTS', () => {
+      expect(resolve({ LLM_COST_CAP_USD_CENTS: 'abc' })).toBeNull();
+      expect(resolve({ LLM_COST_CAP_USD_CENTS: '-5' })).toBeNull();
+      // Non-integer cents is rejected — cents is by definition integer.
+      expect(resolve({ LLM_COST_CAP_USD_CENTS: '10.5' })).toBeNull();
+    });
+
+    it('returns null (disabled) on malformed LLM_COST_ALERT_THRESHOLD_USD', () => {
+      expect(resolve({ LLM_COST_ALERT_THRESHOLD_USD: 'abc' })).toBeNull();
+      expect(resolve({ LLM_COST_ALERT_THRESHOLD_USD: '-1' })).toBeNull();
+    });
+  });
 });

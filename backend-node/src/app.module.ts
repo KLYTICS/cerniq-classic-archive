@@ -2,6 +2,7 @@ import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { SentryModule } from '@sentry/nestjs/setup';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { UserThrottleGuard } from './common/guards/user-throttle.guard';
 import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
@@ -97,6 +98,9 @@ import { ExitMetricsService } from './admin/exit-metrics.service';
     }),
     // Rate limiting — 100 requests per minute globally
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    // Cron discoverer for @Cron decorators (required by AgentSchedulerService).
+    // Without this, @Cron handlers are silently never registered.
+    ScheduleModule.forRoot(),
     PrismaModule,
     // Application-level encryption (AES-256-GCM)
     DataCryptoModule,

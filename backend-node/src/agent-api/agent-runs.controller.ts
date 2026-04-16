@@ -28,6 +28,7 @@ import type {
 import { AgentCostCircuitBreakerService } from '../queue/agent/agent-cost-circuit-breaker.service';
 import { AgentRunnerService } from '../agents/runner/agent-runner.service';
 import { AgentAuditService } from '../agents/runner/agent-audit.service';
+import { isSchedulerDisabled } from '../agents/scheduler/scheduler-flag.util';
 import { RunAgentRequestSchema } from '../agents/agents.dto';
 
 // AgentRunsController serves the per-tenant agent endpoints.
@@ -133,11 +134,16 @@ export class AgentRunsController {
   @ApiOperation({ summary: 'List scheduled agent cadences (daily/weekly/monthly)' })
   @ApiResponse({ status: 200, description: 'Array of schedule definitions with cron expressions' })
   async getSchedule() {
+    // Shared helper keeps this in sync with AgentSchedulerService.
+    // Previously each site used different truthiness rules, so
+    // `AGENT_SCHEDULER_DISABLED=false` made the endpoint report
+    // `enabled: false` while the scheduler was actually firing.
+    const enabled = !isSchedulerDisabled();
     return {
       schedules: [
-        { agentId: 'RISK_MONITOR', cadence: 'daily',   cron: '0 0 9 * * *',   timezone: 'America/Puerto_Rico', enabled: !process.env.AGENT_SCHEDULER_DISABLED },
-        { agentId: 'RISK_MONITOR', cadence: 'weekly',  cron: '0 0 9 * * 1',   timezone: 'America/Puerto_Rico', enabled: !process.env.AGENT_SCHEDULER_DISABLED },
-        { agentId: 'RISK_MONITOR', cadence: 'monthly', cron: '0 0 9 1 * *',   timezone: 'America/Puerto_Rico', enabled: !process.env.AGENT_SCHEDULER_DISABLED },
+        { agentId: 'RISK_MONITOR', cadence: 'daily',   cron: '0 0 9 * * *',   timezone: 'America/Puerto_Rico', enabled },
+        { agentId: 'RISK_MONITOR', cadence: 'weekly',  cron: '0 0 9 * * 1',   timezone: 'America/Puerto_Rico', enabled },
+        { agentId: 'RISK_MONITOR', cadence: 'monthly', cron: '0 0 9 1 * *',   timezone: 'America/Puerto_Rico', enabled },
       ],
     };
   }
