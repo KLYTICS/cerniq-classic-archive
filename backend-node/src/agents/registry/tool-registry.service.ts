@@ -167,10 +167,13 @@ export class ToolRegistryService implements OnModuleInit {
           parentSignal.removeEventListener('abort', onAbort);
           resolve(v);
         },
-        (e) => {
+        (e: unknown) => {
           clearTimeout(timer);
           parentSignal.removeEventListener('abort', onAbort);
-          reject(e);
+          // Normalize rejection value to Error so downstream handlers
+          // get a consistent shape (message, stack). Satisfies
+          // prefer-promise-reject-errors.
+          reject(e instanceof Error ? e : new Error(String(e)));
         },
       );
     });

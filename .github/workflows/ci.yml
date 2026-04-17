@@ -49,6 +49,22 @@ jobs:
           working-directory: services/outbound
       - run: cd services/outbound && python -m pytest tests/ -q
 
+  cossec-parser-check:
+    # COSSEC PDF parser microservice — 32 pytest tests covering PyMuPDF
+    # extraction, Spanish regex for `Hallazgo N°X` headers, CAMEL+S
+    # severity mapping, and SHA-256 dedup. Landed in Phase-1.6 commit
+    # 601e3525 but had no CI coverage — a regression here would ship to
+    # prod undetected until it hit a real COSSEC PDF upload.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-python-project
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache-dependency-path: services/cossec-parser/requirements.txt
+          working-directory: services/cossec-parser
+      - run: cd services/cossec-parser && python -m pytest tests/ -q
+
   prisma-validate:
     runs-on: ubuntu-latest
     steps:
