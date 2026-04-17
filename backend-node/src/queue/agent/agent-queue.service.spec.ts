@@ -13,16 +13,24 @@ function makeJob(overrides: Partial<AgentJobInput> = {}): AgentJobInput {
   };
 }
 
-function buildService(overrides: {
-  runDelay?: number;
-  budgetAllowed?: boolean;
-} = {}) {
+function buildService(
+  overrides: {
+    runDelay?: number;
+    budgetAllowed?: boolean;
+  } = {},
+) {
   const runner = {
     run: jest.fn().mockImplementation(
       () =>
         new Promise((resolve) =>
           setTimeout(
-            () => resolve({ runId: 'r_1', status: 'SUCCEEDED', existed: false, durationMs: 10 }),
+            () =>
+              resolve({
+                runId: 'r_1',
+                status: 'SUCCEEDED',
+                existed: false,
+                durationMs: 10,
+              }),
             overrides.runDelay ?? 0,
           ),
         ),
@@ -87,9 +95,11 @@ describe('AgentQueueService', () => {
 
   it('skips budget check when no institutionId', async () => {
     const { svc, costBreaker } = buildService();
-    await svc.enqueue(makeJob({
-      options: { idempotencyKey: 'k_1', institutionId: null } as any,
-    }));
+    await svc.enqueue(
+      makeJob({
+        options: { idempotencyKey: 'k_1', institutionId: null } as any,
+      }),
+    );
     expect(costBreaker.isAllowed).not.toHaveBeenCalled();
   });
 

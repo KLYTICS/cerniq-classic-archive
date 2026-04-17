@@ -109,23 +109,35 @@ describe('env.schema', () => {
 
   describe('AGENT_WORKER_CONCURRENCY', () => {
     it('parses a valid value as a number', () => {
-      Object.assign(process.env, { ...VALID_ENV, AGENT_WORKER_CONCURRENCY: '8' });
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AGENT_WORKER_CONCURRENCY: '8',
+      });
       const env = validateEnv();
       expect(env.AGENT_WORKER_CONCURRENCY).toBe(8);
     });
 
     it('rejects zero (must be at least 1)', () => {
-      Object.assign(process.env, { ...VALID_ENV, AGENT_WORKER_CONCURRENCY: '0' });
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AGENT_WORKER_CONCURRENCY: '0',
+      });
       expect(() => validateEnv()).toThrow('process.exit called');
     });
 
     it('rejects values over 50 (concurrency ceiling)', () => {
-      Object.assign(process.env, { ...VALID_ENV, AGENT_WORKER_CONCURRENCY: '100' });
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AGENT_WORKER_CONCURRENCY: '100',
+      });
       expect(() => validateEnv()).toThrow('process.exit called');
     });
 
     it('rejects non-integer values', () => {
-      Object.assign(process.env, { ...VALID_ENV, AGENT_WORKER_CONCURRENCY: '3.5' });
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AGENT_WORKER_CONCURRENCY: '3.5',
+      });
       expect(() => validateEnv()).toThrow('process.exit called');
     });
 
@@ -139,7 +151,10 @@ describe('env.schema', () => {
 
   describe('LLM_COST_CAP_USD_CENTS', () => {
     it('parses a valid cost cap as a number', () => {
-      Object.assign(process.env, { ...VALID_ENV, LLM_COST_CAP_USD_CENTS: '20000' });
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_COST_CAP_USD_CENTS: '20000',
+      });
       const env = validateEnv();
       expect(env.LLM_COST_CAP_USD_CENTS).toBe(20000);
     });
@@ -151,25 +166,37 @@ describe('env.schema', () => {
     });
 
     it('rejects negative cost caps', () => {
-      Object.assign(process.env, { ...VALID_ENV, LLM_COST_CAP_USD_CENTS: '-100' });
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_COST_CAP_USD_CENTS: '-100',
+      });
       expect(() => validateEnv()).toThrow('process.exit called');
     });
 
     it('rejects non-integer cents', () => {
-      Object.assign(process.env, { ...VALID_ENV, LLM_COST_CAP_USD_CENTS: '10.5' });
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_COST_CAP_USD_CENTS: '10.5',
+      });
       expect(() => validateEnv()).toThrow('process.exit called');
     });
   });
 
   describe('RETENTION_AUDIT_LOGS_DAYS', () => {
     it('parses a valid retention window', () => {
-      Object.assign(process.env, { ...VALID_ENV, RETENTION_AUDIT_LOGS_DAYS: '2555' });
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        RETENTION_AUDIT_LOGS_DAYS: '2555',
+      });
       const env = validateEnv();
       expect(env.RETENTION_AUDIT_LOGS_DAYS).toBe(2555);
     });
 
     it('rejects zero and negative retention', () => {
-      Object.assign(process.env, { ...VALID_ENV, RETENTION_AUDIT_LOGS_DAYS: '0' });
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        RETENTION_AUDIT_LOGS_DAYS: '0',
+      });
       expect(() => validateEnv()).toThrow('process.exit called');
     });
 
@@ -184,7 +211,10 @@ describe('env.schema', () => {
   it('AGENT_SCHEDULER_DISABLED accepts any string (truthy-check contract)', () => {
     // The scheduler reads `!!process.env.AGENT_SCHEDULER_DISABLED` so
     // any non-empty value disables. We don't want Zod to reject that.
-    Object.assign(process.env, { ...VALID_ENV, AGENT_SCHEDULER_DISABLED: 'true' });
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      AGENT_SCHEDULER_DISABLED: 'true',
+    });
     const env = validateEnv();
     expect(env.AGENT_SCHEDULER_DISABLED).toBe('true');
   });

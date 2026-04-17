@@ -138,10 +138,7 @@ export class AiAdvisorGateway
         }
       }
     } catch (error) {
-      this.logger.error(
-        `AI Advisor WS error for session ${sessionId}`,
-        error,
-      );
+      this.logger.error(`AI Advisor WS error for session ${sessionId}`, error);
       client.emit('error', {
         sessionId,
         message:

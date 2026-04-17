@@ -8,8 +8,7 @@ import {
 
 // ─── Configuration ──────────────────────────────────────────
 
-const AI_ADVISOR_MODEL =
-  process.env.AI_ADVISOR_MODEL || 'claude-sonnet-4-6';
+const AI_ADVISOR_MODEL = process.env.AI_ADVISOR_MODEL || 'claude-sonnet-4-6';
 
 const MAX_RESPONSE_TOKENS = 4096;
 
@@ -204,8 +203,7 @@ export class AiAdvisorService {
 
       // Process content blocks
       const assistantContent: Array<
-        | Anthropic.Messages.TextBlock
-        | Anthropic.Messages.ToolUseBlock
+        Anthropic.Messages.TextBlock | Anthropic.Messages.ToolUseBlock
       > = [];
       const toolResults: Array<{
         type: 'tool_result';
@@ -236,10 +234,7 @@ export class AiAdvisorService {
       }
 
       // If the model did not invoke any tools, we are done.
-      if (
-        response.stop_reason === 'end_turn' ||
-        toolResults.length === 0
-      ) {
+      if (response.stop_reason === 'end_turn' || toolResults.length === 0) {
         break;
       }
 
@@ -458,9 +453,7 @@ You have access to ALM data tools. Use them proactively when answering questions
     });
 
     if (!institution) {
-      throw new NotFoundException(
-        `Institution ${institutionId} not found`,
-      );
+      throw new NotFoundException(`Institution ${institutionId} not found`);
     }
 
     // Fetch latest analysis run metrics if available
@@ -572,9 +565,7 @@ You have access to ALM data tools. Use them proactively when answering questions
   /**
    * Retrieve compliance status from policy breach logs and institution alerts.
    */
-  private async getComplianceStatus(
-    institutionId: string,
-  ): Promise<unknown> {
+  private async getComplianceStatus(institutionId: string): Promise<unknown> {
     try {
       const [breaches, alerts] = await Promise.all([
         this.prisma.policyBreachLog.findMany({

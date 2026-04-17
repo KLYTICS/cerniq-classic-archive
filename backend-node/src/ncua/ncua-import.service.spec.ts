@@ -46,7 +46,7 @@ describe('NcuaImportService', () => {
       ACCT_115: 98_000_000,
       ACCT_116: 28_000_000,
       ACCT_730: 42_000_000,
-      ACCT_660: 0.10,
+      ACCT_660: 0.1,
       ACCT_671: 0.008,
     },
   };
@@ -73,14 +73,9 @@ describe('NcuaImportService', () => {
   // ── Import flow ─────────────────────────────────────────────────────────
 
   it('imports a credit union and returns structured result', async () => {
-    const result = await service.importCreditUnion(
-      '12345',
-      'workspace-uuid',
-    );
+    const result = await service.importCreditUnion('12345', 'workspace-uuid');
 
-    expect(result.name).toBe(
-      'Cooperativa de Ahorro y Credito Caguas',
-    );
+    expect(result.name).toBe('Cooperativa de Ahorro y Credito Caguas');
     expect(result.totalAssets).toBe('$2.8B');
     expect(result.quartersImported).toBe(1);
     expect(result.balanceSheetItemCount).toBeGreaterThan(0);
@@ -91,10 +86,7 @@ describe('NcuaImportService', () => {
     await service.importCreditUnion('67890', 'workspace-uuid');
 
     expect(apiService.fetchCreditUnion).toHaveBeenCalledWith('67890');
-    expect(apiService.fetchLatestQuarters).toHaveBeenCalledWith(
-      '67890',
-      4,
-    );
+    expect(apiService.fetchLatestQuarters).toHaveBeenCalledWith('67890', 4);
   });
 
   // ── Sync flow ─────────────────────────────────────────────────────────
@@ -117,9 +109,9 @@ describe('NcuaImportService', () => {
   it('throws NotFoundException for unknown institution', async () => {
     mockPrisma.institution.findUnique.mockResolvedValue(null);
 
-    await expect(
-      service.syncCreditUnion('nonexistent'),
-    ).rejects.toThrow('not found');
+    await expect(service.syncCreditUnion('nonexistent')).rejects.toThrow(
+      'not found',
+    );
   });
 
   it('throws when institution has no charter number', async () => {
@@ -129,9 +121,9 @@ describe('NcuaImportService', () => {
       charterNumber: null,
     });
 
-    await expect(
-      service.syncCreditUnion('inst-no-charter'),
-    ).rejects.toThrow('no charter number');
+    await expect(service.syncCreditUnion('inst-no-charter')).rejects.toThrow(
+      'no charter number',
+    );
   });
 
   // ── Bulk import ───────────────────────────────────────────────────────

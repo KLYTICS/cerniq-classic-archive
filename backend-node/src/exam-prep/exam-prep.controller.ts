@@ -41,14 +41,8 @@ export class ExamPrepController {
 
   @Post(':institutionId/assess')
   @HttpCode(HttpStatus.CREATED)
-  async runAssessment(
-    @Param() params: unknown,
-    @Body() body: unknown,
-  ) {
-    const { institutionId } = parseOrThrow(
-      InstitutionIdParamSchema,
-      params,
-    );
+  async runAssessment(@Param() params: unknown, @Body() body: unknown) {
+    const { institutionId } = parseOrThrow(InstitutionIdParamSchema, params);
 
     let dto;
     try {
@@ -105,10 +99,7 @@ export class ExamPrepController {
 
   @Get(':institutionId/latest')
   async getLatestAssessment(@Param() params: unknown) {
-    const { institutionId } = parseOrThrow(
-      InstitutionIdParamSchema,
-      params,
-    );
+    const { institutionId } = parseOrThrow(InstitutionIdParamSchema, params);
 
     const assessment =
       await this.scoringService.getLatestAssessment(institutionId);
@@ -142,10 +133,7 @@ export class ExamPrepController {
     @Param() params: unknown,
     @Query() query: unknown,
   ) {
-    const { institutionId } = parseOrThrow(
-      InstitutionIdParamSchema,
-      params,
-    );
+    const { institutionId } = parseOrThrow(InstitutionIdParamSchema, params);
 
     let dto;
     try {
@@ -181,10 +169,7 @@ export class ExamPrepController {
     @Param() params: unknown,
     @Body() body: unknown,
   ) {
-    const { institutionId } = parseOrThrow(
-      InstitutionIdParamSchema,
-      params,
-    );
+    const { institutionId } = parseOrThrow(InstitutionIdParamSchema, params);
 
     let dto;
     try {
@@ -229,10 +214,7 @@ export class ExamPrepController {
 
   @Get(':institutionId/evidence-package')
   async getEvidencePackage(@Param() params: unknown) {
-    const { institutionId } = parseOrThrow(
-      InstitutionIdParamSchema,
-      params,
-    );
+    const { institutionId } = parseOrThrow(InstitutionIdParamSchema, params);
 
     const pkg = await this.evidenceService.getPackage(institutionId);
 

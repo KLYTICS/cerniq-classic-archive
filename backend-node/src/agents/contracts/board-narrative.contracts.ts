@@ -5,7 +5,9 @@ import { IsoTimestampSchema, LanguageSchema } from './common.contracts';
 // Mirrors Vol.1 Bible §12. Board-language translation of financial metrics.
 
 export const BoardOutputType = z.enum([
-  'BOARD_PACKET', 'TALKING_POINTS', 'RISK_DASHBOARD_NARRATIVE',
+  'BOARD_PACKET',
+  'TALKING_POINTS',
+  'RISK_DASHBOARD_NARRATIVE',
 ]);
 
 export const BoardTopicSchema = z.object({
@@ -29,26 +31,36 @@ export const BoardNarrativeOutputSchema = z.object({
   language: LanguageSchema,
   outputType: BoardOutputType,
   topics: z.array(BoardTopicSchema).min(3).max(7),
-  decisionsRequired: z.array(z.object({
-    decision: z.string().min(1),
-    decisionEs: z.string().min(1),
-    urgency: z.enum(['IMMEDIATE', 'NEXT_MEETING', 'INFORMATIONAL']),
-    context: z.string().min(1),
-  })),
-  talkingPoints: z.array(z.object({
-    point: z.string().max(120),
-    pointEs: z.string().max(120),
-  })).min(5).max(7).optional(),
-  riskDashboardNarrative: z.object({
-    capital: z.string().min(1),
-    capitalEs: z.string().min(1),
-    liquidity: z.string().min(1),
-    liquidityEs: z.string().min(1),
-    rateRisk: z.string().min(1),
-    rateRiskEs: z.string().min(1),
-    credit: z.string().min(1),
-    creditEs: z.string().min(1),
-  }).optional(),
+  decisionsRequired: z.array(
+    z.object({
+      decision: z.string().min(1),
+      decisionEs: z.string().min(1),
+      urgency: z.enum(['IMMEDIATE', 'NEXT_MEETING', 'INFORMATIONAL']),
+      context: z.string().min(1),
+    }),
+  ),
+  talkingPoints: z
+    .array(
+      z.object({
+        point: z.string().max(120),
+        pointEs: z.string().max(120),
+      }),
+    )
+    .min(5)
+    .max(7)
+    .optional(),
+  riskDashboardNarrative: z
+    .object({
+      capital: z.string().min(1),
+      capitalEs: z.string().min(1),
+      liquidity: z.string().min(1),
+      liquidityEs: z.string().min(1),
+      rateRisk: z.string().min(1),
+      rateRiskEs: z.string().min(1),
+      credit: z.string().min(1),
+      creditEs: z.string().min(1),
+    })
+    .optional(),
   narrative: z.string().min(1),
   narrativeEs: z.string().min(1),
   auditTraceId: z.string().min(1),

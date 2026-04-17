@@ -15,11 +15,20 @@ export type AgentIdLiteral =
   | 'BOARD_NARRATIVE';
 
 export type AgentTriggerKindLiteral =
-  | 'UPLOAD' | 'SCHEDULE' | 'USER_QUERY' | 'API' | 'CHAIN';
+  | 'UPLOAD'
+  | 'SCHEDULE'
+  | 'USER_QUERY'
+  | 'API'
+  | 'CHAIN';
 
 export type AgentAuditStepKindLiteral =
-  | 'RUN_STARTED' | 'TOOL_CALL' | 'TOOL_RESULT' | 'LLM_TURN'
-  | 'CONTRACT_VALIDATION' | 'RUN_COMPLETED' | 'RUN_FAILED';
+  | 'RUN_STARTED'
+  | 'TOOL_CALL'
+  | 'TOOL_RESULT'
+  | 'LLM_TURN'
+  | 'CONTRACT_VALIDATION'
+  | 'RUN_COMPLETED'
+  | 'RUN_FAILED';
 
 export interface AgentRunHandle {
   runId: string;
@@ -50,11 +59,22 @@ export interface AgentToolMeta {
   provenanceTag?: string;
 }
 
-export type ToolOk<T> = { ok: true; data: T; provenance: string[]; durationMs: number };
+export type ToolOk<T> = {
+  ok: true;
+  data: T;
+  provenance: string[];
+  durationMs: number;
+};
 export type ToolErr = {
   ok: false;
-  code: 'TOOL_TIMEOUT' | 'TOOL_UNAVAILABLE' | 'TOOL_INPUT_INVALID'
-    | 'TOOL_OUTPUT_INVALID' | 'TOOL_INTERNAL_ERROR' | 'TOOL_FORBIDDEN' | 'TOOL_NOT_FOUND';
+  code:
+    | 'TOOL_TIMEOUT'
+    | 'TOOL_UNAVAILABLE'
+    | 'TOOL_INPUT_INVALID'
+    | 'TOOL_OUTPUT_INVALID'
+    | 'TOOL_INTERNAL_ERROR'
+    | 'TOOL_FORBIDDEN'
+    | 'TOOL_NOT_FOUND';
   message: string;
   hint?: string;
   durationMs: number;

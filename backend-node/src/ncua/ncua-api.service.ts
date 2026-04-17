@@ -53,9 +53,7 @@ export class NcuaApiService {
   /**
    * Fetch basic credit union information by charter number.
    */
-  async fetchCreditUnion(
-    charterNumber: string,
-  ): Promise<NcuaCreditUnionData> {
+  async fetchCreditUnion(charterNumber: string): Promise<NcuaCreditUnionData> {
     this.logger.log({
       msg: 'Fetching credit union data',
       charterNumber,
@@ -308,9 +306,7 @@ export class NcuaApiService {
 
   // ─── Demo data (used when NCUA API is unreachable) ────────────────────────
 
-  private getDemoCreditUnionData(
-    charterNumber: string,
-  ): NcuaCreditUnionData {
+  private getDemoCreditUnionData(charterNumber: string): NcuaCreditUnionData {
     return {
       charterNumber,
       name: `Demo Credit Union #${charterNumber}`,
@@ -354,7 +350,7 @@ export class NcuaApiService {
         ACCT_385: 280_000_000, // Commercial Loans
         ACCT_719: 14_000_000, // Provision for Loan Losses
         ACCT_045: 22_400_000, // Allowance for Loan Losses
-        ACCT_660: 0.10, // Net Worth Ratio (10%)
+        ACCT_660: 0.1, // Net Worth Ratio (10%)
         ACCT_671: 0.008, // Delinquency Ratio
         ACCT_730: 42_000_000, // Net Income
       },

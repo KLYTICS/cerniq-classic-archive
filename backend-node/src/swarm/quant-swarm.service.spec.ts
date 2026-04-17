@@ -47,7 +47,10 @@ describe('QuantSwarmService', () => {
 
   it('runFullSwarm returns results from all 12 models', async () => {
     const mockSvc = makeMockService({ score: 80 });
-    const result = await service.runFullSwarm('inst-1', makeFullServices(mockSvc));
+    const result = await service.runFullSwarm(
+      'inst-1',
+      makeFullServices(mockSvc),
+    );
     expect(result.institutionId).toBe('inst-1');
     expect(result.completedModels).toHaveLength(12);
     expect(result.failedModels).toHaveLength(0);
@@ -91,7 +94,10 @@ describe('QuantSwarmService', () => {
 
   it('computeTimeMs is a positive number', async () => {
     const mockSvc = makeMockService({ score: 80 });
-    const result = await service.runFullSwarm('inst-1', makeFullServices(mockSvc));
+    const result = await service.runFullSwarm(
+      'inst-1',
+      makeFullServices(mockSvc),
+    );
     expect(result.computeTimeMs).toBeGreaterThanOrEqual(0);
   });
 

@@ -29,7 +29,7 @@ export class AgentCostCircuitBreakerService {
     const raw = process.env.LLM_COST_CAP_USD_CENTS;
     // Default: $100.00 = 10000 cents
     this.capUsdCents = raw ? parseInt(raw, 10) : 10000;
-    if (raw && isNaN(this.capUsdCents!)) {
+    if (raw && isNaN(this.capUsdCents)) {
       this.logger.warn(
         `LLM_COST_CAP_USD_CENTS="${raw}" is not a number — circuit breaker disabled`,
       );

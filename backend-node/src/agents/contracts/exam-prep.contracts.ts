@@ -7,7 +7,13 @@ import { IsoTimestampSchema, LanguageSchema } from './common.contracts';
 export const CamelRating = z.number().int().min(1).max(5);
 
 export const CamelComponentSchema = z.object({
-  component: z.enum(['CAPITAL', 'ASSET_QUALITY', 'MANAGEMENT', 'EARNINGS', 'LIQUIDITY']),
+  component: z.enum([
+    'CAPITAL',
+    'ASSET_QUALITY',
+    'MANAGEMENT',
+    'EARNINGS',
+    'LIQUIDITY',
+  ]),
   score: CamelRating,
   finding: z.string().min(1),
   findingEs: z.string().min(1),
@@ -56,10 +62,12 @@ export const ExamPrepOutputSchema = z.object({
   governanceChecklist: z.object({
     total: z.literal(24),
     passed: z.number().int().min(0).max(24),
-    items: z.array(z.object({
-      item: z.string().min(1),
-      status: z.enum(['PASS', 'FAIL', 'PARTIAL']),
-    })),
+    items: z.array(
+      z.object({
+        item: z.string().min(1),
+        status: z.enum(['PASS', 'FAIL', 'PARTIAL']),
+      }),
+    ),
   }),
   redFlags: z.array(RedFlagSchema),
   documentChecklist: z.array(DocumentChecklistItemSchema),

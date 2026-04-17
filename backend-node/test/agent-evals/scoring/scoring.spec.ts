@@ -6,11 +6,7 @@ import {
   scoreBilingual,
   scoreFormatCompliance,
 } from './dimensions';
-import {
-  scoreAgentRun,
-  DEFAULT_WEIGHTS,
-  PASS_THRESHOLD,
-} from './weights';
+import { scoreAgentRun, DEFAULT_WEIGHTS, PASS_THRESHOLD } from './weights';
 import type { AuditStep, ExpectedFindings } from './dimensions';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -54,7 +50,14 @@ const GOOD_OUTPUT = {
 
 describe('scoreToolCoverage', () => {
   it('returns 1.0 when all required tools are called', () => {
-    const trace = makeTrace(['runFullSwarm', 'runRateShock', 'getLCR', 'getCECL', 'getEWS', 'getConcentration']);
+    const trace = makeTrace([
+      'runFullSwarm',
+      'runRateShock',
+      'getLCR',
+      'getCECL',
+      'getEWS',
+      'getConcentration',
+    ]);
     const result = scoreToolCoverage(trace, {
       minToolsCalled: 6,
       requiredTools: ['runFullSwarm', 'runRateShock'],
@@ -184,7 +187,12 @@ describe('scoreFormatCompliance', () => {
 describe('scoreAgentRun', () => {
   it('passes for a high-quality ALM output', () => {
     const trace = makeTrace([
-      'runFullSwarm', 'runRateShock', 'getLCR', 'getCECL', 'getEWS', 'getConcentration',
+      'runFullSwarm',
+      'runRateShock',
+      'getLCR',
+      'getCECL',
+      'getEWS',
+      'getConcentration',
     ]);
     const expected: ExpectedFindings = {
       minToolsCalled: 6,

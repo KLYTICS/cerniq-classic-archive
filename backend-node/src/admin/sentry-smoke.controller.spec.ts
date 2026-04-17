@@ -83,7 +83,9 @@ describe('SentrySmokeController', () => {
       // The message is referenced by going-live runbooks — changing it
       // breaks the operator's ability to find the Sentry issue.
       expect((err as Error).message).toContain('Sentry smoke test');
-      expect((err as Error).message).toContain('CERNIQ backend wired correctly');
+      expect((err as Error).message).toContain(
+        'CERNIQ backend wired correctly',
+      );
     }
   });
 });

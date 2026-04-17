@@ -1,8 +1,20 @@
-import { Body, Controller, Get, Param, Post, UseGuards, Logger } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+  Logger,
+} from '@nestjs/common';
 import { z } from 'zod';
 import { AgentTrustService, type AgentTrustInput } from './agent-trust.service';
 import { getOutputSchema } from './schema-registry';
-import type { AgentType, AgentAuditLogReadModel, TrustVerdict } from './contracts';
+import type {
+  AgentType,
+  AgentAuditLogReadModel,
+  TrustVerdict,
+} from './contracts';
 
 const ValidateRequestSchema = z.object({
   agentType: z.string().min(1),
@@ -10,14 +22,16 @@ const ValidateRequestSchema = z.object({
   institutionId: z.string().min(1),
   agentText: z.string(),
   agentOutput: z.unknown(),
-  trace: z.array(z.object({
-    id: z.string(),
-    runId: z.string(),
-    stepNumber: z.number(),
-    stepType: z.string(),
-    toolName: z.string().nullable().optional(),
-    toolOutput: z.unknown().nullable().optional(),
-  })),
+  trace: z.array(
+    z.object({
+      id: z.string(),
+      runId: z.string(),
+      stepNumber: z.number(),
+      stepType: z.string(),
+      toolName: z.string().nullable().optional(),
+      toolOutput: z.unknown().nullable().optional(),
+    }),
+  ),
   requiredLanguage: z.enum(['en', 'es', 'bilingual']).optional(),
   maxWords: z.number().optional(),
 });

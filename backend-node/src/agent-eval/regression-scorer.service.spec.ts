@@ -75,7 +75,9 @@ describe('RegressionScorerService', () => {
 
   it('penalizes missing dollar quantification', () => {
     const r = result();
-    r.output.topRisks = [{ domain: 'Interest Rate Risk', regulatoryRef: '12 CFR 741.3' }];
+    r.output.topRisks = [
+      { domain: 'Interest Rate Risk', regulatoryRef: '12 CFR 741.3' },
+    ];
     const score = s.scoreCase(gold(), r, 0);
     expect(score.score.dollarQuantification).toBe(0);
   });
@@ -96,7 +98,11 @@ describe('RegressionScorerService', () => {
 
   it('reports deploy gate failure when total < 80', () => {
     const bad = result({
-      output: { topRisks: [], healthScore: { score: 10, label: 'WEAK' }, languages: {} },
+      output: {
+        topRisks: [],
+        healthScore: { score: 10, label: 'WEAK' },
+        languages: {},
+      },
     });
     const score = s.scoreCase(gold(), bad, 20);
     const report = s.buildReport([score], null);

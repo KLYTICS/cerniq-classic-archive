@@ -266,7 +266,7 @@ export const STRESS_TESTING_GOLDEN_CASES: readonly StressTestGoldenCase[] = [
     description:
       'Simultaneous four-factor stress: +200bps rate shock, 20% deposit ' +
       'runoff, 1.8x prepayment speed, and 3.5% credit loss override. ' +
-      'Tests the engine\'s ability to compound multiple shocks correctly ' +
+      "Tests the engine's ability to compound multiple shocks correctly " +
       'without double-counting. Expected to produce the most severe ' +
       'outcome in the battery.',
     input: {

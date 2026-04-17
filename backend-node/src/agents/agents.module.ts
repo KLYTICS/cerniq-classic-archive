@@ -37,6 +37,11 @@ import { AgentChainService } from './runner/agent-chain.service';
     AgentAlertNotifierService,
     AgentChainService,
   ],
-  exports: [AgentRunnerService, AgentTriggerService, AgentEventBusService, AgentChainService],
+  exports: [
+    AgentRunnerService,
+    AgentTriggerService,
+    AgentEventBusService,
+    AgentChainService,
+  ],
 })
 export class AgentsModule {}

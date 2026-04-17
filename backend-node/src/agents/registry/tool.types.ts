@@ -57,9 +57,8 @@ export type ToolOutcome<T = unknown> =
   | (ToolError & { name: string });
 
 // Type helper so producers can build a descriptor with full inference.
-export function defineTool<
-  TIn extends z.ZodTypeAny,
-  TOut extends z.ZodTypeAny,
->(d: ToolDescriptor<TIn, TOut>): ToolDescriptor<TIn, TOut> {
+export function defineTool<TIn extends z.ZodTypeAny, TOut extends z.ZodTypeAny>(
+  d: ToolDescriptor<TIn, TOut>,
+): ToolDescriptor<TIn, TOut> {
   return d;
 }

@@ -43,7 +43,9 @@ export class AgentSchedulerService implements OnModuleInit {
     const off = process.env.AGENT_SCHEDULER_DISABLED;
     if (off === 'true' || off === '1') {
       this.enabled = false;
-      this.logger.warn('Agent scheduler DISABLED by AGENT_SCHEDULER_DISABLED env');
+      this.logger.warn(
+        'Agent scheduler DISABLED by AGENT_SCHEDULER_DISABLED env',
+      );
     }
   }
 
@@ -136,7 +138,12 @@ export class AgentSchedulerService implements OnModuleInit {
     });
 
     return recentRuns
-      .filter((r: any): r is { institutionId: string; organizationId: string | null } => !!r.institutionId)
+      .filter(
+        (
+          r: any,
+        ): r is { institutionId: string; organizationId: string | null } =>
+          !!r.institutionId,
+      )
       .map((r: any) => ({
         id: r.institutionId!,
         organizationId: r.organizationId,

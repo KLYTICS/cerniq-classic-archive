@@ -6,9 +6,9 @@ import { PrismaService } from '../prisma.service';
 export const CATEGORY_WEIGHTS: Record<string, number> = {
   ALM_POLICY: 0.15,
   DURATION_GAP: 0.12,
-  NII_SENSITIVITY: 0.10,
-  EVE: 0.10,
-  LIQUIDITY: 0.10,
+  NII_SENSITIVITY: 0.1,
+  EVE: 0.1,
+  LIQUIDITY: 0.1,
   CAPITAL_ADEQUACY: 0.08,
   CONCENTRATION: 0.07,
   GOVERNANCE: 0.07,
@@ -194,10 +194,7 @@ export class ExamPrepScoringService {
     const remediationPlan: string[] = [];
     const remediationPlanEs: string[] = [];
     for (const cat of categories) {
-      if (
-        cat.compliance !== 'PASS' &&
-        cat.remediation
-      ) {
+      if (cat.compliance !== 'PASS' && cat.remediation) {
         remediationPlan.push(cat.remediation);
         if (cat.remediationEs) {
           remediationPlanEs.push(cat.remediationEs);
@@ -216,8 +213,20 @@ export class ExamPrepScoringService {
       passCount,
       warnCount,
       failCount,
-      summary: this.buildSummary(letterGrade, overallScore, passCount, warnCount, failCount),
-      summaryEs: this.buildSummaryEs(letterGrade, overallScore, passCount, warnCount, failCount),
+      summary: this.buildSummary(
+        letterGrade,
+        overallScore,
+        passCount,
+        warnCount,
+        failCount,
+      ),
+      summaryEs: this.buildSummaryEs(
+        letterGrade,
+        overallScore,
+        passCount,
+        warnCount,
+        failCount,
+      ),
       remediationPlan,
       remediationPlanEs,
     };
@@ -247,8 +256,7 @@ export class ExamPrepScoringService {
   async getLatestAssessment(
     institutionId: string,
   ): Promise<ExamReadinessAssessment | null> {
-    const assessments =
-      this.institutionAssessments.get(institutionId) ?? [];
+    const assessments = this.institutionAssessments.get(institutionId) ?? [];
     if (assessments.length === 0) return null;
     return assessments[assessments.length - 1];
   }
@@ -259,9 +267,9 @@ export class ExamPrepScoringService {
   async getAssessmentHistory(
     institutionId: string,
   ): Promise<ExamReadinessAssessment[]> {
-    return (
-      this.institutionAssessments.get(institutionId) ?? []
-    ).slice().reverse(); // Most recent first
+    return (this.institutionAssessments.get(institutionId) ?? [])
+      .slice()
+      .reverse(); // Most recent first
   }
 
   /**
@@ -373,8 +381,7 @@ export class ExamPrepScoringService {
       }
       if (spec.warnMin !== undefined && value >= spec.warnMin) {
         const range = spec.passMin - spec.warnMin;
-        const position =
-          range > 0 ? (spec.passMin - value) / range : 0.5;
+        const position = range > 0 ? (spec.passMin - value) / range : 0.5;
         return {
           complianceResult: 'WARN',
           numericScore: Math.round(79 - position * 19),
@@ -407,7 +414,10 @@ export class ExamPrepScoringService {
         label: 'Capital Adequacy',
         labelEs: 'Adecuacion de Capital',
       },
-      CONCENTRATION: { label: 'Concentration Risk', labelEs: 'Riesgo de Concentracion' },
+      CONCENTRATION: {
+        label: 'Concentration Risk',
+        labelEs: 'Riesgo de Concentracion',
+      },
       GOVERNANCE: { label: 'Governance', labelEs: 'Gobernanza' },
       DATA_QUALITY: { label: 'Data Quality', labelEs: 'Calidad de Datos' },
       CREDIT_RISK: { label: 'Credit Risk', labelEs: 'Riesgo Crediticio' },
@@ -469,8 +479,7 @@ export class ExamPrepScoringService {
     const totalAssets =
       items
         .filter((i) => i.category === 'asset' && i.subcategory === 'total')
-        .reduce((sum: number, i: any) => sum + Number(i.balance || 0), 0) ||
-      1;
+        .reduce((sum: number, i: any) => sum + Number(i.balance || 0), 0) || 1;
     const netWorth = items
       .filter((i) => i.name?.includes('Net Worth'))
       .reduce((sum: number, i: any) => sum + Number(i.balance || 0), 0);

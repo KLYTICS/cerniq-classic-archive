@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { IsoTimestampSchema, LanguageSchema, DeadlineSchema } from './common.contracts';
+import {
+  IsoTimestampSchema,
+  LanguageSchema,
+  DeadlineSchema,
+} from './common.contracts';
 
 // Output schema for Agent 06 — Capital Optimizer Agent.
 // Mirrors Vol.1 Bible §06. Maximizes NIM within hard+soft constraints.
@@ -49,13 +53,17 @@ export const CapitalOptimizerOutputSchema = z.object({
     bps: z.number(),
     annualizedDollars: z.number().min(50_000),
   }),
-  implementationSequence: z.array(z.object({
-    order: z.number().int().positive(),
-    moveIndex: z.number().int().nonnegative(),
-    dependency: z.string().optional(),
-  })),
+  implementationSequence: z.array(
+    z.object({
+      order: z.number().int().positive(),
+      moveIndex: z.number().int().nonnegative(),
+      dependency: z.string().optional(),
+    }),
+  ),
   summary: z.string().min(1),
   summaryEs: z.string().min(1),
   auditTraceId: z.string().min(1),
 });
-export type CapitalOptimizerOutput = z.infer<typeof CapitalOptimizerOutputSchema>;
+export type CapitalOptimizerOutput = z.infer<
+  typeof CapitalOptimizerOutputSchema
+>;

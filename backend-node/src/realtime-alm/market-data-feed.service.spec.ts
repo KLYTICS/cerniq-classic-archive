@@ -112,7 +112,9 @@ describe('MarketDataFeedService', () => {
         .mockResolvedValue({ ok: false, status: 500 } as any);
 
       const service = buildService();
-      await expect(service.fetchSOFR()).rejects.toThrow('FRED API returned 500');
+      await expect(service.fetchSOFR()).rejects.toThrow(
+        'FRED API returned 500',
+      );
 
       delete process.env.FRED_API_KEY;
     });
@@ -198,9 +200,7 @@ describe('MarketDataFeedService', () => {
       const service = buildService();
 
       // Spy on fetchLatestRates to verify it gets called
-      const spy = jest
-        .spyOn(service, 'fetchLatestRates')
-        .mockResolvedValue([]);
+      const spy = jest.spyOn(service, 'fetchLatestRates').mockResolvedValue([]);
 
       service.startPolling(10_000);
 

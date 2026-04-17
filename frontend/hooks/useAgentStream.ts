@@ -67,7 +67,14 @@ export function useAgentStream(
   const [error, setError] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
   const onEventRef = useRef(onEvent);
-  onEventRef.current = onEvent;
+  // Keep the ref in sync with the latest callback. Doing this in an
+  // effect (rather than during render body) satisfies the hooks lint
+  // rule that forbids ref mutations during render — commit-phase update
+  // is semantically equivalent since the ref is only dereferenced inside
+  // event handlers that run after the commit.
+  useEffect(() => {
+    onEventRef.current = onEvent;
+  }, [onEvent]);
 
   const filters = Array.isArray(filter) ? filter : filter ? [filter] : null;
 
@@ -84,6 +91,12 @@ export function useAgentStream(
     if (!institutionId || !enabled) {
       esRef.current?.close();
       esRef.current = null;
+      // Intentional: the disabled-or-no-institution branch must reset the
+      // connected flag synchronously so consumers of `isConnected` see
+      // the disconnected state on the very next render. The cascading-
+      // render concern doesn't apply here because this only fires when
+      // the gating props flip, not on every effect run.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsConnected(false);
       return;
     }

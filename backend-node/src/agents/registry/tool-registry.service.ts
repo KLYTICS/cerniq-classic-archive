@@ -1,10 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
-import {
-  ToolDescriptor,
-  ToolContext,
-  ToolOutcome,
-} from './tool.types';
+import { ToolDescriptor, ToolContext, ToolOutcome } from './tool.types';
 import { AlmToolsFactory } from './tools/alm-tools';
 
 // ToolRegistryService is the single source of truth for which tools exist and

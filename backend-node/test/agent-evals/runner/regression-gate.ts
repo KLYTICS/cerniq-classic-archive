@@ -24,9 +24,7 @@ function main() {
     process.exit(1);
   }
 
-  const results: EvalResult[] = JSON.parse(
-    readFileSync(resultsPath, 'utf-8'),
-  );
+  const results: EvalResult[] = JSON.parse(readFileSync(resultsPath, 'utf-8'));
 
   if (results.length === 0) {
     console.error('No eval results');

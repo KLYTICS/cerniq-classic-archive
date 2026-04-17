@@ -209,11 +209,18 @@ export default function FollowUpPills({
 
   useEffect(() => {
     if (!animate) {
+      // Intentional: when animation is disabled we need all pills visible
+      // immediately on mount. Synchronous setState in an effect is flagged
+      // by react-hooks/no-set-state-during-render (as of eslint 9), but
+      // here it's the right primitive — we can't useMemo a Set of indexes
+      // without losing the per-render reset semantics below.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVisiblePills(new Set(suggestions.map((_, i) => i)));
       return;
     }
 
     // Reset on new suggestions
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisiblePills(new Set());
 
     const timers: ReturnType<typeof setTimeout>[] = [];

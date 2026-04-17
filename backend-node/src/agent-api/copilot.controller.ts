@@ -13,10 +13,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { AgentRunnerService } from '../agents/runner/agent-runner.service';
 import { AgentRunService } from '../agents/runner/agent-run.service';
 import { InstitutionScopeGuard } from './guards/institution-scope.guard';
-import {
-  CopilotBodySchema,
-  parseOrThrow,
-} from './dto/agent-api.dto';
+import { CopilotBodySchema, parseOrThrow } from './dto/agent-api.dto';
 
 // CopilotController is the conversational entry point for the CFO Copilot
 // agent. It is intentionally request/response (NOT streaming): every turn
@@ -38,9 +35,14 @@ export class AgentCopilotController {
   constructor(private readonly runner: AgentRunnerService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Ask the CFO Copilot a natural-language ALM question' })
+  @ApiOperation({
+    summary: 'Ask the CFO Copilot a natural-language ALM question',
+  })
   @ApiParam({ name: 'institutionId', description: 'Target institution UUID' })
-  @ApiResponse({ status: 201, description: 'Copilot response with tool citations and bilingual output' })
+  @ApiResponse({
+    status: 201,
+    description: 'Copilot response with tool citations and bilingual output',
+  })
   @ApiResponse({ status: 400, description: 'Invalid query input' })
   async ask(
     @Param('institutionId') institutionId: string,
@@ -107,7 +109,8 @@ function cryptoRandomSessionId(): string {
 }
 
 function fallbackUuid(): string {
-  const { randomBytes } = require('node:crypto') as typeof import('node:crypto');
+  const { randomBytes } =
+    require('node:crypto') as typeof import('node:crypto');
   const buf = randomBytes(16);
   buf[6] = (buf[6] & 0x0f) | 0x40; // version 4
   buf[8] = (buf[8] & 0x3f) | 0x80; // variant 10

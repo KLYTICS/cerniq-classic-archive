@@ -69,9 +69,7 @@ describe('CossecIngestService', () => {
       });
       prisma.cossecExamFinding.findFirst.mockResolvedValue(null); // no duplicate
       prisma.cossecExamFinding.create.mockResolvedValue({ id: 'finding-1' });
-      prisma.cossecExamFinding.findMany.mockResolvedValue([
-        { examYear: 2025 },
-      ]);
+      prisma.cossecExamFinding.findMany.mockResolvedValue([{ examYear: 2025 }]);
       prisma.prospectInstitution.update.mockResolvedValue({});
 
       const result = await service.ingestFindings(basePayload);

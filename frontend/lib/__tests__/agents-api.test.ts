@@ -2,11 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AgentApiError } from '../agents-api';
 
 vi.mock('axios', async () => {
-  const actual = await vi.importActual('axios');
+  const actual =
+    await vi.importActual<typeof import('axios')>('axios');
   return {
     ...actual,
     default: {
-      ...(actual as any).default,
+      ...actual.default,
       create: () => ({
         interceptors: {
           request: { use: vi.fn() },

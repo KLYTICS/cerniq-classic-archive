@@ -153,8 +153,6 @@ export class ConversationHistoryService {
     const { count } = await this.prisma.conversationHistory.deleteMany({
       where: { sessionId },
     });
-    this.logger.log(
-      `Deleted session ${sessionId} (${count} messages removed)`,
-    );
+    this.logger.log(`Deleted session ${sessionId} (${count} messages removed)`);
   }
 }

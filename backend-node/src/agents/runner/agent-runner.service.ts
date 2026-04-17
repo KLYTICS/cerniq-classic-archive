@@ -69,7 +69,14 @@ export class AgentRunnerService {
 
     const def = resolveAgentDefinition(agentId as any);
     if (!def) {
-      return { runId: '', status: 'FAILED', errorCode: 'AGENT_NOT_FOUND', errorMessage: `Agent "${agentId}" not registered`, existed: false, durationMs: Date.now() - start };
+      return {
+        runId: '',
+        status: 'FAILED',
+        errorCode: 'AGENT_NOT_FOUND',
+        errorMessage: `Agent "${agentId}" not registered`,
+        existed: false,
+        durationMs: Date.now() - start,
+      };
     }
 
     const handle: AgentRunHandle = await this.runs.startRun({
@@ -87,7 +94,15 @@ export class AgentRunnerService {
 
     if (handle.replay) {
       const existing = await this.runs.getRun(handle.runId);
-      return { runId: handle.runId, status: ((existing as any)?.status ?? 'SUCCEEDED') as 'SUCCEEDED' | 'FAILED', output: (existing as any)?.output ?? null, existed: true, durationMs: Date.now() - start };
+      return {
+        runId: handle.runId,
+        status: ((existing as any)?.status ?? 'SUCCEEDED') as
+          | 'SUCCEEDED'
+          | 'FAILED',
+        output: (existing as any)?.output ?? null,
+        existed: true,
+        durationMs: Date.now() - start,
+      };
     }
 
     await this.runs.markRunning(handle.runId);
@@ -98,14 +113,31 @@ export class AgentRunnerService {
     let inputTokens = 0;
     let outputTokens = 0;
 
-    const appendAudit = async (args: { stepKind: string; toolName?: string | null; payload: unknown; durationMs?: number | null }) => {
+    const appendAudit = async (args: {
+      stepKind: string;
+      toolName?: string | null;
+      payload: unknown;
+      durationMs?: number | null;
+    }) => {
       const stepIndex = handle._nextStepIndex++;
-      const record = await this.audit.append(handle.runId, stepIndex, lastHash, args);
+      const record = await this.audit.append(
+        handle.runId,
+        stepIndex,
+        lastHash,
+        args,
+      );
       lastHash = record.hash;
       return record;
     };
 
-    await appendAudit({ stepKind: 'RUN_STARTED', payload: { agentId, promptVersion: def.promptVersion, triggerKind: opts.triggerKind ?? 'API' } });
+    await appendAudit({
+      stepKind: 'RUN_STARTED',
+      payload: {
+        agentId,
+        promptVersion: def.promptVersion,
+        triggerKind: opts.triggerKind ?? 'API',
+      },
+    });
 
     const toolDescriptors = this.tools.describeForLLM(def.allowedTools);
 
@@ -127,7 +159,13 @@ export class AgentRunnerService {
 
         await appendAudit({
           stepKind: 'LLM_TURN',
-          payload: { turn: llmTurnCount, stopReason: turn.stopReason, toolCalls: turn.toolCalls.map((c) => ({ id: c.id, name: c.name })), inputTokens: turn.inputTokens, outputTokens: turn.outputTokens },
+          payload: {
+            turn: llmTurnCount,
+            stopReason: turn.stopReason,
+            toolCalls: turn.toolCalls.map((c) => ({ id: c.id, name: c.name })),
+            inputTokens: turn.inputTokens,
+            outputTokens: turn.outputTokens,
+          },
           durationMs: Date.now() - turnStart,
         });
 
@@ -140,7 +178,12 @@ export class AgentRunnerService {
           role: 'assistant',
           content: [
             ...(turn.text ? [{ type: 'text', text: turn.text }] : []),
-            ...turn.toolCalls.map((c) => ({ type: 'tool_use', id: c.id, name: c.name, input: c.input })),
+            ...turn.toolCalls.map((c) => ({
+              type: 'tool_use',
+              id: c.id,
+              name: c.name,
+              input: c.input,
+            })),
           ],
         });
 
@@ -148,12 +191,25 @@ export class AgentRunnerService {
         for (const call of turn.toolCalls) {
           if (!def.allowedTools.has(call.name)) {
             toolCallCount++;
-            await appendAudit({ stepKind: 'TOOL_RESULT', toolName: call.name, payload: { ok: false, code: 'TOOL_FORBIDDEN' } });
-            toolResults.push({ type: 'tool_result', tool_use_id: call.id, content: JSON.stringify({ ok: false, code: 'TOOL_FORBIDDEN' }), is_error: true });
+            await appendAudit({
+              stepKind: 'TOOL_RESULT',
+              toolName: call.name,
+              payload: { ok: false, code: 'TOOL_FORBIDDEN' },
+            });
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: call.id,
+              content: JSON.stringify({ ok: false, code: 'TOOL_FORBIDDEN' }),
+              is_error: true,
+            });
             continue;
           }
 
-          await appendAudit({ stepKind: 'TOOL_CALL', toolName: call.name, payload: { input: call.input } });
+          await appendAudit({
+            stepKind: 'TOOL_CALL',
+            toolName: call.name,
+            payload: { input: call.input },
+          });
           const toolStart = Date.now();
           const result = await this.tools.invoke(call.name, call.input, {
             runId: handle.runId,
@@ -163,46 +219,139 @@ export class AgentRunnerService {
             signal: new AbortController().signal,
           });
           toolCallCount++;
-          await appendAudit({ stepKind: 'TOOL_RESULT', toolName: call.name, payload: result, durationMs: Date.now() - toolStart });
-          toolResults.push({ type: 'tool_result', tool_use_id: call.id, content: JSON.stringify(result), is_error: !result.ok });
+          await appendAudit({
+            stepKind: 'TOOL_RESULT',
+            toolName: call.name,
+            payload: result,
+            durationMs: Date.now() - toolStart,
+          });
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: call.id,
+            content: JSON.stringify(result),
+            is_error: !result.ok,
+          });
         }
         messages.push({ role: 'user', content: toolResults });
       }
 
       if (llmTurnCount >= def.maxTurns && !finalText) {
-        await appendAudit({ stepKind: 'RUN_FAILED', payload: { errorCode: 'LOOP_LIMIT', maxTurns: def.maxTurns } });
-        await this.runs.fail(handle.runId, { errorCode: 'LOOP_LIMIT', errorMessage: `exceeded ${def.maxTurns} turns`, auditRootHash: lastHash, toolCallCount, llmTurnCount, durationMs: Date.now() - start });
-        return { runId: handle.runId, status: 'FAILED', errorCode: 'LOOP_LIMIT', errorMessage: `exceeded ${def.maxTurns} turns`, existed: false, durationMs: Date.now() - start };
+        await appendAudit({
+          stepKind: 'RUN_FAILED',
+          payload: { errorCode: 'LOOP_LIMIT', maxTurns: def.maxTurns },
+        });
+        await this.runs.fail(handle.runId, {
+          errorCode: 'LOOP_LIMIT',
+          errorMessage: `exceeded ${def.maxTurns} turns`,
+          auditRootHash: lastHash,
+          toolCallCount,
+          llmTurnCount,
+          durationMs: Date.now() - start,
+        });
+        return {
+          runId: handle.runId,
+          status: 'FAILED',
+          errorCode: 'LOOP_LIMIT',
+          errorMessage: `exceeded ${def.maxTurns} turns`,
+          existed: false,
+          durationMs: Date.now() - start,
+        };
       }
 
       const parsed = parseAgentOutput(finalText, def.outputSchema);
-      await appendAudit({ stepKind: 'CONTRACT_VALIDATION', payload: parsed.ok ? { ok: true } : { ok: false, error: parsed.error } });
+      await appendAudit({
+        stepKind: 'CONTRACT_VALIDATION',
+        payload: parsed.ok ? { ok: true } : { ok: false, error: parsed.error },
+      });
 
       if (!parsed.ok) {
-        await appendAudit({ stepKind: 'RUN_FAILED', payload: { errorCode: 'OUTPUT_INVALID', errorMessage: parsed.error } });
-        await this.runs.fail(handle.runId, { errorCode: 'OUTPUT_CONTRACT_INVALID', errorMessage: parsed.error!, auditRootHash: lastHash, toolCallCount, llmTurnCount, durationMs: Date.now() - start });
-        return { runId: handle.runId, status: 'FAILED', errorCode: 'OUTPUT_CONTRACT_INVALID', errorMessage: parsed.error!, existed: false, durationMs: Date.now() - start };
+        await appendAudit({
+          stepKind: 'RUN_FAILED',
+          payload: { errorCode: 'OUTPUT_INVALID', errorMessage: parsed.error },
+        });
+        await this.runs.fail(handle.runId, {
+          errorCode: 'OUTPUT_CONTRACT_INVALID',
+          errorMessage: parsed.error,
+          auditRootHash: lastHash,
+          toolCallCount,
+          llmTurnCount,
+          durationMs: Date.now() - start,
+        });
+        return {
+          runId: handle.runId,
+          status: 'FAILED',
+          errorCode: 'OUTPUT_CONTRACT_INVALID',
+          errorMessage: parsed.error,
+          existed: false,
+          durationMs: Date.now() - start,
+        };
       }
 
       await appendAudit({ stepKind: 'RUN_COMPLETED', payload: { ok: true } });
       const durationMs = Date.now() - start;
-      await this.runs.complete(handle.runId, { output: parsed.data, auditRootHash: lastHash, toolCallCount, llmTurnCount, inputTokens, outputTokens, durationMs });
-      return { runId: handle.runId, status: 'SUCCEEDED', output: parsed.data, existed: false, durationMs };
+      await this.runs.complete(handle.runId, {
+        output: parsed.data,
+        auditRootHash: lastHash,
+        toolCallCount,
+        llmTurnCount,
+        inputTokens,
+        outputTokens,
+        durationMs,
+      });
+      return {
+        runId: handle.runId,
+        status: 'SUCCEEDED',
+        output: parsed.data,
+        existed: false,
+        durationMs,
+      };
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`agent run ${handle.runId} crashed`, err);
-      await appendAudit({ stepKind: 'RUN_FAILED', payload: { errorCode: 'EXECUTION_FAILED', errorMessage: msg } });
-      await this.runs.fail(handle.runId, { errorCode: 'EXECUTION_FAILED', errorMessage: msg, auditRootHash: lastHash, toolCallCount, llmTurnCount, durationMs: Date.now() - start });
-      return { runId: handle.runId, status: 'FAILED', errorCode: 'EXECUTION_FAILED', errorMessage: msg, existed: false, durationMs: Date.now() - start };
+      await appendAudit({
+        stepKind: 'RUN_FAILED',
+        payload: { errorCode: 'EXECUTION_FAILED', errorMessage: msg },
+      });
+      await this.runs.fail(handle.runId, {
+        errorCode: 'EXECUTION_FAILED',
+        errorMessage: msg,
+        auditRootHash: lastHash,
+        toolCallCount,
+        llmTurnCount,
+        durationMs: Date.now() - start,
+      });
+      return {
+        runId: handle.runId,
+        status: 'FAILED',
+        errorCode: 'EXECUTION_FAILED',
+        errorMessage: msg,
+        existed: false,
+        durationMs: Date.now() - start,
+      };
     }
   }
 }
 
-export function parseAgentOutput(text: string, schema: any): { ok: true; data: any } | { ok: false; error: string } {
+export function parseAgentOutput(
+  text: string,
+  schema: any,
+): { ok: true; data: any } | { ok: false; error: string } {
   for (const c of extractJsonCandidates(text)) {
-    try { const p = JSON.parse(c); const r = schema.safeParse(p); if (r.success) return { ok: true, data: r.data }; } catch {}
+    try {
+      const p = JSON.parse(c);
+      const r = schema.safeParse(p);
+      if (r.success) return { ok: true, data: r.data };
+    } catch {
+      // Candidate wasn't valid JSON — try the next one. Swallowing is
+      // intentional: extractJsonCandidates returns best-effort substrings
+      // (fenced blocks, braces-plucked segments) and most won't parse.
+      // Logging here would spam every LLM turn.
+    }
   }
-  return { ok: false, error: `no schema-valid JSON in agent output (${text.length} chars)` };
+  return {
+    ok: false,
+    error: `no schema-valid JSON in agent output (${text.length} chars)`,
+  };
 }
 
 function extractJsonCandidates(text: string): string[] {
@@ -212,22 +361,35 @@ function extractJsonCandidates(text: string): string[] {
   const f = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (f?.[1]) out.push(f[1].trim());
   out.push(t);
-  const a = t.indexOf('{'), b = t.lastIndexOf('}');
+  const a = t.indexOf('{'),
+    b = t.lastIndexOf('}');
   if (a >= 0 && b > a) out.push(t.slice(a, b + 1));
   return out;
 }
 
 function zodToJsonSchema(schema: any): unknown {
-  const def = schema?._def; const t = def?.typeName;
+  const def = schema?._def;
+  const t = def?.typeName;
   if (t === 'ZodObject') {
-    const s = def.shape?.() ?? {}; const p: any = {}; const r: string[] = [];
-    for (const [k, v] of Object.entries(s)) { p[k] = zodToJsonSchema(v); if (!(v as any).isOptional?.()) r.push(k); }
-    return { type: 'object', properties: p, required: r.length ? r : undefined, additionalProperties: false };
+    const s = def.shape?.() ?? {};
+    const p: any = {};
+    const r: string[] = [];
+    for (const [k, v] of Object.entries(s)) {
+      p[k] = zodToJsonSchema(v);
+      if (!(v as any).isOptional?.()) r.push(k);
+    }
+    return {
+      type: 'object',
+      properties: p,
+      required: r.length ? r : undefined,
+      additionalProperties: false,
+    };
   }
   if (t === 'ZodString') return { type: 'string' };
   if (t === 'ZodNumber') return { type: 'number' };
   if (t === 'ZodBoolean') return { type: 'boolean' };
-  if (t === 'ZodArray') return { type: 'array', items: zodToJsonSchema(def.type) };
+  if (t === 'ZodArray')
+    return { type: 'array', items: zodToJsonSchema(def.type) };
   if (t === 'ZodEnum') return { type: 'string', enum: def.values };
   if (t === 'ZodDefault') return zodToJsonSchema(def.innerType);
   if (t === 'ZodOptional') return zodToJsonSchema(def.innerType);

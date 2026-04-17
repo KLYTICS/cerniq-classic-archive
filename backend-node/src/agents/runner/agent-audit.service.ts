@@ -10,9 +10,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../../prisma.service';
 
-export type VerifyResult =
-  | { ok: true }
-  | { ok: false; brokenAtIndex: number };
+export type VerifyResult = { ok: true } | { ok: false; brokenAtIndex: number };
 
 export interface AppendInput {
   runId: string;
@@ -53,9 +51,7 @@ function sortKeys(value: unknown): unknown {
     }
     return out;
   }
-  throw new Error(
-    `canonicalJson: unsupported type ${typeof value}`,
-  );
+  throw new Error(`canonicalJson: unsupported type ${typeof value}`);
 }
 
 export function chainHash(params: {
@@ -86,7 +82,12 @@ export class AgentAuditService {
     runId: string,
     stepIndex: number,
     prevHash: string | null,
-    entry: { stepKind: string; toolName?: string | null; payload: unknown; durationMs?: number | null },
+    entry: {
+      stepKind: string;
+      toolName?: string | null;
+      payload: unknown;
+      durationMs?: number | null;
+    },
   ): Promise<AppendResult>;
   // Single-arg overload (legacy)
   async append(input: AppendInput): Promise<AppendResult>;
@@ -94,7 +95,12 @@ export class AgentAuditService {
     inputOrRunId: AppendInput | string,
     stepIndex?: number,
     prevHash?: string | null,
-    entry?: { stepKind: string; toolName?: string | null; payload: unknown; durationMs?: number | null },
+    entry?: {
+      stepKind: string;
+      toolName?: string | null;
+      payload: unknown;
+      durationMs?: number | null;
+    },
   ): Promise<AppendResult> {
     if (typeof inputOrRunId === 'string') {
       return this._appendDirect(inputOrRunId, stepIndex!, prevHash!, entry!);
@@ -106,7 +112,12 @@ export class AgentAuditService {
     runId: string,
     stepIndex: number,
     prevHash: string | null,
-    entry: { stepKind: string; toolName?: string | null; payload: unknown; durationMs?: number | null },
+    entry: {
+      stepKind: string;
+      toolName?: string | null;
+      payload: unknown;
+      durationMs?: number | null;
+    },
   ): Promise<AppendResult> {
     const payloadJson = canonicalJson(entry.payload);
     const hash = chainHash({

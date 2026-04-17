@@ -58,7 +58,11 @@ export interface ChainRunResult {
   totalSteps: number;
   shortCircuited: boolean;
   shortCircuitReason?: string;
-  cumulativeTokens: { inputTokens: number; outputTokens: number; totalTokens: number };
+  cumulativeTokens: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  };
   estimatedCostUsd: number;
   totalDurationMs: number;
   finalOutput: unknown;
@@ -92,8 +96,10 @@ const COST_PER_1M_INPUT = 3.0;
 const COST_PER_1M_OUTPUT = 15.0;
 
 function estimateCost(inputTokens: number, outputTokens: number): number {
-  return (inputTokens / 1_000_000) * COST_PER_1M_INPUT +
-    (outputTokens / 1_000_000) * COST_PER_1M_OUTPUT;
+  return (
+    (inputTokens / 1_000_000) * COST_PER_1M_INPUT +
+    (outputTokens / 1_000_000) * COST_PER_1M_OUTPUT
+  );
 }
 
 // ─── Harness ────────────────────────────────────────────────────────────────
@@ -111,7 +117,7 @@ export class CrossAgentRegressionHarness {
     if (config.inputTransforms.length !== config.steps.length) {
       throw new Error(
         `Chain "${config.id}": inputTransforms length (${config.inputTransforms.length}) ` +
-        `must match steps length (${config.steps.length})`,
+          `must match steps length (${config.steps.length})`,
       );
     }
     this.chains.set(config.id, config);
@@ -210,7 +216,9 @@ export class CrossAgentRegressionHarness {
       estimatedCostUsd: estimateCost(cumulativeInput, cumulativeOutput),
       totalDurationMs,
       finalOutput: lastCompleted?.output ?? null,
-      success: !shortCircuited || (shortCircuitReason?.includes('runCondition') ?? false),
+      success:
+        !shortCircuited ||
+        (shortCircuitReason?.includes('runCondition') ?? false),
     };
   }
 
@@ -229,7 +237,10 @@ export class CrossAgentRegressionHarness {
       );
     }
 
-    if (criteria.minCompletedSteps !== undefined && result.completedSteps < criteria.minCompletedSteps) {
+    if (
+      criteria.minCompletedSteps !== undefined &&
+      result.completedSteps < criteria.minCompletedSteps
+    ) {
       failures.push(
         `Expected at least ${criteria.minCompletedSteps} completed steps, got ${result.completedSteps}`,
       );
@@ -244,17 +255,26 @@ export class CrossAgentRegressionHarness {
       }
     }
 
-    if (criteria.finalOutputPredicate && !criteria.finalOutputPredicate(result.finalOutput)) {
+    if (
+      criteria.finalOutputPredicate &&
+      !criteria.finalOutputPredicate(result.finalOutput)
+    ) {
       failures.push('Final output failed acceptance predicate');
     }
 
-    if (criteria.maxTotalTokens !== undefined && result.cumulativeTokens.totalTokens > criteria.maxTotalTokens) {
+    if (
+      criteria.maxTotalTokens !== undefined &&
+      result.cumulativeTokens.totalTokens > criteria.maxTotalTokens
+    ) {
       failures.push(
         `Cumulative tokens ${result.cumulativeTokens.totalTokens} exceed max ${criteria.maxTotalTokens}`,
       );
     }
 
-    if (criteria.maxCostUsd !== undefined && result.estimatedCostUsd > criteria.maxCostUsd) {
+    if (
+      criteria.maxCostUsd !== undefined &&
+      result.estimatedCostUsd > criteria.maxCostUsd
+    ) {
       failures.push(
         `Estimated cost $${result.estimatedCostUsd.toFixed(4)} exceeds max $${criteria.maxCostUsd.toFixed(4)}`,
       );
@@ -280,12 +300,14 @@ export class CrossAgentRegressionHarness {
     return {
       totalTokens: result.cumulativeTokens.totalTokens,
       estimatedCostUsd: result.estimatedCostUsd,
-      avgTokensPerStep: completedSteps.length > 0
-        ? Math.round(result.cumulativeTokens.totalTokens / completedSteps.length)
-        : 0,
-      completionRate: result.totalSteps > 0
-        ? result.completedSteps / result.totalSteps
-        : 0,
+      avgTokensPerStep:
+        completedSteps.length > 0
+          ? Math.round(
+              result.cumulativeTokens.totalTokens / completedSteps.length,
+            )
+          : 0,
+      completionRate:
+        result.totalSteps > 0 ? result.completedSteps / result.totalSteps : 0,
       agentsInvolved: completedSteps.map((s) => s.agentId),
     };
   }
@@ -311,13 +333,13 @@ export class CrossAgentRegressionHarness {
         if (nextInput === undefined || nextInput === null) {
           failures.push(
             `Step ${i} (${config.steps[i].agentId}) -> Step ${i + 1} (${config.steps[i + 1].agentId}): ` +
-            `transform returned ${nextInput}`,
+              `transform returned ${nextInput}`,
           );
         }
       } catch (err) {
         failures.push(
           `Step ${i} (${config.steps[i].agentId}) -> Step ${i + 1} (${config.steps[i + 1].agentId}): ` +
-          `transform threw: ${(err as Error).message}`,
+            `transform threw: ${(err as Error).message}`,
         );
       }
     }

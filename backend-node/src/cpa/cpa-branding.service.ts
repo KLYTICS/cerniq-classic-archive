@@ -52,8 +52,8 @@ export class CpaBrandingService {
       secondaryColor: firm.brandSecondaryColor ?? DEFAULT_SECONDARY_COLOR,
       firmName: firm.name,
       website: firm.website ?? null,
-      reportFooterText: (firm as any).reportFooterText ?? null,
-      reportHeaderTemplate: (firm as any).reportHeaderTemplate ?? null,
+      reportFooterText: firm.reportFooterText ?? null,
+      reportHeaderTemplate: firm.reportHeaderTemplate ?? null,
     };
   }
 

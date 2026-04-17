@@ -7,8 +7,8 @@ let instances: FakeES[] = [];
 class FakeES {
   url: string;
   readyState = 0;
-  private namedListeners: Record<string, Set<Function>> = {};
-  onmessage: ((e: any) => void) | null = null;
+  private namedListeners: Record<string, Set<(e: { data: string }) => void>> = {};
+  onmessage: ((e: { data: string }) => void) | null = null;
   onopen: (() => void) | null = null;
   onerror: (() => void) | null = null;
 
@@ -25,12 +25,12 @@ class FakeES {
     });
   }
 
-  addEventListener(type: string, cb: Function) {
+  addEventListener(type: string, cb: (e: { data: string }) => void) {
     if (!this.namedListeners[type]) this.namedListeners[type] = new Set();
     this.namedListeners[type].add(cb);
   }
 
-  removeEventListener(type: string, cb: Function) {
+  removeEventListener(type: string, cb: (e: { data: string }) => void) {
     this.namedListeners[type]?.delete(cb);
   }
 

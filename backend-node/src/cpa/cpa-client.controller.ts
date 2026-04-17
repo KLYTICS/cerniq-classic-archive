@@ -48,10 +48,7 @@ export class CpaClientController {
   @ApiResponse({ status: 403, description: 'Client limit reached' })
   @ApiResponse({ status: 404, description: 'Firm or institution not found' })
   @ApiResponse({ status: 409, description: 'Already a client' })
-  async addClient(
-    @Param('firmId') firmId: string,
-    @Body() body: unknown,
-  ) {
+  async addClient(@Param('firmId') firmId: string, @Body() body: unknown) {
     const parsed = AddClientSchema.parse(body);
     return this.clientService.addClient(
       firmId,
@@ -99,10 +96,7 @@ export class CpaClientController {
   @ApiOperation({ summary: 'Bulk-add multiple client institutions' })
   @ApiParam({ name: 'firmId', description: 'CPA firm ID' })
   @ApiResponse({ status: 201, description: 'Bulk add results' })
-  async bulkAddClients(
-    @Param('firmId') firmId: string,
-    @Body() body: unknown,
-  ) {
+  async bulkAddClients(@Param('firmId') firmId: string, @Body() body: unknown) {
     const parsed = BulkAddClientsSchema.parse(body);
     return this.clientService.bulkAddClients(firmId, parsed.institutionIds);
   }
@@ -139,7 +133,10 @@ export class CpaClientController {
     );
 
     // If there are parse errors but some institutions parsed, still ingest what we can
-    if (parseResult.institutions.length === 0 && parseResult.errors.length > 0) {
+    if (
+      parseResult.institutions.length === 0 &&
+      parseResult.errors.length > 0
+    ) {
       return {
         parseResult,
         ingestionResult: null,

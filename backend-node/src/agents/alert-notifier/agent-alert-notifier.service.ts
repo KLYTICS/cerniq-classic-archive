@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { EmailService } from '../../email/email.service';
 import {
@@ -26,7 +31,9 @@ import {
 // institution, digest mode (daily summary instead of per-alert).
 
 @Injectable()
-export class AgentAlertNotifierService implements OnModuleInit, OnModuleDestroy {
+export class AgentAlertNotifierService
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(AgentAlertNotifierService.name);
   private unsubscribe?: () => void;
 
@@ -43,7 +50,10 @@ export class AgentAlertNotifierService implements OnModuleInit, OnModuleDestroy 
         const p = payload as { runId?: string } | undefined;
         if (p?.runId) {
           this.onRunCompleted(p.runId).catch((err) =>
-            this.logger.error(`alert notification failed for run ${p.runId}`, err),
+            this.logger.error(
+              `alert notification failed for run ${p.runId}`,
+              err,
+            ),
           );
         }
       },
@@ -80,14 +90,15 @@ export class AgentAlertNotifierService implements OnModuleInit, OnModuleDestroy 
         contactEmail: true,
         contactName: true,
         preferredLanguage: true,
-        workspace: { select: { owner: { select: { email: true, name: true } } } },
+        workspace: {
+          select: { owner: { select: { email: true, name: true } } },
+        },
       },
     });
     if (!institution) return;
 
     const recipientEmail =
-      institution.contactEmail ??
-      institution.workspace?.owner?.email;
+      institution.contactEmail ?? institution.workspace?.owner?.email;
     if (!recipientEmail) {
       this.logger.warn(
         `no email for institution ${run.institutionId} — skipping alert notification`,
@@ -96,9 +107,7 @@ export class AgentAlertNotifierService implements OnModuleInit, OnModuleDestroy 
     }
 
     const recipientName =
-      institution.contactName ??
-      institution.workspace?.owner?.name ??
-      'CFO';
+      institution.contactName ?? institution.workspace?.owner?.name ?? 'CFO';
     const lang = institution.preferredLanguage ?? 'es';
 
     for (const alert of alerts) {
@@ -147,7 +156,12 @@ export class AgentAlertNotifierService implements OnModuleInit, OnModuleDestroy 
     ).replace(/\/+$/, '');
     const dashboardUrl = `${frontendUrl}/agents/alerts`;
 
-    await (this.email as any).sendAgentAlert?.({
+    // Try the typed sendAgentAlert first; if the EmailService doesn't
+    // expose it yet (we're adding this method pattern), fall back to the
+    // raw Resend path. Expressed as if/else rather than `?? fallback()` so
+    // lint's `no-unused-expressions` is happy — the original form dropped
+    // the coalescing result which it considers a code smell.
+    const sent = await (this.email as any).sendAgentAlert?.({
       to: data.to,
       severity: data.severity,
       metric: data.metric,
@@ -155,16 +169,14 @@ export class AgentAlertNotifierService implements OnModuleInit, OnModuleDestroy 
       recommendation: data.recommendation,
       institutionName: data.institutionName,
       dashboardUrl,
-    }) ??
-      // Fallback: use the raw Resend send path if sendAgentAlert doesn't
-      // exist yet (we're adding this method pattern; the EmailService may
-      // not have it). This inline template follows the existing bilingual
-      // pattern from EmailService.
-      this.sendViaResendDirect(data, {
+    });
+    if (sent === null || sent === undefined) {
+      await this.sendViaResendDirect(data, {
         severityColor,
         severityLabel,
         dashboardUrl,
       });
+    }
   }
 
   private async sendViaResendDirect(

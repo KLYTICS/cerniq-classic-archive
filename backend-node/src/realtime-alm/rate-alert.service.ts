@@ -76,7 +76,9 @@ export class RateAlertService {
       const table = (this.prisma as any).rateAlertThreshold;
       if (table) {
         await table.upsert({
-          where: { institutionId_metric: { institutionId, metric: validated.metric } },
+          where: {
+            institutionId_metric: { institutionId, metric: validated.metric },
+          },
           create: threshold,
           update: threshold,
         });
@@ -94,10 +96,7 @@ export class RateAlertService {
   /**
    * Remove a threshold for a specific metric.
    */
-  async removeThreshold(
-    institutionId: string,
-    metric: string,
-  ): Promise<void> {
+  async removeThreshold(institutionId: string, metric: string): Promise<void> {
     const key = `${institutionId}:${metric}`;
     this.thresholds.delete(key);
 
@@ -135,7 +134,11 @@ export class RateAlertService {
       const currentValue = metrics[t.metric];
       if (currentValue === undefined) continue;
 
-      const breached = this.isBreached(currentValue, t.breachLevel, t.direction);
+      const breached = this.isBreached(
+        currentValue,
+        t.breachLevel,
+        t.direction,
+      );
       const warned = this.isBreached(currentValue, t.warnLevel, t.direction);
 
       if (breached) {

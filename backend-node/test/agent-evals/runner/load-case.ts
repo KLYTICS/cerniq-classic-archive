@@ -26,15 +26,11 @@ export function loadAllCases(agentDir: string): GoldenCase[] {
 }
 
 export function loadScript(agentDir: string, caseId: string): LLMScript | null {
-  const scriptPath = join(
-    CASES_DIR,
-    agentDir,
-    `${caseId}.script.ts`,
-  );
+  const scriptPath = join(CASES_DIR, agentDir, `${caseId}.script.ts`);
   if (!existsSync(scriptPath)) return null;
 
   // Dynamic require — the script file exports a default LLMScript.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+
   const mod = require(scriptPath);
   return (mod.default ?? mod) as LLMScript;
 }

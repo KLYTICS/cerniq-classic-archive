@@ -134,9 +134,7 @@ export class EnterpriseBatchService {
       const elapsed = Date.now() - batch.createdAt.getTime();
       const avgMs = elapsed / processed;
       const remainingMs = avgMs * (batch.totalItems - processed);
-      estimatedCompletionAt = new Date(
-        Date.now() + remainingMs,
-      ).toISOString();
+      estimatedCompletionAt = new Date(Date.now() + remainingMs).toISOString();
     }
 
     return { ...batch, progressPercent, estimatedCompletionAt };
@@ -161,9 +159,7 @@ export class EnterpriseBatchService {
     }
 
     // Sort by createdAt descending
-    batches.sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-    );
+    batches.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     const total = batches.length;
     const start = (page - 1) * limit;
@@ -232,8 +228,7 @@ export class EnterpriseBatchService {
 
     // Check if all items are done
     if (batch.completedItems + batch.failedItems >= batch.totalItems) {
-      batch.status =
-        batch.failedItems > 0 ? 'PARTIAL' : 'COMPLETED';
+      batch.status = batch.failedItems > 0 ? 'PARTIAL' : 'COMPLETED';
       batch.completedAt = new Date();
       this.logger.log({
         msg: 'Batch finished',
@@ -274,8 +269,7 @@ export class EnterpriseBatchService {
 
     // Check if all items are done
     if (batch.completedItems + batch.failedItems >= batch.totalItems) {
-      batch.status =
-        batch.completedItems === 0 ? 'FAILED' : 'PARTIAL';
+      batch.status = batch.completedItems === 0 ? 'FAILED' : 'PARTIAL';
       batch.completedAt = new Date();
       this.logger.log({
         msg: 'Batch finished with failures',

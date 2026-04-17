@@ -5,7 +5,10 @@ describe('AgentTenantStreamController', () => {
   let controller: AgentTenantStreamController;
   let mockBus: any;
   let mockPrisma: any;
-  let busHandlers: Map<string, Array<(event: string, payload: unknown) => void>>;
+  let busHandlers: Map<
+    string,
+    Array<(event: string, payload: unknown) => void>
+  >;
 
   const INST_ID = 'inst-001';
 
@@ -20,8 +23,8 @@ describe('AgentTenantStreamController', () => {
         }
         list.push(handler);
         return () => {
-          const idx = list!.indexOf(handler);
-          if (idx >= 0) list!.splice(idx, 1);
+          const idx = list.indexOf(handler);
+          if (idx >= 0) list.splice(idx, 1);
         };
       }),
     };

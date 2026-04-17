@@ -77,11 +77,15 @@ export class MarketDataController {
   ): Promise<{ data: MarketDataSnapshot[] }> {
     const queryParsed = HistoryQuerySchema.safeParse({ from, to });
     // Use defaults if query is malformed
-    const fromDate = from ? new Date(from) : new Date(Date.now() - 30 * 86_400_000);
+    const fromDate = from
+      ? new Date(from)
+      : new Date(Date.now() - 30 * 86_400_000);
     const toDate = to ? new Date(to) : new Date();
 
     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-      throw new BadRequestException('Invalid date format for from/to parameters');
+      throw new BadRequestException(
+        'Invalid date format for from/to parameters',
+      );
     }
 
     const snapshots = await this.marketDataFeed.getHistoricalRates(

@@ -69,9 +69,7 @@ export function scoreToolCoverage(
 
 // ─── 2. Dollar Quantification (25%) ─────────────────────────────────────────
 
-export function scoreDollarQuantification(
-  output: unknown,
-): DimensionResult {
+export function scoreDollarQuantification(output: unknown): DimensionResult {
   const evidence: string[] = [];
   const obj = output as Record<string, unknown>;
 
@@ -95,7 +93,8 @@ export function scoreDollarQuantification(
 
 // ─── 3. Specificity (20%) ───────────────────────────────────────────────────
 
-const SPECIFICITY_PATTERN = /(\$[\d,.]+[MKB]?|[\d.]+%|[\d.]+\s*bps|[\d.]+\s*basis)/i;
+const SPECIFICITY_PATTERN =
+  /(\$[\d,.]+[MKB]?|[\d.]+%|[\d.]+\s*bps|[\d.]+\s*basis)/i;
 
 export function scoreSpecificity(output: unknown): DimensionResult {
   const evidence: string[] = [];
@@ -137,10 +136,7 @@ export function scoreRegulatoryRef(output: unknown): DimensionResult {
     decisionQueue?: { regulatoryRef?: string }[];
   };
 
-  const items = [
-    ...(obj?.topRisks ?? []),
-    ...(obj?.decisionQueue ?? []),
-  ];
+  const items = [...(obj?.topRisks ?? []), ...(obj?.decisionQueue ?? [])];
 
   if (items.length === 0) {
     return { score: 0, evidence: ['no items to check'] };

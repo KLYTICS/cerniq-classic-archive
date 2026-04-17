@@ -167,7 +167,14 @@ describe('PipelineHealthService', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             status: {
-              in: ['NEW', 'CONTACTED', 'DEMO_SCHEDULED', 'DEMO_COMPLETED', 'PROPOSAL_SENT', 'NEGOTIATING'],
+              in: [
+                'NEW',
+                'CONTACTED',
+                'DEMO_SCHEDULED',
+                'DEMO_COMPLETED',
+                'PROPOSAL_SENT',
+                'NEGOTIATING',
+              ],
             },
           }),
         }),

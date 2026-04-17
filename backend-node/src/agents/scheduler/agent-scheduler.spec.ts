@@ -18,7 +18,11 @@ describe('AgentSchedulerService', () => {
     mockCostBreaker = {
       isAllowed: jest.fn().mockResolvedValue({ allowed: true, state: 'OK' }),
     };
-    service = new AgentSchedulerService(mockPrisma, mockTrigger, mockCostBreaker);
+    service = new AgentSchedulerService(
+      mockPrisma,
+      mockTrigger,
+      mockCostBreaker,
+    );
     service.onModuleInit();
   });
 
@@ -45,13 +49,12 @@ describe('AgentSchedulerService', () => {
       { institutionId: 'inst-1', organizationId: null },
       { institutionId: 'inst-2', organizationId: null },
     ]);
-    mockCostBreaker.isAllowed.mockImplementation(
-      (id: string) =>
-        Promise.resolve(
-          id === 'inst-2'
-            ? { allowed: false, state: 'BLOCKED' }
-            : { allowed: true, state: 'OK' },
-        ),
+    mockCostBreaker.isAllowed.mockImplementation((id: string) =>
+      Promise.resolve(
+        id === 'inst-2'
+          ? { allowed: false, state: 'BLOCKED' }
+          : { allowed: true, state: 'OK' },
+      ),
     );
 
     const result = await service.dispatchForAllInstitutions('daily');
@@ -73,9 +76,8 @@ describe('AgentSchedulerService', () => {
       { institutionId: 'inst-1', organizationId: null },
       { institutionId: 'inst-2', organizationId: null },
     ]);
-    mockTrigger.runScheduledMonitor.mockImplementation(
-      (id: string) =>
-        id === 'inst-2' ? Promise.reject(new Error('boom')) : Promise.resolve(),
+    mockTrigger.runScheduledMonitor.mockImplementation((id: string) =>
+      id === 'inst-2' ? Promise.reject(new Error('boom')) : Promise.resolve(),
     );
 
     const result = await service.dispatchForAllInstitutions('monthly');

@@ -39,9 +39,11 @@ function isFiniteNumber(value: unknown): value is number {
 function buildSyntheticOutput(c: StressTestGoldenCase) {
   const now = new Date().toISOString();
   const midNii =
-    (c.expectedOutput.niiImpactRange[0] + c.expectedOutput.niiImpactRange[1]) / 2;
+    (c.expectedOutput.niiImpactRange[0] + c.expectedOutput.niiImpactRange[1]) /
+    2;
   const midEve =
-    (c.expectedOutput.eveChangeRange[0] + c.expectedOutput.eveChangeRange[1]) / 2;
+    (c.expectedOutput.eveChangeRange[0] + c.expectedOutput.eveChangeRange[1]) /
+    2;
   const verdict = c.expectedOutput.verdictOneOf[0] as 'PASS' | 'WARN' | 'FAIL';
 
   const buildScenario = (id: string, name: string) => ({
@@ -126,114 +128,126 @@ describe('Stress Testing Agent — Golden Cases', () => {
   // ── Schema shape validation (synthetic output) ─────────────────────────
 
   describe('Zod schema shape validation', () => {
-    it.each(
-      STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )('%s — synthetic output passes StressTestOutputSchema', (_name, goldenCase) => {
-      const output = buildSyntheticOutput(goldenCase);
-      const result = StressTestOutputSchema.safeParse(output);
+    it.each(STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const))(
+      '%s — synthetic output passes StressTestOutputSchema',
+      (_name, goldenCase) => {
+        const output = buildSyntheticOutput(goldenCase);
+        const result = StressTestOutputSchema.safeParse(output);
 
-      if (!result.success) {
-        // Pretty-print Zod errors for debugging
-        const formatted = result.error.issues
-          .map((i) => `  ${i.path.join('.')}: ${i.message}`)
-          .join('\n');
-        fail(`Schema validation failed for "${goldenCase.name}":\n${formatted}`);
-      }
+        if (!result.success) {
+          // Pretty-print Zod errors for debugging
+          const formatted = result.error.issues
+            .map((i) => `  ${i.path.join('.')}: ${i.message}`)
+            .join('\n');
+          fail(
+            `Schema validation failed for "${goldenCase.name}":\n${formatted}`,
+          );
+        }
 
-      expect(result.success).toBe(true);
-    });
+        expect(result.success).toBe(true);
+      },
+    );
   });
 
   // ── Range assertions on synthetic outputs ──────────────────────────────
 
   describe('numeric range assertions', () => {
-    it.each(
-      STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )('%s — NII impact within expected range', (_name, goldenCase) => {
-      const output = buildSyntheticOutput(goldenCase);
-      const niiImpactM = output.scenarios[0].niiImpact / 1_000_000;
-      expect(
-        inRange(niiImpactM, goldenCase.expectedOutput.niiImpactRange),
-      ).toBe(true);
-    });
+    it.each(STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const))(
+      '%s — NII impact within expected range',
+      (_name, goldenCase) => {
+        const output = buildSyntheticOutput(goldenCase);
+        const niiImpactM = output.scenarios[0].niiImpact / 1_000_000;
+        expect(
+          inRange(niiImpactM, goldenCase.expectedOutput.niiImpactRange),
+        ).toBe(true);
+      },
+    );
 
-    it.each(
-      STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )('%s — EVE change within expected range', (_name, goldenCase) => {
-      const output = buildSyntheticOutput(goldenCase);
-      const eveChangePct = output.scenarios[0].eveImpactPct;
-      expect(
-        inRange(eveChangePct, goldenCase.expectedOutput.eveChangeRange),
-      ).toBe(true);
-    });
+    it.each(STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const))(
+      '%s — EVE change within expected range',
+      (_name, goldenCase) => {
+        const output = buildSyntheticOutput(goldenCase);
+        const eveChangePct = output.scenarios[0].eveImpactPct;
+        expect(
+          inRange(eveChangePct, goldenCase.expectedOutput.eveChangeRange),
+        ).toBe(true);
+      },
+    );
 
-    it.each(
-      STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )('%s — verdict is in allowed set', (_name, goldenCase) => {
-      const output = buildSyntheticOutput(goldenCase);
-      expect(goldenCase.expectedOutput.verdictOneOf).toContain(
-        output.worstCase.classification,
-      );
-    });
+    it.each(STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const))(
+      '%s — verdict is in allowed set',
+      (_name, goldenCase) => {
+        const output = buildSyntheticOutput(goldenCase);
+        expect(goldenCase.expectedOutput.verdictOneOf).toContain(
+          output.worstCase.classification,
+        );
+      },
+    );
   });
 
   // ── Numeric safety (boundary & edge cases) ─────────────────────────────
 
   describe('numeric safety', () => {
-    it.each(
-      STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )('%s — all numeric outputs are finite', (_name, goldenCase) => {
-      const output = buildSyntheticOutput(goldenCase);
+    it.each(STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const))(
+      '%s — all numeric outputs are finite',
+      (_name, goldenCase) => {
+        const output = buildSyntheticOutput(goldenCase);
 
-      for (const scenario of output.scenarios) {
-        expect(isFiniteNumber(scenario.niiImpact)).toBe(true);
-        expect(isFiniteNumber(scenario.niiImpactPct)).toBe(true);
-        expect(isFiniteNumber(scenario.eveImpact)).toBe(true);
-        expect(isFiniteNumber(scenario.eveImpactPct)).toBe(true);
-        expect(isFiniteNumber(scenario.totalImpact)).toBe(true);
-        if (scenario.depositImpact !== undefined) {
-          expect(isFiniteNumber(scenario.depositImpact)).toBe(true);
+        for (const scenario of output.scenarios) {
+          expect(isFiniteNumber(scenario.niiImpact)).toBe(true);
+          expect(isFiniteNumber(scenario.niiImpactPct)).toBe(true);
+          expect(isFiniteNumber(scenario.eveImpact)).toBe(true);
+          expect(isFiniteNumber(scenario.eveImpactPct)).toBe(true);
+          expect(isFiniteNumber(scenario.totalImpact)).toBe(true);
+          if (scenario.depositImpact !== undefined) {
+            expect(isFiniteNumber(scenario.depositImpact)).toBe(true);
+          }
+          if (scenario.creditLossImpact !== undefined) {
+            expect(isFiniteNumber(scenario.creditLossImpact)).toBe(true);
+          }
         }
-        if (scenario.creditLossImpact !== undefined) {
-          expect(isFiniteNumber(scenario.creditLossImpact)).toBe(true);
-        }
-      }
 
-      expect(isFiniteNumber(output.worstCase.totalImpact)).toBe(true);
-    });
+        expect(isFiniteNumber(output.worstCase.totalImpact)).toBe(true);
+      },
+    );
   });
 
   // ── ScenarioClassification enum validation ─────────────────────────────
 
   describe('classification enum', () => {
-    it.each(
-      STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )('%s — verdictOneOf contains only valid classifications', (_name, goldenCase) => {
-      for (const v of goldenCase.expectedOutput.verdictOneOf) {
-        expect(ScenarioClassification.safeParse(v).success).toBe(true);
-      }
-    });
+    it.each(STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const))(
+      '%s — verdictOneOf contains only valid classifications',
+      (_name, goldenCase) => {
+        for (const v of goldenCase.expectedOutput.verdictOneOf) {
+          expect(ScenarioClassification.safeParse(v).success).toBe(true);
+        }
+      },
+    );
   });
 
   // ── Expected range coherence ───────────────────────────────────────────
 
   describe('golden case range coherence', () => {
-    it.each(
-      STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )('%s — NII range min <= max', (_name, goldenCase) => {
-      const [min, max] = goldenCase.expectedOutput.niiImpactRange;
-      expect(min).toBeLessThanOrEqual(max);
-    });
+    it.each(STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const))(
+      '%s — NII range min <= max',
+      (_name, goldenCase) => {
+        const [min, max] = goldenCase.expectedOutput.niiImpactRange;
+        expect(min).toBeLessThanOrEqual(max);
+      },
+    );
+
+    it.each(STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const))(
+      '%s — EVE range min <= max',
+      (_name, goldenCase) => {
+        const [min, max] = goldenCase.expectedOutput.eveChangeRange;
+        expect(min).toBeLessThanOrEqual(max);
+      },
+    );
 
     it.each(
-      STRESS_TESTING_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )('%s — EVE range min <= max', (_name, goldenCase) => {
-      const [min, max] = goldenCase.expectedOutput.eveChangeRange;
-      expect(min).toBeLessThanOrEqual(max);
-    });
-
-    it.each(
-      STRESS_TESTING_GOLDEN_CASES.filter((c) => c.expectedOutput.lcrAfterRange).map((c) => [c.name, c] as const),
+      STRESS_TESTING_GOLDEN_CASES.filter(
+        (c) => c.expectedOutput.lcrAfterRange,
+      ).map((c) => [c.name, c] as const),
     )('%s — LCR range min <= max', (_name, goldenCase) => {
       const [min, max] = goldenCase.expectedOutput.lcrAfterRange!;
       expect(min).toBeLessThanOrEqual(max);
@@ -241,7 +255,9 @@ describe('Stress Testing Agent — Golden Cases', () => {
     });
 
     it.each(
-      STRESS_TESTING_GOLDEN_CASES.filter((c) => c.expectedOutput.durationGapRange).map((c) => [c.name, c] as const),
+      STRESS_TESTING_GOLDEN_CASES.filter(
+        (c) => c.expectedOutput.durationGapRange,
+      ).map((c) => [c.name, c] as const),
     )('%s — duration gap range min <= max', (_name, goldenCase) => {
       const [min, max] = goldenCase.expectedOutput.durationGapRange!;
       expect(min).toBeLessThanOrEqual(max);
@@ -266,9 +282,7 @@ describe('Stress Testing Agent — Golden Cases', () => {
     it.todo(
       'Multi-shock combined — live agent compounds shocks without double-counting',
     );
-    it.todo(
-      'Zero rate environment — live agent respects floor constraints',
-    );
+    it.todo('Zero rate environment — live agent respects floor constraints');
     it.todo(
       'Extreme +400bps — live agent produces finite outputs at max shock',
     );

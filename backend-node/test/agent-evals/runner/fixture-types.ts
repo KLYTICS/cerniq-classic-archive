@@ -17,7 +17,10 @@ export interface EvalResult {
   agentId: string;
   score: number;
   pass: boolean;
-  breakdown: Record<string, { score: number; weight: number; evidence: string[] }>;
+  breakdown: Record<
+    string,
+    { score: number; weight: number; evidence: string[] }
+  >;
   durationMs: number;
   toolsCalled: string[];
   error?: string;

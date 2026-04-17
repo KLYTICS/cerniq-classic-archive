@@ -21,7 +21,9 @@ export class GoldenRunnerService {
   private readonly logger = new Logger(GoldenRunnerService.name);
 
   constructor(
-    @Optional() @Inject(AGENT_EXECUTOR) private readonly executor: AgentExecutor | null,
+    @Optional()
+    @Inject(AGENT_EXECUTOR)
+    private readonly executor: AgentExecutor | null,
     private readonly scorer: RegressionScorerService,
     private readonly hedgeDetector: HedgeLanguageDetector,
   ) {}

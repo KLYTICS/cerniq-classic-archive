@@ -18,13 +18,17 @@ describe('MockLlmBridge', () => {
     const mock = new MockLlmBridge(testScript);
 
     const turn1 = await mock.turn({
-      system: 'test', messages: [], tools: [],
+      system: 'test',
+      messages: [],
+      tools: [],
     });
     expect(turn1.stopReason).toBe('tool_use');
     expect(turn1.toolCalls[0].name).toBe('runFullSwarm');
 
     const turn2 = await mock.turn({
-      system: 'test', messages: [], tools: [],
+      system: 'test',
+      messages: [],
+      tools: [],
     });
     expect(turn2.stopReason).toBe('end_turn');
     expect(turn2.text).toContain('done');
@@ -178,24 +182,37 @@ describe('runBatch', () => {
     const goodOutput = {
       topRisks: [
         {
-          dollarImpact: 100, finding: '$100K risk', findingEs: '$100K riesgo',
+          dollarImpact: 100,
+          finding: '$100K risk',
+          findingEs: '$100K riesgo',
           regulatoryRef: 'REG-1',
         },
       ],
       decisionQueue: [
         {
-          action: 'Do $50K thing', actionEs: 'Hacer cosa de $50K',
-          expectedImpact: '+5bps', regulatoryRef: 'REG-1',
+          action: 'Do $50K thing',
+          actionEs: 'Hacer cosa de $50K',
+          expectedImpact: '+5bps',
+          regulatoryRef: 'REG-1',
         },
       ],
-      brief: 'test', briefEs: 'prueba',
+      brief: 'test',
+      briefEs: 'prueba',
     };
 
     const cases = [
       {
         goldenCase: {
-          id: 'c1', name: 'c1', agentId: 'ALM', description: '', input: {},
-          expectedFindings: { minToolsCalled: 6, requiresBilingual: true, schemaValidator: () => true },
+          id: 'c1',
+          name: 'c1',
+          agentId: 'ALM',
+          description: '',
+          input: {},
+          expectedFindings: {
+            minToolsCalled: 6,
+            requiresBilingual: true,
+            schemaValidator: () => true,
+          },
         },
         actualOutput: goodOutput,
         auditTrace: trace,
@@ -213,7 +230,10 @@ describe('runBatch', () => {
 
 describe('loadCase', () => {
   it('loads a golden case from disk', () => {
-    const c = loadCase('alm-decision', '001-high-rate-risk-adequate-liquidity.json');
+    const c = loadCase(
+      'alm-decision',
+      '001-high-rate-risk-adequate-liquidity.json',
+    );
     expect(c.id).toBe('alm-001');
     expect(c.agentId).toBe('ALM_DECISION');
     expect(c.expectedFindings.minToolsCalled).toBe(6);

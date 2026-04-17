@@ -21,10 +21,7 @@ import {
   ListRunsQuerySchema,
   parseOrThrow,
 } from './dto/agent-api.dto';
-import type {
-  AgentCostSummary,
-  AgentRunListResponse,
-} from './dto/api-types';
+import type { AgentCostSummary, AgentRunListResponse } from './dto/api-types';
 import { AgentCostCircuitBreakerService } from '../queue/agent/agent-cost-circuit-breaker.service';
 import { AgentRunnerService } from '../agents/runner/agent-runner.service';
 import { AgentAuditService } from '../agents/runner/agent-audit.service';
@@ -59,7 +56,10 @@ export class AgentRunsController {
   @ApiOperation({ summary: 'Trigger an agent run for the institution' })
   @ApiParam({ name: 'institutionId', description: 'Target institution UUID' })
   @ApiResponse({ status: 201, description: 'Agent run created and queued' })
-  @ApiResponse({ status: 400, description: 'Invalid input — Zod validation errors returned' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid input — Zod validation errors returned',
+  })
   async triggerRun(
     @Param('institutionId') institutionId: string,
     @Body() body: unknown,
@@ -86,9 +86,11 @@ export class AgentRunsController {
         headerKey?.trim() ||
         req.idempotencyKey ||
         createHash('sha256')
-          .update(`${req.agentId}|${institutionId}|${JSON.stringify(req.input ?? {})}`)
+          .update(
+            `${req.agentId}|${institutionId}|${JSON.stringify(req.input ?? {})}`,
+          )
           .digest('hex')
-          .slice(0, 32) as string,
+          .slice(0, 32),
       input: req.input,
     });
   }
@@ -96,8 +98,14 @@ export class AgentRunsController {
   @Get('runs/:runId')
   @ApiOperation({ summary: 'Get a single agent run by ID' })
   @ApiParam({ name: 'runId', description: 'Agent run UUID' })
-  @ApiResponse({ status: 200, description: 'Full run record with output and metadata' })
-  @ApiResponse({ status: 404, description: 'Run not found or belongs to another institution' })
+  @ApiResponse({
+    status: 200,
+    description: 'Full run record with output and metadata',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Run not found or belongs to another institution',
+  })
   async getRunById(
     @Param('institutionId') institutionId: string,
     @Param('runId') runId: string,
@@ -112,9 +120,14 @@ export class AgentRunsController {
   }
 
   @Get('runs/:runId/trace')
-  @ApiOperation({ summary: 'Get the audit trace (tool calls, LLM turns) for a run' })
+  @ApiOperation({
+    summary: 'Get the audit trace (tool calls, LLM turns) for a run',
+  })
   @ApiParam({ name: 'runId', description: 'Agent run UUID' })
-  @ApiResponse({ status: 200, description: 'Ordered list of audit log entries with SHA-256 chain' })
+  @ApiResponse({
+    status: 200,
+    description: 'Ordered list of audit log entries with SHA-256 chain',
+  })
   async getRunTrace(
     @Param('institutionId') institutionId: string,
     @Param('runId') runId: string,
@@ -130,21 +143,47 @@ export class AgentRunsController {
   }
 
   @Get('schedule')
-  @ApiOperation({ summary: 'List scheduled agent cadences (daily/weekly/monthly)' })
-  @ApiResponse({ status: 200, description: 'Array of schedule definitions with cron expressions' })
+  @ApiOperation({
+    summary: 'List scheduled agent cadences (daily/weekly/monthly)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Array of schedule definitions with cron expressions',
+  })
   async getSchedule() {
     return {
       schedules: [
-        { agentId: 'RISK_MONITOR', cadence: 'daily',   cron: '0 0 9 * * *',   timezone: 'America/Puerto_Rico', enabled: !process.env.AGENT_SCHEDULER_DISABLED },
-        { agentId: 'RISK_MONITOR', cadence: 'weekly',  cron: '0 0 9 * * 1',   timezone: 'America/Puerto_Rico', enabled: !process.env.AGENT_SCHEDULER_DISABLED },
-        { agentId: 'RISK_MONITOR', cadence: 'monthly', cron: '0 0 9 1 * *',   timezone: 'America/Puerto_Rico', enabled: !process.env.AGENT_SCHEDULER_DISABLED },
+        {
+          agentId: 'RISK_MONITOR',
+          cadence: 'daily',
+          cron: '0 0 9 * * *',
+          timezone: 'America/Puerto_Rico',
+          enabled: !process.env.AGENT_SCHEDULER_DISABLED,
+        },
+        {
+          agentId: 'RISK_MONITOR',
+          cadence: 'weekly',
+          cron: '0 0 9 * * 1',
+          timezone: 'America/Puerto_Rico',
+          enabled: !process.env.AGENT_SCHEDULER_DISABLED,
+        },
+        {
+          agentId: 'RISK_MONITOR',
+          cadence: 'monthly',
+          cron: '0 0 9 1 * *',
+          timezone: 'America/Puerto_Rico',
+          enabled: !process.env.AGENT_SCHEDULER_DISABLED,
+        },
       ],
     };
   }
 
   @Get('runs')
   @ApiOperation({ summary: 'List agent runs with keyset pagination' })
-  @ApiResponse({ status: 200, description: 'Paginated run list with nextCursor' })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated run list with nextCursor',
+  })
   async listRuns(
     @Param('institutionId') institutionId: string,
     @Query() rawQuery: unknown,
@@ -222,7 +261,10 @@ export class AgentRunsController {
 
   @Get('cost')
   @ApiOperation({ summary: 'Get agent cost summary for a billing month' })
-  @ApiResponse({ status: 200, description: 'Cost breakdown by agent, total tokens, budget status' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cost breakdown by agent, total tokens, budget status',
+  })
   async cost(
     @Param('institutionId') institutionId: string,
     @Query() rawQuery: unknown,
@@ -255,7 +297,15 @@ export class AgentRunsController {
     }));
 
     const totals = byAgent.reduce(
-      (acc: { totalRuns: number; totalCostUsdCents: number; totalInputTokens: number; totalOutputTokens: number }, r: (typeof byAgent)[number]) => {
+      (
+        acc: {
+          totalRuns: number;
+          totalCostUsdCents: number;
+          totalInputTokens: number;
+          totalOutputTokens: number;
+        },
+        r: (typeof byAgent)[number],
+      ) => {
         acc.totalRuns += r.runs;
         acc.totalCostUsdCents += r.costUsdCents;
         acc.totalInputTokens += r.inputTokens;

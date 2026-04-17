@@ -68,9 +68,11 @@ export function scoreOffline(input: OfflineEvalInput): EvalResult {
 /**
  * Run a batch of offline evals and produce a summary.
  */
-export function runBatch(
-  cases: OfflineEvalInput[],
-): { results: EvalResult[]; avgScore: number; allPass: boolean } {
+export function runBatch(cases: OfflineEvalInput[]): {
+  results: EvalResult[];
+  avgScore: number;
+  allPass: boolean;
+} {
   const results = cases.map(scoreOffline);
   const avgScore =
     results.length > 0

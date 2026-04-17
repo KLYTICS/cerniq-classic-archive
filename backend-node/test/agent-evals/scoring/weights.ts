@@ -2,7 +2,11 @@
  * Composite scorer — weighted roll-up of all 6 dimensions (Vol2 §Testing).
  */
 
-import type { DimensionResult, AuditStep, ExpectedFindings } from './dimensions';
+import type {
+  DimensionResult,
+  AuditStep,
+  ExpectedFindings,
+} from './dimensions';
 import {
   scoreToolCoverage,
   scoreDollarQuantification,
@@ -24,13 +28,13 @@ export interface DimensionWeight {
 export const DEFAULT_WEIGHTS: DimensionWeight = {
   toolCoverage: 0.25,
   dollarQuantification: 0.25,
-  specificity: 0.20,
+  specificity: 0.2,
   regulatoryRef: 0.15,
-  bilingual: 0.10,
+  bilingual: 0.1,
   formatCompliance: 0.05,
 };
 
-export const PASS_THRESHOLD = 0.80;
+export const PASS_THRESHOLD = 0.8;
 export const REGRESSION_DROP_THRESHOLD = 0.05;
 
 export interface DimensionBreakdown {
@@ -54,9 +58,7 @@ export function scoreAgentRun(
 ): CompositeScore {
   const weightSum = Object.values(weights).reduce((a, b) => a + b, 0);
   if (Math.abs(weightSum - 1.0) > 0.001) {
-    throw new Error(
-      `weights must sum to 1.0, got ${weightSum.toFixed(4)}`,
-    );
+    throw new Error(`weights must sum to 1.0, got ${weightSum.toFixed(4)}`);
   }
 
   const dims: Record<keyof DimensionWeight, DimensionResult> = {

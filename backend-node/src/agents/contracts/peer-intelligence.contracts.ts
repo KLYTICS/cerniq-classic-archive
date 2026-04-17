@@ -10,8 +10,12 @@ export const TrendSchema = z.enum(['improving', 'stable', 'deteriorating']);
 export const PeerMetricSchema = z.object({
   metric: z.string().min(1),
   category: z.enum([
-    'PROFITABILITY', 'CAPITAL', 'ASSET_QUALITY',
-    'LIQUIDITY', 'GROWTH', 'PRICING',
+    'PROFITABILITY',
+    'CAPITAL',
+    'ASSET_QUALITY',
+    'LIQUIDITY',
+    'GROWTH',
+    'PRICING',
   ]),
   institutionValue: z.number(),
   peerMedian: z.number(),
@@ -47,14 +51,18 @@ export const PeerIntelligenceOutputSchema = z.object({
     }),
   }),
   performanceOverview: z.array(PeerMetricSchema).min(6),
-  wins: z.array(z.object({
-    metric: z.string().min(1),
-    movement: z.string().min(1),
-  })),
-  urgentGaps: z.array(z.object({
-    metric: z.string().min(1),
-    movement: z.string().min(1),
-  })),
+  wins: z.array(
+    z.object({
+      metric: z.string().min(1),
+      movement: z.string().min(1),
+    }),
+  ),
+  urgentGaps: z.array(
+    z.object({
+      metric: z.string().min(1),
+      movement: z.string().min(1),
+    }),
+  ),
   competitiveGaps: z.array(CompetitiveGapSchema),
   marketIntelligence: z.object({
     rateEnvironment: z.string().min(1),
@@ -66,4 +74,6 @@ export const PeerIntelligenceOutputSchema = z.object({
   summaryEs: z.string().min(1),
   auditTraceId: z.string().min(1),
 });
-export type PeerIntelligenceOutput = z.infer<typeof PeerIntelligenceOutputSchema>;
+export type PeerIntelligenceOutput = z.infer<
+  typeof PeerIntelligenceOutputSchema
+>;

@@ -1,4 +1,7 @@
-import type { AgentType, AgentAuditLogReadModel } from '../agent-trust/contracts';
+import type {
+  AgentType,
+  AgentAuditLogReadModel,
+} from '../agent-trust/contracts';
 
 /**
  * Shape of a single golden-case fixture for the regression harness

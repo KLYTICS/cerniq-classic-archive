@@ -1,7 +1,4 @@
-import {
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { CpaFirmService } from './cpa-firm.service';
 import type { CreateCpaFirmDto } from './cpa.dto';
 

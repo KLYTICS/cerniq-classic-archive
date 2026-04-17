@@ -123,8 +123,9 @@ export class CossecIngestController {
   ) {
     this.verifyAdmin(adminKey);
 
-    const findings =
-      await this.ingestService.getInstitutionFindings(prospectInstitutionId);
+    const findings = await this.ingestService.getInstitutionFindings(
+      prospectInstitutionId,
+    );
 
     return {
       prospectInstitutionId,
@@ -159,9 +160,7 @@ export class CossecIngestController {
     ];
 
     const categoryStats = await Promise.all(
-      categories.map((cat) =>
-        this.ingestService.getFindingsByCategory(cat),
-      ),
+      categories.map((cat) => this.ingestService.getFindingsByCategory(cat)),
     );
 
     // Filter out categories with no findings

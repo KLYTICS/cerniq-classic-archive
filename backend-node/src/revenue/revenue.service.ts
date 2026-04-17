@@ -38,13 +38,14 @@ export class RevenueService {
     mrr: Prisma.Decimal;
     activeSubscriptionCount: number;
   }> {
-    const activeSubs: Array<{ tier: string }> = await this.prisma.subscription.findMany({
-      where: {
-        status: 'active',
-        tier: { in: ['monthly', 'annual', 'partner'] },
-      },
-      select: { tier: true },
-    });
+    const activeSubs: Array<{ tier: string }> =
+      await this.prisma.subscription.findMany({
+        where: {
+          status: 'active',
+          tier: { in: ['monthly', 'annual', 'partner'] },
+        },
+        select: { tier: true },
+      });
 
     let mrrCents = 0;
     for (const sub of activeSubs) {
@@ -113,7 +114,12 @@ export class RevenueService {
         ? new Prisma.Decimal(cancelled).div(totalAtStart).mul(100)
         : new Prisma.Decimal(0);
 
-    return { cancelledCount: cancelled, pastDueCount: pastDue, totalAtStart, churnRate };
+    return {
+      cancelledCount: cancelled,
+      pastDueCount: pastDue,
+      totalAtStart,
+      churnRate,
+    };
   }
 
   // ── Revenue Timeline ────────────────────────────────────────────────
@@ -126,26 +132,38 @@ export class RevenueService {
    */
   async getRevenueTimeline(
     months: number,
-  ): Promise<Array<{ month: string; mrr: Prisma.Decimal; activeCount: number }>> {
-    const timeline: Array<{ month: string; mrr: Prisma.Decimal; activeCount: number }> = [];
+  ): Promise<
+    Array<{ month: string; mrr: Prisma.Decimal; activeCount: number }>
+  > {
+    const timeline: Array<{
+      month: string;
+      mrr: Prisma.Decimal;
+      activeCount: number;
+    }> = [];
     const now = new Date();
 
     for (let i = months - 1; i >= 0; i--) {
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
+      const endOfMonth = new Date(
+        now.getFullYear(),
+        now.getMonth() - i + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
       const label = `${endOfMonth.getFullYear()}-${String(endOfMonth.getMonth() + 1).padStart(2, '0')}`;
 
-      const activeSubs: Array<{ tier: string }> = await this.prisma.subscription.findMany({
-        where: {
-          status: 'active',
-          tier: { in: ['monthly', 'annual', 'partner'] },
-          createdAt: { lte: endOfMonth },
-          OR: [
-            { cancelledAt: null },
-            { cancelledAt: { gt: endOfMonth } },
-          ],
-        },
-        select: { tier: true },
-      });
+      const activeSubs: Array<{ tier: string }> =
+        await this.prisma.subscription.findMany({
+          where: {
+            status: 'active',
+            tier: { in: ['monthly', 'annual', 'partner'] },
+            createdAt: { lte: endOfMonth },
+            OR: [{ cancelledAt: null }, { cancelledAt: { gt: endOfMonth } }],
+          },
+          select: { tier: true },
+        });
 
       let mrrCents = 0;
       for (const sub of activeSubs) {
@@ -169,12 +187,18 @@ export class RevenueService {
    * Groups subscriptions by creation month, counts how many are still active.
    */
   async getCohortRetention(): Promise<
-    Array<{ cohort: string; total: number; retained: number; retentionRate: Prisma.Decimal }>
+    Array<{
+      cohort: string;
+      total: number;
+      retained: number;
+      retentionRate: Prisma.Decimal;
+    }>
   > {
-    const subs: Array<{ createdAt: Date; status: string }> = await this.prisma.subscription.findMany({
-      where: { tier: { in: ['monthly', 'annual', 'partner'] } },
-      select: { createdAt: true, status: true },
-    });
+    const subs: Array<{ createdAt: Date; status: string }> =
+      await this.prisma.subscription.findMany({
+        where: { tier: { in: ['monthly', 'annual', 'partner'] } },
+        select: { createdAt: true, status: true },
+      });
 
     const cohortMap = new Map<string, { total: number; retained: number }>();
     for (const sub of subs) {

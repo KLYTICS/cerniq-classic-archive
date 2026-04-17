@@ -40,9 +40,7 @@ export class CapitalAdequacyAdapterService {
         .filter(
           (i: any) =>
             i.category === category &&
-            subcategories.some((s) =>
-              i.subcategory?.toLowerCase().includes(s),
-            ),
+            subcategories.some((s) => i.subcategory?.toLowerCase().includes(s)),
         )
         .reduce((s: number, i: any) => s + Number(i.balance || 0), 0);
 
@@ -60,13 +58,14 @@ export class CapitalAdequacyAdapterService {
     // CET1 ≈ undivided earnings + regular reserves
     // Additional Tier 1 ≈ secondary capital (subordinated debt)
     // Tier 2 ≈ allowance for loan losses (up to 1.25% of RWA)
-    const cet1Capital = sum('equity', [
-      'undivided',
-      'retained',
-      'reserve',
-      'surplus',
-      'earnings',
-    ]) || equity * 0.85;
+    const cet1Capital =
+      sum('equity', [
+        'undivided',
+        'retained',
+        'reserve',
+        'surplus',
+        'earnings',
+      ]) || equity * 0.85;
 
     const additionalTier1 = sum('liability', [
       'subordinated',

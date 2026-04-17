@@ -22,16 +22,10 @@ function getPepper(): string {
 }
 
 export function hashApiKey(token: string): string {
-  return crypto
-    .createHmac('sha256', getPepper())
-    .update(token)
-    .digest('hex');
+  return crypto.createHmac('sha256', getPepper()).update(token).digest('hex');
 }
 
-export function hashApiKeyTimingSafe(
-  token: string,
-  expected: string,
-): boolean {
+export function hashApiKeyTimingSafe(token: string, expected: string): boolean {
   const computed = hashApiKey(token);
   if (computed.length !== expected.length) return false;
   return crypto.timingSafeEqual(

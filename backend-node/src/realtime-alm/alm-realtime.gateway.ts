@@ -87,8 +87,7 @@ export class AlmRealtimeGateway
   handleConnection(client: Socket): void {
     // Validate auth token from handshake (permissive for now — log and allow)
     const token =
-      client.handshake?.auth?.token ??
-      client.handshake?.headers?.authorization;
+      client.handshake?.auth?.token ?? client.handshake?.headers?.authorization;
 
     if (!token) {
       this.logger.warn(
@@ -126,15 +125,17 @@ export class AlmRealtimeGateway
   ): Promise<{ success: boolean; message: string }> {
     const parsed = SubscribePayloadSchema.safeParse(payload);
     if (!parsed.success) {
-      return { success: false, message: 'Invalid payload: institutionId required' };
+      return {
+        success: false,
+        message: 'Invalid payload: institutionId required',
+      };
     }
 
     const { institutionId } = parsed.data;
     const roomName = `institution:${institutionId}`;
 
     await client.join(roomName);
-    const subs =
-      this.clientSubscriptions.get(client.id) ?? new Set<string>();
+    const subs = this.clientSubscriptions.get(client.id) ?? new Set<string>();
     subs.add(institutionId);
     this.clientSubscriptions.set(client.id, subs);
 
@@ -146,14 +147,13 @@ export class AlmRealtimeGateway
     const lastRecalc = this.almRecalcService.getLastRecalc(institutionId);
     if (lastRecalc) {
       for (const [metric, value] of Object.entries(lastRecalc.metrics)) {
-        const prev =
-          lastRecalc.previousMetrics[metric] ?? value;
+        const prev = lastRecalc.previousMetrics[metric] ?? value;
         client.emit('almRecalc', {
           institutionId,
           metric,
           newValue: value,
           previousValue: prev,
-          delta: (value as number) - (prev as number),
+          delta: value - prev,
         });
       }
     }
@@ -168,7 +168,10 @@ export class AlmRealtimeGateway
   ): Promise<{ success: boolean; message: string }> {
     const parsed = SubscribePayloadSchema.safeParse(payload);
     if (!parsed.success) {
-      return { success: false, message: 'Invalid payload: institutionId required' };
+      return {
+        success: false,
+        message: 'Invalid payload: institutionId required',
+      };
     }
 
     const { institutionId } = parsed.data;
@@ -209,10 +212,7 @@ export class AlmRealtimeGateway
       // Broadcast rate updates to all connected clients
       for (const snap of snapshots) {
         const prev = snap.previousValue ?? snap.value;
-        const changePct =
-          prev !== 0
-            ? ((snap.value - (prev as number)) / (prev as number)) * 100
-            : 0;
+        const changePct = prev !== 0 ? ((snap.value - prev) / prev) * 100 : 0;
 
         this.server.emit('rateUpdate', {
           dataType: snap.dataType,
@@ -259,14 +259,13 @@ export class AlmRealtimeGateway
 
       // Emit per-metric recalc events
       for (const [metric, value] of Object.entries(result.metrics)) {
-        const prev =
-          result.previousMetrics[metric] ?? value;
+        const prev = result.previousMetrics[metric] ?? value;
         this.server.to(room).emit('almRecalc', {
           institutionId,
           metric,
           newValue: value,
           previousValue: prev,
-          delta: this.round((value as number) - (prev as number)),
+          delta: this.round(value - prev),
         });
       }
 

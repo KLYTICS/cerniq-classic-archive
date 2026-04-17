@@ -83,10 +83,7 @@ export class NcuaController {
       state: dto.state,
     });
 
-    const results = await this.apiService.searchByName(
-      dto.name,
-      dto.state,
-    );
+    const results = await this.apiService.searchByName(dto.name, dto.state);
 
     return {
       success: true,
@@ -111,9 +108,7 @@ export class NcuaController {
       institutionId: dto.institutionId,
     });
 
-    const result = await this.importService.syncCreditUnion(
-      dto.institutionId,
-    );
+    const result = await this.importService.syncCreditUnion(dto.institutionId);
 
     return {
       success: true,

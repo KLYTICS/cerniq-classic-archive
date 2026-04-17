@@ -18,8 +18,8 @@ describe('PromptInjectionShield', () => {
     ])('flags injection pattern: %s', (text) => {
       const hits = s.scanAgainstUserInput(text);
       expect(hits).toHaveLength(1);
-      expect(hits[0]!.rule).toBe('PROMPT_INJECTION_SUSPECTED');
-      expect(hits[0]!.severity).toBe('BLOCK');
+      expect(hits[0].rule).toBe('PROMPT_INJECTION_SUSPECTED');
+      expect(hits[0].severity).toBe('BLOCK');
     });
 
     it('does not flag benign finance questions', () => {
@@ -33,7 +33,9 @@ describe('PromptInjectionShield', () => {
   describe('fence', () => {
     it('wraps payload in fence markers with a nonce', () => {
       const out = s.fence({ lcr: 118.5 }, { source: 'tool:getLCR' });
-      expect(out).toMatch(/<<<TOOL_OUTPUT source="tool:getLCR" nonce=[a-z0-9]{8}>>>/);
+      expect(out).toMatch(
+        /<<<TOOL_OUTPUT source="tool:getLCR" nonce=[a-z0-9]{8}>>>/,
+      );
       expect(out).toMatch(/<<<END_TOOL_OUTPUT nonce=[a-z0-9]{8}>>>/);
       expect(out).toContain('"lcr": 118.5');
     });

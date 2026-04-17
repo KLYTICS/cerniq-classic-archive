@@ -24,13 +24,15 @@ function mockResultFor(gold: GoldenCase): AgentRunResult {
   const toolCount = gold.expected.toolsCalledMin ?? 4;
   const score = gold.expected.healthScoreRange
     ? Math.round(
-        (gold.expected.healthScoreRange[0] + gold.expected.healthScoreRange[1]) / 2,
+        (gold.expected.healthScoreRange[0] +
+          gold.expected.healthScoreRange[1]) /
+          2,
       )
     : 65;
 
   return {
     runId: `run-${gold.id}`,
-    institutionId: (gold.params as Record<string, unknown>).institutionId as string ?? gold.id,
+    institutionId: (gold.params.institutionId as string) ?? gold.id,
     agentType: gold.agentType,
     narrative: `Analysis complete for ${gold.name}. Duration gap requires attention.`,
     computeMs: 800,
@@ -131,17 +133,25 @@ describe('Cross-Agent Regression Harness (C6)', () => {
   it('stress testing goldens cover all COSSEC-critical scenarios', () => {
     expect(STRESS_TESTING_GOLDENS.length).toBeGreaterThanOrEqual(7);
     const names = STRESS_TESTING_GOLDENS.map((g) => g.name.toLowerCase());
-    expect(names.some((n) => n.includes('parallel') || n.includes('rate shock'))).toBe(true);
+    expect(
+      names.some((n) => n.includes('parallel') || n.includes('rate shock')),
+    ).toBe(true);
     expect(names.some((n) => n.includes('hurricane'))).toBe(true);
     expect(names.some((n) => n.includes('capital'))).toBe(true);
     expect(names.some((n) => n.includes('inversion'))).toBe(true);
-    expect(names.some((n) => n.includes('multi-factor') || n.includes('combined'))).toBe(true);
-    expect(names.some((n) => n.includes('healthy') || n.includes('resilient'))).toBe(true);
+    expect(
+      names.some((n) => n.includes('multi-factor') || n.includes('combined')),
+    ).toBe(true);
+    expect(
+      names.some((n) => n.includes('healthy') || n.includes('resilient')),
+    ).toBe(true);
   });
 
   it('exam prep goldens cover CAMEL dimensions', () => {
     expect(EXAM_PREP_GOLDENS.length).toBeGreaterThanOrEqual(7);
-    const domains = EXAM_PREP_GOLDENS.map((g) => g.expected.topRiskDomain).filter(Boolean);
+    const domains = EXAM_PREP_GOLDENS.map(
+      (g) => g.expected.topRiskDomain,
+    ).filter(Boolean);
     expect(domains).toContain('Earnings');
     expect(domains).toContain('Management');
     expect(domains).toContain('Capital Risk');
@@ -182,7 +192,9 @@ describe('Cross-Agent Regression Harness (C6)', () => {
     }
 
     for (const [name, report] of Object.entries(reports)) {
-      expect(report.averageScore).toBeGreaterThanOrEqual(EvalThresholds.deployGate);
+      expect(report.averageScore).toBeGreaterThanOrEqual(
+        EvalThresholds.deployGate,
+      );
       if (!report.passesDeployGate) {
         throw new Error(
           `${name} failed deploy gate: avg=${report.averageScore.toFixed(1)}, ` +
@@ -229,9 +241,7 @@ describe('Cross-Agent Regression Harness (C6)', () => {
 
   it('bilingual enforcement: all PR cases require bilingual output', () => {
     const prCases = ALL_GOLDEN_CASES.filter(
-      (c) =>
-        (c.params as Record<string, unknown>).region === 'PR' ||
-        c.expected.bilingualRequired === true,
+      (c) => c.params.region === 'PR' || c.expected.bilingualRequired === true,
     );
     expect(prCases.length).toBeGreaterThan(0);
     for (const c of prCases) {

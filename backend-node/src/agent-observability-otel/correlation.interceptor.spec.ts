@@ -1,7 +1,10 @@
 import { of } from 'rxjs';
 import { AgentCorrelationInterceptor } from './correlation.interceptor';
 
-const mockReq = (headers: Record<string, string | undefined> = {}, user?: { institutionId?: string }) => ({
+const mockReq = (
+  headers: Record<string, string | undefined> = {},
+  user?: { institutionId?: string },
+) => ({
   headers,
   user,
   cerniqCorrelationId: undefined as string | undefined,
@@ -10,12 +13,17 @@ const mockReq = (headers: Record<string, string | undefined> = {}, user?: { inst
 const mockRes = () => {
   const setHeaders: Record<string, string> = {};
   return {
-    setHeader: jest.fn((k: string, v: string) => { setHeaders[k] = v; }),
+    setHeader: jest.fn((k: string, v: string) => {
+      setHeaders[k] = v;
+    }),
     _headers: setHeaders,
   };
 };
 
-const mockContext = (req: ReturnType<typeof mockReq>, res: ReturnType<typeof mockRes>) => ({
+const mockContext = (
+  req: ReturnType<typeof mockReq>,
+  res: ReturnType<typeof mockRes>,
+) => ({
   switchToHttp: () => ({
     getRequest: () => req,
     getResponse: () => res,
@@ -41,7 +49,10 @@ describe('AgentCorrelationInterceptor', () => {
     interceptor.intercept(ctx, mockCallHandler() as any).subscribe({
       next: () => {
         expect(req.cerniqCorrelationId).toBeDefined();
-        expect(res.setHeader).toHaveBeenCalledWith('x-cerniq-correlation-id', expect.any(String));
+        expect(res.setHeader).toHaveBeenCalledWith(
+          'x-cerniq-correlation-id',
+          expect.any(String),
+        );
         done();
       },
     });
@@ -55,7 +66,10 @@ describe('AgentCorrelationInterceptor', () => {
     interceptor.intercept(ctx, mockCallHandler() as any).subscribe({
       next: () => {
         expect(req.cerniqCorrelationId).toBe('existing-123');
-        expect(res.setHeader).toHaveBeenCalledWith('x-cerniq-correlation-id', 'existing-123');
+        expect(res.setHeader).toHaveBeenCalledWith(
+          'x-cerniq-correlation-id',
+          'existing-123',
+        );
         done();
       },
     });
@@ -63,7 +77,11 @@ describe('AgentCorrelationInterceptor', () => {
 
   it('does not throw when response has no setHeader (non-HTTP context)', (done) => {
     const req = mockReq();
-    const badRes = { setHeader: () => { throw new Error('not HTTP'); } };
+    const badRes = {
+      setHeader: () => {
+        throw new Error('not HTTP');
+      },
+    };
     const ctx = mockContext(req, badRes as any) as any;
 
     interceptor.intercept(ctx, mockCallHandler() as any).subscribe({

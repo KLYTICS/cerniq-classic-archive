@@ -39,7 +39,14 @@ const INJECTION_PHRASES: readonly RegExp[] = [
   /<tool_call>/i,
 ];
 
-/** Strip C0 control chars except tab/LF/CR which have legitimate uses. */
+/**
+ * Strip C0 control chars except tab/LF/CR which have legitimate uses.
+ * The no-control-regex lint is disabled here because stripping control
+ * characters is the explicit security purpose of this pattern — an LLM
+ * fed a NUL byte could interpret it as a token boundary and be tricked
+ * into following injected instructions.
+ */
+// eslint-disable-next-line no-control-regex
 const CONTROL_CHAR_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
 
 const DEFAULT_MAX_CHARS = 32_000;
@@ -58,9 +65,10 @@ export class PromptInjectionShield {
     const nonce = randomNonce();
     const json = safeStringify(payload);
     const stripped = json.replace(CONTROL_CHAR_RE, '');
-    const body = stripped.length > maxChars
-      ? `${stripped.slice(0, maxChars)}\n…[truncated ${stripped.length - maxChars} chars]`
-      : stripped;
+    const body =
+      stripped.length > maxChars
+        ? `${stripped.slice(0, maxChars)}\n…[truncated ${stripped.length - maxChars} chars]`
+        : stripped;
     return [
       `<<<TOOL_OUTPUT source=${JSON.stringify(opts.source)} nonce=${nonce}>>>`,
       body,

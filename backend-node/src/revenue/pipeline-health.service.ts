@@ -26,16 +26,25 @@ export class PipelineHealthService {
    * Excludes CLOSED_LOST and UNQUALIFIED from value totals.
    */
   async getPipelineSnapshot(): Promise<{
-    stages: Array<{ status: string; count: number; totalValue: Prisma.Decimal }>;
+    stages: Array<{
+      status: string;
+      count: number;
+      totalValue: Prisma.Decimal;
+    }>;
     totalLeads: number;
     totalPipelineValue: Prisma.Decimal;
   }> {
-    const leads: Array<{ status: string; revenueAmount: Prisma.Decimal | null }> =
-      await this.prisma.lead.findMany({
-        select: { status: true, revenueAmount: true },
-      });
+    const leads: Array<{
+      status: string;
+      revenueAmount: Prisma.Decimal | null;
+    }> = await this.prisma.lead.findMany({
+      select: { status: true, revenueAmount: true },
+    });
 
-    const stageMap = new Map<string, { count: number; totalValue: Prisma.Decimal }>();
+    const stageMap = new Map<
+      string,
+      { count: number; totalValue: Prisma.Decimal }
+    >();
     for (const lead of leads) {
       const entry = stageMap.get(lead.status) ?? {
         count: 0,
@@ -121,7 +130,13 @@ export class PipelineHealthService {
           ? new Prisma.Decimal(toCount).div(fromCount).mul(100)
           : new Prisma.Decimal(0);
 
-      funnel.push({ from: fromStatus, to: toStatus, fromCount, toCount, conversionRate });
+      funnel.push({
+        from: fromStatus,
+        to: toStatus,
+        fromCount,
+        toCount,
+        conversionRate,
+      });
     }
 
     return funnel;
@@ -132,9 +147,7 @@ export class PipelineHealthService {
   /**
    * Leads in active pipeline stages with no activity (updatedAt) past threshold.
    */
-  async getStaleDealFlags(
-    daysThreshold: number,
-  ): Promise<
+  async getStaleDealFlags(daysThreshold: number): Promise<
     Array<{
       id: string;
       name: string;
@@ -158,7 +171,14 @@ export class PipelineHealthService {
     }> = await this.prisma.lead.findMany({
       where: {
         status: {
-          in: ['NEW', 'CONTACTED', 'DEMO_SCHEDULED', 'DEMO_COMPLETED', 'PROPOSAL_SENT', 'NEGOTIATING'],
+          in: [
+            'NEW',
+            'CONTACTED',
+            'DEMO_SCHEDULED',
+            'DEMO_COMPLETED',
+            'PROPOSAL_SENT',
+            'NEGOTIATING',
+          ],
         },
         updatedAt: { lt: cutoff },
       },
@@ -199,13 +219,30 @@ export class PipelineHealthService {
     const [demosScheduled, demosCompleted, conversions] = await Promise.all([
       this.prisma.lead.count({
         where: {
-          status: { in: ['DEMO_SCHEDULED', 'DEMO_COMPLETED', 'PROPOSAL_SENT', 'NEGOTIATING', 'CLOSED_WON', 'CLOSED_LOST'] },
+          status: {
+            in: [
+              'DEMO_SCHEDULED',
+              'DEMO_COMPLETED',
+              'PROPOSAL_SENT',
+              'NEGOTIATING',
+              'CLOSED_WON',
+              'CLOSED_LOST',
+            ],
+          },
           createdAt: { gte: since },
         },
       }),
       this.prisma.lead.count({
         where: {
-          status: { in: ['DEMO_COMPLETED', 'PROPOSAL_SENT', 'NEGOTIATING', 'CLOSED_WON', 'CLOSED_LOST'] },
+          status: {
+            in: [
+              'DEMO_COMPLETED',
+              'PROPOSAL_SENT',
+              'NEGOTIATING',
+              'CLOSED_WON',
+              'CLOSED_LOST',
+            ],
+          },
           createdAt: { gte: since },
         },
       }),

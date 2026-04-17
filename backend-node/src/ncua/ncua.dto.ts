@@ -55,10 +55,7 @@ export type SyncParam = z.infer<typeof SyncParamSchema>;
 
 export const QuarterSchema = z
   .string()
-  .regex(
-    /^\d{4}-Q[1-4]$/,
-    'Quarter must be in YYYY-QN format (e.g. 2025-Q4)',
-  );
+  .regex(/^\d{4}-Q[1-4]$/, 'Quarter must be in YYYY-QN format (e.g. 2025-Q4)');
 
 // ─── Shared parse helper ────────────────────────────────────────────────────
 

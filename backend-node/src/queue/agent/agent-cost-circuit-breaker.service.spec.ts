@@ -27,7 +27,9 @@ function buildService(capCents: string | undefined = '10000') {
 describe('AgentCostCircuitBreakerService', () => {
   it('allows when spend is under cap', async () => {
     const { svc, prisma, cleanup } = buildService('10000');
-    prisma.agentRun.aggregate.mockResolvedValue({ _sum: { costUsdCents: 5000 } });
+    prisma.agentRun.aggregate.mockResolvedValue({
+      _sum: { costUsdCents: 5000 },
+    });
     const result = await svc.isAllowed('inst_1');
     expect(result.allowed).toBe(true);
     expect(result.state).toBe('OK');
@@ -37,7 +39,9 @@ describe('AgentCostCircuitBreakerService', () => {
 
   it('warns at 80% threshold', async () => {
     const { svc, prisma, cleanup } = buildService('10000');
-    prisma.agentRun.aggregate.mockResolvedValue({ _sum: { costUsdCents: 8500 } });
+    prisma.agentRun.aggregate.mockResolvedValue({
+      _sum: { costUsdCents: 8500 },
+    });
     const result = await svc.isAllowed('inst_1');
     expect(result.allowed).toBe(true);
     expect(result.state).toBe('WARN');
@@ -46,7 +50,9 @@ describe('AgentCostCircuitBreakerService', () => {
 
   it('blocks at 100% threshold', async () => {
     const { svc, prisma, cleanup } = buildService('10000');
-    prisma.agentRun.aggregate.mockResolvedValue({ _sum: { costUsdCents: 10000 } });
+    prisma.agentRun.aggregate.mockResolvedValue({
+      _sum: { costUsdCents: 10000 },
+    });
     const result = await svc.isAllowed('inst_1');
     expect(result.allowed).toBe(false);
     expect(result.state).toBe('BLOCKED');

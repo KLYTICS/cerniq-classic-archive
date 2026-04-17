@@ -167,10 +167,7 @@ export class AlmToolsFactory {
       input: z
         .object({
           shockBps: z
-            .union([
-              z.number().int(),
-              z.array(z.number().int()).min(1).max(10),
-            ])
+            .union([z.number().int(), z.array(z.number().int()).min(1).max(10)])
             .default([100, 200, 300]),
         })
         .strict(),
@@ -209,7 +206,7 @@ export class AlmToolsFactory {
         const data = await (this.liquidity as any).getAdvancedLiquidity(
           institutionId,
         );
-        const lcr = (data as any)?.lcr ?? null;
+        const lcr = data?.lcr ?? null;
         return {
           summary: lcr != null ? `LCR: ${lcr}%.` : 'LCR unavailable.',
           data,
@@ -262,7 +259,7 @@ export class AlmToolsFactory {
     return defineTool({
       name: 'getIRRPolicy',
       description:
-        'Return the institution\'s IRR policy limits by shock scenario. Call this before flagging any rate-risk limit breach.',
+        "Return the institution's IRR policy limits by shock scenario. Call this before flagging any rate-risk limit breach.",
       input: z.object({}).strict(),
       output: ToolPayload,
       timeoutMs: 5_000,
@@ -281,7 +278,7 @@ export class AlmToolsFactory {
     return defineTool({
       name: 'getPeerBenchmark',
       description:
-        'Return this institution\'s quartile position vs the COSSEC/NCUA peer cohort for a named metric (e.g. NIM, ROA, LCR, NetWorthRatio).',
+        "Return this institution's quartile position vs the COSSEC/NCUA peer cohort for a named metric (e.g. NIM, ROA, LCR, NetWorthRatio).",
       input: z
         .object({
           metric: z
@@ -464,7 +461,7 @@ export class AlmToolsFactory {
           institutionId,
         );
         return {
-          summary: `Health Score: ${(data as any)?.overall ?? 'n/a'}/100.`,
+          summary: `Health Score: ${data?.overall ?? 'n/a'}/100.`,
           data,
         };
       },
@@ -484,7 +481,9 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.capitalAdequacy as any).getCapitalAdequacyRatio(institutionId);
+        const data = await (
+          this.capitalAdequacy as any
+        ).getCapitalAdequacyRatio(institutionId);
         return { summary: 'Capital adequacy computed.', data };
       },
     });
@@ -503,9 +502,11 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.complianceCalendar as any).getUpcomingDeadlines(institutionId);
+        const data = await (
+          this.complianceCalendar as any
+        ).getUpcomingDeadlines(institutionId);
         return {
-          summary: `Compliance calendar: ${(data as any)?.events?.length ?? 0} deadlines loaded.`,
+          summary: `Compliance calendar: ${data?.events?.length ?? 0} deadlines loaded.`,
           data,
         };
       },
@@ -526,7 +527,7 @@ export class AlmToolsFactory {
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
         const data = await (this.examPrep as any).getExamPrep(institutionId);
-        const gov = (data as any)?.governance;
+        const gov = data?.governance;
         return {
           summary: gov
             ? `Governance: ${gov.completedCount}/${gov.totalCount} items. Management score: ${gov.managementScore}.`
@@ -544,16 +545,24 @@ export class AlmToolsFactory {
       name: 'runStressTestSuite',
       description:
         'Run the full stress test suite: Monte Carlo + regulatory scenarios + COSSEC named scenarios (parallel_up, hurricane, liquidity crisis). Returns pass/warn/fail per scenario.',
-      input: z.object({
-        paths: z.number().int().min(100).max(10_000).default(1_000),
-      }).strict(),
+      input: z
+        .object({
+          paths: z.number().int().min(100).max(10_000).default(1_000),
+        })
+        .strict(),
       output: ToolPayload,
       timeoutMs: 60_000,
       handler: async (input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.stressTesting as any).runFullStressTest(institutionId, { paths: input.paths });
-        const scenarios = (data as any)?.cossecScenarios?.length ?? 0;
-        return { summary: `Stress suite complete: ${scenarios} scenarios evaluated.`, data };
+        const data = await (this.stressTesting as any).runFullStressTest(
+          institutionId,
+          { paths: input.paths },
+        );
+        const scenarios = data?.cossecScenarios?.length ?? 0;
+        return {
+          summary: `Stress suite complete: ${scenarios} scenarios evaluated.`,
+          data,
+        };
       },
     });
   }
@@ -563,19 +572,24 @@ export class AlmToolsFactory {
       name: 'runCustomScenario',
       description:
         'Run a user-defined stress scenario with custom rate shift, deposit runoff, credit shock, and prepayment multiplier. Returns NII/EVE/LCR/capital impact.',
-      input: z.object({
-        name: z.string().min(1),
-        rateShiftBps: z.number().int().min(-300).max(300),
-        yieldCurveTwist: z.number().int().optional(),
-        depositRunoff: z.number().min(0).max(30).optional(),
-        loanDefaultIncrease: z.number().min(0).max(15).optional(),
-        prepaymentMultiplier: z.number().min(0.5).max(3).optional(),
-      }).strict(),
+      input: z
+        .object({
+          name: z.string().min(1),
+          rateShiftBps: z.number().int().min(-300).max(300),
+          yieldCurveTwist: z.number().int().optional(),
+          depositRunoff: z.number().min(0).max(30).optional(),
+          loanDefaultIncrease: z.number().min(0).max(15).optional(),
+          prepaymentMultiplier: z.number().min(0.5).max(3).optional(),
+        })
+        .strict(),
       output: ToolPayload,
       timeoutMs: 30_000,
       handler: async (input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.customScenario as any).runCustomScenario(institutionId, input);
+        const data = await (this.customScenario as any).runCustomScenario(
+          institutionId,
+          input,
+        );
         return { summary: `Custom scenario "${input.name}" computed.`, data };
       },
     });
@@ -594,7 +608,9 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.depositDecay as any).analyzeDecay(institutionId);
+        const data = await (this.depositDecay as any).analyzeDecay(
+          institutionId,
+        );
         return { summary: 'Deposit decay analysis complete.', data };
       },
     });
@@ -605,15 +621,20 @@ export class AlmToolsFactory {
       name: 'getDepositPricingEngine',
       description:
         'Return optimal deposit rate recommendations using logistic retention model: current vs competitor rates, retention probability, and revenue-maximizing rate.',
-      input: z.object({
-        product: z.string().optional(),
-      }).strict(),
+      input: z
+        .object({
+          product: z.string().optional(),
+        })
+        .strict(),
       output: ToolPayload,
       timeoutMs: 10_000,
       retryable: true,
       handler: async (input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.depositPricing as any).priceDeposit({ institutionId, product: input.product });
+        const data = await (this.depositPricing as any).priceDeposit({
+          institutionId,
+          product: input.product,
+        });
         return { summary: 'Deposit pricing analysis complete.', data };
       },
     });
@@ -630,7 +651,9 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.costOfFunds as any).calculateCostOfFunds({ institutionId });
+        const data = await (this.costOfFunds as any).calculateCostOfFunds({
+          institutionId,
+        });
         return { summary: 'Cost of funds computed.', data };
       },
     });
@@ -646,7 +669,9 @@ export class AlmToolsFactory {
       timeoutMs: 15_000,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.depositMixOptimizer as any).analyze({ institutionId });
+        const data = await (this.depositMixOptimizer as any).analyze({
+          institutionId,
+        });
         return { summary: 'Deposit mix optimization complete.', data };
       },
     });
@@ -663,9 +688,11 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.maturityLadder as any).buildMaturityLadder({ institutionId });
+        const data = await (this.maturityLadder as any).buildMaturityLadder({
+          institutionId,
+        });
         return {
-          summary: `Maturity ladder: ${(data as any)?.buckets?.length ?? 0} buckets.`,
+          summary: `Maturity ladder: ${data?.buckets?.length ?? 0} buckets.`,
           data,
         };
       },

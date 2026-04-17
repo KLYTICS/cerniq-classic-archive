@@ -54,7 +54,10 @@ export class AgentRunService {
       },
     });
     if (existing) {
-      return { run: existing as unknown as Record<string, unknown>, existing: true };
+      return {
+        run: existing as unknown as Record<string, unknown>,
+        existing: true,
+      };
     }
 
     try {
@@ -89,7 +92,10 @@ export class AgentRunService {
           },
         });
         if (winner) {
-          return { run: winner as unknown as Record<string, unknown>, existing: true };
+          return {
+            run: winner as unknown as Record<string, unknown>,
+            existing: true,
+          };
         }
       }
       throw err;
@@ -210,7 +216,13 @@ export class AgentRunService {
     triggerRef?: string | null;
     idempotencyKey: string;
     input: unknown;
-  }): Promise<{ runId: string; agentId: string; institutionId: string | null; replay: boolean; _nextStepIndex: number }> {
+  }): Promise<{
+    runId: string;
+    agentId: string;
+    institutionId: string | null;
+    replay: boolean;
+    _nextStepIndex: number;
+  }> {
     const { run, existing } = await this.createOrReturnExisting(input);
     const runId = run?.id ?? (run as any).id;
     return {
@@ -218,9 +230,7 @@ export class AgentRunService {
       agentId: (run as any).agentId ?? input.agentId,
       institutionId: (run as any).institutionId ?? input.institutionId ?? null,
       replay: existing,
-      _nextStepIndex: existing
-        ? await this.nextStepIndexFor(runId)
-        : 0,
+      _nextStepIndex: existing ? await this.nextStepIndexFor(runId) : 0,
     };
   }
 

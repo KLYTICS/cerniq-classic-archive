@@ -77,9 +77,9 @@ function buildSyntheticOutput(c: ExamPrepGoldenCase) {
       ([_, v]) => v === component,
     )?.[0];
     const status = categoryKey
-      ? c.expectedOutput.categoryStatuses[categoryKey] ?? 'PASS'
+      ? (c.expectedOutput.categoryStatuses[categoryKey] ?? 'PASS')
       : 'PASS';
-    const score = statusToScore(status as CategoryStatus);
+    const score = statusToScore(status);
 
     return {
       component: component as
@@ -135,24 +135,23 @@ function buildSyntheticOutput(c: ExamPrepGoldenCase) {
           | 'PARTIAL',
       })),
     },
-    redFlags:
-      Object.values(c.expectedOutput.categoryStatuses).some(
-        (s) => s === 'FAIL',
-      )
-        ? [
-            {
-              issue: 'Critical deficiency identified in examination prep.',
-              issueEs:
-                'Deficiencia critica identificada en preparacion de examen.',
-              likelyExaminerComment:
-                'The institution must address this finding before next review.',
-              preparedResponse:
-                'Management has initiated a remediation plan targeting 90-day resolution.',
-              preparedResponseEs:
-                'La gerencia ha iniciado un plan de remediacion con resolucion en 90 dias.',
-            },
-          ]
-        : [],
+    redFlags: Object.values(c.expectedOutput.categoryStatuses).some(
+      (s) => s === 'FAIL',
+    )
+      ? [
+          {
+            issue: 'Critical deficiency identified in examination prep.',
+            issueEs:
+              'Deficiencia critica identificada en preparacion de examen.',
+            likelyExaminerComment:
+              'The institution must address this finding before next review.',
+            preparedResponse:
+              'Management has initiated a remediation plan targeting 90-day resolution.',
+            preparedResponseEs:
+              'La gerencia ha iniciado un plan de remediacion con resolucion en 90 dias.',
+          },
+        ]
+      : [],
     documentChecklist: [
       {
         document: 'ALM Policy',
@@ -188,9 +187,7 @@ describe('Exam Prep Agent — Golden Cases', () => {
   // ── Schema shape validation (synthetic output) ─────────────────────────
 
   describe('Zod schema shape validation', () => {
-    it.each(
-      EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )(
+    it.each(EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const))(
       '%s — synthetic output passes ExamPrepOutputSchema',
       (_name, goldenCase) => {
         const output = buildSyntheticOutput(goldenCase);
@@ -213,27 +210,27 @@ describe('Exam Prep Agent — Golden Cases', () => {
   // ── Grade and score range assertions ───────────────────────────────────
 
   describe('grade and score range assertions', () => {
-    it.each(
-      EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )('%s — overallGradeOneOf contains valid grades', (_name, goldenCase) => {
-      const validGrades = ['A', 'B', 'C', 'D', 'F'];
-      for (const grade of goldenCase.expectedOutput.overallGradeOneOf) {
-        expect(validGrades).toContain(grade);
-      }
-    });
+    it.each(EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const))(
+      '%s — overallGradeOneOf contains valid grades',
+      (_name, goldenCase) => {
+        const validGrades = ['A', 'B', 'C', 'D', 'F'];
+        for (const grade of goldenCase.expectedOutput.overallGradeOneOf) {
+          expect(validGrades).toContain(grade);
+        }
+      },
+    );
 
-    it.each(
-      EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )('%s — overallScoreRange is valid [0-100]', (_name, goldenCase) => {
-      const [min, max] = goldenCase.expectedOutput.overallScoreRange;
-      expect(min).toBeGreaterThanOrEqual(0);
-      expect(max).toBeLessThanOrEqual(100);
-      expect(min).toBeLessThanOrEqual(max);
-    });
+    it.each(EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const))(
+      '%s — overallScoreRange is valid [0-100]',
+      (_name, goldenCase) => {
+        const [min, max] = goldenCase.expectedOutput.overallScoreRange;
+        expect(min).toBeGreaterThanOrEqual(0);
+        expect(max).toBeLessThanOrEqual(100);
+        expect(min).toBeLessThanOrEqual(max);
+      },
+    );
 
-    it.each(
-      EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )(
+    it.each(EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const))(
       '%s — CAMEL composite maps to expected grade',
       (_name, goldenCase) => {
         const output = buildSyntheticOutput(goldenCase);
@@ -242,7 +239,9 @@ describe('Exam Prep Agent — Golden Cases', () => {
         expect(output.camelAssessment.composite).toBe(expectedComposite);
 
         // Verify composite is valid CAMEL rating (1-5)
-        expect(CamelRating.safeParse(output.camelAssessment.composite).success).toBe(true);
+        expect(
+          CamelRating.safeParse(output.camelAssessment.composite).success,
+        ).toBe(true);
       },
     );
   });
@@ -250,9 +249,7 @@ describe('Exam Prep Agent — Golden Cases', () => {
   // ── Category status assertions ─────────────────────────────────────────
 
   describe('category status assertions', () => {
-    it.each(
-      EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )(
+    it.each(EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const))(
       '%s — all declared category statuses are valid',
       (_name, goldenCase) => {
         const validStatuses: CategoryStatus[] = ['PASS', 'WARN', 'FAIL'];
@@ -274,9 +271,7 @@ describe('Exam Prep Agent — Golden Cases', () => {
       },
     );
 
-    it.each(
-      EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )(
+    it.each(EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const))(
       '%s — CAMEL component scores reflect category statuses',
       (_name, goldenCase) => {
         const output = buildSyntheticOutput(goldenCase);
@@ -292,9 +287,7 @@ describe('Exam Prep Agent — Golden Cases', () => {
           );
           if (!component) continue;
 
-          const expectedScore = statusToScore(
-            expectedStatus as CategoryStatus,
-          );
+          const expectedScore = statusToScore(expectedStatus);
           expect(component.score).toBe(expectedScore);
         }
       },
@@ -304,9 +297,7 @@ describe('Exam Prep Agent — Golden Cases', () => {
   // ── Recommendation keyword assertions ──────────────────────────────────
 
   describe('recommendation keyword assertions', () => {
-    it.each(
-      EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )(
+    it.each(EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const))(
       '%s — synthetic output includes all must-have recommendation keywords',
       (_name, goldenCase) => {
         const output = buildSyntheticOutput(goldenCase);
@@ -315,15 +306,14 @@ describe('Exam Prep Agent — Golden Cases', () => {
           .join(' ')
           .toLowerCase();
 
-        for (const keyword of goldenCase.expectedOutput.mustIncludeRecommendations) {
+        for (const keyword of goldenCase.expectedOutput
+          .mustIncludeRecommendations) {
           expect(allRecommendationText).toContain(keyword.toLowerCase());
         }
       },
     );
 
-    it.each(
-      EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )(
+    it.each(EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const))(
       '%s — mustIncludeRecommendations is non-empty',
       (_name, goldenCase) => {
         expect(
@@ -336,9 +326,7 @@ describe('Exam Prep Agent — Golden Cases', () => {
   // ── Grade-to-score coherence ───────────────────────────────────────────
 
   describe('grade-to-score coherence', () => {
-    it.each(
-      EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )(
+    it.each(EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const))(
       '%s — grade and score range are mutually consistent',
       (_name, goldenCase) => {
         const [minScore, maxScore] =
@@ -368,9 +356,7 @@ describe('Exam Prep Agent — Golden Cases', () => {
   // ── Bilingual completeness (synthetic) ─────────────────────────────────
 
   describe('bilingual completeness', () => {
-    it.each(
-      EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const),
-    )(
+    it.each(EXAM_PREP_GOLDEN_CASES.map((c) => [c.name, c] as const))(
       '%s — synthetic output has both EN and ES fields',
       (_name, goldenCase) => {
         const output = buildSyntheticOutput(goldenCase);
@@ -427,9 +413,7 @@ describe('Exam Prep Agent — Golden Cases', () => {
   // real ALM computation services and produces live output.
 
   describe('integration tests (pending agent wiring)', () => {
-    it.todo(
-      'Perfect institution — live agent produces Grade A with score 95+',
-    );
+    it.todo('Perfect institution — live agent produces Grade A with score 95+');
     it.todo(
       'Duration Gap WARN — live agent flags IRR with duration hedging recs',
     );
@@ -439,15 +423,9 @@ describe('Exam Prep Agent — Golden Cases', () => {
     it.todo(
       'Multiple WARN — live agent weighted score reflects all warning categories',
     );
-    it.todo(
-      'Critical capital failure — live agent triggers PCA language',
-    );
-    it.todo(
-      'All WARN boundaries — live agent boundary detection is precise',
-    );
-    it.todo(
-      'Mixed FAIL/WARN/PASS — live agent correctly weights severity',
-    );
+    it.todo('Critical capital failure — live agent triggers PCA language');
+    it.todo('All WARN boundaries — live agent boundary detection is precise');
+    it.todo('Mixed FAIL/WARN/PASS — live agent correctly weights severity');
     it.todo(
       'NII Sensitivity FAIL — live agent produces hedging recommendations',
     );
