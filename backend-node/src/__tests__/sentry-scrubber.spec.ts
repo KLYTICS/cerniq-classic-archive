@@ -199,16 +199,13 @@ describe('Sentry beforeSend scrubber', () => {
         request: { query_string: 'token=abc123def&foo=bar' },
       } as unknown as ErrorEvent;
       const out = scrubSentryEvent(event);
-      expect(out.request?.query_string).toBe(
-        'token=[REDACTED]&foo=bar',
-      );
+      expect(out.request?.query_string).toBe('token=[REDACTED]&foo=bar');
     });
 
     it('redacts multiple sensitive params', () => {
       const event = {
         request: {
-          query_string:
-            'apiKey=ck_live_x&token=t_x&accessToken=at_x&ok=value',
+          query_string: 'apiKey=ck_live_x&token=t_x&accessToken=at_x&ok=value',
         },
       } as unknown as ErrorEvent;
       const out = scrubSentryEvent(event);
