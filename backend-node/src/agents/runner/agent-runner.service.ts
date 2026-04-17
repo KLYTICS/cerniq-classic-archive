@@ -6,6 +6,16 @@ import { LlmBridgeService } from './llm-bridge.service';
 import { AgentEventBusService, AGENT_EVENT } from './agent-event-bus.service';
 import { ToolRegistryService } from '../registry/tool-registry.service';
 
+// Compute the spend for the run so far. Calling on every terminal
+// dispatch (`complete`, `fail`, `timedOut`) keeps the cost-circuit
+// breaker honest — before this fix the runner never wrote
+// `costUsdCents`, so the breaker's month-to-date sum was always 0
+// and every institution was permanently in state OK regardless of
+// actual LLM spend.
+function costCentsForRun(inputTokens: number, outputTokens: number): number {
+  return LlmBridgeService.computeCostUsdCents(inputTokens, outputTokens);
+}
+
 type AgentRunHandle = Awaited<ReturnType<AgentRunService['startRun']>>;
 
 export interface ExecuteOptions {
@@ -20,12 +30,35 @@ export interface ExecuteOptions {
 
 export interface RunResult {
   runId: string;
-  status: 'SUCCEEDED' | 'FAILED';
+  status: 'SUCCEEDED' | 'FAILED' | 'TIMED_OUT';
   output?: unknown;
   errorCode?: string;
   errorMessage?: string;
   existed: boolean;
   durationMs: number;
+}
+
+// Wall-clock deadline per run. Vercel Fluid Compute defaults to 300s
+// and Railway honors its own per-deploy timeout — this bound stops a
+// stuck LLM turn or slow tool from holding a worker slot indefinitely.
+// Overridable via AGENT_RUN_TIMEOUT_MS (validated in env.schema.ts).
+const DEFAULT_RUN_TIMEOUT_MS = 300_000;
+const MIN_RUN_TIMEOUT_MS = 1_000;
+
+export function resolveRunTimeoutMs(
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  const raw = env.AGENT_RUN_TIMEOUT_MS;
+  if (raw === undefined || raw === '') return DEFAULT_RUN_TIMEOUT_MS;
+  const parsed = Number(raw);
+  if (
+    !Number.isFinite(parsed) ||
+    !Number.isInteger(parsed) ||
+    parsed < MIN_RUN_TIMEOUT_MS
+  ) {
+    return DEFAULT_RUN_TIMEOUT_MS;
+  }
+  return parsed;
 }
 
 @Injectable()
@@ -107,6 +140,21 @@ export class AgentRunnerService {
 
     await this.runs.markRunning(handle.runId);
 
+    // Per-run AbortController: fires the deadline timer and is
+    // passed to every tool invocation. Before this the runner created
+    // `new AbortController().signal` inline per-tool, never called
+    // abort(), so tool-level cancellation plumbing was dead and runs
+    // could hang indefinitely on a stuck LLM turn.
+    const runAbort = new AbortController();
+    const runTimeoutMs = resolveRunTimeoutMs();
+    const deadlineTimer = setTimeout(
+      () => runAbort.abort('RUN_DEADLINE'),
+      runTimeoutMs,
+    );
+    // Prevent the timer from keeping the Node event loop alive past
+    // the promise resolving (matters for graceful shutdown and tests).
+    deadlineTimer.unref?.();
+
     let lastHash: string | null = null;
     let toolCallCount = 0;
     let llmTurnCount = 0;
@@ -152,6 +200,11 @@ export class AgentRunnerService {
           system: def.systemPrompt,
           messages,
           tools: toolDescriptors,
+          // Thread the run deadline into the LLM fetch. Before this
+          // wiring, a stuck provider call could outlive the deadline
+          // by the SDK's internal 10-minute timeout — only tool
+          // invocations were cancelable.
+          signal: runAbort.signal,
         });
         llmTurnCount++;
         inputTokens += turn.inputTokens;
@@ -216,7 +269,9 @@ export class AgentRunnerService {
             agentId: handle.agentId,
             institutionId: (opts.institutionId as string) ?? null,
             organizationId: (opts.organizationId as string) ?? null,
-            signal: new AbortController().signal,
+            // Live run-scoped signal — aborts when the deadline fires
+            // so ToolRegistryService.runWithTimeout can short-circuit.
+            signal: runAbort.signal,
           });
           toolCallCount++;
           await appendAudit({
@@ -240,12 +295,16 @@ export class AgentRunnerService {
           stepKind: 'RUN_FAILED',
           payload: { errorCode: 'LOOP_LIMIT', maxTurns: def.maxTurns },
         });
+        const costUsdCents = costCentsForRun(inputTokens, outputTokens);
         await this.runs.fail(handle.runId, {
           errorCode: 'LOOP_LIMIT',
           errorMessage: `exceeded ${def.maxTurns} turns`,
           auditRootHash: lastHash,
           toolCallCount,
           llmTurnCount,
+          inputTokens,
+          outputTokens,
+          costUsdCents,
           durationMs: Date.now() - start,
         });
         return {
@@ -269,12 +328,16 @@ export class AgentRunnerService {
           stepKind: 'RUN_FAILED',
           payload: { errorCode: 'OUTPUT_INVALID', errorMessage: parsed.error },
         });
+        const costUsdCents = costCentsForRun(inputTokens, outputTokens);
         await this.runs.fail(handle.runId, {
           errorCode: 'OUTPUT_CONTRACT_INVALID',
           errorMessage: parsed.error,
           auditRootHash: lastHash,
           toolCallCount,
           llmTurnCount,
+          inputTokens,
+          outputTokens,
+          costUsdCents,
           durationMs: Date.now() - start,
         });
         return {
@@ -289,6 +352,7 @@ export class AgentRunnerService {
 
       await appendAudit({ stepKind: 'RUN_COMPLETED', payload: { ok: true } });
       const durationMs = Date.now() - start;
+      const costUsdCents = costCentsForRun(inputTokens, outputTokens);
       await this.runs.complete(handle.runId, {
         output: parsed.data,
         auditRootHash: lastHash,
@@ -296,6 +360,7 @@ export class AgentRunnerService {
         llmTurnCount,
         inputTokens,
         outputTokens,
+        costUsdCents,
         durationMs,
       });
       return {
@@ -307,18 +372,58 @@ export class AgentRunnerService {
       };
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : String(err);
+      const durationMs = Date.now() - start;
+      // Distinguish deadline abort from generic execution failure.
+      // When runAbort fired the deadline, any in-flight tool rejects
+      // with `__TOOL_TIMEOUT__` (see ToolRegistryService.runWithTimeout),
+      // and signal.aborted is true. We surface this as TIMED_OUT so
+      // the dashboard and billing systems can treat it distinctly.
+      if (runAbort.signal.aborted) {
+        this.logger.warn(
+          `agent run ${handle.runId} hit deadline after ${runTimeoutMs}ms`,
+        );
+        await appendAudit({
+          stepKind: 'RUN_FAILED',
+          payload: {
+            errorCode: 'RUN_TIMEOUT',
+            errorMessage: `exceeded ${runTimeoutMs}ms deadline`,
+          },
+        });
+        const costUsdCents = costCentsForRun(inputTokens, outputTokens);
+        await this.runs.timedOut(handle.runId, {
+          errorMessage: `exceeded ${runTimeoutMs}ms deadline`,
+          toolCallCount,
+          llmTurnCount,
+          inputTokens,
+          outputTokens,
+          costUsdCents,
+          durationMs,
+        });
+        return {
+          runId: handle.runId,
+          status: 'TIMED_OUT',
+          errorCode: 'RUN_TIMEOUT',
+          errorMessage: `exceeded ${runTimeoutMs}ms deadline`,
+          existed: false,
+          durationMs,
+        };
+      }
       this.logger.error(`agent run ${handle.runId} crashed`, err);
       await appendAudit({
         stepKind: 'RUN_FAILED',
         payload: { errorCode: 'EXECUTION_FAILED', errorMessage: msg },
       });
+      const costUsdCents = costCentsForRun(inputTokens, outputTokens);
       await this.runs.fail(handle.runId, {
         errorCode: 'EXECUTION_FAILED',
         errorMessage: msg,
         auditRootHash: lastHash,
         toolCallCount,
         llmTurnCount,
-        durationMs: Date.now() - start,
+        inputTokens,
+        outputTokens,
+        costUsdCents,
+        durationMs,
       });
       return {
         runId: handle.runId,
@@ -326,8 +431,13 @@ export class AgentRunnerService {
         errorCode: 'EXECUTION_FAILED',
         errorMessage: msg,
         existed: false,
-        durationMs: Date.now() - start,
+        durationMs,
       };
+    } finally {
+      // Always release the deadline timer; leaving it hot would fire
+      // abort() against a completed run (harmless but noisy), and in
+      // test environments with fake timers it would pin the clock.
+      clearTimeout(deadlineTimer);
     }
   }
 }
@@ -342,10 +452,9 @@ export function parseAgentOutput(
       const r = schema.safeParse(p);
       if (r.success) return { ok: true, data: r.data };
     } catch {
-      // Candidate wasn't valid JSON — try the next one. Swallowing is
-      // intentional: extractJsonCandidates returns best-effort substrings
-      // (fenced blocks, braces-plucked segments) and most won't parse.
-      // Logging here would spam every LLM turn.
+      // Intentional swallow: extractJsonCandidates returns best-effort
+      // substrings (raw text, fenced block, largest balanced braces) —
+      // most candidates won't parse as JSON. Try the next one.
     }
   }
   return {

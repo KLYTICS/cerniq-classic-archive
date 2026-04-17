@@ -87,9 +87,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // (`req.id`) or the echo'd header. Absent → omit from payload
     // (won't appear as `"requestId": undefined` in JSON).
     const requestId: string | undefined =
-      request.id ||
-      request.headers?.['x-request-id'] ||
-      undefined;
+      request.id || request.headers?.['x-request-id'] || undefined;
 
     const errorResponse: ApiErrorResponse = {
       success: false,

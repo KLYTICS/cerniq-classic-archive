@@ -14,10 +14,20 @@ jobs:
           fetch-depth: 0
       - name: Scan for secrets in diff
         run: |
+          # Match secret VALUES (high-entropy tokens), not var NAMES.
+          # Previously this regex matched on `ANTHROPIC_API`, `STRIPE_SECRET`,
+          # etc. — which flagged every test, schema, type, or comment that
+          # referenced the var by name. The scanner had zero signal on a
+          # PR touching anything agent-adjacent. Real patterns below catch
+          # actual credentials that would leak if committed.
           SECRETS=$(git diff origin/main...HEAD -- '*.ts' '*.tsx' '*.js' '*.mjs' '*.py' '*.json' '*.yml' '*.yaml' | \
-            grep -iE '(RESEND_API|STRIPE_SECRET|DATABASE_URL|JWT_SECRET|SUPABASE_SERVICE|ANTHROPIC_API|sk-[a-zA-Z0-9]{20,}|password\s*=\s*["\x27][^"\x27]+["\x27])' || true)
+            grep -iE '(\bsk-ant-[a-zA-Z0-9_-]{20,}|\bsk_live_[a-zA-Z0-9]{20,}|\bsk_test_[a-zA-Z0-9]{20,}|\bwhsec_[a-zA-Z0-9]{20,}|\bre_[a-zA-Z0-9]{20,}|\bAKIA[0-9A-Z]{16}|postgres://[^:@/]+:[^@]{8,}@|password\s*=\s*["\x27][^"\x27]{8,}["\x27])' || true)
+          # Filter obvious test literals so spec fixtures like 'sk-ant-test'
+          # don't trip the gate (pattern requires {20,} char tokens anyway,
+          # but belt-and-suspenders for anything matching the prefix).
+          SECRETS=$(echo "$SECRETS" | grep -iv 'sk-ant-test\|sk_test_test\|whsec_test\|re_test' || true)
           if [ -n "$SECRETS" ]; then
-            echo "::error::Secrets detected in PR diff"
+            echo "::error::High-entropy secret value detected in PR diff"
             echo "$SECRETS" | head -10
             exit 1
           fi
@@ -28,6 +38,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history so `git diff origin/main...HEAD` resolves the
+          # merge-base. Without this, checkout is a shallow clone and
+          # the diff bombs with `fatal: ambiguous argument 'origin/main'`.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'

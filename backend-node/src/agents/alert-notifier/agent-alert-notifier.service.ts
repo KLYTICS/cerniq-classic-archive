@@ -156,27 +156,41 @@ export class AgentAlertNotifierService
     ).replace(/\/+$/, '');
     const dashboardUrl = `${frontendUrl}/agents/alerts`;
 
-    // Try the typed sendAgentAlert first; if the EmailService doesn't
-    // expose it yet (we're adding this method pattern), fall back to the
-    // raw Resend path. Expressed as if/else rather than `?? fallback()` so
-    // lint's `no-unused-expressions` is happy — the original form dropped
-    // the coalescing result which it considers a code smell.
-    const sent = await (this.email as any).sendAgentAlert?.({
-      to: data.to,
-      severity: data.severity,
-      metric: data.metric,
-      finding: data.finding,
-      recommendation: data.recommendation,
-      institutionName: data.institutionName,
-      dashboardUrl,
-    });
-    if (sent === null || sent === undefined) {
-      await this.sendViaResendDirect(data, {
-        severityColor,
-        severityLabel,
+    // Deterministic dispatch: prefer EmailService.sendAgentAlert when it
+    // exists, otherwise fall back to the inline Resend path. The previous
+    // `await X?.() ?? fallback` form would double-send if sendAgentAlert
+    // resolves to `undefined` (the idiomatic return of a send helper),
+    // because `undefined ?? fallback` then fires fallback as well.
+    const agentAlertFn = (
+      this.email as {
+        sendAgentAlert?: (payload: {
+          to: string;
+          severity: string;
+          metric: string;
+          finding: string;
+          recommendation: string;
+          institutionName: string;
+          dashboardUrl: string;
+        }) => Promise<unknown>;
+      }
+    ).sendAgentAlert;
+    if (typeof agentAlertFn === 'function') {
+      await agentAlertFn.call(this.email, {
+        to: data.to,
+        severity: data.severity,
+        metric: data.metric,
+        finding: data.finding,
+        recommendation: data.recommendation,
+        institutionName: data.institutionName,
         dashboardUrl,
       });
+      return;
     }
+    await this.sendViaResendDirect(data, {
+      severityColor,
+      severityLabel,
+      dashboardUrl,
+    });
   }
 
   private async sendViaResendDirect(

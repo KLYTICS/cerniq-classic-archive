@@ -99,16 +99,12 @@ describe('env.schema', () => {
     expect(() => validateEnv()).toThrow('process.exit called');
   });
 
-  // ── Agent Execution Layer validators (2026-04-16) ─────────────────
-  //
-  // These tests lock the boot-time env validation for the vars added
-  // when the Agent Execution Layer landed. If Railway deploys with a
-  // malformed value, we want to fail loudly with a formatted error
-  // listing every offender, not boot silently with `NaN` concurrency
-  // or negative cost caps.
-
-  describe('AGENT_WORKER_CONCURRENCY', () => {
-    it('parses a valid value as a number', () => {
+  // ── Wave-03 agent runtime vars ────────────────────────────────────
+  // Each var maps to a concrete production dependency (scheduler kill-
+  // switch, queue concurrency, token budget, cost circuit-breaker,
+  // audit retention, SSE keepalive, Anthropic beta header).
+  describe('agent runtime env vars', () => {
+    it('parses AGENT_WORKER_CONCURRENCY as a bounded integer', () => {
       Object.assign(process.env, {
         ...VALID_ENV,
         AGENT_WORKER_CONCURRENCY: '8',
@@ -117,7 +113,7 @@ describe('env.schema', () => {
       expect(env.AGENT_WORKER_CONCURRENCY).toBe(8);
     });
 
-    it('rejects zero (must be at least 1)', () => {
+    it('rejects AGENT_WORKER_CONCURRENCY below 1', () => {
       Object.assign(process.env, {
         ...VALID_ENV,
         AGENT_WORKER_CONCURRENCY: '0',
@@ -125,97 +121,243 @@ describe('env.schema', () => {
       expect(() => validateEnv()).toThrow('process.exit called');
     });
 
-    it('rejects values over 50 (concurrency ceiling)', () => {
+    it('rejects AGENT_WORKER_CONCURRENCY above 50', () => {
       Object.assign(process.env, {
         ...VALID_ENV,
-        AGENT_WORKER_CONCURRENCY: '100',
+        AGENT_WORKER_CONCURRENCY: '51',
       });
       expect(() => validateEnv()).toThrow('process.exit called');
     });
 
-    it('rejects non-integer values', () => {
-      Object.assign(process.env, {
-        ...VALID_ENV,
-        AGENT_WORKER_CONCURRENCY: '3.5',
-      });
-      expect(() => validateEnv()).toThrow('process.exit called');
-    });
-
-    it('allows absence (optional)', () => {
-      delete process.env.AGENT_WORKER_CONCURRENCY;
-      Object.assign(process.env, VALID_ENV);
+    it('parses MAX_AGENT_TOKENS as a positive integer', () => {
+      Object.assign(process.env, { ...VALID_ENV, MAX_AGENT_TOKENS: '4096' });
       const env = validateEnv();
-      expect(env.AGENT_WORKER_CONCURRENCY).toBeUndefined();
+      expect(env.MAX_AGENT_TOKENS).toBe(4096);
+    });
+
+    it('accepts LLM_COST_ALERT_THRESHOLD_USD of 0 (alert on anything)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_COST_ALERT_THRESHOLD_USD: '0',
+      });
+      const env = validateEnv();
+      expect(env.LLM_COST_ALERT_THRESHOLD_USD).toBe(0);
+    });
+
+    it('rejects negative LLM_COST_ALERT_THRESHOLD_USD', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_COST_ALERT_THRESHOLD_USD: '-1',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('parses LLM_COST_CAP_USD_CENTS as a positive integer', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_COST_CAP_USD_CENTS: '10000',
+      });
+      const env = validateEnv();
+      expect(env.LLM_COST_CAP_USD_CENTS).toBe(10000);
+    });
+
+    it('rejects LLM_COST_CAP_USD_CENTS=0 (zero cap would block all runs)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_COST_CAP_USD_CENTS: '0',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('rejects non-numeric LLM_COST_CAP_USD_CENTS (no silent-disable-on-typo)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_COST_CAP_USD_CENTS: 'abc',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('parses AUDIT_LOG_RETENTION_DAYS (7y=2555 default lives in code)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AUDIT_LOG_RETENTION_DAYS: '2555',
+      });
+      const env = validateEnv();
+      expect(env.AUDIT_LOG_RETENTION_DAYS).toBe(2555);
+    });
+
+    it('rejects SSE_HEARTBEAT_INTERVAL_MS below 100ms', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        SSE_HEARTBEAT_INTERVAL_MS: '50',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('accepts AGENT_SCHEDULER_DISABLED only in canonical truthy/falsy form', () => {
+      for (const v of ['true', 'false', '1', '0']) {
+        Object.assign(process.env, {
+          ...VALID_ENV,
+          AGENT_SCHEDULER_DISABLED: v,
+        });
+        const env = validateEnv();
+        expect(env.AGENT_SCHEDULER_DISABLED).toBe(v);
+      }
+    });
+
+    it('rejects AGENT_SCHEDULER_DISABLED=yes (avoids truthy ambiguity)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AGENT_SCHEDULER_DISABLED: 'yes',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('accepts ANTHROPIC_BETA_HEADER as an arbitrary string', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        ANTHROPIC_BETA_HEADER: 'prompt-caching-2024-07-31',
+      });
+      const env = validateEnv();
+      expect(env.ANTHROPIC_BETA_HEADER).toBe('prompt-caching-2024-07-31');
+    });
+
+    it('parses AGENT_RUN_TIMEOUT_MS as an integer ≥ 1000ms', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AGENT_RUN_TIMEOUT_MS: '300000',
+      });
+      const env = validateEnv();
+      expect(env.AGENT_RUN_TIMEOUT_MS).toBe(300000);
+    });
+
+    it('rejects AGENT_RUN_TIMEOUT_MS below 1000ms (too aggressive to be useful)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AGENT_RUN_TIMEOUT_MS: '500',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('parses CACHE_AI_TTL_SECONDS as a positive integer', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        CACHE_AI_TTL_SECONDS: '7200',
+      });
+      const env = validateEnv();
+      expect(env.CACHE_AI_TTL_SECONDS).toBe(7200);
+    });
+
+    it('rejects CACHE_AI_TTL_SECONDS=0 (no-TTL leak guard)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        CACHE_AI_TTL_SECONDS: '0',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('parses LLM pricing overrides as nonnegative numbers', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_INPUT_USD_PER_MILLION_TOKENS: '12.5',
+        LLM_OUTPUT_USD_PER_MILLION_TOKENS: '60',
+      });
+      const env = validateEnv();
+      expect(env.LLM_INPUT_USD_PER_MILLION_TOKENS).toBe(12.5);
+      expect(env.LLM_OUTPUT_USD_PER_MILLION_TOKENS).toBe(60);
+    });
+
+    it('rejects negative LLM pricing (operator typo guard)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_INPUT_USD_PER_MILLION_TOKENS: '-1',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
     });
   });
 
-  describe('LLM_COST_CAP_USD_CENTS', () => {
-    it('parses a valid cost cap as a number', () => {
+  // ── Production refinement: agent runtime requires ANTHROPIC_API_KEY ─
+  describe('production boot-guard', () => {
+    it('rejects production deploy without ANTHROPIC_API_KEY', () => {
+      delete process.env.ANTHROPIC_API_KEY;
       Object.assign(process.env, {
         ...VALID_ENV,
-        LLM_COST_CAP_USD_CENTS: '20000',
-      });
-      const env = validateEnv();
-      expect(env.LLM_COST_CAP_USD_CENTS).toBe(20000);
-    });
-
-    it('allows 0 (disable semantics)', () => {
-      Object.assign(process.env, { ...VALID_ENV, LLM_COST_CAP_USD_CENTS: '0' });
-      const env = validateEnv();
-      expect(env.LLM_COST_CAP_USD_CENTS).toBe(0);
-    });
-
-    it('rejects negative cost caps', () => {
-      Object.assign(process.env, {
-        ...VALID_ENV,
-        LLM_COST_CAP_USD_CENTS: '-100',
+        NODE_ENV: 'production',
       });
       expect(() => validateEnv()).toThrow('process.exit called');
     });
 
-    it('rejects non-integer cents', () => {
+    it('accepts production deploy with ANTHROPIC_API_KEY set', () => {
       Object.assign(process.env, {
         ...VALID_ENV,
-        LLM_COST_CAP_USD_CENTS: '10.5',
+        NODE_ENV: 'production',
+        ANTHROPIC_API_KEY: 'sk-ant-test',
       });
-      expect(() => validateEnv()).toThrow('process.exit called');
+      const env = validateEnv();
+      expect(env.NODE_ENV).toBe('production');
+      expect(env.ANTHROPIC_API_KEY).toBe('sk-ant-test');
+    });
+
+    it('does not require ANTHROPIC_API_KEY in development or test', () => {
+      delete process.env.ANTHROPIC_API_KEY;
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        NODE_ENV: 'development',
+      });
+      expect(() => validateEnv()).not.toThrow();
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        NODE_ENV: 'test',
+      });
+      expect(() => validateEnv()).not.toThrow();
     });
   });
 
-  describe('RETENTION_AUDIT_LOGS_DAYS', () => {
-    it('parses a valid retention window', () => {
+  // ── URL-typed vars (fail fast on Railway typos) ──────────────────
+  describe('URL validation', () => {
+    it('accepts a well-formed FRONTEND_URL', () => {
       Object.assign(process.env, {
         ...VALID_ENV,
-        RETENTION_AUDIT_LOGS_DAYS: '2555',
+        FRONTEND_URL: 'https://cerniq.io',
       });
       const env = validateEnv();
-      expect(env.RETENTION_AUDIT_LOGS_DAYS).toBe(2555);
+      expect(env.FRONTEND_URL).toBe('https://cerniq.io');
     });
 
-    it('rejects zero and negative retention', () => {
+    it('rejects a malformed FRONTEND_URL', () => {
       Object.assign(process.env, {
         ...VALID_ENV,
-        RETENTION_AUDIT_LOGS_DAYS: '0',
+        FRONTEND_URL: 'cerniq.io', // missing scheme
       });
       expect(() => validateEnv()).toThrow('process.exit called');
     });
 
-    it('allows absence (data-retention.service supplies 2555 default)', () => {
-      delete process.env.RETENTION_AUDIT_LOGS_DAYS;
-      Object.assign(process.env, VALID_ENV);
+    it('accepts GOOGLE_CALLBACK_URL / GITHUB_CALLBACK_URL URLs', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        GOOGLE_CALLBACK_URL: 'https://api.cerniq.io/api/auth/google/callback',
+        GITHUB_CALLBACK_URL: 'https://api.cerniq.io/api/auth/github/callback',
+      });
       const env = validateEnv();
-      expect(env.RETENTION_AUDIT_LOGS_DAYS).toBeUndefined();
+      expect(env.GOOGLE_CALLBACK_URL).toContain('google/callback');
+      expect(env.GITHUB_CALLBACK_URL).toContain('github/callback');
     });
-  });
 
-  it('AGENT_SCHEDULER_DISABLED accepts any string (truthy-check contract)', () => {
-    // The scheduler reads `!!process.env.AGENT_SCHEDULER_DISABLED` so
-    // any non-empty value disables. We don't want Zod to reject that.
-    Object.assign(process.env, {
-      ...VALID_ENV,
-      AGENT_SCHEDULER_DISABLED: 'true',
+    it('accepts an email-formatted ERWIN_EMAIL', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        ERWIN_EMAIL: 'erwin@cerniq.io',
+      });
+      const env = validateEnv();
+      expect(env.ERWIN_EMAIL).toBe('erwin@cerniq.io');
     });
-    const env = validateEnv();
-    expect(env.AGENT_SCHEDULER_DISABLED).toBe('true');
+
+    it('rejects a non-email ERWIN_EMAIL', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        ERWIN_EMAIL: 'not-an-email',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
   });
 });

@@ -33,6 +33,8 @@ export interface AiResponsePayload {
  *
  * TD-005: AI Response Caching
  */
+const DEFAULT_TTL_SECONDS = 3600;
+
 @Injectable()
 export class AiResponseCacheService {
   private readonly logger = new Logger(AiResponseCacheService.name);
@@ -42,8 +44,34 @@ export class AiResponseCacheService {
     private readonly cache: CacheService,
     private readonly namespace: RedisNamespaceService,
   ) {
-    const envTtl = process.env.CACHE_AI_TTL_SECONDS;
-    this.defaultTtl = envTtl ? parseInt(envTtl, 10) : 3600;
+    this.defaultTtl = AiResponseCacheService.resolveTtlSeconds(
+      process.env,
+      (msg) => this.logger.warn(msg),
+    );
+  }
+
+  /**
+   * Resolve cache TTL from env. Exported static so specs can exercise
+   * the resolution table. Previously `parseInt(raw, 10)` passed `NaN`
+   * through to `cache.set(key, value, NaN)` on bad input — the
+   * resulting Redis TTL is implementation-defined (no-TTL in ioredis,
+   * which silently leaks keys forever).
+   */
+  static resolveTtlSeconds(
+    env: NodeJS.ProcessEnv,
+    warn: (msg: string) => void = () => {},
+  ): number {
+    const raw = env.CACHE_AI_TTL_SECONDS;
+    if (raw === undefined || raw === '') return DEFAULT_TTL_SECONDS;
+
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1) {
+      warn(
+        `CACHE_AI_TTL_SECONDS="${raw}" is not a positive integer — using default ${DEFAULT_TTL_SECONDS}s`,
+      );
+      return DEFAULT_TTL_SECONDS;
+    }
+    return parsed;
   }
 
   /**

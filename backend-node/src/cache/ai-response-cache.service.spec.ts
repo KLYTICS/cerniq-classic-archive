@@ -200,4 +200,40 @@ describe('AiResponseCacheService', () => {
       expect(hash).toMatch(/^[a-f0-9]{64}$/);
     });
   });
+
+  // ── TTL env resolution ──────────────────────────────────────────
+  // Guards against the parseInt trap: '3600abc' silently became 3600,
+  // 'abc' returned NaN which ioredis treats as no-TTL (silent leak).
+  describe('resolveTtlSeconds', () => {
+    const resolve = (env: Record<string, string | undefined>) =>
+      AiResponseCacheService.resolveTtlSeconds(env as NodeJS.ProcessEnv);
+
+    it('defaults to 3600 when CACHE_AI_TTL_SECONDS is unset', () => {
+      expect(resolve({})).toBe(3600);
+    });
+
+    it('honors a valid positive integer', () => {
+      expect(resolve({ CACHE_AI_TTL_SECONDS: '7200' })).toBe(7200);
+    });
+
+    it('defaults on zero', () => {
+      expect(resolve({ CACHE_AI_TTL_SECONDS: '0' })).toBe(3600);
+    });
+
+    it('defaults on negative', () => {
+      expect(resolve({ CACHE_AI_TTL_SECONDS: '-1' })).toBe(3600);
+    });
+
+    it('defaults on non-numeric (no silent NaN→no-TTL leak)', () => {
+      expect(resolve({ CACHE_AI_TTL_SECONDS: 'abc' })).toBe(3600);
+    });
+
+    it('defaults on trailing-garbage', () => {
+      expect(resolve({ CACHE_AI_TTL_SECONDS: '3600abc' })).toBe(3600);
+    });
+
+    it('defaults on fractional (TTL must be integer seconds)', () => {
+      expect(resolve({ CACHE_AI_TTL_SECONDS: '3600.5' })).toBe(3600);
+    });
+  });
 });

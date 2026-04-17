@@ -110,7 +110,9 @@ export class LeadsService {
     // used `setDate`/`getDay` (local TZ) then `setUTCHours(13)` (UTC),
     // which on machines west of UTC evaluated in the evening would
     // silently shift the target date forward 24h — turning Friday into
-    // Saturday. Puerto Rico (AST = UTC-4 year-round, no DST) makes the
+    // Saturday. Both this branch and origin/main landed the same fix
+    // in parallel (D14) — this is the merged canonical form.
+    // Puerto Rico (AST = UTC-4 year-round, no DST) makes the
     // conversion trivial: 09:00 AST == 13:00 UTC, every day.
     const d = new Date();
     d.setUTCDate(d.getUTCDate() + 1);

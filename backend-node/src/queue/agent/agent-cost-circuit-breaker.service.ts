@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 
-// AgentCostCircuitBreakerService enforces the LLM_COST_ALERT_THRESHOLD_USD
-// (Vol.2 §Environment Variables). It gates new agent runs when the
+// AgentCostCircuitBreakerService gates new agent runs when the
 // institution's month-to-date LLM spend exceeds the configured cap.
 //
 // Three states:
@@ -10,9 +9,13 @@ import { PrismaService } from '../../prisma.service';
 //   WARN     — 80% ≤ spend < 100% → runs proceed, UI shows amber banner
 //   BLOCKED  — spend ≥ 100% → new runs rejected with BUDGET_EXCEEDED code
 //
-// The threshold is configurable per-env via LLM_COST_CAP_USD_CENTS (in
-// cents for integer math). When unset, the circuit breaker is open (never
-// blocks) — consistent with Vol.2's default of $100.
+// Configuration accepts either of two env vars, in priority order:
+//   1. LLM_COST_CAP_USD_CENTS  — integer cents (precise, legacy)
+//   2. LLM_COST_ALERT_THRESHOLD_USD — USD float (customer-facing; shipped
+//      in `.env.example` so this is the name operators expect to edit)
+// Both are schema-validated in `env.schema.ts`, so reaching this
+// constructor means the value is a real number already. Default when
+// both are unset: $100.00 = 10000 cents.
 //
 // Callers: AgentQueueService.enqueue() checks before dispatching. The cost
 // endpoint (AgentRunsController.cost) includes the snapshot in the
@@ -20,21 +23,57 @@ import { PrismaService } from '../../prisma.service';
 
 export type BudgetState = 'OK' | 'WARN' | 'BLOCKED';
 
+const DEFAULT_CAP_CENTS = 10000;
+
 @Injectable()
 export class AgentCostCircuitBreakerService {
   private readonly logger = new Logger(AgentCostCircuitBreakerService.name);
   private readonly capUsdCents: number | null;
 
   constructor(private readonly prisma: PrismaService) {
-    const raw = process.env.LLM_COST_CAP_USD_CENTS;
-    // Default: $100.00 = 10000 cents
-    this.capUsdCents = raw ? parseInt(raw, 10) : 10000;
-    if (raw && isNaN(this.capUsdCents)) {
-      this.logger.warn(
-        `LLM_COST_CAP_USD_CENTS="${raw}" is not a number — circuit breaker disabled`,
-      );
-      this.capUsdCents = null;
+    this.capUsdCents = AgentCostCircuitBreakerService.resolveCapCents(
+      process.env,
+      (msg) => this.logger.warn(msg),
+    );
+  }
+
+  /**
+   * Resolve the cap in cents from env, preferring the precise `_CENTS`
+   * form and falling back to the customer-facing USD form. Exported as
+   * a static so the spec can exercise the resolution table without
+   * constructing the full service.
+   */
+  static resolveCapCents(
+    env: NodeJS.ProcessEnv,
+    warn: (msg: string) => void = () => {},
+  ): number | null {
+    const rawCents = env.LLM_COST_CAP_USD_CENTS;
+    if (rawCents !== undefined && rawCents !== '') {
+      const parsed = Number(rawCents);
+      if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1) {
+        warn(
+          `LLM_COST_CAP_USD_CENTS="${rawCents}" is not a positive integer — circuit breaker disabled`,
+        );
+        return null;
+      }
+      return parsed;
     }
+
+    const rawUsd = env.LLM_COST_ALERT_THRESHOLD_USD;
+    if (rawUsd !== undefined && rawUsd !== '') {
+      const parsed = Number(rawUsd);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        warn(
+          `LLM_COST_ALERT_THRESHOLD_USD="${rawUsd}" is not a nonnegative number — circuit breaker disabled`,
+        );
+        return null;
+      }
+      // Convert to cents with rounding to avoid float-precision drift
+      // (e.g. 100.1 USD → 10010 cents, not 10009.99999…).
+      return Math.round(parsed * 100);
+    }
+
+    return DEFAULT_CAP_CENTS;
   }
 
   async isAllowed(institutionId: string): Promise<{

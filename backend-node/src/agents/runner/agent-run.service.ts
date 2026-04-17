@@ -150,6 +150,12 @@ export class AgentRunService {
       auditRootHash?: string | null;
       toolCallCount?: number;
       llmTurnCount?: number;
+      // Record tokens + cost on failure too — failed runs still burn
+      // LLM tokens, and the cost circuit breaker sums from `agentRun`
+      // rows. Leaving cost null on failures would under-report spend.
+      inputTokens?: number | null;
+      outputTokens?: number | null;
+      costUsdCents?: number | null;
       durationMs?: number;
     },
   ): Promise<void> {
@@ -163,6 +169,9 @@ export class AgentRunService {
           auditRootHash: args.auditRootHash ?? null,
           toolCallCount: args.toolCallCount ?? 0,
           llmTurnCount: args.llmTurnCount ?? 0,
+          inputTokens: args.inputTokens ?? null,
+          outputTokens: args.outputTokens ?? null,
+          costUsdCents: args.costUsdCents ?? null,
           durationMs: args.durationMs ?? null,
           completedAt: new Date(),
         },
@@ -182,6 +191,11 @@ export class AgentRunService {
       errorMessage: string;
       toolCallCount?: number;
       llmTurnCount?: number;
+      // Same accounting as `fail` — a timed-out run still consumed
+      // tokens on the LLM turns it completed before the deadline.
+      inputTokens?: number | null;
+      outputTokens?: number | null;
+      costUsdCents?: number | null;
       durationMs?: number;
     },
   ): Promise<void> {
@@ -193,6 +207,9 @@ export class AgentRunService {
         errorMessage: args.errorMessage,
         toolCallCount: args.toolCallCount ?? 0,
         llmTurnCount: args.llmTurnCount ?? 0,
+        inputTokens: args.inputTokens ?? null,
+        outputTokens: args.outputTokens ?? null,
+        costUsdCents: args.costUsdCents ?? null,
         durationMs: args.durationMs ?? null,
         completedAt: new Date(),
       },
