@@ -35,6 +35,36 @@ export interface ValidationResult {
   extraHeaders: string[];
 }
 
+// ─── Helpers ────────────────────────────────────────────────────
+
+/**
+ * Strictly parse a financial field from a CSV record. Returns null
+ * (sentinel for "invalid") if:
+ *  - value is missing or whitespace-only
+ *  - value has trailing non-numeric characters (`"1234abc"`)
+ *  - value is ±Infinity (from exponential overflow like `"1e400"`)
+ *  - value falls outside the per-field bounds
+ *
+ * Exported so the spec can exercise the truth table without
+ * constructing the full service.
+ *
+ * D21: fixes a silent-accept-trailing-garbage defect inherited
+ * from `parseFloat`, which took `"1234abc"` as 1234 and let it
+ * reach the Prisma layer as a real balance.
+ */
+export function parseCpaFinancialField(
+  raw: unknown,
+  bounds: { min: number; max: number },
+): number | null {
+  if (raw === undefined || raw === null) return null;
+  const str = String(raw).trim();
+  if (str === '') return null;
+  const parsed = Number(str);
+  if (!Number.isFinite(parsed)) return null;
+  if (parsed < bounds.min || parsed > bounds.max) return null;
+  return parsed;
+}
+
 // ─── Constants ──────────────────────────────────────────────────
 
 const REQUIRED_HEADERS = [
@@ -162,9 +192,22 @@ export class CpaBulkIngestionService {
         continue;
       }
 
-      // Validate balance is a number
-      const balance = parseFloat(record['balance']);
-      if (isNaN(balance)) {
+      // D21: strict financial-field parsing. `parseFloat` silently
+      // accepts trailing garbage (`parseFloat('1234abc')` = 1234) and
+      // returns ±Infinity on exponential overflow (`parseFloat('1e400')`
+      // = Infinity, for which `isNaN` is false). Both would have let
+      // corrupted values into downstream ALM math.
+      //
+      // parseCpaFinancialField uses `Number` for strict parsing plus
+      // `Number.isFinite` to catch Infinity, and enforces per-field
+      // bounds: balances must be non-negative; rates 0-100 (percent)
+      // though we accept up to 1 if expressed as a decimal; durations
+      // 0-50 years (covers the longest realistic fixed-income tenors).
+      const balance = parseCpaFinancialField(record['balance'], {
+        min: 0,
+        max: 1e15, // $1 quadrillion — no reasonable cooperativa position hits this
+      });
+      if (balance === null) {
         errors.push({
           row: i + 1,
           field: 'balance',
@@ -173,8 +216,11 @@ export class CpaBulkIngestionService {
         continue;
       }
 
-      const rate = parseFloat(record['rate']);
-      if (isNaN(rate)) {
+      const rate = parseCpaFinancialField(record['rate'], {
+        min: -1, // negative rates exist (European IRPs, overnight)
+        max: 100, // 100% annual rate upper bound
+      });
+      if (rate === null) {
         errors.push({
           row: i + 1,
           field: 'rate',
@@ -183,8 +229,11 @@ export class CpaBulkIngestionService {
         continue;
       }
 
-      const duration = parseFloat(record['duration']);
-      if (isNaN(duration)) {
+      const duration = parseCpaFinancialField(record['duration'], {
+        min: 0,
+        max: 50, // 50-year treasury is the longest realistic tenor
+      });
+      if (duration === null) {
         errors.push({
           row: i + 1,
           field: 'duration',
