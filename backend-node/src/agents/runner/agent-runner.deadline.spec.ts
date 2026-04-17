@@ -209,4 +209,82 @@ describe('AgentRunnerService deadline', () => {
     if (prevEnv === undefined) delete process.env.AGENT_RUN_TIMEOUT_MS;
     else process.env.AGENT_RUN_TIMEOUT_MS = prevEnv;
   });
+
+  // ── Cost accounting passthrough ────────────────────────────────
+  // The cost circuit breaker sums `agentRun.costUsdCents`. Before
+  // this pass, the runner never wrote that column — every run
+  // persisted null, so month-to-date spend was always $0 and the
+  // breaker never tripped. These specs lock the passthrough on both
+  // the success path (runs.complete) and the timeout path
+  // (runs.timedOut) so regressions are caught at the contract level.
+  it('persists costUsdCents on successful completion', async () => {
+    const m = makeMocks();
+    m.llm.turn.mockResolvedValue({
+      stopReason: 'end_turn',
+      text: '{"ok":true}',
+      toolCalls: [],
+      inputTokens: 1000,
+      outputTokens: 500,
+    });
+    const svc = makeRunner(m);
+
+    await svc.run({
+      agentId: 'ALM_DECISION',
+      idempotencyKey: 'k_cost_ok',
+      institutionId: 'inst-1',
+      input: {},
+    });
+
+    expect(m.runs.complete).toHaveBeenCalledTimes(1);
+    const completeArgs = m.runs.complete.mock.calls[0][1];
+    expect(completeArgs.inputTokens).toBe(1000);
+    expect(completeArgs.outputTokens).toBe(500);
+    // 1000 input @ $15/1M = 1.5 cents; 500 output @ $75/1M = 3.75 cents
+    // total = 5.25 cents → rounds to 5.
+    expect(completeArgs.costUsdCents).toBe(5);
+  });
+
+  it('persists costUsdCents even when a run times out', async () => {
+    const prevEnv = process.env.AGENT_RUN_TIMEOUT_MS;
+    process.env.AGENT_RUN_TIMEOUT_MS = '1000';
+
+    const m = makeMocks({
+      onToolInvoke: (signal) =>
+        new Promise((_resolve, reject) => {
+          signal.addEventListener(
+            'abort',
+            () => reject(new Error('__TOOL_TIMEOUT__')),
+            { once: true },
+          );
+        }),
+    });
+    // Stub the LLM turn to report realistic token usage before the
+    // tool hangs — proves we capture cost for whatever work happened
+    // pre-deadline.
+    m.llm.turn.mockResolvedValue({
+      stopReason: 'tool_use',
+      text: '',
+      toolCalls: [{ id: 't1', name: 'hang', input: {} }],
+      inputTokens: 2000,
+      outputTokens: 300,
+    });
+    const svc = makeRunner(m);
+
+    await svc.run({
+      agentId: 'ALM_DECISION',
+      idempotencyKey: 'k_cost_timeout',
+      institutionId: 'inst-1',
+      input: {},
+    });
+
+    expect(m.runs.timedOut).toHaveBeenCalledTimes(1);
+    const timedOutArgs = m.runs.timedOut.mock.calls[0][1];
+    expect(timedOutArgs.inputTokens).toBe(2000);
+    expect(timedOutArgs.outputTokens).toBe(300);
+    // 2000 @ $15/1M = 3 cents; 300 @ $75/1M = 2.25 cents; total 5.25 → 5
+    expect(timedOutArgs.costUsdCents).toBe(5);
+
+    if (prevEnv === undefined) delete process.env.AGENT_RUN_TIMEOUT_MS;
+    else process.env.AGENT_RUN_TIMEOUT_MS = prevEnv;
+  }, 10_000);
 });

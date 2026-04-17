@@ -6,6 +6,19 @@ import { LlmBridgeService } from './llm-bridge.service';
 import { AgentEventBusService, AGENT_EVENT } from './agent-event-bus.service';
 import { ToolRegistryService } from '../registry/tool-registry.service';
 
+// Compute the spend for the run so far. Calling on every terminal
+// dispatch (`complete`, `fail`, `timedOut`) keeps the cost-circuit
+// breaker honest — before this fix the runner never wrote
+// `costUsdCents`, so the breaker's month-to-date sum was always 0
+// and every institution was permanently in state OK regardless of
+// actual LLM spend.
+function costCentsForRun(
+  inputTokens: number,
+  outputTokens: number,
+): number {
+  return LlmBridgeService.computeCostUsdCents(inputTokens, outputTokens);
+}
+
 type AgentRunHandle = Awaited<ReturnType<AgentRunService['startRun']>>;
 
 export interface ExecuteOptions {
@@ -211,7 +224,8 @@ export class AgentRunnerService {
 
       if (llmTurnCount >= def.maxTurns && !finalText) {
         await appendAudit({ stepKind: 'RUN_FAILED', payload: { errorCode: 'LOOP_LIMIT', maxTurns: def.maxTurns } });
-        await this.runs.fail(handle.runId, { errorCode: 'LOOP_LIMIT', errorMessage: `exceeded ${def.maxTurns} turns`, auditRootHash: lastHash, toolCallCount, llmTurnCount, durationMs: Date.now() - start });
+        const costUsdCents = costCentsForRun(inputTokens, outputTokens);
+        await this.runs.fail(handle.runId, { errorCode: 'LOOP_LIMIT', errorMessage: `exceeded ${def.maxTurns} turns`, auditRootHash: lastHash, toolCallCount, llmTurnCount, inputTokens, outputTokens, costUsdCents, durationMs: Date.now() - start });
         return { runId: handle.runId, status: 'FAILED', errorCode: 'LOOP_LIMIT', errorMessage: `exceeded ${def.maxTurns} turns`, existed: false, durationMs: Date.now() - start };
       }
 
@@ -220,13 +234,15 @@ export class AgentRunnerService {
 
       if (!parsed.ok) {
         await appendAudit({ stepKind: 'RUN_FAILED', payload: { errorCode: 'OUTPUT_INVALID', errorMessage: parsed.error } });
-        await this.runs.fail(handle.runId, { errorCode: 'OUTPUT_CONTRACT_INVALID', errorMessage: parsed.error!, auditRootHash: lastHash, toolCallCount, llmTurnCount, durationMs: Date.now() - start });
+        const costUsdCents = costCentsForRun(inputTokens, outputTokens);
+        await this.runs.fail(handle.runId, { errorCode: 'OUTPUT_CONTRACT_INVALID', errorMessage: parsed.error!, auditRootHash: lastHash, toolCallCount, llmTurnCount, inputTokens, outputTokens, costUsdCents, durationMs: Date.now() - start });
         return { runId: handle.runId, status: 'FAILED', errorCode: 'OUTPUT_CONTRACT_INVALID', errorMessage: parsed.error!, existed: false, durationMs: Date.now() - start };
       }
 
       await appendAudit({ stepKind: 'RUN_COMPLETED', payload: { ok: true } });
       const durationMs = Date.now() - start;
-      await this.runs.complete(handle.runId, { output: parsed.data, auditRootHash: lastHash, toolCallCount, llmTurnCount, inputTokens, outputTokens, durationMs });
+      const costUsdCents = costCentsForRun(inputTokens, outputTokens);
+      await this.runs.complete(handle.runId, { output: parsed.data, auditRootHash: lastHash, toolCallCount, llmTurnCount, inputTokens, outputTokens, costUsdCents, durationMs });
       return { runId: handle.runId, status: 'SUCCEEDED', output: parsed.data, existed: false, durationMs };
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -247,10 +263,14 @@ export class AgentRunnerService {
             errorMessage: `exceeded ${runTimeoutMs}ms deadline`,
           },
         });
+        const costUsdCents = costCentsForRun(inputTokens, outputTokens);
         await this.runs.timedOut(handle.runId, {
           errorMessage: `exceeded ${runTimeoutMs}ms deadline`,
           toolCallCount,
           llmTurnCount,
+          inputTokens,
+          outputTokens,
+          costUsdCents,
           durationMs,
         });
         return {
@@ -264,7 +284,8 @@ export class AgentRunnerService {
       }
       this.logger.error(`agent run ${handle.runId} crashed`, err);
       await appendAudit({ stepKind: 'RUN_FAILED', payload: { errorCode: 'EXECUTION_FAILED', errorMessage: msg } });
-      await this.runs.fail(handle.runId, { errorCode: 'EXECUTION_FAILED', errorMessage: msg, auditRootHash: lastHash, toolCallCount, llmTurnCount, durationMs });
+      const costUsdCents = costCentsForRun(inputTokens, outputTokens);
+      await this.runs.fail(handle.runId, { errorCode: 'EXECUTION_FAILED', errorMessage: msg, auditRootHash: lastHash, toolCallCount, llmTurnCount, inputTokens, outputTokens, costUsdCents, durationMs });
       return { runId: handle.runId, status: 'FAILED', errorCode: 'EXECUTION_FAILED', errorMessage: msg, existed: false, durationMs };
     } finally {
       // Always release the deadline timer; leaving it hot would fire

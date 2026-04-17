@@ -246,6 +246,62 @@ describe('env.schema', () => {
       });
       expect(() => validateEnv()).toThrow('process.exit called');
     });
+
+    it('parses LLM pricing overrides as nonnegative numbers', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_INPUT_USD_PER_MILLION_TOKENS: '12.5',
+        LLM_OUTPUT_USD_PER_MILLION_TOKENS: '60',
+      });
+      const env = validateEnv();
+      expect(env.LLM_INPUT_USD_PER_MILLION_TOKENS).toBe(12.5);
+      expect(env.LLM_OUTPUT_USD_PER_MILLION_TOKENS).toBe(60);
+    });
+
+    it('rejects negative LLM pricing (operator typo guard)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        LLM_INPUT_USD_PER_MILLION_TOKENS: '-1',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+  });
+
+  // ── Production refinement: agent runtime requires ANTHROPIC_API_KEY ─
+  describe('production boot-guard', () => {
+    it('rejects production deploy without ANTHROPIC_API_KEY', () => {
+      delete process.env.ANTHROPIC_API_KEY;
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        NODE_ENV: 'production',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('accepts production deploy with ANTHROPIC_API_KEY set', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        NODE_ENV: 'production',
+        ANTHROPIC_API_KEY: 'sk-ant-test',
+      });
+      const env = validateEnv();
+      expect(env.NODE_ENV).toBe('production');
+      expect(env.ANTHROPIC_API_KEY).toBe('sk-ant-test');
+    });
+
+    it('does not require ANTHROPIC_API_KEY in development or test', () => {
+      delete process.env.ANTHROPIC_API_KEY;
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        NODE_ENV: 'development',
+      });
+      expect(() => validateEnv()).not.toThrow();
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        NODE_ENV: 'test',
+      });
+      expect(() => validateEnv()).not.toThrow();
+    });
   });
 
   // ── URL-typed vars (fail fast on Railway typos) ──────────────────

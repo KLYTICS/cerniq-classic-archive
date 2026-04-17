@@ -75,6 +75,22 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   // Forwarded verbatim to the Anthropic client for opt-in beta features.
   ANTHROPIC_BETA_HEADER: z.string().optional(),
+  // Token-pricing calibration for the cost circuit breaker. Defaults
+  // match the public Anthropic list price for claude-opus-4-6
+  // ($15 input / $75 output per million tokens). Operators on a
+  // negotiated enterprise rate should override both. The breaker is
+  // conservative by default — it will trip earlier than necessary
+  // for customers on discounted rates, which is the safe direction.
+  LLM_INPUT_USD_PER_MILLION_TOKENS: z
+    .string()
+    .optional()
+    .transform((v) => (v ? Number(v) : undefined))
+    .pipe(z.number().nonnegative().optional()),
+  LLM_OUTPUT_USD_PER_MILLION_TOKENS: z
+    .string()
+    .optional()
+    .transform((v) => (v ? Number(v) : undefined))
+    .pipe(z.number().nonnegative().optional()),
 
   // ── Agent runtime (Wave-03) ──────────────────────────────────────
   // Per-institution LLM worker concurrency. Defaults live in the queue
@@ -178,6 +194,20 @@ const envSchema = z.object({
     .optional()
     .transform((v) => (v ? Number(v) : undefined))
     .pipe(z.number().int().positive().optional()),
+}).superRefine((env, ctx) => {
+  // Production boot-guard: the agent runtime is the headline product,
+  // so missing ANTHROPIC_API_KEY in production is never a soft-warn.
+  // Before this refinement the LlmBridgeService accepted an empty
+  // string and failed on first tool-use with an opaque auth error at
+  // runtime. Fail fast at the boundary instead.
+  if (env.NODE_ENV === 'production' && !env.ANTHROPIC_API_KEY) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['ANTHROPIC_API_KEY'],
+      message:
+        'ANTHROPIC_API_KEY is required in production — the agent runtime will not function without it',
+    });
+  }
 });
 
 export type Env = z.infer<typeof envSchema>;
