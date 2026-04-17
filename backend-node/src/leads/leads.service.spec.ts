@@ -181,9 +181,12 @@ describe('LeadsService', () => {
       // Should be at 13:00 UTC (9am AST)
       expect(followUp.getUTCHours()).toBe(13);
       expect(followUp.getUTCMinutes()).toBe(0);
-      // Should not be a weekend
-      expect(followUp.getDay()).not.toBe(0);
-      expect(followUp.getDay()).not.toBe(6);
+      // Use getUTCDay() to match the service (which now does all
+      // arithmetic in UTC). getDay() would return the local day-of-week
+      // and flake on machines west of UTC where the local date can
+      // differ from the UTC date at the 13:00 UTC target.
+      expect(followUp.getUTCDay()).not.toBe(0);
+      expect(followUp.getUTCDay()).not.toBe(6);
     });
   });
 

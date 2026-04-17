@@ -106,15 +106,17 @@ export class LeadsService {
   }
 
   private nextBusinessDay9am(): Date {
-    const now = new Date();
-    const d = new Date(now);
-    // Move to next day
-    d.setDate(d.getDate() + 1);
-    // Skip weekends
-    while (d.getDay() === 0 || d.getDay() === 6) {
-      d.setDate(d.getDate() + 1);
+    // All arithmetic in UTC to avoid a TZ-boundary bug: previously we
+    // used `setDate`/`getDay` (local TZ) then `setUTCHours(13)` (UTC),
+    // which on machines west of UTC evaluated in the evening would
+    // silently shift the target date forward 24h — turning Friday into
+    // Saturday. Puerto Rico (AST = UTC-4 year-round, no DST) makes the
+    // conversion trivial: 09:00 AST == 13:00 UTC, every day.
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 1);
+    while (d.getUTCDay() === 0 || d.getUTCDay() === 6) {
+      d.setUTCDate(d.getUTCDate() + 1);
     }
-    // Set to 9am AST (13:00 UTC)
     d.setUTCHours(13, 0, 0, 0);
     return d;
   }
