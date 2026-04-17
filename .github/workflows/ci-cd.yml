@@ -26,6 +26,17 @@ jobs:
     name: Secrets Scan
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # gitleaks-action calls GET /pulls/:n/commits to list PR commits,
+    # which requires `pull-requests: read` on the job token. Without
+    # this explicit block, the default GITHUB_TOKEN has `contents:
+    # read` only for PRs from forks, so the action fails with
+    # `403 Resource not accessible by integration`. Granting read on
+    # both contents and pull-requests at the job level scopes the
+    # permissions tightly (gitleaks can read refs + list PR commits
+    # but cannot write anything back to the repo).
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
