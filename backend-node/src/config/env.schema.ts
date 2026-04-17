@@ -126,6 +126,24 @@ const envSchema = z.object({
   AGENT_SCHEDULER_DISABLED: z
     .enum(['true', 'false', '1', '0'])
     .optional(),
+  // Wall-clock deadline per agent run. Enforced by AgentRunnerService
+  // via a run-scoped AbortController. Default 300_000ms (5 min) matches
+  // the Vercel Fluid Compute default.
+  AGENT_RUN_TIMEOUT_MS: z
+    .string()
+    .optional()
+    .transform((v) => (v ? Number(v) : undefined))
+    .pipe(z.number().int().min(1000).optional()),
+
+  // ── Cache ────────────────────────────────────────────────────────
+  // Default TTL for AI response cache entries. `parseInt` on bad input
+  // previously yielded NaN, which ioredis interprets as "no TTL" —
+  // silently leaking cache keys forever.
+  CACHE_AI_TTL_SECONDS: z
+    .string()
+    .optional()
+    .transform((v) => (v ? Number(v) : undefined))
+    .pipe(z.number().int().min(1).optional()),
 
   // ── Storage ──────────────────────────────────────────────────────
   AWS_ACCESS_KEY_ID: z.string().optional(),

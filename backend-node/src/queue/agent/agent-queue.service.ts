@@ -50,6 +50,9 @@ interface QueuedJob {
 }
 
 const MAX_QUEUE_DEPTH = 200; // Vol.2 alert threshold
+const DEFAULT_CONCURRENCY = 5;
+const MIN_CONCURRENCY = 1;
+const MAX_CONCURRENCY = 50;
 
 @Injectable()
 export class AgentQueueService {
@@ -62,11 +65,41 @@ export class AgentQueueService {
     private readonly runner: AgentRunnerService,
     private readonly costBreaker: AgentCostCircuitBreakerService,
   ) {
-    const raw = process.env.AGENT_WORKER_CONCURRENCY;
-    this.concurrency = raw ? parseInt(raw, 10) : 5;
-    if (isNaN(this.concurrency)) {
-      this.concurrency = 5;
+    this.concurrency = AgentQueueService.resolveConcurrency(
+      process.env,
+      (msg) => this.logger.warn(msg),
+    );
+  }
+
+  /**
+   * Resolve worker concurrency from env. Exported as static so the
+   * spec can exercise the full truth table without constructing the
+   * service. Previously used `parseInt(raw, 10)` which silently
+   * accepted '100abc' as 100 and '0' as 0 — a zero value caused a
+   * deadlock because `drain()`'s `while (processing < concurrency)`
+   * guard never let anything execute. All invalid inputs now fall
+   * back to the default with a warn log.
+   */
+  static resolveConcurrency(
+    env: NodeJS.ProcessEnv,
+    warn: (msg: string) => void = () => {},
+  ): number {
+    const raw = env.AGENT_WORKER_CONCURRENCY;
+    if (raw === undefined || raw === '') return DEFAULT_CONCURRENCY;
+
+    const parsed = Number(raw);
+    if (
+      !Number.isFinite(parsed) ||
+      !Number.isInteger(parsed) ||
+      parsed < MIN_CONCURRENCY ||
+      parsed > MAX_CONCURRENCY
+    ) {
+      warn(
+        `AGENT_WORKER_CONCURRENCY="${raw}" is not an integer in [${MIN_CONCURRENCY},${MAX_CONCURRENCY}] — using default ${DEFAULT_CONCURRENCY}`,
+      );
+      return DEFAULT_CONCURRENCY;
     }
+    return parsed;
   }
 
   async enqueue(jobInput: AgentJobInput): Promise<EnqueueResult> {

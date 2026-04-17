@@ -20,12 +20,35 @@ export interface ExecuteOptions {
 
 export interface RunResult {
   runId: string;
-  status: 'SUCCEEDED' | 'FAILED';
+  status: 'SUCCEEDED' | 'FAILED' | 'TIMED_OUT';
   output?: unknown;
   errorCode?: string;
   errorMessage?: string;
   existed: boolean;
   durationMs: number;
+}
+
+// Wall-clock deadline per run. Vercel Fluid Compute defaults to 300s
+// and Railway honors its own per-deploy timeout — this bound stops a
+// stuck LLM turn or slow tool from holding a worker slot indefinitely.
+// Overridable via AGENT_RUN_TIMEOUT_MS (validated in env.schema.ts).
+const DEFAULT_RUN_TIMEOUT_MS = 300_000;
+const MIN_RUN_TIMEOUT_MS = 1_000;
+
+export function resolveRunTimeoutMs(
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  const raw = env.AGENT_RUN_TIMEOUT_MS;
+  if (raw === undefined || raw === '') return DEFAULT_RUN_TIMEOUT_MS;
+  const parsed = Number(raw);
+  if (
+    !Number.isFinite(parsed) ||
+    !Number.isInteger(parsed) ||
+    parsed < MIN_RUN_TIMEOUT_MS
+  ) {
+    return DEFAULT_RUN_TIMEOUT_MS;
+  }
+  return parsed;
 }
 
 @Injectable()
@@ -91,6 +114,21 @@ export class AgentRunnerService {
     }
 
     await this.runs.markRunning(handle.runId);
+
+    // Per-run AbortController: fires the deadline timer and is
+    // passed to every tool invocation. Before this the runner created
+    // `new AbortController().signal` inline per-tool, never called
+    // abort(), so tool-level cancellation plumbing was dead and runs
+    // could hang indefinitely on a stuck LLM turn.
+    const runAbort = new AbortController();
+    const runTimeoutMs = resolveRunTimeoutMs();
+    const deadlineTimer = setTimeout(
+      () => runAbort.abort('RUN_DEADLINE'),
+      runTimeoutMs,
+    );
+    // Prevent the timer from keeping the Node event loop alive past
+    // the promise resolving (matters for graceful shutdown and tests).
+    deadlineTimer.unref?.();
 
     let lastHash: string | null = null;
     let toolCallCount = 0;
@@ -160,7 +198,9 @@ export class AgentRunnerService {
             agentId: handle.agentId,
             institutionId: (opts.institutionId as string) ?? null,
             organizationId: (opts.organizationId as string) ?? null,
-            signal: new AbortController().signal,
+            // Live run-scoped signal — aborts when the deadline fires
+            // so ToolRegistryService.runWithTimeout can short-circuit.
+            signal: runAbort.signal,
           });
           toolCallCount++;
           await appendAudit({ stepKind: 'TOOL_RESULT', toolName: call.name, payload: result, durationMs: Date.now() - toolStart });
@@ -190,10 +230,47 @@ export class AgentRunnerService {
       return { runId: handle.runId, status: 'SUCCEEDED', output: parsed.data, existed: false, durationMs };
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : String(err);
+      const durationMs = Date.now() - start;
+      // Distinguish deadline abort from generic execution failure.
+      // When runAbort fired the deadline, any in-flight tool rejects
+      // with `__TOOL_TIMEOUT__` (see ToolRegistryService.runWithTimeout),
+      // and signal.aborted is true. We surface this as TIMED_OUT so
+      // the dashboard and billing systems can treat it distinctly.
+      if (runAbort.signal.aborted) {
+        this.logger.warn(
+          `agent run ${handle.runId} hit deadline after ${runTimeoutMs}ms`,
+        );
+        await appendAudit({
+          stepKind: 'RUN_FAILED',
+          payload: {
+            errorCode: 'RUN_TIMEOUT',
+            errorMessage: `exceeded ${runTimeoutMs}ms deadline`,
+          },
+        });
+        await this.runs.timedOut(handle.runId, {
+          errorMessage: `exceeded ${runTimeoutMs}ms deadline`,
+          toolCallCount,
+          llmTurnCount,
+          durationMs,
+        });
+        return {
+          runId: handle.runId,
+          status: 'TIMED_OUT',
+          errorCode: 'RUN_TIMEOUT',
+          errorMessage: `exceeded ${runTimeoutMs}ms deadline`,
+          existed: false,
+          durationMs,
+        };
+      }
       this.logger.error(`agent run ${handle.runId} crashed`, err);
       await appendAudit({ stepKind: 'RUN_FAILED', payload: { errorCode: 'EXECUTION_FAILED', errorMessage: msg } });
-      await this.runs.fail(handle.runId, { errorCode: 'EXECUTION_FAILED', errorMessage: msg, auditRootHash: lastHash, toolCallCount, llmTurnCount, durationMs: Date.now() - start });
-      return { runId: handle.runId, status: 'FAILED', errorCode: 'EXECUTION_FAILED', errorMessage: msg, existed: false, durationMs: Date.now() - start };
+      await this.runs.fail(handle.runId, { errorCode: 'EXECUTION_FAILED', errorMessage: msg, auditRootHash: lastHash, toolCallCount, llmTurnCount, durationMs });
+      return { runId: handle.runId, status: 'FAILED', errorCode: 'EXECUTION_FAILED', errorMessage: msg, existed: false, durationMs };
+    } finally {
+      // Always release the deadline timer; leaving it hot would fire
+      // abort() against a completed run (harmless but noisy), and in
+      // test environments with fake timers it would pin the clock.
+      clearTimeout(deadlineTimer);
     }
   }
 }

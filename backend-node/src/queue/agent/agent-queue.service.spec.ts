@@ -101,4 +101,47 @@ describe('AgentQueueService', () => {
     expect(typeof s.pending).toBe('number');
     expect(typeof s.processing).toBe('number');
   });
+
+  // ── Concurrency env resolution ──────────────────────────────────
+  // Guards against the parseInt trap: '100abc' silently became 100,
+  // '0' silently became zero concurrency (which deadlocks the drain
+  // loop because `while (processing < 0)` never runs), and '-5' had
+  // the same deadlock shape. All invalid inputs now fall back to the
+  // default with a warn log instead of corrupting runtime behavior.
+  describe('resolveConcurrency', () => {
+    const resolve = (env: Record<string, string | undefined>) =>
+      AgentQueueService.resolveConcurrency(env as NodeJS.ProcessEnv);
+
+    it('defaults to 5 when AGENT_WORKER_CONCURRENCY is unset', () => {
+      expect(resolve({})).toBe(5);
+    });
+
+    it('honors a valid positive integer', () => {
+      expect(resolve({ AGENT_WORKER_CONCURRENCY: '10' })).toBe(10);
+    });
+
+    it('defaults on zero (would deadlock drain loop)', () => {
+      expect(resolve({ AGENT_WORKER_CONCURRENCY: '0' })).toBe(5);
+    });
+
+    it('defaults on negative values', () => {
+      expect(resolve({ AGENT_WORKER_CONCURRENCY: '-5' })).toBe(5);
+    });
+
+    it('defaults on fractional values (no silent floor)', () => {
+      expect(resolve({ AGENT_WORKER_CONCURRENCY: '5.5' })).toBe(5);
+    });
+
+    it('defaults on trailing-garbage strings (no parseInt silent-accept)', () => {
+      expect(resolve({ AGENT_WORKER_CONCURRENCY: '100abc' })).toBe(5);
+    });
+
+    it('defaults on non-numeric strings', () => {
+      expect(resolve({ AGENT_WORKER_CONCURRENCY: 'abc' })).toBe(5);
+    });
+
+    it('defaults when above upper bound (50)', () => {
+      expect(resolve({ AGENT_WORKER_CONCURRENCY: '51' })).toBe(5);
+    });
+  });
 });

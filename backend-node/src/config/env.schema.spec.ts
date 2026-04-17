@@ -212,6 +212,40 @@ describe('env.schema', () => {
       const env = validateEnv();
       expect(env.ANTHROPIC_BETA_HEADER).toBe('prompt-caching-2024-07-31');
     });
+
+    it('parses AGENT_RUN_TIMEOUT_MS as an integer ≥ 1000ms', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AGENT_RUN_TIMEOUT_MS: '300000',
+      });
+      const env = validateEnv();
+      expect(env.AGENT_RUN_TIMEOUT_MS).toBe(300000);
+    });
+
+    it('rejects AGENT_RUN_TIMEOUT_MS below 1000ms (too aggressive to be useful)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AGENT_RUN_TIMEOUT_MS: '500',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('parses CACHE_AI_TTL_SECONDS as a positive integer', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        CACHE_AI_TTL_SECONDS: '7200',
+      });
+      const env = validateEnv();
+      expect(env.CACHE_AI_TTL_SECONDS).toBe(7200);
+    });
+
+    it('rejects CACHE_AI_TTL_SECONDS=0 (no-TTL leak guard)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        CACHE_AI_TTL_SECONDS: '0',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
   });
 
   // ── URL-typed vars (fail fast on Railway typos) ──────────────────
