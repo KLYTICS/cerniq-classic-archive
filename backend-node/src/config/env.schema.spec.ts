@@ -105,18 +105,27 @@ describe('env.schema', () => {
   // audit retention, SSE keepalive, Anthropic beta header).
   describe('agent runtime env vars', () => {
     it('parses AGENT_WORKER_CONCURRENCY as a bounded integer', () => {
-      Object.assign(process.env, { ...VALID_ENV, AGENT_WORKER_CONCURRENCY: '8' });
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AGENT_WORKER_CONCURRENCY: '8',
+      });
       const env = validateEnv();
       expect(env.AGENT_WORKER_CONCURRENCY).toBe(8);
     });
 
     it('rejects AGENT_WORKER_CONCURRENCY below 1', () => {
-      Object.assign(process.env, { ...VALID_ENV, AGENT_WORKER_CONCURRENCY: '0' });
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AGENT_WORKER_CONCURRENCY: '0',
+      });
       expect(() => validateEnv()).toThrow('process.exit called');
     });
 
     it('rejects AGENT_WORKER_CONCURRENCY above 50', () => {
-      Object.assign(process.env, { ...VALID_ENV, AGENT_WORKER_CONCURRENCY: '51' });
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        AGENT_WORKER_CONCURRENCY: '51',
+      });
       expect(() => validateEnv()).toThrow('process.exit called');
     });
 

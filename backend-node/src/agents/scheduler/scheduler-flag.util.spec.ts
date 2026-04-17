@@ -14,10 +14,13 @@ describe('isSchedulerDisabled', () => {
     ['0', false],
   ];
 
-  it.each(cases)('AGENT_SCHEDULER_DISABLED=%p → disabled=%p', (raw, expected) => {
-    const env = raw === undefined ? {} : { AGENT_SCHEDULER_DISABLED: raw };
-    expect(isSchedulerDisabled(env as NodeJS.ProcessEnv)).toBe(expected);
-  });
+  it.each(cases)(
+    'AGENT_SCHEDULER_DISABLED=%p → disabled=%p',
+    (raw, expected) => {
+      const env = raw === undefined ? {} : { AGENT_SCHEDULER_DISABLED: raw };
+      expect(isSchedulerDisabled(env as NodeJS.ProcessEnv)).toBe(expected);
+    },
+  );
 
   it('treats the unset env as enabled (not disabled)', () => {
     expect(isSchedulerDisabled({} as NodeJS.ProcessEnv)).toBe(false);

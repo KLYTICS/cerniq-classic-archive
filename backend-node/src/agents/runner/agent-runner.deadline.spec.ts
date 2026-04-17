@@ -80,14 +80,12 @@ describe('AgentRunnerService deadline', () => {
     } = {},
   ) {
     const runs = {
-      startRun: jest
-        .fn()
-        .mockResolvedValue({
-          runId: 'run-1',
-          agentId: 'ALM_DECISION',
-          replay: false,
-          _nextStepIndex: 0,
-        }),
+      startRun: jest.fn().mockResolvedValue({
+        runId: 'run-1',
+        agentId: 'ALM_DECISION',
+        replay: false,
+        _nextStepIndex: 0,
+      }),
       markRunning: jest.fn().mockResolvedValue(undefined),
       complete: jest.fn().mockResolvedValue(undefined),
       fail: jest.fn().mockResolvedValue(undefined),
@@ -101,21 +99,21 @@ describe('AgentRunnerService deadline', () => {
       describeForLLM: jest.fn().mockReturnValue([]),
       invoke: jest
         .fn()
-        .mockImplementation(async (_name: string, _input: unknown, ctx: any) => {
-          if (opts.onToolInvoke) return opts.onToolInvoke(ctx.signal);
-          return { ok: true, data: {}, durationMs: 0, provenance: [] };
-        }),
+        .mockImplementation(
+          async (_name: string, _input: unknown, ctx: any) => {
+            if (opts.onToolInvoke) return opts.onToolInvoke(ctx.signal);
+            return { ok: true, data: {}, durationMs: 0, provenance: [] };
+          },
+        ),
     };
     const llm = {
-      turn: jest
-        .fn()
-        .mockResolvedValue({
-          stopReason: 'tool_use',
-          text: '',
-          toolCalls: [{ id: 't1', name: 'hang', input: {} }],
-          inputTokens: 1,
-          outputTokens: 1,
-        }),
+      turn: jest.fn().mockResolvedValue({
+        stopReason: 'tool_use',
+        text: '',
+        toolCalls: [{ id: 't1', name: 'hang', input: {} }],
+        inputTokens: 1,
+        outputTokens: 1,
+      }),
     };
     const events = { emit: jest.fn() };
     return { runs, audit, tools, llm, events };
@@ -148,9 +146,13 @@ describe('AgentRunnerService deadline', () => {
     // we receive the signal directly from the runner.
     const hangingTool = (signal: AbortSignal) =>
       new Promise((_resolve, reject) => {
-        signal.addEventListener('abort', () => reject(new Error('__TOOL_TIMEOUT__')), {
-          once: true,
-        });
+        signal.addEventListener(
+          'abort',
+          () => reject(new Error('__TOOL_TIMEOUT__')),
+          {
+            once: true,
+          },
+        );
       });
 
     const m = makeMocks({ onToolInvoke: hangingTool });

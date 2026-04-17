@@ -18,7 +18,8 @@ import { AppModule } from './app.module';
 // slow given the ~40 feature modules it imports.
 describe('AppModule — scheduler wiring', () => {
   it('imports ScheduleModule so @Cron decorators are discovered', () => {
-    const imports = (Reflect.getMetadata('imports', AppModule) ?? []) as unknown[];
+    const imports = (Reflect.getMetadata('imports', AppModule) ??
+      []) as unknown[];
 
     // `ScheduleModule.forRoot()` returns a DynamicModule whose `module`
     // property is the `ScheduleModule` class. Accept either the class

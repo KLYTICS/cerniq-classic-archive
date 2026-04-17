@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any */
 import { HedgeLanguageDetector } from '../agent-trust/hedge-language.detector';
 import type { AgentExecutor } from './agent-executor.port';
 import type { AgentRunResult, GoldenCase, RegressionReport } from './contracts';
@@ -25,13 +24,15 @@ function mockResultFor(gold: GoldenCase): AgentRunResult {
   const toolCount = gold.expected.toolsCalledMin ?? 4;
   const score = gold.expected.healthScoreRange
     ? Math.round(
-        (gold.expected.healthScoreRange[0] + gold.expected.healthScoreRange[1]) / 2,
+        (gold.expected.healthScoreRange[0] +
+          gold.expected.healthScoreRange[1]) /
+          2,
       )
     : 65;
 
   return {
     runId: `run-${gold.id}`,
-    institutionId: (gold.params as Record<string, unknown>).institutionId as string ?? gold.id,
+    institutionId: (gold.params.institutionId as string) ?? gold.id,
     agentType: gold.agentType,
     narrative: `Analysis complete for ${gold.name}. Duration gap requires attention.`,
     computeMs: 800,
@@ -109,7 +110,7 @@ describeWithFixtures('Cross-Agent Regression Harness (C6)', () => {
         const gold = ALL_GOLDEN_CASES.find(
           (g: any) =>
             g.agentType === agentType &&
-            (g.params as any).institutionId === params?.institutionId,
+            g.params.institutionId === params?.institutionId,
         );
         return Promise.resolve(mockResultFor(gold ?? ALL_GOLDEN_CASES[0]));
       }),
@@ -150,17 +151,31 @@ describeWithFixtures('Cross-Agent Regression Harness (C6)', () => {
   it('stress testing goldens cover all COSSEC-critical scenarios', () => {
     expect(STRESS_TESTING_GOLDENS.length).toBeGreaterThanOrEqual(7);
     const names = STRESS_TESTING_GOLDENS.map((g: any) => g.name.toLowerCase());
-    expect(names.some((n: string) => n.includes('parallel') || n.includes('rate shock'))).toBe(true);
+    expect(
+      names.some(
+        (n: string) => n.includes('parallel') || n.includes('rate shock'),
+      ),
+    ).toBe(true);
     expect(names.some((n: string) => n.includes('hurricane'))).toBe(true);
     expect(names.some((n: string) => n.includes('capital'))).toBe(true);
     expect(names.some((n: string) => n.includes('inversion'))).toBe(true);
-    expect(names.some((n: string) => n.includes('multi-factor') || n.includes('combined'))).toBe(true);
-    expect(names.some((n: string) => n.includes('healthy') || n.includes('resilient'))).toBe(true);
+    expect(
+      names.some(
+        (n: string) => n.includes('multi-factor') || n.includes('combined'),
+      ),
+    ).toBe(true);
+    expect(
+      names.some(
+        (n: string) => n.includes('healthy') || n.includes('resilient'),
+      ),
+    ).toBe(true);
   });
 
   it('exam prep goldens cover CAMEL dimensions', () => {
     expect(EXAM_PREP_GOLDENS.length).toBeGreaterThanOrEqual(7);
-    const domains = EXAM_PREP_GOLDENS.map((g: any) => g.expected.topRiskDomain).filter(Boolean);
+    const domains = EXAM_PREP_GOLDENS.map(
+      (g: any) => g.expected.topRiskDomain,
+    ).filter(Boolean);
     expect(domains).toContain('Earnings');
     expect(domains).toContain('Management');
     expect(domains).toContain('Capital Risk');
@@ -201,7 +216,9 @@ describeWithFixtures('Cross-Agent Regression Harness (C6)', () => {
     }
 
     for (const [name, report] of Object.entries(reports)) {
-      expect(report.averageScore).toBeGreaterThanOrEqual(EvalThresholds.deployGate);
+      expect(report.averageScore).toBeGreaterThanOrEqual(
+        EvalThresholds.deployGate,
+      );
       if (!report.passesDeployGate) {
         throw new Error(
           `${name} failed deploy gate: avg=${report.averageScore.toFixed(1)}, ` +

@@ -133,7 +133,7 @@ describe('AgentAlertNotifierService', () => {
     it('calls EmailService.sendAgentAlert exactly once when present and never falls back to Resend', async () => {
       seedHappyPath();
       const sendAgentAlert = jest.fn().mockResolvedValue(undefined);
-      (mockEmail as any).sendAgentAlert = sendAgentAlert;
+      mockEmail.sendAgentAlert = sendAgentAlert;
 
       // Spy on the Resend fallback path to prove it was never entered.
       // We override on the instance (not the prototype) so the spy is
@@ -150,7 +150,7 @@ describe('AgentAlertNotifierService', () => {
 
     it('falls back to Resend exactly once when sendAgentAlert is absent', async () => {
       seedHappyPath();
-      expect((mockEmail as any).sendAgentAlert).toBeUndefined();
+      expect(mockEmail.sendAgentAlert).toBeUndefined();
 
       const resendSpy = jest
         .spyOn(service as any, 'sendViaResendDirect')
