@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { parseFinancialField } from '../common/utils/financial-field';
 
 // ─── Cooperativa subcategory mapping (ES → system key) ─────────────
 const SUBCATEGORY_ALIASES: Record<string, string> = {
@@ -210,42 +211,43 @@ export class CSVIngestionService {
         );
       }
 
-      const balance = parseFloat(this.getField(row, headerMap, 'balance'));
-      if (isNaN(balance) || balance < 0) {
+      // D22: parseFinancialField rejects trailing garbage + Infinity
+      // in one step, so "250000000abc" no longer silently becomes a
+      // real $250M balance. Bounds preserved: $0 - $999B.
+      const rawBalance = this.getField(row, headerMap, 'balance');
+      const balance = parseFinancialField(rawBalance, {
+        min: 0,
+        max: 999_999_999_999,
+      });
+      if (balance === null) {
         errors.push({
           row: i + 1,
           field: 'balance',
-          value: String(balance),
-          message: `Balance must be a non-negative number (got ${balance})`,
-          messageEs: `El balance debe ser un numero no negativo (recibido ${balance})`,
-        });
-        continue;
-      }
-      if (balance > 999_999_999_999) {
-        errors.push({
-          row: i + 1,
-          field: 'balance',
-          value: String(balance),
-          message: `Balance exceeds maximum ($999B) — check for data entry error`,
-          messageEs: `El balance excede el maximo ($999B) — verifique si hay error de entrada`,
+          value: String(rawBalance),
+          message: `Balance must be a non-negative number up to $999B (got ${rawBalance})`,
+          messageEs: `El balance debe ser un numero no negativo hasta $999B (recibido ${rawBalance})`,
         });
         continue;
       }
 
-      const rawRate = parseFloat(this.getField(row, headerMap, 'rate'));
-      // Auto-detect: if rate > 1, treat as percentage (5.25 → 0.0525); if ≤ 1, treat as decimal
-      const rate = rawRate > 1 ? rawRate / 100 : rawRate;
-
-      if (isNaN(rate) || rate < 0 || rate > 1) {
+      // D22: the pre-auto-scale parse must reject "1.5abc" outright.
+      // Previously it became 1.5, auto-scaled to 0.015 silently.
+      // Accept either percent (0-100) or decimal (0-1) form; the
+      // auto-scale below normalizes.
+      const rawRateField = this.getField(row, headerMap, 'rate');
+      const rawRate = parseFinancialField(rawRateField, { min: 0, max: 100 });
+      if (rawRate === null) {
         errors.push({
           row: i + 1,
           field: 'rate',
-          value: String(rawRate),
-          message: `Rate must be between 0% and 100% (got ${rawRate})`,
-          messageEs: `La tasa debe estar entre 0% y 100% (recibido ${rawRate})`,
+          value: String(rawRateField),
+          message: `Rate must be between 0% and 100% (got ${rawRateField})`,
+          messageEs: `La tasa debe estar entre 0% y 100% (recibido ${rawRateField})`,
         });
         continue;
       }
+      // Auto-detect: if rate > 1, treat as percentage (5.25 → 0.0525); if ≤ 1, treat as decimal
+      const rate = rawRate > 1 ? rawRate / 100 : rawRate;
 
       if (rawRate > 1) {
         warnings.push(
@@ -260,14 +262,16 @@ export class CSVIngestionService {
       ).toLowerCase();
       const rateType = rawRateType === 'fijo' ? 'fixed' : rawRateType;
 
-      const duration = parseFloat(this.getField(row, headerMap, 'duration'));
-      if (isNaN(duration) || duration < 0 || duration > 600) {
+      // D22: duration validated up-front. 0-600 months (50y max).
+      const rawDuration = this.getField(row, headerMap, 'duration');
+      const duration = parseFinancialField(rawDuration, { min: 0, max: 600 });
+      if (duration === null) {
         errors.push({
           row: i + 1,
           field: 'duration',
-          value: String(duration),
-          message: `Duration must be between 0 and 600 months (got ${duration})`,
-          messageEs: `La duracion debe estar entre 0 y 600 meses (recibido ${duration})`,
+          value: String(rawDuration),
+          message: `Duration must be between 0 and 600 months (got ${rawDuration})`,
+          messageEs: `La duracion debe estar entre 0 y 600 meses (recibido ${rawDuration})`,
         });
         continue;
       }
@@ -494,66 +498,51 @@ export class CSVIngestionService {
       });
     }
 
-    // Balance
+    // D22: Balance — strict parse + bounds in one step. Bounds
+    // accept non-negative with no practical upper cap here (the
+    // ingest path above enforces the $999B cap; this is the
+    // validation surface used pre-ingest to surface UX errors).
     const balanceStr = this.getField(row, headerMap, 'balance');
-    const balance = parseFloat(balanceStr);
-    if (isNaN(balance)) {
+    const balance = parseFinancialField(balanceStr, {
+      min: 0,
+      max: 999_999_999_999,
+    });
+    if (balance === null) {
       errors.push({
         row: rowNum,
         field: 'balance',
         value: balanceStr,
-        message: `Invalid balance "${balanceStr}" — must be a number`,
-        messageEs: `Saldo inválido "${balanceStr}" — debe ser un número`,
-      });
-    } else if (balance < 0) {
-      errors.push({
-        row: rowNum,
-        field: 'balance',
-        value: balanceStr,
-        message: 'Balance cannot be negative',
-        messageEs: 'El saldo no puede ser negativo',
+        message: `Invalid balance "${balanceStr}" — must be a non-negative number up to $999B`,
+        messageEs: `Saldo inválido "${balanceStr}" — debe ser un número no negativo hasta $999B`,
       });
     }
 
-    // Rate
+    // D22: Rate 0-100 (validator accepts either percent or decimal
+    // before the service normalizes; mirror the upper-loop rule).
     const rateStr = this.getField(row, headerMap, 'rate');
-    const rate = parseFloat(rateStr);
-    if (isNaN(rate)) {
+    const rate = parseFinancialField(rateStr, { min: 0, max: 100 });
+    if (rate === null) {
       errors.push({
         row: rowNum,
         field: 'rate',
         value: rateStr,
-        message: `Invalid rate "${rateStr}" — must be a number`,
-        messageEs: `Tasa inválida "${rateStr}" — debe ser un número`,
-      });
-    } else if (rate < 0 || rate > 100) {
-      errors.push({
-        row: rowNum,
-        field: 'rate',
-        value: rateStr,
-        message: `Rate ${rate} out of range (0–100%)`,
-        messageEs: `Tasa ${rate} fuera de rango (0–100%)`,
+        message: `Invalid rate "${rateStr}" — must be a number between 0 and 100`,
+        messageEs: `Tasa inválida "${rateStr}" — debe ser un número entre 0 y 100`,
       });
     }
 
-    // Duration
+    // D22: Duration 0-50 years at this surface (the pre-ingest
+    // validation layer uses years; the post-ingest layer uses
+    // months; this is intentional — matches existing test coverage).
     const durationStr = this.getField(row, headerMap, 'duration');
-    const duration = parseFloat(durationStr);
-    if (isNaN(duration)) {
+    const duration = parseFinancialField(durationStr, { min: 0, max: 50 });
+    if (duration === null) {
       errors.push({
         row: rowNum,
         field: 'duration',
         value: durationStr,
-        message: `Invalid duration "${durationStr}" — must be a number in years`,
-        messageEs: `Duración inválida "${durationStr}" — debe ser un número en años`,
-      });
-    } else if (duration < 0 || duration > 50) {
-      errors.push({
-        row: rowNum,
-        field: 'duration',
-        value: durationStr,
-        message: `Duration ${duration} out of range (0–50 years)`,
-        messageEs: `Duración ${duration} fuera de rango (0–50 años)`,
+        message: `Invalid duration "${durationStr}" — must be a number between 0 and 50 years`,
+        messageEs: `Duración inválida "${durationStr}" — debe ser un número entre 0 y 50 años`,
       });
     }
 

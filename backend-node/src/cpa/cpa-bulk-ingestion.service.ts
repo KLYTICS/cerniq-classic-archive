@@ -1,5 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { parseFinancialField } from '../common/utils/financial-field';
 
 // ─── Interfaces ─────────────────────────────────────────────────
 
@@ -38,32 +39,14 @@ export interface ValidationResult {
 // ─── Helpers ────────────────────────────────────────────────────
 
 /**
- * Strictly parse a financial field from a CSV record. Returns null
- * (sentinel for "invalid") if:
- *  - value is missing or whitespace-only
- *  - value has trailing non-numeric characters (`"1234abc"`)
- *  - value is ±Infinity (from exponential overflow like `"1e400"`)
- *  - value falls outside the per-field bounds
- *
- * Exported so the spec can exercise the truth table without
- * constructing the full service.
- *
- * D21: fixes a silent-accept-trailing-garbage defect inherited
- * from `parseFloat`, which took `"1234abc"` as 1234 and let it
- * reach the Prisma layer as a real balance.
+ * Re-export of the shared helper under the original D21 name so
+ * existing callers (and the external CPA spec, if any regression
+ * harness still imports it) don't break. Hoisted to
+ * `src/common/utils/financial-field.ts` in Wave 3 because the same
+ * pattern is needed across alm/csv-ingestion, alm/csv-ingest-v2,
+ * and expense ingest.
  */
-export function parseCpaFinancialField(
-  raw: unknown,
-  bounds: { min: number; max: number },
-): number | null {
-  if (raw === undefined || raw === null) return null;
-  const str = String(raw).trim();
-  if (str === '') return null;
-  const parsed = Number(str);
-  if (!Number.isFinite(parsed)) return null;
-  if (parsed < bounds.min || parsed > bounds.max) return null;
-  return parsed;
-}
+export { parseFinancialField as parseCpaFinancialField } from '../common/utils/financial-field';
 
 // ─── Constants ──────────────────────────────────────────────────
 
@@ -198,12 +181,12 @@ export class CpaBulkIngestionService {
       // = Infinity, for which `isNaN` is false). Both would have let
       // corrupted values into downstream ALM math.
       //
-      // parseCpaFinancialField uses `Number` for strict parsing plus
+      // parseFinancialField uses `Number` for strict parsing plus
       // `Number.isFinite` to catch Infinity, and enforces per-field
       // bounds: balances must be non-negative; rates 0-100 (percent)
       // though we accept up to 1 if expressed as a decimal; durations
       // 0-50 years (covers the longest realistic fixed-income tenors).
-      const balance = parseCpaFinancialField(record['balance'], {
+      const balance = parseFinancialField(record['balance'], {
         min: 0,
         max: 1e15, // $1 quadrillion — no reasonable cooperativa position hits this
       });
@@ -216,7 +199,7 @@ export class CpaBulkIngestionService {
         continue;
       }
 
-      const rate = parseCpaFinancialField(record['rate'], {
+      const rate = parseFinancialField(record['rate'], {
         min: -1, // negative rates exist (European IRPs, overnight)
         max: 100, // 100% annual rate upper bound
       });
@@ -229,7 +212,7 @@ export class CpaBulkIngestionService {
         continue;
       }
 
-      const duration = parseCpaFinancialField(record['duration'], {
+      const duration = parseFinancialField(record['duration'], {
         min: 0,
         max: 50, // 50-year treasury is the longest realistic tenor
       });

@@ -72,13 +72,43 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Check for Float/number in financial code
+      # D22 Wave-3 rework. Two changes from the prior guard:
+      #
+      # 1) Extended scope. The old scope (alm/, reports/, compliance/)
+      #    missed CPA, Expenses, Realtime-ALM, Pipeline, AI ingest —
+      #    all modules that ingest user-supplied numeric data. D21
+      #    (silent-accept parseFloat on CPA balance) slipped through
+      #    because CPA wasn't scanned.
+      #
+      # 2) Narrowed regex. The old pattern matched `\b(number|float|
+      #    parseFloat|toFixed)\b` — which flagged every `number` type
+      #    annotation in TypeScript, producing hundreds of false
+      #    positives that trained contributors to ignore the guard.
+      #    New pattern matches only unsafe call sites:
+      #      parseFloat(   — the banned idiom
+      #    Allowlisting `parseFinancialField` (the safe replacement)
+      #    via the grep -v filter on 'parseFinancialField' so future
+      #    refactors don't re-flag the migrated call sites.
+      #
+      # Wave-3 policy: guard remains warning-only (`|| true` keeps
+      # step exit 0). Wave-4 promotes to blocking once the remaining
+      # 13 non-ALM parseFloat sites (expenses, realtime-alm API feeds,
+      # ai/ingest NL extraction) are migrated.
+      - name: Check for Float in financial code
         run: |
-          VIOLATIONS=$(git diff origin/main...HEAD -- 'backend-node/src/alm/**' 'backend-node/src/reports/**' 'backend-node/src/compliance/**' | \
-            grep -n '^\+.*\b\(number\|float\|parseFloat\|toFixed\)\b' | \
-            grep -iv 'Decimal\|decimal\|import\|test\|spec\|\.d\.ts' || true)
+          VIOLATIONS=$(git diff origin/main...HEAD -- \
+            'backend-node/src/alm/**' \
+            'backend-node/src/reports/**' \
+            'backend-node/src/compliance/**' \
+            'backend-node/src/cpa/**' \
+            'backend-node/src/expenses/**' \
+            'backend-node/src/realtime-alm/**' \
+            'backend-node/src/pipeline/**' \
+            'backend-node/src/ai/ingest/**' | \
+            grep -n '^\+.*\bparseFloat\s*(' | \
+            grep -iv 'parseFinancialField\|test\|spec\|\.d\.ts\|heuristic' || true)
           if [ -n "$VIOLATIONS" ]; then
-            echo "::warning::Potential Float usage in financial code (Decimal required):"
+            echo "::warning::Unsafe parseFloat in financial ingest code — use parseFinancialField from common/utils/financial-field.ts:"
             echo "$VIOLATIONS" | head -10
           fi
           echo "Financial decimal check complete"
