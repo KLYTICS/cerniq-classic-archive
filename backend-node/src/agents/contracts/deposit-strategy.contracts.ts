@@ -46,12 +46,14 @@ export const DepositStrategyOutputSchema = z.object({
   }),
   repricingRecommendations: z.array(RepricingRecommendationSchema),
   mixOptimization: z.object({
-    targetMix: z.array(z.object({
-      product: z.string().min(1),
-      currentPct: z.number(),
-      targetPct: z.number(),
-      rationale: z.string().min(1),
-    })),
+    targetMix: z.array(
+      z.object({
+        product: z.string().min(1),
+        currentPct: z.number(),
+        targetPct: z.number(),
+        rationale: z.string().min(1),
+      }),
+    ),
     expectedCostReductionBps: z.number().int(),
     timelineMonths: z.number().int().positive(),
   }),

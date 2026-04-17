@@ -105,10 +105,7 @@ export class CpaFirmController {
   @ApiParam({ name: 'firmId', description: 'CPA firm ID' })
   @ApiResponse({ status: 200, description: 'Updated branding' })
   @ApiResponse({ status: 404, description: 'Firm not found' })
-  async updateBranding(
-    @Param('firmId') firmId: string,
-    @Body() body: unknown,
-  ) {
+  async updateBranding(@Param('firmId') firmId: string, @Body() body: unknown) {
     const parsed = UpdateBrandingSchema.parse(body);
     return this.brandingService.updateBranding(firmId, parsed);
   }

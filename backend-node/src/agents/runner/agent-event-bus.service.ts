@@ -42,7 +42,9 @@ export class AgentEventBusService {
 
   /// Fan-out to a single caller for all agent events. Useful for SSE
   /// endpoints that want to forward every step for a given runId.
-  onAny(handler: (event: AgentEventName, payload: unknown) => void): () => void {
+  onAny(
+    handler: (event: AgentEventName, payload: unknown) => void,
+  ): () => void {
     const wrap = (event: AgentEventName) => (p: unknown) => handler(event, p);
     const offs = Object.values(AGENT_EVENT).map((e) => {
       const h = wrap(e);

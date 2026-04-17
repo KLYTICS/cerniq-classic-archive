@@ -116,7 +116,9 @@ export class AgentQueueService {
     }
 
     if (this.pending.length >= MAX_QUEUE_DEPTH) {
-      this.logger.warn(`agent queue full (${this.pending.length}/${MAX_QUEUE_DEPTH})`);
+      this.logger.warn(
+        `agent queue full (${this.pending.length}/${MAX_QUEUE_DEPTH})`,
+      );
       return { accepted: false, rejectedReason: 'QUEUE_FULL' };
     }
 

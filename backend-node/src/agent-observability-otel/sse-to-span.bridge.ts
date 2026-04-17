@@ -10,7 +10,12 @@ import { AGENT_STATUS } from './semantic-conventions';
  * {@link AgentNotifierService} emits objects matching these unions.
  */
 export type AgentSseEvent =
-  | { type: 'agent:started'; runId: string; agentType: AgentType; institutionId: string }
+  | {
+      type: 'agent:started';
+      runId: string;
+      agentType: AgentType;
+      institutionId: string;
+    }
   | { type: 'agent:step'; runId: string; step: string; pct: number }
   | { type: 'agent:completed'; runId: string; summary: Record<string, unknown> }
   | { type: 'agent:failed'; runId: string; error: string };
@@ -28,7 +33,10 @@ export type AgentSseEvent =
 @Injectable()
 export class SseToSpanBridge {
   private readonly logger = new Logger(SseToSpanBridge.name);
-  private readonly openRuns = new Map<string, { span: Span; startedAt: number }>();
+  private readonly openRuns = new Map<
+    string,
+    { span: Span; startedAt: number }
+  >();
   private readonly MAX_OPEN_MS = 60 * 60 * 1000;
 
   constructor(private readonly spans: AgentSpanFactory) {}
@@ -49,7 +57,9 @@ export class SseToSpanBridge {
       case 'agent:step': {
         const entry = this.openRuns.get(event.runId);
         if (!entry) return;
-        entry.span.addEvent(`step:${event.step}`, { 'agent.step.pct': event.pct });
+        entry.span.addEvent(`step:${event.step}`, {
+          'agent.step.pct': event.pct,
+        });
         return;
       }
       case 'agent:completed': {
@@ -66,7 +76,10 @@ export class SseToSpanBridge {
         const entry = this.openRuns.get(event.runId);
         if (!entry) return;
         entry.span.setAttribute(AGENT_STATUS, 'FAILED');
-        entry.span.setStatus({ code: SpanStatusCode.ERROR, message: event.error });
+        entry.span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: event.error,
+        });
         entry.span.end();
         this.openRuns.delete(event.runId);
         return;
@@ -83,7 +96,10 @@ export class SseToSpanBridge {
     const now = Date.now();
     for (const [runId, entry] of this.openRuns) {
       if (now - entry.startedAt > this.MAX_OPEN_MS) {
-        entry.span.setStatus({ code: SpanStatusCode.ERROR, message: 'sse span swept (stale)' });
+        entry.span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: 'sse span swept (stale)',
+        });
         entry.span.end();
         this.openRuns.delete(runId);
         this.logger.warn(`sweeped stale span for run=${runId}`);
@@ -92,10 +108,16 @@ export class SseToSpanBridge {
   }
 }
 
-function flattenForEvent(summary: Record<string, unknown>): Record<string, string | number | boolean> {
+function flattenForEvent(
+  summary: Record<string, unknown>,
+): Record<string, string | number | boolean> {
   const out: Record<string, string | number | boolean> = {};
   for (const [k, v] of Object.entries(summary)) {
-    if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+    if (
+      typeof v === 'string' ||
+      typeof v === 'number' ||
+      typeof v === 'boolean'
+    ) {
       out[`summary.${k}`] = v;
     } else {
       out[`summary.${k}`] = JSON.stringify(v);

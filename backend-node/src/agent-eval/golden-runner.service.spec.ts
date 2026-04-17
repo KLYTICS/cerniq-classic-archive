@@ -80,12 +80,16 @@ describe('GoldenRunnerService', () => {
   });
 
   it('filters cases when opts.only is specified', async () => {
-    const report = await svc.run('test-inst', [gold, { ...gold, id: 'golden-002', name: 'Other' }], {
-      only: ['golden-001'],
-    });
+    const report = await svc.run(
+      'test-inst',
+      [gold, { ...gold, id: 'golden-002', name: 'Other' }],
+      {
+        only: ['golden-001'],
+      },
+    );
     expect(mockExecutor.execute).toHaveBeenCalledTimes(1);
     expect(report.cases).toHaveLength(1);
-    expect(report.cases[0]!.caseId).toBe('golden-001');
+    expect(report.cases[0].caseId).toBe('golden-001');
   });
 
   it('computes delta from baseline when provided', async () => {
@@ -100,6 +104,8 @@ describe('GoldenRunnerService', () => {
       new RegressionScorerService(),
       new HedgeLanguageDetector(),
     );
-    await expect(noExec.run('test-inst', [gold])).rejects.toThrow('AGENT_EXECUTOR');
+    await expect(noExec.run('test-inst', [gold])).rejects.toThrow(
+      'AGENT_EXECUTOR',
+    );
   });
 });

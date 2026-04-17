@@ -31,6 +31,8 @@ export class AgentRegistrationBootstrap implements OnModuleInit {
         },
       );
     }
-    this.logger.log(`Bootstrap complete: ${this.tools.list().length} tools registered`);
+    this.logger.log(
+      `Bootstrap complete: ${this.tools.list().length} tools registered`,
+    );
   }
 }

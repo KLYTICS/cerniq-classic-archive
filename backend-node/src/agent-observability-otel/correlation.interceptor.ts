@@ -28,7 +28,9 @@ export class AgentCorrelationInterceptor implements NestInterceptor {
       user?: { institutionId?: string };
       cerniqCorrelationId?: string;
     }>();
-    const res = http.getResponse<{ setHeader: (k: string, v: string) => void }>();
+    const res = http.getResponse<{
+      setHeader: (k: string, v: string) => void;
+    }>();
 
     const incoming = single(req.headers['x-cerniq-correlation-id']);
     const correlationId = incoming ?? randomUUID();
@@ -42,7 +44,8 @@ export class AgentCorrelationInterceptor implements NestInterceptor {
     const span = trace.getSpan(otelContext.active());
     if (span) {
       span.setAttribute('cerniq.correlation_id', correlationId);
-      const institutionId = single(req.headers['x-institution-id']) ?? req.user?.institutionId;
+      const institutionId =
+        single(req.headers['x-institution-id']) ?? req.user?.institutionId;
       if (institutionId) span.setAttribute(INSTITUTION_ID, institutionId);
       const runId = single(req.headers['x-cerniq-agent-run-id']);
       if (runId) span.setAttribute(AGENT_RUN_ID, runId);

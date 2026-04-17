@@ -41,9 +41,7 @@ describe('RLS Agent Table Isolation', () => {
         { id: '2', institutionId: TENANT_B, status: 'SUCCEEDED' },
         { id: '3', institutionId: TENANT_A, status: 'FAILED' },
       ];
-      const tenantARuns = allRuns.filter(
-        (r) => r.institutionId === TENANT_A,
-      );
+      const tenantARuns = allRuns.filter((r) => r.institutionId === TENANT_A);
       expect(tenantARuns).toHaveLength(2);
       expect(tenantARuns.every((r) => r.institutionId === TENANT_A)).toBe(true);
     });
@@ -53,9 +51,7 @@ describe('RLS Agent Table Isolation', () => {
         { id: '1', institutionId: TENANT_A },
         { id: '2', institutionId: TENANT_B },
       ];
-      const tenantBRuns = allRuns.filter(
-        (r) => r.institutionId === TENANT_B,
-      );
+      const tenantBRuns = allRuns.filter((r) => r.institutionId === TENANT_B);
       expect(tenantBRuns).toHaveLength(1);
       expect(tenantBRuns[0].id).toBe('2');
     });
@@ -137,9 +133,7 @@ describe('RLS Agent Table Isolation', () => {
       expect(migrationSql).toContain(
         'REVOKE UPDATE, DELETE ON TABLE "agent_audit_logs"',
       );
-      expect(migrationSql).toContain(
-        'ENABLE ROW LEVEL SECURITY',
-      );
+      expect(migrationSql).toContain('ENABLE ROW LEVEL SECURITY');
     });
   });
 

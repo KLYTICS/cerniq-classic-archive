@@ -147,9 +147,7 @@ describe('AiResponseCacheService', () => {
     });
 
     it('handles deletePattern error gracefully', async () => {
-      cacheService.deletePattern.mockRejectedValue(
-        new Error('Pattern failed'),
-      );
+      cacheService.deletePattern.mockRejectedValue(new Error('Pattern failed'));
 
       await expect(
         service.invalidateInstitution(INST_ID),

@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Logger,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Logger, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -37,9 +31,13 @@ export class RevenueController {
 
   @Get('mrr')
   @ApiOperation({ summary: 'Current MRR and ARR snapshot' })
-  @ApiResponse({ status: 200, description: 'MRR/ARR with active subscription count' })
+  @ApiResponse({
+    status: 200,
+    description: 'MRR/ARR with active subscription count',
+  })
   async getMrr() {
-    const { mrr, arr, activeSubscriptionCount } = await this.revenue.getArrSnapshot();
+    const { mrr, arr, activeSubscriptionCount } =
+      await this.revenue.getArrSnapshot();
     return {
       mrr: mrr.toString(),
       arr: arr.toString(),
@@ -67,7 +65,10 @@ export class RevenueController {
 
   @Get('churn')
   @ApiOperation({ summary: 'Churn metrics for a date range' })
-  @ApiResponse({ status: 200, description: 'Cancelled/past_due counts and churn rate' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cancelled/past_due counts and churn rate',
+  })
   async getChurn(@Query() query: ChurnQueryDto) {
     const metrics = await this.revenue.getChurnMetrics({
       from: new Date(query.from),
@@ -87,7 +88,10 @@ export class RevenueController {
 
   @Get('cohorts')
   @ApiOperation({ summary: 'Cohort retention by signup month' })
-  @ApiResponse({ status: 200, description: 'Retention rates per signup cohort' })
+  @ApiResponse({
+    status: 200,
+    description: 'Retention rates per signup cohort',
+  })
   async getCohorts() {
     const cohorts = await this.revenue.getCohortRetention();
     return cohorts.map((c) => ({
@@ -102,7 +106,10 @@ export class RevenueController {
 
   @Get('pipeline')
   @ApiOperation({ summary: 'Pipeline health snapshot — leads by stage' })
-  @ApiResponse({ status: 200, description: 'Leads grouped by status with value totals' })
+  @ApiResponse({
+    status: 200,
+    description: 'Leads grouped by status with value totals',
+  })
   async getPipeline() {
     const snapshot = await this.pipeline.getPipelineSnapshot();
     return {
@@ -120,7 +127,10 @@ export class RevenueController {
 
   @Get('funnel')
   @ApiOperation({ summary: 'Stage-to-stage conversion funnel' })
-  @ApiResponse({ status: 200, description: 'Conversion rates between pipeline stages' })
+  @ApiResponse({
+    status: 200,
+    description: 'Conversion rates between pipeline stages',
+  })
   async getFunnel() {
     const funnel = await this.pipeline.getConversionFunnel();
     return {
@@ -138,7 +148,10 @@ export class RevenueController {
 
   @Get('stale-deals')
   @ApiOperation({ summary: 'Leads with no activity past threshold' })
-  @ApiResponse({ status: 200, description: 'Stale deals with days-since-activity' })
+  @ApiResponse({
+    status: 200,
+    description: 'Stale deals with days-since-activity',
+  })
   async getStaleDeals(@Query() query: StaleDealQueryDto) {
     const days = query.days ?? 14;
     const deals = await this.pipeline.getStaleDealFlags(days);

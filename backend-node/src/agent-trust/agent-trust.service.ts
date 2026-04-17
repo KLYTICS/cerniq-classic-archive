@@ -54,28 +54,39 @@ export class AgentTrustService {
     const violations: TrustViolation[] = [];
 
     // 1. Output schema (fails fast — if shape is wrong, other checks are noise).
-    const schemaRes = this.outputSchema.validate(input.outputSchema, input.agentOutput);
+    const schemaRes = this.outputSchema.validate(
+      input.outputSchema,
+      input.agentOutput,
+    );
     violations.push(...schemaRes.violations);
 
     // 2. Number citation — Vol2 principle #2.
-    violations.push(...this.numberCitation.validate(input.agentText, input.trace));
+    violations.push(
+      ...this.numberCitation.validate(input.agentText, input.trace),
+    );
 
     // 3. PII scan — Vol2 LLM Security #5.
     violations.push(...this.piiRedactor.validate(input.agentText));
 
     // 4. Prompt-injection residue in the agent's own text (rare but possible if
     //    an upstream tool echoed attacker content through without fencing).
-    violations.push(...this.promptInjection.scanAgainstUserInput(input.agentText));
+    violations.push(
+      ...this.promptInjection.scanAgainstUserInput(input.agentText),
+    );
 
     // 5. Hedge language — Vol3 failure taxonomy.
     violations.push(...this.hedgeDetector.detect(input.agentText));
 
     // 6. Bilingual requirement for PR institutions.
-    if (input.requiredLanguage === 'bilingual' && !this.looksBilingual(input.agentText)) {
+    if (
+      input.requiredLanguage === 'bilingual' &&
+      !this.looksBilingual(input.agentText)
+    ) {
       violations.push({
         rule: 'MISSING_BILINGUAL',
         severity: 'BLOCK',
-        message: 'Puerto Rico institution requires EN + ES in every output. Only one language detected.',
+        message:
+          'Puerto Rico institution requires EN + ES in every output. Only one language detected.',
       });
     }
 
@@ -115,8 +126,13 @@ export class AgentTrustService {
    * bilingual output. This is a last-line trip wire.
    */
   private looksBilingual(text: string): boolean {
-    const hasEs = /[áéíóúñÁÉÍÓÚÑ]|(?:\b(?:el|la|los|las|que|para|riesgo|tasa|cartera)\b)/i.test(text);
-    const hasEn = /\b(?:the|and|rate|risk|portfolio|liquidity|impact)\b/i.test(text);
+    const hasEs =
+      /[áéíóúñÁÉÍÓÚÑ]|(?:\b(?:el|la|los|las|que|para|riesgo|tasa|cartera)\b)/i.test(
+        text,
+      );
+    const hasEn = /\b(?:the|and|rate|risk|portfolio|liquidity|impact)\b/i.test(
+      text,
+    );
     return hasEs && hasEn;
   }
 }

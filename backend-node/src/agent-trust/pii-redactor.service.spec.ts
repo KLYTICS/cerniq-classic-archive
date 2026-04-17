@@ -11,8 +11,8 @@ describe('PiiRedactorService', () => {
     it('flags a valid SSN but not invalid high-area SSNs', () => {
       const findings = s.scan('SSN 123-45-6789 and fake 999-45-6789');
       expect(findings).toHaveLength(1);
-      expect(findings[0]!.kind).toBe('ssn');
-      expect(findings[0]!.raw).toBe('123-45-6789');
+      expect(findings[0].kind).toBe('ssn');
+      expect(findings[0].raw).toBe('123-45-6789');
     });
 
     it('flags EIN', () => {
@@ -61,7 +61,9 @@ describe('PiiRedactorService', () => {
 
     it('redacts multiple findings in order', () => {
       const out = s.redact('Email cfo@example.com phone 555-123-4567');
-      expect(out.redacted).toBe('Email [REDACTED:EMAIL] phone [REDACTED:PHONE]');
+      expect(out.redacted).toBe(
+        'Email [REDACTED:EMAIL] phone [REDACTED:PHONE]',
+      );
     });
   });
 
@@ -69,8 +71,8 @@ describe('PiiRedactorService', () => {
     it('every finding becomes a BLOCK violation', () => {
       const vs = s.validate('SSN 123-45-6789');
       expect(vs).toHaveLength(1);
-      expect(vs[0]!.rule).toBe('PII_LEAK');
-      expect(vs[0]!.severity).toBe('BLOCK');
+      expect(vs[0].rule).toBe('PII_LEAK');
+      expect(vs[0].severity).toBe('BLOCK');
     });
   });
 });

@@ -8,7 +8,9 @@ export class AgentDefinitionRegistryService {
 
   register(def: AgentDefinition): void {
     if (this.defs.has(def.agentId)) {
-      throw new Error(`AgentDefinition "${def.agentId}" is already registered.`);
+      throw new Error(
+        `AgentDefinition "${def.agentId}" is already registered.`,
+      );
     }
     this.defs.set(def.agentId, def);
     this.logger.log(`Registered agent: ${def.agentId} v${def.agentVersion}`);
@@ -18,7 +20,11 @@ export class AgentDefinitionRegistryService {
     return this.defs.get(agentId);
   }
 
-  list(): Array<{ agentId: string; agentVersion: string; promptVersion: string }> {
+  list(): Array<{
+    agentId: string;
+    agentVersion: string;
+    promptVersion: string;
+  }> {
     return Array.from(this.defs.values()).map((d) => ({
       agentId: d.agentId,
       agentVersion: d.agentVersion,

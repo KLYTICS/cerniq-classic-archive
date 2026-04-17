@@ -71,10 +71,7 @@ export class AiAdvisorController {
    * List all chat sessions for the current user at an institution.
    */
   @Get('sessions/:institutionId')
-  async listSessions(
-    @Param() params: unknown,
-    @Req() req: any,
-  ) {
+  async listSessions(@Param() params: unknown, @Req() req: any) {
     const parsed = SessionParamsSchema.safeParse(params);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.issues);

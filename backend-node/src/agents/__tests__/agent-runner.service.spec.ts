@@ -1,7 +1,5 @@
 import { z } from 'zod';
-import {
-  parseAgentOutput,
-} from '../runner/agent-runner.service';
+import { parseAgentOutput } from '../runner/agent-runner.service';
 
 describe('parseAgentOutput', () => {
   const schema = z.object({ a: z.number() });

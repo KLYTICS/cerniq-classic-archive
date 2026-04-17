@@ -9,13 +9,15 @@ describe('OutputSchemaValidator', () => {
   });
 
   const riskSchema = z.object({
-    topRisks: z.array(
-      z.object({
-        domain: z.string().min(1),
-        dollarImpact: z.number().positive(),
-        regulatoryRef: z.string().min(1),
-      }),
-    ).min(1),
+    topRisks: z
+      .array(
+        z.object({
+          domain: z.string().min(1),
+          dollarImpact: z.number().positive(),
+          regulatoryRef: z.string().min(1),
+        }),
+      )
+      .min(1),
     healthScore: z.object({
       score: z.number().min(0).max(100),
       label: z.string(),
@@ -24,7 +26,13 @@ describe('OutputSchemaValidator', () => {
 
   it('returns ok + typed data on valid input', () => {
     const result = v.validate(riskSchema, {
-      topRisks: [{ domain: 'Rate Risk', dollarImpact: 2_400_000, regulatoryRef: '12 CFR 741.3' }],
+      topRisks: [
+        {
+          domain: 'Rate Risk',
+          dollarImpact: 2_400_000,
+          regulatoryRef: '12 CFR 741.3',
+        },
+      ],
       healthScore: { score: 62, label: 'SATISFACTORY' },
     });
     expect(result.ok).toBe(true);
@@ -39,8 +47,8 @@ describe('OutputSchemaValidator', () => {
     });
     expect(result.ok).toBe(false);
     expect(result.violations.length).toBeGreaterThanOrEqual(1);
-    expect(result.violations[0]!.rule).toBe('OUTPUT_SCHEMA_INVALID');
-    expect(result.violations[0]!.severity).toBe('BLOCK');
+    expect(result.violations[0].rule).toBe('OUTPUT_SCHEMA_INVALID');
+    expect(result.violations[0].severity).toBe('BLOCK');
   });
 
   it('BLOCKs on negative dollarImpact (positive required)', () => {
@@ -49,7 +57,9 @@ describe('OutputSchemaValidator', () => {
       healthScore: { score: 50, label: 'OK' },
     });
     expect(result.ok).toBe(false);
-    expect(result.violations.some((v) => v.message.includes('dollarImpact'))).toBe(true);
+    expect(
+      result.violations.some((v) => v.message.includes('dollarImpact')),
+    ).toBe(true);
   });
 
   it('BLOCKs on empty topRisks array', () => {
@@ -69,7 +79,10 @@ describe('OutputSchemaValidator', () => {
   });
 
   it('reports path in violation message', () => {
-    const result = v.validate(riskSchema, { topRisks: 'not-an-array', healthScore: {} });
+    const result = v.validate(riskSchema, {
+      topRisks: 'not-an-array',
+      healthScore: {},
+    });
     const msg = result.violations.map((v) => v.message).join('\n');
     expect(msg).toMatch(/topRisks/);
   });

@@ -26,12 +26,21 @@ describe('AgentRunsController', () => {
       }),
     };
     mockRunner = {
-      run: jest.fn().mockResolvedValue({ runId: 'run-1', status: 'QUEUED', existing: false }),
+      run: jest.fn().mockResolvedValue({
+        runId: 'run-1',
+        status: 'QUEUED',
+        existing: false,
+      }),
     };
     mockAudit = {
       listForRun: jest.fn().mockResolvedValue([]),
     };
-    controller = new AgentRunsController(mockPrisma, mockCostBreaker, mockRunner, mockAudit);
+    controller = new AgentRunsController(
+      mockPrisma,
+      mockCostBreaker,
+      mockRunner,
+      mockAudit,
+    );
   });
 
   describe('listRuns', () => {
@@ -74,14 +83,22 @@ describe('AgentRunsController', () => {
 
   describe('triggerRun', () => {
     it('delegates to runner with institution from path', async () => {
-      await controller.triggerRun(INST_ID, { agentId: 'ALM_DECISION', triggerKind: 'API' });
+      await controller.triggerRun(INST_ID, {
+        agentId: 'ALM_DECISION',
+        triggerKind: 'API',
+      });
       expect(mockRunner.run).toHaveBeenCalledWith(
-        expect.objectContaining({ agentId: 'ALM_DECISION', institutionId: INST_ID }),
+        expect.objectContaining({
+          agentId: 'ALM_DECISION',
+          institutionId: INST_ID,
+        }),
       );
     });
 
     it('rejects invalid body', async () => {
-      await expect(controller.triggerRun(INST_ID, {})).rejects.toThrow(BadRequestException);
+      await expect(controller.triggerRun(INST_ID, {})).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -98,26 +115,38 @@ describe('AgentRunsController', () => {
         id: 'run-1',
         institutionId: 'other-inst',
       });
-      await expect(controller.getRunById(INST_ID, 'run-1')).rejects.toThrow(NotFoundException);
+      await expect(controller.getRunById(INST_ID, 'run-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('throws 404 when run does not exist', async () => {
       mockPrisma.agentRun.findUnique.mockResolvedValue(null);
-      await expect(controller.getRunById(INST_ID, 'run-x')).rejects.toThrow(NotFoundException);
+      await expect(controller.getRunById(INST_ID, 'run-x')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('getRunTrace', () => {
     it('returns audit steps for owned run', async () => {
-      mockPrisma.agentRun.findUnique.mockResolvedValue({ id: 'run-1', institutionId: INST_ID });
+      mockPrisma.agentRun.findUnique.mockResolvedValue({
+        id: 'run-1',
+        institutionId: INST_ID,
+      });
       mockAudit.listForRun.mockResolvedValue([{ id: 's1', stepNumber: 1 }]);
       const result = await controller.getRunTrace(INST_ID, 'run-1');
       expect(result).toHaveLength(1);
     });
 
     it('throws 404 for cross-tenant trace', async () => {
-      mockPrisma.agentRun.findUnique.mockResolvedValue({ id: 'run-1', institutionId: 'other-inst' });
-      await expect(controller.getRunTrace(INST_ID, 'run-1')).rejects.toThrow(NotFoundException);
+      mockPrisma.agentRun.findUnique.mockResolvedValue({
+        id: 'run-1',
+        institutionId: 'other-inst',
+      });
+      await expect(controller.getRunTrace(INST_ID, 'run-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

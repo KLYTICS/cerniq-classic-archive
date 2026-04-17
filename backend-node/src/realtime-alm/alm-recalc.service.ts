@@ -182,9 +182,7 @@ export class AlmRecalcService {
       niiSensitivity: this.round(
         (previous.niiSensitivity || -2.5) + bpsDelta * 0.02,
       ),
-      eveChange: this.round(
-        (previous.eveChange || -3.2) + bpsDelta * -0.015,
-      ),
+      eveChange: this.round((previous.eveChange || -3.2) + bpsDelta * -0.015),
       durationGap: this.round(previous.durationGap || 1.8),
       lcr: this.round((previous.lcr || 145) + bpsDelta * -0.05),
     };

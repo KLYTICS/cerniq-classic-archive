@@ -46,7 +46,12 @@ const CONFIDENCE_WEIGHTS: Record<string, number> = {
   depositBeta: 2,
 };
 
-const CRITICAL_MODELS = ['rateShock', 'liquidity', 'earlyWarning', 'capitalAdequacy'];
+const CRITICAL_MODELS = [
+  'rateShock',
+  'liquidity',
+  'earlyWarning',
+  'capitalAdequacy',
+];
 
 @Injectable()
 export class QuantSwarmService {

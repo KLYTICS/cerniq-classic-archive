@@ -39,7 +39,8 @@ const REGISTRY: Record<AgentType, ZodType> = {
 
 export function getOutputSchema(agentType: AgentType): ZodType {
   const schema = REGISTRY[agentType];
-  if (!schema) throw new Error(`No output schema registered for agent type: ${agentType}`);
+  if (!schema)
+    throw new Error(`No output schema registered for agent type: ${agentType}`);
   return schema;
 }
 

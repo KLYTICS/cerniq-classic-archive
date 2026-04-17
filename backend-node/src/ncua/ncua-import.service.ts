@@ -58,14 +58,14 @@ export class NcuaImportService {
     });
 
     // 1. Fetch basic info
-    const creditUnion =
-      await this.ncuaApi.fetchCreditUnion(charterNumber);
-    const institutionData =
-      this.fieldMapper.mapToInstitution(creditUnion);
+    const creditUnion = await this.ncuaApi.fetchCreditUnion(charterNumber);
+    const institutionData = this.fieldMapper.mapToInstitution(creditUnion);
 
     // 2. Fetch last 4 quarters of call reports
-    const callReports =
-      await this.ncuaApi.fetchLatestQuarters(charterNumber, 4);
+    const callReports = await this.ncuaApi.fetchLatestQuarters(
+      charterNumber,
+      4,
+    );
 
     // 3. Map all call reports to balance sheet items
     const mappedSheets: MappedBalanceSheet[] = callReports.map((report) =>
@@ -157,9 +157,7 @@ export class NcuaImportService {
     }
 
     if (!institution) {
-      throw new NotFoundException(
-        `Institution ${institutionId} not found`,
-      );
+      throw new NotFoundException(`Institution ${institutionId} not found`);
     }
 
     const charterNumber = institution.charterNumber;
@@ -170,10 +168,7 @@ export class NcuaImportService {
     }
 
     // Fetch latest quarter
-    const reports = await this.ncuaApi.fetchLatestQuarters(
-      charterNumber,
-      1,
-    );
+    const reports = await this.ncuaApi.fetchLatestQuarters(charterNumber, 1);
     if (reports.length === 0) {
       throw new NotFoundException(
         `No call report data found for charter ${charterNumber}`,
@@ -221,15 +216,11 @@ export class NcuaImportService {
 
     for (const charterNumber of charterNumbers) {
       try {
-        const result = await this.importCreditUnion(
-          charterNumber,
-          workspaceId,
-        );
+        const result = await this.importCreditUnion(charterNumber, workspaceId);
         results.push(result);
         succeeded++;
       } catch (err) {
-        const error =
-          err instanceof Error ? err.message : 'Unknown error';
+        const error = err instanceof Error ? err.message : 'Unknown error';
         results.push({ charterNumber, error });
         failed++;
         this.logger.warn({

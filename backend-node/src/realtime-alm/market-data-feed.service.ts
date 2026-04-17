@@ -283,9 +283,7 @@ export class MarketDataFeedService implements OnModuleDestroy {
       return;
     }
 
-    this.logger.log(
-      `Starting market-data polling every ${intervalMs / 1000}s`,
-    );
+    this.logger.log(`Starting market-data polling every ${intervalMs / 1000}s`);
     this.pollingTimer = setInterval(() => {
       void this.fetchLatestRates().catch((err) =>
         this.logger.error(`Polling cycle failed: ${err}`),

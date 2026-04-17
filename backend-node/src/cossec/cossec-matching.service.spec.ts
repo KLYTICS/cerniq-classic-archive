@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CossecMatchingService, normalize, levenshteinSimilarity } from './cossec-matching.service';
+import {
+  CossecMatchingService,
+  normalize,
+  levenshteinSimilarity,
+} from './cossec-matching.service';
 import { PrismaService } from '../prisma.service';
 
 jest.mock('../prisma.service', () => ({
@@ -128,8 +132,9 @@ describe('CossecMatchingService', () => {
     });
 
     it('should return unmatched for below-threshold matches', async () => {
-      const result =
-        await service.matchInstitution('Completely Unknown Institution XYZ');
+      const result = await service.matchInstitution(
+        'Completely Unknown Institution XYZ',
+      );
 
       expect(result.matched).toBe(false);
       expect(result.confidence).toBeLessThan(0.8);

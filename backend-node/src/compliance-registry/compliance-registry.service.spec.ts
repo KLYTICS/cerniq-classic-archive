@@ -63,9 +63,7 @@ describe('ComplianceRegistryService', () => {
     });
 
     it('returns 8 capital adequacy modules', () => {
-      const cap = service.filterByCategory(
-        ComplianceCategory.CAPITAL_ADEQUACY,
-      );
+      const cap = service.filterByCategory(ComplianceCategory.CAPITAL_ADEQUACY);
       expect(cap).toHaveLength(8);
     });
 
@@ -99,7 +97,9 @@ describe('ComplianceRegistryService', () => {
     it('FASB references cover CECL modules', () => {
       const fasb = service.filterByRegulator(RegulatoryBody.FASB);
       expect(fasb.length).toBeGreaterThanOrEqual(3);
-      expect(fasb.every((m) => m.category === ComplianceCategory.CREDIT_RISK)).toBe(true);
+      expect(
+        fasb.every((m) => m.category === ComplianceCategory.CREDIT_RISK),
+      ).toBe(true);
     });
   });
 

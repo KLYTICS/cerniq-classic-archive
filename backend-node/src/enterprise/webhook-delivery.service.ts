@@ -120,7 +120,8 @@ export class WebhookDeliveryService {
         logEntry.error = `HTTP ${response.status}`;
         logEntry.responseBody = await response.text().catch(() => null);
         logEntry.nextRetryAt = new Date(
-          Date.now() + (RETRY_BACKOFF_MS[logEntry.attempt] ?? RETRY_BACKOFF_MS[4]),
+          Date.now() +
+            (RETRY_BACKOFF_MS[logEntry.attempt] ?? RETRY_BACKOFF_MS[4]),
         );
         this.logger.warn({
           msg: 'Webhook delivery failed, will retry',
@@ -131,12 +132,12 @@ export class WebhookDeliveryService {
         });
       }
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Unknown error';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       logEntry.status = 'RETRYING';
       logEntry.error = errorMessage;
       logEntry.nextRetryAt = new Date(
-        Date.now() + (RETRY_BACKOFF_MS[logEntry.attempt] ?? RETRY_BACKOFF_MS[4]),
+        Date.now() +
+          (RETRY_BACKOFF_MS[logEntry.attempt] ?? RETRY_BACKOFF_MS[4]),
       );
       this.logger.error({
         msg: 'Webhook delivery error',
@@ -174,7 +175,7 @@ export class WebhookDeliveryService {
       eligibleCount: eligible.length,
     });
 
-    let succeeded = 0;
+    const succeeded = 0;
     let failed = 0;
 
     for (const log of eligible) {
@@ -222,9 +223,7 @@ export class WebhookDeliveryService {
   async getDeliveryLog(batchId: string): Promise<WebhookDeliveryLog[]> {
     return Array.from(this.deliveryStore.values())
       .filter((log) => log.batchId === batchId)
-      .sort(
-        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-      );
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
   // ── In-memory store (replaced by Prisma table in migration) ───────────────

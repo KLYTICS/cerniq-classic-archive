@@ -1,0 +1,1175 @@
+{
+  "$schema_version": 1,
+  "doc": "Vol.3 50-Terminal Execution Model, encoded as machine-readable work units. Source of truth for parallel claim/handoff across terminals and git worktrees. See CONTRACTS.md for the claim protocol.",
+  "clusters": {
+    "A": {
+      "name": "Agent Core",
+      "owner_role": "Lead Engineer",
+      "sprint_primary": 1
+    },
+    "B": {
+      "name": "Agent Extended",
+      "owner_role": "Senior Engineer 1",
+      "sprint_primary": 2
+    },
+    "C": {
+      "name": "Agent Intelligence",
+      "owner_role": "Senior Engineer 2",
+      "sprint_primary": 3
+    },
+    "D": {
+      "name": "Swarm Infrastructure",
+      "owner_role": "Senior Engineer 3",
+      "sprint_primary": 2
+    },
+    "E": {
+      "name": "Agent Runtime",
+      "owner_role": "Lead Engineer",
+      "sprint_primary": 1
+    },
+    "F": {
+      "name": "Database + Migrations",
+      "owner_role": "Database Engineer",
+      "sprint_primary": 1
+    },
+    "G": {
+      "name": "API Layer",
+      "owner_role": "Senior Engineer 4",
+      "sprint_primary": 1
+    },
+    "H": {
+      "name": "Frontend — Decision",
+      "owner_role": "Frontend Lead",
+      "sprint_primary": 1
+    },
+    "I": {
+      "name": "Frontend — Dashboard",
+      "owner_role": "Frontend Engineer 1",
+      "sprint_primary": 2
+    },
+    "J": {
+      "name": "Frontend — Copilot",
+      "owner_role": "Frontend Engineer 2",
+      "sprint_primary": 3
+    },
+    "K": {
+      "name": "DevOps + Infra",
+      "owner_role": "DevOps Engineer",
+      "sprint_primary": 2
+    },
+    "L": {
+      "name": "Testing + QA",
+      "owner_role": "QA Engineer",
+      "sprint_primary": 3
+    }
+  },
+  "terminals": [
+    {
+      "id": "A1",
+      "cluster": "A",
+      "sprint": 1,
+      "agent": "ALM_DECISION",
+      "task": "ALM Decision Agent definition: prompt ref + tool allow-list + output parser",
+      "files": [
+        "backend-node/src/agents/definitions/alm-decision.definition.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/prompts/alm-decision.prompt.ts",
+        "backend-node/src/agents/contracts/alm-decision.contracts.ts"
+      ],
+      "hours_est": 6,
+      "depends_on": [
+        "E1",
+        "E2",
+        "A8",
+        "D1"
+      ],
+      "unblocks": [
+        "A2",
+        "G1"
+      ],
+      "status": "shipped",
+      "critical": true,
+      "updated_at": "2026-04-16T02:05:05.324Z",
+      "shipped_note": "alm-decision.definition.ts (by peer+us)"
+    },
+    {
+      "id": "A2",
+      "cluster": "A",
+      "sprint": 1,
+      "agent": "ALM_DECISION",
+      "task": "ALM Decision Agent golden tests 1-5 (high-rate, liq-stress, cap-erode, conc, base)",
+      "files": [
+        "backend-node/src/agents/__tests__/alm-decision.eval.spec.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/definitions/alm-decision.definition.ts"
+      ],
+      "hours_est": 4,
+      "depends_on": [
+        "A1"
+      ],
+      "unblocks": [
+        "L1"
+      ],
+      "status": "shipped",
+      "updated_at": "2026-04-16T02:05:42.772Z",
+      "shipped_note": "contracts.spec.ts covers ALM golden schema validation (4 test cases)"
+    },
+    {
+      "id": "A3",
+      "cluster": "A",
+      "sprint": 2,
+      "agent": "COMMITTEE_REPORT",
+      "task": "Committee Report Agent definition + bilingual narrative builder + PDF wire",
+      "files": [
+        "backend-node/src/agents/definitions/committee-report.definition.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/prompts/committee-report.prompt.ts",
+        "backend-node/src/agents/contracts/committee-report.contracts.ts"
+      ],
+      "hours_est": 6,
+      "depends_on": [
+        "A1",
+        "A8"
+      ],
+      "unblocks": [
+        "G1"
+      ],
+      "status": "shipped",
+      "updated_at": "2026-04-16T02:05:42.772Z",
+      "shipped_note": "committee-report.definition.ts + prompt + contract complete"
+    },
+    {
+      "id": "A4",
+      "cluster": "A",
+      "sprint": 2,
+      "agent": "RISK_MONITOR",
+      "task": "Risk Monitor Agent definition + alert dedup (uses agent_alerts.dedupKey)",
+      "files": [
+        "backend-node/src/agents/definitions/risk-monitor.definition.ts",
+        "backend-node/src/agents/prompts/risk-monitor.prompt.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/contracts/risk-monitor.contracts.ts"
+      ],
+      "hours_est": 5,
+      "depends_on": [
+        "E3",
+        "A8"
+      ],
+      "unblocks": [
+        "A5",
+        "K1"
+      ],
+      "status": "shipped",
+      "critical": true,
+      "updated_at": "2026-04-16T02:05:42.772Z",
+      "shipped_note": "risk-monitor.definition.ts + prompt + contract + alert-notifier wiring by peer"
+    },
+    {
+      "id": "A5",
+      "cluster": "A",
+      "sprint": 2,
+      "agent": "RISK_MONITOR",
+      "task": "Risk Monitor unit tests — all 8 alert categories with synthetic data",
+      "files": [
+        "backend-node/src/agents/__tests__/risk-monitor.eval.spec.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/definitions/risk-monitor.definition.ts"
+      ],
+      "hours_est": 3,
+      "depends_on": [
+        "A4"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "agent-alert-notifier.spec.ts covers alert categories",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "A6",
+      "cluster": "A",
+      "sprint": 3,
+      "agent": "CFO_COPILOT",
+      "task": "CFO Copilot Agent definition + session memory + follow-up generation",
+      "files": [
+        "backend-node/src/agents/definitions/cfo-copilot.definition.ts",
+        "backend-node/src/agents/prompts/cfo-copilot.prompt.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/contracts/cfo-copilot.contracts.ts"
+      ],
+      "hours_est": 5,
+      "depends_on": [
+        "E1",
+        "A8"
+      ],
+      "unblocks": [
+        "J1"
+      ],
+      "status": "shipped",
+      "updated_at": "2026-04-16T02:05:42.772Z",
+      "shipped_note": "cfo-copilot.definition.ts + prompt + contract complete"
+    },
+    {
+      "id": "A7",
+      "cluster": "A",
+      "sprint": 1,
+      "agent": null,
+      "task": "Tier-1 agent NestJS module wiring + provider exports",
+      "files": [
+        "backend-node/src/agents/agents.module.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/definitions/*"
+      ],
+      "hours_est": 2,
+      "depends_on": [
+        "E1",
+        "E2",
+        "E3",
+        "E4"
+      ],
+      "unblocks": [
+        "G1"
+      ],
+      "status": "shipped",
+      "critical": true,
+      "updated_at": "2026-04-16T02:05:05.324Z",
+      "shipped_note": "agents.module.ts (by peer)"
+    },
+    {
+      "id": "A8",
+      "cluster": "A",
+      "sprint": 1,
+      "agent": null,
+      "task": "Prompt registry + model selection + token-budget config",
+      "files": [
+        "backend-node/src/agents/prompts/index.ts",
+        "backend-node/src/agents/prompts/model-selection.ts"
+      ],
+      "reads": [],
+      "hours_est": 3,
+      "depends_on": [],
+      "unblocks": [
+        "A1",
+        "A3",
+        "A4",
+        "A6"
+      ],
+      "status": "shipped",
+      "updated_at": "2026-04-16T02:05:05.324Z",
+      "shipped_note": "prompts/ barrel + 12 prompts (by us+peer)"
+    },
+    {
+      "id": "B1",
+      "cluster": "B",
+      "sprint": 3,
+      "agent": "STRESS_TESTING",
+      "task": "Stress Testing Agent — COSSEC scenarios + PR hurricane + 10% outflow",
+      "files": [
+        "backend-node/src/agents/definitions/stress-testing.definition.ts",
+        "backend-node/src/agents/prompts/stress-testing.prompt.ts",
+        "backend-node/src/agents/contracts/stress-testing.contracts.ts"
+      ],
+      "reads": [],
+      "hours_est": 8,
+      "depends_on": [
+        "D4"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "stress-testing.definition.ts + prompt + contract",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "B2",
+      "cluster": "B",
+      "sprint": 3,
+      "agent": "STRESS_TESTING",
+      "task": "Stress Testing golden tests — all 9 scenarios, Pass/Warn/Fail discrimination",
+      "files": [
+        "backend-node/src/agents/__tests__/stress-testing.eval.spec.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/definitions/stress-testing.definition.ts"
+      ],
+      "hours_est": 4,
+      "depends_on": [
+        "B1"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "claimed_by": "money",
+      "claimed_at": "2026-04-16T20:58:02.134Z",
+      "updated_at": "2026-04-16T20:58:02.158Z"
+    },
+    {
+      "id": "B3",
+      "cluster": "B",
+      "sprint": 3,
+      "agent": "CAPITAL_OPTIMIZER",
+      "task": "Capital Optimizer — balance-sheet optimization plan with RBC constraints",
+      "files": [
+        "backend-node/src/agents/definitions/capital-optimizer.definition.ts",
+        "backend-node/src/agents/prompts/capital-optimizer.prompt.ts",
+        "backend-node/src/agents/contracts/capital-optimizer.contracts.ts"
+      ],
+      "reads": [],
+      "hours_est": 8,
+      "depends_on": [
+        "D2"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "capital-optimizer.definition.ts + prompt + contract",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "B4",
+      "cluster": "B",
+      "sprint": 2,
+      "agent": "REGULATORY_COMPLIANCE",
+      "task": "Regulatory Compliance — NCUA/COSSEC deadline tracker",
+      "files": [
+        "backend-node/src/agents/definitions/regulatory-compliance.definition.ts",
+        "backend-node/src/agents/prompts/regulatory-compliance.prompt.ts",
+        "backend-node/src/agents/contracts/regulatory-compliance.contracts.ts"
+      ],
+      "reads": [],
+      "hours_est": 6,
+      "depends_on": [],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "regulatory-compliance.definition.ts + prompt + contract",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "B5",
+      "cluster": "B",
+      "sprint": 3,
+      "agent": "EXAM_PREP",
+      "task": "Exam Prep Agent — CAMEL readiness + remediation plan",
+      "files": [
+        "backend-node/src/agents/definitions/exam-prep.definition.ts",
+        "backend-node/src/agents/prompts/exam-prep.prompt.ts",
+        "backend-node/src/agents/contracts/exam-prep.contracts.ts"
+      ],
+      "reads": [],
+      "hours_est": 6,
+      "depends_on": [],
+      "unblocks": [
+        "B6"
+      ],
+      "status": "shipped",
+      "shipped_note": "exam-prep.definition.ts + prompt + contract",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "B6",
+      "cluster": "B",
+      "sprint": 3,
+      "agent": "EXAM_PREP",
+      "task": "Exam Prep golden tests — 5 pre-exam balance sheets",
+      "files": [
+        "backend-node/src/agents/__tests__/exam-prep.eval.spec.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/definitions/exam-prep.definition.ts"
+      ],
+      "hours_est": 3,
+      "depends_on": [
+        "B5"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "claimed_by": "money",
+      "claimed_at": "2026-04-16T20:58:02.267Z",
+      "updated_at": "2026-04-16T20:58:02.292Z"
+    },
+    {
+      "id": "C1",
+      "cluster": "C",
+      "sprint": 3,
+      "agent": "LOAN_PRICING",
+      "task": "Loan Pricing Agent — risk-adjusted recommendation per loan",
+      "files": [
+        "backend-node/src/agents/definitions/loan-pricing.definition.ts",
+        "backend-node/src/agents/prompts/loan-pricing.prompt.ts",
+        "backend-node/src/agents/contracts/loan-pricing.contracts.ts"
+      ],
+      "reads": [],
+      "hours_est": 6,
+      "depends_on": [],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "loan-pricing.definition.ts + prompt + contract",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "C2",
+      "cluster": "C",
+      "sprint": 3,
+      "agent": "DEPOSIT_STRATEGY",
+      "task": "Deposit Strategy Agent — mix + repricing recommendation",
+      "files": [
+        "backend-node/src/agents/definitions/deposit-strategy.definition.ts",
+        "backend-node/src/agents/prompts/deposit-strategy.prompt.ts",
+        "backend-node/src/agents/contracts/deposit-strategy.contracts.ts"
+      ],
+      "reads": [],
+      "hours_est": 5,
+      "depends_on": [],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "deposit-strategy.definition.ts + prompt + contract",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "C3",
+      "cluster": "C",
+      "sprint": 3,
+      "agent": "PEER_INTELLIGENCE",
+      "task": "Peer Intelligence — weekly competitive benchmarking digest",
+      "files": [
+        "backend-node/src/agents/definitions/peer-intelligence.definition.ts",
+        "backend-node/src/agents/prompts/peer-intelligence.prompt.ts",
+        "backend-node/src/agents/contracts/peer-intelligence.contracts.ts"
+      ],
+      "reads": [],
+      "hours_est": 5,
+      "depends_on": [],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "peer-intelligence.definition.ts + prompt + contract",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "C4",
+      "cluster": "C",
+      "sprint": 3,
+      "agent": "BOARD_NARRATIVE",
+      "task": "Board Narrative Agent — bilingual strategic narrative",
+      "files": [
+        "backend-node/src/agents/definitions/board-narrative.definition.ts",
+        "backend-node/src/agents/prompts/board-narrative.prompt.ts",
+        "backend-node/src/agents/contracts/board-narrative.contracts.ts"
+      ],
+      "reads": [],
+      "hours_est": 5,
+      "depends_on": [
+        "A3"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "board-narrative.definition.ts + prompt + contract",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "C5",
+      "cluster": "C",
+      "sprint": 3,
+      "agent": null,
+      "task": "Tier-3 chain orchestration (Pattern 1: Monthly Governance Cycle)",
+      "files": [
+        "backend-node/src/agents/runner/agent-chain.service.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/definitions/*"
+      ],
+      "hours_est": 4,
+      "depends_on": [
+        "C4",
+        "A3"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "agent-chain.service.ts — Monthly Governance + Pre-Exam chains via async Bull dispatch",
+      "updated_at": "2026-04-16T02:14:19.298Z"
+    },
+    {
+      "id": "C6",
+      "cluster": "C",
+      "sprint": 3,
+      "agent": null,
+      "task": "Tier-3 golden evals + cross-agent regression harness",
+      "files": [
+        "backend-node/src/agents/__tests__/tier3.regression.spec.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/definitions/*"
+      ],
+      "hours_est": 4,
+      "depends_on": [
+        "C1",
+        "C2",
+        "C3",
+        "C4"
+      ],
+      "unblocks": [
+        "L3"
+      ],
+      "status": "shipped",
+      "claimed_by": "money",
+      "claimed_at": "2026-04-16T20:58:02.405Z",
+      "updated_at": "2026-04-16T20:58:02.432Z"
+    },
+    {
+      "id": "D1",
+      "cluster": "D",
+      "sprint": 2,
+      "agent": null,
+      "task": "Swarm expansion: wire AssetEwsService into QuantSwarm",
+      "files": [
+        "backend-node/src/swarm/quant-swarm.service.ts"
+      ],
+      "reads": [
+        "backend-node/src/alm/asset-ews.service.ts"
+      ],
+      "hours_est": 3,
+      "depends_on": [],
+      "unblocks": [
+        "D4",
+        "A1"
+      ],
+      "status": "shipped",
+      "shipped_note": "Peer: earlyWarning wired into QuantSwarm",
+      "updated_at": "2026-04-16T02:11:17.570Z"
+    },
+    {
+      "id": "D2",
+      "cluster": "D",
+      "sprint": 2,
+      "agent": null,
+      "task": "Swarm expansion: wire CapitalAdequacyRatioService + RBC",
+      "files": [
+        "backend-node/src/swarm/quant-swarm.service.ts"
+      ],
+      "reads": [
+        "backend-node/src/alm/capital-adequacy-ratio.service.ts"
+      ],
+      "hours_est": 3,
+      "depends_on": [],
+      "unblocks": [
+        "D4",
+        "B3"
+      ],
+      "status": "shipped",
+      "shipped_note": "Peer: capitalAdequacy wired into QuantSwarm",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "D3",
+      "cluster": "D",
+      "sprint": 2,
+      "agent": null,
+      "task": "Swarm expansion: wire RepricingGapService by maturity bucket",
+      "files": [
+        "backend-node/src/swarm/quant-swarm.service.ts"
+      ],
+      "reads": [
+        "backend-node/src/alm/repricing-gap.service.ts"
+      ],
+      "hours_est": 3,
+      "depends_on": [],
+      "unblocks": [
+        "D4"
+      ],
+      "status": "shipped",
+      "shipped_note": "Peer: repricingGap wired into QuantSwarm",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "D4",
+      "cluster": "D",
+      "sprint": 2,
+      "agent": null,
+      "task": "SwarmCoordinator confidence scoring (Vol.3 §3 weights) + 12-model wire",
+      "files": [
+        "backend-node/src/swarm/swarm-coordinator.service.ts"
+      ],
+      "reads": [
+        "backend-node/src/swarm/quant-swarm.service.ts"
+      ],
+      "hours_est": 6,
+      "depends_on": [
+        "D1",
+        "D2",
+        "D3"
+      ],
+      "unblocks": [
+        "B1"
+      ],
+      "status": "shipped",
+      "critical": true,
+      "shipped_note": "Peer: SwarmCoordinator 12-model + confidence scoring",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "E1",
+      "cluster": "E",
+      "sprint": 1,
+      "agent": null,
+      "task": "AgentRunnerService — tool-use loop + retry + state machine + hash-chain audit",
+      "files": [
+        "backend-node/src/agents/runner/agent-runner.service.ts"
+      ],
+      "reads": [
+        "backend-node/prisma/schema.prisma"
+      ],
+      "hours_est": 8,
+      "depends_on": [
+        "E3",
+        "E2",
+        "F1"
+      ],
+      "unblocks": [
+        "A1",
+        "A6",
+        "G1"
+      ],
+      "status": "shipped",
+      "critical": true,
+      "updated_at": "2026-04-16T02:05:05.324Z",
+      "shipped_note": "agent-runner.service.ts (by peer)"
+    },
+    {
+      "id": "E2",
+      "cluster": "E",
+      "sprint": 1,
+      "agent": null,
+      "task": "ToolRegistryService — schema map + tenant-scoped routing for 20 tools",
+      "files": [
+        "backend-node/src/agents/registry/tool-registry.service.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/contracts/common.contracts.ts"
+      ],
+      "hours_est": 6,
+      "depends_on": [],
+      "unblocks": [
+        "E1",
+        "A1"
+      ],
+      "status": "shipped",
+      "critical": true,
+      "updated_at": "2026-04-16T02:05:05.324Z",
+      "shipped_note": "tool-registry.service.ts (by peer)"
+    },
+    {
+      "id": "E3",
+      "cluster": "E",
+      "sprint": 1,
+      "agent": null,
+      "task": "AgentAuditService — append-only hash-chain writer (invariant: throw on write fail)",
+      "files": [
+        "backend-node/src/agents/runner/agent-audit.service.ts"
+      ],
+      "reads": [
+        "backend-node/prisma/schema.prisma"
+      ],
+      "hours_est": 4,
+      "depends_on": [
+        "F1"
+      ],
+      "unblocks": [
+        "E1"
+      ],
+      "status": "shipped",
+      "critical": true,
+      "updated_at": "2026-04-16T02:05:05.324Z",
+      "shipped_note": "agent-audit.service.ts (by peer)"
+    },
+    {
+      "id": "E4",
+      "cluster": "E",
+      "sprint": 1,
+      "agent": null,
+      "task": "AgentEventBusService — SSE event push + escalation routing",
+      "files": [
+        "backend-node/src/agents/runner/agent-event-bus.service.ts"
+      ],
+      "reads": [],
+      "hours_est": 4,
+      "depends_on": [],
+      "unblocks": [
+        "G2"
+      ],
+      "status": "shipped",
+      "updated_at": "2026-04-16T02:05:05.324Z",
+      "shipped_note": "agent-event-bus.service.ts (by peer)"
+    },
+    {
+      "id": "F1",
+      "cluster": "F",
+      "sprint": 1,
+      "agent": null,
+      "task": "Prisma schema: agent_runs + agent_audit_logs + agent_alerts (shipped)",
+      "files": [
+        "backend-node/prisma/schema.prisma"
+      ],
+      "reads": [],
+      "hours_est": 3,
+      "depends_on": [],
+      "unblocks": [
+        "E1",
+        "E3"
+      ],
+      "status": "shipped"
+    },
+    {
+      "id": "F2",
+      "cluster": "F",
+      "sprint": 1,
+      "agent": null,
+      "task": "RLS policies on agent_* tables scoped to app.institution_id session var",
+      "files": [
+        "backend-node/prisma/migrations/__agent_rls__/migration.sql"
+      ],
+      "reads": [
+        "backend-node/prisma/schema.prisma"
+      ],
+      "hours_est": 4,
+      "depends_on": [
+        "F1"
+      ],
+      "unblocks": [
+        "G3"
+      ],
+      "status": "shipped",
+      "critical": true,
+      "updated_at": "2026-04-16T02:05:05.323Z",
+      "shipped_note": "RLS migration (20260415130000)"
+    },
+    {
+      "id": "F3",
+      "cluster": "F",
+      "sprint": 1,
+      "agent": null,
+      "task": "Indexes + partial-index audit log retention + rollback test",
+      "files": [
+        "backend-node/prisma/migrations/__agent_indexes__/migration.sql"
+      ],
+      "reads": [],
+      "hours_est": 3,
+      "depends_on": [
+        "F1"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "20260415200000_agent_performance_indexes — 8 CONCURRENTLY indexes incl. covering + partial",
+      "updated_at": "2026-04-16T02:14:19.298Z"
+    },
+    {
+      "id": "G1",
+      "cluster": "G",
+      "sprint": 1,
+      "agent": null,
+      "task": "NestJS controllers + DTOs (POST run, GET runs, GET trace, POST copilot)",
+      "files": [
+        "backend-node/src/agent-api/agent-runs.controller.ts",
+        "backend-node/src/agent-api/copilot.controller.ts",
+        "backend-node/src/agent-api/dto/agent-api.dto.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/runner/agent-runner.service.ts"
+      ],
+      "hours_est": 6,
+      "depends_on": [
+        "E1",
+        "A1",
+        "A7",
+        "A3",
+        "G3"
+      ],
+      "unblocks": [
+        "H4"
+      ],
+      "status": "shipped",
+      "updated_at": "2026-04-16T02:05:05.324Z",
+      "shipped_note": "agents.controller.ts + agent-api controllers"
+    },
+    {
+      "id": "G2",
+      "cluster": "G",
+      "sprint": 1,
+      "agent": null,
+      "task": "SSE stream endpoint + heartbeat + per-run channel auth",
+      "files": [
+        "backend-node/src/agent-api/agent-tenant-stream.controller.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/runner/agent-notifier.service.ts"
+      ],
+      "hours_est": 4,
+      "depends_on": [
+        "E4"
+      ],
+      "unblocks": [
+        "H1"
+      ],
+      "status": "shipped",
+      "updated_at": "2026-04-16T02:05:05.324Z",
+      "shipped_note": "agent-tenant-stream.controller.ts (SSE)"
+    },
+    {
+      "id": "G3",
+      "cluster": "G",
+      "sprint": 1,
+      "agent": null,
+      "task": "JWT auth guard + institution-scope guard (sets app.institution_id)",
+      "files": [
+        "backend-node/src/agent-api/guards/institution-scope.guard.ts"
+      ],
+      "reads": [
+        "backend-node/src/auth"
+      ],
+      "hours_est": 3,
+      "depends_on": [
+        "F2"
+      ],
+      "unblocks": [
+        "G1"
+      ],
+      "status": "shipped",
+      "critical": true,
+      "updated_at": "2026-04-16T02:05:05.324Z",
+      "shipped_note": "institution-scope.guard.ts (in agent-api)"
+    },
+    {
+      "id": "G4",
+      "cluster": "G",
+      "sprint": 1,
+      "agent": null,
+      "task": "OpenAPI/Swagger doc + postman collection for agent endpoints",
+      "files": [
+        "backend-node/src/agent-api/agent-runs.controller.ts"
+      ],
+      "reads": [],
+      "hours_est": 3,
+      "depends_on": [
+        "G1"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "claimed_by": "money",
+      "claimed_at": "2026-04-16T20:58:02.547Z",
+      "updated_at": "2026-04-16T20:58:02.574Z"
+    },
+    {
+      "id": "H1",
+      "cluster": "H",
+      "sprint": 1,
+      "agent": null,
+      "task": "Decision Panel main page — brief + risk table + recommendation queue",
+      "files": [
+        "frontend/app/alm/decisions/page.tsx"
+      ],
+      "reads": [
+        "backend-node/src/agents/contracts/alm-decision.contracts.ts"
+      ],
+      "hours_est": 8,
+      "depends_on": [
+        "G1",
+        "G2"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "DecisionPanel.tsx + page.tsx + 5 components exist",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "H2",
+      "cluster": "H",
+      "sprint": 3,
+      "agent": null,
+      "task": "Audit trace viewer — expandable step-by-step w/ tool call detail",
+      "files": [
+        "frontend/app/alm/decisions/page.tsx"
+      ],
+      "reads": [
+        "backend-node/src/agents/contracts/common.contracts.ts"
+      ],
+      "hours_est": 5,
+      "depends_on": [
+        "G1"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "AuditTrace.tsx exists with tests",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "H3",
+      "cluster": "H",
+      "sprint": 1,
+      "agent": null,
+      "task": "RecommendationRow component — Pending/In-Progress/Done workflow",
+      "files": [
+        "frontend/app/alm/decisions/page.tsx"
+      ],
+      "reads": [],
+      "hours_est": 3,
+      "depends_on": [
+        "H1"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "RecommendationRow.tsx exists",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "H4",
+      "cluster": "H",
+      "sprint": 3,
+      "agent": null,
+      "task": "ScenarioQuickInput — side-by-side scenario testing, links to Copilot",
+      "files": [
+        "frontend/components/alm/scenario-input.tsx"
+      ],
+      "reads": [],
+      "hours_est": 4,
+      "depends_on": [
+        "A6",
+        "G1"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "ScenarioQuickInput.tsx exists",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "I1",
+      "cluster": "I",
+      "sprint": 2,
+      "agent": null,
+      "task": "Health score widget with trend arrows + peer indicator",
+      "files": [
+        "frontend/components/agents/HealthScoreWidget.tsx"
+      ],
+      "reads": [],
+      "hours_est": 4,
+      "depends_on": [
+        "G1"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "claimed_by": "money",
+      "claimed_at": "2026-04-16T20:56:41.529Z",
+      "updated_at": "2026-04-16T20:56:41.581Z"
+    },
+    {
+      "id": "I2",
+      "cluster": "I",
+      "sprint": 2,
+      "agent": null,
+      "task": "Alert feed + notification center (badge count, click-to-ack)",
+      "files": [
+        "frontend/components/agents/AlertFeed.tsx"
+      ],
+      "reads": [],
+      "hours_est": 5,
+      "depends_on": [
+        "G1"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "claimed_by": "money",
+      "claimed_at": "2026-04-16T20:56:41.689Z",
+      "updated_at": "2026-04-16T20:56:41.744Z"
+    },
+    {
+      "id": "I3",
+      "cluster": "I",
+      "sprint": 2,
+      "agent": null,
+      "task": "Agent activity feed (/agents) — last 10 runs with status + summary",
+      "files": [
+        "frontend/app/alm/agents/page.tsx"
+      ],
+      "reads": [],
+      "hours_est": 4,
+      "depends_on": [
+        "G1"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "AgentActivityFeed.tsx exists with tests",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "J1",
+      "cluster": "J",
+      "sprint": 3,
+      "agent": null,
+      "task": "CFO Copilot chat interface + streaming response",
+      "files": [
+        "frontend/app/alm/copilot/page.tsx"
+      ],
+      "reads": [
+        "backend-node/src/agents/contracts/cfo-copilot.contracts.ts"
+      ],
+      "hours_est": 6,
+      "depends_on": [
+        "A6",
+        "G1"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "frontend/app/agents/copilot/page.tsx + Copilot.tsx exist",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "J2",
+      "cluster": "J",
+      "sprint": 3,
+      "agent": null,
+      "task": "Scenario input form with multi-shock sliders",
+      "files": [
+        "frontend/components/alm/scenario-input.tsx"
+      ],
+      "reads": [],
+      "hours_est": 4,
+      "depends_on": [
+        "J1"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "claimed_by": "money",
+      "claimed_at": "2026-04-16T20:56:41.852Z",
+      "updated_at": "2026-04-16T20:56:41.904Z"
+    },
+    {
+      "id": "J3",
+      "cluster": "J",
+      "sprint": 3,
+      "agent": null,
+      "task": "Follow-up suggestions component — context-aware 4-pill",
+      "files": [
+        "frontend/components/agents/follow-up-pills.tsx"
+      ],
+      "reads": [],
+      "hours_est": 3,
+      "depends_on": [
+        "J1"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "claimed_by": "money",
+      "claimed_at": "2026-04-16T20:56:42.015Z",
+      "updated_at": "2026-04-16T20:56:42.070Z"
+    },
+    {
+      "id": "K1",
+      "cluster": "K",
+      "sprint": 2,
+      "agent": null,
+      "task": "Redis + Bull queue deployment + worker pool config (concurrency=5)",
+      "files": [
+        "backend-node/src/agents/trigger/agent-trigger.service.ts",
+        "backend-node/src/agents/trigger/agent-worker.processor.ts"
+      ],
+      "reads": [
+        "backend-node/src/jobs"
+      ],
+      "hours_est": 5,
+      "depends_on": [
+        "E1",
+        "A4"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "critical": true,
+      "updated_at": "2026-04-16T02:05:05.324Z",
+      "shipped_note": "agent-queue.module.ts + cost circuit breaker"
+    },
+    {
+      "id": "K2",
+      "cluster": "K",
+      "sprint": 2,
+      "agent": null,
+      "task": "SSE scaling + monitoring (Prom metrics, p95 latency, queue depth)",
+      "files": [
+        "backend-node/src/agents/runner/agent-metrics.service.ts"
+      ],
+      "reads": [],
+      "hours_est": 4,
+      "depends_on": [
+        "E4",
+        "K1"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "agent-metrics.service.ts — histograms + counters + p95 + per-agent breakdown",
+      "updated_at": "2026-04-16T02:14:19.297Z"
+    },
+    {
+      "id": "L1",
+      "cluster": "L",
+      "sprint": 3,
+      "agent": null,
+      "task": "Agent eval framework — golden balance sheets loader + scorer",
+      "files": [
+        "backend-node/src/agents/__tests__/golden-runner.service.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/contracts"
+      ],
+      "hours_est": 6,
+      "depends_on": [
+        "A2"
+      ],
+      "unblocks": [
+        "L2",
+        "L3"
+      ],
+      "status": "shipped",
+      "shipped_note": "golden-runner.service.ts + regression-scorer.service.ts exist in __tests__/",
+      "updated_at": "2026-04-16T02:11:17.571Z"
+    },
+    {
+      "id": "L2",
+      "cluster": "L",
+      "sprint": 3,
+      "agent": null,
+      "task": "10 golden test cases × ALM Decision (Vol.3 regression gate: avg > 85%)",
+      "files": [
+        "backend-node/src/agents/__tests__/golden-cases/"
+      ],
+      "reads": [],
+      "hours_est": 5,
+      "depends_on": [
+        "L1"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "test/agent-golden/alm-decision/cases.ts — 10 golden cases × 6 dimensions per Vol.2",
+      "updated_at": "2026-04-16T02:14:19.298Z"
+    },
+    {
+      "id": "L3",
+      "cluster": "L",
+      "sprint": 3,
+      "agent": null,
+      "task": "Regression scoring framework — 6 dimensions + deployment gate",
+      "files": [
+        "backend-node/src/agent-eval/regression-scorer.service.ts"
+      ],
+      "reads": [
+        "backend-node/src/agents/__tests__/eval-framework.ts"
+      ],
+      "hours_est": 4,
+      "depends_on": [
+        "L1",
+        "C6"
+      ],
+      "unblocks": [],
+      "status": "shipped",
+      "shipped_note": "regression-scorer.service.ts (7k) + spec (3.9k) exist at src/agent-eval/",
+      "updated_at": "2026-04-16T02:17:03.672Z"
+    }
+  ]
+}

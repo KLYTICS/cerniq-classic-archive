@@ -35,7 +35,10 @@ export const MONTHLY_GOVERNANCE_CHAIN: ChainDefinition = {
     {
       agentId: AgentId.ALM_DECISION,
       dependsOnAgent: AgentId.RISK_MONITOR,
-      inputMapper: (prior) => ({ ...((prior ?? {}) as Record<string, unknown>), chainSource: 'RISK_MONITOR' }),
+      inputMapper: (prior) => ({
+        ...((prior ?? {}) as Record<string, unknown>),
+        chainSource: 'RISK_MONITOR',
+      }),
     },
     {
       agentId: AgentId.PEER_INTELLIGENCE,
@@ -120,8 +123,9 @@ export class AgentChainService {
   ) {
     this.eventBus.onAny((event: any) => {
       if (event?.type === 'RUN_COMPLETED' && event.runId) {
-        this.onRunCompleted(event.runId, event.agentId, event.output).catch((err) =>
-          this.log.error({ err, runId: event.runId }, 'chain dispatch error'),
+        this.onRunCompleted(event.runId, event.agentId, event.output).catch(
+          (err) =>
+            this.log.error({ err, runId: event.runId }, 'chain dispatch error'),
         );
       }
     });
@@ -133,13 +137,16 @@ export class AgentChainService {
   ): Promise<{ chainInstanceId: string; firstRunId: string }> {
     const def = CHAINS.get(chainId);
     if (!def) throw new Error(`unknown chain: ${chainId}`);
-    if (def.steps.length === 0) throw new Error(`chain ${chainId} has no steps`);
+    if (def.steps.length === 0)
+      throw new Error(`chain ${chainId} has no steps`);
 
     const chainInstanceId = `chain_${chainId}_${Date.now()}`;
     const firstStep = def.steps[0];
 
     const idempotencyKey = createHash('sha256')
-      .update(`${chainId}|${opts.institutionId}|${Math.floor(Date.now() / 60_000)}`)
+      .update(
+        `${chainId}|${opts.institutionId}|${Math.floor(Date.now() / 60_000)}`,
+      )
       .digest('hex');
 
     const result = await this.runner.run({
@@ -163,11 +170,18 @@ export class AgentChainService {
       startedAt: new Date(),
     });
 
-    this.log.log({ chainId, chainInstanceId, firstAgent: firstStep.agentId }, 'chain started');
+    this.log.log(
+      { chainId, chainInstanceId, firstAgent: firstStep.agentId },
+      'chain started',
+    );
     return { chainInstanceId, firstRunId: result.runId };
   }
 
-  private async onRunCompleted(runId: string, agentId: string, output: unknown): Promise<void> {
+  private async onRunCompleted(
+    runId: string,
+    agentId: string,
+    output: unknown,
+  ): Promise<void> {
     for (const [instanceId, chain] of this.active) {
       const def = CHAINS.get(chain.chainId);
       if (!def) continue;
@@ -175,11 +189,14 @@ export class AgentChainService {
       const currentStep = def.steps[chain.currentStepIdx];
       if (currentStep.agentId !== agentId) continue;
 
-      chain.completedRuns.set(agentId as AgentId, runId);
+      chain.completedRuns.set(agentId, runId);
       const nextIdx = chain.currentStepIdx + 1;
 
       if (nextIdx >= def.steps.length) {
-        this.log.log({ chainId: chain.chainId, instanceId, steps: def.steps.length }, 'chain completed');
+        this.log.log(
+          { chainId: chain.chainId, instanceId, steps: def.steps.length },
+          'chain completed',
+        );
         this.active.delete(instanceId);
         return;
       }
@@ -187,29 +204,40 @@ export class AgentChainService {
       const nextStep = def.steps[nextIdx];
       chain.currentStepIdx = nextIdx;
 
-      const runOutput = output ?? await this.fetchRunOutput(runId);
+      const runOutput = output ?? (await this.fetchRunOutput(runId));
       const nextInput = nextStep.inputMapper(runOutput);
 
       const idempotencyKey = createHash('sha256')
         .update(`${instanceId}|${nextStep.agentId}|${runId}`)
         .digest('hex');
 
-      this.runner.run({
-        agentId: nextStep.agentId,
-        institutionId: chain.institutionId,
-        organizationId: chain.organizationId ?? null,
-        triggeredByUserId: null,
-        triggerKind: 'CHAIN',
-        triggerRef: runId,
-        input: nextInput,
-        idempotencyKey,
-      }).catch((err) => this.log.error({ err, chainId: chain.chainId, agent: nextStep.agentId }, 'chain step failed'));
+      this.runner
+        .run({
+          agentId: nextStep.agentId,
+          institutionId: chain.institutionId,
+          organizationId: chain.organizationId ?? null,
+          triggeredByUserId: null,
+          triggerKind: 'CHAIN',
+          triggerRef: runId,
+          input: nextInput,
+          idempotencyKey,
+        })
+        .catch((err) =>
+          this.log.error(
+            { err, chainId: chain.chainId, agent: nextStep.agentId },
+            'chain step failed',
+          ),
+        );
 
-      this.log.log({
-        chainId: chain.chainId, instanceId,
-        step: `${nextIdx}/${def.steps.length}`,
-        agent: nextStep.agentId,
-      }, 'chain step dispatched');
+      this.log.log(
+        {
+          chainId: chain.chainId,
+          instanceId,
+          step: `${nextIdx}/${def.steps.length}`,
+          agent: nextStep.agentId,
+        },
+        'chain step dispatched',
+      );
     }
   }
 
@@ -221,7 +249,13 @@ export class AgentChainService {
     return run?.output ?? null;
   }
 
-  getActiveChains(): Array<{ instanceId: string; chainId: string; step: number; totalSteps: number; ageSec: number }> {
+  getActiveChains(): Array<{
+    instanceId: string;
+    chainId: string;
+    step: number;
+    totalSteps: number;
+    ageSec: number;
+  }> {
     const now = Date.now();
     return Array.from(this.active.entries()).map(([id, c]) => {
       const def = CHAINS.get(c.chainId);

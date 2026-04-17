@@ -19,11 +19,13 @@ const makeTrust = () =>
   );
 
 const almSchema = z.object({
-  topRisks: z.array(z.object({
-    domain: z.string(),
-    dollarImpact: z.number().optional(),
-    regulatoryRef: z.string().optional(),
-  })),
+  topRisks: z.array(
+    z.object({
+      domain: z.string(),
+      dollarImpact: z.number().optional(),
+      regulatoryRef: z.string().optional(),
+    }),
+  ),
 });
 
 const goodResult: AgentRunResult = {
@@ -34,10 +36,16 @@ const goodResult: AgentRunResult = {
   output: { topRisks: [{ domain: 'Rate Risk', dollarImpact: 2_400_000 }] },
   trace: [
     {
-      id: 's1', runId: 'r-1', stepNumber: 1, stepType: 'TOOL_CALL',
-      toolName: 'runRateShock', toolInput: null,
+      id: 's1',
+      runId: 'r-1',
+      stepNumber: 1,
+      stepType: 'TOOL_CALL',
+      toolName: 'runRateShock',
+      toolInput: null,
       toolOutput: { scenarioBps: 200, nii: -2_400_000, lcr: 118.5 },
-      llmPrompt: null, llmOutput: null, durationMs: 100,
+      llmPrompt: null,
+      llmOutput: null,
+      durationMs: 100,
     },
   ],
   computeMs: 1000,
@@ -86,7 +94,12 @@ describe('ReplayRunnerService', () => {
     const verdictWithFalsePositive: TrustVerdict = {
       pass: false,
       violations: [
-        { rule: 'HEDGE_LANGUAGE', severity: 'WARN', message: 'old hedge', location: { start: 0, end: 3 } },
+        {
+          rule: 'HEDGE_LANGUAGE',
+          severity: 'WARN',
+          message: 'old hedge',
+          location: { start: 0, end: 3 },
+        },
       ],
       summary: { block: 0, warn: 1, info: 0 },
       evaluatedInMs: 5,
@@ -112,7 +125,11 @@ describe('ReplayRunnerService', () => {
       requiredLanguage: 'bilingual',
     });
 
-    expect(report.currentVerdict.violations.some((v) => v.rule === 'MISSING_BILINGUAL')).toBe(true);
+    expect(
+      report.currentVerdict.violations.some(
+        (v) => v.rule === 'MISSING_BILINGUAL',
+      ),
+    ).toBe(true);
     expect(report.outcomeMatches).toBe(false);
   });
 });

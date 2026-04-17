@@ -14,18 +14,31 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Duration Gap Analysis',
     nameEs: 'Análisis de Brecha de Duración',
     category: C.INTEREST_RATE_RISK,
-    description: 'Macaulay/modified duration gap between assets and liabilities',
-    descriptionEs: 'Brecha de duración Macaulay/modificada entre activos y pasivos',
+    description:
+      'Macaulay/modified duration gap between assets and liabilities',
+    descriptionEs:
+      'Brecha de duración Macaulay/modificada entre activos y pasivos',
     serviceFile: 'alm/duration.service.ts',
     entryFunction: 'calculateDurationGap',
     requiredInputs: ['balanceSheetItems', 'yieldCurve'],
-    outputFields: ['durationGap', 'assetDuration', 'liabilityDuration', 'modifiedDuration'],
+    outputFields: [
+      'durationGap',
+      'assetDuration',
+      'liabilityDuration',
+      'modifiedDuration',
+    ],
     regulatoryReferences: [
       { body: R.COSSEC, citation: 'Carta Circular OC-2019-01 §4.2' },
       { body: R.NCUA, citation: 'NCUA Letter 12-CU-11' },
     ],
     thresholds: [
-      { metric: 'durationGap', pass: '< 3.0 years', warn: '3.0–4.5 years', fail: '> 4.5 years', unit: 'years' },
+      {
+        metric: 'durationGap',
+        pass: '< 3.0 years',
+        warn: '3.0–4.5 years',
+        fail: '> 4.5 years',
+        unit: 'years',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-duration-gap',
@@ -36,18 +49,32 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'NII Sensitivity',
     nameEs: 'Sensibilidad de Ingreso Neto por Intereses',
     category: C.INTEREST_RATE_RISK,
-    description: 'Net Interest Income sensitivity to parallel rate shocks (±100-400bp)',
-    descriptionEs: 'Sensibilidad del NII a choques paralelos de tasas (±100-400pb)',
+    description:
+      'Net Interest Income sensitivity to parallel rate shocks (±100-400bp)',
+    descriptionEs:
+      'Sensibilidad del NII a choques paralelos de tasas (±100-400pb)',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'calculateNIISensitivity',
     requiredInputs: ['balanceSheetItems', 'repricingGaps'],
-    outputFields: ['niiChange', 'niiChangePercent', 'rateShockBp', 'rsaTotal', 'rslTotal'],
+    outputFields: [
+      'niiChange',
+      'niiChangePercent',
+      'rateShockBp',
+      'rsaTotal',
+      'rslTotal',
+    ],
     regulatoryReferences: [
       { body: R.COSSEC, citation: 'Carta Circular OC-2019-01 §4.3' },
       { body: R.FRB, citation: 'SR 10-1 §III.B' },
     ],
     thresholds: [
-      { metric: 'niiChangePercent', pass: '< 20%', warn: '20–35%', fail: '> 35%', unit: '%' },
+      {
+        metric: 'niiChangePercent',
+        pass: '< 20%',
+        warn: '20–35%',
+        fail: '> 35%',
+        unit: '%',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-nii-sensitivity',
@@ -69,7 +96,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
       { body: R.FRB, citation: 'SR 10-1 §III.C' },
     ],
     thresholds: [
-      { metric: 'eveChangePercent', pass: '> -20%', warn: '-20% to -30%', fail: '< -30%', unit: '%' },
+      {
+        metric: 'eveChangePercent',
+        pass: '> -20%',
+        warn: '-20% to -30%',
+        fail: '< -30%',
+        unit: '%',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-eve-sensitivity',
@@ -81,7 +114,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Análisis de Brecha de Reprecio',
     category: C.INTEREST_RATE_RISK,
     description: 'RSA vs RSL by time bucket for static gap and cumulative gap',
-    descriptionEs: 'ASR vs PSR por banda temporal para brecha estática y acumulada',
+    descriptionEs:
+      'ASR vs PSR por banda temporal para brecha estática y acumulada',
     serviceFile: 'alm/repricing-gap.service.ts',
     entryFunction: 'calculateRepricingGap',
     requiredInputs: ['balanceSheetItems'],
@@ -100,7 +134,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Análisis de Convexidad',
     category: C.INTEREST_RATE_RISK,
     description: 'Second-order rate sensitivity for non-linear bond portfolios',
-    descriptionEs: 'Sensibilidad de segundo orden para carteras de bonos no lineales',
+    descriptionEs:
+      'Sensibilidad de segundo orden para carteras de bonos no lineales',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'calculateConvexity',
     requiredInputs: ['balanceSheetItems', 'yieldCurve'],
@@ -119,7 +154,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Estimación de Beta de Depósitos',
     category: C.INTEREST_RATE_RISK,
     description: 'Deposit rate pass-through relative to market rate changes',
-    descriptionEs: 'Traspaso de tasas de depósitos relativo a cambios en tasas de mercado',
+    descriptionEs:
+      'Traspaso de tasas de depósitos relativo a cambios en tasas de mercado',
     serviceFile: 'alm/deposit-beta.service.ts',
     entryFunction: 'estimateDepositBeta',
     requiredInputs: ['depositTiers', 'marketRateHistory'],
@@ -128,7 +164,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
       { body: R.COSSEC, citation: 'Carta Circular OC-2019-01 §4.6' },
     ],
     thresholds: [
-      { metric: 'beta', pass: '< 0.6', warn: '0.6–0.8', fail: '> 0.8', unit: 'ratio' },
+      {
+        metric: 'beta',
+        pass: '< 0.6',
+        warn: '0.6–0.8',
+        fail: '> 0.8',
+        unit: 'ratio',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-deposit-beta',
@@ -139,15 +181,15 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Key Rate Duration',
     nameEs: 'Duración por Tasa Clave',
     category: C.INTEREST_RATE_RISK,
-    description: 'Sensitivity to individual key-rate shifts along the yield curve',
-    descriptionEs: 'Sensibilidad a movimientos individuales en puntos clave de la curva',
+    description:
+      'Sensitivity to individual key-rate shifts along the yield curve',
+    descriptionEs:
+      'Sensibilidad a movimientos individuales en puntos clave de la curva',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'calculateKeyRateDurations',
     requiredInputs: ['balanceSheetItems', 'yieldCurve'],
     outputFields: ['keyRateDurations', 'tenorPoints'],
-    regulatoryReferences: [
-      { body: R.FRB, citation: 'SR 10-1 §III.D' },
-    ],
+    regulatoryReferences: [{ body: R.FRB, citation: 'SR 10-1 §III.D' }],
     thresholds: [],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-key-rate-duration',
@@ -158,15 +200,15 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'PCA Yield Curve Model',
     nameEs: 'Modelo PCA de Curva de Rendimiento',
     category: C.INTEREST_RATE_RISK,
-    description: '3-factor PCA (level, slope, curvature) for yield curve dynamics',
-    descriptionEs: 'PCA de 3 factores (nivel, pendiente, curvatura) para dinámica de curva',
+    description:
+      '3-factor PCA (level, slope, curvature) for yield curve dynamics',
+    descriptionEs:
+      'PCA de 3 factores (nivel, pendiente, curvatura) para dinámica de curva',
     serviceFile: 'alm/yield-curve.service.ts',
     entryFunction: 'fitPCAModel',
     requiredInputs: ['historicalYieldCurves'],
     outputFields: ['factors', 'eigenvalues', 'varianceExplained', 'loadings'],
-    regulatoryReferences: [
-      { body: R.FRB, citation: 'SR 10-1 §IV.A' },
-    ],
+    regulatoryReferences: [{ body: R.FRB, citation: 'SR 10-1 §IV.A' }],
     thresholds: [],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-pca-yield-curve',
@@ -177,8 +219,10 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Funds Transfer Pricing (FTP)',
     nameEs: 'Precio de Transferencia de Fondos',
     category: C.INTEREST_RATE_RISK,
-    description: 'Internal FTP rates for profitability analysis by product line',
-    descriptionEs: 'Tasas FTP internas para análisis de rentabilidad por línea de producto',
+    description:
+      'Internal FTP rates for profitability analysis by product line',
+    descriptionEs:
+      'Tasas FTP internas para análisis de rentabilidad por línea de producto',
     serviceFile: 'alm/ftp.service.ts',
     entryFunction: 'calculateFTP',
     requiredInputs: ['balanceSheetItems', 'yieldCurve', 'liquidityPremiums'],
@@ -196,8 +240,10 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'IRR Policy Limits',
     nameEs: 'Límites de Política de Riesgo de Tasa',
     category: C.INTEREST_RATE_RISK,
-    description: 'Board-approved IRR policy limit monitoring and breach detection',
-    descriptionEs: 'Monitoreo de límites de política IRR aprobados por junta y detección de brechas',
+    description:
+      'Board-approved IRR policy limit monitoring and breach detection',
+    descriptionEs:
+      'Monitoreo de límites de política IRR aprobados por junta y detección de brechas',
     serviceFile: 'alm/irr-policy.service.ts',
     entryFunction: 'checkPolicyLimits',
     requiredInputs: ['irrPolicyLimits', 'currentMetrics'],
@@ -230,7 +276,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
       { body: R.FRB, citation: 'Regulation YY §249' },
     ],
     thresholds: [
-      { metric: 'lcr', pass: '≥ 100%', warn: '90–100%', fail: '< 90%', unit: '%' },
+      {
+        metric: 'lcr',
+        pass: '≥ 100%',
+        warn: '90–100%',
+        fail: '< 90%',
+        unit: '%',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-lcr',
@@ -242,7 +294,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Razón de Financiamiento Estable Neto',
     category: C.LIQUIDITY,
     description: 'Available stable funding / Required stable funding',
-    descriptionEs: 'Financiamiento estable disponible / Financiamiento estable requerido',
+    descriptionEs:
+      'Financiamiento estable disponible / Financiamiento estable requerido',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'calculateNSFR',
     requiredInputs: ['balanceSheetItems', 'liquidityPosition'],
@@ -251,7 +304,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
       { body: R.COSSEC, citation: 'Carta Circular OC-2019-01 §3.2' },
     ],
     thresholds: [
-      { metric: 'nsfr', pass: '≥ 100%', warn: '90–100%', fail: '< 90%', unit: '%' },
+      {
+        metric: 'nsfr',
+        pass: '≥ 100%',
+        warn: '90–100%',
+        fail: '< 90%',
+        unit: '%',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-nsfr',
@@ -262,8 +321,10 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Cash Flow Projections',
     nameEs: 'Proyecciones de Flujo de Efectivo',
     category: C.LIQUIDITY,
-    description: 'Contractual and behavioral cash flow projections over 12 months',
-    descriptionEs: 'Proyecciones de flujo de efectivo contractual y conductual a 12 meses',
+    description:
+      'Contractual and behavioral cash flow projections over 12 months',
+    descriptionEs:
+      'Proyecciones de flujo de efectivo contractual y conductual a 12 meses',
     serviceFile: 'alm/liquidity-advanced.service.ts',
     entryFunction: 'projectCashFlows',
     requiredInputs: ['balanceSheetItems', 'repaymentSchedules'],
@@ -281,8 +342,10 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Liquidity Stress Testing',
     nameEs: 'Prueba de Estrés de Liquidez',
     category: C.LIQUIDITY,
-    description: 'Idiosyncratic, market-wide, and combined liquidity stress scenarios',
-    descriptionEs: 'Escenarios de estrés de liquidez idiosincrásico, sistémico y combinado',
+    description:
+      'Idiosyncratic, market-wide, and combined liquidity stress scenarios',
+    descriptionEs:
+      'Escenarios de estrés de liquidez idiosincrásico, sistémico y combinado',
     serviceFile: 'alm/stress-testing/stress-testing.service.ts',
     entryFunction: 'runLiquidityStress',
     requiredInputs: ['liquidityPosition', 'stressScenarios'],
@@ -292,7 +355,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
       { body: R.FRB, citation: 'SR 10-6' },
     ],
     thresholds: [
-      { metric: 'survivalDays', pass: '≥ 30 days', warn: '15–30 days', fail: '< 15 days', unit: 'days' },
+      {
+        metric: 'survivalDays',
+        pass: '≥ 30 days',
+        warn: '15–30 days',
+        fail: '< 15 days',
+        unit: 'days',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-liquidity-stress',
@@ -304,10 +373,15 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Plan de Contingencia de Financiamiento',
     category: C.LIQUIDITY,
     description: 'Available contingent funding sources and trigger events',
-    descriptionEs: 'Fuentes de financiamiento contingente disponibles y eventos de activación',
+    descriptionEs:
+      'Fuentes de financiamiento contingente disponibles y eventos de activación',
     serviceFile: 'alm/liquidity-advanced.service.ts',
     entryFunction: 'assessContingencyFunding',
-    requiredInputs: ['liquidityPosition', 'creditFacilities', 'pledgeableAssets'],
+    requiredInputs: [
+      'liquidityPosition',
+      'creditFacilities',
+      'pledgeableAssets',
+    ],
     outputFields: ['availableSources', 'totalCapacity', 'triggerMatrix'],
     regulatoryReferences: [
       { body: R.COSSEC, citation: 'Carta Circular OC-2019-01 §3.5' },
@@ -323,7 +397,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Análisis de Concentración de Depósitos',
     category: C.LIQUIDITY,
     description: 'Large depositor dependency and concentration risk metrics',
-    descriptionEs: 'Dependencia de grandes depositantes y métricas de riesgo de concentración',
+    descriptionEs:
+      'Dependencia de grandes depositantes y métricas de riesgo de concentración',
     serviceFile: 'alm/concentration.service.ts',
     entryFunction: 'analyzeDepositConcentration',
     requiredInputs: ['depositTiers', 'balanceSheetItems'],
@@ -332,7 +407,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
       { body: R.COSSEC, citation: 'Carta Circular OC-2019-01 §3.6' },
     ],
     thresholds: [
-      { metric: 'top10Ratio', pass: '< 25%', warn: '25–40%', fail: '> 40%', unit: '%' },
+      {
+        metric: 'top10Ratio',
+        pass: '< 25%',
+        warn: '25–40%',
+        fail: '> 40%',
+        unit: '%',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-deposit-concentration',
@@ -344,7 +425,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Financiamiento Base vs No Base',
     category: C.LIQUIDITY,
     description: 'Classification and stability analysis of funding sources',
-    descriptionEs: 'Clasificación y análisis de estabilidad de fuentes de financiamiento',
+    descriptionEs:
+      'Clasificación y análisis de estabilidad de fuentes de financiamiento',
     serviceFile: 'alm/liquidity-advanced.service.ts',
     entryFunction: 'classifyFunding',
     requiredInputs: ['depositTiers', 'borrowings'],
@@ -353,7 +435,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
       { body: R.COSSEC, citation: 'Carta Circular OC-2019-01 §3.7' },
     ],
     thresholds: [
-      { metric: 'coreFundingRatio', pass: '≥ 70%', warn: '60–70%', fail: '< 60%', unit: '%' },
+      {
+        metric: 'coreFundingRatio',
+        pass: '≥ 70%',
+        warn: '60–70%',
+        fail: '< 60%',
+        unit: '%',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-core-funding',
@@ -384,14 +472,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Monitoreo de Liquidez Intradía',
     category: C.LIQUIDITY,
     description: 'Real-time liquidity position tracking and alert thresholds',
-    descriptionEs: 'Seguimiento de posición de liquidez en tiempo real y umbrales de alerta',
+    descriptionEs:
+      'Seguimiento de posición de liquidez en tiempo real y umbrales de alerta',
     serviceFile: 'alm/realtime-alm/market-data-feed.service.ts',
     entryFunction: 'getIntradayPosition',
     requiredInputs: ['currentPosition', 'scheduledFlows'],
     outputFields: ['currentLiquidity', 'peakUsage', 'minimumBalance', 'alerts'],
-    regulatoryReferences: [
-      { body: R.FRB, citation: 'SR 10-6 §IV' },
-    ],
+    regulatoryReferences: [{ body: R.FRB, citation: 'SR 10-6 §IV' }],
     thresholds: [],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-intraday-liquidity',
@@ -426,7 +513,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Razón de Patrimonio Neto',
     category: C.CAPITAL_ADEQUACY,
     description: 'Net worth / Total assets — primary COSSEC capital metric',
-    descriptionEs: 'Patrimonio neto / Activos totales — métrica primaria de capital COSSEC',
+    descriptionEs:
+      'Patrimonio neto / Activos totales — métrica primaria de capital COSSEC',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'calculateNetWorthRatio',
     requiredInputs: ['balanceSheetItems'],
@@ -435,7 +523,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
       { body: R.COSSEC, citation: 'Ley 255-2002 Art. 14.01' },
     ],
     thresholds: [
-      { metric: 'netWorthRatio', pass: '≥ 10%', warn: '7–10%', fail: '< 7%', unit: '%' },
+      {
+        metric: 'netWorthRatio',
+        pass: '≥ 10%',
+        warn: '7–10%',
+        fail: '< 7%',
+        unit: '%',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-net-worth-ratio',
@@ -447,7 +541,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Razón de Adecuación de Capital',
     category: C.CAPITAL_ADEQUACY,
     description: 'Risk-weighted capital adequacy per COSSEC requirements',
-    descriptionEs: 'Adecuación de capital ponderada por riesgo según requisitos COSSEC',
+    descriptionEs:
+      'Adecuación de capital ponderada por riesgo según requisitos COSSEC',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'calculateCapitalAdequacy',
     requiredInputs: ['balanceSheetItems', 'riskWeights'],
@@ -457,7 +552,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
       { body: R.NCUA, citation: 'NCUA Part 702' },
     ],
     thresholds: [
-      { metric: 'capitalRatio', pass: '≥ 7%', warn: '5–7%', fail: '< 5%', unit: '%' },
+      {
+        metric: 'capitalRatio',
+        pass: '≥ 7%',
+        warn: '5–7%',
+        fail: '< 5%',
+        unit: '%',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-capital-adequacy',
@@ -469,16 +570,28 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Capital Basado en Riesgo NCUA',
     category: C.CAPITAL_ADEQUACY,
     description: 'NCUA Part 702 risk-based capital calculation for complex CUs',
-    descriptionEs: 'Cálculo de capital basado en riesgo NCUA Parte 702 para CUs complejas',
+    descriptionEs:
+      'Cálculo de capital basado en riesgo NCUA Parte 702 para CUs complejas',
     serviceFile: 'alm/ncua-rbc2.service.ts',
     entryFunction: 'calculateRBC2',
     requiredInputs: ['balanceSheetItems', 'offBalanceSheetItems'],
-    outputFields: ['rbc2Ratio', 'totalRiskWeightedAssets', 'netWorth', 'classification'],
+    outputFields: [
+      'rbc2Ratio',
+      'totalRiskWeightedAssets',
+      'netWorth',
+      'classification',
+    ],
     regulatoryReferences: [
       { body: R.NCUA, citation: 'NCUA Part 702 Subpart D' },
     ],
     thresholds: [
-      { metric: 'rbc2Ratio', pass: '≥ 10%', warn: '8–10%', fail: '< 8%', unit: '%' },
+      {
+        metric: 'rbc2Ratio',
+        pass: '≥ 10%',
+        warn: '8–10%',
+        fail: '< 8%',
+        unit: '%',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-ncua-rbc2',
@@ -489,11 +602,17 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Capital Planning & Projections',
     nameEs: 'Planificación y Proyecciones de Capital',
     category: C.CAPITAL_ADEQUACY,
-    description: 'Forward-looking capital adequacy under normal and stress conditions',
-    descriptionEs: 'Adecuación de capital prospectiva bajo condiciones normales y de estrés',
+    description:
+      'Forward-looking capital adequacy under normal and stress conditions',
+    descriptionEs:
+      'Adecuación de capital prospectiva bajo condiciones normales y de estrés',
     serviceFile: 'alm/swarm/capital-adequacy-adapter.service.ts',
     entryFunction: 'projectCapital',
-    requiredInputs: ['balanceSheetItems', 'growthAssumptions', 'stressScenarios'],
+    requiredInputs: [
+      'balanceSheetItems',
+      'growthAssumptions',
+      'stressScenarios',
+    ],
     outputFields: ['baselineProjection', 'stressProjection', 'capitalBuffer'],
     regulatoryReferences: [
       { body: R.COSSEC, citation: 'Carta Circular OC-2019-01 §5.2' },
@@ -509,16 +628,21 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Razón de Apalancamiento',
     category: C.CAPITAL_ADEQUACY,
     description: 'Tier 1 capital / Total exposure (on + off balance sheet)',
-    descriptionEs: 'Capital Tier 1 / Exposición total (dentro y fuera de balance)',
+    descriptionEs:
+      'Capital Tier 1 / Exposición total (dentro y fuera de balance)',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'calculateLeverageRatio',
     requiredInputs: ['balanceSheetItems'],
     outputFields: ['leverageRatio', 'tier1Capital', 'totalExposure'],
-    regulatoryReferences: [
-      { body: R.FRB, citation: 'Regulation Q §217' },
-    ],
+    regulatoryReferences: [{ body: R.FRB, citation: 'Regulation Q §217' }],
     thresholds: [
-      { metric: 'leverageRatio', pass: '≥ 5%', warn: '4–5%', fail: '< 4%', unit: '%' },
+      {
+        metric: 'leverageRatio',
+        pass: '≥ 5%',
+        warn: '4–5%',
+        fail: '< 4%',
+        unit: '%',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-leverage-ratio',
@@ -530,7 +654,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Análisis de Capacidad de Dividendos',
     category: C.CAPITAL_ADEQUACY,
     description: 'Maximum sustainable dividend given capital constraints',
-    descriptionEs: 'Dividendo máximo sostenible dadas las restricciones de capital',
+    descriptionEs:
+      'Dividendo máximo sostenible dadas las restricciones de capital',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'analyzeDividendCapacity',
     requiredInputs: ['balanceSheetItems', 'earnings', 'capitalTargets'],
@@ -548,8 +673,10 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Capital Stress Testing',
     nameEs: 'Prueba de Estrés de Capital',
     category: C.CAPITAL_ADEQUACY,
-    description: 'Capital adequacy under adverse and severely adverse scenarios',
-    descriptionEs: 'Adecuación de capital bajo escenarios adversos y severamente adversos',
+    description:
+      'Capital adequacy under adverse and severely adverse scenarios',
+    descriptionEs:
+      'Adecuación de capital bajo escenarios adversos y severamente adversos',
     serviceFile: 'alm/stress-testing/stress-testing.service.ts',
     entryFunction: 'runCapitalStress',
     requiredInputs: ['balanceSheetItems', 'stressScenarios', 'capitalMetrics'],
@@ -569,7 +696,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Rendimiento sobre Activos',
     category: C.CAPITAL_ADEQUACY,
     description: 'Net income / Average total assets — profitability indicator',
-    descriptionEs: 'Ingreso neto / Promedio de activos totales — indicador de rentabilidad',
+    descriptionEs:
+      'Ingreso neto / Promedio de activos totales — indicador de rentabilidad',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'calculateROA',
     requiredInputs: ['incomeStatement', 'balanceSheetItems'],
@@ -578,7 +706,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
       { body: R.COSSEC, citation: 'Carta Circular OC-2019-01 §6.1' },
     ],
     thresholds: [
-      { metric: 'roa', pass: '≥ 0.75%', warn: '0.5–0.75%', fail: '< 0.5%', unit: '%' },
+      {
+        metric: 'roa',
+        pass: '≥ 0.75%',
+        warn: '0.5–0.75%',
+        fail: '< 0.5%',
+        unit: '%',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-roa',
@@ -593,8 +727,10 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'CECL Provisioning (WARM)',
     nameEs: 'Provisión CECL (WARM)',
     category: C.CREDIT_RISK,
-    description: 'Weighted Average Remaining Maturity method for expected credit losses',
-    descriptionEs: 'Método de Madurez Promedio Ponderada Restante para pérdidas crediticias esperadas',
+    description:
+      'Weighted Average Remaining Maturity method for expected credit losses',
+    descriptionEs:
+      'Método de Madurez Promedio Ponderada Restante para pérdidas crediticias esperadas',
     serviceFile: 'alm/cecl.service.ts',
     entryFunction: 'calculateCECL_WARM',
     requiredInputs: ['loanSegments', 'historicalLossRates'],
@@ -614,14 +750,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Provisión CECL (Añada)',
     category: C.CREDIT_RISK,
     description: 'Vintage cohort analysis for expected credit losses',
-    descriptionEs: 'Análisis de cohorte por añada para pérdidas crediticias esperadas',
+    descriptionEs:
+      'Análisis de cohorte por añada para pérdidas crediticias esperadas',
     serviceFile: 'alm/cecl.service.ts',
     entryFunction: 'calculateCECL_Vintage',
     requiredInputs: ['loanCohorts', 'historicalLossRates'],
     outputFields: ['allowance', 'vintageMatrix', 'lossTimeline'],
-    regulatoryReferences: [
-      { body: R.FASB, citation: 'ASC 326-20' },
-    ],
+    regulatoryReferences: [{ body: R.FASB, citation: 'ASC 326-20' }],
     thresholds: [],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-cecl-vintage',
@@ -633,14 +768,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Provisión CECL (PD×LGD)',
     category: C.CREDIT_RISK,
     description: 'Probability of Default × Loss Given Default model',
-    descriptionEs: 'Modelo de Probabilidad de Incumplimiento × Pérdida Dado el Incumplimiento',
+    descriptionEs:
+      'Modelo de Probabilidad de Incumplimiento × Pérdida Dado el Incumplimiento',
     serviceFile: 'alm/cecl.service.ts',
     entryFunction: 'calculateCECL_PDLGD',
     requiredInputs: ['loanSegments', 'pdCurves', 'lgdEstimates'],
     outputFields: ['allowance', 'expectedLoss', 'pdBySegment', 'lgdBySegment'],
-    regulatoryReferences: [
-      { body: R.FASB, citation: 'ASC 326-20' },
-    ],
+    regulatoryReferences: [{ body: R.FASB, citation: 'ASC 326-20' }],
     thresholds: [],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-cecl-pdlgd',
@@ -651,8 +785,10 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Loan Concentration Analysis',
     nameEs: 'Análisis de Concentración de Préstamos',
     category: C.CREDIT_RISK,
-    description: 'Loan portfolio concentration by type, geography, and borrower',
-    descriptionEs: 'Concentración de cartera de préstamos por tipo, geografía y prestatario',
+    description:
+      'Loan portfolio concentration by type, geography, and borrower',
+    descriptionEs:
+      'Concentración de cartera de préstamos por tipo, geografía y prestatario',
     serviceFile: 'alm/concentration.service.ts',
     entryFunction: 'analyzeLoanConcentration',
     requiredInputs: ['loanSegments', 'concentrationLimits'],
@@ -681,7 +817,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
       { body: R.COSSEC, citation: 'Carta Circular OC-2019-01 §2.4' },
     ],
     thresholds: [
-      { metric: 'nplRatio', pass: '< 3%', warn: '3–5%', fail: '> 5%', unit: '%' },
+      {
+        metric: 'nplRatio',
+        pass: '< 3%',
+        warn: '3–5%',
+        fail: '> 5%',
+        unit: '%',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-delinquency',
@@ -693,14 +835,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Probabilidad de Incumplimiento KMV-Merton',
     category: C.CREDIT_RISK,
     description: 'Structural credit risk model using balance sheet equity/debt',
-    descriptionEs: 'Modelo estructural de riesgo crediticio usando patrimonio/deuda del balance',
+    descriptionEs:
+      'Modelo estructural de riesgo crediticio usando patrimonio/deuda del balance',
     serviceFile: 'alm/kmv-merton.service.ts',
     entryFunction: 'calculateKMV',
     requiredInputs: ['balanceSheetItems', 'institution'],
     outputFields: ['distanceToDefault', 'defaultProbability', 'expectedLoss'],
-    regulatoryReferences: [
-      { body: R.FRB, citation: 'SR 11-7 §III' },
-    ],
+    regulatoryReferences: [{ body: R.FRB, citation: 'SR 11-7 §III' }],
     thresholds: [],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-kmv-merton',
@@ -712,14 +853,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Matriz de Migración Crediticia',
     category: C.CREDIT_RISK,
     description: 'Transition probabilities between credit quality grades',
-    descriptionEs: 'Probabilidades de transición entre grados de calidad crediticia',
+    descriptionEs:
+      'Probabilidades de transición entre grados de calidad crediticia',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'calculateCreditMigration',
     requiredInputs: ['loanSegments', 'historicalRatings'],
     outputFields: ['transitionMatrix', 'downgradeRate', 'upgradeRate'],
-    regulatoryReferences: [
-      { body: R.FRB, citation: 'SR 11-7 §IV' },
-    ],
+    regulatoryReferences: [{ body: R.FRB, citation: 'SR 11-7 §IV' }],
     thresholds: [],
     status: S.IN_PROGRESS,
     modelRegistryKey: 'alm-credit-migration',
@@ -731,7 +871,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Análisis de Cancelaciones Netas',
     category: C.CREDIT_RISK,
     description: 'Net charge-offs as percentage of average loans',
-    descriptionEs: 'Cancelaciones netas como porcentaje del promedio de préstamos',
+    descriptionEs:
+      'Cancelaciones netas como porcentaje del promedio de préstamos',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'calculateNetChargeOffs',
     requiredInputs: ['chargeOffData', 'loanSegments'],
@@ -740,7 +881,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
       { body: R.COSSEC, citation: 'Carta Circular OC-2019-01 §2.5' },
     ],
     thresholds: [
-      { metric: 'ncoRatio', pass: '< 1%', warn: '1–2%', fail: '> 2%', unit: '%' },
+      {
+        metric: 'ncoRatio',
+        pass: '< 1%',
+        warn: '1–2%',
+        fail: '> 2%',
+        unit: '%',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-net-charge-offs',
@@ -756,13 +903,23 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     serviceFile: 'alm/concentration.service.ts',
     entryFunction: 'analyzeCREConcentration',
     requiredInputs: ['loanSegments', 'capitalMetrics'],
-    outputFields: ['creToCapitalRatio', 'constructionToCapitalRatio', 'concentrationFlag'],
+    outputFields: [
+      'creToCapitalRatio',
+      'constructionToCapitalRatio',
+      'concentrationFlag',
+    ],
     regulatoryReferences: [
       { body: R.NCUA, citation: 'NCUA Letter 09-CU-22' },
       { body: R.FDIC, citation: 'IL 03-2006' },
     ],
     thresholds: [
-      { metric: 'creToCapitalRatio', pass: '< 300%', warn: '300–500%', fail: '> 500%', unit: '%' },
+      {
+        metric: 'creToCapitalRatio',
+        pass: '< 300%',
+        warn: '300–500%',
+        fail: '> 500%',
+        unit: '%',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-cre-concentration',
@@ -773,15 +930,15 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Troubled Debt Restructuring (TDR)',
     nameEs: 'Reestructuración de Deuda Problemática',
     category: C.CREDIT_RISK,
-    description: 'Identification and measurement of troubled debt restructurings',
-    descriptionEs: 'Identificación y medición de reestructuraciones de deuda problemática',
+    description:
+      'Identification and measurement of troubled debt restructurings',
+    descriptionEs:
+      'Identificación y medición de reestructuraciones de deuda problemática',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'analyzeTDR',
     requiredInputs: ['loanSegments', 'modificationHistory'],
     outputFields: ['tdrBalance', 'tdrToLoans', 'redefaultRate'],
-    regulatoryReferences: [
-      { body: R.FASB, citation: 'ASC 310-40' },
-    ],
+    regulatoryReferences: [{ body: R.FASB, citation: 'ASC 310-40' }],
     thresholds: [],
     status: S.IN_PROGRESS,
     modelRegistryKey: 'alm-tdr',
@@ -800,7 +957,11 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     descriptionEs: 'Escenarios COSSEC base + adverso + severamente adverso',
     serviceFile: 'alm/stress-testing/stress-testing.service.ts',
     entryFunction: 'runRegulatoryStress',
-    requiredInputs: ['balanceSheetItems', 'liquidityPosition', 'cossecCompliance'],
+    requiredInputs: [
+      'balanceSheetItems',
+      'liquidityPosition',
+      'cossecCompliance',
+    ],
     outputFields: ['scenarioResults', 'overallRating', 'impactMatrix'],
     regulatoryReferences: [
       { body: R.COSSEC, citation: 'Carta Circular OC-2019-01 §7.2' },
@@ -817,10 +978,15 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Constructor de Escenarios Personalizados',
     category: C.STRESS_TESTING,
     description: 'User-defined stress scenarios with multi-factor shocks',
-    descriptionEs: 'Escenarios de estrés definidos por usuario con choques multifactor',
+    descriptionEs:
+      'Escenarios de estrés definidos por usuario con choques multifactor',
     serviceFile: 'alm/custom-scenario.service.ts',
     entryFunction: 'runCustomScenario',
-    requiredInputs: ['scenarioParameters', 'balanceSheetItems', 'currentMetrics'],
+    requiredInputs: [
+      'scenarioParameters',
+      'balanceSheetItems',
+      'currentMetrics',
+    ],
     outputFields: ['impactSummary', 'metricDeltas', 'breachFlags'],
     regulatoryReferences: [
       { body: R.COSSEC, citation: 'Carta Circular OC-2019-01 §7.3' },
@@ -836,14 +1002,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Simulación Monte Carlo',
     category: C.STRESS_TESTING,
     description: 'Vasicek rate model, 10K paths, 95th percentile VaR',
-    descriptionEs: 'Modelo de tasas Vasicek, 10K trayectorias, VaR percentil 95',
+    descriptionEs:
+      'Modelo de tasas Vasicek, 10K trayectorias, VaR percentil 95',
     serviceFile: 'alm/hjm-worker.ts',
     entryFunction: 'runMonteCarloSimulation',
     requiredInputs: ['currentRates', 'volatilityParams', 'correlationMatrix'],
     outputFields: ['pathResults', 'var95', 'var99', 'expectedShortfall'],
-    regulatoryReferences: [
-      { body: R.FRB, citation: 'SR 11-7 §V' },
-    ],
+    regulatoryReferences: [{ body: R.FRB, citation: 'SR 11-7 §V' }],
     thresholds: [],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-monte-carlo',
@@ -854,15 +1019,15 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Reverse Stress Testing',
     nameEs: 'Prueba de Estrés Inversa',
     category: C.STRESS_TESTING,
-    description: 'Identifies scenarios that would breach capital/liquidity limits',
-    descriptionEs: 'Identifica escenarios que violarían límites de capital/liquidez',
+    description:
+      'Identifies scenarios that would breach capital/liquidity limits',
+    descriptionEs:
+      'Identifica escenarios que violarían límites de capital/liquidez',
     serviceFile: 'alm/stress-testing/stress-testing.service.ts',
     entryFunction: 'runReverseStress',
     requiredInputs: ['currentMetrics', 'policyLimits'],
     outputFields: ['breakPoints', 'criticalScenarios', 'bufferAnalysis'],
-    regulatoryReferences: [
-      { body: R.FRB, citation: 'SR 12-7 §V' },
-    ],
+    regulatoryReferences: [{ body: R.FRB, citation: 'SR 12-7 §V' }],
     thresholds: [],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-reverse-stress',
@@ -873,12 +1038,18 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Climate Risk / TCFD',
     nameEs: 'Riesgo Climático / TCFD',
     category: C.STRESS_TESTING,
-    description: 'TCFD-aligned climate scenario analysis (transition + physical risk)',
-    descriptionEs: 'Análisis de escenarios climáticos alineados a TCFD (riesgo de transición + físico)',
+    description:
+      'TCFD-aligned climate scenario analysis (transition + physical risk)',
+    descriptionEs:
+      'Análisis de escenarios climáticos alineados a TCFD (riesgo de transición + físico)',
     serviceFile: 'alm/stress-testing/stress-testing.service.ts',
     entryFunction: 'runClimateStress',
     requiredInputs: ['portfolioExposures', 'climateScenarios'],
-    outputFields: ['physicalRiskImpact', 'transitionRiskImpact', 'portfolioHeatmap'],
+    outputFields: [
+      'physicalRiskImpact',
+      'transitionRiskImpact',
+      'portfolioHeatmap',
+    ],
     regulatoryReferences: [
       { body: R.FRB, citation: 'SR 22-6 (Climate Guidance)' },
     ],
@@ -892,11 +1063,17 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Hurricane / Natural Disaster Scenario',
     nameEs: 'Escenario de Huracán / Desastre Natural',
     category: C.STRESS_TESTING,
-    description: 'PR-specific Cat 4/5 hurricane impact on loan portfolio and operations',
-    descriptionEs: 'Impacto de huracán Cat 4/5 específico de PR en cartera de préstamos y operaciones',
+    description:
+      'PR-specific Cat 4/5 hurricane impact on loan portfolio and operations',
+    descriptionEs:
+      'Impacto de huracán Cat 4/5 específico de PR en cartera de préstamos y operaciones',
     serviceFile: 'alm/stress-testing/stress-testing.service.ts',
     entryFunction: 'runHurricaneScenario',
-    requiredInputs: ['portfolioExposures', 'geographicConcentration', 'insuranceCoverage'],
+    requiredInputs: [
+      'portfolioExposures',
+      'geographicConcentration',
+      'insuranceCoverage',
+    ],
     outputFields: ['estimatedLosses', 'operationalImpact', 'recoveryTimeline'],
     regulatoryReferences: [
       { body: R.COSSEC, citation: 'Carta Circular OC-2020-03 (Post-María)' },
@@ -916,7 +1093,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Motor de Cumplimiento COSSEC 12 Razones',
     category: C.REGULATORY_REPORTING,
     description: 'Full COSSEC compliance scoring across all 12 required ratios',
-    descriptionEs: 'Puntuación completa de cumplimiento COSSEC en las 12 razones requeridas',
+    descriptionEs:
+      'Puntuación completa de cumplimiento COSSEC en las 12 razones requeridas',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'getCOSSECCompliance',
     requiredInputs: ['balanceSheetItems'],
@@ -934,15 +1112,15 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'NCUA Form 5300 Generation',
     nameEs: 'Generación de Formulario NCUA 5300',
     category: C.REGULATORY_REPORTING,
-    description: 'Quarterly call report generation for NCUA-regulated credit unions',
-    descriptionEs: 'Generación de informe trimestral de llamada para CUs reguladas por NCUA',
+    description:
+      'Quarterly call report generation for NCUA-regulated credit unions',
+    descriptionEs:
+      'Generación de informe trimestral de llamada para CUs reguladas por NCUA',
     serviceFile: 'alm/ncua-5300.service.ts',
     entryFunction: 'generateForm5300',
     requiredInputs: ['balanceSheetItems', 'incomeStatement'],
     outputFields: ['formData', 'editChecks', 'overallStatus'],
-    regulatoryReferences: [
-      { body: R.NCUA, citation: 'NCUA Part 741.6' },
-    ],
+    regulatoryReferences: [{ body: R.NCUA, citation: 'NCUA Part 741.6' }],
     thresholds: [],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-ncua-5300',
@@ -953,8 +1131,10 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Board Report Generator',
     nameEs: 'Generador de Informe de Junta',
     category: C.REGULATORY_REPORTING,
-    description: 'Quarterly board-ready PDF with KPIs, risks, and recommendations',
-    descriptionEs: 'PDF trimestral listo para junta con KPIs, riesgos y recomendaciones',
+    description:
+      'Quarterly board-ready PDF with KPIs, risks, and recommendations',
+    descriptionEs:
+      'PDF trimestral listo para junta con KPIs, riesgos y recomendaciones',
     serviceFile: 'alm/board-report.service.ts',
     entryFunction: 'generateBoardReport',
     requiredInputs: ['almSummary', 'camelScore'],
@@ -992,7 +1172,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Exportación Excel con Brechas de Datos',
     category: C.REGULATORY_REPORTING,
     description: 'Multi-sheet Excel workbook with data gap manifest as Sheet 0',
-    descriptionEs: 'Libro Excel multi-hoja con manifiesto de brechas de datos como Hoja 0',
+    descriptionEs:
+      'Libro Excel multi-hoja con manifiesto de brechas de datos como Hoja 0',
     serviceFile: 'alm/excel-export.service.ts',
     entryFunction: 'generateExcelReport',
     requiredInputs: ['almSummary', 'cossecCompliance', 'stressResults', 'gaps'],
@@ -1008,8 +1189,10 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Regulatory Alert Pipeline',
     nameEs: 'Pipeline de Alertas Regulatorias',
     category: C.REGULATORY_REPORTING,
-    description: 'Automated regulatory publication monitoring and impact assessment',
-    descriptionEs: 'Monitoreo automatizado de publicaciones regulatorias y evaluación de impacto',
+    description:
+      'Automated regulatory publication monitoring and impact assessment',
+    descriptionEs:
+      'Monitoreo automatizado de publicaciones regulatorias y evaluación de impacto',
     serviceFile: 'ai/regulatory/regulatory-alert.service.ts',
     entryFunction: 'processRegulatoryAlerts',
     requiredInputs: ['regulatoryPublications'],
@@ -1026,7 +1209,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Registro y Pista de Auditoría',
     category: C.REGULATORY_REPORTING,
     description: '7-year immutable audit trail for all system actions',
-    descriptionEs: 'Pista de auditoría inmutable de 7 años para todas las acciones del sistema',
+    descriptionEs:
+      'Pista de auditoría inmutable de 7 años para todas las acciones del sistema',
     serviceFile: 'audit/audit.service.ts',
     entryFunction: 'writeAuditLog',
     requiredInputs: ['action', 'resource', 'actor', 'changes'],
@@ -1045,7 +1229,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Inmutabilidad de Artefactos de Informe',
     category: C.REGULATORY_REPORTING,
     description: 'SHA-256 checksummed, model-lineage-stamped report artifacts',
-    descriptionEs: 'Artefactos de informe con checksum SHA-256 y sello de linaje de modelos',
+    descriptionEs:
+      'Artefactos de informe con checksum SHA-256 y sello de linaje de modelos',
     serviceFile: 'alm/reports/reports.service.ts',
     entryFunction: 'generateAndRecordArtifact',
     requiredInputs: ['reportContent', 'preflightResult'],
@@ -1068,17 +1253,30 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Puntuación Compuesta CAMEL',
     category: C.GOVERNANCE,
     description: 'Capital-Asset-Management-Earnings-Liquidity composite rating',
-    descriptionEs: 'Calificación compuesta Capital-Activos-Administración-Ganancias-Liquidez',
+    descriptionEs:
+      'Calificación compuesta Capital-Activos-Administración-Ganancias-Liquidez',
     serviceFile: 'alm/exam-prep/camel-scorer.service.ts',
     entryFunction: 'calculateCAMELScore',
-    requiredInputs: ['capitalMetrics', 'assetQuality', 'managementAssessment', 'earnings', 'liquidity'],
+    requiredInputs: [
+      'capitalMetrics',
+      'assetQuality',
+      'managementAssessment',
+      'earnings',
+      'liquidity',
+    ],
     outputFields: ['compositeScore', 'componentScores', 'rating'],
     regulatoryReferences: [
       { body: R.COSSEC, citation: 'Examen de Supervisión COSSEC §12' },
       { body: R.NCUA, citation: 'NCUA CAMEL Rating System' },
     ],
     thresholds: [
-      { metric: 'compositeScore', pass: '1–2', warn: '3', fail: '4–5', unit: 'rating' },
+      {
+        metric: 'compositeScore',
+        pass: '1–2',
+        warn: '3',
+        fail: '4–5',
+        unit: 'rating',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-camel-scorer',
@@ -1089,8 +1287,10 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'CAMEL Certification',
     nameEs: 'Certificación CAMEL',
     category: C.GOVERNANCE,
-    description: 'Official bilingual CAMEL certification with examiner attestation',
-    descriptionEs: 'Certificación CAMEL bilingüe oficial con atestación de examinador',
+    description:
+      'Official bilingual CAMEL certification with examiner attestation',
+    descriptionEs:
+      'Certificación CAMEL bilingüe oficial con atestación de examinador',
     serviceFile: 'alm/exam-prep/camel-certification.service.ts',
     entryFunction: 'certify',
     requiredInputs: ['institutionId', 'period', 'camelScore'],
@@ -1108,8 +1308,10 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Exam Readiness Assessment',
     nameEs: 'Evaluación de Preparación para Examen',
     category: C.GOVERNANCE,
-    description: '12-category weighted COSSEC exam readiness scoring with remediation',
-    descriptionEs: 'Puntuación ponderada de preparación para examen COSSEC en 12 categorías con remediación',
+    description:
+      '12-category weighted COSSEC exam readiness scoring with remediation',
+    descriptionEs:
+      'Puntuación ponderada de preparación para examen COSSEC en 12 categorías con remediación',
     serviceFile: 'exam-prep/exam-prep-scoring.service.ts',
     entryFunction: 'assessExamReadiness',
     requiredInputs: ['institutionMetrics', 'policyDocumentation'],
@@ -1118,7 +1320,13 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
       { body: R.COSSEC, citation: 'Manual de Examen COSSEC' },
     ],
     thresholds: [
-      { metric: 'overallGrade', pass: 'A–B', warn: 'C', fail: 'D–F', unit: 'grade' },
+      {
+        metric: 'overallGrade',
+        pass: 'A–B',
+        warn: 'C',
+        fail: 'D–F',
+        unit: 'grade',
+      },
     ],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-exam-readiness',
@@ -1130,7 +1338,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Benchmarking de Pares',
     category: C.PEER_ANALYTICS,
     description: 'Quartile ranking against PR cooperativa peer group',
-    descriptionEs: 'Ranking por cuartiles contra grupo de pares de cooperativas PR',
+    descriptionEs:
+      'Ranking por cuartiles contra grupo de pares de cooperativas PR',
     serviceFile: 'alm/peer-analytics.service.ts',
     entryFunction: 'calculatePeerRanking',
     requiredInputs: ['institutionMetrics', 'peerGroupData'],
@@ -1148,15 +1357,15 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Governed Scenario Library',
     nameEs: 'Biblioteca de Escenarios Gobernados',
     category: C.GOVERNANCE,
-    description: 'Centralized, versioned scenario library with approval workflow',
-    descriptionEs: 'Biblioteca centralizada y versionada de escenarios con flujo de aprobación',
+    description:
+      'Centralized, versioned scenario library with approval workflow',
+    descriptionEs:
+      'Biblioteca centralizada y versionada de escenarios con flujo de aprobación',
     serviceFile: 'governance/governed-scenario.service.ts',
     entryFunction: 'getApprovedScenarios',
     requiredInputs: [],
     outputFields: ['scenarios', 'approvalStatus'],
-    regulatoryReferences: [
-      { body: R.FRB, citation: 'SR 11-7 §VI' },
-    ],
+    regulatoryReferences: [{ body: R.FRB, citation: 'SR 11-7 §VI' }],
     thresholds: [],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-governed-scenarios',
@@ -1167,15 +1376,15 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Governed Benchmark Datasets',
     nameEs: 'Conjuntos de Datos de Referencia Gobernados',
     category: C.GOVERNANCE,
-    description: 'Checksummed benchmark datasets with refresh policy and provenance',
-    descriptionEs: 'Conjuntos de datos de referencia con checksum, política de actualización y procedencia',
+    description:
+      'Checksummed benchmark datasets with refresh policy and provenance',
+    descriptionEs:
+      'Conjuntos de datos de referencia con checksum, política de actualización y procedencia',
     serviceFile: 'governance/governed-benchmark.service.ts',
     entryFunction: 'getApprovedBenchmarks',
     requiredInputs: [],
     outputFields: ['benchmarks', 'freshness', 'checksum'],
-    regulatoryReferences: [
-      { body: R.FRB, citation: 'SR 11-7 §VII' },
-    ],
+    regulatoryReferences: [{ body: R.FRB, citation: 'SR 11-7 §VII' }],
     thresholds: [],
     status: S.VALIDATED,
     modelRegistryKey: 'alm-governed-benchmarks',
@@ -1186,8 +1395,10 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'Model Registry & Governance',
     nameEs: 'Registro y Gobernanza de Modelos',
     category: C.GOVERNANCE,
-    description: '44-model production registry with lifecycle, validation artifacts, and lineage',
-    descriptionEs: 'Registro de producción de 44 modelos con ciclo de vida, artefactos de validación y linaje',
+    description:
+      '44-model production registry with lifecycle, validation artifacts, and lineage',
+    descriptionEs:
+      'Registro de producción de 44 modelos con ciclo de vida, artefactos de validación y linaje',
     serviceFile: 'model-registry/model-registry.service.ts',
     entryFunction: 'getApprovedModels',
     requiredInputs: [],
@@ -1206,8 +1417,10 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     name: 'ROI Calculator',
     nameEs: 'Calculadora de ROI',
     category: C.PRICING,
-    description: 'Total cost of ownership and ROI calculation for prospect institutions',
-    descriptionEs: 'Costo total de propiedad y cálculo de ROI para instituciones prospecto',
+    description:
+      'Total cost of ownership and ROI calculation for prospect institutions',
+    descriptionEs:
+      'Costo total de propiedad y cálculo de ROI para instituciones prospecto',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'calculateROI',
     requiredInputs: ['institutionSize', 'currentCosts', 'pricingTier'],
@@ -1224,7 +1437,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Exportación de Datos (CSV/JSON)',
     category: C.REGULATORY_REPORTING,
     description: 'Raw data export for external analysis tools',
-    descriptionEs: 'Exportación de datos crudos para herramientas de análisis externo',
+    descriptionEs:
+      'Exportación de datos crudos para herramientas de análisis externo',
     serviceFile: 'alm/data-export.service.ts',
     entryFunction: 'exportData',
     requiredInputs: ['analysisRunId', 'format'],
@@ -1241,7 +1455,8 @@ export const COMPLIANCE_MODULES: ComplianceModuleEntry[] = [
     nameEs: 'Resumen de Razones COSSEC (12 Razones)',
     category: C.REGULATORY_REPORTING,
     description: 'Consolidated view of all 12 COSSEC-required financial ratios',
-    descriptionEs: 'Vista consolidada de las 12 razones financieras requeridas por COSSEC',
+    descriptionEs:
+      'Vista consolidada de las 12 razones financieras requeridas por COSSEC',
     serviceFile: 'alm/alm-enterprise.service.ts',
     entryFunction: 'getCOSSECRatioSummary',
     requiredInputs: ['balanceSheetItems', 'incomeStatement'],

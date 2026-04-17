@@ -20,14 +20,30 @@ import { ScoreWeights, EvalThresholds, type DimensionKey } from './thresholds';
 export class RegressionScorerService {
   private readonly logger = new Logger(RegressionScorerService.name);
 
-  scoreCase(gold: GoldenCase, result: AgentRunResult, hedgeCount: number): CaseScore {
+  scoreCase(
+    gold: GoldenCase,
+    result: AgentRunResult,
+    hedgeCount: number,
+  ): CaseScore {
     const failures: string[] = [];
     const dims: ScoreBreakdown = {
       toolCoverage: this.toolCoverage(gold.expected, result, failures),
-      dollarQuantification: this.dollarQuantification(gold.expected, result, failures),
+      dollarQuantification: this.dollarQuantification(
+        gold.expected,
+        result,
+        failures,
+      ),
       specificity: this.specificity(result, hedgeCount),
-      regulatoryReference: this.regulatoryReference(gold.expected, result, failures),
-      bilingualCompleteness: this.bilingualCompleteness(gold.expected, result, failures),
+      regulatoryReference: this.regulatoryReference(
+        gold.expected,
+        result,
+        failures,
+      ),
+      bilingualCompleteness: this.bilingualCompleteness(
+        gold.expected,
+        result,
+        failures,
+      ),
       formatCompliance: this.formatCompliance(gold.expected, result, failures),
       total: 0,
     };
@@ -39,14 +55,18 @@ export class RegressionScorerService {
     caseScores: readonly CaseScore[],
     baselineAverage: number | null,
   ): RegressionReport {
-    const averageScore = caseScores.length === 0
-      ? 0
-      : caseScores.reduce((sum, c) => sum + c.score.total, 0) / caseScores.length;
+    const averageScore =
+      caseScores.length === 0
+        ? 0
+        : caseScores.reduce((sum, c) => sum + c.score.total, 0) /
+          caseScores.length;
     const blockedCases = caseScores
       .filter((c) => c.score.total < EvalThresholds.deployGate)
       .map((c) => c.caseId);
-    const deltaFromBaseline = baselineAverage == null ? null : averageScore - baselineAverage;
-    const passesDeployGate = averageScore >= EvalThresholds.deployGate && blockedCases.length === 0;
+    const deltaFromBaseline =
+      baselineAverage == null ? null : averageScore - baselineAverage;
+    const passesDeployGate =
+      averageScore >= EvalThresholds.deployGate && blockedCases.length === 0;
 
     if (!passesDeployGate) {
       this.logger.warn(
@@ -71,7 +91,9 @@ export class RegressionScorerService {
     failures: string[],
   ): number {
     if (exp.toolsCalledMin == null) return 100;
-    const toolCalls = result.trace.filter((s) => s.stepType === 'TOOL_CALL').length;
+    const toolCalls = result.trace.filter(
+      (s) => s.stepType === 'TOOL_CALL',
+    ).length;
     const ratio = toolCalls / exp.toolsCalledMin;
     if (ratio < 1) {
       failures.push(`tool coverage: ${toolCalls} < min ${exp.toolsCalledMin}`);
@@ -86,10 +108,13 @@ export class RegressionScorerService {
   ): number {
     const risks = result.output.topRisks ?? [];
     if (risks.length === 0) {
-      if (exp.hasMinDollarQuantification) failures.push('dollar quant: no topRisks emitted');
+      if (exp.hasMinDollarQuantification)
+        failures.push('dollar quant: no topRisks emitted');
       return 0;
     }
-    const withDollar = risks.filter((r) => typeof r.dollarImpact === 'number' && r.dollarImpact > 0).length;
+    const withDollar = risks.filter(
+      (r) => typeof r.dollarImpact === 'number' && r.dollarImpact > 0,
+    ).length;
     const pct = (withDollar / risks.length) * 100;
     if (exp.hasMinDollarQuantification && withDollar === 0) {
       failures.push('dollar quant: expected ≥1 finding with $ amount, got 0');
@@ -104,8 +129,8 @@ export class RegressionScorerService {
     // Also penalize "vague" recommendations (no $ or deadline).
     const risks = result.output.topRisks ?? [];
     const recs = risks.map((r) => r.recommendation ?? '').filter(Boolean);
-    const specificRecs = recs.filter(
-      (r) => /\$\d|\d+\s?(?:bps|%)|by\s\d{4}-\d{2}-\d{2}/i.test(r),
+    const specificRecs = recs.filter((r) =>
+      /\$\d|\d+\s?(?:bps|%)|by\s\d{4}-\d{2}-\d{2}/i.test(r),
     ).length;
     const recScore = recs.length === 0 ? 0 : (specificRecs / recs.length) * 100;
     return Math.max(0, recScore - hedgeCount * 5);
@@ -118,7 +143,9 @@ export class RegressionScorerService {
   ): number {
     const risks = result.output.topRisks ?? [];
     if (risks.length === 0) return exp.hasRegulatoryReference ? 0 : 100;
-    const withRef = risks.filter((r) => (r.regulatoryRef ?? '').trim().length > 0).length;
+    const withRef = risks.filter(
+      (r) => (r.regulatoryRef ?? '').trim().length > 0,
+    ).length;
     const baseline = (withRef / risks.length) * 100;
 
     if (exp.requiredRegulatoryCodes?.length) {
@@ -126,7 +153,9 @@ export class RegressionScorerService {
         result.narrative,
         ...risks.map((r) => r.regulatoryRef ?? ''),
       ].join('\n');
-      const missing = exp.requiredRegulatoryCodes.filter((c) => !narrativePlusRefs.includes(c));
+      const missing = exp.requiredRegulatoryCodes.filter(
+        (c) => !narrativePlusRefs.includes(c),
+      );
       if (missing.length > 0) {
         failures.push(`missing required reg codes: ${missing.join(', ')}`);
         return Math.max(0, baseline - missing.length * 25);
@@ -164,7 +193,9 @@ export class RegressionScorerService {
     if (exp.topRiskDomain) {
       const actual = result.output.topRisks?.[0]?.domain;
       if (actual !== exp.topRiskDomain) {
-        failures.push(`top risk domain: expected "${exp.topRiskDomain}", got "${actual}"`);
+        failures.push(
+          `top risk domain: expected "${exp.topRiskDomain}", got "${actual}"`,
+        );
         penalties += 50;
       }
     }

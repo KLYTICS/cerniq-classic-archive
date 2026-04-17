@@ -71,10 +71,9 @@ export class SampleReportController {
       `Single sample report generation triggered for ${prospectInstitutionId}`,
     );
 
-    const result =
-      await this.sampleReportService.generateSampleReport(
-        prospectInstitutionId,
-      );
+    const result = await this.sampleReportService.generateSampleReport(
+      prospectInstitutionId,
+    );
 
     return {
       message: 'Sample report generated',
@@ -114,8 +113,9 @@ export class SampleReportController {
       throw new BadRequestException('Missing or invalid preview token');
     }
 
-    const result =
-      await this.sampleReportService.validatePreviewToken(params.token);
+    const result = await this.sampleReportService.validatePreviewToken(
+      params.token,
+    );
 
     if (!result) {
       throw new UnauthorizedException('Invalid or expired preview token');

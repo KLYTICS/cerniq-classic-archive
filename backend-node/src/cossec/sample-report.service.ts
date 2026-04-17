@@ -30,10 +30,9 @@ export class SampleReportService {
   async generateSampleReport(
     prospectInstitutionId: string,
   ): Promise<SampleReportResult> {
-    const prospect =
-      await this.prisma.prospectInstitution.findUniqueOrThrow({
-        where: { id: prospectInstitutionId },
-      });
+    const prospect = await this.prisma.prospectInstitution.findUniqueOrThrow({
+      where: { id: prospectInstitutionId },
+    });
 
     // Fetch COSSEC findings for this institution
     const findings = await this.prisma.cossecExamFinding.findMany({
@@ -146,15 +145,12 @@ export class SampleReportService {
     return prospect?.sampleReportUrl ?? null;
   }
 
-  async generatePreviewToken(
-    prospectInstitutionId: string,
-  ): Promise<string> {
+  async generatePreviewToken(prospectInstitutionId: string): Promise<string> {
     // Verify the prospect and report exist
-    const prospect =
-      await this.prisma.prospectInstitution.findUniqueOrThrow({
-        where: { id: prospectInstitutionId },
-        select: { id: true, name: true, sampleReportUrl: true },
-      });
+    const prospect = await this.prisma.prospectInstitution.findUniqueOrThrow({
+      where: { id: prospectInstitutionId },
+      select: { id: true, name: true, sampleReportUrl: true },
+    });
 
     if (!prospect.sampleReportUrl) {
       throw new Error(
@@ -174,9 +170,7 @@ export class SampleReportService {
   /**
    * Validates a preview token and returns the prospect data for rendering.
    */
-  async validatePreviewToken(
-    token: string,
-  ): Promise<{
+  async validatePreviewToken(token: string): Promise<{
     prospectInstitutionId: string;
     institutionName: string;
   } | null> {

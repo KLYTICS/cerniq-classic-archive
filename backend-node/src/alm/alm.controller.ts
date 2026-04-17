@@ -323,8 +323,15 @@ export class AlmController {
     this.logger.log(
       `Importing ${dto.items.length} balance sheet items for institution ${institutionId}`,
     );
-    const result = await this.almEnterprise.importBalanceSheetItems(institutionId, dto.items);
-    this.fireAgentTrigger(institutionId, `import:${institutionId}:${Date.now()}`, req.user?.userId);
+    const result = await this.almEnterprise.importBalanceSheetItems(
+      institutionId,
+      dto.items,
+    );
+    this.fireAgentTrigger(
+      institutionId,
+      `import:${institutionId}:${Date.now()}`,
+      req.user?.userId,
+    );
     return result;
   }
 
@@ -571,15 +578,21 @@ export class AlmController {
     triggeredByUserId?: string,
   ): void {
     try {
-      const { AgentTriggerService } = require('../agents/trigger/agent-trigger.service');
-      const trigger = this.moduleRef.get(AgentTriggerService, { strict: false });
+      const {
+        AgentTriggerService,
+      } = require('../agents/trigger/agent-trigger.service');
+      const trigger = this.moduleRef.get(AgentTriggerService, {
+        strict: false,
+      });
       trigger.onBalanceSheetUploaded({
         balanceSheetId,
         institutionId,
         triggeredByUserId: triggeredByUserId ?? null,
       });
     } catch {
-      this.logger.debug('AgentTriggerService not available — agent trigger skipped');
+      this.logger.debug(
+        'AgentTriggerService not available — agent trigger skipped',
+      );
     }
   }
 

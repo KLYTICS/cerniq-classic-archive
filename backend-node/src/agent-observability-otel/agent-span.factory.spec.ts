@@ -67,7 +67,9 @@ describe('AgentSpanFactory', () => {
     it('records a failing verdict without error', () => {
       const verdict: TrustVerdict = {
         pass: false,
-        violations: [{ rule: 'NUMBER_NOT_CITED', severity: 'BLOCK', message: 'test' }],
+        violations: [
+          { rule: 'NUMBER_NOT_CITED', severity: 'BLOCK', message: 'test' },
+        ],
         summary: { block: 1, warn: 0, info: 0 },
         evaluatedInMs: 10,
       };

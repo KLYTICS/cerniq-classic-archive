@@ -199,10 +199,7 @@ describe('ExamPrepScoringService', () => {
       value: 2.0,
     });
     expect(result.weight).toBe(CATEGORY_WEIGHTS.DURATION_GAP);
-    expect(result.weightedScore).toBeCloseTo(
-      result.score * result.weight,
-      5,
-    );
+    expect(result.weightedScore).toBeCloseTo(result.score * result.weight, 5);
   });
 
   // ── Policy-based scoring ──────────────────────────────────────────────
@@ -240,10 +237,7 @@ describe('ExamPrepScoringService', () => {
   // ── Full assessment ─────────────────────────────────────────────────────
 
   it('runs full assessment with demo data and returns all fields', async () => {
-    const assessment = await service.assessReadiness(
-      'inst-test',
-      'test-user',
-    );
+    const assessment = await service.assessReadiness('inst-test', 'test-user');
 
     expect(assessment.id).toBeDefined();
     expect(assessment.institutionId).toBe('inst-test');
@@ -252,7 +246,9 @@ describe('ExamPrepScoringService', () => {
     expect(assessment.overallScore).toBeLessThanOrEqual(100);
     expect(['A', 'B', 'C', 'D', 'F']).toContain(assessment.letterGrade);
     expect(assessment.categories).toHaveLength(12);
-    expect(assessment.passCount + assessment.warnCount + assessment.failCount).toBe(12);
+    expect(
+      assessment.passCount + assessment.warnCount + assessment.failCount,
+    ).toBe(12);
     expect(assessment.summary).toBeTruthy();
     expect(assessment.summaryEs).toBeTruthy();
   });
@@ -262,12 +258,8 @@ describe('ExamPrepScoringService', () => {
 
     expect(assessment.summary).toContain('Grade');
     expect(assessment.summaryEs).toContain('Grado');
-    expect(assessment.summary).toContain(
-      String(assessment.overallScore),
-    );
-    expect(assessment.summaryEs).toContain(
-      String(assessment.overallScore),
-    );
+    expect(assessment.summary).toContain(String(assessment.overallScore));
+    expect(assessment.summaryEs).toContain(String(assessment.overallScore));
   });
 
   it('stores assessment in history', async () => {

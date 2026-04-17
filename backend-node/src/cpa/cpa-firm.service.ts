@@ -131,10 +131,7 @@ export class CpaFirmService {
   /**
    * Update firm details and/or branding.
    */
-  async updateFirm(
-    firmId: string,
-    params: UpdateCpaFirmDto,
-  ): Promise<CpaFirm> {
+  async updateFirm(firmId: string, params: UpdateCpaFirmDto): Promise<CpaFirm> {
     await this.assertFirmExists(firmId);
 
     // If slug is changing, verify uniqueness

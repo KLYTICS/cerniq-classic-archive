@@ -1,8 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AgentRunnerService, type RunResult } from '../agents/runner/agent-runner.service';
+import {
+  AgentRunnerService,
+  type RunResult,
+} from '../agents/runner/agent-runner.service';
 import { AgentAuditService } from '../agents/runner/agent-audit.service';
 import { getOutputSchema } from '../agent-trust/schema-registry';
-import type { AgentType, AgentAuditLogReadModel } from '../agent-trust/contracts';
+import type {
+  AgentType,
+  AgentAuditLogReadModel,
+} from '../agent-trust/contracts';
 import type { AgentExecutor } from './agent-executor.port';
 import type { AgentRunResult, AgentOutput } from './contracts';
 
@@ -56,7 +62,9 @@ export class AgentRunnerAdapter implements AgentExecutor {
         id: String(row.id ?? ''),
         runId: String(row.runId ?? ''),
         stepNumber: Number(row.stepNumber ?? 0),
-        stepType: String(row.stepType ?? 'TOOL_CALL') as AgentAuditLogReadModel['stepType'],
+        stepType: String(
+          row.stepType ?? 'TOOL_CALL',
+        ) as AgentAuditLogReadModel['stepType'],
         toolName: row.toolName ? String(row.toolName) : null,
         toolInput: (row.toolInput ?? null) as Record<string, unknown> | null,
         toolOutput: (row.toolOutput ?? null) as Record<string, unknown> | null,

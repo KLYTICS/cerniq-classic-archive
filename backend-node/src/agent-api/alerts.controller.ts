@@ -48,8 +48,13 @@ export class AgentAlertsController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List alerts for the institution with keyset pagination' })
-  @ApiResponse({ status: 200, description: 'Alert list with severity summary strip' })
+  @ApiOperation({
+    summary: 'List alerts for the institution with keyset pagination',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Alert list with severity summary strip',
+  })
   async list(
     @Param('institutionId') institutionId: string,
     @Query() rawQuery: unknown,

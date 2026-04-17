@@ -26,9 +26,15 @@ export const LoanPricingAgent: AgentDefinition<typeof LoanPricingOutputSchema> =
       const meta = (input ?? {}) as Record<string, unknown>;
       return [
         `Price loan for institution ${meta.institutionId ?? 'unknown'}.`,
-        meta.amount ? `Amount: $${meta.amount}. Term: ${meta.termMonths ?? '?'}mo.` : '',
-        meta.sector ? `Sector: ${meta.sector}. Risk grade: ${meta.riskGrade ?? 'unknown'}.` : '',
+        meta.amount
+          ? `Amount: $${meta.amount}. Term: ${meta.termMonths ?? '?'}mo.`
+          : '',
+        meta.sector
+          ? `Sector: ${meta.sector}. Risk grade: ${meta.riskGrade ?? 'unknown'}.`
+          : '',
         'Return a single JSON object matching the LoanPricingOutput schema.',
-      ].filter(Boolean).join('\n');
+      ]
+        .filter(Boolean)
+        .join('\n');
     },
   };

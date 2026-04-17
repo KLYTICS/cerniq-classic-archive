@@ -1,4 +1,11 @@
-import { Body, Controller, Inject, Logger, Optional, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Inject,
+  Logger,
+  Optional,
+  Post,
+} from '@nestjs/common';
 import { z } from 'zod';
 import type { GoldenCase, RegressionReport } from './contracts';
 import type { ReplayReport } from './replay.runner';
@@ -43,13 +50,17 @@ export class AgentEvalController {
   constructor(
     private readonly goldenRunner: GoldenRunnerService,
     private readonly replayRunner: ReplayRunnerService,
-    @Optional() @Inject(GOLDEN_CASES) private readonly goldenCases: readonly GoldenCase[] | null,
+    @Optional()
+    @Inject(GOLDEN_CASES)
+    private readonly goldenCases: readonly GoldenCase[] | null,
   ) {}
 
   @Post('golden')
   async runGolden(@Body() body: unknown): Promise<RegressionReport> {
     if (!this.goldenCases?.length) {
-      throw new Error('No golden cases registered. Provide GOLDEN_CASES token in AppModule.');
+      throw new Error(
+        'No golden cases registered. Provide GOLDEN_CASES token in AppModule.',
+      );
     }
     const parsed = RunGoldenSchema.parse(body);
     return this.goldenRunner.run(parsed.institutionId, this.goldenCases, {
@@ -81,7 +92,11 @@ export class AgentEvalController {
             evaluatedInMs: 0,
           }
         : null,
-      { outputSchema: schema, requiredLanguage: parsed.requiredLanguage, maxWords: parsed.maxWords },
+      {
+        outputSchema: schema,
+        requiredLanguage: parsed.requiredLanguage,
+        maxWords: parsed.maxWords,
+      },
     );
   }
 }

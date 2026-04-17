@@ -14,9 +14,7 @@ export class AgentToolRegistryService {
 
   register(meta: AgentToolMeta, handler: ToolHandler): void {
     if (this.tools.has(meta.name)) {
-      throw new Error(
-        `AgentTool "${meta.name}" is already registered.`,
-      );
+      throw new Error(`AgentTool "${meta.name}" is already registered.`);
     }
     this.tools.set(meta.name, { meta, handler });
     this.logger.log(`Registered tool: ${meta.name}`);

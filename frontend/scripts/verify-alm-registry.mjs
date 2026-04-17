@@ -144,6 +144,48 @@ function extractRegisteredSlugs() {
   return new Set(matches.map((m) => m[1]));
 }
 
+/**
+ * Extract [slug, href] pairs from registry entries so the filesystem-parity
+ * check handles nested routes. `/alm/agents/alerts` lives at
+ * `app/alm/agents/alerts/page.tsx` — slug alone (`agent-alerts`) doesn't
+ * resolve to a folder path, so we derive the path from href.
+ *
+ * The regex captures the `slug: '…'` and `href: '/alm/…'` fields within
+ * the same registry entry. Uses non-greedy matching to stay inside one
+ * object literal.
+ */
+function extractSlugHrefPairs() {
+  const src = readFileSync(REGISTRY_FILE, 'utf8');
+  const pairs = [];
+  const re = /slug:\s*'([a-z0-9-]+)'[\s\S]*?href:\s*'([^']+)'/g;
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    pairs.push({ slug: m[1], href: m[2] });
+  }
+  return pairs;
+}
+
+/**
+ * Derive the expected page-file path from an href like `/alm/agents/alerts`:
+ *   /alm           → overview (special case)
+ *   /alm/<x>       → app/alm/<x>/page.tsx
+ *   /alm/<x>/<y>   → app/alm/<x>/<y>/page.tsx   (nested route, e.g. agent-alerts)
+ */
+function hrefToPageFile(href) {
+  if (href === '/alm') return join(ALM_DIR, 'page.tsx');
+  const stripped = href.replace(/^\/alm\//, '');
+  if (!stripped || stripped === '/alm') return join(ALM_DIR, 'page.tsx');
+  return join(ALM_DIR, ...stripped.split('/'), 'page.tsx');
+}
+
+function hasPageAtHref(href) {
+  try {
+    return statSync(hrefToPageFile(href)).isFile();
+  } catch {
+    return false;
+  }
+}
+
 function* walkTsx(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
@@ -160,6 +202,8 @@ function* walkTsx(dir) {
 const folderSlugs = listAlmSlugs();
 const folderSlugSet = new Set(folderSlugs);
 const registeredSlugs = extractRegisteredSlugs();
+const slugHrefPairs = extractSlugHrefPairs();
+const hrefBySlug = new Map(slugHrefPairs.map((p) => [p.slug, p.href]));
 
 for (const slug of folderSlugs) {
   if (!hasPageFile(slug)) continue;
@@ -171,13 +215,20 @@ for (const slug of folderSlugs) {
   }
 }
 
+// Reverse-parity check. A registered slug is considered "present on disk"
+// if EITHER the legacy `app/alm/<slug>/page.tsx` exists (flat convention)
+// OR the nested path derived from `href` resolves (e.g. `/alm/agents/alerts`
+// → `app/alm/agents/alerts/page.tsx`). This handles nested routes without
+// forcing a slug-to-folder-name rename.
 for (const slug of registeredSlugs) {
   if (slug === 'overview') continue;
-  if (!folderSlugSet.has(slug)) {
-    warnings.push(
-      `[registry] lib/alm/registry.ts has a stale entry for "${slug}" — no app/alm/${slug}/ folder found.`,
-    );
-  }
+  if (folderSlugSet.has(slug)) continue; // flat convention — ok
+  const href = hrefBySlug.get(slug);
+  if (href && hasPageAtHref(href)) continue; // nested page exists — ok
+  warnings.push(
+    `[registry] lib/alm/registry.ts has a stale entry for "${slug}" — no ` +
+      `app/alm/${slug}/ folder and no page at ${href ?? '(unknown href)'}.`,
+  );
 }
 
 // ─── Check 2: TS-name leak guard ────────────────────────────────────────────

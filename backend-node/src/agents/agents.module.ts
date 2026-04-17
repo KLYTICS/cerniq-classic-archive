@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PrismaModule } from '../prisma.module';
 import { AlmModule } from '../alm/alm.module';
 
@@ -20,7 +20,15 @@ import { AgentQueueModule } from '../queue/agent/agent-queue.module';
 import { AgentChainService } from './runner/agent-chain.service';
 
 @Module({
-  imports: [PrismaModule, AlmModule, EmailModule, AgentQueueModule],
+  // forwardRef on AgentQueueModule breaks the AgentsModule ↔
+  // AgentQueueModule cycle (see agent-queue.module.ts for the full
+  // rationale). Mirror on both sides per NestJS circular-dep docs.
+  imports: [
+    PrismaModule,
+    AlmModule,
+    EmailModule,
+    forwardRef(() => AgentQueueModule),
+  ],
   controllers: [AgentsController],
   providers: [
     QuantSwarmService,
@@ -37,6 +45,18 @@ import { AgentChainService } from './runner/agent-chain.service';
     AgentAlertNotifierService,
     AgentChainService,
   ],
-  exports: [AgentRunnerService, AgentTriggerService, AgentEventBusService, AgentChainService],
+  exports: [
+    AgentRunnerService,
+    AgentTriggerService,
+    AgentEventBusService,
+    AgentChainService,
+    // Also export services consumed by AgentApiModule controllers so
+    // the DI graph resolves cleanly from AppModule. AgentAuditService
+    // is used by AgentRunsController (trace endpoints) and the export
+    // controller; AgentEventBusService is already exported for the
+    // tenant-stream SSE controller but is also consumed by other API
+    // flows.
+    AgentAuditService,
+  ],
 })
 export class AgentsModule {}

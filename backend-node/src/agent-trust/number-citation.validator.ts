@@ -1,8 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import type {
-  AgentAuditLogReadModel,
-  TrustViolation,
-} from './contracts';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import type { AgentAuditLogReadModel, TrustViolation } from './contracts';
 
 /**
  * Enforces Vol2 principle #2: "No LLM output that contains a financial number
@@ -29,7 +26,8 @@ export interface CitationCheck {
   uncited: NumberClaim[];
 }
 
-const CURRENCY_RE = /\$\s?(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)\s?([KkMmBb])?/g;
+const CURRENCY_RE =
+  /\$\s?(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)\s?([KkMmBb])?/g;
 const PERCENT_RE = /(?<![A-Za-z0-9_])(-?\d+(?:\.\d+)?)\s?%/g;
 const BPS_RE = /(?<![A-Za-z0-9_])(-?\d+(?:\.\d+)?)\s?bps\b/gi;
 const PLAIN_LARGE_RE = /(?<![A-Za-z0-9_.])(\d{1,3}(?:,\d{3}){1,})(?:\.(\d+))?/g;
@@ -54,7 +52,21 @@ const isLikelyYear = (n: number): boolean =>
 export class NumberCitationValidator {
   private readonly logger = new Logger(NumberCitationValidator.name);
 
-  constructor(private readonly tolerancePct: number = DEFAULT_TOLERANCE_PCT) {}
+  /**
+   * @Optional() on the tolerance-percent param tells NestJS not to try
+   * to inject a `Number` provider when resolving this service through
+   * its DI graph. Without it, the @Injectable() decoration combined
+   * with the `number` parameter type causes reflection to look up a
+   * provider keyed by the `Number` wrapper class (which doesn't exist
+   * in the container), and every e2e test that bootstraps AppModule
+   * fails with:
+   *   "Nest can't resolve dependencies of the NumberCitationValidator
+   *    (?). Please make sure that the argument Number at index [0] is
+   *    available in the AgentTrustModule module."
+   */
+  constructor(
+    @Optional() private readonly tolerancePct: number = DEFAULT_TOLERANCE_PCT,
+  ) {}
 
   /** Extract every numeric claim from a piece of text. */
   extractClaims(text: string): NumberClaim[] {
@@ -62,14 +74,14 @@ export class NumberCitationValidator {
     const claims: NumberClaim[] = [];
 
     for (const m of text.matchAll(CURRENCY_RE)) {
-      const base = Number(m[1]!.replace(/,/g, ''));
+      const base = Number(m[1].replace(/,/g, ''));
       const suffix = (m[2] ?? '').toLowerCase();
-      const mult = suffix ? SUFFIX_MULTIPLIER[suffix] ?? 1 : 1;
+      const mult = suffix ? (SUFFIX_MULTIPLIER[suffix] ?? 1) : 1;
       const value = base * mult;
       claims.push({
         value,
         raw: m[0],
-        location: { start: m.index!, end: m.index! + m[0].length },
+        location: { start: m.index, end: m.index + m[0].length },
         kind: 'currency',
       });
     }
@@ -79,7 +91,7 @@ export class NumberCitationValidator {
       claims.push({
         value,
         raw: m[0],
-        location: { start: m.index!, end: m.index! + m[0].length },
+        location: { start: m.index, end: m.index + m[0].length },
         kind: 'percent',
       });
     }
@@ -89,27 +101,32 @@ export class NumberCitationValidator {
       claims.push({
         value,
         raw: m[0],
-        location: { start: m.index!, end: m.index! + m[0].length },
+        location: { start: m.index, end: m.index + m[0].length },
         kind: 'bps',
       });
     }
 
     for (const m of text.matchAll(PLAIN_LARGE_RE)) {
-      const intPart = m[1]!.replace(/,/g, '');
+      const intPart = m[1].replace(/,/g, '');
       const frac = m[2] ?? '';
       const value = Number(frac ? `${intPart}.${frac}` : intPart);
       if (isLikelyYear(value)) continue;
-      if (this.isOverlappingWithPrior(claims, m.index!)) continue;
+      if (this.isOverlappingWithPrior(claims, m.index)) continue;
       claims.push({
         value,
         raw: m[0],
-        location: { start: m.index!, end: m.index! + m[0].length },
+        location: { start: m.index, end: m.index + m[0].length },
         kind: 'count',
       });
     }
 
     return claims
-      .filter((c) => c.kind === 'percent' || c.kind === 'bps' || c.value >= MIN_MATERIAL_VALUE)
+      .filter(
+        (c) =>
+          c.kind === 'percent' ||
+          c.kind === 'bps' ||
+          c.value >= MIN_MATERIAL_VALUE,
+      )
       .sort((a, b) => a.location.start - b.location.start);
   }
 
@@ -124,7 +141,10 @@ export class NumberCitationValidator {
   }
 
   /** Reconcile claims against the tool-output bag. */
-  check(claims: readonly NumberClaim[], cited: readonly number[]): CitationCheck {
+  check(
+    claims: readonly NumberClaim[],
+    cited: readonly number[],
+  ): CitationCheck {
     const matched: NumberClaim[] = [];
     const uncited: NumberClaim[] = [];
     for (const claim of claims) {
@@ -157,7 +177,10 @@ export class NumberCitationValidator {
     }));
   }
 
-  private findMatch(claim: NumberClaim, cited: readonly number[]): number | null {
+  private findMatch(
+    claim: NumberClaim,
+    cited: readonly number[],
+  ): number | null {
     for (const n of cited) {
       if (this.isClose(claim.value, n)) return n;
     }
@@ -167,10 +190,10 @@ export class NumberCitationValidator {
   private findNearest(v: number, cited: readonly number[]): number | null {
     if (cited.length === 0) return null;
     const absV = Math.abs(v);
-    let best = cited[0]!;
+    let best = cited[0];
     let bestDelta = Math.abs(Math.abs(best) - absV);
     for (let i = 1; i < cited.length; i++) {
-      const d = Math.abs(Math.abs(cited[i]!) - absV);
+      const d = Math.abs(Math.abs(cited[i]) - absV);
       if (d < bestDelta) {
         best = cited[i]!;
         bestDelta = d;
@@ -195,7 +218,8 @@ export class NumberCitationValidator {
     }
     if (typeof value === 'string') {
       const n = Number(value);
-      if (!Number.isNaN(n) && Number.isFinite(n) && value.trim() !== '') bag.push(n);
+      if (!Number.isNaN(n) && Number.isFinite(n) && value.trim() !== '')
+        bag.push(n);
       return;
     }
     if (Array.isArray(value)) {
@@ -207,7 +231,10 @@ export class NumberCitationValidator {
     }
   }
 
-  private isOverlappingWithPrior(claims: readonly NumberClaim[], start: number): boolean {
+  private isOverlappingWithPrior(
+    claims: readonly NumberClaim[],
+    start: number,
+  ): boolean {
     for (const c of claims) {
       if (start >= c.location.start && start < c.location.end) return true;
     }

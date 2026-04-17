@@ -107,9 +107,8 @@ export class ComplianceRegistryService {
 
     return {
       totalModules: this.modules.length,
-      validated: this.modules.filter(
-        (m) => m.status === ModuleStatus.VALIDATED,
-      ).length,
+      validated: this.modules.filter((m) => m.status === ModuleStatus.VALIDATED)
+        .length,
       inProgress: this.modules.filter(
         (m) => m.status === ModuleStatus.IN_PROGRESS,
       ).length,

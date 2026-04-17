@@ -222,9 +222,10 @@ export class CpaClientService {
     for (const client of clients) {
       const assets = client.institution.totalAssets;
       if (assets) {
-        totalAssets += typeof assets === 'number'
-          ? assets
-          : Number(assets.toString?.() ?? assets);
+        totalAssets +=
+          typeof assets === 'number'
+            ? assets
+            : Number(assets.toString?.() ?? assets);
       }
 
       const score = client.latestRiskScore;
@@ -260,10 +261,7 @@ export class CpaClientService {
         await this.addClient(firmId, institutionId);
         result.added++;
       } catch (err: any) {
-        if (
-          err instanceof ConflictException ||
-          err?.status === 409
-        ) {
+        if (err instanceof ConflictException || err?.status === 409) {
           result.skipped++;
         } else {
           result.errors.push({

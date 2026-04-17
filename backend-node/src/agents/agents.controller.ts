@@ -77,5 +77,8 @@ export class AgentsController {
 }
 
 function deriveKey(agentId: string, scope: string, input: unknown): string {
-  return createHash('sha256').update(`${agentId}|${scope}|${JSON.stringify(input ?? {})}`).digest('hex').slice(0, 32);
+  return createHash('sha256')
+    .update(`${agentId}|${scope}|${JSON.stringify(input ?? {})}`)
+    .digest('hex')
+    .slice(0, 32);
 }

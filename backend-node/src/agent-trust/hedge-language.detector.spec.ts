@@ -8,7 +8,9 @@ describe('HedgeLanguageDetector', () => {
   });
 
   it('detects common hedge tokens as WARN', () => {
-    const vs = d.detect('The institution may face rate risk and could potentially breach LCR.');
+    const vs = d.detect(
+      'The institution may face rate risk and could potentially breach LCR.',
+    );
     expect(vs.length).toBeGreaterThanOrEqual(3);
     for (const v of vs) {
       expect(v.rule).toBe('HEDGE_LANGUAGE');
@@ -18,7 +20,9 @@ describe('HedgeLanguageDetector', () => {
 
   it('returns empty on clean CFO-level prose', () => {
     expect(
-      d.detect('Raise Fed Funds duration by 0.4 years via $15M swap by 2026-06-30.'),
+      d.detect(
+        'Raise Fed Funds duration by 0.4 years via $15M swap by 2026-06-30.',
+      ),
     ).toEqual([]);
   });
 

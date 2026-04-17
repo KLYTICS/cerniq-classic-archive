@@ -22,7 +22,9 @@ export const SessionHistoryParamsSchema = z.object({
   sessionId: z.string().min(1),
 });
 
-export type SessionHistoryParamsDto = z.infer<typeof SessionHistoryParamsSchema>;
+export type SessionHistoryParamsDto = z.infer<
+  typeof SessionHistoryParamsSchema
+>;
 
 export const DeleteSessionParamsSchema = z.object({
   sessionId: z.string().min(1),

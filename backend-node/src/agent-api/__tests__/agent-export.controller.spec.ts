@@ -1,5 +1,8 @@
 import { NotFoundException } from '@nestjs/common';
-import { AgentExportController, computeExportHash } from '../agent-export.controller';
+import {
+  AgentExportController,
+  computeExportHash,
+} from '../agent-export.controller';
 
 describe('AgentExportController', () => {
   let controller: AgentExportController;

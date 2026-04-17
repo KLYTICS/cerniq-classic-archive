@@ -1,4 +1,7 @@
-import { EnterpriseBatchService, CreateBatchParams } from './enterprise-batch.service';
+import {
+  EnterpriseBatchService,
+  CreateBatchParams,
+} from './enterprise-batch.service';
 import { WebhookDeliveryService } from './webhook-delivery.service';
 
 describe('EnterpriseBatchService', () => {
@@ -130,9 +133,9 @@ describe('EnterpriseBatchService', () => {
   });
 
   it('throws NotFoundException for unknown batch ID', async () => {
-    await expect(
-      service.getBatch('nonexistent-id'),
-    ).rejects.toThrow('not found');
+    await expect(service.getBatch('nonexistent-id')).rejects.toThrow(
+      'not found',
+    );
   });
 
   // ── Pagination ──────────────────────────────────────────────────────────
@@ -145,10 +148,10 @@ describe('EnterpriseBatchService', () => {
       });
     }
 
-    const page1 = await service.listBatches(
-      defaultParams.organizationId,
-      { page: 1, limit: 2 },
-    );
+    const page1 = await service.listBatches(defaultParams.organizationId, {
+      page: 1,
+      limit: 2,
+    });
     expect(page1.items).toHaveLength(2);
     expect(page1.total).toBe(5);
     expect(page1.totalPages).toBe(3);
@@ -162,10 +165,9 @@ describe('EnterpriseBatchService', () => {
     // Create another active batch
     await service.createBatch(defaultParams);
 
-    const cancelled = await service.listBatches(
-      defaultParams.organizationId,
-      { status: 'CANCELLED' },
-    );
+    const cancelled = await service.listBatches(defaultParams.organizationId, {
+      status: 'CANCELLED',
+    });
     expect(cancelled.items).toHaveLength(1);
     expect(cancelled.items[0].status).toBe('CANCELLED');
   });

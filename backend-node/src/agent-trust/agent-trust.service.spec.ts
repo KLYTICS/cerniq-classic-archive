@@ -59,10 +59,19 @@ describe('AgentTrustService', () => {
         'Top risk: rate risk. NII impact at +200bps: -$2,400,000. LCR 118.5%, well above 115% threshold.',
       agentOutput: {
         topRisks: [
-          { domain: 'Interest Rate Risk', dollarImpact: 2_400_000, regulatoryRef: '12 CFR 741.3' },
+          {
+            domain: 'Interest Rate Risk',
+            dollarImpact: 2_400_000,
+            regulatoryRef: '12 CFR 741.3',
+          },
         ],
       },
-      trace: trace([{ rateShock: { scenarioBps: 200, up200bps: { nii: -2_400_000 } }, liquidity: { lcr: 118.5, threshold: 115 } }]),
+      trace: trace([
+        {
+          rateShock: { scenarioBps: 200, up200bps: { nii: -2_400_000 } },
+          liquidity: { lcr: 118.5, threshold: 115 },
+        },
+      ]),
       outputSchema: almOutputSchema,
     });
 
@@ -107,14 +116,17 @@ describe('AgentTrustService', () => {
     const svc = make();
     const verdict = svc.evaluate({
       run,
-      agentText: 'Rate risk is elevated. Recommend hedging duration by 0.4 years.',
+      agentText:
+        'Rate risk is elevated. Recommend hedging duration by 0.4 years.',
       agentOutput: { topRisks: [] },
       trace: [],
       outputSchema: almOutputSchema,
       requiredLanguage: 'bilingual',
     });
 
-    expect(verdict.violations.some((v) => v.rule === 'MISSING_BILINGUAL')).toBe(true);
+    expect(verdict.violations.some((v) => v.rule === 'MISSING_BILINGUAL')).toBe(
+      true,
+    );
   });
 
   it('WARNs but does not block on over-length', () => {

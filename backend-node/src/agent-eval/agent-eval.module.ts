@@ -8,7 +8,11 @@ import { ReplayRunnerService } from './replay.runner';
 @Module({
   imports: [AgentTrustModule],
   controllers: [AgentEvalController],
-  providers: [RegressionScorerService, GoldenRunnerService, ReplayRunnerService],
+  providers: [
+    RegressionScorerService,
+    GoldenRunnerService,
+    ReplayRunnerService,
+  ],
   exports: [RegressionScorerService, GoldenRunnerService, ReplayRunnerService],
 })
 export class AgentEvalModule {}

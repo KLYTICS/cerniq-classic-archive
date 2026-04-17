@@ -106,29 +106,20 @@ export class LeadsService {
   }
 
   private nextBusinessDay9am(): Date {
-    // Compute entirely in UTC to avoid a timezone-boundary bug. The
-    // previous implementation used `setDate()` (local) then
-    // `setUTCHours(13, 0, 0, 0)` (UTC) — if the server wall-clock was
-    // late enough in the day, the UTC-hour write pushed the LOCAL day
-    // forward past the weekend guard that had already run. Symptom:
-    // a Friday lead would schedule follow-up for Saturday because
-    // setUTCHours(13) turned "Friday 21:18 local" into "Saturday 06:00
-    // local". 13:00 UTC = 9:00 AST (Puerto Rico is UTC-4, no DST).
-    const now = new Date();
-    const d = new Date(
-      Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate() + 1,
-        13,
-        0,
-        0,
-        0,
-      ),
-    );
+    // All arithmetic in UTC to avoid a TZ-boundary bug: previously we
+    // used `setDate`/`getDay` (local TZ) then `setUTCHours(13)` (UTC),
+    // which on machines west of UTC evaluated in the evening would
+    // silently shift the target date forward 24h — turning Friday into
+    // Saturday. Both this branch and origin/main landed the same fix
+    // in parallel (D14) — this is the merged canonical form.
+    // Puerto Rico (AST = UTC-4 year-round, no DST) makes the
+    // conversion trivial: 09:00 AST == 13:00 UTC, every day.
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 1);
     while (d.getUTCDay() === 0 || d.getUTCDay() === 6) {
       d.setUTCDate(d.getUTCDate() + 1);
     }
+    d.setUTCHours(13, 0, 0, 0);
     return d;
   }
 

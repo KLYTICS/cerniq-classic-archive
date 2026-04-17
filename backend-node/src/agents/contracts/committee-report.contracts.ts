@@ -29,11 +29,9 @@ export const CommitteeReportOutputSchema = z.object({
   committeeType: CommitteeTypeSchema,
   language: LanguageSchema,
   sections: z.object({
-    executiveSummary: z
-      .string()
-      .refine((s) => wordCount(s) <= 150, {
-        message: 'executive summary exceeds 150-word limit (Bible §02)',
-      }),
+    executiveSummary: z.string().refine((s) => wordCount(s) <= 150, {
+      message: 'executive summary exceeds 150-word limit (Bible §02)',
+    }),
     financialPosition: z.string().min(1),
     interestRateRisk: z.string().min(1),
     creditConcentration: z.string().min(1),
@@ -47,9 +45,7 @@ export const CommitteeReportOutputSchema = z.object({
   bilingualEsPath: z.string().min(1).optional(),
 });
 
-export type CommitteeReportOutput = z.infer<
-  typeof CommitteeReportOutputSchema
->;
+export type CommitteeReportOutput = z.infer<typeof CommitteeReportOutputSchema>;
 
 function wordCount(s: string): number {
   return s.trim().length === 0 ? 0 : s.trim().split(/\s+/).length;

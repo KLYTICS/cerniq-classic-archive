@@ -8,7 +8,11 @@ export const ComplianceRag = z.enum(['RED', 'AMBER', 'GREEN']);
 export type ComplianceRag = z.infer<typeof ComplianceRag>;
 
 export const DeadlineCategory = z.enum([
-  'FILING', 'POLICY', 'AUDIT', 'EXAM', 'TRAINING',
+  'FILING',
+  'POLICY',
+  'AUDIT',
+  'EXAM',
+  'TRAINING',
 ]);
 
 export const ComplianceItemSchema = z.object({
@@ -39,15 +43,21 @@ export const RegulatoryComplianceOutputSchema = z.object({
     amber: z.array(ComplianceItemSchema),
     green: z.array(ComplianceItemSchema),
   }),
-  preparationPackages: z.array(z.object({
-    deadlineId: z.string().min(1),
-    dataRequirements: z.array(z.string()),
-    draftSections: z.array(z.string()),
-    reviewSequence: z.array(z.string()),
-    submissionInstructions: z.string().min(1),
-  })).optional(),
+  preparationPackages: z
+    .array(
+      z.object({
+        deadlineId: z.string().min(1),
+        dataRequirements: z.array(z.string()),
+        draftSections: z.array(z.string()),
+        reviewSequence: z.array(z.string()),
+        submissionInstructions: z.string().min(1),
+      }),
+    )
+    .optional(),
   summary: z.string().min(1),
   summaryEs: z.string().min(1),
   auditTraceId: z.string().min(1),
 });
-export type RegulatoryComplianceOutput = z.infer<typeof RegulatoryComplianceOutputSchema>;
+export type RegulatoryComplianceOutput = z.infer<
+  typeof RegulatoryComplianceOutputSchema
+>;

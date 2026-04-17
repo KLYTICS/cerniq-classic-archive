@@ -107,7 +107,10 @@ export class AgentSpanFactory {
       parent ? trace.setSpan(otelContext.active(), parent) : undefined,
     );
     if (!verdict.pass) {
-      span.setStatus({ code: SpanStatusCode.ERROR, message: 'trust verdict BLOCK' });
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: 'trust verdict BLOCK',
+      });
     }
     span.end();
   }

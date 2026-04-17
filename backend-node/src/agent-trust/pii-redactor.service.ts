@@ -88,7 +88,7 @@ export class PiiRedactorService {
       re.lastIndex = 0;
       for (const m of text.matchAll(re)) {
         if (validate && !validate(m[0])) continue;
-        const start = m.index!;
+        const start = m.index;
         const end = start + m[0].length;
         if (overlapsAny(start, end, claimed)) continue;
         claimed.push([start, end]);
@@ -125,7 +125,11 @@ export class PiiRedactorService {
 
 // --- helpers ---
 
-function overlapsAny(s: number, e: number, claimed: readonly [number, number][]): boolean {
+function overlapsAny(
+  s: number,
+  e: number,
+  claimed: readonly [number, number][],
+): boolean {
   for (const [cs, ce] of claimed) if (s < ce && e > cs) return true;
   return false;
 }
@@ -138,7 +142,8 @@ function overlapsAny(s: number, e: number, claimed: readonly [number, number][])
 function isValidAbaRouting(raw: string): boolean {
   if (!/^\d{9}$/.test(raw)) return false;
   const d = raw.split('').map(Number);
-  const sum = 3 * (d[0]! + d[3]! + d[6]!) + 7 * (d[1]! + d[4]! + d[7]!) + (d[2]! + d[5]! + d[8]!);
+  const sum =
+    3 * (d[0] + d[3] + d[6]) + 7 * (d[1] + d[4] + d[7]) + (d[2] + d[5] + d[8]);
   return sum % 10 === 0 && sum !== 0;
 }
 

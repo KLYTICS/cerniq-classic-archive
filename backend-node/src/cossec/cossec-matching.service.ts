@@ -171,7 +171,9 @@ export class CossecMatchingService {
       this.prospectMap.set(normalize(p.name), { id: p.id, rawName: p.name });
     }
     this.lastLoaded = Date.now();
-    this.logger.log(`Loaded ${prospects.length} prospect institutions for matching`);
+    this.logger.log(
+      `Loaded ${prospects.length} prospect institutions for matching`,
+    );
   }
 }
 

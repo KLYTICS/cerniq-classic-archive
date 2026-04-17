@@ -114,9 +114,7 @@ export interface AgentTraceExportJson {
     durationMs: number | null;
     createdAt: string;
   }>;
-  chain:
-    | { ok: true }
-    | { ok: false; brokenAtIndex: number };
+  chain: { ok: true } | { ok: false; brokenAtIndex: number };
   generatedAt: string;
   // Hash of the full export (steps + run header). Regulators verify by
   // recomputing — see docs/ops/AGENT_API_CONTRACT.md for the algorithm.

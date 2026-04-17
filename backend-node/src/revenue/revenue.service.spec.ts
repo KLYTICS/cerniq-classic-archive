@@ -22,10 +22,7 @@ describe('RevenueService', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        RevenueService,
-        { provide: PrismaService, useValue: prisma },
-      ],
+      providers: [RevenueService, { provide: PrismaService, useValue: prisma }],
     }).compile();
 
     service = module.get<RevenueService>(RevenueService);
@@ -60,9 +57,7 @@ describe('RevenueService', () => {
     });
 
     it('should only include monthly, annual, and partner tiers', async () => {
-      prisma.subscription.findMany.mockResolvedValue([
-        { tier: 'monthly' },
-      ]);
+      prisma.subscription.findMany.mockResolvedValue([{ tier: 'monthly' }]);
 
       const result = await service.getMrrSnapshot();
 
@@ -78,9 +73,7 @@ describe('RevenueService', () => {
     });
 
     it('should return Prisma.Decimal type, never a float', async () => {
-      prisma.subscription.findMany.mockResolvedValue([
-        { tier: 'partner' },
-      ]);
+      prisma.subscription.findMany.mockResolvedValue([{ tier: 'partner' }]);
 
       const result = await service.getMrrSnapshot();
 
@@ -189,9 +182,7 @@ describe('RevenueService', () => {
     });
 
     it('should return Decimal MRR for each month', async () => {
-      prisma.subscription.findMany.mockResolvedValue([
-        { tier: 'monthly' },
-      ]);
+      prisma.subscription.findMany.mockResolvedValue([{ tier: 'monthly' }]);
 
       const result = await service.getRevenueTimeline(1);
 
@@ -247,7 +238,11 @@ describe('RevenueService', () => {
 
       const result = await service.getCohortRetention();
 
-      expect(result.map((c) => c.cohort)).toEqual(['2026-01', '2026-02', '2026-03']);
+      expect(result.map((c) => c.cohort)).toEqual([
+        '2026-01',
+        '2026-02',
+        '2026-03',
+      ]);
     });
   });
 });

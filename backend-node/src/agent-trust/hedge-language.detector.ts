@@ -47,7 +47,7 @@ export class HedgeLanguageDetector {
         rule: 'HEDGE_LANGUAGE',
         severity: 'WARN',
         message: `Agent output contains hedge token "${m[0]}". CFO-level outputs must not hedge; re-phrase with the concrete number or omit.`,
-        location: { start: m.index!, end: m.index! + m[0].length },
+        location: { start: m.index, end: m.index + m[0].length },
         evidence: { token: m[0] },
       });
     }

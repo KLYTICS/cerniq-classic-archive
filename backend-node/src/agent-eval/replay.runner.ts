@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AgentTrustService, type AgentTrustInput } from '../agent-trust/agent-trust.service';
+import {
+  AgentTrustService,
+  type AgentTrustInput,
+} from '../agent-trust/agent-trust.service';
 import type { TrustVerdict } from '../agent-trust/contracts';
 import type { AgentRunResult } from './contracts';
 
@@ -37,7 +40,10 @@ export class ReplayRunnerService {
   replay(
     priorResult: AgentRunResult,
     priorVerdict: TrustVerdict | null,
-    trustInput: Pick<AgentTrustInput, 'outputSchema' | 'requiredLanguage' | 'maxWords'>,
+    trustInput: Pick<
+      AgentTrustInput,
+      'outputSchema' | 'requiredLanguage' | 'maxWords'
+    >,
   ): ReplayReport {
     const currentVerdict = this.trust.evaluate({
       run: {
@@ -57,12 +63,19 @@ export class ReplayRunnerService {
       maxWords: trustInput.maxWords,
     });
 
-    const originalRules = new Set((priorVerdict?.violations ?? []).map(formatKey));
+    const originalRules = new Set(
+      (priorVerdict?.violations ?? []).map(formatKey),
+    );
     const currentRules = new Set(currentVerdict.violations.map(formatKey));
-    const newViolations = [...currentRules].filter((k) => !originalRules.has(k));
-    const clearedViolations = [...originalRules].filter((k) => !currentRules.has(k));
+    const newViolations = [...currentRules].filter(
+      (k) => !originalRules.has(k),
+    );
+    const clearedViolations = [...originalRules].filter(
+      (k) => !currentRules.has(k),
+    );
 
-    const outcomeMatches = priorVerdict != null && priorVerdict.pass === currentVerdict.pass;
+    const outcomeMatches =
+      priorVerdict != null && priorVerdict.pass === currentVerdict.pass;
     if (!outcomeMatches) {
       this.logger.warn(
         `replay: outcome drift on run=${priorResult.runId} prior=${priorVerdict?.pass} current=${currentVerdict.pass}`,
@@ -79,7 +92,10 @@ export class ReplayRunnerService {
   }
 }
 
-function formatKey(v: { rule: string; location?: { start: number; end: number } }): string {
+function formatKey(v: {
+  rule: string;
+  location?: { start: number; end: number };
+}): string {
   if (!v.location) return v.rule;
   return `${v.rule}@${v.location.start}-${v.location.end}`;
 }
