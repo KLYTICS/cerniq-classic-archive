@@ -17,6 +17,14 @@ export interface ApiErrorResponse {
     details?: any;
     timestamp: string;
     path: string;
+    /**
+     * Request ID for support triage — mirrors `X-Request-ID` response
+     * header (set by RequestIdMiddleware). Including in the error body
+     * lets customers paste a single error message into a support ticket
+     * without having to separately copy the response header. Ops then
+     * greps Pino logs: `railway logs | grep <requestId>`.
+     */
+    requestId?: string;
   };
 }
 
@@ -75,6 +83,14 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           : exception.message;
     }
 
+    // Pull the request ID from either the middleware's set field
+    // (`req.id`) or the echo'd header. Absent → omit from payload
+    // (won't appear as `"requestId": undefined` in JSON).
+    const requestId: string | undefined =
+      request.id ||
+      request.headers?.['x-request-id'] ||
+      undefined;
+
     const errorResponse: ApiErrorResponse = {
       success: false,
       error: {
@@ -83,6 +99,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         details,
         timestamp: new Date().toISOString(),
         path: request.url,
+        ...(requestId ? { requestId } : {}),
       },
     };
 
