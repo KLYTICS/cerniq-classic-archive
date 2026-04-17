@@ -256,6 +256,34 @@ jobs:
       - name: Verify clean worktree
         run: bash scripts/verify-clean-worktree.sh
 
+  # COSSEC PDF parser — Phase-1.6 FastAPI microservice with 32 pytest
+  # tests covering PyMuPDF extraction, Spanish regex for Hallazgo N°X
+  # headers, CAMEL+S severity mapping, SHA-256 dedup, and Pydantic v2
+  # response shapes. Running these in CI guards against regressions in
+  # the PDF ingest pipeline that downstream ALM alerts depend on.
+  cossec-parser-test:
+    name: COSSEC Parser Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup cossec-parser workspace
+        uses: ./.github/actions/setup-python-project
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache-dependency-path: services/cossec-parser/requirements.txt
+          working-directory: services/cossec-parser
+
+      - name: Run tests
+        working-directory: services/cossec-parser
+        run: python -m pytest tests/ -v --tb=short
+
+      - name: Verify clean worktree
+        run: bash scripts/verify-clean-worktree.sh
+
   # Deploy Backend to Railway (main branch only)
   deploy-backend:
     name: Deploy Backend
@@ -393,6 +421,7 @@ jobs:
       - frontend-test
       - frontend-e2e
       - outbound-test
+      - cossec-parser-test
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
 
     steps:

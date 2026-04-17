@@ -54,15 +54,69 @@ Complete every item before deploying. Do not skip items even for "small" changes
 
 ## 2. Railway Deployment (Backend)
 
-### Option A: Auto-Deploy (Recommended)
+### Option A: Auto-Deploy via GitHub Actions (Recommended)
 
-Railway is configured to auto-deploy on push to `main`.
+The `CERNIQ CI/CD > Deploy Backend` job runs on every push to `main`.
+It executes `railway up --ci --service <service-id> --environment production --project <project-id>`.
 
 ```bash
 git push origin main
 ```
 
 Monitor in the Railway dashboard: https://railway.app/dashboard
+
+### RAILWAY_TOKEN rotation (every ~90 days)
+
+Railway access tokens have a finite lifetime. When they expire, the
+`Deploy Backend > Deploy to Railway` CI step fails with:
+
+```
+Unauthorized. Please check that your RAILWAY_TOKEN is valid and has
+access to the resource you're trying to use.
+```
+
+This is an **ops-only** issue — no code change required. All prior CI
+gates (Backend Tests, Frontend Build, E2E, Security, ALM Quality Gate,
+CodeQL) stay green; only the final deploy step blocks.
+
+**Rotation procedure (5 minutes):**
+
+1. Generate a new token at https://railway.app/account/tokens
+   - Click "Create Token"
+   - Name: `github-actions-cerniq-YYYY-MM-DD`
+   - Scope: project-level access to `cerniq-api`
+     (project `0a09d7c9-a960-49df-a71d-12d06d7c8bcd`,
+     service `809be713-9a24-4d2e-82d1-ee3860c76c85`)
+2. Copy the token value (shown only once).
+3. Update the GitHub secret:
+   - Visit https://github.com/monykiss/cerniq/settings/secrets/actions
+   - Click `RAILWAY_TOKEN` → "Update value"
+   - Paste the new token, save.
+4. Re-run the failed workflow:
+   ```bash
+   gh run list --branch main --limit 1  # get the run ID
+   gh run rerun <RUN_ID> --failed
+   ```
+5. Verify success: `gh run view <RUN_ID>` should show all 8 jobs green.
+6. Revoke any other tokens > 90 days old at the same tokens page.
+
+**Calendar reminder:** set a 75-day rotation alert so rotation never
+blocks a live deploy. Tokens don't warn before expiring — they just
+stop authorizing.
+
+### Option B: Manual Deploy via CLI
+
+```bash
+# Login (first time only)
+railway login
+
+# Link to project (first time only)
+railway link
+
+# Deploy
+cd backend-node
+railway up
+```
 
 ### Option B: Manual Deploy via CLI
 

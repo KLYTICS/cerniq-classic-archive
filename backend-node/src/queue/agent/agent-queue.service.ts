@@ -126,7 +126,13 @@ export class AgentQueueService {
     while (this.processing < this.concurrency && this.pending.length > 0) {
       const job = this.pending.shift()!;
       this.processing += 1;
-      this.executeJob(job).finally(() => {
+      // Fire-and-forget: the drain loop tracks concurrency via the
+      // counter updated inside `.finally()`, which runs regardless of
+      // whether executeJob settled or threw. `void` marks this as
+      // intentional so no-floating-promises doesn't flag the pattern.
+      // If executeJob throws, the error is already logged by the inner
+      // try/catch — there's nothing useful to await on here.
+      void this.executeJob(job).finally(() => {
         this.processing -= 1;
         this.drain();
       });

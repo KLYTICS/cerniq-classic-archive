@@ -23,6 +23,12 @@ export async function runHJMMonteCarloAsync(
     let worker: Worker;
     let settled = false;
 
+    // Coerce any thrown value to an Error so ESLint's
+    // prefer-promise-reject-errors rule is satisfied and so downstream
+    // consumers get a consistent shape (message, stack).
+    const asError = (v: unknown): Error =>
+      v instanceof Error ? v : new Error(String(v));
+
     try {
       worker = new Worker(WORKER_PATH);
     } catch {
@@ -30,7 +36,7 @@ export async function runHJMMonteCarloAsync(
       try {
         resolve(runHJMMonteCarlo(input));
       } catch (err) {
-        reject(err);
+        reject(asError(err));
       }
       return;
     }
@@ -38,7 +44,11 @@ export async function runHJMMonteCarloAsync(
     const timeout = setTimeout(() => {
       if (!settled) {
         settled = true;
-        worker.terminate();
+        // worker.terminate() returns Promise<number> (exit code). We
+        // don't need the exit code here — the timeout already decided
+        // this run is dead. `void` marks the floating promise as
+        // intentional fire-and-forget, silencing no-floating-promises.
+        void worker.terminate();
         reject(
           new Error(
             `HJM Monte Carlo worker timed out after ${WORKER_TIMEOUT_MS}ms`,
@@ -53,7 +63,7 @@ export async function runHJMMonteCarloAsync(
         if (settled) return;
         settled = true;
         clearTimeout(timeout);
-        worker.terminate();
+        void worker.terminate();
         if (msg.ok && msg.result) {
           resolve(msg.result);
         } else {
@@ -70,7 +80,7 @@ export async function runHJMMonteCarloAsync(
       try {
         resolve(runHJMMonteCarlo(input));
       } catch (fallbackErr) {
-        reject(fallbackErr);
+        reject(asError(fallbackErr));
       }
     });
 

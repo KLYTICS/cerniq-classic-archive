@@ -106,7 +106,11 @@ export class SampleReportQueueService {
     while (this.processing < this.concurrency && this.pending.length > 0) {
       const job = this.pending.shift()!;
       this.processing += 1;
-      this.executeJob(job).finally(() => {
+      // Fire-and-forget drain pattern; see agent-queue.service.ts:drain
+      // for the full rationale — the counter + `.finally()` pair tracks
+      // concurrency; errors are logged inside executeJob so there's
+      // nothing useful to await. `void` silences no-floating-promises.
+      void this.executeJob(job).finally(() => {
         this.processing -= 1;
         this.drain();
       });
