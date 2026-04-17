@@ -1,11 +1,34 @@
 import { test, expect, type Page } from '@playwright/test';
 
-async function expectPublicAppRoute(page: Page, path: string) {
+// Asserts an app route either lands on its canonical path (authenticated
+// or public) OR cleanly redirects to `/login?returnUrl=<path>` (auth
+// required). Both are healthy outcomes — the contract being tested is
+// "no broken redirect loop, no crash" — not "authenticated access."
+//
+// Prior to 2026-04-17 the helper was named `expectPublicAppRoute` and
+// only accepted the canonical-path outcome. That worked because the
+// backend auth guard was permissive enough for unauthenticated
+// requests to ALM endpoints to return data; Phase-1.3's
+// timing-safe auth.guard.ts tightening surfaced 401s that ALMProvider
+// correctly translates to a `/login?returnUrl=...` redirect. Accepting
+// both outcomes keeps these e2e tests meaningful (they still catch
+// redirect loops + crashes) while tolerating the healthy auth flow.
+async function expectAppRouteOrLoginRedirect(page: Page, path: string) {
   const response = await page.goto(path);
   expect(response?.ok()).toBeTruthy();
-  await expect(page).toHaveURL(new RegExp(`${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+
+  const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Match either the canonical path OR /login?returnUrl=<encoded path>.
+  const acceptablePattern = new RegExp(
+    `(${escaped}$|/login\\?returnUrl=${encodeURIComponent(path).replace(/%/g, '%')})`,
+  );
+  await expect(page).toHaveURL(acceptablePattern);
+
+  // Body should contain recognizable app chrome — either the app's own
+  // text (ALM/Dashboard/Cerniq) or the login page. Crash/blank pages
+  // fail this.
   await expect(page.locator('body')).toContainText(
-    /Demo Environment|ALM|Dashboard|Cerniq/i,
+    /Demo Environment|ALM|Dashboard|Cerniq|Sign in|Log in/i,
   );
 }
 
@@ -15,22 +38,22 @@ test.describe('ALM strict-auth routes', () => {
   // /dashboard) all pass the same helper. Needs investigation into ALMProvider's
   // intended landing behavior before this test can assert a final URL.
   test.fixme('loads /alm without a broken redirect loop', async ({ page }) => {
-    await expectPublicAppRoute(page, '/alm');
+    await expectAppRouteOrLoginRedirect(page, '/alm');
   });
 
   // Same symptom as /alm: URL-end assertion fails because /alm/modules
   // redirects client-side (likely to a first-module default). Grouped with
   // the /alm fixme above — review ALMProvider landing logic, then re-enable.
   test.fixme('loads /alm/modules without a broken redirect loop', async ({ page }) => {
-    await expectPublicAppRoute(page, '/alm/modules');
+    await expectAppRouteOrLoginRedirect(page, '/alm/modules');
   });
 
   test('loads /alm/balance-sheet without a broken redirect loop', async ({ page }) => {
-    await expectPublicAppRoute(page, '/alm/balance-sheet');
+    await expectAppRouteOrLoginRedirect(page, '/alm/balance-sheet');
   });
 
   test('loads /dashboard without a broken redirect loop', async ({ page }) => {
-    await expectPublicAppRoute(page, '/dashboard');
+    await expectAppRouteOrLoginRedirect(page, '/dashboard');
   });
 
   // This test is flaky in CI despite the sibling test on line 32
