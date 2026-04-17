@@ -93,9 +93,18 @@ jobs:
         working-directory: backend-node
         run: npx prisma validate
 
+      # Security audit — fail the build on any HIGH or CRITICAL CVE in
+      # production dependencies (`--omit=dev` excludes devDependencies,
+      # which don't ship to Railway). Previously ran with
+      # `--audit-level=critical || true`, which silently passed even
+      # when CRITICAL findings existed (12 CVEs hidden at audit time
+      # 2026-04-17 — fixed by `npm audit fix` in the same commit).
+      # MODERATE findings still pass so transitive upgrades that need
+      # breaking-change `npm audit fix --force` don't block deploys;
+      # track them in a follow-up issue instead.
       - name: Security audit
         working-directory: backend-node
-        run: npm audit --audit-level=critical --omit=dev || true
+        run: npm audit --audit-level=high --omit=dev
 
       - name: Lint
         working-directory: backend-node
@@ -136,9 +145,12 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
           working-directory: frontend
 
+      # Security audit — see backend-test for rationale. Tightened from
+      # `--audit-level=critical || true` to `--audit-level=high` so
+      # HIGH CVEs block the deploy instead of silently passing.
       - name: Security audit
         working-directory: frontend
-        run: npm audit --audit-level=critical --omit=dev || true
+        run: npm audit --audit-level=high --omit=dev
 
       - name: Lint
         working-directory: frontend
