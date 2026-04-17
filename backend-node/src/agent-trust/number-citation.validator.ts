@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import type { AgentAuditLogReadModel, TrustViolation } from './contracts';
 
 /**
@@ -52,7 +52,21 @@ const isLikelyYear = (n: number): boolean =>
 export class NumberCitationValidator {
   private readonly logger = new Logger(NumberCitationValidator.name);
 
-  constructor(private readonly tolerancePct: number = DEFAULT_TOLERANCE_PCT) {}
+  /**
+   * @Optional() on the tolerance-percent param tells NestJS not to try
+   * to inject a `Number` provider when resolving this service through
+   * its DI graph. Without it, the @Injectable() decoration combined
+   * with the `number` parameter type causes reflection to look up a
+   * provider keyed by the `Number` wrapper class (which doesn't exist
+   * in the container), and every e2e test that bootstraps AppModule
+   * fails with:
+   *   "Nest can't resolve dependencies of the NumberCitationValidator
+   *    (?). Please make sure that the argument Number at index [0] is
+   *    available in the AgentTrustModule module."
+   */
+  constructor(
+    @Optional() private readonly tolerancePct: number = DEFAULT_TOLERANCE_PCT,
+  ) {}
 
   /** Extract every numeric claim from a piece of text. */
   extractClaims(text: string): NumberClaim[] {
