@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { parseFinancialField } from '../common/utils/financial-field';
 
 // ─── CERNIQ Target Schema Fields ────────────────────────────
 
@@ -203,12 +204,19 @@ export class CsvIngestV2Service {
         }
       }
 
-      // Value-based inference
+      // Value-based inference — intentionally permissive. These are
+      // heuristics for "is this column numeric enough to be a balance
+      // or rate?", not data-integrity checks. The actual row-ingest
+      // path below uses parseFinancialField for strict validation.
+      // Tightening these to strict parsing would cause legitimate
+      // numeric columns with stray characters to mis-classify.
+      // eslint-disable-next-line no-restricted-syntax -- heuristic, not data parse
       const allNumeric = sampleValues.every(
         (v) => !isNaN(parseFloat(v.replace(/[$,]/g, ''))),
       );
       const hasDecimals = sampleValues.some((v) => v.includes('.'));
       const allSmall = sampleValues.every((v) => {
+        // eslint-disable-next-line no-restricted-syntax -- heuristic, not data parse
         const n = parseFloat(v);
         return !isNaN(n) && n >= 0 && n <= 0.3;
       });
@@ -313,18 +321,38 @@ export class CsvIngestV2Service {
         if (field) row[field] = values[j]?.trim() ?? '';
       });
 
-      // Parse balance
-      const balance = parseFloat((row.balance ?? '0').replace(/[$,]/g, ''));
-      if (isNaN(balance) || balance <= 0) {
+      // D22: Parse balance — strict. Strip `$,` before parsing.
+      // parseFinancialField rejects trailing garbage and Infinity.
+      // Balance must be > 0 (v2 rejects zero-balance rows, unlike v1).
+      const balanceCleaned = (row.balance ?? '0').replace(/[$,]/g, '');
+      const balance = parseFinancialField(balanceCleaned, {
+        min: Number.MIN_VALUE, // strictly positive; min>0 with inclusive range
+        max: 999_999_999_999,
+      });
+      if (balance === null) {
         warnings.push(
           `Row ${i + 1}: invalid balance "${row.balance}", skipping.`,
         );
         continue;
       }
 
-      // Parse rate
-      let rate = parseFloat((row.rate ?? '0').replace(/%/g, ''));
+      // D22: Parse rate — accept percent or decimal. Same bounds as
+      // v1 (0-100 pre-scale; 0-1 post-scale via the /100 branch).
+      // Downstream Math.max(0, Math.min(0.3, rate)) stays as the
+      // second-stage clamp — v2 caps at 30% because loan/deposit
+      // rates above that aren't realistic in COSSEC-regulated books.
+      const rateCleaned = (row.rate ?? '0').replace(/%/g, '');
+      const parsedRate = parseFinancialField(rateCleaned, { min: 0, max: 100 });
+      let rate = parsedRate ?? 0;
       if (rate > 1) rate = rate / 100; // handle percentage format
+
+      // D22: Parse duration (v2 uses years, 0-50 range per the
+      // existing `|| 1` fallback's implicit expectation).
+      const parsedDuration = parseFinancialField(row.duration ?? '1', {
+        min: 0,
+        max: 50,
+      });
+      const duration = parsedDuration ?? 1;
 
       // Determine category
       const sub = (row.subcategory ?? row.name ?? '').toLowerCase();
@@ -337,7 +365,7 @@ export class CsvIngestV2Service {
         name: row.name || row.subcategory || `Item ${i}`,
         balance,
         rate: Math.max(0, Math.min(0.3, rate)),
-        duration: parseFloat(row.duration ?? '1') || 1,
+        duration,
         rateType: (row.rateType || 'fixed').toLowerCase().includes('var')
           ? 'variable'
           : 'fixed',

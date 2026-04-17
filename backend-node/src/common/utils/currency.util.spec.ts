@@ -93,4 +93,17 @@ describe('parseCurrency', () => {
   it('handles invalid input gracefully', () => {
     expect(parseCurrency('abc')).toBe(0);
   });
+
+  // D22: The char-allowlist sanitizer (`[^0-9.,-]`) strips exponential
+  // notation (`e`) before parsing, so `$1e400` becomes `$1400` and
+  // the old `parseFloat(cleaned) || 0` didn't actually leak Infinity
+  // via this function — the sanitizer was an accidental guard. Fix
+  // swaps to `Number(cleaned)` + `Number.isFinite(...)` anyway for
+  // consistency with the parseFinancialField idiom across the codebase.
+  // Regression coverage: literal "Infinity" is stripped to empty
+  // string → 0, which is the correct behavior in both implementations.
+  it('sanitizer strips Infinity/exponent chars → safe zero', () => {
+    expect(parseCurrency('$Infinity')).toBe(0);
+    expect(parseCurrency('$NaN')).toBe(0);
+  });
 });

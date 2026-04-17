@@ -70,5 +70,9 @@ export function parseCurrency(value: string): number {
     // EN format
     cleaned = cleaned.replace(/,/g, '');
   }
-  return parseFloat(cleaned) || 0;
+  // D22: `parseFloat(cleaned) || 0` returned `Infinity` on strings like
+  // `"$1e400"` because `Infinity || 0 === Infinity` (Infinity is truthy).
+  // Use `Number()` + `Number.isFinite` to catch that + NaN in one step.
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
