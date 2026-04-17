@@ -367,7 +367,11 @@ describe('BillingController', () => {
       expect(result).toEqual({ received: true });
     });
 
-    it('should skip duplicate events (idempotency)', async () => {
+    it('should skip duplicate events (idempotency via P2002 on marker insert)', async () => {
+      // D17: insert-first-with-P2002-catch. The marker insert IS the
+      // idempotency signal — no pre-check. If the unique constraint
+      // fires, the event was already processed (or is being processed
+      // concurrently) and the handler MUST NOT run.
       const event = {
         type: 'checkout.session.completed',
         id: 'evt_already_processed',
@@ -375,19 +379,70 @@ describe('BillingController', () => {
       };
       billingService.verifyWebhookSignature.mockReturnValue(event as any);
 
-      // Simulate already-processed event
       const prisma = controller['prisma'] as any;
-      prisma.processedWebhookEvent.findUnique.mockResolvedValue({
-        id: 'evt_already_processed',
-        eventType: 'checkout.session.completed',
-        processedAt: new Date(),
-      });
+      // Simulate Prisma P2002 unique violation on the marker row.
+      prisma.processedWebhookEvent.create.mockRejectedValueOnce(
+        Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
+      );
 
       const req = { rawBody: Buffer.from('body') };
       const result = await controller.handleWebhook('sig_valid', req);
 
       expect(result).toEqual({ received: true, duplicate: true });
+      // The critical assertion: handler side effects never fire on
+      // duplicate events. Before D17 the handler ran twice under
+      // concurrent replay.
       expect(billingService.handlePaymentComplete).not.toHaveBeenCalled();
+    });
+
+    it('should dispatch handler exactly once when marker insert succeeds (D17 happy-path guard)', async () => {
+      const event = {
+        type: 'checkout.session.completed',
+        id: 'evt_fresh',
+        data: {
+          object: { payment_status: 'paid', id: 'cs_fresh' },
+        },
+      };
+      billingService.verifyWebhookSignature.mockReturnValue(event as any);
+      const prisma = controller['prisma'] as any;
+      prisma.processedWebhookEvent.create.mockResolvedValue({
+        id: 'evt_fresh',
+        eventType: 'checkout.session.completed',
+      });
+
+      const req = { rawBody: Buffer.from('body') };
+      const result = await controller.handleWebhook('sig_valid', req);
+
+      expect(result).toEqual({ received: true });
+      expect(billingService.handlePaymentComplete).toHaveBeenCalledTimes(1);
+      expect(prisma.processedWebhookEvent.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('re-throws non-P2002 marker-insert errors so Stripe retries (DB outage case)', async () => {
+      // Unlike P2002 (which is the idempotency signal), other Prisma
+      // errors on the marker insert are real failures. The old
+      // pattern's `.catch(err => log)` swallowed these silently,
+      // which would have meant handler-ran-but-marker-missing: the
+      // event would be re-processed on every Stripe retry. The new
+      // code re-throws so Stripe's retry loop sees a 5xx and holds
+      // the event until the DB comes back.
+      const event = {
+        type: 'invoice.payment_succeeded',
+        id: 'evt_db_down',
+        data: { object: { id: 'in_x' } },
+      };
+      billingService.verifyWebhookSignature.mockReturnValue(event as any);
+      const prisma = controller['prisma'] as any;
+      prisma.processedWebhookEvent.create.mockRejectedValueOnce(
+        Object.assign(new Error('connection refused'), { code: 'P1001' }),
+      );
+
+      const req = { rawBody: Buffer.from('body') };
+      await expect(controller.handleWebhook('sig_valid', req)).rejects.toThrow(
+        'connection refused',
+      );
+      // And the handler must NOT have run.
+      expect(billingService.handleInvoicePaid).not.toHaveBeenCalled();
     });
 
     it('should return received:true even when handler throws (prevents Stripe retry storms)', async () => {
@@ -569,24 +624,30 @@ describe('BillingController', () => {
   });
 
   describe('POST /api/billing/webhook — edge cases', () => {
-    it('handles a dedup race condition when create throws a unique constraint error', async () => {
+    it('handles a dedup race condition via P2002 on the marker insert (D17)', async () => {
+      // Post-D17: the marker insert IS the idempotency lock, and
+      // P2002 is the signal that we lost the race to another webhook
+      // replay. Handler MUST NOT run, response says duplicate:true,
+      // Stripe sees 200 and stops retrying.
       const event = {
         type: 'customer.subscription.created',
         id: 'evt_race',
         data: { object: { id: 'sub_race', status: 'active' } },
       };
       billingService.verifyWebhookSignature.mockReturnValue(event as any);
-      billingService.handleSubscriptionCreated.mockResolvedValue(undefined);
 
       const prisma = controller['prisma'] as any;
-      prisma.processedWebhookEvent.create.mockRejectedValue(
-        new Error('Unique constraint violation'),
+      prisma.processedWebhookEvent.create.mockRejectedValueOnce(
+        Object.assign(new Error('Unique constraint violation'), {
+          code: 'P2002',
+        }),
       );
 
       const req = { rawBody: Buffer.from('body') };
       const result = await controller.handleWebhook('sig_valid', req);
 
-      expect(result).toEqual({ received: true });
+      expect(result).toEqual({ received: true, duplicate: true });
+      expect(billingService.handleSubscriptionCreated).not.toHaveBeenCalled();
     });
 
     it('handles checkout.session.completed with a non-paid status gracefully', async () => {

@@ -166,6 +166,18 @@ const envSchema = z
     AWS_S3_BUCKET: z.string().optional(),
     AWS_S3_REGION: z.string().optional(),
     AWS_S3_ENDPOINT: z.string().optional(),
+    // Migration-compat alias — StorageService reads AWS_S3_REGION
+    // first, falls back to AWS_REGION. Kept in the schema so legacy
+    // deploys that set the generic AWS_REGION don't fail validation.
+    AWS_REGION: z.string().optional(),
+    // Presigned-URL replay window in seconds. Range [60, 604800] per
+    // S3 constraints; default 300 in code. Prevents the
+    // parseInt(NaN) → SDK-default-900s silent widening.
+    S3_PRESIGNED_URL_EXPIRY: z
+      .string()
+      .optional()
+      .transform((v) => (v ? Number(v) : undefined))
+      .pipe(z.number().int().min(60).max(604800).optional()),
 
     // ── Cache ────────────────────────────────────────────────────────
     REDIS_URL: z.string().optional(),
