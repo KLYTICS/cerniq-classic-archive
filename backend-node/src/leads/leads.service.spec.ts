@@ -181,9 +181,83 @@ describe('LeadsService', () => {
       // Should be at 13:00 UTC (9am AST)
       expect(followUp.getUTCHours()).toBe(13);
       expect(followUp.getUTCMinutes()).toBe(0);
-      // Should not be a weekend
-      expect(followUp.getDay()).not.toBe(0);
-      expect(followUp.getDay()).not.toBe(6);
+      // Weekend check in UTC — the service computes entirely in UTC
+      // to avoid timezone-boundary bugs. Using getDay()/getUTCDay()
+      // interchangeably was the original flake: setUTCHours(13)
+      // could push a Friday-local into Saturday-UTC or vice-versa,
+      // so the weekend guard ran on the wrong day. This UTC assertion
+      // is timezone-agnostic and matches the service's own logic.
+      expect(followUp.getUTCDay()).not.toBe(0);
+      expect(followUp.getUTCDay()).not.toBe(6);
+    });
+
+    // Deterministic timezone-boundary coverage for the D14 fix. We
+    // freeze clock time and assert the computed follow-up lands on
+    // the expected UTC day, covering each transition:
+    //  Thursday  → Friday          (single bump, no weekend)
+    //  Friday    → Monday          (skip Sat + Sun)
+    //  Saturday  → Monday          (skip Sun)
+    //  Sunday    → Monday          (single skip)
+    // Before D14 the weekday math was entangled with local-timezone
+    // reads; the service now works in pure UTC so these assertions
+    // hold regardless of where the test runner is located.
+    describe('nextBusinessDay9am UTC correctness', () => {
+      const runWith = async (frozenIso: string): Promise<Date> => {
+        jest.useFakeTimers({ doNotFake: ['setTimeout', 'setImmediate'] });
+        jest.setSystemTime(new Date(frozenIso));
+        try {
+          prisma.lead.findFirst.mockResolvedValue(null);
+          prisma.lead.create.mockImplementation(({ data }: { data: any }) =>
+            Promise.resolve({ id: 'l', ...data }),
+          );
+          await service.submitLead(baseDto as any);
+          const callData = prisma.lead.create.mock.calls.slice(-1)[0][0].data;
+          return callData.nextFollowUp as Date;
+        } finally {
+          jest.useRealTimers();
+        }
+      };
+
+      it('Thursday → Friday', async () => {
+        // 2026-04-16 is Thursday in UTC
+        const d = await runWith('2026-04-16T10:00:00.000Z');
+        expect(d.getUTCFullYear()).toBe(2026);
+        expect(d.getUTCMonth()).toBe(3); // April
+        expect(d.getUTCDate()).toBe(17); // Friday
+        expect(d.getUTCDay()).toBe(5);
+        expect(d.getUTCHours()).toBe(13);
+      });
+
+      it('Friday → Monday (skip weekend)', async () => {
+        // 2026-04-17 is Friday in UTC
+        const d = await runWith('2026-04-17T10:00:00.000Z');
+        expect(d.getUTCDate()).toBe(20); // Monday
+        expect(d.getUTCDay()).toBe(1);
+        expect(d.getUTCHours()).toBe(13);
+      });
+
+      it('Saturday → Monday (skip Sunday)', async () => {
+        // 2026-04-18 is Saturday in UTC
+        const d = await runWith('2026-04-18T10:00:00.000Z');
+        expect(d.getUTCDate()).toBe(20); // Monday
+        expect(d.getUTCDay()).toBe(1);
+      });
+
+      it('Sunday → Monday', async () => {
+        // 2026-04-19 is Sunday in UTC
+        const d = await runWith('2026-04-19T10:00:00.000Z');
+        expect(d.getUTCDate()).toBe(20); // Monday
+        expect(d.getUTCDay()).toBe(1);
+      });
+
+      it('late-evening Thursday still resolves to Friday (not Saturday)', async () => {
+        // 2026-04-16 23:45 UTC — the pathological case that tripped
+        // the pre-D14 bug: any local-timezone arithmetic here would
+        // have pushed "tomorrow" across a Friday→Saturday boundary.
+        const d = await runWith('2026-04-16T23:45:00.000Z');
+        expect(d.getUTCDate()).toBe(17); // Friday
+        expect(d.getUTCDay()).toBe(5);
+      });
     });
   });
 
