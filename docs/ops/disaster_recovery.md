@@ -205,6 +205,144 @@ curl -H "x-admin-key: $ADMIN_KEY" \
 
 ---
 
+## Scenario 7 — Agent Execution Layer outage
+
+**Symptoms:**
+- `POST /api/v1/agents/:id/run` returns 5xx or times out
+- Sentry shows `AgentRunnerService` errors or `LlmBridgeService` failures
+- Agent queue depth climbs without draining (check `GET /api/v1/agents/:id/runs?status=QUEUED`)
+- CFO Copilot responses time out or fallback to "data-only mode"
+
+**Triage tree:**
+
+1. **Anthropic API down?**
+   ```bash
+   curl -s https://status.anthropic.com/api/v2/status.json | jq '.status.indicator'
+   # Expect: "none" (healthy). "minor"/"major"/"critical" → upstream issue.
+   ```
+   If yes, agents degrade gracefully — the LlmBridgeService logs
+   `[DRY RUN]` and the Analyst falls back to data-only mode. No action
+   required; monitor until upstream recovers. Consider posting a
+   customer-facing status at status.cerniq.io.
+
+2. **LLM cost cap tripped?** See `LLM_COST_INCIDENT.md` for the 3-state
+   triage (OK → WARN → BLOCKED).
+
+3. **Agent queue saturated?**
+   ```bash
+   curl -H "x-admin-key: $ADMIN_KEY" \
+     "https://api.cerniq.io/api/admin/audit-logs?resource=agent_run&action=RUN_STARTED&limit=100" \
+     | jq '[.[] | select(.metadata.status == "QUEUED")] | length'
+   ```
+   If queue depth > 50, agents are backing up. Check:
+   ```sql
+   SELECT agent_id, COUNT(*) AS queued
+   FROM agent_runs
+   WHERE status IN ('QUEUED', 'RUNNING')
+   GROUP BY agent_id ORDER BY queued DESC;
+   ```
+   Bump `AGENT_WORKER_CONCURRENCY` (default 5, max 50 per Zod schema):
+   ```bash
+   railway variables --set AGENT_WORKER_CONCURRENCY=15 \
+     --service cerniq-api --environment production
+   ```
+   Railway redeploys and drains faster.
+
+4. **Tool registry error?** Errors like "tool X not found" mean the
+   agent-tool registry has drifted. Run the agent-smoke script:
+   ```bash
+   ADMIN_KEY=$ADMIN_KEY API_BASE=https://api.cerniq.io \
+     bash scripts/agent-smoke.sh
+   ```
+   If it fails on a specific tool, check `src/agents/registry/tools/`
+   for that tool's registration.
+
+5. **Audit chain tamper detected?** Regulator-grade tamper evidence
+   fires at the DB level via RLS append-only guard
+   (`20260415130000_agent_tables_rls`). If somehow UPDATE/DELETE hits
+   `agent_audit_logs`, alerts fire. Response: **IMMEDIATE SEV-1 — do
+   not proceed with any agent runs until the breach is understood.**
+   Query:
+   ```sql
+   SELECT run_id, step_index, prev_hash, hash, step_kind
+   FROM agent_audit_logs
+   WHERE run_id = '<run>' ORDER BY step_index;
+   -- Verify hash chain: each row's prev_hash must equal the prior row's hash.
+   ```
+
+**Recovery:** Agent layer is stateless between runs. Restart clears
+in-memory queue state (pending runs resume from DB on boot). Already-
+completed runs' audit chains are immutable by design.
+
+---
+
+## Scenario 8 — Data Subject Rights (GDPR / COSSEC Right-to-Erasure)
+
+**Trigger:** Customer emails `privacy@cerniq.io` requesting deletion,
+portable export, or access to their personal data.
+
+**SLA:** GDPR requires response within **30 days**. COSSEC's analog
+under PR Act 97-2024 is **45 days**. Practical internal target: **7
+business days**.
+
+**Procedure — Erasure request:**
+
+1. **Verify identity.** The requester must prove they control the
+   email associated with the user record. Send a confirmation link
+   via Resend; require click-through before proceeding.
+
+2. **Identify scope.** A single customer touches:
+   - `users` (primary record)
+   - `institutions` they own (may be shared with workspaces)
+   - `workspaces` + `workspace_members` they're linked to
+   - `audit_logs` (retained 7 years by `RETENTION_AUDIT_LOGS_DAYS` —
+     see §4 below)
+   - `agent_runs` + `agent_audit_logs` for their institutions
+   - `leads` if they were a prospect
+   - `conversation_history` for analyst chat
+   - `report_artifacts` and uploaded balance sheets
+
+3. **Dry-run the deletion** in a transaction on staging first:
+   ```sql
+   BEGIN;
+   -- Dry run — use ROLLBACK at the end to verify cascade before commit
+   DELETE FROM users WHERE id = '<userId>';
+   -- Prisma ON DELETE CASCADE handles workspace_members, etc.
+   -- Manually handle: reassign institutions to a sibling admin, or
+   -- mark the institution as "offboarded" and anonymize.
+   ROLLBACK;
+   ```
+
+4. **Audit logs CANNOT be deleted** (regulator requirement for 7-year
+   retention). Instead, pseudonymize: replace `user_id` references in
+   audit rows with a deterministic hash. This preserves the audit
+   chain while satisfying the user's erasure right. Document the
+   pseudonymization in the erasure response.
+
+5. **Execute** against production in a 1-institution-at-a-time
+   transaction so a partial failure doesn't leave orphaned data.
+
+6. **Send confirmation** to the customer within 7 business days with:
+   - Confirmation of deletion
+   - Explanation of pseudonymized audit retention (required by law)
+   - List of 3rd-party processors that received their data (Anthropic
+     for LLM calls — request deletion; Resend for email delivery;
+     Stripe for billing — Stripe has its own retention policy)
+
+**Procedure — Portable export request:**
+
+```bash
+# Generates a tarball of all records owned by the user
+ADMIN_KEY=$ADMIN_KEY ./scripts/export-user-data.sh <userId>
+# Emails the tarball via Resend to the verified email on file
+```
+
+(TODO: `export-user-data.sh` doesn't exist yet — file as a follow-up
+blocker for the first production GDPR request. The procedure is SQL
+queries against the table list in step 2, formatted as JSON.)
+
+---
+
 ## Backup Verification Schedule
 
 | Task | Frequency | Owner |

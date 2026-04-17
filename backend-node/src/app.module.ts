@@ -79,15 +79,45 @@ import { ExitMetricsService } from './admin/exit-metrics.service';
           process.env.NODE_ENV !== 'production'
             ? { target: 'pino-pretty', options: { colorize: true } }
             : undefined,
+        // Redact list covers every known auth token, API key, and PII
+        // field that could reach the Pino stream. Any addition to the
+        // auth surface (new header, new body field) needs a matching
+        // entry here — otherwise that value lands in prod logs in
+        // plaintext. Paired with Sentry's beforeSend() scrubber in
+        // src/instrument.ts for the error-reporting path.
         redact: [
+          // ─── Request headers (tokens + admin keys) ───────────────
           'req.headers.authorization',
           'req.headers.cookie',
           'req.headers["x-admin-key"]',
+          'req.headers["x-api-key"]',
+          'req.headers["x-stripe-signature"]',
+          'req.headers["x-webhook-secret"]',
+          // ─── Request body (auth fields) ──────────────────────────
           'req.body.password',
           'req.body.newPassword',
           'req.body.currentPassword',
           'req.body.token',
           'req.body.refreshToken',
+          'req.body.apiKey',
+          'req.body.accessToken',
+          'req.body.secret',
+          'req.body.clientSecret',
+          // ─── Request body (Stripe + payment) ─────────────────────
+          'req.body.stripeToken',
+          'req.body.paymentMethodId',
+          'req.body.cardNumber',
+          'req.body.cvc',
+          // ─── Request body (PII for COSSEC/NCUA compliance) ───────
+          'req.body.ssn',
+          'req.body.ein',
+          'req.body.taxId',
+          // ─── Query string (sometimes tokens leak here) ───────────
+          'req.query.apiKey',
+          'req.query.token',
+          'req.query.accessToken',
+          // ─── Response Set-Cookie (session material) ──────────────
+          'res.headers["set-cookie"]',
         ],
         serializers: {
           req: (req) => ({ method: req.method, url: req.url, id: req.id }),
