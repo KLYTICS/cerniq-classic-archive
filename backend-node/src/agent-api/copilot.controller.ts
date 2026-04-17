@@ -13,6 +13,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { AgentRunnerService } from '../agents/runner/agent-runner.service';
 import { AgentRunService } from '../agents/runner/agent-run.service';
 import { InstitutionScopeGuard } from './guards/institution-scope.guard';
+import { AgentRunThrottleGuard } from './guards/agent-run-throttle.guard';
 import { CopilotBodySchema, parseOrThrow } from './dto/agent-api.dto';
 
 // CopilotController is the conversational entry point for the CFO Copilot
@@ -35,6 +36,10 @@ export class AgentCopilotController {
   constructor(private readonly runner: AgentRunnerService) {}
 
   @Post()
+  // Per-user throttle on the expensive mutation. Copilot queries also
+  // cost $0.10–$1.00 each. Same 10/min ceiling as /run — see
+  // AgentRunThrottleGuard for rationale.
+  @UseGuards(AgentRunThrottleGuard)
   @ApiOperation({
     summary: 'Ask the CFO Copilot a natural-language ALM question',
   })

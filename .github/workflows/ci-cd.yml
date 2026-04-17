@@ -178,16 +178,13 @@ jobs:
         working-directory: frontend
         run: npx vitest run
 
+      # Bundle size budget — fails the build if total raw JS > 10MB or
+      # any single chunk > 1.5MB. Enforces the TTFB < 800ms SLO target.
+      # See scripts/ci/check-bundle-size.mjs for tuning rationale +
+      # top-5-chunk breakdown. Replaced the prior warning-only 20MB
+      # ceiling which silently allowed regressions.
       - name: Bundle size check
-        working-directory: frontend
-        run: |
-          # Check that First Load JS stays under 200KB budget
-          FIRST_LOAD=$(du -sb .next/static/chunks/ | cut -f1)
-          BUDGET=20000000  # 20MB total chunks budget
-          echo "Total chunk size: $(du -sh .next/static/chunks/ | cut -f1)"
-          if [ "$FIRST_LOAD" -gt "$BUDGET" ]; then
-            echo "::warning::Bundle size ($FIRST_LOAD bytes) exceeds budget ($BUDGET bytes)"
-          fi
+        run: node scripts/ci/check-bundle-size.mjs
 
       - name: Verify clean worktree
         run: bash scripts/verify-clean-worktree.sh
