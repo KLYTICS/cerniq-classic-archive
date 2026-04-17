@@ -48,6 +48,11 @@ export interface LLMTurnRequest {
   tools: LLMToolDescriptor[];
   maxTokens?: number;
   temperature?: number;
+  // Run-scoped abort signal so the per-run deadline (D9) can cut
+  // short an in-flight LLM call, not just an in-flight tool call.
+  // Without this, a stuck provider call would survive the deadline
+  // up to the SDK's internal 10-minute timeout.
+  signal?: AbortSignal;
 }
 
 export interface LLMToolCall {
@@ -145,21 +150,28 @@ export class LlmBridgeService {
   }
 
   async turn(req: LLMTurnRequest): Promise<LLMTurnResponse> {
-    const response = await this.client.messages.create({
-      model: AGENT_LLM_MODEL,
-      // Caller override wins; otherwise honor MAX_AGENT_TOKENS env.
-      // Before this the env var was validated but never consulted, so
-      // operators setting MAX_AGENT_TOKENS=8192 kept getting 4096.
-      max_tokens: req.maxTokens ?? LlmBridgeService.resolveMaxTokens(process.env),
-      temperature: req.temperature ?? 0.2,
-      system: req.system,
-      tools: req.tools.map((t) => ({
-        name: t.name,
-        description: t.description,
-        input_schema: t.input_schema as any,
-      })),
-      messages: req.messages as any,
-    });
+    const response = await this.client.messages.create(
+      {
+        model: AGENT_LLM_MODEL,
+        // Caller override wins; otherwise honor MAX_AGENT_TOKENS env.
+        // Before this the env var was validated but never consulted,
+        // so operators setting MAX_AGENT_TOKENS=8192 kept getting 4096.
+        max_tokens: req.maxTokens ?? LlmBridgeService.resolveMaxTokens(process.env),
+        temperature: req.temperature ?? 0.2,
+        system: req.system,
+        tools: req.tools.map((t) => ({
+          name: t.name,
+          description: t.description,
+          input_schema: t.input_schema as any,
+        })),
+        messages: req.messages as any,
+      },
+      // Second-arg request options: pass the run-scoped signal so
+      // the Anthropic SDK aborts the in-flight fetch when the runner's
+      // deadline fires. Closes the gap left after D9 where tool calls
+      // were cancellable but LLM turns weren't.
+      req.signal ? { signal: req.signal } : undefined,
+    );
 
     const toolCalls: LLMToolCall[] = [];
     let text = '';

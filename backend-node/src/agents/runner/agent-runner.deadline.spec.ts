@@ -244,6 +244,56 @@ describe('AgentRunnerService deadline', () => {
     expect(completeArgs.costUsdCents).toBe(5);
   });
 
+  it('aborts an in-flight LLM call when the run deadline fires (not just tool calls)', async () => {
+    // Before D16 the runner only cancelled in-flight TOOL calls when
+    // the deadline fired — an LLM turn stuck on the network would
+    // outlive the deadline up to the Anthropic SDK's default 10-min
+    // timeout. This spec proves the run-scoped signal now reaches
+    // the LLM fetch by asserting that a hanging LLM turn (no tool
+    // calls even emitted) surfaces TIMED_OUT, not EXECUTION_FAILED.
+    const prevEnv = process.env.AGENT_RUN_TIMEOUT_MS;
+    process.env.AGENT_RUN_TIMEOUT_MS = '1000';
+
+    const m = makeMocks();
+    m.llm.turn.mockImplementation(
+      (req: { signal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          // Mirror the SDK contract: reject with AbortError when the
+          // signal fires. The runner's catch-path checks
+          // runAbort.signal.aborted to distinguish TIMED_OUT.
+          req.signal?.addEventListener(
+            'abort',
+            () => {
+              const err = new Error('Request was aborted.');
+              err.name = 'AbortError';
+              reject(err);
+            },
+            { once: true },
+          );
+        }),
+    );
+    const svc = makeRunner(m);
+
+    const result = await svc.run({
+      agentId: 'ALM_DECISION',
+      idempotencyKey: 'k_llm_hang',
+      institutionId: 'inst-1',
+      input: {},
+    });
+
+    expect(result.status).toBe('TIMED_OUT');
+    expect(result.errorCode).toBe('RUN_TIMEOUT');
+    expect(m.runs.timedOut).toHaveBeenCalledTimes(1);
+    expect(m.runs.fail).not.toHaveBeenCalled();
+    // LLM was invoked once and received an AbortSignal argument.
+    expect(m.llm.turn).toHaveBeenCalledTimes(1);
+    const turnArg = m.llm.turn.mock.calls[0][0];
+    expect(turnArg.signal).toBeInstanceOf(AbortSignal);
+
+    if (prevEnv === undefined) delete process.env.AGENT_RUN_TIMEOUT_MS;
+    else process.env.AGENT_RUN_TIMEOUT_MS = prevEnv;
+  }, 10_000);
+
   it('persists costUsdCents even when a run times out', async () => {
     const prevEnv = process.env.AGENT_RUN_TIMEOUT_MS;
     process.env.AGENT_RUN_TIMEOUT_MS = '1000';

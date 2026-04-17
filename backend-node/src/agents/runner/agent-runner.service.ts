@@ -171,6 +171,11 @@ export class AgentRunnerService {
           system: def.systemPrompt,
           messages,
           tools: toolDescriptors,
+          // Thread the run deadline into the LLM fetch. Before this
+          // wiring, a stuck provider call could outlive the deadline
+          // by the SDK's internal 10-minute timeout — only tool
+          // invocations were cancelable.
+          signal: runAbort.signal,
         });
         llmTurnCount++;
         inputTokens += turn.inputTokens;
