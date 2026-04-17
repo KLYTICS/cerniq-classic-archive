@@ -5,6 +5,7 @@ import { AgentsModule } from '../agents/agents.module';
 import { AgentQueueModule } from '../queue/agent/agent-queue.module';
 
 import { InstitutionScopeGuard } from './guards/institution-scope.guard';
+import { AgentRunThrottleGuard } from './guards/agent-run-throttle.guard';
 import { AgentRunsController } from './agent-runs.controller';
 import { AgentAlertsController } from './alerts.controller';
 import { AgentCopilotController } from './copilot.controller';
@@ -40,7 +41,7 @@ import { AgentExportController } from './agent-export.controller';
     AgentTenantStreamController,
     AgentExportController,
   ],
-  providers: [InstitutionScopeGuard],
-  exports: [InstitutionScopeGuard],
+  providers: [InstitutionScopeGuard, AgentRunThrottleGuard],
+  exports: [InstitutionScopeGuard, AgentRunThrottleGuard],
 })
 export class AgentApiModule {}

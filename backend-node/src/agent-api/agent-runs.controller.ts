@@ -16,6 +16,7 @@ import { createHash } from 'node:crypto';
 import { AuthGuard } from '../auth/auth.guard';
 import { PrismaService } from '../prisma.service';
 import { InstitutionScopeGuard } from './guards/institution-scope.guard';
+import { AgentRunThrottleGuard } from './guards/agent-run-throttle.guard';
 import {
   CostQuerySchema,
   ListRunsQuerySchema,
@@ -53,6 +54,10 @@ export class AgentRunsController {
   ) {}
 
   @Post('run')
+  // Per-user throttle on the expensive mutation. Each run triggers a
+  // Claude Opus invocation costing $0.10–$1.00. Ceiling is 10/min per
+  // user — see AgentRunThrottleGuard for the cost-math rationale.
+  @UseGuards(AgentRunThrottleGuard)
   @ApiOperation({ summary: 'Trigger an agent run for the institution' })
   @ApiParam({ name: 'institutionId', description: 'Target institution UUID' })
   @ApiResponse({ status: 201, description: 'Agent run created and queued' })
