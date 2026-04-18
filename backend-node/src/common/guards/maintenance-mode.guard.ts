@@ -33,7 +33,11 @@ export class MaintenanceModeGuard implements CanActivate {
     // Allow admin endpoints for managing maintenance
     const adminKey = request.headers['x-admin-key'];
     const expectedKey = process.env.ADMIN_KEY;
-    if (adminKey && expectedKey && timingSafeStringEqual(adminKey, expectedKey)) {
+    if (
+      adminKey &&
+      expectedKey &&
+      timingSafeStringEqual(adminKey, expectedKey)
+    ) {
       return true;
     }
 
