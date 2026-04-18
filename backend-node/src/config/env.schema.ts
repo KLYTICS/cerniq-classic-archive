@@ -54,9 +54,10 @@ const envSchema = z
     // ── Billing ──────────────────────────────────────────────────────
     STRIPE_SECRET_KEY: z.string().optional(),
     STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    STRIPE_PRICE_ONE_TIME: z.string().optional(),
     STRIPE_PRICE_MONTHLY: z.string().optional(),
     STRIPE_PRICE_ANNUAL: z.string().optional(),
-    STRIPE_PRICE_PILOT: z.string().optional(),
+    STRIPE_PRICE_PARTNER: z.string().optional(),
 
     // ── Email ────────────────────────────────────────────────────────
     RESEND_API_KEY: z.string().optional(),

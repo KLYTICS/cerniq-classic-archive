@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
+import { timingSafeStringEqual } from '../utils/timing-safe-compare';
 
 @Injectable()
 export class AdminGuard implements CanActivate {
@@ -20,7 +21,7 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException('Admin access not configured');
     }
 
-    if (!adminKey || adminKey !== expectedKey) {
+    if (!timingSafeStringEqual(adminKey, expectedKey)) {
       throw new UnauthorizedException('Invalid admin key');
     }
 

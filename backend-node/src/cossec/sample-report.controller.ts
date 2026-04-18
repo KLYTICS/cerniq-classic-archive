@@ -12,6 +12,7 @@ import {
 import { SampleReportService } from './sample-report.service';
 import { SampleReportQueueService } from './sample-report-queue.service';
 import { PreviewTokenQuerySchema, parseOrThrow } from './cossec.dto';
+import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
 
 @Controller()
 export class SampleReportController {
@@ -26,7 +27,7 @@ export class SampleReportController {
 
   private verifyAdmin(key: string): void {
     const adminKey = process.env.ADMIN_KEY;
-    if (!adminKey || key !== adminKey) {
+    if (!adminKey || !timingSafeStringEqual(key, adminKey)) {
       throw new UnauthorizedException('Invalid admin key');
     }
   }
