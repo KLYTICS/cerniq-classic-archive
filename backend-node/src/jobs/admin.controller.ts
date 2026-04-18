@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { DailyPipelineService } from './daily-pipeline.service';
+import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
 
 @Controller('api/admin')
 export class AdminController {
@@ -15,7 +16,7 @@ export class AdminController {
 
   private verifyAdmin(key: string) {
     const adminKey = process.env.ADMIN_KEY;
-    if (!adminKey || key !== adminKey) {
+    if (!adminKey || !timingSafeStringEqual(key, adminKey)) {
       throw new UnauthorizedException('Invalid admin key');
     }
   }

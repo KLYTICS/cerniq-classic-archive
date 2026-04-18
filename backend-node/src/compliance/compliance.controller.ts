@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ComplianceReportService } from './compliance-report.service';
+import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
 
 @Controller('api/admin/compliance')
 export class ComplianceController {
@@ -15,7 +16,7 @@ export class ComplianceController {
 
   private verifyAdmin(key: string) {
     const adminKey = process.env.ADMIN_KEY;
-    if (!adminKey || key !== adminKey) {
+    if (!adminKey || !timingSafeStringEqual(key, adminKey)) {
       throw new UnauthorizedException('Invalid admin key');
     }
   }

@@ -18,6 +18,7 @@ import {
   ManualMatchBodySchema,
   parseOrThrow,
 } from './cossec.dto';
+import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
 
 @Controller('admin/api/cossec')
 export class CossecIngestController {
@@ -32,7 +33,7 @@ export class CossecIngestController {
 
   private verifyAdmin(key: string): void {
     const adminKey = process.env.ADMIN_KEY;
-    if (!adminKey || key !== adminKey) {
+    if (!adminKey || !timingSafeStringEqual(key, adminKey)) {
       throw new UnauthorizedException('Invalid admin key');
     }
   }

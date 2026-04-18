@@ -1,5 +1,6 @@
 import { Injectable, Logger, NestMiddleware } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
+import { timingSafeStringEqual } from '../utils/timing-safe-compare';
 
 /**
  * Row-Level Security (RLS) Tenant Context Middleware
@@ -27,9 +28,18 @@ export class TenantContextMiddleware implements NestMiddleware {
 
   async use(req: any, _res: any, next: () => void): Promise<void> {
     const adminKey = req.headers?.['x-admin-key'] as string | undefined;
+    const expectedAdminKey = process.env.ADMIN_KEY;
 
-    // Admin route: set admin_mode so RLS admin_bypass policies grant access
-    if (adminKey) {
+    // Admin route: set admin_mode so RLS admin_bypass policies grant access.
+    // Only activates when the presented key constant-time matches the
+    // configured ADMIN_KEY. A presence-only check here would let any request
+    // with a garbage `x-admin-key: anything` header trip admin_bypass RLS
+    // policies and see rows across every tenant.
+    if (
+      adminKey &&
+      expectedAdminKey &&
+      timingSafeStringEqual(adminKey, expectedAdminKey)
+    ) {
       try {
         await this.prisma.$executeRaw`SET LOCAL app.admin_mode = 'true'`;
         this.logger.debug('RLS admin_mode set for admin request');

@@ -3,10 +3,18 @@ import { TenantContextMiddleware } from './tenant-context.middleware';
 describe('TenantContextMiddleware', () => {
   let middleware: TenantContextMiddleware;
   let mockPrisma: { $executeRaw: jest.Mock };
+  const VALID_ADMIN_KEY = 'valid-admin-key-from-env-abc123';
+  const originalAdminKey = process.env.ADMIN_KEY;
 
   beforeEach(() => {
     mockPrisma = { $executeRaw: jest.fn().mockResolvedValue(undefined) };
     middleware = new TenantContextMiddleware(mockPrisma as any);
+    process.env.ADMIN_KEY = VALID_ADMIN_KEY;
+  });
+
+  afterAll(() => {
+    if (originalAdminKey === undefined) delete process.env.ADMIN_KEY;
+    else process.env.ADMIN_KEY = originalAdminKey;
   });
 
   it('sets tenant context for authenticated requests with institutionId', async () => {
@@ -28,9 +36,9 @@ describe('TenantContextMiddleware', () => {
     expect(next).toHaveBeenCalled();
   });
 
-  it('sets admin_mode for requests with x-admin-key header', async () => {
+  it('sets admin_mode only when x-admin-key matches ADMIN_KEY env', async () => {
     const req: any = {
-      headers: { 'x-admin-key': 'secret-admin-key-value' },
+      headers: { 'x-admin-key': VALID_ADMIN_KEY },
     };
     const res: any = {};
     const next = jest.fn();
@@ -38,6 +46,33 @@ describe('TenantContextMiddleware', () => {
     await middleware.use(req, res, next);
 
     expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('does NOT set admin_mode for requests with a wrong x-admin-key', async () => {
+    const req: any = {
+      headers: { 'x-admin-key': 'attacker-guessed-value' },
+    };
+    const res: any = {};
+    const next = jest.fn();
+
+    await middleware.use(req, res, next);
+
+    expect(mockPrisma.$executeRaw).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('does NOT set admin_mode when ADMIN_KEY env is unset', async () => {
+    delete process.env.ADMIN_KEY;
+    const req: any = {
+      headers: { 'x-admin-key': 'any-value' },
+    };
+    const res: any = {};
+    const next = jest.fn();
+
+    await middleware.use(req, res, next);
+
+    expect(mockPrisma.$executeRaw).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalled();
   });
 
@@ -83,7 +118,7 @@ describe('TenantContextMiddleware', () => {
   it('calls next() even if $executeRaw fails for admin mode', async () => {
     mockPrisma.$executeRaw.mockRejectedValue(new Error('DB connection lost'));
     const req: any = {
-      headers: { 'x-admin-key': 'secret-key' },
+      headers: { 'x-admin-key': VALID_ADMIN_KEY },
     };
     const res: any = {};
     const next = jest.fn();
@@ -95,7 +130,7 @@ describe('TenantContextMiddleware', () => {
 
   it('prioritizes admin mode over tenant context when both are present', async () => {
     const req: any = {
-      headers: { 'x-admin-key': 'secret-key' },
+      headers: { 'x-admin-key': VALID_ADMIN_KEY },
       user: { institutionId: 'inst_abc123' },
     };
     const res: any = {};
