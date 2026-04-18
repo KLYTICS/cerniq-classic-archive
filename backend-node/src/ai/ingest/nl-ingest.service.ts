@@ -131,7 +131,13 @@ export class NLIngestService {
     for (const line of lines) {
       const match = line.match(amountRegex);
       if (!match) continue;
-      const amount = parseFloat(match[1].replace(/,/g, ''));
+      // D23: NL-extraction heuristic — intentionally lenient parseFloat
+      // (allows trailing non-numeric noise from prose surrounding a
+      // monetary token, e.g. "$1,234 (approx)"). The [0.1, 100000]
+      // range bound below catches the major silent-accept cases.
+      // Tightening to parseFinancialField would reject legitimate
+      // "$1,234 (approx)" style extractions.
+      const amount = parseFloat(match[1].replace(/,/g, '')); // heuristic
       if (amount < 0.1 || amount > 100000) continue;
 
       const lower = line.toLowerCase();

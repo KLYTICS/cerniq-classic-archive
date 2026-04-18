@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { parseFinancialField } from '../common/utils/financial-field';
 
 // ─── FRED Series IDs ────────────────────────────────────────
 
@@ -121,8 +122,14 @@ export class TreasuryRatesService {
         const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
-          const val = parseFloat(data?.observations?.[0]?.value);
-          if (!isNaN(val)) results[key] = val / 100;
+          // D23: same FRED API parse pattern as market-data-feed.
+          // Bounded in percent form [-5, 50] to catch Infinity and
+          // out-of-band values that would corrupt the rate cache.
+          const val = parseFinancialField(data?.observations?.[0]?.value, {
+            min: -5,
+            max: 50,
+          });
+          if (val !== null) results[key] = val / 100;
         }
       } catch {
         /* skip */

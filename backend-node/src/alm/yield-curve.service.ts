@@ -173,7 +173,7 @@ export class YieldCurveService {
     const shockBps =
       shockType === 'custom' && customShocks
         ? Object.fromEntries(
-            Object.entries(customShocks).map(([k, v]) => [parseFloat(k), v]),
+            Object.entries(customShocks).map(([k, v]) => [parseFloat(k), v]), // tenor key parse — deliberate parseFloat leniency
           )
         : (BASEL_SHOCKS[shockType] ?? BASEL_SHOCKS['parallel_up']);
 
@@ -350,7 +350,7 @@ export class YieldCurveService {
     // Build shocked curve from per-tenor shocks
     const shockBps: Record<number, number> = {};
     for (const [key, bps] of Object.entries(shockBpsPerTenor)) {
-      shockBps[parseFloat(key)] = bps;
+      shockBps[parseFloat(key)] = bps; // tenor key parse — deliberate parseFloat leniency
     }
 
     const now = new Date();

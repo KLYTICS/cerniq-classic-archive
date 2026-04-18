@@ -212,12 +212,12 @@ export class CsvIngestV2Service {
       // numeric columns with stray characters to mis-classify.
       // eslint-disable-next-line no-restricted-syntax -- heuristic, not data parse
       const allNumeric = sampleValues.every(
-        (v) => !isNaN(parseFloat(v.replace(/[$,]/g, ''))),
+        (v) => !isNaN(parseFloat(v.replace(/[$,]/g, ''))), // heuristic
       );
       const hasDecimals = sampleValues.some((v) => v.includes('.'));
       const allSmall = sampleValues.every((v) => {
         // eslint-disable-next-line no-restricted-syntax -- heuristic, not data parse
-        const n = parseFloat(v);
+        const n = parseFloat(v); // heuristic
         return !isNaN(n) && n >= 0 && n <= 0.3;
       });
 

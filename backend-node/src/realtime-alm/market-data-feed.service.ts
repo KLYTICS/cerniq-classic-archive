@@ -5,6 +5,14 @@ import {
   MarketDataSnapshot,
   TreasuryCurveResult,
 } from './realtime-alm.dto';
+import { parseFinancialField } from '../common/utils/financial-field';
+
+// Plausible Treasury/SOFR rate bounds in percent form (pre-/100
+// scaling). Covers the 1954 Volcker peak (~20%) through hypothetical
+// negative-rate stress scenarios. Rates outside this band from FRED
+// indicate a data-feed bug, not a real market move.
+const FRED_RATE_PERCENT_MIN = -5;
+const FRED_RATE_PERCENT_MAX = 50;
 
 /**
  * FRED API series IDs for ALM-relevant rates.
@@ -159,12 +167,23 @@ export class MarketDataFeedService implements OnModuleDestroy {
     const data = (await res.json()) as {
       observations?: { date: string; value: string }[];
     };
+    // D23: FRED returns `obs.value` as a string (often "4.56" or ".")
+    // for SOFR. parseFloat(".") = NaN which used to fall back, but
+    // parseFloat("1e400") = Infinity which slipped the `isNaN`
+    // guard and corrupted the dashboard. Bound-validated parse on
+    // the percent form eliminates both.
     const obs = data?.observations?.[0];
-    const value = obs ? parseFloat(obs.value) / 100 : DEMO_RATES.SOFR;
+    const percent = obs
+      ? parseFinancialField(obs.value, {
+          min: FRED_RATE_PERCENT_MIN,
+          max: FRED_RATE_PERCENT_MAX,
+        })
+      : null;
+    const value = percent === null ? DEMO_RATES.SOFR : percent / 100;
 
     return {
       dataType: 'SOFR',
-      value: isNaN(value) ? DEMO_RATES.SOFR : value,
+      value,
       previousValue: previous,
       asOfDate: obs?.date ?? new Date().toISOString(),
       source: 'FRED',
@@ -203,8 +222,15 @@ export class MarketDataFeedService implements OnModuleDestroy {
           const obs = data?.observations?.[0];
           if (!obs) return;
 
-          const rate = parseFloat(obs.value) / 100;
-          if (isNaN(rate)) return;
+          // D23: same validation as SOFR path — reject non-finite and
+          // out-of-band values so a FRED oddity doesn't corrupt the
+          // yield curve.
+          const percent = parseFinancialField(obs.value, {
+            min: FRED_RATE_PERCENT_MIN,
+            max: FRED_RATE_PERCENT_MAX,
+          });
+          if (percent === null) return;
+          const rate = percent / 100;
 
           points.push({ tenorMonths, rate });
           if (obs.date > latestDate) latestDate = obs.date;

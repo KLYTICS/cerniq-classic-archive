@@ -142,6 +142,7 @@ import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { BulkBalanceSheetImportDto } from './dto/create-balance-sheet-item.dto';
 import { CreateAnalysisRunDto } from './dto/create-analysis-run.dto';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
+import { parseFinancialField } from '../common/utils/financial-field';
 
 @ApiTags('ALM Analysis')
 @ApiBearerAuth('BearerAuth')
@@ -1246,10 +1247,14 @@ export class AlmController {
     @Query('policyLimitPct') policyLimitPct?: string,
   ) {
     this.logger.log(`Repricing gap for ${institutionId}`);
-    return this.repricingGap.getRepricingGap(
-      institutionId,
-      policyLimitPct ? parseFloat(policyLimitPct) : 15,
-    );
+    // D23: Validate the user-supplied policy-limit % query param.
+    // Previously `parseFloat("15abc")` silently became 15 and
+    // `parseFloat("1e400")` became Infinity. Reasonable policy
+    // limits sit in [0, 100] %; fall back to 15 on any invalid input.
+    const validatedLimit = policyLimitPct
+      ? (parseFinancialField(policyLimitPct, { min: 0, max: 100 }) ?? 15)
+      : 15;
+    return this.repricingGap.getRepricingGap(institutionId, validatedLimit);
   }
 
   // ─── Phase IV: FTP v2 Attribution (MP-009) ─────────────────────

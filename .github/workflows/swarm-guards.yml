@@ -90,10 +90,19 @@ jobs:
       #    via the grep -v filter on 'parseFinancialField' so future
       #    refactors don't re-flag the migrated call sites.
       #
-      # Wave-3 policy: guard remains warning-only (`|| true` keeps
-      # step exit 0). Wave-4 promotes to blocking once the remaining
-      # 13 non-ALM parseFloat sites (expenses, realtime-alm API feeds,
-      # ai/ingest NL extraction) are migrated.
+      # Wave-4 D24 policy flip: guard now BLOCKS on violations (no
+      # `|| true` — `exit 1` on any unsanctioned parseFloat). Wave 3
+      # migrated every real data-parse site to `parseFinancialField`;
+      # the only remaining parseFloat calls in the guarded scope are
+      # (a) heuristics marked `// heuristic` and (b) tenor-key parses
+      # marked `// tenor key parse — deliberate parseFloat leniency`.
+      # Both are allowlisted below.
+      #
+      # To add a new allowlist exception: add a keyword the grep -v
+      # filter will match, AND paste the same keyword as an inline
+      # comment on the parseFloat call. Two-signal allowlist prevents
+      # drive-by bypasses where someone edits the filter without
+      # annotating the call site.
       - name: Check for Float in financial code
         run: |
           VIOLATIONS=$(git diff origin/main...HEAD -- \
@@ -106,9 +115,12 @@ jobs:
             'backend-node/src/pipeline/**' \
             'backend-node/src/ai/ingest/**' | \
             grep -n '^\+.*\bparseFloat\s*(' | \
-            grep -iv 'parseFinancialField\|test\|spec\|\.d\.ts\|heuristic' || true)
+            grep -iv 'parseFinancialField\|test\|spec\|\.d\.ts\|heuristic\|tenor key parse' || true)
           if [ -n "$VIOLATIONS" ]; then
-            echo "::warning::Unsafe parseFloat in financial ingest code — use parseFinancialField from common/utils/financial-field.ts:"
-            echo "$VIOLATIONS" | head -10
+            echo "::error::Unsafe parseFloat in financial ingest code — use parseFinancialField from common/utils/financial-field.ts:"
+            echo "$VIOLATIONS"
+            echo ""
+            echo "If this is a legitimate exception (e.g. heuristic, tenor-key parse), annotate the call site with a matching allowlist keyword."
+            exit 1
           fi
           echo "Financial decimal check complete"
