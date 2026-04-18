@@ -105,6 +105,12 @@ jobs:
       # annotating the call site.
       - name: Check for Float in financial code
         run: |
+          # The first grep skips diff-context + comment-only additions:
+          #   ^\+[^+]     — added line (not the +++ file header)
+          #   [^/]*\bparseFloat — the call must come before any `//`
+          # This prevents rationale comments from tripping the guard —
+          # e.g. `// parseFloat("1e400") = Infinity which slipped…` is
+          # a comment ABOUT the defect, not a code violation.
           VIOLATIONS=$(git diff origin/main...HEAD -- \
             'backend-node/src/alm/**' \
             'backend-node/src/reports/**' \
@@ -114,7 +120,8 @@ jobs:
             'backend-node/src/realtime-alm/**' \
             'backend-node/src/pipeline/**' \
             'backend-node/src/ai/ingest/**' | \
-            grep -n '^\+.*\bparseFloat\s*(' | \
+            grep -nE '^\+[^+].*\bparseFloat\s*\(' | \
+            grep -vE '\+[[:space:]]*//' | \
             grep -iv 'parseFinancialField\|test\|spec\|\.d\.ts\|heuristic\|tenor key parse' || true)
           if [ -n "$VIOLATIONS" ]; then
             echo "::error::Unsafe parseFloat in financial ingest code — use parseFinancialField from common/utils/financial-field.ts:"
