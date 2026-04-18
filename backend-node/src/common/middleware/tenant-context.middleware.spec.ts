@@ -76,6 +76,38 @@ describe('TenantContextMiddleware', () => {
     expect(next).toHaveBeenCalled();
   });
 
+  it('sets admin_mode for Stripe webhook path (service bypass)', async () => {
+    const req: any = {
+      headers: {},
+      path: '/api/billing/webhook',
+    };
+    const res: any = {};
+    const next = jest.fn();
+
+    await middleware.use(req, res, next);
+
+    // Signature validation happens in the controller; middleware only sets
+    // the GUC so RLS doesn't block the post-verification writes.
+    expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('does NOT apply service-bypass for a non-webhook authenticated request', async () => {
+    const req: any = {
+      headers: {},
+      path: '/api/institutions/abc',
+      user: { institutionId: 'inst_abc' },
+    };
+    const res: any = {};
+    const next = jest.fn();
+
+    await middleware.use(req, res, next);
+
+    // Sets tenant context (institution_id), not admin_mode
+    expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(next).toHaveBeenCalled();
+  });
+
   it('does not set any context for unauthenticated requests', async () => {
     const req: any = { headers: {} };
     const res: any = {};

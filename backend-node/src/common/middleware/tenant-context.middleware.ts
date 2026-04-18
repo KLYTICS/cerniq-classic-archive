@@ -3,6 +3,22 @@ import { PrismaService } from '../../prisma.service';
 import { timingSafeStringEqual } from '../utils/timing-safe-compare';
 
 /**
+ * Paths where the request has no JWT user and no admin key but still needs
+ * to write to RLS-protected tables (report_jobs, audit_logs, etc.). The
+ * handlers themselves enforce their own auth (Stripe signature, cron-job
+ * secret, etc.); this middleware only sets the GUC so the DB-layer RLS
+ * doesn't block writes the handler has already authorized.
+ *
+ * Keep this list narrow. Every entry effectively bypasses tenant-isolation
+ * for the whole request, so handlers MUST validate signature / secret
+ * before doing any DB work.
+ */
+const SERVICE_BYPASS_PATH_PREFIXES = [
+  '/api/billing/webhook', // Stripe signature-verified
+  '/api/stripe/webhook', // alternate Stripe mount
+];
+
+/**
  * Row-Level Security (RLS) Tenant Context Middleware
  *
  * Sets PostgreSQL session variables that RLS policies evaluate:
@@ -19,6 +35,9 @@ import { timingSafeStringEqual } from '../utils/timing-safe-compare';
  *   - Unauthenticated requests pass through without setting any GUC variables,
  *     so RLS policies default to blocking all rows.
  *   - The middleware runs AFTER JWT verification (applied on authenticated routes).
+ *   - Service-level entrypoints (Stripe webhooks) bypass tenant isolation
+ *     because they have no authenticated user and need to write to
+ *     institution-scoped tables after their own signature check.
  */
 @Injectable()
 export class TenantContextMiddleware implements NestMiddleware {
@@ -45,6 +64,26 @@ export class TenantContextMiddleware implements NestMiddleware {
         this.logger.debug('RLS admin_mode set for admin request');
       } catch (err) {
         this.logger.error('Failed to set RLS admin_mode', (err as Error).stack);
+      }
+      next();
+      return;
+    }
+
+    // Service bypass: webhook/cron entrypoints that self-authorize via
+    // signature/secret before writing to institution-scoped tables.
+    const requestPath = (req.path || req.url || '') as string;
+    const isServiceBypass = SERVICE_BYPASS_PATH_PREFIXES.some((prefix) =>
+      requestPath.startsWith(prefix),
+    );
+    if (isServiceBypass) {
+      try {
+        await this.prisma.$executeRaw`SET LOCAL app.admin_mode = 'true'`;
+        this.logger.debug({ path: requestPath }, 'RLS service bypass set');
+      } catch (err) {
+        this.logger.error(
+          'Failed to set RLS service bypass',
+          (err as Error).stack,
+        );
       }
       next();
       return;
