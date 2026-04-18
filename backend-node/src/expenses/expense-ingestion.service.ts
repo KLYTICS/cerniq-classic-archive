@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { parseFinancialField } from '../common/utils/financial-field';
 
 // ── Column alias mapping (Spanish → English) ─────────────────────────
 const COLUMN_ALIASES: Record<string, string> = {
@@ -170,12 +171,29 @@ export class ExpenseIngestionService {
         continue;
       }
 
-      // Parse amount
+      // D23: Parse amount with strict bounds. Previously parseFloat
+      // without any check meant `"1234abc"` silently became 1234 and
+      // `"1e400"` became Infinity — either would corrupt the sum at
+      // the reduce step below. Upper bound $1e10 catches operator
+      // typos (no single expense line reaches $10B).
       const rawAmount = this.getField(row, headerMap, 'amount').replace(
         /[,$]/g,
         '',
       );
-      const amount = parseFloat(rawAmount);
+      const amount = parseFinancialField(rawAmount, {
+        min: Number.MIN_VALUE, // strictly positive
+        max: 1e10,
+      });
+      if (amount === null) {
+        errors.push({
+          row: rowNum,
+          field: 'amount',
+          value: rawAmount,
+          message: `Invalid amount "${rawAmount}" — must be a positive number up to $10B`,
+          messageEs: `Monto invalido "${rawAmount}" — debe ser un numero positivo hasta $10B`,
+        });
+        continue;
+      }
 
       // Parse vendor
       const vendor = this.getField(row, headerMap, 'vendor');
@@ -383,27 +401,23 @@ export class ExpenseIngestionService {
       });
     }
 
-    // amount
+    // D23: amount — strict parse + bounds. Replaces parseFloat +
+    // isNaN + <= 0 chain. Consolidates into a single helper call.
     const rawAmount = this.getField(row, headerMap, 'amount').replace(
       /[,$]/g,
       '',
     );
-    const amount = parseFloat(rawAmount);
-    if (!rawAmount || isNaN(amount)) {
+    const amount = parseFinancialField(rawAmount, {
+      min: Number.MIN_VALUE,
+      max: 1e10,
+    });
+    if (amount === null) {
       errors.push({
         row: rowNum,
         field: 'amount',
         value: rawAmount,
-        message: `Invalid amount "${rawAmount}" — must be a positive number`,
-        messageEs: `Monto invalido "${rawAmount}" — debe ser un numero positivo`,
-      });
-    } else if (amount <= 0) {
-      errors.push({
-        row: rowNum,
-        field: 'amount',
-        value: rawAmount,
-        message: 'Amount must be positive',
-        messageEs: 'El monto debe ser positivo',
+        message: `Invalid amount "${rawAmount}" — must be a positive number up to $10B`,
+        messageEs: `Monto invalido "${rawAmount}" — debe ser un numero positivo hasta $10B`,
       });
     }
 
