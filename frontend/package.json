@@ -14,7 +14,7 @@
     "test:e2e": "playwright test",
     "test:e2e:critical": "playwright test e2e/production-critical.spec.ts",
     "test:e2e:preview": "sh -c 'test -n \"$PLAYWRIGHT_BASE_URL\" || { echo \"PLAYWRIGHT_BASE_URL is required\" >&2; exit 1; }; PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_ENABLE_CHECKOUT_SMOKE=1 PLAYWRIGHT_MOCK_CHECKOUT=1 PLAYWRIGHT_BACKEND_URL=\"${PLAYWRIGHT_BACKEND_URL:-https://api.cerniq.io}\" playwright test e2e/production-critical.spec.ts'",
-    "test:e2e:production": "PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL=https://cerniq.io PLAYWRIGHT_BACKEND_URL=https://api.cerniq.io playwright test e2e/production-critical.spec.ts --grep-invert @preview-only",
+    "test:e2e:production": "PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL=https://cerniq.io PLAYWRIGHT_BACKEND_URL=https://api.cerniq.io playwright test e2e/production-critical.spec.ts e2e/public-footer-links.spec.ts --grep-invert @preview-only",
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {

@@ -11,6 +11,24 @@ env:
   FRONTEND_API_URL: http://localhost:3000
 
 jobs:
+  apple-foundation:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/apple/verify.sh
+      - run: bash scripts/verify-clean-worktree.sh
+
+  apple-release-dry-run:
+    if: ${{ secrets.APPLE_DEVELOPMENT_TEAM != '' }}
+    runs-on: macos-14
+    needs: [apple-foundation]
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm run archive:apple -- --dry-run --export
+        env:
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+      - run: bash scripts/verify-clean-worktree.sh
+
   backend-typecheck:
     runs-on: ubuntu-latest
     steps:

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, CheckCircle2, TrendingUp, Clock, DollarSign, Shield, Building2, Quote } from 'lucide-react';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
+import { getAcquisitionCopy } from '@/lib/acquisition-copy';
 
 export default function CaseStudiesPage() {
   const [lang, setLang] = useState<'en' | 'es'>(() => {
@@ -11,6 +12,7 @@ export default function CaseStudiesPage() {
     return 'en';
   });
   const t = (en: string, es: string) => lang === 'en' ? en : es;
+  const acquisition = getAcquisitionCopy(lang);
 
   return (
     <div className="min-h-screen bg-white">
@@ -138,12 +140,15 @@ export default function CaseStudiesPage() {
         <section className="rounded-xl border border-slate-800 bg-slate-900 p-8 text-center">
           <h2 className="text-2xl font-bold text-white">{t('Ready to see your own results?', '¿Listo para ver sus propios resultados?')}</h2>
           <p className="mt-2 text-slate-400">{t(
-            'Start with a $750 pilot report or try the interactive demo.',
-            'Comience con un informe piloto de $750 o pruebe el demo interactivo.'
+            'Start with the $750 pilot, then use the demo as supporting proof if you need to show the workflow internally.',
+            'Comience con el piloto de $750 y use el demo como prueba de apoyo si necesita mostrar el flujo internamente.'
           )}</p>
           <div className="mt-6 flex justify-center gap-4">
-            <Link href="/demo" className="rounded-xl bg-amber-500 px-6 py-3 text-sm font-semibold text-white hover:bg-amber-600 transition">
-              {t('Try Demo', 'Ver Demo')} <ArrowRight className="h-4 w-4 inline ml-1" />
+            <Link href="/get-started" className="rounded-xl bg-amber-500 px-6 py-3 text-sm font-semibold text-white hover:bg-amber-600 transition">
+              {acquisition.primaryCta} <ArrowRight className="h-4 w-4 inline ml-1" />
+            </Link>
+            <Link href="/demo" className="rounded-xl border border-white/20 px-6 py-3 text-sm font-semibold text-white hover:bg-white/5 transition">
+              {acquisition.proofCta}
             </Link>
             <Link href="/roi" className="rounded-xl border border-white/20 px-6 py-3 text-sm font-semibold text-white hover:bg-white/5 transition">
               {t('Calculate ROI', 'Calcular ROI')}

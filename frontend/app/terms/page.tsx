@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
+import { PUBLIC_PATHS } from '@/lib/public-links';
 
 export default function TermsPage() {
   const [lang, setLang] = useState<'en' | 'es'>(() => {
@@ -85,7 +86,7 @@ export default function TermsPage() {
           <p>{t(
             'For questions about these terms, contact us at erwin@cerniq.io or visit ',
             'Para preguntas sobre estos terminos, contactenos en erwin@cerniq.io o visite '
-          )}<a href="/contact" className="text-cyan-700 hover:underline">{t('our contact page', 'nuestra pagina de contacto')}</a>.</p>
+          )}<a href={PUBLIC_PATHS.contact} className="text-cyan-700 hover:underline">{t('our contact page', 'nuestra pagina de contacto')}</a>.</p>
         </div>
       </main>
     </div>

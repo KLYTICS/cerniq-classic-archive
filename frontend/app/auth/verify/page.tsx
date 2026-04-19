@@ -36,7 +36,7 @@ function VerifyInner() {
     })
       .then((res) => {
         if (res.redirected) {
-          // Server redirected to portal — follow it
+          // Server resolved the auth flow — follow the requested destination.
           window.location.href = res.url;
           return;
         }
@@ -44,7 +44,7 @@ function VerifyInner() {
           setStatus('error');
           return;
         }
-        // Fallback: if somehow we got a 200 JSON response, go to portal
+        // Fallback: if somehow we got a 200 JSON response, keep moving to the requested destination.
         router.push(returnUrl);
       })
       .catch(() => {

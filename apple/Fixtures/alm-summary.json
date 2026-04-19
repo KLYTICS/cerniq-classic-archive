@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "data": {
+    "institutionId": "inst_123",
+    "durationGap": 1.8,
+    "riskRating": "asset-sensitive",
+    "liquidityCoverageRatio": 115.5,
+    "netInterestMargin": 3.15
+  }
+}

@@ -56,4 +56,31 @@ describe('PlatformAccessService', () => {
       reason: 'master_ceo',
     });
   });
+
+  it('treats master-account aliases on other domains as the same owner account', () => {
+    const service = new PlatformAccessService({} as any);
+    const access = service.evaluateAccess(
+      'data.ai.kiess@cerniq.io',
+      { tier: 'free', status: null },
+      'VIEWER',
+    );
+
+    expect(access).toMatchObject({
+      platformAccessAllowed: true,
+      isMasterCeo: true,
+      reason: 'master_ceo',
+    });
+    expect(service.normalizeMasterAccountEmail('data.ai.kiess@cerniq.io')).toBe(
+      'data.ai.kiess@gmail.com',
+    );
+  });
+
+  it('canonicalizes the bare master identifier to the owner email', () => {
+    const service = new PlatformAccessService({} as any);
+
+    expect(service.normalizeMasterAccountEmail('data.ai.kiess')).toBe(
+      'data.ai.kiess@gmail.com',
+    );
+    expect(service.isMasterAccountEmail('data.ai.kiess')).toBe(true);
+  });
 });

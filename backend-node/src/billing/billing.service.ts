@@ -88,7 +88,7 @@ export class BillingService {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: sub.stripeCustomerId,
-      return_url: `${process.env.FRONTEND_URL}/portal/billing`,
+      return_url: `${process.env.FRONTEND_URL}/dashboard`,
     });
 
     return { portalUrl: session.url };

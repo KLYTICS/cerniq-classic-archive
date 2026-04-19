@@ -18,6 +18,8 @@ import { createCheckoutSession, type CheckoutTier } from "@/lib/billing";
 import { analytics, EVENTS } from "@/lib/analytics";
 import { PRICING, getCtaLabel } from "@/lib/pricing";
 import { CerniqMark, CerniqLockup } from "@/components/brand/CerniqLogo";
+import Footer from "@/components/layout/Footer";
+import { getAcquisitionCopy } from "@/lib/acquisition-copy";
 
 const DEMO_VIDEO_URL = (
   process.env.NEXT_PUBLIC_CERNIQ_DEMO_VIDEO_URL || ""
@@ -177,6 +179,7 @@ export default function LandingPage() {
   const hasVideo = Boolean(DEMO_VIDEO_URL);
 
   const t = (en: string, es: string) => (lang === "en" ? en : es);
+  const acquisition = getAcquisitionCopy(lang);
 
   useEffect(() => {
     localStorage.setItem("cerniq_lang", lang);
@@ -239,7 +242,7 @@ export default function LandingPage() {
       analytics.track(EVENTS.LEAD_FORM_SUBMITTED, {
         institutionType,
         totalAssets,
-        source: "landing_page",
+        source: "landing_page_pilot_intake",
       });
       setSubmitted(true);
     } catch (error: unknown) {
@@ -311,9 +314,9 @@ export default function LandingPage() {
             </div>
             <button
               onClick={() => router.push("/demo")}
-              className="hidden rounded-full border border-[rgba(216,192,139,0.8)] bg-[rgba(255,251,239,0.88)] px-4 py-2 text-sm font-semibold text-[var(--dashboard-text-secondary)] transition hover:bg-white sm:inline-flex"
+              className="hidden px-2 py-2 text-sm text-[var(--dashboard-text-secondary)] transition hover:text-[var(--dashboard-text-primary)] sm:inline-flex"
             >
-              {t("Try Demo", "Ver Demo")}
+              {acquisition.proofCta}
             </button>
             <button
               onClick={() =>
@@ -350,14 +353,10 @@ export default function LandingPage() {
               Sign In
             </button>
             <button
-              onClick={() =>
-                document
-                  .getElementById("demo")
-                  ?.scrollIntoView({ behavior: "smooth" })
-              }
+              onClick={() => router.push("/get-started")}
               className="cerniq-button-primary"
             >
-              {t("Request Demo", "Solicitar Demo")}
+              {acquisition.primaryCta}
             </button>
           </div>
         </nav>
@@ -388,14 +387,15 @@ export default function LandingPage() {
                   </div>
                   <h1 className="mt-8 max-w-4xl font-display text-[clamp(2.6rem,6vw,4.9rem)] leading-[0.94] tracking-[-0.04em] text-[var(--dashboard-text-primary)]">
                     {t(
-                      "From balance sheet to board-ready ALM decisions in one secure workspace.",
-                      "Del balance general a decisiones ALM listas para junta en un solo espacio seguro.",
+                      "From one balance sheet upload to your first board-ready bilingual ALM report.",
+                      "De una sola carga de balance a su primer informe ALM bilingue listo para junta.",
                     )}
                   </h1>
                   <p className="mt-6 max-w-2xl text-base leading-8 text-[var(--dashboard-text-secondary)] sm:text-lg">
+                    {acquisition.pilotPathDescription}{" "}
                     {t(
-                      "CERNIQ gives cooperativas, credit unions, and community banks a dashboard-first ALM workflow: upload the balance sheet, monitor the analysis, and deliver bilingual reporting without waiting weeks for a consultant handoff.",
-                      "CERNIQ ofrece a cooperativas, credit unions y bancos comunitarios un flujo ALM centrado en dashboard: cargue el balance, supervise el analisis y entregue informes bilingues sin esperar semanas por un handoff de consultoria.",
+                      "Start with a pilot, then move into recurring access when your team trusts the workflow.",
+                      "Comience con un piloto y pase a acceso recurrente cuando su equipo confie en el flujo.",
                     )}
                   </p>
 
@@ -412,20 +412,14 @@ export default function LandingPage() {
                       onClick={() => router.push("/get-started")}
                       className="inline-flex items-center justify-center gap-2 rounded-full bg-[#d39a2b] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(211,154,43,0.24)] transition hover:-translate-y-0.5 hover:bg-[#bb891f]"
                     >
-                      {t(
-                        "Open The Workspace",
-                        "Abrir el espacio de trabajo",
-                      )}
+                      {acquisition.primaryCta}
                       <ArrowRight className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => handleCheckout("one_time")}
-                      disabled={checkoutTier === "one_time"}
+                      onClick={() => router.push("/demo")}
                       className="cerniq-button-secondary disabled:opacity-60"
                     >
-                      {checkoutTier === "one_time"
-                        ? t("Processing...", "Procesando...")
-                        : t("Start — $750", "Comenzar — $750")}
+                      {acquisition.proofCta}
                     </button>
                   </div>
 
@@ -879,8 +873,8 @@ export default function LandingPage() {
                 </p>
                 <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
                   {t(
-                    "Start with a pilot report. Scale when ready.",
-                    "Comience con un informe piloto. Escale cuando este listo.",
+                    "Start with a pilot. Upgrade to recurring access when the workflow is trusted.",
+                    "Comience con un piloto. Active acceso recurrente cuando el flujo ya este validado.",
                   )}
                 </h2>
               </div>
@@ -929,7 +923,7 @@ export default function LandingPage() {
                   >
                     {checkoutTier === "one_time"
                       ? t("Processing...", "Procesando...")
-                      : t("Start — $750", "Comenzar — $750")}
+                      : getCtaLabel("one_time", lang)}
                   </button>
                 </div>
 
@@ -1146,23 +1140,17 @@ export default function LandingPage() {
 
           {/* -- DEMO FORM -- */}
           <section
-            id="demo"
+            id="pilot-intake"
             className="cerniq-panel cerniq-card-hover p-6 sm:p-8"
           >
             <p className="cerniq-section-label">
-              {t("Request Demo", "Solicitar demo")}
+              {acquisition.pilotFormSectionLabel}
             </p>
             <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
-              {t(
-                "Bring your institution into the workflow",
-                "Conecte su institucion al flujo de trabajo",
-              )}
+              {acquisition.pilotFormHeading}
             </h2>
             <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
-              {t(
-                "Tell us who you are and we'll schedule a focused walkthrough around the ALM upload, bilingual report output, and pilot path for your institution.",
-                "Diganos quien es y programaremos una demostracion enfocada en la carga ALM, el informe bilingue y el camino de piloto para su institucion.",
-              )}
+              {acquisition.pilotFormIntro}
             </p>
 
             <div className="mt-8">
@@ -1170,13 +1158,10 @@ export default function LandingPage() {
                 <div className="rounded-[1.5rem] border border-emerald-300 bg-emerald-50 p-6 text-emerald-800">
                   <CheckCircle2 className="h-9 w-9 text-emerald-500" />
                   <h3 className="mt-4 font-display text-2xl">
-                    {t("Request received", "Solicitud recibida")}
+                    {acquisition.pilotFormSuccessTitle}
                   </h3>
                   <p className="mt-3 text-sm leading-7 text-emerald-700">
-                    {t(
-                      "We'll follow up within 24 hours to schedule your CERNIQ ALM walkthrough.",
-                      "Le daremos seguimiento en 24 horas para programar su demostracion CERNIQ ALM.",
-                    )}
+                    {acquisition.pilotFormSuccessBody}
                   </p>
                 </div>
               ) : (
@@ -1311,10 +1296,7 @@ export default function LandingPage() {
                   >
                     {loading
                       ? t("Submitting...", "Enviando...")
-                      : t(
-                          "Request Free Analysis",
-                          "Solicitar analisis gratuito",
-                        )}
+                      : acquisition.pilotFormSubmit}
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </form>
@@ -1330,203 +1312,38 @@ export default function LandingPage() {
                 <p className="cerniq-section-label">CERNIQ</p>
                 <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
                   {t(
-                    "Compliance-ready ALM reports. Bilingual. In 24 hours.",
-                    "Informes ALM listos para cumplimiento. Bilingues. En 24 horas.",
+                    "Start your pilot with one balance sheet upload.",
+                    "Comience su piloto con una sola carga de balance.",
                   )}
                 </h2>
                 <p className="mt-5 max-w-2xl text-sm leading-8 text-slate-600 sm:text-base">
+                  {acquisition.pilotPathDescription}{" "}
                   {t(
-                    "CERNIQ is institutional ALM intelligence for credit unions, cooperativas, and community banks. One focused workflow, one clear deliverable, one product your institution understands immediately.",
-                    "CERNIQ es inteligencia ALM institucional para cooperativas, credit unions y bancos comunitarios. Un flujo enfocado, una entrega clara, un producto que su institucion entiende de inmediato.",
+                    "Use the demo as proof, then move into the pilot when you are ready for real data.",
+                    "Use el demo como prueba y luego pase al piloto cuando este listo para usar datos reales.",
                   )}
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={() =>
-                    document
-                      .getElementById("demo")
-                      ?.scrollIntoView({ behavior: "smooth" })
-                  }
+                  onClick={() => router.push("/get-started")}
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5"
                 >
-                  {t("Request Demo", "Solicitar Demo")}
+                  {acquisition.primaryCta}
                 </button>
                 <button
-                  onClick={() => handleCheckout("one_time")}
-                  disabled={checkoutTier === "one_time"}
+                  onClick={() => router.push("/demo")}
                   className="cerniq-button-secondary disabled:opacity-60"
                 >
-                  {checkoutTier === "one_time"
-                    ? t("Processing...", "Procesando...")
-                    : t("Start — $750", "Comenzar — $750")}
+                  {acquisition.proofCta}
                 </button>
               </div>
             </div>
           </section>
         </main>
 
-        {/* Footer */}
-        <footer className="border-t border-slate-200 bg-slate-50 py-8 px-6">
-          <div className="mx-auto max-w-6xl grid grid-cols-2 sm:grid-cols-4 gap-6 text-xs">
-            <div>
-              <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">
-                {t("Product", "Producto")}
-              </p>
-              <div className="space-y-2">
-                <a
-                  href="/demo"
-                  className="block text-slate-500 hover:text-slate-800"
-                >
-                  {t("Interactive Demo", "Demo Interactivo")}
-                </a>
-                <a
-                  href="/pricing"
-                  className="block text-slate-500 hover:text-slate-800"
-                >
-                  {t("Pricing", "Precios")}
-                </a>
-                <a
-                  href="/roi"
-                  className="block text-slate-500 hover:text-slate-800"
-                >
-                  {t("ROI Calculator", "Calculadora ROI")}
-                </a>
-                <a
-                  href="/developers"
-                  className="block text-slate-500 hover:text-slate-800"
-                >
-                  {t("API Docs", "Documentación API")}
-                </a>
-                <a
-                  href="/changelog"
-                  className="block text-slate-500 hover:text-slate-800"
-                >
-                  {t("What's New", "Novedades")}
-                </a>
-              </div>
-            </div>
-            <div>
-              <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">
-                {t("Platform", "Plataforma")}
-              </p>
-              <div className="space-y-2">
-                <a
-                  href="/why-cerniq"
-                  className="block text-slate-500 hover:text-slate-800"
-                >
-                  {t("Why CERNIQ", "Por qué CERNIQ")}
-                </a>
-                <a
-                  href="/compliance"
-                  className="block text-slate-500 hover:text-slate-800"
-                >
-                  {t("Compliance Matrix", "Matriz Cumplimiento")}
-                </a>
-                <a
-                  href="/case-studies"
-                  className="block text-slate-500 hover:text-slate-800"
-                >
-                  {t("Case Studies", "Casos de Estudio")}
-                </a>
-                <a
-                  href="/alm/modules"
-                  className="block text-slate-500 hover:text-slate-800"
-                >
-                  {t("62 ALM Modules", "62 Módulos ALM")}
-                </a>
-              </div>
-            </div>
-            <div>
-              <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">
-                {t("Compliance", "Cumplimiento")}
-              </p>
-              <div className="space-y-2">
-                <span className="block text-slate-500">COSSEC (PR)</span>
-                <span className="block text-slate-500">NCUA (US)</span>
-                <span className="block text-slate-500">Basel III / IRRBB</span>
-                <span className="block text-slate-500">FASB 326 (CECL)</span>
-              </div>
-            </div>
-            <div>
-              <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">
-                {t("Company", "Empresa")}
-              </p>
-              <div className="space-y-2">
-                <span className="block text-slate-500">KLYTICS LLC</span>
-                <span className="block text-slate-500">San Juan, PR</span>
-                <a
-                  href="/contact"
-                  className="block text-cyan-600 hover:text-cyan-800"
-                >
-                  {t("Book a Demo", "Agendar Demo")}
-                </a>
-                <a
-                  href="mailto:erwin@cerniq.io"
-                  className="block text-slate-500 hover:text-slate-800"
-                >
-                  erwin@cerniq.io
-                </a>
-                <a
-                  href="/status"
-                  className="block text-slate-500 hover:text-slate-800"
-                >
-                  {t("System Status", "Estado del Sistema")}
-                </a>
-              </div>
-            </div>
-          </div>
-          {/* Legal + Social */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200 pt-6">
-            <div className="flex flex-wrap items-center gap-4 text-[10px] text-slate-400">
-              <span>
-                &copy; {new Date().getFullYear()} KLYTICS LLC. CERNIQ&trade;
-              </span>
-              <a href="/terms" className="hover:text-slate-600">
-                {t("Terms of Service", "Terminos de Servicio")}
-              </a>
-              <a href="/privacy" className="hover:text-slate-600">
-                {t("Privacy Policy", "Politica de Privacidad")}
-              </a>
-              <a href="/security" className="hover:text-slate-600">
-                {t("Security", "Seguridad")}
-              </a>
-            </div>
-            <div className="flex items-center gap-3">
-              <a
-                href="https://linkedin.com/company/klytics"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-slate-400 hover:text-slate-600"
-                aria-label="LinkedIn"
-              >
-                <svg
-                  className="h-4 w-4"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                </svg>
-              </a>
-              <a
-                href="https://github.com/monykiss/cerniq"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-slate-400 hover:text-slate-600"
-                aria-label="GitHub"
-              >
-                <svg
-                  className="h-4 w-4"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-                </svg>
-              </a>
-            </div>
-          </div>
-        </footer>
+        <Footer t={t} />
       </div>
     </div>
   );

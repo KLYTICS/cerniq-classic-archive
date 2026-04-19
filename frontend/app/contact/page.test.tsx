@@ -42,7 +42,7 @@ describe('ContactPage', () => {
   it('renders the submit button', () => {
     render(<ContactPage />);
 
-    expect(screen.getByRole('button', { name: /request demo/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /contact sales/i })).toBeInTheDocument();
   });
 
   it('has a hidden honeypot field for spam prevention', () => {
@@ -59,7 +59,7 @@ describe('ContactPage', () => {
   it('renders the page heading', () => {
     render(<ContactPage />);
 
-    expect(screen.getByText(/Book a Personalized Demo/i)).toBeInTheDocument();
+    expect(screen.getByText(/Talk to Sales About Partner or Assisted Rollout/i)).toBeInTheDocument();
   });
 
   it('renders the direct contact info', () => {

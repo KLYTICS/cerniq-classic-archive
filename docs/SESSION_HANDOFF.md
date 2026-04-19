@@ -2,7 +2,29 @@
 
 > **Read this first.** This is the canonical pickup point for any Claude session continuing the FAANG-quality polish work on (1) institution seeding, (2) enterprise actions, (3) report accuracy. Update this file whenever you land work — the next session reads it before touching code.
 
-Last updated: 2026-04-15 (Agent Execution Layer scaffold + frontend UX + eval harness: 64+35 tests green)
+Last updated: 2026-04-18 (Apple enterprise scaffold validation lane active)
+
+## Apple Validation Lane — 2026-04-18
+
+- Active session nickname: `apple-validation`
+- Reserved paths:
+  - `apple/`
+  - `scripts/apple/`
+  - Apple verification wiring in `package.json`
+  - Apple CI wiring in `.github/workflows/ci.yml` and `.github/workflows/ci-cd.yml`
+- Current Apple architecture:
+  - Swift package in `apple/Package.swift` is the source of truth
+  - `apple/CerniqApple/` is the Xcode shell
+  - auth is cookie-backed first; institutions decode from paginated backend responses
+- Proven commands on this machine:
+  - `xcodebuild -list -workspace apple/CerniqApple/CerniqApple.xcodeproj/project.xcworkspace`
+  - `xcodebuild test -workspace apple/CerniqApple/CerniqApple.xcodeproj/project.xcworkspace -scheme "CERNIQ macOS" -destination "platform=macOS,arch=arm64" ONLY_ACTIVE_ARCH=YES ARCHS=arm64`
+  - `xcodebuild test -workspace apple/CerniqApple/CerniqApple.xcodeproj/project.xcworkspace -scheme "CERNIQ iOS" -destination "platform=iOS Simulator,id=10A0FFF0-C75E-4450-A808-E7CACBCAC77A" ONLY_ACTIVE_ARCH=YES`
+  - `npm run verify:apple`
+- Remaining Apple blockers:
+  - archive/export still depends on `APPLE_DEVELOPMENT_TEAM` and final signing/export credentials
+
+---
 
 ---
 
@@ -233,6 +255,7 @@ Greening sequence for this branch:
 ---
 
 ## 5. Recent landings
+- 2026-04-19 — **Apple workspace + public webapp safety pass landed together for release prep.** Added the `apple/` Swift package + Xcode shell, verification/archive scripts, and CI wiring so iOS/macOS builds can be validated on this machine with `npm run verify:apple`. On the webapp/public-entry side, the marketing, pricing, contact, login, callback, footer, and portal login flows were tightened with broader vitest/playwright coverage, including a new production-critical expectation that `/portal/login` resolve into `/login?returnUrl=/dashboard&mode=magic-link`. Backend auth/platform-access and billing logic were updated in the same landing to support the public flow hardening, and the repo gained the Apple readiness handoff plus broader strategy/bible documentation. **Verification:** `npm run verify:frontend`, `npm run verify:backend`, `npm run verify:apple`, plus `npm run smoke:production` reproduced the current live-only `/portal/login -> returnUrl=/portal` mismatch that this branch is intended to fix on deploy. — `apple/**`, `scripts/apple/**`, `.github/workflows/{ci,ci-cd}.yml`, `frontend/app/{login,portal/login,page.tsx}`, `frontend/e2e/{production-critical,public-footer-links}.spec.ts`, `backend-node/src/{auth,billing}/**`
 - 2026-04-17 — **Agent runtime hardening V: in-flight LLM calls now honor the run deadline (D16).** Closes the sibling gap left by D9. The run-scoped `AbortController` from D9 cancelled in-flight TOOL invocations but not in-flight LLM turns: the runner awaited `this.llm.turn(...)` which awaited `this.client.messages.create(...)` with no signal. A stuck provider call would survive the deadline up to the Anthropic SDK's default 10-minute timeout, blowing through `AGENT_RUN_TIMEOUT_MS`. **Fix:** `LLMTurnRequest` gains an optional `signal?: AbortSignal`; `LlmBridgeService.turn` forwards it as the second-arg `{ signal }` option to `client.messages.create`; runner passes `runAbort.signal`. 1 new spec proves a hanging LLM turn (no tool calls even emitted) surfaces `TIMED_OUT`/`RUN_TIMEOUT` via `runs.timedOut()` rather than `EXECUTION_FAILED` via `runs.fail()`, and asserts the bridge receives a real `AbortSignal` instance. **Verification:** 10/10 suites, 126/126 tests green across `src/{agents,config}`. `tsc --noEmit` zero new errors. `npm run build` green; compiled bridge forwards the `signal` option. — `backend-node/src/agents/runner/llm-bridge.service.ts:25-62,84-108`, `backend-node/src/agents/runner/agent-runner.service.ts:131-141`, `backend-node/src/agents/runner/agent-runner.deadline.spec.ts:145-201`
 
 - 2026-04-17 — **Platform green end-to-end: D14 timezone-boundary fix + cross-agent-regression auto-skip.** Full-suite run revealed two issues preventing a clean baseline. **(D14) `LeadsService.nextBusinessDay9am` timezone-boundary bug** — the method mixed `setDate()`/`getDay()` (local) with `setUTCHours(13, 0, 0, 0)` (UTC) on the same `Date` object. The weekend guard ran before the UTC-hour write, so on any server where 21:00+ local would cross into the next UTC day (e.g. PDT after 17:00, AST after 20:00), the UTC-hour write could push a "Friday" computation into local Saturday morning, bypassing the weekend skip. Symptom: Friday leads silently scheduled follow-ups for Saturday. Fix: do the entire calculation in UTC — `Date.UTC(y, m, d+1, 13, 0, 0, 0)` then `while (getUTCDay() in [0,6]) setUTCDate(+1)`. 5 new deterministic specs freeze clock time at each weekday boundary (Thu→Fri, Fri→Mon, Sat→Mon, Sun→Mon, late-Thu-evening→Fri) with `jest.setSystemTime` so the assertions are timezone-agnostic. Pre-existing `getDay()` weekend assertion rewritten to `getUTCDay()` to match the service's UTC logic. **(D15) Cross-agent-regression spec self-skips when fixtures absent** — `src/agent-eval/cross-agent-regression.spec.ts` statically imports from `../../test/agent-golden`, a fixture tree that lives on a peer branch and has not merged. The static import failed at parse time, which (a) failed the entire suite, (b) cascaded 15 implicit-any TS errors on callbacks inside the describe body. Converted to a lazy `require` guarded by try/catch + `describeWithFixtures = goldens ? describe : describe.skip`. When the fixtures land, the spec auto-un-skips with zero code change. TS errors resolved by typing the destructured goldens as `Record<string, any>` inside the describe body. **Verification:** full backend jest: **519 passed + 1 skipped suite, 6665 passed + 12 skipped tests, 0 failures.** Frontend vitest: **81 files, 602 tests, 0 failures.** Both `tsc --noEmit` clean (backend 0 errors, frontend 0 errors). End-to-end green state achieved. — `backend-node/src/leads/leads.service.ts:108-135`, `backend-node/src/leads/leads.service.spec.ts:170-266`, `backend-node/src/agent-eval/cross-agent-regression.spec.ts:1-26,101-118`

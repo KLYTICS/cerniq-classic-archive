@@ -44,16 +44,13 @@ describe('PricingPage', () => {
   it('renders CTA buttons for checkout tiers and contact link for partner', () => {
     render(<PricingPage />);
 
-    // Setup tier — "Start — $750"
-    const startButtons = screen.getAllByRole('button', { name: /Start/i });
+    const startButtons = screen.getAllByRole('button', { name: /Start Pilot/i });
     expect(startButtons.length).toBeGreaterThanOrEqual(1);
 
-    // Pilot tier — Subscribe CTA
-    const subscribeButtons = screen.getAllByRole('button', { name: /Subscribe/i });
-    expect(subscribeButtons.length).toBeGreaterThanOrEqual(1);
+    const upgradeButtons = screen.getAllByRole('button', { name: /Upgrade to Recurring Access/i });
+    expect(upgradeButtons.length).toBeGreaterThanOrEqual(2);
 
-    // Partner tier has a Contact Sales link
-    expect(screen.getByRole('link', { name: /Contact Sales/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /Contact Sales/i }).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the pricing tiers section with proper aria-label', () => {
@@ -65,5 +62,15 @@ describe('PricingPage', () => {
     render(<PricingPage />);
     expect(screen.getByText('FAQ')).toBeInTheDocument();
     expect(screen.getByText(/Why start with a pilot/i)).toBeInTheDocument();
+  });
+
+  it('keeps the page framed around the pilot-first path', () => {
+    render(<PricingPage />);
+
+    expect(
+      screen.getByText(/Start with a pilot\. Upgrade to recurring access when the workflow is trusted\./i),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/View Interactive Demo/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/Request Demo/i)).not.toBeInTheDocument();
   });
 });

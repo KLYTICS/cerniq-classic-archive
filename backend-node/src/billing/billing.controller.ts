@@ -219,7 +219,7 @@ export class BillingController {
   })
   @ApiResponse({
     status: 302,
-    description: 'Redirects to portal on success or auth/expired on failure',
+    description: 'Redirects to dashboard on success or auth/expired on failure',
   })
   async verifyMagicLink(
     @Query('token') token: string,
@@ -260,7 +260,7 @@ export class BillingController {
   ) {
     const frontendUrl = resolveFrontendUrl();
     if (!token) {
-      return res.redirect(`${frontendUrl}/auth/expired?returnUrl=%2Fportal`);
+      return res.redirect(`${frontendUrl}/auth/expired?returnUrl=%2Fdashboard`);
     }
 
     const user = await this.billing.verifyMagicLink(token);
@@ -273,7 +273,7 @@ export class BillingController {
         ipAddress: req.ip,
         userAgent: req.headers?.['user-agent'],
       });
-      return res.redirect(`${frontendUrl}/auth/expired?returnUrl=%2Fportal`);
+      return res.redirect(`${frontendUrl}/auth/expired?returnUrl=%2Fdashboard`);
     }
 
     const tokens = await this.authService.generateTokens(user);
@@ -289,7 +289,7 @@ export class BillingController {
     });
 
     return res.redirect(
-      buildFrontendAuthCallbackRedirect('/portal', '/portal'),
+      buildFrontendAuthCallbackRedirect('/dashboard', '/dashboard'),
     );
   }
 

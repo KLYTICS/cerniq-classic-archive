@@ -7,6 +7,8 @@ import {
   Brain, Layers, Globe, ChevronRight, TrendingUp, Cpu,
 } from 'lucide-react';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
+import { getAcquisitionCopy } from '@/lib/acquisition-copy';
+import { PUBLIC_PATHS } from '@/lib/public-links';
 
 export default function WhyCerniqPage() {
   const [lang, setLang] = useState<'en' | 'es'>(() => {
@@ -14,6 +16,7 @@ export default function WhyCerniqPage() {
     return 'en';
   });
   const t = (en: string, es: string) => lang === 'en' ? en : es;
+  const acquisition = getAcquisitionCopy(lang);
 
   return (
     <div className="min-h-screen bg-white">
@@ -27,8 +30,8 @@ export default function WhyCerniqPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/demo" className="hidden sm:inline-flex rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 transition">
-            {t('Try Demo', 'Ver Demo')}
+          <Link href={PUBLIC_PATHS.demo} className="hidden sm:inline-flex rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 transition">
+            {acquisition.proofCta}
           </Link>
           <div className="flex items-center rounded-full border border-slate-200 text-xs">
             <button onClick={() => setLang('en')} className={`rounded-l-full px-2.5 py-1.5 font-semibold transition ${lang === 'en' ? 'bg-cyan-700 text-white' : 'text-slate-500'}`} aria-label="Switch to English" aria-pressed={lang === 'en'}>EN</button>
@@ -151,14 +154,17 @@ export default function WhyCerniqPage() {
 
         {/* CTAs */}
         <section className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link href="/demo" className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-8 py-4 text-sm font-semibold text-white shadow-lg hover:bg-amber-600 transition">
-            {t('Try the Interactive Demo', 'Probar Demo Interactivo')} <ArrowRight className="h-4 w-4" />
+          <Link href={PUBLIC_PATHS.getStarted} className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-8 py-4 text-sm font-semibold text-white shadow-lg hover:bg-amber-600 transition">
+            {acquisition.primaryCta} <ArrowRight className="h-4 w-4" />
           </Link>
-          <Link href="/pricing" className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-8 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+          <Link href={PUBLIC_PATHS.demo} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-8 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+            {acquisition.proofCta} <ChevronRight className="h-4 w-4" />
+          </Link>
+          <Link href={PUBLIC_PATHS.pricing} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-8 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
             {t('View Pricing', 'Ver Precios')} <ChevronRight className="h-4 w-4" />
           </Link>
-          <Link href="/compliance" className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-8 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
-            {t('Compliance Matrix', 'Matriz Cumplimiento')} <Shield className="h-4 w-4" />
+          <Link href={PUBLIC_PATHS.contact} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-8 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+            {acquisition.salesCta} <Shield className="h-4 w-4" />
           </Link>
         </section>
       </main>

@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "inst_123",
+        "name": "CoopAhorro San Juan",
+        "type": "cooperativa",
+        "totalAssets": 250000000,
+        "reportingDate": "Q1-2026"
+      },
+      {
+        "id": "inst_456",
+        "name": "CoopAhorro Ponce",
+        "type": "cooperativa",
+        "totalAssets": 180000000,
+        "reportingDate": "Q1-2026"
+      }
+    ],
+    "total": 2,
+    "page": 1,
+    "pageSize": 25,
+    "totalPages": 1
+  }
+}

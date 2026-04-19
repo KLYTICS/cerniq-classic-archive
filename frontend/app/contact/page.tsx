@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Send, CheckCircle2, Calendar, Mail, Building2 } from 'lucide-react';
 import { analytics, EVENTS } from '@/lib/analytics';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
+import { getAcquisitionCopy } from '@/lib/acquisition-copy';
 
 export default function ContactPage() {
   const [lang, setLang] = useState<'en' | 'es'>(() => {
@@ -17,6 +18,7 @@ export default function ContactPage() {
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const t = (en: string, es: string) => lang === 'en' ? en : es;
+  const acquisition = getAcquisitionCopy(lang);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,13 +36,13 @@ export default function ContactPage() {
           institutionName: form.institution,
           totalAssets: form.assets,
           message: form.message,
-          source: 'contact_page',
+          source: 'contact_sales_page',
         }),
       });
       if (!response.ok) {
         throw new Error('submit_failed');
       }
-      analytics.track(EVENTS.LEAD_FORM_SUBMITTED, { source: 'contact_page', institution: form.institution, assets: form.assets });
+      analytics.track(EVENTS.LEAD_FORM_SUBMITTED, { source: 'contact_sales_page', institution: form.institution, assets: form.assets });
       setSubmitted(true);
     } catch {
       setSubmitError(
@@ -61,7 +63,7 @@ export default function ContactPage() {
           <CerniqMark size="sm" />
           <div>
             <div className="font-display text-sm uppercase tracking-[0.4em] text-slate-950">CERNIQ</div>
-            <div className="text-[10px] uppercase tracking-[0.36em] text-cyan-700/60">{t('Book a Demo', 'Agendar Demo')}</div>
+            <div className="text-[10px] uppercase tracking-[0.36em] text-cyan-700/60">{acquisition.contactKicker}</div>
           </div>
         </div>
         <div className="flex items-center rounded-full border border-slate-200 text-xs">
@@ -75,18 +77,15 @@ export default function ContactPage() {
           {/* Left: Info */}
           <div className="space-y-8">
             <div>
-              <h1 className="text-3xl font-bold text-slate-950">{t('Book a Personalized Demo', 'Agende un Demo Personalizado')}</h1>
-              <p className="mt-3 text-slate-600 leading-relaxed">{t(
-                "We'll pre-load your institution's profile so you can see real outputs — not generic slides. 20 minutes, no commitment.",
-                'Pre-cargaremos el perfil de su institución para que vea resultados reales — no diapositivas genéricas. 20 minutos, sin compromiso.'
-              )}</p>
+              <h1 className="text-3xl font-bold text-slate-950">{acquisition.contactHeading}</h1>
+              <p className="mt-3 text-slate-600 leading-relaxed">{acquisition.contactBody}</p>
             </div>
 
             <div className="space-y-4">
               {[
-                { icon: Calendar, title: t('20-Minute Walkthrough', 'Recorrido de 20 Minutos'), desc: t('See your institution\'s data in CERNIQ — duration gap, NII sensitivity, CAMEL score, and stress tests with your real numbers.', 'Vea los datos de su institución en CERNIQ — brecha de duración, sensibilidad NII, puntaje CAMEL y pruebas de estrés con sus números reales.') },
-                { icon: Building2, title: t('Pre-Loaded Profile', 'Perfil Pre-Cargado'), desc: t('We pull your 5300 Call Report or COSSEC data automatically. No manual upload needed for the demo.', 'Extraemos automáticamente su Call Report 5300 o datos COSSEC. No necesita cargar datos manualmente para el demo.') },
-                { icon: Mail, title: t('Sample Report Included', 'Informe de Muestra Incluido'), desc: t('After the call, receive a watermarked sample ALM report for your institution — free, no strings attached.', 'Después de la llamada, reciba un informe ALM de muestra con marca de agua para su institución — gratis, sin compromisos.') },
+                { icon: Building2, title: t('Partner & Multi-Institution Fit', 'Partner y multi-institucion'), desc: t('Use this route if you manage multiple institutions, need white-label support, or want to discuss the partner workflow.', 'Use esta ruta si gestiona multiples instituciones, necesita soporte white-label o quiere discutir el flujo para partners.') },
+                { icon: Calendar, title: t('Assisted Rollout Planning', 'Plan de implementacion asistida'), desc: t('We can map onboarding, data readiness, and the right upgrade path after the pilot for your institution.', 'Podemos definir onboarding, readiness de datos y la ruta correcta de upgrade despues del piloto para su institucion.') },
+                { icon: Mail, title: t('Security & Procurement Review', 'Revision de seguridad y compras'), desc: t('Bring security questionnaires, procurement constraints, or board approval needs into a direct sales conversation.', 'Traiga cuestionarios de seguridad, restricciones de compras o aprobaciones de junta a una conversacion comercial directa.') },
               ].map((item, i) => (
                 <div key={i} className="flex gap-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50">
@@ -101,7 +100,7 @@ export default function ContactPage() {
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">{t('Direct Contact', 'Contacto Directo')}</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">{t('Sales Contact', 'Contacto Comercial')}</p>
               <p className="text-sm text-slate-700">Erwin Kiess-Alfonso</p>
               <p className="text-sm text-slate-500">Founder, KLYTICS LLC</p>
               <a href="mailto:erwin@cerniq.io" className="text-sm text-cyan-600 hover:text-cyan-800 mt-1 block">erwin@cerniq.io</a>
@@ -113,14 +112,11 @@ export default function ContactPage() {
             {submitted ? (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-10 text-center">
                 <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-slate-950">{t('Request Received', 'Solicitud Recibida')}</h2>
-                <p className="mt-2 text-sm text-slate-600">{t(
-                  "We'll get back to you within 24 hours with a pre-loaded demo link for your institution.",
-                  'Le responderemos dentro de 24 horas con un enlace de demo pre-cargado para su institución.'
-                )}</p>
+                <h2 className="text-xl font-bold text-slate-950">{acquisition.contactSuccessTitle}</h2>
+                <p className="mt-2 text-sm text-slate-600">{acquisition.contactSuccessBody}</p>
                 <div className="mt-6 flex justify-center gap-3">
-                  <Link href="/demo" className="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-700 transition">
-                    {t('Try Interactive Demo Now', 'Probar Demo Interactivo Ahora')}
+                  <Link href="/get-started" className="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-700 transition">
+                    {acquisition.primaryCta}
                   </Link>
                 </div>
               </div>
@@ -168,12 +164,12 @@ export default function ContactPage() {
                 </div>
                 <button type="submit" disabled={loading}
                   className="w-full rounded-xl bg-amber-500 py-3.5 text-sm font-semibold text-white hover:bg-amber-600 transition disabled:opacity-50 flex items-center justify-center gap-2">
-                  {loading ? t('Sending...', 'Enviando...') : <><Send className="h-4 w-4" /> {t('Request Demo', 'Solicitar Demo')}</>}
+                  {loading ? t('Sending...', 'Enviando...') : <><Send className="h-4 w-4" /> {acquisition.contactSubmit}</>}
                 </button>
                 {submitError && (
                   <p className="text-xs text-red-600 text-center">{submitError}</p>
                 )}
-                <p className="text-[10px] text-slate-400 text-center">{t('No credit card required. We respond within 24 hours.', 'Sin tarjeta de crédito. Respondemos en 24 horas.')}</p>
+                <p className="text-[10px] text-slate-400 text-center">{t('Pilot evaluation belongs in /get-started. We respond within 24 hours.', 'La evaluacion del piloto vive en /get-started. Respondemos en 24 horas.')}</p>
               </form>
             )}
           </div>

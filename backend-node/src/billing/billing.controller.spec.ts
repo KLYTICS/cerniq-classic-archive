@@ -538,7 +538,7 @@ describe('BillingController', () => {
       });
       expect(res.cookie).toHaveBeenCalledTimes(2);
       expect(res.redirect).toHaveBeenCalledWith(
-        'https://cerniq.io/auth/callback?returnUrl=%2Fportal',
+        'https://cerniq.io/auth/callback?returnUrl=%2Fdashboard',
       );
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({ outcome: 'success' }),

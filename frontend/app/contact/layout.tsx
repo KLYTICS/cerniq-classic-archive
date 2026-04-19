@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Book a Demo — CERNIQ ALM Intelligence',
-  description: 'Schedule a 20-minute walkthrough of CERNIQ with live demo data. See how bilingual ALM reporting works for your institution.',
+  title: 'Contact Sales — CERNIQ ALM Intelligence',
+  description: 'Talk to CERNIQ about partner pricing, assisted rollout, or security review for bilingual ALM reporting.',
   alternates: { canonical: '/contact' },
   openGraph: {
-    title: 'Book a Demo — CERNIQ',
-    description: '20-minute ALM platform walkthrough with live demo data. See rate risk, CECL, stress testing, and regulatory compliance in action.',
+    title: 'Contact Sales — CERNIQ',
+    description: 'Partner, enterprise, and assisted rollout conversations for CERNIQ bilingual ALM reporting.',
     url: 'https://cerniq.io/contact',
   },
 };

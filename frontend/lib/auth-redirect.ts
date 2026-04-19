@@ -13,11 +13,14 @@ export function sanitizePostAuthReturnUrl(
   return trimmed;
 }
 
-export function isPortalReturnUrl(value: string | null | undefined): boolean {
+export function isWorkspaceReturnUrl(value: string | null | undefined): boolean {
   const safeReturnUrl = sanitizePostAuthReturnUrl(value, '');
 
   return (
-    safeReturnUrl === '/portal' || safeReturnUrl.startsWith('/portal/')
+    safeReturnUrl === '/dashboard' ||
+    safeReturnUrl.startsWith('/dashboard/') ||
+    safeReturnUrl === '/portal' ||
+    safeReturnUrl.startsWith('/portal/')
   );
 }
 
@@ -33,7 +36,7 @@ export function buildLoginUrlForReturnUrl(
     returnUrl: safeReturnUrl,
   });
 
-  if (options?.forceMagicLink || isPortalReturnUrl(safeReturnUrl)) {
+  if (options?.forceMagicLink || isWorkspaceReturnUrl(safeReturnUrl)) {
     params.set('mode', 'magic-link');
   }
 
@@ -54,3 +57,4 @@ export function buildAuthCallbackUrl(
 }
 
 export { DEFAULT_POST_AUTH_RETURN_URL };
+export { isWorkspaceReturnUrl as isPortalReturnUrl };

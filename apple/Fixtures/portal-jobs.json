@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": "job-complete",
+      "institutionId": "inst_123",
+      "institutionName": "CoopAhorro San Juan",
+      "status": "COMPLETE",
+      "analysisPeriod": "Q1-2026",
+      "submittedAt": "2026-04-18T09:00:00Z",
+      "processingStartedAt": "2026-04-18T09:01:00Z",
+      "completedAt": "2026-04-18T09:04:00Z",
+      "createdAt": "2026-04-18T09:00:00Z",
+      "reportUrl": "https://downloads.cerniq.io/job-complete/alm-report-es.pdf",
+      "reportUrlEn": "https://downloads.cerniq.io/job-complete/alm-report-en.pdf",
+      "reportLang": "es",
+      "userId": "user_123",
+      "triggeredBy": "manual",
+      "exportSummary": {
+        "manifestPath": "/api/portal/jobs/job-complete/exports",
+        "status": "ready",
+        "readyCount": 4,
+        "totalCount": 4,
+        "readyReportLanguages": ["es", "en"],
+        "missingReportLanguages": [],
+        "readyBoardPackLanguages": ["es", "en"],
+        "missingBoardPackLanguages": []
+      }
+    }
+  ]
+}

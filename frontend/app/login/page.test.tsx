@@ -15,7 +15,11 @@ const {
   mockLogin,
   mockRegister,
   mockGetCurrentUser,
+  mockGetMyWorkspaces,
+  mockCreateMyWorkspace,
+  mockSeedDemoInstitution,
   mockSetAccess,
+  mockSetOnboardingComplete,
   mockSetSession,
   mockSearchParams,
 } = vi.hoisted(() => ({
@@ -24,7 +28,11 @@ const {
   mockLogin: vi.fn(),
   mockRegister: vi.fn(),
   mockGetCurrentUser: vi.fn(),
+  mockGetMyWorkspaces: vi.fn(),
+  mockCreateMyWorkspace: vi.fn(),
+  mockSeedDemoInstitution: vi.fn(),
   mockSetAccess: vi.fn(),
+  mockSetOnboardingComplete: vi.fn(),
   mockSetSession: vi.fn(),
   mockSearchParams: new URLSearchParams(),
 }));
@@ -49,6 +57,9 @@ vi.mock("@/lib/api", () => ({
     login: mockLogin,
     register: mockRegister,
     getCurrentUser: mockGetCurrentUser,
+    getMyWorkspaces: mockGetMyWorkspaces,
+    createMyWorkspace: mockCreateMyWorkspace,
+    seedDemoInstitution: mockSeedDemoInstitution,
   },
 }));
 
@@ -77,6 +88,7 @@ vi.mock("@/lib/store", () => ({
     isAuthenticated: false,
     user: null,
     setAccess: mockSetAccess,
+    setOnboardingComplete: mockSetOnboardingComplete,
     setSession: mockSetSession,
   }),
 }));
@@ -123,7 +135,11 @@ describe("LoginPage", () => {
     mockLogin.mockReset();
     mockRegister.mockReset();
     mockGetCurrentUser.mockReset();
+    mockGetMyWorkspaces.mockReset();
+    mockCreateMyWorkspace.mockReset();
+    mockSeedDemoInstitution.mockReset();
     mockSetAccess.mockReset();
+    mockSetOnboardingComplete.mockReset();
     mockSetSession.mockReset();
     mockSearchParams.forEach((_, key) => {
       mockSearchParams.delete(key);
@@ -170,6 +186,66 @@ describe("LoginPage", () => {
     expect(
       screen.getByRole("button", { name: /email secure sign-in link/i }),
     ).toBeInTheDocument();
+  });
+
+  it("launches a local demo workspace on localhost", async () => {
+    mockLogin.mockRejectedValue({
+      response: { status: 401, data: { error: "Invalid credentials" } },
+    });
+    mockRegister.mockResolvedValue({
+      user: { id: "demo-user", email: "local-demo@cerniq.local", name: "Local Demo" },
+    });
+    mockGetCurrentUser.mockResolvedValue({
+      id: "demo-user",
+      email: "local-demo@cerniq.local",
+      access: {
+        platformAccessAllowed: true,
+        isMasterCeo: false,
+        isPaid: false,
+        isDemo: true,
+        effectiveTier: "demo",
+        effectiveStatus: "active",
+        effectivePeriodEnd: null,
+        daysRemaining: 14,
+        reason: "demo_active",
+      },
+    });
+    mockGetMyWorkspaces.mockResolvedValue([]);
+    mockCreateMyWorkspace.mockResolvedValue({ id: "ws-demo" });
+    mockSeedDemoInstitution.mockResolvedValue({ institutionId: "inst-demo" });
+
+    render(<LoginPage />);
+
+    await act(async () => {
+      fireEvent.click(
+        await screen.findByRole("button", { name: /launch local demo/i }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(mockRegister).toHaveBeenCalled();
+      expect(mockCreateMyWorkspace).toHaveBeenCalledWith("Local Demo Workspace");
+      expect(mockSeedDemoInstitution).toHaveBeenCalledWith(
+        "ws-demo",
+        "cooperativa",
+      );
+      expect(mockSetSession).toHaveBeenCalledWith(
+        {
+          id: "demo-user",
+          email: "local-demo@cerniq.local",
+          name: "Local Demo",
+        },
+        null,
+      );
+      expect(mockSetAccess).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          isDemo: true,
+          reason: "demo_active",
+        }),
+      );
+      expect(mockSetOnboardingComplete).toHaveBeenCalledWith(true);
+      expect(mockPush).toHaveBeenCalledWith("/dashboard");
+    });
   });
 
   it("renders toggle between login and signup modes", () => {
@@ -293,8 +369,8 @@ describe("LoginPage", () => {
     });
   });
 
-  it("preserves a portal returnUrl after successful sign in", async () => {
-    mockSearchParams.set("returnUrl", "/portal");
+  it("preserves a dashboard returnUrl after successful sign in", async () => {
+    mockSearchParams.set("returnUrl", "/dashboard");
     mockLogin.mockResolvedValue({
       user: { id: "user-portal", email: "portal@cerniq.io" },
     });
@@ -325,7 +401,7 @@ describe("LoginPage", () => {
     });
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/portal");
+      expect(mockPush).toHaveBeenCalledWith("/dashboard");
     });
   });
 });

@@ -13,7 +13,7 @@ export default async function PortalLoginPage({
       : undefined;
 
   redirect(
-    buildLoginUrlForReturnUrl('/portal', {
+    buildLoginUrlForReturnUrl('/dashboard', {
       billingSuccess: billing === 'success',
       forceMagicLink: true,
     }),

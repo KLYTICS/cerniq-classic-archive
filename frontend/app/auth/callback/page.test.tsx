@@ -49,20 +49,20 @@ describe('AuthCallbackPage', () => {
     mockState.hydrateFromStorage = vi.fn(async () => undefined);
   });
 
-  it('routes authenticated portal users to their requested portal destination', async () => {
-    mockSearchParams.set('returnUrl', '/portal/reports/job-1');
+  it('routes authenticated workspace users to their requested dashboard destination', async () => {
+    mockSearchParams.set('returnUrl', '/dashboard/report/job-1');
     mockState.isAuthenticated = true;
     mockState.user = { id: 'user-1', email: 'qa@cerniq.io' };
 
     render(<AuthCallbackPage />);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/portal/reports/job-1');
+      expect(mockReplace).toHaveBeenCalledWith('/dashboard/report/job-1');
     });
   });
 
-  it('hydrates and then routes portal users once the cookie-backed session settles', async () => {
-    mockSearchParams.set('returnUrl', '/portal');
+  it('hydrates and then routes dashboard users once the cookie-backed session settles', async () => {
+    mockSearchParams.set('returnUrl', '/dashboard');
     mockState.hydrateFromStorage = vi.fn(async () => {
       mockState.isAuthenticated = true;
       mockState.user = { id: 'user-2', email: 'portal@cerniq.io' };
@@ -71,7 +71,7 @@ describe('AuthCallbackPage', () => {
     render(<AuthCallbackPage />);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/portal');
+      expect(mockReplace).toHaveBeenCalledWith('/dashboard');
     });
   });
 
@@ -81,7 +81,9 @@ describe('AuthCallbackPage', () => {
     render(<AuthCallbackPage />);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/login?returnUrl=%2Fdashboard');
+      expect(mockReplace).toHaveBeenCalledWith(
+        '/login?returnUrl=%2Fdashboard&mode=magic-link',
+      );
     });
   });
 });

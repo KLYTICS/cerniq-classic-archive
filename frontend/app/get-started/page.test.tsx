@@ -93,6 +93,10 @@ describe("GetStartedPage", () => {
     submitDemoRequestMock.mockResolvedValue({ ok: true });
     render(<GetStartedPage />);
 
+    expect(
+      screen.getByText(/Start Your Pilot with Your Balance Sheet/i),
+    ).toBeInTheDocument();
+
     fireEvent.change(screen.getByPlaceholderText("Your name"), {
       target: { value: "Maria" },
     });
@@ -105,7 +109,9 @@ describe("GetStartedPage", () => {
     fireEvent.change(screen.getByRole("combobox"), {
       target: { value: "cooperativa" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continue to Pilot" }),
+    );
 
     await waitFor(() => {
       expect(submitDemoRequestMock).toHaveBeenCalled();
@@ -114,7 +120,7 @@ describe("GetStartedPage", () => {
       await screen.findByRole("link", { name: /Preview sample output/i }),
     ).toHaveAttribute("href", "/preview/cooperativa-oriental");
     expect(
-      screen.getByRole("button", { name: /Unlock secure upload — \$750/i }),
+      screen.getByRole("button", { name: /Start Pilot — \$750/i }),
     ).toBeInTheDocument();
   });
 

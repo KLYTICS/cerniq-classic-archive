@@ -7,13 +7,13 @@ vi.mock('next/navigation', () => ({
 }));
 
 describe('PortalLoginPage', () => {
-  it('redirects the legacy portal login route to the portal-intent login screen', async () => {
+  it('redirects the legacy portal login route to the dashboard-intent login screen', async () => {
     const { default: PortalLoginPage } = await import('./page');
 
     await PortalLoginPage({});
 
     expect(redirectMock).toHaveBeenCalledWith(
-      '/login?returnUrl=%2Fportal&mode=magic-link',
+      '/login?returnUrl=%2Fdashboard&mode=magic-link',
     );
   });
 
@@ -25,7 +25,7 @@ describe('PortalLoginPage', () => {
     });
 
     expect(redirectMock).toHaveBeenCalledWith(
-      '/login?returnUrl=%2Fportal&mode=magic-link&billing=success',
+      '/login?returnUrl=%2Fdashboard&mode=magic-link&billing=success',
     );
   });
 });

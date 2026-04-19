@@ -300,7 +300,7 @@ describe('BillingService', () => {
       expect(result.portalUrl).toBe('https://billing.stripe.com/session/xyz');
       expect(stripeMock.billingPortal.sessions.create).toHaveBeenCalledWith({
         customer: 'cus_123',
-        return_url: 'https://cerniq.io/portal/billing',
+        return_url: 'https://cerniq.io/dashboard',
       });
     });
   });

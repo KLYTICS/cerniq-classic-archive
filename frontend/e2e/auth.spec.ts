@@ -65,6 +65,135 @@ test.describe('Authentication', () => {
     await expect(esButton).toBeVisible();
   });
 
+  test('should launch the local demo flow into an authenticated dashboard shell', async ({
+    page,
+  }) => {
+    let loginAttempts = 0;
+
+    await page.route('**/api/auth/login', async (route) => {
+      loginAttempts += 1;
+
+      if (loginAttempts === 1) {
+        await route.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            error: 'Invalid credentials',
+          }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user: {
+            id: 'demo-user',
+            email: 'local-demo@cerniq.local',
+            name: 'Local Demo',
+          },
+        }),
+      });
+    });
+
+    await page.route('**/api/auth/register', async (route) => {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user: {
+            id: 'demo-user',
+            email: 'local-demo@cerniq.local',
+            name: 'Local Demo',
+          },
+        }),
+      });
+    });
+
+    await page.route('**/api/auth/profile', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'demo-user',
+          email: 'local-demo@cerniq.local',
+          name: 'Local Demo',
+          access: {
+            platformAccessAllowed: true,
+            isMasterCeo: false,
+            isPaid: false,
+            isDemo: true,
+            effectiveTier: 'demo',
+            effectiveStatus: 'active',
+            effectivePeriodEnd: null,
+            daysRemaining: 14,
+            reason: 'demo_active',
+          },
+        }),
+      });
+    });
+
+    await page.route('**/api/workspaces', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([]),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'ws-demo',
+          name: 'Local Demo Workspace',
+        }),
+      });
+    });
+
+    await page.route('**/api/alm/institutions/seed', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          institutionId: 'inst-demo',
+          seedKey: 'pr-cooperativa-demo',
+          delta: {
+            institution: 'created',
+            balanceSheetItems: {
+              before: 0,
+              after: 12,
+              replaced: false,
+            },
+            liquidityPosition: 'created',
+          },
+          fixture: {
+            seedKey: 'pr-cooperativa-demo',
+            name: 'Local Demo Cooperativa',
+            itemCount: 12,
+          },
+        }),
+      });
+    });
+
+    await waitForLoginPage(page);
+    await page
+      .getByRole('button', { name: /launch local demo/i })
+      .click();
+
+    await page.waitForURL('**/dashboard', { timeout: 15000 });
+    await expect(
+      page.getByRole('button', { name: /logout|salir/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /sign in|iniciar/i }),
+    ).toHaveCount(0);
+    await expect(page.locator('body')).toContainText(/local-demo@cerniq\.local/i);
+  });
+
   test('should show Google OAuth button when enabled', async ({ page }) => {
     await waitForLoginPage(page);
     // Google OAuth link is rendered by default (NEXT_PUBLIC_ENABLE_GOOGLE_OAUTH defaults to true)

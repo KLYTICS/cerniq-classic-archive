@@ -96,14 +96,14 @@ describe('APIClient', () => {
     expect(typeof apiClient.getExitMetrics).toBe('function');
   });
 
-  it('preserves portal return URLs in the magic-link login flow', async () => {
+  it('preserves dashboard return URLs in the magic-link login flow', async () => {
     const { buildLoginRedirectUrl } = await import('./api');
 
-    expect(buildLoginRedirectUrl('/portal')).toBe(
-      '/login?returnUrl=%2Fportal&mode=magic-link',
+    expect(buildLoginRedirectUrl('/dashboard')).toBe(
+      '/login?returnUrl=%2Fdashboard&mode=magic-link',
     );
-    expect(buildLoginRedirectUrl('/portal/reports/job-1')).toBe(
-      '/login?returnUrl=%2Fportal%2Freports%2Fjob-1&mode=magic-link',
+    expect(buildLoginRedirectUrl('/dashboard/report/job-1')).toBe(
+      '/login?returnUrl=%2Fdashboard%2Freport%2Fjob-1&mode=magic-link',
     );
   });
 
@@ -134,6 +134,121 @@ describe('APIClient', () => {
       id: 'u_1',
       email: 'test@cerniq.io',
     });
+  });
+
+  it('loads the canonical portal overview envelope', async () => {
+    const { apiClient } = await import('./api');
+    const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;
+    mockInstance.get.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: {
+          jobs: [],
+          latestActionableJob: null,
+          workflowState: 'needs_report',
+          counts: {
+            total: 0,
+            awaitingData: 0,
+            validationFailed: 0,
+            processing: 0,
+            complete: 0,
+          },
+          demoSeat: null,
+          nextAction: {
+            labelEn: 'Create report',
+            labelEs: 'Crear informe',
+            href: '/portal',
+            jobId: null,
+            explanationEn: 'Start a report cycle.',
+            explanationEs: 'Inicia un ciclo.',
+          },
+          validationSummary: null,
+        },
+      },
+    });
+
+    await expect(apiClient.getPortalOverview()).resolves.toMatchObject({
+      workflowState: 'needs_report',
+      jobs: [],
+    });
+    expect(mockInstance.get).toHaveBeenCalledWith(
+      expect.stringContaining('/api/portal/overview'),
+    );
+  });
+
+  it('loads portal job detail through the canonical report endpoint', async () => {
+    const { apiClient } = await import('./api');
+    const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;
+    mockInstance.get.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: {
+          id: 'job-1',
+          institutionId: 'inst-1',
+          institutionName: 'CoopAhorro',
+          status: 'COMPLETE',
+          analysisPeriod: 'Q1-2026',
+          previousJobId: null,
+          submittedAt: null,
+          processingStartedAt: null,
+          completedAt: '2026-04-18T00:00:00.000Z',
+          createdAt: '2026-04-18T00:00:00.000Z',
+          reportUrl: null,
+          reportUrlEn: null,
+          reportLang: 'es',
+          errorMessage: null,
+          userId: 'u_1',
+          triggeredBy: 'portal_cycle_bootstrap',
+          exportSummary: {
+            manifestPath: '/api/portal/jobs/job-1/exports',
+            status: 'ready',
+            readyCount: 4,
+            totalCount: 4,
+            readyReportLanguages: ['es', 'en'],
+            missingReportLanguages: [],
+            readyBoardPackLanguages: ['es', 'en'],
+            missingBoardPackLanguages: [],
+          },
+        },
+      },
+    });
+
+    await expect(apiClient.getPortalJob('job-1')).resolves.toMatchObject({
+      id: 'job-1',
+      exportSummary: expect.objectContaining({ status: 'ready' }),
+    });
+    expect(mockInstance.get).toHaveBeenCalledWith(
+      expect.stringContaining('/api/portal/jobs/job-1'),
+    );
+  });
+
+  it('loads portal export manifests through the canonical exports endpoint', async () => {
+    const { apiClient } = await import('./api');
+    const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;
+    mockInstance.get.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: [
+          {
+            id: 'alm_report-job-1-es',
+            kind: 'alm_report',
+            language: 'es',
+            status: 'ready',
+            downloadUrl: '/api/portal/jobs/job-1/alm-report?lang=es',
+          },
+        ],
+      },
+    });
+
+    await expect(apiClient.getPortalJobExports('job-1')).resolves.toEqual([
+      expect.objectContaining({
+        kind: 'alm_report',
+        language: 'es',
+      }),
+    ]);
+    expect(mockInstance.get).toHaveBeenCalledWith(
+      expect.stringContaining('/api/portal/jobs/job-1/exports'),
+    );
   });
 
   it('does not attempt token refresh for skipAuthRedirect requests', async () => {
