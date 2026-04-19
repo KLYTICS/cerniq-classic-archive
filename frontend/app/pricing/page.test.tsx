@@ -1,8 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { AnchorHTMLAttributes, ReactNode, SVGProps } from 'react';
 import PricingPage from './page';
 import { PRICING_TIERS } from '@/lib/pricing';
+
+const { pushMock } = vi.hoisted(() => ({
+  pushMock: vi.fn(),
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
 
 vi.mock('next/link', () => ({
   default: ({
@@ -32,6 +40,14 @@ vi.mock('lucide-react', () => ({
 }));
 
 describe('PricingPage', () => {
+  it('routes the one-time pilot CTA into /get-started instead of direct checkout', () => {
+    render(<PricingPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Start Pilot — \$750/i }));
+
+    expect(pushMock).toHaveBeenCalledWith('/get-started');
+  });
+
   it('renders all four pricing tiers from lib/pricing.ts', () => {
     render(<PricingPage />);
 

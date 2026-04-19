@@ -264,10 +264,10 @@ export default function ROICalculatorPage() {
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                   <Link
-                    href="/pricing"
+                    href="/get-started"
                     className="cerniq-button-secondary"
                   >
-                    View pricing
+                    Start pilot
                   </Link>
                 </div>
               </div>

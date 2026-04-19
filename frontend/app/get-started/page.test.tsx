@@ -90,7 +90,14 @@ describe("GetStartedPage", () => {
   });
 
   it("captures guest intake and shows preview + paid unlock state", async () => {
-    submitDemoRequestMock.mockResolvedValue({ ok: true });
+    submitDemoRequestMock.mockResolvedValue({
+      leadId: "lead-1",
+      demoRequestId: "demo-1",
+      institutionName: "Coop Test",
+      institutionType: "cooperativa",
+      message: "Demo request received",
+      duplicateLead: false,
+    });
     render(<GetStartedPage />);
 
     expect(
@@ -122,9 +129,68 @@ describe("GetStartedPage", () => {
     expect(
       screen.getByRole("button", { name: /Start Pilot — \$750/i }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Already paid\? Open workspace/i }),
+    ).toHaveAttribute("href", "/login?returnUrl=%2Fportal&mode=magic-link");
   });
 
-  it("redirects paid users directly into the dashboard workspace", async () => {
+  it("passes captured lead context into pilot checkout and targets the portal workspace", async () => {
+    submitDemoRequestMock.mockResolvedValue({
+      leadId: "lead-portal",
+      demoRequestId: "demo-2",
+      institutionName: "Portal Coop",
+      institutionType: "cooperativa",
+      message: "Demo request received",
+      duplicateLead: false,
+    });
+    createCheckoutSessionMock.mockRejectedValue(
+      new Error("checkout unavailable"),
+    );
+
+    render(<GetStartedPage />);
+
+    fireEvent.change(screen.getByPlaceholderText("Your name"), {
+      target: { value: "Maria" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("you@institution.com"), {
+      target: { value: "maria@coop.pr" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Institution name"), {
+      target: { value: "Portal Coop" },
+    });
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "cooperativa" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Total assets (optional)"), {
+      target: { value: "$42,000,000" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continue to Pilot" }),
+    );
+
+    await screen.findByRole("button", { name: /Start Pilot — \$750/i });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Start Pilot — \$750/i }),
+    );
+
+    await waitFor(() => {
+      expect(createCheckoutSessionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tier: "one_time",
+          customerEmail: "maria@coop.pr",
+          customerName: "Maria",
+          institutionName: "Portal Coop",
+          leadId: "lead-portal",
+          successUrl:
+            "/login?returnUrl=%2Fportal%3Fwelcome%3D1&mode=magic-link&billing=success",
+          cancelUrl: "/get-started",
+        }),
+      );
+    });
+  });
+
+  it("redirects paid users directly into the portal workspace", async () => {
     authState.isAuthenticated = true;
     authState.user = { id: "user-1", email: "qa@cerniq.io" };
     authState.access = {
@@ -142,7 +208,7 @@ describe("GetStartedPage", () => {
     render(<GetStartedPage />);
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith("/dashboard");
+      expect(replaceMock).toHaveBeenCalledWith("/portal");
     });
   });
 });

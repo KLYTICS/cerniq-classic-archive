@@ -44,6 +44,7 @@ export default function GetStartedPage() {
   const [totalAssets, setTotalAssets] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [leadId, setLeadId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
@@ -81,7 +82,7 @@ export default function GetStartedPage() {
 
     if (hasPlatformAccess(access) && prefersPortalExperience(access)) {
       rememberPortalUser();
-      router.replace("/dashboard");
+      router.replace("/portal");
     }
   }, [initialized, isAuthenticated, access, router]);
 
@@ -99,7 +100,8 @@ export default function GetStartedPage() {
         customerEmail: email || user?.email,
         customerName: name || user?.name,
         institutionName,
-        successUrl: buildLoginUrlForReturnUrl("/dashboard", {
+        leadId: leadId || undefined,
+        successUrl: buildLoginUrlForReturnUrl("/portal?welcome=1", {
           billingSuccess: true,
           forceMagicLink: true,
         }),
@@ -118,7 +120,7 @@ export default function GetStartedPage() {
     setSubmitting(true);
     setError("");
     try {
-      await apiClient.submitDemoRequest({
+      const intake = await apiClient.submitDemoRequest({
         email,
         name,
         institutionName,
@@ -126,6 +128,7 @@ export default function GetStartedPage() {
         totalAssets,
         message: "New-user pilot intake from /get-started",
       });
+      setLeadId(intake.leadId);
       setSubmitted(true);
     } catch (err) {
       setError(
@@ -167,7 +170,7 @@ export default function GetStartedPage() {
             </h2>
             <p className="mt-2 text-sm leading-6 text-[var(--dashboard-text-secondary)]">
               {blockedByPayment
-                ? "Your account is recognized, but secure upload unlocks only after the pilot is activated."
+                ? "Your account is recognized, but the portal workspace unlocks only after the pilot is activated."
                 : submitted
                   ? acquisition.pilotFormSuccessBody
                   : acquisition.pilotFormIntro}
@@ -246,8 +249,8 @@ export default function GetStartedPage() {
                       </p>
                       <p className="mt-1 text-sm text-[var(--dashboard-text-secondary)]">
                         {blockedByPayment
-                          ? "Activate the pilot and we will land you directly in the dashboard workspace."
-                          : "Preview the report style now or activate the pilot for your institution's real data."}
+                          ? "Activate the pilot and we will land you directly in the portal workspace for secure upload."
+                          : "Preview the report style now or activate the pilot to unlock your portal workspace and secure upload flow."}
                       </p>
                     </div>
                   </div>
@@ -272,7 +275,7 @@ export default function GetStartedPage() {
                       : acquisition.primaryCtaWithPrice}
                   </button>
                   <Link
-                    href={buildLoginUrlForReturnUrl("/dashboard", {
+                    href={buildLoginUrlForReturnUrl("/portal", {
                       forceMagicLink: true,
                     })}
                     className="inline-flex items-center gap-2 rounded-full border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-5 py-3 text-sm font-semibold text-[var(--dashboard-text-primary)] transition hover:bg-white"
@@ -296,7 +299,7 @@ export default function GetStartedPage() {
               />
               <StateCard
                 title="2. Start pilot"
-                description="Pilot users unlock the secure upload path and land directly in `/dashboard`."
+                description="Pilot users unlock the portal workspace and land directly in `/portal` for secure upload."
               />
               <StateCard
                 title="3. Upgrade to recurring access"

@@ -17,9 +17,12 @@ import { apiClient } from "@/lib/api";
 import { createCheckoutSession, type CheckoutTier } from "@/lib/billing";
 import { analytics, EVENTS } from "@/lib/analytics";
 import { PRICING, getCtaLabel } from "@/lib/pricing";
+import { buildLoginUrlForReturnUrl } from "@/lib/auth-redirect";
 import { CerniqMark, CerniqLockup } from "@/components/brand/CerniqLogo";
 import Footer from "@/components/layout/Footer";
 import { getAcquisitionCopy } from "@/lib/acquisition-copy";
+import { PUBLIC_COMPLIANCE_MATRIX } from "@/lib/public-compliance-matrix";
+import { PUBLIC_PATHS } from "@/lib/public-links";
 
 const DEMO_VIDEO_URL = (
   process.env.NEXT_PUBLIC_CERNIQ_DEMO_VIDEO_URL || ""
@@ -253,12 +256,20 @@ export default function LandingPage() {
   };
 
   async function handleCheckout(tier: CheckoutTier) {
+    if (tier === "one_time") {
+      router.push("/get-started");
+      return;
+    }
+
     analytics.track(EVENTS.CHECKOUT_STARTED, { tier, source: "landing_page" });
     setCheckoutTier(tier);
     try {
       const checkoutUrl = await createCheckoutSession({
         tier,
-        successUrl: "/login?billing=success&returnUrl=%2Fdashboard",
+        successUrl: buildLoginUrlForReturnUrl("/portal?welcome=1", {
+          billingSuccess: true,
+          forceMagicLink: true,
+        }),
         cancelUrl: "/pricing",
       });
       window.location.href = checkoutUrl;
@@ -335,7 +346,7 @@ export default function LandingPage() {
               {t("Why CERNIQ", "Por qué CERNIQ")}
             </button>
             <button
-              onClick={() => router.push("/compliance")}
+              onClick={() => router.push(PUBLIC_PATHS.compliance)}
               className="hidden rounded-full border border-[rgba(216,192,139,0.72)] px-4 py-2 text-sm text-[var(--dashboard-text-secondary)] transition hover:border-cyan-300/50 hover:text-[var(--dashboard-text-primary)] lg:inline-flex"
             >
               {t("Compliance", "Cumplimiento")}
@@ -546,7 +557,7 @@ export default function LandingPage() {
           <section className="grid gap-4 sm:grid-cols-3">
             {/* Regulatory Compliance */}
             <a
-              href="/compliance"
+              href={PUBLIC_PATHS.compliance}
               className="cerniq-panel cerniq-card-hover p-4 block"
             >
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
@@ -557,8 +568,8 @@ export default function LandingPage() {
               </p>
               <p className="mt-2 text-sm leading-6 text-slate-700">
                 {t(
-                  "20 regulatory requirements covered across COSSEC, NCUA & Basel III.",
-                  "20 requisitos regulatorios cubiertos en COSSEC, NCUA y Basel III.",
+                  `${PUBLIC_COMPLIANCE_MATRIX.length} mapped requirements across COSSEC, NCUA, Basel IRRBB, and CECL workflows.`,
+                  `${PUBLIC_COMPLIANCE_MATRIX.length} requisitos mapeados a traves de flujos COSSEC, NCUA, Basel IRRBB y CECL.`,
                 )}
               </p>
               <span className="mt-2 inline-flex items-center text-xs text-cyan-700 font-medium">

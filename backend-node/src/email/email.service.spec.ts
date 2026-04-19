@@ -454,7 +454,18 @@ describe('EmailService', () => {
         name: 'Test',
       });
       const call = mockSend.mock.calls[0][0];
-      expect(call.html).toContain('dashboard/upload');
+      expect(call.html).toContain('/portal/submit?createCycle=1');
+    });
+  });
+
+  describe('sendMonthlyReportCycle', () => {
+    it('sends monthly cycle email with portal workspace link', async () => {
+      await service.sendMonthlyReportCycle({
+        email: 'u@c.pr',
+        name: 'Test',
+      });
+      const call = mockSend.mock.calls[0][0];
+      expect(call.html).toContain('/portal/submit?createCycle=1');
     });
   });
 

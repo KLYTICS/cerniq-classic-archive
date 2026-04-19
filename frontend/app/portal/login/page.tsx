@@ -11,9 +11,10 @@ export default async function PortalLoginPage({
     typeof resolvedSearchParams.billing === 'string'
       ? resolvedSearchParams.billing
       : undefined;
+  const returnUrl = billing === 'success' ? '/portal?welcome=1' : '/portal';
 
   redirect(
-    buildLoginUrlForReturnUrl('/dashboard', {
+    buildLoginUrlForReturnUrl(returnUrl, {
       billingSuccess: billing === 'success',
       forceMagicLink: true,
     }),

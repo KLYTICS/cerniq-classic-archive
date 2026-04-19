@@ -237,6 +237,15 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+export interface DemoRequestSubmissionResult {
+  leadId: string | null;
+  demoRequestId: string | null;
+  institutionName: string;
+  institutionType: string;
+  message: string;
+  duplicateLead: boolean;
+}
+
 export function buildLoginRedirectUrl(pathname: string, search = ''): string {
   return buildLoginUrlForReturnUrl(`${pathname}${search}`);
 }
@@ -773,7 +782,7 @@ class APIClient {
     totalAssets?: string;
     message?: string;
     company?: string;
-  }) {
+  }): Promise<DemoRequestSubmissionResult> {
     const rawInstitutionType = (data.institutionType || '').trim().toLowerCase();
     const institutionTypeAliases: Record<string, string> = {
       bank: 'community_bank',
@@ -801,8 +810,13 @@ class APIClient {
       message: data.message,
       source: 'landing_page',
     };
+    let leadResult: Record<string, unknown> | null = null;
     try {
-      await this.client.post(`${NODE_API_URL}/api/v1/leads/submit`, leadPayload);
+      const leadResponse = await this.client.post(
+        `${NODE_API_URL}/api/v1/leads/submit`,
+        leadPayload,
+      );
+      leadResult = asRecord(unwrapApiData<Record<string, unknown>>(leadResponse.data));
     } catch { /* fallback to legacy */ }
 
     // Also submit to legacy demo-request endpoint
@@ -812,7 +826,23 @@ class APIClient {
       institutionType: normalizedInstitutionType,
     };
     const response = await this.client.post(`${NODE_API_URL}/api/demo-request`, legacyPayload);
-    return response.data;
+    const legacyResult = asRecord(
+      unwrapApiData<Record<string, unknown>>(response.data),
+    );
+
+    return {
+      leadId:
+        typeof leadResult?.leadId === 'string' ? leadResult.leadId : null,
+      demoRequestId:
+        typeof legacyResult?.id === 'string' ? legacyResult.id : null,
+      institutionName: normalizedInstitutionName,
+      institutionType: normalizedInstitutionType,
+      message:
+        (typeof legacyResult?.message === 'string' && legacyResult.message) ||
+        (typeof leadResult?.message === 'string' && leadResult.message) ||
+        'Demo request received',
+      duplicateLead: Boolean(leadResult?.duplicate),
+    };
   }
 
   // Admin (all admin endpoints require x-admin-key header)

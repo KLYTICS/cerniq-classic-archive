@@ -176,6 +176,45 @@ describe('APIClient', () => {
     );
   });
 
+  it('returns normalized lead metadata from demo request submissions', async () => {
+    const { apiClient } = await import('./api');
+    const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;
+    mockInstance.post
+      .mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: {
+            leadId: 'lead-123',
+            message: "We'll have your sample report ready within 48 hours.",
+            duplicate: false,
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          id: 'demo-123',
+          message: 'Demo request received',
+        },
+      });
+
+    await expect(
+      apiClient.submitDemoRequest({
+        email: 'maria@coop.pr',
+        name: 'Maria',
+        institutionName: 'Coop PR',
+        institutionType: 'cooperativa',
+        totalAssets: '$42,000,000',
+      }),
+    ).resolves.toEqual({
+      leadId: 'lead-123',
+      demoRequestId: 'demo-123',
+      institutionName: 'Coop PR',
+      institutionType: 'cooperativa',
+      message: 'Demo request received',
+      duplicateLead: false,
+    });
+  });
+
   it('loads portal job detail through the canonical report endpoint', async () => {
     const { apiClient } = await import('./api');
     const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;

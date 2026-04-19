@@ -85,11 +85,11 @@ export default function PortalPaywall({ path, subscription, user }: PortalPaywal
         tier,
         customerEmail: user.email,
         customerName: user.name,
-        successUrl: buildLoginUrlForReturnUrl('/dashboard', {
+        successUrl: buildLoginUrlForReturnUrl('/portal?welcome=1', {
           billingSuccess: true,
           forceMagicLink: true,
         }),
-        cancelUrl: path.startsWith('/portal') ? path : '/dashboard',
+        cancelUrl: path.startsWith('/portal') ? path : '/portal',
       });
 
       window.location.href = checkoutUrl;

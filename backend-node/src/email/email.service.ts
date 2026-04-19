@@ -688,7 +688,7 @@ export class EmailService {
            <p>Your monthly renewal has been processed and a new reporting cycle has begun. To generate your ALM report for this period, submit your updated balance sheet through your portal.</p>
            <p>If you need help, reply directly.</p>
            ${this.SIGNATURE_EN}`,
-          `${this.frontendUrl()}/dashboard/upload`,
+          `${this.frontendUrl()}/portal/submit?createCycle=1`,
           'Enviar datos / Submit data',
         ),
       });
@@ -776,7 +776,7 @@ export class EmailService {
            <p>The process takes less than 10 minutes — you just need to upload a CSV file with your asset and liability positions. The template is available in your portal.</p>
            <p>If you need help with the format, reply directly and I'll assist you.</p>
            ${this.SIGNATURE_EN}`,
-          `${this.frontendUrl()}/dashboard/upload`,
+          `${this.frontendUrl()}/portal/submit?createCycle=1`,
           'Enviar datos ahora / Submit data now',
         ),
       });

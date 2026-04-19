@@ -35,12 +35,26 @@ test.describe('Public footer and legal links', () => {
 
   test('homepage footer company and legal links resolve without fatal UI', async ({ page }) => {
     for (const path of [
+      PUBLIC_PATHS.compliance,
       PUBLIC_PATHS.contact,
       PUBLIC_PATHS.status,
       ...PUBLIC_LEGAL_PATHS,
     ]) {
       await clickFooterLinkAndAssert(page, path);
     }
+  });
+
+  test('homepage compliance link resolves without fatal UI', async ({ page }) => {
+    await page.goto(PUBLIC_PATHS.home);
+
+    const complianceLink = page.locator(`a[href="${PUBLIC_PATHS.compliance}"]`).first();
+    await expect(complianceLink).toBeVisible();
+    await complianceLink.click();
+
+    await expect
+      .poll(() => new URL(page.url()).pathname, { timeout: 15000 })
+      .toBe(PUBLIC_PATHS.compliance);
+    await expectNoFatalUi(page);
   });
 
   test('terms and privacy pages keep their contact-page links healthy', async ({ page }) => {

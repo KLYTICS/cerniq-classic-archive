@@ -1,12 +1,15 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Compliance Matrix — CERNIQ | COSSEC, NCUA, Basel III Coverage',
-  description: 'See how CERNIQ covers 20 regulatory requirements across COSSEC, NCUA, and Basel III frameworks. IRR policy, stress testing, CECL, duration gap, LCR, and more.',
+  title:
+    'Public Compliance Matrix — CERNIQ | COSSEC, NCUA, Basel IRRBB, CECL',
+  description:
+    'Buyer-facing compliance matrix for CERNIQ. Review the current public coverage map across 20 requirements covering COSSEC, NCUA, Basel IRRBB, and CECL workflows.',
   alternates: { canonical: '/compliance' },
   openGraph: {
-    title: 'CERNIQ Compliance Matrix — 20 Requirements, 3 Frameworks',
-    description: 'Full regulatory coverage: COSSEC (PR), NCUA (US), Basel III/IRRBB. Automated compliance documentation.',
+    title: 'CERNIQ Public Compliance Matrix — 20 Requirements, 4 Frameworks',
+    description:
+      'Procurement-ready view of CERNIQ public claims across COSSEC, NCUA, Basel IRRBB, and CECL workflows.',
     url: 'https://cerniq.io/compliance',
   },
 };
