@@ -143,13 +143,42 @@ export class BillingController {
       id: event.id,
     });
 
-    // Idempotency: skip already-processed events (Stripe can replay)
-    const existing = await this.prisma.processedWebhookEvent.findUnique({
-      where: { id: event.id },
-    });
-    if (existing) {
-      this.logger.log({ event: 'webhook.duplicate_skipped', id: event.id });
-      return { received: true, duplicate: true };
+    // Idempotency via insert-first-with-P2002-catch.
+    //
+    // The previous pattern — `findUnique`, then dispatch handler, then
+    // `create` — had a check-then-act race: two concurrent Stripe
+    // replays of the same event both passed the findUnique (neither
+    // saw the other's marker yet), both dispatched the handler (real
+    // DB writes happened twice — duplicate subscriptions, duplicate
+    // report jobs, duplicate emails), then one inserted the marker
+    // and the other hit P2002 and silently logged a "dedup_race". The
+    // marker write was deduped but the side effects were not.
+    //
+    // The fix flips the race window from "between check and insert"
+    // to zero: try the insert first. If it succeeds, we hold an
+    // exclusive lock on this event via the unique constraint on
+    // `processedWebhookEvent.id` — dispatch the handler. If it
+    // fails with P2002, we lost the race (or it's a legitimate
+    // replay); skip without dispatching. Only the winner executes
+    // side effects.
+    try {
+      await this.prisma.processedWebhookEvent.create({
+        data: { id: event.id, eventType: event.type },
+      });
+    } catch (err: unknown) {
+      const code = (err as { code?: string } | undefined)?.code;
+      if (code === 'P2002') {
+        this.logger.log({ event: 'webhook.duplicate_skipped', id: event.id });
+        return { received: true, duplicate: true };
+      }
+      // Any other create error (DB down, connection lost) is a real
+      // problem — surface as 500 so Stripe retries the webhook.
+      this.logger.error({
+        event: 'webhook.marker_insert_failed',
+        id: event.id,
+        error: (err as Error).message,
+      });
+      throw err;
     }
 
     try {
@@ -182,28 +211,17 @@ export class BillingController {
         default:
           this.logger.log({ event: 'webhook.unhandled', type: event.type });
       }
-
-      // Mark event as processed after successful handling
-      await this.prisma.processedWebhookEvent
-        .create({
-          data: { id: event.id, eventType: event.type },
-        })
-        .catch((err: any) => {
-          // Unique constraint race — another instance processed it first
-          this.logger.warn({
-            event: 'webhook.dedup_race',
-            id: event.id,
-            error: err.message,
-          });
-        });
-    } catch (err: any) {
-      // Log error but return 200 to prevent Stripe retry storms
+    } catch (err: unknown) {
+      // Handler failed AFTER we claimed the event. Log it but return
+      // 200 to prevent Stripe retry storms — the marker row is the
+      // authoritative "we processed this" signal. Re-drives require
+      // manual remediation (delete the marker, Stripe admin replay).
       this.logger.error({
         event: 'webhook.processing_error',
         type: event.type,
         id: event.id,
-        error: err.message,
-        stack: err.stack,
+        error: (err as Error).message,
+        stack: (err as Error).stack,
       });
     }
 

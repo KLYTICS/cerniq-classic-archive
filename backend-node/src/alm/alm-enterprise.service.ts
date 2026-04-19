@@ -16,6 +16,7 @@ import { getFramework, IRegulatoryFramework } from './frameworks';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
 import { DataGap, dataGap, mergeGaps } from './reports/data-gap';
 import { asNumber } from './reports/report-formatting';
+import { parseFinancialField } from '../common/utils/financial-field';
 
 /** Round to n decimal places */
 function round(value: number, decimals: number): number {
@@ -1164,7 +1165,18 @@ export class AlmEnterpriseService {
         name: r.name,
         nameEs: r.nameEs,
         value: round(r.value, 2),
-        threshold: parseFloat(r.threshold.replace(/[^0-9.-]/g, '')) || 0,
+        // D23: parseFloat + || 0 let Infinity slip through (`|| 0`
+        // only fires on falsy values; Infinity is truthy). Thresholds
+        // here span wildly different scales (% ratios, year counts,
+        // score units like 15100 for NII sensitivity, negative years
+        // like -13 for duration gap). Use generous bounds that only
+        // reject Infinity/NaN — the point of this change is strictness
+        // on non-finite values, not on range.
+        threshold:
+          parseFinancialField(r.threshold.replace(/[^0-9.-]/g, ''), {
+            min: -1e9,
+            max: 1e9,
+          }) ?? 0,
         unit: r.unit,
         // After the filter above, status is narrowed to pass | warning | fail.
         status: r.status as 'pass' | 'warning' | 'fail',
@@ -1729,7 +1741,18 @@ export class AlmEnterpriseService {
         name: r.name,
         nameEs: r.nameEs,
         value: round(r.value, 2),
-        threshold: parseFloat(r.threshold.replace(/[^0-9.-]/g, '')) || 0,
+        // D23: parseFloat + || 0 let Infinity slip through (`|| 0`
+        // only fires on falsy values; Infinity is truthy). Thresholds
+        // here span wildly different scales (% ratios, year counts,
+        // score units like 15100 for NII sensitivity, negative years
+        // like -13 for duration gap). Use generous bounds that only
+        // reject Infinity/NaN — the point of this change is strictness
+        // on non-finite values, not on range.
+        threshold:
+          parseFinancialField(r.threshold.replace(/[^0-9.-]/g, ''), {
+            min: -1e9,
+            max: 1e9,
+          }) ?? 0,
         unit: r.unit,
         status: r.status as 'pass' | 'warning' | 'fail',
         description: r.description,

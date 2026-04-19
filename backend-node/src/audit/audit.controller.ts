@@ -11,6 +11,7 @@ import {
 import { AuditService } from './audit.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { PrismaService } from '../prisma.service';
+import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
 
 // ── Admin Audit Endpoint ──────────────────────────────────
 // GET /api/admin/audit-logs?institutionId=X&limit=100&offset=0
@@ -24,7 +25,7 @@ export class AdminAuditController {
 
   private verifyAdmin(key: string) {
     const adminKey = process.env.ADMIN_KEY;
-    if (!adminKey || key !== adminKey) {
+    if (!adminKey || !timingSafeStringEqual(key, adminKey)) {
       throw new UnauthorizedException('Invalid admin key');
     }
   }

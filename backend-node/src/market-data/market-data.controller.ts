@@ -23,6 +23,7 @@ import {
 
 import { LlmService } from '../llm/llm.service';
 import { MarketStreamManagerService } from './market-stream-manager.service';
+import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
 
 @Controller('api/market-data')
 export class MarketDataController {
@@ -251,7 +252,7 @@ export class MarketDataController {
   @Get('clear-cache')
   clearCaches(@Headers('x-admin-key') adminKey: string): { message: string } {
     const key = process.env.ADMIN_KEY;
-    if (!key || adminKey !== key) {
+    if (!key || !timingSafeStringEqual(adminKey, key)) {
       throw new UnauthorizedException('Invalid admin key');
     }
     this.marketDataService.clearCaches();

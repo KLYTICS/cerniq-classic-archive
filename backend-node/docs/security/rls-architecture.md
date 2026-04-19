@@ -125,13 +125,19 @@ Key design decisions:
 
 ## Migration
 
-**File:** `backend-node/prisma/migrations/rls_tenant_isolation/migration.sql`
+**File:** `backend-node/prisma/migrations/20260417020000_rls_tenant_isolation/migration.sql`
 
 Apply with:
 
 ```bash
 npx prisma migrate deploy
 ```
+
+Prior to 2026-04-17 this migration lived in a folder named `rls_tenant_isolation`
+(no timestamp prefix) and was silently skipped by `prisma migrate deploy`. The
+rename to `20260417020000_*` activates Prisma's migration engine. The migration
+is idempotent — every `CREATE POLICY` is preceded by `DROP POLICY IF EXISTS`
+so re-running against any prior state is safe.
 
 ## Testing
 
@@ -160,6 +166,35 @@ Covers:
 3. **Superuser connections** — psql connections as `postgres` superuser bypass RLS.
    This is expected and useful for debugging/admin operations.
 
-4. **Future work** — Once all application queries are verified to work correctly
-   with RLS, add `FORCE ROW LEVEL SECURITY` to enforce policies even for the
-   table owner role.
+4. **Current enforcement posture is defense-in-depth only.** The policies exist
+   on all 24 tables, but enforcement is bypassed for the application's DB role
+   because that role owns the tables. Observed today: RLS does not functionally
+   block any queries — it is ready to enforce the moment `FORCE ROW LEVEL
+   SECURITY` is applied. Security benefit right now is (a) a `pg_dump` inspector
+   sees the tenancy contract explicitly, and (b) a misconfigured non-owner role
+   (e.g. an analytics read replica) is immediately subject to RLS without
+   further migrations.
+
+5. **Known middleware architecture concern.** `TenantContextMiddleware` uses
+   `prisma.$executeRaw\`SET LOCAL ...\`` outside any explicit `$transaction`.
+   PostgreSQL silently ignores `SET LOCAL` outside a transaction (it emits a
+   NOTICE and discards the setting). When `FORCE ROW LEVEL SECURITY` is later
+   applied, the middleware will need to be restructured to run each request
+   inside a single Prisma interactive transaction (or adopt a custom Prisma
+   extension that wraps every query with `SET LOCAL … RESET`). Without that
+   restructure, RLS will block all queries once `FORCE` is enabled.
+
+6. **Future work — the enforcement flip:**
+   (a) Restructure middleware to hold a per-request interactive transaction.
+   (b) Add `ALTER TABLE … FORCE ROW LEVEL SECURITY` migrations.
+   (c) Expand `SERVICE_BYPASS_PATH_PREFIXES` in the middleware to cover cron
+       entrypoints, public feedback/leads endpoints, and seed scripts (or give
+       those paths their own interactive-transaction wrapper that sets
+       `app.admin_mode = 'true'`).
+
+7. **Safe operator checklist for turning on real RLS enforcement:**
+   - Confirm Railway's `DATABASE_URL` user and whether it has `BYPASSRLS`.
+   - Inventory every `@Cron`, public controller, and background worker that
+     writes to any of the 24 tables.
+   - Land the middleware transaction restructure.
+   - Add `FORCE` in a follow-up migration with full staging burn-in.

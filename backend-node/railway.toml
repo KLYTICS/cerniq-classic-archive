@@ -3,7 +3,9 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "node dist/src/main.js"
+# Intentionally no startCommand: Dockerfile CMD runs `prisma migrate deploy`
+# before `node dist/src/main.js`. Setting startCommand here would override
+# the Dockerfile CMD and silently skip schema migrations on every deploy.
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"

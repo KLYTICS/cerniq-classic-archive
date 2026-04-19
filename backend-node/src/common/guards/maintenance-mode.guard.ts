@@ -4,6 +4,7 @@ import {
   ExecutionContext,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { timingSafeStringEqual } from '../utils/timing-safe-compare';
 
 /**
  * Enterprise maintenance mode guard.
@@ -31,7 +32,12 @@ export class MaintenanceModeGuard implements CanActivate {
 
     // Allow admin endpoints for managing maintenance
     const adminKey = request.headers['x-admin-key'];
-    if (adminKey && adminKey === process.env.ADMIN_KEY) {
+    const expectedKey = process.env.ADMIN_KEY;
+    if (
+      adminKey &&
+      expectedKey &&
+      timingSafeStringEqual(adminKey, expectedKey)
+    ) {
       return true;
     }
 

@@ -1,5 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { parseFinancialField } from '../common/utils/financial-field';
 
 // ─── Interfaces ─────────────────────────────────────────────────
 
@@ -34,6 +35,18 @@ export interface ValidationResult {
   missingHeaders: string[];
   extraHeaders: string[];
 }
+
+// ─── Helpers ────────────────────────────────────────────────────
+
+/**
+ * Re-export of the shared helper under the original D21 name so
+ * existing callers (and the external CPA spec, if any regression
+ * harness still imports it) don't break. Hoisted to
+ * `src/common/utils/financial-field.ts` in Wave 3 because the same
+ * pattern is needed across alm/csv-ingestion, alm/csv-ingest-v2,
+ * and expense ingest.
+ */
+export { parseFinancialField as parseCpaFinancialField } from '../common/utils/financial-field';
 
 // ─── Constants ──────────────────────────────────────────────────
 
@@ -162,9 +175,22 @@ export class CpaBulkIngestionService {
         continue;
       }
 
-      // Validate balance is a number
-      const balance = parseFloat(record['balance']);
-      if (isNaN(balance)) {
+      // D21: strict financial-field parsing. `parseFloat` silently
+      // accepts trailing garbage (`parseFloat('1234abc')` = 1234) and
+      // returns ±Infinity on exponential overflow (`parseFloat('1e400')`
+      // = Infinity, for which `isNaN` is false). Both would have let
+      // corrupted values into downstream ALM math.
+      //
+      // parseFinancialField uses `Number` for strict parsing plus
+      // `Number.isFinite` to catch Infinity, and enforces per-field
+      // bounds: balances must be non-negative; rates 0-100 (percent)
+      // though we accept up to 1 if expressed as a decimal; durations
+      // 0-50 years (covers the longest realistic fixed-income tenors).
+      const balance = parseFinancialField(record['balance'], {
+        min: 0,
+        max: 1e15, // $1 quadrillion — no reasonable cooperativa position hits this
+      });
+      if (balance === null) {
         errors.push({
           row: i + 1,
           field: 'balance',
@@ -173,8 +199,11 @@ export class CpaBulkIngestionService {
         continue;
       }
 
-      const rate = parseFloat(record['rate']);
-      if (isNaN(rate)) {
+      const rate = parseFinancialField(record['rate'], {
+        min: -1, // negative rates exist (European IRPs, overnight)
+        max: 100, // 100% annual rate upper bound
+      });
+      if (rate === null) {
         errors.push({
           row: i + 1,
           field: 'rate',
@@ -183,8 +212,11 @@ export class CpaBulkIngestionService {
         continue;
       }
 
-      const duration = parseFloat(record['duration']);
-      if (isNaN(duration)) {
+      const duration = parseFinancialField(record['duration'], {
+        min: 0,
+        max: 50, // 50-year treasury is the longest realistic tenor
+      });
+      if (duration === null) {
         errors.push({
           row: i + 1,
           field: 'duration',
