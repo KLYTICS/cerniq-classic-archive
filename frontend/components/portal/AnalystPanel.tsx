@@ -50,7 +50,7 @@ export default function AnalystPanel({
   onClose,
 }: AnalystPanelProps) {
   const { locale } = useTranslation();
-  const t = (en: string, es: string) => (locale === 'en' ? en : es);
+  const t = useCallback((en: string, es: string) => (locale === 'en' ? en : es), [locale]);
 
   const storageKey = `cerniq_analyst_${institutionId}`;
 
@@ -240,7 +240,7 @@ export default function AnalystPanel({
         setActiveTools([]);
       }
     },
-    [institutionId, streaming, rateLimit, locale, t],
+    [institutionId, streaming, rateLimit, t],
   );
 
   const saveInsight = useCallback(

@@ -76,7 +76,9 @@ export function useAgentStream(
     onEventRef.current = onEvent;
   }, [onEvent]);
 
-  const filters = Array.isArray(filter) ? filter : filter ? [filter] : null;
+  const filterKey = Array.isArray(filter)
+    ? filter.join('|')
+    : filter ?? '';
 
   const reset = useCallback(() => {
     esRef.current?.close();
@@ -121,6 +123,9 @@ export function useAgentStream(
     };
 
     const handleEvent = (raw: MessageEvent) => {
+      const filters = filterKey
+        ? (filterKey.split('|') as AgentStreamEvent['type'][])
+        : null;
       let parsed: AgentStreamEvent | null = null;
       try {
         parsed = JSON.parse(raw.data) as AgentStreamEvent;
@@ -151,7 +156,7 @@ export function useAgentStream(
       es.close();
       esRef.current = null;
     };
-  }, [institutionId, enabled, maxEvents, filters?.join('|')]);
+  }, [institutionId, enabled, maxEvents, filterKey]);
 
   return { events, lastEvent, isConnected, error, reset };
 }

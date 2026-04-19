@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from '@/lib/i18n';
-import { ChatMessage, type ChatMessageProps } from '@/components/wave03/chat-message';
+import { ChatMessage } from '@/components/wave03/chat-message';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -122,7 +122,7 @@ export default function AIAdvisorPage() {
   const { locale } = useTranslation();
 
   // State
-  const [institutions, setInstitutions] = useState<Institution[]>(DEMO_INSTITUTIONS);
+  const [institutions] = useState<Institution[]>(DEMO_INSTITUTIONS);
   const [selectedInstitution, setSelectedInstitution] = useState<string>(DEMO_INSTITUTIONS[0]?.id || '');
   const [sessions, setSessions] = useState<ChatSession[]>(DEMO_SESSIONS);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(DEMO_SESSIONS[0]?.id || null);

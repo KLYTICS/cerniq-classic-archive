@@ -12,7 +12,6 @@ import {
   CloudLightning,
   ArrowUpDown,
   ArrowDownUp,
-  GitCompareArrows,
 } from 'lucide-react';
 
 /* ── Types ──────────────────────────────────────────────────────────────────── */

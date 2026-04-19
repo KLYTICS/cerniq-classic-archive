@@ -31,16 +31,6 @@ interface HealthData {
   services: Record<string, string>;
 }
 
-interface ReportJob {
-  id: string;
-  institutionName: string;
-  status: string;
-  createdAt: string;
-  completedAt: string | null;
-  errorMessage: string | null;
-  triggeredBy: string;
-}
-
 function StatusDot({ status }: { status: string }) {
   const color =
     status === 'ok' || status === 'connected' || status === 'up' || status === 'healthy'

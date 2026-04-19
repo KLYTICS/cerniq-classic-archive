@@ -218,7 +218,7 @@ export default function NotificationCenter({
     const updates = openAlerts.map((a) =>
       ackAlert(institutionId, a.id, { status: 'ACKNOWLEDGED' }).catch(() => a),
     );
-    const results = await Promise.allSettled(updates);
+    await Promise.allSettled(updates);
 
     setAlerts((prev) =>
       prev.map((a) => {

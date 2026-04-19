@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { listAlerts } from '@/lib/agents-api';
-import type { AgentAlertRecord, Severity } from '@/types/agents';
+import type { AgentAlertRecord } from '@/types/agents';
 
 /**
  * Header-mountable badge showing unacknowledged alert count.

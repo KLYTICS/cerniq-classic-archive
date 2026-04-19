@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Search,
   TrendingUp,
@@ -194,6 +194,7 @@ export function getDefaultSuggestions(
   context: SuggestionContext,
   _locale: 'en' | 'es',
 ): FollowUpSuggestion[] {
+  void _locale;
   return DEFAULT_SUGGESTIONS[context] ?? DEFAULT_SUGGESTIONS.default;
 }
 
@@ -205,34 +206,47 @@ export default function FollowUpPills({
   locale = 'en',
   animate = true,
 }: FollowUpPillsProps) {
-  const [visiblePills, setVisiblePills] = useState<Set<number>>(new Set());
+  const [animationState, setAnimationState] = useState(() => ({
+    key: suggestions.map((suggestion) => suggestion.id).join('|'),
+    count: 0,
+  }));
+  const animationKey = useMemo(
+    () => suggestions.map((suggestion) => suggestion.id).join('|'),
+    [suggestions],
+  );
+  const visiblePills = useMemo(
+    () => {
+      if (!animate) {
+        return new Set(suggestions.map((_, i) => i));
+      }
+
+      // While a new suggestions list is arriving, hide all pills until the
+      // next timer tick advances the animated count for the new list.
+      const visibleCount =
+        animationState.key === animationKey ? animationState.count : 0;
+
+      return new Set(
+        suggestions
+          .slice(0, Math.min(visibleCount, suggestions.length))
+          .map((_, i) => i),
+      );
+    },
+    [animate, animationState, animationKey, suggestions],
+  );
 
   useEffect(() => {
-    if (!animate) {
-      // Intentional: when animation is disabled we need all pills visible
-      // immediately on mount. Synchronous setState in an effect is flagged
-      // by react-hooks/no-set-state-during-render (as of eslint 9), but
-      // here it's the right primitive — we can't useMemo a Set of indexes
-      // without losing the per-render reset semantics below.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setVisiblePills(new Set(suggestions.map((_, i) => i)));
-      return;
-    }
-
-    // Reset on new suggestions
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setVisiblePills(new Set());
+    if (!animate) return;
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     suggestions.forEach((_, i) => {
       const timer = setTimeout(() => {
-        setVisiblePills((prev) => new Set([...prev, i]));
+        setAnimationState({ key: animationKey, count: i + 1 });
       }, i * 100);
       timers.push(timer);
     });
 
     return () => timers.forEach(clearTimeout);
-  }, [suggestions, animate]);
+  }, [animationKey, suggestions, animate]);
 
   if (!suggestions.length) return null;
 

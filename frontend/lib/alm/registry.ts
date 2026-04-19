@@ -243,6 +243,9 @@ export const ALM_CATEGORIES_BY_ID: Readonly<Record<AlmCategoryId, AlmCategory>> 
 export const MODULES_BY_SLUG: Readonly<Record<string, AlmModule>> =
   Object.fromEntries(ALM_MODULES.map((m) => [m.slug, m]));
 
+export const MODULES_BY_HREF: Readonly<Record<string, AlmModule>> =
+  Object.fromEntries(ALM_MODULES.map((m) => [m.href.replace(/\/+$/, '') || '/', m]));
+
 export const MODULES_BY_CATEGORY: Readonly<Record<AlmCategoryId, readonly AlmModule[]>> =
   ALM_CATEGORIES.reduce<Record<AlmCategoryId, AlmModule[]>>((acc, cat) => {
     acc[cat.id] = ALM_MODULES.filter((m) => m.category === cat.id);
@@ -252,13 +255,30 @@ export const MODULES_BY_CATEGORY: Readonly<Record<AlmCategoryId, readonly AlmMod
 export const ALM_MODULE_COUNT = ALM_MODULES.length;
 
 /**
- * Set of module slugs that have been migrated to the new AlmPage shell
- * with registry-driven header, typed validate(), useAlmEndpoint data
- * fetching, and density primitives (MetricStrip / DataTable).
+ * Legacy pages that now receive the shared registry-driven module header
+ * from the ALM route layout. These pages keep their existing data flows
+ * and content internals, but their page chrome is now unified with the
+ * newer shell.
+ */
+export const AUTO_SHELL_SLUGS: ReadonlySet<AlmModuleSlug> = new Set<AlmModuleSlug>([
+  'balance-sheet', 'advisor-v2', 'analyst', 'modules', 'reseller', 'decisions',
+  'agents', 'copilot', 'sensitivity', 'behavioral-duration', 'sofr-exposure',
+  'ltp', 'conc-var', 'oas', 'optionality', 'compliance', 'peer-benchmarking',
+  'macro-regime', 'stress-test', 'scenario-builder', 'scenario-compare',
+  'network', 'credit-metrics', 'fed-futures', 'wrong-way-risk', 'cap-floor',
+  'macro-factors', 'agent-alerts',
+]);
+
+/**
+ * Set of module slugs that have been migrated to the shared ALM page shell.
+ *
+ * This includes:
+ *   - self-shelled pages built on `AlmPage`
+ *   - legacy pages whose chrome is now standardized by the ALM route layout
  *
  * Update this set whenever you migrate a module — it's the source of truth
- * for the dashboard's "X of 96 migrated" counter, the ModuleStatusGrid's
- * status badge, and any future build-time coverage check.
+ * for the dashboard's migrated counter, the ModuleStatusGrid status badge,
+ * and any future build-time coverage check.
  *
  * Invariant: every slug here MUST exist in ALM_MODULES.
  */
@@ -276,9 +296,13 @@ export const MIGRATED_SLUGS: ReadonlySet<AlmModuleSlug> = new Set<AlmModuleSlug>
   // Wave 7: alerts + climate + regulatory + credit + intelligence
   'alerts', 'climate-risk', 'pca-yield-curve', 'camel-forecast', 'form-5300',
   'credit-risk', 'peer-analytics', 'ews', 'concentration', 'trends',
+  // Shared layout-shell migration for the remaining page-backed modules
+  ...AUTO_SHELL_SLUGS,
+  // Route-backed pages that already render inside the shared ALM shell
+  'overview',
 ]);
 
-/** True if a module has been migrated to the AlmPage shell. */
+/** True if a module has been migrated to the shared ALM module shell. */
 export function isMigrated(slug: string): boolean {
   return MIGRATED_SLUGS.has(slug as AlmModuleSlug);
 }
@@ -307,6 +331,6 @@ export function getAlmModule(slug: string): AlmModule | undefined {
 /** Resolve module from a pathname like '/alm/var/details' → 'var'. */
 export function getAlmModuleFromPathname(pathname: string): AlmModule | undefined {
   if (!pathname.startsWith('/alm/')) return undefined;
-  const slug = pathname.replace('/alm/', '').split('/')[0];
-  return MODULES_BY_SLUG[slug];
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+  return MODULES_BY_HREF[normalizedPath] ?? MODULES_BY_SLUG[pathname.replace('/alm/', '').split('/')[0]];
 }

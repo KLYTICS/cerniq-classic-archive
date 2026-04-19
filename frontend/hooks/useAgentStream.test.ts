@@ -16,7 +16,7 @@ class FakeES {
   static OPEN = 1;
   static CLOSED = 2;
 
-  constructor(url: string, _opts?: { withCredentials?: boolean }) {
+  constructor(url: string) {
     this.url = url;
     instances.push(this);
     queueMicrotask(() => {

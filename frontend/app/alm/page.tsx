@@ -51,7 +51,7 @@ const RiskScoreGauge = dynamic(() => import('@/components/alm/RiskScoreGauge'), 
  *     MIGRATED_SLUGS. Adding a module to the registry automatically
  *     surfaces it here.
  *   - The dashboard uses useAlmEndpoint for the summary fetch — the
- *     same state machine (Sentry, retry, abort) as every migrated page.
+ *     same state machine (Sentry, retry, abort) as every data-shelled page.
  *   - Recent activity is a shared hook, so anything the user visits
  *     anywhere in the app bumps them in the list.
  *   - Skeleton loading matches the final layout to minimize CLS.

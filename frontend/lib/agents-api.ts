@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { getAccessToken, isAuthError, isPlatformAccessError } from './api';
+import { getAccessToken, isPlatformAccessError } from './api';
 import { getPublicApiBase } from './api-base';
 import type {
   AgentAlertRecord,

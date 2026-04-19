@@ -13,7 +13,6 @@ import {
   Upload,
   Eye,
   Shield,
-  TrendingUp,
   Sparkles,
   Activity,
   Droplets,
@@ -939,13 +938,6 @@ function ComplianceGrid({
     unavailable: <Minus className="h-5 w-5 text-slate-300" />,
   };
 
-  const statusBg = {
-    pass: "bg-emerald-50 border-emerald-200",
-    warning: "bg-amber-50 border-amber-200",
-    fail: "bg-rose-50 border-rose-200",
-    unavailable: "bg-slate-50 border-slate-200",
-  };
-
   if (detailed) {
     return (
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -1081,44 +1073,6 @@ function FullReportTab({
   );
 }
 
-/* ───── Metric tile (shared) ───── */
-
-function MetricTile({
-  label,
-  value,
-  subtext,
-  icon: Icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  subtext?: string;
-  icon: React.ElementType;
-  tone?: "good" | "warning";
-}) {
-  const bg =
-    tone === "good"
-      ? "border-emerald-200 bg-emerald-50/50"
-      : tone === "warning"
-        ? "border-amber-200 bg-amber-50/50"
-        : "border-slate-200 bg-white";
-
-  return (
-    <div className={`rounded-2xl border p-5 ${bg}`}>
-      <div className="flex items-center gap-2 text-slate-500">
-        <Icon className="h-4 w-4" />
-        <span className="text-[11px] font-semibold uppercase tracking-wider">
-          {label}
-        </span>
-      </div>
-      <p className="mt-3 font-display text-2xl font-semibold text-slate-900 tabular-nums">
-        {value}
-      </p>
-      {subtext && <p className="mt-1 text-xs text-slate-500">{subtext}</p>}
-    </div>
-  );
-}
-
 /* ═══════════════════════════════════════════════════
    MAIN REPORT SUITE PAGE
    ═══════════════════════════════════════════════════ */
@@ -1144,7 +1098,6 @@ export default function ReportSuite() {
   const {
     readyManifests,
     error: exportError,
-    loading: exportsLoading,
     downloadingId,
     download,
     refresh,

@@ -4,9 +4,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useInstitutionId } from '@/lib/hooks/useInstitutionId';
 import { useTranslation } from '@/lib/i18n';
 import { copilotQuery } from '@/lib/agents-api';
-import { SkeletonLoader, ErrorBanner } from '@/components/ui/cerniq';
+import { ErrorBanner } from '@/components/ui/cerniq';
 import type { CFOCopilotOutput, CFOCopilotFollowup } from '@/types/agents';
-import { Send, Bot, User, Globe, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { Send, Bot, User, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import ScenarioInput, { type ScenarioParams } from '@/components/alm/scenario-input';
 
 interface Message {

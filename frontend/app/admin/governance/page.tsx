@@ -16,7 +16,6 @@ import {
   Filter,
   Beaker,
   BarChart3,
-  FileCheck,
 } from 'lucide-react';
 
 /* ─── Types ─── */

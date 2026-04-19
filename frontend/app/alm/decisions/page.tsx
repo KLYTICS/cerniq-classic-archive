@@ -19,10 +19,7 @@ import type {
   DecisionQueueItem,
   AgentAuditStep,
 } from '@/types/agents';
-import {
-  AGENT_LABEL,
-  type AgentStreamEvent,
-} from '@/types/agents';
+import { type AgentStreamEvent } from '@/types/agents';
 import { Play, ChevronDown, ChevronRight, Download, Globe } from 'lucide-react';
 import HealthScoreWidget from '@/components/alm/health-score-widget';
 
@@ -56,7 +53,7 @@ export default function DecisionsPage() {
   // Returns `string | undefined` — every downstream guard (`if (!selectedId)`)
   // already treats empty-string as absent, so this is a drop-in source swap.
   const selectedId = useInstitutionId();
-  const { t, locale } = useTranslation();
+  const { locale } = useTranslation();
   const isEs = locale === 'es';
 
   const [run, setRun] = useState<AgentRun | null>(null);
@@ -92,7 +89,7 @@ export default function DecisionsPage() {
 
   useEffect(() => { void loadLatest(); }, [loadLatest]);
 
-  const stream = useAgentStream({
+  useAgentStream({
     institutionId: selectedId || null,
     filter: ['agent:started', 'agent:step', 'agent:completed', 'agent:failed'],
     onEvent: useCallback((e: AgentStreamEvent) => {

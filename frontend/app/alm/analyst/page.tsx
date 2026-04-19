@@ -23,7 +23,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   TrendingDown,
-  TrendingUp,
   Shield,
   BarChart3,
 } from 'lucide-react';

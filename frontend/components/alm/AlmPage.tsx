@@ -16,6 +16,7 @@ import {
   type AlmModule,
   type AlmModuleSlug,
 } from '@/lib/alm/registry';
+import { AlmModuleHeader, type AlmIconTint } from './AlmModuleHeader';
 import { AlmPageSkeleton } from './AlmPageSkeleton';
 
 /**
@@ -89,26 +90,12 @@ export interface AlmPageProps<T> extends Omit<UseAlmEndpointOptions<T>, 'institu
    * Icon tint for the header icon box. Accepts any tailwind color name
    * that has a {-50, -200, -700} set. Defaults to 'slate'.
    */
-  readonly iconTint?: 'slate' | 'cyan' | 'purple' | 'rose' | 'emerald' | 'amber' | 'indigo' | 'sky' | 'blue' | 'violet' | 'red';
+  readonly iconTint?: AlmIconTint;
   /**
    * Override the institutionId. By default reads from ALMProvider context.
    */
   readonly institutionIdOverride?: string | null;
 }
-
-const ICON_TINT_CLASSES: Record<NonNullable<AlmPageProps<unknown>['iconTint']>, { border: string; bg: string; text: string }> = {
-  slate:   { border: 'border-slate-200',   bg: 'bg-slate-50',   text: 'text-slate-700' },
-  cyan:    { border: 'border-cyan-200',    bg: 'bg-cyan-50',    text: 'text-cyan-700' },
-  purple:  { border: 'border-purple-200',  bg: 'bg-purple-50',  text: 'text-purple-700' },
-  rose:    { border: 'border-rose-200',    bg: 'bg-rose-50',    text: 'text-rose-700' },
-  emerald: { border: 'border-emerald-200', bg: 'bg-emerald-50', text: 'text-emerald-700' },
-  amber:   { border: 'border-amber-200',   bg: 'bg-amber-50',   text: 'text-amber-700' },
-  indigo:  { border: 'border-indigo-200',  bg: 'bg-indigo-50',  text: 'text-indigo-700' },
-  sky:     { border: 'border-sky-200',     bg: 'bg-sky-50',     text: 'text-sky-700' },
-  blue:    { border: 'border-blue-200',    bg: 'bg-blue-50',    text: 'text-blue-700' },
-  violet:  { border: 'border-violet-200',  bg: 'bg-violet-50',  text: 'text-violet-700' },
-  red:     { border: 'border-red-200',     bg: 'bg-red-50',     text: 'text-red-700' },
-};
 
 export function AlmPage<T>({
   slug,
@@ -158,8 +145,6 @@ export function AlmPage<T>({
     );
   }
 
-  const tint = ICON_TINT_CLASSES[iconTint];
-  const ModuleIcon = mod.icon;
   const containerClass = className ?? 'p-6 space-y-4 max-w-[1500px] mx-auto';
   const isDemo = state.status === 'success' && state.source === 'demo';
 
@@ -178,25 +163,7 @@ export function AlmPage<T>({
 
       {/* Header — present in every state. Controls stay interactive even when
           the main content area is loading or errored. */}
-      <header className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className={`flex h-9 w-9 items-center justify-center rounded-lg border ${tint.border} ${tint.bg}`}>
-            <ModuleIcon className={`h-4 w-4 ${tint.text}`} />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-lg font-bold text-slate-950">{mod.name[locale]}</h1>
-              {mod.status !== 'ga' ? (
-                <span className="rounded px-1.5 py-px text-[8px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200">
-                  {mod.status}
-                </span>
-              ) : null}
-            </div>
-            <p className="text-xs text-slate-500">{mod.description[locale]}</p>
-          </div>
-        </div>
-        {controls ? <div className="flex items-center gap-2">{controls}</div> : null}
-      </header>
+      <AlmModuleHeader slug={slug} controls={controls} iconTint={iconTint} />
 
       {/* Content area — swaps based on state */}
       <AlmPageContent state={state} locale={locale} mod={mod}>

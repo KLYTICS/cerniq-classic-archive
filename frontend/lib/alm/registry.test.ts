@@ -221,13 +221,16 @@ describe('getAlmModuleFromPathname', () => {
     expect(getAlmModuleFromPathname('/')).toBeUndefined();
   });
 
-  it('returns undefined for /alm/ (trailing slash, no slug)', () => {
-    // '/alm/'.replace('/alm/', '').split('/')[0] === '' — which isn't a valid slug
-    expect(getAlmModuleFromPathname('/alm/')).toBeUndefined();
+  it('resolves /alm/ (trailing slash) to the overview module', () => {
+    expect(getAlmModuleFromPathname('/alm/')?.slug).toBe('overview');
   });
 
   it('returns undefined for unregistered slugs', () => {
     expect(getAlmModuleFromPathname('/alm/this-does-not-exist')).toBeUndefined();
+  });
+
+  it('resolves nested registered hrefs', () => {
+    expect(getAlmModuleFromPathname('/alm/agents/alerts')?.slug).toBe('agent-alerts');
   });
 });
 
@@ -253,6 +256,8 @@ describe('MIGRATED_SLUGS', () => {
   it('isMigrated returns true for a known migrated slug', () => {
     expect(isMigrated('var')).toBe(true);
     expect(isMigrated('cecl')).toBe(true);
+    expect(isMigrated('overview')).toBe(true);
+    expect(isMigrated('agent-alerts')).toBe(true);
   });
 
   it('isMigrated returns false for an unmigrated slug', () => {

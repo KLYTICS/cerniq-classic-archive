@@ -1,7 +1,8 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import ALMProvider, { useALM } from '@/components/alm/ALMProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -10,6 +11,9 @@ import { useTranslation } from '@/lib/i18n';
 import ALMBreadcrumb from '@/components/alm/ALMBreadcrumb';
 import DocumentExportButtons from '@/components/exports/DocumentExportButtons';
 import { CommandPalette } from '@/components/alm/CommandPalette';
+import { AlmModuleHeader } from '@/components/alm/AlmModuleHeader';
+import { getAlmModuleFromPathname, AUTO_SHELL_SLUGS } from '@/lib/alm/registry';
+import { looksLikeLegacyModuleHeader } from '@/lib/alm/legacy-header';
 
 function LanguageToggle() {
   const { locale, setLocale } = useTranslation();
@@ -169,6 +173,36 @@ function ALMServiceError({ message, onRetry }: { message: string; onRetry: () =>
 function ALMShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { authRedirecting, bootstrapError, refresh } = useALM();
+  const pathname = usePathname();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const autoShellModule = pathname ? getAlmModuleFromPathname(pathname) : undefined;
+  const shouldAutoShell = !!(autoShellModule && AUTO_SHELL_SLUGS.has(autoShellModule.slug));
+
+  useEffect(() => {
+    const host = contentRef.current;
+    if (!host || !shouldAutoShell) {
+      return;
+    }
+
+    const pageRoot = host.firstElementChild;
+    if (!(pageRoot instanceof HTMLElement)) {
+      return;
+    }
+
+    const legacyHeader = pageRoot.firstElementChild;
+    if (!(legacyHeader instanceof HTMLElement) || !looksLikeLegacyModuleHeader(legacyHeader)) {
+      return;
+    }
+
+    const previousHidden = legacyHeader.hasAttribute('hidden');
+    legacyHeader.setAttribute('hidden', '');
+
+    return () => {
+      if (!previousHidden) {
+        legacyHeader.removeAttribute('hidden');
+      }
+    };
+  }, [pathname, shouldAutoShell, children]);
 
   return (
     <div className="cerniq-dashboard-theme flex h-screen overflow-hidden bg-[var(--dashboard-base)] text-slate-950">
@@ -188,7 +222,14 @@ function ALMShell({ children }: { children: React.ReactNode }) {
             <ALMServiceError message={bootstrapError} onRetry={refresh} />
           ) : (
             <div className="animate-fade-in">
-              {children}
+              {shouldAutoShell && autoShellModule ? (
+                <div className="p-6 pb-0 max-w-[1400px] mx-auto">
+                  <AlmModuleHeader slug={autoShellModule.slug} />
+                </div>
+              ) : null}
+              <div ref={contentRef}>
+                {children}
+              </div>
             </div>
           )}
         </main>

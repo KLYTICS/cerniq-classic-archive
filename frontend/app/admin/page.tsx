@@ -88,29 +88,6 @@ function StatusChip({
   );
 }
 
-function StatCard({
-  label,
-  value,
-  detail,
-  icon,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-3xl border border-white/10 bg-slate-900/75 p-5">
-      <div className="text-cyan-300">{icon}</div>
-      <p className="mt-4 text-xs uppercase tracking-[0.22em] text-slate-500">
-        {label}
-      </p>
-      <p className="mt-3 text-3xl font-semibold text-white">{value}</p>
-      <p className="mt-2 text-sm text-slate-400">{detail}</p>
-    </div>
-  );
-}
-
 function formatFreshness(iso: string | null) {
   if (!iso) return "unknown";
   const diffHours = Math.round(

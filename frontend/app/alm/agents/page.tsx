@@ -14,7 +14,6 @@ import type { DataTableColumn } from '@/components/ui/cerniq';
 import type {
   AgentRun,
   AgentAlertRecord,
-  AgentStreamEvent,
 } from '@/types/agents';
 import { AGENT_LABEL } from '@/types/agents';
 import { Bell, CheckCircle2, AlertTriangle } from 'lucide-react';
@@ -74,9 +73,9 @@ export default function AgentsPage() {
 
   useEffect(() => { void loadData(); }, [loadData]);
 
-  const stream = useAgentStream({
+  useAgentStream({
     institutionId: selectedId || null,
-    onEvent: useCallback((_e: AgentStreamEvent) => {
+    onEvent: useCallback(() => {
       void loadData();
     }, [loadData]),
   });

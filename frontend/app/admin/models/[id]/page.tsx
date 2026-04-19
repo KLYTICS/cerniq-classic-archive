@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getPublicApiUrl } from '@/lib/api-base';
 import { MetricStrip, type MetricStripItem } from '@/components/ui/cerniq/MetricStrip';
@@ -13,7 +13,6 @@ import {
   AlertTriangle,
   XCircle,
   Clock,
-  FileCheck,
   Play,
   Archive,
   Send,
@@ -95,12 +94,6 @@ const TIER_LABEL: Record<string, string> = {
   TIER_3: 'T3 — Advisory',
 };
 
-const TIER_COLOR: Record<string, string> = {
-  TIER_1: 'text-red-700 bg-red-50 border-red-200',
-  TIER_2: 'text-amber-700 bg-amber-50 border-amber-200',
-  TIER_3: 'text-slate-600 bg-slate-50 border-slate-200',
-};
-
 const CATEGORY_LABEL: Record<string, string> = {
   ALM_CORE: 'ALM Core',
   CREDIT_RISK: 'Credit Risk',
@@ -171,7 +164,6 @@ function fmtDate(iso: string | null): string {
 
 export default function ModelDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const modelId = params.id as string;
 
   const [model, setModel] = useState<RegistryModel | null>(null);

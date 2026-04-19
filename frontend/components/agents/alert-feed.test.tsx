@@ -10,7 +10,7 @@ const listAlertsMock = vi.fn<() => Promise<AgentAlertRecord[]>>();
 const ackAlertMock = vi.fn();
 
 vi.mock('@/lib/agents-api', () => ({
-  listAlerts: (...args: unknown[]) => listAlertsMock(),
+  listAlerts: () => listAlertsMock(),
   ackAlert: (...args: unknown[]) => ackAlertMock(...args),
 }));
 
