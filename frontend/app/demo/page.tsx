@@ -18,6 +18,8 @@ import {
   Building2,
 } from "lucide-react";
 import { CerniqMark } from "@/components/brand/CerniqLogo";
+import { getAcquisitionCopy } from "@/lib/acquisition-copy";
+import { PUBLIC_PATHS } from "@/lib/public-links";
 
 // ──────────────────────────────────────────────
 // Language helper
@@ -33,7 +35,7 @@ const STEPS = [
   { id: 3, labelEn: "SpendCheck", labelEs: "SpendCheck" },
   { id: 4, labelEn: "AI Advisor", labelEs: "Asesor IA" },
   { id: 5, labelEn: "Quant Engine", labelEs: "Motor Cuantitativo" },
-  { id: 6, labelEn: "Get Started", labelEs: "Comenzar" },
+  { id: 6, labelEn: "Start Pilot", labelEs: "Comenzar piloto" },
 ];
 
 // ──────────────────────────────────────────────
@@ -544,6 +546,7 @@ export default function DemoPage() {
   const contentRef = useRef<HTMLDivElement>(null);
 
   const t = (en: string, es: string) => (lang === "en" ? en : es);
+  const acquisition = getAcquisitionCopy(lang);
 
   // Track step views
   useEffect(() => {
@@ -616,13 +619,10 @@ export default function DemoPage() {
           )}
         </span>
         <Link
-          href="/pricing"
+          href="/get-started"
           className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-0.5 text-xs font-bold text-white transition hover:bg-white/30"
         >
-          {t(
-            "Sign up for your free analysis",
-            "Registrese para su analisis gratuito",
-          )}
+          {acquisition.primaryCta}
           <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
@@ -662,10 +662,10 @@ export default function DemoPage() {
               </button>
             </div>
             <Link
-              href="/pricing"
+              href="/get-started"
               className="hidden rounded-full bg-amber-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600 sm:inline-flex"
             >
-              {t("Get Started", "Comenzar")}
+              {acquisition.primaryCta}
             </Link>
           </div>
         </div>
@@ -1575,7 +1575,7 @@ export default function DemoPage() {
                     onClick={() => goToStep(5)}
                     className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
                   >
-                    {t("Next: Get Started", "Siguiente: Comenzar")}
+                    {t("Next: Start Pilot", "Siguiente: Comenzar piloto")}
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
@@ -1689,14 +1689,11 @@ export default function DemoPage() {
                           href="/get-started"
                           className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-8 py-3.5 text-sm font-bold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5"
                         >
-                          {t(
-                            "Start with Your Balance Sheet",
-                            "Comience con su balance",
-                          )}
+                          {acquisition.primaryCta}
                           <ArrowRight className="h-4 w-4" />
                         </Link>
-                        <Link href="/#demo" className="cerniq-button-secondary">
-                          {t("Request a Demo", "Solicitar una Demo")}
+                        <Link href={PUBLIC_PATHS.contact} className="cerniq-button-secondary">
+                          {acquisition.salesCta}
                         </Link>
                       </div>
 

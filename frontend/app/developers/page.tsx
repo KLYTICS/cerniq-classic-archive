@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import { PUBLIC_PATHS } from '@/lib/public-links';
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_NODE_API_URL ||
@@ -510,9 +511,9 @@ liability,time_deposits,12-Month CDs,15.0,3.00,1.0,fixed,,2027-03-01`}
         <footer className="border-t border-white/10 pt-8 pb-12 text-center text-gray-500 text-sm">
           <p>&copy; {new Date().getFullYear()} KLYTICS LLC. All rights reserved.</p>
           <p className="mt-2 flex items-center justify-center gap-4 text-xs">
-            <a href="/terms" className="text-gray-500 hover:text-cyan-400">Terms</a>
-            <a href="/privacy" className="text-gray-500 hover:text-cyan-400">Privacy</a>
-            <a href="/security" className="text-gray-500 hover:text-cyan-400">Security</a>
+            <a href={PUBLIC_PATHS.terms} className="text-gray-500 hover:text-cyan-400">Terms</a>
+            <a href={PUBLIC_PATHS.privacy} className="text-gray-500 hover:text-cyan-400">Privacy</a>
+            <a href={PUBLIC_PATHS.security} className="text-gray-500 hover:text-cyan-400">Security</a>
             <a href="mailto:api@cerniq.io" className="text-cyan-400 hover:underline">api@cerniq.io</a>
           </p>
         </footer>

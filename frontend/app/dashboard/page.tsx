@@ -66,11 +66,11 @@ const ALM_STATUS_ROWS: {
 
 const MODULE_CARDS = [
   {
-    titleEn: 'Client Portal',
-    titleEs: 'Portal de Cliente',
-    descEn: 'Upload balance sheets, view reports, and download bilingual PDFs.',
-    descEs: 'Suba balances, vea informes y descargue PDFs bilingues.',
-    href: '/portal',
+    titleEn: 'Reporting Workspace',
+    titleEs: 'Workspace de Informes',
+    descEn: 'Start report cycles, upload balance sheets, and download bilingual PDFs.',
+    descEs: 'Inicie ciclos de informes, suba balances y descargue PDFs bilingues.',
+    href: '/dashboard/upload',
     icon: FileText,
     accentEn: 'Reports',
     accentEs: 'Informes',
@@ -414,7 +414,9 @@ export default function DashboardPage() {
   const [calendarLoading, setCalendarLoading] = useState(true);
 
   const displayName = user?.name || user?.email?.split('@')[0] || '';
-  const isDemoMode = !isAuthenticated || !onboardingComplete;
+  const isGuestDemoMode = !isAuthenticated;
+  const needsOnboarding = isAuthenticated && !onboardingComplete;
+  const showWorkspaceBanner = isGuestDemoMode || needsOnboarding;
 
   // Derive exam countdown from calendar deadlines
   const examDeadline = calendarDeadlines.find(
@@ -479,9 +481,13 @@ export default function DashboardPage() {
 
             <div className="flex flex-wrap items-center gap-3">
               <DashboardLangToggle />
-              {isDemoMode ? (
+              {isGuestDemoMode ? (
                 <span className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800">
                   {t('Demo mode', 'Modo demo')}
+                </span>
+              ) : needsOnboarding ? (
+                <span className="rounded-full border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-medium text-cyan-800">
+                  {t('Setup in progress', 'Configuracion en progreso')}
                 </span>
               ) : (
                 <span className="rounded-full border border-slate-200 bg-white/85 px-4 py-2 text-sm text-slate-600">
@@ -494,13 +500,32 @@ export default function DashboardPage() {
               >
                 {t('Live Data', 'Datos en Vivo')}
               </button>
-              {isDemoMode ? (
+              {isGuestDemoMode ? (
                 <button
                   onClick={() => router.push('/login')}
                   className="rounded-full bg-[#1B3A6B] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#163258]"
                 >
                   {t('Sign in', 'Iniciar sesion')}
                 </button>
+              ) : needsOnboarding ? (
+                <>
+                  <button
+                    onClick={() => router.push('/onboarding')}
+                    className="rounded-full bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-700"
+                  >
+                    {t('Finish setup', 'Completar configuracion')}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await logout();
+                      router.push('/login');
+                    }}
+                    className="flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 transition hover:border-red-300"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    {t('Logout', 'Salir')}
+                  </button>
+                </>
               ) : (
                 <button
                   onClick={async () => {
@@ -517,24 +542,41 @@ export default function DashboardPage() {
           </div>
         </nav>
 
-        {isDemoMode ? (
+        {showWorkspaceBanner ? (
           <div className="flex flex-col gap-3 rounded-2xl border border-cyan-200 bg-cyan-50/85 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-700">
-                {t('Dashboard access', 'Acceso al dashboard')}
+                {t(
+                  isGuestDemoMode ? 'Dashboard access' : 'Workspace setup',
+                  isGuestDemoMode
+                    ? 'Acceso al dashboard'
+                    : 'Configuracion del workspace',
+                )}
               </p>
               <p className="mt-1 text-sm text-slate-700">
-                {t(
-                  'You are viewing the live demo experience. Sign in to save workspaces, billing access, and institution-specific data.',
-                  'Esta viendo la experiencia demo en vivo. Inicie sesion para guardar workspaces, acceso de facturacion y datos especificos de su institucion.',
-                )}
+                {isGuestDemoMode
+                  ? t(
+                      'You are viewing the live demo experience. Sign in to save workspaces, billing access, and institution-specific data.',
+                      'Esta viendo la experiencia demo en vivo. Inicie sesion para guardar workspaces, acceso de facturacion y datos especificos de su institucion.',
+                    )
+                  : t(
+                      'Your account is live, but institution setup is not finished yet. Complete onboarding to turn this into a saved workspace instead of the public demo shell.',
+                      'Su cuenta ya esta activa, pero la configuracion de la institucion no ha terminado. Complete el onboarding para convertir esto en un workspace guardado en lugar del demo publico.',
+                    )}
               </p>
             </div>
             <button
-              onClick={() => router.push('/login')}
+              onClick={() =>
+                router.push(isGuestDemoMode ? '/login' : '/onboarding')
+              }
               className="rounded-full bg-cyan-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-800"
             >
-              {t('Unlock full access', 'Desbloquear acceso total')}
+              {t(
+                isGuestDemoMode ? 'Unlock full access' : 'Finish setup',
+                isGuestDemoMode
+                  ? 'Desbloquear acceso total'
+                  : 'Completar configuracion',
+              )}
             </button>
           </div>
         ) : null}
@@ -599,17 +641,17 @@ export default function DashboardPage() {
                       )}
                 </p>
 
-                {/* Portal CTA — primary action */}
+                {/* Reporting CTA — primary action */}
                 <div className="mt-4 flex flex-wrap gap-3">
                   <button
-                    onClick={() => router.push('/portal')}
+                    onClick={() => router.push('/dashboard/upload')}
                     className="inline-flex items-center gap-2 rounded-xl bg-[#1B3A6B] px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-[#15305a] hover:-translate-y-0.5"
                   >
                     <FileText className="h-4 w-4" />
-                    {t('Open Portal', 'Abrir Portal')}
+                    {t('Open Reporting Workspace', 'Abrir workspace de informes')}
                   </button>
                   <button
-                    onClick={() => router.push('/portal/submit')}
+                    onClick={() => router.push('/dashboard/upload')}
                     className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
                   >
                     <Upload className="h-4 w-4" />

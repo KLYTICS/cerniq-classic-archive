@@ -55,6 +55,9 @@ coverage/
 /frontend/playwright-report/
 /frontend/test-results/
 /.playwright-cli/
+/apple/.build/
+/apple/.swiftpm/
+/dist/
 
 # Word/docx source drops (authoritative copies live in docs/ as .md)
 *.docx

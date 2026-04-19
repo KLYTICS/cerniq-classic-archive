@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
 export const MASTER_ACCOUNT_EMAIL = 'data.ai.kiess@gmail.com';
+export const MASTER_ACCOUNT_LOCAL_PART = 'data.ai.kiess';
 export const PLATFORM_ACCESS_REQUIRED_CODE = 'PLATFORM_ACCESS_REQUIRED';
 
 export type PlatformAccessReason =
@@ -36,8 +37,25 @@ export interface PlatformAccessState {
 export class PlatformAccessService {
   constructor(private readonly prisma: PrismaService) {}
 
-  isMasterAccountEmail(email?: string | null) {
+  normalizeMasterAccountEmail(email?: string | null) {
     const normalizedEmail = this.normalizeEmail(email);
+    if (!normalizedEmail) {
+      return null;
+    }
+
+    const localPart = normalizedEmail.includes('@')
+      ? normalizedEmail.split('@', 1)[0]
+      : normalizedEmail;
+
+    if (localPart === MASTER_ACCOUNT_LOCAL_PART) {
+      return MASTER_ACCOUNT_EMAIL;
+    }
+
+    return normalizedEmail;
+  }
+
+  isMasterAccountEmail(email?: string | null) {
+    const normalizedEmail = this.normalizeMasterAccountEmail(email);
     return normalizedEmail === MASTER_ACCOUNT_EMAIL;
   }
 
@@ -84,7 +102,7 @@ export class PlatformAccessService {
     subscription?: PlatformSubscriptionSnapshot,
     role?: string | null,
   ): PlatformAccessState {
-    const normalizedEmail = this.normalizeEmail(email);
+    const normalizedEmail = this.normalizeMasterAccountEmail(email);
     const normalizedRole = this.normalizeRole(role);
     const effectiveTier = subscription?.tier || 'free';
     const effectiveStatus = subscription?.status || null;

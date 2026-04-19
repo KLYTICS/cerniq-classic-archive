@@ -1,0 +1,61 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": "export-report-es",
+      "kind": "alm_report",
+      "language": "es",
+      "audience": "internal",
+      "filename": "alm-report-es.pdf",
+      "mimeType": "application/pdf",
+      "status": "ready",
+      "downloadUrl": "https://downloads.cerniq.io/job-complete/alm-report-es.pdf",
+      "generatedAt": "2026-04-18T10:00:00Z",
+      "expiresAt": "2026-04-25T10:00:00Z",
+      "sourceInstitutionId": "inst_123",
+      "sourceJobId": "job-complete"
+    },
+    {
+      "id": "export-report-en",
+      "kind": "alm_report",
+      "language": "en",
+      "audience": "internal",
+      "filename": "alm-report-en.pdf",
+      "mimeType": "application/pdf",
+      "status": "ready",
+      "downloadUrl": "https://downloads.cerniq.io/job-complete/alm-report-en.pdf",
+      "generatedAt": "2026-04-18T10:00:00Z",
+      "expiresAt": "2026-04-25T10:00:00Z",
+      "sourceInstitutionId": "inst_123",
+      "sourceJobId": "job-complete"
+    },
+    {
+      "id": "export-pack-es",
+      "kind": "alco_pack",
+      "language": "es",
+      "audience": "internal",
+      "filename": "board-pack-es.pdf",
+      "mimeType": "application/pdf",
+      "status": "ready",
+      "downloadUrl": "https://downloads.cerniq.io/job-complete/board-pack-es.pdf",
+      "generatedAt": "2026-04-18T10:00:00Z",
+      "expiresAt": "2026-04-25T10:00:00Z",
+      "sourceInstitutionId": "inst_123",
+      "sourceJobId": "job-complete"
+    },
+    {
+      "id": "export-pack-en",
+      "kind": "alco_pack",
+      "language": "en",
+      "audience": "internal",
+      "filename": "board-pack-en.pdf",
+      "mimeType": "application/pdf",
+      "status": "ready",
+      "downloadUrl": "https://downloads.cerniq.io/job-complete/board-pack-en.pdf",
+      "generatedAt": "2026-04-18T10:00:00Z",
+      "expiresAt": "2026-04-25T10:00:00Z",
+      "sourceInstitutionId": "inst_123",
+      "sourceJobId": "job-complete"
+    }
+  ]
+}

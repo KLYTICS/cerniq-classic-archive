@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "user_123",
+      "email": "ana@coop.pr",
+      "name": "Ana Rivera",
+      "workspaceId": "ws_123",
+      "workspaceName": "CoopAhorro Workspace",
+      "subscriptionTier": "annual"
+    }
+  }
+}

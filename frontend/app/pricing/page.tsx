@@ -12,6 +12,8 @@ import { createCheckoutSession } from "@/lib/billing";
 import { analytics, EVENTS } from "@/lib/analytics";
 import { CerniqMark } from "@/components/brand/CerniqLogo";
 import { PRICING_TIERS, getCtaLabel } from "@/lib/pricing";
+import { getAcquisitionCopy } from "@/lib/acquisition-copy";
+import { PUBLIC_PATHS } from "@/lib/public-links";
 
 export default function PricingPage() {
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
@@ -22,6 +24,7 @@ export default function PricingPage() {
   });
 
   const t = (en: string, es: string) => (lang === "en" ? en : es);
+  const acquisition = getAcquisitionCopy(lang);
 
   const costComparison =
     lang === "en"
@@ -149,10 +152,10 @@ export default function PricingPage() {
 
           <div className="flex items-center gap-2">
             <Link
-              href="/demo"
+              href={PUBLIC_PATHS.demo}
               className="hidden rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 sm:inline-flex"
             >
-              {t("Try Demo", "Ver Demo")}
+              {acquisition.proofCta}
             </Link>
 
             {/* Language toggle */}
@@ -187,14 +190,24 @@ export default function PricingPage() {
                   {t("Plans & Pricing", "Planes y precios")}
                 </span>
                 <h1 className="font-display text-3xl leading-tight text-slate-950 sm:text-5xl">
-                  {t("Plans & Pricing", "Planes y Precios")}
+                  {acquisition.pricingHeroTitle}
                 </h1>
                 <p className="mt-5 max-w-3xl text-base leading-8 text-slate-700">
-                  {t(
-                    "Start with a pilot report. Scale when ready.",
-                    "Comience con un informe piloto. Escale cuando este listo.",
-                  )}
+                  {acquisition.pricingHeroBody}
                 </p>
+
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <Link href="/get-started" className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5">
+                    {acquisition.primaryCta}
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                  <Link href={PUBLIC_PATHS.demo} className="inline-flex items-center justify-center gap-2 rounded-full border border-cyan-300 bg-cyan-50 px-6 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-100">
+                    {acquisition.proofCta}
+                  </Link>
+                  <Link href={PUBLIC_PATHS.contact} className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950">
+                    {acquisition.salesCta}
+                  </Link>
+                </div>
 
                 <div className="mt-8 flex flex-wrap gap-3">
                   <span className="cerniq-mini-stat">
@@ -295,7 +308,7 @@ export default function PricingPage() {
 
                 {tier.id === "partner" ? (
                   <a
-                    href="/contact"
+                    href={PUBLIC_PATHS.contact}
                     rel="noopener noreferrer"
                     className="mt-8 w-full cerniq-button-secondary text-center"
                   >
@@ -552,8 +565,8 @@ export default function PricingPage() {
                 <p className="cerniq-section-label">CERNIQ</p>
                 <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
                   {t(
-                    "Compliance-ready ALM reports. Bilingual. In 24 hours.",
-                    "Informes ALM listos para cumplimiento. Bilingues. En 24 horas.",
+                    "One pilot-first path. One recurring upgrade when you are ready.",
+                    "Un camino pilot-first. Una ruta de acceso recurrente cuando este listo.",
                   )}
                 </h2>
               </div>
@@ -563,23 +576,14 @@ export default function PricingPage() {
                   href="/get-started"
                   className="inline-flex items-center justify-center gap-2 rounded-full border border-cyan-300 bg-cyan-50 px-6 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-100"
                 >
-                  {t(
-                    "Start with your balance sheet",
-                    "Comience con su balance",
-                  )}
+                  {acquisition.primaryCta}
                   <ChevronRight className="h-4 w-4" />
                 </Link>
-                <button
-                  onClick={() => handleCheckout("one_time")}
-                  disabled={loadingTier === "one_time"}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5 disabled:opacity-60"
-                >
-                  {loadingTier === "one_time"
-                    ? t("Processing...", "Procesando...")
-                    : getCtaLabel("one_time", lang)}
-                </button>
-                <Link href="/" className="cerniq-button-secondary">
-                  {t("Back to home", "Volver al inicio")}
+                <Link href={PUBLIC_PATHS.demo} className="cerniq-button-secondary">
+                  {acquisition.proofCta}
+                </Link>
+                <Link href={PUBLIC_PATHS.contact} className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950">
+                  {acquisition.salesCta}
                 </Link>
               </div>
             </div>

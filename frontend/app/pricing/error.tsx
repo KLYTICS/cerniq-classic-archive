@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import * as Sentry from '@sentry/nextjs';
 import { AlertTriangle } from 'lucide-react';
+import { PUBLIC_PATHS } from '@/lib/public-links';
 
 export default function PricingError({ error, reset }: { error: Error; reset: () => void }) {
   useEffect(() => { Sentry.captureException(error); }, [error]);
@@ -23,7 +24,7 @@ export default function PricingError({ error, reset }: { error: Error; reset: ()
             Try again
           </button>
           <a
-            href="/contact"
+            href={PUBLIC_PATHS.contact}
             className="rounded-lg border border-slate-600 px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-slate-400"
           >
             Contact Us

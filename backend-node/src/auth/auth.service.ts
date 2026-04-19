@@ -69,7 +69,7 @@ export class AuthService {
     accessToken: string;
     refreshToken: string;
   }> {
-    const normalizedEmail = this.normalizeEmail(dto.email) || dto.email;
+    const normalizedEmail = this.normalizeUserEmail(dto.email) || dto.email;
 
     if (this.platformAccess.isMasterAccountEmail(normalizedEmail)) {
       await this.ensureMasterAccountProvisioned();
@@ -120,7 +120,7 @@ export class AuthService {
     accessToken: string;
     refreshToken: string;
   }> {
-    const normalizedEmail = this.normalizeEmail(dto.email) || dto.email;
+    const normalizedEmail = this.normalizeUserEmail(dto.email) || dto.email;
 
     if (this.platformAccess.isMasterAccountEmail(normalizedEmail)) {
       await this.ensureMasterAccountProvisioned();
@@ -194,17 +194,23 @@ export class AuthService {
   }
 
   async validateOAuthUser(profile: OAuthUserProfile) {
+    const normalizedEmail = this.normalizeUserEmail(profile.email);
+    const resolvedProfile = {
+      ...profile,
+      email: normalizedEmail || profile.email,
+    };
+
     let user = await this.prisma.user.findFirst({
       where: {
-        provider: profile.provider,
-        providerId: profile.providerId,
+        provider: resolvedProfile.provider,
+        providerId: resolvedProfile.providerId,
       },
     });
 
     if (!user) {
       // Check if email already exists (different provider)
       const existingByEmail = await this.prisma.user.findUnique({
-        where: { email: profile.email },
+        where: { email: resolvedProfile.email },
       });
 
       if (existingByEmail) {
@@ -212,20 +218,20 @@ export class AuthService {
         user = await this.prisma.user.update({
           where: { id: existingByEmail.id },
           data: {
-            provider: profile.provider,
-            providerId: profile.providerId,
-            avatarUrl: profile.avatarUrl || existingByEmail.avatarUrl,
+            provider: resolvedProfile.provider,
+            providerId: resolvedProfile.providerId,
+            avatarUrl: resolvedProfile.avatarUrl || existingByEmail.avatarUrl,
             emailVerified: true,
           },
         });
       } else {
         user = await this.prisma.user.create({
           data: {
-            email: profile.email,
-            name: profile.name,
-            provider: profile.provider,
-            providerId: profile.providerId,
-            avatarUrl: profile.avatarUrl,
+            email: resolvedProfile.email,
+            name: resolvedProfile.name,
+            provider: resolvedProfile.provider,
+            providerId: resolvedProfile.providerId,
+            avatarUrl: resolvedProfile.avatarUrl,
             emailVerified: true,
           },
         });
@@ -233,7 +239,7 @@ export class AuthService {
         // Auto-create workspace for OAuth users
         await this.prisma.workspace.create({
           data: {
-            name: `${profile.name || profile.email.split('@')[0]}'s Workspace`,
+            name: `${resolvedProfile.name || resolvedProfile.email.split('@')[0]}'s Workspace`,
             ownerId: user.id,
           },
         });
@@ -253,7 +259,7 @@ export class AuthService {
     this.logger.log({
       event: 'oauth_login',
       userId: user.id,
-      provider: profile.provider,
+      provider: resolvedProfile.provider,
     });
     return user;
   }
@@ -277,7 +283,7 @@ export class AuthService {
       emailVerified = true,
     } = params;
 
-    const normalizedEmail = this.normalizeEmail(email);
+    const normalizedEmail = this.normalizeUserEmail(email);
 
     if (this.platformAccess.isMasterAccountEmail(normalizedEmail)) {
       return this.ensureMasterAccountProvisioned({
@@ -673,7 +679,7 @@ export class AuthService {
 
   async requestPasswordReset(email: string) {
     const successMsg = 'If that email exists, a reset link has been sent';
-    const normalizedEmail = this.normalizeEmail(email) || email;
+    const normalizedEmail = this.normalizeUserEmail(email) || email;
 
     if (this.platformAccess.isMasterAccountEmail(normalizedEmail)) {
       await this.ensureMasterAccountProvisioned();
@@ -957,7 +963,7 @@ export class AuthService {
     email: string,
     returnUrl?: string,
   ): Promise<void> {
-    const normalizedEmail = this.normalizeEmail(email);
+    const normalizedEmail = this.normalizeUserEmail(email);
     if (!normalizedEmail) {
       // Don't reveal anything — just return silently
       return;
@@ -1042,7 +1048,7 @@ export class AuthService {
       return null;
     }
 
-    const normalizedEmail = this.normalizeEmail(email);
+    const normalizedEmail = this.normalizeUserEmail(email);
     if (!normalizedEmail) {
       return null;
     }
@@ -1144,6 +1150,12 @@ export class AuthService {
 
   private normalizeEmail(email?: string | null) {
     return (email || '').trim().toLowerCase() || null;
+  }
+
+  private normalizeUserEmail(email?: string | null) {
+    return this.platformAccess.normalizeMasterAccountEmail(
+      this.normalizeEmail(email),
+    );
   }
 
   private async ensureMasterAccountProvisioned(params?: {

@@ -13,6 +13,7 @@
 //   Partner: $499/month — CPA white-label (additive, not in Bible)
 
 import type { CheckoutTier } from './billing';
+import { getAcquisitionCopy } from './acquisition-copy';
 
 export interface PricingTier {
   id: CheckoutTier;
@@ -36,8 +37,8 @@ export const PRICING: Record<string, PricingTier> = {
     labelEs: '$750',
     cadence: 'one-time',
     cadenceEs: 'unico',
-    description: 'One-time onboarding & data migration',
-    descriptionEs: 'Configuracion inicial y migracion de datos',
+    description: 'Pilot report',
+    descriptionEs: 'Informe piloto',
     stripePriceId: process.env.NEXT_PUBLIC_STRIPE_SETUP_PRICE_ID ?? '',
     featured: false,
     bullets: [
@@ -54,8 +55,8 @@ export const PRICING: Record<string, PricingTier> = {
     labelEs: '$2,500',
     cadence: '/month',
     cadenceEs: '/mes',
-    description: 'Full ALM intelligence, 90-day pilot',
-    descriptionEs: 'Inteligencia ALM completa, piloto de 90 dias',
+    description: 'Recurring access',
+    descriptionEs: 'Acceso recurrente',
     stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PILOT_PRICE_ID ?? '',
     featured: true,
     bullets: [
@@ -72,8 +73,8 @@ export const PRICING: Record<string, PricingTier> = {
     labelEs: '$3,500',
     cadence: '/month',
     cadenceEs: '/mes',
-    description: 'Annual contract, unlimited users',
-    descriptionEs: 'Contrato anual, usuarios ilimitados',
+    description: 'Annual access',
+    descriptionEs: 'Acceso anual',
     stripePriceId: process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID ?? '',
     featured: false,
     bullets: [
@@ -90,8 +91,8 @@ export const PRICING: Record<string, PricingTier> = {
     labelEs: '$499',
     cadence: '/month',
     cadenceEs: '/mes',
-    description: 'CPA Partner — white-label & multi-client',
-    descriptionEs: 'Partner CPA — white-label y multi-cliente',
+    description: 'Partner access',
+    descriptionEs: 'Acceso para socios',
     stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PARTNER_PRICE_ID ?? '',
     featured: false,
     bullets: [
@@ -114,17 +115,18 @@ export const PRICING_TIERS: PricingTier[] = [
 /** Helper: get CTA label for a tier. */
 export function getCtaLabel(tierId: string, lang: 'en' | 'es'): string {
   const tier = PRICING_TIERS.find((t) => t.id === tierId);
-  if (!tier) return lang === 'en' ? 'Get Started' : 'Comenzar';
+  const acquisition = getAcquisitionCopy(lang);
+
+  if (!tier) return acquisition.primaryCta;
 
   if (tierId === 'partner') {
-    return lang === 'en' ? 'Contact Sales' : 'Contactar ventas';
+    return acquisition.salesCta;
   }
 
-  const price = lang === 'en' ? tier.label : tier.labelEs;
-  const cadence = lang === 'en' ? tier.cadence : tier.cadenceEs;
-  const verb = lang === 'en'
-    ? (tier.id === 'one_time' ? 'Start' : 'Subscribe')
-    : (tier.id === 'one_time' ? 'Comenzar' : 'Suscribirse');
+  if (tierId === 'one_time') {
+    const price = lang === 'en' ? tier.label : tier.labelEs;
+    return `${acquisition.primaryCta} — ${price}`;
+  }
 
-  return `${verb} — ${price}${cadence !== 'one-time' && cadence !== 'unico' ? cadence : ''}`;
+  return acquisition.upgradeCta;
 }

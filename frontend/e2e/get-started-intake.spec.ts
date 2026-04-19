@@ -46,6 +46,6 @@ test.describe("Get started intake flow", () => {
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Already paid? Open workspace" }),
-    ).toHaveAttribute("href", "/login?returnUrl=%2Fportal&mode=magic-link");
+    ).toHaveAttribute("href", "/login?returnUrl=%2Fdashboard&mode=magic-link");
   });
 });

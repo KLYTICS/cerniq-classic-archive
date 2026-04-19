@@ -41,6 +41,112 @@ const ENABLE_GITHUB_OAUTH = parseBooleanEnv(
   process.env.NEXT_PUBLIC_ENABLE_GITHUB_OAUTH,
   false,
 );
+const ENABLE_LOCAL_DEMO_LOGIN = parseBooleanEnv(
+  process.env.NEXT_PUBLIC_ENABLE_LOCAL_DEMO_LOGIN,
+  false,
+);
+const LOCAL_DEMO_CREDENTIALS_KEY = "cerniq_local_demo_credentials_v1";
+
+type LocalDemoCredentials = {
+  email: string;
+  password: string;
+};
+
+function isLocalDemoLoginVisible() {
+  if (typeof window === "undefined") {
+    return ENABLE_LOCAL_DEMO_LOGIN;
+  }
+
+  if (ENABLE_LOCAL_DEMO_LOGIN) {
+    return true;
+  }
+
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname);
+}
+
+function readLocalDemoCredentials(): LocalDemoCredentials | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = localStorage.getItem(LOCAL_DEMO_CREDENTIALS_KEY);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<LocalDemoCredentials>;
+    if (
+      typeof parsed.email === "string" &&
+      parsed.email &&
+      typeof parsed.password === "string" &&
+      parsed.password
+    ) {
+      return {
+        email: parsed.email,
+        password: parsed.password,
+      };
+    }
+  } catch {
+    localStorage.removeItem(LOCAL_DEMO_CREDENTIALS_KEY);
+  }
+
+  return null;
+}
+
+function createLocalDemoCredentials(): LocalDemoCredentials {
+  const suffix = Math.random().toString(36).slice(2, 10);
+  const secret = Math.random().toString(36).slice(2, 14);
+
+  return {
+    email: `local-demo-${suffix}@cerniq.local`,
+    password: `Cerniq!${secret}9A`,
+  };
+}
+
+function writeLocalDemoCredentials(credentials: LocalDemoCredentials) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.setItem(
+    LOCAL_DEMO_CREDENTIALS_KEY,
+    JSON.stringify(credentials),
+  );
+}
+
+function getLocalDemoCredentials() {
+  const stored = readLocalDemoCredentials();
+  if (stored) {
+    return stored;
+  }
+
+  const created = createLocalDemoCredentials();
+  writeLocalDemoCredentials(created);
+  return created;
+}
+
+function getResponseStatus(error: unknown) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof (error as { response?: { status?: number } }).response?.status ===
+      "number"
+  ) {
+    return (error as { response: { status: number } }).response.status;
+  }
+
+  return null;
+}
+
+function isUnauthorizedError(error: unknown) {
+  return getResponseStatus(error) === 401;
+}
+
+function isConflictError(error: unknown) {
+  return getResponseStatus(error) === 409;
+}
 
 function getAuthErrorMessage(error: unknown) {
   if (
@@ -219,9 +325,19 @@ function LoginContent() {
   const [magicError, setMagicError] = useState("");
   const [magicSent, setMagicSent] = useState(false);
   const [magicLoading, setMagicLoading] = useState(false);
+  const [localDemoLoading, setLocalDemoLoading] = useState(false);
+  const [localDemoVisible, setLocalDemoVisible] = useState(
+    ENABLE_LOCAL_DEMO_LOGIN,
+  );
 
-  const { initialized, isAuthenticated, user, setAccess, setSession } =
-    useAuthStore();
+  const {
+    initialized,
+    isAuthenticated,
+    user,
+    setAccess,
+    setOnboardingComplete,
+    setSession,
+  } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTranslation();
@@ -229,6 +345,10 @@ function LoginContent() {
   const billingSuccess = searchParams.get("billing") === "success";
   const magicMode = billingSuccess || searchParams.get("mode") === "magic-link";
   const currentUserId = user?.id;
+
+  useEffect(() => {
+    setLocalDemoVisible(isLocalDemoLoginVisible());
+  }, []);
 
   useEffect(() => {
     const mode = searchParams.get("mode");
@@ -326,6 +446,108 @@ function LoginContent() {
     }
   };
 
+  const handleLocalDemoLaunch = async () => {
+    setError("");
+    setLocalDemoLoading(true);
+
+    try {
+      const credentials = getLocalDemoCredentials();
+      let response: Awaited<ReturnType<typeof apiClient.login>>;
+
+      try {
+        response = await apiClient.login(credentials.email, credentials.password);
+      } catch (loginError) {
+        if (!isUnauthorizedError(loginError)) {
+          throw loginError;
+        } else {
+          try {
+            response = await apiClient.register(
+              credentials.email,
+              credentials.password,
+              "Local Demo",
+            );
+          } catch (registerError) {
+            if (!isConflictError(registerError)) {
+              throw registerError;
+            }
+            response = await apiClient.login(
+              credentials.email,
+              credentials.password,
+            );
+          }
+        }
+      }
+
+      const demoUser = resolveAuthUser(response, credentials.email);
+      setSession(demoUser, null);
+
+      let nextAccess = null;
+      try {
+        const profile = await apiClient.getCurrentUser();
+        nextAccess = normalizePlatformAccess(
+          typeof profile === "object" && profile !== null && "access" in profile
+            ? (profile as { access?: unknown }).access
+            : null,
+        );
+        setAccess(nextAccess);
+      } catch {
+        setAccess(null);
+      }
+
+      try {
+        const workspaces = await apiClient.getMyWorkspaces().catch(() => []);
+        const primaryWorkspace =
+          Array.isArray(workspaces) && workspaces.length > 0
+            ? workspaces[0]
+            : await apiClient.createMyWorkspace("Local Demo Workspace");
+
+        await apiClient.seedDemoInstitution(primaryWorkspace.id, "cooperativa");
+      } catch {
+        // Keep the local demo usable even if fixture seeding is unavailable.
+      }
+
+      localStorage.setItem(
+        `cerniq_profile_${demoUser.id}`,
+        JSON.stringify({
+          institutionName: "Local Demo Cooperativa",
+          institutionType: "cooperativa",
+          primaryRegulator: "COSSEC",
+          preferredLanguage: "es",
+          completedAt: new Date().toISOString(),
+        }),
+      );
+      setOnboardingComplete(true);
+
+      analytics.identify(demoUser.id, {
+        email: demoUser.email,
+        name: demoUser.name || "Local Demo",
+      });
+      analytics.track(EVENTS.LOGIN, {
+        method: "local_demo",
+      });
+
+      const normalizedReturnUrl = sanitizePostAuthReturnUrl(returnUrl);
+      const destination =
+        normalizedReturnUrl === "/onboarding" ? "/dashboard" : normalizedReturnUrl;
+
+      if (
+        !normalizedReturnUrl &&
+        nextAccess &&
+        !nextAccess.platformAccessAllowed &&
+        !hasFreeBuilderAccess(nextAccess)
+      ) {
+        router.push("/access-required");
+        return;
+      }
+
+      router.push(destination || "/dashboard");
+    } catch (localDemoError) {
+      setError(getAuthErrorMessage(localDemoError));
+    } finally {
+      setLocalDemoLoading(false);
+    }
+  };
+
   return (
     <AuthShell>
       <div className="cerniq-dashboard-elevated-surface w-full max-w-xl rounded-[2rem] border p-6 shadow-[0_30px_120px_rgba(113,88,40,0.18)] backdrop-blur-xl sm:p-8">
@@ -367,6 +589,39 @@ function LoginContent() {
             </li>
           </ul>
         </div>
+
+        {localDemoVisible ? (
+          <section className="mt-8 rounded-[1.75rem] border border-cyan-300/50 bg-[linear-gradient(180deg,rgba(224,247,255,0.94),rgba(255,251,239,0.92))] px-5 py-5 sm:px-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-800/80">
+                  Local Demo
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-[var(--dashboard-text-primary)]">
+                  Launch a seeded localhost workspace
+                </h2>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--dashboard-text-secondary)]">
+                  Create or reuse a local demo user, mark setup complete, and
+                  seed a cooperativa workspace so the login path is testable
+                  without waiting on email delivery.
+                </p>
+              </div>
+              <span className="inline-flex h-fit items-center rounded-full border border-cyan-300/80 bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-900">
+                Local only
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void handleLocalDemoLaunch()}
+              disabled={localDemoLoading || loading || magicLoading}
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-500 px-5 py-4 text-base font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-50"
+            >
+              {localDemoLoading ? "Launching local demo..." : "Launch local demo"}
+              {!localDemoLoading ? <ArrowRight className="h-4 w-4" /> : null}
+            </button>
+          </section>
+        ) : null}
 
         <section
           className={`mt-10 rounded-[1.75rem] border px-5 py-5 sm:px-6 ${

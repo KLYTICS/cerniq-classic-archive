@@ -57,6 +57,7 @@ describe('AuthService', () => {
   let platformAccess: {
     evaluateAccess: jest.Mock;
     isMasterAccountEmail: jest.Mock;
+    normalizeMasterAccountEmail: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -99,7 +100,23 @@ describe('AuthService', () => {
 
     platformAccess = {
       isMasterAccountEmail: jest.fn((email?: string | null) => {
-        return (email || '').trim().toLowerCase() === 'data.ai.kiess@gmail.com';
+        const normalized = (email || '').trim().toLowerCase();
+        return (
+          normalized === 'data.ai.kiess@gmail.com' ||
+          normalized === 'data.ai.kiess' ||
+          normalized.startsWith('data.ai.kiess@')
+        );
+      }),
+      normalizeMasterAccountEmail: jest.fn((email?: string | null) => {
+        const normalized = (email || '').trim().toLowerCase();
+        if (
+          normalized === 'data.ai.kiess@gmail.com' ||
+          normalized === 'data.ai.kiess' ||
+          normalized.startsWith('data.ai.kiess@')
+        ) {
+          return 'data.ai.kiess@gmail.com';
+        }
+        return normalized || null;
       }),
       evaluateAccess: jest.fn().mockReturnValue({
         platformAccessAllowed: true,
@@ -337,6 +354,46 @@ describe('AuthService', () => {
       expect(result.accessToken).toBe('mock-jwt-token');
       expect(result.refreshToken).toBe('mock-jwt-token');
       expect(result.user.email).toBe('login@example.com');
+    });
+
+    it('canonicalizes master-account aliases before credential lookup', async () => {
+      const hash = await bcrypt.hash('ErwinKiess!CERNIQ2026', 12);
+      prisma.user.findUnique
+        .mockResolvedValueOnce({
+          id: 'master-1',
+          email: 'data.ai.kiess@gmail.com',
+          name: 'Erwin Kiess',
+          passwordHash: hash,
+          provider: 'email',
+          providerId: null,
+          emailVerified: true,
+          role: 'OWNER',
+        })
+        .mockResolvedValueOnce({
+          id: 'master-1',
+          email: 'data.ai.kiess@gmail.com',
+          name: 'Erwin Kiess',
+          passwordHash: hash,
+          provider: 'email',
+          providerId: null,
+          emailVerified: true,
+          role: 'OWNER',
+        });
+      prisma.refreshToken.create.mockResolvedValue({});
+      prisma.user.update.mockResolvedValue({});
+
+      const result = await service.login({
+        email: 'data.ai.kiess@cerniq.io',
+        password: 'ErwinKiess!CERNIQ2026',
+      });
+
+      expect(prisma.user.findUnique).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          where: { email: 'data.ai.kiess@gmail.com' },
+        }),
+      );
+      expect(result.user.email).toBe('data.ai.kiess@gmail.com');
     });
 
     it('should provision the Erwin Kiess master account for backend password login', async () => {

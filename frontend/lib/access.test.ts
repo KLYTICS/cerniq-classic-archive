@@ -47,7 +47,7 @@ describe('access helpers', () => {
     expect(requiresPaidAccessPath('/alm')).toBe(false);
   });
 
-  it('routes all allowed authenticated users to dashboard by default', () => {
+  it('routes free builder users into onboarding until setup is complete', () => {
     const freeAccess = {
       platformAccessAllowed: false,
       isMasterCeo: false,
@@ -65,11 +65,24 @@ describe('access helpers', () => {
         access: freeAccess,
         onboardingComplete: false,
       }),
-    ).toBe('/dashboard');
+    ).toBe('/onboarding');
     expect(
       resolveAuthenticatedDestination({
         access: freeAccess,
         onboardingComplete: true,
+      }),
+    ).toBe('/dashboard');
+    expect(
+      resolveAuthenticatedDestination({
+        access: {
+          ...freeAccess,
+          platformAccessAllowed: true,
+          isDemo: true,
+          effectiveTier: 'demo',
+          effectiveStatus: 'active',
+          reason: 'demo_active',
+        },
+        onboardingComplete: false,
       }),
     ).toBe('/dashboard');
     expect(

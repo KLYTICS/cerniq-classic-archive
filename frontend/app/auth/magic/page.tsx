@@ -18,7 +18,7 @@ function MagicLinkInner() {
       });
       window.location.href = `/api/auth/magic?${params.toString()}`;
     } else {
-      window.location.href = '/auth/expired?returnUrl=%2Fportal';
+      window.location.href = '/auth/expired?returnUrl=%2Fdashboard';
     }
   }, [searchParams]);
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Shield } from 'lucide-react';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
+import { PUBLIC_PATHS } from '@/lib/public-links';
 
 export default function PrivacyPage() {
   const [lang, setLang] = useState<'en' | 'es'>(() => {
@@ -86,7 +87,7 @@ export default function PrivacyPage() {
           <p>{t(
             'For privacy inquiries or data requests, contact our Data Protection Officer at erwin@cerniq.io or visit ',
             'Para consultas de privacidad o solicitudes de datos, contacte a nuestro Oficial de Proteccion de Datos en erwin@cerniq.io o visite '
-          )}<a href="/contact" className="text-cyan-700 hover:underline">{t('our contact page', 'nuestra pagina de contacto')}</a>.</p>
+          )}<a href={PUBLIC_PATHS.contact} className="text-cyan-700 hover:underline">{t('our contact page', 'nuestra pagina de contacto')}</a>.</p>
         </div>
       </main>
     </div>

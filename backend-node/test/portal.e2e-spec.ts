@@ -384,6 +384,9 @@ describe('Portal API Integration Tests (e2e)', () => {
     };
     const platformAccessMock = {
       isMasterAccountEmail: jest.fn().mockReturnValue(false),
+      normalizeMasterAccountEmail: jest.fn((email?: string) =>
+        typeof email === 'string' ? email.trim().toLowerCase() : '',
+      ),
       evaluateAccess: jest.fn().mockReturnValue({
         platformAccessAllowed: true,
         isMasterCeo: false,
@@ -654,5 +657,85 @@ describe('Portal API Integration Tests (e2e)', () => {
     );
     expect(storedJob.status).toBe('VALIDATION_FAILED');
     expect(storedJob.errorMessage).toBeTruthy();
+  });
+
+  it('returns canonical report-job detail and export manifests for a completed job', async () => {
+    const createdAt = new Date('2026-04-18T12:00:00.000Z');
+    const completedAt = new Date('2026-04-18T12:05:00.000Z');
+    const currentUserId = prismaMock._state.users[0]?.id;
+    const workspaceId = crypto.randomUUID();
+    const institutionId = crypto.randomUUID();
+    const jobId = crypto.randomUUID();
+
+    prismaMock._state.workspaces.push({
+      id: workspaceId,
+      ownerId: currentUserId,
+      name: 'Portal Workspace',
+      createdAt,
+    });
+    prismaMock._state.institutions.push({
+      id: institutionId,
+      workspaceId,
+      name: 'Cooperativa Ready',
+      type: 'cooperativa',
+      preferredLanguage: 'es',
+      createdAt,
+      updatedAt: completedAt,
+    });
+    prismaMock._state.reportJobs.push({
+      id: jobId,
+      userId: currentUserId,
+      institutionId,
+      institutionName: 'Cooperativa Ready',
+      status: 'COMPLETE',
+      analysisPeriod: 'Q1-2026',
+      previousJobId: null,
+      submittedAt: createdAt,
+      processingStartedAt: createdAt,
+      completedAt,
+      createdAt,
+      reportUrl: null,
+      reportUrlEn: null,
+      reportLang: 'es',
+      errorMessage: null,
+      triggeredBy: 'portal_cycle_bootstrap',
+    });
+
+    const detail = await request(app.getHttpServer())
+      .get(`/api/portal/jobs/${jobId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(detail.body.success).toBe(true);
+    expect(detail.body.data).toMatchObject({
+      id: jobId,
+      institutionId,
+      status: 'COMPLETE',
+      exportSummary: {
+        manifestPath: `/api/portal/jobs/${jobId}/exports`,
+        status: 'ready',
+      },
+    });
+
+    const exportsRes = await request(app.getHttpServer())
+      .get(`/api/portal/jobs/${jobId}/exports`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(exportsRes.body.success).toBe(true);
+    expect(exportsRes.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'alm_report',
+          language: 'es',
+          downloadUrl: `/api/portal/jobs/${jobId}/alm-report?lang=es`,
+        }),
+        expect.objectContaining({
+          kind: 'alm_report',
+          language: 'en',
+          downloadUrl: `/api/portal/jobs/${jobId}/alm-report?lang=en`,
+        }),
+      ]),
+    );
   });
 });

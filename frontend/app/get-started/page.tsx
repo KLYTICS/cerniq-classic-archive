@@ -14,6 +14,7 @@ import {
   prefersPortalExperience,
 } from "@/lib/access";
 import { rememberPortalUser } from "@/lib/subscription";
+import { getAcquisitionCopy } from "@/lib/acquisition-copy";
 
 const INSTITUTION_OPTIONS = [
   { value: "", label: "Institution type" },
@@ -32,6 +33,7 @@ function samplePreviewHref(institutionType: string) {
 
 export default function GetStartedPage() {
   const router = useRouter();
+  const acquisition = getAcquisitionCopy("en");
   const { initialized, isAuthenticated, user, access, setAccess } =
     useAuthStore();
 
@@ -97,7 +99,7 @@ export default function GetStartedPage() {
         customerEmail: email || user?.email,
         customerName: name || user?.name,
         institutionName,
-        successUrl: buildLoginUrlForReturnUrl("/portal", {
+        successUrl: buildLoginUrlForReturnUrl("/dashboard", {
           billingSuccess: true,
           forceMagicLink: true,
         }),
@@ -122,7 +124,7 @@ export default function GetStartedPage() {
         institutionName,
         institutionType,
         totalAssets,
-        message: "New-user reporting intake from /get-started",
+        message: "New-user pilot intake from /get-started",
       });
       setSubmitted(true);
     } catch (err) {
@@ -144,15 +146,13 @@ export default function GetStartedPage() {
       <div className="mx-auto max-w-5xl px-6 py-10">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">
-            Reporting Intake
+            {acquisition.getStartedEyebrow}
           </p>
           <h1 className="mt-4 font-display text-4xl leading-tight text-white sm:text-5xl">
-            Start with your balance sheet and land in one clear reporting path.
+            {acquisition.getStartedTitle}
           </h1>
           <p className="mt-5 text-base leading-8 text-slate-300">
-            Free users preview the output. Paid users enter the secure upload
-            workflow. There is no ambiguous handoff between demo, pricing, and
-            the live workspace anymore.
+            {acquisition.getStartedBody}
           </p>
         </div>
 
@@ -160,17 +160,17 @@ export default function GetStartedPage() {
           <section className="cerniq-dashboard-elevated-surface rounded-3xl border p-6">
             <h2 className="text-xl font-semibold text-white">
               {blockedByPayment
-                ? "Unlock secure upload"
+                ? acquisition.primaryCta
                 : submitted
-                  ? "Next step selected"
-                  : "Tell us what you want to analyze"}
+                  ? acquisition.pilotFormSuccessTitle
+                  : acquisition.pilotFormHeading}
             </h2>
             <p className="mt-2 text-sm leading-6 text-[var(--dashboard-text-secondary)]">
               {blockedByPayment
-                ? "Your account is recognized, but secure upload is only available after activation."
+                ? "Your account is recognized, but secure upload unlocks only after the pilot is activated."
                 : submitted
-                  ? "Your institution profile is captured. Choose preview or unlock the upload workflow."
-                  : "This intake captures the institution context and sends you into either sample preview or the paid upload workflow."}
+                  ? acquisition.pilotFormSuccessBody
+                  : acquisition.pilotFormIntro}
             </p>
 
             {error ? (
@@ -229,7 +229,7 @@ export default function GetStartedPage() {
                   disabled={submitting}
                   className="inline-flex items-center gap-2 rounded-full bg-cyan-500 px-6 py-3 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
                 >
-                  {submitting ? "Saving intake..." : "Continue"}
+                  {submitting ? "Saving pilot intake..." : acquisition.pilotFormSubmit}
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </form>
@@ -242,12 +242,12 @@ export default function GetStartedPage() {
                       <p className="font-semibold text-[var(--dashboard-text-primary)]">
                         {blockedByPayment
                           ? "Secure upload is the next step"
-                          : "Your intake is captured"}
+                          : acquisition.pilotFormSuccessTitle}
                       </p>
                       <p className="mt-1 text-sm text-[var(--dashboard-text-secondary)]">
                         {blockedByPayment
-                          ? "Upgrade once and we will land you directly in the dashboard workspace."
-                          : "Preview the report style now or unlock the secure upload workflow for your real data."}
+                          ? "Activate the pilot and we will land you directly in the dashboard workspace."
+                          : "Preview the report style now or activate the pilot for your institution's real data."}
                       </p>
                     </div>
                   </div>
@@ -269,10 +269,10 @@ export default function GetStartedPage() {
                     <Lock className="h-4 w-4" />
                     {checkoutLoading
                       ? "Opening checkout..."
-                      : "Unlock secure upload — $750"}
+                      : acquisition.primaryCtaWithPrice}
                   </button>
                   <Link
-                    href={buildLoginUrlForReturnUrl("/portal", {
+                    href={buildLoginUrlForReturnUrl("/dashboard", {
                       forceMagicLink: true,
                     })}
                     className="inline-flex items-center gap-2 rounded-full border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.88)] px-5 py-3 text-sm font-semibold text-[var(--dashboard-text-primary)] transition hover:bg-white"
@@ -295,12 +295,12 @@ export default function GetStartedPage() {
                 description="Use the public preview to judge report quality before purchase."
               />
               <StateCard
-                title="2. Dashboard-first workspace"
-                description="Paid users land directly in `/dashboard` instead of the unfinished portal upload flow."
+                title="2. Start pilot"
+                description="Pilot users unlock the secure upload path and land directly in `/dashboard`."
               />
               <StateCard
-                title="3. Blocked by payment"
-                description="If upload is locked, CERNIQ clearly says why and points to the paid unlock path."
+                title="3. Upgrade to recurring access"
+                description="Once the pilot is trusted, recurring access becomes the only upgrade message in the funnel."
               />
             </div>
           </section>

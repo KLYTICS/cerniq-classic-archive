@@ -31,6 +31,66 @@ type AppNavigationDetail = {
   replace?: boolean;
 };
 
+export type PortalExportStatus =
+  | 'not_applicable'
+  | 'ready'
+  | 'partial'
+  | 'missing';
+
+export type PortalExportSummary = {
+  manifestPath: string;
+  status: PortalExportStatus;
+  readyCount: number;
+  totalCount: number;
+  readyReportLanguages: Array<'en' | 'es'>;
+  missingReportLanguages: Array<'en' | 'es'>;
+  readyBoardPackLanguages: Array<'en' | 'es'>;
+  missingBoardPackLanguages: Array<'en' | 'es'>;
+};
+
+export type PortalOverviewJob = {
+  id: string;
+  institutionId?: string | null;
+  institutionName: string;
+  status: string;
+  analysisPeriod: string | null;
+  previousJobId: string | null;
+  submittedAt: string | null;
+  processingStartedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  reportUrl: string | null;
+  reportUrlEn: string | null;
+  reportLang: string;
+  errorMessage: string | null;
+  userId: string;
+  triggeredBy: string;
+  exportSummary?: PortalExportSummary | null;
+};
+
+export type PortalOverview = {
+  jobs: PortalOverviewJob[];
+  latestActionableJob: PortalOverviewJob | null;
+  workflowState: string;
+  counts: {
+    total: number;
+    awaitingData: number;
+    validationFailed: number;
+    processing: number;
+    complete: number;
+  };
+  demoSeat: unknown;
+  nextAction: {
+    labelEn: string;
+    labelEs: string;
+    href: string;
+    jobId: string | null;
+    explanationEn: string;
+    explanationEs: string;
+  };
+  validationSummary: unknown;
+};
+
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
@@ -678,6 +738,25 @@ class APIClient {
   async getPortalSettings() {
     const response = await this.client.get(`${NODE_API_URL}/api/portal/settings`);
     return response.data;
+  }
+
+  async getPortalOverview(): Promise<PortalOverview> {
+    const response = await this.client.get(`${NODE_API_URL}/api/portal/overview`);
+    return unwrapApiData<PortalOverview>(response.data);
+  }
+
+  async getPortalJob(jobId: string): Promise<PortalOverviewJob> {
+    const response = await this.client.get(
+      `${NODE_API_URL}/api/portal/jobs/${jobId}`,
+    );
+    return unwrapApiData<PortalOverviewJob>(response.data);
+  }
+
+  async getPortalJobExports(jobId: string) {
+    const response = await this.client.get(
+      `${NODE_API_URL}/api/portal/jobs/${jobId}/exports`,
+    );
+    return unwrapApiData(response.data);
   }
 
   async invitePortalUser(data: { email: string; role: 'OWNER' | 'ANALYST' | 'VIEWER'; name?: string }) {

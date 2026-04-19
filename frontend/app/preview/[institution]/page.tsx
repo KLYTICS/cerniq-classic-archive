@@ -198,11 +198,11 @@ export default function InstitutionPreview() {
             )}
           </p>
           <div className="mt-4 flex items-center justify-center gap-3 print:hidden">
-            <a href="/contact" className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 transition">
-              {t('Book 15-Min Demo', 'Agendar Demo 15 Min')}
+            <a href="/get-started" className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 transition">
+              {t('Start Pilot', 'Comenzar piloto')}
             </a>
             <a href="/demo" className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
-              {t('Try Interactive Demo', 'Probar Demo Interactivo')}
+              {t('View Interactive Demo', 'Ver demo interactivo')}
             </a>
           </div>
           <p className="mt-4 text-xs text-slate-400">erwin@cerniq.io | cerniq.io | KLYTICS LLC, San Juan PR</p>

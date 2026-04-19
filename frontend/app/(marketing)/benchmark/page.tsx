@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { BarChart3, ArrowRight, Check, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { PUBLIC_PATHS } from '@/lib/public-links';
 
 interface BenchmarkResult { name: string; city: string; totalAssets: number; nim: number; peerNIM: number; lcr: number; peerLCR: number; nwr: number; peerNWR: number }
 
@@ -96,9 +97,9 @@ export default function BenchmarkPage() {
                 <Check className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
                 <h3 className="text-xl font-bold text-emerald-300">¡Enviado!</h3>
                 <p className="text-sm text-slate-400 mt-2">Recibirá el informe completo en su email. ¿Quiere verlo ahora?</p>
-                <a href="https://calendly.com/cerniq/demo" target="_blank" rel="noopener noreferrer"
+                <a href="/get-started"
                   className="inline-flex items-center gap-2 mt-4 rounded-xl bg-cyan-500 px-6 py-3 font-semibold text-[#050C1C] hover:bg-cyan-400">
-                  Agendar Demo de 15 Minutos <ArrowRight className="h-4 w-4" />
+                  Comenzar piloto <ArrowRight className="h-4 w-4" />
                 </a>
               </div>
             )}
@@ -115,9 +116,9 @@ export default function BenchmarkPage() {
           <p>94 cooperativas PR analizadas · 54 modelos Prisma · Formato exacto COSSEC</p>
           <p>© {new Date().getFullYear()} KLYTICS LLC · cerniq.io</p>
           <div className="flex items-center justify-center gap-3 mt-2">
-            <a href="/terms" className="hover:text-slate-700">Terms</a>
-            <a href="/privacy" className="hover:text-slate-700">Privacy</a>
-            <a href="/security" className="hover:text-slate-700">Security</a>
+            <a href={PUBLIC_PATHS.terms} className="hover:text-slate-700">Terms</a>
+            <a href={PUBLIC_PATHS.privacy} className="hover:text-slate-700">Privacy</a>
+            <a href={PUBLIC_PATHS.security} className="hover:text-slate-700">Security</a>
           </div>
         </div>
       </div>

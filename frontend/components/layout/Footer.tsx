@@ -1,20 +1,27 @@
 'use client';
 
+import { getAcquisitionCopy } from '@/lib/acquisition-copy';
+import { PUBLIC_PATHS } from '@/lib/public-links';
+
 interface FooterProps {
   t: (en: string, es: string) => string;
   compact?: boolean;
 }
 
 export default function Footer({ t, compact }: FooterProps) {
+  const acquisition = getAcquisitionCopy(
+    t('en', 'es') === 'en' ? 'en' : 'es',
+  );
+
   if (compact) {
     return (
       <footer className="border-t border-slate-200 bg-slate-50 py-4 px-6">
         <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] text-slate-400">
           <span>&copy; {new Date().getFullYear()} KLYTICS LLC. CERNIQ&trade;</span>
           <div className="flex items-center gap-4">
-            <a href="/terms" className="hover:text-slate-600">{t('Terms', 'Terminos')}</a>
-            <a href="/privacy" className="hover:text-slate-600">{t('Privacy', 'Privacidad')}</a>
-            <a href="/security" className="hover:text-slate-600">{t('Security', 'Seguridad')}</a>
+            <a href={PUBLIC_PATHS.terms} className="hover:text-slate-600">{t('Terms', 'Terminos')}</a>
+            <a href={PUBLIC_PATHS.privacy} className="hover:text-slate-600">{t('Privacy', 'Privacidad')}</a>
+            <a href={PUBLIC_PATHS.security} className="hover:text-slate-600">{t('Security', 'Seguridad')}</a>
             <a href="mailto:erwin@cerniq.io" className="hover:text-slate-600">erwin@cerniq.io</a>
           </div>
         </div>
@@ -28,20 +35,21 @@ export default function Footer({ t, compact }: FooterProps) {
         <div>
           <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">{t('Product', 'Producto')}</p>
           <div className="space-y-2">
-            <a href="/demo" className="block text-slate-500 hover:text-slate-800">{t('Interactive Demo', 'Demo Interactivo')}</a>
-            <a href="/pricing" className="block text-slate-500 hover:text-slate-800">{t('Pricing', 'Precios')}</a>
-            <a href="/roi" className="block text-slate-500 hover:text-slate-800">{t('ROI Calculator', 'Calculadora ROI')}</a>
-            <a href="/developers" className="block text-slate-500 hover:text-slate-800">{t('API Docs', 'Documentacion API')}</a>
-            <a href="/changelog" className="block text-slate-500 hover:text-slate-800">{t("What's New", 'Novedades')}</a>
+            <a href={PUBLIC_PATHS.getStarted} className="block text-slate-500 hover:text-slate-800">{acquisition.primaryCta}</a>
+            <a href={PUBLIC_PATHS.demo} className="block text-slate-500 hover:text-slate-800">{acquisition.proofCta}</a>
+            <a href={PUBLIC_PATHS.pricing} className="block text-slate-500 hover:text-slate-800">{t('Pricing', 'Precios')}</a>
+            <a href={PUBLIC_PATHS.roi} className="block text-slate-500 hover:text-slate-800">{t('ROI Calculator', 'Calculadora ROI')}</a>
+            <a href={PUBLIC_PATHS.developers} className="block text-slate-500 hover:text-slate-800">{t('API Docs', 'Documentacion API')}</a>
+            <a href={PUBLIC_PATHS.changelog} className="block text-slate-500 hover:text-slate-800">{t("What's New", 'Novedades')}</a>
           </div>
         </div>
         <div>
           <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">{t('Platform', 'Plataforma')}</p>
           <div className="space-y-2">
-            <a href="/why-cerniq" className="block text-slate-500 hover:text-slate-800">{t('Why CERNIQ', 'Por que CERNIQ')}</a>
-            <a href="/compliance" className="block text-slate-500 hover:text-slate-800">{t('Compliance Matrix', 'Matriz Cumplimiento')}</a>
-            <a href="/case-studies" className="block text-slate-500 hover:text-slate-800">{t('Case Studies', 'Casos de Estudio')}</a>
-            <a href="/alm/modules" className="block text-slate-500 hover:text-slate-800">{t('62 ALM Modules', '62 Modulos ALM')}</a>
+            <a href={PUBLIC_PATHS.whyCerniq} className="block text-slate-500 hover:text-slate-800">{t('Why CERNIQ', 'Por que CERNIQ')}</a>
+            <a href={PUBLIC_PATHS.compliance} className="block text-slate-500 hover:text-slate-800">{t('Compliance Matrix', 'Matriz Cumplimiento')}</a>
+            <a href={PUBLIC_PATHS.caseStudies} className="block text-slate-500 hover:text-slate-800">{t('Case Studies', 'Casos de Estudio')}</a>
+            <a href={PUBLIC_PATHS.almModules} className="block text-slate-500 hover:text-slate-800">{t('62 ALM Modules', '62 Modulos ALM')}</a>
           </div>
         </div>
         <div>
@@ -58,9 +66,9 @@ export default function Footer({ t, compact }: FooterProps) {
           <div className="space-y-2">
             <span className="block text-slate-500">KLYTICS LLC</span>
             <span className="block text-slate-500">San Juan, PR</span>
-            <a href="/contact" className="block text-cyan-600 hover:text-cyan-800">{t('Book a Demo', 'Agendar Demo')}</a>
+            <a href={PUBLIC_PATHS.contact} className="block text-cyan-600 hover:text-cyan-800">{acquisition.salesCta}</a>
             <a href="mailto:erwin@cerniq.io" className="block text-slate-500 hover:text-slate-800">erwin@cerniq.io</a>
-            <a href="/status" className="block text-slate-500 hover:text-slate-800">{t('System Status', 'Estado del Sistema')}</a>
+            <a href={PUBLIC_PATHS.status} className="block text-slate-500 hover:text-slate-800">{t('System Status', 'Estado del Sistema')}</a>
           </div>
         </div>
       </div>
@@ -68,9 +76,9 @@ export default function Footer({ t, compact }: FooterProps) {
       <div className="mx-auto max-w-6xl mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200 pt-6">
         <div className="flex flex-wrap items-center gap-4 text-[10px] text-slate-400">
           <span>&copy; {new Date().getFullYear()} KLYTICS LLC. CERNIQ&trade;</span>
-          <a href="/terms" className="hover:text-slate-600">{t('Terms of Service', 'Terminos de Servicio')}</a>
-          <a href="/privacy" className="hover:text-slate-600">{t('Privacy Policy', 'Politica de Privacidad')}</a>
-          <a href="/security" className="hover:text-slate-600">{t('Security', 'Seguridad')}</a>
+          <a href={PUBLIC_PATHS.terms} className="hover:text-slate-600">{t('Terms of Service', 'Terminos de Servicio')}</a>
+          <a href={PUBLIC_PATHS.privacy} className="hover:text-slate-600">{t('Privacy Policy', 'Politica de Privacidad')}</a>
+          <a href={PUBLIC_PATHS.security} className="hover:text-slate-600">{t('Security', 'Seguridad')}</a>
         </div>
         <div className="flex items-center gap-3">
           <a href="https://linkedin.com/company/cerniq" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-600" aria-label="LinkedIn">

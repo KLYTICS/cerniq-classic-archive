@@ -130,7 +130,9 @@ describe('AuthInitializer', () => {
 
     render(<AuthInitializer />);
 
-    expect(mockReplace).toHaveBeenCalledWith('/login?returnUrl=%2Fdashboard');
+    expect(mockReplace).toHaveBeenCalledWith(
+      '/login?returnUrl=%2Fdashboard&mode=magic-link',
+    );
   });
 
   it('handles shared app navigation events with client-side replace routing', () => {

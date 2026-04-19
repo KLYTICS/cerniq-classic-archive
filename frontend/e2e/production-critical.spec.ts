@@ -182,7 +182,7 @@ test.describe('Production-critical paths', () => {
     await assertNoErrors();
   });
 
-  test('portal login route redirects into a portal-intent login flow', async ({ page }) => {
+  test('legacy portal login route redirects into a dashboard-intent login flow', async ({ page }) => {
     const assertNoErrors = attachErrorTracker(page);
 
     const response = await page.goto('/portal/login');
@@ -190,7 +190,7 @@ test.describe('Production-critical paths', () => {
     await expectSettledPath(page, '/login');
     await expect
       .poll(() => new URL(page.url()).searchParams.get('returnUrl'))
-      .toBe('/portal');
+      .toBe('/dashboard');
     await expect
       .poll(() => new URL(page.url()).searchParams.get('mode'))
       .toBe('magic-link');

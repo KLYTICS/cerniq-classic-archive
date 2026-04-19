@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { CerniqMark } from '@/components/brand/CerniqLogo';
+import { PUBLIC_PATHS } from '@/lib/public-links';
 
 export default function NotFound() {
   return (
@@ -16,13 +17,13 @@ export default function NotFound() {
         </p>
         <div className="mt-6 flex items-center justify-center gap-3">
           <Link
-            href="/"
+            href={PUBLIC_PATHS.home}
             className="rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
           >
             Back to home
           </Link>
           <Link
-            href="/contact"
+            href={PUBLIC_PATHS.contact}
             className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-slate-500"
           >
             Contact support

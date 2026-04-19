@@ -141,10 +141,14 @@ export function resolveAuthenticatedDestination(params: {
   onboardingComplete: boolean;
   portalPreferred?: boolean;
 }) {
-  const { access } = params;
+  const { access, onboardingComplete } = params;
 
   if (!hasPlatformAccess(access) && !hasFreeBuilderAccess(access)) {
     return ACCESS_REQUIRED_ROUTE;
+  }
+
+  if (hasFreeBuilderAccess(access) && !onboardingComplete) {
+    return '/onboarding';
   }
 
   return '/dashboard';
