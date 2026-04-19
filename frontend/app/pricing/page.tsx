@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -14,9 +15,11 @@ import { CerniqMark } from "@/components/brand/CerniqLogo";
 import { PRICING_TIERS, getCtaLabel } from "@/lib/pricing";
 import { getAcquisitionCopy } from "@/lib/acquisition-copy";
 import { PUBLIC_PATHS } from "@/lib/public-links";
+import { buildLoginUrlForReturnUrl } from "@/lib/auth-redirect";
 
 export default function PricingPage() {
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
+  const router = useRouter();
   const [lang, setLang] = useState<"en" | "es">(() => {
     if (typeof window !== "undefined")
       return (localStorage.getItem("cerniq_lang") as "en" | "es") || "en";
@@ -111,12 +114,20 @@ export default function PricingPage() {
   ];
 
   async function handleCheckout(tier: string) {
+    if (tier === "one_time") {
+      router.push("/get-started");
+      return;
+    }
+
     analytics.track(EVENTS.CHECKOUT_STARTED, { tier, source: "pricing_page" });
     setLoadingTier(tier);
     try {
       const checkoutUrl = await createCheckoutSession({
         tier: tier as "one_time" | "monthly" | "annual" | "partner",
-        successUrl: "/login?billing=success&returnUrl=%2Fdashboard",
+        successUrl: buildLoginUrlForReturnUrl("/portal?welcome=1", {
+          billingSuccess: true,
+          forceMagicLink: true,
+        }),
         cancelUrl: "/pricing",
       });
       window.location.href = checkoutUrl;

@@ -14,7 +14,14 @@ test.describe("Get started intake flow", () => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ success: true, id: "lead-1" }),
+        body: JSON.stringify({
+          success: true,
+          data: {
+            leadId: "lead-1",
+            message: "We'll have your sample report ready within 48 hours.",
+            duplicate: false,
+          },
+        }),
       });
     });
 
@@ -22,7 +29,20 @@ test.describe("Get started intake flow", () => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ success: true }),
+        body: JSON.stringify({
+          id: "demo-1",
+          message: "Demo request received",
+        }),
+      });
+    });
+
+    await page.route("**/api/billing/checkout", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          checkoutUrl: "https://checkout.stripe.com/c/pay/test_preview_session",
+        }),
       });
     });
 
@@ -33,19 +53,26 @@ test.describe("Get started intake flow", () => {
     await page.getByPlaceholder("Institution name").fill("Cooperativa Norte");
     await page.getByRole("combobox").selectOption("cooperativa");
     await page.getByPlaceholder("Total assets (optional)").fill("$42,000,000");
-    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Continue to Pilot" }).click();
 
     await expect(
-      page.getByRole("heading", { name: "Next step selected" }),
+      page.getByRole("heading", { name: "Institution Profile Captured" }),
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Preview sample output" }),
     ).toHaveAttribute("href", "/preview/cooperativa-oriental");
     await expect(
-      page.getByRole("button", { name: "Unlock secure upload — $750" }),
+      page.getByRole("button", { name: "Start Pilot — $750" }),
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Already paid? Open workspace" }),
-    ).toHaveAttribute("href", "/login?returnUrl=%2Fdashboard&mode=magic-link");
+    ).toHaveAttribute("href", "/login?returnUrl=%2Fportal&mode=magic-link");
+
+    await page.getByRole("button", { name: "Start Pilot — $750" }).click();
+    await page.waitForURL((url) => url.hostname === "checkout.stripe.com", {
+      timeout: 30000,
+    });
+
+    expect(new URL(page.url()).hostname).toBe("checkout.stripe.com");
   });
 });

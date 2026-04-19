@@ -103,6 +103,182 @@ async function enablePortalPaywallState(page: Page) {
   });
 }
 
+async function enableAuthenticatedPortalWorkspace(page: Page) {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      'cerniq_auth_user',
+      JSON.stringify({
+        id: 'portal-test-user',
+        email: 'qa@cerniq.io',
+        name: 'CERNIQ QA',
+      }),
+    );
+    window.localStorage.setItem('cerniq_onboarding_portal-test-user', 'true');
+  });
+
+  let overviewRequestCount = 0;
+
+  await page.route('**/api/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        authenticated: true,
+        user: {
+          id: 'portal-test-user',
+          email: 'qa@cerniq.io',
+          name: 'CERNIQ QA',
+          access: {
+            platformAccessAllowed: true,
+            isMasterCeo: false,
+            isPaid: true,
+            isDemo: false,
+            effectiveTier: 'monthly',
+            effectiveStatus: 'active',
+            effectivePeriodEnd: null,
+            daysRemaining: null,
+            reason: 'paid',
+          },
+        },
+      }),
+    });
+  });
+
+  await page.route('**/api/billing/subscription', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          tier: 'monthly',
+          status: 'active',
+        },
+      }),
+    });
+  });
+
+  await page.route('**/api/portal/overview', async (route) => {
+    overviewRequestCount += 1;
+
+    const body =
+      overviewRequestCount === 1
+        ? {
+            success: true,
+            data: {
+              jobs: [],
+              latestActionableJob: null,
+              workflowState: 'needs_report',
+              counts: {
+                total: 0,
+                awaitingData: 0,
+                validationFailed: 0,
+                processing: 0,
+                complete: 0,
+              },
+              demoSeat: { isDemo: false, seat: null },
+              nextAction: {
+                labelEn: 'Open workspace',
+                labelEs: 'Abrir portal',
+                href: '/portal',
+                jobId: null,
+                explanationEn:
+                  'Your account is active, but no report cycle is currently awaiting data.',
+                explanationEs:
+                  'Su cuenta esta activa, pero no hay un ciclo de informe esperando datos.',
+              },
+              validationSummary: null,
+            },
+          }
+        : {
+            success: true,
+            data: {
+              jobs: [
+                {
+                  id: 'job-created',
+                  institutionId: 'inst-created',
+                  institutionName: 'Coop Created',
+                  status: 'AWAITING_DATA',
+                  analysisPeriod: null,
+                  previousJobId: null,
+                  submittedAt: null,
+                  processingStartedAt: null,
+                  completedAt: null,
+                  createdAt: '2026-04-18T00:00:00.000Z',
+                  reportUrl: null,
+                  reportUrlEn: null,
+                  reportLang: 'es',
+                  errorMessage: null,
+                  userId: 'portal-test-user',
+                  triggeredBy: 'portal_cycle_bootstrap',
+                },
+              ],
+              latestActionableJob: {
+                id: 'job-created',
+                institutionId: 'inst-created',
+                institutionName: 'Coop Created',
+                status: 'AWAITING_DATA',
+                analysisPeriod: null,
+                previousJobId: null,
+                submittedAt: null,
+                processingStartedAt: null,
+                completedAt: null,
+                createdAt: '2026-04-18T00:00:00.000Z',
+                reportUrl: null,
+                reportUrlEn: null,
+                reportLang: 'es',
+                errorMessage: null,
+                userId: 'portal-test-user',
+                triggeredBy: 'portal_cycle_bootstrap',
+              },
+              workflowState: 'needs_upload',
+              counts: {
+                total: 1,
+                awaitingData: 1,
+                validationFailed: 0,
+                processing: 0,
+                complete: 0,
+              },
+              demoSeat: { isDemo: false, seat: null },
+              nextAction: {
+                labelEn: 'Upload balance-sheet data',
+                labelEs: 'Cargar datos del balance',
+                href: '/portal/submit?jobId=job-created',
+                jobId: 'job-created',
+                explanationEn:
+                  'Your report cycle is waiting for the CSV needed to start validation and analysis.',
+                explanationEs:
+                  'El ciclo de informe esta esperando el CSV para comenzar la validacion y el analisis.',
+              },
+              validationSummary: null,
+            },
+          };
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(body),
+    });
+  });
+
+  await page.route('**/api/portal/jobs/open-cycle', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          jobId: 'job-created',
+          institutionId: 'inst-created',
+          institutionName: 'Coop Created',
+          status: 'AWAITING_DATA',
+          nextHref: '/portal/submit?jobId=job-created',
+        },
+      }),
+    });
+  });
+}
+
 async function mockCheckoutSession(page: Page) {
   await page.route('**/api/billing/checkout', async (route) => {
     await route.fulfill({
@@ -131,17 +307,40 @@ test.describe('Production-critical paths', () => {
     await expect(page.locator('.cerniq-dashboard-page').first()).toBeVisible();
     await expect(page.locator('body')).toContainText(/Dashboard-native ALM Intelligence/i);
     await expect(page.locator('body')).toContainText(
-      /From balance sheet to board-ready ALM decisions/i,
+      /From one balance sheet upload to your first board-ready bilingual ALM report/i,
     );
     await expect(
-      page.getByRole('button', { name: /Request Demo|Solicitar Demo/i }).first(),
+      page.getByRole('button', { name: /View Interactive Demo/i }).first(),
     ).toBeVisible();
     await expect(
-      page.getByRole('button', { name: /Start|Comenzar/i }).first(),
+      page.getByRole('button', { name: /Start Pilot|Comenzar piloto/i }).first(),
     ).toBeVisible();
     await expect(page.locator('body')).not.toContainText(
       /Live Workspace|Current cycle|Q2 ALM/i,
     );
+    await expectNoFatalUi(page);
+
+    await assertNoErrors();
+  });
+
+  test('homepage primary entry points lead to working product surfaces', async ({
+    page,
+  }) => {
+    const assertNoErrors = attachErrorTracker(page);
+
+    await page.goto('/');
+    await expectSettledPath(page, '/');
+
+    await page.getByRole('button', { name: /Start Pilot|Comenzar piloto/i }).first().click();
+    await expectSettledPath(page, '/get-started');
+    await expect(page.getByRole('heading', { name: /Start Your Pilot/i })).toBeVisible();
+
+    await page.goBack();
+    await expectSettledPath(page, '/');
+
+    await page.getByRole('button', { name: /View Interactive Demo/i }).first().click();
+    await expectSettledPath(page, '/demo');
+    await expect(page.locator('body')).toContainText(/Start Pilot|Comenzar piloto/i);
     await expectNoFatalUi(page);
 
     await assertNoErrors();
@@ -182,7 +381,7 @@ test.describe('Production-critical paths', () => {
     await assertNoErrors();
   });
 
-  test('legacy portal login route redirects into a dashboard-intent login flow', async ({ page }) => {
+  test('legacy portal login route redirects into a portal-intent login flow', async ({ page }) => {
     const assertNoErrors = attachErrorTracker(page);
 
     const response = await page.goto('/portal/login');
@@ -190,12 +389,36 @@ test.describe('Production-critical paths', () => {
     await expectSettledPath(page, '/login');
     await expect
       .poll(() => new URL(page.url()).searchParams.get('returnUrl'))
-      .toBe('/dashboard');
+      .toBe('/portal');
     await expect
       .poll(() => new URL(page.url()).searchParams.get('mode'))
       .toBe('magic-link');
     await expect(
       page.getByRole('button', { name: /Email secure sign-in link/i }),
+    ).toBeVisible();
+    await expectNoFatalUi(page);
+
+    await assertNoErrors();
+  });
+
+  test('dashboard hands authenticated users into the portal submit workspace', async ({
+    page,
+  }) => {
+    const assertNoErrors = attachErrorTracker(page);
+    await enableAuthenticatedPortalWorkspace(page);
+
+    const response = await page.goto('/dashboard');
+    expect(response?.ok()).toBeTruthy();
+
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/portal/submit');
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('createCycle'))
+      .toBe('1');
+
+    await expect(page.locator('body')).toContainText(/Upload Your Balance-Sheet Data/i);
+    await expect(page.locator('body')).toContainText(/Coop Created/i);
+    await expect(
+      page.getByRole('button', { name: /Submit Data/i }),
     ).toBeVisible();
     await expectNoFatalUi(page);
 
@@ -223,7 +446,12 @@ test.describe('Production-critical paths', () => {
     await page.goto('/pricing');
     await expectSettledPath(page, '/pricing');
 
-    await page.getByRole('button', { name: /Start|Comenzar/i }).first().click();
+    await page
+      .getByRole('button', {
+        name: /Upgrade to Recurring Access|Activar acceso recurrente/i,
+      })
+      .first()
+      .click();
     await page.waitForURL((url) => url.hostname === 'checkout.stripe.com', {
       timeout: 30000,
     });

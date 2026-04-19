@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { SVGProps } from 'react';
 import LandingPage from './page';
+import { PUBLIC_PATHS } from '@/lib/public-links';
 
 const { pushMock } = vi.hoisted(() => ({
   pushMock: vi.fn(),
@@ -67,5 +68,28 @@ describe('LandingPage', () => {
     expect(screen.getByText(/Tell Us About Your Institution/i)).toBeInTheDocument();
     expect(screen.queryByText(/Request Free Analysis/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Request Demo/i)).not.toBeInTheDocument();
+  });
+
+  it('routes compliance navigation through the public compliance path', () => {
+    render(<LandingPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Compliance/i }));
+    expect(pushMock).toHaveBeenCalledWith(PUBLIC_PATHS.compliance);
+
+    const complianceLink = screen
+      .getByText(/View compliance matrix/i)
+      .closest('a');
+
+    expect(complianceLink).toHaveAttribute('href', PUBLIC_PATHS.compliance);
+  });
+
+  it('routes the $750 pilot CTA into the get-started intake flow', () => {
+    render(<LandingPage />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Start Pilot — \$750/i }),
+    );
+
+    expect(pushMock).toHaveBeenCalledWith('/get-started');
   });
 });

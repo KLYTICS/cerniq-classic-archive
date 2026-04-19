@@ -28,7 +28,7 @@ test.describe('Legal & Marketing Pages', () => {
   test('should load /contact with demo booking form', async ({ page }) => {
     const response = await page.goto('/contact');
     expect(response?.status()).toBeLessThan(500);
-    await expect(page).toHaveTitle(/Demo.*CERNIQ/i);
+    await expect(page).toHaveTitle(/Contact.*CERNIQ/i);
     // Form should have required fields
     const emailInput = page.locator('input[type="email"]');
     await expect(emailInput).toBeVisible();
@@ -44,7 +44,9 @@ test.describe('Legal & Marketing Pages', () => {
   test('should load /compliance with regulatory matrix', async ({ page }) => {
     const response = await page.goto('/compliance');
     expect(response?.status()).toBeLessThan(500);
-    await expect(page.locator('body')).toContainText(/COSSEC|NCUA|Basel/i);
+    await expect(page.locator('body')).toContainText(/Public Compliance Matrix|Matriz Publica de Cumplimiento/i);
+    await expect(page.locator('body')).toContainText(/COSSEC|NCUA|Basel IRRBB|CECL/i);
+    await expect(page.locator('body')).toContainText(/capability map|mapa de capacidades/i);
   });
 
   test('should load /case-studies', async ({ page }) => {

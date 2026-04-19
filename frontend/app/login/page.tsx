@@ -642,8 +642,8 @@ function LoginContent() {
               </h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--dashboard-text-secondary)]">
                 {billingSuccess
-                  ? "Enter the same email you used at checkout and we will send a secure access link for your dashboard."
-                  : "Paid customers can open CERNIQ from a secure email link instead of a password. Verified links land in the dashboard."}
+                  ? "Enter the same email you used at checkout and we will send a secure access link for your portal workspace."
+                  : "Paid customers can open CERNIQ from a secure email link instead of a password. Verified links land in the portal workspace."}
               </p>
             </div>
             {magicMode ? (
