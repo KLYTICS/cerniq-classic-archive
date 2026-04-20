@@ -29,6 +29,7 @@ import pg from 'pg';
 import { CSVIngestionService } from '../src/alm/csv-ingestion.service';
 import { InstitutionSeedService } from '../src/alm/institution-seed.service';
 import { getFixture, listFixtures } from '../src/alm/data/fixtures';
+import { requireEnv } from '../src/config/required-env';
 import type {
   InstitutionFixture,
   SeedResult,
@@ -76,49 +77,20 @@ function backendUrl(): string {
   ).replace(/\/+$/, '');
 }
 
-function withPort(connectionString: string, port: string): string {
-  try {
-    const url = new URL(connectionString);
-    url.port = port;
-    return url.toString();
-  } catch {
-    return connectionString;
-  }
-}
-
 async function resolveConnectionString(): Promise<string> {
-  const configured =
-    process.env.DATABASE_URL ||
-    'postgresql://cerniq:dev_password_change_in_prod@localhost:5433/cerniq?schema=public';
-
-  const candidates = Array.from(
-    new Set([
-      configured,
-      withPort(configured, '5433'),
-      withPort(configured, '5434'),
-      'postgresql://cerniq:dev_password_change_in_prod@localhost:5433/cerniq?schema=public',
-      'postgresql://cerniq:dev_password_change_in_prod@localhost:5434/cerniq?schema=public',
-    ]),
-  );
-
-  let lastError: unknown;
-
-  for (const candidate of candidates) {
-    const client = new pg.Client({ connectionString: candidate });
-    try {
-      await client.connect();
-      await client.query('select 1');
-      await client.end();
-      return candidate;
-    } catch (error) {
-      lastError = error;
-      await client.end().catch(() => undefined);
-    }
+  const connectionString = requireEnv('DATABASE_URL');
+  const client = new pg.Client({ connectionString });
+  try {
+    await client.connect();
+    await client.query('select 1');
+    return connectionString;
+  } catch (error) {
+    throw error instanceof Error
+      ? new Error(`Unable to connect using DATABASE_URL: ${error.message}`)
+      : new Error('Unable to connect using DATABASE_URL.');
+  } finally {
+    await client.end().catch(() => undefined);
   }
-
-  throw lastError instanceof Error
-    ? lastError
-    : new Error('Unable to connect to PostgreSQL with any local candidate URL');
 }
 
 function usage(): string {

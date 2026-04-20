@@ -10,14 +10,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _require_env(name: str) -> str:
+    value = os.getenv(name, "").strip()
+    if not value:
+        raise RuntimeError(f"{name} is required.")
+    return value
+
+
 class Config:
     """Centralized configuration for the outbound engine."""
 
     # Database
-    DATABASE_URL: str = os.getenv(
-        "OUTBOUND_DATABASE_URL",
-        "postgresql://cerniq:dev_password_change_in_prod@localhost:5433/cerniq",
-    )
+    DATABASE_URL: str = _require_env("OUTBOUND_DATABASE_URL")
 
     # SMTP / Email
     SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")

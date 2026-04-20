@@ -1,10 +1,11 @@
 
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
+import { requireEnv } from '../src/config/required-env';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { PrismaClient } = require('@prisma/client');
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://cerniq:dev_password_change_in_prod@localhost:5433/cerniq?schema=public';
+const connectionString = requireEnv('DATABASE_URL');
 const pool = new pg.Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
