@@ -34,6 +34,15 @@ const webServer = skipWebServer
       },
     ];
 
+// Opt-in globalSetup for the a11y-authed sweep. We don't want the regular
+// E2E suite paying the cost of an auth-setup round-trip on every run, so
+// this only fires when A11Y_AUTH_SETUP=1 is in the env (the a11y:sweep
+// npm script sets it automatically).
+const globalSetup =
+  process.env.A11Y_AUTH_SETUP === '1'
+    ? require.resolve('./e2e/a11y-sweep/global-setup.ts')
+    : undefined;
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -41,6 +50,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
+  globalSetup,
   use: {
     baseURL: frontendBaseUrl,
     trace: 'on-first-retry',

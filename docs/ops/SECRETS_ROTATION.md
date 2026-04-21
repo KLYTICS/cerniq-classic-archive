@@ -23,6 +23,8 @@ to rotate it without downtime.
 | `ADMIN_KEY` | Railway env var | 90 days or on compromise | Admin endpoints inaccessible |
 | `API_KEY_PEPPER` | Railway env var | **Never rotate** — would invalidate all customer API keys | N/A — rotation is destructive |
 | `SUPABASE_JWT_SECRET` | Railway env var (if used) | Aligned with Supabase rotation | Supabase-minted JWTs rejected |
+| `A11Y_SWEEP_EMAIL` | GitHub repo secret | On account changes | Authed a11y sweep skips (public sweep unaffected) |
+| `A11Y_SWEEP_PASSWORD` | GitHub repo secret | 90 days | Same as above; public sweep still runs |
 
 ## 🔄 Rotation procedures
 
@@ -139,7 +141,41 @@ curl -X POST -H "x-admin-key: $ADMIN_KEY" \
 # 5. Revoke the OLD key in Resend dashboard.
 ```
 
-### 7. ADMIN_KEY
+### 7. A11Y_SWEEP_EMAIL / A11Y_SWEEP_PASSWORD
+
+**Cadence:** 90 days for `_PASSWORD`; `_EMAIL` only on account changes.
+
+**Impact:** Low — on failed rotation the authed a11y sweep (23 routes)
+skips itself cleanly via the SKIPPED sentinel. The public sweep (141
+routes) still runs. No user-facing impact.
+
+```bash
+# 1. Update the password for the seeded user in the app itself.
+#    Login as data.ai.kiess@gmail.com → Settings → Change Password.
+#    Use a 24-char random: openssl rand -base64 18
+NEW_A11Y_PW=$(openssl rand -base64 18)
+
+# 2. Update the GitHub Actions secret:
+gh secret set A11Y_SWEEP_PASSWORD --body "$NEW_A11Y_PW" \
+  --repo monykiss/cerniq
+
+# 3. Dispatch the workflow to confirm it still authenticates:
+gh workflow run a11y-sweep.yml --repo monykiss/cerniq
+
+# 4. Watch the run — the authed sweep should NOT skip:
+gh run watch --repo monykiss/cerniq
+
+# 5. If auth fails, the run log shows the exact /api/auth/login
+#    response body. Rotate the user's password to the NEW value
+#    in the app (if you accidentally set GitHub first).
+```
+
+**Anti-lockout reminder:** only ONE user should have `A11Y_SWEEP_*`
+credentials — a dedicated seeded service account, NOT a real founder.
+If the account gets locked out (rate limit, wrong password attempts),
+a11y sweeps skip for 15 min — not a page-worthy incident.
+
+### 8. ADMIN_KEY
 
 **Cadence:** 90 days OR on team-member-leaving event.
 
@@ -164,12 +200,19 @@ Encrypted PII columns (customer emails, phone numbers, some document
 fields) are deterministically encrypted with this key. Rotating the
 key would orphan all existing encrypted data — it'd become unreadable.
 
-**Mitigation if compromise happens:**
+**Mitigation if compromise happens:** see [railway_env_vars.md §Key Rotation Procedure](railway_env_vars.md#key-rotation-procedure)
+for the canonical dual-key migration (set `DATA_ENCRYPTION_KEY_NEW`, run
+re-encrypt migration, swap, remove old). Summarized:
+
 1. Disable new writes (maintenance mode)
-2. Write a migration that decrypts with old key + re-encrypts with new
-3. Run in a transaction per institution
-4. Deploy both new key + migration atomically
-5. This is a multi-day operation; plan accordingly
+2. Set `DATA_ENCRYPTION_KEY_NEW` to the new key alongside the existing one
+3. Run a migration that reads each `rawData` with old key, re-encrypts with new
+4. Swap `DATA_ENCRYPTION_KEY` to the new value, remove `_NEW`
+5. Verify decryption on a known job — this is a multi-day operation; plan accordingly
+
+**When to trigger:** only on suspected compromise (key appears in a log, a team
+member with access leaves, Railway breach notification). Do NOT rotate for routine
+"hygiene" — the risk of orphaning real customer data is higher than key-age risk.
 
 ### API_KEY_PEPPER
 
@@ -185,9 +228,9 @@ Set calendar reminders per the cadence column above. Recommended cadence:
 
 | Month | Rotate |
 |---|---|
-| Jan, Apr, Jul, Oct (quarterly) | `RAILWAY_TOKEN`, `JWT_SECRET`, `ADMIN_KEY` |
+| Jan, Apr, Jul, Oct (quarterly) | `RAILWAY_TOKEN`, `JWT_SECRET`, `ADMIN_KEY`, `A11Y_SWEEP_PASSWORD` |
 | Jul, Jan (biannual) | `ANTHROPIC_API_KEY`, `RESEND_API_KEY` |
-| On event | Stripe keys, Supabase JWT secret |
+| On event | Stripe keys, Supabase JWT secret, `A11Y_SWEEP_EMAIL` |
 
 ## 🔔 Compromise detection
 

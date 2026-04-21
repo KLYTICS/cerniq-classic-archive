@@ -1,0 +1,174 @@
+name: SBOM + Extended Audit
+
+# Runs weekly (and on-demand) to produce bank-procurement-ready evidence:
+#   - CycloneDX SBOMs for backend + frontend (required for SOC2 + ISO 27001 scope)
+#   - Extended npm audit INCLUDING devDependencies (catches CI-runner risks)
+#   - Uploaded as artifacts with 90-day retention — auditor-friendly
+#
+# The daily PR-gate audit lives in ci-cd.yml and fails on HIGH+ in
+# production deps. This workflow is broader and archival.
+
+on:
+  schedule:
+    - cron: '0 14 * * 1'   # Monday 14:00 UTC = 10:00 AST, after the a11y sweep
+  workflow_dispatch:
+  # Also run when package.json / lockfile changes merge to main, so the
+  # SBOM attached to main is always current.
+  push:
+    branches: [main]
+    paths:
+      - 'backend-node/package.json'
+      - 'backend-node/package-lock.json'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+
+permissions:
+  contents: read
+
+jobs:
+  sbom:
+    name: SBOM (CycloneDX)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        workspace: [backend-node, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.workspace }}/package-lock.json
+
+      - name: Install deps
+        working-directory: ${{ matrix.workspace }}
+        run: npm ci --prefer-offline --no-audit
+
+      # CycloneDX is the OWASP-standard SBOM format. Banks typically
+      # accept either CycloneDX or SPDX; CycloneDX has richer vuln metadata.
+      - name: Generate CycloneDX SBOM
+        working-directory: ${{ matrix.workspace }}
+        run: |
+          npx --yes @cyclonedx/cyclonedx-npm \
+            --output-format JSON \
+            --output-file ../sbom-${{ matrix.workspace }}.json \
+            --output-reproducible \
+            --spec-version 1.5
+
+      - name: Summary
+        run: |
+          components=$(jq '.components | length' sbom-${{ matrix.workspace }}.json)
+          echo "::notice::SBOM generated for ${{ matrix.workspace }} — $components components"
+          echo "# SBOM Summary — ${{ matrix.workspace }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Spec: CycloneDX 1.5" >> $GITHUB_STEP_SUMMARY
+          echo "- Components: **$components**" >> $GITHUB_STEP_SUMMARY
+          echo "- Generated: $(date -u -Iseconds)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.workspace }}-${{ github.run_id }}
+          path: sbom-${{ matrix.workspace }}.json
+          retention-days: 90
+
+  extended-audit:
+    name: Extended npm audit (incl. dev)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        workspace: [backend-node, frontend]
+      fail-fast: false   # always run both workspaces so we get the full picture
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.workspace }}/package-lock.json
+
+      - name: Install deps
+        working-directory: ${{ matrix.workspace }}
+        run: npm ci --prefer-offline
+
+      # Extended = INCLUDING devDependencies + moderate/low findings.
+      # Separate from the HIGH/CRITICAL prod gate in ci-cd.yml.
+      # This generates a report; does NOT fail the workflow — the PR
+      # gate is the authoritative blocker.
+      - name: Full audit (all severities, incl. dev)
+        id: audit
+        working-directory: ${{ matrix.workspace }}
+        continue-on-error: true
+        run: |
+          npm audit --json > ../audit-${{ matrix.workspace }}.json || true
+          total=$(jq '.metadata.vulnerabilities | to_entries | map(.value) | add' ../audit-${{ matrix.workspace }}.json)
+          critical=$(jq '.metadata.vulnerabilities.critical' ../audit-${{ matrix.workspace }}.json)
+          high=$(jq '.metadata.vulnerabilities.high' ../audit-${{ matrix.workspace }}.json)
+          moderate=$(jq '.metadata.vulnerabilities.moderate' ../audit-${{ matrix.workspace }}.json)
+          low=$(jq '.metadata.vulnerabilities.low' ../audit-${{ matrix.workspace }}.json)
+          {
+            echo "# Extended audit — ${{ matrix.workspace }}"
+            echo ""
+            echo "| Severity | Count |"
+            echo "|---|---:|"
+            echo "| Critical | $critical |"
+            echo "| High | $high |"
+            echo "| Moderate | $moderate |"
+            echo "| Low | $low |"
+            echo "| **Total** | **$total** |"
+            echo ""
+            echo "_Includes devDependencies. Prod-only HIGH+ gate lives in \`ci-cd.yml\`._"
+          } >> $GITHUB_STEP_SUMMARY
+
+          # Emit outputs the downstream issue-creation step reads
+          echo "critical=$critical" >> $GITHUB_OUTPUT
+          echo "high=$high" >> $GITHUB_OUTPUT
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-${{ matrix.workspace }}-${{ github.run_id }}
+          path: audit-${{ matrix.workspace }}.json
+          retention-days: 90
+
+      # If a CRITICAL vuln slipped into devDependencies, open/update a
+      # tracking issue so it doesn't get lost in the Actions-log tide.
+      - name: Open tracking issue on critical findings
+        if: steps.audit.outputs.critical > 0 && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `[SCA] Critical vuln(s) in ${{ matrix.workspace }} devDependencies`;
+            const marker = `<!-- sca-tracking-${{ matrix.workspace }} -->`;
+            const body = `${marker}\n` +
+              `Weekly SCA scan found **${{ steps.audit.outputs.critical }} CRITICAL** and ` +
+              `**${{ steps.audit.outputs.high }} HIGH** vuln(s) in \`${{ matrix.workspace }}\` ` +
+              `(including devDependencies).\n\n` +
+              `The prod-only HIGH+ gate in \`ci-cd.yml\` is intentionally narrower — it only ` +
+              `looks at \`--omit=dev\`. A critical in devDependencies affects CI runners, not ` +
+              `production, but still warrants triage.\n\n` +
+              `**Next steps:**\n` +
+              `1. Download the audit report artifact from this workflow run\n` +
+              `2. Run \`npm audit fix\` in \`${{ matrix.workspace }}/\`\n` +
+              `3. If a breaking-change upgrade is needed, plan it deliberately\n\n` +
+              `_Auto-filed by \`.github/workflows/sbom-and-audit.yml\`._`;
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'security,sca',
+            });
+            const existing = issues.find((i) => i.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: existing.number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['security', 'sca'],
+              });
+            }

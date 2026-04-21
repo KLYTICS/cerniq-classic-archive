@@ -1,0 +1,130 @@
+name: A11y Sweep
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/a11y-sweep.yml'
+  # Weekly production sweep — catches drift on marketing/static pages that
+  # don't get touched in any PR (shared-component regressions, vendor-script
+  # injections breaking a11y, cert-changes rendering content differently).
+  # Monday 09:00 America/San_Juan = 13:00 UTC (no DST in PR).
+  schedule:
+    - cron: '0 13 * * 1'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Where to sweep'
+        required: true
+        default: 'local'
+        type: choice
+        options:
+          - local
+          - production
+
+jobs:
+  a11y-sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Discover routes
+        run: npm run a11y:routes
+
+      - name: Run sweep (local)
+        if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target != 'production') }}
+        env:
+          # Builds happen in playwright.config.ts webServer
+          NEXT_PUBLIC_NODE_API_URL: http://127.0.0.1:3100
+          # Authed sweep only runs when these are present in the repo's
+          # Actions secrets. If unset, the authed describe block skips
+          # itself cleanly — the public sweep (141 routes) still runs.
+          A11Y_SWEEP_EMAIL: ${{ secrets.A11Y_SWEEP_EMAIL }}
+          A11Y_SWEEP_PASSWORD: ${{ secrets.A11Y_SWEEP_PASSWORD }}
+        run: npm run a11y:sweep
+
+      - name: Run sweep (production)
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'production') }}
+        env:
+          PLAYWRIGHT_SKIP_WEBSERVER: '1'
+          PLAYWRIGHT_BASE_URL: https://cerniq.io
+          PLAYWRIGHT_BACKEND_URL: https://api.cerniq.io
+          # Production sweep runs public-only by default — minting a
+          # prod access token in CI is not a good tradeoff. Manually
+          # re-run the authed sweep from a workstation when needed.
+        run: npm run a11y:sweep:public
+
+      - name: Render report
+        if: always()
+        run: npm run a11y:report
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-playwright-report
+          path: frontend/playwright-report/
+          retention-days: 14
+
+      - name: Upload JSON + Markdown results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-results
+          path: |
+            frontend/e2e/a11y-sweep/results/
+            frontend/e2e/a11y-sweep/routes.generated.json
+          retention-days: 30
+
+      - name: Comment summary on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'frontend/e2e/a11y-sweep/results/latest.md';
+            if (!fs.existsSync(path)) return;
+            let body = fs.readFileSync(path, 'utf8');
+            // GitHub comment cap is 65536; be polite
+            if (body.length > 60000) body = body.slice(0, 60000) + '\n\n_(truncated — full report in artifacts)_';
+            const marker = '<!-- a11y-sweep-summary -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            const payload = `${marker}\n${body}`;
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: payload,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: payload,
+              });
+            }

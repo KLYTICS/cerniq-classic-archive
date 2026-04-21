@@ -55,6 +55,11 @@ coverage/
 /frontend/playwright-report/
 /frontend/test-results/
 /.playwright-cli/
+# a11y sweep: auto-generated per-run artifacts; baseline.json + ratchet.json ARE committed
+/frontend/e2e/a11y-sweep/routes.generated.json
+/frontend/e2e/a11y-sweep/results/
+# authed sweep: contains a live access_token — MUST stay out of git
+/frontend/e2e/a11y-sweep/.auth/
 /apple/.build/
 /apple/.swiftpm/
 /dist/

@@ -15,7 +15,13 @@
     "test:e2e:critical": "playwright test e2e/production-critical.spec.ts",
     "test:e2e:preview": "sh -c 'test -n \"$PLAYWRIGHT_BASE_URL\" || { echo \"PLAYWRIGHT_BASE_URL is required\" >&2; exit 1; }; PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_ENABLE_CHECKOUT_SMOKE=1 PLAYWRIGHT_MOCK_CHECKOUT=1 PLAYWRIGHT_BACKEND_URL=\"${PLAYWRIGHT_BACKEND_URL:-https://api.cerniq.io}\" playwright test e2e/production-critical.spec.ts'",
     "test:e2e:production": "PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL=https://cerniq.io PLAYWRIGHT_BACKEND_URL=https://api.cerniq.io playwright test e2e/production-critical.spec.ts e2e/public-footer-links.spec.ts --grep-invert @preview-only",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "a11y:routes": "node e2e/a11y-sweep/discover-routes.mjs",
+    "a11y:sweep": "A11Y_AUTH_SETUP=1 playwright test e2e/a11y-sweep/ --reporter=list",
+    "a11y:sweep:public": "playwright test e2e/a11y-sweep/a11y-sweep.spec.ts --reporter=list",
+    "a11y:sweep:authed": "A11Y_AUTH_SETUP=1 playwright test e2e/a11y-sweep/a11y-sweep-authed.spec.ts --reporter=list",
+    "a11y:baseline": "A11Y_AUTH_SETUP=1 A11Y_WRITE_BASELINE=1 playwright test e2e/a11y-sweep/ --reporter=list",
+    "a11y:report": "node e2e/a11y-sweep/render-report.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.46.0",
@@ -40,6 +46,7 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
     "@playwright/test": "^1.52.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",

@@ -99,6 +99,24 @@ export class BillingController {
     return this.billing.createBillingPortalSession(req.user.userId);
   }
 
+  // ── Webhook liveness probe (UptimeRobot) ──────────────
+  //
+  // UptimeRobot hits this to confirm the webhook service is up without
+  // pretending to be Stripe (which would require a valid signature).
+  // Returns 200 quickly; does NOT touch DB. Kept separate from /health so
+  // a DB or Redis blip doesn't page the on-call as "Stripe down".
+
+  @Get('api/billing/webhook/healthcheck')
+  @SkipThrottle()
+  @SkipAuditLog()
+  webhookHealthcheck() {
+    return {
+      ok: true,
+      service: 'stripe-webhook',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   // ── Stripe Webhook (signature-verified, no auth) ──────
 
   @Post('api/billing/webhook')

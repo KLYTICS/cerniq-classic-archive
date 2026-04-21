@@ -674,6 +674,127 @@ describe('PipelineWorker', () => {
     });
   });
 
+  // ─── deleteExpiredData — 90-day DPA purge ──────────────
+  //
+  // Our /security page claims "all raw balance-sheet data is deleted
+  // after 90 days." This test proves the mechanism actually works:
+  // data newer than 90 days stays, older data is nulled out and
+  // stamped with rawDataPurgedAt.
+
+  describe('deleteExpiredData (90-day DPA purge)', () => {
+    const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+
+    beforeEach(() => {
+      prisma.reportJob.findMany = jest.fn().mockResolvedValue([]);
+      // Silence the Pino logger during these tests (the worker uses
+      // its own Logger; we just validate calls reach prisma).
+      (worker as any).logger = {
+        log: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
+    });
+
+    it('finds only COMPLETE jobs older than 90 days with rawData + no prior purge', async () => {
+      await worker.deleteExpiredData();
+      const call = prisma.reportJob.findMany.mock.calls[0][0];
+      expect(call.where.status).toBe('COMPLETE');
+      expect(call.where.rawData).toEqual({ not: null });
+      expect(call.where.rawDataPurgedAt).toBeNull();
+      // cutoff should be ~90 days ago (allow 60s fuzz for clock drift)
+      const cutoff = call.where.completedAt.lte as Date;
+      const expected = Date.now() - NINETY_DAYS_MS;
+      expect(Math.abs(cutoff.getTime() - expected)).toBeLessThan(60_000);
+    });
+
+    it('no-ops when there are no expired jobs', async () => {
+      prisma.reportJob.findMany.mockResolvedValue([]);
+      await worker.deleteExpiredData();
+      expect(prisma.reportJob.update).not.toHaveBeenCalled();
+    });
+
+    it('nulls rawData and stamps rawDataPurgedAt on every expired job', async () => {
+      const now = Date.now();
+      const expired = [
+        {
+          id: 'job_old_1',
+          institutionName: 'Coop A',
+          completedAt: new Date(now - 100 * 86400000),
+        },
+        {
+          id: 'job_old_2',
+          institutionName: 'Coop B',
+          completedAt: new Date(now - 200 * 86400000),
+        },
+      ];
+      prisma.reportJob.findMany.mockResolvedValue(expired);
+      await worker.deleteExpiredData();
+      expect(prisma.reportJob.update).toHaveBeenCalledTimes(2);
+      for (const job of expired) {
+        expect(prisma.reportJob.update).toHaveBeenCalledWith({
+          where: { id: job.id },
+          data: { rawData: null, rawDataPurgedAt: expect.any(Date) },
+        });
+      }
+    });
+
+    it('logs purge events with institution names (audit trail)', async () => {
+      const expired = [
+        {
+          id: 'job_x',
+          institutionName: 'Coop A',
+          completedAt: new Date(Date.now() - 100 * 86400000),
+        },
+      ];
+      prisma.reportJob.findMany.mockResolvedValue(expired);
+      await worker.deleteExpiredData();
+      const logCalls = (worker as any).logger.log.mock.calls.map(
+        (c: any[]) => c[0],
+      );
+      expect(logCalls).toContainEqual(
+        expect.objectContaining({
+          event: 'pipeline.data_purge.starting',
+          jobCount: 1,
+        }),
+      );
+      expect(logCalls).toContainEqual(
+        expect.objectContaining({
+          event: 'pipeline.data_purge.deleted',
+          jobId: 'job_x',
+          institution: 'Coop A',
+        }),
+      );
+      expect(logCalls).toContainEqual(
+        expect.objectContaining({
+          event: 'pipeline.data_purge.complete',
+          purgedCount: 1,
+        }),
+      );
+    });
+
+    it('handles report_jobs table missing (P2021) without throwing', async () => {
+      prisma.reportJob.findMany.mockRejectedValue({
+        code: 'P2021',
+        message: 'report_jobs does not exist',
+      });
+      await expect(worker.deleteExpiredData()).resolves.toBeUndefined();
+      expect(prisma.reportJob.update).not.toHaveBeenCalled();
+    });
+
+    it('logs and swallows unexpected DB errors (cron must not crash the worker)', async () => {
+      prisma.reportJob.findMany.mockRejectedValue(
+        new Error('Connection refused'),
+      );
+      await expect(worker.deleteExpiredData()).resolves.toBeUndefined();
+      expect((worker as any).logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'pipeline.data_purge.failed',
+          error: 'Connection refused',
+        }),
+      );
+    });
+  });
+
   // ─── generateReport (private) ───────────────────────────
 
   describe('generateReport (private)', () => {
