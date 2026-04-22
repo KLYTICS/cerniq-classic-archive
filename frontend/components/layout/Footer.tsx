@@ -1,5 +1,6 @@
 'use client';
 
+import { buildLoginUrlForReturnUrl } from '@/lib/auth-redirect';
 import { getAcquisitionCopy } from '@/lib/acquisition-copy';
 import { PUBLIC_PATHS } from '@/lib/public-links';
 
@@ -12,6 +13,8 @@ export default function Footer({ t, compact }: FooterProps) {
   const acquisition = getAcquisitionCopy(
     t('en', 'es') === 'en' ? 'en' : 'es',
   );
+  const portfolioManagerHref = buildLoginUrlForReturnUrl('/portfolios');
+  const executionReviewHref = buildLoginUrlForReturnUrl('/execution-quality');
 
   if (compact) {
     return (
@@ -33,32 +36,33 @@ export default function Footer({ t, compact }: FooterProps) {
     <footer className="border-t border-slate-200 bg-slate-50 py-8 px-6">
       <div className="mx-auto max-w-6xl grid grid-cols-2 sm:grid-cols-4 gap-6 text-xs">
         <div>
-          <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">{t('Product', 'Producto')}</p>
+          <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">{t('Workspace', 'Workspace')}</p>
           <div className="space-y-2">
             <a href={PUBLIC_PATHS.getStarted} className="block text-slate-500 hover:text-slate-800">{acquisition.primaryCta}</a>
             <a href={PUBLIC_PATHS.demo} className="block text-slate-500 hover:text-slate-800">{acquisition.proofCta}</a>
+            <a href="/dashboard" className="block text-slate-500 hover:text-slate-800">{t('Command Center', 'Centro de Mando')}</a>
             <a href={PUBLIC_PATHS.pricing} className="block text-slate-500 hover:text-slate-800">{t('Pricing', 'Precios')}</a>
-            <a href={PUBLIC_PATHS.roi} className="block text-slate-500 hover:text-slate-800">{t('ROI Calculator', 'Calculadora ROI')}</a>
-            <a href={PUBLIC_PATHS.developers} className="block text-slate-500 hover:text-slate-800">{t('API Docs', 'Documentacion API')}</a>
-            <a href={PUBLIC_PATHS.changelog} className="block text-slate-500 hover:text-slate-800">{t("What's New", 'Novedades')}</a>
+            <a href={portfolioManagerHref} className="block text-slate-500 hover:text-slate-800">{t('Portfolio Manager', 'Gestor de Portafolio')}</a>
+            <a href={executionReviewHref} className="block text-slate-500 hover:text-slate-800">{t('Execution Review', 'Revision de Ejecucion')}</a>
           </div>
         </div>
         <div>
           <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">{t('Platform', 'Plataforma')}</p>
           <div className="space-y-2">
-            <a href={PUBLIC_PATHS.whyCerniq} className="block text-slate-500 hover:text-slate-800">{t('Why CERNIQ', 'Por que CERNIQ')}</a>
-            <a href={PUBLIC_PATHS.compliance} className="block text-slate-500 hover:text-slate-800">{t('Compliance Matrix', 'Matriz Cumplimiento')}</a>
+            <a href={PUBLIC_PATHS.whyCerniq} className="block text-slate-500 hover:text-slate-800">{t('Treasury + Risk Positioning', 'Posicionamiento Tesoreria + Riesgo')}</a>
+            <a href={PUBLIC_PATHS.compliance} className="block text-slate-500 hover:text-slate-800">{t('Compliance Matrix', 'Matriz de Cumplimiento')}</a>
             <a href={PUBLIC_PATHS.caseStudies} className="block text-slate-500 hover:text-slate-800">{t('Case Studies', 'Casos de Estudio')}</a>
-            <a href={PUBLIC_PATHS.almModules} className="block text-slate-500 hover:text-slate-800">{t('62 ALM Modules', '62 Modulos ALM')}</a>
+            <a href={PUBLIC_PATHS.developers} className="block text-slate-500 hover:text-slate-800">{t('API Docs', 'Documentacion API')}</a>
+            <a href={PUBLIC_PATHS.changelog} className="block text-slate-500 hover:text-slate-800">{t("What's New", 'Novedades')}</a>
           </div>
         </div>
         <div>
-          <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">{t('Compliance', 'Cumplimiento')}</p>
+          <p className="font-bold text-slate-800 mb-3 uppercase tracking-wider text-[10px]">{t('Coverage', 'Cobertura')}</p>
           <div className="space-y-2">
-            <span className="block text-slate-500">COSSEC (PR)</span>
-            <span className="block text-slate-500">NCUA (US)</span>
-            <span className="block text-slate-500">Basel III / IRRBB</span>
-            <span className="block text-slate-500">FASB 326 (CECL)</span>
+            <span className="block text-slate-500">{t('Treasury intelligence', 'Inteligencia de tesoreria')}</span>
+            <span className="block text-slate-500">{t('Risk operating system', 'Sistema operativo de riesgo')}</span>
+            <span className="block text-slate-500">{t('Portfolio visibility', 'Visibilidad de portafolio')}</span>
+            <span className="block text-slate-500">{t('Board and compliance outputs', 'Salidas para junta y cumplimiento')}</span>
           </div>
         </div>
         <div>

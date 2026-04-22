@@ -12,7 +12,7 @@ import {
 import { createCheckoutSession } from "@/lib/billing";
 import { analytics, EVENTS } from "@/lib/analytics";
 import { CerniqMark } from "@/components/brand/CerniqLogo";
-import { PRICING_TIERS, getCtaLabel } from "@/lib/pricing";
+import { PRICING, PRICING_TIERS, formatTierPrice, getCtaLabel } from "@/lib/pricing";
 import { getAcquisitionCopy } from "@/lib/acquisition-copy";
 import { PUBLIC_PATHS } from "@/lib/public-links";
 import { buildLoginUrlForReturnUrl } from "@/lib/auth-redirect";
@@ -28,49 +28,62 @@ export default function PricingPage() {
 
   const t = (en: string, es: string) => (lang === "en" ? en : es);
   const acquisition = getAcquisitionCopy(lang);
+  const pilotEntryPrice = formatTierPrice(PRICING.SETUP, lang);
+  const recurringPrice = formatTierPrice(PRICING.PILOT, lang);
+  const annualPrice = formatTierPrice(PRICING.STANDARD, lang);
 
   const costComparison =
     lang === "en"
       ? [
           {
-            item: "Quarterly ALM report",
+            item: "Pilot entry workflow",
             consultant: "$8,000 - $12,000",
-            cerniq: "$750",
+            cerniq: pilotEntryPrice,
           },
           {
-            item: "Annual access (4 reports)",
-            consultant: "$32,000 - $48,000",
-            cerniq: "$2,400",
+            item: "Recurring command-center access",
+            consultant: "$32,000 - $48,000 / year",
+            cerniq: recurringPrice,
           },
           {
-            item: "Delivery time",
+            item: "Board-output turnaround",
             consultant: "3-6 weeks",
             cerniq: "24 hours",
           },
           {
-            item: "Bilingual included",
+            item: "Portfolio + execution visibility",
+            consultant: "Separate tools",
+            cerniq: "Built in",
+          },
+          {
+            item: "Bilingual board output",
             consultant: "Extra charge",
             cerniq: "Included",
           },
         ]
       : [
           {
-            item: "Informe ALM trimestral",
+            item: "Flujo de entrada al piloto",
             consultant: "$8,000 - $12,000",
-            cerniq: "$750",
+            cerniq: pilotEntryPrice,
           },
           {
-            item: "Acceso anual (4 informes)",
-            consultant: "$32,000 - $48,000",
-            cerniq: "$2,400",
+            item: "Acceso recurrente al centro de mando",
+            consultant: "$32,000 - $48,000 / año",
+            cerniq: recurringPrice,
           },
           {
-            item: "Tiempo de entrega",
+            item: "Tiempo de salida para junta",
             consultant: "3-6 semanas",
             cerniq: "24 horas",
           },
           {
-            item: "Bilingue incluido",
+            item: "Visibilidad de portafolio y ejecucion",
+            consultant: "Herramientas separadas",
+            cerniq: "Integrado",
+          },
+          {
+            item: "Salida bilingue para junta",
             consultant: "Cargo adicional",
             cerniq: "Incluido",
           },
@@ -90,15 +103,15 @@ export default function PricingPage() {
     {
       question: t("Why start with a pilot?", "¿Por que empezar con un piloto?"),
       answer: t(
-        "A pilot report lets you validate the process with your institution's real data before committing to a recurring plan. You see the report quality, ratio accuracy, and bilingual format clarity with no risk.",
-        "Un informe piloto permite validar el proceso con datos reales de su institucion antes de comprometerse a un plan recurrente. Usted ve la calidad del informe, la precision de los ratios y la claridad del formato bilingue sin riesgo.",
+        "A pilot report lets you validate the real operating workflow with institution data before committing to recurring access. It proves the reporting layer first, then gives your team a clean path into the broader treasury-and-risk surface.",
+        "Un informe piloto permite validar el flujo operativo real con datos institucionales antes de comprometerse a acceso recurrente. Primero prueba la capa de reportes y luego da un camino limpio hacia la superficie mas amplia de tesoreria y riesgo.",
       ),
     },
     {
       question: t("What's in each report?", "¿Que incluye cada informe?"),
       answer: t(
-        "Each report contains 14+ pages with all 12 key COSSEC/NCUA ratios, duration gap analysis, NII sensitivity, liquidity coverage, Monte Carlo stress scenarios, and recommendations. All in English and Spanish, ready for board and regulator.",
-        "Cada informe contiene 14+ paginas con los 12 ratios clave COSSEC/NCUA, analisis de gap de duracion, sensibilidad NII, cobertura de liquidez, escenarios de estres Monte Carlo y recomendaciones. Todo en espanol e ingles, listo para junta y regulador.",
+        "Each report delivers the board-ready reporting core: 14+ pages, key COSSEC/NCUA ratios, duration gap, NII sensitivity, liquidity coverage, stress scenarios, and bilingual recommendations. The recurring plans add the wider workflow around that core.",
+        "Cada informe entrega el nucleo listo para junta: 14+ paginas, ratios clave COSSEC/NCUA, gap de duracion, sensibilidad NII, cobertura de liquidez, escenarios de estres y recomendaciones bilingues. Los planes recurrentes agregan el flujo mas amplio alrededor de ese nucleo.",
       ),
     },
     {
@@ -107,15 +120,15 @@ export default function PricingPage() {
         "¿Como funciona la suscripcion?",
       ),
       answer: t(
-        "The subscription is billed monthly through Stripe. You can cancel anytime with no penalty. While active, you have access to the full upload, analysis, and report delivery workflow.",
-        "La suscripcion se factura mensualmente a traves de Stripe. Puede cancelar en cualquier momento sin penalidad. Mientras esta activa, tiene acceso al flujo completo de carga, analisis y entrega de informes.",
+        "The subscription is billed through Stripe and keeps the team inside the recurring CERNIQ operating layer: upload cycles, analysis workflow, report delivery, and adjacent visibility surfaces. Pilot and annual tiers change commercial scope, not product direction.",
+        "La suscripcion se factura a traves de Stripe y mantiene al equipo dentro de la capa operativa recurrente de CERNIQ: ciclos de carga, flujo de analisis, entrega de informes y superficies adyacentes de visibilidad. Los tiers piloto y anual cambian el alcance comercial, no la direccion del producto.",
       ),
     },
   ];
 
   async function handleCheckout(tier: string) {
     if (tier === "one_time") {
-      router.push("/get-started");
+      router.push(PUBLIC_PATHS.getStarted);
       return;
     }
 
@@ -128,11 +141,11 @@ export default function PricingPage() {
           billingSuccess: true,
           forceMagicLink: true,
         }),
-        cancelUrl: "/pricing",
+        cancelUrl: PUBLIC_PATHS.pricing,
       });
       window.location.href = checkoutUrl;
     } catch {
-      window.location.href = "/pricing";
+      window.location.href = PUBLIC_PATHS.pricing;
     } finally {
       setLoadingTier(null);
     }
@@ -201,14 +214,20 @@ export default function PricingPage() {
                   {t("Plans & Pricing", "Planes y precios")}
                 </span>
                 <h1 className="font-display text-3xl leading-tight text-slate-950 sm:text-5xl">
-                  {acquisition.pricingHeroTitle}
+                  {t(
+                    "Start with the pilot. Expand into the institutional operating surface once the workflow is trusted.",
+                    "Comience con el piloto. Expanda hacia la superficie operativa institucional una vez que el flujo este validado.",
+                  )}
                 </h1>
                 <p className="mt-5 max-w-3xl text-base leading-8 text-slate-700">
-                  {acquisition.pricingHeroBody}
+                  {t(
+                    "CERNIQ pricing is built around one sequence: validate the reporting workflow on real data first, then move into recurring treasury, risk, and portfolio visibility once the team wants the full operating cadence.",
+                    "El pricing de CERNIQ esta construido alrededor de una secuencia: valide primero el flujo de reportes con datos reales y luego pase a tesoreria, riesgo y visibilidad de portafolio recurrentes cuando el equipo quiera la cadencia operativa completa.",
+                  )}
                 </p>
 
                 <div className="mt-8 flex flex-wrap gap-3">
-                  <Link href="/get-started" className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5">
+                  <Link href={PUBLIC_PATHS.getStarted} className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5">
                     {acquisition.primaryCta}
                     <ChevronRight className="h-4 w-4" />
                   </Link>
@@ -223,11 +242,11 @@ export default function PricingPage() {
                 <div className="mt-8 flex flex-wrap gap-3">
                   <span className="cerniq-mini-stat">
                     <strong>{t("Pilot", "Piloto")}</strong>{" "}
-                    {t("to validate", "para validar")}
+                    {t("to validate the workflow", "para validar el flujo")}
                   </span>
                   <span className="cerniq-mini-stat">
                     <strong>{t("Recurring", "Recurrente")}</strong>{" "}
-                    {t("for ongoing reports", "para informes continuos")}
+                    {t("for ongoing finance operations", "para operaciones financieras continuas")}
                   </span>
                   <span className="cerniq-mini-stat">
                     <strong>Partner</strong>{" "}
@@ -240,34 +259,34 @@ export default function PricingPage() {
               <div className="relative z-10 mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 mx-auto max-w-4xl">
                 <div className="rounded-xl border border-cyan-200 bg-cyan-50/50 p-3 text-center">
                   <p className="text-2xl font-bold tabular-nums text-cyan-800">
-                    61
+                    1
                   </p>
                   <p className="text-[10px] text-cyan-600 font-semibold uppercase">
-                    {t("ALM Modules", "Módulos ALM")}
+                    {t("Command Surface", "Superficie de Mando")}
                   </p>
                 </div>
                 <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-3 text-center">
                   <p className="text-2xl font-bold tabular-nums text-violet-800">
-                    34
+                    4
                   </p>
                   <p className="text-[10px] text-violet-600 font-semibold uppercase">
-                    {t("Quant Models", "Modelos Quant")}
+                    {t("Finance Lanes", "Carriles Financieros")}
                   </p>
                 </div>
                 <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 text-center">
                   <p className="text-2xl font-bold tabular-nums text-amber-800">
-                    142
+                    EN/ES
                   </p>
                   <p className="text-[10px] text-amber-600 font-semibold uppercase">
-                    {t("API Endpoints", "Endpoints API")}
+                    {t("Board Output", "Salida para Junta")}
                   </p>
                 </div>
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 text-center">
                   <p className="text-2xl font-bold tabular-nums text-emerald-800">
-                    EN/ES
+                    $750
                   </p>
                   <p className="text-[10px] text-emerald-600 font-semibold uppercase">
-                    {t("Bilingual Everything", "Todo Bilingüe")}
+                    {t("Pilot Entry", "Entrada al Piloto")}
                   </p>
                 </div>
               </div>
@@ -349,14 +368,14 @@ export default function PricingPage() {
                 </p>
                 <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
                   {t(
-                    "Your institution spends $13,900-$33,000/year on ALM consultants. CERNIQ from $2,400/year.",
-                    "Su institucion gasta $13,900-$33,000/ano en consultores ALM. CERNIQ desde $2,400/ano.",
+                    "Compare CERNIQ to the fragmented operating model you already know.",
+                    "Compare CERNIQ con el modelo operativo fragmentado que ya conoce.",
                   )}
                 </h2>
                 <p className="mt-4 text-base leading-8 text-slate-700">
                   {t(
-                    "Same ratios, same accuracy, fraction of the cost.",
-                    "Mismos ratios, misma precision, fraccion del costo.",
+                    "The value is not only lower cost. It is a cleaner treasury-and-risk workflow with one system covering ingest, review, delivery, and ongoing institutional visibility.",
+                    "El valor no es solo menor costo. Es un flujo mas limpio de tesoreria y riesgo con un sistema cubriendo ingestion, revision, entrega y visibilidad institucional continua.",
                   )}
                 </p>
               </div>
@@ -517,7 +536,7 @@ export default function PricingPage() {
                         t("Minimum Contract", "Contrato mínimo"),
                         "$150K+/yr",
                         "$80K+/yr",
-                        "$2,400/yr",
+                        annualPrice,
                       ],
                     ].map((row, i) => (
                       <tr key={i} className="border-b border-slate-100">
@@ -584,7 +603,7 @@ export default function PricingPage() {
 
               <div className="flex flex-wrap gap-3">
                 <Link
-                  href="/get-started"
+                  href={PUBLIC_PATHS.getStarted}
                   className="inline-flex items-center justify-center gap-2 rounded-full border border-cyan-300 bg-cyan-50 px-6 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-100"
                 >
                   {acquisition.primaryCta}

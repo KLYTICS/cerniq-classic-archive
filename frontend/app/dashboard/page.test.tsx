@@ -43,9 +43,13 @@ vi.mock('lucide-react', () => {
   const Icon = (props: SVGProps<SVGSVGElement>) => <svg {...props} />;
   return {
     ArrowRight: Icon,
+    Briefcase: Icon,
     CheckCircle2: Icon,
+    LineChart: Icon,
     LockKeyhole: Icon,
     Upload: Icon,
+    ShieldCheck: Icon,
+    Target: Icon,
   };
 });
 
@@ -58,12 +62,12 @@ describe('DashboardPage', () => {
     authState.hydrateFromStorage.mockReset();
   });
 
-  it('shows guest users the secure workspace entry points only', () => {
+  it('shows guest users the command-center entry shell', () => {
     render(<DashboardPage />);
 
     expect(
       screen.getByRole('heading', {
-        name: /start your upload-to-report workflow/i,
+        name: /open the treasury and risk command center/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -75,8 +79,17 @@ describe('DashboardPage', () => {
     expect(
       screen.getByRole('link', { name: /view interactive demo/i }),
     ).toHaveAttribute('href', '/demo');
-    expect(screen.queryByText(/ALM Intelligence/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Generate ALM Report/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /portfolio manager/i }),
+    ).toHaveAttribute('href', '/login?returnUrl=%2Fportfolios');
+    expect(
+      screen.getByRole('link', { name: /execution review/i }),
+    ).toHaveAttribute('href', '/login?returnUrl=%2Fexecution-quality');
+    expect(
+      screen.getByRole('link', { name: /ALM and risk models/i }),
+    ).toHaveAttribute('href', '/login?returnUrl=%2Falm');
+    expect(screen.getByText(/Portfolio manager/i)).toBeInTheDocument();
+    expect(screen.getByText(/Execution review/i)).toBeInTheDocument();
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
@@ -88,7 +101,7 @@ describe('DashboardPage', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: /finish institution setup before upload/i,
+        name: /finish institution setup before opening the command center/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -97,6 +110,9 @@ describe('DashboardPage', () => {
     expect(
       screen.getByRole('link', { name: /review pilot steps/i }),
     ).toHaveAttribute('href', '/get-started');
+    expect(
+      screen.getByRole('link', { name: /portfolio manager/i }),
+    ).toHaveAttribute('href', '/portfolios');
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
@@ -113,5 +129,8 @@ describe('DashboardPage', () => {
     expect(
       screen.getByRole('link', { name: /continue to reporting workspace/i }),
     ).toHaveAttribute('href', '/portal/submit?createCycle=1');
+    expect(
+      screen.getByRole('link', { name: /portfolio manager/i }),
+    ).toHaveAttribute('href', '/portfolios');
   });
 });

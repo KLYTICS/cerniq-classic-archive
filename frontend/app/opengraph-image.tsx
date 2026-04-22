@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
-export const alt = 'CERNIQ — Institutional ALM Intelligence';
+export const alt = 'CERNIQ — Institutional Treasury and Risk Command Center';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -62,7 +62,7 @@ export default async function Image() {
             CERNIQ
           </span>
           <span style={{ fontSize: '14px', color: '#94a3b8', letterSpacing: '0.2em', textTransform: 'uppercase' as const }}>
-            ALM Intelligence
+            Command Center
           </span>
         </div>
 
@@ -77,21 +77,21 @@ export default async function Image() {
             maxWidth: '900px',
           }}
         >
-          Best-in-class ALM reporting at credit union pricing
+          Treasury, risk, portfolio visibility, and board delivery in one command center
         </div>
 
         {/* Subheadline */}
-        <div style={{ fontSize: '22px', color: '#94a3b8', marginBottom: '40px', maxWidth: '800px', lineHeight: 1.4 }}>
-          14-page board-ready reports. COSSEC 12-ratio engine. Bilingual EN/ES. From $750.
+        <div style={{ fontSize: '22px', color: '#94a3b8', marginBottom: '40px', maxWidth: '880px', lineHeight: 1.4 }}>
+          CFO-first reporting, execution review, and institutional workflow control across one operating layer.
         </div>
 
         {/* Stats row */}
         <div style={{ display: 'flex', gap: '48px' }}>
           {[
-            { value: '62', label: 'ALM Modules' },
-            { value: '34', label: 'Quant Models' },
-            { value: '12', label: 'COSSEC Ratios' },
-            { value: 'EN/ES', label: 'Bilingual' },
+            { value: '1', label: 'Command Surface' },
+            { value: '4', label: 'Finance Lanes' },
+            { value: 'EN/ES', label: 'Board Output' },
+            { value: '$750', label: 'Pilot Entry' },
           ].map((stat) => (
             <div key={stat.label} style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: '36px', fontWeight: 800, color: '#06b6d4' }}>{stat.value}</span>

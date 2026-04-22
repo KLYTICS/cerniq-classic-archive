@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Why CERNIQ — ALM Intelligence for PR Cooperativas',
-  description: '6 reasons cooperativas choose CERNIQ: 83% cost savings, 24-hour delivery, COSSEC compliance, bilingual EN/ES, 14-page board-ready reports in minutes.',
+  title: 'Why CERNIQ — Treasury and Risk Operating System',
+  description:
+    'Why finance teams choose CERNIQ: one institutional command surface for treasury, risk, portfolio visibility, and board-ready reporting.',
   alternates: { canonical: '/why-cerniq' },
   openGraph: {
-    title: 'Why CERNIQ — Built for Puerto Rico Cooperativas',
-    description: 'Best-in-class ALM reporting at credit union pricing. COSSEC-compliant, bilingual, delivered in hours not weeks.',
+    title: 'Why CERNIQ — Built for Institutional Treasury and Risk Teams',
+    description:
+      'CERNIQ unifies reporting, rate posture, portfolio visibility, and board delivery in one operating system.',
     url: 'https://cerniq.io/why-cerniq',
   },
 };

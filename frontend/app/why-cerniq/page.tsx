@@ -44,12 +44,15 @@ export default function WhyCerniqPage() {
         {/* Hero */}
         <section className="text-center max-w-3xl mx-auto">
           <h1 className="text-4xl font-bold text-slate-950 leading-tight">
-            {t('The ALM platform your examiner wishes you had', 'La plataforma ALM que su examinador desearía que tuviera')}
+            {t(
+              'The finance operating system that makes treasury, risk, and board delivery feel coordinated again',
+              'El sistema operativo financiero que vuelve a coordinar tesoreria, riesgo y entrega a junta',
+            )}
           </h1>
           <p className="mt-4 text-lg text-slate-600 leading-relaxed">
             {t(
-              'COSSEC 12-ratio engine, stress testing, duration gap, NII sensitivity, bilingual reporting — all for less than what you pay a consultant for one report.',
-              'Motor COSSEC de 12 razones, pruebas de estrés, brecha de duración, sensibilidad NII, informes bilingües — todo por menos de lo que paga a un consultor por un informe.'
+              'CERNIQ keeps ALM and reporting as the anchor, then connects that workflow to portfolio visibility, execution review, and institutional stakeholder output in one command surface.',
+              'CERNIQ mantiene ALM y reportes como ancla, y luego conecta ese flujo con visibilidad de portafolio, revision de ejecucion y salida institucional en una sola superficie de mando.'
             )}
           </p>
         </section>
@@ -57,10 +60,10 @@ export default function WhyCerniqPage() {
         {/* Platform Numbers */}
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { value: '62', label: t('ALM Modules', 'Módulos ALM'), icon: Layers, color: 'cyan' },
-            { value: '34', label: t('Quant Models', 'Modelos Quant'), icon: Cpu, color: 'violet' },
-            { value: '12', label: t('COSSEC Ratios', 'Razones COSSEC'), icon: Zap, color: 'amber' },
-            { value: '$2,400', label: t('/year starting', '/año desde'), icon: DollarSign, color: 'emerald' },
+            { value: '1', label: t('Command Surface', 'Superficie de Mando'), icon: Layers, color: 'cyan' },
+            { value: '4', label: t('Finance Lanes', 'Carriles Financieros'), icon: Cpu, color: 'violet' },
+            { value: 'EN/ES', label: t('Board Output', 'Salida para Junta'), icon: Zap, color: 'amber' },
+            { value: '$750', label: t('Pilot Entry', 'Entrada al Piloto'), icon: DollarSign, color: 'emerald' },
           ].map((s) => (
             <div key={s.label} className={`rounded-xl border border-${s.color}-200 bg-${s.color}-50/50 p-5 text-center`}>
               <s.icon className={`h-5 w-5 text-${s.color}-600 mx-auto mb-2`} />
@@ -72,56 +75,56 @@ export default function WhyCerniqPage() {
 
         {/* 6 Reasons */}
         <section className="space-y-6">
-          <h2 className="text-2xl font-bold text-slate-950 text-center">{t('6 reasons institutions choose CERNIQ', '6 razones por las que las instituciones eligen CERNIQ')}</h2>
+          <h2 className="text-2xl font-bold text-slate-950 text-center">{t('6 reasons finance teams choose CERNIQ', '6 razones por las que los equipos financieros eligen CERNIQ')}</h2>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 icon: Shield,
-                title: t('Exam-Ready Compliance', 'Cumplimiento Listo para Examen'),
+                title: t('Board and regulator ready', 'Listo para junta y regulador'),
                 body: t(
-                  '20 regulatory requirements mapped across COSSEC, NCUA, and Basel III. Your examiner sees structured, professional output — not spreadsheet screenshots.',
-                  '20 requisitos regulatorios mapeados en COSSEC, NCUA y Basel III. Su examinador ve output estructurado y profesional — no capturas de pantalla de Excel.'
+                  'CERNIQ keeps committee, board, and regulator-facing outputs inside the same operating workflow instead of forcing teams to rebuild the story by hand every quarter.',
+                  'CERNIQ mantiene las salidas para comite, junta y regulador dentro del mismo flujo operativo en vez de obligar a reconstruir la historia a mano cada trimestre.'
                 ),
               },
               {
                 icon: Cpu,
-                title: t('Institutional-Grade Quant Engine', 'Motor Cuantitativo de Nivel Institucional'),
+                title: t('Institutional models under the hood', 'Modelos institucionales bajo el capó'),
                 body: t(
-                  'Nelson-Siegel yield curves, Vasicek Monte Carlo, CreditMetrics, KMV-Merton, FRTB Expected Shortfall, Black-Litterman — rigorous financial models built for regulatory reporting.',
-                  'Curvas Nelson-Siegel, Monte Carlo Vasicek, CreditMetrics, KMV-Merton, FRTB Expected Shortfall, Black-Litterman — modelos financieros rigurosos para reportes regulatorios.'
+                  'The model layer remains serious: yield-curve work, Monte Carlo, credit, liquidity, and allocation tooling all support the same finance operating surface.',
+                  'La capa de modelos sigue siendo seria: curvas, Monte Carlo, credito, liquidez y asignacion apoyan la misma superficie operativa financiera.'
                 ),
               },
               {
                 icon: Globe,
-                title: t('Bilingual Native', 'Bilingüe Nativo'),
+                title: t('Bilingual output by default', 'Salida bilingue por defecto'),
                 body: t(
-                  'Every page, every report, every label in English and Spanish. Not translated after the fact — built bilingual from day one.',
-                  'Cada página, cada informe, cada etiqueta en inglés y español. No traducido después — construido bilingüe desde el día uno.'
+                  'English and Spanish are built into the reporting and delivery layer from the start, so stakeholder output is presentation-ready without translation cleanup.',
+                  'Ingles y espanol estan integrados en la capa de reportes y entrega desde el inicio, para que la salida sea presentable sin limpieza de traduccion.'
                 ),
               },
               {
                 icon: DollarSign,
-                title: t('90% Cost Reduction', 'Reducción de Costos 90%'),
+                title: t('Replace fragmented operating cost', 'Reemplace costo operativo fragmentado'),
                 body: t(
-                  "Manual ALM reporting costs $15K+ per engagement. CERNIQ: $2,400/year with automated bilingual reports in minutes, not weeks.",
-                  "Los informes ALM manuales cuestan $15K+ por compromiso. CERNIQ: $2,400/año con informes bilingües automatizados en minutos, no semanas."
+                  "The point is not just cheaper reports. The point is one repeatable operating rhythm across reporting, review, and delivery instead of consultant cycles plus spreadsheet overhead.",
+                  "El punto no es solo reportes mas baratos. El punto es un ritmo operativo repetible para reportar, revisar y entregar en vez de ciclos de consultoria mas sobrecarga en hojas de calculo."
                 ),
               },
               {
                 icon: TrendingUp,
-                title: t('PR-Specific Intelligence', 'Inteligencia Específica para PR'),
+                title: t('Finance-team-first positioning', 'Posicionamiento centrado en equipos financieros'),
                 body: t(
-                  'PR cooperativa peer benchmarks, COSSEC 12-ratio compliance engine, sector-specific stress scenarios including hurricane risk, and bilingual regulatory guidance. Built for the Caribbean.',
-                  'Benchmarks de cooperativas PR, motor de cumplimiento COSSEC de 12 razones, escenarios de estrés específicos del sector incluyendo riesgo de huracán, y guía regulatoria bilingüe. Construido para el Caribe.'
+                  'Puerto Rico remains an important wedge, but the product now presents itself as a treasury, risk, and portfolio intelligence platform for finance teams more broadly.',
+                  'Puerto Rico sigue siendo un wedge importante, pero el producto ahora se presenta como plataforma de tesoreria, riesgo e inteligencia de portafolio para equipos financieros mas amplios.'
                 ),
               },
               {
                 icon: Brain,
-                title: t('AI-Powered Analysis', 'Análisis Impulsado por IA'),
+                title: t('Operator-style guidance', 'Guia estilo operador'),
                 body: t(
-                  'Claude-powered AI advisor that understands your balance sheet. Ask questions in natural language, get instant ALCO-ready insights.',
-                  'Asesor IA impulsado por Claude que entiende su hoja de balance. Haga preguntas en lenguaje natural, obtenga insights listos para ALCO.'
+                  'AI and workflow layers help teams interrogate the institution context faster, but the product story stays grounded in operator usefulness rather than AI theater.',
+                  'Las capas de IA y flujo ayudan a interrogar el contexto institucional mas rapido, pero la historia del producto sigue anclada en utilidad operativa, no en teatro de IA.'
                 ),
               },
             ].map((reason, i) => (
@@ -136,13 +139,13 @@ export default function WhyCerniqPage() {
 
         {/* Social Proof */}
         <section className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">{t('Built in Puerto Rico, for the world', 'Construido en Puerto Rico, para el mundo')}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">{t('Built for institutional finance teams', 'Construido para equipos financieros institucionales')}</p>
           <div className="flex flex-wrap justify-center gap-6">
             {[
-              { label: t('Institutions in pilot', 'Instituciones en piloto'), value: '3' },
-              { label: t('Assets analyzed', 'Activos analizados'), value: '$1.1B+' },
-              { label: t('Reports delivered', 'Informes entregados'), value: '12+' },
-              { label: t('Uptime', 'Disponibilidad'), value: '99.9%' },
+              { label: t('Primary buyer', 'Comprador primario'), value: t('Treasury + Risk', 'Tesoreria + Riesgo') },
+              { label: t('Secondary buyer', 'Comprador secundario'), value: t('PM + Analyst', 'PM + Analista') },
+              { label: t('Delivery language', 'Idioma de entrega'), value: 'EN/ES' },
+              { label: t('Workflow anchor', 'Ancla del flujo'), value: t('Upload -> Report', 'Carga -> Informe') },
             ].map(s => (
               <div key={s.label}>
                 <p className="text-xl font-bold text-slate-950 tabular-nums">{s.value}</p>

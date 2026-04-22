@@ -112,6 +112,21 @@ export const PRICING_TIERS: PricingTier[] = [
   PRICING.PARTNER,
 ];
 
+/** Helper: render price + cadence for a tier in the current language. */
+export function formatTierPrice(
+  tier: PricingTier,
+  lang: 'en' | 'es',
+): string {
+  const label = lang === 'en' ? tier.label : tier.labelEs;
+  const cadence = lang === 'en' ? tier.cadence : tier.cadenceEs;
+
+  if (!cadence) {
+    return label;
+  }
+
+  return cadence.startsWith('/') ? `${label}${cadence}` : `${label} ${cadence}`;
+}
+
 /** Helper: get CTA label for a tier. */
 export function getCtaLabel(tierId: string, lang: 'en' | 'es'): string {
   const tier = PRICING_TIERS.find((t) => t.id === tierId);

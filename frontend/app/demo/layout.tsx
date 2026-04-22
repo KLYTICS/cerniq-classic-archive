@@ -2,12 +2,14 @@ import type { Metadata } from 'next';
 import { DemoErrorBoundary } from './DemoErrorBoundary';
 
 export const metadata: Metadata = {
-  title: 'Interactive Demo — CERNIQ ALM Intelligence',
-  description: 'Try CERNIQ with live FirstBank Puerto Rico data. Walk through COSSEC scoring, ALM reports, SpendCheck findings, AI advisor, and the quant engine — no signup required.',
+  title: 'Interactive Demo — CERNIQ Treasury and Risk Platform',
+  description:
+    'Walk through CERNIQ as an institutional command center spanning reporting, risk review, portfolio context, and adjacent finance workflows.',
   alternates: { canonical: '/demo' },
   openGraph: {
-    title: 'Try CERNIQ — Interactive ALM Demo',
-    description: '6-step walkthrough with live data: COSSEC scoring, ALM reports, stress testing, and AI advisor.',
+    title: 'Try CERNIQ — Interactive Treasury and Risk Demo',
+    description:
+      'Interactive walkthrough of CERNIQ reporting, workflow control, and institutional finance surfaces.',
     url: 'https://cerniq.io/demo',
   },
 };

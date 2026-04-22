@@ -8,18 +8,22 @@ import CookieConsent from '@/components/CookieConsent';
 import SessionTimeoutWarning from '@/components/SessionTimeoutWarning';
 import { ToastProvider } from '@/components/Toast';
 import { WebVitals } from '@/components/WebVitals';
+import { PRICING } from '@/lib/pricing';
 
 export const metadata: Metadata = {
-  title: "CERNIQ — Bilingual ALM Reporting for Credit Unions | COSSEC/NCUA Compliant",
-  description: "Upload a balance sheet, get a 14-page bilingual board-ready ALM report in minutes. COSSEC 12-ratio engine, stress testing, duration gap, NII sensitivity, CECL, peer analytics. Built for Puerto Rico cooperativas. From $750.",
-  keywords: "ALM software, asset liability management, credit union ALM, COSSEC compliance, NCUA ratios, Monte Carlo stress testing, NII sensitivity, EVE analysis, duration gap, CECL credit loss, yield curve modeling, bilingual ALM reports, Puerto Rico cooperativas, Basel IRRBB, CAMEL scoring, institutional risk intelligence, CERNIQ",
+  title: "CERNIQ — Institutional Treasury, Risk, and Portfolio Intelligence",
+  description:
+    "CERNIQ is the institutional operating system for treasury, ALM, portfolio visibility, execution review, and board-ready reporting. Bilingual output, regulatory posture, and CFO-first workflows in one command surface.",
+  keywords:
+    "institutional finance software, treasury intelligence, ALM software, asset liability management, portfolio visibility, execution quality, risk operating system, board reporting, credit union ALM, community bank risk platform, COSSEC compliance, NCUA ratios, Basel IRRBB, bilingual board reports, institutional risk intelligence, CERNIQ",
   metadataBase: new URL("https://cerniq.io"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "CERNIQ — Bilingual ALM Reporting | From $750",
-    description: "Best-in-class ALM reporting for PR cooperativas and credit unions. COSSEC/NCUA compliant. Bilingual board-ready reports in minutes.",
+    title: "CERNIQ — Treasury and Risk Operating System",
+    description:
+      "Institutional treasury, risk, and portfolio intelligence with board-ready bilingual reporting and live operating workflows.",
     url: "https://cerniq.io",
     siteName: "CERNIQ",
     locale: "en_US",
@@ -27,8 +31,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "CERNIQ — Institutional ALM Intelligence",
-    description: "Bilingual ALM reporting for credit unions. COSSEC/NCUA compliant. From $750.",
+    title: "CERNIQ — Treasury and Risk Operating System",
+    description:
+      "Institutional treasury, risk, and portfolio intelligence with CFO-first workflows and board-ready outputs.",
   },
   robots: {
     index: true,
@@ -44,6 +49,7 @@ const SEGMENT_WRITE_KEY = process.env.NEXT_PUBLIC_SEGMENT_WRITE_KEY;
 const SHOULD_LOAD_VERCEL_INSIGHTS =
   (process.env.VERCEL === '1' || Boolean(process.env.VERCEL_ENV)) &&
   process.env.NODE_ENV === 'production';
+const CANONICAL_RECURRING_PRICE = String(PRICING.PILOT.amount);
 
 export default function RootLayout({
   children,
@@ -62,14 +68,16 @@ export default function RootLayout({
               name: 'CERNIQ',
               applicationCategory: 'FinanceApplication',
               operatingSystem: 'Web',
-              description: 'Bilingual ALM reporting for Puerto Rico cooperativas and credit unions. COSSEC/NCUA compliant. 14-page board-ready reports in minutes.',
+              description:
+                'Institutional treasury, risk, and portfolio intelligence with bilingual board-ready reporting, ALM workflows, and portfolio visibility.',
               url: 'https://cerniq.io',
               offers: {
                 '@type': 'Offer',
-                price: '2400',
+                price: CANONICAL_RECURRING_PRICE,
                 priceCurrency: 'USD',
                 priceValidUntil: '2027-01-01',
-                description: 'Annual ALM Platform',
+                description:
+                  'Recurring treasury, risk, and portfolio command-center access starting with the pilot operating lane.',
               },
               publisher: {
                 '@type': 'Organization',
@@ -77,7 +85,8 @@ export default function RootLayout({
                 url: 'https://cerniq.io',
                 address: { '@type': 'PostalAddress', addressLocality: 'San Juan', addressRegion: 'PR', addressCountry: 'US' },
               },
-              featureList: 'ALM Analysis, Duration Gap, NII Sensitivity, EVE, Monte Carlo, CECL, Yield Curve, FTP, Stress Testing, CAMEL Scoring, Basel IRRBB, Bilingual EN/ES Reports',
+              featureList:
+                'Treasury intelligence, ALM analysis, portfolio visibility, execution review, board-ready reporting, duration gap, NII sensitivity, EVE, Monte Carlo, CECL, Basel IRRBB, bilingual EN/ES outputs',
             }),
           }}
         />

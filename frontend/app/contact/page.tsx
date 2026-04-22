@@ -78,14 +78,19 @@ export default function ContactPage() {
           <div className="space-y-8">
             <div>
               <h1 className="text-3xl font-bold text-slate-950">{acquisition.contactHeading}</h1>
-              <p className="mt-3 text-slate-600 leading-relaxed">{acquisition.contactBody}</p>
+              <p className="mt-3 text-slate-600 leading-relaxed">
+                {t(
+                  "Use this path when the conversation is broader than the pilot: partner workflow, advisor support, assisted rollout, procurement review, or treasury-and-risk deployment planning.",
+                  "Use esta ruta cuando la conversacion sea mas amplia que el piloto: flujo para partners, soporte a asesores, implementacion asistida, revision de compras o plan de despliegue de tesoreria y riesgo.",
+                )}
+              </p>
             </div>
 
             <div className="space-y-4">
               {[
                 { icon: Building2, title: t('Partner & Multi-Institution Fit', 'Partner y multi-institucion'), desc: t('Use this route if you manage multiple institutions, need white-label support, or want to discuss the partner workflow.', 'Use esta ruta si gestiona multiples instituciones, necesita soporte white-label o quiere discutir el flujo para partners.') },
-                { icon: Calendar, title: t('Assisted Rollout Planning', 'Plan de implementacion asistida'), desc: t('We can map onboarding, data readiness, and the right upgrade path after the pilot for your institution.', 'Podemos definir onboarding, readiness de datos y la ruta correcta de upgrade despues del piloto para su institucion.') },
-                { icon: Mail, title: t('Security & Procurement Review', 'Revision de seguridad y compras'), desc: t('Bring security questionnaires, procurement constraints, or board approval needs into a direct sales conversation.', 'Traiga cuestionarios de seguridad, restricciones de compras o aprobaciones de junta a una conversacion comercial directa.') },
+                { icon: Calendar, title: t('Assisted Rollout Planning', 'Plan de implementacion asistida'), desc: t('We can map onboarding, data readiness, reporting cadence, and the right operating rollout after the pilot for your institution.', 'Podemos definir onboarding, readiness de datos, cadencia de reportes y el despliegue operativo correcto despues del piloto para su institucion.') },
+                { icon: Mail, title: t('Security, Procurement, and Board Review', 'Seguridad, compras y revision de junta'), desc: t('Bring security questionnaires, procurement constraints, or board approval needs into a direct sales conversation built for institutional rollout.', 'Traiga cuestionarios de seguridad, restricciones de compras o aprobaciones de junta a una conversacion comercial pensada para despliegue institucional.') },
               ].map((item, i) => (
                 <div key={i} className="flex gap-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50">

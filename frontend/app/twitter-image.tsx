@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
-export const alt = 'CERNIQ — Institutional ALM Intelligence';
+export const alt = 'CERNIQ — Institutional Treasury and Risk Command Center';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -53,17 +53,17 @@ export default async function Image() {
             CERNIQ
           </span>
         </div>
-        <div style={{ fontSize: '44px', fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: '20px', maxWidth: '800px' }}>
-          62 ALM Modules. 34 Quant Models.
+        <div style={{ fontSize: '44px', fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: '20px', maxWidth: '840px' }}>
+          Treasury, risk, portfolio visibility, and board delivery.
         </div>
-        <div style={{ fontSize: '20px', color: '#94a3b8', marginBottom: '32px' }}>
-          COSSEC/NCUA compliant. Bilingual EN/ES. From $750.
+        <div style={{ fontSize: '20px', color: '#94a3b8', marginBottom: '32px', maxWidth: '860px' }}>
+          CFO-first reporting, execution review, and institutional workflow control from one command center.
         </div>
         <div style={{ display: 'flex', gap: '32px' }}>
           {[
-            { v: '$750', l: 'Pilot Report' },
-            { v: '24h', l: 'Delivery' },
-            { v: '83-93%', l: 'Cost Savings' },
+            { v: '$750', l: 'Pilot Entry' },
+            { v: '4', l: 'Finance Lanes' },
+            { v: 'EN/ES', l: 'Board Output' },
           ].map((s) => (
             <div key={s.l} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <span style={{ fontSize: '32px', fontWeight: 800, color: '#06b6d4' }}>{s.v}</span>

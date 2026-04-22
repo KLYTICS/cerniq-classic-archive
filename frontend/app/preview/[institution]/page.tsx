@@ -118,9 +118,9 @@ export default function InstitutionPreview() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <CerniqMark size="sm" />
-              <span className="font-display text-xs uppercase tracking-[0.3em] text-slate-400">CERNIQ ALM Intelligence</span>
+              <span className="font-display text-xs uppercase tracking-[0.3em] text-slate-400">CERNIQ Treasury and Risk OS</span>
             </div>
-            <h1 className="text-2xl font-bold text-slate-950">{t('ALM Report Preview', 'Vista Previa — Informe ALM')}</h1>
+            <h1 className="text-2xl font-bold text-slate-950">{t('Board Output Preview', 'Vista Previa — Salida para Junta')}</h1>
             <p className="text-lg font-semibold text-cyan-700 mt-1">{inst.name}</p>
             <p className="text-sm text-slate-500">{inst.location} | ${inst.assets}M {t('in assets', 'en activos')} | {new Date().toLocaleDateString(lang === 'es' ? 'es-PR' : 'en-US', { year: 'numeric', month: 'long' })}</p>
           </div>

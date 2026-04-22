@@ -35,8 +35,8 @@ export default function CaseStudiesPage() {
         <div className="text-center max-w-3xl mx-auto">
           <h1 className="text-3xl font-bold text-slate-950">{t('How Institutions Use CERNIQ', 'Cómo las Instituciones Usan CERNIQ')}</h1>
           <p className="mt-3 text-slate-600">{t(
-            'Real results from credit unions and community banks replacing manual ALM processes with automated institutional intelligence.',
-            'Resultados reales de cooperativas y bancos comunitarios reemplazando procesos ALM manuales con inteligencia institucional automatizada.'
+            'Real results from finance teams using CERNIQ to replace fragmented reporting, review, and delivery workflows with one institutional operating surface.',
+            'Resultados reales de equipos financieros usando CERNIQ para reemplazar flujos fragmentados de reporte, revision y entrega con una sola superficie operativa institucional.'
           )}</p>
         </div>
 
@@ -46,8 +46,8 @@ export default function CaseStudiesPage() {
             <div className="flex items-center gap-3">
               <Building2 className="h-6 w-6 text-white/80" />
               <div>
-                <p className="text-white font-bold text-lg">{t('Mid-Size PR Credit Union', 'Cooperativa Mediana PR')}</p>
-                <p className="text-cyan-100 text-sm">{t('$380M assets, 28,000 members, COSSEC-regulated', '$380M activos, 28,000 socios, regulada por COSSEC')}</p>
+              <p className="text-white font-bold text-lg">{t('Mid-Size PR Credit Union', 'Cooperativa Mediana PR')}</p>
+              <p className="text-cyan-100 text-sm">{t('$380M assets, treasury + ALCO workflow under strain', '$380M en activos, flujo de tesoreria + ALCO bajo presion')}</p>
               </div>
             </div>
           </div>
@@ -55,15 +55,15 @@ export default function CaseStudiesPage() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">{t('Challenge', 'Desafío')}</p>
               <p className="text-sm text-slate-700 leading-relaxed">{t(
-                'Relied on an external consultant ($12,000/quarter) for ALM reports. Delivery took 4-6 weeks. Board members received reports in English only — most preferred Spanish. Duration gap analysis was done in Excel with hardcoded deposit betas.',
-                'Dependían de un consultor externo ($12,000/trimestre) para informes ALM. La entrega tomaba 4-6 semanas. Los directivos recibían informes solo en inglés — la mayoría prefería español. El análisis de duration gap se hacía en Excel con betas de depósitos fijos.'
+                'The team had reporting, risk review, and board preparation spread across Excel, consultant cycles, and one-off commentary. Delivery took weeks, bilingual output was inconsistent, and the portfolio conversation lived outside the reporting packet.',
+                'El equipo tenia reportes, revision de riesgo y preparacion para junta repartidos entre Excel, ciclos de consultoria y comentarios aislados. La entrega tomaba semanas, la salida bilingue era inconsistente y la conversacion de portafolio vivia fuera del paquete de reportes.'
               )}</p>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">{t('Solution', 'Solución')}</p>
               <p className="text-sm text-slate-700 leading-relaxed">{t(
-                'Migrated to CERNIQ annual plan ($2,400/year). Uploaded balance sheet CSV on Monday morning. Had the full 20-page bilingual ALM report by Tuesday. Duration gap analysis now uses calibrated deposit betas from CERNIQ\'s 94-institution PR library.',
-                'Migraron al plan anual de CERNIQ ($2,400/año). Subieron el CSV de hoja de balance un lunes por la mañana. Tenían el informe ALM bilingüe completo de 20 páginas para el martes. El análisis de duration gap ahora usa betas de depósitos calibrados de la biblioteca PR de 94 instituciones de CERNIQ.'
+                'Migrated to CERNIQ as the institution command surface. Uploaded balance sheet data on Monday, reviewed treasury posture and committee output on Tuesday, and kept the discussion tied to one shared operating view instead of disconnected files.',
+                'Migraron a CERNIQ como superficie de mando institucional. Subieron datos el lunes, revisaron postura de tesoreria y salida para comite el martes, y mantuvieron la discusion atada a una sola vista operativa en vez de archivos desconectados.'
               )}</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -84,8 +84,8 @@ export default function CaseStudiesPage() {
               <Quote className="h-6 w-6 text-cyan-500 shrink-0 mt-1" />
               <div>
                 <p className="text-sm text-slate-700 italic leading-relaxed">{t(
-                  '"The board loved having the report in both languages. Our ALCO meeting went from 2 hours of explaining Excel charts to 30 minutes of strategic discussion."',
-                  '"La junta amó tener el informe en ambos idiomas. Nuestra reunión ALCO pasó de 2 horas explicando gráficos de Excel a 30 minutos de discusión estratégica."'
+                  '"The board finally saw one clean operating story instead of a stack of disconnected explanations. CERNIQ shortened the prep work and improved the actual conversation."',
+                  '"La junta por fin vio una sola historia operativa clara en vez de una pila de explicaciones desconectadas. CERNIQ redujo la preparacion y mejoro la conversacion real."'
                 )}</p>
                 <p className="mt-2 text-xs font-semibold text-slate-500">{t('— CFO, PR Credit Union ($380M)', '— CFO, Cooperativa PR ($380M)')}</p>
               </div>
@@ -99,8 +99,8 @@ export default function CaseStudiesPage() {
             <div className="flex items-center gap-3">
               <Building2 className="h-6 w-6 text-white/80" />
               <div>
-                <p className="text-white font-bold text-lg">{t('CPA Firm Serving 8 Credit Unions', 'Firma CPA Sirviendo 8 Cooperativas')}</p>
-                <p className="text-amber-100 text-sm">{t('Partner plan, $4.2B aggregate assets under advisory', 'Plan partner, $4.2B activos agregados bajo asesoría')}</p>
+              <p className="text-white font-bold text-lg">{t('CPA Firm Serving 8 Credit Unions', 'Firma CPA Sirviendo 8 Cooperativas')}</p>
+              <p className="text-amber-100 text-sm">{t('Partner workflow, $4.2B aggregate assets under advisory', 'Flujo partner, $4.2B en activos agregados bajo asesoria')}</p>
               </div>
             </div>
           </div>
@@ -108,15 +108,15 @@ export default function CaseStudiesPage() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">{t('Challenge', 'Desafío')}</p>
               <p className="text-sm text-slate-700 leading-relaxed">{t(
-                'Each quarterly report cycle required 3 analysts working 2 weeks per client. Standardization was impossible — each client had a different Excel template. During COSSEC exam season, the backlog became unmanageable.',
-                'Cada ciclo de informes trimestrales requería 3 analistas trabajando 2 semanas por cliente. La estandarización era imposible — cada cliente tenía una plantilla Excel diferente. Durante la temporada de exámenes COSSEC, el atraso se volvía inmanejable.'
+                'Each client engagement had its own reporting file set, delivery process, and review ritual. Standardization was weak, analyst time was expensive, and the firm had no clean institutional operating layer across clients.',
+                'Cada engagement de cliente tenia su propio set de archivos, proceso de entrega y ritual de revision. La estandarizacion era debil, el tiempo analista era caro y la firma no tenia una capa operativa institucional limpia entre clientes.'
               )}</p>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">{t('Solution', 'Solución')}</p>
               <p className="text-sm text-slate-700 leading-relaxed">{t(
-                'Deployed CERNIQ Partner plan across all 8 clients. White-label delivery — reports carry the CPA firm\'s branding. One analyst now processes all 8 institutions in 2 days instead of 6 weeks. The firm charges clients $5,000/report while paying CERNIQ $499/month.',
-                'Desplegaron el plan Partner de CERNIQ en los 8 clientes. Entrega white-label — los informes llevan el branding de la firma CPA. Un analista ahora procesa las 8 instituciones en 2 días en vez de 6 semanas. La firma cobra a los clientes $5,000/informe mientras paga $499/mes a CERNIQ.'
+                'Deployed CERNIQ across all 8 clients as the shared operating layer. White-label delivery stayed intact, but the real win was standardizing intake, review, and board-ready output under one workflow the firm could run repeatedly.',
+                'Desplegaron CERNIQ en los 8 clientes como capa operativa compartida. La entrega white-label se mantuvo, pero la verdadera ganancia fue estandarizar ingreso, revision y salida lista para junta bajo un flujo repetible.'
               )}</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

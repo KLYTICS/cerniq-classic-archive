@@ -305,9 +305,11 @@ test.describe('Production-critical paths', () => {
     await expect(page).toHaveTitle(/CERNIQ/i);
     await expect(page.locator('body')).toContainText(/Cerniq/i);
     await expect(page.locator('.cerniq-dashboard-page').first()).toBeVisible();
-    await expect(page.locator('body')).toContainText(/Dashboard-native ALM Intelligence/i);
     await expect(page.locator('body')).toContainText(
-      /From one balance sheet upload to your first board-ready bilingual ALM report/i,
+      /Institutional treasury, risk, and portfolio intelligence/i,
+    );
+    await expect(page.locator('body')).toContainText(
+      /Turn the quarterly ALM scramble into an institutional command center/i,
     );
     await expect(
       page.getByRole('button', { name: /View Interactive Demo/i }).first(),

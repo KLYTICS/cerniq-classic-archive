@@ -913,18 +913,18 @@ export default function DemoPage() {
                   <div className="cerniq-data-wave opacity-40" />
                   <div className="relative z-10">
                     <span className="cerniq-kicker mb-4 inline-flex">
-                      {t("ALM Report", "Informe ALM")}
+                      {t("Board Output", "Salida para Junta")}
                     </span>
                     <h2 className="font-display text-2xl text-slate-950 sm:text-3xl">
                       {t(
-                        "14-Page Board-Ready PDF",
-                        "PDF de 14 Paginas Listo para Junta",
+                        "Board-ready reporting package",
+                        "Paquete de reportes listo para junta",
                       )}
                     </h2>
                     <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
                       {t(
-                        "Every analysis generates a comprehensive bilingual ALM report. Below is the table of contents for FirstBank Puerto Rico's Q1 2026 report.",
-                        "Cada analisis genera un informe ALM bilingue completo. A continuacion se muestra el indice del informe Q1 2026 de FirstBank Puerto Rico.",
+                        "Every analysis generates a bilingual institutional reporting package. Below is the table of contents for FirstBank Puerto Rico's Q1 2026 board output.",
+                        "Cada analisis genera un paquete institucional bilingue de reportes. A continuacion se muestra el indice de la salida para junta Q1 2026 de FirstBank Puerto Rico.",
                       )}
                     </p>
                   </div>
@@ -943,8 +943,8 @@ export default function DemoPage() {
                         </p>
                         <p className="text-sm text-slate-300">
                           {t(
-                            "ALM Intelligence Report - Q1 2026",
-                            "Informe de Inteligencia ALM - Q1 2026",
+                            "Treasury and Risk Report - Q1 2026",
+                            "Informe de Tesoreria y Riesgo - Q1 2026",
                           )}
                         </p>
                         <p className="mt-1 text-xs text-slate-400">
@@ -1679,8 +1679,8 @@ export default function DemoPage() {
                       </h2>
                       <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-slate-600">
                         {t(
-                          "Upload your balance sheet and receive a comprehensive 14-page bilingual ALM report with all 12 COSSEC ratios in 24 hours.",
-                          "Cargue su hoja de balance y reciba un informe ALM bilingue de 14 paginas con los 12 ratios COSSEC en 24 horas.",
+                          "Upload your balance sheet and move into the full treasury, risk, and board-output workflow with bilingual reporting delivered on a clean institutional cadence.",
+                          "Cargue su hoja de balance y pase al flujo completo de tesoreria, riesgo y salida para junta con reportes bilingues entregados en una cadencia institucional limpia.",
                         )}
                       </p>
 

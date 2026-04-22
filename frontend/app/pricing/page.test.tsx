@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { AnchorHTMLAttributes, ReactNode, SVGProps } from 'react';
 import PricingPage from './page';
-import { PRICING_TIERS } from '@/lib/pricing';
+import { PRICING, PRICING_TIERS, formatTierPrice } from '@/lib/pricing';
+import { PUBLIC_PATHS } from '@/lib/public-links';
 
 const { pushMock } = vi.hoisted(() => ({
   pushMock: vi.fn(),
@@ -45,7 +46,7 @@ describe('PricingPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Start Pilot — \$750/i }));
 
-    expect(pushMock).toHaveBeenCalledWith('/get-started');
+    expect(pushMock).toHaveBeenCalledWith(PUBLIC_PATHS.getStarted);
   });
 
   it('renders all four pricing tiers from lib/pricing.ts', () => {
@@ -84,9 +85,22 @@ describe('PricingPage', () => {
     render(<PricingPage />);
 
     expect(
-      screen.getByText(/Start with a pilot\. Upgrade to recurring access when the workflow is trusted\./i),
+      screen.getByText(
+        /Start with the pilot\. Expand into the institutional operating surface once the workflow is trusted\./i,
+      ),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/View Interactive Demo/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText(/Request Demo/i)).not.toBeInTheDocument();
+  });
+
+  it('renders recurring pricing from the canonical pricing contract', () => {
+    render(<PricingPage />);
+
+    expect(
+      screen.getAllByText(formatTierPrice(PRICING.PILOT, 'en')).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByText(/Recurring command-center access/i),
+    ).toBeInTheDocument();
   });
 });

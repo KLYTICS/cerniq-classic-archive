@@ -1,24 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  BarChart3,
+  Building2,
   CheckCircle2,
   ChevronRight,
   FileText,
+  LineChart,
   PlayCircle,
   ShieldCheck,
+  Target,
   Upload,
-  Languages,
-  Clock,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { createCheckoutSession, type CheckoutTier } from "@/lib/billing";
 import { analytics, EVENTS } from "@/lib/analytics";
 import { PRICING, getCtaLabel } from "@/lib/pricing";
 import { buildLoginUrlForReturnUrl } from "@/lib/auth-redirect";
-import { CerniqMark, CerniqLockup } from "@/components/brand/CerniqLogo";
+import { CerniqLockup, CerniqMark } from "@/components/brand/CerniqLogo";
 import Footer from "@/components/layout/Footer";
 import { getAcquisitionCopy } from "@/lib/acquisition-copy";
 import { PUBLIC_COMPLIANCE_MATRIX } from "@/lib/public-compliance-matrix";
@@ -64,61 +66,204 @@ const assetRangesES = [
   { value: "$5B+", label: "$5B+" },
 ];
 
-const urgencyHooksEN = [
-  "COSSEC exam season is approaching. Is your institution ready?",
-  "The Fed moved rates. Do you know the impact on your NIM?",
-  "Prepare your next ALCO meeting in 24 hours, not 3 weeks.",
+const pulseHooksEN = [
+  "Open the reporting cycle before the next ALCO packet is due.",
+  "Move from quarterly spreadsheet choreography to a repeatable operating rhythm.",
+  "Bring rate risk, portfolio context, and board delivery into one system of record.",
 ];
 
-const urgencyHooksES = [
-  "La temporada de examenes COSSEC se acerca. ¿Esta lista su institucion?",
-  "La Fed movio tasas. ¿Sabe el impacto en su NIM?",
-  "Prepare su proximo ALCO en 24 horas, no 3 semanas.",
+const pulseHooksES = [
+  "Abra el ciclo de reportes antes del proximo paquete de ALCO.",
+  "Pase de la coreografia trimestral en hojas de calculo a un ritmo operativo repetible.",
+  "Una riesgo de tasas, contexto de portafolio y entrega a junta en un solo sistema.",
 ];
 
-const costComparisonEN = [
+const heroMetrics = [
+  { label: "Treasury + Risk", labelEs: "Tesoreria + Riesgo", value: "1" },
   {
-    item: "Quarterly ALM report",
-    consultant: "$8,000 - $12,000",
-    cerniq: "$750",
+    label: "Institutional command surface",
+    labelEs: "Superficie de mando institucional",
+    value: "4",
   },
   {
-    item: "Annual access (4 reports)",
-    consultant: "$32,000 - $48,000",
-    cerniq: "$2,400",
+    label: "Bilingual board outputs",
+    labelEs: "Salidas bilingues para junta",
+    value: "EN/ES",
   },
   {
-    item: "Delivery time",
-    consultant: "3-6 weeks",
-    cerniq: "24 hours",
-  },
-  {
-    item: "Bilingual included",
-    consultant: "Extra charge",
-    cerniq: "Included",
+    label: "Primary workflow",
+    labelEs: "Flujo primario",
+    value: "Upload -> Report",
   },
 ];
 
-const costComparisonES = [
+const platformPillars = [
   {
-    item: "Informe ALM trimestral",
-    consultant: "$8,000 - $12,000",
-    cerniq: "$750",
+    href: "/dashboard",
+    icon: Building2,
+    title: "Treasury intelligence",
+    titleEs: "Inteligencia de tesoreria",
+    body:
+      "Anchor the CFO, treasurer, and ALCO workflow in one command surface built for review, escalation, and delivery.",
+    bodyEs:
+      "Ancle el flujo del CFO, tesorero y ALCO en una sola superficie de mando para revision, escalacion y entrega.",
   },
   {
-    item: "Acceso anual (4 informes)",
-    consultant: "$32,000 - $48,000",
-    cerniq: "$2,400",
+    href: "/alm",
+    icon: ShieldCheck,
+    title: "Risk operating system",
+    titleEs: "Sistema operativo de riesgo",
+    body:
+      "Run ALM, stress, liquidity, and compliance narratives through the same institutional workflow instead of disconnected reports.",
+    bodyEs:
+      "Ejecute ALM, estres, liquidez y cumplimiento en el mismo flujo institucional en vez de reportes desconectados.",
   },
   {
-    item: "Tiempo de entrega",
-    consultant: "3-6 semanas",
-    cerniq: "24 horas",
+    href: "/portfolios",
+    icon: LineChart,
+    title: "Portfolio visibility",
+    titleEs: "Visibilidad de portafolio",
+    body:
+      "Track mandates, holdings, cash, and allocation context so treasury and investment conversations stay linked.",
+    bodyEs:
+      "Siga mandatos, posiciones, caja y asignacion para mantener conectadas tesoreria e inversiones.",
   },
   {
-    item: "Bilingue incluido",
-    consultant: "Cargo adicional",
-    cerniq: "Incluido",
+    href: "/execution-quality",
+    icon: Target,
+    title: "Execution review",
+    titleEs: "Revision de ejecucion",
+    body:
+      "Bring desk-style execution quality and slippage review into the same environment used for board and committee output.",
+    bodyEs:
+      "Integre revision de ejecucion y slippage al mismo entorno usado para comite y junta.",
+  },
+];
+
+const operatingLinks = [
+  {
+    href: "/dashboard",
+    label: "Open command center",
+    labelEs: "Abrir centro de mando",
+  },
+  {
+    href: "/portfolios",
+    label: "Review mandates",
+    labelEs: "Revisar mandatos",
+  },
+  {
+    href: "/execution-quality",
+    label: "Inspect slippage",
+    labelEs: "Inspeccionar slippage",
+  },
+  {
+    href: "/alm",
+    label: "Run ALM models",
+    labelEs: "Correr modelos ALM",
+  },
+];
+
+const PUBLIC_GATED_MODULE_PATHS = new Set([
+  "/alm",
+  "/execution-quality",
+  "/portfolios",
+]);
+
+const workflowSteps = [
+  {
+    icon: Upload,
+    label: "1. Ingest",
+    labelEs: "1. Ingerir",
+    title: "Load institution context once",
+    titleEs: "Cargue el contexto institucional una vez",
+    body:
+      "Bring in the balance sheet, institution profile, and current operating context through the secure workspace.",
+    bodyEs:
+      "Traiga hoja de balance, perfil institucional y contexto operativo al workspace seguro.",
+  },
+  {
+    icon: BarChart3,
+    label: "2. Model",
+    labelEs: "2. Modelar",
+    title: "Model rates, risk, and exposure",
+    titleEs: "Modele tasas, riesgo y exposicion",
+    body:
+      "Use CERNIQ as the operating layer across ALM analytics, scenario review, market context, and portfolio insight.",
+    bodyEs:
+      "Use CERNIQ como capa operativa sobre analitica ALM, escenarios, contexto de mercado y vision de portafolio.",
+  },
+  {
+    icon: FileText,
+    label: "3. Deliver",
+    labelEs: "3. Entregar",
+    title: "Ship board-ready output",
+    titleEs: "Entregue salidas listas para junta",
+    body:
+      "Move directly from analysis to committee, board, and advisory deliverables without reassembling the story in spreadsheets.",
+    bodyEs:
+      "Pase directo del analisis a entregables para comite, junta y asesores sin reconstruir la historia en hojas de calculo.",
+  },
+];
+
+const audienceTracks = [
+  {
+    title: "Primary: Treasury + Risk",
+    titleEs: "Primario: Tesoreria + Riesgo",
+    body:
+      "CFO, treasurer, ALCO, and risk teams use CERNIQ as the operating layer for reporting, rate posture, institution health, and board prep.",
+    bodyEs:
+      "CFO, tesorero, ALCO y riesgo usan CERNIQ como capa operativa para reportes, postura de tasas, salud institucional y preparacion de junta.",
+  },
+  {
+    title: "Secondary: PM + Analyst",
+    titleEs: "Secundario: PM + Analista",
+    body:
+      "Portfolio and analyst teams get a connected view of mandates, live positions, execution quality, and rate-sensitive portfolio context.",
+    bodyEs:
+      "Equipos de portafolio y analistas obtienen una vista conectada de mandatos, posiciones, calidad de ejecucion y contexto sensible a tasas.",
+  },
+  {
+    title: "Tertiary: Advisor + Client",
+    titleEs: "Terciario: Asesor + Cliente",
+    body:
+      "CPA, advisory, and white-label relationships stay supported through polished output and multi-client operating paths.",
+    bodyEs:
+      "Relaciones CPA, advisory y white-label siguen soportadas con salidas pulidas y rutas multi-cliente.",
+  },
+];
+
+const institutionalFaqs = [
+  {
+    q: "Is CERNIQ only for Puerto Rico institutions?",
+    qEs: "¿CERNIQ es solo para instituciones de Puerto Rico?",
+    a:
+      "No. Puerto Rico remains an important proof market, but the product is positioned as an institutional treasury, risk, and portfolio intelligence platform for credit unions, community banks, advisors, and similar regulated teams.",
+    aEs:
+      "No. Puerto Rico sigue siendo un mercado importante de prueba, pero el producto esta posicionado como una plataforma institucional de tesoreria, riesgo e inteligencia de portafolio para credit unions, bancos comunitarios, asesores y equipos regulados similares.",
+  },
+  {
+    q: "Do I need to choose between ALM and portfolio workflows?",
+    qEs: "¿Tengo que escoger entre ALM y flujos de portafolio?",
+    a:
+      "No. The relaunch keeps ALM as the primary workflow while making portfolio, execution, and market surfaces visible as part of the same operating system.",
+    aEs:
+      "No. El relanzamiento mantiene ALM como flujo primario mientras hace visibles las superficies de portafolio, ejecucion y mercado dentro del mismo sistema operativo.",
+  },
+  {
+    q: "What makes the board workflow different from a consultant report?",
+    qEs: "¿Que hace diferente el flujo para junta frente a un informe de consultor?",
+    a:
+      "CERNIQ is designed as an ongoing institutional workflow: ingest, model, review, and deliver. The board packet is an output of that system, not a one-off artifact assembled at the end.",
+    aEs:
+      "CERNIQ esta disenado como un flujo institucional continuo: ingerir, modelar, revisar y entregar. El paquete para junta es una salida del sistema, no un artefacto aislado armado al final.",
+  },
+  {
+    q: "Can advisors or CPA firms run this for multiple clients?",
+    qEs: "¿Pueden asesores o firmas CPA operarlo para multiples clientes?",
+    a:
+      "Yes. Advisor and white-label support remain in scope, but the public narrative now leads with the treasury-and-risk command center rather than consultant replacement alone.",
+    aEs:
+      "Si. El soporte para asesores y white-label sigue dentro del alcance, pero la narrativa publica ahora lidera con el centro de mando de tesoreria y riesgo en vez de solo reemplazo de consultor.",
   },
 ];
 
@@ -155,7 +300,31 @@ function isDirectVideoFile(url: string) {
 }
 
 function isHtmlPage(url: string) {
-  return /\.html?(\\?.*)?$/i.test(url) || /\/demo-video\/?(\?.*)?$/i.test(url);
+  return /\.html?(\?.*)?$/i.test(url) || /\/demo-video\/?(\?.*)?$/i.test(url);
+}
+
+function SectionHeading({
+  eyebrow,
+  title,
+  body,
+}: {
+  eyebrow: string;
+  title: string;
+  body?: string;
+}) {
+  return (
+    <div className="max-w-3xl">
+      <p className="cerniq-section-label">{eyebrow}</p>
+      <h2 className="mt-3 font-display text-3xl text-[var(--dashboard-text-primary)] sm:text-4xl">
+        {title}
+      </h2>
+      {body ? (
+        <p className="mt-4 text-sm leading-7 text-[var(--dashboard-text-secondary)] sm:text-base">
+          {body}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export default function LandingPage() {
@@ -169,41 +338,40 @@ export default function LandingPage() {
   const [submitError, setSubmitError] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkoutTier, setCheckoutTier] = useState<CheckoutTier | null>(null);
-  const [urgencyIndex, setUrgencyIndex] = useState(0);
-  const [urgencyFade, setUrgencyFade] = useState(true);
+  const [pulseIndex, setPulseIndex] = useState(0);
   const [lang, setLang] = useState<"en" | "es">(() => {
     if (typeof window !== "undefined") {
       return (localStorage.getItem("cerniq_lang") as "en" | "es") || "en";
     }
     return "en";
   });
+
   const router = useRouter();
+  const acquisition = getAcquisitionCopy(lang);
   const embedUrl = getVideoEmbedUrl(DEMO_VIDEO_URL);
   const hasVideo = Boolean(DEMO_VIDEO_URL);
 
   const t = (en: string, es: string) => (lang === "en" ? en : es);
-  const acquisition = getAcquisitionCopy(lang);
+  const pulseHooks = lang === "en" ? pulseHooksEN : pulseHooksES;
+  const institutionOptions =
+    lang === "en" ? institutionOptionsEN : institutionOptionsES;
+  const assetRanges = lang === "en" ? assetRangesEN : assetRangesES;
+
+  const getPublicEntryHref = (href: string) =>
+    PUBLIC_GATED_MODULE_PATHS.has(href)
+      ? buildLoginUrlForReturnUrl(href)
+      : href;
 
   useEffect(() => {
     localStorage.setItem("cerniq_lang", lang);
   }, [lang]);
 
-  const urgencyHooks = lang === "en" ? urgencyHooksEN : urgencyHooksES;
-  const costComparison = lang === "en" ? costComparisonEN : costComparisonES;
-  const institutionOptions =
-    lang === "en" ? institutionOptionsEN : institutionOptionsES;
-  const assetRanges = lang === "en" ? assetRangesEN : assetRangesES;
-
   useEffect(() => {
     const interval = setInterval(() => {
-      setUrgencyFade(false);
-      setTimeout(() => {
-        setUrgencyIndex((prev) => (prev + 1) % urgencyHooks.length);
-        setUrgencyFade(true);
-      }, 400);
-    }, 5000);
+      setPulseIndex((current) => (current + 1) % pulseHooks.length);
+    }, 4200);
     return () => clearInterval(interval);
-  }, [urgencyHooks.length]);
+  }, [pulseHooks.length]);
 
   const getSubmitErrorMessage = (error: unknown): string => {
     if (
@@ -230,7 +398,8 @@ export default function LandingPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (honeypot) return; // Bot trap
+    if (honeypot) return;
+
     setSubmitError("");
     setLoading(true);
 
@@ -261,8 +430,12 @@ export default function LandingPage() {
       return;
     }
 
-    analytics.track(EVENTS.CHECKOUT_STARTED, { tier, source: "landing_page" });
+    analytics.track(EVENTS.CHECKOUT_STARTED, {
+      tier,
+      source: "landing_page",
+    });
     setCheckoutTier(tier);
+
     try {
       const checkoutUrl = await createCheckoutSession({
         tier,
@@ -285,7 +458,7 @@ export default function LandingPage() {
       <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         <nav
           aria-label="Main navigation"
-          className="sticky top-3 z-30 mb-5 flex items-center justify-between gap-4 rounded-full border border-[rgba(216,192,139,0.76)] bg-[rgba(255,251,239,0.84)] px-4 py-3 shadow-[0_16px_40px_rgba(113,88,40,0.08)] backdrop-blur-xl sm:px-6"
+          className="sticky top-3 z-30 mb-6 flex items-center justify-between gap-4 rounded-full border border-[rgba(216,192,139,0.76)] bg-[rgba(255,251,239,0.88)] px-4 py-3 shadow-[0_16px_40px_rgba(113,88,40,0.08)] backdrop-blur-xl sm:px-6"
         >
           <button
             onClick={() => router.push("/")}
@@ -297,18 +470,21 @@ export default function LandingPage() {
               <div className="font-display text-sm uppercase tracking-[0.4em] text-slate-950">
                 Cerniq
               </div>
-              <div className="text-[10px] uppercase tracking-[0.36em] text-cyan-700/60">
-                ALM Intelligence
+              <div className="text-[10px] uppercase tracking-[0.32em] text-cyan-700/70">
+                Treasury and Risk OS
               </div>
             </div>
           </button>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Language toggle */}
             <div className="flex items-center rounded-full border border-slate-200 text-xs">
               <button
                 onClick={() => setLang("en")}
-                className={`rounded-l-full px-2.5 py-1.5 font-semibold transition ${lang === "en" ? "bg-cyan-700 text-white" : "text-slate-500 hover:text-slate-950"}`}
+                className={`rounded-l-full px-2.5 py-1.5 font-semibold transition ${
+                  lang === "en"
+                    ? "bg-cyan-700 text-white"
+                    : "text-slate-500 hover:text-slate-950"
+                }`}
                 aria-label="Switch to English"
                 aria-pressed={lang === "en"}
               >
@@ -316,7 +492,11 @@ export default function LandingPage() {
               </button>
               <button
                 onClick={() => setLang("es")}
-                className={`rounded-r-full px-2.5 py-1.5 font-semibold transition ${lang === "es" ? "bg-cyan-700 text-white" : "text-slate-500 hover:text-slate-950"}`}
+                className={`rounded-r-full px-2.5 py-1.5 font-semibold transition ${
+                  lang === "es"
+                    ? "bg-cyan-700 text-white"
+                    : "text-slate-500 hover:text-slate-950"
+                }`}
                 aria-label="Cambiar a Espanol"
                 aria-pressed={lang === "es"}
               >
@@ -324,10 +504,22 @@ export default function LandingPage() {
               </button>
             </div>
             <button
-              onClick={() => router.push("/demo")}
-              className="hidden px-2 py-2 text-sm text-[var(--dashboard-text-secondary)] transition hover:text-[var(--dashboard-text-primary)] sm:inline-flex"
+              onClick={() =>
+                router.push(
+                  buildLoginUrlForReturnUrl("/dashboard", {
+                    forceMagicLink: true,
+                  }),
+                )
+              }
+              className="hidden rounded-full border border-[rgba(216,192,139,0.72)] px-4 py-2 text-sm text-[var(--dashboard-text-secondary)] transition hover:border-cyan-300/50 hover:text-[var(--dashboard-text-primary)] md:inline-flex"
             >
-              {acquisition.proofCta}
+              {t("Open workspace", "Abrir workspace")}
+            </button>
+            <button
+              onClick={() => router.push(PUBLIC_PATHS.compliance)}
+              className="hidden rounded-full border border-[rgba(216,192,139,0.72)] px-4 py-2 text-sm text-[var(--dashboard-text-secondary)] transition hover:border-cyan-300/50 hover:text-[var(--dashboard-text-primary)] sm:inline-flex"
+            >
+              {t("Compliance", "Cumplimiento")}
             </button>
             <button
               onClick={() =>
@@ -340,28 +532,10 @@ export default function LandingPage() {
               {t("Pricing", "Precios")}
             </button>
             <button
-              onClick={() => router.push("/why-cerniq")}
-              className="hidden rounded-full border border-[rgba(216,192,139,0.72)] px-4 py-2 text-sm text-[var(--dashboard-text-secondary)] transition hover:border-cyan-300/50 hover:text-[var(--dashboard-text-primary)] sm:inline-flex"
-            >
-              {t("Why CERNIQ", "Por qué CERNIQ")}
-            </button>
-            <button
-              onClick={() => router.push(PUBLIC_PATHS.compliance)}
-              className="hidden rounded-full border border-[rgba(216,192,139,0.72)] px-4 py-2 text-sm text-[var(--dashboard-text-secondary)] transition hover:border-cyan-300/50 hover:text-[var(--dashboard-text-primary)] lg:inline-flex"
-            >
-              {t("Compliance", "Cumplimiento")}
-            </button>
-            <button
-              onClick={() => router.push("/roi")}
-              className="hidden rounded-full border border-[rgba(216,192,139,0.72)] px-4 py-2 text-sm text-[var(--dashboard-text-secondary)] transition hover:border-cyan-300/50 hover:text-[var(--dashboard-text-primary)] lg:inline-flex"
-            >
-              {t("ROI Calculator", "Calculadora ROI")}
-            </button>
-            <button
               onClick={() => router.push("/login")}
               className="rounded-full border border-[rgba(216,192,139,0.72)] px-4 py-2 text-sm text-[var(--dashboard-text-secondary)] transition hover:border-cyan-300/50 hover:text-[var(--dashboard-text-primary)]"
             >
-              Sign In
+              {t("Sign In", "Iniciar sesion")}
             </button>
             <button
               onClick={() => router.push("/get-started")}
@@ -372,533 +546,496 @@ export default function LandingPage() {
           </div>
         </nav>
 
-        <main className="space-y-5 pb-16">
+        <main className="space-y-6 pb-16">
           <section className="-mx-4 overflow-hidden rounded-b-[2.75rem] border-b border-[rgba(216,192,139,0.72)] sm:-mx-6 lg:-mx-8">
-            <div className="relative isolate min-h-[calc(100svh-7rem)] overflow-hidden bg-[linear-gradient(180deg,rgba(255,248,235,0.96)_0%,rgba(254,241,215,0.96)_44%,rgba(249,236,208,0.98)_100%)]">
-              <div className="absolute inset-0 bg-[linear-gradient(rgba(216,192,139,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(216,192,139,0.14)_1px,transparent_1px)] bg-[size:10rem_10rem] opacity-50" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(255,251,239,0.96),transparent_26rem),radial-gradient(circle_at_78%_18%,rgba(232,160,32,0.12),transparent_24rem),radial-gradient(circle_at_78%_68%,rgba(27,58,107,0.1),transparent_22rem)]" />
-              <div className="absolute right-[-6rem] top-12 h-72 w-72 rounded-full border border-white/40 bg-white/20 blur-3xl" />
-              <div className="absolute left-[-4rem] bottom-[-5rem] h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(247,228,188,0.66),rgba(247,228,188,0))]" />
+            <div className="relative isolate min-h-[calc(100svh-7rem)] overflow-hidden bg-[linear-gradient(180deg,rgba(255,248,235,0.98)_0%,rgba(254,241,215,0.97)_44%,rgba(249,236,208,0.98)_100%)]">
+              <div className="absolute inset-0 bg-[linear-gradient(rgba(216,192,139,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(216,192,139,0.14)_1px,transparent_1px)] bg-[size:9rem_9rem] opacity-40" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_16%,rgba(255,251,239,0.96),transparent_24rem),radial-gradient(circle_at_82%_18%,rgba(27,58,107,0.1),transparent_24rem),radial-gradient(circle_at_72%_76%,rgba(211,154,43,0.12),transparent_20rem)]" />
+              <div className="absolute right-[-5rem] top-12 h-72 w-72 rounded-full border border-white/40 bg-white/20 blur-3xl" />
+              <div className="absolute left-[-4rem] bottom-[-6rem] h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(247,228,188,0.7),rgba(247,228,188,0))]" />
 
-              <div className="relative z-10 mx-auto flex max-w-7xl px-4 py-10 sm:px-6 lg:min-h-[calc(100svh-7rem)] lg:items-center lg:px-8 lg:py-14">
+              <div className="relative z-10 mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:min-h-[calc(100svh-7rem)] lg:grid-cols-[minmax(0,1.15fr)_minmax(24rem,0.85fr)] lg:items-center lg:px-8 lg:py-14">
                 <div className="max-w-4xl animate-fade-in">
                   <span className="cerniq-kicker w-fit">
                     {t(
-                      "Dashboard-native ALM Intelligence",
-                      "Inteligencia ALM nativa del dashboard",
+                      "Institutional treasury, risk, and portfolio intelligence",
+                      "Inteligencia institucional de tesoreria, riesgo y portafolio",
                     )}
                   </span>
                   <div className="mt-6">
                     <CerniqLockup
                       tagline={t(
-                        "Institutional ALM Intelligence",
-                        "Inteligencia ALM Institucional",
+                        "Treasury and Risk Operating System",
+                        "Sistema operativo de tesoreria y riesgo",
                       )}
                     />
                   </div>
-                  <h1 className="mt-8 max-w-4xl font-display text-[clamp(2.6rem,6vw,4.9rem)] leading-[0.94] tracking-[-0.04em] text-[var(--dashboard-text-primary)]">
+                  <h1 className="mt-8 max-w-5xl font-display text-[clamp(2.7rem,6vw,5.3rem)] leading-[0.92] tracking-[-0.05em] text-[var(--dashboard-text-primary)]">
                     {t(
-                      "From one balance sheet upload to your first board-ready bilingual ALM report.",
-                      "De una sola carga de balance a su primer informe ALM bilingue listo para junta.",
+                      "Turn the quarterly ALM scramble into an institutional command center.",
+                      "Convierta la carrera trimestral de ALM en un centro de mando institucional.",
                     )}
                   </h1>
                   <p className="mt-6 max-w-2xl text-base leading-8 text-[var(--dashboard-text-secondary)] sm:text-lg">
-                    {acquisition.pilotPathDescription}{" "}
                     {t(
-                      "Start with a pilot, then move into recurring access when your team trusts the workflow.",
-                      "Comience con un piloto y pase a acceso recurrente cuando su equipo confie en el flujo.",
+                      "CERNIQ gives treasury, ALCO, risk, and investment teams one operating layer for upload-to-report delivery, rate posture, portfolio visibility, execution review, and board-ready output.",
+                      "CERNIQ le da a tesoreria, ALCO, riesgo e inversiones una sola capa operativa para entrega de reportes, postura de tasas, visibilidad de portafolio, revision de ejecucion y salidas listas para junta.",
                     )}
                   </p>
 
-                  <div className="mt-5 flex h-6 items-center">
-                    <p
-                      className={`text-sm font-semibold text-[#9b742f] transition-opacity duration-400 ${urgencyFade ? "opacity-100" : "opacity-0"}`}
-                    >
-                      {urgencyHooks[urgencyIndex]}
+                  <div className="mt-5 h-6">
+                    <p className="text-sm font-semibold text-[#8c6b31] transition-opacity duration-300">
+                      {pulseHooks[pulseIndex]}
                     </p>
                   </div>
 
                   <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                     <button
                       onClick={() => router.push("/get-started")}
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-[#d39a2b] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(211,154,43,0.24)] transition hover:-translate-y-0.5 hover:bg-[#bb891f]"
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-[#1B3A6B] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(27,58,107,0.24)] transition hover:-translate-y-0.5 hover:bg-[#163258]"
                     >
                       {acquisition.primaryCta}
                       <ArrowRight className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => router.push("/demo")}
-                      className="cerniq-button-secondary disabled:opacity-60"
+                      className="cerniq-button-secondary"
                     >
                       {acquisition.proofCta}
                     </button>
                   </div>
 
                   <div className="mt-8 flex flex-wrap gap-3 text-sm">
-                    <span className="cerniq-mini-stat">14-page board report</span>
-                    <span className="cerniq-mini-stat">COSSEC 12-ratio engine</span>
-                    <span className="cerniq-mini-stat">EN / ES bilingual</span>
+                    {heroMetrics.map((metric) => (
+                      <span key={metric.value} className="cerniq-mini-stat">
+                        <strong>{metric.value}</strong>
+                        {lang === "en" ? metric.label : metric.labelEs}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <aside className="cerniq-shell p-6 sm:p-8">
+                  <div className="cerniq-data-wave" />
+                  <div className="relative z-10 space-y-5">
+                    <div>
+                      <p className="cerniq-section-label">
+                        {t("Command surface", "Superficie de mando")}
+                      </p>
+                      <h2 className="mt-3 font-display text-3xl text-slate-950">
+                        {t(
+                          "Four connected finance surfaces.",
+                          "Cuatro superficies financieras conectadas.",
+                        )}
+                      </h2>
+                    </div>
+
+                    <div className="space-y-3">
+                      {platformPillars.map((pillar) => {
+                        const Icon = pillar.icon;
+                        return (
+                          <button
+                            key={pillar.href}
+                            onClick={() => router.push(getPublicEntryHref(pillar.href))}
+                            className="w-full rounded-[1.4rem] border border-[rgba(216,192,139,0.72)] bg-[rgba(255,251,239,0.88)] p-4 text-left transition hover:-translate-y-0.5 hover:border-[#1B3A6B]/30 hover:bg-white"
+                          >
+                            <div className="flex items-start gap-4">
+                              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
+                                <Icon className="h-5 w-5 text-cyan-700" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-display text-lg text-slate-950">
+                                  {lang === "en" ? pillar.title : pillar.titleEs}
+                                </p>
+                                <p className="mt-1 text-sm leading-6 text-slate-600">
+                                  {lang === "en" ? pillar.body : pillar.bodyEs}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="rounded-[1.5rem] border border-[rgba(216,192,139,0.72)] bg-[rgba(247,228,188,0.5)] p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#7b6338]">
+                        {t("Why now", "Por que ahora")}
+                      </p>
+                      <p className="mt-3 text-sm leading-7 text-slate-700">
+                        {t(
+                          "The product still starts with CFO-grade reporting, but the relaunch makes portfolio, execution, and market context visible enough to support real institutional operating rhythms.",
+                          "El producto sigue empezando con reportes de grado CFO, pero el relanzamiento hace visible portafolio, ejecucion y mercado para soportar ritmos operativos institucionales reales.",
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          </section>
+
+          <section className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)]">
+            <div className="cerniq-panel p-6 sm:p-8">
+              <SectionHeading
+                eyebrow={t("Platform scope", "Alcance de la plataforma")}
+                title={t(
+                  "One institutional system. Multiple working surfaces.",
+                  "Un sistema institucional. Multiples superficies de trabajo.",
+                )}
+                body={t(
+                  "CERNIQ stays focused on the upload-to-report and board-output workflow, then extends outward into the surfaces finance teams actually need around it.",
+                  "CERNIQ se mantiene enfocado en el flujo de carga a informe y salida para junta, y luego se extiende hacia las superficies que los equipos financieros realmente necesitan alrededor.",
+                )}
+              />
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+                {audienceTracks.map((track) => (
+                  <div key={track.title} className="cerniq-panel-soft rounded-[1.4rem] border border-[rgba(216,192,139,0.62)] p-4">
+                    <p className="font-display text-xl text-slate-950">
+                      {lang === "en" ? track.title : track.titleEs}
+                    </p>
+                    <p className="mt-3 text-sm leading-7 text-slate-600">
+                      {lang === "en" ? track.body : track.bodyEs}
+                    </p>
+                  </div>
+                ))}
+                <a
+                  href={PUBLIC_PATHS.compliance}
+                  className="cerniq-panel-soft block rounded-[1.4rem] border border-[rgba(216,192,139,0.62)] p-4 transition hover:border-cyan-300/50 hover:bg-white"
+                >
+                  <p className="font-display text-xl text-slate-950">
+                    {t("Board and compliance outputs", "Salidas para junta y cumplimiento")}
+                  </p>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">
+                    {t(
+                      `${PUBLIC_COMPLIANCE_MATRIX.length} mapped compliance requirements remain visible as institutional proof, not the whole public identity.`,
+                      `${PUBLIC_COMPLIANCE_MATRIX.length} requisitos mapeados siguen visibles como prueba institucional, no como toda la identidad publica.`,
+                    )}
+                  </p>
+                  <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-cyan-700">
+                    {t("View compliance matrix", "Ver matriz de cumplimiento")}
+                    <ChevronRight className="h-4 w-4" />
+                  </span>
+                </a>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="cerniq-panel p-6">
+                <p className="cerniq-section-label">
+                  {t("Live entry points", "Puntos de entrada")}
+                </p>
+                <div className="mt-4 space-y-3">
+                  {operatingLinks.map((link) => (
+                    <button
+                      key={link.href}
+                      onClick={() => router.push(getPublicEntryHref(link.href))}
+                      className="flex w-full items-center justify-between rounded-[1.2rem] border border-[rgba(216,192,139,0.68)] bg-[rgba(255,251,239,0.92)] px-4 py-3 text-left transition hover:border-cyan-300/50 hover:bg-white"
+                    >
+                      <span className="font-semibold text-slate-950">
+                        {lang === "en" ? link.label : link.labelEs}
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-cyan-700" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="cerniq-panel p-6">
+                <p className="cerniq-section-label">
+                  {t("Institutional proof", "Prueba institucional")}
+                </p>
+                <div className="mt-4 space-y-4">
+                  <div className="cerniq-stat-line text-sm leading-7">
+                    {t(
+                      "Primary workflow stays CFO-first: upload, analyze, and ship committee-ready output.",
+                      "El flujo primario sigue siendo CFO-first: cargar, analizar y entregar salidas listas para comite.",
+                    )}
+                  </div>
+                  <div className="cerniq-stat-line text-sm leading-7">
+                    {t(
+                      "Portfolio, market, and execution surfaces make the platform feel operational instead of one-off.",
+                      "Portafolio, mercado y ejecucion hacen que la plataforma se sienta operativa en vez de aislada.",
+                    )}
+                  </div>
+                  <div className="cerniq-stat-line text-sm leading-7">
+                    {t(
+                      "Advisor and white-label support remain available without taking over the public narrative.",
+                      "El soporte para asesores y white-label sigue disponible sin dominar la narrativa publica.",
+                    )}
                   </div>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* -- PLATFORM STATS BAR -- */}
-          <section className="cerniq-panel py-4 px-6 sm:px-8">
-            <div className="mx-auto grid max-w-5xl grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-              <div>
-                <p className="text-3xl font-bold tabular-nums text-slate-950">
-                  14
-                </p>
-                <p className="text-xs text-slate-500">
-                  {t("Page Board Report", "Páginas de Informe")}
-                </p>
-              </div>
-              <div>
-                <p className="text-3xl font-bold tabular-nums text-slate-950">
-                  12
-                </p>
-                <p className="text-xs text-slate-500">
-                  {t("COSSEC Ratios", "Razones COSSEC")}
-                </p>
-              </div>
-              <div>
-                <p className="text-3xl font-bold tabular-nums text-slate-950">
-                  &lt;5 min
-                </p>
-                <p className="text-xs text-slate-500">
-                  {t("Upload to Report", "Carga a Informe")}
-                </p>
-              </div>
-              <div>
-                <p className="text-3xl font-bold tabular-nums text-slate-950">
-                  EN/ES
-                </p>
-                <p className="text-xs text-slate-500">
-                  {t("Bilingual Reports", "Informes Bilingües")}
-                </p>
-              </div>
+          <section className="cerniq-panel p-6 sm:p-8">
+            <SectionHeading
+              eyebrow={t("Operating workflow", "Flujo operativo")}
+              title={t(
+                "Ingest, model, and deliver from one finance operating layer.",
+                "Ingerir, modelar y entregar desde una sola capa operativa financiera.",
+              )}
+              body={t(
+                "The relaunch is not a product split. It is the same platform, tightened into a clearer institutional sequence for treasury, risk, and adjacent investment teams.",
+                "El relanzamiento no es una division de producto. Es la misma plataforma, ajustada en una secuencia institucional mas clara para tesoreria, riesgo y equipos de inversion adyacentes.",
+              )}
+            />
+
+            <div className="mt-8 grid gap-4 lg:grid-cols-3">
+              {workflowSteps.map((step) => {
+                const Icon = step.icon;
+                return (
+                  <div
+                    key={step.label}
+                    className="rounded-[1.5rem] border border-[rgba(216,192,139,0.68)] bg-[rgba(255,251,239,0.9)] p-5"
+                  >
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
+                      <Icon className="h-5 w-5 text-cyan-700" />
+                    </div>
+                    <p className="mt-4 text-xs font-semibold uppercase tracking-[0.24em] text-[#7b6338]">
+                      {lang === "en" ? step.label : step.labelEs}
+                    </p>
+                    <h3 className="mt-2 font-display text-2xl text-slate-950">
+                      {lang === "en" ? step.title : step.titleEs}
+                    </h3>
+                    <p className="mt-3 text-sm leading-7 text-slate-600">
+                      {lang === "en" ? step.body : step.bodyEs}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </section>
 
-          {/* -- SOCIAL PROOF BAR -- */}
-          <section className="cerniq-panel py-3 px-6 sm:px-8">
-            <div className="mx-auto flex max-w-4xl flex-col items-center gap-3 text-center sm:flex-row sm:justify-center sm:gap-8">
-              <span className="text-sm font-semibold text-slate-700">
-                {t("3 institutions in pilot", "3 instituciones en piloto")}
-              </span>
-              <span className="hidden h-4 w-px bg-slate-300 sm:block" />
-              <span className="text-sm font-semibold text-slate-700">
-                {t("$1.1B+ assets analyzed", "$1.1B+ en activos analizados")}
-              </span>
-              <span className="hidden h-4 w-px bg-slate-300 sm:block" />
-              <span className="text-sm font-semibold text-slate-700">
-                {t("12+ reports delivered", "12+ informes entregados")}
-              </span>
-            </div>
-          </section>
-
-          {/* -- PAIN / COST SECTION -- */}
-          <section className="cerniq-panel cerniq-card-hover p-4 sm:p-6 lg:p-8">
-            <div className="mx-auto max-w-4xl space-y-4">
-              <div>
-                <p className="cerniq-section-label">
-                  {t("Cost Comparison", "Comparacion de costos")}
-                </p>
-                <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
-                  {t(
-                    "How much does your institution spend on ALM analysis?",
-                    "¿Cuanto gasta su institucion en analisis ALM?",
-                  )}
-                </h2>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200">
-                      <th className="py-2 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500" />
-                      <th className="py-3 pr-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                        {t("Traditional Consultant", "Consultor tradicional")}
-                      </th>
-                      <th className="py-3 text-xs font-semibold uppercase tracking-wider text-cyan-700">
-                        CERNIQ
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {costComparison.map((row) => (
-                      <tr key={row.item} className="border-b border-slate-100">
-                        <td className="py-2 pr-4 font-medium text-slate-700">
-                          {row.item}
-                        </td>
-                        <td className="py-3 pr-4 text-slate-500">
-                          {row.consultant}
-                        </td>
-                        <td className="py-3 font-semibold text-cyan-700">
-                          {row.cerniq}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 text-center">
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-700">
-                  {t("ESTIMATED SAVINGS: 83-93%", "AHORRO ESTIMADO: 83-93%")}
-                </p>
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+            <div className="cerniq-panel p-6 sm:p-8">
+              <SectionHeading
+                eyebrow={t("What teams see", "Lo que ven los equipos")}
+                title={t(
+                  "Markets-style discipline without abandoning the CFO workflow.",
+                  "Disciplina tipo mercados sin abandonar el flujo del CFO.",
+                )}
+              />
+              <div className="mt-6 space-y-4">
+                <div className="rounded-[1.4rem] border border-[rgba(216,192,139,0.64)] bg-[rgba(255,251,239,0.9)] p-4">
+                  <div className="flex items-start gap-4">
+                    <ShieldCheck className="mt-1 h-5 w-5 text-cyan-700" />
+                    <div>
+                      <p className="font-semibold text-slate-950">
+                        {t("ALM and regulatory posture", "Postura ALM y regulatoria")}
+                      </p>
+                      <p className="mt-2 text-sm leading-7 text-slate-600">
+                        {t(
+                          "Keep board and regulator-facing output as the primary promise, but frame it as one surface inside a wider finance operating system.",
+                          "Mantenga la salida para junta y regulador como promesa primaria, pero enmarquela como una superficie dentro de un sistema financiero mas amplio.",
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-[1.4rem] border border-[rgba(216,192,139,0.64)] bg-[rgba(255,251,239,0.9)] p-4">
+                  <div className="flex items-start gap-4">
+                    <LineChart className="mt-1 h-5 w-5 text-cyan-700" />
+                    <div>
+                      <p className="font-semibold text-slate-950">
+                        {t("Mandates and positions", "Mandatos y posiciones")}
+                      </p>
+                      <p className="mt-2 text-sm leading-7 text-slate-600">
+                        {t(
+                          "Expose the existing portfolio surface as institutional evidence that treasury and investment conversations share the same operating picture.",
+                          "Exponga la superficie de portafolio existente como evidencia institucional de que tesoreria e inversiones comparten la misma vista operativa.",
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-[1.4rem] border border-[rgba(216,192,139,0.64)] bg-[rgba(255,251,239,0.9)] p-4">
+                  <div className="flex items-start gap-4">
+                    <Target className="mt-1 h-5 w-5 text-cyan-700" />
+                    <div>
+                      <p className="font-semibold text-slate-950">
+                        {t("Execution and market context", "Ejecucion y contexto de mercado")}
+                      </p>
+                      <p className="mt-2 text-sm leading-7 text-slate-600">
+                        {t(
+                          "Execution-quality and market/rate surfaces stay secondary in the story, but visible enough to make CERNIQ feel like a serious institutional stack.",
+                          "Las superficies de calidad de ejecucion y mercado/tasas siguen secundarias en la historia, pero visibles para que CERNIQ se sienta como una pila institucional seria.",
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </section>
 
-          {/* -- THREE FEATURES -- */}
-          <section className="grid gap-4 sm:grid-cols-3">
-            {/* Regulatory Compliance */}
-            <a
-              href={PUBLIC_PATHS.compliance}
-              className="cerniq-panel cerniq-card-hover p-4 block"
-            >
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
-                <ShieldCheck className="h-5 w-5 text-cyan-700" />
-              </div>
-              <p className="mt-3 font-display text-lg text-slate-950">
-                {t("Regulatory Compliance", "Cumplimiento regulatorio")}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-slate-700">
-                {t(
-                  `${PUBLIC_COMPLIANCE_MATRIX.length} mapped requirements across COSSEC, NCUA, Basel IRRBB, and CECL workflows.`,
-                  `${PUBLIC_COMPLIANCE_MATRIX.length} requisitos mapeados a traves de flujos COSSEC, NCUA, Basel IRRBB y CECL.`,
+            <div className="cerniq-panel p-6 sm:p-8">
+              <SectionHeading
+                eyebrow={t("Workflow proof", "Prueba del flujo")}
+                title={t(
+                  "A platform narrative that stays close to live routes.",
+                  "Una narrativa de plataforma que se mantiene cerca de rutas reales.",
                 )}
-              </p>
-              <span className="mt-2 inline-flex items-center text-xs text-cyan-700 font-medium">
-                {t("View compliance matrix", "Ver matriz de cumplimiento")}{" "}
-                <ChevronRight className="h-3 w-3 ml-1" />
-              </span>
-            </a>
-            {/* Bilingual by Design */}
-            <div className="cerniq-panel cerniq-card-hover p-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
-                <Languages className="h-5 w-5 text-cyan-700" />
-              </div>
-              <p className="mt-3 font-display text-lg text-slate-950">
-                {t("Bilingual by Design", "Bilingue por diseno")}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-slate-700">
-                {t(
-                  "English and Spanish in the same report, board-ready for any audience.",
-                  "Espanol e ingles en el mismo informe, listo para junta y regulador.",
-                )}
-              </p>
-            </div>
-            {/* 24-Hour Delivery */}
-            <div className="cerniq-panel cerniq-card-hover p-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
-                <Clock className="h-5 w-5 text-cyan-700" />
-              </div>
-              <p className="mt-3 font-display text-lg text-slate-950">
-                {t("24-Hour Delivery", "Entrega en 24 horas")}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-slate-700">
-                {t(
-                  "Complete ALM analysis ready before your next ALCO meeting.",
-                  "Analisis ALM completo listo antes de su proximo comite ALCO.",
-                )}
-              </p>
-            </div>
-          </section>
+              />
 
-          {/* -- QUANT ENGINE SHOWCASE -- */}
-          <section className="cerniq-panel p-4 sm:p-6 lg:p-8">
-            <div className="mx-auto max-w-5xl">
-              <p className="cerniq-section-label">
-                {t("Quant Engine", "Motor Cuantitativo")}
-              </p>
-              <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
-                {t(
-                  "Best-in-class ALM models, credit union pricing",
-                  "Modelos ALM de primer nivel, precio de cooperativa",
-                )}
-              </h2>
-              <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 {[
                   {
-                    name: "Nelson-Siegel",
-                    desc: t(
-                      "Yield curve interpolation",
-                      "Interpolación curva rendimiento",
+                    label: "/dashboard",
+                    title: t("Command center", "Centro de mando"),
+                    body: t(
+                      "CFO-first workspace shell for routing into reporting and adjacent finance surfaces.",
+                      "Shell CFO-first para enrutar a reportes y superficies financieras adyacentes.",
                     ),
                   },
                   {
-                    name: "Vasicek Monte Carlo",
-                    desc: t(
-                      "10K stochastic rate paths",
-                      "10K senderos estocásticos",
+                    label: "/portfolios",
+                    title: t("Portfolio manager", "Gestor de portafolio"),
+                    body: t(
+                      "Mandates, positions, cash, and unrealized performance in the same product family.",
+                      "Mandatos, posiciones, caja y rendimiento no realizado en la misma familia de producto.",
                     ),
                   },
                   {
-                    name: "Black-Litterman",
-                    desc: t(
-                      "Bayesian portfolio allocation",
-                      "Asignación Bayesiana",
+                    label: "/execution-quality",
+                    title: t("Execution review", "Revision de ejecucion"),
+                    body: t(
+                      "Desk-style slippage and fill-quality review for teams with active books.",
+                      "Revision tipo desk de slippage y fills para equipos con libros activos.",
                     ),
                   },
                   {
-                    name: "CVaR Optimizer",
-                    desc: t(
-                      "Rockafellar-Uryasev tail risk",
-                      "Riesgo de cola R-U",
+                    label: "/alm",
+                    title: t("ALM and board outputs", "ALM y salidas para junta"),
+                    body: t(
+                      "The core reporting and institutional risk workflow remains the anchor.",
+                      "El flujo principal de reporte y riesgo institucional sigue siendo el ancla.",
                     ),
                   },
-                  {
-                    name: "CreditMetrics",
-                    desc: t(
-                      "JP Morgan migration VaR",
-                      "VaR migración JP Morgan",
-                    ),
-                  },
-                  {
-                    name: "KMV-Merton",
-                    desc: t(
-                      "Distance-to-Default structural",
-                      "Distancia al incumplimiento",
-                    ),
-                  },
-                  {
-                    name: "FRTB Expected Shortfall",
-                    desc: t(
-                      "Basel III.1 market capital",
-                      "Capital mercado Basel III.1",
-                    ),
-                  },
-                  {
-                    name: "HMM Regime Detection",
-                    desc: t(
-                      "Viterbi macro state machine",
-                      "Máquina estados Viterbi",
-                    ),
-                  },
-                  {
-                    name: "PCA Yield Curve",
-                    desc: t(
-                      "3-factor decomposition",
-                      "Descomposición 3 factores",
-                    ),
-                  },
-                  {
-                    name: "Copula Credit",
-                    desc: t(
-                      "Gaussian vs t-Student tail",
-                      "Cola Gaussian vs t-Student",
-                    ),
-                  },
-                  {
-                    name: "NCUA RBC2",
-                    desc: t(
-                      "8-component risk capital",
-                      "Capital riesgo 8 componentes",
-                    ),
-                  },
-                  {
-                    name: "CECL 3-Method",
-                    desc: t(
-                      "WARM + Vintage + PD×LGD",
-                      "WARM + Vintage + PD×LGD",
-                    ),
-                  },
-                ].map((m) => (
+                ].map((item) => (
                   <div
-                    key={m.name}
-                    className="rounded-xl border border-slate-200 bg-white p-3"
+                    key={item.label}
+                    className="rounded-[1.35rem] border border-[rgba(216,192,139,0.64)] bg-[rgba(255,251,239,0.92)] p-4"
                   >
-                    <p className="text-xs font-bold text-slate-800">{m.name}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      {m.desc}
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#7b6338]">
+                      {item.label}
+                    </p>
+                    <p className="mt-3 font-display text-xl text-slate-950">
+                      {item.title}
+                    </p>
+                    <p className="mt-2 text-sm leading-7 text-slate-600">
+                      {item.body}
                     </p>
                   </div>
                 ))}
               </div>
-              <p className="mt-4 text-center text-xs text-slate-500">
-                {t(
-                  "+ 22 more models across duration, liquidity, credit, and market risk",
-                  "+ 22 modelos más en duración, liquidez, crédito y riesgo de mercado",
-                )}
-              </p>
             </div>
           </section>
 
-          {/* -- HOW IT WORKS -- */}
-          <section className="cerniq-panel cerniq-card-hover p-4 sm:p-6 lg:p-8">
-            <div className="mx-auto max-w-4xl">
-              <div>
-                <p className="cerniq-section-label">
-                  {t("How It Works", "Como funciona")}
-                </p>
-                <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
-                  {t(
-                    "Upload CSV. CERNIQ Analyzes. Receive Bilingual PDF.",
-                    "Cargue CSV. CERNIQ analiza. Reciba PDF bilingue.",
-                  )}
-                </h2>
-              </div>
+          <section className="cerniq-panel p-6 sm:p-8">
+            <SectionHeading
+              eyebrow={t("Walkthrough", "Demostracion")}
+              title={t(
+                "Show the platform as an operating system, not a one-off report generator.",
+                "Muestre la plataforma como sistema operativo, no como generador aislado de informes.",
+              )}
+              body={t(
+                "Use the walkthrough to prove the command-center narrative: workspace entry, upload flow, analysis sequence, and the jump into adjacent portfolio and execution surfaces.",
+                "Use la demostracion para probar la narrativa de centro de mando: entrada al workspace, carga, secuencia de analisis y salto hacia portafolio y ejecucion.",
+              )}
+            />
 
-              <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                {/* Step 1 */}
-                <div className="rounded-2xl border border-slate-200 bg-white/86 p-4 text-center">
-                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
-                    <Upload className="h-5 w-5 text-cyan-700" />
-                  </div>
-                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.24em] text-slate-400">
-                    {t("Step 1", "Paso 1")}
-                  </p>
-                  <h3 className="mt-1 font-display text-lg text-slate-950">
-                    {t("Upload Your CSV", "Cargue su CSV")}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {t(
-                      "Upload your institution balance sheet through a secure workflow.",
-                      "Suba la hoja de balance de su institucion a traves de un flujo seguro.",
-                    )}
-                  </p>
-                </div>
-                {/* Step 2 */}
-                <div className="rounded-2xl border border-slate-200 bg-white/86 p-4 text-center">
-                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
-                    <ShieldCheck className="h-5 w-5 text-cyan-700" />
-                  </div>
-                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.24em] text-slate-400">
-                    {t("Step 2", "Paso 2")}
-                  </p>
-                  <h3 className="mt-1 font-display text-lg text-slate-950">
-                    {t("CERNIQ Analyzes", "CERNIQ analiza")}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {t(
-                      "The platform validates the file, applies the ALM engine, and prepares the draft.",
-                      "La plataforma valida el archivo, aplica el motor ALM y prepara el borrador.",
-                    )}
-                  </p>
-                </div>
-                {/* Step 3 */}
-                <div className="rounded-2xl border border-slate-200 bg-white/86 p-4 text-center">
-                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50">
-                    <FileText className="h-5 w-5 text-cyan-700" />
-                  </div>
-                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.24em] text-slate-400">
-                    {t("Step 3", "Paso 3")}
-                  </p>
-                  <h3 className="mt-1 font-display text-lg text-slate-950">
-                    {t("Receive Your Bilingual PDF", "Reciba su PDF bilingue")}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {t(
-                      "A professional report in English and Spanish for management, committee, or regulator.",
-                      "Un informe profesional en espanol e ingles para gerencia, comite o regulador.",
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* -- WALKTHROUGH VIDEO -- */}
-          <section className="cerniq-panel cerniq-card-hover p-4 sm:p-6 lg:p-8">
-            <div className="mx-auto space-y-4">
-              <div className="max-w-4xl">
-                <p className="cerniq-section-label">
-                  {t("Walkthrough", "Demostracion")}
-                </p>
-                <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
-                  {t(
-                    "See the upload-to-report workflow in action",
-                    "Vea el flujo de carga a informe en accion",
-                  )}
-                </h2>
-              </div>
-
-              <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white">
-                {hasVideo ? (
-                  <div
-                    className="w-full bg-slate-100"
-                    style={{ aspectRatio: "16/9" }}
-                  >
-                    {isDirectVideoFile(DEMO_VIDEO_URL) ? (
-                      <video
-                        className="h-full w-full"
-                        controls
-                        preload="metadata"
-                        playsInline
-                        src={DEMO_VIDEO_URL}
-                      />
-                    ) : isHtmlPage(DEMO_VIDEO_URL) ? (
-                      <iframe
-                        className="h-full w-full border-0"
-                        src={DEMO_VIDEO_URL}
-                        title="CERNIQ platform walkthrough"
-                        allow="autoplay"
-                        loading="lazy"
-                        scrolling="no"
-                      />
-                    ) : (
-                      <iframe
-                        className="h-full w-full"
-                        src={embedUrl}
-                        title="CERNIQ ALM walkthrough"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        referrerPolicy="strict-origin-when-cross-origin"
-                        allowFullScreen
-                      />
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex aspect-video w-full flex-col items-center justify-center gap-4 bg-[linear-gradient(180deg,#ffffff_0%,#f4fbff_100%)] px-6 text-center">
-                    <div className="rounded-full border border-cyan-200 bg-cyan-50 p-4">
-                      <PlayCircle className="h-9 w-9 text-cyan-700" />
+            <div className="mt-6 overflow-hidden rounded-[1.75rem] border border-[rgba(216,192,139,0.72)] bg-white">
+              {hasVideo ? (
+                <div className="w-full bg-slate-100" style={{ aspectRatio: "16/9" }}>
+                  {isDirectVideoFile(DEMO_VIDEO_URL) ? (
+                    <video
+                      className="h-full w-full"
+                      controls
+                      preload="metadata"
+                      playsInline
+                      src={DEMO_VIDEO_URL}
+                    />
+                  ) : isHtmlPage(DEMO_VIDEO_URL) ? (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-[linear-gradient(180deg,#ffffff_0%,#f4fbff_100%)] px-6 text-center">
+                      <div className="rounded-full border border-cyan-200 bg-cyan-50 p-4">
+                        <PlayCircle className="h-9 w-9 text-cyan-700" />
+                      </div>
+                      <p className="font-display text-2xl text-slate-950">
+                        {t(
+                          "Open the institutional walkthrough",
+                          "Abra la demostracion institucional",
+                        )}
+                      </p>
+                      <p className="max-w-2xl text-base leading-7 text-slate-600">
+                        {t(
+                          "This walkthrough is published as a standalone page, so CERNIQ opens it directly instead of embedding it inside the command-center homepage.",
+                          "Esta demostracion se publica como pagina independiente, por lo que CERNIQ la abre directamente en vez de incrustarla dentro de la pagina principal.",
+                        )}
+                      </p>
+                      <a
+                        href={DEMO_VIDEO_URL}
+                        className="inline-flex items-center gap-2 rounded-full bg-[#1B3A6B] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#163258]"
+                      >
+                        {t("Open walkthrough", "Abrir demostracion")}
+                        <ArrowRight className="h-4 w-4" />
+                      </a>
                     </div>
-                    <p className="font-display text-2xl text-slate-950">
-                      {t(
-                        "ALM walkthrough video coming soon",
-                        "Video de demostracion ALM proximamente",
-                      )}
-                    </p>
-                    <p className="max-w-2xl text-base leading-7 text-slate-600">
-                      Add{" "}
-                      <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-sm">
-                        NEXT_PUBLIC_CERNIQ_DEMO_VIDEO_URL
-                      </code>{" "}
-                      once the upload-to-report walkthrough is ready.
-                    </p>
+                  ) : (
+                    <iframe
+                      className="h-full w-full"
+                      src={embedUrl}
+                      title="CERNIQ institutional walkthrough"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      allowFullScreen
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="flex aspect-video w-full flex-col items-center justify-center gap-4 bg-[linear-gradient(180deg,#ffffff_0%,#f4fbff_100%)] px-6 text-center">
+                  <div className="rounded-full border border-cyan-200 bg-cyan-50 p-4">
+                    <PlayCircle className="h-9 w-9 text-cyan-700" />
                   </div>
-                )}
-              </div>
+                  <p className="font-display text-2xl text-slate-950">
+                    {t(
+                      "Institutional walkthrough video coming soon",
+                      "Video institucional de demostracion proximamente",
+                    )}
+                  </p>
+                  <p className="max-w-2xl text-base leading-7 text-slate-600">
+                    {t(
+                      "Set NEXT_PUBLIC_CERNIQ_DEMO_VIDEO_URL once the treasury-and-risk walkthrough is ready.",
+                      "Configure NEXT_PUBLIC_CERNIQ_DEMO_VIDEO_URL cuando la demostracion de tesoreria y riesgo este lista.",
+                    )}
+                  </p>
+                </div>
+              )}
             </div>
           </section>
 
-          {/* -- PRICING -- */}
-          <section id="pricing" className="cerniq-shell p-3 sm:p-4 lg:p-6">
-            <div className="mx-auto max-w-4xl">
-              <div className="mb-5">
-                <p className="cerniq-section-label">
-                  {t("Pricing", "Precios")}
-                </p>
-                <h2 className="mt-3 font-display text-2xl text-slate-950 sm:text-3xl">
-                  {t(
-                    "Start with a pilot. Upgrade to recurring access when the workflow is trusted.",
-                    "Comience con un piloto. Active acceso recurrente cuando el flujo ya este validado.",
-                  )}
-                </h2>
-              </div>
+          <section id="pricing" className="cerniq-shell p-4 sm:p-6">
+            <div className="mx-auto max-w-5xl">
+              <SectionHeading
+                eyebrow={t("Commercial path", "Ruta comercial")}
+                title={t(
+                  "Pilot first. Recurring access when the operating rhythm is trusted.",
+                  "Primero piloto. Acceso recurrente cuando el ritmo operativo ya este validado.",
+                )}
+                body={t(
+                  "The relaunch changes the narrative, not the commercial spine: validate on a live workflow, then move into recurring institutional use.",
+                  "El relanzamiento cambia la narrativa, no la columna comercial: valide con un flujo real y luego pase a uso institucional recurrente.",
+                )}
+              />
 
-              <div className="grid gap-5 sm:grid-cols-3">
-                {/* ALM Report - $750 */}
-                <div className="cerniq-panel cerniq-card-hover flex flex-col p-5">
+              <div className="mt-8 grid gap-5 lg:grid-cols-3">
+                <div className="cerniq-panel flex flex-col p-5">
                   <p className="font-display text-xl text-slate-950">
-                    {t("ALM Report", "Informe ALM")}
+                    {t("Pilot report", "Informe piloto")}
                   </p>
                   <div className="mt-4">
                     <span className="font-display text-4xl text-slate-950">
-                      $750
+                      {PRICING.SETUP.label}
                     </span>
                     <span className="ml-1 text-sm text-slate-500">
                       {t("one-time", "unico")}
@@ -906,26 +1043,17 @@ export default function LandingPage() {
                   </div>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
                     {t(
-                      "One bilingual ALM report to validate the process with your institution.",
-                      "Un informe ALM bilingue para validar el proceso con su institucion.",
+                      "Use one real reporting cycle to validate board output, rate posture, and workflow quality.",
+                      "Use un ciclo real de reporte para validar salida para junta, postura de tasas y calidad del flujo.",
                     )}
                   </p>
                   <div className="mt-5 flex-1 space-y-3">
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
-                      {t("1 bilingual ALM report", "1 informe ALM bilingue")}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
-                      {t(
-                        "Data review & guided setup",
-                        "Revision de datos y setup guiado",
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
-                      {t("Board-ready PDF", "PDF listo para junta")}
-                    </div>
+                    {PRICING.SETUP.bullets.map((bullet) => (
+                      <div key={bullet.en} className="flex items-center gap-2 text-sm text-slate-700">
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
+                        {t(bullet.en, bullet.es)}
+                      </div>
+                    ))}
                   </div>
                   <button
                     onClick={() => handleCheckout("one_time")}
@@ -938,13 +1066,12 @@ export default function LandingPage() {
                   </button>
                 </div>
 
-                {/* Pilot — Bible-mandated $2,500/mo */}
-                <div className="cerniq-panel cerniq-card-hover flex flex-col p-5 border-cyan-300/25 shadow-[0_20px_60px_rgba(34,211,238,0.12)]">
+                <div className="cerniq-panel flex flex-col border-cyan-300/25 p-5 shadow-[0_20px_60px_rgba(27,58,107,0.14)]">
                   <span className="mb-3 w-fit rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] uppercase tracking-[0.26em] text-cyan-700">
                     {t("Recommended", "Recomendado")}
                   </span>
                   <p className="font-display text-xl text-slate-950">
-                    {t(PRICING.PILOT.description, PRICING.PILOT.descriptionEs)}
+                    {t("Recurring access", "Acceso recurrente")}
                   </p>
                   <div className="mt-4">
                     <span className="font-display text-4xl text-slate-950">
@@ -956,15 +1083,15 @@ export default function LandingPage() {
                   </div>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
                     {t(
-                      "Full platform access. 90-day pilot, cancel anytime.",
-                      "Acceso completo a la plataforma. Piloto de 90 dias, cancele en cualquier momento.",
+                      "Activate the institutional command surface for recurring reporting, review, and operating visibility.",
+                      "Active la superficie institucional para reportes recurrentes, revision y visibilidad operativa.",
                     )}
                   </p>
                   <div className="mt-5 flex-1 space-y-3">
-                    {PRICING.PILOT.bullets.map((b) => (
-                      <div key={b.en} className="flex items-center gap-2 text-sm text-slate-700">
+                    {PRICING.PILOT.bullets.map((bullet) => (
+                      <div key={bullet.en} className="flex items-center gap-2 text-sm text-slate-700">
                         <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
-                        {t(b.en, b.es)}
+                        {t(bullet.en, bullet.es)}
                       </div>
                     ))}
                   </div>
@@ -979,10 +1106,9 @@ export default function LandingPage() {
                   </button>
                 </div>
 
-                {/* Standard — Bible-mandated $3,500/mo annual contract */}
-                <div className="cerniq-panel cerniq-card-hover flex flex-col p-5">
+                <div className="cerniq-panel flex flex-col p-5">
                   <p className="font-display text-xl text-slate-950">
-                    {t(PRICING.STANDARD.description, PRICING.STANDARD.descriptionEs)}
+                    {t("Annual access", "Acceso anual")}
                   </p>
                   <div className="mt-4">
                     <span className="font-display text-4xl text-slate-950">
@@ -994,15 +1120,15 @@ export default function LandingPage() {
                   </div>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
                     {t(
-                      "Annual commitment with priority support and unlimited users.",
-                      "Compromiso anual con soporte prioritario y usuarios ilimitados.",
+                      "For teams that want the full operating cadence across reporting, investment visibility, and stakeholder delivery.",
+                      "Para equipos que quieren la cadencia operativa completa a traves de reportes, visibilidad de inversiones y entrega a stakeholders.",
                     )}
                   </p>
                   <div className="mt-5 flex-1 space-y-3">
-                    {PRICING.STANDARD.bullets.map((b) => (
-                      <div key={b.en} className="flex items-center gap-2 text-sm text-slate-700">
+                    {PRICING.STANDARD.bullets.map((bullet) => (
+                      <div key={bullet.en} className="flex items-center gap-2 text-sm text-slate-700">
                         <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" />
-                        {t(b.en, b.es)}
+                        {t(bullet.en, bullet.es)}
                       </div>
                     ))}
                   </div>
@@ -1020,279 +1146,142 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* -- FAQ -- */}
-          <section
-            id="faq"
-            className="cerniq-panel cerniq-card-hover p-6 sm:p-8 lg:p-10"
-          >
-            <div className="mx-auto max-w-4xl space-y-6">
-              <div>
-                <p className="cerniq-section-label">FAQ</p>
-                <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
-                  {t("Frequently Asked Questions", "Preguntas frecuentes")}
-                </h2>
-              </div>
+          <section className="cerniq-panel p-6 sm:p-8">
+            <SectionHeading
+              eyebrow="FAQ"
+              title={t("Institutional positioning FAQ", "FAQ de posicionamiento institucional")}
+            />
 
-              <div className="space-y-3">
-                {/* FAQ 1 */}
-                <details className="group rounded-2xl border border-slate-200 bg-white/86">
+            <div className="mt-6 space-y-3">
+              {institutionalFaqs.map((faq) => (
+                <details
+                  key={faq.q}
+                  className="group rounded-2xl border border-[rgba(216,192,139,0.68)] bg-[rgba(255,251,239,0.92)]"
+                >
                   <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950 sm:text-base [&::-webkit-details-marker]:hidden">
                     <div className="flex items-center justify-between gap-4">
-                      <span>
-                        {t(
-                          "What data do I need to generate a report?",
-                          "¿Que datos necesito para generar un informe?",
-                        )}
-                      </span>
+                      <span>{lang === "en" ? faq.q : faq.qEs}</span>
                       <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
                     </div>
                   </summary>
-                  <div className="border-t border-slate-100 px-5 py-4">
+                  <div className="border-t border-[rgba(216,192,139,0.58)] px-5 py-4">
                     <p className="text-sm leading-7 text-slate-700">
-                      {t(
-                        "You only need your balance sheet in CSV format. CERNIQ validates the file, identifies categories, and runs ALM calculations automatically. No proprietary templates required.",
-                        "Solo necesita su hoja de balance en formato CSV. CERNIQ valida el archivo, identifica las categorias y ejecuta los calculos ALM automaticamente. No se requieren plantillas propietarias.",
-                      )}
+                      {lang === "en" ? faq.a : faq.aEs}
                     </p>
                   </div>
                 </details>
-
-                {/* FAQ 2 */}
-                <details className="group rounded-2xl border border-slate-200 bg-white/86">
-                  <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950 sm:text-base [&::-webkit-details-marker]:hidden">
-                    <div className="flex items-center justify-between gap-4">
-                      <span>
-                        {t(
-                          "Does the report meet regulatory requirements?",
-                          "¿El informe cumple con los requisitos regulatorios?",
-                        )}
-                      </span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
-                    </div>
-                  </summary>
-                  <div className="border-t border-slate-100 px-5 py-4">
-                    <p className="text-sm leading-7 text-slate-700">
-                      {t(
-                        "Yes. The report includes 12 key ratios evaluated by COSSEC and NCUA, including duration gap, NII sensitivity, liquidity coverage, and stress scenarios. Designed for regulatory compliance across jurisdictions.",
-                        "Si. El informe incluye los 12 ratios clave que COSSEC y NCUA evaluan, incluyendo gap de duracion, sensibilidad NII, cobertura de liquidez y escenarios de estres. Disenado para cumplimiento regulatorio en multiples jurisdicciones.",
-                      )}
-                    </p>
-                  </div>
-                </details>
-
-                {/* FAQ 3 */}
-                <details className="group rounded-2xl border border-slate-200 bg-white/86">
-                  <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950 sm:text-base [&::-webkit-details-marker]:hidden">
-                    <div className="flex items-center justify-between gap-4">
-                      <span>
-                        {t(
-                          "How long does it take to receive the report?",
-                          "¿Cuanto tiempo toma recibir el informe?",
-                        )}
-                      </span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
-                    </div>
-                  </summary>
-                  <div className="border-t border-slate-100 px-5 py-4">
-                    <p className="text-sm leading-7 text-slate-700">
-                      {t(
-                        "The report is delivered within 24 hours of uploading your file. Traditional consultants take 3 to 6 weeks and charge $8,000-$12,000 per engagement.",
-                        "El informe se entrega en 24 horas desde que carga su archivo. Los consultores tradicionales toman de 3 a 6 semanas y cobran $8,000-$12,000 por compromiso.",
-                      )}
-                    </p>
-                  </div>
-                </details>
-
-                {/* FAQ 4 */}
-                <details className="group rounded-2xl border border-slate-200 bg-white/86">
-                  <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950 sm:text-base [&::-webkit-details-marker]:hidden">
-                    <div className="flex items-center justify-between gap-4">
-                      <span>
-                        {t("Is my data secure?", "¿Mis datos estan seguros?")}
-                      </span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
-                    </div>
-                  </summary>
-                  <div className="border-t border-slate-100 px-5 py-4">
-                    <p className="text-sm leading-7 text-slate-700">
-                      {t(
-                        "Yes. Files are transmitted with TLS encryption, processed on isolated servers, and not shared with third parties. Data is deleted after report generation.",
-                        "Si. Los archivos se transmiten con encriptacion TLS, se procesan en servidores aislados y no se comparten con terceros. Los datos se eliminan despues de generar el informe.",
-                      )}
-                    </p>
-                  </div>
-                </details>
-
-                {/* FAQ 5 */}
-                <details className="group rounded-2xl border border-slate-200 bg-white/86">
-                  <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950 sm:text-base [&::-webkit-details-marker]:hidden">
-                    <div className="flex items-center justify-between gap-4">
-                      <span>
-                        {t(
-                          "Can you generate reports for multiple institutions?",
-                          "¿Pueden generar informes para multiples instituciones?",
-                        )}
-                      </span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
-                    </div>
-                  </summary>
-                  <div className="border-t border-slate-100 px-5 py-4">
-                    <p className="text-sm leading-7 text-slate-700">
-                      {t(
-                        "Yes. Our annual plan and partner access are designed for CPA firms and consultancies serving multiple credit unions, cooperativas, or community banks.",
-                        "Si. Nuestro plan anual y acceso de socios estan disenados para firmas CPA y consultoras que sirven a multiples credit unions, cooperativas o bancos comunitarios.",
-                      )}
-                    </p>
-                  </div>
-                </details>
-              </div>
+              ))}
             </div>
           </section>
 
-          {/* -- DEMO FORM -- */}
-          <section
-            id="pilot-intake"
-            className="cerniq-panel cerniq-card-hover p-6 sm:p-8"
-          >
-            <p className="cerniq-section-label">
-              {acquisition.pilotFormSectionLabel}
-            </p>
-            <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
-              {acquisition.pilotFormHeading}
-            </h2>
-            <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
-              {acquisition.pilotFormIntro}
-            </p>
+          <section id="pilot-intake" className="cerniq-panel p-6 sm:p-8">
+            <SectionHeading
+              eyebrow={t("Pilot intake", "Ingreso al piloto")}
+              title={t(
+                "Tell us how your treasury and risk workflow runs today.",
+                "Cuentenos como corre hoy su flujo de tesoreria y riesgo.",
+              )}
+              body={t(
+                "Use the intake form to route your team into the pilot path. CERNIQ will keep the next step focused on real institution context instead of a generic demo handoff.",
+                "Use el formulario para enrutar a su equipo al camino de piloto. CERNIQ mantendra el siguiente paso enfocado en contexto institucional real, no en una demo generica.",
+              )}
+            />
 
             <div className="mt-8">
               {submitted ? (
                 <div className="rounded-[1.5rem] border border-emerald-300 bg-emerald-50 p-6 text-emerald-800">
                   <CheckCircle2 className="h-9 w-9 text-emerald-500" />
                   <h3 className="mt-4 font-display text-2xl">
-                    {acquisition.pilotFormSuccessTitle}
+                    {t(
+                      "Institution profile captured",
+                      "Perfil institucional capturado",
+                    )}
                   </h3>
                   <p className="mt-3 text-sm leading-7 text-emerald-700">
-                    {acquisition.pilotFormSuccessBody}
+                    {t(
+                      "We captured the operating context for your team and will use it to shape the next step of the pilot.",
+                      "Capturamos el contexto operativo de su equipo y lo usaremos para dar forma al siguiente paso del piloto.",
+                    )}
                   </p>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Honeypot anti-spam */}
-                  <div className="absolute -left-[9999px]" aria-hidden="true">
-                    <input
-                      type="text"
-                      name="website"
-                      tabIndex={-1}
-                      autoComplete="off"
-                      value={honeypot}
-                      onChange={(e) => setHoneypot(e.target.value)}
-                    />
-                  </div>
-                  {submitError ? (
-                    <div
-                      role="alert"
-                      className="rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700"
-                    >
-                      {submitError}
-                    </div>
-                  ) : null}
+                  <input
+                    tabIndex={-1}
+                    autoComplete="off"
+                    className="hidden"
+                    value={honeypot}
+                    onChange={(event) => setHoneypot(event.target.value)}
+                    aria-hidden="true"
+                  />
 
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-4 lg:grid-cols-2">
                     <div>
-                      <label
-                        htmlFor="landing-name"
-                        className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500"
-                      >
+                      <label className="mb-2 block text-sm font-semibold text-slate-800">
                         {t("Name", "Nombre")}
                       </label>
                       <input
-                        id="landing-name"
-                        type="text"
-                        placeholder="Maria Rodriguez"
-                        className="cerniq-input"
                         value={name}
                         onChange={(event) => setName(event.target.value)}
+                        className="cerniq-field"
+                        placeholder={t("Your name", "Su nombre")}
+                        required
                       />
                     </div>
                     <div>
-                      <label
-                        htmlFor="landing-email"
-                        className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500"
-                      >
-                        {t("Work Email", "Correo institucional")}
+                      <label className="mb-2 block text-sm font-semibold text-slate-800">
+                        {t("Work email", "Correo laboral")}
                       </label>
                       <input
-                        id="landing-email"
                         type="email"
-                        required
-                        placeholder="maria@institution.com"
-                        className="cerniq-input"
                         value={email}
                         onChange={(event) => setEmail(event.target.value)}
+                        className="cerniq-field"
+                        placeholder="name@institution.com"
+                        required
                       />
                     </div>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="landing-institution"
-                      className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500"
-                    >
-                      {t("Institution Name", "Nombre de institucion")}
-                    </label>
-                    <input
-                      id="landing-institution"
-                      type="text"
-                      placeholder={t(
-                        "Your institution name",
-                        "Nombre de su institucion",
-                      )}
-                      className="cerniq-input"
-                      value={institutionName}
-                      onChange={(event) =>
-                        setInstitutionName(event.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">
-                        {t("Type", "Tipo")}
+                      <label className="mb-2 block text-sm font-semibold text-slate-800">
+                        {t("Institution", "Institucion")}
+                      </label>
+                      <input
+                        value={institutionName}
+                        onChange={(event) => setInstitutionName(event.target.value)}
+                        className="cerniq-field"
+                        placeholder={t("Institution name", "Nombre de institucion")}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-800">
+                        {t("Institution type", "Tipo de institucion")}
                       </label>
                       <select
-                        className="cerniq-input"
                         value={institutionType}
-                        onChange={(event) =>
-                          setInstitutionType(event.target.value)
-                        }
+                        onChange={(event) => setInstitutionType(event.target.value)}
+                        className="cerniq-field cerniq-select"
+                        required
                       >
                         {institutionOptions.map((option) => (
-                          <option
-                            key={option.value || "default"}
-                            value={option.value}
-                            className="bg-white"
-                          >
+                          <option key={option.value || "placeholder"} value={option.value}>
                             {option.label}
                           </option>
                         ))}
                       </select>
                     </div>
-                    <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.24em] text-slate-500">
-                        {t("Asset Range", "Rango de activos")}
+                    <div className="lg:col-span-2">
+                      <label className="mb-2 block text-sm font-semibold text-slate-800">
+                        {t("Asset range", "Rango de activos")}
                       </label>
                       <select
-                        className="cerniq-input"
                         value={totalAssets}
                         onChange={(event) => setTotalAssets(event.target.value)}
+                        className="cerniq-field cerniq-select"
+                        required
                       >
                         {assetRanges.map((option) => (
-                          <option
-                            key={option.value || "default"}
-                            value={option.value}
-                            className="bg-white"
-                          >
+                          <option key={option.value || "placeholder"} value={option.value}>
                             {option.label}
                           </option>
                         ))}
@@ -1300,62 +1289,38 @@ export default function LandingPage() {
                     </div>
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5 disabled:opacity-60"
-                  >
-                    {loading
-                      ? t("Submitting...", "Enviando...")
-                      : acquisition.pilotFormSubmit}
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
+                  {submitError ? (
+                    <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                      {submitError}
+                    </p>
+                  ) : null}
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="cerniq-button-primary disabled:opacity-60"
+                    >
+                      {loading
+                        ? t("Submitting...", "Enviando...")
+                        : acquisition.pilotFormSubmit}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/demo")}
+                      className="cerniq-button-secondary"
+                    >
+                      {acquisition.proofCta}
+                    </button>
+                  </div>
                 </form>
               )}
             </div>
           </section>
-
-          {/* -- BOTTOM CTA -- */}
-          <section className="cerniq-panel cerniq-card-hover overflow-hidden px-6 py-8 sm:px-8 lg:px-10">
-            <div className="cerniq-data-wave opacity-90" />
-            <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-3xl">
-                <p className="cerniq-section-label">CERNIQ</p>
-                <h2 className="mt-4 font-display text-3xl text-slate-950 sm:text-4xl">
-                  {t(
-                    "Start your pilot with one balance sheet upload.",
-                    "Comience su piloto con una sola carga de balance.",
-                  )}
-                </h2>
-                <p className="mt-5 max-w-2xl text-sm leading-8 text-slate-600 sm:text-base">
-                  {acquisition.pilotPathDescription}{" "}
-                  {t(
-                    "Use the demo as proof, then move into the pilot when you are ready for real data.",
-                    "Use el demo como prueba y luego pase al piloto cuando este listo para usar datos reales.",
-                  )}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => router.push("/get-started")}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:-translate-y-0.5"
-                >
-                  {acquisition.primaryCta}
-                </button>
-                <button
-                  onClick={() => router.push("/demo")}
-                  className="cerniq-button-secondary disabled:opacity-60"
-                >
-                  {acquisition.proofCta}
-                </button>
-              </div>
-            </div>
-          </section>
         </main>
-
-        <Footer t={t} />
       </div>
+
+      <Footer t={t} />
     </div>
   );
 }
