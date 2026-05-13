@@ -1005,8 +1005,8 @@ export default function LandingPage() {
                   </p>
                   <p className="max-w-2xl text-base leading-7 text-slate-600">
                     {t(
-                      "Set NEXT_PUBLIC_CERNIQ_DEMO_VIDEO_URL once the treasury-and-risk walkthrough is ready.",
-                      "Configure NEXT_PUBLIC_CERNIQ_DEMO_VIDEO_URL cuando la demostracion de tesoreria y riesgo este lista.",
+                      "Full platform walkthrough coming soon. Contact us for a live demo.",
+                      "Demostracion completa de la plataforma proximamente. Contactenos para una demo en vivo.",
                     )}
                   </p>
                 </div>

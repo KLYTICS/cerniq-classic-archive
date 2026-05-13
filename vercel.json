@@ -16,7 +16,7 @@
         { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.segment.com https://*.googletagmanager.com https://*.google-analytics.com https://us.i.posthog.com https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://api.cerniq.io wss://api.cerniq.io https://api.segment.io https://*.google-analytics.com https://*.analytics.google.com https://us.i.posthog.com https://*.ingest.sentry.io https://vercel.live wss:; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests; block-all-mixed-content"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.segment.com https://*.googletagmanager.com https://*.google-analytics.com https://us.i.posthog.com https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://api.cerniq.io wss://api.cerniq.io https://api.segment.io https://*.google-analytics.com https://*.analytics.google.com https://us.i.posthog.com https://*.ingest.sentry.io https://vercel.live wss://vercel.live; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
         }
       ]
     },

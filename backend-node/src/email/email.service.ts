@@ -25,6 +25,16 @@ export class EmailService {
     return process.env.ERWIN_EMAIL || 'eskiessalfonso@gmail.com';
   }
 
+  private senderFrom(name = 'Erwin Kiess'): string {
+    const domain = process.env.EMAIL_FROM_DOMAIN || 'cerniq.io';
+    return `${name} <onboarding@${domain}>`;
+  }
+
+  private alertFrom(): string {
+    const domain = process.env.EMAIL_FROM_DOMAIN || 'cerniq.io';
+    return `CERNIQ Alerts <alerts@${domain}>`;
+  }
+
   // ── HTML wrapper ──────────────────────────────────────
 
   private wrap(bodyHtml: string, ctaUrl?: string, ctaText?: string): string {
@@ -80,7 +90,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject: `Bienvenido a CERNIQ, ${data.institutionName} — Sus proximos pasos / Welcome to CERNIQ`,
@@ -134,7 +144,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject: `Datos recibidos — Procesando su analisis ALM, ${data.institutionName}`,
@@ -187,7 +197,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject: `Su Informe ALM esta listo — ${data.institutionName} / Your ALM Report is Ready`,
@@ -282,7 +292,7 @@ export class EmailService {
 
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject,
@@ -349,7 +359,7 @@ export class EmailService {
 
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject,
@@ -379,7 +389,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject:
@@ -431,7 +441,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'CERNIQ Alerts <onboarding@resend.dev>',
+        from: this.alertFrom(),
         to: this.adminEmail(),
         subject: `FAILED: ${data.institutionName} — Job ${data.jobId}`,
         text: `Report generation failed.\n\nJob ID: ${data.jobId}\nInstitution: ${data.institutionName}\nClient: ${data.clientEmail}\nError: ${data.error}\n\nCheck pipeline: ${this.frontendUrl()}/admin/pipeline`,
@@ -454,7 +464,7 @@ export class EmailService {
 
     try {
       await this.resend.emails.send({
-        from: 'CERNIQ Alerts <onboarding@resend.dev>',
+        from: this.alertFrom(),
         to: this.adminEmail(),
         subject: `NEW LEAD: ${data.institutionName || data.email}`,
         text: `New demo request received.\n\nName: ${data.name || '—'}\nEmail: ${data.email}\nInstitution: ${data.institutionName || '—'}\nType: ${data.institutionType || '—'}\nAsset range: ${data.totalAssets || '—'}\n\nReply directly: ${data.email}`,
@@ -497,7 +507,7 @@ export class EmailService {
 
     try {
       await this.resend.emails.send({
-        from: 'CERNIQ Alerts <onboarding@resend.dev>',
+        from: this.alertFrom(),
         to: this.adminEmail(),
         subject: `NEW LEAD [${data.priority}]: ${data.institutionName} — ${data.institutionType}`,
         text: `New lead: ${data.name} from ${data.institutionName}\n\nRole: ${data.role}\nType: ${data.institutionType}\nEmail: ${data.email}${data.phone ? `\nPhone: ${data.phone}` : ''}${data.message ? `\nMessage: ${data.message}` : ''}\nPriority: ${data.priority}\nFollow-up: ${followUpStr}\n\nAdmin: ${this.frontendUrl()}/admin/leads/${data.leadId}`,
@@ -523,7 +533,7 @@ export class EmailService {
 
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject: `Solicitud recibida — ${data.institutionName} / Your ALM Request — CERNIQ`,
@@ -576,7 +586,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'CERNIQ Alerts <onboarding@resend.dev>',
+        from: this.alertFrom(),
         to: this.adminEmail(),
         subject: `REVENUE: $${data.amount} — ${data.institutionName} — ${data.tier}`,
         text: `New payment received.\n\nAmount: $${data.amount}\nTier: ${data.tier}\nClient: ${data.customerEmail}\nInstitution: ${data.institutionName}\n\nAdmin: ${this.frontendUrl()}/admin/leads`,
@@ -598,7 +608,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject: 'Problema con su pago — CERNIQ / Payment Issue',
@@ -635,7 +645,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject:
@@ -671,7 +681,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject:
@@ -710,7 +720,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'CERNIQ Alerts <onboarding@resend.dev>',
+        from: this.alertFrom(),
         to: this.adminEmail(),
         subject: `DISPUTE: $${data.amount} — ${data.reason}`,
         text: `Dispute alert — immediate action required.\n\nCharge: ${data.chargeId}\nAmount: $${data.amount}\nReason: ${data.reason}\n\nRespond in Stripe Dashboard immediately.`,
@@ -734,7 +744,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'CERNIQ Alerts <onboarding@resend.dev>',
+        from: this.alertFrom(),
         to: this.adminEmail(),
         subject: `Daily Ops: ${data.newLeads} leads, ${data.pendingJobs} pending, ${data.failedJobs} failed`,
         text: `Daily Operations Report\n\nNew Leads (24h): ${data.newLeads}\nOverdue Follow-ups: ${data.pendingFollowUps}\nPending Jobs: ${data.pendingJobs}\nFailed Jobs (7d): ${data.failedJobs}\n\nAdmin: ${this.frontendUrl()}/admin`,
@@ -757,7 +767,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject:
@@ -796,7 +806,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject:
@@ -842,7 +852,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject: `Guia rapida: como usar su informe ALM — ${data.institutionName} / Quick guide — CERNIQ`,
@@ -885,7 +895,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject:
@@ -931,7 +941,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject: `Vista previa: analisis ALM de ${data.institutionName} / ALM Preview — CERNIQ`,
@@ -977,28 +987,28 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject: 'Planes y precios — CERNIQ ALM / Plans & pricing',
         html: this.wrap(
           `<p>Hola ${data.name || ''},</p>
-           <p>CERNIQ ofrece informes ALM profesionales a una fraccion del costo de consultores tradicionales:</p>
+           <p>CERNIQ ofrece inteligencia de riesgo institucional a una fraccion del costo de consultores tradicionales:</p>
            <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
              <tr style="border-bottom: 1px solid #E5E7EB;">
-               <td style="padding: 10px; font-weight: bold;">Informe Individual</td>
-               <td style="padding: 10px;">$499</td>
-               <td style="padding: 10px; color: #6B7280;">Un informe completo (ES + EN)</td>
+               <td style="padding: 10px; font-weight: bold;">Informe Piloto</td>
+               <td style="padding: 10px;">$750</td>
+               <td style="padding: 10px; color: #6B7280;">Un informe bilingue de 14+ paginas</td>
              </tr>
              <tr style="border-bottom: 1px solid #E5E7EB;">
-               <td style="padding: 10px; font-weight: bold;">Monitoreo Mensual</td>
-               <td style="padding: 10px;">$299/mes</td>
-               <td style="padding: 10px; color: #6B7280;">Informes ilimitados + alertas</td>
+               <td style="padding: 10px; font-weight: bold;">Piloto (90 dias)</td>
+               <td style="padding: 10px;">$2,500/mes</td>
+               <td style="padding: 10px; color: #6B7280;">Plataforma completa + analista IA</td>
              </tr>
              <tr>
-               <td style="padding: 10px; font-weight: bold;">Paquete Anual</td>
-               <td style="padding: 10px;">$2,400/ano</td>
-               <td style="padding: 10px; color: #6B7280;">Todo incluido + 2 meses gratis</td>
+               <td style="padding: 10px; font-weight: bold;">Anual</td>
+               <td style="padding: 10px;">$3,500/mes</td>
+               <td style="padding: 10px; color: #6B7280;">Contrato anual, usuarios ilimitados</td>
              </tr>
            </table>
            <p>Respondame a este correo si desea discutir cual plan es mejor para su institucion.</p>
@@ -1007,22 +1017,22 @@ export class EmailService {
            ${this.DIVIDER}
 
            <p>Hi ${data.name || ''},</p>
-           <p>CERNIQ offers professional ALM reports at a fraction of the cost of traditional consultants:</p>
+           <p>CERNIQ offers institutional risk intelligence at a fraction of the cost of traditional consultants:</p>
            <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
              <tr style="border-bottom: 1px solid #E5E7EB;">
-               <td style="padding: 10px; font-weight: bold;">Single Report</td>
-               <td style="padding: 10px;">$499</td>
-               <td style="padding: 10px; color: #6B7280;">One complete report (ES + EN)</td>
+               <td style="padding: 10px; font-weight: bold;">Pilot Report</td>
+               <td style="padding: 10px;">$750</td>
+               <td style="padding: 10px; color: #6B7280;">One 14+ page bilingual report</td>
              </tr>
              <tr style="border-bottom: 1px solid #E5E7EB;">
-               <td style="padding: 10px; font-weight: bold;">Monthly Monitoring</td>
-               <td style="padding: 10px;">$299/mo</td>
-               <td style="padding: 10px; color: #6B7280;">Unlimited reports + alerts</td>
+               <td style="padding: 10px; font-weight: bold;">Pilot (90-day)</td>
+               <td style="padding: 10px;">$2,500/mo</td>
+               <td style="padding: 10px; color: #6B7280;">Full platform + AI analyst</td>
              </tr>
              <tr>
-               <td style="padding: 10px; font-weight: bold;">Annual Package</td>
-               <td style="padding: 10px;">$2,400/yr</td>
-               <td style="padding: 10px; color: #6B7280;">Everything included + 2 months free</td>
+               <td style="padding: 10px; font-weight: bold;">Annual</td>
+               <td style="padding: 10px;">$3,500/mo</td>
+               <td style="padding: 10px; color: #6B7280;">Annual contract, unlimited users</td>
              </tr>
            </table>
            <p>Reply to this email if you'd like to discuss which plan is best for your institution.</p>
@@ -1058,7 +1068,7 @@ export class EmailService {
         : `Su suscripcion se renueva en ${data.daysLeft} dias / Renewal reminder — CERNIQ`;
 
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject,
@@ -1100,7 +1110,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'CERNIQ Alerts <onboarding@resend.dev>',
+        from: this.alertFrom(),
         to: this.adminEmail(),
         subject: `CHURN RISK: ${data.userName || data.userEmail} — ${data.daysSinceLogin}d inactive`,
         text: `Churn risk detected.\n\nUser: ${data.userName || '—'}\nEmail: ${data.userEmail}\nTier: ${data.tier}\nDays since login: ${data.daysSinceLogin}\nRenewal date: ${data.currentPeriodEnd}\n\nConsider reaching out personally.`,
@@ -1135,7 +1145,7 @@ export class EmailService {
           : '  None';
 
       await this.resend.emails.send({
-        from: 'CERNIQ Alerts <onboarding@resend.dev>',
+        from: this.alertFrom(),
         to: this.adminEmail(),
         subject: `Weekly Revenue: ${data.totalActive} active | +${data.newThisWeek} new | -${data.cancelledThisWeek} cancelled`,
         text: `Weekly Revenue Report\n\nActive Subscriptions: ${data.totalActive}\n\nBy Tier:\n${tierLines}\n\nNew This Week: ${data.newThisWeek}\nCancelled This Week: ${data.cancelledThisWeek}\n\nUpcoming Renewals (30d):\n${renewalLines}\n\nAdmin: ${this.frontendUrl()}/admin`,
@@ -1169,7 +1179,7 @@ export class EmailService {
       }).join('');
 
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject: `Como fue su experiencia? — ${data.institutionName} / How was your experience? — CERNIQ`,
@@ -1218,7 +1228,7 @@ export class EmailService {
 
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject: `${data.inviterName} le ha invitado a CERNIQ / You've been invited to CERNIQ`,
@@ -1257,7 +1267,7 @@ export class EmailService {
     }
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.to,
         subject: data.subject,
@@ -1280,7 +1290,7 @@ export class EmailService {
 
     try {
       await this.resend.emails.send({
-        from: 'Erwin Kiess <onboarding@resend.dev>',
+        from: this.senderFrom(),
         replyTo: this.adminEmail(),
         to: data.email,
         subject: 'Su demo de CERNIQ esta listo / Your CERNIQ demo is ready',

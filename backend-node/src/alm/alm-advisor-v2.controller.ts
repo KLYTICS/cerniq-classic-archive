@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { AlmAdvisorV2Service } from './alm-advisor-v2.service';
-import { AuthGuard } from '../auth/auth.guard';
+import { AuthTenantGuard } from '../auth/auth-tenant.guard';
 import { createSSEStream } from '../common/streaming/sse.util';
 
 @Controller('api/alm')
@@ -19,7 +19,7 @@ export class AlmAdvisorV2Controller {
   constructor(private readonly advisorV2: AlmAdvisorV2Service) {}
 
   @Sse(':institutionId/advisor/stream')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   streamAdvisor(
     @Param('institutionId') institutionId: string,
     @Query('lang') lang = 'en',
@@ -31,13 +31,13 @@ export class AlmAdvisorV2Controller {
   }
 
   @Get(':institutionId/advisor/health-score')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getHealthScore(@Param('institutionId') institutionId: string) {
     return this.advisorV2.computeHealthScore(institutionId);
   }
 
   @Get(':institutionId/advisor/narrative')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getStaticNarrative(
     @Param('institutionId') institutionId: string,
     @Query('lang') lang = 'en',

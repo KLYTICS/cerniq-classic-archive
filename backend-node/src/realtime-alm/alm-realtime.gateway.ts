@@ -26,7 +26,14 @@ const HEARTBEAT_MS = 30_000;
 
 @WebSocketGateway({
   namespace: '/alm-realtime',
-  cors: { origin: '*' },
+  cors: {
+    origin: [
+      'https://cerniq.io',
+      'https://www.cerniq.io',
+      /\.vercel\.app$/,
+      ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:3000'] : []),
+    ],
+  },
 })
 export class AlmRealtimeGateway
   implements
@@ -91,11 +98,13 @@ export class AlmRealtimeGateway
 
     if (!token) {
       this.logger.warn(
-        `Client ${client.id} connected without auth token — allowing in demo mode`,
+        `Client ${client.id} connected without auth token — rejecting`,
       );
-    } else {
-      this.logger.log(`Client ${client.id} connected (token present)`);
+      client.emit('error', { message: 'Authentication required' });
+      client.disconnect(true);
+      return;
     }
+    this.logger.log(`Client ${client.id} connected (token present)`);
 
     this.clientSubscriptions.set(client.id, new Set());
 

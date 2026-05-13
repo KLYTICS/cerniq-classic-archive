@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { EnterpriseBatchService } from './enterprise-batch.service';
 import { WebhookDeliveryService } from './webhook-delivery.service';
+import { PrismaService } from '../prisma.service';
 import {
   CreateBatchBodySchema,
   BatchIdParamSchema,
@@ -34,19 +35,33 @@ export class EnterpriseController {
   constructor(
     private readonly batchService: EnterpriseBatchService,
     private readonly webhookService: WebhookDeliveryService,
+    private readonly prisma: PrismaService,
   ) {}
 
   // ─── Auth helper ────────────────────────────────────────────────────────
 
-  private validateApiKey(apiKey: string | undefined): void {
+  private async validateApiKey(apiKey: string | undefined): Promise<void> {
     if (!apiKey) {
       throw new UnauthorizedException('Missing X-Api-Key header');
     }
-    // In production, validate against the organization's API key via Prisma.
-    // For the scaffold we accept any non-empty key.
     if (apiKey.length < 16) {
       throw new UnauthorizedException('Invalid API key');
     }
+    const crypto = await import('node:crypto');
+    const incomingHash = crypto
+      .createHash('sha256')
+      .update(apiKey)
+      .digest('hex');
+    const key = await this.prisma.apiKey.findUnique({
+      where: { keyHash: incomingHash },
+    });
+    if (!key || key.revokedAt || (key.expiresAt && key.expiresAt < new Date())) {
+      throw new UnauthorizedException('Invalid API key');
+    }
+    await this.prisma.apiKey.update({
+      where: { id: key.id },
+      data: { lastUsedAt: new Date() },
+    });
   }
 
   // ─── POST /api/v1/enterprise/reports/bulk ───────────────────────────────
@@ -57,7 +72,7 @@ export class EnterpriseController {
     @Headers('x-api-key') apiKey: string,
     @Body() body: unknown,
   ) {
-    this.validateApiKey(apiKey);
+    await this.validateApiKey(apiKey);
 
     let dto;
     try {
@@ -97,7 +112,7 @@ export class EnterpriseController {
     @Headers('x-api-key') apiKey: string,
     @Param() params: unknown,
   ) {
-    this.validateApiKey(apiKey);
+    await this.validateApiKey(apiKey);
 
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
     const batch = await this.batchService.getBatch(batchId);
@@ -128,7 +143,7 @@ export class EnterpriseController {
     @Headers('x-api-key') apiKey: string,
     @Param() params: unknown,
   ) {
-    this.validateApiKey(apiKey);
+    await this.validateApiKey(apiKey);
 
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
     const batch = await this.batchService.getBatch(batchId);
@@ -152,7 +167,7 @@ export class EnterpriseController {
     @Headers('x-api-key') apiKey: string,
     @Param() params: unknown,
   ) {
-    this.validateApiKey(apiKey);
+    await this.validateApiKey(apiKey);
 
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
     await this.batchService.cancelBatch(batchId);
@@ -165,7 +180,7 @@ export class EnterpriseController {
     @Headers('x-api-key') apiKey: string,
     @Param() params: unknown,
   ) {
-    this.validateApiKey(apiKey);
+    await this.validateApiKey(apiKey);
 
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
     const logs = await this.webhookService.getDeliveryLog(batchId);
