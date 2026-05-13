@@ -4,7 +4,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
+import { AuthTenantGuard } from './auth-tenant.guard';
 import { RolesGuard } from './roles.guard';
+import { TenantScopeGuard } from '../common/guards/tenant-scope.guard';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { GithubStrategy } from './strategies/github.strategy';
@@ -23,6 +25,8 @@ import { PlatformAccessService } from './platform-access.service';
   providers: [
     AuthService,
     AuthGuard,
+    TenantScopeGuard,
+    AuthTenantGuard,
     RolesGuard,
     PlatformAccessService,
     JwtStrategy,
@@ -32,6 +36,8 @@ import { PlatformAccessService } from './platform-access.service';
   exports: [
     AuthService,
     AuthGuard,
+    TenantScopeGuard,
+    AuthTenantGuard,
     RolesGuard,
     PlatformAccessService,
     JwtModule,

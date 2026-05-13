@@ -517,7 +517,7 @@ describe('EmailService', () => {
       await service.sendLeadNurturePricing({ email: 'u@c.pr', name: 'Test' });
       const call = mockSend.mock.calls[0][0];
       expect(call.subject).toContain('precios');
-      expect(call.html).toContain('$499');
+      expect(call.html).toContain('$750');
     });
   });
 

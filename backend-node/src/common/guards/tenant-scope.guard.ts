@@ -2,79 +2,103 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 
+type RequestUserLite = {
+  userId?: string;
+  email?: string;
+  orgId?: string | null;
+  authMethod?: 'token' | 'api_key';
+  access?: { isMasterCeo?: boolean };
+};
+
 /**
- * TenantScopeGuard — Multi-tenant data isolation enforcement.
+ * TenantScopeGuard — Multi-tenant data isolation enforcement for ALM/SpendCheck.
  *
- * This guard does NOT block requests; it enriches the request context
- * with a validated orgId and logs a warning when tenant-sensitive
- * endpoints are hit without an orgId.
+ * Resolves tenant into `request.tenantId` (org/workspace id).
+ * **Fail-closed:** authenticated `/api/alm*` and `/api/expenses*` require an
+ * org context unless the caller is a platform master CEO (`access.isMasterCeo`).
  *
- * How it works:
- * 1. Extracts orgId from `request.user.orgId` (set by AuthGuard)
- *    or from the `x-organization-id` header as a fallback.
- * 2. Stores it on `request.tenantId` for downstream services.
- * 3. Logs a warning if requests to `/api/alm/*` or `/api/expenses/*`
- *    arrive without an orgId — this indicates a potential isolation gap.
- *
- * Usage:
- *   @UseGuards(AuthGuard, TenantScopeGuard)
- *   @Controller('api/expenses')
- *   export class ExpensesController { ... }
- *
- * Services can then read `request.tenantId` for scoped queries.
+ * Exceptions:
+ * - Unauthenticated handlers (no `request.user`): pass through (demo/public ALM calculators).
+ * - Master CEO bypass (cross-tenant operations).
+ * - API keys: resolve org via `x-organization-id` / headers / first path segment after `/api/expenses/`.
  */
 @Injectable()
 export class TenantScopeGuard implements CanActivate {
   private readonly logger = new Logger(TenantScopeGuard.name);
 
-  /** Paths that MUST have an orgId for proper tenant isolation */
+  /** Paths that MUST carry org context once authenticated */
   private readonly TENANT_REQUIRED_PREFIXES = ['/api/alm', '/api/expenses'];
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
+    const rawUrl =
+      typeof request.originalUrl === 'string'
+        ? request.originalUrl
+        : (request.url as string | undefined);
+    const pathSegment =
+      (typeof request.path === 'string' && request.path) ||
+      rawUrl.split('?')[0] ||
+      '';
 
-    // Extract orgId from the authenticated user context (set by AuthGuard)
-    const orgId =
-      request.user?.orgId ||
-      request.headers?.['x-organization-id'] ||
-      request.headers?.['x-klytics-org-id'] ||
+    const user = request.user as RequestUserLite | undefined;
+
+    const orgFromPathExpense = this.orgIdFromExpensesPath(pathSegment);
+    let orgId: string | null =
+      user?.orgId ||
+      (request.headers?.['x-organization-id'] as string | undefined) ||
+      (request.headers?.['x-klytics-org-id'] as string | undefined) ||
+      orgFromPathExpense ||
       null;
 
-    // Inject tenantId into request for downstream consumption
+    if (typeof orgId === 'string') {
+      orgId = orgId.trim() || null;
+    }
+
     request.tenantId = orgId;
 
-    // Check if this is a tenant-sensitive route
-    const url: string = request.url || request.path || '';
-    const isTenantRoute = this.TENANT_REQUIRED_PREFIXES.some((prefix) =>
-      url.startsWith(prefix),
+    const tenantRouteRequired = this.TENANT_REQUIRED_PREFIXES.some((prefix) =>
+      pathSegment.startsWith(prefix),
     );
 
-    if (isTenantRoute && !orgId) {
-      this.logger.warn({
-        event: 'tenant_scope.missing_org_id',
-        url,
-        userId: request.user?.userId,
-        method: request.method,
-        message:
-          'Request to tenant-scoped endpoint without orgId. ' +
-          'Data isolation may be compromised.',
-      });
+    if (!tenantRouteRequired) {
+      return true;
     }
 
-    if (orgId) {
+    if (!user) {
+      return true;
+    }
+
+    if (user.access?.isMasterCeo === true) {
       this.logger.debug({
-        event: 'tenant_scope.resolved',
-        tenantId: orgId,
-        userId: request.user?.userId,
-        url,
+        event: 'tenant_scope.master_bypass',
+        pathSegment,
       });
+      return true;
     }
 
-    // This guard does not block — it enriches context and warns.
-    // Blocking is handled by individual service-level membership checks.
+    if (!orgId) {
+      const message =
+        user.authMethod === 'api_key'
+          ? 'Organization context required for this API key request. Provide x-organization-id or use an expense-scoped route with org id.'
+          : 'Organization context required. Pass x-organization-id or authenticate with workspace membership.';
+      throw new ForbiddenException(message);
+    }
+
     return true;
+  }
+
+  /** `/api/expenses/:orgId/...` yields org id segment (not `auto` treated as unresolved). */
+  private orgIdFromExpensesPath(pathOnly: string): string | null {
+    const trimmed = pathOnly.split('?')[0] || '';
+    const match = trimmed.match(/^\/api\/expenses\/([^/?]+)/);
+    const segment = match?.[1]?.trim();
+    if (!segment || segment === 'auto') {
+      return null;
+    }
+    return segment;
   }
 }

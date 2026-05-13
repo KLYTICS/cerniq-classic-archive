@@ -31,7 +31,7 @@ import { AnomalyDetectionService } from './anomaly-detection.service';
 import { ApReportService } from './ap-report.service';
 import { VendorIntelligenceService } from './vendor-intelligence/vendor-intelligence.service';
 import { ExpenseIngestionService } from './expense-ingestion.service';
-import { AuthGuard } from '../auth/auth.guard';
+import { AuthTenantGuard } from '../auth/auth-tenant.guard';
 import { PrismaService } from '../prisma.service';
 import * as path from 'path';
 import * as fs from 'fs/promises';
@@ -39,7 +39,7 @@ import * as fs from 'fs/promises';
 @ApiTags('SpendCheck')
 @ApiBearerAuth('BearerAuth')
 @Controller('api/expenses')
-@UseGuards(AuthGuard)
+@UseGuards(AuthTenantGuard)
 export class ExpensesController {
   private readonly logger = new Logger(ExpensesController.name);
 

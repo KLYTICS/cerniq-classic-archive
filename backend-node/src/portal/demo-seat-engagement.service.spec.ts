@@ -12,7 +12,7 @@ describe('DemoSeatEngagementService', () => {
         findMany: jest.fn(),
         groupBy: jest.fn(),
       },
-      $queryRawUnsafe: jest.fn(),
+      $queryRaw: jest.fn(),
     };
     service = new DemoSeatEngagementService(prisma);
   });
@@ -138,7 +138,7 @@ describe('DemoSeatEngagementService', () => {
       const result = await service.getSummaryForSeats([]);
       expect(result.size).toBe(0);
       expect(prisma.demoSeatEngagementEvent.groupBy).not.toHaveBeenCalled();
-      expect(prisma.$queryRawUnsafe).not.toHaveBeenCalled();
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
     });
 
     it('aggregates counts and latest event per prospect', async () => {
@@ -146,7 +146,7 @@ describe('DemoSeatEngagementService', () => {
         { prospectInstitutionId: 'p1', _count: { _all: 5 } },
         { prospectInstitutionId: 'p2', _count: { _all: 2 } },
       ]);
-      prisma.$queryRawUnsafe.mockResolvedValue([
+      prisma.$queryRaw.mockResolvedValue([
         {
           prospect_institution_id: 'p1',
           event_type: 'report_viewed',
@@ -181,14 +181,14 @@ describe('DemoSeatEngagementService', () => {
 
     it('uses a single parameterized SQL query for latest events', async () => {
       prisma.demoSeatEngagementEvent.groupBy.mockResolvedValue([]);
-      prisma.$queryRawUnsafe.mockResolvedValue([]);
+      prisma.$queryRaw.mockResolvedValue([]);
 
       await service.getSummaryForSeats(['p1', 'p2']);
 
-      expect(prisma.$queryRawUnsafe).toHaveBeenCalledTimes(1);
-      const call = prisma.$queryRawUnsafe.mock.calls[0];
-      expect(call[0]).toContain('DISTINCT ON');
-      expect(call[1]).toEqual(['p1', 'p2']);
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      const sqlArg = prisma.$queryRaw.mock.calls[0][0];
+      expect(sqlArg.strings.join('')).toContain('DISTINCT ON');
+      expect(sqlArg.values).toEqual([['p1', 'p2']]);
     });
 
     it('runs both aggregates in parallel (Promise.all)', async () => {
@@ -205,7 +205,7 @@ describe('DemoSeatEngagementService', () => {
           }, 5),
         );
       });
-      prisma.$queryRawUnsafe.mockImplementation(() => {
+      prisma.$queryRaw.mockImplementation(() => {
         queryRawStarted = true;
         // Should be started BEFORE groupBy resolves
         expect(groupByResolved).toBe(false);

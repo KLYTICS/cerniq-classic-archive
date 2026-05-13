@@ -51,7 +51,9 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
+    const response = context.switchToHttp().getResponse();
     const token = this.extractToken(request);
+    let jwtAuthSource: 'legacy' | 'supabase' | null = null;
     let user: AuthenticatedRequestUser | null = null;
 
     if (token) {
@@ -60,14 +62,23 @@ export class AuthGuard implements CanActivate {
 
       if (preferLegacy) {
         user = this.verifyLegacyToken(token);
+        if (user) {
+          jwtAuthSource = 'legacy';
+        }
       }
 
       if (!user) {
         user = await this.verifySupabaseToken(token);
+        if (user) {
+          jwtAuthSource = 'supabase';
+        }
       }
 
       if (!user && (preferLegacy || this.allowLegacy())) {
         user = this.verifyLegacyToken(token);
+        if (user) {
+          jwtAuthSource = 'legacy';
+        }
       }
     } else {
       const apiKey = this.extractApiKey(request);
@@ -269,6 +280,27 @@ export class AuthGuard implements CanActivate {
       throw new ForbiddenException(
         this.platformAccess.buildForbiddenPayload(access),
       );
+    }
+
+    const legacyDeprecationWarnEnv = (): boolean => {
+      const raw = (
+        process.env.AUTH_LEGACY_DEPRECATION_WARN || ''
+      ).trim()
+        .toLowerCase();
+      return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+    };
+
+    if (jwtAuthSource === 'legacy' && legacyDeprecationWarnEnv()) {
+      try {
+        response.setHeader('Deprecation', 'jwt-legacy');
+        response.setHeader('Sunset', '2026-12-31');
+        response.setHeader(
+          'Warning',
+          '299 - "Legacy Nest JWT authenticated this request — migrate to Supabase session tokens"',
+        );
+      } catch {
+        /* non-fatal header attach */
+      }
     }
 
     return true;
