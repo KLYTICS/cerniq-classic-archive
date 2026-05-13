@@ -67,14 +67,21 @@ const envSchema = z
 
     // ── Security ─────────────────────────────────────────────────────
     DATA_ENCRYPTION_KEY: z.string().optional(),
+    DEV_MASTER_ACCOUNT_PASSWORD: z.string().optional(),
+    ALLOW_PREVIEW_ORIGINS: z.enum(['true', 'false', '1', '0']).optional(),
+    VERCEL_PREVIEW_ORIGIN_REGEX: z.string().optional(),
+
+    // ── Email ── (domain override for Resend sender addresses)
+    EMAIL_FROM_DOMAIN: z.string().optional(),
     API_KEY_PEPPER: z
       .string()
       .min(32, 'API_KEY_PEPPER must be at least 32 characters')
       .optional(),
     ALLOWED_ORIGINS: z.string().optional(),
 
-    // ── AI / Claude ──────────────────────────────────────────────────
+    // ── AI / LLM ─────────────────────────────────────────────────────
     ANTHROPIC_API_KEY: z.string().optional(),
+    OPENAI_API_KEY: z.string().optional(),
     // Forwarded verbatim to the Anthropic client for opt-in beta features.
     ANTHROPIC_BETA_HEADER: z.string().optional(),
     // Token-pricing calibration for the cost circuit breaker. Defaults

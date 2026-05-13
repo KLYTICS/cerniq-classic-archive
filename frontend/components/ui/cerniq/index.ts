@@ -10,8 +10,6 @@ export type { ErrorBannerProps } from './ErrorBanner';
 export { MetricStrip } from './MetricStrip';
 export type { MetricStripItem, MetricStripProps } from './MetricStrip';
 
-export { DataRow } from './DataRow';
-export type { DataRowCell, DataRowStatus, DataRowProps } from './DataRow';
 
 export { DataTable } from './DataTable';
 export type { DataTableColumn, DataTableProps } from './DataTable';
