@@ -95,7 +95,22 @@ regexes = [
   '''postgresql://<user>(:<password>)?@<host>:[0-9]+/<database>''',
   '''postgresql://<user>@localhost:[0-9]+/[a-zA-Z0-9_]+''',
   '''postgresql://(test|shadow|postgres)@localhost:[0-9]+/[a-zA-Z0-9_]+''',
+  # Ephemeral CI postgres service credentials — username:password are both the
+  # role name (e.g. test:test, shadow:shadow). The matching POSTGRES_USER /
+  # POSTGRES_PASSWORD lives in the same workflow `services.postgres.env` block,
+  # which is itself ephemeral and not reachable from outside the runner.
+  '''postgresql://(test|shadow|postgres):(test|shadow|postgres)@localhost:[0-9]+/[a-zA-Z0-9_]+''',
   '''postgresql://cerniq:\$\{DATABASE_PASSWORD(:-[^}]*)?\}@postgres:5432(/cerniq)?''',
+  # Historical placeholder password baked into legacy .env.example / docker-compose.
+  # Literally the string "dev_password_change_in_prod" — never a real credential.
+  # Kept on the allowlist so audit docs that quote it (before/after diffs in
+  # incident-response.md and the runtime consolidation roadmap) don't trip the
+  # scanner. Will eventually fall out of the codebase entirely when env templates
+  # are sanitized.
+  '''dev_password_change_in_prod''',
+  # Production template placeholder for users copying .env.production.template.
+  # Literal placeholder "USER:PASSWORD@HOST" — never a real credential.
+  '''postgresql://USER:PASSWORD@HOST:5432/cerniq(\?sslmode=require)?''',
   '''ci-(test|build)-secret-must-be-at-least-32-characters-long''',
   '''ck_live_(test123|abcdef01)''',
   '''cerniq\.alm\.(recent|pinned)\.v1''',

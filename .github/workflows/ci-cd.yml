@@ -13,7 +13,7 @@ concurrency:
 env:
   NODE_VERSION: '20'
   PYTHON_VERSION: '3.12'
-  TEST_DATABASE_URL: postgresql://<user>@localhost:5432/cerniq_test
+  TEST_DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
   CI_REDIS_URL: redis://localhost:6379
   CI_JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
   CI_BUILD_JWT_SECRET: ci-build-secret-must-be-at-least-32-characters-long

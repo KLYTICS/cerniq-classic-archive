@@ -62,8 +62,8 @@ concurrency:
 
 env:
   NODE_VERSION: '20'
-  TEST_DATABASE_URL: postgresql://<user>@localhost:5432/cerniq_test
-  SHADOW_DATABASE_URL: postgresql://<user>@localhost:5433/cerniq_shadow
+  TEST_DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
+  SHADOW_DATABASE_URL: postgresql://shadow:shadow@localhost:5433/cerniq_shadow
   CI_JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
 
 jobs:
