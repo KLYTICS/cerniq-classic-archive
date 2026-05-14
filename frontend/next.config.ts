@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
 
     return [
       {
-        source: '/api/:path*',
+        source: '/api/:path((?!demo/track$).*)',
         destination: `${backendUrl}/api/:path*`,
       },
       {

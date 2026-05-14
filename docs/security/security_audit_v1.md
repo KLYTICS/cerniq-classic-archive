@@ -23,7 +23,7 @@
 ### A1. Hardcoded secrets in backend-node/src/ -- FAIL (P0) -> FIXED
 
 **File:** `backend-node/src/prisma.service.ts:7`
-**Before:** `process.env.DATABASE_URL || 'postgresql://cerniq:dev_password_change_in_prod@localhost:5433/cerniq'`
+**Before:** `process.env.DATABASE_URL || 'postgresql://<user>@localhost:5433/cerniq'`
 **Risk:** Hardcoded database credentials in source code. If DATABASE_URL is unset in production, the app would attempt to connect with a known username/password combo.
 **Fix:** Removed fallback entirely. PrismaService now throws a fatal error if DATABASE_URL is not set.
 

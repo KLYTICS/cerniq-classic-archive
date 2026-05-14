@@ -79,7 +79,7 @@ Write down all three values. You will paste them into Railway.
 
 | Variable | How to Get It | Example Value |
 |----------|---------------|---------------|
-| `DATABASE_URL` | Already auto-set by Railway PostgreSQL plugin. Verify it exists. | `postgresql://postgres:abc123@...` |
+| `DATABASE_URL` | Already auto-set by Railway PostgreSQL plugin. Verify it exists. | `postgresql://<user>@...` |
 | `JWT_SECRET` | Paste the first `openssl rand -hex 32` output | `a1b2c3d4e5f6...` (64 chars) |
 | `DATA_ENCRYPTION_KEY` | Paste the second `openssl rand -hex 32` output | `d4e5f6a7b8c9...` (64 chars) |
 | `ADMIN_KEY` | Paste the `openssl rand -hex 16` output | `a1b2c3d4e5f6...` (32 chars) |
@@ -466,7 +466,7 @@ Expected: `401`
 
 ```bash
 # 7. Admin endpoint works with your key
-curl -H "x-admin-key: YOUR_ADMIN_KEY" https://api.cerniq.io/api/admin/stats
+curl -H "x-admin-key: <admin-key>" https://api.cerniq.io/api/admin/stats
 ```
 Expected: `200` with JSON showing `{"demoRequests":0,"institutions":0,"users":0,...}`
 
@@ -757,7 +757,7 @@ Go through each feature module and verify it works in production.
 To test from command line:
 ```bash
 curl -X POST https://api.cerniq.io/api/alm/YOUR_INSTITUTION_ID/advisor \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Authorization: Bearer <jwt-token>" \
   -H "Content-Type: application/json" \
   -d '{"message": "What is my current interest rate risk exposure?", "language": "en"}'
 ```
@@ -825,19 +825,19 @@ Test the admin endpoints using your `ADMIN_KEY`:
 
 ```bash
 # Platform stats
-curl -H "x-admin-key: YOUR_ADMIN_KEY" https://api.cerniq.io/api/admin/stats
+curl -H "x-admin-key: <admin-key>" https://api.cerniq.io/api/admin/stats
 
 # Pipeline dashboard
-curl -H "x-admin-key: YOUR_ADMIN_KEY" https://api.cerniq.io/admin/api/pipeline
+curl -H "x-admin-key: <admin-key>" https://api.cerniq.io/admin/api/pipeline
 
 # Revenue metrics
-curl -H "x-admin-key: YOUR_ADMIN_KEY" https://api.cerniq.io/admin/api/revenue
+curl -H "x-admin-key: <admin-key>" https://api.cerniq.io/admin/api/revenue
 
 # Prospect CRM
-curl -H "x-admin-key: YOUR_ADMIN_KEY" https://api.cerniq.io/api/admin/prospects
+curl -H "x-admin-key: <admin-key>" https://api.cerniq.io/api/admin/prospects
 
 # Demo requests
-curl -H "x-admin-key: YOUR_ADMIN_KEY" https://api.cerniq.io/api/admin/demo-requests
+curl -H "x-admin-key: <admin-key>" https://api.cerniq.io/api/admin/demo-requests
 ```
 
 - [ ] All 5 admin endpoints return 200 with JSON data
@@ -953,14 +953,14 @@ Review these documents in the repo:
 If you have configured `PROSPECT_SEED_DATA` as a JSON env var in Railway, seed the prospects:
 
 ```bash
-curl -X POST -H "x-admin-key: YOUR_ADMIN_KEY" \
+curl -X POST -H "x-admin-key: <admin-key>" \
   https://api.cerniq.io/api/admin/seed-prospects
 ```
 
 Or add prospects manually:
 
 ```bash
-curl -X POST -H "x-admin-key: YOUR_ADMIN_KEY" \
+curl -X POST -H "x-admin-key: <admin-key>" \
   -H "Content-Type: application/json" \
   https://api.cerniq.io/api/admin/prospects \
   -d '{
@@ -1077,11 +1077,11 @@ Before engaging any live client, confirm every item:
 
 ```bash
 # Get the job ID from admin pipeline dashboard
-curl -H "x-admin-key: YOUR_ADMIN_KEY" \
+curl -H "x-admin-key: <admin-key>" \
   https://api.cerniq.io/admin/api/pipeline
 
 # Force regenerate
-curl -X POST -H "x-admin-key: YOUR_ADMIN_KEY" \
+curl -X POST -H "x-admin-key: <admin-key>" \
   https://api.cerniq.io/admin/api/pipeline/JOB_ID/force-regenerate
 ```
 

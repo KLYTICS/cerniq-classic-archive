@@ -655,7 +655,7 @@ curl http://localhost:3000/health | python3 -m json.tool
 
 **Key env vars required:**
 ```env
-DATABASE_URL=postgresql://cerniq:password@localhost:5433/cerniq
+DATABASE_URL=postgresql://<user>@localhost:5433/cerniq
 JWT_SECRET=<32+ chars>
 REDIS_URL=redis://localhost:6380
 FRONTEND_URL=http://localhost:3001
@@ -778,7 +778,7 @@ Until this is fixed, manually align:
 #   POSTGRES_USER: cerniq
 
 # Option B: Change .env DATABASE_URL to match compose
-#   DATABASE_URL=postgresql://capexcycle:password@localhost:5433/capexcycle
+#   DATABASE_URL=postgresql://<user>@localhost:5433/capexcycle
 ```
 
 ---
@@ -1228,7 +1228,7 @@ See `docs/ENVIRONMENT.md` and `.env.example` for full 172-variable reference.
 
 ```env
 # Database
-DATABASE_URL=postgresql://cerniq:dev_password@localhost:5433/cerniq
+DATABASE_URL=postgresql://<user>@localhost:5433/cerniq
 
 # Auth
 JWT_SECRET=your_32_char_minimum_secret_here_change_me

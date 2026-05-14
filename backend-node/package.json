@@ -32,7 +32,7 @@
     "exports:test": "npx ts-node scripts/test-file-exports.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.79.0",
+    "@anthropic-ai/sdk": "^0.91.0",
     "@aws-sdk/client-s3": "^3.1018.0",
     "@aws-sdk/s3-request-presigner": "^3.1018.0",
     "@nestjs/common": "^11.1.17",
@@ -88,7 +88,7 @@
     "rxjs": "^7.8.1",
     "stripe": "^20.4.0",
     "typescript": "^5.9.3",
-    "uuid": "^13.0.0",
+    "uuid": "^14.0.0",
     "yahoo-finance2": "^3.13.0",
     "zod": "^4.3.6"
   },
@@ -129,7 +129,12 @@
     "path-to-regexp": "8.4.0",
     "picomatch": "4.0.4",
     "qs": "6.15.0",
-    "socket.io-parser": "4.2.6"
+    "socket.io-parser": "4.2.6",
+    "fast-xml-parser": "5.7.0",
+    "uuid": "$uuid",
+    "svix": "1.92.2",
+    "@hono/node-server": "1.19.13",
+    "@sentry/webpack-plugin": "5.2.0"
   },
   "prisma": {
     "seed": "npx ts-node prisma/seed.ts"

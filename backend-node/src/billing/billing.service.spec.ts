@@ -195,6 +195,28 @@ describe('BillingService', () => {
       expect(callArgs.mode).toBe('subscription');
     });
 
+    it('should apply dark Stripe-hosted Checkout branding', async () => {
+      const stripeMock = (service as any).stripe;
+      stripeMock.checkout.sessions.create.mockResolvedValue({
+        url: '',
+        id: 'cs_dark',
+      });
+
+      await service.createCheckoutSession({
+        tier: 'monthly',
+        successUrl: '/s',
+        cancelUrl: '/c',
+      });
+
+      const callArgs = stripeMock.checkout.sessions.create.mock.calls[0][0];
+      expect(callArgs.branding_settings).toEqual({
+        background_color: '#14171D',
+        button_color: '#0085FF',
+        border_style: 'rounded',
+        font_family: 'inter',
+      });
+    });
+
     it('should prepend FRONTEND_URL to success/cancel URLs', async () => {
       const stripeMock = (service as any).stripe;
       stripeMock.checkout.sessions.create.mockResolvedValue({

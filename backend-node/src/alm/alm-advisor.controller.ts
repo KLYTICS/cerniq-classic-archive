@@ -8,7 +8,7 @@ import {
   HttpCode,
 } from '@nestjs/common';
 import { AlmAdvisorService } from './alm-advisor.service';
-import { AuthGuard } from '../auth/auth.guard';
+import { AuthTenantGuard } from '../auth/auth-tenant.guard';
 
 class AskAdvisorDto {
   message: string;
@@ -23,7 +23,7 @@ export class AlmAdvisorController {
   constructor(private readonly advisor: AlmAdvisorService) {}
 
   @Post(':institutionId/advisor')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @HttpCode(200)
   async askAdvisor(
     @Param('institutionId') institutionId: string,

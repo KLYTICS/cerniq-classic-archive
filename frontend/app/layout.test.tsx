@@ -54,15 +54,18 @@ describe('RootLayout metadata', () => {
   });
 
   it('renders structured data with the canonical recurring price', () => {
-    // React 19 types `.props` as `unknown` on ReactElement. Cast via `any` so
-    // test traversal stays readable — production code never reaches into props
-    // like this, only this structured-data test does.
+    type LayoutTree = ReactElement<{ children: ReactNode[] }>;
+    type HeadElement = ReactElement<{ children: ReactNode }>;
+    type StructuredDataScript = ReactElement<{
+      dangerouslySetInnerHTML: { __html: string };
+    }>;
+
     const tree = RootLayout({
       children: <main>Page</main>,
-    }) as ReactElement<any>;
-    const htmlChildren = tree.props.children as ReactNode[];
-    const head = htmlChildren[0] as ReactElement<any>;
-    const script = head.props.children as ReactElement<any>;
+    }) as LayoutTree;
+    const htmlChildren = tree.props.children;
+    const head = htmlChildren[0] as HeadElement;
+    const script = head.props.children as StructuredDataScript;
     const structuredData = script.props.dangerouslySetInnerHTML.__html as string;
 
     expect(structuredData).toContain(`"price":"${PRICING.PILOT.amount}"`);

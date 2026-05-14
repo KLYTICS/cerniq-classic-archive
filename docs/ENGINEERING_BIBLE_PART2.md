@@ -1528,14 +1528,14 @@ jobs:
 
       - name: Setup database
         env:
-          DATABASE_URL: postgresql://postgres:test@localhost:5432/cerniq_test
+          DATABASE_URL: postgresql://<user>@localhost:5432/cerniq_test
         run: |
           cd backend-node
           npx prisma migrate deploy
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://postgres:test@localhost:5432/cerniq_test
+          DATABASE_URL: postgresql://<user>@localhost:5432/cerniq_test
         run: |
           cd backend-node
           npm run test:cov

@@ -135,15 +135,15 @@ Erwin
 ```bash
 # Seed prospect pipeline
 curl -X POST https://api.cerniq.io/api/admin/seed-prospects \
-  -H "x-admin-key: YOUR_ADMIN_KEY"
+  -H "x-admin-key: <admin-key>"
 
 # List prospects (sorted by assets)
 curl https://api.cerniq.io/api/leads/prospects \
-  -H "x-admin-key: YOUR_ADMIN_KEY"
+  -H "x-admin-key: <admin-key>"
 
 # Generate personalized outreach for a prospect
 curl https://api.cerniq.io/api/leads/prospects/PROSPECT_ID/outreach?lang=es \
-  -H "x-admin-key: YOUR_ADMIN_KEY"
+  -H "x-admin-key: <admin-key>"
 ```
 
 **Daily Email Metrics (after warmup):**

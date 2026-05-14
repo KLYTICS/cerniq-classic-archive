@@ -748,9 +748,9 @@ R2_SECRET_ACCESS_KEY=...
 R2_BUCKET=cerniq-reports
 
 # === AI (required for advisor + smart ingestion) ===
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=<set in secret manager>
 # OR
-ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_API_KEY=<set in secret manager>
 
 # === SECURITY ===
 API_KEY_PEPPER=<32+ char random string>

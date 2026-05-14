@@ -1444,11 +1444,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
 ```bash
 # .env (development)
-DATABASE_URL="postgresql://user:password@localhost:5432/cerniq?schema=public&connection_limit=5"
+DATABASE_URL="postgresql://<user>@localhost:5432/cerniq?schema=public&connection_limit=5"
 
 # Production (Railway, Vercel)
-DATABASE_URL="postgresql://user:password@db-instance.railway.app:5432/cerniq?sslmode=require&connection_limit=20"
-DIRECT_URL="postgresql://user:password@db-instance.railway.app:5432/cerniq?sslmode=require"  # For migrations
+DATABASE_URL="postgresql://<user>@db-instance.railway.app:5432/cerniq?sslmode=require&connection_limit=20"
+DIRECT_URL="postgresql://<user>@db-instance.railway.app:5432/cerniq?sslmode=require"  # For migrations
 ```
 
 **Connection pool sizing:**
@@ -3058,14 +3058,14 @@ jobs:
 
       - name: Setup database
         env:
-          DATABASE_URL: postgresql://postgres:test@localhost:5432/cerniq_test
+          DATABASE_URL: postgresql://<user>@localhost:5432/cerniq_test
         run: |
           cd backend-node
           npx prisma migrate deploy
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://postgres:test@localhost:5432/cerniq_test
+          DATABASE_URL: postgresql://<user>@localhost:5432/cerniq_test
         run: |
           cd backend-node
           npm run test:cov

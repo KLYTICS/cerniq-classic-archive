@@ -41,7 +41,7 @@ jobs:
       - run: cd backend-node && npx prisma generate
       - run: cd backend-node && npx tsc --noEmit
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DATABASE_URL: postgresql://<user>@localhost:5432/test
 
   frontend-typecheck:
     runs-on: ubuntu-latest

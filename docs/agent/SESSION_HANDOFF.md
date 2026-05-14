@@ -66,7 +66,7 @@ Additional validation:
 - `npm run verify:backend` completed successfully from the repo root
 - `npm run verify:frontend` completed successfully from the repo root
 - `npm run smoke:production` completed successfully from the repo root
-- `cd frontend && REDIS_URL=redis://localhost:6380 JWT_SECRET=... DATABASE_URL=postgresql://test:test@localhost:5433/cerniq_test NEXT_PUBLIC_NODE_API_URL=http://localhost:43100 npx playwright test --reporter=github` completed successfully with `55` passed and `2` preview-only skips
+- `cd frontend && REDIS_URL=redis://localhost:6380 JWT_SECRET=... DATABASE_URL=postgresql://<user>@localhost:5433/cerniq_test NEXT_PUBLIC_NODE_API_URL=http://localhost:43100 npx playwright test --reporter=github` completed successfully with `55` passed and `2` preview-only skips
 - `bash scripts/health-check.sh https://api.cerniq.io https://cerniq.io` completed successfully
 - `bash scripts/smoke-test.sh https://api.cerniq.io` completed successfully in read-only production mode
 - `cd frontend && npm run test:e2e:production` completed successfully against live production

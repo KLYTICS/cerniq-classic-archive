@@ -276,7 +276,7 @@ curl -s -o /dev/null -w "%{http_code}" https://api.cerniq.io/api/admin/stats
 # Expected: 401
 
 # 7. Admin endpoint works with key
-curl -H "x-admin-key: YOUR_ADMIN_KEY" https://api.cerniq.io/api/admin/stats
+curl -H "x-admin-key: <admin-key>" https://api.cerniq.io/api/admin/stats
 # Expected: 200 with JSON payload
 ```
 

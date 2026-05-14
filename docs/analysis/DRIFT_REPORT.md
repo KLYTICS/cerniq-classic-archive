@@ -131,7 +131,7 @@ The auth doc should be updated to reflect that Phases 1-2 are effectively comple
 
 | Issue | Detail |
 |-------|--------|
-| Database names diverge | `docker-compose.yml` creates database `capexcycle` with user `capexcycle`. `.env.example` uses `DATABASE_URL=postgresql://cerniq:dev_password_change_in_prod@localhost:5433/cerniq`. A developer following `.env.example` will get a connection refused because the database/user do not match. |
+| Database names diverge | `docker-compose.yml` creates database `capexcycle` with user `capexcycle`. `.env.example` uses `DATABASE_URL=postgresql://<user>@localhost:5433/cerniq`. A developer following `.env.example` will get a connection refused because the database/user do not match. |
 | Container names | All containers are prefixed `capexcycle-` (e.g., `capexcycle-db`, `capexcycle-redis`, `capexcycle-backend-node`). Should be `cerniq-`. |
 | Redis port | `docker-compose.yml` maps `6380:6379`. `.env.example` says `REDIS_URL=redis://localhost:6379`. A developer must use port 6380 locally, or the Redis connection will fail (or hit a different Redis instance). |
 | Rust backend in dev compose | `docker-compose.yml` still includes the `backend` (Rust) service on port 8001. This will fail to build or serve no useful purpose. |

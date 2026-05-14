@@ -6,7 +6,7 @@ All environment variables required for the CERNIQ NestJS backend (`cerniq-api`) 
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string (Railway-managed) | `postgresql://user:pass@host:5432/railway` |
+| `DATABASE_URL` | PostgreSQL connection string (Railway-managed) | `postgresql://<user>@host:5432/railway` |
 | `JWT_SECRET` | Secret for signing JWTs (min 32 chars) | `openssl rand -hex 32` |
 | `FRONTEND_URL` | Frontend origin for CORS and email links | `https://app.cerniq.io` |
 

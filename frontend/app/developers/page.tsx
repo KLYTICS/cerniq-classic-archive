@@ -145,7 +145,7 @@ export default function DevelopersPage() {
               <CodeBlock
                 language="curl"
                 code={`curl -X POST ${CLEAN_API_BASE}/api/v1/analyze \\
-  -H "Authorization: Bearer ck_live_YOUR_API_KEY" \\
+  -H "Authorization: Bearer <api-key>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "institutionName": "Cooperativa Oriental",
@@ -267,7 +267,7 @@ export default function DevelopersPage() {
                 language="python"
                 code={`import requests
 
-API_KEY = "ck_live_YOUR_API_KEY"
+API_KEY = "<api-key>"
 BASE_URL = "${CLEAN_API_BASE}/api/v1"
 
 # Run analysis
@@ -318,7 +318,7 @@ stored = requests.get(
               </h3>
               <CodeBlock
                 language="typescript"
-                code={`const API_KEY = "ck_live_YOUR_API_KEY";
+                code={`const API_KEY = "<api-key>";
 const BASE_URL = "${CLEAN_API_BASE}/api/v1";
 
 // Run analysis
