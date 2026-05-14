@@ -2,7 +2,7 @@
 
 > **Read this first.** This is the canonical pickup point for any Claude session continuing the FAANG-quality polish work on (1) institution seeding, (2) enterprise actions, (3) report accuracy. Update this file whenever you land work — the next session reads it before touching code.
 
-Last updated: 2026-04-19 (Portal workspace + public compliance landing recorded)
+Last updated: 2026-05-14 (Secret lockdown wave closed: env template polish + CI placeholder leak fix + value-aware pre-commit scanner + OSS gitleaks)
 
 ## Apple Validation Lane — 2026-04-18
 
