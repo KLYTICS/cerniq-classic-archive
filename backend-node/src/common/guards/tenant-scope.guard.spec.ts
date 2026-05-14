@@ -106,4 +106,55 @@ describe('TenantScopeGuard', () => {
     expect(guard.canActivate(ctx)).toBe(true);
     expect(request.tenantId).toBe('from-user');
   });
+
+  describe('/api/analyst (tenant-required after 2026-05-14)', () => {
+    it('throws Forbidden when authenticated without org on /api/analyst', () => {
+      const { ctx } = createMockContext('/api/analyst/inst-123/message', {
+        userId: 'u1',
+        authMethod: 'token',
+        access: {},
+      });
+      expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
+    });
+
+    it('passes with user.orgId on /api/analyst and resolves tenantId', () => {
+      const { ctx, request } = createMockContext(
+        '/api/analyst/inst-123/message',
+        { orgId: 'org-A', userId: 'u1', authMethod: 'token', access: {} },
+      );
+      expect(guard.canActivate(ctx)).toBe(true);
+      expect(request.tenantId).toBe('org-A');
+    });
+
+    it('allows master CEO bypass on /api/analyst', () => {
+      const { ctx, request } = createMockContext(
+        '/api/analyst/inst-123/message',
+        {
+          userId: 'u1',
+          authMethod: 'token',
+          access: { isMasterCeo: true },
+        },
+      );
+      expect(guard.canActivate(ctx)).toBe(true);
+      expect(request.tenantId).toBeNull();
+    });
+
+    it('passes unauthenticated /api/analyst (public calculators contract)', () => {
+      const { ctx } = createMockContext(
+        '/api/analyst/inst-123/message',
+        undefined,
+      );
+      expect(guard.canActivate(ctx)).toBe(true);
+    });
+
+    it('resolves tenantId from x-organization-id for API key on /api/analyst', () => {
+      const { ctx, request } = createMockContext(
+        '/api/analyst/inst-123/message',
+        { userId: 'u1', authMethod: 'api_key', access: {} },
+        { 'x-organization-id': 'org-B' },
+      );
+      expect(guard.canActivate(ctx)).toBe(true);
+      expect(request.tenantId).toBe('org-B');
+    });
+  });
 });
