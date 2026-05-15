@@ -31,7 +31,9 @@ const HEARTBEAT_MS = 30_000;
       'https://cerniq.io',
       'https://www.cerniq.io',
       /\.vercel\.app$/,
-      ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:3000'] : []),
+      ...(process.env.NODE_ENV !== 'production'
+        ? ['http://localhost:3000']
+        : []),
     ],
   },
 })

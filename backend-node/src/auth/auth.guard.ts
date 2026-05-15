@@ -283,9 +283,8 @@ export class AuthGuard implements CanActivate {
     }
 
     const legacyDeprecationWarnEnv = (): boolean => {
-      const raw = (
-        process.env.AUTH_LEGACY_DEPRECATION_WARN || ''
-      ).trim()
+      const raw = (process.env.AUTH_LEGACY_DEPRECATION_WARN || '')
+        .trim()
         .toLowerCase();
       return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
     };

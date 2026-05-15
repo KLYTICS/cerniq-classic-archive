@@ -55,7 +55,11 @@ export class EnterpriseController {
     const key = await this.prisma.apiKey.findUnique({
       where: { keyHash: incomingHash },
     });
-    if (!key || key.revokedAt || (key.expiresAt && key.expiresAt < new Date())) {
+    if (
+      !key ||
+      key.revokedAt ||
+      (key.expiresAt && key.expiresAt < new Date())
+    ) {
       throw new UnauthorizedException('Invalid API key');
     }
     await this.prisma.apiKey.update({

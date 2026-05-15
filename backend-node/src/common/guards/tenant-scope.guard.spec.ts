@@ -1,7 +1,4 @@
-import {
-  ForbiddenException,
-  type ExecutionContext,
-} from '@nestjs/common';
+import { ForbiddenException, type ExecutionContext } from '@nestjs/common';
 import { TenantScopeGuard } from './tenant-scope.guard';
 
 describe('TenantScopeGuard', () => {
@@ -82,18 +79,20 @@ describe('TenantScopeGuard', () => {
   });
 
   it('throws for /api/expenses list without org header', () => {
-    const { ctx } = createMockContext(
-      '/api/expenses',
-      { userId: 'u1', authMethod: 'token', access: {} },
-    );
+    const { ctx } = createMockContext('/api/expenses', {
+      userId: 'u1',
+      authMethod: 'token',
+      access: {},
+    });
     expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
   });
 
   it('allows non-tenant paths without org even when authenticated', () => {
-    const { ctx } = createMockContext(
-      '/api/portal/jobs',
-      { userId: 'u1', authMethod: 'token', access: {} },
-    );
+    const { ctx } = createMockContext('/api/portal/jobs', {
+      userId: 'u1',
+      authMethod: 'token',
+      access: {},
+    });
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
