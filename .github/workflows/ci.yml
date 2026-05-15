@@ -88,6 +88,13 @@ jobs:
           cache-dependency-path: services/outbound/requirements.txt
           working-directory: services/outbound
       - run: cd services/outbound && python -m pytest tests/ -q
+        env:
+          # services/outbound/config.py:24 calls _require_env() at class-body
+          # level — fails import (not just runtime) without this. Placeholder
+          # satisfies the strict-presence check; tests don't hit a real DB.
+          # TODO: refactor config.py to lazy/Pydantic BaseSettings so import
+          # works without env vars, then remove this line.
+          OUTBOUND_DATABASE_URL: postgresql://test:test@localhost:5432/test
 
   cossec-parser-check:
     # COSSEC PDF parser microservice — 32 pytest tests covering PyMuPDF
