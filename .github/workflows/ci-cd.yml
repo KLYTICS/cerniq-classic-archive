@@ -21,6 +21,29 @@ env:
   PLAYWRIGHT_BACKEND_URL: http://localhost:43100
 
 jobs:
+  # Surfaces presence of optional secrets via job outputs so downstream
+  # job-level `if:` can gate on them. Direct `secrets.*` references in
+  # job-level `if:` are rejected by GHA at parse time (only env, vars,
+  # github contexts are allowed there) — every push to this branch was
+  # showing as a 0-second "workflow file issue" failure until this was
+  # hoisted into a check-secrets job.
+  check-secrets:
+    name: Check optional secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      has_apple_team: ${{ steps.check.outputs.has_apple_team }}
+    steps:
+      - id: check
+        env:
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+        run: |
+          if [ -n "${APPLE_DEVELOPMENT_TEAM:-}" ]; then
+            echo "has_apple_team=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_apple_team=false" >> "$GITHUB_OUTPUT"
+          fi
+
   apple-foundation:
     name: Apple Foundation
     runs-on: macos-14
@@ -38,10 +61,10 @@ jobs:
 
   apple-release-dry-run:
     name: Apple Release Dry Run
-    if: ${{ secrets.APPLE_DEVELOPMENT_TEAM != '' }}
+    needs: [apple-foundation, check-secrets]
+    if: needs.check-secrets.outputs.has_apple_team == 'true'
     runs-on: macos-14
     timeout-minutes: 15
-    needs: [apple-foundation]
 
     steps:
       - name: Checkout
