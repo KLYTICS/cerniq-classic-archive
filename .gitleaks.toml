@@ -57,6 +57,47 @@ description = "Postgres DATABASE_URL with inline credentials"
 regex = '''postgres(?:ql)?://[^:\s]+:[^@\s]+@[^/\s]+'''
 tags = ["database", "secret", "high"]
 
+  # Rule-level allowlist scoped to this rule only. The Stripe / Anthropic /
+  # OpenAI / Resend rules continue to scan these paths normally — a real
+  # API key in a workflow YAML or audit doc would still be caught.
+  #
+  # Two independent reasons this rule fires on safe content:
+  #   (1) CI postgres service containers seed POSTGRES_USER=POSTGRES_PASSWORD
+  #       by convention, so workflow envs read `postgresql://(test|shadow):\1
+  #       @localhost`. Same value lives in the same workflow's
+  #       `services.postgres.env` block — ephemeral, runner-local, never
+  #       reachable from outside.
+  #   (2) Audit prose in SESSION_HANDOFF, runbooks, and security docs quotes
+  #       credential-URL shapes verbatim as part of root-cause writeups.
+  #
+  # WHY a rule-level allowlist and not the global [allowlist]: the previous
+  # global entry `postgresql://(test|shadow|postgres):(test|shadow|postgres)
+  # @localhost:[0-9]+/[a-zA-Z0-9_]+` was buggy — the rule's regex captures up
+  # to `[^/\s]+` (ends at `@host:port`, BEFORE the `/dbname`), so the
+  # captured secret never contained the `/dbname` slice the global allowlist
+  # required. Allowlist match always failed silently; the leak was reported.
+  # Rule-level allowlist with the port-only shape closes that mismatch.
+
+  [[rules.allowlists]]
+  description = "CI test-container default credentials — secret-value match"
+  # Match against the captured secret. Rule regex stops at `[^/\s]+`, so the
+  # allowlist regex must NOT extend past port. The trailing `(?::[0-9]+)?`
+  # handles both portless (`@localhost`) and ported (`@localhost:5432`) forms.
+  regexes = [
+    '''postgres(?:ql)?://(?:test|shadow|postgres):(?:test|shadow|postgres)@localhost(?::[0-9]+)?''',
+  ]
+
+  [[rules.allowlists]]
+  description = "Documentation that quotes credential-URL shapes in prose"
+  # Path-allowlist applies only to this rule. Stripe/Anthropic/OpenAI keys
+  # in these same files would still be caught by their respective rules.
+  paths = [
+    '''docs/SESSION_HANDOFF\.md$''',
+    '''docs/_archive/.*\.md$''',
+    '''docs/security/.*\.md$''',
+    '''docs/ops/.*\.md$''',
+  ]
+
 [[rules]]
 id = "cerniq-data-encryption-key"
 description = "AES-256 DATA_ENCRYPTION_KEY hex value exposed"
