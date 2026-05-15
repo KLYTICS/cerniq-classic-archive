@@ -357,6 +357,15 @@ jobs:
 
       - name: Run tests
         working-directory: services/outbound
+        env:
+          # services/outbound/config.py:24 calls _require_env("OUTBOUND_DATABASE_URL")
+          # at module-import time (class-body assignment, not lazy). Without
+          # this, every test module fails at collection with `RuntimeError:
+          # OUTBOUND_DATABASE_URL is required.` — interrupting all 5 test
+          # files before any assertion runs. Placeholder URL is enough; these
+          # tests don't reach a real DB. Long-term fix: refactor Config to
+          # pydantic BaseSettings (lazy init) so imports succeed without env.
+          OUTBOUND_DATABASE_URL: postgresql://test:test@localhost:5432/test
         run: python -m pytest tests/ -v --tb=short
 
       - name: Verify clean worktree
