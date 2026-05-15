@@ -9,11 +9,14 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  UseGuards,
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
 import { MarketDataFeedService } from './market-data-feed.service';
 import { RateAlertService } from './rate-alert.service';
+import { AuthTenantGuard } from '../auth/auth-tenant.guard';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 import {
   SetThresholdParamsSchema,
   HistoryQuerySchema,
@@ -103,6 +106,7 @@ export class MarketDataController {
    * Returns all active rate alerts for the institution.
    */
   @Get('alerts/:institutionId')
+  @UseGuards(AuthTenantGuard, InstitutionScopeGuard)
   async getActiveAlerts(
     @Param('institutionId') institutionId: string,
   ): Promise<{ data: RateAlert[] }> {
@@ -116,6 +120,7 @@ export class MarketDataController {
    */
   @Post('alerts/:institutionId')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(AuthTenantGuard, InstitutionScopeGuard)
   async setAlertThreshold(
     @Param('institutionId') institutionId: string,
     @Body() body: unknown,
@@ -138,6 +143,7 @@ export class MarketDataController {
    */
   @Delete('alerts/:institutionId/:metric')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(AuthTenantGuard, InstitutionScopeGuard)
   async removeAlertThreshold(
     @Param('institutionId') institutionId: string,
     @Param('metric') metric: string,

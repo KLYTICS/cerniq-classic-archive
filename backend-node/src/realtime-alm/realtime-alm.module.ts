@@ -4,6 +4,7 @@ import { MarketDataFeedService } from './market-data-feed.service';
 import { RateAlertService } from './rate-alert.service';
 import { AlmRecalcService } from './alm-recalc.service';
 import { MarketDataController } from './market-data.controller';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 
 /**
  * Real-Time ALM Dashboard module (W3-5).
@@ -25,6 +26,7 @@ import { MarketDataController } from './market-data.controller';
     MarketDataFeedService,
     RateAlertService,
     AlmRecalcService,
+    InstitutionScopeGuard,
   ],
   exports: [MarketDataFeedService, RateAlertService],
 })
