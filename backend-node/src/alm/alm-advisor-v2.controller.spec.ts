@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AlmAdvisorV2Controller } from './alm-advisor-v2.controller';
 import { AlmAdvisorV2Service } from './alm-advisor-v2.service';
 import { AuthTenantGuard } from '../auth/auth-tenant.guard';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 
 describe('AlmAdvisorV2Controller', () => {
   let controller: AlmAdvisorV2Controller;
@@ -19,6 +20,8 @@ describe('AlmAdvisorV2Controller', () => {
       providers: [{ provide: AlmAdvisorV2Service, useValue: advisorV2Service }],
     })
       .overrideGuard(AuthTenantGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(InstitutionScopeGuard)
       .useValue({ canActivate: () => true })
       .compile();
 

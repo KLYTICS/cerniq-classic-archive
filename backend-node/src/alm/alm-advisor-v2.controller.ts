@@ -10,9 +10,11 @@ import {
 import { Observable } from 'rxjs';
 import { AlmAdvisorV2Service } from './alm-advisor-v2.service';
 import { AuthTenantGuard } from '../auth/auth-tenant.guard';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 import { createSSEStream } from '../common/streaming/sse.util';
 
 @Controller('api/alm')
+@UseGuards(AuthTenantGuard, InstitutionScopeGuard)
 export class AlmAdvisorV2Controller {
   private readonly logger = new Logger(AlmAdvisorV2Controller.name);
 

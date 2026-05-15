@@ -20,8 +20,16 @@ import { PrismaService } from '../../prisma.service';
 // level, but we want a 403 (not just empty result sets) when a caller
 // addresses someone else's institution. This guard is the explicit gate.
 //
-// FAIL-CLOSED: any database error or missing relation results in 403, never
-// silent allow. AuthGuard MUST run first so `req.user` is populated.
+// Routes WITHOUT `:institutionId` (utility/global endpoints in the same
+// controller — e.g. `treasury/rates`, `analyst/tools`) pass through. The
+// guard's job is to verify ownership of *that param*; absent the param,
+// there is nothing to verify, and AuthGuard (which must run first) is the
+// baseline authentication check. This pass-through behavior is what makes
+// the guard safe to apply at the controller class level — see AlmModule.
+//
+// FAIL-CLOSED on the scoped path: any database error or missing relation
+// results in 403, never silent allow. AuthGuard MUST run first so
+// `req.user` is populated.
 
 @Injectable()
 export class InstitutionScopeGuard implements CanActivate {
@@ -38,7 +46,11 @@ export class InstitutionScopeGuard implements CanActivate {
 
     const institutionId: string | undefined = req.params?.institutionId;
     if (!institutionId) {
-      throw new ForbiddenException('institutionId param required');
+      // No `:institutionId` in this route's path → no scoped resource to
+      // verify. Pass through (AuthGuard already enforced authentication).
+      // This is what lets the guard sit at the class level on controllers
+      // that mix tenant-scoped and global routes.
+      return true;
     }
 
     // Resolve the institution → workspace → owner chain. We use a single

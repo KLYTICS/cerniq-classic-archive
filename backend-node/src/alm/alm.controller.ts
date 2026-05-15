@@ -120,6 +120,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { AuthTenantGuard } from '../auth/auth-tenant.guard';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 import {
   ScenarioRequestDto,
   LCRRequestDto,
@@ -147,6 +148,13 @@ import { parseFinancialField } from '../common/utils/financial-field';
 @ApiTags('ALM Analysis')
 @ApiBearerAuth('BearerAuth')
 @Controller('api/alm')
+// Class-level cross-tenant + ownership stack. AuthTenantGuard runs first
+// (auth → tenant prefix policy → resolves req.tenantId). InstitutionScopeGuard
+// then verifies the JWT caller owns the institution named in `:institutionId`
+// — when the route has the param. Routes without `:institutionId` (utility
+// endpoints like `treasury/rates`, `prepayment/compute`, `demo/build`) pass
+// through the institution check; auth + tenant prefix policy still apply.
+@UseGuards(AuthTenantGuard, InstitutionScopeGuard)
 export class AlmController {
   private readonly logger = new Logger(AlmController.name);
 

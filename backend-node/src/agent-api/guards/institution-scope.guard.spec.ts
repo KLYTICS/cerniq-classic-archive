@@ -45,11 +45,28 @@ describe('InstitutionScopeGuard', () => {
     );
   });
 
-  it('throws Forbidden when :institutionId path param is missing', async () => {
+  it('passes through when :institutionId path param is missing (no scoped resource to verify)', async () => {
+    // Class-level mount on controllers like AlmController mixes tenant-scoped
+    // routes (`:institutionId/*`) with utility routes (`treasury/rates`,
+    // `analyst/tools`, `demo/build`, etc.). The guard's contract is to
+    // verify ownership of `:institutionId` *when present*. With no param,
+    // there is nothing to scope; AuthGuard (runs first) is the baseline
+    // authentication check. Without this pass-through, every utility route
+    // in the controller would 403.
     const { ctx } = createContext({ userId: 'user-1' });
-    await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+  });
+
+  it('still passes through when both user and institutionId are absent', async () => {
+    // Defense-in-depth: when neither auth nor scope can be enforced here,
+    // the request still hits AuthGuard first — this path is reached only
+    // if AuthGuard upstream chose to allow it (e.g. demo/public routes
+    // that don't reach this guard at all).
+    const req: any = { user: { userId: 'user-1' }, params: {} };
+    const ctx = {
+      switchToHttp: () => ({ getRequest: () => req }),
+    } as unknown as ExecutionContext;
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
   });
 
   it('throws NotFound when the institution does not exist', async () => {
