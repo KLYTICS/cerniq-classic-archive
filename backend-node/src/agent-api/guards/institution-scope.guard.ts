@@ -43,10 +43,21 @@ export class InstitutionScopeGuard implements CanActivate {
 
     // Resolve the institution → workspace → owner chain. We use a single
     // query with a tight select so the guard adds at most one round-trip.
-    const institution = await this.prisma.institution.findUnique({
-      where: { id: institutionId },
-      select: { workspace: { select: { ownerId: true } } },
-    });
+    // Fail-closed: any Prisma exception (connection loss, timeout, transient
+    // error) becomes a 403 so an outage doesn't get reported to the client
+    // as a generic 500.
+    let institution: { workspace: { ownerId: string | null } | null } | null;
+    try {
+      institution = await this.prisma.institution.findUnique({
+        where: { id: institutionId },
+        select: { workspace: { select: { ownerId: true } } },
+      });
+    } catch (err) {
+      this.logger.error(
+        `institution lookup failed for ${institutionId}: ${String(err)}`,
+      );
+      throw new ForbiddenException('institution access check failed');
+    }
 
     if (!institution) {
       throw new NotFoundException('institution not found');

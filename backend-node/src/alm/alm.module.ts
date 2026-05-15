@@ -119,6 +119,7 @@ import { AlmAdvisorV2Controller } from './alm-advisor-v2.controller';
 import { AlmAnalystService } from './alm-analyst.service';
 import { AlmAnalystController } from './alm-analyst.controller';
 import { AuthGuard } from '../auth/auth.guard';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 // Agent tool-layer services (wired into AlmToolsFactory)
 import { DepositDecayService } from './deposit-decay.service';
 import { DepositPricingEngineService } from './deposit-pricing-engine.service';
@@ -271,6 +272,10 @@ import { HJMModule } from './quant/hjm.module';
     CapitalAdequacyRatioService,
     // Guards
     AuthGuard,
+    // Per-resource ownership guard — reuses the same impl as agent-api so
+    // analyst routes get an explicit 403 on cross-tenant access instead of
+    // relying on RLS-induced silent empty results.
+    InstitutionScopeGuard,
   ],
   exports: [
     AlmService,

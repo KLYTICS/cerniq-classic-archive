@@ -15,10 +15,11 @@ import {
 import { Observable } from 'rxjs';
 import { AlmAnalystService } from './alm-analyst.service';
 import { AuthTenantGuard } from '../auth/auth-tenant.guard';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 import { createStructuredSSEStream } from '../common/streaming/sse.util';
 
 @Controller('api/analyst')
-@UseGuards(AuthTenantGuard)
+@UseGuards(AuthTenantGuard, InstitutionScopeGuard)
 export class AlmAnalystController {
   private readonly logger = new Logger(AlmAnalystController.name);
 
@@ -78,7 +79,7 @@ export class AlmAnalystController {
    *   {type:'rate_limited', message:'...', queriesUsed:20, queriesMax:20}
    */
   @Sse(':institutionId/stream')
-  @UseGuards(AuthTenantGuard)
+  @UseGuards(AuthTenantGuard, InstitutionScopeGuard)
   streamAnalyst(
     @Param('institutionId') institutionId: string,
     @Query('message') message: string,
