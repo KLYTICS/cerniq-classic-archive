@@ -71,8 +71,15 @@ test.describe('Accessibility Basics', () => {
 
   test('pricing page has descriptive headings', async ({ page }) => {
     await page.goto('/pricing');
+    // Post-2026-04-22 brand repositioning: "Plans & Pricing" moved from <h1>
+    // to a <span class="cerniq-kicker"> above the new H1. The H1 is now the
+    // descriptive sentence at frontend/app/pricing/page.tsx:217. This spec
+    // tests page-has-descriptive-headings — assert on the actual H1, not the
+    // kicker (which is decorative and shouldn't carry the heading role).
     await expect(
-      page.getByRole('heading', { name: /plans & pricing|planes y precios/i }),
+      page.getByRole('heading', {
+        name: /Start with the pilot|Comience con el piloto/i,
+      }),
     ).toBeVisible();
   });
 
