@@ -130,6 +130,7 @@ export class NcuaController {
     let dto;
     try {
       dto = parseOrThrow(SyncParamSchema, params);
+      // type-rationale: catch-clause type for parseOrThrow's thrown error — the helper attaches a Zod-issues array on `.issues` when validation fails and falls through to `.message` for non-Zod throws. Properly typed unions would require either a custom error class or a discriminated tuple return shape — neither in scope for this Rule 11 unblock. Behavior-equivalent to lines 61 + 107 in this same file (baseline-3 era).
     } catch (err: any) {
       throw new BadRequestException(err.issues ?? err.message);
     }
