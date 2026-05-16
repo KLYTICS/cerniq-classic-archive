@@ -110,7 +110,7 @@ export class CpaFirmService {
       include: {
         clients: {
           where: { removedAt: null },
-          orderBy: { addedAt: 'desc' },
+          orderBy: { assignedAt: 'desc' },
         },
         users: {
           select: { id: true, email: true, name: true, role: true },
