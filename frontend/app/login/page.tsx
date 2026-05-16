@@ -95,12 +95,19 @@ function readLocalDemoCredentials(): LocalDemoCredentials | null {
 }
 
 function createLocalDemoCredentials(): LocalDemoCredentials {
-  const suffix = Math.random().toString(36).slice(2, 10);
-  const secret = Math.random().toString(36).slice(2, 14);
+  // KLYTICS Rule 12: credentials (even demo-only) MUST use crypto-grade
+  // randomness. Math.random is predictable from Date.now() resolution;
+  // crypto.getRandomValues is the Web Crypto equivalent of node's
+  // randomBytes used in backend auth paths.
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join(
+    '',
+  );
 
   return {
-    email: `local-demo-${suffix}@cerniq.local`,
-    password: `Cerniq!${secret}9A`,
+    email: `local-demo-${hex.slice(0, 8)}@cerniq.local`,
+    password: `Cerniq!${hex.slice(8, 20)}9A`,
   };
 }
 
