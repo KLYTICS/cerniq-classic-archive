@@ -1,5 +1,5 @@
 /**
- * Contract drift guard — two layers:
+ * Contract drift guard — three layers:
  *
  *   (L1) Prisma-enum drift: every FE enum literal type in types/agents.ts
  *        matches its source enum in schema.prisma. Catches "BE added a new
@@ -12,9 +12,19 @@
  *        of bilingual / DataGap / nullable fields that the FAANG bar D1
  *        invariant ("Never silent zeros") cares about most.
  *
- * Both layers read source files via fs + regex rather than importing across
- * the FE/BE boundary, matching the existing schema.prisma-reading pattern
- * and avoiding cross-project tsconfig / bundle wiring.
+ *   (L3) Zod literal-value drift: every BE `z.literal('xxx')` (the
+ *        discriminator value that determines which output schema parses a
+ *        runtime response) matches the FE interface's string-literal type.
+ *        Catches "BE renamed 'alm_decision' to 'alm-decision'" — L2 misses
+ *        this because the field NAME is unchanged, but every FE switch
+ *        statement that branches on `agentId === 'alm_decision'` silently
+ *        dead-codes. The FE side is locked at TS compile time via
+ *        `: SomeType['field']` constraints; the BE side is parsed from
+ *        contract source at test time.
+ *
+ * All three layers read source files via fs + regex rather than importing
+ * across the FE/BE boundary, matching the existing schema.prisma-reading
+ * pattern and avoiding cross-project tsconfig / bundle wiring.
  *
  * Failure mode: strict by default. When BE adds a field, the corresponding
  * FE manifest below MUST be updated in the same PR. To accept transient
@@ -581,4 +591,81 @@ describe('Contract drift guard: known FE-unmirrored agent surfaces', () => {
     'Add FE types in types/agents.ts and a manifest above when wiring these UIs.',
     () => { /* informational placeholder */ },
   );
+});
+
+// ─── L3: Zod literal-value drift ────────────────────────────────────────────
+//
+// L2 catches field-set drift; L3 catches discriminator-value drift. Each
+// FE const below is constrained to its FE interface's literal type via
+// `: SomeType['field']` — so if the FE interface ever renames the literal
+// (e.g. 'alm_decision' → 'alm-decision'), the const fails to typecheck.
+// At runtime we extract the BE Zod literal from contract source and assert
+// equality. Both halves of the lock must agree.
+
+function parseZodLiteralAt(
+  contractFile: string,
+  schemaName: string,
+  fieldName: string,
+): string {
+  const text = loadContract(contractFile);
+  const body = findObjectBody(text, schemaName);
+  // Match `<field>: z.literal('value')` or `z.literal("value")` or backticks.
+  // Allows whitespace between every token so multi-line declarations parse.
+  const re = new RegExp(
+    `\\b${fieldName}\\s*:\\s*z\\s*\\.\\s*literal\\s*\\(\\s*['"\`]([^'"\`]*)['"\`]\\s*\\)`,
+  );
+  const m = re.exec(body);
+  if (!m) {
+    throw new Error(
+      `${schemaName}.${fieldName} in ${contractFile} is not a z.literal — ` +
+      `cannot extract a discriminator value. If the field type changed away ` +
+      `from z.literal, drop the corresponding L3 spec; otherwise restore the literal.`,
+    );
+  }
+  return m[1];
+}
+
+const FE_ALM_DECISION_AGENT_ID: ALMDecisionOutput['agentId'] = 'alm_decision';
+const FE_ALM_DECISION_VERSION: ALMDecisionOutput['version'] = '2.0';
+const FE_RISK_MONITOR_AGENT_ID: RiskMonitorOutput['agentId'] = 'risk_monitor';
+const FE_CFO_COPILOT_AGENT_ID: CFOCopilotOutput['agentId'] = 'cfo_copilot';
+const FE_COMMITTEE_REPORT_AGENT_ID: CommitteeReportOutput['agentId'] = 'committee_report';
+const FE_DECISION_QUEUE_STATUS: DecisionQueueItem['status'] = 'PENDING';
+
+describe('Contract drift guard: Zod literal-value alignment (L3)', () => {
+  it('ALMDecisionOutput.agentId discriminator matches ALMDecisionOutputSchema.agentId', () => {
+    expect(
+      parseZodLiteralAt('alm-decision.contracts.ts', 'ALMDecisionOutputSchema', 'agentId'),
+    ).toBe(FE_ALM_DECISION_AGENT_ID);
+  });
+
+  it('ALMDecisionOutput.version literal matches ALMDecisionOutputSchema.version', () => {
+    expect(
+      parseZodLiteralAt('alm-decision.contracts.ts', 'ALMDecisionOutputSchema', 'version'),
+    ).toBe(FE_ALM_DECISION_VERSION);
+  });
+
+  it('RiskMonitorOutput.agentId discriminator matches RiskMonitorOutputSchema.agentId', () => {
+    expect(
+      parseZodLiteralAt('risk-monitor.contracts.ts', 'RiskMonitorOutputSchema', 'agentId'),
+    ).toBe(FE_RISK_MONITOR_AGENT_ID);
+  });
+
+  it('CFOCopilotOutput.agentId discriminator matches CFOCopilotOutputSchema.agentId', () => {
+    expect(
+      parseZodLiteralAt('cfo-copilot.contracts.ts', 'CFOCopilotOutputSchema', 'agentId'),
+    ).toBe(FE_CFO_COPILOT_AGENT_ID);
+  });
+
+  it('CommitteeReportOutput.agentId discriminator matches CommitteeReportOutputSchema.agentId', () => {
+    expect(
+      parseZodLiteralAt('committee-report.contracts.ts', 'CommitteeReportOutputSchema', 'agentId'),
+    ).toBe(FE_COMMITTEE_REPORT_AGENT_ID);
+  });
+
+  it('DecisionQueueItem.status literal matches DecisionQueueItemSchema.status', () => {
+    expect(
+      parseZodLiteralAt('alm-decision.contracts.ts', 'DecisionQueueItemSchema', 'status'),
+    ).toBe(FE_DECISION_QUEUE_STATUS);
+  });
 });
