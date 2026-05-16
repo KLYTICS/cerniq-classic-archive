@@ -9,6 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { MarketDataService } from '../market-data/market-data.service';
 import { OptionsService } from '../options/options.service';
 import { PortfolioService } from '../portfolio/portfolio.service';
@@ -18,7 +19,6 @@ import { MarketStreamManagerService } from '../market-data/market-stream-manager
 
 interface SubscriptionPayload {
   ticker: string;
-  userId?: string;
 }
 
 interface GreeksSubscriptionPayload {
@@ -31,7 +31,12 @@ interface GreeksSubscriptionPayload {
 
 interface PortfolioPnLPayload {
   portfolioId: string;
+}
+
+/** Per-socket authenticated user context, bound at handshake when JWT verifies. */
+interface SocketUserCtx {
   userId: string;
+  isMasterCeo: boolean;
 }
 
 @WebSocketGateway({
@@ -78,6 +83,7 @@ export class RealtimeGateway
     private readonly marketStreamManager: MarketStreamManagerService,
     private readonly optionsService: OptionsService,
     private readonly portfolioService: PortfolioService,
+    private readonly jwtService: JwtService,
   ) {}
 
   onModuleInit() {
@@ -119,8 +125,38 @@ export class RealtimeGateway
     this.clientTickerSubscriptions.clear();
   }
 
-  handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+  // ─── Connection handling (permissive JWT, per-handler enforcement) ──
+  //
+  // This gateway serves a MIXED surface: public ticker feeds + private
+  // portfolio P&L. Unlike the ai-advisor (b2a64c25) and alm-realtime
+  // (5d2f6637) gateways where every handler is tenant-scoped and the
+  // connection itself fails-closed, this gateway lazy-verifies the JWT
+  // at handshake and BINDS `client.data.user` only when the token is
+  // valid. Sensitive handlers (currently just
+  // `handlePortfolioPnLSubscription`) require `client.data.user` and
+  // call `portfolioService.getPortfolio(portfolioId, userId)` —
+  // already an ownership-or-404 primitive — before joining the room.
+  // Public handlers (ticker / Greeks) keep their pre-existing
+  // unauthenticated behavior so the marketing surface and SSO-pre-auth
+  // tabs continue to receive market data.
+  //
+  // Pre-fix: `handlePortfolioPnLSubscription` accepted `userId` from
+  // `@MessageBody()` and passed it straight into the ownership check,
+  // letting any caller impersonate any user by claiming their id. JWT
+  // verification at the connection (when present) is now the only
+  // path that supplies userId to the P&L handler.
+
+  async handleConnection(client: Socket): Promise<void> {
+    const user = await this.verifyClientToken(client);
+    if (user) {
+      client.data.user = user;
+      this.logger.log(`Client connected: user=${user.userId} (${client.id})`);
+    } else {
+      // Permissive: allow the connection through for public ticker /
+      // Greeks subscriptions. The sensitive P&L handler will check
+      // `client.data.user` and reject if absent.
+      this.logger.log(`Client connected: anonymous (${client.id})`);
+    }
     this.clientTickerSubscriptions.set(client.id, new Set());
   }
 
@@ -315,17 +351,56 @@ export class RealtimeGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: PortfolioPnLPayload,
   ) {
-    const { portfolioId, userId } = payload;
-    const pnlKey = `pnl:${portfolioId}`;
+    // Auth-required handler. Closes CRITICAL body-trust IDOR — pre-fix
+    // accepted `userId` from @MessageBody alongside `portfolioId`,
+    // letting an attacker join `pnl:<victim-portfolio>` by lying about
+    // who they were. Verified userId comes from the JWT bound on
+    // handleConnection; absence → reject the subscription.
+    const user = client.data.user as SocketUserCtx | undefined;
+    if (!user) {
+      return {
+        success: false,
+        message:
+          'UNAUTHENTICATED: portfolio P&L requires an authenticated session',
+      };
+    }
 
+    if (!payload?.portfolioId || typeof payload.portfolioId !== 'string') {
+      return {
+        success: false,
+        message: 'Invalid payload: portfolioId required',
+      };
+    }
+    const { portfolioId } = payload;
+
+    // Verify ownership BEFORE joining the room. `getPortfolio` throws
+    // `NotFoundException` on cross-tenant access (anti-enumeration
+    // posture — never reveal whether the portfolio exists). On
+    // success the row is hydrated; we discard it here and let
+    // refreshPnLStream re-fetch on the interval cycle.
+    try {
+      await this.portfolioService.getPortfolio(portfolioId, user.userId);
+    } catch (err) {
+      this.logger.warn(
+        `P&L subscription denied: user=${user.userId} portfolio=${portfolioId} (${err instanceof Error ? err.message : 'unknown'})`,
+      );
+      return {
+        success: false,
+        message: 'FORBIDDEN: portfolio not found or not owned',
+      };
+    }
+
+    const pnlKey = `pnl:${portfolioId}`;
     this.logger.log(
-      `Client ${client.id} subscribing to P&L for portfolio ${portfolioId}`,
+      `Client ${client.id} (user=${user.userId}) subscribing to P&L for portfolio ${portfolioId}`,
     );
     await client.join(pnlKey);
 
-    // Start P&L calculation stream
+    // Start P&L calculation stream — pass the verified userId so the
+    // refresh loop's PortfolioService call uses the same identity that
+    // just passed the ownership check.
     if (!this.pnlIntervals.has(pnlKey)) {
-      await this.startPnLStream(portfolioId, userId);
+      await this.startPnLStream(portfolioId, user.userId);
     }
 
     return { success: true, message: `Subscribed to portfolio P&L` };
@@ -529,5 +604,92 @@ export class RealtimeGateway
     }
 
     this.logger.log(`Cleaned up subscriptions for client ${clientId}`);
+  }
+
+  // ─── Auth helpers (dual-source: legacy JWT then Supabase) ──
+  //
+  // Same shape as `AlmRealtimeGateway.verifyClientToken` (5d2f6637) +
+  // `AiAdvisorGateway.verifyClientToken` (b2a64c25). Permissive return
+  // (null on failure) — caller decides whether to fail-closed (P&L)
+  // or fail-open (ticker/Greeks).
+
+  private async verifyClientToken(
+    client: Socket,
+  ): Promise<SocketUserCtx | null> {
+    const token = this.extractToken(client);
+    if (!token) return null;
+
+    const legacy = this.tryVerifyLegacyJwt(token);
+    if (legacy) return legacy;
+
+    const supabase = await this.tryVerifySupabaseToken(token);
+    if (supabase) return supabase;
+
+    this.logger.warn(
+      `Realtime gateway token failed both legacy and Supabase verification (clientId=${client.id})`,
+    );
+    return null;
+  }
+
+  private tryVerifyLegacyJwt(token: string): SocketUserCtx | null {
+    try {
+      const payload = this.jwtService.verify(token);
+      const userId =
+        (payload?.userId as string | undefined) ??
+        (payload?.sub as string | undefined);
+      if (!userId) return null;
+      const access = payload?.access as { isMasterCeo?: boolean } | undefined;
+      return {
+        userId,
+        isMasterCeo: !!access?.isMasterCeo,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private async tryVerifySupabaseToken(
+    token: string,
+  ): Promise<SocketUserCtx | null> {
+    const supabaseUrl = (process.env.SUPABASE_URL || '')
+      .trim()
+      .replace(/\/$/, '');
+    const anonKey =
+      (process.env.SUPABASE_ANON_KEY || '').trim() ||
+      (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+    if (!supabaseUrl || !anonKey) return null;
+
+    try {
+      const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) return null;
+      const user = (await response.json()) as { id?: string };
+      if (!user?.id) return null;
+      return {
+        userId: user.id,
+        isMasterCeo: false,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private extractToken(client: Socket): string | null {
+    const auth = client.handshake.auth as Record<string, unknown> | undefined;
+    const fromAuth =
+      (auth?.token as string | undefined) ||
+      (auth?.accessToken as string | undefined);
+    if (fromAuth) return fromAuth;
+
+    const header = client.handshake.headers?.authorization;
+    if (typeof header === 'string') {
+      const m = header.match(/^Bearer\s+(.+)$/i);
+      if (m) return m[1];
+    }
+    return null;
   }
 }
