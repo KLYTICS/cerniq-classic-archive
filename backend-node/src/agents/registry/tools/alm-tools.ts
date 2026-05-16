@@ -176,14 +176,26 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.yieldCurve as any).getYieldCurveAnalysis(
-          institutionId,
-          Array.isArray(input.shockBps) ? input.shockBps : [input.shockBps],
-        );
+        // YieldCurveService.getYieldCurveAnalysis(institutionId: string) is
+        // a single-arg method that runs the regulator-mandated Basel shock
+        // set (±100/±200/±300 parallel + steepener/flattener/short-up-long-
+        // down) hardcoded via this.applyAllBaselShocks(baseCurve) inside the
+        // service. The previous call passed a second argument
+        // `Array.isArray(input.shockBps) ? input.shockBps : [input.shockBps]`
+        // via `(this.yieldCurve as any)`, which silenced TS's arity mismatch
+        // and was then ignored by JS at runtime — the tool's summary text
+        // claimed scenario-specific computation but returned the
+        // unconditional base Basel analysis. The `as any` was masking a
+        // long-standing silent-wrong-answer bug. Until custom-shock support
+        // lands in YieldCurveService, the caller's `input.shockBps` is
+        // surfaced in the summary as a *requested-count* but the analysis
+        // covers the standard Basel set.
+        const data = await this.yieldCurve.getYieldCurveAnalysis(institutionId);
+        const requestedCount = Array.isArray(input.shockBps)
+          ? input.shockBps.length
+          : 1;
         return {
-          summary: `Rate shock computed for ${
-            Array.isArray(input.shockBps) ? input.shockBps.length : 1
-          } scenario(s).`,
+          summary: `Rate shock analysis returned. ${requestedCount} caller-specified scenario(s) requested; analysis covers the standard Basel shock set (custom shock values not yet supported by YieldCurveService).`,
           data,
         };
       },
