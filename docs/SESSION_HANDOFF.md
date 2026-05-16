@@ -182,11 +182,17 @@ The T1–T4 items from the FAANG-level gap analysis landed in this session
 Playwright e2e for 308 redirects). These remain open and are the next
 highest-leverage moves. Each has a concrete file target and effort estimate.
 
-- **T5 — Sidebar auto-render for `agent-alerts` module** (20 min). The
+- ~~**T5 — Sidebar auto-render for `agent-alerts` module** (20 min). The
   registry entry at `frontend/lib/alm/registry.ts:130` now points at
   `/alm/agents/alerts` with a `Bell` icon, but the collapsible ALM nav
   may not surface it until the nav component re-reads `ALM_MODULES`.
-  Verify by visual inspection at `/alm/modules` + any sidebar consumer.
+  Verify by visual inspection at `/alm/modules` + any sidebar consumer.~~
+  **CLOSED 2026-05-15** by `14aa133b` (5 generic Sidebar contract specs
+  locking auto-discovery from `MODULES_BY_CATEGORY`) and `11f623f1` (T5
+  named-contract locks specifically for `agent-alerts` — registry lookup
+  for `slug: 'agent-alerts'` + `href: '/alm/agents/alerts'` + DOM
+  presence inside the rendered tree). Verification now lives in
+  `frontend/components/layout/Sidebar.test.tsx`.
 
 - **T6 — LLM script fixtures for goldens 002-010** (~1h per case ≈ 9h
   total). Only `alm-decision/001.script.ts` exists for scripted Anthropic
@@ -195,11 +201,17 @@ highest-leverage moves. Each has a concrete file target and effort estimate.
   `MockLlmBridge`. Pattern to copy:
   `backend-node/test/agent-evals/cases/alm-decision/001.script.ts`.
 
-- **T7 — `agents-contract-drift.test.ts` enforcement** (30 min). File
+- ~~**T7 — `agents-contract-drift.test.ts` enforcement** (30 min). File
   exists at `frontend/types/__tests__/`. Audit what it asserts — if it's
   a stub, upgrade it to compare TS types in `frontend/types/agents.ts`
   against the backend Zod schemas at `backend-node/src/agents/contracts/*`
-  so bilingual (es+en) + nullable gap-aware fields can't drift silently.
+  so bilingual (es+en) + nullable gap-aware fields can't drift silently.~~
+  **CLOSED 2026-05-15** by `cdce17ec` (L2 Zod-shape drift guard locking
+  the symmetric-difference of field names between TS interfaces and
+  backend Zod schemas) and `c161ee77` (L3 Zod literal-value layer
+  catching enum-value drift, not just field-name drift). Spec at
+  `frontend/types/__tests__/agents-contract-drift.test.ts` is now a
+  fully-asserted drift guard, not a stub.
 
 - **T8 — A11y sweep via axe-core** (~45 min) on the 4 new Wave-03 pages
   (`ai-insights`, `enterprise`, `market-data`, `portal/benchmarks`,
@@ -676,10 +688,10 @@ Peer claim `cerniq:backend-node/src/agents,backend-node/prisma/schema.prisma,bac
 - `scripts/agent-smoke.sh` needs live testing (requires running backend with agent endpoints)
 - ~~Env schema Zod validation entries for the 6 new vars~~ — **closed 2026-04-16** (12 vars added to `env.schema.ts` including `FRONTEND_URL`, OAuth callback URLs, agent-runtime knobs; 14 new specs)
 - CI wiring: add `agent-smoke.sh` + `test:agent-evals` to `.github/workflows/ci-cd.yml`
-- Sidebar `mainNav` entries — modules are in registry but the collapsible ALM tree should auto-discover them
+- ~~Sidebar `mainNav` entries — modules are in registry but the collapsible ALM tree should auto-discover them~~ — **closed 2026-05-15** by `14aa133b` + `11f623f1` (see §4.7 T5 above). `frontend/components/layout/Sidebar.tsx` lines 184-217 render the ALM tree directly from `MODULES_BY_CATEGORY[cat.id]`; 5+1 specs in `Sidebar.test.tsx` lock the registry→DOM bijection and the agent-alerts named contract.
 - Integration test end-to-end: frontend page → NestJS controller → agent runner → tool registry → audit log (requires all code committed + migrated)
 - Reconcile duplicate frontend pages: `app/decisions/` vs `app/alm/decisions/` vs `app/cockpit/decisions/` — three routes exist for similar UX, need canonical decision
-- `institutionId` in `app/alm/{decisions,agents,copilot}` UIs is hardcoded `fix-inst-001`; `app/cockpit/` now reads from `?institutionId=` URL param — wire from auth session for both routes
+- ~~`institutionId` in `app/alm/{decisions,agents,copilot}` UIs is hardcoded `fix-inst-001`; `app/cockpit/` now reads from `?institutionId=` URL param — wire from auth session for both routes~~ — **closed (incremental, multiple commits)**. The Phase-2 layered resolver shipped: `frontend/app/alm/decisions/page.tsx:51-93` and `app/alm/agents/page.tsx:77` now use `selectedId || null` via the `useInstitutionId()` hook (`lib/hooks/useInstitutionId.tsx`) which composes the `?institutionId=` URL param → auth-session selected institution → null fallback. `app/alm/agents/alerts/page.tsx:22` is the cleanest reference site for the hook usage. The literal string `'fix-inst-001'` is now confined to `frontend/lib/agents-fixtures.ts` (test/seed data only, intentional).
 - LLM script fixtures for cases 002-010 (only case 001 has a scripted Anthropic replay)
 - Eval harness NestJS integration mode (MockLlmBridge + AgentRunnerService in test module)
 - Sprint 2 gaps: Risk Monitor daily cron, alert→email notification, swarm 8→12 model expansion
