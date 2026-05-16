@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import type { TrustViolation } from './contracts';
 
 /**
@@ -115,5 +116,9 @@ function safeStringify(value: unknown): string {
 }
 
 function randomNonce(): string {
-  return Math.random().toString(36).slice(2, 10);
+  // KLYTICS Rule 12: nonce in a security-scope file must use crypto-grade
+  // randomness — a predictable fence marker lets an attacker close the
+  // fenced tool output and inject a new instruction. 4 bytes = 8 hex chars
+  // (≈32 bits of entropy, sufficient for per-call uniqueness).
+  return randomBytes(4).toString('hex');
 }

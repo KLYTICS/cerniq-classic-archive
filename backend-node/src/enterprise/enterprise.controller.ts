@@ -18,6 +18,7 @@ import {
   ApiKeyAuthGuard,
   type ApiKeyUser,
 } from '../api-v1/guards/api-key-auth.guard';
+import { OrgMembershipGuard } from '../close/guards/org-membership.guard';
 import {
   CreateBatchBodySchema,
   BatchIdParamSchema,
@@ -26,6 +27,9 @@ import {
 
 interface AuthedRequest {
   apiUser: ApiKeyUser;
+  user?: {
+    access?: { isMasterCeo?: boolean };
+  };
 }
 
 /**
@@ -54,6 +58,7 @@ export class EnterpriseController {
   constructor(
     private readonly batchService: EnterpriseBatchService,
     private readonly webhookService: WebhookDeliveryService,
+    private readonly orgMembership: OrgMembershipGuard,
   ) {}
 
   // ─── POST /api/v1/enterprise/reports/bulk ───────────────────────────────
@@ -67,6 +72,20 @@ export class EnterpriseController {
     } catch (err: any) {
       throw new BadRequestException(err.issues ?? err.message);
     }
+
+    // IDOR closure (follow-up to e602c1d7 auth migration). The dto carries
+    // a body-supplied `organizationId`; without this check, any caller
+    // with a valid Enterprise API key could submit batches against any
+    // org they could guess or learn (the API key authenticates the user,
+    // but the user is not implicitly authorized for every org). Mirrors
+    // the agents.controller closure pattern (commit 6b73eb24 §3) — the
+    // primitive throws `ForbiddenException` on non-membership and
+    // fail-closes on Prisma errors.
+    await this.orgMembership.verifyMembership(
+      dto.organizationId,
+      req.apiUser.userId,
+      req.user?.access?.isMasterCeo === true,
+    );
 
     const batch = await this.batchService.createBatch({
       ...dto,

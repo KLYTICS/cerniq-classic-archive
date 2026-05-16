@@ -1,9 +1,10 @@
 import 'reflect-metadata';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { EnterpriseController } from './enterprise.controller';
 import { ApiKeyAuthGuard } from '../api-v1/guards/api-key-auth.guard';
 import type { EnterpriseBatchService } from './enterprise-batch.service';
 import type { WebhookDeliveryService } from './webhook-delivery.service';
+import type { OrgMembershipGuard } from '../close/guards/org-membership.guard';
 
 // Post-migration controller spec (commit 97e588da scaffold +
 // migration #1 of 1 in this lane). The 5 admin-key behavior tests
@@ -39,6 +40,7 @@ describe('EnterpriseController', () => {
   let webhookService: jest.Mocked<
     Pick<WebhookDeliveryService, 'getDeliveryLog'>
   >;
+  let orgMembership: jest.Mocked<Pick<OrgMembershipGuard, 'verifyMembership'>>;
 
   // A request shape with the same `apiUser` the guard would attach in prod.
   const authedReq = {
@@ -49,6 +51,13 @@ describe('EnterpriseController', () => {
       keyPrefix: 'ck_live_',
       tier: 'partner' as const,
     },
+    user: {
+      access: { isMasterCeo: false },
+    },
+  };
+  const masterCeoReq = {
+    ...authedReq,
+    user: { access: { isMasterCeo: true } },
   };
 
   beforeEach(() => {
@@ -60,9 +69,13 @@ describe('EnterpriseController', () => {
     webhookService = {
       getDeliveryLog: jest.fn(),
     };
+    orgMembership = {
+      verifyMembership: jest.fn().mockResolvedValue(undefined),
+    };
     controller = new EnterpriseController(
       batchService as unknown as EnterpriseBatchService,
       webhookService as unknown as WebhookDeliveryService,
+      orgMembership as unknown as OrgMembershipGuard,
     );
   });
 
@@ -119,6 +132,71 @@ describe('EnterpriseController', () => {
         controller.createBatch(authedReq, { not: 'a valid batch body' }),
       ).rejects.toThrow(BadRequestException);
       expect(batchService.createBatch).not.toHaveBeenCalled();
+      // Membership check should NOT fire on a malformed body — Zod
+      // validation must short-circuit the auth-ordering layer.
+      expect(orgMembership.verifyMembership).not.toHaveBeenCalled();
+    });
+
+    it('verifies org membership BEFORE invoking batchService.createBatch (IDOR closure ordering)', async () => {
+      // Mock invocationCallOrder captures call order on a per-mock basis.
+      // The intent: a Forbidden from membership must skip batch creation,
+      // which is only guaranteed if verifyMembership runs strictly before
+      // createBatch. The ordering assertion catches a future refactor
+      // that accidentally reverses the two.
+      const now = new Date();
+      batchService.createBatch.mockResolvedValue({
+        id: 'batch-ordering',
+        status: 'PENDING',
+        totalItems: 2,
+        createdAt: now,
+      } as never);
+
+      await controller.createBatch(authedReq, validBody);
+
+      expect(orgMembership.verifyMembership).toHaveBeenCalledTimes(1);
+      expect(orgMembership.verifyMembership).toHaveBeenCalledWith(
+        UUID_ORG,
+        'user-enterprise-1',
+        false,
+      );
+      const memOrder =
+        orgMembership.verifyMembership.mock.invocationCallOrder[0];
+      const batchOrder = batchService.createBatch.mock.invocationCallOrder[0];
+      expect(memOrder).toBeLessThan(batchOrder);
+    });
+
+    it('propagates ForbiddenException from verifyMembership and skips batch creation', async () => {
+      orgMembership.verifyMembership.mockRejectedValue(
+        new ForbiddenException('not authorized for this organization'),
+      );
+
+      await expect(
+        controller.createBatch(authedReq, validBody),
+      ).rejects.toThrow(ForbiddenException);
+      // The bug-fix lock: a denied membership check MUST NOT create the
+      // batch. Without this assertion, a Forbidden could bubble up while
+      // the side effect (batch row insert) still landed.
+      expect(batchService.createBatch).not.toHaveBeenCalled();
+    });
+
+    it('forwards isMasterCeo=true when the request carries master-CEO access (platform override)', async () => {
+      const now = new Date();
+      batchService.createBatch.mockResolvedValue({
+        id: 'batch-master',
+        status: 'PENDING',
+        totalItems: 2,
+        createdAt: now,
+      } as never);
+
+      await controller.createBatch(masterCeoReq, validBody);
+
+      // The guard internally fast-paths on isMasterCeo=true; the
+      // controller's responsibility is just to forward the flag honestly.
+      expect(orgMembership.verifyMembership).toHaveBeenCalledWith(
+        UUID_ORG,
+        'user-enterprise-1',
+        true,
+      );
     });
   });
 

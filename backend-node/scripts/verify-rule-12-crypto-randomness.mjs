@@ -75,8 +75,8 @@ function isSecurityScope(relPath) {
 // Priority key: HIGH = breaks an adversary-facing surface; MEDIUM =
 // regulator-bound identifier that could be predicted.
 const BASELINE_VIOLATIONS = {
-  'agent-trust/prompt-injection.shield.ts':
-    'HIGH: nonce generation in prompt-injection shield uses non-crypto PRNG; remediation = swap to crypto.randomBytes(16).toString("hex"). Tracked as follow-up; not landed in the same PR as the verifier itself.',
+  // Empty — agent-trust/prompt-injection.shield.ts was the sole entry,
+  // cleared in the same PR that closed the Rule 12 follow-up.
 };
 
 // ─── Walker ────────────────────────────────────────────────────────────
