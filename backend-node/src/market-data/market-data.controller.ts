@@ -3,10 +3,9 @@ import {
   Get,
   Param,
   Query,
-  Headers,
   HttpException,
   HttpStatus,
-  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import { MarketDataService } from './market-data.service';
 import {
@@ -23,7 +22,7 @@ import {
 
 import { LlmService } from '../llm/llm.service';
 import { MarketStreamManagerService } from './market-stream-manager.service';
-import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
+import { AdminKeyGuard } from '../auth/admin-key.guard';
 
 @Controller('api/market-data')
 export class MarketDataController {
@@ -248,13 +247,15 @@ export class MarketDataController {
   /**
    * Clear all caches (admin only)
    * GET /api/market-data/clear-cache
+   *
+   * Method-level `@UseGuards(AdminKeyGuard)` (not class-level) because
+   * this controller mixes public market-data feeds with a single admin
+   * route. AuthModule is `@Global()` (peer `6b317c44`), so no module
+   * import is needed.
    */
   @Get('clear-cache')
-  clearCaches(@Headers('x-admin-key') adminKey: string): { message: string } {
-    const key = process.env.ADMIN_KEY;
-    if (!key || !timingSafeStringEqual(adminKey, key)) {
-      throw new UnauthorizedException('Invalid admin key');
-    }
+  @UseGuards(AdminKeyGuard)
+  clearCaches(): { message: string } {
     this.marketDataService.clearCaches();
     return { message: 'Caches cleared successfully' };
   }
