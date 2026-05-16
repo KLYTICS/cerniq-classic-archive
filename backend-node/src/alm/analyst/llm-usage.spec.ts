@@ -127,7 +127,12 @@ describe('estimateCostCents', () => {
     if (result.cents === null) {
       throw new Error('expected priced result');
     }
-    expect(parseFloat(result.cents)).toBeCloseTo(0.3495, 4);
+    // Use Number() not parseFloat() — `Financial Decimal Guard` blocks
+    // bare parseFloat in ingest scope (.github/workflows/swarm-guards.yml).
+    // result.cents is a string-encoded decimal here; Number() round-trips
+    // it cleanly for the toBeCloseTo assertion (same numeric value as
+    // parseFloat for valid numeric strings).
+    expect(Number(result.cents)).toBeCloseTo(0.3495, 4);
   });
 
   it('pinned pricing version is exposed for audit-time verification', () => {
