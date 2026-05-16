@@ -3,6 +3,24 @@
 cd backend-node && npx tsc --noEmit --incremental 2>/dev/null || echo "TypeScript check: warnings found (see CI for details)"
 cd .. && bash scripts/verify-clean-worktree.sh --staged-only
 
+# Prettier check on staged backend-node files. CI Backend Tests' eslint stage
+# runs prettier/prettier as a rule; 3 recent commits (9d553158, 6c4bfcfe, and
+# the de1c90b6 wrap-up) shipped pure prettier fixes because this gate didn't
+# exist locally. Block-only (no bypass env var) — drift is trivially fixed
+# with `npx prettier --write`. Backend-only; frontend has its own hard-blocked
+# tsc lint chain from d9e0d09c.
+STAGED_BACKEND=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null | grep -E '^backend-node/.*\.(ts|js|mjs|json)$' || true)
+if [ -n "$STAGED_BACKEND" ]; then
+  if ! ( cd backend-node && echo "$STAGED_BACKEND" | sed 's|^backend-node/||' | xargs npx prettier --check ); then
+    echo ""
+    echo "  \033[31m✗ Prettier formatting drift in staged backend-node/ files\033[0m"
+    echo "  Fix: cd backend-node && npx prettier --write <files>"
+    echo "  Then: git add <files> && git commit"
+    echo ""
+    exit 1
+  fi
+fi
+
 # Phase 4 landing-gate: src/app/lib changes must bring a same-day
 # SESSION_HANDOFF.md entry. Bypass with SKIP_LANDING=1 for non-landing
 # commits (hotfix, flake, WIP branch).
