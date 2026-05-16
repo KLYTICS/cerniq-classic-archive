@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
+import { AdminKeyGuard } from './admin-key.guard';
 import { AuthTenantGuard } from './auth-tenant.guard';
 import { RolesGuard } from './roles.guard';
 import { TenantScopeGuard } from '../common/guards/tenant-scope.guard';
@@ -25,6 +26,7 @@ import { PlatformAccessService } from './platform-access.service';
   providers: [
     AuthService,
     AuthGuard,
+    AdminKeyGuard,
     TenantScopeGuard,
     AuthTenantGuard,
     RolesGuard,
@@ -36,6 +38,7 @@ import { PlatformAccessService } from './platform-access.service';
   exports: [
     AuthService,
     AuthGuard,
+    AdminKeyGuard,
     TenantScopeGuard,
     AuthTenantGuard,
     RolesGuard,
