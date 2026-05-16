@@ -1,5 +1,5 @@
+import 'reflect-metadata';
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException } from '@nestjs/common';
 import {
   AdminAuditController,
   PortalAuditController,
@@ -7,16 +7,21 @@ import {
 import { AuditService } from './audit.service';
 import { PrismaService } from '../prisma.service';
 import { AuthGuard } from '../auth/auth.guard';
+import { AdminKeyGuard } from '../auth/admin-key.guard';
+
+// Post-AdminKeyGuard refactor: admin-key enforcement lives in the
+// guard, fully covered by the 10-case `admin-key.guard.spec.ts`. This
+// spec covers (a) wiring lock — reflection asserts `AdminKeyGuard` is
+// on the controller class, (b) handler delegation to AuditService.
+// Pre-refactor direct calls of `controller.getAuditLogs('wrong-key')`
+// no longer detect auth (guards run at HTTP layer, direct invocation
+// bypasses them) so they are replaced.
 
 describe('AdminAuditController', () => {
   let controller: AdminAuditController;
   let auditService: Record<string, jest.Mock>;
 
-  const originalEnv = process.env;
-
   beforeEach(async () => {
-    process.env = { ...originalEnv, ADMIN_KEY: 'valid-admin-key' };
-
     auditService = {
       adminQuery: jest.fn(),
     };
@@ -24,30 +29,27 @@ describe('AdminAuditController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminAuditController],
       providers: [{ provide: AuditService, useValue: auditService }],
-    }).compile();
+    })
+      .overrideGuard(AdminKeyGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<AdminAuditController>(AdminAuditController);
   });
 
-  afterEach(() => {
-    process.env = originalEnv;
-  });
-
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+  it('has AdminKeyGuard wired at the class level (reflection lock)', () => {
+    const guards =
+      Reflect.getMetadata('__guards__', AdminAuditController) ?? [];
+    const names = guards.map((g: { name?: string }) => g?.name ?? String(g));
+    expect(names).toContain('AdminKeyGuard');
   });
 
   describe('getAuditLogs', () => {
-    it('should return audit logs with valid admin key', async () => {
+    it('should return audit logs and pass query params through', async () => {
       const mockLogs = [{ id: 'log-1', action: 'LOGIN' }];
       auditService.adminQuery.mockResolvedValue(mockLogs);
 
-      const result = await controller.getAuditLogs(
-        'valid-admin-key',
-        'inst-1',
-        '50',
-        '10',
-      );
+      const result = await controller.getAuditLogs('inst-1', '50', '10');
       expect(result).toEqual(mockLogs);
       expect(auditService.adminQuery).toHaveBeenCalledWith({
         institutionId: 'inst-1',
@@ -59,26 +61,12 @@ describe('AdminAuditController', () => {
     it('should use defaults for limit and offset', async () => {
       auditService.adminQuery.mockResolvedValue([]);
 
-      await controller.getAuditLogs('valid-admin-key');
+      await controller.getAuditLogs();
       expect(auditService.adminQuery).toHaveBeenCalledWith({
         institutionId: undefined,
         limit: 100,
         offset: 0,
       });
-    });
-
-    it('should throw UnauthorizedException for invalid admin key', async () => {
-      await expect(controller.getAuditLogs('wrong-key')).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('should throw UnauthorizedException when ADMIN_KEY not set', async () => {
-      delete process.env.ADMIN_KEY;
-
-      await expect(controller.getAuditLogs('any-key')).rejects.toThrow(
-        UnauthorizedException,
-      );
     });
   });
 });

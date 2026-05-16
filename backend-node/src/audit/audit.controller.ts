@@ -1,44 +1,28 @@
-import {
-  Controller,
-  Get,
-  Query,
-  Headers,
-  Req,
-  UseGuards,
-  UnauthorizedException,
-  Logger,
-} from '@nestjs/common';
+import { Controller, Get, Query, Req, UseGuards, Logger } from '@nestjs/common';
 import { AuditService } from './audit.service';
 import { AuthGuard } from '../auth/auth.guard';
+import { AdminKeyGuard } from '../auth/admin-key.guard';
 import { PrismaService } from '../prisma.service';
-import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
 
 // ── Admin Audit Endpoint ──────────────────────────────────
 // GET /api/admin/audit-logs?institutionId=X&limit=100&offset=0
-// Requires x-admin-key header
+// Guarded by `AdminKeyGuard` (canonical replacement for the previous
+// inline `verifyAdmin(headerKey)` helper). AuthModule is `@Global()`
+// (peer `6b317c44`) so no module-level import wiring required.
 
 @Controller('api/admin')
+@UseGuards(AdminKeyGuard)
 export class AdminAuditController {
   private readonly logger = new Logger(AdminAuditController.name);
 
   constructor(private readonly audit: AuditService) {}
 
-  private verifyAdmin(key: string) {
-    const adminKey = process.env.ADMIN_KEY;
-    if (!adminKey || !timingSafeStringEqual(key, adminKey)) {
-      throw new UnauthorizedException('Invalid admin key');
-    }
-  }
-
   @Get('audit-logs')
   async getAuditLogs(
-    @Headers('x-admin-key') adminKey: string,
     @Query('institutionId') institutionId?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    this.verifyAdmin(adminKey);
-
     return this.audit.adminQuery({
       institutionId: institutionId || undefined,
       limit: limit ? parseInt(limit, 10) : 100,
