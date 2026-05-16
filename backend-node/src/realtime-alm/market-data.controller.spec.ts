@@ -44,46 +44,44 @@ describe('MarketDataController', () => {
   });
 
   // ─── Guard-wiring lock ─────────────────────────────────────────────────────
-  // Reflection asserts: removing @UseGuards from any of the 3 alert methods
-  // (or adding it to any of the 4 public market-data methods) fails this spec
-  // even though canActivate is mocked. This is the only test that catches a
-  // silent guard-removal regression.
+  // The contract: every route on this controller (public market-data feeds
+  // AND scoped alert handlers) is guarded by AuthTenantGuard +
+  // InstitutionScopeGuard at the CLASS level. InstitutionScopeGuard's
+  // post-8f69c148 contract relaxation (`if (!institutionId) return true`)
+  // means the 4 routes without :institutionId pass the ownership check
+  // automatically; AuthTenantGuard still requires the caller to be
+  // authenticated and tenant-resolved. No method-level overrides — adding
+  // one (or removing the class-level decorator) fails this spec even though
+  // canActivate is mocked. This is the only test that catches a silent
+  // guard-removal regression.
 
   describe('guard wiring (reflection)', () => {
-    const expectGuards = (method: keyof MarketDataController, expected: string[]) => {
-      const handler = controller[method];
-      const guards = Reflect.getMetadata('__guards__', handler) as Array<{ name: string }> | undefined;
+    it('class-level @UseGuards lists AuthTenantGuard + InstitutionScopeGuard in order', () => {
+      const guards = Reflect.getMetadata('__guards__', MarketDataController) as
+        | Array<{ name: string }>
+        | undefined;
       const names = (guards ?? []).map((g) => g.name);
-      expect(names).toEqual(expected);
-    };
-
-    it('GET alerts/:institutionId is guarded by AuthTenantGuard + InstitutionScopeGuard', () => {
-      expectGuards('getActiveAlerts', ['AuthTenantGuard', 'InstitutionScopeGuard']);
+      expect(names).toEqual(['AuthTenantGuard', 'InstitutionScopeGuard']);
     });
 
-    it('POST alerts/:institutionId is guarded', () => {
-      expectGuards('setAlertThreshold', ['AuthTenantGuard', 'InstitutionScopeGuard']);
-    });
-
-    it('DELETE alerts/:institutionId/:metric is guarded', () => {
-      expectGuards('removeAlertThreshold', ['AuthTenantGuard', 'InstitutionScopeGuard']);
-    });
-
-    it('GET /latest is intentionally public (no method-level guards)', () => {
-      expectGuards('getLatestRates', []);
-    });
-
-    it('GET /treasury-curve is intentionally public', () => {
-      expectGuards('getTreasuryCurve', []);
-    });
-
-    it('GET /sofr is intentionally public', () => {
-      expectGuards('getSOFR', []);
-    });
-
-    it('GET /history/:dataType is intentionally public', () => {
-      expectGuards('getHistory', []);
-    });
+    it.each<keyof MarketDataController>([
+      'getLatestRates',
+      'getTreasuryCurve',
+      'getSOFR',
+      'getHistory',
+      'getActiveAlerts',
+      'setAlertThreshold',
+      'removeAlertThreshold',
+    ])(
+      'no method-level guard overrides on %s (class-level covers it)',
+      (method) => {
+        const handler = controller[method];
+        const guards = Reflect.getMetadata('__guards__', handler) as
+          | Array<{ name: string }>
+          | undefined;
+        expect(guards ?? []).toEqual([]);
+      },
+    );
   });
 
   // ─── Behavior smoke tests (guards bypassed via overrideGuard above) ───────
@@ -115,7 +113,9 @@ describe('MarketDataController', () => {
 
     it('setAlertThreshold throws BadRequest on invalid body', async () => {
       await expect(
-        controller.setAlertThreshold('inst-1', { metric: 'unknown' } as unknown),
+        controller.setAlertThreshold('inst-1', {
+          metric: 'unknown',
+        } as unknown),
       ).rejects.toThrow();
       expect(rateAlertService.setThreshold).not.toHaveBeenCalled();
     });
@@ -123,7 +123,10 @@ describe('MarketDataController', () => {
     it('removeAlertThreshold forwards :institutionId + :metric', async () => {
       rateAlertService.removeThreshold.mockResolvedValue(undefined);
       await controller.removeAlertThreshold('inst-1', 'sofr');
-      expect(rateAlertService.removeThreshold).toHaveBeenCalledWith('inst-1', 'sofr');
+      expect(rateAlertService.removeThreshold).toHaveBeenCalledWith(
+        'inst-1',
+        'sofr',
+      );
     });
   });
 });
