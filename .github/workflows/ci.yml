@@ -34,7 +34,7 @@ jobs:
           fi
 
   apple-foundation:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       # apple/Package.swift declares `// swift-tools-version: 6.3` which
@@ -50,7 +50,7 @@ jobs:
   apple-release-dry-run:
     needs: [apple-foundation, check-secrets]
     if: needs.check-secrets.outputs.has_apple_team == 'true'
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - run: npm run archive:apple -- --dry-run --export

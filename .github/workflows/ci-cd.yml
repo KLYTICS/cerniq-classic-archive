@@ -46,7 +46,7 @@ jobs:
 
   apple-foundation:
     name: Apple Foundation
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 15
 
     steps:
@@ -72,7 +72,7 @@ jobs:
     name: Apple Release Dry Run
     needs: [apple-foundation, check-secrets]
     if: needs.check-secrets.outputs.has_apple_team == 'true'
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 15
 
     steps:
