@@ -184,12 +184,24 @@ test.describe('Authentication', () => {
       .getByRole('button', { name: /launch local demo/i })
       .click();
 
-    await page.waitForURL('**/dashboard', { timeout: 15000 });
+    // 2026-04-19 portal migration: /dashboard is now a bridge whose useEffect
+    // calls router.replace('/portal/submit?createCycle=1') once the auth store
+    // hydrates (frontend/app/dashboard/page.tsx:108-116). Wait for the bridge
+    // to load, then for the portal layout to attach — checking either URL
+    // shape covers both the brief bridge moment and the final destination.
+    await page.waitForURL(
+      (url) => /\/(dashboard|portal)(\b|\/)/.test(url.pathname),
+      { timeout: 15000 },
+    );
+    // Portal layout button text is literally "Log out" (with a space) in
+    // frontend/app/portal/layout.tsx:314 — the regex needs `\s*` to accept
+    // both the spaced and unspaced forms. The Spanish portion preserves
+    // future-locale capacity even though the current source is English-only.
     await expect(
-      page.getByRole('button', { name: /logout|salir/i }),
-    ).toBeVisible();
+      page.getByRole('button', { name: /log\s*out|cerrar sesi[oó]n|salir/i }),
+    ).toBeVisible({ timeout: 15000 });
     await expect(
-      page.getByRole('button', { name: /sign in|iniciar/i }),
+      page.getByRole('button', { name: /sign in|iniciar sesi[oó]n|iniciar/i }),
     ).toHaveCount(0);
     await expect(page.locator('body')).toContainText(/local-demo@cerniq\.local/i);
   });
