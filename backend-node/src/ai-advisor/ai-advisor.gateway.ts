@@ -281,7 +281,7 @@ export class AiAdvisorGateway
     const token = this.extractToken(client);
     if (!token) return null;
     try {
-      const payload = this.jwtService.verify(token) as Record<string, unknown>;
+      const payload = this.jwtService.verify(token);
       const userId =
         (payload?.userId as string | undefined) ??
         (payload?.sub as string | undefined);
