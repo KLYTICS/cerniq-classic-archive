@@ -121,7 +121,7 @@ It deliberately **does not define shared TypeScript types**. The audit demonstra
 | Product | Implementation | Path |
 |---|---|---|
 | AEGIS | `AuditEvent` hash-chained, Ed25519-signed, no UPDATE/DELETE permitted | `CLAUDE.md` invariant #3 |
-| CerniQ | `audit_logs` Prisma table, append-only (Phase 3 D6); 7-year retention (`RETENTION_AUDIT_LOGS_DAYS=2555`) | `backend-node/prisma/schema.prisma:1400` |
+| CerniQ | `audit_logs` Prisma table, append-only (Phase 3 D6); 7-year retention (`RETENTION_AUDIT_LOGS_DAYS=2555`); **CI-locked 2026-05-16** via `scripts/verify-rule-4-audit-immutable.mjs` (discovers audit set from `schema.prisma`, blocks UPDATE/DELETE in migrations + `prisma.auditLog.{update,delete*,upsert}` in service code; 1 baseline entry — `jobs/data-retention.service.ts` pending compliance review on retention-vs-append-only) | `backend-node/prisma/schema.prisma:1400`, `backend-node/scripts/verify-rule-4-audit-immutable.mjs` |
 | ComplyKit | `agent_runs` appends; `VaultArtifact` uses `on_conflict_do_nothing` (immutable on first write) | `apps/api/app/agents/_shared.py` |
 | Apex | **adoption gap** — broker reconciliation logs append, but no chain integrity check |
 
@@ -234,7 +234,7 @@ It deliberately **does not define shared TypeScript types**. The audit demonstra
 | Product | Implementation | Path |
 |---|---|---|
 | ComplyKit | 10/10 agents migrated; `audit_batch_cost()` aggregates + emits `cost.budget_exceeded` structured log when total > 150% of `VAULT_COST_TARGET_CENTS` | `apps/api/app/agents/_shared.py::audit_batch_cost` |
-| CerniQ | **Analyst panel path fully covered** (2026-05-15): `prompt_version` + four-class `usage` (input/output/cache-create/cache-read) + `cost_cents_total` (stringified Decimal, integer-centi-cent math) + `pricing_version` stamp on `done` events and persisted via `saveInsight()` metadata. **Discipline-grade fallback**: unknown model → `costCents: null + reason: NO_PRICING_DATA`, never silent-zero (Rule 1 compounded). `ai-advisor.service.ts` LLM path still bare — separate from analyst panel | `backend-node/src/alm/analyst/{prompt-version,llm-usage}.ts`, `backend-node/src/alm/alm-analyst.service.ts:425-509` |
+| CerniQ | **Analyst panel path fully covered** (2026-05-15): `prompt_version` + four-class `usage` (input/output/cache-create/cache-read) + `cost_cents_total` (stringified Decimal, integer-centi-cent math) + `pricing_version` stamp on `done` events and persisted via `saveInsight()` metadata. **Discipline-grade fallback**: unknown model → `costCents: null + reason: NO_PRICING_DATA`, never silent-zero (Rule 1 compounded). `ai-advisor.service.ts` LLM path still bare — separate from analyst panel. **CI-locked 2026-05-16** via `scripts/verify-rule-9-stamping.mjs` (Anthropic SDK callers must `computePromptVersion`; 1 stamped, 6-entry chip-away baseline: ai-advisor, llm-bridge, alm-advisor v1/v2, nl-ingest, impact-extractor) | `backend-node/src/alm/analyst/{prompt-version,llm-usage}.ts`, `backend-node/src/alm/alm-analyst.service.ts:425-509`, `backend-node/scripts/verify-rule-9-stamping.mjs` |
 | AEGIS | No LLM-using audit-relevant paths currently | N/A |
 | Apex | **adoption gap** — Claude agents in Lane A don't stamp prompt fingerprint | TBD |
 
@@ -269,7 +269,7 @@ It deliberately **does not define shared TypeScript types**. The audit demonstra
 | Product | Implementation |
 |---|---|
 | AEGIS | Encoded in `CLAUDE.md` quality bar; enforced via eslint-config |
-| CerniQ | Not currently enforced |
+| CerniQ | **CI-locked 2026-05-16** via `scripts/verify-rule-11-any-rationale.mjs`. Frontend (`app/`, `components/`, `hooks/`, `lib/`) clean — 0 unrationalized hits, enforced at zero. Backend chip-away baseline: 212 files / 979 hits, stored in sidecar `verify-rule-11-baseline.json`; counts may only shrink (CI fails on growth). Default-generics + rest-args exempted; preceding-line `// type-rationale: <reason>` is the explicit escape. ESLint `no-explicit-any: error` deferred until backend baseline shrinks to near-zero |
 | ComplyKit | Uses Python (mypy strict on 115 files clean); not directly applicable |
 | Apex | Not currently enforced |
 
@@ -292,7 +292,7 @@ It deliberately **does not define shared TypeScript types**. The audit demonstra
 |---|---|
 | AEGIS | Encoded in `CLAUDE.md` quality bar; sweep enforced |
 | Apex | Round 4 swept 18 files for `Math.random` fabrication (L-17a-d) | `apex_session_20260409_pm_round4.md` |
-| CerniQ | Sweep done; spot-checks in security path | |
+| CerniQ | Sweep done; **CI-locked 2026-05-16** via `scripts/verify-rule-12-crypto-randomness.mjs`. Security-scope paths (`auth`, `agent-trust`, `crypto`, `audit`, `billing`, `idempotency`, `admin`, `secrets`, `tenant`, `rbac` + `*.guard/shield/middleware.ts`) must use `crypto.randomBytes`/`randomUUID`; non-security paths (Monte-Carlo, options, valuation) are counted but not blocking. **0 violations / 0 baselined** after `prompt-injection.shield` nonce fix (commit `ff1ce9e4`) | `backend-node/src/agent-trust/prompt-injection.shield.ts:120-125`, `backend-node/scripts/verify-rule-12-crypto-randomness.mjs` |
 | ComplyKit | Uses Python `secrets` module; spot-checks done | |
 
 **Adoption checklist:**
@@ -339,6 +339,17 @@ Score (count of ✅ + 0.5×🟡, treating — as full credit):
 - **ComplyKit**: 10.5/11
 - **CerniQ**: 10/11
 - **Apex**: 3.5/11 (largest adoption gap; expected — earliest-stage product)
+
+**2026-05-16 update — CerniQ rules 4, 9, 11, 12 are now CI-locked** (commit `20a3cca2 ci(verifier): KLYTICS Rule 4 + 9 + 11 + 12 — drift detection scaffold`, follow-up `ff1ce9e4` for Rule 12 baseline closure). The cell symbols above are unchanged because verifier-locking enforces non-regression rather than promoting adoption depth, but the discipline is now load-bearing in `npm run lint`:
+
+| Rule | Baseline | New-offender behaviour |
+|---|---|---|
+| 4 (append-only audit) | 1 entry (data-retention compliance review pending) | CI fails on new UPDATE/DELETE on `audit_log*` |
+| 9 (LLM cost + prompt) | 6 entries (ai-advisor, llm-bridge, alm-advisor v1/v2, nl-ingest, impact-extractor) | CI fails on new Anthropic SDK caller without `computePromptVersion` |
+| 11 (type-rationale on `any`) | 212 files / 979 hits (backend); 0 frontend | CI fails on new file with hits OR existing file whose count grows |
+| 12 (crypto randomness) | 0 baselined | CI fails on new `Math.random` in security-scope file |
+
+Each verifier supports `--self-test` (53/53 cases pass total), a `VERIFY_RULE_N_SKIP=1` emergency bypass, and a stale-baseline detector that surfaces entries no longer needed.
 
 ---
 

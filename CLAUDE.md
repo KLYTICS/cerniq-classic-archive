@@ -24,9 +24,19 @@ CerniQ is a bilingual ALM (Asset-Liability Management) platform for Puerto Rico 
 
 **Backend** — `cd backend-node && npm run lint`:
 ```
-eslint → verify:tenant-scope → verify:no-orphan-spec → tsc --noEmit
+eslint
+→ verify:tenant-scope
+→ verify:no-orphan-spec
+→ verify:auth-coverage                    (auth-guard coverage strict)
+→ verify:rule-4-audit-immutable           (KLYTICS Rule 4 — audit_log* append-only)
+→ verify:rule-9-stamping                  (KLYTICS Rule 9 — LLM prompt + cost provenance)
+→ verify:rule-11-any-rationale            (KLYTICS Rule 11 — type-rationale on `any`)
+→ verify:rule-12-crypto-randomness        (KLYTICS Rule 12 — crypto-grade randomness in security paths)
+→ tsc --noEmit
 ```
 Plus `prisma validate`, `jest` (coverage floor 86/70/81/86 statements/branches/functions/lines), `nest build`.
+
+The four KLYTICS rule verifiers live in `backend-node/scripts/verify-rule-*.mjs` and each supports `--self-test`. See `docs/platform/KLYTICS_AUDIT_DISCIPLINE.md` for normative rule text and per-rule adoption status (Rule 11 carries a 212-file chip-away baseline in `verify-rule-11-baseline.json`).
 
 **Frontend** — `cd frontend && npm run lint`:
 ```
