@@ -72,6 +72,66 @@ describe('ApiKeyAuthGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
   });
 
+  it('reads token from X-Api-Key header when Authorization is absent (legacy Enterprise convention)', async () => {
+    mockPrisma.apiKey.findUnique.mockResolvedValue({
+      id: 'key-1',
+      keyHash: 'abc',
+      keyPrefix: 'ck_live_',
+      revokedAt: null,
+      expiresAt: null,
+      user: {
+        id: 'user-1',
+        email: 'enterprise@example.com',
+        subscription: { tier: 'standard' },
+      },
+    });
+    const request: any = { headers: { 'x-api-key': 'ck_live_xapikey_path' } };
+    const ctx = {
+      switchToHttp: () => ({ getRequest: () => request }),
+    } as any;
+
+    const result = await guard.canActivate(ctx);
+    expect(result).toBe(true);
+    expect(request.apiUser.userId).toBe('user-1');
+  });
+
+  it('prefers Authorization: Bearer when both Bearer and X-Api-Key are present', async () => {
+    const { hashApiKey } = jest.requireMock('../../auth/api-key.util');
+    mockPrisma.apiKey.findUnique.mockResolvedValue({
+      id: 'key-bearer',
+      keyHash: 'hashed_bearer_value',
+      keyPrefix: 'ck_live_',
+      revokedAt: null,
+      expiresAt: null,
+      user: {
+        id: 'user-bearer',
+        email: 'bearer@example.com',
+        subscription: { tier: 'standard' },
+      },
+    });
+    const request: any = {
+      headers: {
+        authorization: 'Bearer bearer_value',
+        'x-api-key': 'xapikey_value',
+      },
+    };
+    const ctx = {
+      switchToHttp: () => ({ getRequest: () => request }),
+    } as any;
+
+    await guard.canActivate(ctx);
+    // The hashApiKey mock returns `hashed_${token}`, so verifying the
+    // findUnique was called with the Bearer-derived hash proves Bearer won.
+    expect(hashApiKey).toHaveBeenCalledWith('bearer_value');
+    expect(request.apiUser.userId).toBe('user-bearer');
+  });
+
+  it('throws UnauthorizedException when X-Api-Key is empty string', async () => {
+    const ctx = createMockContext({ 'x-api-key': '' });
+    await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx)).rejects.toThrow('Missing API key');
+  });
+
   it('throws UnauthorizedException when API key is not found in database', async () => {
     mockPrisma.apiKey.findUnique.mockResolvedValue(null);
     const ctx = createMockContext({
