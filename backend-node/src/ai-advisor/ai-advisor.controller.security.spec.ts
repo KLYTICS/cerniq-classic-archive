@@ -189,17 +189,36 @@ describe('AiAdvisorController (security)', () => {
 
   describe('DELETE /sessions/:sessionId', () => {
     it('passes userId to deleteSession so cross-user deletes are filtered', async () => {
-      // NOTE: deleteSession() reads req.user.id / req.user.sub (peer's
-      // recent userId-scoping fix). The wider chain (userId-first, used
-      // by ask()) is a follow-up normalization tracked in the audit doc.
+      // userId chain now widened to userId-first (this commit), so the
+      // canonical post-AuthGuard field is read first.
       await controller.deleteSession(
         { sessionId: 'sess-1' },
-        { user: { id: 'user-1', userId: 'user-1' } },
+        { user: { userId: 'user-1' } },
       );
 
       expect(conversationHistory.deleteSession).toHaveBeenCalledWith(
         'sess-1',
         'user-1',
+      );
+    });
+
+    it('falls back through `id` then `sub` for legacy JWT shapes', async () => {
+      await controller.deleteSession(
+        { sessionId: 'sess-1' },
+        { user: { id: 'legacy-id' } },
+      );
+      expect(conversationHistory.deleteSession).toHaveBeenLastCalledWith(
+        'sess-1',
+        'legacy-id',
+      );
+
+      await controller.deleteSession(
+        { sessionId: 'sess-2' },
+        { user: { sub: 'legacy-sub' } },
+      );
+      expect(conversationHistory.deleteSession).toHaveBeenLastCalledWith(
+        'sess-2',
+        'legacy-sub',
       );
     });
 

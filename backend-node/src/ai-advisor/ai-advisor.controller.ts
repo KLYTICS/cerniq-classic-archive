@@ -144,7 +144,15 @@ export class AiAdvisorController {
       throw new BadRequestException(parsed.error.issues);
     }
 
-    const userId: string = req.user?.id ?? req.user?.sub ?? '';
+    // userId chain widened to userId-first: AuthGuard:271 sets
+    // `req.user.userId` as the canonical post-auth field. The previous
+    // `id ?? sub` chain skipped it and would have hit `''` for callers
+    // whose JWT didn't carry `id` or `sub` claims, silently breaking the
+    // delete (no rows match userId='') and surfacing as 404 even for
+    // legitimate owners. Matches ask() (e88ae20c) + getSessionHistory()
+    // (9dbf57df).
+    const userId: string =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub ?? '';
     await this.conversationHistory.deleteSession(parsed.data.sessionId, userId);
   }
 }
