@@ -5,79 +5,62 @@ import {
   Delete,
   Body,
   Param,
-  Query,
   Logger,
-  Headers,
+  Req,
   BadRequestException,
-  UnauthorizedException,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { EnterpriseBatchService } from './enterprise-batch.service';
 import { WebhookDeliveryService } from './webhook-delivery.service';
-import { PrismaService } from '../prisma.service';
+import {
+  ApiKeyAuthGuard,
+  type ApiKeyUser,
+} from '../api-v1/guards/api-key-auth.guard';
 import {
   CreateBatchBodySchema,
   BatchIdParamSchema,
-  ListBatchesQuerySchema,
   parseOrThrow,
 } from './enterprise.dto';
+
+interface AuthedRequest {
+  apiUser: ApiKeyUser;
+}
 
 /**
  * Enterprise API Controller — $2,500/mo tier.
  * Provides bulk report generation, batch management, and webhook delivery logs.
- * All endpoints require API key authentication via X-Api-Key header.
+ *
+ * Authentication: `@UseGuards(ApiKeyAuthGuard)` at class level. The guard
+ * reads the API key from either `Authorization: Bearer <api-key>` (Public
+ * API v1 convention, preferred) or `X-Api-Key: <api-key>` (legacy
+ * Enterprise convention, supported for backward compatibility — see
+ * `api-v1/guards/api-key-auth.guard.ts` extractApiKey()). Pre-migration
+ * (`97e588da` and earlier) this controller used an inline
+ * `validateApiKey()` helper that (a) hashed keys with plain SHA-256 while
+ * the rest of the system uses HMAC-with-pepper (`hashApiKey()` from
+ * `auth/api-key.util.ts`), so real customer-issued keys never matched
+ * any stored hash, and (b) passed the raw API key into `requestedBy` for
+ * the bulk-batch record. The guard fixes both: canonical HMAC hash means
+ * real keys authenticate, and `req.apiUser.userId` is populated for
+ * `requestedBy` lineage. AUTH_COVERAGE_AUDIT.md Pattern #4 closure.
  */
 @Controller('api/v1/enterprise')
+@UseGuards(ApiKeyAuthGuard)
 export class EnterpriseController {
   private readonly logger = new Logger(EnterpriseController.name);
 
   constructor(
     private readonly batchService: EnterpriseBatchService,
     private readonly webhookService: WebhookDeliveryService,
-    private readonly prisma: PrismaService,
   ) {}
-
-  // ─── Auth helper ────────────────────────────────────────────────────────
-
-  private async validateApiKey(apiKey: string | undefined): Promise<void> {
-    if (!apiKey) {
-      throw new UnauthorizedException('Missing X-Api-Key header');
-    }
-    if (apiKey.length < 16) {
-      throw new UnauthorizedException('Invalid API key');
-    }
-    const crypto = await import('node:crypto');
-    const incomingHash = crypto
-      .createHash('sha256')
-      .update(apiKey)
-      .digest('hex');
-    const key = await this.prisma.apiKey.findUnique({
-      where: { keyHash: incomingHash },
-    });
-    if (
-      !key ||
-      key.revokedAt ||
-      (key.expiresAt && key.expiresAt < new Date())
-    ) {
-      throw new UnauthorizedException('Invalid API key');
-    }
-    await this.prisma.apiKey.update({
-      where: { id: key.id },
-      data: { lastUsedAt: new Date() },
-    });
-  }
 
   // ─── POST /api/v1/enterprise/reports/bulk ───────────────────────────────
 
   @Post('reports/bulk')
   @HttpCode(HttpStatus.CREATED)
-  async createBatch(
-    @Headers('x-api-key') apiKey: string,
-    @Body() body: unknown,
-  ) {
-    await this.validateApiKey(apiKey);
-
+  async createBatch(@Req() req: AuthedRequest, @Body() body: unknown) {
     let dto;
     try {
       dto = parseOrThrow(CreateBatchBodySchema, body);
@@ -87,7 +70,10 @@ export class EnterpriseController {
 
     const batch = await this.batchService.createBatch({
       ...dto,
-      requestedBy: apiKey, // In production, resolve to user from API key
+      // Guard populates req.apiUser with the resolved user — `userId` is
+      // the canonical identity, replacing the pre-migration
+      // `requestedBy: apiKey` raw-key leak (97e588da §latent-bug).
+      requestedBy: req.apiUser.userId,
     });
 
     this.logger.log({
@@ -112,12 +98,7 @@ export class EnterpriseController {
   // ─── GET /api/v1/enterprise/reports/batch/:batchId ──────────────────────
 
   @Get('reports/batch/:batchId')
-  async getBatch(
-    @Headers('x-api-key') apiKey: string,
-    @Param() params: unknown,
-  ) {
-    await this.validateApiKey(apiKey);
-
+  async getBatch(@Param() params: unknown) {
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
     const batch = await this.batchService.getBatch(batchId);
 
@@ -143,12 +124,7 @@ export class EnterpriseController {
   // Lightweight polling endpoint — returns only status fields.
 
   @Get('reports/batch/:batchId/status')
-  async getBatchStatus(
-    @Headers('x-api-key') apiKey: string,
-    @Param() params: unknown,
-  ) {
-    await this.validateApiKey(apiKey);
-
+  async getBatchStatus(@Param() params: unknown) {
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
     const batch = await this.batchService.getBatch(batchId);
 
@@ -167,12 +143,7 @@ export class EnterpriseController {
 
   @Delete('reports/batch/:batchId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async cancelBatch(
-    @Headers('x-api-key') apiKey: string,
-    @Param() params: unknown,
-  ) {
-    await this.validateApiKey(apiKey);
-
+  async cancelBatch(@Param() params: unknown) {
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
     await this.batchService.cancelBatch(batchId);
   }
@@ -180,12 +151,7 @@ export class EnterpriseController {
   // ─── GET /api/v1/enterprise/webhooks/:batchId ───────────────────────────
 
   @Get('webhooks/:batchId')
-  async getWebhookLog(
-    @Headers('x-api-key') apiKey: string,
-    @Param() params: unknown,
-  ) {
-    await this.validateApiKey(apiKey);
-
+  async getWebhookLog(@Param() params: unknown) {
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
     const logs = await this.webhookService.getDeliveryLog(batchId);
 
