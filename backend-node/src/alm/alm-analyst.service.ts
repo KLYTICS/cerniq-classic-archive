@@ -2,6 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { PeerAnalyticsService } from './peer-analytics.service';
+import { computePromptVersion } from './analyst/prompt-version';
+import {
+  extractUsage,
+  mergeUsage,
+  estimateCostCents,
+  type LLMUsage,
+} from './analyst/llm-usage';
+
+const ANALYST_MODEL = 'claude-sonnet-4-20250514';
 
 // ─── Bible Vol2 §9.3: CERNIQ Analyst — 4-tool Claude integration ────────
 //
@@ -142,6 +151,22 @@ export interface AnalystSSEEvent {
   message?: string;
   queriesUsed?: number;
   queriesMax?: number;
+  /** Set on `done` events from real LLM paths; absent from local fallback. */
+  promptVersion?: string;
+  /**
+   * Accumulated token usage across all LLM calls in this turn (initial +
+   * tool-use iterations). Null when no usage block was returned (SDK error,
+   * mock). Absent from local-fallback `done` events.
+   */
+  usage?: LLMUsage | null;
+  /**
+   * Cost estimate in cents (stringified Decimal, 4 dp). Null when pricing
+   * data for the model isn't authoritative — Rule 1 discipline: never
+   * silent-zero an unknown cost.
+   */
+  costCents?: string | null;
+  /** Pinning stamp for the pricing table used to compute `costCents`. */
+  pricingVersion?: string;
 }
 
 export interface RatioSnapshot {
@@ -423,6 +448,11 @@ REGLAS:
 
     try {
       const systemPrompt = await this.buildSystemPrompt(institutionId);
+      const promptVersion = computePromptVersion({
+        model: ANALYST_MODEL,
+        systemPrompt,
+        tools: ANALYST_CLAUDE_TOOLS,
+      });
       type AnthropicCtor = new (opts?: { apiKey?: string }) => {
         messages: { create: (opts: Record<string, unknown>) => Promise<any> };
       };
@@ -438,12 +468,13 @@ REGLAS:
       messages.push({ role: 'user', content: userMessage });
 
       let response = await (client.messages.create as any)({
-        model: 'claude-sonnet-4-20250514',
+        model: ANALYST_MODEL,
         max_tokens: 1000,
         system: systemPrompt,
         tools: ANALYST_CLAUDE_TOOLS,
         messages,
       });
+      let totalUsage: LLMUsage | null = extractUsage(response);
 
       for (let toolIter = 0; toolIter < 3; toolIter++) {
         if (response.stop_reason !== 'tool_use') break;
@@ -472,12 +503,13 @@ REGLAS:
         messages.push({ role: 'user', content: toolResults });
 
         response = await (client.messages.create as any)({
-          model: 'claude-sonnet-4-20250514',
+          model: ANALYST_MODEL,
           max_tokens: 1000,
           system: systemPrompt,
           tools: ANALYST_CLAUDE_TOOLS,
           messages,
         });
+        totalUsage = mergeUsage(totalUsage, extractUsage(response));
       }
 
       for (const block of response.content) {
@@ -489,10 +521,19 @@ REGLAS:
         }
       }
 
+      const costEstimate = totalUsage
+        ? estimateCostCents(ANALYST_MODEL, totalUsage)
+        : null;
       yield {
         type: 'done',
         queriesUsed: this.checkRateLimit(institutionId).used,
         queriesMax: 20,
+        promptVersion,
+        usage: totalUsage,
+        costCents: costEstimate?.cents ?? null,
+        ...(costEstimate && 'pricingVersion' in costEstimate
+          ? { pricingVersion: costEstimate.pricingVersion }
+          : {}),
       };
     } catch (err: any) {
       this.logger.error(`Analyst streaming failed: ${err.message}`, err.stack);
@@ -556,7 +597,27 @@ REGLAS:
     message: string,
     savedBy: string,
     tags: string[] = [],
+    promptVersion?: string,
+    usage?: LLMUsage | null,
+    costCents?: string | null,
+    pricingVersion?: string,
   ): Promise<{ id: string }> {
+    const metadata: Record<string, unknown> = {
+      source: 'cerniq_analyst',
+      savedAt: new Date().toISOString(),
+    };
+    if (promptVersion !== undefined) {
+      metadata.promptVersion = promptVersion;
+    }
+    if (usage !== undefined) {
+      metadata.usage = usage;
+    }
+    if (costCents !== undefined) {
+      metadata.costCents = costCents;
+    }
+    if (pricingVersion !== undefined) {
+      metadata.pricingVersion = pricingVersion;
+    }
     const log = await this.prisma.auditLog.create({
       data: {
         userId: savedBy,
@@ -565,10 +626,7 @@ REGLAS:
         resource: 'analyst_insight',
         outcome: 'success',
         changes: { message, tags },
-        metadata: {
-          source: 'cerniq_analyst',
-          savedAt: new Date().toISOString(),
-        },
+        metadata,
       },
     });
     return { id: log.id };

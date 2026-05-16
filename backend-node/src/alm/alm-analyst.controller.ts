@@ -101,13 +101,31 @@ export class AlmAnalystController {
   @HttpCode(HttpStatus.CREATED)
   async saveInsight(
     @Param('institutionId') institutionId: string,
-    @Body() body: { message: string; savedBy: string; tags?: string[] },
+    @Body()
+    body: {
+      message: string;
+      savedBy: string;
+      tags?: string[];
+      promptVersion?: string;
+      usage?: {
+        inputTokens: number;
+        outputTokens: number;
+        cacheCreationInputTokens: number;
+        cacheReadInputTokens: number;
+      } | null;
+      costCents?: string | null;
+      pricingVersion?: string;
+    },
   ) {
     return this.analyst.saveInsight(
       institutionId,
       body.message,
       body.savedBy,
       body.tags ?? [],
+      body.promptVersion,
+      body.usage,
+      body.costCents,
+      body.pricingVersion,
     );
   }
 }
