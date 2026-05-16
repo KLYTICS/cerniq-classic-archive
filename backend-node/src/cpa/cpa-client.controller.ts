@@ -42,6 +42,7 @@ export class CpaClientController {
 
   // ─── Client management ────────────────────────────────────────
 
+  // verify:body-trust-skip — CPA-firm cross-tenant add-client operation. The tenancy contract here is "this firm chooses to add this institution as its client" (RolesGuard at class-level gates which firm members can do this); InstitutionScopeGuard wouldn't apply because no CPA firm member is the workspace owner of a client institution. Service-layer validation handles institution-exists + not-already-a-client + firm-under-client-limit. Mirrors the existing skip-comment on the sibling DELETE route (FirmOwnsClientGuard applies to DELETE because the relationship exists; for ADD it doesn't yet).
   @Post('clients')
   @ApiOperation({ summary: 'Add a client institution to the CPA firm' })
   @ApiParam({ name: 'firmId', description: 'CPA firm ID' })

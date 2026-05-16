@@ -73,7 +73,16 @@ const SELF_TEST = argv.includes('--self-test');
 
 const TS_FILE_RE = /\.ts$/;
 const SPEC_FILE_RE = /\.(spec|test)\.ts$/;
-const CONTROLLER_FILE_RE = /\.controller\.ts$/;
+// Entry-point files scanned for handler-level analysis. Includes both HTTP
+// controllers (`*.controller.ts`) AND WebSocket gateways (`*.gateway.ts`).
+// Gateways accept `@MessageBody()` payloads via `@SubscribeMessage` /
+// `@MessageMapping` handlers — the same body-IDOR class as HTTP body
+// handlers, just via a different transport. The auth-gate alphabet
+// (`verify*Ownership` / `verify*Membership` / `assert*Access`) is shared
+// across both surfaces (peer commit `5d2f6637` closed realtime-alm's
+// gateway body-trust IDOR using the same primitives that close controller
+// body-IDORs).
+const ENTRY_FILE_RE = /\.(controller|gateway)\.ts$/;
 
 // Tenancy keys: any of these as a top-level field in a Zod schema marks
 // that schema as "tenancy-bearing". Order doesn't matter; this is a set.
@@ -384,18 +393,28 @@ function collectMethodBody(lines, startIdx) {
 }
 
 function findTenancyParseCall(bodyText, tenancyBearingSchemas) {
-  // Find all parseOrThrow calls and return the first one whose schema
-  // is tenancy-bearing AND whose source argument is body/query (not params).
-  const matches = bodyText.matchAll(
+  // Find all Zod-parse calls and return the first one whose schema is
+  // tenancy-bearing AND whose source argument is body/query/payload
+  // (not params). Three idioms are recognized:
+  //   (a) `parseOrThrow(SchemaName, source)`  — controller convention
+  //   (b) `SchemaName.safeParse(source)`      — WS gateway convention
+  //   (c) `SchemaName.parse(source)`          — direct Zod parse
+  // All three resolve to the same authorization question: did we just
+  // accept a tenancy-bearing payload from an untrusted entry point?
+  const patterns = [
     /parseOrThrow\s*\(\s*(\w+(?:Schema|Dto|Payload|Body|Request|Query))\s*,\s*([^)]+)\)/g,
-  );
-  for (const m of matches) {
-    const schemaName = m[1];
-    const source = m[2];
-    if (!tenancyBearingSchemas.has(schemaName)) continue;
-    if (PARAMS_SOURCE_RE.test(source)) continue;
-    if (FLAGGED_SOURCE_RE.test(source)) {
-      return { schemaName, source };
+    /\b(\w+(?:Schema|Dto|Payload|Body|Request|Query))\.safeParse\s*\(\s*([^)]+)\)/g,
+    /\b(\w+(?:Schema|Dto|Payload|Body|Request|Query))\.parse\s*\(\s*([^)]+)\)/g,
+  ];
+  for (const pattern of patterns) {
+    for (const m of bodyText.matchAll(pattern)) {
+      const schemaName = m[1];
+      const source = m[2];
+      if (!tenancyBearingSchemas.has(schemaName)) continue;
+      if (PARAMS_SOURCE_RE.test(source)) continue;
+      if (FLAGGED_SOURCE_RE.test(source)) {
+        return { schemaName, source };
+      }
     }
   }
   return null;
@@ -553,6 +572,57 @@ export class LegacyController {
 }`,
       expectedViolations: 1,
     },
+    // ─── WebSocket gateway fixtures (R3 v2 extension to *.gateway.ts) ────
+    // Gateways use `Schema.safeParse(payload)` rather than the controller-
+    // canonical `parseOrThrow(Schema, body)`. Same auth-gate alphabet.
+    {
+      name: 'WS @SubscribeMessage handler + safeParse + verifyOwnership — PASS',
+      schemas: new Set(['SubscribePayloadSchema']),
+      controller: `
+@WebSocketGateway({ namespace: '/realtime' })
+export class RealtimeGateway {
+  @SubscribeMessage('subscribe')
+  async subscribe(@ConnectedSocket() client: any, @MessageBody() payload: unknown) {
+    const parsed = SubscribePayloadSchema.safeParse(payload);
+    if (!parsed.success) return { ok: false };
+    await this.scope.verifyOwnership(parsed.data.institutionId, client.data.user.userId, false);
+    client.join('inst:' + parsed.data.institutionId);
+    return { ok: true };
+  }
+}`,
+      expectedViolations: 0,
+    },
+    {
+      name: 'WS handler with safeParse but NO auth gate — VIOLATION',
+      schemas: new Set(['SubscribePayloadSchema']),
+      controller: `
+@WebSocketGateway({ namespace: '/realtime' })
+export class RealtimeGateway {
+  @SubscribeMessage('subscribe')
+  async subscribe(@MessageBody() payload: unknown) {
+    const parsed = SubscribePayloadSchema.safeParse(payload);
+    if (!parsed.success) return { ok: false };
+    client.join('inst:' + parsed.data.institutionId);
+    return { ok: true };
+  }
+}`,
+      expectedViolations: 1,
+    },
+    {
+      name: 'WS handler with direct Schema.parse(payload) + verifyMembership — PASS',
+      schemas: new Set(['AskPayloadSchema']),
+      controller: `
+@WebSocketGateway({ namespace: '/advisor' })
+export class AiAdvisorGateway {
+  @SubscribeMessage('ask')
+  async ask(@MessageBody() payload: unknown) {
+    const data = AskPayloadSchema.parse(payload);
+    await this.orgMembership.verifyMembership(data.organizationId, this.currentUserId, false);
+    return this.advisor.ask(data);
+  }
+}`,
+      expectedViolations: 0,
+    },
   ];
 
   const failures = [];
@@ -623,7 +693,7 @@ const allViolations = [];
 
 for (const file of walkFiles(
   SRC_ROOT,
-  (n) => CONTROLLER_FILE_RE.test(n) && !SPEC_FILE_RE.test(n),
+  (n) => ENTRY_FILE_RE.test(n) && !SPEC_FILE_RE.test(n),
 )) {
   scanned += 1;
   const text = readFileSync(file, 'utf8');
