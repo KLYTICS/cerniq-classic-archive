@@ -85,9 +85,7 @@ describe('OrgMembershipGuard', () => {
     const prisma = buildPrisma();
     const guard = new OrgMembershipGuard(prisma);
     await expect(
-      guard.canActivate(
-        buildCtx({ userId: 'u1' }, { orgId: 'org-other' }),
-      ),
+      guard.canActivate(buildCtx({ userId: 'u1' }, { orgId: 'org-other' })),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -123,9 +121,7 @@ describe('OrgMembershipGuard', () => {
     });
     const guard = new OrgMembershipGuard(prisma);
     await expect(
-      guard.canActivate(
-        buildCtx({ userId: 'u1' }, { cycleId: 'missing' }),
-      ),
+      guard.canActivate(buildCtx({ userId: 'u1' }, { cycleId: 'missing' })),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -137,9 +133,7 @@ describe('OrgMembershipGuard', () => {
     });
     const guard = new OrgMembershipGuard(prisma);
     await expect(
-      guard.canActivate(
-        buildCtx({ userId: 'u1' }, { cycleId: 'cyc-1' }),
-      ),
+      guard.canActivate(buildCtx({ userId: 'u1' }, { cycleId: 'cyc-1' })),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -151,9 +145,7 @@ describe('OrgMembershipGuard', () => {
     });
     const guard = new OrgMembershipGuard(prisma);
     await expect(
-      guard.canActivate(
-        buildCtx({ userId: 'u1' }, { orgId: 'org-1' }),
-      ),
+      guard.canActivate(buildCtx({ userId: 'u1' }, { orgId: 'org-1' })),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
