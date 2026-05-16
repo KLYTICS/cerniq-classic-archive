@@ -166,9 +166,30 @@ The HTTP `POST /ask` IDOR is now closed by this commit's `verifyOwnership` call,
 
 **Known follow-up:** Supabase JWT support is not in this commit — `JwtService.verify()` only handles legacy JWTs. If WS clients use Supabase tokens in production, add a fallback path that mirrors `AuthGuard.verifySupabaseToken()`. The HTTP `AuthGuard` already supports both; the gateway gives up the multi-source verification for simplicity. Track as a small follow-up if Supabase WS clients exist.
 
-### CI enforcement (peer-4 in flight)
+### CI enforcement — CLOSED
 
-Once `scripts/verify-institution-scope-guard.mjs` is wired into CI, extend the same pattern to enforce `OrgMembershipGuard` on any controller that imports `OrganizationMember` Prisma access. Locks the close-cockpit invariant the way peer-4's check locks the institution-scope invariant.
+Status: **CLOSED** (commits `5b2c26af` design/handoff prose + `137ee765` code drop, both 2026-05-16).
+
+`scripts/verify-institution-scope-guard.mjs` was generalized from a single hardcoded `InstitutionScopeGuard` checker into a config-driven framework with a `RULES` array at the top of the file. Three rules currently registered, all gating CI via `npm run lint` → `verify:tenant-scope`:
+
+| Rule id | Canonical param | Guard | Model | Routes guarded |
+| --- | --- | --- | --- | --- |
+| `institution-scope` | `:institutionId` | `InstitutionScopeGuard` | `Workspace.ownerId` | 132 / 132 |
+| `org-membership` | `:orgId` | `OrgMembershipGuard` | `OrganizationMember` | 12 / 12 |
+| `close-cycle-membership` | `:cycleId` | `OrgMembershipGuard` (1-hop via `CloseCycle.organizationId`) | `OrganizationMember` | 11 / 11 |
+
+Total **155 routes provably guarded across 3 patterns, 0 violations**. Self-test 18 cases (was 11), all green.
+
+Adding a new tenancy root (e.g. the planned `FirmOwnsClientGuard` for the CPA cross-tenant skip — peer `sid=8f694e66`'s in-flight commit 3 of 4) is a one-line `RULES` table entry + one self-test fixture. No parser changes. Each rule carries its own `canonicalParam`, `variants[]` (R1 detector for param-name typos), `guard` class name, `model` label, and `docRef` pointer back to this audit doc.
+
+Skip keyword widened from `// verify:institution-scope-skip` to the generic `// verify:tenant-scope-skip — <reason>` (legacy keyword still accepted for backward compat — locked by a self-test case). Per-route skips require a non-empty reason; reason-less skips still fail R2. The `expenses.controller.ts` `:orgId` routes carry 5 such skip comments documenting the inline `verifyOrgMembership()` helper pattern (which supports the `:orgId='auto'/'default'` escape paths that `OrgMembershipGuard.canActivate` would 403).
+
+CI wiring: `backend-node/package.json` chains `verify:tenant-scope` into `npm run lint` (the primary script `verify:tenant-scope` and the backward-compat alias `verify:institution-scope` both run the same node script). `.github/workflows/ci-cd.yml:217` invokes `npm run lint` from the backend job, so every PR is gated by the verifier.
+
+Per-rule summary line surfaces regressions with the rule id, not buried in a global count:
+```
+verify-institution-scope-guard: 60 controller(s) scanned [institution-scope: 132/132, org-membership: 12/12, close-cycle-membership: 11/11], 0 violation(s).
+```
 
 ### Cross-tenant cursor validation audit
 
