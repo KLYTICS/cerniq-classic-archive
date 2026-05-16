@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "verify:alm": "node scripts/verify-alm-registry.mjs",
     "verify:no-orphan-tests": "node scripts/verify-no-orphan-tests.mjs",
+    "verify:bundle-budget": "node scripts/verify-bundle-budget.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage --maxWorkers=1",
     "test:watch": "vitest",
