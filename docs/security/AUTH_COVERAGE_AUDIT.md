@@ -115,6 +115,7 @@ The following appear "unguarded" to a naïve `@UseGuards`-only scan but are actu
 | `api-v1/api-v1.controller.ts` | (4+5) mixed | Health/frameworks/benchmarks public; analyze* routes have `@UseGuards(ApiKeyAuthGuard)` |
 | `pipeline/pipeline.controller.ts` | (3+5) mixed | Admin pipeline ops use `verifyAdmin`; `Sse('api/jobs/:jobId/status')` is the public SSE stream |
 | `realtime-alm/market-data.controller.ts` | (2+5) mixed | Method-level guard on alert routes; market feeds public |
+| `realtime-alm/alm-realtime.gateway.ts` | (1) JWT+verifyOwnership | **WS gateway, NOT a controller.** `handleConnection` verifies JWT (dual-source: legacy + Supabase) and binds `client.data.user`; `handleSubscribe`/`handleUnsubscribe` call `InstitutionScopeGuard.verifyOwnership` before `client.join`/`client.leave`. CRITICAL body-trust IDOR closed in this wave — pre-fix accepted ANY truthy token + arbitrary `institutionId` from `@MessageBody`, allowing cross-tenant room joins. |
 | `risk/volatility.controller.ts` | (5) public | Public volatility indicator (read-only, ticker-keyed not tenant-keyed) |
 
 ## Recommended Primitive-Consolidation Work
@@ -129,7 +130,7 @@ These items would simplify the auth surface AND make a future `verify-auth-cover
 
 A parallel sweep for cursor-based pagination IDOR (per the IDOR_RESIDUAL_AUDIT.md flagged follow-up):
 - Only TWO controllers use cursor pagination: `agent-api/agent-runs.controller.ts` and `agent-api/alerts.controller.ts`. **Both already validate** that the cursor row's `institutionId` matches the request's institutionId before using it.
-- `cossec/cossec.dto.ts:61` declares a `cursor` field in a Zod schema but no controller consumes it — **dead code**, cleanup opportunity.
+- ~~`cossec/cossec.dto.ts:61` declares a `cursor` field in a Zod schema but no controller consumes it — **dead code**, cleanup opportunity.~~ **CLOSED** in `dbd6e80f` (single-line removal; latent-IDOR vector eliminated before being wired).
 - All other paginated endpoints use offset/limit/take, where the tenant key arrives via the URL path (`:institutionId` / `:orgId`) and is already gated by the canonical guard. Cursor-IDOR class is not reachable on those.
 
 ## Sweep Coordination
