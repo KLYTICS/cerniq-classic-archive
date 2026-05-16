@@ -13,7 +13,7 @@
 | ✅ Authenticated via inline `verifyAdmin()` admin-key | 11 | jobs/admin (1), cossec-ingest (5), compliance (1), pipeline/api/admin/* (3+), market-data/clear-cache (1) |
 | ✅ Authenticated via inline `validateApiKey()` (x-api-key) | ~7 | enterprise (5 routes), api-v1/analyze* (3 routes) |
 | ✅ Intentionally public — health/auth/marketing/charts | ~25 | health, changelog, auth (signup/login), free-report, market-data feeds, risk volatility, charts, Stripe webhook |
-| 🔴 **CRITICAL — unauthenticated privileged surface** | **6** | **agents.controller (3) + agent-trust.controller (1) + agent-eval.controller (2)** |
+| 🔴 **CRITICAL — unauthenticated privileged surface** | **5** | **agents.controller (3) + ~~agent-trust.controller (1)~~ CLOSED this wave + agent-eval.controller (2 — peer `sid=8f694e66` in flight)** |
 
 The CRITICAL row is this audit's deliverable. Everything else is documented for the future auth-coverage verifier.
 
@@ -53,20 +53,21 @@ export class AgentsController {
 4. For the `runId` routes, add a service-layer ownership check on the run (`run.institutionId === req.user.institutionId` or equivalent).
 5. `organizationId` from body needs a parallel `OrgMembershipGuard.verifyMembership(orgId, userId)` primitive — that primitive does not exist yet. Extracting it from `OrgMembershipGuard.canActivate` (mirroring how peer-2 extracted `verifyOwnership` from `InstitutionScopeGuard.canActivate` in `b2a64c25`) closes this and unblocks the agent-runner fix.
 
-### `backend-node/src/agent-trust/agent-trust.controller.ts` — 1 route UNAUTHENTICATED
+### `backend-node/src/agent-trust/agent-trust.controller.ts` — 1 route — CLOSED
 
-```ts
-@Controller('api/v1/trust')
-export class AgentTrustController {
-  @Post('validate')      // accepts {institutionId, runId, agentText, ...} in body
-}
-```
+Status: **CLOSED** in the agent-trust auth-close commit (this wave).
 
-**Docstring claims:** "Protected by AuthGuard in production (added at AppModule level)." This is **aspirational, not factual** — `AppModule.providers` only registers `APP_GUARD: UserThrottleGuard` (rate-limit). No global AuthGuard.
+Closure shape (mirrors ai-advisor `POST /ask` from `e88ae20c` / `4f9e2728`):
 
-**Attack:** any caller can `POST /api/v1/trust/validate` with any `institutionId` + `runId` and receive a trust verdict containing data about agent runs on that institution.
+1. Class-level `@UseGuards(AuthGuard)` — every route now requires a valid bearer token. AppModule's "aspirational global guard" docstring was deleted; the actual enforcement is local and explicit.
+2. `AgentTrustModule` imports `PrismaModule` + `AuthModule` and adds `InstitutionScopeGuard` to providers (DI shape matches `AiAdvisorModule`).
+3. The `validate()` handler:
+   - Switched to `safeParse` so malformed body returns `BadRequestException` instead of throwing a raw ZodError.
+   - Reads `userId` via the canonical chain `req.user?.userId ?? req.user?.id ?? req.user?.sub ?? 'anonymous'` (matches `9dbf57df` repo-wide normalization).
+   - Calls `this.institutionScope.verifyOwnership(institutionId, userId, !!req.user?.access?.isMasterCeo)` BEFORE `trust.evaluate()` — second-layer enforcement, same shape as the URL-param routes' first-layer `canActivate`.
+   - Emits a structured `logger.log` line with `institution`/`run`/`agent`/`user` for the auth-passed audit trail (matches `ai-advisor.controller` and `alm-analyst.controller` style).
 
-**Fix:** mirror the agents-controller pattern. Add `@UseGuards(AuthGuard)` + body-param ownership check via `verifyOwnership`.
+**Spec coverage:** 7 unit tests in `agent-trust.controller.security.spec.ts` (NEW): verifyOwnership-before-evaluate ordering (via `mock.invocationCallOrder`), Forbidden propagation skipping the service, canonical `req.user.userId` read, fallback to `req.user.id`, fallback to `req.user.sub`, master-CEO bypass forwarding, malformed-body BadRequest before any auth check. Direct-construction style (no NestJS DI), mirrors `ai-advisor.controller.security.spec.ts`.
 
 ### `backend-node/src/agent-eval/agent-eval.controller.ts` — 2 routes UNAUTHENTICATED
 
