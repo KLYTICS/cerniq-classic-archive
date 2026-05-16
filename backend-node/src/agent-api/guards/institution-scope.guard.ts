@@ -109,4 +109,43 @@ export class InstitutionScopeGuard implements CanActivate {
       throw new ForbiddenException('not authorized for this institution');
     }
   }
+
+  /**
+   * Sister primitive of `verifyOwnership` for routes that receive a raw
+   * `workspaceId` rather than an `institutionId`. The chain is
+   * `Workspace → Workspace.ownerId` (one hop shorter than the institution
+   * path). Same fail-closed + master-CEO bypass + NotFound/Forbidden split
+   * as `verifyOwnership`. Caller from `ncua/ncua.controller.ts` (body
+   * `workspaceId` on the import route); future body-trust closures whose
+   * tenancy root is the Workspace directly should call this.
+   */
+  async verifyWorkspaceOwnership(
+    workspaceId: string,
+    userId: string,
+    isMasterCeo: boolean,
+  ): Promise<void> {
+    let workspace: { ownerId: string | null } | null;
+    try {
+      workspace = await this.prisma.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { ownerId: true },
+      });
+    } catch (err) {
+      this.logger.error(
+        `workspace lookup failed for ${workspaceId}: ${String(err)}`,
+      );
+      throw new ForbiddenException('workspace access check failed');
+    }
+
+    if (!workspace) {
+      throw new NotFoundException('workspace not found');
+    }
+
+    if (!isMasterCeo && workspace.ownerId !== userId) {
+      this.logger.warn(
+        `denied: user ${userId} attempted to access workspace ${workspaceId}`,
+      );
+      throw new ForbiddenException('not authorized for this workspace');
+    }
+  }
 }

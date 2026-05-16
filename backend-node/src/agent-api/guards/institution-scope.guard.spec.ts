@@ -8,7 +8,10 @@ import { InstitutionScopeGuard } from './institution-scope.guard';
 import type { PrismaService } from '../../prisma.service';
 
 describe('InstitutionScopeGuard', () => {
-  let prisma: { institution: { findUnique: jest.Mock } };
+  let prisma: {
+    institution: { findUnique: jest.Mock };
+    workspace: { findUnique: jest.Mock };
+  };
   let guard: InstitutionScopeGuard;
 
   const createContext = (overrides: {
@@ -34,7 +37,10 @@ describe('InstitutionScopeGuard', () => {
   };
 
   beforeEach(() => {
-    prisma = { institution: { findUnique: jest.fn() } };
+    prisma = {
+      institution: { findUnique: jest.fn() },
+      workspace: { findUnique: jest.fn() },
+    };
     guard = new InstitutionScopeGuard(prisma as unknown as PrismaService);
   });
 
@@ -178,6 +184,57 @@ describe('InstitutionScopeGuard', () => {
       prisma.institution.findUnique.mockRejectedValue(new Error('timeout'));
       await expect(
         guard.verifyOwnership('inst-1', 'user-1', false),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
+  // ─── verifyWorkspaceOwnership() — workspace-rooted ownership primitive ─
+  // Sister of verifyOwnership for routes whose tenancy key is a raw
+  // workspaceId rather than an institutionId (e.g. NCUA import). Same
+  // contract: silent resolve / Forbidden / NotFound / master-CEO bypass /
+  // fail-closed on Prisma throw.
+
+  describe('verifyWorkspaceOwnership (workspace-rooted primitive)', () => {
+    it('resolves silently when caller owns the workspace', async () => {
+      prisma.workspace.findUnique.mockResolvedValue({ ownerId: 'user-1' });
+      await expect(
+        guard.verifyWorkspaceOwnership('ws-1', 'user-1', false),
+      ).resolves.toBeUndefined();
+      expect(prisma.workspace.findUnique).toHaveBeenCalledWith({
+        where: { id: 'ws-1' },
+        select: { ownerId: true },
+      });
+    });
+
+    it('throws Forbidden when caller is not the workspace owner', async () => {
+      prisma.workspace.findUnique.mockResolvedValue({
+        ownerId: 'someone-else',
+      });
+      await expect(
+        guard.verifyWorkspaceOwnership('ws-1', 'user-1', false),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('allows master CEO bypass without comparing owner', async () => {
+      prisma.workspace.findUnique.mockResolvedValue({
+        ownerId: 'someone-else',
+      });
+      await expect(
+        guard.verifyWorkspaceOwnership('ws-1', 'user-1', true),
+      ).resolves.toBeUndefined();
+    });
+
+    it('throws NotFound when the workspace does not exist', async () => {
+      prisma.workspace.findUnique.mockResolvedValue(null);
+      await expect(
+        guard.verifyWorkspaceOwnership('missing', 'user-1', false),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('fails closed (Forbidden) when the Prisma lookup throws', async () => {
+      prisma.workspace.findUnique.mockRejectedValue(new Error('timeout'));
+      await expect(
+        guard.verifyWorkspaceOwnership('ws-1', 'user-1', false),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
   });

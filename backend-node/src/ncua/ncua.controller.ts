@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   Query,
+  Req,
   Logger,
   UseGuards,
   BadRequestException,
@@ -46,19 +47,38 @@ export class NcuaController {
     private readonly importService: NcuaImportService,
     private readonly apiService: NcuaApiService,
     private readonly fieldMapper: NcuaFieldMapperService,
+    private readonly institutionScope: InstitutionScopeGuard,
   ) {}
 
   // ─── POST /api/ncua/import ────────────────────────────────────────────────
 
   @Post('import')
   @HttpCode(HttpStatus.CREATED)
-  async importCreditUnion(@Body() body: unknown) {
+  async importCreditUnion(@Body() body: unknown, @Req() req: any) {
     let dto;
     try {
       dto = parseOrThrow(ImportBodySchema, body);
     } catch (err: any) {
       throw new BadRequestException(err.issues ?? err.message);
     }
+
+    // Body-IDOR closure (verify-body-trust.mjs flagged this in commit
+    // 19f103f5). Class-level guards authenticate via AuthTenantGuard but
+    // InstitutionScopeGuard only enforces ownership on :institutionId path
+    // params — the import route receives workspaceId in the body. Without
+    // this check any authenticated user could write NCUA Form 5300 data
+    // into another tenant's workspace.
+    const userId: string | undefined =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub;
+    if (!userId) {
+      throw new BadRequestException('authenticated user required');
+    }
+    const isMasterCeo = req.user?.access?.isMasterCeo === true;
+    await this.institutionScope.verifyWorkspaceOwnership(
+      dto.workspaceId,
+      userId,
+      isMasterCeo,
+    );
 
     this.logger.log({
       msg: 'NCUA import requested',

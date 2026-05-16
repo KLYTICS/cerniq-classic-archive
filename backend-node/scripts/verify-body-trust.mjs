@@ -106,9 +106,14 @@ const PARSE_ORTHROW_RE =
   /parseOrThrow\s*\(\s*(\w+(?:Schema|Dto|Payload|Body|Request|Query))\s*,\s*([^)]+)\)/;
 
 // Auth-gate call patterns. Any of these in a handler body satisfies R3.
+// `verify\w*Ownership` matches both the canonical `verifyOwnership` and the
+// tenancy-rooted variants (`verifyWorkspaceOwnership`, future
+// `verifyFirmOwnership`, etc.) that share the same kernel-primitive shape.
+// Likewise `verify\w*Membership` for org-scoped variants. The bare-name
+// patterns are retained for clarity.
 const AUTH_GATE_RES = [
-  /\bverifyOwnership\s*\(/,
-  /\bverifyMembership\s*\(/,
+  /\bverify\w*Ownership\s*\(/,
+  /\bverify\w*Membership\s*\(/,
   /\bassertBatchAccess\s*\(/,
   /\bassert\w*Access\s*\(/,
 ];
