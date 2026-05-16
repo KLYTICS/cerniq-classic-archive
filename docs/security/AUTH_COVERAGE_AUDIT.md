@@ -13,7 +13,7 @@
 | ✅ Authenticated via inline `verifyAdmin()` admin-key | 11 | jobs/admin (1), cossec-ingest (5), compliance (1), pipeline/api/admin/* (3+), market-data/clear-cache (1) |
 | ✅ Authenticated via inline `validateApiKey()` (x-api-key) | ~7 | enterprise (5 routes), api-v1/analyze* (3 routes) |
 | ✅ Intentionally public — health/auth/marketing/charts | ~25 | health, changelog, auth (signup/login), free-report, market-data feeds, risk volatility, charts, Stripe webhook |
-| 🔴 **CRITICAL — unauthenticated privileged surface** | **5** | **agents.controller (3) + ~~agent-trust.controller (1)~~ CLOSED this wave + agent-eval.controller (2 — peer `sid=8f694e66` in flight)** |
+| ✅ **CRITICAL — unauthenticated privileged surface** | **0** | **~~agents.controller (3)~~ CLOSED this wave + ~~agent-trust.controller (1)~~ CLOSED this wave + ~~agent-eval.controller (2)~~ CLOSED in commit `9f445813`** |
 
 The CRITICAL row is this audit's deliverable. Everything else is documented for the future auth-coverage verifier.
 
@@ -31,27 +31,31 @@ Patterns 3 and 4 are CerniQ-specific divergences from the NestJS guard idiom. Th
 
 ## Critical Findings (Real Gaps)
 
-### `backend-node/src/agents/agents.controller.ts` — 3 routes UNAUTHENTICATED
+### `backend-node/src/agents/agents.controller.ts` — 3 routes — CLOSED
 
-```ts
-@Controller('agents')
-export class AgentsController {
-  @Post('run')           // accepts {agentId, institutionId, organizationId, ...} in body
-  @Get('runs/:runId')
-  @Get('runs/:runId/audit')
-}
-```
+Status: **CLOSED** in the agents auth-close commit (this wave).
 
-**Attack:** any caller with knowledge of the URL can `POST /agents/run` with an `institutionId` and `organizationId` of their choice. The runner trusts both. They can also read any run's audit chain by id.
+This was the highest-blast-radius gap of the three: a **two-tenant body-IDOR**.
+`POST /agents/run` accepted both `institutionId` AND `organizationId` from
+the body with zero auth, so a single unauthenticated request could pick
+either tenancy root and the runner would execute against it. The two
+`runId` routes leaked any run's audit chain by guessed id.
 
-**Compare to:** `agent-api/agent-runs.controller.ts` is the modern equivalent at `@Controller('api/v1/agents/:institutionId')` with `@UseGuards(AuthGuard, InstitutionScopeGuard)` at class level. `AgentsController` looks like its older, unprotected sibling — likely predates the agent-api module and was never migrated.
+Closure shape (mirrors ai-advisor `POST /ask` from `e88ae20c` / `4f9e2728`,
+extended for the second tenancy root):
 
-**Fix (mirrors ai-advisor pattern, commit `e88ae20c`/`4f9e2728`):**
-1. Add `@UseGuards(AuthGuard)` at class level.
-2. Inject `InstitutionScopeGuard`.
-3. In `run()`, after Zod parse, call `await this.institutionScope.verifyOwnership(institutionId, userId, isMasterCeo)` before invoking the runner.
-4. For the `runId` routes, add a service-layer ownership check on the run (`run.institutionId === req.user.institutionId` or equivalent).
-5. `organizationId` from body needs a parallel `OrgMembershipGuard.verifyMembership(orgId, userId)` primitive — that primitive does not exist yet. Extracting it from `OrgMembershipGuard.canActivate` (mirroring how peer-2 extracted `verifyOwnership` from `InstitutionScopeGuard.canActivate` in `b2a64c25`) closes this and unblocks the agent-runner fix.
+1. **Kernel extension**: extracted `OrgMembershipGuard.verifyMembership(orgId, userId, isMasterCeo)` as a public primitive — mirror of peer-2's `InstitutionScopeGuard.verifyOwnership` extraction in `b2a64c25`. The existing `canActivate` now delegates to `verifyMembership` after orgId resolution; master-CEO fast-path preserved. 5 new unit tests in `org-membership.guard.spec.ts` (total: 15/15 green).
+2. **Module wiring**: `AgentsModule` imports `AuthModule` and adds both `InstitutionScopeGuard` + `OrgMembershipGuard` to providers (DI shape matches `AiAdvisorModule`).
+3. **Controller**: class-level `@UseGuards(AuthGuard)`.
+4. **`run()` handler**:
+   - Switched to `safeParse` (already in place) so malformed body returns `BadRequestException`.
+   - Added a `TENANCY_REQUIRED` check — bodies with neither `institutionId` nor `organizationId` are rejected at the controller boundary with 400; the runner cannot be invoked against zero tenancy.
+   - Reads `userId` via canonical chain `req.user?.userId ?? req.user?.id ?? req.user?.sub ?? ''` (matches `9dbf57df` repo-wide normalization).
+   - If `institutionId` is present: calls `this.institutionScope.verifyOwnership(institutionId, userId, isMasterCeo)` BEFORE `runner.run()`.
+   - If `organizationId` is present: calls `this.orgMembership.verifyMembership(organizationId, userId, isMasterCeo)` BEFORE `runner.run()`.
+5. **`getRun` / `getAudit` handlers**: fetch the run row, then dispatch its `institutionId` / `organizationId` keys into the same kernel primitives. Tenantless runs (both keys null) collapse to `NotFoundException` (anti-leak — never reveal an unattributed run exists to an authenticated tenant user). `getAudit` runs the ownership check BEFORE the audit chain hash-replay so an unauthorized caller cannot waste hash-verify cycles.
+
+**Spec coverage:** 17 unit tests in `agents.controller.security.spec.ts` (NEW): both verifyOwnership-before-runner AND verifyMembership-before-runner ordering (via `mock.invocationCallOrder` with two separate ordering assertions), Forbidden propagation from either primitive skipping the runner, TENANCY_REQUIRED rejection, BadRequest on Zod failure before any auth check, master-CEO bypass forwarding to both primitives, canonical/legacy userId chain, run-row tenancy dispatch (institutionId-only, organizationId-only, tenantless = 404), `getAudit` ownership check fires before audit chain replay. Direct-construction style (no NestJS DI), mirrors `ai-advisor.controller.security.spec.ts`.
 
 ### `backend-node/src/agent-trust/agent-trust.controller.ts` — 1 route — CLOSED
 
@@ -69,21 +73,22 @@ Closure shape (mirrors ai-advisor `POST /ask` from `e88ae20c` / `4f9e2728`):
 
 **Spec coverage:** 7 unit tests in `agent-trust.controller.security.spec.ts` (NEW): verifyOwnership-before-evaluate ordering (via `mock.invocationCallOrder`), Forbidden propagation skipping the service, canonical `req.user.userId` read, fallback to `req.user.id`, fallback to `req.user.sub`, master-CEO bypass forwarding, malformed-body BadRequest before any auth check. Direct-construction style (no NestJS DI), mirrors `ai-advisor.controller.security.spec.ts`.
 
-### `backend-node/src/agent-eval/agent-eval.controller.ts` — 2 routes UNAUTHENTICATED
+### `backend-node/src/agent-eval/agent-eval.controller.ts` — 2 routes — CLOSED
 
-```ts
-@Controller('api/v1/eval')
-export class AgentEvalController {
-  @Post('golden')        // accepts {institutionId, only?, baselineAverage?}
-  @Post('replay')        // accepts {institutionId, runId, narrative, output, trace, ...}
-}
-```
+Status: **CLOSED** in commit `9f445813` (separate peer wave).
 
-**Docstring claims:** "Protected by admin guard in production." Also aspirational — no admin guard in the controller, no AppModule wiring.
+Closure shape (mirrors `e88ae20c` ai-advisor + `b2a64c25` WS-gateway):
+1. Class-level `@UseGuards(AuthGuard)` for JWT auth.
+2. Per-handler `InstitutionScopeGuard.verifyOwnership()` on `body.institutionId` BEFORE service call — same multi-context primitive across all entry surfaces.
+3. Master-CEO bypass forwarded for platform support.
 
-**Attack:** any caller can trigger golden-case runs against any institution (billing AI cost, generating noise in eval reports) OR replay a fake trace against any run (poisoning the trust-verdict audit trail).
-
-**Fix:** since this is admin-scoped per the docstring, add `verifyAdmin()` inline (matches `CompliancController` / `AdminController` pattern) OR extract a proper `AdminKeyGuard` class.
+The "Protected by admin guard in production" docstring was aspirational —
+fix chose user-scope ownership over admin-key gating because the routes
+are tenant-scoped (run evaluations against a specific institution), not
+platform-admin. `AgentEvalModule` now imports `AuthModule` + `PrismaModule`
+and provides `InstitutionScopeGuard`. 7 new tests in
+`agent-eval.controller.security.spec.ts` cover ordering, Forbidden/NotFound
+propagation, master-CEO forwarding, GOLDEN_CASES symbol export lock.
 
 ## Verified-Authenticated Controllers (No Action Needed)
 
@@ -116,7 +121,7 @@ The following appear "unguarded" to a naïve `@UseGuards`-only scan but are actu
 
 These items would simplify the auth surface AND make a future `verify-auth-coverage.mjs` lint check viable.
 
-1. **Extract `AdminKeyGuard`** from the inline `verifyAdmin(adminKey)` helper duplicated in `AdminController`, `CossecIngestController`, `ComplianceController`, `PipelineController`, `LeadsController`, `MarketDataController`. Single class, same `timingSafeStringEqual` + `ADMIN_KEY` env lookup, applied via `@UseGuards(AdminKeyGuard)`. Each existing helper becomes a delete + import + guard application.
+1. **Extract `AdminKeyGuard`** — **SCAFFOLDED (this wave). Migration sweep pending.** Guard class lives at `backend-node/src/auth/admin-key.guard.ts`; registered in `@Global() AuthModule` providers + exports so any controller can `@UseGuards(AdminKeyGuard)` without per-module DI wiring. 10 unit tests in `admin-key.guard.spec.ts` lock the byte-for-byte contract of the existing inline helpers: missing header / empty / env-key-unset / length-mismatch / wrong-content all → 401 `"Invalid admin key"` (same message in every failure mode — no oracle leak). Re-survey on actual call sites: the `verifyAdmin` pattern lives in **two physical files** (not the six logical controllers originally listed): `app.controller.ts:763` private helper used by 10 routes (rows 520, 530, 540, 558, 644, 658, 686, 712, 721, 758) AND `market-data/market-data.controller.ts:253` inline block for the `clear-cache` route. Total 11 routes to migrate. **Migration recipe** (per call site): (a) replace `@Headers('x-admin-key') adminKey: string` parameter and the `this.verifyAdmin(adminKey)` first-line call with a class- or method-level `@UseGuards(AdminKeyGuard)`; (b) once all 10 `app.controller.ts` call sites are migrated, delete the private `verifyAdmin` helper at line 763; (c) for `market-data.controller.ts`, also remove the inline `timingSafeStringEqual` block and the unused `UnauthorizedException` import. Migration is per-handler reviewable; safest order is one controller at a time with a green test run between each. Once shipped, the future `verify-auth-coverage.mjs` linter can enforce that admin routes carry `AdminKeyGuard` in their `@UseGuards` decorator.
 2. **Extract `OrgMembershipGuard.verifyMembership(orgId, userId)` public primitive** — mirrors what peer-2 did to `InstitutionScopeGuard.verifyOwnership` in `b2a64c25`. Unblocks the agents-controller fix where `organizationId` arrives via body.
 3. **Build `verify-auth-coverage.mjs`** parallel to `verify-institution-scope-guard.mjs`. Per-controller rule: "every route must be reachable only through one of {AuthGuard, AuthTenantGuard, ApiKeyAuthGuard, AdminKeyGuard, InstitutionScopeGuard, OrgMembershipGuard, FirmOwnsClientGuard}". Skip mechanism: `// verify:auth-skip — <reason>` for documented public routes. The 25 intentional-public routes in the matrix above all get skip comments with their pattern label.
 

@@ -45,6 +45,8 @@ export class OrgMembershipGuard implements CanActivate {
     }
 
     if (req.user?.access?.isMasterCeo === true) {
+      // Fast-path: skip cycleId resolution + membership lookup.
+      // Mirrors the original pre-extraction behavior.
       return true;
     }
 
@@ -73,6 +75,36 @@ export class OrgMembershipGuard implements CanActivate {
       return true;
     }
 
+    await this.verifyMembership(orgId, userId, false);
+    req.user.orgId = orgId;
+    return true;
+  }
+
+  /**
+   * Public membership-check primitive. Same contract as the `canActivate`
+   * path but callable from non-HTTP contexts where `:orgId` is not in the
+   * URL — controllers handling body-supplied `organizationId`, WebSocket
+   * event handlers, scheduled jobs, etc.
+   *
+   * Mirrors `InstitutionScopeGuard.verifyOwnership` (commit `b2a64c25`)
+   * one-to-one — same Prisma lookup shape, same `ForbiddenException` /
+   * `NotFoundException` semantics so callers get matching HTTP status
+   * codes via Nest's exception filter, same fail-closed-on-Prisma-throw
+   * behaviour, same master-CEO bypass.
+   *
+   * Unblocks the body-supplied `organizationId` fix on
+   * `agents/agents.controller.ts` (and the future audit-doc-flagged
+   * fixes on `agent-trust`, `agent-eval`).
+   */
+  async verifyMembership(
+    orgId: string,
+    userId: string,
+    isMasterCeo: boolean,
+  ): Promise<void> {
+    if (isMasterCeo) {
+      return;
+    }
+
     let member: { organizationId: string } | null;
     try {
       member = await this.prisma.organizationMember.findUnique({
@@ -94,8 +126,5 @@ export class OrgMembershipGuard implements CanActivate {
       );
       throw new ForbiddenException('not authorized for this organization');
     }
-
-    req.user.orgId = orgId;
-    return true;
   }
 }

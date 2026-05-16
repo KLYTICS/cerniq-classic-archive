@@ -169,4 +169,73 @@ describe('OrgMembershipGuard', () => {
       select: { organizationId: true },
     });
   });
+
+  // verifyMembership() is the same primitive used by canActivate, exposed
+  // for non-HTTP entry points (body-supplied `organizationId`, WS handlers,
+  // scheduled jobs). Mirrors the contract InstitutionScopeGuard.verifyOwnership
+  // shipped in commit b2a64c25.
+  describe('verifyMembership (multi-context primitive)', () => {
+    it('resolves silently when the user is a member of the org', async () => {
+      const prisma = buildPrisma({
+        organizationMember: {
+          findUnique: jest.fn().mockResolvedValue({ organizationId: 'org-1' }),
+        },
+      });
+      const guard = new OrgMembershipGuard(prisma);
+      await expect(
+        guard.verifyMembership('org-1', 'u1', false),
+      ).resolves.toBeUndefined();
+      expect(prisma.organizationMember.findUnique).toHaveBeenCalledWith({
+        where: {
+          organizationId_userId: { organizationId: 'org-1', userId: 'u1' },
+        },
+        select: { organizationId: true },
+      });
+    });
+
+    it('throws Forbidden when the user is not a member', async () => {
+      const prisma = buildPrisma();
+      const guard = new OrgMembershipGuard(prisma);
+      await expect(
+        guard.verifyMembership('org-other', 'u1', false),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('bypasses the membership lookup for Master CEO', async () => {
+      const prisma = buildPrisma();
+      const guard = new OrgMembershipGuard(prisma);
+      await expect(
+        guard.verifyMembership('org-anything', 'u1', true),
+      ).resolves.toBeUndefined();
+      expect(prisma.organizationMember.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('fails closed (403) when the membership lookup throws', async () => {
+      const prisma = buildPrisma({
+        organizationMember: {
+          findUnique: jest.fn().mockRejectedValue(new Error('connection lost')),
+        },
+      });
+      const guard = new OrgMembershipGuard(prisma);
+      await expect(
+        guard.verifyMembership('org-1', 'u1', false),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('canActivate and verifyMembership share the same denial semantics', async () => {
+      // Same Prisma state, same (orgId, userId) — both surfaces must reject
+      // identically. Guards against drift if the kernel is changed in only
+      // one surface.
+      const prisma = buildPrisma();
+      const guard = new OrgMembershipGuard(prisma);
+
+      await expect(
+        guard.canActivate(buildCtx({ userId: 'u1' }, { orgId: 'org-x' })),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      await expect(
+        guard.verifyMembership('org-x', 'u1', false),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
 });
