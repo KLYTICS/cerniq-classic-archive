@@ -92,6 +92,32 @@ and provides `InstitutionScopeGuard`. 7 new tests in
 `agent-eval.controller.security.spec.ts` cover ordering, Forbidden/NotFound
 propagation, master-CEO forwarding, GOLDEN_CASES symbol export lock.
 
+## Critical Findings (class-validator DTO surface) — 2026-05-16, OPEN
+
+R3 / `verify-body-trust.mjs` (v3 exploratory extension, **not yet shipped to `--strict`**) was prototyped against the class-validator DTO surface — handlers that use `@Body() body: FooDto` rather than `parseOrThrow(FooSchema, body)`. The extension widens schema detection from Zod-only to TypeScript class declarations (`export class FooDto { @IsString() workspaceId: string; ... }`) and handler detection to typed `@Body()` / `@MessageBody()` params. Walking 64 entry-files, 510 handlers, 36 tenancy-bearing types (27 Zod + 9 class-validator), surfaced **3 real body-IDOR vulnerabilities** in `alm/alm.controller.ts` plus **4 cross-tenant admin handlers in `intelligence/intelligence.controller.ts`** that need explicit skip annotations.
+
+**The 3 real alm body-IDORs** (each is a cross-tenant write — any authenticated user can write data attached to another tenant's workspace/institution):
+
+1. **`alm.controller.ts:266` `createInstitution(@Body() dto: CreateInstitutionDto)`** — DTO declares `workspaceId: string` (class-validator). Service `alm-enterprise.service.ts:createInstitution(data)` does `prisma.institution.create({ data: { workspaceId: data.workspaceId, ... } })` with zero ownership check. **Fix:** mirror NCUA closure (`58651c54`): inject `InstitutionScopeGuard`, call `verifyWorkspaceOwnership(dto.workspaceId, userId, isMasterCeo)` BEFORE `almEnterprise.createInstitution(dto)`. The kernel primitive already exists.
+
+2. **`alm.controller.ts:829` `saveScenario(@Req() req, @Body() dto: SaveScenarioDto)`** — DTO declares `institutionId: string`. Service `scenarios/scenario-persistence.service.ts:saveScenario(userId, dto)` does `prisma.savedScenario.create({ data: { institutionId: dto.institutionId, createdBy: userId, ... } })` — the `createdBy: userId` field is just metadata, NOT an authz check. Any authenticated user can save a scenario tagged to any institutionId. **Fix:** call `this.scope.verifyOwnership(dto.institutionId, req.user.userId, isMasterCeo)` BEFORE the service call.
+
+3. **`alm.controller.ts:818` `saveCustomYieldCurve(@Body() dto: SaveYieldCurveDto)`** — DTO declares `institutionId: string`. Handler doesn't even pass userId to the service: `yieldCurve.saveCustomCurve(dto)`. No authz anywhere in the path. **Fix:** add `@Req() req` to handler signature, then `verifyOwnership(dto.institutionId, req.user.userId, isMasterCeo)` BEFORE `saveCustomCurve(dto)`.
+
+**Why these survived prior verifier waves:** `verify-institution-scope-guard.mjs` only catches `:institutionId` path-param routes; these are body-tenancy. `verify-auth-coverage.mjs` only catches missing-auth-guard; these have `@UseGuards(AuthTenantGuard, InstitutionScopeGuard)` at class level which authenticates the user but doesn't enforce ownership on body-supplied tenancy keys. `verify-body-trust.mjs` v1/v2 only catches Zod-parsed bodies; these use class-validator DTOs (Pattern not previously detected).
+
+**The contrasting alm case that's SAFE:** `alm.controller.ts:424` `createAnalysisRun(@Req() req, @Body() dto: CreateAnalysisRunDto)` — service `analysis-runs.service.ts:createRun(userId, dto)` calls `this.assertInstitutionAccess(dto.institutionId, userId)` as the first line, BEFORE any side effect. Service-layer authz, structurally correct. This handler would warrant a `// verify:body-trust-skip — service-layer authz: analysis-runs.service.createRun first-line calls assertInstitutionAccess(dto.institutionId, userId)` annotation once R3 v3 ships.
+
+**The 4 intelligence cases that are intentionally cross-tenant** (admin tooling operates across all workspaces by design; class-level `@UseGuards(AdminKeyGuard)` enforces operator authorization, not tenant-binding):
+- `intelligence.controller.ts:76` `refresh(@Body() body: IntelligenceRefreshRequestDto)` — workspaceId in body
+- `intelligence.controller.ts:81` `importAccounts(@Body() body: IntelligenceAccountsImportRequestDto)` — workspaceId in body
+- `intelligence.controller.ts:86` `generateReport(@Body() body: IntelligenceReportRequestDto)` — workspaceId in body
+- `intelligence.controller.ts:91` `createMemoryEntry(@Body() body: WorkspaceMemoryInputDto)` — workspaceId in body
+
+Each will get a `// verify:body-trust-skip — admin-key endpoint; cross-tenant by design (class-level @UseGuards(AdminKeyGuard) is operator-auth not tenant-binding)` annotation once R3 v3 ships.
+
+**R3 v3 status:** detection logic prototyped (`CLASS_DEF_RE` + `TYPED_BODY_RE` regex + `findTenancyBearingDtoClasses` + `findTypedBodyTenancy` extension to `findTenancyParseCall` + `containsTenancyKey` widened to recognize `key: string` and `key?: string` TS field patterns). Self-test extended 12 → 16 cases, all green. **REVERTED from `verify-body-trust.mjs` HEAD** in 2026-05-16 session because shipping the strict-mode detection without fixing the 3 alm IDORs would break `npm run lint` for every peer; the responsible move is to discover + document in one commit, fix structurally in a focused follow-up. **Next session pickup:** restore the v3 detection logic (commit message archive at `8e1c11b7` had earlier v2 work; v3 logic was uncommitted), apply the 3 alm fixes + 4 intelligence skip annotations + 1 createAnalysisRun service-authz skip, re-run `verify-body-trust.mjs` to confirm 0 violations, ship as a single atomic commit.
+
 ## Verified-Authenticated Controllers (No Action Needed)
 
 The following appear "unguarded" to a naïve `@UseGuards`-only scan but are actually authenticated via one of patterns 2-5 above. Recording them so the future `verify-auth-coverage.mjs` verifier knows about the legitimate divergences.
