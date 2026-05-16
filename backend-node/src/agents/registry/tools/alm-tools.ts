@@ -496,9 +496,13 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.advisorV2 as any).computeHealthScore(
-          institutionId,
-        );
+        // Cast-free call — `AlmAdvisorV2Service.computeHealthScore(
+        // institutionId: string): Promise<HealthScore>` is the exact
+        // signature this tool needs. The prior `(this.advisorV2 as any)`
+        // cast (wave-1 artifact, audit 97b1c4a4) was gratuitous: nothing
+        // about the shape needed evasion. Dropping it lets tsc catch
+        // future drift if the service signature changes.
+        const data = await this.advisorV2.computeHealthScore(institutionId);
         return {
           summary: `Health Score: ${data?.overall ?? 'n/a'}/100.`,
           data,
@@ -520,18 +524,14 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        // TODO(phantom-method): CapitalAdequacyRatioService exposes
-        // `calculate(params: { ... })` only — a pure-function calculator
-        // taking pre-loaded ratios. The phantom `getCapitalAdequacyRatio`
-        // method does not exist (would throw TypeError at runtime). Wiring
-        // this tool to reality requires either (a) a `CapitalAdequacyAdapterService`
-        // call that loads the institution's balance sheet then computes,
-        // OR (b) updating the tool to delegate to the swarm-adapter
-        // service `capitalAdequacyAdapter` already injected at line 78.
-        // Restoring `as any` to keep the build green until that lands.
-        const data = await (
-          this.capitalAdequacy as any
-        ).getCapitalAdequacyRatio(institutionId);
+        // Delegate to CapitalAdequacyAdapterService.calculate(institutionId),
+        // which loads the institution's balance sheet then runs the pure
+        // CapitalAdequacyRatioService.calculate(params) calculator. The
+        // wave-1 phantom `getCapitalAdequacyRatio` (audit 97b1c4a4) would
+        // have thrown TypeError the moment an agent invoked this tool. The
+        // adapter has been injected at line 78 since the swarm wiring
+        // landed — option (b) from the prior TODO.
+        const data = await this.capitalAdequacyAdapter.calculate(institutionId);
         return { summary: 'Capital adequacy computed.', data };
       },
     });

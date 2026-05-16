@@ -13,13 +13,19 @@ const makeCtx = (institutionId: string | null): ToolContext => ({
   signal: new AbortController().signal,
 });
 
-// Regression locks for the 4 phantom-method-name / typo fixes shipped in
-// 97b1c4a4 (and the runRateShock silent-arg-ignore fix shipped in
-// 31a2883f). The pattern these tests defend against: a future
-// "let me clean up this `as any`" attempt re-introduces the wrong method
-// name. Without these locks, the dead-on-arrival TypeError class returns
-// silently (the agent runtime catches and surfaces it as a TOOL_ERROR
-// envelope; the LLM sees a broken tool but the test suite stays green).
+// Regression locks for two waves of alm-tools.ts `as any` fixes:
+//   wave-1 (97b1c4a4 + 31a2883f): 4 phantom-method/typo fixes
+//     (getIRRPolicy→getLimits, getEarlyWarning→computeEWS,
+//      getDepositBeta→getDepositBetas) + runRateShock silent-arg-ignore.
+//   wave-2 (this file): 2 gratuitous/phantom casts dropped — getHealthScore
+//     (cast was leftover and unnecessary), getCapitalAdequacy (phantom
+//     `getCapitalAdequacyRatio` → already-injected `capitalAdequacyAdapter
+//     .calculate`).
+// The pattern these tests defend against: a future "let me clean up this
+// `as any`" attempt re-introduces the wrong method name. Without these
+// locks, the dead-on-arrival TypeError class returns silently (the agent
+// runtime catches and surfaces it as a TOOL_ERROR envelope; the LLM sees
+// a broken tool but the test suite stays green).
 //
 // Construction shortcut: AlmToolsFactory has 25+ constructor params, but
 // each test cares about ONE service. We pass `{} as any` for the rest
@@ -52,10 +58,10 @@ describe('AlmToolsFactory phantom-method regression locks', () => {
       enterprise: {},
       ftp: { getFTPAnalysis: jest.fn().mockResolvedValue({}) },
       depositBeta: { getDepositBetas: jest.fn().mockResolvedValue([]) },
-      capitalAdequacy: {
-        getCapitalAdequacyRatio: jest.fn().mockResolvedValue({}),
+      capitalAdequacy: { calculate: jest.fn().mockResolvedValue({}) },
+      complianceCalendar: {
+        getUpcomingDeadlines: jest.fn().mockResolvedValue({ events: [] }),
       },
-      complianceCalendar: { getEvents: jest.fn().mockResolvedValue([]) },
       examPrep: { getExamPrep: jest.fn().mockResolvedValue({}) },
       stressTesting: { runFullStressTest: jest.fn().mockResolvedValue({}) },
       customScenario: { runCustomScenario: jest.fn().mockResolvedValue({}) },
@@ -65,7 +71,7 @@ describe('AlmToolsFactory phantom-method regression locks', () => {
       depositMixOptimizer: { analyze: jest.fn().mockResolvedValue({}) },
       maturityLadder: { buildMaturityLadder: jest.fn().mockResolvedValue({}) },
       climateRisk: {},
-      capitalAdequacyAdapter: {},
+      capitalAdequacyAdapter: { calculate: jest.fn().mockResolvedValue({}) },
     };
     const merged = { ...base, ...overrides };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -154,6 +160,45 @@ describe('AlmToolsFactory phantom-method regression locks', () => {
     const tool = findTool('getDepositBeta', factory);
     await tool.handler({}, makeCtx('inst-1'));
     expect(getDepositBetas).toHaveBeenCalledWith('inst-1');
+  });
+
+  it('getHealthScore invokes AlmAdvisorV2Service.computeHealthScore cast-free (wave-2 lock)', async () => {
+    // Defends the wave-2 fix: `(this.advisorV2 as any).computeHealthScore`
+    // was leftover from the wave-1 audit and gratuitous — the service
+    // signature `computeHealthScore(institutionId: string): Promise<HealthScore>`
+    // matches exactly. If a future refactor re-introduces the cast (or
+    // worse, the method signature drifts) tsc no longer catches it.
+    // This runtime test does — and pins the single-arg invariant.
+    const computeHealthScore = jest.fn().mockResolvedValue({ overall: 87 });
+    const factory = stubServices({ advisorV2: { computeHealthScore } });
+    const tool = findTool('getHealthScore', factory);
+    const result = (await tool.handler({}, makeCtx('inst-1'))) as {
+      summary: string;
+    };
+    expect(computeHealthScore).toHaveBeenCalledWith('inst-1');
+    expect(computeHealthScore.mock.calls[0]).toHaveLength(1);
+    expect(result.summary).toMatch(/87/);
+  });
+
+  it('getCapitalAdequacy delegates to capitalAdequacyAdapter.calculate (not the phantom getCapitalAdequacyRatio)', async () => {
+    // Defends the wave-2 fix: phantom `getCapitalAdequacyRatio` on
+    // CapitalAdequacyRatioService would have thrown TypeError at runtime.
+    // The real path is `capitalAdequacyAdapter.calculate(institutionId)`
+    // — the adapter loads the balance sheet, then delegates to the pure
+    // calculator. This test fails if anyone reverts the dispatch back to
+    // the pure-calculator service.
+    const adapterCalculate = jest
+      .fn()
+      .mockResolvedValue({ netWorthRatio: 0.082 });
+    const calcCalculate = jest.fn();
+    const factory = stubServices({
+      capitalAdequacy: { calculate: calcCalculate },
+      capitalAdequacyAdapter: { calculate: adapterCalculate },
+    });
+    const tool = findTool('getCapitalAdequacy', factory);
+    await tool.handler({}, makeCtx('inst-1'));
+    expect(adapterCalculate).toHaveBeenCalledWith('inst-1');
+    expect(calcCalculate).not.toHaveBeenCalled();
   });
 
   it('requireInstitution helper throws when ctx.institutionId is null', async () => {
