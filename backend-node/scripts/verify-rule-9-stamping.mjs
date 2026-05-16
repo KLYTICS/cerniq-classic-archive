@@ -79,8 +79,6 @@ const BASELINE_UNSTAMPED = {
     'agent runner core; stamp once LLMTurnResponse shape extended with promptVersion + usage fields (cascades to all agents)',
   'alm/alm-advisor.service.ts':
     'legacy advisor surface; retire OR migrate-then-stamp; check with peer wave before touching',
-  'alm/alm-advisor-v2.service.ts':
-    'newer advisor surface; mirror alm-analyst.service.ts pattern (d1d42e97)',
   'ai/ingest/nl-ingest.service.ts':
     'NL ingestion path; stamp once ingest pipeline lineage is wired into the analysis-run row',
   'ai/regulatory/impact-extractor.service.ts':
