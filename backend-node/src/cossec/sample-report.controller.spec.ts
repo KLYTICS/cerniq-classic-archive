@@ -108,11 +108,26 @@ describe('SampleReportController', () => {
 
   describe('getQueueStatus', () => {
     it('returns the queue status payload', async () => {
-      queueService.getQueueStatus.mockReturnValue({ pending: 3, running: 1 });
+      // The queue service's `getQueueStatus()` returns `{ waiting, active,
+      // completed, failed, message }` (see `sample-report-queue.service.ts`
+      // line 94-97). The controller spreads this and prepends a literal
+      // `message: 'Queue status'` field. The pre-fix spec mocked
+      // `{ pending, running }` — property names that don't exist on the
+      // typed return — and tsc rejected the assertions on those names.
+      // Per `cossec.dto.ts` QueueStatus has only the four counters.
+      // The controller adds `message: 'Queue status'` via prepended
+      // literal (won't be overridden because spread is { message, ...status }
+      // and status has no `message` of its own).
+      queueService.getQueueStatus.mockReturnValue({
+        waiting: 3,
+        active: 1,
+        completed: 12,
+        failed: 0,
+      });
       const result = await controller.getQueueStatus();
       expect(result.message).toBe('Queue status');
-      expect(result.pending).toBe(3);
-      expect(result.running).toBe(1);
+      expect(result.waiting).toBe(3);
+      expect(result.active).toBe(1);
     });
   });
 
