@@ -48,6 +48,7 @@ export class LeadsController {
 
   // ── Public endpoint (rate-limited at app level) ──
 
+  // verify:auth-skip — public lead capture from marketing site; throttled 20/hour/IP
   @Post('api/v1/leads/submit')
   @Throttle({ default: { limit: 20, ttl: 3600000 } })
   async submitLead(@Body() dto: SubmitLeadDto) {
@@ -362,6 +363,7 @@ export class LeadsController {
 
   // ── Demo Step Tracking ──
 
+  // verify:auth-skip — public demo-funnel telemetry; throttled 60/min/IP; fire-and-forget logger only
   @Post('api/demo/track')
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   @HttpCode(200)

@@ -87,6 +87,10 @@ const AUTH_GUARDS = new Set([
   'AdminKeyGuard',
   'RolesGuard',
   'AuthAdminGuard',
+  // `PassportAuthGuard` is the alias used in `auth.controller.ts` for the
+  // factory `AuthGuard` from `@nestjs/passport` (Passport delegation pattern).
+  // Recognized so OAuth-initiator + OAuth-callback routes don't double-flag.
+  'PassportAuthGuard',
 ]);
 
 const ROUTE_DECORATOR_RE =

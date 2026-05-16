@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { DailyPipelineService } from './daily-pipeline.service';
 
+// verify:auth-skip-controller — public health checks for the daily pipeline (uptime monitoring)
 @Controller('api/health')
 export class PipelineHealthController {
   constructor(private readonly pipelineService: DailyPipelineService) {}

@@ -209,6 +209,7 @@ export class AppController {
     }
   }
 
+  // verify:auth-skip — public demo-request capture from marketing site; throttled 5/min/IP
   @Post('api/demo-request')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(HttpStatus.CREATED)
@@ -250,6 +251,7 @@ export class AppController {
     return { id: record.id, message: 'Demo request received' };
   }
 
+  // verify:auth-skip — root index; service banner string only
   @Get()
   getHello(): string {
     return this.appService.getHello();
@@ -261,6 +263,7 @@ export class AppController {
     AppController.shuttingDown = true;
   }
 
+  // verify:auth-skip — public health probe for load balancers + uptime monitors
   @Get('health')
   @SkipThrottle()
   async getHealth() {
@@ -324,6 +327,7 @@ export class AppController {
     };
   }
 
+  // verify:auth-skip — Kubernetes-style readiness probe; 200 when accepting traffic, 503 during shutdown
   @Get('ready')
   @SkipThrottle()
   async getReady(@Res({ passthrough: true }) res: Response) {
@@ -361,6 +365,7 @@ export class AppController {
     };
   }
 
+  // verify:auth-skip — Kubernetes liveness probe; minimal-payload alive-check
   @Get('health/live')
   @SkipThrottle()
   getLiveness() {
@@ -449,6 +454,7 @@ export class AppController {
     };
   }
 
+  // verify:auth-skip — detailed health (dependencies, pool stats); env-gated to dev/staging unless HEALTH_DETAILS_PUBLIC=1
   @Get('health/detailed')
   @SkipThrottle()
   async getHealthDetailed() {
@@ -616,6 +622,7 @@ export class AppController {
     });
   }
 
+  // verify:auth-skip — public service banner (name, version, env, uptime, endpoint catalog)
   @Get('api/status')
   @SkipThrottle()
   getStatus() {

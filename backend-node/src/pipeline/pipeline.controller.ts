@@ -175,6 +175,7 @@ export class PipelineController {
 
   // ── SSE Job Status (for client portal) ────────────────
 
+  // verify:auth-skip — tenant-scoped SSE stream; auth-by-construction via owning-userId query param + null-on-mismatch (no userId leak path)
   @Sse('api/jobs/:jobId/status')
   jobStatus(
     @Param('jobId') jobId: string,

@@ -48,6 +48,7 @@ export class BillingController {
 
   // ── Checkout ──────────────────────────────────────────
 
+  // verify:auth-skip — public checkout (pre-purchase lead-to-customer conversion); throttled 10/hour/IP; payment auth handled downstream by Stripe
   @Post('api/billing/checkout')
   @Throttle({ default: { limit: 10, ttl: 3600000 } })
   @SkipAuditLog()
@@ -106,6 +107,7 @@ export class BillingController {
   // Returns 200 quickly; does NOT touch DB. Kept separate from /health so
   // a DB or Redis blip doesn't page the on-call as "Stripe down".
 
+  // verify:auth-skip — UptimeRobot liveness probe; isolated from /health to keep on-call signal clean
   @Get('api/billing/webhook/healthcheck')
   @SkipThrottle()
   @SkipAuditLog()
@@ -119,6 +121,7 @@ export class BillingController {
 
   // ── Stripe Webhook (signature-verified, no auth) ──────
 
+  // verify:auth-skip — Stripe webhook; auth surface is the `stripe-signature` HMAC verified inline against STRIPE_WEBHOOK_SECRET
   @Post('api/billing/webhook')
   @SkipThrottle()
   @HttpCode(HttpStatus.OK)
@@ -248,6 +251,7 @@ export class BillingController {
 
   // ── Magic Link Auth ───────────────────────────────────
 
+  // verify:auth-skip — magic-link verification (pre-auth); the JWT token in the query is the auth surface; throttled 10/15min/IP
   @Get('api/auth/magic')
   @Throttle({ default: { limit: 10, ttl: 900000 } })
   @ApiOperation({
@@ -265,6 +269,7 @@ export class BillingController {
     return this.completeMagicLinkVerification(token, req, res);
   }
 
+  // verify:auth-skip — legacy magic-link path (back-compat with older email templates); same JWT-token auth surface as /api/auth/magic
   @Get('auth/magic')
   @Throttle({ default: { limit: 10, ttl: 900000 } })
   async verifyMagicLinkLegacy(
@@ -275,6 +280,7 @@ export class BillingController {
     return this.completeMagicLinkVerification(token, req, res);
   }
 
+  // verify:auth-skip — request magic-link email (pre-auth); throttled 3/hour/IP; always 200 to prevent email-enumeration
   @Post('api/auth/magic/request')
   @Throttle({ default: { limit: 3, ttl: 3600000 } })
   @HttpCode(HttpStatus.OK)
@@ -282,6 +288,7 @@ export class BillingController {
     return this.queueMagicLinkRequest(body.email);
   }
 
+  // verify:auth-skip — legacy magic-link-request path (back-compat); same enumeration-safe behavior as /api/auth/magic/request
   @Post('auth/magic/request')
   @Throttle({ default: { limit: 3, ttl: 3600000 } })
   @HttpCode(HttpStatus.OK)

@@ -42,6 +42,7 @@ export class MarketDataController {
    * GET /api/market-data/latest
    * Returns the latest market rates across all tracked data types.
    */
+  // verify:auth-skip — public realtime ALM market-rate feed (Treasury / SOFR / etc.); no PII
   @Get('latest')
   async getLatestRates(): Promise<{ data: MarketDataSnapshot[] }> {
     const snapshots = await this.marketDataFeed.fetchLatestRates();
@@ -52,6 +53,7 @@ export class MarketDataController {
    * GET /api/market-data/treasury-curve
    * Returns the latest US Treasury yield curve.
    */
+  // verify:auth-skip — public US Treasury yield curve feed; sourced from public market data
   @Get('treasury-curve')
   async getTreasuryCurve(): Promise<{ data: TreasuryCurveResult }> {
     const curve = await this.marketDataFeed.fetchTreasuryCurve();
@@ -62,6 +64,7 @@ export class MarketDataController {
    * GET /api/market-data/sofr
    * Returns the latest SOFR rate.
    */
+  // verify:auth-skip — public SOFR rate feed; sourced from public market data
   @Get('sofr')
   async getSOFR(): Promise<{ data: MarketRateResult }> {
     const sofr = await this.marketDataFeed.fetchSOFR();
@@ -72,6 +75,7 @@ export class MarketDataController {
    * GET /api/market-data/history/:dataType?from=&to=
    * Returns historical rate snapshots for a given data type.
    */
+  // verify:auth-skip — public historical rate feed; no PII; same data class as /latest
   @Get('history/:dataType')
   async getHistory(
     @Param('dataType') dataType: string,

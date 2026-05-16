@@ -36,6 +36,7 @@ export class MarketDataController {
    * Get AI insights for a ticker
    * GET /api/market-data/insights?ticker=AAPL
    */
+  // verify:auth-skip — public AI insight on a public-ticker quote; no PII; LLM-cached
   @Get('insights')
   async getInsights(@Query('ticker') ticker: string) {
     if (!ticker) {
@@ -74,6 +75,7 @@ export class MarketDataController {
    * Get current quote for a ticker
    * GET /api/market-data/quote/:ticker
    */
+  // verify:auth-skip — public ticker quote feed; no PII
   @Get('quote/:ticker')
   async getQuote(@Param('ticker') ticker: string): Promise<QuoteDto> {
     try {
@@ -90,6 +92,7 @@ export class MarketDataController {
    * Get historical prices for a ticker
    * GET /api/market-data/history/:ticker?start=YYYY-MM-DD&end=YYYY-MM-DD
    */
+  // verify:auth-skip — public historical price feed; no PII
   @Get('history/:ticker')
   async getHistoricalPrices(
     @Param('ticker') ticker: string,
@@ -120,6 +123,7 @@ export class MarketDataController {
    * Get fundamental data for a ticker
    * GET /api/market-data/fundamentals/:ticker
    */
+  // verify:auth-skip — public fundamentals feed (P/E, EPS, etc.); SEC-disclosed data
   @Get('fundamentals/:ticker')
   async getFundamentals(
     @Param('ticker') ticker: string,
@@ -138,6 +142,7 @@ export class MarketDataController {
    * Get instrument profile for a ticker, including ETF metadata when available
    * GET /api/market-data/instrument/:ticker
    */
+  // verify:auth-skip — public instrument metadata (name, exchange, sector); no PII
   @Get('instrument/:ticker')
   async getInstrumentProfile(
     @Param('ticker') ticker: string,
@@ -156,6 +161,7 @@ export class MarketDataController {
    * Get latest related news for a ticker
    * GET /api/market-data/news/:ticker?limit=8
    */
+  // verify:auth-skip — public news headlines per ticker
   @Get('news/:ticker')
   async getNews(
     @Param('ticker') ticker: string,
@@ -179,6 +185,7 @@ export class MarketDataController {
    * Get the complete market snapshot used by live surfaces
    * GET /api/market-data/snapshot/:ticker?newsLimit=8
    */
+  // verify:auth-skip — public unified snapshot (quote + fundamentals + news) for a ticker
   @Get('snapshot/:ticker')
   async getMarketSnapshot(
     @Param('ticker') ticker: string,
@@ -202,6 +209,7 @@ export class MarketDataController {
    * Search for tickers
    * GET /api/market-data/search?q=apple&assetType=stock
    */
+  // verify:auth-skip — public ticker symbol search
   @Get('search')
   async searchTickers(
     @Query('q') query: string,
@@ -228,6 +236,7 @@ export class MarketDataController {
    * Get market-data provider and stream health
    * GET /api/market-data/health
    */
+  // verify:auth-skip — market-data service health (upstream provider up/down)
   @Get('health')
   getMarketDataHealth(): MarketDataHealthDto {
     return this.marketDataService.getHealth(
@@ -239,6 +248,7 @@ export class MarketDataController {
    * Get active stream status for debugging and observability
    * GET /api/market-data/streams
    */
+  // verify:auth-skip — observability snapshot of active streams (counts, subscribers); aggregate only, no PII
   @Get('streams')
   getActiveStreams(): StreamStatusDto[] {
     return this.marketStreamManager.getStreamStatus();
