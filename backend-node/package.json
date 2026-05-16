@@ -156,6 +156,14 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
+    "coverageThreshold": {
+      "global": {
+        "statements": 86,
+        "branches": 70,
+        "functions": 81,
+        "lines": 86
+      }
+    },
     "testEnvironment": "node",
     "setupFiles": [
       "./test-setup.ts"
