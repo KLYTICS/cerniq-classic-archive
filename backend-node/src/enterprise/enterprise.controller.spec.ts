@@ -1,5 +1,9 @@
 import 'reflect-metadata';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { EnterpriseController } from './enterprise.controller';
 import { ApiKeyAuthGuard } from '../api-v1/guards/api-key-auth.guard';
 import type { EnterpriseBatchService } from './enterprise-batch.service';
@@ -200,58 +204,95 @@ describe('EnterpriseController', () => {
     });
   });
 
-  describe('GET /reports/batch/:batchId (getBatch)', () => {
-    it('delegates to batchService.getBatch with parsed batchId', async () => {
-      const now = new Date();
-      batchService.getBatch.mockResolvedValue({
-        id: 'batch-42',
-        status: 'COMPLETED',
-        batchType: 'BULK_REPORT',
-        priority: 'NORMAL',
-        totalItems: 5,
-        completedItems: 5,
-        failedItems: 0,
-        progressPercent: 100,
-        estimatedCompletionAt: null,
-        outputFormat: 'PDF',
-        errorLog: null,
-        createdAt: now,
-        updatedAt: now,
-        completedAt: now,
-      } as never);
+  // Shared fixture for the 4 batchId-routes — each uses assertBatchAccess()
+  // which pre-fetches the batch and runs verifyMembership(batch.organizationId,
+  // ...). The mock batch carries UUID_ORG so the membership check fires
+  // against the same org the request body uses elsewhere.
+  const stubBatch = (overrides: Record<string, unknown> = {}) => ({
+    id: 'batch-fixture',
+    organizationId: UUID_ORG,
+    status: 'COMPLETED',
+    batchType: 'BULK_REPORT',
+    priority: 'NORMAL',
+    totalItems: 5,
+    completedItems: 5,
+    failedItems: 0,
+    progressPercent: 100,
+    estimatedCompletionAt: null,
+    outputFormat: 'PDF',
+    errorLog: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    completedAt: new Date(),
+    ...overrides,
+  });
 
-      const result = await controller.getBatch({ batchId: UUID_BATCH });
+  describe('GET /reports/batch/:batchId (getBatch)', () => {
+    it('delegates to batchService.getBatch with parsed batchId (and reads batch.id back in response)', async () => {
+      batchService.getBatch.mockResolvedValue(
+        stubBatch({ id: 'batch-42' }) as never,
+      );
+
+      const result = await controller.getBatch(authedReq, {
+        batchId: UUID_BATCH,
+      });
 
       expect(batchService.getBatch).toHaveBeenCalledWith(UUID_BATCH);
       expect(result.batchId).toBe('batch-42');
       expect(result.status).toBe('COMPLETED');
     });
+
+    it('verifies org membership against the batch.organizationId BEFORE returning (IDOR closure)', async () => {
+      batchService.getBatch.mockResolvedValue(stubBatch() as never);
+
+      await controller.getBatch(authedReq, { batchId: UUID_BATCH });
+
+      // assertBatchAccess fetches the batch first; verifyMembership runs
+      // on the BATCH's organizationId, NOT a user-supplied org. That's
+      // the entire IDOR fix: even a guessed batchId is gated by the
+      // batch's real org membership.
+      expect(orgMembership.verifyMembership).toHaveBeenCalledWith(
+        UUID_ORG,
+        'user-enterprise-1',
+        false,
+      );
+      const fetchOrder = batchService.getBatch.mock.invocationCallOrder[0];
+      const memOrder =
+        orgMembership.verifyMembership.mock.invocationCallOrder[0];
+      expect(fetchOrder).toBeLessThan(memOrder);
+    });
+
+    it('propagates Forbidden from verifyMembership and does NOT leak the batch back to the caller', async () => {
+      batchService.getBatch.mockResolvedValue(stubBatch() as never);
+      orgMembership.verifyMembership.mockRejectedValue(
+        new ForbiddenException('not authorized for this organization'),
+      );
+
+      await expect(
+        controller.getBatch(authedReq, { batchId: UUID_BATCH }),
+      ).rejects.toThrow(ForbiddenException);
+    });
   });
 
   describe('GET /reports/batch/:batchId/status (getBatchStatus)', () => {
     it('returns the lightweight polling shape', async () => {
-      const now = new Date();
-      batchService.getBatch.mockResolvedValue({
-        id: 'batch-7',
-        status: 'PROCESSING',
-        progressPercent: 60,
-        completedItems: 3,
-        failedItems: 0,
-        totalItems: 5,
-        estimatedCompletionAt: null,
-        // Heavy fields the polling shape should NOT echo back:
-        batchType: 'BULK_REPORT',
-        priority: 'NORMAL',
-        outputFormat: 'PDF',
-        errorLog: null,
-        createdAt: now,
-        updatedAt: now,
-        completedAt: null,
-      } as never);
+      batchService.getBatch.mockResolvedValue(
+        stubBatch({
+          id: 'batch-7',
+          status: 'PROCESSING',
+          progressPercent: 60,
+          completedItems: 3,
+          failedItems: 0,
+          totalItems: 5,
+          estimatedCompletionAt: null,
+          completedAt: null,
+        }) as never,
+      );
 
-      const result = await controller.getBatchStatus({ batchId: UUID_BATCH_2 });
+      const result = await controller.getBatchStatus(authedReq, {
+        batchId: UUID_BATCH_2,
+      });
 
-      // Polling shape exposes only the small set defined in the handler.
       expect(result).toEqual({
         batchId: 'batch-7',
         status: 'PROCESSING',
@@ -261,26 +302,92 @@ describe('EnterpriseController', () => {
         totalItems: 5,
         estimatedCompletionAt: null,
       });
-      // outputFormat, errorLog, createdAt etc. intentionally absent.
       expect(result).not.toHaveProperty('outputFormat');
       expect(result).not.toHaveProperty('errorLog');
+    });
+
+    it('runs verifyMembership on batch.organizationId before returning the polling shape', async () => {
+      batchService.getBatch.mockResolvedValue(stubBatch() as never);
+
+      await controller.getBatchStatus(authedReq, { batchId: UUID_BATCH_2 });
+
+      expect(orgMembership.verifyMembership).toHaveBeenCalledWith(
+        UUID_ORG,
+        'user-enterprise-1',
+        false,
+      );
+    });
+
+    it('Forbidden membership skips even the lightweight read', async () => {
+      batchService.getBatch.mockResolvedValue(stubBatch() as never);
+      orgMembership.verifyMembership.mockRejectedValue(
+        new ForbiddenException('not authorized'),
+      );
+
+      await expect(
+        controller.getBatchStatus(authedReq, { batchId: UUID_BATCH_2 }),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
   describe('DELETE /reports/batch/:batchId (cancelBatch)', () => {
-    it('delegates to batchService.cancelBatch and returns void', async () => {
+    it('delegates to batchService.cancelBatch (after passing membership)', async () => {
+      batchService.getBatch.mockResolvedValue(stubBatch() as never);
       batchService.cancelBatch.mockResolvedValue(undefined as never);
 
-      const result = await controller.cancelBatch({ batchId: UUID_BATCH_3 });
+      const result = await controller.cancelBatch(authedReq, {
+        batchId: UUID_BATCH_3,
+      });
 
       expect(batchService.cancelBatch).toHaveBeenCalledWith(UUID_BATCH_3);
       expect(result).toBeUndefined();
     });
+
+    it('runs verifyMembership BEFORE cancelBatch (the side-effect order lock)', async () => {
+      batchService.getBatch.mockResolvedValue(stubBatch() as never);
+      batchService.cancelBatch.mockResolvedValue(undefined as never);
+
+      await controller.cancelBatch(authedReq, { batchId: UUID_BATCH_3 });
+
+      const memOrder =
+        orgMembership.verifyMembership.mock.invocationCallOrder[0];
+      const cancelOrder = batchService.cancelBatch.mock.invocationCallOrder[0];
+      expect(memOrder).toBeLessThan(cancelOrder);
+    });
+
+    it('Forbidden membership must NOT cancel the batch (bug-fix lock)', async () => {
+      batchService.getBatch.mockResolvedValue(stubBatch() as never);
+      orgMembership.verifyMembership.mockRejectedValue(
+        new ForbiddenException('not authorized'),
+      );
+
+      await expect(
+        controller.cancelBatch(authedReq, { batchId: UUID_BATCH_3 }),
+      ).rejects.toThrow(ForbiddenException);
+      // Critical: the cancel side effect must not run when membership
+      // denies. Without this assertion, a Forbidden could bubble up
+      // while the state-change still committed.
+      expect(batchService.cancelBatch).not.toHaveBeenCalled();
+    });
+
+    it('NotFound from batchService.getBatch propagates as 404 (anti-enumeration: UUIDs are unguessable, so the 404/403 distinction is acceptable)', async () => {
+      batchService.getBatch.mockRejectedValue(
+        new NotFoundException('Batch not found'),
+      );
+
+      await expect(
+        controller.cancelBatch(authedReq, { batchId: UUID_BATCH_3 }),
+      ).rejects.toThrow(NotFoundException);
+      // Membership check never reached when batch lookup failed first.
+      expect(orgMembership.verifyMembership).not.toHaveBeenCalled();
+      expect(batchService.cancelBatch).not.toHaveBeenCalled();
+    });
   });
 
   describe('GET /webhooks/:batchId (getWebhookLog)', () => {
-    it('shapes webhook delivery log entries into the API response', async () => {
+    it('shapes webhook delivery log entries (after passing membership)', async () => {
       const now = new Date('2026-05-16T00:00:00Z');
+      batchService.getBatch.mockResolvedValue(stubBatch() as never);
       webhookService.getDeliveryLog.mockResolvedValue([
         {
           id: 'log-1',
@@ -296,17 +403,30 @@ describe('EnterpriseController', () => {
         },
       ] as never);
 
-      const result = await controller.getWebhookLog({ batchId: UUID_BATCH_4 });
+      const result = await controller.getWebhookLog(authedReq, {
+        batchId: UUID_BATCH_4,
+      });
 
-      // getWebhookLog passes the parsed batchId from input to the service,
-      // then echoes the same id into the response (unlike getBatch which
-      // returns `batch.id` from the service result).
       expect(webhookService.getDeliveryLog).toHaveBeenCalledWith(UUID_BATCH_4);
       expect(result.batchId).toBe(UUID_BATCH_4);
       expect(result.deliveries).toHaveLength(1);
       expect(result.deliveries[0].createdAt).toBe(now.toISOString());
       expect(result.deliveries[0].deliveredAt).toBe(now.toISOString());
       expect(result.deliveries[0].nextRetryAt).toBeNull();
+    });
+
+    it('Forbidden membership must NOT read the webhook log (information-leak lock)', async () => {
+      batchService.getBatch.mockResolvedValue(stubBatch() as never);
+      orgMembership.verifyMembership.mockRejectedValue(
+        new ForbiddenException('not authorized'),
+      );
+
+      await expect(
+        controller.getWebhookLog(authedReq, { batchId: UUID_BATCH_4 }),
+      ).rejects.toThrow(ForbiddenException);
+      // Critical: webhook URLs + HTTP status codes are sensitive — a
+      // denied user must not learn them via the response.
+      expect(webhookService.getDeliveryLog).not.toHaveBeenCalled();
     });
   });
 });

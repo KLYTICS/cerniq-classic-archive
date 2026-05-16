@@ -12,7 +12,10 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { EnterpriseBatchService } from './enterprise-batch.service';
+import {
+  EnterpriseBatchService,
+  type EnterpriseBatchWithProgress,
+} from './enterprise-batch.service';
 import { WebhookDeliveryService } from './webhook-delivery.service';
 import {
   ApiKeyAuthGuard,
@@ -114,12 +117,44 @@ export class EnterpriseController {
     };
   }
 
+  // ─── Auth helper for batchId routes ─────────────────────────────────────
+  //
+  // Closes the IDOR follow-up flagged in ff1ce9e4 §"Out of scope". The 4
+  // batchId-based routes (getBatch, getBatchStatus, cancelBatch,
+  // getWebhookLog) accept a UUID without checking that the caller belongs
+  // to the batch's owning organization. Unguessable UUIDs help, but the
+  // IDs leak via logs, webhook URLs, and the createBatch response — once
+  // an ID is known, any valid Enterprise key could read/cancel it.
+  //
+  // The helper fetches the batch (NotFoundException from
+  // batchService.getBatch propagates as 404), then runs verifyMembership
+  // on the batch's organizationId. Forbidden from verifyMembership
+  // propagates as 403 to the caller. Returns the batch so callers that
+  // already need it (getBatch, getBatchStatus) avoid the second fetch.
+  //
+  // Anti-enumeration note: we keep the 404-vs-403 distinction rather
+  // than collapsing both to 404. The batchId is a v4 UUID — the side
+  // channel ("does this ID exist?") leaks effectively zero information
+  // because brute-forcing UUIDs is infeasible.
+  private async assertBatchAccess(
+    batchId: string,
+    req: AuthedRequest,
+  ): Promise<EnterpriseBatchWithProgress> {
+    const batch = await this.batchService.getBatch(batchId);
+    await this.orgMembership.verifyMembership(
+      batch.organizationId,
+      req.apiUser.userId,
+      req.user?.access?.isMasterCeo === true,
+    );
+    return batch;
+  }
+
   // ─── GET /api/v1/enterprise/reports/batch/:batchId ──────────────────────
 
   @Get('reports/batch/:batchId')
-  async getBatch(@Param() params: unknown) {
+  async getBatch(@Req() req: AuthedRequest, @Param() params: unknown) {
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
-    const batch = await this.batchService.getBatch(batchId);
+    const batch = await this.assertBatchAccess(batchId, req);
 
     return {
       batchId: batch.id,
@@ -143,9 +178,9 @@ export class EnterpriseController {
   // Lightweight polling endpoint — returns only status fields.
 
   @Get('reports/batch/:batchId/status')
-  async getBatchStatus(@Param() params: unknown) {
+  async getBatchStatus(@Req() req: AuthedRequest, @Param() params: unknown) {
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
-    const batch = await this.batchService.getBatch(batchId);
+    const batch = await this.assertBatchAccess(batchId, req);
 
     return {
       batchId: batch.id,
@@ -162,16 +197,18 @@ export class EnterpriseController {
 
   @Delete('reports/batch/:batchId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async cancelBatch(@Param() params: unknown) {
+  async cancelBatch(@Req() req: AuthedRequest, @Param() params: unknown) {
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
+    await this.assertBatchAccess(batchId, req);
     await this.batchService.cancelBatch(batchId);
   }
 
   // ─── GET /api/v1/enterprise/webhooks/:batchId ───────────────────────────
 
   @Get('webhooks/:batchId')
-  async getWebhookLog(@Param() params: unknown) {
+  async getWebhookLog(@Req() req: AuthedRequest, @Param() params: unknown) {
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
+    await this.assertBatchAccess(batchId, req);
     const logs = await this.webhookService.getDeliveryLog(batchId);
 
     return {
