@@ -413,6 +413,20 @@ No adoption gaps. AEGIS is the reference implementation for cross-product discip
 
 When in conflict, this doc wins for **cross-cutting governance** rules. Product CLAUDE.md files win for **product-specific implementation**.
 
+### Mirror pointers in the other three products
+
+This file is the canonical source. To improve in-repo discoverability without duplicating content, a thin pointer file lives in each of the other three products' `docs/` trees:
+
+- `AEGIS/docs/KLYTICS_AUDIT_DISCIPLINE.md` (~65 lines) — frames AEGIS as 11/11 reference implementation, cites the canonical AEGIS-side impls of Rules 3/4/5/6/7/11/12.
+- `ComplianceKit/docs/KLYTICS_AUDIT_DISCIPLINE.md` (~70 lines) — frames ComplianceKit as the Rule-9 reference impl, calls out the Rule-5 follow-up.
+- `apex/docs/KLYTICS_AUDIT_DISCIPLINE.md` (~80 lines) — frames Apex as 3.5/11 cold-stored, embeds the §5 resurrection adoption order.
+
+Each mirror references this canon by repo + path + as-of commit SHA. The SHA will rot on main-branch rebase/squash; mirrors warn future readers to re-resolve via `git log --diff-filter=A` if the reference goes stale. Mirrors are pointer-only — they do NOT define normative text and they MUST stay in sync with the canon:
+
+1. Substantive rule changes (normative text, severity grades, new rules) edit the canon, then bump the as-of SHA in all three mirrors as part of the same PR.
+2. Maturity matrix corrections in canon §3 do NOT require mirror bumps unless they change the product's score; the mirrors quote their own product's score and adoption gaps, so a score change in canon §3 requires the affected mirror to update.
+3. New mirrors (a fifth product joining the platform) require a §7 entry here too.
+
 ---
 
 ## §8. Change log
