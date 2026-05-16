@@ -6,6 +6,7 @@ import {
   Param,
   Query,
   Logger,
+  UseGuards,
   BadRequestException,
   HttpCode,
   HttpStatus,
@@ -13,6 +14,8 @@ import {
 import { NcuaImportService } from './ncua-import.service';
 import { NcuaApiService } from './ncua-api.service';
 import { NcuaFieldMapperService } from './ncua-field-mapper.service';
+import { AuthTenantGuard } from '../auth/auth-tenant.guard';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 import {
   ImportBodySchema,
   SearchQuerySchema,
@@ -26,8 +29,16 @@ import {
  * Provides endpoints to import credit union data from the NCUA Form 5300
  * call report system, search the NCUA database, sync existing institutions,
  * and inspect the field mapping documentation.
+ *
+ * Class-level cross-tenant stack. AuthTenantGuard (auth + tenant resolution)
+ * runs first; InstitutionScopeGuard verifies ownership of `:institutionId`
+ * when the route carries it (sync). Non-`:institutionId` routes (import,
+ * search, field-map) pass through the institution check but still get
+ * authenticated by AuthTenantGuard — closing the prior gap where the entire
+ * controller was unauthenticated.
  */
 @Controller('api/ncua')
+@UseGuards(AuthTenantGuard, InstitutionScopeGuard)
 export class NcuaController {
   private readonly logger = new Logger(NcuaController.name);
 

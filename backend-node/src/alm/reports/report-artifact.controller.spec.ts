@@ -4,6 +4,7 @@ import { ReportArtifactController } from './report-artifact.controller';
 import { ReportArtifactService } from './report-artifact.service';
 import { AuthGuard } from '../../auth/auth.guard';
 import { RolesGuard } from '../../auth/roles.guard';
+import { InstitutionScopeGuard } from '../../agent-api/guards/institution-scope.guard';
 
 const mockArtifact = {
   id: 'art-1',
@@ -42,6 +43,8 @@ describe('ReportArtifactController', () => {
       providers: [{ provide: ReportArtifactService, useValue: service }],
     })
       .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(InstitutionScopeGuard)
       .useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard)
       .useValue({ canActivate: () => true })

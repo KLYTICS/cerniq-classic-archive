@@ -57,6 +57,15 @@ export class CpaClientController {
     );
   }
 
+  // verify:institution-scope-skip — CPA-firm cross-tenant operation. The
+  // tenancy contract here is "this firm has a CpaClientRelationship with
+  // this institution," not "this user owns this institution" (which is
+  // what InstitutionScopeGuard checks). Authorization is enforced inside
+  // CpaClientService.removeClient via firmId↔institutionId relationship
+  // lookup; RolesGuard at the class level gates which firm members can
+  // call this. Applying InstitutionScopeGuard here would 403 every CPA
+  // user because no CPA firm member is the workspace owner of a client
+  // institution. A dedicated CpaScopeGuard is the right long-term primitive.
   @Delete('clients/:institutionId')
   @ApiOperation({ summary: 'Remove a client institution from the CPA firm' })
   @ApiParam({ name: 'firmId', description: 'CPA firm ID' })

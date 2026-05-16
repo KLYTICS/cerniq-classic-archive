@@ -20,12 +20,13 @@ import {
 import { AuthGuard } from '../../auth/auth.guard';
 import { RolesGuard } from '../../auth/roles.guard';
 import { Roles } from '../../auth/roles.decorator';
+import { InstitutionScopeGuard } from '../../agent-api/guards/institution-scope.guard';
 import { ReportArtifactService } from './report-artifact.service';
 
 @ApiTags('Report Artifacts')
 @ApiBearerAuth('BearerAuth')
 @Controller('api/report-artifacts')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, InstitutionScopeGuard, RolesGuard)
 export class ReportArtifactController {
   private readonly logger = new Logger(ReportArtifactController.name);
 

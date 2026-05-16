@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 import { AiAdvisorService } from './ai-advisor.service';
 import { ConversationHistoryService } from './conversation-history.service';
 import {
@@ -26,7 +27,7 @@ import * as crypto from 'crypto';
 @ApiTags('AI Advisor')
 @ApiBearerAuth()
 @Controller('api/ai-advisor')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, InstitutionScopeGuard)
 export class AiAdvisorController {
   private readonly logger = new Logger(AiAdvisorController.name);
 
