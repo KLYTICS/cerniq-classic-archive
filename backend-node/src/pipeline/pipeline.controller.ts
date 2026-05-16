@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { Observable, interval, map, takeWhile, switchMap, from } from 'rxjs';
 import { PrismaService } from '../prisma.service';
-import { AdminGuard } from '../common/guards/admin.guard';
+import { AdminKeyGuard } from '../auth/admin-key.guard';
 import { ForceFailDto } from '../alm/dto/inline-bodies.dto';
 
 @Controller()
@@ -25,7 +25,7 @@ export class PipelineController {
   // ── Pipeline Dashboard ────────────────────────────────
 
   @Get('admin/api/pipeline')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getPipelineJobs(@Query('status') status?: string) {
     const where = status ? { status: status as any } : {};
     const jobs = await this.prisma.reportJob.findMany({
@@ -56,7 +56,7 @@ export class PipelineController {
   // ── Job Detail ────────────────────────────────────────
 
   @Get('admin/api/pipeline/:jobId')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getJobDetail(@Param('jobId') jobId: string) {
     const job = await this.prisma.reportJob.findUnique({
       where: { id: jobId },
@@ -70,7 +70,7 @@ export class PipelineController {
 
   @Post('admin/api/pipeline/:jobId/force-advance')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async forceAdvance(@Param('jobId') jobId: string) {
     await this.prisma.reportJob.update({
       where: { id: jobId },
@@ -83,7 +83,7 @@ export class PipelineController {
 
   @Post('admin/api/pipeline/:jobId/force-fail')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async forceFail(@Param('jobId') jobId: string, @Body() body: ForceFailDto) {
     await this.prisma.reportJob.update({
       where: { id: jobId },
@@ -99,7 +99,7 @@ export class PipelineController {
 
   @Post('admin/api/pipeline/:jobId/force-regenerate')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async forceRegenerate(@Param('jobId') jobId: string) {
     await this.prisma.reportJob.update({
       where: { id: jobId },
@@ -113,7 +113,7 @@ export class PipelineController {
   // ── Revenue Metrics ───────────────────────────────────
 
   @Get('admin/api/revenue')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getRevenueMetrics() {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);

@@ -5,7 +5,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../common/guards/admin.guard';
+import { AdminKeyGuard } from '../auth/admin-key.guard';
 
 /**
  * Sentry smoke endpoint — one-shot verification that error capture is wired
@@ -13,7 +13,7 @@ import { AdminGuard } from '../common/guards/admin.guard';
  *
  * Contract:
  *   GET /admin/api/sentry-smoke
- *     - Requires AdminGuard (x-admin-key header).
+ *     - Requires AdminKeyGuard (x-admin-key header).
  *     - In production, returns 501 UNLESS `SENTRY_SMOKE_ENABLED=1` is set.
  *       (Prevents accidental noise in prod Sentry projects from a stray curl.)
  *     - In dev/staging, always throws a labeled error that Sentry captures.
@@ -33,7 +33,7 @@ import { AdminGuard } from '../common/guards/admin.guard';
  * revoke access by removing `SENTRY_SMOKE_ENABLED` from Railway.
  */
 @Controller('admin/api/sentry-smoke')
-@UseGuards(AdminGuard)
+@UseGuards(AdminKeyGuard)
 export class SentrySmokeController {
   @Get()
   trigger(): never {

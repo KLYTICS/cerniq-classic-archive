@@ -12,7 +12,6 @@ import {
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import { AuthGuard } from './auth/auth.guard';
-import { AdminGuard } from './common/guards/admin.guard';
 import { AdminKeyGuard } from './auth/admin-key.guard';
 import { EmailService } from './email/email.service';
 import { MarketDataService } from './market-data/market-data.service';
@@ -110,8 +109,6 @@ describe('AppController', () => {
       ],
     })
       .overrideGuard(AuthGuard)
-      .useValue({ canActivate: () => true })
-      .overrideGuard(AdminGuard)
       .useValue({ canActivate: () => true })
       .overrideGuard(AdminKeyGuard)
       .useValue({ canActivate: () => true })

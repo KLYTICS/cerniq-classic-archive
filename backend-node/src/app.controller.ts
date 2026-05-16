@@ -21,7 +21,6 @@ import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import { CacheService } from './cache/cache.service';
 import { AuthGuard } from './auth/auth.guard';
-import { AdminGuard } from './common/guards/admin.guard';
 import { AdminKeyGuard } from './auth/admin-key.guard';
 import { EmailService } from './email/email.service';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
@@ -374,7 +373,7 @@ export class AppController {
 
   @Get('metrics')
   @SkipThrottle()
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getMetrics() {
     const mem = process.memoryUsage();
 
@@ -420,7 +419,7 @@ export class AppController {
 
   @Get('api/admin/webhook-delivery-logs')
   @SkipThrottle()
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getWebhookDeliveryLogs() {
     const subscriptions = await this.prisma.webhookSubscription.findMany({
       take: 100,

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PipelineController } from './pipeline.controller';
 import { PrismaService } from '../prisma.service';
-import { AdminGuard } from '../common/guards/admin.guard';
+import { AdminKeyGuard } from '../auth/admin-key.guard';
 
 describe('PipelineController', () => {
   let controller: PipelineController;
@@ -28,7 +28,7 @@ describe('PipelineController', () => {
       controllers: [PipelineController],
       providers: [{ provide: PrismaService, useValue: prismaService }],
     })
-      .overrideGuard(AdminGuard)
+      .overrideGuard(AdminKeyGuard)
       .useValue({ canActivate: () => true })
       .compile();
 

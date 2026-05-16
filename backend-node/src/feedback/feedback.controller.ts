@@ -13,7 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { AdminGuard } from '../common/guards/admin.guard';
+import { AdminKeyGuard } from '../auth/admin-key.guard';
 import { PrismaService } from '../prisma.service';
 
 @Controller('api/feedback')
@@ -182,7 +182,7 @@ export class FeedbackController {
    * Protected: requires ADMIN_KEY.
    */
   @Get('admin/stats')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getStats() {
     try {
       const allFeedback = await this.prisma.feedback.findMany({
