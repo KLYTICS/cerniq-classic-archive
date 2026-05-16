@@ -49,15 +49,42 @@ export class InstitutionScopeGuard implements CanActivate {
       // No `:institutionId` in this route's path → no scoped resource to
       // verify. Pass through (AuthGuard already enforced authentication).
       // This is what lets the guard sit at the class level on controllers
-      // that mix tenant-scoped and global routes.
+      // that mix tenant-scoped and global routes. Routes that receive
+      // institutionId via body/query/derivation should call
+      // verifyOwnership() directly from the controller or service — see
+      // ai-advisor.controller.ts for an example.
       return true;
     }
 
-    // Resolve the institution → workspace → owner chain. We use a single
-    // query with a tight select so the guard adds at most one round-trip.
-    // Fail-closed: any Prisma exception (connection loss, timeout, transient
-    // error) becomes a 403 so an outage doesn't get reported to the client
-    // as a generic 500.
+    await this.verifyOwnership(
+      institutionId,
+      userId,
+      !!req.user?.access?.isMasterCeo,
+    );
+
+    // Hand the verified id to the tenant middleware so RLS engages.
+    req.user.institutionId = institutionId;
+    return true;
+  }
+
+  /**
+   * Public ownership-check primitive. Same contract as the canActivate()
+   * path but callable from non-HTTP contexts where `:institutionId` is
+   * not in the URL — controllers handling body-supplied institutionIds,
+   * service methods invoked from WebSocket gateways, scheduled jobs, etc.
+   *
+   * Throws the same exceptions canActivate() throws (NotFound /
+   * Forbidden), so callers get matching HTTP semantics for free when the
+   * exception bubbles through Nest's exception filter.
+   *
+   * Fail-closed on Prisma exceptions: a database outage becomes 403,
+   * never a generic 500 reported as silent allow.
+   */
+  async verifyOwnership(
+    institutionId: string,
+    userId: string,
+    isMasterCeo: boolean,
+  ): Promise<void> {
     let institution: { workspace: { ownerId: string | null } | null } | null;
     try {
       institution = await this.prisma.institution.findUnique({
@@ -75,18 +102,11 @@ export class InstitutionScopeGuard implements CanActivate {
       throw new NotFoundException('institution not found');
     }
 
-    // Master CEO override (existing platform pattern — see auth.guard.ts).
-    // Master CEO can address any institution for support and audit.
-    const isMasterCeo = !!req.user?.access?.isMasterCeo;
     if (!isMasterCeo && institution.workspace?.ownerId !== userId) {
       this.logger.warn(
         `denied: user ${userId} attempted to access institution ${institutionId}`,
       );
       throw new ForbiddenException('not authorized for this institution');
     }
-
-    // Hand the verified id to the tenant middleware so RLS engages.
-    req.user.institutionId = institutionId;
-    return true;
   }
 }

@@ -128,4 +128,57 @@ describe('InstitutionScopeGuard', () => {
       ForbiddenException,
     );
   });
+
+  // ─── verifyOwnership() — public ownership primitive ──────────────────
+  // Used by controllers/services that receive institutionId from body,
+  // query, or derivation (where :institutionId isn't in the URL and the
+  // canActivate() pass-through would otherwise be a silent IDOR). See
+  // ai-advisor.controller.ts for the canonical caller.
+
+  describe('verifyOwnership (multi-context primitive)', () => {
+    it('resolves silently when caller owns the institution', async () => {
+      prisma.institution.findUnique.mockResolvedValue({
+        workspace: { ownerId: 'user-1' },
+      });
+      await expect(
+        guard.verifyOwnership('inst-1', 'user-1', false),
+      ).resolves.toBeUndefined();
+      expect(prisma.institution.findUnique).toHaveBeenCalledWith({
+        where: { id: 'inst-1' },
+        select: { workspace: { select: { ownerId: true } } },
+      });
+    });
+
+    it('throws Forbidden when caller is not the workspace owner', async () => {
+      prisma.institution.findUnique.mockResolvedValue({
+        workspace: { ownerId: 'someone-else' },
+      });
+      await expect(
+        guard.verifyOwnership('inst-1', 'user-1', false),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('allows master CEO bypass without comparing owner', async () => {
+      prisma.institution.findUnique.mockResolvedValue({
+        workspace: { ownerId: 'someone-else' },
+      });
+      await expect(
+        guard.verifyOwnership('inst-1', 'user-1', true),
+      ).resolves.toBeUndefined();
+    });
+
+    it('throws NotFound when the institution does not exist', async () => {
+      prisma.institution.findUnique.mockResolvedValue(null);
+      await expect(
+        guard.verifyOwnership('missing', 'user-1', false),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('fails closed (Forbidden) when the Prisma lookup throws', async () => {
+      prisma.institution.findUnique.mockRejectedValue(new Error('timeout'));
+      await expect(
+        guard.verifyOwnership('inst-1', 'user-1', false),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
 });
