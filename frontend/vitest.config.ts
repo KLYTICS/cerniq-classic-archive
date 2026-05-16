@@ -24,6 +24,19 @@ export default defineConfig({
       '../Cerniq-main-hotfix/**',
       '../Cerniq-release/**',
     ],
+    coverage: {
+      // Floor lock — measured 2026-05-15 at statements 60.92 / branches 52.54
+      // / functions 55.45 / lines 62.34. Set ~0.5pp below current to absorb
+      // refactor flux while still catching real regressions. Ratchet upward
+      // when coverage rises (don't loosen). Applies whenever
+      // `npm run test:coverage` runs (already in `verify:frontend` chain).
+      thresholds: {
+        statements: 60,
+        branches: 52,
+        functions: 55,
+        lines: 62,
+      },
+    },
   },
   resolve: {
     alias: {
