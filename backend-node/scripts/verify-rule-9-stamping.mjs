@@ -46,7 +46,8 @@ const ANTHROPIC_CALL_PATTERN = /\bmessages\s*\.\s*(create|stream)\b/;
 // Detect stamping. computePromptVersion is the canonical helper from
 // `src/alm/analyst/prompt-version.ts`. A path import or a usage both
 // count — caller-side use is what matters.
-const STAMPING_PATTERN = /\bcomputePromptVersion\b|['"`][^'"`]*analyst\/prompt-version['"`]/;
+const STAMPING_PATTERN =
+  /\bcomputePromptVersion\b|['"`][^'"`]*analyst\/prompt-version['"`]/;
 
 // Skip-comment syntax (mirrors verify-no-orphan-spec).
 const SKIP_COMMENT = /\/\/\s*verify:rule-9-skip\s*—\s*(.+)/;

@@ -88,9 +88,7 @@ const DEFAULT_GENERIC_PATTERN = new RegExp(
 const RATIONALE_PATTERN = /^\s*\/\/\s*type-rationale\s*:\s*\S+/;
 
 function stripComments(content) {
-  let s = content.replace(/\/\*[\s\S]*?\*\//g, (m) =>
-    m.replace(/[^\n]/g, ' '),
-  );
+  let s = content.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
   // For line comments, blank out everything after `//` but keep the line so
   // line numbers are preserved.
   s = s
@@ -165,7 +163,8 @@ function walkTs(dir) {
   const out = [];
   if (!existsSync(dir)) return out;
   for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry === '.next' || entry === 'dist') continue;
+    if (entry === 'node_modules' || entry === '.next' || entry === 'dist')
+      continue;
     const full = join(dir, entry);
     const stat = statSync(full);
     if (stat.isDirectory()) {
@@ -194,7 +193,9 @@ function collectTrees() {
 // ─── Main ──────────────────────────────────────────────────────────────
 function main() {
   if (process.env.VERIFY_RULE_11_SKIP === '1') {
-    console.log('verify-rule-11-any-rationale: skipped (VERIFY_RULE_11_SKIP=1)');
+    console.log(
+      'verify-rule-11-any-rationale: skipped (VERIFY_RULE_11_SKIP=1)',
+    );
     process.exit(0);
   }
 
@@ -246,26 +247,39 @@ function main() {
 
   let failed = false;
   if (newOffenders.length > 0) {
-    console.log('\n❌ Files with unrationalized hits not present in BASELINE_COUNTS (BLOCKING):');
+    console.log(
+      '\n❌ Files with unrationalized hits not present in BASELINE_COUNTS (BLOCKING):',
+    );
     for (const { file, count } of newOffenders.slice(0, 20)) {
       console.log(`  - ${file} (${count})`);
     }
-    if (newOffenders.length > 20) console.log(`  … and ${newOffenders.length - 20} more`);
-    console.log('\n  Fix: either type the untyped escape hatch, or add a `// type-rationale: <reason>`');
+    if (newOffenders.length > 20)
+      console.log(`  … and ${newOffenders.length - 20} more`);
+    console.log(
+      '\n  Fix: either type the untyped escape hatch, or add a `// type-rationale: <reason>`',
+    );
     console.log('       comment on the IMMEDIATELY preceding line, or run');
-    console.log('       `VERIFY_RULE_11_SNAPSHOT=1 node scripts/verify-rule-11-any-rationale.mjs`');
-    console.log('       and paste output into BASELINE_COUNTS to bake (chip-away discipline).');
+    console.log(
+      '       `VERIFY_RULE_11_SNAPSHOT=1 node scripts/verify-rule-11-any-rationale.mjs`',
+    );
+    console.log(
+      '       and paste output into BASELINE_COUNTS to bake (chip-away discipline).',
+    );
     failed = true;
   }
   if (overGrown.length > 0) {
-    console.log('\n❌ Files whose unrationalized count exceeds baseline (BLOCKING):');
+    console.log(
+      '\n❌ Files whose unrationalized count exceeds baseline (BLOCKING):',
+    );
     for (const { file, current, baseline } of overGrown) {
       console.log(`  - ${file}: ${current} > baseline ${baseline}`);
     }
     failed = true;
   }
   if (stale.length > 0) {
-    console.log('\n⚠ Stale BASELINE_COUNTS entries (file no longer offends — remove for credit):');
+    console.log(
+      '\n⚠ Stale BASELINE_COUNTS entries (file no longer offends — remove for credit):',
+    );
     for (const k of stale.slice(0, 10)) console.log(`  - ${k}`);
     if (stale.length > 10) console.log(`  … and ${stale.length - 10} more`);
     failed = true;
@@ -366,7 +380,9 @@ function selfTest() {
     } else {
       fail++;
       console.log(`✗ ${c.name}`);
-      console.log(`  expected ${c.expected}, got ${hits.length}: ${JSON.stringify(hits)}`);
+      console.log(
+        `  expected ${c.expected}, got ${hits.length}: ${JSON.stringify(hits)}`,
+      );
     }
   }
   console.log(`self-test: ${pass}/${pass + fail} case(s) pass`);

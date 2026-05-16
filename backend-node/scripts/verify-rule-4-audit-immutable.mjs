@@ -183,12 +183,16 @@ const BASELINE_SERVICE = {
 // ─── Main ──────────────────────────────────────────────────────────────
 function main() {
   if (process.env.VERIFY_RULE_4_SKIP === '1') {
-    console.log('verify-rule-4-audit-immutable: skipped (VERIFY_RULE_4_SKIP=1)');
+    console.log(
+      'verify-rule-4-audit-immutable: skipped (VERIFY_RULE_4_SKIP=1)',
+    );
     process.exit(0);
   }
 
   if (!existsSync(SCHEMA_PATH)) {
-    console.log('verify-rule-4-audit-immutable: prisma/schema.prisma not found — skipping.');
+    console.log(
+      'verify-rule-4-audit-immutable: prisma/schema.prisma not found — skipping.',
+    );
     process.exit(0);
   }
 
@@ -199,8 +203,12 @@ function main() {
     console.log(
       'verify-rule-4-audit-immutable: ⚠ no audit_log* models found in schema.prisma.',
     );
-    console.log('  This is itself a Rule 4 gap (the canon expects an audit trail).');
-    console.log('  The verifier exits 0 because there is nothing to enforce, but');
+    console.log(
+      '  This is itself a Rule 4 gap (the canon expects an audit trail).',
+    );
+    console.log(
+      '  The verifier exits 0 because there is nothing to enforce, but',
+    );
     console.log('  the maturity matrix should reflect the missing table.');
     process.exit(0);
   }
@@ -252,15 +260,21 @@ function main() {
     failed = true;
   }
   if (serviceViolations.length > 0) {
-    console.log('\n❌ Service-code mutations of append-only models (BLOCKING):');
+    console.log(
+      '\n❌ Service-code mutations of append-only models (BLOCKING):',
+    );
     for (const v of serviceViolations) {
       console.log(`  ${v.file}`);
       for (const h of v.hits) {
         console.log(`    prisma.${h.camel}.${h.op}(...)`);
       }
     }
-    console.log('\n  Fix: audit_log* models are append-only. Use `create` for new');
-    console.log('       rows. If you need to "fix" a row, append a corrective row');
+    console.log(
+      '\n  Fix: audit_log* models are append-only. Use `create` for new',
+    );
+    console.log(
+      '       rows. If you need to "fix" a row, append a corrective row',
+    );
     console.log('       referencing the original by id.');
     failed = true;
   }
@@ -274,7 +288,11 @@ function main() {
 function selfTest() {
   const tables = [
     { model: 'AuditLog', camel: 'auditLog', table: 'audit_logs' },
-    { model: 'AgentAuditLog', camel: 'agentAuditLog', table: 'agent_audit_logs' },
+    {
+      model: 'AgentAuditLog',
+      camel: 'agentAuditLog',
+      table: 'agent_audit_logs',
+    },
   ];
 
   const sqlCases = [
@@ -382,11 +400,18 @@ function selfTest() {
   let pass = 0;
   let fail = 0;
 
-  if (discovered.length === 2 && discovered[0].model === 'AuditLog' && discovered[1].model === 'AgentAuditLog') {
+  if (
+    discovered.length === 2 &&
+    discovered[0].model === 'AuditLog' &&
+    discovered[1].model === 'AgentAuditLog'
+  ) {
     pass++;
   } else {
     fail++;
-    console.log('✗ discoverAuditTables — expected 2 models, got', discovered.length);
+    console.log(
+      '✗ discoverAuditTables — expected 2 models, got',
+      discovered.length,
+    );
   }
 
   for (const c of sqlCases) {

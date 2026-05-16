@@ -45,7 +45,8 @@ const PRNG_CALL = /\bMath\s*\.\s*random\s*\(/;
 const PRNG_DESTRUCTURE = /\bconst\s*\{[^}]*\brandom\b[^}]*\}\s*=\s*Math\b/;
 
 // Security-scope path prefixes (relative to src/).
-const SECURITY_PREFIX = /^(auth|agent-trust|crypto|audit|billing|idempotency|admin|secrets|tenant|rbac)\//;
+const SECURITY_PREFIX =
+  /^(auth|agent-trust|crypto|audit|billing|idempotency|admin|secrets|tenant|rbac)\//;
 
 // Files in any path that are intrinsically security-scope by NestJS convention.
 const SECURITY_FILENAME_SUFFIX = /\.(guard|shield|middleware)\.ts$/;
@@ -120,7 +121,9 @@ export function classify(content, relPath) {
 // ─── Main ──────────────────────────────────────────────────────────────
 function main() {
   if (process.env.VERIFY_RULE_12_SKIP === '1') {
-    console.log('verify-rule-12-crypto-randomness: skipped (VERIFY_RULE_12_SKIP=1)');
+    console.log(
+      'verify-rule-12-crypto-randomness: skipped (VERIFY_RULE_12_SKIP=1)',
+    );
     process.exit(0);
   }
 
@@ -143,7 +146,9 @@ function main() {
     } else if (result.status === 'violation') violations.push(rel);
   }
 
-  const stale = Object.keys(BASELINE_VIOLATIONS).filter((k) => !baselineHits.has(k));
+  const stale = Object.keys(BASELINE_VIOLATIONS).filter(
+    (k) => !baselineHits.has(k),
+  );
 
   console.log(
     `verify-rule-12-crypto-randomness: scanned ${files.length} src files`,
@@ -154,22 +159,32 @@ function main() {
 
   let failed = false;
   if (stale.length > 0) {
-    console.log('\n⚠ Stale BASELINE_VIOLATIONS entries (no matching file — remove):');
+    console.log(
+      '\n⚠ Stale BASELINE_VIOLATIONS entries (no matching file — remove):',
+    );
     for (const k of stale) console.log(`  - ${k}`);
     failed = true;
   }
   if (violations.length > 0) {
     console.log('\n❌ Security-scope PRNG violations (BLOCKING):');
     for (const f of violations) console.log(`  - ${f}`);
-    console.log('\n  Fix: replace with `crypto.randomBytes(N)` / `crypto.randomUUID()` /');
-    console.log('       `crypto.getRandomValues(buf)`. See `node:crypto` docs.');
-    console.log('       OR add to BASELINE_VIOLATIONS in this script with a one-line');
+    console.log(
+      '\n  Fix: replace with `crypto.randomBytes(N)` / `crypto.randomUUID()` /',
+    );
+    console.log(
+      '       `crypto.getRandomValues(buf)`. See `node:crypto` docs.',
+    );
+    console.log(
+      '       OR add to BASELINE_VIOLATIONS in this script with a one-line',
+    );
     console.log('       priority + reason + remediation direction.');
     failed = true;
   }
 
   if (failed) process.exit(1);
-  console.log('\n✓ Rule 12 (crypto randomness): all security-scope files clean.');
+  console.log(
+    '\n✓ Rule 12 (crypto randomness): all security-scope files clean.',
+  );
   process.exit(0);
 }
 
