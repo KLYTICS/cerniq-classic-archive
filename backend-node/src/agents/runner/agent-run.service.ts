@@ -241,11 +241,25 @@ export class AgentRunService {
     _nextStepIndex: number;
   }> {
     const { run, existing } = await this.createOrReturnExisting(input);
-    const runId = run?.id ?? (run as any).id;
+    // `createOrReturnExisting` returns `{ run: Record<string, unknown> }` —
+    // the wide typing is a deliberate legacy boundary so the runner doesn't
+    // have to import Prisma's generated `AgentRun` model. But the Prisma
+    // schema does guarantee `id: string`, `agentId: string`, `institutionId:
+    // string | null` on every returned row (the unique-constraint conflict
+    // path throws rather than returning a degenerate shape). Narrow with
+    // targeted casts here instead of `as any` so any future schema drift
+    // surfaces as a TypeScript error at this call site, not silently in
+    // the agent runtime.
+    const runId = String(run.id);
+    const agentId = (run.agentId as string | undefined) ?? input.agentId;
+    const institutionId =
+      (run.institutionId as string | null | undefined) ??
+      input.institutionId ??
+      null;
     return {
       runId,
-      agentId: (run as any).agentId ?? input.agentId,
-      institutionId: (run as any).institutionId ?? input.institutionId ?? null,
+      agentId,
+      institutionId,
       replay: existing,
       _nextStepIndex: existing ? await this.nextStepIndexFor(runId) : 0,
     };
