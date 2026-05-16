@@ -5,8 +5,7 @@ import {
   Param,
   Query,
   Body,
-  Headers,
-  UnauthorizedException,
+  UseGuards,
   BadRequestException,
   Logger,
 } from '@nestjs/common';
@@ -18,9 +17,16 @@ import {
   ManualMatchBodySchema,
   parseOrThrow,
 } from './cossec.dto';
-import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
+import { AdminKeyGuard } from '../auth/admin-key.guard';
+
+// All 5 routes on this controller are admin-scoped (under
+// `admin/api/cossec/*`). Class-level `@UseGuards(AdminKeyGuard)`
+// replaces the previous inline `verifyAdmin(headerKey)` helper.
+// AuthModule is `@Global()` (peer `6b317c44`) so no module-level
+// import is needed.
 
 @Controller('admin/api/cossec')
+@UseGuards(AdminKeyGuard)
 export class CossecIngestController {
   private readonly logger = new Logger(CossecIngestController.name);
 
@@ -29,28 +35,13 @@ export class CossecIngestController {
     private readonly matchingService: CossecMatchingService,
   ) {}
 
-  // ── Auth helper ──────────────────────────────────────────────────────────
-
-  private verifyAdmin(key: string): void {
-    const adminKey = process.env.ADMIN_KEY;
-    if (!adminKey || !timingSafeStringEqual(key, adminKey)) {
-      throw new UnauthorizedException('Invalid admin key');
-    }
-  }
-
   // ── POST /admin/api/cossec/ingest ────────────────────────────────────────
 
   /**
    * Receive parsed findings from the Python microservice.
-   * Requires x-admin-key header.
    */
   @Post('ingest')
-  async ingest(
-    @Headers('x-admin-key') adminKey: string,
-    @Body() body: unknown,
-  ) {
-    this.verifyAdmin(adminKey);
-
+  async ingest(@Body() body: unknown) {
     let payload;
     try {
       payload = parseOrThrow(CossecIngestPayloadSchema, body);
@@ -78,12 +69,7 @@ export class CossecIngestController {
    * List findings with optional filters (category, severity, examYear).
    */
   @Get('findings')
-  async listFindings(
-    @Headers('x-admin-key') adminKey: string,
-    @Query() query: unknown,
-  ) {
-    this.verifyAdmin(adminKey);
-
+  async listFindings(@Query() query: unknown) {
     let filters;
     try {
       filters = parseOrThrow(FindingsQuerySchema, query);
@@ -119,11 +105,8 @@ export class CossecIngestController {
    */
   @Get('findings/:prospectInstitutionId')
   async getInstitutionFindings(
-    @Headers('x-admin-key') adminKey: string,
     @Param('prospectInstitutionId') prospectInstitutionId: string,
   ) {
-    this.verifyAdmin(adminKey);
-
     const findings = await this.ingestService.getInstitutionFindings(
       prospectInstitutionId,
     );
@@ -141,9 +124,7 @@ export class CossecIngestController {
    * Aggregated stats: findings by category, severity distribution.
    */
   @Get('stats')
-  async getStats(@Headers('x-admin-key') adminKey: string) {
-    this.verifyAdmin(adminKey);
-
+  async getStats() {
     // Aggregate across all findings
     const categories = [
       'ALM_POLICY',
@@ -181,12 +162,7 @@ export class CossecIngestController {
    * Use this to resolve unmatched findings from the ingest.
    */
   @Post('match')
-  async manualMatch(
-    @Headers('x-admin-key') adminKey: string,
-    @Body() body: unknown,
-  ) {
-    this.verifyAdmin(adminKey);
-
+  async manualMatch(@Body() body: unknown) {
     let matchBody;
     try {
       matchBody = parseOrThrow(ManualMatchBodySchema, body);
