@@ -34,11 +34,20 @@ export class AiAdvisorController {
   constructor(
     private readonly aiAdvisor: AiAdvisorService,
     private readonly conversationHistory: ConversationHistoryService,
+    private readonly institutionScope: InstitutionScopeGuard,
   ) {}
 
   /**
    * POST /api/ai-advisor/ask
    * Ask a question and receive a full (non-streaming) response.
+   *
+   * Body-supplied institutionId — the class-level InstitutionScopeGuard
+   * passes through here because the route has no :institutionId URL
+   * param. Re-running its ownership primitive against the body keeps the
+   * single source-of-truth ownership contract: same lookup, same 403/404
+   * semantics, same WARN denial logs as URL-scoped routes. Closes the
+   * first of the two ai-advisor IDORs flagged in
+   * docs/security/IDOR_RESIDUAL_AUDIT.md.
    */
   @Post('ask')
   @HttpCode(200)
@@ -50,7 +59,14 @@ export class AiAdvisorController {
 
     const { institutionId, question, language } = parsed.data;
     const sessionId = parsed.data.sessionId || crypto.randomUUID();
-    const userId: string = req.user?.id ?? req.user?.sub ?? 'anonymous';
+    const userId: string =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub ?? 'anonymous';
+
+    await this.institutionScope.verifyOwnership(
+      institutionId,
+      userId,
+      !!req.user?.access?.isMasterCeo,
+    );
 
     this.logger.log(
       `AI Advisor ask: institution=${institutionId} session=${sessionId} q="${question.slice(0, 80)}..."`,
@@ -107,15 +123,21 @@ export class AiAdvisorController {
   /**
    * DELETE /api/ai-advisor/sessions/:sessionId
    * Delete a chat session and all its messages.
+   *
+   * `InstitutionScopeGuard` doesn't gate this route (no `:institutionId`
+   * in the path). Session ownership is enforced at the service layer by
+   * scoping the delete to the requesting `userId`. Closes the second
+   * ai-advisor IDOR flagged in `docs/security/IDOR_RESIDUAL_AUDIT.md`.
    */
   @Delete('sessions/:sessionId')
   @HttpCode(204)
-  async deleteSession(@Param() params: unknown) {
+  async deleteSession(@Param() params: unknown, @Req() req: any) {
     const parsed = DeleteSessionParamsSchema.safeParse(params);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.issues);
     }
 
-    await this.conversationHistory.deleteSession(parsed.data.sessionId);
+    const userId: string = req.user?.id ?? req.user?.sub ?? '';
+    await this.conversationHistory.deleteSession(parsed.data.sessionId, userId);
   }
 }

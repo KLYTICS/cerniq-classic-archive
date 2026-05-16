@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
 // ─── Types ──────────────────────────────────────────────────
@@ -147,12 +147,35 @@ export class ConversationHistoryService {
   }
 
   /**
-   * Delete all messages belonging to a session.
+   * Delete all messages belonging to a session — scoped to the requesting
+   * user.
+   *
+   * The previous unscoped `deleteMany({ where: { sessionId } })` allowed a
+   * caller to delete any session by id (the `:sessionId` URL param is
+   * attacker-controlled and `InstitutionScopeGuard` doesn't apply: there's
+   * no `:institutionId` on the route). Filtering on `userId` collapses
+   * "session not yours" and "session doesn't exist" onto the same 404
+   * (anti-enumeration), preventing existence probing.
+   *
+   * Closes the second of the two IDORs flagged in
+   * `docs/security/IDOR_RESIDUAL_AUDIT.md` for ai-advisor.
    */
-  async deleteSession(sessionId: string): Promise<void> {
+  async deleteSession(sessionId: string, userId: string): Promise<void> {
+    if (!sessionId || !userId) {
+      throw new NotFoundException(`Session ${sessionId} not found`);
+    }
     const { count } = await this.prisma.conversationHistory.deleteMany({
-      where: { sessionId },
+      where: { sessionId, userId },
     });
+    if (count === 0) {
+      // Either no such session or this user doesn't own it — same 404.
+      this.logger.warn({
+        event: 'conversation_history.delete_session.not_found',
+        sessionId,
+        userId,
+      });
+      throw new NotFoundException(`Session ${sessionId} not found`);
+    }
     this.logger.log(`Deleted session ${sessionId} (${count} messages removed)`);
   }
 }

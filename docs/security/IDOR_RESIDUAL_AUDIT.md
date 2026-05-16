@@ -103,14 +103,55 @@ All 18 routes on `CloseController` carry either `:orgId` (5 routes — cycles li
 
 ## Follow-Up Backlog (out of this commit's scope)
 
-### `ai-advisor/ai-advisor.controller.ts` partial gap (peer-2 sweep area)
+### `ai-advisor/ai-advisor.controller.ts` partial gap — CLOSED
 
-Two routes the existing `InstitutionScopeGuard` does not catch because `:institutionId` is not in the URL:
+Two routes the existing `InstitutionScopeGuard` did not catch because `:institutionId` was not in the URL:
 
-1. `POST /api/ai-advisor/ask` — `institutionId` in request body. Service `AiAdvisorService.ask({institutionId, ...})` does not verify ownership before `getInstitutionContext(institutionId)`.
-2. `DELETE /api/ai-advisor/sessions/:sessionId` — no scoped param at all. Session ownership not verified.
+1. **`POST /api/ai-advisor/ask`** — `institutionId` in request body. Service `AiAdvisorService.ask({institutionId, ...})` did not verify ownership before `getInstitutionContext(institutionId)`. **Closed in this commit (5dbd7880's successor)** by refactoring `InstitutionScopeGuard` to expose a public `verifyOwnership(institutionId, userId, isMasterCeo)` primitive, then calling it from the controller before `aiAdvisor.ask()`. The class-level guard still passes through (no URL param), but the explicit primitive call is the second-layer enforcement. Same lookup, same 403/404, same WARN denial logs as URL-scoped routes.
+2. **`DELETE /api/ai-advisor/sessions/:sessionId`** — no scoped param at all. Session ownership not verified. **Closed by peer earlier in the wave** via userId-scoping in `ConversationHistoryService.deleteSession(sessionId, userId)`. The `deleteMany({where:{sessionId, userId}})` filter collapses "session not yours" and "session doesn't exist" onto the same 404 (anti-enumeration). Peer's commit body explicitly cited this audit doc as the spec — best peer-coordination outcome of the session.
 
-Fix sketch: either (a) move `institutionId` into the URL path so the existing guard catches it, or (b) add a service-level ownership check in `AiAdvisorService.ask` and a session-ownership check in `ConversationHistoryService.deleteSession`. Peer-2's unstaged changes appear to be approaching this — verify before adding more work.
+### `ai-advisor` minor follow-ups
+
+- **`GET /api/ai-advisor/sessions/:institutionId/:sessionId`** — institution-scoped (guard catches) but not user-filtered. A user in the same institution as another user could read that user's session history. Lower severity than the IDORs above (still institution-scoped) but real for multi-member-org futures. Tighten by adding `userId` filter to `getSessionHistory()` mirroring the `listSessions(institutionId, userId)` pattern.
+- **userId extraction inconsistency** — `AuthGuard` canonically sets `req.user.userId` (per `auth.guard.ts:271`). The `ai-advisor.controller.ts` `deleteSession()` reads `req.user?.id ?? req.user?.sub ?? ''` — skipping the canonical field. The `ask()` method now widens the chain to `userId ?? id ?? sub`. Normalize the chain repo-wide as a small follow-up sweep so all controllers agree on the auth-source field order.
+- **`AiAdvisorService.getInstitutionContext()` signature drift** — `ai-advisor.service.spec.ts` is mid-update to a 2-arg `(institutionId, userId)` signature pushing ownership checks INTO the service (a complementary defense-in-depth approach — service refuses to load context unless caller owns the institution). Spec is failing because implementation hasn't caught up. Either the spec change should be reverted (since the controller-layer fix in this commit closes the same IDOR), OR the implementation should be updated to match. Decide before next ai-advisor edit.
+
+### NEW Critical: `ai-advisor.gateway.ts` WebSocket auth bypass
+
+Severity: **Critical** — far worse than any HTTP IDOR found in this audit.
+
+The `AiAdvisorGateway` (Socket.io, `@WebSocketGateway({namespace:'ai-advisor'})`) has **zero JWT verification**:
+
+```typescript
+handleConnection(client: Socket) {
+  const userId =
+    (client.handshake.auth as Record<string, string>)?.userId ||
+    (client.handshake.query as Record<string, string>)?.userId ||
+    'anonymous';
+  (client as any)._userId = userId;
+}
+```
+
+Any client who knows the WS endpoint URL can:
+
+1. Connect with `?userId=anyone` query parameter — no token verification, just trust whatever string the client supplies.
+2. Emit `ask` events with `payload.institutionId = anything` — gateway calls `aiAdvisor.streamAsk()` which loads institution context and bills Anthropic API calls **on your account on behalf of the impersonated user/institution**.
+3. Emit `history` events with `payload.institutionId` + `payload.sessionId` — gateway calls `conversationHistory.getSessionHistory()` and emits the messages back. Reads any session.
+
+Compounded vectors:
+- WS bypass → can call `streamAsk` for any institution
+- `streamAsk` has the same body-trust pattern as `ask` (no service-level ownership check yet — depends on the in-flight `getInstitutionContext` 2-arg signature decision above)
+- WS bypass → can read any session's history
+
+The HTTP `POST /ask` IDOR is now closed by this commit's `verifyOwnership` call, but the WS `ask` path bypasses the entire HTTP stack. Both paths invoke the same service.
+
+**Fix sketch (next commit):**
+1. WS handshake middleware: extract bearer token from `handshake.auth.token`, verify via the same `AuthService.verifyJwt()` the HTTP `AuthGuard` uses, populate `client.data.user` with the canonical `req.user` shape. Reject with `next(new Error('unauthorized'))` if missing/invalid.
+2. In `handleAsk` and `handleHistory`: call `institutionScope.verifyOwnership(institutionId, client.data.user.userId, !!client.data.user.access?.isMasterCeo)` before invoking the service. Same primitive as the HTTP path — single source of truth.
+3. Add a focused gateway spec mirroring `ai-advisor.controller.security.spec.ts` shape — mock the gateway dependencies, assert ownership-verification ordering and bypass-rejection paths.
+4. Strongly consider a feature flag to disable WS until the auth fix lands, since this is a billing/data-leakage attack surface.
+
+This is the kind of finding that locks down a fintech security review — it should jump the queue.
 
 ### CI enforcement (peer-4 in flight)
 
