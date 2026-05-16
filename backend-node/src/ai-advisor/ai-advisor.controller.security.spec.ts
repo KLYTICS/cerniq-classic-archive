@@ -153,6 +153,40 @@ describe('AiAdvisorController (security)', () => {
     });
   });
 
+  describe('GET /sessions/:institutionId/:sessionId', () => {
+    it('forwards req.user.userId to getSessionHistory for intra-institution privacy', async () => {
+      // Locks the privacy contract: even within an institution the caller
+      // is authorized for, getSessionHistory must filter by userId so two
+      // users in the same institution sharing a sessionId can't read each
+      // other's conversation history.
+      await controller.getSessionHistory(
+        { institutionId: 'inst-1', sessionId: 'sess-1' },
+        { user: { userId: 'user-1' } },
+      );
+
+      expect(conversationHistory.getSessionHistory).toHaveBeenCalledWith(
+        'inst-1',
+        'sess-1',
+        50,
+        'user-1',
+      );
+    });
+
+    it('reads userId via the wider chain (userId → id → sub)', async () => {
+      await controller.getSessionHistory(
+        { institutionId: 'inst-1', sessionId: 'sess-1' },
+        { user: { sub: 'legacy-sub' } },
+      );
+
+      expect(conversationHistory.getSessionHistory).toHaveBeenLastCalledWith(
+        'inst-1',
+        'sess-1',
+        50,
+        'legacy-sub',
+      );
+    });
+  });
+
   describe('DELETE /sessions/:sessionId', () => {
     it('passes userId to deleteSession so cross-user deletes are filtered', async () => {
       // NOTE: deleteSession() reads req.user.id / req.user.sub (peer's

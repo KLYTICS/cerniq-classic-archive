@@ -104,19 +104,26 @@ export class AiAdvisorController {
 
   /**
    * GET /api/ai-advisor/sessions/:institutionId/:sessionId
-   * Get the full history for a specific chat session.
+   * Get the full history for a specific chat session, scoped to the
+   * requesting user's own messages. Closes the intra-institution privacy
+   * leak documented in `IDOR_RESIDUAL_AUDIT.md` — pre-fix, two users in
+   * the same institution sharing a sessionId could read each other's
+   * conversation history.
    */
   @Get('sessions/:institutionId/:sessionId')
-  async getSessionHistory(@Param() params: unknown) {
+  async getSessionHistory(@Param() params: unknown, @Req() req: any) {
     const parsed = SessionHistoryParamsSchema.safeParse(params);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.issues);
     }
+    const userId: string =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub ?? '';
 
     return this.conversationHistory.getSessionHistory(
       parsed.data.institutionId,
       parsed.data.sessionId,
       50, // Return up to 50 messages for full session view
+      userId,
     );
   }
 

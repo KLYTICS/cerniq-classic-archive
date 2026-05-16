@@ -277,7 +277,7 @@ describe('AiAdvisorGateway (security)', () => {
       expect(conversationHistory.getSessionHistory).not.toHaveBeenCalled();
     });
 
-    it('runs verifyOwnership BEFORE getSessionHistory', async () => {
+    it('runs verifyOwnership BEFORE getSessionHistory and forwards user.userId for privacy filter', async () => {
       const sock = buildAuthedSocket();
       await gateway.handleHistory(sock as any, {
         institutionId: 'inst-1',
@@ -289,7 +289,16 @@ describe('AiAdvisorGateway (security)', () => {
         'user-1',
         false,
       );
-      expect(conversationHistory.getSessionHistory).toHaveBeenCalledTimes(1);
+      // Locks the intra-institution privacy contract: getSessionHistory's
+      // 4th arg (userId) MUST be the authenticated socket user, so the
+      // returned messages are filtered to this user even if two users in
+      // the same institution share a sessionId.
+      expect(conversationHistory.getSessionHistory).toHaveBeenCalledWith(
+        'inst-1',
+        'sess-1',
+        50,
+        'user-1',
+      );
       expect(
         institutionScope.verifyOwnership.mock.invocationCallOrder[0],
       ).toBeLessThan(

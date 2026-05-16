@@ -256,6 +256,7 @@ export class AiAdvisorGateway
         payload.institutionId,
         payload.sessionId,
         payload.limit ?? 50,
+        user.userId,
       );
       client.emit('history', {
         sessionId: payload.sessionId,
