@@ -152,6 +152,167 @@ describe('AiAdvisorGateway (security)', () => {
     });
   });
 
+  describe('Supabase token fallback (mirrors AuthGuard.verifySupabaseToken)', () => {
+    const ORIGINAL_FETCH = global.fetch;
+    const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
+    const ORIGINAL_SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+    beforeEach(() => {
+      // Make legacy JWT verification fail so the Supabase branch runs.
+      jwtService.verify.mockImplementation(() => {
+        throw new Error('not a legacy JWT');
+      });
+    });
+
+    afterEach(() => {
+      global.fetch = ORIGINAL_FETCH;
+      if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
+      else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
+      if (ORIGINAL_SUPABASE_ANON_KEY === undefined)
+        delete process.env.SUPABASE_ANON_KEY;
+      else process.env.SUPABASE_ANON_KEY = ORIGINAL_SUPABASE_ANON_KEY;
+    });
+
+    it('returns null (rejects) when Supabase env vars are missing', async () => {
+      delete process.env.SUPABASE_URL;
+      delete process.env.SUPABASE_ANON_KEY;
+      const fetchSpy = jest.fn();
+      global.fetch = fetchSpy as unknown as typeof fetch;
+
+      const sock = buildSocket({ auth: { token: 'sb-token' } });
+      await gateway.handleConnection(sock as any);
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(sock.disconnect).toHaveBeenCalledWith(true);
+      expect(sock.data.user).toBeUndefined();
+    });
+
+    it('accepts a valid Supabase token (200 + id) with isMasterCeo=false', async () => {
+      process.env.SUPABASE_URL = 'https://example.supabase.co/';
+      process.env.SUPABASE_ANON_KEY = 'anon-key';
+      const fetchSpy = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: 'sb-user-1', email: 'a@b.c' }),
+      } as unknown as Response);
+      global.fetch = fetchSpy as unknown as typeof fetch;
+
+      const sock = buildSocket({ auth: { token: 'sb-token' } });
+      await gateway.handleConnection(sock as any);
+
+      // Trailing slash stripped, /auth/v1/user appended, apikey + Bearer set.
+      expect(fetchSpy).toHaveBeenCalledWith(
+        'https://example.supabase.co/auth/v1/user',
+        {
+          headers: {
+            apikey: 'anon-key',
+            Authorization: 'Bearer sb-token',
+          },
+        },
+      );
+      expect(sock.disconnect).not.toHaveBeenCalled();
+      expect(sock.data.user).toEqual({
+        userId: 'sb-user-1',
+        isMasterCeo: false,
+      });
+    });
+
+    it('falls back to NEXT_PUBLIC_SUPABASE_ANON_KEY when SUPABASE_ANON_KEY is unset', async () => {
+      process.env.SUPABASE_URL = 'https://example.supabase.co';
+      delete process.env.SUPABASE_ANON_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'next-anon-key';
+      const fetchSpy = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: 'sb-user-2' }),
+      } as unknown as Response);
+      global.fetch = fetchSpy as unknown as typeof fetch;
+
+      try {
+        const sock = buildSocket({ auth: { token: 'sb-token' } });
+        await gateway.handleConnection(sock as any);
+
+        expect(fetchSpy).toHaveBeenCalledWith(
+          'https://example.supabase.co/auth/v1/user',
+          {
+            headers: {
+              apikey: 'next-anon-key',
+              Authorization: 'Bearer sb-token',
+            },
+          },
+        );
+        expect(sock.data.user).toEqual({
+          userId: 'sb-user-2',
+          isMasterCeo: false,
+        });
+      } finally {
+        delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      }
+    });
+
+    it('rejects when Supabase returns non-200', async () => {
+      process.env.SUPABASE_URL = 'https://example.supabase.co';
+      process.env.SUPABASE_ANON_KEY = 'anon-key';
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        json: async () => ({}),
+      } as unknown as Response) as unknown as typeof fetch;
+
+      const sock = buildSocket({ auth: { token: 'sb-expired' } });
+      await gateway.handleConnection(sock as any);
+
+      expect(sock.disconnect).toHaveBeenCalledWith(true);
+      expect(sock.data.user).toBeUndefined();
+    });
+
+    it('rejects when Supabase returns 200 but no user id', async () => {
+      process.env.SUPABASE_URL = 'https://example.supabase.co';
+      process.env.SUPABASE_ANON_KEY = 'anon-key';
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ email: 'no-id@example.com' }),
+      } as unknown as Response) as unknown as typeof fetch;
+
+      const sock = buildSocket({ auth: { token: 'sb-shape-bad' } });
+      await gateway.handleConnection(sock as any);
+
+      expect(sock.disconnect).toHaveBeenCalledWith(true);
+      expect(sock.data.user).toBeUndefined();
+    });
+
+    it('rejects when fetch throws (network error)', async () => {
+      process.env.SUPABASE_URL = 'https://example.supabase.co';
+      process.env.SUPABASE_ANON_KEY = 'anon-key';
+      global.fetch = jest
+        .fn()
+        .mockRejectedValue(
+          new Error('ECONNREFUSED'),
+        ) as unknown as typeof fetch;
+
+      const sock = buildSocket({ auth: { token: 'sb-token' } });
+      await gateway.handleConnection(sock as any);
+
+      expect(sock.disconnect).toHaveBeenCalledWith(true);
+      expect(sock.data.user).toBeUndefined();
+    });
+
+    it('legacy JWT wins when valid — Supabase fetch is not called', async () => {
+      // Override the failing legacy mock from this describe's beforeEach.
+      jwtService.verify.mockReturnValueOnce({ userId: 'legacy-wins' });
+      process.env.SUPABASE_URL = 'https://example.supabase.co';
+      process.env.SUPABASE_ANON_KEY = 'anon-key';
+      const fetchSpy = jest.fn();
+      global.fetch = fetchSpy as unknown as typeof fetch;
+
+      const sock = buildSocket({ auth: { token: 'legacy-token' } });
+      await gateway.handleConnection(sock as any);
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(sock.data.user).toEqual({
+        userId: 'legacy-wins',
+        isMasterCeo: false,
+      });
+    });
+  });
+
   describe('handleAsk (event)', () => {
     const validPayload = {
       institutionId: 'inst-1',

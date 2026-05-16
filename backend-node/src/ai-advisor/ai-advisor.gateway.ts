@@ -275,31 +275,88 @@ export class AiAdvisorGateway
 
   // ─── Token verification helpers ──────────────────────────
 
+  // Two-stage verification mirroring AuthGuard's HTTP-side fallback:
+  //   1. Try the legacy JWT path (`JwtService.verify` — synchronous,
+  //      shared secret, zero network). This is what most clients use.
+  //   2. Fall back to Supabase token verification (HTTP call to
+  //      `${SUPABASE_URL}/auth/v1/user` with the anon key + bearer
+  //      token). Only runs if both env vars are set, so deployments
+  //      without Supabase configured behave identically to before.
+  //
+  // Same dual-source pattern as `AuthGuard.canActivate` paths
+  // (`verifyLegacyToken` then `verifySupabaseToken`). Inlining the
+  // Supabase logic here rather than exposing it as a public method on
+  // AuthGuard keeps this commit scoped to the gateway — a future
+  // refactor to consolidate both into a single `AuthService.verifyToken`
+  // primitive would replace both branches simultaneously.
+
   private async verifyClientToken(
     client: Socket,
   ): Promise<SocketUserCtx | null> {
     const token = this.extractToken(client);
     if (!token) return null;
+
+    const legacy = this.tryVerifyLegacyJwt(token);
+    if (legacy) return legacy;
+
+    const supabase = await this.tryVerifySupabaseToken(token);
+    if (supabase) return supabase;
+
+    this.logger.warn(
+      `AI Advisor WS token failed both legacy and Supabase verification (clientId=${client.id})`,
+    );
+    return null;
+  }
+
+  private tryVerifyLegacyJwt(token: string): SocketUserCtx | null {
     try {
       const payload = this.jwtService.verify(token);
       const userId =
         (payload?.userId as string | undefined) ??
         (payload?.sub as string | undefined);
-      if (!userId) {
-        this.logger.warn(
-          `AI Advisor WS token has no userId/sub (clientId=${client.id})`,
-        );
-        return null;
-      }
+      if (!userId) return null;
       const access = payload?.access as { isMasterCeo?: boolean } | undefined;
       return {
         userId,
         isMasterCeo: !!access?.isMasterCeo,
       };
-    } catch (err) {
-      this.logger.warn(
-        `AI Advisor WS token verification failed: ${String(err)} (clientId=${client.id})`,
-      );
+    } catch {
+      return null;
+    }
+  }
+
+  private async tryVerifySupabaseToken(
+    token: string,
+  ): Promise<SocketUserCtx | null> {
+    const supabaseUrl = (process.env.SUPABASE_URL || '')
+      .trim()
+      .replace(/\/$/, '');
+    const anonKey =
+      (process.env.SUPABASE_ANON_KEY || '').trim() ||
+      (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+    if (!supabaseUrl || !anonKey) return null;
+
+    try {
+      const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) return null;
+      const user = (await response.json()) as { id?: string };
+      if (!user?.id) return null;
+      // Supabase tokens don't carry the platform isMasterCeo claim —
+      // that lives in PlatformAccessService and is applied by
+      // AuthGuard for HTTP requests. WS Supabase users get the
+      // normal-user flag here; if cross-tenant master-CEO support is
+      // ever needed over WS, mirror AuthGuard's PlatformAccessService
+      // lookup in this branch.
+      return {
+        userId: user.id,
+        isMasterCeo: false,
+      };
+    } catch {
       return null;
     }
   }
