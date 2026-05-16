@@ -69,6 +69,23 @@ const CONTROLLER_RE = /\.controller\.ts$/;
 //      surfaced gaps in production code OR document them with a skip
 //      comment giving the rationale.
 
+// Optional `secondaryParam` field (new in commit 0cf2c87c+): when set, the
+// rule fires ONLY if the effective path contains BOTH `:canonicalParam`
+// AND `:secondaryParam`. Used by the firm-owns-client rule whose contract
+// is a (firmId, institutionId) relationship pair — neither param alone
+// implies the relationship guard is required.
+//
+// KNOWN LIMITATION: skip comments (`// verify:tenant-scope-skip — ...`)
+// are rule-agnostic — a skip on a route exempts ALL rules whose
+// canonicalParam matches. For routes that legitimately skip one rule but
+// require another (e.g. CPA route skips institution-scope but requires
+// firm-owns-client), the active guard's presence is what makes the rule
+// pass, NOT the skip — but if someone removes the guard, the skip would
+// also exempt the new rule. Future: rule-targeted skip syntax
+// (`// verify:tenant-scope-skip[rule-id] — ...`). For now: the self-test
+// asserts the rule fires correctly when guards are absent, and the spec
+// for FirmOwnsClientGuard locks the runtime behavior.
+
 const RULES = [
   {
     id: 'institution-scope',
@@ -96,6 +113,16 @@ const RULES = [
     model: 'OrganizationMember (1-hop via CloseCycle.organizationId)',
     docRef:
       'docs/security/IDOR_RESIDUAL_AUDIT.md — OrgMembershipGuard 1-hop cycleId resolution',
+  },
+  {
+    id: 'firm-owns-client',
+    canonicalParam: 'institutionId',
+    secondaryParam: 'firmId',
+    variants: [],
+    guard: 'FirmOwnsClientGuard',
+    model: 'CpaClientRelationship (cpaFirmId, institutionId, removedAt: null)',
+    docRef:
+      'commit 0cf2c87c — FirmOwnsClientGuard for CPA white-label routes carrying both :firmId AND :institutionId',
   },
 ];
 
@@ -261,6 +288,16 @@ export function parseController(text) {
     for (const rule of RULES) {
       const token = `:${rule.canonicalParam}`;
       if (!r.effectivePath.includes(token)) continue;
+      // Two-param rules (e.g. firm-owns-client) require BOTH params in
+      // the effective path before the rule applies. Single-param routes
+      // shouldn't trigger the guard requirement just because they
+      // happen to share the primary canonical param.
+      if (
+        rule.secondaryParam &&
+        !r.effectivePath.includes(`:${rule.secondaryParam}`)
+      ) {
+        continue;
+      }
 
       const guarded =
         classGuards.has(rule.guard) || r.methodGuards.has(rule.guard);
@@ -521,6 +558,49 @@ export class FooController {
       expectedErrors: 1,
       expectedRule: 'org-membership/R2',
     },
+    {
+      name: 'firm-owns-client: :firmId + :institutionId with FirmOwnsClientGuard at class — OK',
+      text: `
+@Controller('api/cpa/firms/:firmId')
+@UseGuards(AuthGuard, RolesGuard, FirmOwnsClientGuard)
+export class CpaClientController {
+  // verify:tenant-scope-skip — CPA cross-tenant, firm-owns-client gate applies
+  @Delete('clients/:institutionId')
+  removeClient() {}
+}`,
+      expectedErrors: 0,
+    },
+    {
+      name: 'firm-owns-client: :firmId + :institutionId with NO FirmOwnsClientGuard and NO skip — R2',
+      text: `
+@Controller('api/cpa/firms/:firmId')
+@UseGuards(AuthGuard, RolesGuard)
+export class CpaClientController {
+  @Delete('clients/:institutionId')
+  removeClient() {}
+}`,
+      // BOTH institution-scope/R2 AND firm-owns-client/R2 fire here —
+      // the route has :institutionId (institution-scope cares) AND
+      // (:firmId + :institutionId) (firm-owns-client cares). Without a
+      // skip comment to exempt institution-scope, the existing rule
+      // would catch this independently. Asserting on errors.length=2
+      // and that firm-owns-client/R2 is among them.
+      expectedErrors: 2,
+    },
+    {
+      name: 'firm-owns-client: :firmId alone (no :institutionId) — rule does NOT fire',
+      text: `
+@Controller('api/cpa/firms/:firmId')
+export class CpaListController {
+  @Get('clients')
+  listClients() {}
+  @Get('dashboard')
+  dashboard() {}
+}`,
+      // No :institutionId in any route → firm-owns-client doesn't apply.
+      // No :institutionId / :orgId / :cycleId either → no other rule fires.
+      expectedErrors: 0,
+    },
   ];
 
   const failures = [];
@@ -591,6 +671,12 @@ for (const file of walkControllers(SRC_ROOT)) {
   for (const r of routes) {
     for (const rule of RULES) {
       if (!r.effectivePath.includes(`:${rule.canonicalParam}`)) continue;
+      if (
+        rule.secondaryParam &&
+        !r.effectivePath.includes(`:${rule.secondaryParam}`)
+      ) {
+        continue;
+      }
       perRuleTotals[rule.id].found += 1;
       const guarded =
         classGuards.has(rule.guard) || r.methodGuards.has(rule.guard);
