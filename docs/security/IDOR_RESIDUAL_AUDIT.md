@@ -116,9 +116,9 @@ Two routes the existing `InstitutionScopeGuard` did not catch because `:institut
 - **userId extraction inconsistency** — `AuthGuard` canonically sets `req.user.userId` (per `auth.guard.ts:271`). The `ai-advisor.controller.ts` `deleteSession()` reads `req.user?.id ?? req.user?.sub ?? ''` — skipping the canonical field. The `ask()` method now widens the chain to `userId ?? id ?? sub`. Normalize the chain repo-wide as a small follow-up sweep so all controllers agree on the auth-source field order.
 - **`AiAdvisorService.getInstitutionContext()` signature drift** — `ai-advisor.service.spec.ts` is mid-update to a 2-arg `(institutionId, userId)` signature pushing ownership checks INTO the service (a complementary defense-in-depth approach — service refuses to load context unless caller owns the institution). Spec is failing because implementation hasn't caught up. Either the spec change should be reverted (since the controller-layer fix in this commit closes the same IDOR), OR the implementation should be updated to match. Decide before next ai-advisor edit.
 
-### NEW Critical: `ai-advisor.gateway.ts` WebSocket auth bypass
+### `ai-advisor.gateway.ts` WebSocket auth bypass — CLOSED
 
-Severity: **Critical** — far worse than any HTTP IDOR found in this audit.
+Status: **CLOSED** (this commit). Was Critical at first audit — far worse than any HTTP IDOR found in the wave.
 
 The `AiAdvisorGateway` (Socket.io, `@WebSocketGateway({namespace:'ai-advisor'})`) has **zero JWT verification**:
 
@@ -145,13 +145,26 @@ Compounded vectors:
 
 The HTTP `POST /ask` IDOR is now closed by this commit's `verifyOwnership` call, but the WS `ask` path bypasses the entire HTTP stack. Both paths invoke the same service.
 
-**Fix sketch (next commit):**
-1. WS handshake middleware: extract bearer token from `handshake.auth.token`, verify via the same `AuthService.verifyJwt()` the HTTP `AuthGuard` uses, populate `client.data.user` with the canonical `req.user` shape. Reject with `next(new Error('unauthorized'))` if missing/invalid.
-2. In `handleAsk` and `handleHistory`: call `institutionScope.verifyOwnership(institutionId, client.data.user.userId, !!client.data.user.access?.isMasterCeo)` before invoking the service. Same primitive as the HTTP path — single source of truth.
-3. Add a focused gateway spec mirroring `ai-advisor.controller.security.spec.ts` shape — mock the gateway dependencies, assert ownership-verification ordering and bypass-rejection paths.
-4. Strongly consider a feature flag to disable WS until the auth fix lands, since this is a billing/data-leakage attack surface.
+**Closure (shipped this commit):**
 
-This is the kind of finding that locks down a fintech security review — it should jump the queue.
+1. **Handshake-time JWT verify.** `handleConnection` now extracts a bearer token from `client.handshake.auth.token` (preferred) or `Authorization: Bearer <token>` header (legacy). Verified via `JwtService.verify()` — same JwtModule the `AuthGuard` uses (re-exported from `AuthModule`, imported by `AiAdvisorModule`). The verified `userId` (from `payload.userId` or `payload.sub`) and `isMasterCeo` flag (from `payload.access.isMasterCeo`) land on `client.data.user`. Connections with missing/invalid/payload-shape-bad tokens get an `error` event with `code: 'UNAUTHENTICATED'` and `client.disconnect(true)`. Fail-closed; no anonymous fallback.
+2. **Per-handler defense-in-depth user check.** `handleAsk` and `handleHistory` re-validate `client.data.user` and emit `code: 'UNAUTHENTICATED'` + return early if absent. A future regression on the connection path can't silently re-open the bypass — the handler still rejects.
+3. **`verifyOwnership` before service call.** Same primitive as the HTTP path (e88ae20c controller fix). Single source of truth for the ownership contract across HTTP + WebSocket: `institutionScope.verifyOwnership(payload.institutionId, user.userId, user.isMasterCeo)` before `streamAsk` (in `handleAsk`) and before `getSessionHistory` (in `handleHistory`). On rejection, emits `code: 'FORBIDDEN'` with the underlying error message — same WARN logs as URL-path code paths.
+4. **Spec coverage.** 16 tests in `ai-advisor.gateway.spec.ts` (NEW): 6 handshake-verify cases (no token in any source, JwtService throws, payload no userId/sub, valid `auth.token`, valid Bearer header, master-CEO flag forwarding), 6 `handleAsk` cases (unauthenticated rejection, INPUT_INVALID on bad payload, verifyOwnership-before-streamAsk ordering, FORBIDDEN propagation, master-CEO forwarding, happy-path event sequence), 4 `handleHistory` cases (parallel coverage of unauthenticated, malformed payload, ordering, FORBIDDEN propagation).
+
+**Defense layering on the WS path now (post-fix):**
+
+| Layer | What | Status |
+| --- | --- | --- |
+| L8 (transport) | CORS allowlist via `isAllowedOrigin` | ✅ existing |
+| L7 (handshake) | JWT verify in `handleConnection` | ✅ this commit |
+| L6 (event) | `client.data.user` re-check in handlers | ✅ this commit |
+| L5 (event) | `verifyOwnership(institutionId, userId, isMasterCeo)` before service | ✅ this commit |
+| L4 (service) | `streamAsk` / `getSessionHistory` (unchanged — peer's mid-flight 2-arg `getInstitutionContext(id, userId)` would add another layer here) | 🟡 follow-up |
+| L3 (Prisma RLS) | Row-level security via TenantContext | ✅ existing |
+| L2 (logging) | Structured WARN on rejection (handshake fail, no userId, ownership denied) | ✅ this commit |
+
+**Known follow-up:** Supabase JWT support is not in this commit — `JwtService.verify()` only handles legacy JWTs. If WS clients use Supabase tokens in production, add a fallback path that mirrors `AuthGuard.verifySupabaseToken()`. The HTTP `AuthGuard` already supports both; the gateway gives up the multi-source verification for simplicity. Track as a small follow-up if Supabase WS clients exist.
 
 ### CI enforcement (peer-4 in flight)
 
