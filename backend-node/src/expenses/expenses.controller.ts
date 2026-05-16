@@ -54,6 +54,13 @@ export class ExpensesController {
 
   // ── CSV Upload Endpoint ──────────────────────────────────────────
 
+  // verify:tenant-scope-skip — Expenses uses an inline verifyOrgMembership()
+  // helper (called from each :orgId handler) instead of the class-level
+  // OrgMembershipGuard. The helper is functionally equivalent per
+  // docs/security/IDOR_RESIDUAL_AUDIT.md, BUT additionally supports the
+  // CSV `auto`/`default` escape values that resolve to the caller's own
+  // first OrganizationMember row — a flow OrgMembershipGuard would 403.
+  // Until the guard learns those escape paths, the inline helper stays.
   @Post(':orgId/upload')
   @ApiOperation({
     summary: 'Upload a CSV file of expenses for anomaly detection and analysis',
@@ -264,6 +271,8 @@ export class ExpensesController {
 
   // ── Existing Endpoints ────────────────────────────────────────────
 
+  // verify:tenant-scope-skip — see :orgId/upload handler for the rationale
+  // (inline verifyOrgMembership() helper covers this route too)
   @Post(':orgId/analyze')
   @ApiOperation({
     summary: 'Trigger anomaly detection analysis for an organization',
@@ -276,6 +285,7 @@ export class ExpensesController {
     return this.anomalyDetectionService.analyzeOrganization(orgId);
   }
 
+  // verify:tenant-scope-skip — inline verifyOrgMembership() at the body
   @Post(':orgId/report')
   @ApiOperation({ summary: 'Generate AP intelligence report as PDF' })
   @ApiParam({ name: 'orgId', description: 'Organization UUID' })
@@ -427,6 +437,7 @@ export class ExpensesController {
     return this.expensesService.remove(id, organizationId, req.user.userId);
   }
 
+  // verify:tenant-scope-skip — inline verifyOrgMembership() at the body
   @Get(':orgId/vendor-report')
   @ApiOperation({
     summary:
@@ -458,6 +469,7 @@ export class ExpensesController {
     return this.vendorIntelligenceService.generateVendorReport(expenses);
   }
 
+  // verify:tenant-scope-skip — inline verifyOrgMembership() at the body
   @Get(':orgId/liquidity-impact')
   async getLiquidityImpact(
     @Param('orgId') orgId: string,

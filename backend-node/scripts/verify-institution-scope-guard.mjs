@@ -3,41 +3,41 @@
  * verify-institution-scope-guard.mjs — CI guard against cross-tenant IDOR
  * regressions on NestJS controllers.
  *
- * Locks the floor restored in commit 8f69c148 (2026-05-15): every
- * `:institutionId` route must live in a controller with
- * `InstitutionScopeGuard` mounted at class level OR at method level.
+ * Originally locked the floor restored in commit 8f69c148 (the 132-route
+ * `:institutionId` sweep). Now generalized into a multi-rule framework so
+ * each tenancy root in the platform — currently `Workspace.ownerId` and
+ * `OrganizationMember` — is enforced by the same parser through one config
+ * entry per root. The filename is kept for git-blame continuity but the
+ * scope is the wider "tenant-scope" invariant.
  *
- * The audit that surfaced 8f69c148's 106-route gap was manual `grep`.
- * Without a CI guard, the next controller addition that forgets the guard
- * reintroduces the same vulnerability class silently. This script makes
- * the invariant tested, not trusted.
+ * One file scan, N rules, each fail-closed. To enforce a new tenancy root
+ * (e.g. a future `FirmOwnsClientGuard`), add a `RULES` entry below + a
+ * self-test case. No parser changes.
  *
- * Two rules, both fail-closed:
+ * Per-rule contract:
  *
- *   (R1) **Canonical param name.** Any path-param that names an institution
- *        must be exactly `:institutionId`. Variants (`:instId`,
- *        `:institution`, `:institution_id`, `:institutionID`) are errors —
- *        they bypass `InstitutionScopeGuard` (which reads
- *        `req.params.institutionId` literally) and create silent
- *        cross-tenant access. Rename to the canonical form.
+ *   (R1) **Canonical param name.** Any path-param naming the rule's
+ *        resource must be exactly `:<canonicalParam>`. Variants are
+ *        errors — the guard reads `req.params.<canonicalParam>` literally,
+ *        so a variant silently bypasses ownership enforcement.
  *
  *   (R2) **Guard required.** Every route whose effective path
- *        (`@Controller(base)` + route decorator path) contains
- *        `:institutionId` must be guarded by `InstitutionScopeGuard`,
+ *        (`@Controller(base)` + route decorator) contains
+ *        `:<canonicalParam>` must be guarded by the rule's named guard,
  *        either via:
- *          - class-level `@UseGuards(..., InstitutionScopeGuard, ...)`
+ *          - class-level `@UseGuards(..., GuardName, ...)`
  *            anywhere in the decorator stack above `export class X { ... }`, or
- *          - method-level `@UseGuards(..., InstitutionScopeGuard, ...)`
+ *          - method-level `@UseGuards(..., GuardName, ...)`
  *            on the route handler itself, or
- *          - a `// verify:institution-scope-skip — <reason>` comment in
- *            the immediate decorator block above the route handler. The
- *            skip is an explicit, reviewable opt-out for legitimate
- *            cross-tenant cases (e.g. CPA firm acting on a client
- *            institution where the tenant relationship is mediated
- *            elsewhere). The reason MUST be non-empty so reviewers can
- *            audit the carve-out.
+ *          - a `// verify:tenant-scope-skip — <reason>` comment in the
+ *            immediate decorator block above the route handler (the
+ *            legacy `// verify:institution-scope-skip` is also accepted
+ *            for backward compatibility). The skip is an explicit,
+ *            reviewable opt-out for legitimate cross-tenant cases.
+ *            The reason MUST be non-empty.
  *
- * Wired into `npm run lint` as `verify:institution-scope`. Standalone via
+ * Wired into `npm run lint` as `verify:tenant-scope` (alias:
+ * `verify:institution-scope`). Standalone via
  * `node scripts/verify-institution-scope-guard.mjs`.
  *
  * Flags:
@@ -46,7 +46,7 @@
  *   --self-test   exercise the rules against in-memory fixture cases
  */
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -59,35 +59,70 @@ const QUIET = argv.includes('--quiet');
 const SELF_TEST = argv.includes('--self-test');
 
 const CONTROLLER_RE = /\.controller\.ts$/;
-const VARIANT_NAMES = ['instId', 'institution', 'institution_id', 'institutionID'];
+
+// ─── Rules: one entry per tenancy root ─────────────────────────────────────
+//
+// Adding a new rule:
+//   1. Append an entry below with the canonical param + guard + variants.
+//   2. Add a self-test case that asserts the new rule fires.
+//   3. Run `node scripts/verify-institution-scope-guard.mjs` — fix any
+//      surfaced gaps in production code OR document them with a skip
+//      comment giving the rationale.
+
+const RULES = [
+  {
+    id: 'institution-scope',
+    canonicalParam: 'institutionId',
+    variants: ['instId', 'institution', 'institution_id', 'institutionID'],
+    guard: 'InstitutionScopeGuard',
+    model: 'Workspace.ownerId',
+    docRef:
+      'commit 8f69c148 — InstitutionScopeGuard reads req.params.institutionId',
+  },
+  {
+    id: 'org-membership',
+    canonicalParam: 'orgId',
+    variants: ['organizationId', 'org_id', 'organization_id'],
+    guard: 'OrgMembershipGuard',
+    model: 'OrganizationMember',
+    docRef:
+      'docs/security/IDOR_RESIDUAL_AUDIT.md — OrgMembershipGuard reads req.params.orgId',
+  },
+  {
+    id: 'close-cycle-membership',
+    canonicalParam: 'cycleId',
+    variants: ['cycle_id'],
+    guard: 'OrgMembershipGuard',
+    model: 'OrganizationMember (1-hop via CloseCycle.organizationId)',
+    docRef:
+      'docs/security/IDOR_RESIDUAL_AUDIT.md — OrgMembershipGuard 1-hop cycleId resolution',
+  },
+];
 
 // ─── Parser ─────────────────────────────────────────────────────────────────
 //
 // Decorator-aware line walker. NestJS controllers follow a tight syntactic
-// shape that we don't need a TS parser for:
+// shape that we don't need a TS parser for. The walker tracks the most-
+// recent run of class-level decorators (between the first decorator and
+// `export class X`) and groups method-level decorators into a "block" that
+// closes when a non-decorator/non-blank/non-comment line is hit.
 //
-//   @Controller('api/foo')
-//   @UseGuards(AuthGuard, InstitutionScopeGuard)
-//   export class FooController {
-//     @UseGuards(InstitutionScopeGuard)   // optional method-level
-//     @Get(':institutionId/bar')
-//     async bar(...) { ... }
-//   }
-//
-// The walker tracks the most-recent run of class-level decorators (between
-// the first decorator and `export class X`) and the most-recent run of
-// method-level decorators (between the previous handler and the current
-// `@(Get|Post|...)`).
+// `@UseGuards()` may come BEFORE the route decorator (`@Get`) or AFTER —
+// both orders are valid NestJS. The block-aware design handles either.
 
-const ROUTE_DECORATOR_RE = /^\s*@(Get|Post|Put|Delete|Patch|Sse|All|Head|Options)\s*\(\s*['"`]([^'"`]*)['"`]/;
+const ROUTE_DECORATOR_RE =
+  /^\s*@(Get|Post|Put|Delete|Patch|Sse|All|Head|Options)\s*\(\s*['"`]([^'"`]*)['"`]/;
 const USE_GUARDS_RE = /@UseGuards\s*\(([^)]*)\)/;
 const CONTROLLER_RE_DECO = /^\s*@Controller\s*\(\s*['"`]([^'"`]*)['"`]/;
 const EXPORT_CLASS_RE = /^\s*export\s+(?:abstract\s+)?class\s+\w+/;
-const SKIP_COMMENT_RE = /\/\/\s*verify:institution-scope-skip(?:\s*[—\-:]\s*(.+?))?\s*$/;
+// Backward-compat: accept both the new generic skip keyword and the
+// legacy institution-specific one.
+const SKIP_COMMENT_RE =
+  /\/\/\s*verify:(?:tenant-scope-skip|institution-scope-skip)(?:\s*[—\-:]\s*(.+?))?\s*$/;
 
 /**
- * Parse a controller's source text into the routes-and-guards summary the
- * checker needs. Pure function over the file text.
+ * Parse a controller's source text and apply every rule.
+ * Pure function over the file text. Returns the set of violations.
  */
 export function parseController(text) {
   const lines = text.split('\n');
@@ -95,24 +130,17 @@ export function parseController(text) {
   const errors = [];
 
   let basePath = '';
-  let classGuardLine = null;       // line number of class-level @UseGuards (1-based)
-  let classGuardHasIsg = false;
+  /** Class-level guard identifiers (Set<string> of names inside @UseGuards). */
+  const classGuards = new Set();
   let seenClass = false;
 
-  // Method decorator block accumulator. NestJS decorators stack on the
-  // same method in either order — `@UseGuards()` may come BEFORE the
-  // route decorator (`@Get`) or AFTER. The check must treat the whole
-  // block as one unit, evaluating guards and routes together when the
-  // block closes (on a non-decorator, non-comment, non-blank line — i.e.
-  // the method signature itself).
   let block = freshBlock();
 
   function freshBlock() {
     return {
-      routeDecorators: [],         // [{ line, decorator, routePath }]
-      hasGuardIsg: false,
-      hasGuardLine: null,
-      skip: null,                   // { reason, line } from a // verify:institution-scope-skip comment
+      routeDecorators: [], // [{ line, decorator, routePath }]
+      guards: new Set(), // method-level guard identifiers
+      skip: null, // { reason, line } from a // verify:*-skip comment
     };
   }
 
@@ -127,11 +155,22 @@ export function parseController(text) {
         decorator: rd.decorator,
         routePath: rd.routePath,
         effectivePath: joinPath(basePath, rd.routePath),
-        hasMethodGuard: block.hasGuardIsg,
+        methodGuards: new Set(block.guards),
         skip: block.skip,
       });
     }
     block = freshBlock();
+  }
+
+  function parseGuardList(guardsListText) {
+    // Extract identifier names from inside `@UseGuards(...)`. Tolerates
+    // newlines/commas/whitespace and ignores anything that isn't a bare
+    // identifier (string literals, decorators with calls, etc.).
+    const names = [];
+    for (const m of guardsListText.matchAll(/\b([A-Z][A-Za-z0-9_]*)\b/g)) {
+      names.push(m[1]);
+    }
+    return names;
   }
 
   for (let i = 0; i < lines.length; i++) {
@@ -139,51 +178,32 @@ export function parseController(text) {
     const line = raw.trim();
     const lineNo = i + 1;
 
-    // @Controller('path') — capture the base path (only the first one,
-    // controllers never have two).
     if (!basePath) {
       const m = CONTROLLER_RE_DECO.exec(raw);
       if (m) basePath = m[1];
     }
 
-    // Class boundary. `@UseGuards` between the first decorator and this
-    // line counted as class-level.
     if (!seenClass && EXPORT_CLASS_RE.test(line)) {
       seenClass = true;
       continue;
     }
 
     if (!seenClass) {
-      // Class-level @UseGuards detection (between top-of-file decorators
-      // and `export class X`).
       const useGuardsMatch = USE_GUARDS_RE.exec(raw);
       if (useGuardsMatch) {
-        const guardsList = useGuardsMatch[1];
-        const hasIsg = /\bInstitutionScopeGuard\b/.test(guardsList);
-        classGuardLine = lineNo;
-        classGuardHasIsg = classGuardHasIsg || hasIsg;
+        for (const name of parseGuardList(useGuardsMatch[1])) {
+          classGuards.add(name);
+        }
       }
       continue;
     }
 
-    // Inside class body. Three line categories matter for block accounting:
-    //
-    //   (a) Method-level `@UseGuards(...)` → tag the current block.
-    //   (b) Route decorator `@(Get|Post|...)('path')` → add to the block.
-    //   (c) `// verify:institution-scope-skip — reason` → stage skip.
-    //   (d) Blank line, `// comment`, `/** ... */` line, JSDoc continuation,
-    //       or `@OtherDecorator(...)` → block stays alive (we don't know
-    //       yet whether this is a multi-decorator stack or a property).
-    //   (e) Anything else (method signature `async foo(`, property
-    //       declaration, etc.) → CLOSE the block. Flush its routes
-    //       carrying the accumulated guard state.
-
+    // Inside class body.
     const useGuardsMatch = USE_GUARDS_RE.exec(raw);
     if (useGuardsMatch) {
-      const guardsList = useGuardsMatch[1];
-      const hasIsg = /\bInstitutionScopeGuard\b/.test(guardsList);
-      block.hasGuardIsg = block.hasGuardIsg || hasIsg;
-      block.hasGuardLine = lineNo;
+      for (const name of parseGuardList(useGuardsMatch[1])) {
+        block.guards.add(name);
+      }
       continue;
     }
 
@@ -204,74 +224,80 @@ export function parseController(text) {
       continue;
     }
 
-    // Block-keeping lines (stay in block).
+    // Block-keeping lines.
     if (!line) continue;
     if (line.startsWith('//')) continue;
     if (line.startsWith('*') || line.startsWith('/*')) continue;
-    if (line.startsWith('@')) continue;       // other decorator (@ApiOperation, @Roles, etc.)
+    if (line.startsWith('@')) continue;
 
-    // Anything else closes the block. The method signature ends here.
     flushBlock();
   }
-
-  // EOF — flush any trailing block (e.g. last route in the file).
   flushBlock();
 
-  // R1: scan for variant param names in the entire file's decorator strings.
-  // We re-walk the lines so we can carry an accurate line number.
+  // R1: scan decorator strings for variant param names across all rules.
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
-    // Only look at lines that contain a @Controller or route decorator.
-    if (!CONTROLLER_RE_DECO.test(raw) && !ROUTE_DECORATOR_RE.test(raw)) continue;
-    for (const variant of VARIANT_NAMES) {
-      // Match `:variant` followed by `/`, end-of-string, or quote.
-      const variantRe = new RegExp(`:${variant}(?=[/'"\`?]|$)`);
-      if (variantRe.test(raw)) {
-        errors.push({
-          rule: 'R1',
-          line: i + 1,
-          message:
-            `non-canonical path param ":${variant}" — use ":institutionId" so InstitutionScopeGuard ` +
-            `(which reads req.params.institutionId literally) can scope the route. Rename and update handler @Param.`,
-        });
-      }
-    }
-  }
-
-  // R2: every :institutionId route must be guarded OR explicitly skipped.
-  for (const r of routes) {
-    if (!r.effectivePath.includes(':institutionId')) continue;
-    if (classGuardHasIsg || r.hasMethodGuard) continue;
-    if (r.skip) {
-      if (!r.skip.reason) {
-        errors.push({
-          rule: 'R2',
-          line: r.line,
-          message:
-            `@${r.decorator}('${r.routePath}') has a verify:institution-scope-skip comment ` +
-            `but no reason. Format: "// verify:institution-scope-skip — <why this is safe>". ` +
-            `Skip without rationale is not allowed.`,
-        });
-      }
+    if (!CONTROLLER_RE_DECO.test(raw) && !ROUTE_DECORATOR_RE.test(raw))
       continue;
+    for (const rule of RULES) {
+      for (const variant of rule.variants) {
+        const variantRe = new RegExp(`:${variant}(?=[/'"\`?]|$)`);
+        if (variantRe.test(raw)) {
+          errors.push({
+            rule: `${rule.id}/R1`,
+            line: i + 1,
+            message:
+              `non-canonical path param ":${variant}" — use ` +
+              `":${rule.canonicalParam}" so ${rule.guard} can scope the route ` +
+              `(${rule.docRef}). Rename and update the @Param() destructuring.`,
+          });
+        }
+      }
     }
-    errors.push({
-      rule: 'R2',
-      line: r.line,
-      message:
-        `@${r.decorator}('${r.routePath}') resolves to effective path "${r.effectivePath}" ` +
-        `which contains ":institutionId" but the controller has no InstitutionScopeGuard ` +
-        `(neither class-level above "export class" nor method-level above this route). ` +
-        `Add @UseGuards(AuthTenantGuard, InstitutionScopeGuard) at the class level, or ` +
-        `if the route is cross-tenant by design, add a "// verify:institution-scope-skip — <reason>" comment.`,
-    });
   }
 
-  return { basePath, routes, errors, classGuardLine };
+  // R2: per rule, every canonical-param route must be guarded.
+  for (const r of routes) {
+    for (const rule of RULES) {
+      const token = `:${rule.canonicalParam}`;
+      if (!r.effectivePath.includes(token)) continue;
+
+      const guarded =
+        classGuards.has(rule.guard) || r.methodGuards.has(rule.guard);
+      if (guarded) continue;
+
+      if (r.skip) {
+        if (!r.skip.reason) {
+          errors.push({
+            rule: `${rule.id}/R2`,
+            line: r.line,
+            message:
+              `@${r.decorator}('${r.routePath}') has a verify:tenant-scope-skip ` +
+              `comment but no reason. Format: ` +
+              `"// verify:tenant-scope-skip — <why this is safe>". ` +
+              `Skip without rationale is not allowed.`,
+          });
+        }
+        continue;
+      }
+      errors.push({
+        rule: `${rule.id}/R2`,
+        line: r.line,
+        message:
+          `@${r.decorator}('${r.routePath}') resolves to effective path ` +
+          `"${r.effectivePath}" which contains "${token}" but the controller ` +
+          `has no ${rule.guard} (neither class-level above "export class" nor ` +
+          `method-level above this route). Add ${rule.guard} to @UseGuards at ` +
+          `the class level, or — if the route is cross-tenant by design — add ` +
+          `a "// verify:tenant-scope-skip — <reason>" comment.`,
+      });
+    }
+  }
+
+  return { basePath, routes, errors, classGuards };
 }
 
 function joinPath(basePath, routePath) {
-  // Strip leading/trailing slashes and re-join with a single slash.
   const a = basePath.replace(/^\/+|\/+$/g, '');
   const b = routePath.replace(/^\/+|\/+$/g, '');
   if (!a) return `/${b}`;
@@ -284,7 +310,7 @@ function joinPath(basePath, routePath) {
 function runSelfTest() {
   const fixtures = [
     {
-      name: 'class-level guard on method-path :institutionId route — OK',
+      name: 'institution-scope: class-level guard on method-path :institutionId — OK',
       text: `
 @Controller('api/alm')
 @UseGuards(AuthTenantGuard, InstitutionScopeGuard)
@@ -295,7 +321,7 @@ export class AlmController {
       expectedErrors: 0,
     },
     {
-      name: 'method-level guard on a route with no class guard — OK',
+      name: 'institution-scope: method-level guard, no class guard — OK',
       text: `
 @Controller('api/foo')
 export class FooController {
@@ -306,7 +332,7 @@ export class FooController {
       expectedErrors: 0,
     },
     {
-      name: 'base-path :institutionId with class guard — OK',
+      name: 'institution-scope: base-path :institutionId with class guard — OK',
       text: `
 @Controller('api/v1/agents/:institutionId')
 @UseGuards(AuthGuard, InstitutionScopeGuard)
@@ -317,7 +343,7 @@ export class AgentRunsController {
       expectedErrors: 0,
     },
     {
-      name: 'method-path :institutionId with NO guard — R2 violation',
+      name: 'institution-scope: method-path :institutionId with NO guard — R2',
       text: `
 @Controller('api/foo')
 export class FooController {
@@ -325,10 +351,10 @@ export class FooController {
   bar() {}
 }`,
       expectedErrors: 1,
-      expectedRule: 'R2',
+      expectedRule: 'institution-scope/R2',
     },
     {
-      name: 'base-path :institutionId with NO guard — R2 violation',
+      name: 'institution-scope: base-path :institutionId with NO guard — R2',
       text: `
 @Controller('api/v2/widgets/:institutionId')
 export class WidgetsController {
@@ -336,10 +362,10 @@ export class WidgetsController {
   list() {}
 }`,
       expectedErrors: 1,
-      expectedRule: 'R2',
+      expectedRule: 'institution-scope/R2',
     },
     {
-      name: 'variant param name :instId — R1 violation',
+      name: 'institution-scope: variant :instId — R1',
       text: `
 @Controller('api/foo')
 @UseGuards(AuthGuard, InstitutionScopeGuard)
@@ -348,21 +374,25 @@ export class FooController {
   bar() {}
 }`,
       expectedErrors: 1,
-      expectedRule: 'R1',
+      expectedRule: 'institution-scope/R1',
     },
     {
-      name: 'variant param name :institution_id — R1 violation',
+      name: 'institution-scope: variant :institution_id — R1',
       text: `
 @Controller('api/foo')
 export class FooController {
   @Get(':institution_id/bar')
   bar() {}
 }`,
+      // Both R1 (variant name) and R2 (no guard) fire, since "institution_id"
+      // does NOT contain ":institutionId" literally so R2 sees the route as
+      // unscoped. The variant rename is the real fix; once renamed the
+      // controller picks up the missing guard naturally.
       expectedErrors: 1,
-      expectedRule: 'R1',
+      expectedRule: 'institution-scope/R1',
     },
     {
-      name: 'route with no :institutionId — no rule fires',
+      name: 'no :institutionId / :orgId / :cycleId — no rule fires',
       text: `
 @Controller('api/alm')
 export class AlmController {
@@ -372,35 +402,103 @@ export class AlmController {
       expectedErrors: 0,
     },
     {
-      name: 'skip comment with reason exempts an unguarded :institutionId route',
+      name: 'org-membership: :orgId guarded by OrgMembershipGuard at class — OK',
+      text: `
+@Controller('api/close')
+@UseGuards(AuthGuard, OrgMembershipGuard)
+export class CloseController {
+  @Get(':orgId/cycles')
+  cycles() {}
+}`,
+      expectedErrors: 0,
+    },
+    {
+      name: 'org-membership: :cycleId guarded (1-hop) — OK',
+      text: `
+@Controller('api/close')
+@UseGuards(AuthGuard, OrgMembershipGuard)
+export class CloseController {
+  @Post('cycles/:cycleId/sign-off')
+  signOff() {}
+}`,
+      expectedErrors: 0,
+    },
+    {
+      name: 'org-membership: :orgId with NO guard — R2',
+      text: `
+@Controller('api/expenses')
+export class ExpensesController {
+  @Post(':orgId/upload')
+  upload() {}
+}`,
+      expectedErrors: 1,
+      expectedRule: 'org-membership/R2',
+    },
+    {
+      name: 'org-membership: :cycleId with NO guard — R2',
+      text: `
+@Controller('api/foo')
+export class FooController {
+  @Get('cycles/:cycleId/items')
+  items() {}
+}`,
+      expectedErrors: 1,
+      expectedRule: 'close-cycle-membership/R2',
+    },
+    {
+      name: 'org-membership: variant :organizationId — R1',
+      text: `
+@Controller('api/foo')
+@UseGuards(AuthGuard, OrgMembershipGuard)
+export class FooController {
+  @Get(':organizationId/bar')
+  bar() {}
+}`,
+      expectedErrors: 1,
+      expectedRule: 'org-membership/R1',
+    },
+    {
+      name: 'tenant-scope-skip with reason exempts unguarded :institutionId — OK',
       text: `
 @Controller('api/cpa/firms/:firmId')
 @UseGuards(AuthGuard, RolesGuard)
-export class CpaClientController {
-  // verify:institution-scope-skip — CPA firms intentionally cross tenants via CpaClientRelationship
+export class CpaController {
+  // verify:tenant-scope-skip — CPA firms cross tenants via CpaClientRelationship
   @Delete('clients/:institutionId')
   removeClient() {}
 }`,
       expectedErrors: 0,
     },
     {
-      name: 'skip comment WITHOUT reason still fails — no silent opt-out',
+      name: 'legacy institution-scope-skip alias also accepted — OK',
+      text: `
+@Controller('api/cpa/firms/:firmId')
+@UseGuards(AuthGuard, RolesGuard)
+export class CpaController {
+  // verify:institution-scope-skip — legacy keyword still works
+  @Delete('clients/:institutionId')
+  removeClient() {}
+}`,
+      expectedErrors: 0,
+    },
+    {
+      name: 'tenant-scope-skip without reason still fails — R2',
       text: `
 @Controller('api/foo')
 export class FooController {
-  // verify:institution-scope-skip
+  // verify:tenant-scope-skip
   @Get(':institutionId/bar')
   bar() {}
 }`,
       expectedErrors: 1,
-      expectedRule: 'R2',
+      expectedRule: 'institution-scope/R2',
     },
     {
-      name: 'skip comment is one-shot — does not leak to the next route',
+      name: 'skip is one-shot — does not leak to the next route',
       text: `
 @Controller('api/foo')
 export class FooController {
-  // verify:institution-scope-skip — first route is cross-tenant by design
+  // verify:tenant-scope-skip — first route is cross-tenant by design
   @Get(':institutionId/skipped')
   skipped() {}
 
@@ -408,32 +506,54 @@ export class FooController {
   notSkipped() {}
 }`,
       expectedErrors: 1,
-      expectedRule: 'R2',
+      expectedRule: 'institution-scope/R2',
+    },
+    {
+      name: 'one route satisfies one rule but violates another — both flagged independently',
+      text: `
+@Controller('api/foo')
+@UseGuards(AuthGuard, InstitutionScopeGuard)
+export class FooController {
+  @Get(':institutionId/x/:orgId')
+  weird() {}
+}`,
+      // institutionId is guarded, but orgId is not.
+      expectedErrors: 1,
+      expectedRule: 'org-membership/R2',
     },
   ];
 
   const failures = [];
   for (const fx of fixtures) {
     const { errors } = parseController(fx.text);
-    const ok = errors.length === fx.expectedErrors &&
-      (fx.expectedRule == null || errors.every(e => e.rule === fx.expectedRule));
+    const ok =
+      errors.length === fx.expectedErrors &&
+      (fx.expectedRule == null ||
+        errors.every((e) => e.rule === fx.expectedRule));
     if (!ok) {
       failures.push(
         `self-test FAIL: ${fx.name}\n` +
-        `  expected: ${fx.expectedErrors} error(s)` +
-        (fx.expectedRule ? ` of rule ${fx.expectedRule}` : '') + `\n` +
-        `  got:      ${errors.length} error(s)\n` +
-        errors.map(e => `    - ${e.rule} L${e.line}: ${e.message}`).join('\n'),
+          `  expected: ${fx.expectedErrors} error(s)` +
+          (fx.expectedRule ? ` of rule ${fx.expectedRule}` : '') +
+          `\n` +
+          `  got:      ${errors.length} error(s)\n` +
+          errors
+            .map((e) => `    - ${e.rule} L${e.line}: ${e.message}`)
+            .join('\n'),
       );
     }
   }
 
   if (failures.length > 0) {
     for (const f of failures) console.error(f);
-    console.error(`\nverify-institution-scope-guard --self-test: ${failures.length} failure(s)`);
+    console.error(
+      `\nverify-institution-scope-guard --self-test: ${failures.length} failure(s)`,
+    );
     process.exit(1);
   }
-  console.log(`verify-institution-scope-guard --self-test: ${fixtures.length} case(s) pass`);
+  console.log(
+    `verify-institution-scope-guard --self-test: ${fixtures.length} case(s) pass`,
+  );
   process.exit(0);
 }
 
@@ -443,8 +563,11 @@ if (SELF_TEST) runSelfTest();
 
 function* walkControllers(dir) {
   let entries;
-  try { entries = readdirSync(dir, { withFileTypes: true }); }
-  catch { return; }
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
   for (const entry of entries) {
     if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
     const full = join(dir, entry.name);
@@ -455,30 +578,30 @@ function* walkControllers(dir) {
 
 const violations = [];
 let scanned = 0;
-let routesWithInstId = 0;
-let routesGuarded = 0;
-let controllersWithClassGuard = 0;
+const perRuleTotals = Object.fromEntries(
+  RULES.map((r) => [r.id, { found: 0, guarded: 0 }]),
+);
 
 for (const file of walkControllers(SRC_ROOT)) {
   scanned += 1;
   const text = readFileSync(file, 'utf8');
-  const { routes, errors, classGuardLine } = parseController(text);
+  const { routes, errors, classGuards } = parseController(text);
   const relPath = relative(ROOT, file);
 
   for (const r of routes) {
-    if (!r.effectivePath.includes(':institutionId')) continue;
-    routesWithInstId += 1;
-    if (errors.find(e => e.rule === 'R2' && e.line === r.line)) continue;
-    routesGuarded += 1;
-  }
-
-  // Heuristic count (informational): controllers with class-level guard
-  // we successfully attached to ISG.
-  if (classGuardLine && routes.some(r => r.effectivePath.includes(':institutionId'))) {
-    // Class guard exists and the controller has :institutionId routes —
-    // count it as "actively defended" iff we didn't surface an R2 above.
-    const r2HereCount = errors.filter(e => e.rule === 'R2').length;
-    if (r2HereCount === 0) controllersWithClassGuard += 1;
+    for (const rule of RULES) {
+      if (!r.effectivePath.includes(`:${rule.canonicalParam}`)) continue;
+      perRuleTotals[rule.id].found += 1;
+      const guarded =
+        classGuards.has(rule.guard) || r.methodGuards.has(rule.guard);
+      if (
+        guarded ||
+        (r.skip && r.skip.reason) ||
+        !errors.find((e) => e.rule === `${rule.id}/R2` && e.line === r.line)
+      ) {
+        perRuleTotals[rule.id].guarded += 1;
+      }
+    }
   }
 
   for (const e of errors) {
@@ -486,11 +609,12 @@ for (const file of walkControllers(SRC_ROOT)) {
   }
 }
 
+const summaryParts = RULES.map(
+  (r) => `${r.id}: ${perRuleTotals[r.id].guarded}/${perRuleTotals[r.id].found}`,
+).join(', ');
 const summary =
-  `verify-institution-scope-guard: ${scanned} controller(s) scanned, ` +
-  `${routesWithInstId} :institutionId route(s) found, ` +
-  `${routesGuarded} guarded, ` +
-  `${violations.length} violation(s).`;
+  `verify-institution-scope-guard: ${scanned} controller(s) scanned ` +
+  `[${summaryParts}], ${violations.length} violation(s).`;
 
 if (violations.length > 0) {
   if (!QUIET) {
@@ -500,11 +624,21 @@ if (violations.length > 0) {
     }
     console.error('');
     console.error('Each violation must be one of:');
-    console.error('  (R1) rename non-canonical path param to ":institutionId" (and update @Param)');
-    console.error('  (R2) add @UseGuards(AuthTenantGuard, InstitutionScopeGuard) at class level');
-    console.error('       (or @UseGuards(..., InstitutionScopeGuard, ...) on the specific route)');
+    console.error(
+      "  • R1: rename the non-canonical path param to its rule's canonical name",
+    );
+    console.error(
+      '  • R2: add the matching guard to @UseGuards at the class or method level',
+    );
+    console.error(
+      '  • Skip: add "// verify:tenant-scope-skip — <rationale>" above the route',
+    );
     console.error('');
-    console.error('See commit 8f69c148 + docs/SESSION_HANDOFF.md for the canonical pattern.');
+    console.error('See:');
+    console.error('  • commit 8f69c148 — InstitutionScopeGuard');
+    console.error(
+      '  • docs/security/IDOR_RESIDUAL_AUDIT.md — OrgMembershipGuard',
+    );
   }
   console.error(summary);
   process.exit(1);
