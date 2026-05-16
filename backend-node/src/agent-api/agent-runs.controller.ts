@@ -82,9 +82,16 @@ export class AgentRunsController {
       });
     }
     const req = parsed.data;
+    // URL `:institutionId` wins — the class-level InstitutionScopeGuard
+    // verified ownership of the URL value, NOT the body value. The prior
+    // `req.institutionId ?? institutionId` allowed a caller authorized
+    // for institution-A to set `body.institutionId = 'attacker-target'`
+    // and run an agent on that institution's behalf. Body's
+    // `institutionId` field remains in the schema as `.optional()` for
+    // backward-compat with clients that send it (it's silently ignored).
     return this.runner.run({
       agentId: req.agentId,
-      institutionId: req.institutionId ?? institutionId,
+      institutionId,
       organizationId: req.organizationId,
       triggerKind: req.triggerKind,
       triggerRef: req.triggerRef,
