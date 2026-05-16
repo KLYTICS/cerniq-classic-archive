@@ -111,4 +111,36 @@ describe('Sidebar — ALM tree auto-discovery from registry', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(document.getElementById('alm-module-tree')).toBeInTheDocument();
   });
+
+  // ─── T5 named-contract locks ──────────────────────────────────────────────
+  //
+  // The generic count test above catches removal of *any* module, but the
+  // failure message ("expected 88 to be 87") is ambiguous. The two named
+  // locks below pin the specific module that §4.7 T5 of SESSION_HANDOFF.md
+  // called out — agent-alerts, the live Risk Monitor / ALM Decision feed.
+  // Split into registry-level + render-level so a failure points at the
+  // right layer: "registry entry removed" vs "rendering broke".
+  //
+  // The display name is intentionally NOT asserted — renaming "Agent Alerts"
+  // to "Live Alerts" is a copy decision, not a contract break. The slug,
+  // href, and category are the contract.
+
+  it('ALM_MODULES has an agent-alerts entry with the expected slug + href + category (T5 registry lock)', () => {
+    const mod = ALM_MODULES.find((m) => m.slug === 'agent-alerts');
+    expect(mod, 'agent-alerts removed from registry — restore the entry in lib/alm/registry.ts').toBeDefined();
+    expect(mod!.href).toBe('/alm/agents/alerts');
+    expect(mod!.category).toBe('core');
+  });
+
+  it('renders the agent-alerts module link in the ALM tree (T5 render lock)', () => {
+    renderSidebar('/alm');
+    const tree = document.getElementById('alm-module-tree')!;
+    const link = within(tree)
+      .getAllByRole('link')
+      .find((el) => el.getAttribute('href') === '/alm/agents/alerts');
+    expect(
+      link,
+      'agent-alerts module missing from sidebar tree — registry entry exists but the nav did not surface it. Check MODULES_BY_CATEGORY derivation in lib/alm/registry.ts and the .map() in Sidebar.tsx.',
+    ).toBeDefined();
+  });
 });

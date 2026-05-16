@@ -23,6 +23,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
+import { OrgMembershipGuard } from './guards/org-membership.guard';
 import { CloseService } from './close.service';
 import { BinderService } from './binder.service';
 import { GlDataSourceService } from './gl-data-source.service';
@@ -39,7 +40,7 @@ interface AuthedRequest {
 @ApiTags('Close Cockpit')
 @ApiBearerAuth('BearerAuth')
 @Controller('api/close')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, OrgMembershipGuard)
 export class CloseController {
   constructor(
     private readonly closeService: CloseService,
