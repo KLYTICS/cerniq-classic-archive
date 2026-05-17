@@ -76,6 +76,16 @@ In Railway dashboard:
 DUMP_FILE="$HOME/Desktop/spend-audit-2026-05-09/dumps/cerniq-prod-YYYY-MM-DD.dump"
 DATABASE_URL="postgresql://postgres:...@maglev.proxy.rlwy.net:PORT/railway"
 
+# SAFETY CHECK — confirm the target DB is empty before --clean wipes it.
+# pg_restore --clean --if-exists DROPS existing tables, so a wrong
+# DATABASE_URL (e.g., accidentally pointing at another live DB) is a
+# silent disaster. Expected output: zero tables in the public schema.
+psql "$DATABASE_URL" -tAc \
+  "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"
+# Expected: 0 (a fresh Railway Postgres has no public tables yet).
+# If non-zero — STOP. Either you're pointing at the wrong DB, or someone
+# already started a restore. Reconcile before continuing.
+
 # pg_restore from custom-format dump (the format Railway exports)
 pg_restore --clean --if-exists --no-owner --no-acl \
   --dbname="$DATABASE_URL" \
@@ -121,19 +131,42 @@ Note the service ID for §6.
 
 ### 2.6 Set environment variables on the API service
 
-Reference `docs/ops/railway_env_vars.md` for the full list. Minimum required for boot:
+Reference `docs/ops/railway_env_vars.md` for the full list. Minimum required for boot (note the **Path R / Path F** column — values diverge):
+
+| Variable | Path F (Fresh) | Path R (Restore) | Why it matters on Path R |
+|---|---|---|---|
+| `DATABASE_URL` | from §2.3 (internal Postgres) | from §2.3 — same URL whether Fresh or Restored | n/a — points at the DB |
+| `JWT_SECRET` | `openssl rand -hex 32` | **MUST match dump-era value** | All stored refresh tokens + active session JWTs verify against this. Fresh value → every user logged out. |
+| `DATA_ENCRYPTION_KEY` | `openssl rand -hex 32` | **MUST match dump-era value** | AES-256 key for `report_jobs.raw_data` + other encrypted columns. Fresh value → existing rows return gibberish. |
+| `API_KEY_PEPPER` | `openssl rand -hex 32` | **MUST match dump-era value** | HMAC pepper used in the API-key hash function. Fresh value → every issued customer key fails auth (per `feedback_hash_divergence_pattern` memory: this is exactly how `e602c1d7` shipped broken customer auth for an unknown duration). |
+| `MASTER_ACCOUNT_PASSWORD` | `openssl rand -hex 32` | **MUST match dump-era value** | Master-account password derivative used in privileged auth path. Fresh value → master account locked out. |
+| `FRONTEND_URL` | `https://cerniq.io` | same | CORS + email-link origin |
+| `ALLOWED_ORIGINS` | `https://cerniq.io,https://app.cerniq.io` | same | CORS allowlist |
+| `NODE_ENV` | `production` | same | enables prod-mode hardening |
+| `ADMIN_KEY` | `openssl rand -hex 32` | safe to rotate | not stored in DB; only used for admin endpoint auth |
+| `AUTH_ALLOW_LEGACY` | `false` | `true` (temporarily) | per 2026-05-16 revival precedent — allow legacy SHA-256 hashed keys to authenticate while customers re-issue under HMAC-with-pepper. Revoke once cutover is complete. |
 
 ```bash
+# Path F example. For Path R, source the must-match values from the local
+# .env files BEFORE the dump-restore session is closed:
+#   - /Users/money/Desktop/cerniq/.env             (has JWT_SECRET)
+#   - /Users/money/Desktop/cerniq/backend-node/.env (has API_KEY_PEPPER + MASTER_ACCOUNT_PASSWORD)
+# DATA_ENCRYPTION_KEY may not be in either file (it's z.string().optional() in
+# env.schema.ts) — if absent, document the loss as DataGap per Rule 1.
+
 railway variables --service cerniq-api --set "DATABASE_URL=<internal postgres URL from 2.3>"
-railway variables --service cerniq-api --set "JWT_SECRET=$(openssl rand -hex 32)"
-railway variables --service cerniq-api --set "DATA_ENCRYPTION_KEY=$(openssl rand -hex 32)"
+railway variables --service cerniq-api --set "JWT_SECRET=$(openssl rand -hex 32)"          # Path F only — Path R: use original
+railway variables --service cerniq-api --set "DATA_ENCRYPTION_KEY=$(openssl rand -hex 32)" # Path F only — Path R: use original
+railway variables --service cerniq-api --set "API_KEY_PEPPER=$(openssl rand -hex 32)"      # Path F only — Path R: use original
+railway variables --service cerniq-api --set "MASTER_ACCOUNT_PASSWORD=$(openssl rand -hex 32)" # Path F only — Path R: use original
 railway variables --service cerniq-api --set "FRONTEND_URL=https://cerniq.io"
 railway variables --service cerniq-api --set "ALLOWED_ORIGINS=https://cerniq.io,https://app.cerniq.io"
 railway variables --service cerniq-api --set "NODE_ENV=production"
 railway variables --service cerniq-api --set "ADMIN_KEY=$(openssl rand -hex 32)"
+railway variables --service cerniq-api --set "AUTH_ALLOW_LEGACY=true"  # set false after legacy key cutover
 ```
 
-**WARNING on `DATA_ENCRYPTION_KEY`:** if you took Path R (restore), this MUST be the same value used when the dump was created, or every encrypted `rawData` field will return gibberish. If you can't recover the original key, document the loss and treat encrypted columns as a known DataGap (per Rule 1 of KLYTICS audit discipline — never silent zeros).
+**Why the four-secret matrix matters:** On Path R, regenerating any of `JWT_SECRET` / `DATA_ENCRYPTION_KEY` / `API_KEY_PEPPER` / `MASTER_ACCOUNT_PASSWORD` invalidates the corresponding state in the restored data: sessions, encrypted columns, customer API keys, master-account auth — independently of each other. Catalog which ones you can recover from the local `.env` files BEFORE running §2.6. Anything not recoverable is a DataGap per Rule 1 (never silent zeros) — document it in `docs/SESSION_HANDOFF.md` rather than pretending the system is whole.
 
 Then layer in the third-party keys (Stripe, Resend, Anthropic, OAuth, Sentry, Alpha Vantage) — see `docs/ops/railway_env_vars.md` for the full table. **Do not paste live Stripe keys until §7** so dry-run smoke tests can't accidentally bill anyone.
 
@@ -164,18 +197,24 @@ Do NOT proceed to §3 until `/health` returns 200.
 
 ### 3.0 Is Vercel actually deleted?
 
-In the 2026-05-09 cold-storage, Vercel was **NOT** torn down. Confirm before recreating:
+In the 2026-05-09 cold-storage, Vercel was **NOT** torn down. Confirm before recreating.
+
+**Local-state check (necessary but not sufficient):**
 
 ```bash
 ls /Users/money/Desktop/cerniq/.vercel/project.json \
    /Users/money/Desktop/cerniq/frontend/.vercel/project.json 2>/dev/null
 ```
 
-If either exists, the project is live. As of 2026-05-16: production project is `capexcycle` (id `prj_odl6Ltja3NXGwJI0v7jZ7NEs88bL`) in org `ekiess-projects` (`team_Py4BFPdebTUCnwjLL7qXGIcW`). A second project `frontend` (id `prj_MdkT4rrUMnf5fn5TpHENOzFbHL6z`) exists at `frontend/.vercel/`; it's used for preview builds only.
+`.vercel/` is gitignored at both root and `frontend/`, so these files are **per-user link state, not source of truth**. They tell you which Vercel project YOUR machine last linked to — they don't tell you which project is currently deploying to `cerniq.io`.
 
-**If a link exists → skip §3.1, jump to §3.2 (env-var refresh + redeploy).**
+**Authoritative check (do this too):**
 
-If both `.vercel/project.json` files are missing — i.e., a more thorough cold-storage in a future cycle — follow §3.1 to recreate.
+Open the Vercel dashboard → `ekiess-projects` org → look for the project whose **Domains** tab includes `cerniq.io`. That is the live deployer, regardless of what your local `project.json` says. The 2026-05-16 revival recorded `capexcycle` (id `prj_odl6Ltja3NXGwJI0v7jZ7NEs88bL`) as production, but verify in dashboard — peer sessions on this tree have been observed creating a second project `frontend` (id `prj_MdkT4rrUMnf5fn5TpHENOzFbHL6z`) via `vercel link` from `frontend/`, and which one Vercel routes `cerniq.io` traffic to is determined externally.
+
+**If the dashboard shows a live project owning `cerniq.io` → skip §3.1, jump to §3.2 (env-var refresh + redeploy on that project).**
+
+If no Vercel project owns `cerniq.io` (true full cold-storage of a future cycle) → follow §3.1 to recreate.
 
 ### 3.1 Authenticate and link (only if §3.0 confirmed deleted)
 
@@ -306,7 +345,12 @@ Vercel is auto-wired via the GitHub integration once §3.4 completes — no repo
 
 Verify by running a dry workflow trigger:
 ```bash
-gh workflow run "CERNIQ CI/CD" --ref claude/enterprise-quality-hardening
+# Use whatever branch the revival commit will merge from. Post-merge,
+# this is `main`. Pre-merge, it's whatever feature branch carries the
+# infra config. The original 2026-05-16 revival used
+# `claude/enterprise-quality-hardening`; do not hardcode it on later cycles.
+BRANCH="$(git branch --show-current)"
+gh workflow run "CERNIQ CI/CD" --ref "$BRANCH"
 gh run watch
 ```
 
@@ -348,9 +392,9 @@ Ready for PR merge + deploy."
 For a durable handoff entry that future sessions will find via `git log` / SESSION_HANDOFF.md, use `claude-peers handoff --project cerniq --summary "..."` instead of (or in addition to) the broadcast.
 
 Claude will then:
-1. Wait for the 3 active peer write-sessions to settle
-2. Confirm `claude/enterprise-quality-hardening` is still mergeable
-3. Squash-merge PR #61 to main
+1. Wait for the active peer write-sessions to settle (`claude-peers status`)
+2. Confirm the active feature branch is still mergeable (the 2026-05-16 revival used `claude/enterprise-quality-hardening`; subsequent cycles may differ)
+3. Squash-merge the active PR to `main`
 4. Watch the `deploy-backend` + `deploy-frontend` workflow runs
 5. Verify with `scripts/health-check.sh` post-deploy
 6. Update `docs/SESSION_HANDOFF.md` with the deployment log entry
@@ -407,6 +451,7 @@ These IDs become stale on the next revival cycle. Treat the table as a snapshot.
 - **`AUTH_ALLOW_LEGACY=true`** was set in env so existing API keys (hashed with legacy SHA-256) continue to authenticate; revoke once all keys re-issued under HMAC-with-pepper.
 - **Live secrets in repo `.env`** (Stripe `sk_live_…`, Anthropic, Resend) were treated as compromised because they touched at least one local-shell session during recovery; **rotate during the next revival window**.
 - **Round-2 audit caught what round-1 missed.** The first triage pass (`a69e44fa`) corrected §4 Cloudflare → Spaceship but did not sweep the rest of the doc for the same kind of drift. A second pass found: §0 + §3 wrongly claimed Vercel was deleted (it survived as `capexcycle`); §5.2 still pointed Resend DNS at Cloudflare; §8 hand-back used the wrong `claude-peers msg` syntax (`msg <project>` is not supported — only `msg <sid-prefix|all>`); §9 rollback named `cerniq-frontend` (wrong project) and "Cloudflare records" (wrong registrar). **Rule for next cycle:** when correcting one factual-drift bug in a runbook, grep the whole doc for the same noun (here: `Cloudflare`, `cerniq-frontend`, `deleted`) and audit every occurrence — not just the section you came in to fix.
+- **Round-3 audit caught what rounds 1 and 2 missed — at the section-interior level.** Surface-level drift is easier to grep than interior-logic bugs. Three new findings: (a) §2.6 warned only `DATA_ENCRYPTION_KEY` as restore-sensitive, missing `JWT_SECRET` / `API_KEY_PEPPER` / `MASTER_ACCOUNT_PASSWORD` — all four invalidate independent slices of restored state if regenerated (sessions / encrypted columns / customer API keys / master-account auth). The `API_KEY_PEPPER` mismatch in particular is the same class of bug as `[[hash-divergence-pattern]]` (commit `e602c1d7`) where wrong hash function silently broke customer auth. (b) §2.4 `pg_restore --clean --if-exists` will drop tables in whatever DB the URL points at — added an empty-DB pre-check so a misrouted URL doesn't silently wipe a live database. (c) §3.0 over-claimed which Vercel project is prod based on local `.vercel/project.json` files that are gitignored per-user state; the authoritative source is the Vercel dashboard. Also (d) §6 and §8 hardcoded the working branch name `claude/enterprise-quality-hardening`, which self-stales on every merge. **Rule for next cycle:** audit `env.schema.ts` and each restore-sensitive secret SEPARATELY against the inline command list — `JWT_SECRET`, `API_KEY_PEPPER`, etc., are easy to set with `openssl rand -hex 32` and easy to overlook as Path R consistency dependencies. Also: never claim a fact in a runbook that comes from a gitignored file — locate the authoritative source instead.
 
 ---
 
