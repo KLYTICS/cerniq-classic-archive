@@ -2,6 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { ComplianceCalendarService } from './compliance-calendar.service';
+import { computePromptVersion } from './analyst/prompt-version';
+import {
+  extractUsage,
+  estimateCostCents,
+  type LLMUsage,
+} from './analyst/llm-usage';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -62,6 +68,11 @@ Genera un resumen ejecutivo de 3 secciones:
 
 Sé específico, basado en datos, y cita las regulaciones COSSEC/OCIF por número. Escribe a nivel de CFO — sin definiciones de jerga.
 Mantén la respuesta total bajo 400 palabras. Usa encabezados markdown para cada sección.`;
+
+// KLYTICS Rule 9 anchor — single source of truth for the model identifier
+// that participates in cost estimation + prompt-version fingerprinting. Keep
+// in sync with the `model` arg passed to messages.stream below.
+const ADVISOR_V2_MODEL = 'claude-sonnet-4-20250514';
 
 @Injectable()
 export class AlmAdvisorV2Service {
@@ -342,6 +353,13 @@ export class AlmAdvisorV2Service {
         apiKey: process.env.ANTHROPIC_API_KEY,
       });
       const systemPrompt = lang === 'es' ? ES_SYSTEM_PROMPT : EN_SYSTEM_PROMPT;
+      // KLYTICS Rule 9: fingerprint the (model, systemPrompt) tuple before the
+      // call so any drift in system-prompt wording or model swap is detectable
+      // in the audit log. Mirrors the analyst-panel pattern from d1d42e97.
+      const promptVersion = computePromptVersion({
+        model: ADVISOR_V2_MODEL,
+        systemPrompt,
+      });
       const userContent = JSON.stringify({
         healthScore: health,
         riskAlerts: alerts.map((a) => ({
@@ -360,20 +378,65 @@ export class AlmAdvisorV2Service {
       });
 
       const stream = client.messages.stream({
-        model: 'claude-sonnet-4-20250514',
+        model: ADVISOR_V2_MODEL,
         max_tokens: 1200,
         system: systemPrompt,
         messages: [{ role: 'user', content: userContent }],
       });
 
+      // KLYTICS Rule 9 usage tracking for streaming. Anthropic SSE emits
+      // input/cache tokens in `message_start` and final `output_tokens` in
+      // `message_delta`; we collect both for an accurate four-class snapshot.
+      let initialUsage: LLMUsage | null = null;
+      let finalOutputTokens: number | null = null;
+
       for await (const event of stream) {
-        if (
+        if (event.type === 'message_start') {
+          // type-rationale: Anthropic SDK's MessageStreamEvent discriminated union narrows here to RawMessageStartEvent, but the `.message` property's type is not exported as a callable shape compatible with extractUsage's input. Cast to any to access `.message.usage` — extractUsage internally guards against nulls (Rule 1).
+          initialUsage = extractUsage((event as any).message);
+        } else if (event.type === 'message_delta') {
+          // type-rationale: Anthropic SDK's MessageDeltaEvent declares `.usage` as `MessageDeltaUsage` (output_tokens only), but at runtime the SDK sometimes emits it as `null` or with additional fields. Cast to any so the optional-chain access below survives both shapes — runtime guards (`typeof evUsage?.output_tokens === 'number'`) prevent silent-zero.
+          const evUsage = (event as any).usage;
+          if (typeof evUsage?.output_tokens === 'number') {
+            finalOutputTokens = evUsage.output_tokens;
+          }
+        } else if (
           event.type === 'content_block_delta' &&
           (event as any).delta?.text
         ) {
+          // type-rationale: Anthropic SDK's content_block_delta event narrows to RawContentBlockDeltaEvent here, but the `.delta` field's discriminated union (TextDelta | InputJSONDelta | ...) doesn't cleanly project to a single `.text` access without exhaustive narrowing. Cast to any so the chained `.delta.text` works for both text and tool-use variants — runtime guard above gates the yield, mirrors the existing two-event-cast pattern in this loop.
           yield (event as any).delta.text;
         }
       }
+
+      // Compose final usage from message_start (input + cache) + message_delta
+      // (final output count). Skip the stamp if no usage was observed — never
+      // silent-zero (Rule 1 composes with Rule 9).
+      const usage: LLMUsage | null =
+        initialUsage && finalOutputTokens !== null
+          ? { ...initialUsage, outputTokens: finalOutputTokens }
+          : initialUsage;
+      const costEstimate = usage
+        ? estimateCostCents(ADVISOR_V2_MODEL, usage)
+        : null;
+      this.logger.log({
+        event: 'rule-9-stamp',
+        surface: 'alm-advisor-v2.streamFromAnthropic',
+        lang,
+        model: ADVISOR_V2_MODEL,
+        promptVersion,
+        usage,
+        costCents: costEstimate?.cents ?? null,
+        ...(costEstimate && 'pricingVersion' in costEstimate
+          ? { pricingVersion: costEstimate.pricingVersion }
+          : {
+              costMissingReason:
+                'reason' in (costEstimate ?? {})
+                  ? // type-rationale: estimateCostCents returns a discriminated union — either `{ cents, pricingVersion, model }` (priced) or `{ cents: null, reason, model }` (unknown-model fallback per Rule 1). The `'reason' in ...` narrow above proves we're in the fallback branch, but TS doesn't propagate that narrowing through the conditional spread. Cast to any to read `.reason` cleanly.
+                    (costEstimate as any).reason
+                  : null,
+            }),
+      });
     } catch (err) {
       this.logger.warn(
         `Anthropic streaming failed, falling back to local narrative: ${err}`,

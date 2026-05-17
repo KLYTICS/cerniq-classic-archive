@@ -10,12 +10,27 @@ test.describe('Navigation & Layout', () => {
   test('should render landing page content with value proposition', async ({ page }) => {
     await page.goto('/');
     const body = page.locator('body');
-    await expect(body).toContainText(/Dashboard-native ALM Intelligence/i);
-    await expect(body).toContainText(/From balance sheet to board-ready ALM decisions/i);
+    // Hero H1 (frontend/app/page.tsx:575) — post-2026-04-22 brand repositioning.
+    // Previous copy "Dashboard-native ALM Intelligence" / "From balance sheet to
+    // board-ready ALM decisions" was replaced as part of the institutional-OS pivot.
+    await expect(body).toContainText(
+      /Turn the quarterly ALM scramble into an institutional command center|Convierta la carrera trimestral de ALM en un centro de mando institucional/i,
+    );
+    // Subhead naming the four target teams (frontend/app/page.tsx:581).
+    await expect(body).toContainText(
+      /treasury, ALCO, risk, and investment teams|tesoreria, ALCO, riesgo e inversiones/i,
+    );
+    // CTA labels resolve via `getAcquisitionCopy(lang)` — primary "Start Pilot" /
+    // "Comenzar piloto", secondary "View Interactive Demo" / "Ver demo interactivo"
+    // (frontend/lib/acquisition-copy.ts:32-34,68-70).
     await expect(
-      page.getByRole('button', { name: /Request Demo|Solicitar Demo/i }).first(),
+      page.getByRole('button', { name: /Start Pilot|Comenzar piloto/i }).first(),
     ).toBeVisible();
-    await expect(page.getByRole('button', { name: /Start|Comenzar/i }).first()).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /View Interactive Demo|Ver demo interactivo/i }).first(),
+    ).toBeVisible();
+    // Workspace-specific copy still must not leak to the public landing — same
+    // invariant as before the repositioning.
     await expect(body).not.toContainText(/Live Workspace|Current cycle|Q2 ALM/i);
   });
 

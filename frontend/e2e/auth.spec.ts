@@ -134,6 +134,42 @@ test.describe('Authentication', () => {
       });
     });
 
+    // /dashboard mounts `hydrateFromStorage` (frontend/lib/store.ts:173) which
+    // probes /api/auth/session for an OAuth/cookie-bootstrapped session before
+    // trusting the localStorage user. Without this mock the probe returns 404
+    // from the Next.js dev server, `response.ok=false` → profile=null → falls
+    // through to `setUnauthenticated()` (line 202) and DISCARDS the
+    // localStorage user that the local-demo flow just wrote. Result: the
+    // dashboard bridge sees isAuthenticated=false, never redirects to /portal,
+    // and the "Log out" button never renders — manifesting as the 15s
+    // toBeVisible timeout at line 202. Mock returns the same demo user so
+    // hydration confirms the in-memory session.
+    await page.route('**/api/auth/session', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          authenticated: true,
+          user: {
+            id: 'demo-user',
+            email: 'local-demo@cerniq.local',
+            name: 'Local Demo',
+            access: {
+              platformAccessAllowed: true,
+              isMasterCeo: false,
+              isPaid: false,
+              isDemo: true,
+              effectiveTier: 'demo',
+              effectiveStatus: 'active',
+              effectivePeriodEnd: null,
+              daysRemaining: 14,
+              reason: 'demo_active',
+            },
+          },
+        }),
+      });
+    });
+
     await page.route('**/api/workspaces', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
@@ -184,12 +220,24 @@ test.describe('Authentication', () => {
       .getByRole('button', { name: /launch local demo/i })
       .click();
 
-    await page.waitForURL('**/dashboard', { timeout: 15000 });
+    // 2026-04-19 portal migration: /dashboard is now a bridge whose useEffect
+    // calls router.replace('/portal/submit?createCycle=1') once the auth store
+    // hydrates (frontend/app/dashboard/page.tsx:108-116). Wait for the bridge
+    // to load, then for the portal layout to attach — checking either URL
+    // shape covers both the brief bridge moment and the final destination.
+    await page.waitForURL(
+      (url) => /\/(dashboard|portal)(\b|\/)/.test(url.pathname),
+      { timeout: 15000 },
+    );
+    // Portal layout button text is literally "Log out" (with a space) in
+    // frontend/app/portal/layout.tsx:314 — the regex needs `\s*` to accept
+    // both the spaced and unspaced forms. The Spanish portion preserves
+    // future-locale capacity even though the current source is English-only.
     await expect(
-      page.getByRole('button', { name: /logout|salir/i }),
-    ).toBeVisible();
+      page.getByRole('button', { name: /log\s*out|cerrar sesi[oó]n|salir/i }),
+    ).toBeVisible({ timeout: 15000 });
     await expect(
-      page.getByRole('button', { name: /sign in|iniciar/i }),
+      page.getByRole('button', { name: /sign in|iniciar sesi[oó]n|iniciar/i }),
     ).toHaveCount(0);
     await expect(page.locator('body')).toContainText(/local-demo@cerniq\.local/i);
   });

@@ -1,5 +1,5 @@
+import { ForbiddenException, type ExecutionContext } from '@nestjs/common';
 import { TenantScopeGuard } from './tenant-scope.guard';
-import { ExecutionContext } from '@nestjs/common';
 
 describe('TenantScopeGuard', () => {
   let guard: TenantScopeGuard;
@@ -9,12 +9,19 @@ describe('TenantScopeGuard', () => {
   });
 
   const createMockContext = (
-    url: string,
-    user: any = undefined,
+    path: string,
+    user: Record<string, unknown> | undefined,
     headers: Record<string, string> = {},
     method: string = 'GET',
   ): { ctx: ExecutionContext; request: any } => {
-    const request = { url, path: url, user, headers, method } as any;
+    const request = {
+      path,
+      url: path,
+      originalUrl: path,
+      user,
+      headers,
+      method,
+    } as any;
     const ctx = {
       switchToHttp: () => ({
         getRequest: () => request,
@@ -23,85 +30,130 @@ describe('TenantScopeGuard', () => {
     return { ctx, request };
   };
 
-  it('should always return true (non-blocking guard)', () => {
-    const { ctx } = createMockContext('/api/users');
+  it('passes without user for tenant paths (public ALM calculators)', () => {
+    const { ctx } = createMockContext('/api/alm/duration-gap', undefined);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
-  it('should set tenantId from user.orgId', () => {
-    const { ctx, request } = createMockContext('/api/data', {
-      orgId: 'org-123',
-      userId: 'u1',
-    });
-    guard.canActivate(ctx);
+  it('sets tenantId from user.orgId', () => {
+    const { ctx, request } = createMockContext(
+      '/api/alm/institutions',
+      {
+        orgId: 'org-123',
+        userId: 'u1',
+        authMethod: 'token',
+        access: {},
+      },
+      {},
+    );
+    expect(guard.canActivate(ctx)).toBe(true);
     expect(request.tenantId).toBe('org-123');
   });
 
-  it('should fall back to x-organization-id header', () => {
-    const { ctx, request } = createMockContext('/api/data', undefined, {
-      'x-organization-id': 'org-header',
+  it('throws Forbidden when authenticated without org on /api/alm', () => {
+    const { ctx } = createMockContext('/api/alm/institutions', {
+      userId: 'u1',
+      authMethod: 'token',
+      access: {},
     });
-    guard.canActivate(ctx);
-    expect(request.tenantId).toBe('org-header');
+    expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
   });
 
-  it('should fall back to x-klytics-org-id header', () => {
-    const { ctx, request } = createMockContext('/api/data', undefined, {
-      'x-klytics-org-id': 'klytics-org',
+  it('allows master CEO without org on tenant path', () => {
+    const { ctx, request } = createMockContext('/api/alm/institutions', {
+      userId: 'u1',
+      authMethod: 'token',
+      access: { isMasterCeo: true },
     });
-    guard.canActivate(ctx);
-    expect(request.tenantId).toBe('klytics-org');
-  });
-
-  it('should set tenantId to null when no orgId source is available', () => {
-    const { ctx, request } = createMockContext('/api/data');
-    guard.canActivate(ctx);
+    expect(guard.canActivate(ctx)).toBe(true);
     expect(request.tenantId).toBeNull();
   });
 
-  it('should log warning for /api/alm routes without orgId', () => {
-    const warnSpy = jest.spyOn(guard['logger'], 'warn');
-    const { ctx } = createMockContext('/api/alm/report');
-    guard.canActivate(ctx);
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        event: 'tenant_scope.missing_org_id',
-      }),
-    );
-  });
-
-  it('should log warning for /api/expenses routes without orgId', () => {
-    const warnSpy = jest.spyOn(guard['logger'], 'warn');
-    const { ctx } = createMockContext('/api/expenses/list');
-    guard.canActivate(ctx);
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        event: 'tenant_scope.missing_org_id',
-      }),
-    );
-  });
-
-  it('should not log warning for non-tenant routes without orgId', () => {
-    const warnSpy = jest.spyOn(guard['logger'], 'warn');
-    const { ctx } = createMockContext('/api/users/me');
-    guard.canActivate(ctx);
-    expect(warnSpy).not.toHaveBeenCalled();
-  });
-
-  it('should not log warning for tenant routes with orgId', () => {
-    const warnSpy = jest.spyOn(guard['logger'], 'warn');
-    const { ctx } = createMockContext('/api/alm/report', { orgId: 'org-1' });
-    guard.canActivate(ctx);
-    expect(warnSpy).not.toHaveBeenCalled();
-  });
-
-  it('should prefer user.orgId over headers', () => {
+  it('resolves tenant from /api/expenses/:orgId segment', () => {
     const { ctx, request } = createMockContext(
-      '/api/data',
-      { orgId: 'from-user' },
+      '/api/expenses/acme-corp/upload',
+      { userId: 'u1', authMethod: 'token', access: {} },
+    );
+    expect(guard.canActivate(ctx)).toBe(true);
+    expect(request.tenantId).toBe('acme-corp');
+  });
+
+  it('throws for /api/expenses list without org header', () => {
+    const { ctx } = createMockContext('/api/expenses', {
+      userId: 'u1',
+      authMethod: 'token',
+      access: {},
+    });
+    expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
+  });
+
+  it('allows non-tenant paths without org even when authenticated', () => {
+    const { ctx } = createMockContext('/api/portal/jobs', {
+      userId: 'u1',
+      authMethod: 'token',
+      access: {},
+    });
+    expect(guard.canActivate(ctx)).toBe(true);
+  });
+
+  it('prefers user.orgId over x-organization-id', () => {
+    const { ctx, request } = createMockContext(
+      '/api/alm/institutions',
+      { orgId: 'from-user', userId: 'u1', authMethod: 'token', access: {} },
       { 'x-organization-id': 'from-header' },
     );
-    guard.canActivate(ctx);
+    expect(guard.canActivate(ctx)).toBe(true);
     expect(request.tenantId).toBe('from-user');
+  });
+
+  describe('/api/analyst (tenant-required after 2026-05-14)', () => {
+    it('throws Forbidden when authenticated without org on /api/analyst', () => {
+      const { ctx } = createMockContext('/api/analyst/inst-123/message', {
+        userId: 'u1',
+        authMethod: 'token',
+        access: {},
+      });
+      expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
+    });
+
+    it('passes with user.orgId on /api/analyst and resolves tenantId', () => {
+      const { ctx, request } = createMockContext(
+        '/api/analyst/inst-123/message',
+        { orgId: 'org-A', userId: 'u1', authMethod: 'token', access: {} },
+      );
+      expect(guard.canActivate(ctx)).toBe(true);
+      expect(request.tenantId).toBe('org-A');
+    });
+
+    it('allows master CEO bypass on /api/analyst', () => {
+      const { ctx, request } = createMockContext(
+        '/api/analyst/inst-123/message',
+        {
+          userId: 'u1',
+          authMethod: 'token',
+          access: { isMasterCeo: true },
+        },
+      );
+      expect(guard.canActivate(ctx)).toBe(true);
+      expect(request.tenantId).toBeNull();
+    });
+
+    it('passes unauthenticated /api/analyst (public calculators contract)', () => {
+      const { ctx } = createMockContext(
+        '/api/analyst/inst-123/message',
+        undefined,
+      );
+      expect(guard.canActivate(ctx)).toBe(true);
+    });
+
+    it('resolves tenantId from x-organization-id for API key on /api/analyst', () => {
+      const { ctx, request } = createMockContext(
+        '/api/analyst/inst-123/message',
+        { userId: 'u1', authMethod: 'api_key', access: {} },
+        { 'x-organization-id': 'org-B' },
+      );
+      expect(guard.canActivate(ctx)).toBe(true);
+      expect(request.tenantId).toBe('org-B');
+    });
   });
 });

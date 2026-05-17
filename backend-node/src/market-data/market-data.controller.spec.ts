@@ -1,9 +1,11 @@
+import 'reflect-metadata';
 import { Test, TestingModule } from '@nestjs/testing';
-import { HttpException, UnauthorizedException } from '@nestjs/common';
+import { HttpException } from '@nestjs/common';
 import { MarketDataController } from './market-data.controller';
 import { MarketDataService } from './market-data.service';
 import { LlmService } from '../llm/llm.service';
 import { MarketStreamManagerService } from './market-stream-manager.service';
+import { AdminKeyGuard } from '../auth/admin-key.guard';
 
 describe('MarketDataController', () => {
   let controller: MarketDataController;
@@ -11,11 +13,7 @@ describe('MarketDataController', () => {
   let llmService: Record<string, jest.Mock>;
   let marketStreamManager: Record<string, jest.Mock>;
 
-  const originalEnv = process.env;
-
   beforeEach(async () => {
-    process.env = { ...originalEnv, ADMIN_KEY: 'valid-admin-key' };
-
     marketDataService = {
       getQuote: jest.fn(),
       getRealtimeQuote: jest.fn(),
@@ -44,13 +42,12 @@ describe('MarketDataController', () => {
         { provide: LlmService, useValue: llmService },
         { provide: MarketStreamManagerService, useValue: marketStreamManager },
       ],
-    }).compile();
+    })
+      .overrideGuard(AdminKeyGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<MarketDataController>(MarketDataController);
-  });
-
-  afterEach(() => {
-    process.env = originalEnv;
   });
 
   it('should be defined', () => {
@@ -336,24 +333,27 @@ describe('MarketDataController', () => {
   });
 
   describe('clearCaches', () => {
-    it('should clear caches with valid admin key', () => {
-      const result = controller.clearCaches('valid-admin-key');
+    // Post-AdminKeyGuard refactor: admin-key enforcement is in
+    // `AdminKeyGuard` (10-case suite in `admin-key.guard.spec.ts`).
+    // Pre-refactor `controller.clearCaches('wrong-key')` calls no
+    // longer detect auth — guards run at HTTP layer, direct method
+    // invocation bypasses them. Replaced with a method-level wiring
+    // lock + a delegation test.
+
+    it('has AdminKeyGuard wired at the method level (reflection lock)', () => {
+      const guards =
+        Reflect.getMetadata(
+          '__guards__',
+          MarketDataController.prototype.clearCaches,
+        ) ?? [];
+      const names = guards.map((g: { name?: string }) => g?.name ?? String(g));
+      expect(names).toContain('AdminKeyGuard');
+    });
+
+    it('delegates to MarketDataService.clearCaches and returns success message', () => {
+      const result = controller.clearCaches();
       expect(result).toEqual({ message: 'Caches cleared successfully' });
       expect(marketDataService.clearCaches).toHaveBeenCalled();
-    });
-
-    it('should throw UnauthorizedException for invalid admin key', () => {
-      expect(() => controller.clearCaches('wrong-key')).toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('should throw UnauthorizedException when ADMIN_KEY not set', () => {
-      delete process.env.ADMIN_KEY;
-
-      expect(() => controller.clearCaches('any-key')).toThrow(
-        UnauthorizedException,
-      );
     });
   });
 });

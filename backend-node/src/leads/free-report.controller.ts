@@ -33,6 +33,7 @@ interface FreeReportDto {
  * Uses the project's existing TokenBucketLimiter utility so we stay
  * in-memory without needing Redis for this lightweight endpoint.
  */
+// verify:auth-skip-controller — public lead capture (free-report request + open-tracking pixel); IP-rate-limited at 3/24h
 @Controller()
 export class FreeReportController {
   private readonly logger = new Logger(FreeReportController.name);

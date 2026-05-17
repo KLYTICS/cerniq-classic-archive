@@ -119,7 +119,8 @@ import {
   ApiConsumes,
   ApiBody,
 } from '@nestjs/swagger';
-import { AuthGuard } from '../auth/auth.guard';
+import { AuthTenantGuard } from '../auth/auth-tenant.guard';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 import {
   ScenarioRequestDto,
   LCRRequestDto,
@@ -147,6 +148,13 @@ import { parseFinancialField } from '../common/utils/financial-field';
 @ApiTags('ALM Analysis')
 @ApiBearerAuth('BearerAuth')
 @Controller('api/alm')
+// Class-level cross-tenant + ownership stack. AuthTenantGuard runs first
+// (auth → tenant prefix policy → resolves req.tenantId). InstitutionScopeGuard
+// then verifies the JWT caller owns the institution named in `:institutionId`
+// — when the route has the param. Routes without `:institutionId` (utility
+// endpoints like `treasury/rates`, `prepayment/compute`, `demo/build`) pass
+// through the institution check; auth + tenant prefix policy still apply.
+@UseGuards(AuthTenantGuard, InstitutionScopeGuard)
 export class AlmController {
   private readonly logger = new Logger(AlmController.name);
 
@@ -248,7 +256,7 @@ export class AlmController {
   // ═══════════════════════════════════════════════════════════════
 
   @Post('institutions')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({
     summary: 'Create a new financial institution for ALM analysis',
   })
@@ -261,7 +269,7 @@ export class AlmController {
   }
 
   @Get('institutions')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({
     summary: 'List institutions for the authenticated user or workspace',
   })
@@ -291,7 +299,7 @@ export class AlmController {
   }
 
   @Get('institutions/:institutionId')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({ summary: 'Get institution details by ID' })
   @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
   @ApiResponse({
@@ -305,7 +313,7 @@ export class AlmController {
   }
 
   @Post('institutions/:institutionId/balance-sheet-items')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({
     summary: 'Import balance sheet line items for an institution',
   })
@@ -337,7 +345,7 @@ export class AlmController {
   }
 
   @Get('institutions/:institutionId/balance-sheet-items')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async listBalanceSheetItems(
     @Param('institutionId') institutionId: string,
     @Query() pagination: PaginationQueryDto,
@@ -346,7 +354,7 @@ export class AlmController {
   }
 
   @Get(':institutionId/summary')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({
     summary: 'Get full ALM summary including duration gap, NII, EVE, and LCR',
   })
@@ -360,14 +368,14 @@ export class AlmController {
   }
 
   @Get(':institutionId/cossec-compliance')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getCOSSECCompliance(@Param('institutionId') institutionId: string) {
     this.logger.log(`COSSEC compliance check for institution ${institutionId}`);
     return this.almEnterprise.getCOSSECCompliance(institutionId);
   }
 
   @Get(':institutionId/regulatory-compliance')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({
     summary: 'Check regulatory compliance status (NCUA, COSSEC, Basel III)',
   })
@@ -385,25 +393,25 @@ export class AlmController {
   }
 
   @Get(':institutionId/duration-gap')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getDurationGap(@Param('institutionId') institutionId: string) {
     return this.almEnterprise.calculateDurationGap(institutionId);
   }
 
   @Get(':institutionId/nii-sensitivity')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getNIISensitivity(@Param('institutionId') institutionId: string) {
     return this.almEnterprise.calculateNIISensitivity(institutionId);
   }
 
   @Get(':institutionId/liquidity')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getLiquidity(@Param('institutionId') institutionId: string) {
     return this.almEnterprise.calculateLCR(institutionId);
   }
 
   @Post('analysis/run')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({
     summary: 'Trigger a full ALM analysis run for an institution',
   })
@@ -421,13 +429,13 @@ export class AlmController {
   }
 
   @Get('analysis-runs/:runId')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getAnalysisRun(@Req() req: any, @Param('runId') runId: string) {
     return this.analysisRuns.getRun(req.user.userId, runId);
   }
 
   @Get('institutions/:institutionId/analysis-runs')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async listAnalysisRuns(
     @Req() req: any,
     @Param('institutionId') institutionId: string,
@@ -441,7 +449,7 @@ export class AlmController {
   }
 
   @Get('institutions/:institutionId/ingestion-logs')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async listIngestionLogs(
     @Req() req: any,
     @Param('institutionId') institutionId: string,
@@ -455,7 +463,7 @@ export class AlmController {
   }
 
   @Get(':institutionId/calendar')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getComplianceCalendar(@Param('institutionId') institutionId: string) {
     this.logger.log(
       `Compliance calendar requested for institution ${institutionId}`,
@@ -464,7 +472,7 @@ export class AlmController {
   }
 
   @Post('institutions/:institutionId/upload-csv')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({ summary: 'Upload a CSV file to import balance sheet data' })
   @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
   @ApiQuery({
@@ -631,7 +639,7 @@ export class AlmController {
    *   cooperativa   -> pr-cooperativa-demo
    */
   @Post('seed-demo')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async seedDemoData(
     @Body()
     body: {
@@ -650,7 +658,7 @@ export class AlmController {
   // (workspaceId, fixtureKey) is a supported no-op — see SESSION_HANDOFF.md.
 
   @Get('fixtures')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async listInstitutionFixtures() {
     return {
       fixtures: listFixtures().map((f) => ({
@@ -666,7 +674,7 @@ export class AlmController {
   }
 
   @Post('institutions/seed')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async seedInstitutionFromFixture(
     @Body()
     body: {
@@ -691,7 +699,7 @@ export class AlmController {
   // generation, and the audit pipeline logs it for compliance review.
 
   @Get(':institutionId/preflight')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async preflightReport(@Param('institutionId') institutionId: string) {
     this.logger.log(`Report preflight for institution ${institutionId}`);
     return this.reportPreflight.check(institutionId);
@@ -700,14 +708,14 @@ export class AlmController {
   // ─── FTP (Funds Transfer Pricing) ────────────────────────────────
 
   @Get(':institutionId/ftp')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getFTPAnalysis(@Param('institutionId') institutionId: string) {
     this.logger.log(`FTP analysis for institution ${institutionId}`);
     return this.ftp.getFTPAnalysis(institutionId);
   }
 
   @Post(':institutionId/ftp/custom')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async runCustomFTP(
     @Param('institutionId') institutionId: string,
     @Body() body: YieldCurveOverrideDto,
@@ -716,7 +724,7 @@ export class AlmController {
   }
 
   @Get(':institutionId/ftp/segments')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getFTPSegments(@Param('institutionId') institutionId: string) {
     return this.ftp.getFTPSegments(institutionId);
   }
@@ -724,7 +732,7 @@ export class AlmController {
   // ─── CECL Credit Loss ────────────────────────────────────────────
 
   @Get(':institutionId/cecl')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getCECLAnalysis(
     @Param('institutionId') institutionId: string,
     @Query('methodology') methodology?: string,
@@ -736,7 +744,7 @@ export class AlmController {
   }
 
   @Post(':institutionId/cecl/segments')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async importLoanSegments(
     @Param('institutionId') institutionId: string,
     @Body() dto: ImportLoanSegmentsDto,
@@ -748,13 +756,13 @@ export class AlmController {
   }
 
   @Get(':institutionId/cecl/forecast')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getCECLForecast(@Param('institutionId') institutionId: string) {
     return this.cecl.getCECLForecast(institutionId);
   }
 
   @Post('cecl/warm')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async runWARMCalculation(@Body() dto: WARMCalculationDto) {
     return this.cecl.calculateWARM(dto.segments);
   }
@@ -762,14 +770,14 @@ export class AlmController {
   // ─── Yield Curve ─────────────────────────────────────────────────
 
   @Get(':institutionId/yield-curve-analysis')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getYieldCurveAnalysis(@Param('institutionId') institutionId: string) {
     this.logger.log(`Yield curve analysis for institution ${institutionId}`);
     return this.yieldCurve.getYieldCurveAnalysis(institutionId);
   }
 
   @Post(':institutionId/yield-curve/forward-nii')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async computeForwardNII(
     @Param('institutionId') institutionId: string,
     @Body()
@@ -783,7 +791,7 @@ export class AlmController {
   }
 
   @Post('yield-curve/shocks')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async applyYieldCurveShocks(@Body() dto: YieldCurveShockDto) {
     // If curveId provided, load that curve; otherwise use default
     const baseCurve = undefined;
@@ -806,7 +814,7 @@ export class AlmController {
   }
 
   @Post('yield-curve/custom')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async saveCustomYieldCurve(@Body() dto: SaveYieldCurveDto) {
     this.logger.log(
       `Saving custom yield curve "${dto.name}" for institution ${dto.institutionId}`,
@@ -817,7 +825,7 @@ export class AlmController {
   // ─── Scenario Persistence ────────────────────────────────────────
 
   @Post('scenarios/save')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async saveScenario(@Req() req: any, @Body() dto: SaveScenarioDto) {
     this.logger.log(
       `Saving scenario "${dto.name}" for institution ${dto.institutionId}`,
@@ -826,7 +834,7 @@ export class AlmController {
   }
 
   @Get(':institutionId/scenarios')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async listScenarios(
     @Param('institutionId') institutionId: string,
     @Query() query: PaginationQueryDto & { tag?: string },
@@ -835,19 +843,19 @@ export class AlmController {
   }
 
   @Get('scenarios/:scenarioId')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getScenario(@Param('scenarioId') scenarioId: string) {
     return this.scenarioPersistence.getScenario(scenarioId);
   }
 
   @Post('scenarios/compare')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async compareScenarios(@Body() dto: CompareScenarioDto) {
     return this.scenarioPersistence.compareScenarios(dto.scenarioIds);
   }
 
   @Post('scenarios/:scenarioId/duplicate')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async duplicateScenario(
     @Req() req: any,
     @Param('scenarioId') scenarioId: string,
@@ -861,7 +869,7 @@ export class AlmController {
   }
 
   @Post('scenarios/:scenarioId/delete')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async deleteScenario(@Param('scenarioId') scenarioId: string) {
     return this.scenarioPersistence.deleteScenario(scenarioId);
   }
@@ -869,13 +877,13 @@ export class AlmController {
   // ─── Deposit Beta ───────────────────────────────────────────────
 
   @Get(':institutionId/deposit-betas')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getDepositBetas(@Param('institutionId') institutionId: string) {
     return this.depositBeta.getDepositBetas(institutionId);
   }
 
   @Post(':institutionId/deposit-betas')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async updateDepositBetas(
     @Param('institutionId') institutionId: string,
     @Body() body: { betas: Array<{ subcategory: string; beta: number }> },
@@ -884,7 +892,7 @@ export class AlmController {
   }
 
   @Get(':institutionId/deposit-beta-impact')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getDepositBetaImpact(
     @Param('institutionId') institutionId: string,
     @Query('shockBps') shockBps?: string,
@@ -898,7 +906,7 @@ export class AlmController {
   // ─── Advanced Liquidity ────────────────────────────────────────
 
   @Get(':institutionId/liquidity-advanced')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getAdvancedLiquidity(@Param('institutionId') institutionId: string) {
     this.logger.log(
       `Advanced liquidity analysis for institution ${institutionId}`,
@@ -909,7 +917,7 @@ export class AlmController {
   // ─── Concentration ─────────────────────────────────────────────
 
   @Get(':institutionId/concentration')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getConcentrationAnalysis(
     @Param('institutionId') institutionId: string,
   ) {
@@ -918,7 +926,7 @@ export class AlmController {
   }
 
   @Post(':institutionId/concentration/limits')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async saveConcentrationLimits(
     @Param('institutionId') institutionId: string,
     @Body()
@@ -935,7 +943,7 @@ export class AlmController {
   // ─── NCUA Auto-Pull ────────────────────────────────────────────
 
   @Post('ncua/pull')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async pullNCUAData(@Body() body: { charterNumber: string }) {
     this.logger.log(`NCUA data pull for charter ${body.charterNumber}`);
     return this.ncuaDataPull.pullByCharterNumber(body.charterNumber);
@@ -945,7 +953,7 @@ export class AlmController {
 
   @Post(':institutionId/stress-test')
   @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 runs per minute — heavy compute
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({
     summary: 'Run Monte Carlo interest rate stress test on an institution',
   })
@@ -971,7 +979,7 @@ export class AlmController {
   }
 
   @Post(':institutionId/stress/custom')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async runCustomStressScenario(
     @Param('institutionId') institutionId: string,
     @Body()
@@ -991,7 +999,7 @@ export class AlmController {
   // ─── Custom Rate Shock Scenario Builder ─────────────────────────
 
   @Post(':institutionId/scenario/custom')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({
     summary:
@@ -1030,7 +1038,7 @@ export class AlmController {
   // ─── Excel Export ───────────────────────────────────────────────
 
   @Get(':institutionId/export/excel')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({
     summary: 'Export ALM report as Excel workbook (XML SpreadsheetML format)',
   })
@@ -1054,7 +1062,7 @@ export class AlmController {
   }
 
   @Get(':institutionId/report')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @AuditAction('report_download')
   @ApiOperation({ summary: 'Download a full ALM analysis report as PDF' })
   @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
@@ -1088,7 +1096,7 @@ export class AlmController {
   }
 
   @Get(':institutionId/exports')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({
     summary: 'List team-ready export manifests for an institution',
   })
@@ -1129,7 +1137,7 @@ export class AlmController {
   // ─── MP-003: CECL Vintage Analyzer ──────────────────────────────
 
   @Get(':institutionId/cecl/vintage')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getCECLVintage(
     @Param('institutionId') institutionId: string,
     @Query('scenario') scenario?: string,
@@ -1141,13 +1149,13 @@ export class AlmController {
   }
 
   @Get(':institutionId/cecl/cohorts')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getCECLCohorts(@Param('institutionId') institutionId: string) {
     return this.ceclVintage.getCohortMatrix(institutionId);
   }
 
   @Post(':institutionId/cecl/cohorts/upload')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async uploadCohorts(
     @Param('institutionId') institutionId: string,
     @Body() body: { cohorts: any[] },
@@ -1159,7 +1167,7 @@ export class AlmController {
 
   @Post(':institutionId/monte-carlo/run')
   @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 runs per minute — heavy compute
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async runMonteCarlo(
     @Param('institutionId') institutionId: string,
     @Body()
@@ -1180,14 +1188,14 @@ export class AlmController {
   // ─── Phase IV: COSSEC Stress Pack (MP-004) ──────────────────────
 
   @Get(':institutionId/stress-pack')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async runStressPack(@Param('institutionId') institutionId: string) {
     this.logger.log(`COSSEC 5-scenario stress pack for ${institutionId}`);
     return this.liquidityStressPack.runAllScenarios(institutionId);
   }
 
   @Get(':institutionId/stress-pack/:scenarioId')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async runStressPackScenario(
     @Param('institutionId') institutionId: string,
     @Param('scenarioId') scenarioId: string,
@@ -1198,19 +1206,19 @@ export class AlmController {
   // ─── Phase IV: IRR Policy Engine (MP-005) ──────────────────────
 
   @Get(':institutionId/irr-policy')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getIRRPolicyDashboard(@Param('institutionId') institutionId: string) {
     return this.irrPolicy.checkAll(institutionId);
   }
 
   @Get(':institutionId/irr-policy/limits')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getIRRPolicyLimits(@Param('institutionId') institutionId: string) {
     return this.irrPolicy.getLimits(institutionId);
   }
 
   @Post(':institutionId/irr-policy/limits')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async saveIRRPolicyLimits(
     @Param('institutionId') institutionId: string,
     @Body() body: { limits: any[] },
@@ -1219,7 +1227,7 @@ export class AlmController {
   }
 
   @Get(':institutionId/irr-policy/breaches')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getBreachHistory(@Param('institutionId') institutionId: string) {
     return this.irrPolicy.getBreachHistory(institutionId);
   }
@@ -1227,13 +1235,13 @@ export class AlmController {
   // ─── Phase IV: Deposit Beta Library (MP-007) ───────────────────
 
   @Get(':institutionId/deposit-beta/benchmark')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getDepositBetaBenchmark(@Param('institutionId') institutionId: string) {
     return this.depositBetaLibrary.getBenchmark(institutionId);
   }
 
   @Get('deposit-beta/library')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getDepositBetaLibrary() {
     return this.depositBetaLibrary.getRawLibrary();
   }
@@ -1241,7 +1249,7 @@ export class AlmController {
   // ─── Phase IV: Repricing Gap (MP-008) ──────────────────────────
 
   @Get(':institutionId/repricing-gap')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getRepricingGap(
     @Param('institutionId') institutionId: string,
     @Query('policyLimitPct') policyLimitPct?: string,
@@ -1260,7 +1268,7 @@ export class AlmController {
   // ─── Phase IV: FTP v2 Attribution (MP-009) ─────────────────────
 
   @Get(':institutionId/ftp/attribution')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getFTPAttribution(@Param('institutionId') institutionId: string) {
     this.logger.log(`FTP attribution for ${institutionId}`);
     return this.ftpAttribution.getFullAttribution(institutionId);
@@ -1269,7 +1277,7 @@ export class AlmController {
   // ─── Phase IV: Forward Simulation (MP-010) ─────────────────────
 
   @Post(':institutionId/forward-simulation')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async runForwardSimulation(
     @Param('institutionId') institutionId: string,
     @Body()
@@ -1287,7 +1295,7 @@ export class AlmController {
   // ─── Phase IV: Peer Analytics (MP-011) ─────────────────────────
 
   @Get(':institutionId/peer-analytics')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getPeerAnalytics(@Param('institutionId') institutionId: string) {
     this.logger.log(`Peer analytics for ${institutionId}`);
     return this.peerAnalytics.getPeerAnalytics(institutionId);
@@ -1296,7 +1304,7 @@ export class AlmController {
   // ─── Phase V: OAS Calculator (MP-014) ──────────────────────────
 
   @Get(':institutionId/oas')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getOASPortfolio(@Param('institutionId') institutionId: string) {
     this.logger.log(`OAS portfolio analysis for ${institutionId}`);
     return this.oasCalculator.analyzePortfolio(institutionId);
@@ -1305,7 +1313,7 @@ export class AlmController {
   // ─── Phase V: Credit Risk Quant (MP-015) ──────────────────────
 
   @Get(':institutionId/credit-risk')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getCreditRisk(@Param('institutionId') institutionId: string) {
     this.logger.log(`Credit risk quant for ${institutionId}`);
     return this.creditRiskQuant.analyzePortfolio(institutionId);
@@ -1314,7 +1322,7 @@ export class AlmController {
   // ─── Phase V: Portfolio VaR (MP-017) ──────────────────────────
 
   @Get(':institutionId/var')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getVaRSuite(
     @Param('institutionId') institutionId: string,
     @Query('confidence') confidence?: string,
@@ -1331,7 +1339,7 @@ export class AlmController {
   // ─── Phase V: Capital Optimizer (MP-019) ──────────────────────
 
   @Post(':institutionId/optimize')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async optimizeCapital(
     @Param('institutionId') institutionId: string,
     @Body()
@@ -1346,7 +1354,7 @@ export class AlmController {
   // ─── Phase V: Asset Quality EWS (MP-018) ──────────────────────
 
   @Get(':institutionId/ews')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getAssetEWS(@Param('institutionId') institutionId: string) {
     this.logger.log(`Asset EWS for ${institutionId}`);
     return this.assetEWS.computeEWS(institutionId);
@@ -1355,7 +1363,7 @@ export class AlmController {
   // ─── Phase V: Prepayment Engine (MP-016) ──────────────────────
 
   @Post('prepayment/compute')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async computePrepayment(
     @Body()
     body: {
@@ -1371,7 +1379,7 @@ export class AlmController {
   }
 
   @Post('prepayment/sensitivity')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async prepaymentSensitivity(
     @Body()
     body: {
@@ -1390,7 +1398,7 @@ export class AlmController {
   // ─── Phase V: SOFR Monitor (MP-022) ──────────────────────────
 
   @Get(':institutionId/sofr-exposure')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getSOFRExposure(@Param('institutionId') institutionId: string) {
     return this.sofrMonitor.getExposureReport(institutionId);
   }
@@ -1398,13 +1406,13 @@ export class AlmController {
   // ─── Phase V: Treasury Rates (MP-025) ─────────────────────────
 
   @Get('treasury/rates')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getTreasuryRates() {
     return this.treasuryRates.getLatestSnapshot();
   }
 
   @Get('treasury/curve')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getTreasuryCurve() {
     return this.treasuryRates.getYieldCurvePoints();
   }
@@ -1412,7 +1420,7 @@ export class AlmController {
   // ─── Phase VI: COSSEC Exam Prep (MP-027) ───────────────────────
 
   @Get(':institutionId/exam-prep')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getExamPrep(@Param('institutionId') institutionId: string) {
     this.logger.log(`COSSEC exam prep for ${institutionId}`);
     return this.examPrep.getExamPrep(institutionId);
@@ -1421,7 +1429,7 @@ export class AlmController {
   // ─── Phase VI: Board Report (MP-030) ────────────────────────────
 
   @Get(':institutionId/board-report')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getBoardReport(@Param('institutionId') institutionId: string) {
     this.logger.log(`Board report for ${institutionId}`);
     return this.boardReport.generateBoardReportData(institutionId);
@@ -1430,7 +1438,7 @@ export class AlmController {
   // ─── Phase VI: Chat Analyst (MP-031) ──────────────────────────
 
   @Post(':institutionId/analyst/chat')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async chatWithAnalyst(
     @Param('institutionId') institutionId: string,
     @Body() body: { message: string; sessionId: string; lang?: string },
@@ -1444,7 +1452,7 @@ export class AlmController {
   }
 
   @Get('analyst/tools')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getAnalystTools() {
     return this.chatAnalyst.getAvailableTools();
   }
@@ -1452,7 +1460,7 @@ export class AlmController {
   // ─── Phase VI: NCUA 5300 (MP-029) ─────────────────────────────
 
   @Get(':institutionId/form-5300')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getForm5300(
     @Param('institutionId') institutionId: string,
     @Query('quarter') quarter?: string,
@@ -1464,13 +1472,13 @@ export class AlmController {
   // ─── Phase VI: Prospect Intelligence (MP-032) ─────────────────
 
   @Post('prospects/analyze')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async analyzeProspect(@Body() body: { charterNumber: string }) {
     return this.prospectIntel.analyzeProspect(body.charterNumber);
   }
 
   @Post('prospects/analyze-all')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async analyzeAllProspects() {
     return this.prospectIntel.analyzeAllProspects();
   }
@@ -1478,7 +1486,7 @@ export class AlmController {
   // ─── Phase VI: Network Intelligence (MP-026) ───────────────────
 
   @Get('network/overview')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getNetworkOverview() {
     this.logger.log('Network intelligence overview');
     return this.networkIntel.getNetworkOverview();
@@ -1487,7 +1495,7 @@ export class AlmController {
   // ─── Phase VI: Webhooks (MP-032) ──────────────────────────────
 
   @Post(':institutionId/webhooks')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async createWebhook(
     @Param('institutionId') institutionId: string,
     @Body() body: { url: string; events: string[] },
@@ -1496,13 +1504,13 @@ export class AlmController {
   }
 
   @Get(':institutionId/webhooks')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async listWebhooks(@Param('institutionId') institutionId: string) {
     return this.webhooks.listSubscriptions(institutionId);
   }
 
   @Post('webhooks/:webhookId/delete')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async deleteWebhook(@Param('webhookId') webhookId: string) {
     return this.webhooks.deleteSubscription(webhookId);
   }
@@ -1510,7 +1518,7 @@ export class AlmController {
   // ─── Phase VII: Usage Metering (MP-044) ───────────────────────
 
   @Get(':institutionId/usage')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getUsageSummary(
     @Param('institutionId') institutionId: string,
     @Query('month') month?: string,
@@ -1521,13 +1529,13 @@ export class AlmController {
   // ─── Phase VII: Data Privacy (MP-041) ─────────────────────────
 
   @Get('privacy/inventory')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getDataInventory() {
     return this.dataPrivacy.getDataInventory();
   }
 
   @Post(':institutionId/privacy/deletion-request')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async requestDeletion(
     @Req() req: any,
     @Param('institutionId') institutionId: string,
@@ -1542,7 +1550,7 @@ export class AlmController {
   }
 
   @Get(':institutionId/privacy/sar')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async generateSAR(@Req() req: any) {
     return this.dataPrivacy.generateSAR(req.user.userId);
   }
@@ -1550,7 +1558,7 @@ export class AlmController {
   // ─── MP-006: Smart CSV Ingest v2 ────────────────────────────────
 
   @Post(':institutionId/ingest/smart/analyze')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async analyzeCSV(
     @Param('institutionId') institutionId: string,
     @Body() body: { csvContent: string },
@@ -1559,7 +1567,7 @@ export class AlmController {
   }
 
   @Post(':institutionId/ingest/smart/commit')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async commitSmartIngest(
     @Param('institutionId') institutionId: string,
     @Body()
@@ -1580,7 +1588,7 @@ export class AlmController {
   // ─── MP-020: NIM Optimizer ─────────────────────────────────────
 
   @Get(':institutionId/nim-optimizer')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getNIMOptimizer(@Param('institutionId') institutionId: string) {
     return this.nimOptimizer.optimize(institutionId);
   }
@@ -1588,7 +1596,7 @@ export class AlmController {
   // ─── MP-021: Key-Rate Durations ────────────────────────────────
 
   @Get(':institutionId/key-rate-durations')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getKeyRateDurations(@Param('institutionId') institutionId: string) {
     return this.keyRateDuration.analyzePortfolio(institutionId);
   }
@@ -1596,7 +1604,7 @@ export class AlmController {
   // ─── MP-023: Liquidity Transfer Pricing ────────────────────────
 
   @Get(':institutionId/ltp')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getLTP(@Param('institutionId') institutionId: string) {
     return this.ltp.computeLTP(institutionId);
   }
@@ -1604,7 +1612,7 @@ export class AlmController {
   // ─── MP-033: USVI Expansion ────────────────────────────────────
 
   @Get('usvi/framework')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getUSVIFramework() {
     return this.usviExpansion.getUSVIFramework();
   }
@@ -1612,7 +1620,7 @@ export class AlmController {
   // ─── V6+V7: Regulatory Alerts (MP-200) ─────────────────────────
 
   @Get(':institutionId/alerts')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getAlerts(
     @Param('institutionId') institutionId: string,
     @Query('unreadOnly') unread?: string,
@@ -1624,25 +1632,25 @@ export class AlmController {
   }
 
   @Post(':institutionId/alerts/:alertId/read')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async markAlertRead(@Param('alertId') alertId: string) {
     return this.alertDelivery.markRead(alertId);
   }
 
   @Post(':institutionId/alerts/:alertId/dismiss')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async dismissAlert(@Param('alertId') alertId: string) {
     return this.alertDelivery.dismiss(alertId);
   }
 
   @Get('regulatory/publications')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getPublications() {
     return this.regAlert.getRecentPublications();
   }
 
   @Post('regulatory/scan-now')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async triggerRegScan() {
     return this.regAlert.runFullPipeline();
   }
@@ -1650,7 +1658,7 @@ export class AlmController {
   // ─── V6+V7: CAMEL Forecaster (MP-201) ────────────────────────
 
   @Get(':institutionId/camel-forecast')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getCamelForecast(@Param('institutionId') institutionId: string) {
     return this.camelForecaster.forecastForInstitution(institutionId);
   }
@@ -1658,7 +1666,7 @@ export class AlmController {
   // ─── V6+V7: NL Document Ingest (MP-202) ──────────────────────
 
   @Post(':institutionId/ingest/nl')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
   )
@@ -1678,7 +1686,7 @@ export class AlmController {
   // ─── V6+V7: Peer Synthesis (MP-203) ──────────────────────────
 
   @Get('peer-synthesis/latest')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getPeerSynthesis() {
     return this.peerSynthesis.getLatestReport();
   }
@@ -1686,13 +1694,13 @@ export class AlmController {
   // ─── V6+V7: DFAST Stress v2 (MP-204) ─────────────────────────
 
   @Get('stress-v2/presets')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getStressV2Presets() {
     return this.stressV2.getPresetScenarios();
   }
 
   @Post(':institutionId/stress-v2/run')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async runStressV2(
     @Param('institutionId') institutionId: string,
     @Body() body: { scenarioId?: string },
@@ -1706,7 +1714,7 @@ export class AlmController {
 
   @Post(':institutionId/stress-v2/run-all')
   @Throttle({ default: { ttl: 60000, limit: 3 } }) // 3 runs per minute — runs all scenarios
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async runAllStressV2(@Param('institutionId') institutionId: string) {
     return this.stressV2.runAllPresets(institutionId);
   }
@@ -1714,7 +1722,7 @@ export class AlmController {
   // ─── V6+V7: Robust Optimizer (MP-205) ────────────────────────
 
   @Post(':institutionId/robust-optimize')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async robustOptimize(
     @Param('institutionId') institutionId: string,
     @Body()
@@ -1726,7 +1734,7 @@ export class AlmController {
   // ─── V6+V7: Optionality Suite (MP-206) ───────────────────────
 
   @Get(':institutionId/optionality')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getOptionality(@Param('institutionId') institutionId: string) {
     return this.optionalitySuite.analyzePortfolio(institutionId);
   }
@@ -1734,7 +1742,7 @@ export class AlmController {
   // ─── V6+V7: Credit Concentration VaR (MP-207) ────────────────
 
   @Get(':institutionId/concentration-var')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getConcVaR(@Param('institutionId') institutionId: string) {
     return this.creditConcVaR.compute(institutionId);
   }
@@ -1742,7 +1750,7 @@ export class AlmController {
   // ─── V6+V7: Demo Workspace (MP-217) ──────────────────────────
 
   @Post('demo/build')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async buildDemoWorkspace(
     @Body() body: { charterNumber: string; demoLabel: string },
   ) {
@@ -1755,13 +1763,13 @@ export class AlmController {
   // ─── V6+V7: Onboarding (MP-222) ──────────────────────────────
 
   @Get(':institutionId/onboarding')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getOnboardingStatus(@Param('institutionId') institutionId: string) {
     return this.onboardingOrchestrator.getOnboardingStatus(institutionId);
   }
 
   @Get('admin/onboarding-statuses')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getAllOnboardingStatuses() {
     return this.onboardingOrchestrator.getAllOnboardingStatuses();
   }
@@ -1769,7 +1777,7 @@ export class AlmController {
   // ─── V8: Climate Risk (MP-307) ──────────────────────────────────
 
   @Get(':institutionId/climate-risk')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getClimateRisk(@Param('institutionId') institutionId: string) {
     return this.climateRisk.computeClimateRisk(institutionId);
   }
@@ -1777,7 +1785,7 @@ export class AlmController {
   // ─── V8: NIM Attribution (MP-308) ─────────────────────────────
 
   @Get(':institutionId/nim-attribution')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getNIMAttribution(@Param('institutionId') institutionId: string) {
     return this.nimAttribution.computeAttribution(institutionId);
   }
@@ -1785,7 +1793,7 @@ export class AlmController {
   // ─── V8: Behavioral Duration (MP-309) ─────────────────────────
 
   @Get(':institutionId/behavioral-duration')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getBehavioralDuration(@Param('institutionId') institutionId: string) {
     return this.behavioralDuration.computeBehavioralDurations(institutionId);
   }
@@ -1793,13 +1801,13 @@ export class AlmController {
   // ─── V8: Referral Engine (MP-320) ─────────────────────────────
 
   @Post(':institutionId/referral/generate')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async generateReferralCode(@Param('institutionId') institutionId: string) {
     return this.referralSvc.generateCode(institutionId);
   }
 
   @Get('referral/validate/:code')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async validateReferralCode(@Param('code') code: string) {
     return this.referralSvc.validateCode(code);
   }
@@ -1807,7 +1815,7 @@ export class AlmController {
   // ─── V9: HMM Macro Regime (MP-431) ───────────────────────────
 
   @Get('market/macro-regime')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getMacroRegime() {
     // Generate observations from recent rate data (demo: synthetic)
     const weeklyRates = Array.from(
@@ -1822,7 +1830,7 @@ export class AlmController {
   // ─── V9: Black-Litterman Portfolio ──────────────────────────────
 
   @Post(':institutionId/black-litterman')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async runBlackLitterman(
     @Param('institutionId') id: string,
     @Body() body: { views?: any[] },
@@ -1834,7 +1842,7 @@ export class AlmController {
 
   @Post(':institutionId/cvar-optimize')
   @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 runs per minute — optimization solver
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async runCVaROptimizer(
     @Param('institutionId') id: string,
     @Body() body: { alpha?: number },
@@ -1845,7 +1853,7 @@ export class AlmController {
   // ─── V9: Hierarchical Risk Parity ─────────────────────────────
 
   @Get(':institutionId/hrp')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getHRP(@Param('institutionId') id: string) {
     return this.hrpService.computeHRP(id);
   }
@@ -1853,7 +1861,7 @@ export class AlmController {
   // ─── V9: CreditMetrics Migration ──────────────────────────────
 
   @Post(':institutionId/credit-metrics')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async runCreditMetrics(
     @Param('institutionId') id: string,
     @Body() body: { paths?: number },
@@ -1864,7 +1872,7 @@ export class AlmController {
   // ─── V9: KMV-Merton Structural Default ────────────────────────
 
   @Get(':institutionId/kmv-merton')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getKMVMerton(@Param('institutionId') id: string) {
     return this.kmvMerton.computeKMV(id);
   }
@@ -1872,7 +1880,7 @@ export class AlmController {
   // ─── V9: PCA Yield Curve Factors ──────────────────────────────
 
   @Get(':institutionId/pca-factors')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getPCAFactors(@Param('institutionId') _id: string) {
     const baseRates = [
       0.048, 0.0465, 0.044, 0.042, 0.041, 0.0405, 0.041, 0.042, 0.0455, 0.0465,
@@ -1884,7 +1892,7 @@ export class AlmController {
   // ─── V9: FRTB Expected Shortfall ──────────────────────────────
 
   @Get(':institutionId/frtb-capital')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getFRTBCapital(@Param('institutionId') id: string) {
     return this.frtbES.computeFRTBCapital(id);
   }
@@ -1892,7 +1900,7 @@ export class AlmController {
   // ─── V9: Fed Funds Futures ────────────────────────────────────
 
   @Get('market/fed-futures')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getFedFutures() {
     return this.fedFutures.computeFedFuturesCurve();
   }
@@ -1900,7 +1908,7 @@ export class AlmController {
   // ─── V9: Macro Factor Model ───────────────────────────────────
 
   @Get(':institutionId/macro-factors')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getMacroFactors(@Param('institutionId') id: string) {
     return this.macroFactor.computeMacroImpact(id);
   }
@@ -1908,7 +1916,7 @@ export class AlmController {
   // ─── V9+: Copula Credit ────────────────────────────────────────
 
   @Post(':institutionId/copula-credit')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async runCopulaCredit(
     @Param('institutionId') id: string,
     @Body() body: { type?: string; paths?: number },
@@ -1924,7 +1932,7 @@ export class AlmController {
   // ─── V9+: Wrong-Way Risk ─────────────────────────────────────
 
   @Get(':institutionId/wrong-way-risk')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getWrongWayRisk(@Param('institutionId') id: string) {
     return this.wrongWayRisk.computeWWR(id);
   }
@@ -1932,7 +1940,7 @@ export class AlmController {
   // ─── V9+: IR Cap/Floor Pricer ─────────────────────────────────
 
   @Post('derivatives/cap-floor')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async priceCapFloor(
     @Body()
     body: {
@@ -1957,7 +1965,7 @@ export class AlmController {
   // ─── V9+: NCUA RBC2 ──────────────────────────────────────────
 
   @Get(':institutionId/rbc2')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getRBC2(@Param('institutionId') id: string) {
     return this.ncuaRBC2.computeRBC2(id);
   }
@@ -1965,7 +1973,7 @@ export class AlmController {
   // ─── MP-034: Reseller Portal ────────────────────────────────────
 
   @Post('resellers')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async createReseller(
     @Body()
     body: {
@@ -1980,13 +1988,13 @@ export class AlmController {
   }
 
   @Get('resellers')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async listResellers() {
     return this.reseller.listResellers();
   }
 
   @Get('resellers/:id')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async getReseller(@Param('id') id: string) {
     return this.reseller.getReseller(id);
   }
@@ -1994,7 +2002,7 @@ export class AlmController {
   // ─── Sample Report Factory ──────────────────────────────────────
 
   @Post('sample-report')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async generateSampleReport(
     @Body() body: { charterNumber: string; lang?: string },
     @Res() res: any,
@@ -2011,7 +2019,7 @@ export class AlmController {
   }
 
   @Get('sample-report/:charterNumber/exports')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({
     summary: 'List export manifests for sample report documents',
   })
@@ -2020,7 +2028,7 @@ export class AlmController {
   }
 
   @Get('sample-report/:charterNumber')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({
     summary: 'Download a sample report document as PDF',
   })
@@ -2038,7 +2046,7 @@ export class AlmController {
   }
 
   @Post('sample-report/prospect')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   async generateSampleForProspect(
     @Body() body: { charterNumber: string; prospectId: string },
   ) {
@@ -2097,7 +2105,7 @@ export class AlmController {
   // ═══════════════════════════════════════════════════════════════
 
   @Get(':institutionId/trend')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({ summary: 'Get historical trend of key ALM metrics' })
   @ApiParam({ name: 'institutionId', description: 'Institution ID' })
   @ApiResponse({ status: 200, description: 'Historical trend time series' })
@@ -2114,7 +2122,7 @@ export class AlmController {
   // ═══════════════════════════════════════════════════════════════
 
   @Get(':institutionId/export/json')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({ summary: 'Export latest ALM metrics as JSON' })
   @ApiParam({ name: 'institutionId', description: 'Institution ID' })
   @ApiResponse({ status: 200, description: 'JSON metrics export' })
@@ -2126,7 +2134,7 @@ export class AlmController {
   }
 
   @Get(':institutionId/export/csv')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard)
   @ApiOperation({ summary: 'Export latest ALM metrics as CSV' })
   @ApiParam({ name: 'institutionId', description: 'Institution ID' })
   @ApiResponse({

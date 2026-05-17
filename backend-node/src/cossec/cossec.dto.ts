@@ -58,7 +58,6 @@ export const FindingsQuerySchema = z.object({
   severity: CossecFindingSeverityEnum.optional(),
   examYear: z.coerce.number().int().min(2000).max(2100).optional(),
   limit: z.coerce.number().int().min(1).max(500).default(100),
-  cursor: z.string().min(1).optional(),
 });
 export type FindingsQuery = z.infer<typeof FindingsQuerySchema>;
 

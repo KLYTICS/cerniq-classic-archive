@@ -95,6 +95,32 @@ describe('AgentRunsController', () => {
       );
     });
 
+    it('URL :institutionId wins over body institutionId (IDOR lock)', async () => {
+      // Body-override IDOR: prior implementation used
+      // `req.institutionId ?? institutionId` — a caller authorized for
+      // INST_ID could set body.institutionId='attacker-target' and run an
+      // agent against the other institution. Locked to URL only post-fix.
+      await controller.triggerRun(INST_ID, {
+        agentId: 'ALM_DECISION',
+        triggerKind: 'API',
+        institutionId: 'attacker-target-inst',
+      });
+      expect(mockRunner.run).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentId: 'ALM_DECISION',
+          institutionId: INST_ID,
+        }),
+      );
+      // Defense-in-depth: the idempotency-key hash must also be derived
+      // from URL :institutionId, otherwise a body override could
+      // collide-attack another tenant's run history.
+      expect(mockRunner.run).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          institutionId: 'attacker-target-inst',
+        }),
+      );
+    });
+
     it('rejects invalid body', async () => {
       await expect(controller.triggerRun(INST_ID, {})).rejects.toThrow(
         BadRequestException,

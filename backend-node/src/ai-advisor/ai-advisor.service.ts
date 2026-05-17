@@ -156,11 +156,14 @@ export class AiAdvisorService {
     // 1. Load institution context
     const institution = await this.getInstitutionContext(institutionId);
 
-    // 2. Retrieve conversation history for context
+    // 2. Retrieve conversation history for context — scoped to *this* user
+    //    so the LLM never sees another user's prior messages even if two
+    //    users in the same institution converge on the same sessionId.
     const history = await this.conversationHistory.getSessionHistory(
       institutionId,
       sessionId,
       10,
+      userId,
     );
 
     // 3. Build system prompt
@@ -309,10 +312,12 @@ export class AiAdvisorService {
     }
 
     const institution = await this.getInstitutionContext(institutionId);
+    // History scoped to this user — same privacy guarantee as ask().
     const history = await this.conversationHistory.getSessionHistory(
       institutionId,
       sessionId,
       10,
+      userId,
     );
     const systemPrompt = this.buildSystemPrompt(institution, language);
     const messages = this.buildMessages(history, question);

@@ -3,6 +3,24 @@
 cd backend-node && npx tsc --noEmit --incremental 2>/dev/null || echo "TypeScript check: warnings found (see CI for details)"
 cd .. && bash scripts/verify-clean-worktree.sh --staged-only
 
+# Prettier check on staged backend-node files. CI Backend Tests' eslint stage
+# runs prettier/prettier as a rule; 3 recent commits (9d553158, 6c4bfcfe, and
+# the de1c90b6 wrap-up) shipped pure prettier fixes because this gate didn't
+# exist locally. Block-only (no bypass env var) — drift is trivially fixed
+# with `npx prettier --write`. Backend-only; frontend has its own hard-blocked
+# tsc lint chain from d9e0d09c.
+STAGED_BACKEND=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null | grep -E '^backend-node/.*\.(ts|js|mjs|json)$' || true)
+if [ -n "$STAGED_BACKEND" ]; then
+  if ! ( cd backend-node && echo "$STAGED_BACKEND" | sed 's|^backend-node/||' | xargs npx prettier --check ); then
+    echo ""
+    echo "  \033[31m✗ Prettier formatting drift in staged backend-node/ files\033[0m"
+    echo "  Fix: cd backend-node && npx prettier --write <files>"
+    echo "  Then: git add <files> && git commit"
+    echo ""
+    exit 1
+  fi
+fi
+
 # Phase 4 landing-gate: src/app/lib changes must bring a same-day
 # SESSION_HANDOFF.md entry. Bypass with SKIP_LANDING=1 for non-landing
 # commits (hotfix, flake, WIP branch).
@@ -16,10 +34,19 @@ node scripts/ci/check-claim-conflicts.mjs
 
 # Secret scan: block commits that contain API keys, tokens, or credentials.
 # Scans staged file contents (not filenames). Bypass with SKIP_SECRET_SCAN=1.
+#
+# Value-driven: matches patterns that look like real secrets, not bare
+# variable names. Skips removal lines (deleting a secret is the fix, not
+# the leak) and obvious placeholders (<user>, YOUR_KEY, change_me, etc.).
 if [ "${SKIP_SECRET_SCAN:-}" != "1" ]; then
   STAGED=$(git diff --cached --name-only --diff-filter=ACM -- '*.ts' '*.tsx' '*.js' '*.mjs' '*.py' '*.json' '*.env.*' 2>/dev/null | grep -v '\.github/' | grep -v '\.husky/' || true)
   if [ -n "$STAGED" ]; then
-    SECRETS_FOUND=$(echo "$STAGED" | xargs git diff --cached -- 2>/dev/null | grep -iE '(RESEND_API|STRIPE_SECRET|DATABASE_URL|JWT_SECRET|SUPABASE_SERVICE|ANTHROPIC_API|sk-[a-zA-Z0-9]{20,}|password\s*=\s*["\x27][^"\x27]+["\x27])' || true)
+    SECRETS_FOUND=$(echo "$STAGED" \
+      | xargs git diff --cached -- 2>/dev/null \
+      | grep -E '^\+' | grep -vE '^\+\s*(#|//)' \
+      | grep -iE '(sk-[a-zA-Z0-9]{20,}|sk_live_[0-9a-zA-Z]{24,}|rk_live_[0-9a-zA-Z]{24,}|whsec_[0-9a-zA-Z]{24,}|re_[0-9a-zA-Z]{20,}|sk-ant-[a-zA-Z0-9_-]{40,}|postgres(ql)?://[^:\s<>]+:[^@\s<>]+@[^/\s<>]+|JWT_SECRET\s*=\s*["\x27]?[A-Za-z0-9+/=._-]{32,}["\x27]?|password\s*=\s*["\x27][^"\x27<{$][^"\x27]{15,}["\x27])' \
+      | grep -vE '(<[a-z_]+>|YOUR_[A-Z0-9_]+|CHANGE_ME|change_me|change_in_prod|EXAMPLE|example_only|sk-ant-api03-example|sk_test_|cerniq:dev_password_change_in_prod|placeholder|<password>|<host>|<database>|<user>)' \
+      || true)
     if [ -n "$SECRETS_FOUND" ]; then
       echo ""
       echo "  \033[31m✗ SECRET DETECTED in staged changes\033[0m"

@@ -57,6 +57,47 @@ description = "Postgres DATABASE_URL with inline credentials"
 regex = '''postgres(?:ql)?://[^:\s]+:[^@\s]+@[^/\s]+'''
 tags = ["database", "secret", "high"]
 
+  # Rule-level allowlist scoped to this rule only. The Stripe / Anthropic /
+  # OpenAI / Resend rules continue to scan these paths normally — a real
+  # API key in a workflow YAML or audit doc would still be caught.
+  #
+  # Two independent reasons this rule fires on safe content:
+  #   (1) CI postgres service containers seed POSTGRES_USER=POSTGRES_PASSWORD
+  #       by convention, so workflow envs read `postgresql://(test|shadow):\1
+  #       @localhost`. Same value lives in the same workflow's
+  #       `services.postgres.env` block — ephemeral, runner-local, never
+  #       reachable from outside.
+  #   (2) Audit prose in SESSION_HANDOFF, runbooks, and security docs quotes
+  #       credential-URL shapes verbatim as part of root-cause writeups.
+  #
+  # WHY a rule-level allowlist and not the global [allowlist]: the previous
+  # global entry `postgresql://(test|shadow|postgres):(test|shadow|postgres)
+  # @localhost:[0-9]+/[a-zA-Z0-9_]+` was buggy — the rule's regex captures up
+  # to `[^/\s]+` (ends at `@host:port`, BEFORE the `/dbname`), so the
+  # captured secret never contained the `/dbname` slice the global allowlist
+  # required. Allowlist match always failed silently; the leak was reported.
+  # Rule-level allowlist with the port-only shape closes that mismatch.
+
+  [[rules.allowlists]]
+  description = "CI test-container default credentials — secret-value match"
+  # Match against the captured secret. Rule regex stops at `[^/\s]+`, so the
+  # allowlist regex must NOT extend past port. The trailing `(?::[0-9]+)?`
+  # handles both portless (`@localhost`) and ported (`@localhost:5432`) forms.
+  regexes = [
+    '''postgres(?:ql)?://(?:test|shadow|postgres):(?:test|shadow|postgres)@localhost(?::[0-9]+)?''',
+  ]
+
+  [[rules.allowlists]]
+  description = "Documentation that quotes credential-URL shapes in prose"
+  # Path-allowlist applies only to this rule. Stripe/Anthropic/OpenAI keys
+  # in these same files would still be caught by their respective rules.
+  paths = [
+    '''docs/SESSION_HANDOFF\.md$''',
+    '''docs/_archive/.*\.md$''',
+    '''docs/security/.*\.md$''',
+    '''docs/ops/.*\.md$''',
+  ]
+
 [[rules]]
 id = "cerniq-data-encryption-key"
 description = "AES-256 DATA_ENCRYPTION_KEY hex value exposed"
@@ -65,7 +106,8 @@ regex = '''DATA_ENCRYPTION_KEY\s*[:=]\s*[0-9a-fA-F]{64}'''
 tags = ["encryption", "secret", "critical"]
 
 # ─── Allowlist ────────────────────────────────────────────────────────────
-# Files that LOOK secret-shaped but are intentional examples / templates.
+# Keep this allowlist narrow. Do not allowlist whole docs or test trees; use
+# placeholder regexes so real credentials in prose or fixtures are still caught.
 
 [allowlist]
 description = "Project-wide allowlist"
@@ -73,10 +115,10 @@ paths = [
   # Template files with placeholder values
   '''\.env\.example$''',
   '''\.env\.production\.template$''',
-  # Documentation with sample tokens (must use sk_live_... pattern, not real)
-  '''docs/.*\.md$''',
-  # Test fixtures with mock tokens
-  '''(test|tests|__tests__|e2e)/.*\.(ts|js|tsx|jsx|json)$''',
+  # Local agent/runtime worktrees are intentionally untracked and ignored.
+  '''^\.claude/''',
+  '''^\.omx/''',
+  '''^archive/''',
   # Prisma migrations (timestamps look like secrets to some rules)
   '''prisma/migrations/''',
   # Lock files — secrets don't end up here
@@ -91,6 +133,29 @@ regexes = [
   '''sk_test_[0-9a-zA-Z]+''',         # test keys are safe
   '''whsec_YOUR_SECRET_HERE''',
   '''re_YOUR_API_KEY''',
+  '''postgresql://<user>(:<password>)?@<host>:[0-9]+/<database>''',
+  '''postgresql://<user>@localhost:[0-9]+/[a-zA-Z0-9_]+''',
+  '''postgresql://(test|shadow|postgres)@localhost:[0-9]+/[a-zA-Z0-9_]+''',
+  # Ephemeral CI postgres service credentials — username:password are both the
+  # role name (e.g. test:test, shadow:shadow). The matching POSTGRES_USER /
+  # POSTGRES_PASSWORD lives in the same workflow `services.postgres.env` block,
+  # which is itself ephemeral and not reachable from outside the runner.
+  '''postgresql://(test|shadow|postgres):(test|shadow|postgres)@localhost:[0-9]+/[a-zA-Z0-9_]+''',
+  '''postgresql://cerniq:\$\{DATABASE_PASSWORD(:-[^}]*)?\}@postgres:5432(/cerniq)?''',
+  # Historical placeholder password baked into legacy .env.example / docker-compose.
+  # Literally the string "dev_password_change_in_prod" — never a real credential.
+  # Kept on the allowlist so audit docs that quote it (before/after diffs in
+  # incident-response.md and the runtime consolidation roadmap) don't trip the
+  # scanner. Will eventually fall out of the codebase entirely when env templates
+  # are sanitized.
+  '''dev_password_change_in_prod''',
+  # Production template placeholder for users copying .env.production.template.
+  # Literal placeholder "USER:PASSWORD@HOST" — never a real credential.
+  '''postgresql://USER:PASSWORD@HOST:5432/cerniq(\?sslmode=require)?''',
+  '''ci-(test|build)-secret-must-be-at-least-32-characters-long''',
+  '''ck_live_(test123|abcdef01)''',
+  '''cerniq\.alm\.(recent|pinned)\.v1''',
+  '''(stress|curve|peer|limit|alm|credit|rate|reg|capital|risk|pricing|report|liquidity|portfolio)\.[a-z0-9._-]+''',
   # Example/placeholder values in docs
   '''price_\.\.\.''',                  # doc example
   '''sk-ant-api03-example''',

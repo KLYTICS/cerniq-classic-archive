@@ -1,14 +1,16 @@
 import {
+  BadRequestException,
   Body,
   Controller,
-  Get,
-  Param,
-  Post,
-  UseGuards,
   Logger,
+  Post,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { z } from 'zod';
-import { AgentTrustService, type AgentTrustInput } from './agent-trust.service';
+import { AuthGuard } from '../auth/auth.guard';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
+import { AgentTrustService } from './agent-trust.service';
 import { getOutputSchema } from './schema-registry';
 import type {
   AgentType,
@@ -42,35 +44,68 @@ const ValidateRequestSchema = z.object({
  * - CI scripts that want to validate agent output before allowing deploy
  * - Developer debugging (curl a run's output and see trust violations)
  *
- * Protected by AuthGuard in production (added at AppModule level).
+ * Auth: class-level `@UseGuards(AuthGuard)` requires a valid bearer token
+ * on every route. The `validate()` handler additionally re-runs
+ * `InstitutionScopeGuard.verifyOwnership(institutionId, userId, isMasterCeo)`
+ * against the body-supplied `institutionId` — same shape as ai-advisor's
+ * `POST /ask` (closed in `e88ae20c` / `4f9e2728`). The prior docstring
+ * claimed "Protected by AuthGuard in production (added at AppModule
+ * level)" — that was aspirational; AppModule registers only
+ * APP_GUARD=UserThrottleGuard, no global AuthGuard. Closes
+ * AUTH_COVERAGE_AUDIT gap #2 (POST /api/v1/trust/validate was reachable
+ * unauthenticated, with body-trusted institutionId).
  */
 @Controller('api/v1/trust')
+@UseGuards(AuthGuard)
 export class AgentTrustController {
   private readonly logger = new Logger(AgentTrustController.name);
 
-  constructor(private readonly trust: AgentTrustService) {}
+  constructor(
+    private readonly trust: AgentTrustService,
+    private readonly institutionScope: InstitutionScopeGuard,
+  ) {}
 
   @Post('validate')
-  validate(@Body() body: unknown): TrustVerdict {
-    const parsed = ValidateRequestSchema.parse(body);
-    const schema = getOutputSchema(parsed.agentType as AgentType);
+  async validate(
+    @Body() body: unknown,
+    @Req() req: any,
+  ): Promise<TrustVerdict> {
+    const parsed = ValidateRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.issues);
+    }
+
+    const userId: string =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub ?? 'anonymous';
+
+    await this.institutionScope.verifyOwnership(
+      parsed.data.institutionId,
+      userId,
+      !!req.user?.access?.isMasterCeo,
+    );
+
+    this.logger.log(
+      `trust validate: institution=${parsed.data.institutionId} run=${parsed.data.runId} agent=${parsed.data.agentType} user=${userId}`,
+    );
+
+    const schema = getOutputSchema(parsed.data.agentType as AgentType);
 
     return this.trust.evaluate({
       run: {
-        id: parsed.runId,
-        institutionId: parsed.institutionId,
-        agentType: parsed.agentType as AgentType,
+        id: parsed.data.runId,
+        institutionId: parsed.data.institutionId,
+        agentType: parsed.data.agentType as AgentType,
         status: 'SUCCEEDED',
         input: {},
-        output: parsed.agentOutput as Record<string, unknown>,
+        output: parsed.data.agentOutput as Record<string, unknown>,
         modelVersion: null,
       },
-      agentText: parsed.agentText,
-      agentOutput: parsed.agentOutput,
-      trace: parsed.trace as unknown as AgentAuditLogReadModel[],
+      agentText: parsed.data.agentText,
+      agentOutput: parsed.data.agentOutput,
+      trace: parsed.data.trace as unknown as AgentAuditLogReadModel[],
       outputSchema: schema,
-      requiredLanguage: parsed.requiredLanguage,
-      maxWords: parsed.maxWords,
+      requiredLanguage: parsed.data.requiredLanguage,
+      maxWords: parsed.data.maxWords,
     });
   }
 }

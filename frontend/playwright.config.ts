@@ -38,13 +38,28 @@ const webServer = skipWebServer
 // E2E suite paying the cost of an auth-setup round-trip on every run, so
 // this only fires when A11Y_AUTH_SETUP=1 is in the env (the a11y:sweep
 // npm script sets it automatically).
+//
+// Playwright 1.50+ loads .ts configs as ESM, so the prior `require.resolve()`
+// pattern threw `ReferenceError: require is not defined in ES module scope`
+// and cascaded into every spec file under e2e/. The plain relative-path
+// string works in both CJS and ESM loaders — Playwright resolves it itself.
 const globalSetup =
   process.env.A11Y_AUTH_SETUP === '1'
-    ? require.resolve('./e2e/a11y-sweep/global-setup.ts')
+    ? './e2e/a11y-sweep/global-setup.ts'
     : undefined;
+
+// The a11y-sweep specs depend on A11Y_AUTH_SETUP-gated globalSetup and the
+// `npm run a11y:sweep` env scaffolding (separate `.github/workflows/a11y-sweep.yml`).
+// Excluding them from the regular E2E run keeps Frontend E2E Tests focused on
+// the production-critical, public-footer-links, and legal-pages suites it
+// was always meant to cover. When A11Y_AUTH_SETUP=1 (the dedicated workflow),
+// testIgnore is undefined and the a11y specs run.
+const testIgnore =
+  process.env.A11Y_AUTH_SETUP === '1' ? undefined : ['**/a11y-sweep/**'];
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

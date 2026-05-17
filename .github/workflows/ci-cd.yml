@@ -21,14 +21,46 @@ env:
   PLAYWRIGHT_BACKEND_URL: http://localhost:43100
 
 jobs:
+  # Surfaces presence of optional secrets via job outputs so downstream
+  # job-level `if:` can gate on them. Direct `secrets.*` references in
+  # job-level `if:` are rejected by GHA at parse time (only env, vars,
+  # github contexts are allowed there) — every push to this branch was
+  # showing as a 0-second "workflow file issue" failure until this was
+  # hoisted into a check-secrets job.
+  check-secrets:
+    name: Check optional secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      has_apple_team: ${{ steps.check.outputs.has_apple_team }}
+    steps:
+      - id: check
+        env:
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+        run: |
+          if [ -n "${APPLE_DEVELOPMENT_TEAM:-}" ]; then
+            echo "has_apple_team=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_apple_team=false" >> "$GITHUB_OUTPUT"
+          fi
+
   apple-foundation:
     name: Apple Foundation
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 15
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # apple/Package.swift declares `// swift-tools-version: 6.3` which
+      # requires Xcode 16+. The macos-14 runner defaults to Xcode 15.x
+      # (Swift 5.10) so swift build fails at the toolchain check. Pin the
+      # newest stable Xcode the runner image has installed.
+      - name: Select latest stable Xcode (Swift 6.3 tools)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest-stable'
 
       - name: Verify Apple foundation
         run: bash scripts/apple/verify.sh
@@ -38,10 +70,10 @@ jobs:
 
   apple-release-dry-run:
     name: Apple Release Dry Run
-    if: ${{ secrets.APPLE_DEVELOPMENT_TEAM != '' }}
-    runs-on: macos-14
+    needs: [apple-foundation, check-secrets]
+    if: needs.check-secrets.outputs.has_apple_team == 'true'
+    runs-on: macos-15
     timeout-minutes: 15
-    needs: [apple-foundation]
 
     steps:
       - name: Checkout
@@ -77,10 +109,39 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2
+      # gitleaks-action@v2 now requires GITLEAKS_LICENSE for any GitHub
+      # organization (incl. solo-dev orgs like KLYTICS) and was failing
+      # silently before any scan ran. Swap for OSS binary — same scanner,
+      # same .gitleaks.toml config. Matches the pattern in secrets-scan.yml.
+      - name: Install gitleaks
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: '8.21.2'
+        run: |
+          set -euo pipefail
+          curl -sSL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: Run gitleaks
+        run: |
+          set -o pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            gitleaks detect \
+              --config .gitleaks.toml \
+              --redact -v \
+              --log-opts="--no-merges ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}" \
+              --report-format sarif \
+              --report-path results.sarif \
+              --exit-code 1
+          else
+            gitleaks detect \
+              --config .gitleaks.toml \
+              --redact -v \
+              --report-format sarif \
+              --report-path results.sarif \
+              --exit-code 1
+          fi
 
   # Backend NestJS — lint, test, build
   backend-test:
@@ -305,6 +366,15 @@ jobs:
 
       - name: Run tests
         working-directory: services/outbound
+        env:
+          # services/outbound/config.py:24 calls _require_env("OUTBOUND_DATABASE_URL")
+          # at module-import time (class-body assignment, not lazy). Without
+          # this, every test module fails at collection with `RuntimeError:
+          # OUTBOUND_DATABASE_URL is required.` — interrupting all 5 test
+          # files before any assertion runs. Placeholder URL is enough; these
+          # tests don't reach a real DB. Long-term fix: refactor Config to
+          # pydantic BaseSettings (lazy init) so imports succeed without env.
+          OUTBOUND_DATABASE_URL: postgresql://test:test@localhost:5432/test
         run: python -m pytest tests/ -v --tb=short
 
       - name: Verify clean worktree

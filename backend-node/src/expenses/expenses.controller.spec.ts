@@ -7,7 +7,7 @@ import { ApReportService } from './ap-report.service';
 import { VendorIntelligenceService } from './vendor-intelligence/vendor-intelligence.service';
 import { ExpenseIngestionService } from './expense-ingestion.service';
 import { PrismaService } from '../prisma.service';
-import { AuthGuard } from '../auth/auth.guard';
+import { AuthTenantGuard } from '../auth/auth-tenant.guard';
 
 describe('ExpensesController', () => {
   let controller: ExpensesController;
@@ -49,7 +49,7 @@ describe('ExpensesController', () => {
         { provide: PrismaService, useValue: mockPrisma },
       ],
     })
-      .overrideGuard(AuthGuard)
+      .overrideGuard(AuthTenantGuard)
       .useValue({ canActivate: () => true })
       .compile();
 

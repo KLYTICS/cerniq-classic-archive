@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
 // ─── Types ──────────────────────────────────────────────────
@@ -48,14 +48,32 @@ export class ConversationHistoryService {
   /**
    * Retrieve the most recent messages for a given session, ordered oldest-first
    * so the LLM sees the conversation in chronological order.
+   *
+   * `userId` is optional but should be provided whenever the caller is acting
+   * on behalf of a specific user — passing it filters the result to only that
+   * user's own messages within the session, which closes an intra-institution
+   * privacy leak: prior to this filter, two users in the same institution
+   * sharing a sessionId (intentional or guessed) could see each other's
+   * conversation history. The LLM context-loading paths in `AiAdvisorService.
+   * ask()`/`streamAsk()` always pass `userId` so the model never sees another
+   * user's prior messages as context. The HTTP `GET /sessions/:institutionId/
+   * :sessionId` and the WS `history` event also pass it. When `userId` is
+   * omitted, the legacy unfiltered behavior is preserved (no current callers
+   * rely on this; the parameter is left optional for forward-compat with
+   * future cross-user audit views).
    */
   async getSessionHistory(
     institutionId: string,
     sessionId: string,
     limit = 10,
+    userId?: string,
   ): Promise<ConversationMessage[]> {
     const rows = await this.prisma.conversationHistory.findMany({
-      where: { institutionId, sessionId },
+      where: {
+        institutionId,
+        sessionId,
+        ...(userId ? { userId } : {}),
+      },
       orderBy: { createdAt: 'desc' },
       take: limit,
       select: {
@@ -147,12 +165,35 @@ export class ConversationHistoryService {
   }
 
   /**
-   * Delete all messages belonging to a session.
+   * Delete all messages belonging to a session — scoped to the requesting
+   * user.
+   *
+   * The previous unscoped `deleteMany({ where: { sessionId } })` allowed a
+   * caller to delete any session by id (the `:sessionId` URL param is
+   * attacker-controlled and `InstitutionScopeGuard` doesn't apply: there's
+   * no `:institutionId` on the route). Filtering on `userId` collapses
+   * "session not yours" and "session doesn't exist" onto the same 404
+   * (anti-enumeration), preventing existence probing.
+   *
+   * Closes the second of the two IDORs flagged in
+   * `docs/security/IDOR_RESIDUAL_AUDIT.md` for ai-advisor.
    */
-  async deleteSession(sessionId: string): Promise<void> {
+  async deleteSession(sessionId: string, userId: string): Promise<void> {
+    if (!sessionId || !userId) {
+      throw new NotFoundException(`Session ${sessionId} not found`);
+    }
     const { count } = await this.prisma.conversationHistory.deleteMany({
-      where: { sessionId },
+      where: { sessionId, userId },
     });
+    if (count === 0) {
+      // Either no such session or this user doesn't own it — same 404.
+      this.logger.warn({
+        event: 'conversation_history.delete_session.not_found',
+        sessionId,
+        userId,
+      });
+      throw new NotFoundException(`Session ${sessionId} not found`);
+    }
     this.logger.log(`Deleted session ${sessionId} (${count} messages removed)`);
   }
 }

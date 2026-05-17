@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { PrismaModule } from '../prisma.module';
 import { AlmModule } from '../alm/alm.module';
+import { AuthModule } from '../auth/auth.module';
 
 import { AgentsController } from './agents.controller';
 import { AgentAuditService } from './runner/agent-audit.service';
@@ -18,15 +19,22 @@ import { CapitalAdequacyAdapterService } from '../swarm/capital-adequacy-adapter
 import { EmailModule } from '../email/email.module';
 import { AgentQueueModule } from '../queue/agent/agent-queue.module';
 import { AgentChainService } from './runner/agent-chain.service';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
+import { OrgMembershipGuard } from '../close/guards/org-membership.guard';
 
 @Module({
   // forwardRef on AgentQueueModule breaks the AgentsModule ↔
   // AgentQueueModule cycle (see agent-queue.module.ts for the full
   // rationale). Mirror on both sides per NestJS circular-dep docs.
+  //
+  // AuthModule re-exports JwtModule so AuthGuard can verify bearer tokens
+  // on the body-IDOR-closed agents routes (commit closing
+  // AUTH_COVERAGE_AUDIT gap #1).
   imports: [
     PrismaModule,
     AlmModule,
     EmailModule,
+    AuthModule,
     forwardRef(() => AgentQueueModule),
   ],
   controllers: [AgentsController],
@@ -44,6 +52,12 @@ import { AgentChainService } from './runner/agent-chain.service';
     AgentSchedulerService,
     AgentAlertNotifierService,
     AgentChainService,
+    // Tenancy-kernel primitives: InstitutionScopeGuard.verifyOwnership and
+    // OrgMembershipGuard.verifyMembership are called explicitly inside
+    // AgentsController.run() to close the body-supplied IDOR. Mirror of
+    // ai-advisor.module.ts:20 wiring.
+    InstitutionScopeGuard,
+    OrgMembershipGuard,
   ],
   exports: [
     AgentRunnerService,

@@ -14,11 +14,12 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { AlmAnalystService } from './alm-analyst.service';
-import { AuthGuard } from '../auth/auth.guard';
+import { AuthTenantGuard } from '../auth/auth-tenant.guard';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 import { createStructuredSSEStream } from '../common/streaming/sse.util';
 
 @Controller('api/analyst')
-@UseGuards(AuthGuard)
+@UseGuards(AuthTenantGuard, InstitutionScopeGuard)
 export class AlmAnalystController {
   private readonly logger = new Logger(AlmAnalystController.name);
 
@@ -78,7 +79,7 @@ export class AlmAnalystController {
    *   {type:'rate_limited', message:'...', queriesUsed:20, queriesMax:20}
    */
   @Sse(':institutionId/stream')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthTenantGuard, InstitutionScopeGuard)
   streamAnalyst(
     @Param('institutionId') institutionId: string,
     @Query('message') message: string,
@@ -100,13 +101,31 @@ export class AlmAnalystController {
   @HttpCode(HttpStatus.CREATED)
   async saveInsight(
     @Param('institutionId') institutionId: string,
-    @Body() body: { message: string; savedBy: string; tags?: string[] },
+    @Body()
+    body: {
+      message: string;
+      savedBy: string;
+      tags?: string[];
+      promptVersion?: string;
+      usage?: {
+        inputTokens: number;
+        outputTokens: number;
+        cacheCreationInputTokens: number;
+        cacheReadInputTokens: number;
+      } | null;
+      costCents?: string | null;
+      pricingVersion?: string;
+    },
   ) {
     return this.analyst.saveInsight(
       institutionId,
       body.message,
       body.savedBy,
       body.tags ?? [],
+      body.promptVersion,
+      body.usage,
+      body.costCents,
+      body.pricingVersion,
     );
   }
 }

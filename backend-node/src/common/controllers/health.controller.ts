@@ -27,6 +27,7 @@ export class HealthController {
     @Optional() @Inject(CacheService) private readonly cache?: CacheService,
   ) {}
 
+  // verify:auth-skip — liveness probe; intentionally public (load balancers, uptime checks)
   @Get()
   @SkipThrottle()
   async check(): Promise<HealthResponse> {

@@ -11,17 +11,46 @@ env:
   FRONTEND_API_URL: http://localhost:3000
 
 jobs:
+  # Surfaces presence of optional secrets via job outputs so downstream
+  # job-level `if:` can gate on them. Direct `secrets.*` references in
+  # job-level `if:` are rejected by GHA at parse time (only env, vars,
+  # github contexts are allowed there) — every push to this branch was
+  # showing as a 0-second "workflow file issue" failure until this was
+  # hoisted into a check-secrets job.
+  check-secrets:
+    name: Check optional secrets
+    runs-on: ubuntu-latest
+    outputs:
+      has_apple_team: ${{ steps.check.outputs.has_apple_team }}
+    steps:
+      - id: check
+        env:
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+        run: |
+          if [ -n "${APPLE_DEVELOPMENT_TEAM:-}" ]; then
+            echo "has_apple_team=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_apple_team=false" >> "$GITHUB_OUTPUT"
+          fi
+
   apple-foundation:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      # apple/Package.swift declares `// swift-tools-version: 6.3` which
+      # requires Xcode 16+. The macos-14 runner defaults to Xcode 15.x
+      # (Swift 5.10) so swift build fails at the toolchain check. Pin the
+      # newest stable Xcode the runner image has installed.
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest-stable'
       - run: bash scripts/apple/verify.sh
       - run: bash scripts/verify-clean-worktree.sh
 
   apple-release-dry-run:
-    if: ${{ secrets.APPLE_DEVELOPMENT_TEAM != '' }}
-    runs-on: macos-14
-    needs: [apple-foundation]
+    needs: [apple-foundation, check-secrets]
+    if: needs.check-secrets.outputs.has_apple_team == 'true'
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - run: npm run archive:apple -- --dry-run --export
@@ -41,7 +70,7 @@ jobs:
       - run: cd backend-node && npx prisma generate
       - run: cd backend-node && npx tsc --noEmit
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DATABASE_URL: postgresql://test@localhost:5432/test
 
   frontend-typecheck:
     runs-on: ubuntu-latest
@@ -66,6 +95,13 @@ jobs:
           cache-dependency-path: services/outbound/requirements.txt
           working-directory: services/outbound
       - run: cd services/outbound && python -m pytest tests/ -q
+        env:
+          # services/outbound/config.py:24 calls _require_env() at class-body
+          # level — fails import (not just runtime) without this. Placeholder
+          # satisfies the strict-presence check; tests don't hit a real DB.
+          # TODO: refactor config.py to lazy/Pydantic BaseSettings so import
+          # works without env vars, then remove this line.
+          OUTBOUND_DATABASE_URL: postgresql://test:test@localhost:5432/test
 
   cossec-parser-check:
     # COSSEC PDF parser microservice — 32 pytest tests covering PyMuPDF

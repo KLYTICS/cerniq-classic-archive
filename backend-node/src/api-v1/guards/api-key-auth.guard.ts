@@ -20,9 +20,14 @@ export type ApiKeyUser = {
 
 /**
  * Guard for Public API v1 endpoints.
- * Reads `Authorization: Bearer <api-key>` header, hashes the key,
- * looks it up in the ApiKey table, validates it is active, and
- * updates lastUsedAt.
+ * Reads the API key from either `Authorization: Bearer <api-key>` (the
+ * canonical Public API convention) or `X-Api-Key: <api-key>` (the
+ * legacy Enterprise-tier convention introduced before this guard
+ * existed). Bearer takes precedence when both are present.
+ *
+ * Hashes the key via `hashApiKey()` (HMAC-SHA256 with pepper —
+ * `auth/api-key.util.ts`), looks it up in the ApiKey table, validates
+ * it is active, and updates lastUsedAt.
  *
  * Unlike the main AuthGuard, this guard:
  *  - Only supports API key auth (no JWT/cookie)
@@ -40,11 +45,11 @@ export class ApiKeyAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const rawToken = this.extractBearerToken(request);
+    const rawToken = this.extractApiKey(request);
 
     if (!rawToken) {
       throw new UnauthorizedException(
-        'Missing API key. Provide Authorization: Bearer <api-key>',
+        'Missing API key. Provide Authorization: Bearer <api-key> or X-Api-Key header',
       );
     }
 
@@ -124,11 +129,23 @@ export class ApiKeyAuthGuard implements CanActivate {
     return true;
   }
 
-  private extractBearerToken(request: any): string | null {
+  private extractApiKey(request: any): string | null {
+    // Preferred: `Authorization: Bearer <api-key>` (Public API v1 convention).
     const authHeader = request.headers?.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return null;
+    if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7).trim();
+      if (token) return token;
     }
-    return authHeader.substring(7).trim() || null;
+
+    // Fallback: `X-Api-Key: <api-key>` (legacy Enterprise convention; kept
+    // for backward compatibility with EnterpriseController callers that
+    // pre-date this guard).
+    const xApiKey = request.headers?.['x-api-key'];
+    if (typeof xApiKey === 'string') {
+      const token = xApiKey.trim();
+      if (token) return token;
+    }
+
+    return null;
   }
 }

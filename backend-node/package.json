@@ -15,8 +15,17 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" && npm run verify:tenant-scope && npm run verify:no-orphan-spec && npm run verify:auth-coverage && npm run verify:body-trust && npm run verify:rule-4-audit-immutable && npm run verify:rule-9-stamping && npm run verify:rule-11-any-rationale && npm run verify:rule-12-crypto-randomness && npx tsc --noEmit",
     "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "verify:tenant-scope": "node scripts/verify-institution-scope-guard.mjs",
+    "verify:institution-scope": "node scripts/verify-institution-scope-guard.mjs",
+    "verify:no-orphan-spec": "node scripts/verify-no-orphan-spec.mjs",
+    "verify:auth-coverage": "node scripts/verify-auth-coverage.mjs --strict",
+    "verify:body-trust": "node scripts/verify-body-trust.mjs --strict",
+    "verify:rule-4-audit-immutable": "node scripts/verify-rule-4-audit-immutable.mjs",
+    "verify:rule-9-stamping": "node scripts/verify-rule-9-stamping.mjs",
+    "verify:rule-11-any-rationale": "node scripts/verify-rule-11-any-rationale.mjs",
+    "verify:rule-12-crypto-randomness": "node scripts/verify-rule-12-crypto-randomness.mjs",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
@@ -32,7 +41,7 @@
     "exports:test": "npx ts-node scripts/test-file-exports.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.79.0",
+    "@anthropic-ai/sdk": "^0.96.0",
     "@aws-sdk/client-s3": "^3.1018.0",
     "@aws-sdk/s3-request-presigner": "^3.1018.0",
     "@nestjs/common": "^11.1.17",
@@ -46,10 +55,10 @@
     "@nestjs/swagger": "^11.2.6",
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/websockets": "^11.1.17",
-    "@opentelemetry/auto-instrumentations-node": "^0.72.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.76.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.214.0",
     "@opentelemetry/resources": "^2.6.1",
-    "@opentelemetry/sdk-node": "^0.214.0",
+    "@opentelemetry/sdk-node": "^0.218.0",
     "@opentelemetry/semantic-conventions": "^1.40.0",
     "@prisma/adapter-pg": "^7.6.0",
     "@prisma/client": "^7.6.0",
@@ -88,7 +97,7 @@
     "rxjs": "^7.8.1",
     "stripe": "^20.4.0",
     "typescript": "^5.9.3",
-    "uuid": "^13.0.0",
+    "uuid": "^14.0.0",
     "yahoo-finance2": "^3.13.0",
     "zod": "^4.3.6"
   },
@@ -129,7 +138,13 @@
     "path-to-regexp": "8.4.0",
     "picomatch": "4.0.4",
     "qs": "6.15.0",
-    "socket.io-parser": "4.2.6"
+    "socket.io-parser": "4.2.6",
+    "fast-xml-parser": "5.7.0",
+    "uuid": "$uuid",
+    "svix": "1.92.2",
+    "@hono/node-server": "1.19.13",
+    "@sentry/webpack-plugin": "5.2.0",
+    "postcss": "^8.5.10"
   },
   "prisma": {
     "seed": "npx ts-node prisma/seed.ts"
@@ -149,6 +164,14 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
+    "coverageThreshold": {
+      "global": {
+        "statements": 86,
+        "branches": 70,
+        "functions": 81,
+        "lines": 86
+      }
+    },
     "testEnvironment": "node",
     "setupFiles": [
       "./test-setup.ts"

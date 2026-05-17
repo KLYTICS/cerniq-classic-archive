@@ -53,6 +53,7 @@ export class AuthController {
     private readonly audit: AuditService,
   ) {}
 
+  // verify:auth-skip — pre-auth registration; user has no credentials yet; throttled 3/min/IP
   @Post('register')
   @Throttle({ default: { ttl: 60000, limit: 3 } })
   @ApiOperation({ summary: 'Register a new user account' })
@@ -74,6 +75,7 @@ export class AuthController {
     return { user: result.user };
   }
 
+  // verify:auth-skip — pre-auth password login; credentials are the auth surface; throttled 5/min/IP
   @Post('login')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @SkipAuditLog()
@@ -106,6 +108,7 @@ export class AuthController {
     return { user: result.user };
   }
 
+  // verify:auth-skip — refresh-token rotation; the refresh-token cookie itself is the auth surface (validated inline)
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access and refresh tokens' })
@@ -129,6 +132,7 @@ export class AuthController {
     return { user: result.user };
   }
 
+  // verify:auth-skip — logout clears the cookies; idempotent when no session exists
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   async logout(@Req() req: any, @Res({ passthrough: true }) res: any) {
@@ -228,6 +232,7 @@ export class AuthController {
     return this.authService.revokeApiKey(req.user.userId, keyId);
   }
 
+  // verify:auth-skip — request password-reset email; pre-auth by definition; throttled 3/hour/IP; always 200 to prevent email-enumeration
   @Post('password-reset')
   @Throttle({ default: { ttl: 3600000, limit: 3 } })
   @HttpCode(HttpStatus.OK)
@@ -235,6 +240,7 @@ export class AuthController {
     return this.authService.requestPasswordReset(dto.email);
   }
 
+  // verify:auth-skip — confirm password-reset with one-time token from email; the token is the auth surface; throttled 3/hour/IP
   @Post('password-reset/confirm')
   @Throttle({ default: { ttl: 3600000, limit: 3 } })
   @HttpCode(HttpStatus.OK)
@@ -244,6 +250,7 @@ export class AuthController {
 
   // ── Magic Link Auth ───────────────────────────────────
 
+  // verify:auth-skip — request magic-link email; pre-auth; throttled 5/hour/IP; always 200 to prevent email-enumeration
   @Post('magic-link')
   @Throttle({ default: { ttl: 3600000, limit: 5 } })
   @HttpCode(HttpStatus.OK)
@@ -268,6 +275,7 @@ export class AuthController {
     };
   }
 
+  // verify:auth-skip — verify magic-link token; the token is the auth surface; throttled 10/15min/IP
   @Get('magic-link/verify')
   @Throttle({ default: { ttl: 900000, limit: 10 } })
   @ApiOperation({

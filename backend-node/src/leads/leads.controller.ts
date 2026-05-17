@@ -22,7 +22,7 @@ import { InstitutionIntelligenceService } from './institution-intelligence.servi
 import { DemoSeatService } from '../portal/demo-seat.service';
 import { DemoSeatAnalyticsService } from '../portal/demo-seat-analytics.service';
 import { SubmitLeadDto, UpdateLeadDto } from './leads.dto';
-import { AdminGuard } from '../common/guards/admin.guard';
+import { AdminKeyGuard } from '../auth/admin-key.guard';
 
 interface ProvisionPortalDto {
   contactEmail?: string;
@@ -48,6 +48,7 @@ export class LeadsController {
 
   // ── Public endpoint (rate-limited at app level) ──
 
+  // verify:auth-skip — public lead capture from marketing site; throttled 20/hour/IP
   @Post('api/v1/leads/submit')
   @Throttle({ default: { limit: 20, ttl: 3600000 } })
   async submitLead(@Body() dto: SubmitLeadDto) {
@@ -60,7 +61,7 @@ export class LeadsController {
   // ── Admin endpoints (ADMIN_KEY protected) ──
 
   @Get('admin/api/leads')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async listLeads(
     @Query('status') status?: string,
     @Query('priority') priority?: string,
@@ -69,56 +70,56 @@ export class LeadsController {
   }
 
   @Get('admin/api/leads/metrics')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getMetrics() {
     return this.leads.getPipelineMetrics();
   }
 
   @Get('admin/api/leads/:id')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getLead(@Param('id') id: string) {
     return this.leads.getLead(id);
   }
 
   @Put('admin/api/leads/:id')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async updateLead(@Param('id') id: string, @Body() dto: UpdateLeadDto) {
     this.logger.log(`Lead updated: ${id}`);
     return this.leads.updateLead(id, dto);
   }
 
   @Post('admin/api/leads/:id/note')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async addNote(@Param('id') id: string, @Body('note') note: string) {
     return this.leads.addNote(id, note);
   }
 
   @Post('admin/api/leads/:id/mark-report-sent')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async markReportSent(@Param('id') id: string) {
     return this.leads.markReportSent(id);
   }
 
   @Post('admin/api/prospects/seed')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async seedProspects() {
     return this.leads.seedProspectPipeline();
   }
 
   @Get('admin/api/prospects')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async listProspects() {
     return this.leads.listProspects();
   }
 
   @Get('admin/api/benchmarks')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getBenchmarks() {
     return this.leads.getBenchmarks();
   }
 
   @Get('admin/api/prospects/:id/outreach')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async generateOutreach(
     @Param('id') id: string,
     @Query('lang') lang?: string,
@@ -129,13 +130,13 @@ export class LeadsController {
   // ── Lead Qualification ──
 
   @Get('admin/api/prospects/:id/qualify')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async qualifyProspect(@Param('id') id: string) {
     return this.qualification.qualifyProspect(id);
   }
 
   @Get('admin/api/prospects/qualify/all')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async qualifyAllProspects() {
     return this.qualification.qualifyAllProspects();
   }
@@ -143,13 +144,13 @@ export class LeadsController {
   // ── Lead Scoring ──
 
   @Get('admin/api/leads/:id/score')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async scoreLead(@Param('id') id: string) {
     return this.scoring.scoreLead(id);
   }
 
   @Post('admin/api/leads/score-all')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async scoreAllLeads() {
     return this.scoring.scoreAllLeads();
   }
@@ -157,7 +158,7 @@ export class LeadsController {
   // ── Outreach Execution ──
 
   @Post('admin/api/prospects/:id/send-outreach')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async sendOutreach(@Param('id') id: string, @Query('lang') lang?: string) {
     return this.outreachExecution.executeOutreach(
       id,
@@ -166,7 +167,7 @@ export class LeadsController {
   }
 
   @Post('admin/api/prospects/bulk-outreach')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async bulkOutreach(
     @Query('lang') lang?: string,
     @Query('limit') limit?: string,
@@ -180,7 +181,7 @@ export class LeadsController {
   // ── Institutional Intelligence ──
 
   @Post('admin/api/intelligence/sync')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async syncIntelligence(@Query('limit') limit?: string) {
     return this.intelligence.syncProspectsToAccounts(
       parseInt(limit || '250', 10),
@@ -188,7 +189,7 @@ export class LeadsController {
   }
 
   @Post('admin/api/intelligence/refresh')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async refreshIntelligence(
     @Query('limit') limit?: string,
     @Query('staleOnly') staleOnly?: string,
@@ -200,7 +201,7 @@ export class LeadsController {
   }
 
   @Get('admin/api/intelligence/accounts')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async listIntelligenceAccounts(@Query('limit') limit?: string) {
     return this.intelligence.listBuyerAccountSummaries(
       parseInt(limit || '100', 10),
@@ -208,7 +209,7 @@ export class LeadsController {
   }
 
   @Get('admin/api/prospects/:id/dossier')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getProspectDossier(@Param('id') id: string) {
     return this.intelligence.getProspectDossier(id);
   }
@@ -219,7 +220,7 @@ export class LeadsController {
   // delivery directly via sendEmail=true).
 
   @Post('admin/api/prospects/:id/provision-portal')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async provisionPortalForProspect(
     @Param('id') id: string,
     @Body() dto: ProvisionPortalDto = {},
@@ -241,7 +242,7 @@ export class LeadsController {
   }
 
   @Post('admin/api/prospects/provision-portal/bulk')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async bulkProvisionPortals(
     @Body()
     dto: {
@@ -292,7 +293,7 @@ export class LeadsController {
   // to show provisioning history and engagement signals.
 
   @Get('admin/api/demo-seats')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async listDemoSeats(@Query('filter') filter?: string) {
     const normalized =
       filter === 'active' || filter === 'expired' ? filter : 'all';
@@ -300,25 +301,25 @@ export class LeadsController {
   }
 
   @Post('admin/api/demo-seats/sweep')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async sweepDemoSeats() {
     return this.demoSeats.sweepExpired();
   }
 
   @Get('admin/api/demo-seats/analytics')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getDemoSeatAnalytics() {
     return this.demoSeatAnalytics.getAnalytics();
   }
 
   @Post('admin/api/prospects/:id/dossier/refresh')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async refreshProspectDossier(@Param('id') id: string) {
     return this.intelligence.refreshProspectDossier(id);
   }
 
   @Get('admin/api/prospects/:id/dossier/export.csv')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async exportProspectDossierCsv(@Param('id') id: string, @Res() res: any) {
     const csv = await this.intelligence.exportProspectDossierCsv(id);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -330,7 +331,7 @@ export class LeadsController {
   }
 
   @Get('admin/api/prospects/:id/dossier/sample-report')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async downloadProspectSampleReport(
     @Param('id') id: string,
     @Query('lang') lang: string | undefined,
@@ -349,19 +350,20 @@ export class LeadsController {
   }
 
   @Get('admin/api/prospects/:id/dossier/sample-report/exports')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getProspectSampleReportExports(@Param('id') id: string) {
     return this.intelligence.listProspectSampleReportExports(id);
   }
 
   @Post('admin/api/intelligence/actions/:actionId/complete')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async completeIntelligenceAction(@Param('actionId') actionId: string) {
     return this.intelligence.completeAction(actionId);
   }
 
   // ── Demo Step Tracking ──
 
+  // verify:auth-skip — public demo-funnel telemetry; throttled 60/min/IP; fire-and-forget logger only
   @Post('api/demo/track')
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   @HttpCode(200)

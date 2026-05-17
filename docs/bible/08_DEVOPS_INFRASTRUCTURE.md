@@ -204,7 +204,7 @@ services:
     ports: ["3000:3000"]
     depends_on: [postgres, redis]
     environment:
-      DATABASE_URL: postgresql://cerniq:cerniq_dev@postgres:5432/cerniq
+      DATABASE_URL: postgresql://<user>@postgres:5432/cerniq
       REDIS_URL: redis://redis:6379
     volumes: [./backend-node:/app, /app/node_modules]
 

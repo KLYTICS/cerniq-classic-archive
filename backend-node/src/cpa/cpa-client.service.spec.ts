@@ -79,7 +79,7 @@ describe('CpaClientService', () => {
       expect(prisma.cpaClientRelationship.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            firmId: 'firm-1',
+            cpaFirmId: 'firm-1',
             institutionId: 'inst-1',
           }),
         }),

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════════════════
-# Remove legacy directories (archive/, crates/) from all git history.
+# Remove legacy/runtime/build artifacts from all git history.
 #
 # Performs the rewrite on a fresh mirror clone so the operation is fully
 # reversible up until the push step. Prints a before/after size comparison
@@ -9,8 +9,7 @@
 # ──────────────────────────────────────────────────────────────────────
 # BLAST RADIUS — read before running
 # ──────────────────────────────────────────────────────────────────────
-#  - Rewrites every commit SHA that came after the first touch of
-#    archive/ or crates/ in history (all 3 such commits).
+#  - Rewrites every commit SHA that touched the target artifact paths.
 #  - Everyone with a local clone of cerniq must either re-clone or
 #    git fetch + git reset --hard origin/<branch>. Local unmerged
 #    branches need manual rebase onto the new main.
@@ -28,7 +27,19 @@
 set -euo pipefail
 
 ORIGIN="git@github.com:monykiss/cerniq.git"
-TARGET_DIRS=(archive crates platform projects)   # paths to remove from history
+TARGET_DIRS=(archive crates platform projects .omx)   # directories to remove from history
+TARGET_GLOBS=(
+  'Cerniq-*'
+  '**/.next/**'
+  '**/dist/**'
+  '**/build/**'
+  '**/target/**'
+  '**/node_modules/**'
+  '**/.turbo/**'
+  '**/coverage/**'
+  '**/playwright-report/**'
+  '**/test-results/**'
+)
 WORK_DIR="${WORK_DIR:-$(mktemp -d -t cerniq-filter-XXXXXX)}"
 MIRROR="$WORK_DIR/cerniq.git"
 
@@ -55,7 +66,8 @@ fi
 
 info "Work dir: $WORK_DIR"
 info "Origin:   $ORIGIN"
-info "Removing: ${TARGET_DIRS[*]}"
+info "Removing dirs:  ${TARGET_DIRS[*]}"
+info "Removing globs: ${TARGET_GLOBS[*]}"
 
 # ─── Fresh mirror clone ────────────────────────────────────────────────────
 info "Cloning fresh bare mirror (this doesn't touch your working repo)..."
@@ -79,6 +91,9 @@ exclude_args=()
 for d in "${TARGET_DIRS[@]}"; do
   exclude_args+=(--path-glob "$d/**" --path "$d/")
 done
+for g in "${TARGET_GLOBS[@]}"; do
+  exclude_args+=(--path-glob "$g")
+done
 exclude_args+=(--invert-paths)
 
 info "Rewriting history..."
@@ -100,7 +115,18 @@ echo "  Refs:   $refs_count"
 echo
 
 # Make sure the rewritten history is valid + nothing from archive/ remains
-remaining="$(git log --all --oneline --name-only | awk -v pats="^(${TARGET_DIRS[*]// /|})/" '$0 ~ pats' | head -5 || true)"
+remaining="$(
+  git log --all --oneline --name-only |
+    awk -v pats="^(${TARGET_DIRS[*]// /|})/" '
+      $0 ~ pats ||
+      $0 ~ /^Cerniq-/ ||
+      $0 ~ /(^|\/)\.next\// ||
+      $0 ~ /(^|\/)(dist|build|target|node_modules|coverage|playwright-report|test-results)\// {
+        print
+      }
+    ' |
+    head -5 || true
+)"
 if [[ -n "$remaining" ]]; then
   fail "UNEXPECTED: paths still present in history — aborting before push"
 fi

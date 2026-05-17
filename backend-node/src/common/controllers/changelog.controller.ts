@@ -40,6 +40,7 @@ const CHANGELOG: ChangelogEntry[] = [
  * Public endpoint exposing the API changelog.
  * Useful for integrators tracking breaking changes.
  */
+// verify:auth-skip-controller — public product changelog for integrators tracking breaking changes
 @Controller('api/v1/changelog')
 export class ChangelogController {
   @Get()

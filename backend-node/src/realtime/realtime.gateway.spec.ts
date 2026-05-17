@@ -6,6 +6,7 @@ describe('RealtimeGateway', () => {
   let mockMarketStreamManager: any;
   let mockOptionsService: any;
   let mockPortfolioService: any;
+  let mockJwtService: any;
   let mockServer: any;
   let roomsMap: Map<string, Set<string>>;
 
@@ -64,11 +65,16 @@ describe('RealtimeGateway', () => {
       }),
     };
 
+    mockJwtService = {
+      verify: jest.fn().mockReturnValue({ userId: 'u-1' }),
+    };
+
     gateway = new RealtimeGateway(
       mockMarketDataService,
       mockMarketStreamManager,
       mockOptionsService,
       mockPortfolioService,
+      mockJwtService,
     );
 
     roomsMap = new Map();
@@ -89,32 +95,127 @@ describe('RealtimeGateway', () => {
     jest.restoreAllMocks();
   });
 
+  // `data: {}` is required because the gateway now sets `client.data.user`
+  // on handshake success (peer 2196bbe6's IDOR closure). Without an
+  // initialized `data` object, the assignment throws TypeError.
   function makeSocket(id: string) {
     return {
       id,
+      data: {} as { user?: { userId: string; isMasterCeo: boolean } },
+      handshake: { auth: {}, headers: {} } as {
+        auth: Record<string, unknown>;
+        headers: Record<string, string>;
+      },
       join: jest.fn().mockResolvedValue(undefined),
       leave: jest.fn().mockResolvedValue(undefined),
       emit: jest.fn(),
+      disconnect: jest.fn(),
     };
   }
 
+  // Helper for the per-handler auth-required tests below. Manually binds
+  // the user context that handshake-time JWT verify would have set,
+  // bypassing the handshake machinery so handler tests stay narrow. The
+  // handshake's own behavior is locked separately in the
+  // `handleConnection` describe block.
+  function authedSocket(id: string, userId = 'u-1', isMasterCeo = false) {
+    const s = makeSocket(id);
+    s.data.user = { userId, isMasterCeo };
+    return s;
+  }
+
   // ── handleConnection ───────────────────────────────────────
+  //
+  // Permissive auth: this gateway is MIXED (public ticker feeds +
+  // private P&L), so handleConnection does NOT disconnect on missing
+  // or invalid tokens. It just doesn't set `client.data.user`, and
+  // the per-handler enforcement on the sensitive routes returns
+  // FORBIDDEN when `client.data.user` is absent. Distinct from
+  // ai-advisor (b2a64c25) + alm-realtime (5d2f6637) which DO
+  // disconnect on bad tokens because every handler on those gateways
+  // is auth-required.
 
   describe('handleConnection', () => {
-    it('should track a new client connection', () => {
+    it('should track a new client connection', async () => {
       const socket = makeSocket('c-1');
-      gateway.handleConnection(socket as any);
-      // No error thrown, gateway tracks the client
+      await gateway.handleConnection(socket as any);
       expect(gateway).toBeDefined();
     });
 
-    it('should track multiple clients independently', () => {
+    it('should track multiple clients independently', async () => {
       const s1 = makeSocket('c-1');
       const s2 = makeSocket('c-2');
-      gateway.handleConnection(s1 as any);
-      gateway.handleConnection(s2 as any);
-      // Both tracked without error
+      await gateway.handleConnection(s1 as any);
+      await gateway.handleConnection(s2 as any);
       expect(gateway).toBeDefined();
+    });
+
+    it('does NOT set client.data.user and does NOT disconnect when no token (permissive)', async () => {
+      const socket = makeSocket('c-1');
+      // No handshake.auth.token — anonymous connection.
+
+      await gateway.handleConnection(socket as any);
+
+      expect(socket.data.user).toBeUndefined();
+      expect(socket.disconnect).not.toHaveBeenCalled();
+      // jwtService.verify is short-circuited because the helper returns
+      // null on missing token before calling verify.
+      expect(mockJwtService.verify).not.toHaveBeenCalled();
+    });
+
+    it('binds client.data.user when handshake carries a valid legacy JWT', async () => {
+      mockJwtService.verify.mockReturnValue({
+        userId: 'u-42',
+        access: { isMasterCeo: true },
+      });
+      const socket = makeSocket('c-1');
+      socket.handshake.auth = { token: 'good.jwt' };
+
+      await gateway.handleConnection(socket as any);
+
+      expect(socket.data.user).toEqual({
+        userId: 'u-42',
+        isMasterCeo: true,
+      });
+      expect(socket.disconnect).not.toHaveBeenCalled();
+    });
+
+    it('does NOT bind client.data.user when JWT verify throws (and stays permissive — no disconnect)', async () => {
+      mockJwtService.verify.mockImplementation(() => {
+        throw new Error('jwt malformed');
+      });
+      const socket = makeSocket('c-1');
+      socket.handshake.auth = { token: 'bad.jwt' };
+
+      await gateway.handleConnection(socket as any);
+
+      expect(socket.data.user).toBeUndefined();
+      // Permissive: connection stays open so public ticker handlers work.
+      expect(socket.disconnect).not.toHaveBeenCalled();
+    });
+
+    it('falls back to JWT sub claim when userId is absent', async () => {
+      mockJwtService.verify.mockReturnValue({ sub: 'user-from-sub' });
+      const socket = makeSocket('c-1');
+      socket.handshake.auth = { token: 't' };
+
+      await gateway.handleConnection(socket as any);
+
+      expect(socket.data.user).toEqual({
+        userId: 'user-from-sub',
+        isMasterCeo: false,
+      });
+    });
+
+    it('reads token from Authorization: Bearer header when handshake.auth is empty', async () => {
+      mockJwtService.verify.mockReturnValue({ userId: 'u-header' });
+      const socket = makeSocket('c-1');
+      socket.handshake.headers = { authorization: 'Bearer header.jwt' };
+
+      await gateway.handleConnection(socket as any);
+
+      expect(mockJwtService.verify).toHaveBeenCalledWith('header.jwt');
+      expect(socket.data.user?.userId).toBe('u-header');
     });
   });
 
@@ -163,12 +264,10 @@ describe('RealtimeGateway', () => {
     });
 
     it('should stop PnL streams with zero room size on disconnect', async () => {
-      const socket = makeSocket('c-1');
-      gateway.handleConnection(socket as any);
+      const socket = authedSocket('c-1');
 
       await gateway.handlePortfolioPnLSubscription(socket as any, {
         portfolioId: 'p-1',
-        userId: 'u-1',
       });
 
       gateway.handleDisconnect(socket as any);
@@ -423,18 +522,25 @@ describe('RealtimeGateway', () => {
     });
   });
 
-  // ── handlePortfolioPnLSubscription ─────────────────────────
+  // ── handlePortfolioPnLSubscription (auth-required) ─────────
+  //
+  // Locks the CRITICAL body-trust IDOR closure (peer 2196bbe6).
+  // Pre-fix: handler accepted `userId` from @MessageBody alongside
+  // `portfolioId`, letting any caller subscribe to any portfolio's
+  // P&L room by spoofing the userId. Post-fix:
+  //   1. `client.data.user` (set by handshake) is required → absence
+  //      returns UNAUTHENTICATED.
+  //   2. `portfolioService.getPortfolio(portfolioId, user.userId)` —
+  //      ownership-or-404 primitive — must succeed BEFORE
+  //      `client.join('pnl:<id>')`. Throws on cross-tenant access.
 
   describe('handlePortfolioPnLSubscription', () => {
-    it('should join PnL room and return success', async () => {
-      const socket = makeSocket('c-1');
+    it('should join PnL room and return success when authenticated and owner', async () => {
+      const socket = authedSocket('c-1');
 
       const result = await gateway.handlePortfolioPnLSubscription(
         socket as any,
-        {
-          portfolioId: 'p-1',
-          userId: 'u-1',
-        },
+        { portfolioId: 'p-1' },
       );
 
       expect(socket.join).toHaveBeenCalledWith('pnl:p-1');
@@ -442,21 +548,115 @@ describe('RealtimeGateway', () => {
     });
 
     it('should not start duplicate PnL stream for same portfolio', async () => {
-      const s1 = makeSocket('c-1');
-      const s2 = makeSocket('c-2');
+      const s1 = authedSocket('c-1');
+      const s2 = authedSocket('c-2');
 
       await gateway.handlePortfolioPnLSubscription(s1 as any, {
         portfolioId: 'p-1',
-        userId: 'u-1',
       });
       await gateway.handlePortfolioPnLSubscription(s2 as any, {
         portfolioId: 'p-1',
-        userId: 'u-1',
       });
 
-      // Only one interval should be created
       expect(s1.join).toHaveBeenCalledWith('pnl:p-1');
       expect(s2.join).toHaveBeenCalledWith('pnl:p-1');
+    });
+
+    // ─── IDOR closure locks (peer 2196bbe6, this commit) ───────
+
+    it('returns UNAUTHENTICATED when client.data.user is missing (no handshake)', async () => {
+      const socket = makeSocket('c-1');
+      // No socket.data.user set — simulates a client that connected
+      // without a valid JWT (the permissive-connection path).
+
+      const result = await gateway.handlePortfolioPnLSubscription(
+        socket as any,
+        { portfolioId: 'p-1' },
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('UNAUTHENTICATED');
+      expect(socket.join).not.toHaveBeenCalled();
+      // CRITICAL: portfolioService must NOT be queried for an
+      // unauthenticated caller — that would create a side channel
+      // (timing or log) that reveals portfolio existence.
+      expect(mockPortfolioService.getPortfolio).not.toHaveBeenCalled();
+    });
+
+    it('returns Invalid payload when portfolioId is missing', async () => {
+      const socket = authedSocket('c-1');
+
+      const result = await gateway.handlePortfolioPnLSubscription(
+        socket as any,
+        {} as never,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Invalid payload');
+      expect(mockPortfolioService.getPortfolio).not.toHaveBeenCalled();
+      expect(socket.join).not.toHaveBeenCalled();
+    });
+
+    it('returns FORBIDDEN and does NOT join room when portfolioService.getPortfolio throws (cross-tenant)', async () => {
+      mockPortfolioService.getPortfolio.mockRejectedValue(
+        new Error('portfolio not found'),
+      );
+      const socket = authedSocket('c-1', 'u-attacker');
+
+      const result = await gateway.handlePortfolioPnLSubscription(
+        socket as any,
+        { portfolioId: 'p-victim' },
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('FORBIDDEN');
+      // The bug-fix lock: a denied ownership check must NOT result in
+      // a room join. Without this assertion, a Forbidden could bubble
+      // up while the side effect (room subscription + P&L stream)
+      // still landed.
+      expect(socket.join).not.toHaveBeenCalled();
+    });
+
+    it('runs portfolioService.getPortfolio BEFORE client.join (ordering lock)', async () => {
+      const socket = authedSocket('c-1');
+
+      await gateway.handlePortfolioPnLSubscription(socket as any, {
+        portfolioId: 'p-1',
+      });
+
+      const getOrder =
+        mockPortfolioService.getPortfolio.mock.invocationCallOrder[0];
+      const joinOrder = socket.join.mock.invocationCallOrder[0];
+      expect(getOrder).toBeLessThan(joinOrder);
+    });
+
+    it('calls portfolioService.getPortfolio with the resolved userId from client.data.user (not from payload)', async () => {
+      const socket = authedSocket('c-1', 'u-resolved');
+
+      // Even if a malicious payload includes `userId: 'u-victim'`,
+      // the gateway must use the JWT-derived userId, not the
+      // body-supplied one. This is the IDOR closure essence.
+      // Cast through `unknown` to bypass the IDOR-closed payload
+      // type (which no longer declares `userId`); the malicious
+      // body is what the attacker would send pre-fix.
+      const maliciousPayload = {
+        portfolioId: 'p-1',
+        userId: 'u-victim',
+      } as unknown as { portfolioId: string };
+      await gateway.handlePortfolioPnLSubscription(
+        socket as any,
+        maliciousPayload,
+      );
+
+      expect(mockPortfolioService.getPortfolio).toHaveBeenCalledWith(
+        'p-1',
+        'u-resolved',
+      );
+      // Critically NOT called with the spoofed body userId.
+      expect(mockPortfolioService.getPortfolio).not.toHaveBeenCalledWith(
+        'p-1',
+        'u-victim',
+      );
     });
   });
 
@@ -478,8 +678,7 @@ describe('RealtimeGateway', () => {
     it('should clean up stream handlers and intervals', async () => {
       gateway.onModuleInit();
 
-      const socket = makeSocket('c-1');
-      gateway.handleConnection(socket as any);
+      const socket = authedSocket('c-1');
       await gateway.handleGreeksSubscription(socket as any, {
         ticker: 'AAPL',
         strike: 150,
@@ -488,7 +687,6 @@ describe('RealtimeGateway', () => {
       });
       await gateway.handlePortfolioPnLSubscription(socket as any, {
         portfolioId: 'p-1',
-        userId: 'u-1',
       });
 
       // Should clean up without errors
@@ -584,11 +782,9 @@ describe('RealtimeGateway', () => {
 
   describe('refreshPnLStream edge cases', () => {
     it('should stop PnL stream when room is empty during refresh', async () => {
-      const socket = makeSocket('c-1');
-      gateway.handleConnection(socket as any);
+      const socket = authedSocket('c-1');
       await gateway.handlePortfolioPnLSubscription(socket as any, {
         portfolioId: 'p-1',
-        userId: 'u-1',
       });
 
       const refreshFn = (gateway as any).refreshPnLStream.bind(gateway);

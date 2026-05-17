@@ -13,7 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { AdminGuard } from '../common/guards/admin.guard';
+import { AdminKeyGuard } from '../auth/admin-key.guard';
 import { PrismaService } from '../prisma.service';
 
 @Controller('api/feedback')
@@ -27,6 +27,7 @@ export class FeedbackController {
    * Public endpoint (no auth) — accessed from email links.
    * Records NPS score and redirects to frontend thank-you page.
    */
+  // verify:auth-skip — public NPS scoring landed from email tracking links; throttled 10/min/IP
   @Get('nps')
   @Throttle({ default: { ttl: 60000, limit: 10 } }) // 10 NPS submissions per minute per IP
   @Redirect()
@@ -92,6 +93,7 @@ export class FeedbackController {
    * POST /api/feedback/:id/comment
    * Public endpoint — allows submitting a follow-up comment after NPS score.
    */
+  // verify:auth-skip — public follow-up comment after NPS scoring; feedback row is the auth surface (must exist)
   @Post(':id/comment')
   @HttpCode(HttpStatus.OK)
   async addComment(
@@ -129,6 +131,7 @@ export class FeedbackController {
    * POST /api/feedback/comment
    * Public endpoint — allows submitting a comment by jobId (for thank-you page).
    */
+  // verify:auth-skip — public comment-by-jobId from the post-NPS thank-you page
   @Post('comment')
   @HttpCode(HttpStatus.OK)
   async addCommentByJob(
@@ -182,7 +185,7 @@ export class FeedbackController {
    * Protected: requires ADMIN_KEY.
    */
   @Get('admin/stats')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getStats() {
     try {
       const allFeedback = await this.prisma.feedback.findMany({

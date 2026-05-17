@@ -5,7 +5,9 @@ import {
   Body,
   Param,
   Query,
+  Req,
   Logger,
+  UseGuards,
   BadRequestException,
   HttpCode,
   HttpStatus,
@@ -13,6 +15,8 @@ import {
 import { NcuaImportService } from './ncua-import.service';
 import { NcuaApiService } from './ncua-api.service';
 import { NcuaFieldMapperService } from './ncua-field-mapper.service';
+import { AuthTenantGuard } from '../auth/auth-tenant.guard';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 import {
   ImportBodySchema,
   SearchQuerySchema,
@@ -26,8 +30,16 @@ import {
  * Provides endpoints to import credit union data from the NCUA Form 5300
  * call report system, search the NCUA database, sync existing institutions,
  * and inspect the field mapping documentation.
+ *
+ * Class-level cross-tenant stack. AuthTenantGuard (auth + tenant resolution)
+ * runs first; InstitutionScopeGuard verifies ownership of `:institutionId`
+ * when the route carries it (sync). Non-`:institutionId` routes (import,
+ * search, field-map) pass through the institution check but still get
+ * authenticated by AuthTenantGuard — closing the prior gap where the entire
+ * controller was unauthenticated.
  */
 @Controller('api/ncua')
+@UseGuards(AuthTenantGuard, InstitutionScopeGuard)
 export class NcuaController {
   private readonly logger = new Logger(NcuaController.name);
 
@@ -35,19 +47,38 @@ export class NcuaController {
     private readonly importService: NcuaImportService,
     private readonly apiService: NcuaApiService,
     private readonly fieldMapper: NcuaFieldMapperService,
+    private readonly institutionScope: InstitutionScopeGuard,
   ) {}
 
   // ─── POST /api/ncua/import ────────────────────────────────────────────────
 
   @Post('import')
   @HttpCode(HttpStatus.CREATED)
-  async importCreditUnion(@Body() body: unknown) {
+  async importCreditUnion(@Body() body: unknown, @Req() req: any) {
     let dto;
     try {
       dto = parseOrThrow(ImportBodySchema, body);
     } catch (err: any) {
       throw new BadRequestException(err.issues ?? err.message);
     }
+
+    // Body-IDOR closure (verify-body-trust.mjs flagged this in commit
+    // 19f103f5). Class-level guards authenticate via AuthTenantGuard but
+    // InstitutionScopeGuard only enforces ownership on :institutionId path
+    // params — the import route receives workspaceId in the body. Without
+    // this check any authenticated user could write NCUA Form 5300 data
+    // into another tenant's workspace.
+    const userId: string | undefined =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub;
+    if (!userId) {
+      throw new BadRequestException('authenticated user required');
+    }
+    const isMasterCeo = req.user?.access?.isMasterCeo === true;
+    await this.institutionScope.verifyWorkspaceOwnership(
+      dto.workspaceId,
+      userId,
+      isMasterCeo,
+    );
 
     this.logger.log({
       msg: 'NCUA import requested',
@@ -99,6 +130,7 @@ export class NcuaController {
     let dto;
     try {
       dto = parseOrThrow(SyncParamSchema, params);
+      // type-rationale: catch-clause type for parseOrThrow's thrown error — the helper attaches a Zod-issues array on `.issues` when validation fails and falls through to `.message` for non-Zod throws. Properly typed unions would require either a custom error class or a discriminated tuple return shape — neither in scope for this Rule 11 unblock. Behavior-equivalent to lines 61 + 107 in this same file (baseline-3 era).
     } catch (err: any) {
       throw new BadRequestException(err.issues ?? err.message);
     }

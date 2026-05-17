@@ -4,7 +4,7 @@ import {
   Get,
   Param,
   Query,
-  Headers,
+  UseGuards,
   UnauthorizedException,
   BadRequestException,
   Logger,
@@ -12,7 +12,13 @@ import {
 import { SampleReportService } from './sample-report.service';
 import { SampleReportQueueService } from './sample-report-queue.service';
 import { PreviewTokenQuerySchema, parseOrThrow } from './cossec.dto';
-import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
+import { AdminKeyGuard } from '../auth/admin-key.guard';
+
+// Mixed controller: 3 admin routes (`admin/api/sample-reports/*`) plus
+// 1 public preview route (`api/demo/preview`). Method-level
+// `@UseGuards(AdminKeyGuard)` on the 3 admin handlers — class-level
+// would gate the public preview surface. AuthModule is `@Global()`
+// (peer `6b317c44`) so no module import is needed.
 
 @Controller()
 export class SampleReportController {
@@ -23,15 +29,6 @@ export class SampleReportController {
     private readonly queueService: SampleReportQueueService,
   ) {}
 
-  // ── Auth helper ──────────────────────────────────────────────────────────
-
-  private verifyAdmin(key: string): void {
-    const adminKey = process.env.ADMIN_KEY;
-    if (!adminKey || !timingSafeStringEqual(key, adminKey)) {
-      throw new UnauthorizedException('Invalid admin key');
-    }
-  }
-
   // ── POST /admin/api/sample-reports/generate-all ──────────────────────────
 
   /**
@@ -39,9 +36,8 @@ export class SampleReportController {
    * Admin only. Enqueues all un-generated prospects into the queue.
    */
   @Post('admin/api/sample-reports/generate-all')
-  async generateAll(@Headers('x-admin-key') adminKey: string) {
-    this.verifyAdmin(adminKey);
-
+  @UseGuards(AdminKeyGuard)
+  async generateAll() {
     this.logger.log('Batch sample report generation triggered');
 
     const result = await this.queueService.enqueueAllProspects();
@@ -58,12 +54,10 @@ export class SampleReportController {
    * Generate a single sample report for a specific prospect.
    */
   @Post('admin/api/sample-reports/generate/:prospectInstitutionId')
+  @UseGuards(AdminKeyGuard)
   async generateSingle(
-    @Headers('x-admin-key') adminKey: string,
     @Param('prospectInstitutionId') prospectInstitutionId: string,
   ) {
-    this.verifyAdmin(adminKey);
-
     if (!prospectInstitutionId) {
       throw new BadRequestException('prospectInstitutionId is required');
     }
@@ -88,9 +82,8 @@ export class SampleReportController {
    * Get the current queue status for sample report generation.
    */
   @Get('admin/api/sample-reports/status')
-  async getQueueStatus(@Headers('x-admin-key') adminKey: string) {
-    this.verifyAdmin(adminKey);
-
+  @UseGuards(AdminKeyGuard)
+  async getQueueStatus() {
     const status = this.queueService.getQueueStatus();
 
     return {

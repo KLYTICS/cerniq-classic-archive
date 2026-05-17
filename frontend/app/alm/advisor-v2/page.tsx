@@ -6,6 +6,7 @@ import { useALM } from '@/components/alm/ALMProvider';
 import { useTranslation } from '@/lib/i18n';
 import { useSSEStream } from '@/hooks/useSSEStream';
 import { Brain, AlertTriangle, Shield, TrendingUp, Wallet, Target, Play, RefreshCw } from 'lucide-react';
+import DOMPurify from 'dompurify';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -215,11 +216,13 @@ export default function AdvisorV2Page() {
           <div className="prose prose-sm prose-slate max-w-none">
             <div
               dangerouslySetInnerHTML={{
-                __html: narrativeText
-                  .replace(/## (.+)/g, '<h3 class="text-base font-bold text-slate-950 mt-4 mb-2">$1</h3>')
-                  .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                  .replace(/_(.+?)_/g, '<em>$1</em>')
-                  .replace(/\n/g, '<br/>'),
+                __html: DOMPurify.sanitize(
+                  narrativeText
+                    .replace(/## (.+)/g, '<h3 class="text-base font-bold text-slate-950 mt-4 mb-2">$1</h3>')
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/_(.+?)_/g, '<em>$1</em>')
+                    .replace(/\n/g, '<br/>'),
+                ),
               }}
             />
             {isStreaming && <span className="inline-block w-2 h-4 bg-purple-500 animate-pulse ml-0.5" />}

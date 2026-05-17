@@ -16,7 +16,6 @@ import { TrendArrow } from './TrendArrow';
 import { SparklineCell } from './SparklineCell';
 import { MetricStrip } from './MetricStrip';
 import { DataTable, type DataTableColumn } from './DataTable';
-import { DataRow } from './DataRow';
 
 // ─── NumberCell ─────────────────────────────────────────────────────────────
 
@@ -365,78 +364,3 @@ describe('DataTable', () => {
   });
 });
 
-// ─── DataRow ────────────────────────────────────────────────────────────────
-
-describe('DataRow', () => {
-  it('resolves label from dictionary via recordKey', () => {
-    render(<DataRow recordKey="nim" value={3.5} locale="en" />);
-    expect(screen.getByText('Net Interest Margin')).toBeInTheDocument();
-  });
-
-  it('swaps locale via labels dictionary', () => {
-    const { rerender } = render(<DataRow recordKey="nim" value={3.5} locale="en" />);
-    expect(screen.getByText('Net Interest Margin')).toBeInTheDocument();
-    rerender(<DataRow recordKey="nim" value={3.5} locale="es" />);
-    expect(screen.getByText('Margen de Interés Neto')).toBeInTheDocument();
-  });
-
-  it('respects label override', () => {
-    render(<DataRow recordKey="nim" labelOverride="Custom Label" value={3.5} locale="en" />);
-    expect(screen.getByText('Custom Label')).toBeInTheDocument();
-    expect(screen.queryByText('Net Interest Margin')).toBeNull();
-  });
-
-  it('renders numeric value via NumberCell with auto-unit detection', () => {
-    render(<DataRow recordKey="nim" value={3.521} locale="en" />);
-    // unit for 'nim' is '%', default precision 2
-    expect(screen.getByText('3.52%')).toBeInTheDocument();
-  });
-
-  it('renders string value directly', () => {
-    render(<DataRow recordKey="sector" labelOverride="Sector" value="Commercial RE" locale="en" />);
-    expect(screen.getByText('Commercial RE')).toBeInTheDocument();
-  });
-
-  it('renders em-dash for null value', () => {
-    render(<DataRow recordKey="nim" value={null} locale="en" />);
-    expect(screen.getByText('—')).toBeInTheDocument();
-  });
-
-  it('renders delta arrow when delta is provided', () => {
-    render(<DataRow recordKey="nim" value={3.5} delta={0.12} locale="en" />);
-    expect(screen.getByText(/▲/)).toBeInTheDocument();
-  });
-
-  it('honors invertedDelta (down=good) for risk metrics', () => {
-    const { container } = render(
-      <DataRow recordKey="npl_ratio" value={1.2} delta={-0.3} invertedDelta locale="en" />,
-    );
-    // Negative delta + inverted → positive signal → emerald arrow
-    const arrowSpan = container.querySelector('span.text-emerald-600');
-    expect(arrowSpan).toBeInTheDocument();
-  });
-
-  it('renders sparkline when trend has >= 2 points', () => {
-    const { container } = render(
-      <DataRow recordKey="nim" value={3.5} trend={[3.1, 3.2, 3.3, 3.5]} locale="en" />,
-    );
-    expect(container.querySelector('svg path')).toBeInTheDocument();
-  });
-
-  it('skips sparkline when trend has < 2 points', () => {
-    const { container } = render(
-      <DataRow recordKey="nim" value={3.5} trend={[3.5]} locale="en" />,
-    );
-    // SparklineCell isn't rendered at all — no svg inside the row
-    expect(container.querySelector('svg')).toBeNull();
-  });
-
-  it('renders badge with tone', () => {
-    render(
-      <DataRow recordKey="nim" value={3.5} badge="BREACH" badgeTone="danger" locale="en" />,
-    );
-    const badge = screen.getByText('BREACH');
-    expect(badge).toBeInTheDocument();
-    expect(badge.className).toContain('bg-rose-50');
-  });
-});

@@ -259,7 +259,9 @@ describe('AuthService', () => {
     });
 
     it('should reuse an existing email-matched app user instead of creating a second row', async () => {
-      prisma.user.findUnique.mockResolvedValueOnce({
+      const devPassword =
+        process.env.DEV_MASTER_ACCOUNT_PASSWORD || 'change-me-in-env';
+      const legacyUser = {
         id: 'legacy-user-id',
         email: 'data.ai.kiess@gmail.com',
         name: 'Erwin Kiess',
@@ -268,8 +270,10 @@ describe('AuthService', () => {
         providerId: null,
         emailVerified: true,
         role: 'OWNER',
-        passwordHash: await bcrypt.hash('ErwinKiess!CERNIQ2026', 12),
-      });
+        passwordHash: await bcrypt.hash(devPassword, 12),
+      };
+      prisma.user.findUnique.mockResolvedValueOnce(legacyUser);
+      prisma.user.update.mockResolvedValue(legacyUser);
       prisma.workspace.findFirst.mockResolvedValue({ id: 'ws-1' });
 
       const result = await service.resolveApplicationUser({

@@ -25,7 +25,7 @@ Each `.env.example` file contains all variables with sensible development defaul
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DATABASE_URL` | ✅ | `postgresql://cerniq:dev_password_change_in_prod@localhost:5433/cerniq` | Full PostgreSQL connection string |
+| `DATABASE_URL` | ✅ | `postgresql://<user>@localhost:5433/cerniq` | Full PostgreSQL connection string |
 | `DATABASE_PASSWORD` | ✅ | `dev_password_change_in_prod` | Database password (used by Docker Compose) |
 | `DATABASE_POOL_SIZE` | ❌ | `20` | Connection pool size |
 

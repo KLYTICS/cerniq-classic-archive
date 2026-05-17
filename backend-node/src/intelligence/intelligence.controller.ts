@@ -8,7 +8,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../common/guards/admin.guard';
+import { AdminKeyGuard } from '../auth/admin-key.guard';
 import { IntelligenceService } from './intelligence.service';
 import {
   IntelligenceAccountsImportRequestDto,
@@ -20,7 +20,7 @@ import {
 } from './dto/intelligence.dto';
 
 @Controller('admin/api/intelligence')
-@UseGuards(AdminGuard)
+@UseGuards(AdminKeyGuard)
 export class IntelligenceController {
   constructor(private readonly intelligence: IntelligenceService) {}
 

@@ -8,6 +8,7 @@ import { CpaFirmService } from './cpa-firm.service';
 import { CpaClientService } from './cpa-client.service';
 import { CpaBrandingService } from './cpa-branding.service';
 import { CpaBulkIngestionService } from './cpa-bulk-ingestion.service';
+import { FirmOwnsClientGuard } from './guards/firm-owns-client.guard';
 
 @Module({
   imports: [PrismaModule, EmailModule, StorageModule],
@@ -17,6 +18,7 @@ import { CpaBulkIngestionService } from './cpa-bulk-ingestion.service';
     CpaClientService,
     CpaBrandingService,
     CpaBulkIngestionService,
+    FirmOwnsClientGuard,
   ],
   exports: [CpaFirmService, CpaClientService],
 })

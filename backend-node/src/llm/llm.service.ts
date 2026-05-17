@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 
 @Injectable()
 export class LlmService {
+  private readonly logger = new Logger(LlmService.name);
   private openai: OpenAI;
   private model: string;
 
@@ -132,7 +133,7 @@ Respond with only the category name, nothing else.`;
 
       return response.choices[0].message.content || 'Analysis unavailable.';
     } catch (error) {
-      console.error('Error generating stock insight:', error);
+      this.logger.error({ err: error }, 'Error generating stock insight');
       return 'Unable to generate insight at this time.';
     }
   }

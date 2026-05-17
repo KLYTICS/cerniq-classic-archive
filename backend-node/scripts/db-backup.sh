@@ -24,7 +24,7 @@ if [ -z "${DATABASE_URL:-}" ]; then
 fi
 
 # Extract connection params from DATABASE_URL
-# Format: postgresql://user:password@host:port/dbname
+# Format: postgresql://<user>@host:port/dbname
 PGHOST=$(echo "$DATABASE_URL" | sed -n 's|.*@\([^:]*\):.*|\1|p')
 PGPORT=$(echo "$DATABASE_URL" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
 PGDATABASE=$(echo "$DATABASE_URL" | sed -n 's|.*/\([^?]*\).*|\1|p')

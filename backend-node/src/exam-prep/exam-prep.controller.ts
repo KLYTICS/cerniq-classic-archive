@@ -6,6 +6,7 @@ import {
   Body,
   Query,
   Logger,
+  UseGuards,
   BadRequestException,
   NotFoundException,
   HttpCode,
@@ -13,6 +14,8 @@ import {
 } from '@nestjs/common';
 import { ExamPrepScoringService } from './exam-prep-scoring.service';
 import { EvidencePackageService } from './evidence-package.service';
+import { AuthTenantGuard } from '../auth/auth-tenant.guard';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 import {
   InstitutionIdParamSchema,
   AssessBodySchema,
@@ -27,8 +30,14 @@ import {
  * COSSEC regulatory exam readiness scoring and evidence package generation.
  * Provides bilingual (EN/ES) assessment results with A-F letter grades
  * across 12 weighted compliance categories.
+ *
+ * Class-level cross-tenant stack: AuthTenantGuard (auth + tenant resolution)
+ * then InstitutionScopeGuard (ownership of `:institutionId`). Every route in
+ * this controller carries `:institutionId`, so the ownership check fires on
+ * all 5 endpoints.
  */
 @Controller('api/exam-prep')
+@UseGuards(AuthTenantGuard, InstitutionScopeGuard)
 export class ExamPrepController {
   private readonly logger = new Logger(ExamPrepController.name);
 

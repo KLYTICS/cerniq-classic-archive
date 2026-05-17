@@ -9,9 +9,11 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { isAllowedOrigin } from '../security/origin-allowlist';
 import { AiAdvisorService } from './ai-advisor.service';
 import { ConversationHistoryService } from './conversation-history.service';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 import { AskQuestionSchema } from './ai-advisor.dto';
 import * as crypto from 'crypto';
 
@@ -28,6 +30,11 @@ interface HistoryPayload {
   institutionId: string;
   sessionId: string;
   limit?: number;
+}
+
+interface SocketUserCtx {
+  userId: string;
+  isMasterCeo: boolean;
 }
 
 // ─── Gateway ────────────────────────────────────────────────
@@ -62,57 +69,111 @@ export class AiAdvisorGateway
   constructor(
     private readonly aiAdvisor: AiAdvisorService,
     private readonly conversationHistory: ConversationHistoryService,
+    private readonly institutionScope: InstitutionScopeGuard,
+    private readonly jwtService: JwtService,
   ) {}
 
-  handleConnection(client: Socket) {
-    // Extract userId from handshake auth or query
-    const userId =
-      (client.handshake.auth as Record<string, string>)?.userId ||
-      (client.handshake.query as Record<string, string>)?.userId ||
-      'anonymous';
-    (client as any)._userId = userId;
+  // ─── Handshake-time auth (closes CRITICAL bypass) ────────
+  //
+  // Pre-fix behavior: handleConnection trusted `userId` from
+  // `client.handshake.auth.userId || handshake.query.userId || 'anonymous'`
+  // — zero JWT verification. Any client connecting with `?userId=anyone`
+  // could emit `ask`/`history` events on behalf of anybody, billing
+  // Anthropic API calls and reading any session.
+  //
+  // Post-fix: extract a JWT from `client.handshake.auth.token` (preferred,
+  // socket.io's standard auth channel) or the legacy `Authorization:
+  // Bearer <token>` header (handshake.headers.authorization). Verify via
+  // the same JwtService AuthGuard uses. Reject the connection if missing
+  // or invalid — fail-closed, no anonymous fallback. The verified userId
+  // and master-CEO flag land on `client.data.user` for the handlers.
 
+  async handleConnection(client: Socket): Promise<void> {
+    const user = await this.verifyClientToken(client);
+    if (!user) {
+      this.logger.warn(
+        `AI Advisor WS rejected: missing/invalid token (clientId=${client.id})`,
+      );
+      client.emit('error', {
+        code: 'UNAUTHENTICATED',
+        message: 'Missing or invalid auth token',
+      });
+      client.disconnect(true);
+      return;
+    }
+    client.data.user = user;
     this.logger.log(
-      `AI Advisor client connected: ${client.id} (user=${userId})`,
+      `AI Advisor WS connected: user=${user.userId} (clientId=${client.id})`,
     );
   }
 
-  handleDisconnect(client: Socket) {
-    this.logger.log(`AI Advisor client disconnected: ${client.id}`);
+  handleDisconnect(client: Socket): void {
+    const userId = (client.data.user as SocketUserCtx | undefined)?.userId;
+    this.logger.log(
+      `AI Advisor WS disconnected: user=${userId ?? 'unauthenticated'} (clientId=${client.id})`,
+    );
   }
 
   /**
-   * Event: 'ask'
-   * Client sends a question, server streams back chunks via 'chunk', 'tool_use', 'done', 'error'.
+   * Event: `ask`
+   * Stream an AI-advisor response for the given institution. Body-supplied
+   * `institutionId` is verified against the authenticated user via the
+   * same `InstitutionScopeGuard.verifyOwnership()` primitive the HTTP path
+   * uses (see e88ae20c). Single source of truth for the ownership contract.
    */
   @SubscribeMessage('ask')
   async handleAsk(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: AskPayload,
-  ) {
+  ): Promise<void> {
+    const user = client.data.user as SocketUserCtx | undefined;
+    if (!user) {
+      // Defense-in-depth — handleConnection should have rejected, but
+      // re-checking here means a future regression on the connection
+      // path can't silently re-open the bypass.
+      client.emit('error', {
+        code: 'UNAUTHENTICATED',
+        message: 'No auth context on this socket',
+      });
+      return;
+    }
+
     const parsed = AskQuestionSchema.safeParse(payload);
     if (!parsed.success) {
       client.emit('error', {
+        code: 'INPUT_INVALID',
         message: 'Invalid request',
         issues: parsed.error.issues,
       });
       return;
     }
 
-    const userId: string = (client as any)._userId || 'anonymous';
+    try {
+      await this.institutionScope.verifyOwnership(
+        parsed.data.institutionId,
+        user.userId,
+        user.isMasterCeo,
+      );
+    } catch (err) {
+      // Fail-closed: WARN already logged inside verifyOwnership.
+      client.emit('error', {
+        code: 'FORBIDDEN',
+        message:
+          err instanceof Error ? err.message : 'Not authorized for institution',
+      });
+      return;
+    }
+
     const sessionId = parsed.data.sessionId || crypto.randomUUID();
-
     this.logger.log(
-      `AI Advisor WS ask: user=${userId} institution=${parsed.data.institutionId} session=${sessionId}`,
+      `AI Advisor WS ask: user=${user.userId} institution=${parsed.data.institutionId} session=${sessionId}`,
     );
-
-    // Emit the assigned sessionId back immediately so the client can track it.
     client.emit('session', { sessionId });
 
     try {
       const generator = this.aiAdvisor.streamAsk({
         institutionId: parsed.data.institutionId,
-        userId,
+        userId: user.userId,
         question: parsed.data.question,
         sessionId,
         language: parsed.data.language,
@@ -150,17 +211,42 @@ export class AiAdvisorGateway
   }
 
   /**
-   * Event: 'history'
-   * Client requests the conversation history for a session.
+   * Event: `history`
+   * Fetch session history. Same ownership contract as `ask`.
    */
   @SubscribeMessage('history')
   async handleHistory(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: HistoryPayload,
-  ) {
+  ): Promise<void> {
+    const user = client.data.user as SocketUserCtx | undefined;
+    if (!user) {
+      client.emit('error', {
+        code: 'UNAUTHENTICATED',
+        message: 'No auth context on this socket',
+      });
+      return;
+    }
+
     if (!payload?.institutionId || !payload?.sessionId) {
       client.emit('error', {
+        code: 'INPUT_INVALID',
         message: 'institutionId and sessionId are required',
+      });
+      return;
+    }
+
+    try {
+      await this.institutionScope.verifyOwnership(
+        payload.institutionId,
+        user.userId,
+        user.isMasterCeo,
+      );
+    } catch (err) {
+      client.emit('error', {
+        code: 'FORBIDDEN',
+        message:
+          err instanceof Error ? err.message : 'Not authorized for institution',
       });
       return;
     }
@@ -170,8 +256,8 @@ export class AiAdvisorGateway
         payload.institutionId,
         payload.sessionId,
         payload.limit ?? 50,
+        user.userId,
       );
-
       client.emit('history', {
         sessionId: payload.sessionId,
         messages,
@@ -185,5 +271,108 @@ export class AiAdvisorGateway
         message: 'Failed to retrieve conversation history',
       });
     }
+  }
+
+  // ─── Token verification helpers ──────────────────────────
+
+  // Two-stage verification mirroring AuthGuard's HTTP-side fallback:
+  //   1. Try the legacy JWT path (`JwtService.verify` — synchronous,
+  //      shared secret, zero network). This is what most clients use.
+  //   2. Fall back to Supabase token verification (HTTP call to
+  //      `${SUPABASE_URL}/auth/v1/user` with the anon key + bearer
+  //      token). Only runs if both env vars are set, so deployments
+  //      without Supabase configured behave identically to before.
+  //
+  // Same dual-source pattern as `AuthGuard.canActivate` paths
+  // (`verifyLegacyToken` then `verifySupabaseToken`). Inlining the
+  // Supabase logic here rather than exposing it as a public method on
+  // AuthGuard keeps this commit scoped to the gateway — a future
+  // refactor to consolidate both into a single `AuthService.verifyToken`
+  // primitive would replace both branches simultaneously.
+
+  private async verifyClientToken(
+    client: Socket,
+  ): Promise<SocketUserCtx | null> {
+    const token = this.extractToken(client);
+    if (!token) return null;
+
+    const legacy = this.tryVerifyLegacyJwt(token);
+    if (legacy) return legacy;
+
+    const supabase = await this.tryVerifySupabaseToken(token);
+    if (supabase) return supabase;
+
+    this.logger.warn(
+      `AI Advisor WS token failed both legacy and Supabase verification (clientId=${client.id})`,
+    );
+    return null;
+  }
+
+  private tryVerifyLegacyJwt(token: string): SocketUserCtx | null {
+    try {
+      const payload = this.jwtService.verify(token);
+      const userId =
+        (payload?.userId as string | undefined) ??
+        (payload?.sub as string | undefined);
+      if (!userId) return null;
+      const access = payload?.access as { isMasterCeo?: boolean } | undefined;
+      return {
+        userId,
+        isMasterCeo: !!access?.isMasterCeo,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private async tryVerifySupabaseToken(
+    token: string,
+  ): Promise<SocketUserCtx | null> {
+    const supabaseUrl = (process.env.SUPABASE_URL || '')
+      .trim()
+      .replace(/\/$/, '');
+    const anonKey =
+      (process.env.SUPABASE_ANON_KEY || '').trim() ||
+      (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+    if (!supabaseUrl || !anonKey) return null;
+
+    try {
+      const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) return null;
+      const user = (await response.json()) as { id?: string };
+      if (!user?.id) return null;
+      // Supabase tokens don't carry the platform isMasterCeo claim —
+      // that lives in PlatformAccessService and is applied by
+      // AuthGuard for HTTP requests. WS Supabase users get the
+      // normal-user flag here; if cross-tenant master-CEO support is
+      // ever needed over WS, mirror AuthGuard's PlatformAccessService
+      // lookup in this branch.
+      return {
+        userId: user.id,
+        isMasterCeo: false,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private extractToken(client: Socket): string | null {
+    const auth = client.handshake.auth as Record<string, unknown> | undefined;
+    const fromAuth =
+      (auth?.token as string | undefined) ||
+      (auth?.accessToken as string | undefined);
+    if (fromAuth) return fromAuth;
+
+    const header = client.handshake.headers?.authorization;
+    if (typeof header === 'string') {
+      const m = header.match(/^Bearer\s+(.+)$/i);
+      if (m) return m[1];
+    }
+    return null;
   }
 }

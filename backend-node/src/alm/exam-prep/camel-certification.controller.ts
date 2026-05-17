@@ -19,10 +19,11 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
-import { AuthGuard } from '../../auth/auth.guard';
+import { AuthTenantGuard } from '../../auth/auth-tenant.guard';
 import { RolesGuard } from '../../auth/roles.guard';
 import { Roles } from '../../auth/roles.decorator';
 import { AuditAction } from '../../common/decorators/audit-action.decorator';
+import { InstitutionScopeGuard } from '../../agent-api/guards/institution-scope.guard';
 import { CAMELCertificationService } from './camel-certification.service';
 import { ReportsService } from '../reports/reports.service';
 import type { Response } from 'express';
@@ -30,7 +31,7 @@ import type { Response } from 'express';
 @ApiTags('CAMEL Certification')
 @ApiBearerAuth('BearerAuth')
 @Controller('api/alm')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthTenantGuard, InstitutionScopeGuard, RolesGuard)
 export class CAMELCertificationController {
   private readonly logger = new Logger(CAMELCertificationController.name);
 

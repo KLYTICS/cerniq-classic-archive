@@ -103,7 +103,7 @@ export class CpaBrandingService {
 
   /**
    * Merge firm-level branding with optional per-client overrides
-   * stored on the CpaClientRelationship.brandingOverride JSON column.
+   * stored on the CpaClientRelationship.reportBrandingOverride JSON column.
    */
   async getReportBranding(
     firmId: string,
@@ -112,16 +112,16 @@ export class CpaBrandingService {
     const baseBranding = await this.getBranding(firmId);
 
     const relationship = await this.prisma.cpaClientRelationship.findFirst({
-      where: { firmId, institutionId, removedAt: null },
+      where: { cpaFirmId: firmId, institutionId, removedAt: null },
     });
 
-    if (!relationship || !relationship.brandingOverride) {
+    if (!relationship || !relationship.reportBrandingOverride) {
       return baseBranding;
     }
 
     const overrides =
-      typeof relationship.brandingOverride === 'object'
-        ? (relationship.brandingOverride as Partial<CpaBranding>)
+      typeof relationship.reportBrandingOverride === 'object'
+        ? (relationship.reportBrandingOverride as Partial<CpaBranding>)
         : {};
 
     return {

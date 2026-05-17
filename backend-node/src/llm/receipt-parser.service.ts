@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { LlmService } from './llm.service';
 
 export interface ParsedReceipt {
@@ -34,6 +34,8 @@ const EXPENSE_CATEGORIES = [
 
 @Injectable()
 export class ReceiptParserService {
+  private readonly logger = new Logger(ReceiptParserService.name);
+
   constructor(private llmService: LlmService) {}
 
   /**
@@ -92,7 +94,7 @@ If any field is not clearly visible, omit it or use null. Be precise with number
         confidence: parsed.confidence || 0.8,
       };
     } catch (error) {
-      console.error('Receipt parsing error:', error);
+      this.logger.error({ err: error }, 'Receipt parsing error');
       throw new Error(`Failed to parse receipt: ${error.message}`);
     }
   }

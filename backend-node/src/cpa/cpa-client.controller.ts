@@ -25,12 +25,13 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CpaClientService } from './cpa-client.service';
 import { CpaBulkIngestionService } from './cpa-bulk-ingestion.service';
+import { FirmOwnsClientGuard } from './guards/firm-owns-client.guard';
 import { AddClientSchema, BulkAddClientsSchema } from './cpa.dto';
 
 @ApiTags('CPA White-Label')
 @ApiBearerAuth()
 @Controller('api/cpa/firms/:firmId')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard, FirmOwnsClientGuard)
 export class CpaClientController {
   private readonly logger = new Logger(CpaClientController.name);
 
@@ -41,6 +42,7 @@ export class CpaClientController {
 
   // ─── Client management ────────────────────────────────────────
 
+  // verify:body-trust-skip — CPA-firm cross-tenant add-client operation. The tenancy contract here is "this firm chooses to add this institution as its client" (RolesGuard at class-level gates which firm members can do this); InstitutionScopeGuard wouldn't apply because no CPA firm member is the workspace owner of a client institution. Service-layer validation handles institution-exists + not-already-a-client + firm-under-client-limit. Mirrors the existing skip-comment on the sibling DELETE route (FirmOwnsClientGuard applies to DELETE because the relationship exists; for ADD it doesn't yet).
   @Post('clients')
   @ApiOperation({ summary: 'Add a client institution to the CPA firm' })
   @ApiParam({ name: 'firmId', description: 'CPA firm ID' })
@@ -57,6 +59,21 @@ export class CpaClientController {
     );
   }
 
+  // verify:institution-scope-skip — CPA-firm cross-tenant operation. The
+  // tenancy contract here is "this firm has a CpaClientRelationship with
+  // this institution," not "this user owns this institution" (which is
+  // what InstitutionScopeGuard checks). Defense layered:
+  //   (1) class-level FirmOwnsClientGuard verifies CpaClientRelationship
+  //       exists for (firmId, institutionId) with removedAt=null —
+  //       fails fast at 404 before the service touches anything.
+  //   (2) CpaClientService.removeClient runs the same lookup internally
+  //       and throws NotFoundException — defense-in-depth.
+  //   (3) RolesGuard at the class level gates which firm members can
+  //       call this at all.
+  // Applying InstitutionScopeGuard here would 403 every CPA user because
+  // no CPA firm member is the workspace owner of a client institution,
+  // so the skip-comment stays — the new FirmOwnsClientGuard replaces
+  // the "long-term primitive" originally flagged here as future work.
   @Delete('clients/:institutionId')
   @ApiOperation({ summary: 'Remove a client institution from the CPA firm' })
   @ApiParam({ name: 'firmId', description: 'CPA firm ID' })

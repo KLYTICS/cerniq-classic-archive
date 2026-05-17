@@ -8,6 +8,14 @@ import { STRIPE_PRICE_IDS } from './stripe.config';
 
 type BillingTier = 'one_time' | 'monthly' | 'annual' | 'partner';
 
+const CHECKOUT_DARK_BRANDING: Stripe.Checkout.SessionCreateParams.BrandingSettings =
+  {
+    background_color: '#14171D',
+    button_color: '#0085FF',
+    border_style: 'rounded',
+    font_family: 'inter',
+  };
+
 @Injectable()
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
@@ -52,6 +60,7 @@ export class BillingService {
       payment_method_types: ['card'],
       mode,
       line_items: [{ price: priceId, quantity: 1 }],
+      branding_settings: CHECKOUT_DARK_BRANDING,
       customer_email: params.customerEmail,
       metadata: {
         leadId: params.leadId || '',

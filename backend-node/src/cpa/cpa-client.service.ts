@@ -83,7 +83,7 @@ export class CpaClientService {
 
     // Check for existing active relationship
     const existing = await this.prisma.cpaClientRelationship.findFirst({
-      where: { firmId, institutionId, removedAt: null },
+      where: { cpaFirmId: firmId, institutionId, removedAt: null },
     });
     if (existing) {
       throw new ConflictException(
@@ -93,7 +93,7 @@ export class CpaClientService {
 
     // Re-activate a previously removed relationship if one exists
     const removed = await this.prisma.cpaClientRelationship.findFirst({
-      where: { firmId, institutionId, removedAt: { not: null } },
+      where: { cpaFirmId: firmId, institutionId, removedAt: { not: null } },
     });
 
     let relationship;
@@ -102,15 +102,16 @@ export class CpaClientService {
         where: { id: removed.id },
         data: {
           removedAt: null,
-          brandingOverride: brandingOverride ?? removed.brandingOverride,
+          reportBrandingOverride:
+            brandingOverride ?? removed.reportBrandingOverride,
         },
       });
     } else {
       relationship = await this.prisma.cpaClientRelationship.create({
         data: {
-          firmId,
+          cpaFirmId: firmId,
           institutionId,
-          brandingOverride: brandingOverride ?? {},
+          reportBrandingOverride: brandingOverride ?? {},
         },
       });
     }
@@ -130,7 +131,7 @@ export class CpaClientService {
    */
   async removeClient(firmId: string, institutionId: string): Promise<void> {
     const relationship = await this.prisma.cpaClientRelationship.findFirst({
-      where: { firmId, institutionId, removedAt: null },
+      where: { cpaFirmId: firmId, institutionId, removedAt: null },
     });
     if (!relationship) {
       throw new NotFoundException(
@@ -155,7 +156,7 @@ export class CpaClientService {
    */
   async listClients(firmId: string): Promise<ClientSummary[]> {
     const relationships = await this.prisma.cpaClientRelationship.findMany({
-      where: { firmId, removedAt: null },
+      where: { cpaFirmId: firmId, removedAt: null },
       include: {
         institution: {
           select: {
@@ -167,7 +168,7 @@ export class CpaClientService {
           },
         },
       },
-      orderBy: { addedAt: 'desc' },
+      orderBy: { assignedAt: 'desc' },
     });
 
     const summaries: ClientSummary[] = [];

@@ -54,6 +54,7 @@ export class AgentRunsController {
     private readonly audit: AgentAuditService,
   ) {}
 
+  // verify:body-trust-skip — URL :institutionId is the only authoritative tenancy binding (verified by class-level InstitutionScopeGuard); body.institutionId AND body.organizationId are silently ignored per the in-body comment below (institutionId IDOR closure pattern; organizationId stripped from runner.run() args, agent runs are scoped to the URL institutionId)
   @Post('run')
   // Per-user throttle on the expensive mutation. Each run triggers a
   // Claude Opus invocation costing $0.10–$1.00. Ceiling is 10/min per
@@ -82,10 +83,24 @@ export class AgentRunsController {
       });
     }
     const req = parsed.data;
+    // URL `:institutionId` wins — the class-level InstitutionScopeGuard
+    // verified ownership of the URL value, NOT the body value. The prior
+    // `req.institutionId ?? institutionId` allowed a caller authorized
+    // for institution-A to set `body.institutionId = 'attacker-target'`
+    // and run an agent on that institution's behalf. Body's
+    // `institutionId` field remains in the schema as `.optional()` for
+    // backward-compat with clients that send it (it's silently ignored).
+    //
+    // `body.organizationId` is also silently ignored (R3 verify-body-trust
+    // flagged this as a body-IDOR in 2eea5608 — same class of bug as the
+    // institutionId case above): accepting an unverified organizationId
+    // and passing it to the runner could tag runs under a different
+    // organization than the caller actually belongs to. The URL
+    // `:institutionId` is the authoritative tenancy binding; the runner
+    // derives any organization context downstream from the institution.
     return this.runner.run({
       agentId: req.agentId,
-      institutionId: req.institutionId ?? institutionId,
-      organizationId: req.organizationId,
+      institutionId,
       triggerKind: req.triggerKind,
       triggerRef: req.triggerRef,
       idempotencyKey:

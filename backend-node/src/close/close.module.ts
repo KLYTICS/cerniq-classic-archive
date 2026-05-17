@@ -7,6 +7,7 @@ import { BinderService } from './binder.service';
 import { ActivityService } from './activity.service';
 import { GlDataSourceService } from './gl-data-source.service';
 import { GlUploadService } from './gl-upload.service';
+import { OrgMembershipGuard } from './guards/org-membership.guard';
 
 /**
  * Close Cockpit module — month-end financial close workflow.
@@ -26,6 +27,7 @@ import { GlUploadService } from './gl-upload.service';
     ActivityService,
     GlDataSourceService,
     GlUploadService,
+    OrgMembershipGuard,
   ],
   exports: [
     CloseService,

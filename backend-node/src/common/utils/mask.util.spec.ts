@@ -48,7 +48,7 @@ describe('maskPhone', () => {
 
 describe('maskApiKey', () => {
   it('masks a standard API key', () => {
-    expect(maskApiKey('sk_live_abc123xyz789')).toBe('sk_****z789');
+    expect(maskApiKey('demo_key_abc123xyz789')).toBe('demo_****z789');
   });
 
   it('returns **** for short keys', () => {
@@ -106,7 +106,7 @@ describe('maskSensitiveFields', () => {
 
   it('masks API key fields', () => {
     const result = maskSensitiveFields({
-      apiKey: 'sk_live_abcdef1234567890',
+      apiKey: 'demo_key_abcdef1234567890',
     });
     expect(result.apiKey).toMatch(/^\w+_\*\*\*\*\w{4}$/);
   });

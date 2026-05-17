@@ -18,7 +18,7 @@ All variables sourced from `.env.example` at project root. Set these in Railway 
 
 | Variable | Example | Notes |
 |----------|---------|-------|
-| `DATABASE_URL` | `postgresql://user:pass@host:5432/cerniq` | `main.ts` exits if missing |
+| `DATABASE_URL` | `postgresql://<user>@host:5432/cerniq` | `main.ts` exits if missing |
 | `JWT_SECRET` | (cryptographically random, 32+ chars) | `main.ts` exits if < 32 chars |
 
 #### AUTH (Supabase)

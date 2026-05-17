@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { IsIn, IsOptional, IsString } from 'class-validator';
-import { AdminGuard } from '../common/guards/admin.guard';
+import { AdminKeyGuard } from '../auth/admin-key.guard';
 import { ControlTowerService } from './control-tower.service';
 import {
   type ControlTowerSummary,
@@ -35,7 +35,7 @@ class ControlTowerActionDto implements OperatorActionRequest {
 }
 
 @Controller('admin/api/control-tower')
-@UseGuards(AdminGuard)
+@UseGuards(AdminKeyGuard)
 export class ControlTowerController {
   constructor(private readonly controlTower: ControlTowerService) {}
 

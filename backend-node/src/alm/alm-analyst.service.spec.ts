@@ -224,6 +224,64 @@ describe('AlmAnalystService', () => {
         }),
       });
     });
+
+    it('persists Rule-9 provenance (promptVersion + usage + costCents + pricingVersion) into metadata', async () => {
+      await service.saveInsight(
+        'inst-001',
+        'Insight',
+        'user-001',
+        [],
+        'abc123def456',
+        {
+          inputTokens: 100,
+          outputTokens: 200,
+          cacheCreationInputTokens: 0,
+          cacheReadInputTokens: 50,
+        },
+        '0.7350',
+        '2026-05-15',
+      );
+
+      const call = (prisma.auditLog.create as jest.Mock).mock.calls[0][0];
+      expect(call.data.metadata).toMatchObject({
+        source: 'cerniq_analyst',
+        promptVersion: 'abc123def456',
+        usage: {
+          inputTokens: 100,
+          outputTokens: 200,
+          cacheCreationInputTokens: 0,
+          cacheReadInputTokens: 50,
+        },
+        costCents: '0.7350',
+        pricingVersion: '2026-05-15',
+      });
+    });
+
+    it('omits provenance fields from metadata when not provided (no silent placeholders)', async () => {
+      await service.saveInsight('inst-001', 'Insight', 'user-001');
+
+      const call = (prisma.auditLog.create as jest.Mock).mock.calls[0][0];
+      expect(call.data.metadata).not.toHaveProperty('promptVersion');
+      expect(call.data.metadata).not.toHaveProperty('usage');
+      expect(call.data.metadata).not.toHaveProperty('costCents');
+      expect(call.data.metadata).not.toHaveProperty('pricingVersion');
+    });
+
+    it('persists costCents: null when caller passes null (Rule 1: never silent-zero an unknown cost)', async () => {
+      await service.saveInsight(
+        'inst-001',
+        'Insight',
+        'user-001',
+        [],
+        'abc123def456',
+        null,
+        null,
+      );
+
+      const call = (prisma.auditLog.create as jest.Mock).mock.calls[0][0];
+      expect(call.data.metadata.costCents).toBeNull();
+      expect(call.data.metadata.usage).toBeNull();
+    });
   });
 
   describe('SSE event contracts', () => {

@@ -10,6 +10,7 @@ import { MarketDataService } from './market-data.service';
 import { TechnicalIndicatorsService } from './technical-indicators.service';
 import { CacheService } from '../cache/cache.service';
 
+// verify:auth-skip-controller — public technical-indicator + OHLCV chart data (no PII, sourced from public market feeds)
 @Controller('api/charts')
 export class ChartsController {
   constructor(

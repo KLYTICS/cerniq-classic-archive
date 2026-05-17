@@ -52,6 +52,7 @@ export class ApiV1Controller {
 
   // ─── Health ──────────────────────────────────────────────────────
 
+  // verify:auth-skip — public API v1 health probe (load balancers + integrators)
   @Get('health')
   @ApiTags('System')
   @ApiOperation({ summary: 'API v1 health check' })
@@ -78,6 +79,7 @@ export class ApiV1Controller {
 
   // ─── Frameworks (Public) ─────────────────────────────────────────
 
+  // verify:auth-skip — public reference data (COSSEC/NCUA framework list); no PII
   @Get('frameworks')
   @ApiTags('Reference Data')
   @ApiOperation({
@@ -97,6 +99,7 @@ export class ApiV1Controller {
 
   // ─── Benchmarks (Public) ─────────────────────────────────────────
 
+  // verify:auth-skip — public PR cooperativa sector benchmarks (COSSEC Q3 2025); aggregated, no per-institution data
   @Get('benchmarks')
   @ApiTags('Benchmarks')
   @ApiOperation({

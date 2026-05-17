@@ -20,7 +20,8 @@ const BCRYPT_SALT_ROUNDS = 12;
 const ACCESS_TOKEN_EXPIRY = '24h';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 const MASTER_ACCOUNT_NAME = 'Erwin Kiess';
-const DEV_MASTER_ACCOUNT_PASSWORD = 'ErwinKiess!CERNIQ2026';
+const DEV_MASTER_ACCOUNT_PASSWORD =
+  process.env.DEV_MASTER_ACCOUNT_PASSWORD || 'change-me-in-env';
 
 export interface AuthResponse {
   user: {

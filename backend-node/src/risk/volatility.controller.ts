@@ -14,6 +14,7 @@ import {
   VolatilityStatsDto,
 } from './dto/volatility.dto';
 
+// verify:auth-skip-controller — public volatility analytics on public market data (cones, heatmaps, RV-vs-IV, stats, health); no PII
 @Controller('api/risk/volatility')
 export class VolatilityController {
   constructor(private readonly volatilityService: VolatilityService) {}

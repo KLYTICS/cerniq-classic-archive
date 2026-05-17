@@ -5,60 +5,70 @@ import {
   Delete,
   Body,
   Param,
-  Query,
   Logger,
-  Headers,
+  Req,
   BadRequestException,
-  UnauthorizedException,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
-import { EnterpriseBatchService } from './enterprise-batch.service';
+import {
+  EnterpriseBatchService,
+  type EnterpriseBatchWithProgress,
+} from './enterprise-batch.service';
 import { WebhookDeliveryService } from './webhook-delivery.service';
+import {
+  ApiKeyAuthGuard,
+  type ApiKeyUser,
+} from '../api-v1/guards/api-key-auth.guard';
+import { OrgMembershipGuard } from '../close/guards/org-membership.guard';
 import {
   CreateBatchBodySchema,
   BatchIdParamSchema,
-  ListBatchesQuerySchema,
   parseOrThrow,
 } from './enterprise.dto';
+
+interface AuthedRequest {
+  apiUser: ApiKeyUser;
+  user?: {
+    access?: { isMasterCeo?: boolean };
+  };
+}
 
 /**
  * Enterprise API Controller — $2,500/mo tier.
  * Provides bulk report generation, batch management, and webhook delivery logs.
- * All endpoints require API key authentication via X-Api-Key header.
+ *
+ * Authentication: `@UseGuards(ApiKeyAuthGuard)` at class level. The guard
+ * reads the API key from either `Authorization: Bearer <api-key>` (Public
+ * API v1 convention, preferred) or `X-Api-Key: <api-key>` (legacy
+ * Enterprise convention, supported for backward compatibility — see
+ * `api-v1/guards/api-key-auth.guard.ts` extractApiKey()). Pre-migration
+ * (`97e588da` and earlier) this controller used an inline
+ * `validateApiKey()` helper that (a) hashed keys with plain SHA-256 while
+ * the rest of the system uses HMAC-with-pepper (`hashApiKey()` from
+ * `auth/api-key.util.ts`), so real customer-issued keys never matched
+ * any stored hash, and (b) passed the raw API key into `requestedBy` for
+ * the bulk-batch record. The guard fixes both: canonical HMAC hash means
+ * real keys authenticate, and `req.apiUser.userId` is populated for
+ * `requestedBy` lineage. AUTH_COVERAGE_AUDIT.md Pattern #4 closure.
  */
 @Controller('api/v1/enterprise')
+@UseGuards(ApiKeyAuthGuard)
 export class EnterpriseController {
   private readonly logger = new Logger(EnterpriseController.name);
 
   constructor(
     private readonly batchService: EnterpriseBatchService,
     private readonly webhookService: WebhookDeliveryService,
+    private readonly orgMembership: OrgMembershipGuard,
   ) {}
-
-  // ─── Auth helper ────────────────────────────────────────────────────────
-
-  private validateApiKey(apiKey: string | undefined): void {
-    if (!apiKey) {
-      throw new UnauthorizedException('Missing X-Api-Key header');
-    }
-    // In production, validate against the organization's API key via Prisma.
-    // For the scaffold we accept any non-empty key.
-    if (apiKey.length < 16) {
-      throw new UnauthorizedException('Invalid API key');
-    }
-  }
 
   // ─── POST /api/v1/enterprise/reports/bulk ───────────────────────────────
 
   @Post('reports/bulk')
   @HttpCode(HttpStatus.CREATED)
-  async createBatch(
-    @Headers('x-api-key') apiKey: string,
-    @Body() body: unknown,
-  ) {
-    this.validateApiKey(apiKey);
-
+  async createBatch(@Req() req: AuthedRequest, @Body() body: unknown) {
     let dto;
     try {
       dto = parseOrThrow(CreateBatchBodySchema, body);
@@ -66,9 +76,26 @@ export class EnterpriseController {
       throw new BadRequestException(err.issues ?? err.message);
     }
 
+    // IDOR closure (follow-up to e602c1d7 auth migration). The dto carries
+    // a body-supplied `organizationId`; without this check, any caller
+    // with a valid Enterprise API key could submit batches against any
+    // org they could guess or learn (the API key authenticates the user,
+    // but the user is not implicitly authorized for every org). Mirrors
+    // the agents.controller closure pattern (commit 6b73eb24 §3) — the
+    // primitive throws `ForbiddenException` on non-membership and
+    // fail-closes on Prisma errors.
+    await this.orgMembership.verifyMembership(
+      dto.organizationId,
+      req.apiUser.userId,
+      req.user?.access?.isMasterCeo === true,
+    );
+
     const batch = await this.batchService.createBatch({
       ...dto,
-      requestedBy: apiKey, // In production, resolve to user from API key
+      // Guard populates req.apiUser with the resolved user — `userId` is
+      // the canonical identity, replacing the pre-migration
+      // `requestedBy: apiKey` raw-key leak (97e588da §latent-bug).
+      requestedBy: req.apiUser.userId,
     });
 
     this.logger.log({
@@ -90,17 +117,44 @@ export class EnterpriseController {
     };
   }
 
+  // ─── Auth helper for batchId routes ─────────────────────────────────────
+  //
+  // Closes the IDOR follow-up flagged in ff1ce9e4 §"Out of scope". The 4
+  // batchId-based routes (getBatch, getBatchStatus, cancelBatch,
+  // getWebhookLog) accept a UUID without checking that the caller belongs
+  // to the batch's owning organization. Unguessable UUIDs help, but the
+  // IDs leak via logs, webhook URLs, and the createBatch response — once
+  // an ID is known, any valid Enterprise key could read/cancel it.
+  //
+  // The helper fetches the batch (NotFoundException from
+  // batchService.getBatch propagates as 404), then runs verifyMembership
+  // on the batch's organizationId. Forbidden from verifyMembership
+  // propagates as 403 to the caller. Returns the batch so callers that
+  // already need it (getBatch, getBatchStatus) avoid the second fetch.
+  //
+  // Anti-enumeration note: we keep the 404-vs-403 distinction rather
+  // than collapsing both to 404. The batchId is a v4 UUID — the side
+  // channel ("does this ID exist?") leaks effectively zero information
+  // because brute-forcing UUIDs is infeasible.
+  private async assertBatchAccess(
+    batchId: string,
+    req: AuthedRequest,
+  ): Promise<EnterpriseBatchWithProgress> {
+    const batch = await this.batchService.getBatch(batchId);
+    await this.orgMembership.verifyMembership(
+      batch.organizationId,
+      req.apiUser.userId,
+      req.user?.access?.isMasterCeo === true,
+    );
+    return batch;
+  }
+
   // ─── GET /api/v1/enterprise/reports/batch/:batchId ──────────────────────
 
   @Get('reports/batch/:batchId')
-  async getBatch(
-    @Headers('x-api-key') apiKey: string,
-    @Param() params: unknown,
-  ) {
-    this.validateApiKey(apiKey);
-
+  async getBatch(@Req() req: AuthedRequest, @Param() params: unknown) {
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
-    const batch = await this.batchService.getBatch(batchId);
+    const batch = await this.assertBatchAccess(batchId, req);
 
     return {
       batchId: batch.id,
@@ -124,14 +178,9 @@ export class EnterpriseController {
   // Lightweight polling endpoint — returns only status fields.
 
   @Get('reports/batch/:batchId/status')
-  async getBatchStatus(
-    @Headers('x-api-key') apiKey: string,
-    @Param() params: unknown,
-  ) {
-    this.validateApiKey(apiKey);
-
+  async getBatchStatus(@Req() req: AuthedRequest, @Param() params: unknown) {
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
-    const batch = await this.batchService.getBatch(batchId);
+    const batch = await this.assertBatchAccess(batchId, req);
 
     return {
       batchId: batch.id,
@@ -148,26 +197,18 @@ export class EnterpriseController {
 
   @Delete('reports/batch/:batchId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async cancelBatch(
-    @Headers('x-api-key') apiKey: string,
-    @Param() params: unknown,
-  ) {
-    this.validateApiKey(apiKey);
-
+  async cancelBatch(@Req() req: AuthedRequest, @Param() params: unknown) {
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
+    await this.assertBatchAccess(batchId, req);
     await this.batchService.cancelBatch(batchId);
   }
 
   // ─── GET /api/v1/enterprise/webhooks/:batchId ───────────────────────────
 
   @Get('webhooks/:batchId')
-  async getWebhookLog(
-    @Headers('x-api-key') apiKey: string,
-    @Param() params: unknown,
-  ) {
-    this.validateApiKey(apiKey);
-
+  async getWebhookLog(@Req() req: AuthedRequest, @Param() params: unknown) {
     const { batchId } = parseOrThrow(BatchIdParamSchema, params);
+    await this.assertBatchAccess(batchId, req);
     const logs = await this.webhookService.getDeliveryLog(batchId);
 
     return {

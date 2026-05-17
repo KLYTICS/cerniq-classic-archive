@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 
 /**
@@ -151,18 +152,15 @@ export class DemoSeatEngagementService {
         where: { prospectInstitutionId: { in: prospectInstitutionIds } },
         _count: { _all: true },
       }),
-      this.prisma.$queryRawUnsafe(
-        `
+      this.prisma.$queryRaw(Prisma.sql`
         SELECT DISTINCT ON (prospect_institution_id)
           prospect_institution_id,
           event_type,
           created_at
         FROM demo_seat_engagement_events
-        WHERE prospect_institution_id = ANY($1::text[])
+        WHERE prospect_institution_id = ANY(${prospectInstitutionIds}::text[])
         ORDER BY prospect_institution_id, created_at DESC
-        `,
-        prospectInstitutionIds,
-      ),
+      `),
     ])) as [
       Array<{
         prospectInstitutionId: string;

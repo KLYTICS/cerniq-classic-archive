@@ -7,11 +7,9 @@ import {
   Param,
   Query,
   Body,
-  Headers,
   HttpCode,
   HttpStatus,
   UseGuards,
-  UnauthorizedException,
   ServiceUnavailableException,
   Req,
   Res,
@@ -23,7 +21,7 @@ import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import { CacheService } from './cache/cache.service';
 import { AuthGuard } from './auth/auth.guard';
-import { AdminGuard } from './common/guards/admin.guard';
+import { AdminKeyGuard } from './auth/admin-key.guard';
 import { EmailService } from './email/email.service';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { DemoRequestDto } from './dto/demo-request.dto';
@@ -211,6 +209,7 @@ export class AppController {
     }
   }
 
+  // verify:auth-skip — public demo-request capture from marketing site; throttled 5/min/IP
   @Post('api/demo-request')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(HttpStatus.CREATED)
@@ -252,6 +251,7 @@ export class AppController {
     return { id: record.id, message: 'Demo request received' };
   }
 
+  // verify:auth-skip — root index; service banner string only
   @Get()
   getHello(): string {
     return this.appService.getHello();
@@ -263,6 +263,7 @@ export class AppController {
     AppController.shuttingDown = true;
   }
 
+  // verify:auth-skip — public health probe for load balancers + uptime monitors
   @Get('health')
   @SkipThrottle()
   async getHealth() {
@@ -326,6 +327,7 @@ export class AppController {
     };
   }
 
+  // verify:auth-skip — Kubernetes-style readiness probe; 200 when accepting traffic, 503 during shutdown
   @Get('ready')
   @SkipThrottle()
   async getReady(@Res({ passthrough: true }) res: Response) {
@@ -363,6 +365,7 @@ export class AppController {
     };
   }
 
+  // verify:auth-skip — Kubernetes liveness probe; minimal-payload alive-check
   @Get('health/live')
   @SkipThrottle()
   getLiveness() {
@@ -375,7 +378,7 @@ export class AppController {
 
   @Get('metrics')
   @SkipThrottle()
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getMetrics() {
     const mem = process.memoryUsage();
 
@@ -421,7 +424,7 @@ export class AppController {
 
   @Get('api/admin/webhook-delivery-logs')
   @SkipThrottle()
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminKeyGuard)
   async getWebhookDeliveryLogs() {
     const subscriptions = await this.prisma.webhookSubscription.findMany({
       take: 100,
@@ -451,6 +454,7 @@ export class AppController {
     };
   }
 
+  // verify:auth-skip — detailed health (dependencies, pool stats); env-gated to dev/staging unless HEALTH_DETAILS_PUBLIC=1
   @Get('health/detailed')
   @SkipThrottle()
   async getHealthDetailed() {
@@ -517,8 +521,8 @@ export class AppController {
   }
 
   @Get('api/admin/demo-requests')
-  async getDemoRequests(@Headers('x-admin-key') adminKey: string) {
-    this.verifyAdmin(adminKey);
+  @UseGuards(AdminKeyGuard)
+  async getDemoRequests() {
     return this.prisma.demoRequest.findMany({
       orderBy: { createdAt: 'desc' },
       take: 100,
@@ -527,8 +531,8 @@ export class AppController {
 
   @Delete('api/admin/demo-data')
   @HttpCode(HttpStatus.OK)
-  async resetDemoData(@Headers('x-admin-key') adminKey: string) {
-    this.verifyAdmin(adminKey);
+  @UseGuards(AdminKeyGuard)
+  async resetDemoData() {
     await this.prisma.balanceSheetItem.deleteMany({});
     await this.prisma.interestRateScenario.deleteMany({});
     await this.prisma.liquidityPosition.deleteMany({});
@@ -537,8 +541,8 @@ export class AppController {
   }
 
   @Get('api/admin/stats')
-  async getAdminStats(@Headers('x-admin-key') adminKey: string) {
-    this.verifyAdmin(adminKey);
+  @UseGuards(AdminKeyGuard)
+  async getAdminStats() {
     const [demoRequests, institutions, users, prospects] = await Promise.all([
       this.prisma.demoRequest.count(),
       this.prisma.institution.count(),
@@ -555,8 +559,8 @@ export class AppController {
 
   @Post('api/admin/seed-prospects')
   @HttpCode(HttpStatus.CREATED)
-  async seedProspects(@Headers('x-admin-key') adminKey: string) {
-    this.verifyAdmin(adminKey);
+  @UseGuards(AdminKeyGuard)
+  async seedProspects() {
     const seedJson = process.env.PROSPECT_SEED_DATA;
     if (!seedJson) {
       return {
@@ -618,6 +622,7 @@ export class AppController {
     });
   }
 
+  // verify:auth-skip — public service banner (name, version, env, uptime, endpoint catalog)
   @Get('api/status')
   @SkipThrottle()
   getStatus() {
@@ -640,11 +645,8 @@ export class AppController {
   // --- Prospect CRM Endpoints ---
 
   @Get('api/admin/prospects')
-  async getProspects(
-    @Headers('x-admin-key') adminKey: string,
-    @Query('stage') stage?: string,
-  ) {
-    this.verifyAdmin(adminKey);
+  @UseGuards(AdminKeyGuard)
+  async getProspects(@Query('stage') stage?: string) {
     const where = stage ? { stage: stage as any } : {};
     return this.prisma.prospect.findMany({
       where,
@@ -654,8 +656,8 @@ export class AppController {
 
   @Post('api/admin/prospects')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(AdminKeyGuard)
   async createProspect(
-    @Headers('x-admin-key') adminKey: string,
     @Body()
     body: {
       name: string;
@@ -667,7 +669,6 @@ export class AppController {
       notes?: string;
     },
   ) {
-    this.verifyAdmin(adminKey);
     return this.prisma.prospect.create({
       data: {
         name: body.name,
@@ -682,8 +683,8 @@ export class AppController {
   }
 
   @Patch('api/admin/prospects/:id')
+  @UseGuards(AdminKeyGuard)
   async updateProspect(
-    @Headers('x-admin-key') adminKey: string,
     @Param('id') id: string,
     @Body()
     body: {
@@ -695,7 +696,6 @@ export class AppController {
       role?: string;
     },
   ) {
-    this.verifyAdmin(adminKey);
     const data: any = {};
     if (body.stage !== undefined) data.stage = body.stage;
     if (body.notes !== undefined) data.notes = body.notes;
@@ -708,19 +708,15 @@ export class AppController {
 
   @Delete('api/admin/prospects/:id')
   @HttpCode(HttpStatus.OK)
-  async deleteProspect(
-    @Headers('x-admin-key') adminKey: string,
-    @Param('id') id: string,
-  ) {
-    this.verifyAdmin(adminKey);
+  @UseGuards(AdminKeyGuard)
+  async deleteProspect(@Param('id') id: string) {
     await this.prisma.prospect.delete({ where: { id } });
     return { message: 'Prospect deleted' };
   }
 
   @Get('api/admin/ops')
-  async getAdminOps(@Headers('x-admin-key') adminKey: string) {
-    this.verifyAdmin(adminKey);
-
+  @UseGuards(AdminKeyGuard)
+  async getAdminOps() {
     const [recentJobs, activeSubscriptions, totalAnalysisRuns] =
       await Promise.all([
         this.prisma.reportJob.findMany({
@@ -755,21 +751,8 @@ export class AppController {
   }
 
   @Get('api/admin/exit-metrics')
-  async getExitMetrics(@Headers('x-admin-key') adminKey: string) {
-    this.verifyAdmin(adminKey);
+  @UseGuards(AdminKeyGuard)
+  async getExitMetrics() {
     return this.exitMetricsService.getExitMetrics();
-  }
-
-  private verifyAdmin(key: string) {
-    const adminKey = process.env.ADMIN_KEY;
-    if (!adminKey || !key) {
-      throw new UnauthorizedException('Invalid admin key');
-    }
-    // Timing-safe comparison to prevent oracle attacks
-    const a = Buffer.from(key);
-    const b = Buffer.from(adminKey);
-    if (a.length !== b.length || !require('crypto').timingSafeEqual(a, b)) {
-      throw new UnauthorizedException('Invalid admin key');
-    }
   }
 }

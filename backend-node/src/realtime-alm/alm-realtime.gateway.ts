@@ -9,9 +9,11 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { MarketDataFeedService } from './market-data-feed.service';
 import { RateAlertService } from './rate-alert.service';
 import { AlmRecalcService } from './alm-recalc.service';
+import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 import {
   SubscribePayloadSchema,
   MarketDataSnapshot,
@@ -24,9 +26,24 @@ const DEFAULT_POLL_MS = 300_000;
 /** Heartbeat interval: 30 seconds. */
 const HEARTBEAT_MS = 30_000;
 
+/** Per-socket authenticated user context bound at handshake time. */
+interface SocketUserCtx {
+  userId: string;
+  isMasterCeo: boolean;
+}
+
 @WebSocketGateway({
   namespace: '/alm-realtime',
-  cors: { origin: '*' },
+  cors: {
+    origin: [
+      'https://cerniq.io',
+      'https://www.cerniq.io',
+      /\.vercel\.app$/,
+      ...(process.env.NODE_ENV !== 'production'
+        ? ['http://localhost:3000']
+        : []),
+    ],
+  },
 })
 export class AlmRealtimeGateway
   implements
@@ -53,6 +70,8 @@ export class AlmRealtimeGateway
     private readonly marketDataFeed: MarketDataFeedService,
     private readonly rateAlertService: RateAlertService,
     private readonly almRecalcService: AlmRecalcService,
+    private readonly institutionScope: InstitutionScopeGuard,
+    private readonly jwtService: JwtService,
   ) {}
 
   // ─── Lifecycle ─────────────────────────────────────────────
@@ -82,22 +101,45 @@ export class AlmRealtimeGateway
     this.clientSubscriptions.clear();
   }
 
-  // ─── Connection handling ───────────────────────────────────
+  // ─── Connection handling (closes CRITICAL body-trust IDOR) ─
+  //
+  // Pre-fix: handleConnection only checked token *presence* — any
+  // non-empty bearer string accepted, no JWT verification, no userId
+  // binding. Combined with body-trust on `institutionId` in
+  // handleSubscribe, any caller knowing the WS endpoint could join
+  // `institution:<ANY_ID>` rooms and receive cross-tenant alerts +
+  // recalc events.
+  //
+  // Post-fix: extract a JWT from `client.handshake.auth.token` (socket.io
+  // standard auth channel) or the legacy `Authorization: Bearer <token>`
+  // header. Verify via the same dual-source pattern AuthGuard uses
+  // (legacy JwtService, then Supabase fallback). Reject on missing or
+  // invalid — fail-closed, no anonymous fallback. Verified userId and
+  // master-CEO flag land on `client.data.user` for the subscribe handler.
+  //
+  // Mirrors b2a64c25 (ai-advisor WS gateway) + 6d9d7394 (Supabase JWT
+  // fallback). Per-handler ownership verification follows the same
+  // single-primitive contract: `institutionScope.verifyOwnership(...)`.
 
-  handleConnection(client: Socket): void {
-    // Validate auth token from handshake (permissive for now — log and allow)
-    const token =
-      client.handshake?.auth?.token ?? client.handshake?.headers?.authorization;
-
-    if (!token) {
+  async handleConnection(client: Socket): Promise<void> {
+    const user = await this.verifyClientToken(client);
+    if (!user) {
       this.logger.warn(
-        `Client ${client.id} connected without auth token — allowing in demo mode`,
+        `ALM realtime WS rejected: missing/invalid token (clientId=${client.id})`,
       );
-    } else {
-      this.logger.log(`Client ${client.id} connected (token present)`);
+      client.emit('error', {
+        code: 'UNAUTHENTICATED',
+        message: 'Missing or invalid auth token',
+      });
+      client.disconnect(true);
+      return;
     }
-
+    client.data.user = user;
     this.clientSubscriptions.set(client.id, new Set());
+
+    this.logger.log(
+      `ALM realtime WS connected: user=${user.userId} (clientId=${client.id})`,
+    );
 
     client.emit('connectionStatus', {
       status: 'connected',
@@ -123,6 +165,17 @@ export class AlmRealtimeGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: unknown,
   ): Promise<{ success: boolean; message: string }> {
+    // Defense-in-depth user-presence re-check: handleConnection should
+    // have rejected unauthenticated sockets, but a regression on that
+    // path can't silently re-open the bypass — fail-closed here too.
+    const user = client.data.user as SocketUserCtx | undefined;
+    if (!user) {
+      return {
+        success: false,
+        message: 'UNAUTHENTICATED: No auth context on this socket',
+      };
+    }
+
     const parsed = SubscribePayloadSchema.safeParse(payload);
     if (!parsed.success) {
       return {
@@ -132,15 +185,36 @@ export class AlmRealtimeGateway
     }
 
     const { institutionId } = parsed.data;
-    const roomName = `institution:${institutionId}`;
 
+    // Verify caller owns the institution BEFORE joining the room.
+    // Single source of truth for institution-ownership across HTTP /
+    // WS / body-param surfaces (matches ai-advisor.gateway:152,
+    // ai-advisor.controller:ask, agent-trust.controller, etc.).
+    try {
+      await this.institutionScope.verifyOwnership(
+        institutionId,
+        user.userId,
+        user.isMasterCeo,
+      );
+    } catch (err) {
+      // Fail-closed: WARN already logged inside verifyOwnership.
+      return {
+        success: false,
+        message:
+          err instanceof Error
+            ? `FORBIDDEN: ${err.message}`
+            : 'FORBIDDEN: Not authorized for institution',
+      };
+    }
+
+    const roomName = `institution:${institutionId}`;
     await client.join(roomName);
     const subs = this.clientSubscriptions.get(client.id) ?? new Set<string>();
     subs.add(institutionId);
     this.clientSubscriptions.set(client.id, subs);
 
     this.logger.log(
-      `Client ${client.id} subscribed to institution ${institutionId}`,
+      `ALM realtime WS subscribe: user=${user.userId} institution=${institutionId} (clientId=${client.id})`,
     );
 
     // Send latest cached recalc if available
@@ -166,6 +240,14 @@ export class AlmRealtimeGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: unknown,
   ): Promise<{ success: boolean; message: string }> {
+    const user = client.data.user as SocketUserCtx | undefined;
+    if (!user) {
+      return {
+        success: false,
+        message: 'UNAUTHENTICATED: No auth context on this socket',
+      };
+    }
+
     const parsed = SubscribePayloadSchema.safeParse(payload);
     if (!parsed.success) {
       return {
@@ -175,13 +257,35 @@ export class AlmRealtimeGateway
     }
 
     const { institutionId } = parsed.data;
+
+    // Verify ownership before leaving the room: leaving a room you
+    // don't own is harmless on socket.io side, but the check denies
+    // an unauthenticated reconnaissance path that probes which
+    // institution ids exist (response message would otherwise differ
+    // between known and unknown ids if leave behavior diverged).
+    try {
+      await this.institutionScope.verifyOwnership(
+        institutionId,
+        user.userId,
+        user.isMasterCeo,
+      );
+    } catch (err) {
+      return {
+        success: false,
+        message:
+          err instanceof Error
+            ? `FORBIDDEN: ${err.message}`
+            : 'FORBIDDEN: Not authorized for institution',
+      };
+    }
+
     await client.leave(`institution:${institutionId}`);
 
     const subs = this.clientSubscriptions.get(client.id);
     subs?.delete(institutionId);
 
     this.logger.log(
-      `Client ${client.id} unsubscribed from institution ${institutionId}`,
+      `ALM realtime WS unsubscribe: user=${user.userId} institution=${institutionId} (clientId=${client.id})`,
     );
     return { success: true, message: `Unsubscribed from ${institutionId}` };
   }
@@ -326,5 +430,101 @@ export class AlmRealtimeGateway
   private round(n: number, decimals = 4): number {
     const factor = 10 ** decimals;
     return Math.round(n * factor) / factor;
+  }
+
+  // ─── Auth helpers (dual-source: legacy JWT then Supabase) ──
+  //
+  // Same dual-source pattern as `AuthGuard.canActivate` (legacy
+  // `JwtService.verify` then Supabase `${SUPABASE_URL}/auth/v1/user`
+  // HTTP lookup) and as `AiAdvisorGateway.verifyClientToken`. Inlined
+  // here rather than calling a shared `AuthService` to keep the gateway
+  // self-contained — when the auth-coverage-audit Phase B work
+  // consolidates both into a single primitive, this branch + the
+  // ai-advisor gateway's branch swap together.
+
+  private async verifyClientToken(
+    client: Socket,
+  ): Promise<SocketUserCtx | null> {
+    const token = this.extractToken(client);
+    if (!token) return null;
+
+    const legacy = this.tryVerifyLegacyJwt(token);
+    if (legacy) return legacy;
+
+    const supabase = await this.tryVerifySupabaseToken(token);
+    if (supabase) return supabase;
+
+    this.logger.warn(
+      `ALM realtime WS token failed both legacy and Supabase verification (clientId=${client.id})`,
+    );
+    return null;
+  }
+
+  private tryVerifyLegacyJwt(token: string): SocketUserCtx | null {
+    try {
+      const payload = this.jwtService.verify(token);
+      const userId =
+        (payload?.userId as string | undefined) ??
+        (payload?.sub as string | undefined);
+      if (!userId) return null;
+      const access = payload?.access as { isMasterCeo?: boolean } | undefined;
+      return {
+        userId,
+        isMasterCeo: !!access?.isMasterCeo,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private async tryVerifySupabaseToken(
+    token: string,
+  ): Promise<SocketUserCtx | null> {
+    const supabaseUrl = (process.env.SUPABASE_URL || '')
+      .trim()
+      .replace(/\/$/, '');
+    const anonKey =
+      (process.env.SUPABASE_ANON_KEY || '').trim() ||
+      (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+    if (!supabaseUrl || !anonKey) return null;
+
+    try {
+      const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) return null;
+      const user = (await response.json()) as { id?: string };
+      if (!user?.id) return null;
+      // Supabase tokens don't carry the platform `isMasterCeo` claim
+      // (that lives in PlatformAccessService and is applied by
+      // AuthGuard for HTTP requests). WS Supabase users get the
+      // normal-user flag here; cross-tenant master-CEO support over
+      // WS would require mirroring AuthGuard's PlatformAccessService
+      // lookup in this branch — a follow-up if needed.
+      return {
+        userId: user.id,
+        isMasterCeo: false,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private extractToken(client: Socket): string | null {
+    const auth = client.handshake.auth as Record<string, unknown> | undefined;
+    const fromAuth =
+      (auth?.token as string | undefined) ||
+      (auth?.accessToken as string | undefined);
+    if (fromAuth) return fromAuth;
+
+    const header = client.handshake.headers?.authorization;
+    if (typeof header === 'string') {
+      const m = header.match(/^Bearer\s+(.+)$/i);
+      if (m) return m[1];
+    }
+    return null;
   }
 }

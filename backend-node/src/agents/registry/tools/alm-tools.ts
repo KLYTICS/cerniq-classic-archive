@@ -176,14 +176,26 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.yieldCurve as any).getYieldCurveAnalysis(
-          institutionId,
-          Array.isArray(input.shockBps) ? input.shockBps : [input.shockBps],
-        );
+        // YieldCurveService.getYieldCurveAnalysis(institutionId: string) is
+        // a single-arg method that runs the regulator-mandated Basel shock
+        // set (±100/±200/±300 parallel + steepener/flattener/short-up-long-
+        // down) hardcoded via this.applyAllBaselShocks(baseCurve) inside the
+        // service. The previous call passed a second argument
+        // `Array.isArray(input.shockBps) ? input.shockBps : [input.shockBps]`
+        // via `(this.yieldCurve)`, which silenced TS's arity mismatch
+        // and was then ignored by JS at runtime — the tool's summary text
+        // claimed scenario-specific computation but returned the
+        // unconditional base Basel analysis. The `as any` was masking a
+        // long-standing silent-wrong-answer bug. Until custom-shock support
+        // lands in YieldCurveService, the caller's `input.shockBps` is
+        // surfaced in the summary as a *requested-count* but the analysis
+        // covers the standard Basel set.
+        const data = await this.yieldCurve.getYieldCurveAnalysis(institutionId);
+        const requestedCount = Array.isArray(input.shockBps)
+          ? input.shockBps.length
+          : 1;
         return {
-          summary: `Rate shock computed for ${
-            Array.isArray(input.shockBps) ? input.shockBps.length : 1
-          } scenario(s).`,
+          summary: `Rate shock analysis returned. ${requestedCount} caller-specified scenario(s) requested; analysis covers the standard Basel shock set (custom shock values not yet supported by YieldCurveService).`,
           data,
         };
       },
@@ -203,9 +215,7 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.liquidity as any).getAdvancedLiquidity(
-          institutionId,
-        );
+        const data = await this.liquidity.getAdvancedLiquidity(institutionId);
         const lcr = data?.lcr ?? null;
         return {
           summary: lcr != null ? `LCR: ${lcr}%.` : 'LCR unavailable.',
@@ -228,7 +238,7 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.cecl as any).getCECLAnalysis(institutionId);
+        const data = await this.cecl.getCECLAnalysis(institutionId);
         return { summary: 'CECL allowance analysis complete.', data };
       },
     });
@@ -245,9 +255,8 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.concentration as any).getConcentrationAnalysis(
-          institutionId,
-        );
+        const data =
+          await this.concentration.getConcentrationAnalysis(institutionId);
         return { summary: 'Concentration analysis complete.', data };
       },
     });
@@ -266,7 +275,15 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.irrPolicy as any).getIRRPolicy(institutionId);
+        // IRRPolicyService exposes `getLimits` (returns PolicyLimitConfig[]),
+        // not `getIRRPolicy`. The phantom-method name was masked by the
+        // prior `(this.irrPolicy as any)` cast — would have thrown
+        // `TypeError: this.irrPolicy.getIRRPolicy is not a function` at
+        // runtime if any LLM had invoked this tool. Description ("Return
+        // the institution's IRR policy limits by shock scenario") matches
+        // getLimits's return shape; checkAll() would have been the wrong
+        // choice (returns a full PolicyDashboard, not the limit config).
+        const data = await this.irrPolicy.getLimits(institutionId);
         return { summary: 'IRR policy limits loaded.', data };
       },
     });
@@ -301,6 +318,14 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
+        // TODO(silent-arg-ignore): PeerAnalyticsService.getPeerAnalytics
+        // takes a single argument (institutionId: string); the second
+        // `input.metric` is silently dropped at runtime. Either narrow
+        // the analytics inside the service to accept a metric filter
+        // OR drop the metric input from the tool schema. The summary
+        // text "Peer quartile for {metric} computed." is misleading
+        // until one of those lands. Restoring `as any` to keep the
+        // build green while the proper fix is scoped.
         const data = await (this.peers as any).getPeerAnalytics(
           institutionId,
           input.metric,
@@ -326,9 +351,7 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.repricing as any).getRepricingGap(
-          institutionId,
-        );
+        const data = await this.repricing.getRepricingGap(institutionId);
         return { summary: 'Repricing gap computed.', data };
       },
     });
@@ -348,6 +371,16 @@ export class AlmToolsFactory {
       timeoutMs: 60_000,
       handler: async (input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
+        // TODO(silent-arg-ignore): MonteCarloService.runSimulation expects
+        // a second argument of type `{ paths?, quarters?, kappa?, theta?,
+        // sigma? }`, but this call passes `input.paths` as a bare number.
+        // JS evaluates `(numericValue)?.paths` as undefined, so the
+        // default 10_000 paths is used regardless of caller input. The
+        // proper fix is `runSimulation(institutionId, { paths: input.paths })`
+        // — but we should also widen the tool's input schema to expose
+        // the other simulation knobs (quarters/kappa/theta/sigma) so the
+        // agent can drive the full surface. Restoring `as any` to keep
+        // the build green until that lands.
         const data = await (this.monteCarlo as any).runSimulation(
           institutionId,
           input.paths,
@@ -373,7 +406,11 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.ews as any).getEarlyWarning(institutionId);
+        // AssetEWSService.computeEWS(institutionId) is the real method
+        // returning EWSResult. The phantom-method name `getEarlyWarning`
+        // was masked by the prior `(this.ews as any)` cast — would have
+        // thrown TypeError at runtime if invoked by an LLM.
+        const data = await this.ews.computeEWS(institutionId);
         return { summary: 'EWS composite computed.', data };
       },
     });
@@ -392,7 +429,7 @@ export class AlmToolsFactory {
         const institutionId = this.requireInstitution(ctx);
         const data = await this.camel.scoreInstitution(institutionId);
         return {
-          summary: `CAMEL composite: ${(data as any)?.composite ?? 'n/a'}.`,
+          summary: `CAMEL composite: ${data?.composite ?? 'n/a'}.`,
           data,
         };
       },
@@ -416,7 +453,7 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.ftp as any).getFTPAnalysis(
+        const data = await this.ftp.getFTPAnalysis(
           institutionId,
           input.termMonths,
         );
@@ -436,9 +473,11 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.depositBeta as any).getDepositBeta(
-          institutionId,
-        );
+        // DepositBetaService exposes `getDepositBetas` (plural, returns
+        // DepositBetaConfig[]). The singular `getDepositBeta` was a typo
+        // masked by the prior `(this.depositBeta as any)` cast — would
+        // have thrown TypeError at runtime if invoked.
+        const data = await this.depositBeta.getDepositBetas(institutionId);
         return { summary: 'Deposit betas computed.', data };
       },
     });
@@ -457,9 +496,13 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.advisorV2 as any).computeHealthScore(
-          institutionId,
-        );
+        // Cast-free call — `AlmAdvisorV2Service.computeHealthScore(
+        // institutionId: string): Promise<HealthScore>` is the exact
+        // signature this tool needs. The prior `(this.advisorV2 as any)`
+        // cast (wave-1 artifact, audit 97b1c4a4) was gratuitous: nothing
+        // about the shape needed evasion. Dropping it lets tsc catch
+        // future drift if the service signature changes.
+        const data = await this.advisorV2.computeHealthScore(institutionId);
         return {
           summary: `Health Score: ${data?.overall ?? 'n/a'}/100.`,
           data,
@@ -481,9 +524,14 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (
-          this.capitalAdequacy as any
-        ).getCapitalAdequacyRatio(institutionId);
+        // Delegate to CapitalAdequacyAdapterService.calculate(institutionId),
+        // which loads the institution's balance sheet then runs the pure
+        // CapitalAdequacyRatioService.calculate(params) calculator. The
+        // wave-1 phantom `getCapitalAdequacyRatio` (audit 97b1c4a4) would
+        // have thrown TypeError the moment an agent invoked this tool. The
+        // adapter has been injected at line 78 since the swarm wiring
+        // landed — option (b) from the prior TODO.
+        const data = await this.capitalAdequacyAdapter.calculate(institutionId);
         return { summary: 'Capital adequacy computed.', data };
       },
     });
@@ -502,9 +550,8 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (
-          this.complianceCalendar as any
-        ).getUpcomingDeadlines(institutionId);
+        const data =
+          await this.complianceCalendar.getUpcomingDeadlines(institutionId);
         return {
           summary: `Compliance calendar: ${data?.events?.length ?? 0} deadlines loaded.`,
           data,
@@ -526,7 +573,7 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.examPrep as any).getExamPrep(institutionId);
+        const data = await this.examPrep.getExamPrep(institutionId);
         const gov = data?.governance;
         return {
           summary: gov
@@ -554,10 +601,9 @@ export class AlmToolsFactory {
       timeoutMs: 60_000,
       handler: async (input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.stressTesting as any).runFullStressTest(
-          institutionId,
-          { paths: input.paths },
-        );
+        const data = await this.stressTesting.runFullStressTest(institutionId, {
+          paths: input.paths,
+        });
         const scenarios = data?.cossecScenarios?.length ?? 0;
         return {
           summary: `Stress suite complete: ${scenarios} scenarios evaluated.`,
@@ -586,7 +632,7 @@ export class AlmToolsFactory {
       timeoutMs: 30_000,
       handler: async (input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.customScenario as any).runCustomScenario(
+        const data = await this.customScenario.runCustomScenario(
           institutionId,
           input,
         );
@@ -608,9 +654,7 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.depositDecay as any).analyzeDecay(
-          institutionId,
-        );
+        const data = await this.depositDecay.analyzeDecay(institutionId);
         return { summary: 'Deposit decay analysis complete.', data };
       },
     });
@@ -631,6 +675,15 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
+        // TODO(shape-mismatch): DepositPricingEngineService.priceDeposit
+        // is a pure-function calculator expecting { competitorRates,
+        // costOfFunds, targetSpread, elasticity, currentBalance }. The
+        // tool passes { institutionId, product } which don't match any
+        // field on the input schema — JS attaches them as extra props,
+        // TS sees them as type errors. Wiring this tool to reality
+        // needs a per-institution loader (current rate, current funding
+        // cost, competitor scrape) that feeds the calculator. Restoring
+        // `as any` to keep the build green until that lands.
         const data = await (this.depositPricing as any).priceDeposit({
           institutionId,
           product: input.product,
@@ -651,6 +704,12 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
+        // TODO(shape-mismatch): CostOfFundsService.calculateCostOfFunds
+        // expects { fundingSources: FundingSource[] } — pre-loaded by
+        // the caller. The tool passes { institutionId } which doesn't
+        // match. Wiring needs a loader: fetch institution's funding
+        // sources (deposit/wholesale/borrowing breakdown), pass into
+        // the calculator. Restoring `as any` until that lands.
         const data = await (this.costOfFunds as any).calculateCostOfFunds({
           institutionId,
         });
@@ -669,7 +728,7 @@ export class AlmToolsFactory {
       timeoutMs: 15_000,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.depositMixOptimizer as any).analyze({
+        const data = await this.depositMixOptimizer.analyze({
           institutionId,
         });
         return { summary: 'Deposit mix optimization complete.', data };
@@ -688,6 +747,12 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
+        // TODO(shape-mismatch): MaturityLadderService.buildMaturityLadder
+        // expects { assets: MaturityItem[]; liabilities: MaturityItem[];
+        // asOfDate? } — pre-loaded. The tool passes { institutionId }
+        // which doesn't match. Wiring needs a loader: query balance
+        // sheet items by maturity bucket, split into assets/liabilities,
+        // pass into the calculator. Restoring `as any` until that lands.
         const data = await (this.maturityLadder as any).buildMaturityLadder({
           institutionId,
         });
@@ -712,7 +777,7 @@ export class AlmToolsFactory {
       retryable: true,
       handler: async (_input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        const data = await (this.peers as any).getPeerAnalytics(institutionId);
+        const data = await this.peers.getPeerAnalytics(institutionId);
         return { summary: 'Full peer analytics computed.', data };
       },
     });

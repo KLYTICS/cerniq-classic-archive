@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   AppController,
@@ -11,13 +12,12 @@ import {
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import { AuthGuard } from './auth/auth.guard';
-import { AdminGuard } from './common/guards/admin.guard';
+import { AdminKeyGuard } from './auth/admin-key.guard';
 import { EmailService } from './email/email.service';
 import { MarketDataService } from './market-data/market-data.service';
 import { MarketStreamManagerService } from './market-data/market-stream-manager.service';
 import { CacheService } from './cache/cache.service';
 import { ExitMetricsService } from './admin/exit-metrics.service';
-import { UnauthorizedException } from '@nestjs/common';
 
 jest.mock('node:fs', () => {
   const actual = jest.requireActual('node:fs');
@@ -110,7 +110,7 @@ describe('AppController', () => {
     })
       .overrideGuard(AuthGuard)
       .useValue({ canActivate: () => true })
-      .overrideGuard(AdminGuard)
+      .overrideGuard(AdminKeyGuard)
       .useValue({ canActivate: () => true })
       .compile();
 
@@ -562,35 +562,62 @@ describe('AppController', () => {
   });
 
   // ── Admin Endpoints ────────────────────────────────────────────────
+  // Post-AdminKeyGuard refactor: admin-key enforcement lives in
+  // `AdminKeyGuard` (10-case suite in `admin-key.guard.spec.ts`).
+  // The pre-refactor `controller.getDemoRequests('wrong-key')` pattern
+  // no longer detects auth — guards run at HTTP layer, direct method
+  // invocation bypasses them. Replaced with: per-handler reflection
+  // locks asserting the method-level guard is wired, plus delegation
+  // tests with the guard arity dropped.
 
   describe('admin endpoints', () => {
-    const adminKey = 'test-admin-key';
+    describe('AdminKeyGuard wiring (reflection locks)', () => {
+      const assertGuardOn = (handlerName: keyof AppController) => {
+        const handler = (AppController.prototype as any)[handlerName];
+        const guards = Reflect.getMetadata('__guards__', handler) ?? [];
+        const names = guards.map(
+          (g: { name?: string }) => g?.name ?? String(g),
+        );
+        expect(names).toContain('AdminKeyGuard');
+      };
 
-    beforeEach(() => {
-      process.env.ADMIN_KEY = adminKey;
-    });
-
-    afterEach(() => {
-      delete process.env.ADMIN_KEY;
+      it('AdminKeyGuard guards getDemoRequests', () => {
+        assertGuardOn('getDemoRequests');
+      });
+      it('AdminKeyGuard guards resetDemoData', () => {
+        assertGuardOn('resetDemoData');
+      });
+      it('AdminKeyGuard guards getAdminStats', () => {
+        assertGuardOn('getAdminStats');
+      });
+      it('AdminKeyGuard guards seedProspects', () => {
+        assertGuardOn('seedProspects');
+      });
+      it('AdminKeyGuard guards getProspects', () => {
+        assertGuardOn('getProspects');
+      });
+      it('AdminKeyGuard guards createProspect', () => {
+        assertGuardOn('createProspect');
+      });
+      it('AdminKeyGuard guards updateProspect', () => {
+        assertGuardOn('updateProspect');
+      });
+      it('AdminKeyGuard guards deleteProspect', () => {
+        assertGuardOn('deleteProspect');
+      });
+      it('AdminKeyGuard guards getAdminOps', () => {
+        assertGuardOn('getAdminOps');
+      });
+      it('AdminKeyGuard guards getExitMetrics', () => {
+        assertGuardOn('getExitMetrics');
+      });
     });
 
     describe('GET /api/admin/demo-requests', () => {
       it('returns demo requests', async () => {
         prisma.demoRequest.findMany.mockResolvedValue([{ id: 'dr-1' }]);
-        const result = await controller.getDemoRequests(adminKey);
+        const result = await controller.getDemoRequests();
         expect(result).toHaveLength(1);
-      });
-
-      it('rejects invalid admin key', async () => {
-        await expect(controller.getDemoRequests('wrong-key')).rejects.toThrow(
-          UnauthorizedException,
-        );
-      });
-
-      it('rejects when no admin key provided', async () => {
-        await expect(
-          controller.getDemoRequests(undefined as any),
-        ).rejects.toThrow(UnauthorizedException);
       });
     });
 
@@ -601,7 +628,7 @@ describe('AppController', () => {
         prisma.liquidityPosition.deleteMany.mockResolvedValue({});
         prisma.institution.deleteMany.mockResolvedValue({});
 
-        const result = await controller.resetDemoData(adminKey);
+        const result = await controller.resetDemoData();
         expect(result.message).toBe('Demo data cleared');
         expect(prisma.balanceSheetItem.deleteMany).toHaveBeenCalled();
         expect(prisma.institution.deleteMany).toHaveBeenCalled();
@@ -615,7 +642,7 @@ describe('AppController', () => {
         prisma.user.count.mockResolvedValueOnce(20).mockResolvedValueOnce(3);
         prisma.prospect.count.mockResolvedValue(15);
 
-        const result = await controller.getAdminStats(adminKey);
+        const result = await controller.getAdminStats();
         expect(result.demoRequests).toBe(10);
         expect(result.institutions).toBe(5);
         expect(result.users).toBe(20);
@@ -626,14 +653,14 @@ describe('AppController', () => {
     describe('POST /api/admin/seed-prospects', () => {
       it('returns error when PROSPECT_SEED_DATA not set', async () => {
         delete process.env.PROSPECT_SEED_DATA;
-        const result = await controller.seedProspects(adminKey);
+        const result = await controller.seedProspects();
         expect(result.error).toBeDefined();
         expect(result.seeded).toBe(0);
       });
 
       it('returns error when PROSPECT_SEED_DATA is invalid JSON', async () => {
         process.env.PROSPECT_SEED_DATA = 'not-json';
-        const result = await controller.seedProspects(adminKey);
+        const result = await controller.seedProspects();
         expect(result.error).toContain('not valid JSON');
         delete process.env.PROSPECT_SEED_DATA;
       });
@@ -654,7 +681,7 @@ describe('AppController', () => {
         prisma.prospect.findFirst.mockResolvedValue(null);
         prisma.prospect.create.mockResolvedValue({ id: 'p1' });
 
-        const result = await controller.seedProspects(adminKey);
+        const result = await controller.seedProspects();
         expect(result.seeded).toBe(1);
         expect(result.total).toBe(1);
         delete process.env.PROSPECT_SEED_DATA;
@@ -672,7 +699,7 @@ describe('AppController', () => {
         process.env.PROSPECT_SEED_DATA = JSON.stringify(seeds);
         prisma.prospect.findFirst.mockResolvedValue({ id: 'existing' });
 
-        const result = await controller.seedProspects(adminKey);
+        const result = await controller.seedProspects();
         expect(result.seeded).toBe(0);
         expect(result.total).toBe(1);
         delete process.env.PROSPECT_SEED_DATA;
@@ -682,13 +709,13 @@ describe('AppController', () => {
     describe('Prospect CRM endpoints', () => {
       it('GET /api/admin/prospects lists all', async () => {
         prisma.prospect.findMany.mockResolvedValue([{ id: 'p1' }]);
-        const result = await controller.getProspects(adminKey);
+        const result = await controller.getProspects();
         expect(result).toHaveLength(1);
       });
 
       it('GET /api/admin/prospects filters by stage', async () => {
         prisma.prospect.findMany.mockResolvedValue([]);
-        await controller.getProspects(adminKey, 'demo_done');
+        await controller.getProspects('demo_done');
         expect(prisma.prospect.findMany).toHaveBeenCalledWith(
           expect.objectContaining({ where: { stage: 'demo_done' } }),
         );
@@ -699,7 +726,7 @@ describe('AppController', () => {
           id: 'p2',
           name: 'New Prospect',
         });
-        const result = await controller.createProspect(adminKey, {
+        const result = await controller.createProspect({
           name: 'New Prospect',
           email: 'new@test.com',
         });
@@ -711,7 +738,7 @@ describe('AppController', () => {
           id: 'p1',
           stage: 'demo_done',
         });
-        const result = await controller.updateProspect(adminKey, 'p1', {
+        const result = await controller.updateProspect('p1', {
           stage: 'demo_done',
           notes: 'Demo completed',
         });
@@ -720,7 +747,7 @@ describe('AppController', () => {
 
       it('DELETE /api/admin/prospects/:id deletes prospect', async () => {
         prisma.prospect.delete.mockResolvedValue({});
-        const result = await controller.deleteProspect(adminKey, 'p1');
+        const result = await controller.deleteProspect('p1');
         expect(result.message).toBe('Prospect deleted');
       });
     });
@@ -894,36 +921,27 @@ describe('AppController', () => {
 
   // ── GET /api/admin/ops ──────────────────────────────────────
   describe('GET /api/admin/ops', () => {
-    it('returns ops data with admin key', async () => {
-      process.env.ADMIN_KEY = 'test-admin-key';
+    it('returns ops data', async () => {
       prisma.reportJob.findMany.mockResolvedValue([{ id: 'job-1' }]);
       prisma.subscription.count.mockResolvedValue(5);
       prisma.analysisRun.count.mockResolvedValue(42);
 
-      const result = await controller.getAdminOps('test-admin-key');
+      const result = await controller.getAdminOps();
       expect(result.recentJobs).toHaveLength(1);
       expect(result.activeSubscriptions).toBe(5);
       expect(result.totalAnalysisRuns).toBe(42);
       expect(result.performanceMetrics).toBeDefined();
-
-      delete process.env.ADMIN_KEY;
     });
   });
 
   describe('GET /api/admin/exit-metrics', () => {
-    it('returns exit metrics with admin key', async () => {
-      process.env.ADMIN_KEY = 'test-admin-key';
-
-      await expect(
-        controller.getExitMetrics('test-admin-key'),
-      ).resolves.toEqual({
+    it('returns exit metrics', async () => {
+      await expect(controller.getExitMetrics()).resolves.toEqual({
         mrr: 0,
         arr: 0,
         activeInstitutions: 0,
       });
       expect(exitMetricsService.getExitMetrics).toHaveBeenCalled();
-
-      delete process.env.ADMIN_KEY;
     });
   });
 
@@ -947,25 +965,20 @@ describe('AppController', () => {
   // ── PATCH /api/admin/prospects/:id ──────────────────────────
   describe('PATCH /api/admin/prospects/:id edge cases', () => {
     it('only updates provided fields', async () => {
-      process.env.ADMIN_KEY = 'test-admin-key';
       prisma.prospect.update.mockResolvedValue({ id: 'p1', name: 'Updated' });
 
-      await controller.updateProspect('test-admin-key', 'p1', {
-        name: 'Updated',
-      });
+      await controller.updateProspect('p1', { name: 'Updated' });
 
       expect(prisma.prospect.update).toHaveBeenCalledWith({
         where: { id: 'p1' },
         data: { name: 'Updated' },
       });
-      delete process.env.ADMIN_KEY;
     });
 
     it('updates all fields when all provided', async () => {
-      process.env.ADMIN_KEY = 'test-admin-key';
       prisma.prospect.update.mockResolvedValue({});
 
-      await controller.updateProspect('test-admin-key', 'p1', {
+      await controller.updateProspect('p1', {
         stage: 'proposal',
         notes: 'Good fit',
         name: 'New Name',
@@ -985,25 +998,12 @@ describe('AppController', () => {
           role: 'CEO',
         },
       });
-      delete process.env.ADMIN_KEY;
     });
   });
 
-  // ── verifyAdmin timing-safe comparison ──────────────────────
-  describe('verifyAdmin', () => {
-    it('rejects when ADMIN_KEY env not set', async () => {
-      delete process.env.ADMIN_KEY;
-      await expect(controller.getDemoRequests('some-key')).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('rejects when key length differs', async () => {
-      process.env.ADMIN_KEY = 'correct-key';
-      await expect(controller.getDemoRequests('short')).rejects.toThrow(
-        UnauthorizedException,
-      );
-      delete process.env.ADMIN_KEY;
-    });
-  });
+  // Note: admin-key auth behavior previously tested here as
+  // `describe('verifyAdmin', ...)` (env-unset / length-mismatch cases)
+  // is now covered by the 10-case suite in `admin-key.guard.spec.ts`.
+  // The guard owns the auth contract; this controller spec owns only
+  // wiring + delegation.
 });
