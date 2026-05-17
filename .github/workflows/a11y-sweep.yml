@@ -26,10 +26,12 @@ on:
 jobs:
   a11y-sweep:
     runs-on: ubuntu-latest
-    # Dependabot lockfile bumps don't change rendered output, and this workflow's
-    # local-sweep path isn't wired for backend bootstrap (no npm ci / prisma
-    # generate / nest build — see frontend-e2e in ci-cd.yml for the working
-    # pattern). Skip Dependabot until a follow-up brings this to parity.
+    # Dependabot lockfile bumps don't change rendered output; skip to save
+    # the ~5min backend bootstrap + sweep on routine dep bumps. (The earlier
+    # rationale that the workflow lacked backend bootstrap is no longer
+    # current — see "Install backend deps / Generate Prisma client / Build
+    # backend" steps below, which close the gap to parity with ci-cd.yml's
+    # frontend-e2e job.)
     if: github.actor != 'dependabot[bot]'
     timeout-minutes: 15
     defaults:
@@ -50,6 +52,27 @@ jobs:
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
+
+      # Backend bootstrap — required because playwright.config.ts's
+      # webServer block starts `cd ../backend-node && npm run start:prod`
+      # against a pre-built dist/. Without these steps `nest` isn't on
+      # PATH and `dist/src/main.js` doesn't exist, so the webServer
+      # exits before any a11y test runs. Mirrors ci-cd.yml's frontend-e2e
+      # job. Closes the gap called out at line 28-31 of this file.
+      - name: Install backend deps
+        working-directory: backend-node
+        run: npm ci
+        if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target != 'production') }}
+
+      - name: Generate Prisma client
+        working-directory: backend-node
+        run: npx prisma generate
+        if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target != 'production') }}
+
+      - name: Build backend
+        working-directory: backend-node
+        run: npm run build
+        if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target != 'production') }}
 
       - name: Discover routes
         run: npm run a11y:routes
