@@ -9,7 +9,7 @@ jobs:
     name: Secret Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Scan for secrets in diff
@@ -37,7 +37,7 @@ jobs:
     name: Scope Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Full history so `git diff origin/main...HEAD` resolves the
           # merge-base. Without this, checkout is a shallow clone and
@@ -69,7 +69,7 @@ jobs:
     name: Financial Decimal Guard
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       # D22 Wave-3 rework. Two changes from the prior guard:
