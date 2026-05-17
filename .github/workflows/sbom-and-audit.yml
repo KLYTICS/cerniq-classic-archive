@@ -68,7 +68,7 @@ jobs:
           echo "- Generated: $(date -u -Iseconds)" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ matrix.workspace }}-${{ github.run_id }}
           path: sbom-${{ matrix.workspace }}.json
@@ -129,7 +129,7 @@ jobs:
           echo "high=$high" >> $GITHUB_OUTPUT
 
       - name: Upload audit report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: audit-${{ matrix.workspace }}-${{ github.run_id }}
           path: audit-${{ matrix.workspace }}.json

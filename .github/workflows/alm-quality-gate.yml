@@ -252,7 +252,7 @@ jobs:
           JOB_SCHEMA_DRIFT: ${{ needs.schema-drift.result }}
           JOB_SESSION_FRESHNESS: ${{ needs.session-freshness.result }}
       - name: Upload ci-status.json artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ci-status
           path: .ci-artifacts/ci-status.json
