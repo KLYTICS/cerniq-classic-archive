@@ -76,8 +76,11 @@ Examples:
 ## Branch + commit protocol
 
 - Work branches are named `claude/<topic>`; never commit directly to `main`.
-- Each landing appends a bullet to `docs/SESSION_HANDOFF.md` §5 (Recent landings). The landing-gate in `.husky/pre-commit` enforces this for `src/`, `app/`, `lib/`, `e2e/` changes.
-- Pre-existing landed work is the source of truth — read git log + SESSION_HANDOFF before assuming a feature is missing.
+- Each landing produces a §5 entry — written in EITHER of two ways:
+  1. **Incoming (RECOMMENDED in multi-peer sessions)**: create `docs/handoff-incoming/YYYY-MM-DD-<sha7>-<topic>.md` whose content is the full bullet text (starting with `- YYYY-MM-DD — **Title.**`). Unique filename per commit → zero contention with concurrent peers. Periodic squash: `node scripts/squash-handoff-incoming.mjs` (`--dry-run` to preview) merges them into §5 in batch. See `docs/handoff-incoming/README.md`.
+  2. **Direct**: append a bullet to `docs/SESSION_HANDOFF.md` §5 inline. Lower latency but high stage-race surface in busy sessions — prefer (1) when multiple peers are active.
+- Landing-gate in `.husky/pre-commit` (`scripts/ci/check-landing-entry.mjs`) accepts either form for `src/`, `app/`, `lib/`, `e2e/` changes. Bypass with `SKIP_LANDING=1` only for non-landing commits (hotfix, flake, WIP).
+- Pre-existing landed work is the source of truth — read git log + SESSION_HANDOFF + `docs/handoff-incoming/` before assuming a feature is missing.
 - Never silent zeros — see SESSION_HANDOFF D1 (gaps + partial reports, never `0` for missing data, never hard 422s).
 - Never raise a threshold without justification. Never disable a verifier. Never skip hooks without naming why.
 
