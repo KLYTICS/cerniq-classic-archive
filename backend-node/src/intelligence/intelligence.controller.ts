@@ -72,21 +72,25 @@ export class IntelligenceController {
     return this.intelligence.getWorkspaceHandoff(workspaceId);
   }
 
+  // verify:body-trust-skip — admin-key endpoint; cross-tenant by design (class-level @UseGuards(AdminKeyGuard) is operator-auth not tenant-binding; admin tooling operates across all workspaces)
   @Post('refresh')
   async refresh(@Body() body: IntelligenceRefreshRequestDto) {
     return this.intelligence.refreshAccounts(body);
   }
 
+  // verify:body-trust-skip — admin-key endpoint; cross-tenant by design (class-level @UseGuards(AdminKeyGuard) is operator-auth not tenant-binding)
   @Post('accounts/import')
   async importAccounts(@Body() body: IntelligenceAccountsImportRequestDto) {
     return this.intelligence.importAccounts(body);
   }
 
+  // verify:body-trust-skip — admin-key endpoint; cross-tenant by design (class-level @UseGuards(AdminKeyGuard) is operator-auth not tenant-binding)
   @Post('reports')
   async generateReport(@Body() body: IntelligenceReportRequestDto) {
     return this.intelligence.generateReport(body);
   }
 
+  // verify:body-trust-skip — admin-key endpoint; cross-tenant by design (class-level @UseGuards(AdminKeyGuard) is operator-auth not tenant-binding)
   @Post('memory')
   async createMemoryEntry(@Body() body: WorkspaceMemoryInputDto) {
     return this.intelligence.createMemoryEntry(body);

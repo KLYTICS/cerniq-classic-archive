@@ -249,6 +249,14 @@ export class AlmController {
     private readonly excelExport: ExcelExportService,
     private readonly documentExports: AlmDocumentExportsService,
     private readonly moduleRef: ModuleRef,
+    // Injected for body-tenancy authz on routes that receive
+    // institutionId/workspaceId via @Body() rather than :institutionId path
+    // param (createInstitution, saveScenario, saveCustomYieldCurve). The
+    // class-level @UseGuards(AuthTenantGuard, InstitutionScopeGuard)
+    // authenticates but only enforces ownership for URL-param routes.
+    // R3 / verify-body-trust.mjs flagged these in the v3 exploratory
+    // extension; this is the structural closure (see audit doc).
+    private readonly institutionScope: InstitutionScopeGuard,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -263,7 +271,18 @@ export class AlmController {
   @ApiResponse({ status: 201, description: 'Institution created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid institution data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async createInstitution(@Body() dto: CreateInstitutionDto) {
+  async createInstitution(@Req() req: any, @Body() dto: CreateInstitutionDto) {
+    // Body-IDOR closure (R3 v3 finding). DTO declares `workspaceId: string`;
+    // the service does a raw `prisma.institution.create({ data: { workspaceId } })`
+    // with no authz. Without this check any authenticated user could create
+    // institutions in another tenant's workspace.
+    const userId = req.user?.userId ?? req.user?.id ?? req.user?.sub;
+    const isMasterCeo = req.user?.access?.isMasterCeo === true;
+    await this.institutionScope.verifyWorkspaceOwnership(
+      dto.workspaceId,
+      userId,
+      isMasterCeo,
+    );
     this.logger.log(`Creating institution: ${dto.name}`);
     return this.almEnterprise.createInstitution(dto);
   }
@@ -410,6 +429,7 @@ export class AlmController {
     return this.almEnterprise.calculateLCR(institutionId);
   }
 
+  // verify:body-trust-skip — service-layer authz: analysisRuns.createRun(userId, dto) calls assertInstitutionAccess(dto.institutionId, userId) as its first-line side-effect, BEFORE any prisma write
   @Post('analysis/run')
   @UseGuards(AuthTenantGuard)
   @ApiOperation({
@@ -815,7 +835,18 @@ export class AlmController {
 
   @Post('yield-curve/custom')
   @UseGuards(AuthTenantGuard)
-  async saveCustomYieldCurve(@Body() dto: SaveYieldCurveDto) {
+  async saveCustomYieldCurve(@Req() req: any, @Body() dto: SaveYieldCurveDto) {
+    // Body-IDOR closure (R3 v3 finding). DTO declares `institutionId`;
+    // service `yieldCurve.saveCustomCurve(dto)` doesn't receive userId at
+    // all — no path to authz inside the service. Closing at the controller
+    // boundary via verifyOwnership.
+    const userId = req.user?.userId ?? req.user?.id ?? req.user?.sub;
+    const isMasterCeo = req.user?.access?.isMasterCeo === true;
+    await this.institutionScope.verifyOwnership(
+      dto.institutionId,
+      userId,
+      isMasterCeo,
+    );
     this.logger.log(
       `Saving custom yield curve "${dto.name}" for institution ${dto.institutionId}`,
     );
@@ -827,6 +858,18 @@ export class AlmController {
   @Post('scenarios/save')
   @UseGuards(AuthTenantGuard)
   async saveScenario(@Req() req: any, @Body() dto: SaveScenarioDto) {
+    // Body-IDOR closure (R3 v3 finding). DTO declares `institutionId`;
+    // service `scenarioPersistence.saveScenario(userId, dto)` writes
+    // `createdBy: userId` as metadata but does NOT verify userId owns
+    // `dto.institutionId`. Without this check any authenticated user could
+    // save scenarios tagged to another tenant's institution.
+    const userId = req.user?.userId ?? req.user?.id ?? req.user?.sub;
+    const isMasterCeo = req.user?.access?.isMasterCeo === true;
+    await this.institutionScope.verifyOwnership(
+      dto.institutionId,
+      userId,
+      isMasterCeo,
+    );
     this.logger.log(
       `Saving scenario "${dto.name}" for institution ${dto.institutionId}`,
     );
