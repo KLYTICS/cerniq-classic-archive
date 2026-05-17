@@ -82,6 +82,15 @@ jobs:
         env:
           # Builds happen in playwright.config.ts webServer
           NEXT_PUBLIC_NODE_API_URL: http://127.0.0.1:3100
+          # Backend env validation requires these even if the backend never
+          # services a real request — the env schema is shape-checked on
+          # process boot via zod. Values mirror the ones in ci-cd.yml's
+          # frontend-e2e job (TEST_DATABASE_URL + CI_JWT_SECRET); not a
+          # real database — playwright's webServer only needs the backend
+          # to bind on :3100 so it can /health-check, which the schema-
+          # validated boot allows.
+          JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
+          DATABASE_URL: postgresql://test:test@localhost:5432/cerniq_test
           # Authed sweep only runs when these are present in the repo's
           # Actions secrets. If unset, the authed describe block skips
           # itself cleanly — the public sweep (141 routes) still runs.
