@@ -61,64 +61,15 @@ function scaffoldGap(
   };
 }
 
-// ─── Bloomberg BPIPE ─────────────────────────────────────────────────
-@Injectable()
-export class BloombergBPipeScaffold {
-  private readonly logger = new Logger(BloombergBPipeScaffold.name);
-  private readonly vendorId = 'bloomberg-bpipe';
-
-  /** Real-time price for a Bloomberg security (e.g. 'AAPL US Equity'). */
-  async getRealtimePrice(_security: string): Promise<null> {
-    this.logger.warn(
-      'BloombergBPipeScaffold.getRealtimePrice — scaffold mode, returning null',
-    );
-    return null;
-  }
-  /** Build a yield curve from Bloomberg curve names (e.g. 'YCSW0023'). */
-  async getCurve(_curveName: string): Promise<null> {
-    this.logger.warn('BloombergBPipeScaffold.getCurve — scaffold mode');
-    return null;
-  }
-  /** Diagnostic — returns the gap struct so callers can surface to UI. */
-  scaffoldStatus(): VendorScaffoldGap {
-    return scaffoldGap(
-      this.vendorId,
-      'Bloomberg BPIPE',
-      [
-        'BLOOMBERG_BPIPE_HOST',
-        'BLOOMBERG_BPIPE_PORT',
-        'BLOOMBERG_BPIPE_AUTH_TOKEN',
-      ],
-      'Bloomberg license + Server API connection required. Contact engineering before promoting any institutional-grade rate from this vendor to production audit use.',
-    );
-  }
-}
-
-// ─── Refinitiv Eikon ─────────────────────────────────────────────────
-@Injectable()
-export class RefinitivEikonScaffold {
-  private readonly logger = new Logger(RefinitivEikonScaffold.name);
-  private readonly vendorId = 'refinitiv-eikon';
-
-  /** Real-time price for a RIC (Refinitiv Instrument Code, e.g. 'AAPL.O'). */
-  async getRealtimePrice(_ric: string): Promise<null> {
-    this.logger.warn('RefinitivEikonScaffold.getRealtimePrice — scaffold mode');
-    return null;
-  }
-  /** News headlines for a query. */
-  async getNews(_query: string): Promise<null> {
-    this.logger.warn('RefinitivEikonScaffold.getNews — scaffold mode');
-    return null;
-  }
-  scaffoldStatus(): VendorScaffoldGap {
-    return scaffoldGap(
-      this.vendorId,
-      'Refinitiv Eikon',
-      ['REFINITIV_EIKON_HOST', 'REFINITIV_EIKON_APP_KEY'],
-      'LSEG / Refinitiv Eikon Workspace API access required.',
-    );
-  }
-}
+// NOTE: Bloomberg BPIPE + Refinitiv Eikon were promoted from stub scaffold
+// to real REST providers in commit (tier-2 expansion). See:
+//   - vendor/market-data/bloomberg-hapi.provider.ts
+//   - vendor/market-data/refinitiv-eikon.provider.ts
+// Both return null when creds missing (Rule 1) — same posture as scaffolds,
+// but with full OAuth2 + REST call paths wired so they go live the moment
+// credentials land. The remaining four classes below stay as pure scaffolds
+// until their respective contracts / portal credentials / XSDs become
+// available.
 
 // ─── ICE Bank of America Bond Indices ───────────────────────────────
 @Injectable()
