@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ReportArtifactController } from './report-artifact.controller';
 import { ReportArtifactService } from './report-artifact.service';
 import { AuthGuard } from '../../auth/auth.guard';
@@ -35,12 +39,23 @@ function createMockService() {
 describe('ReportArtifactController', () => {
   let controller: ReportArtifactController;
   let service: ReturnType<typeof createMockService>;
+  let institutionScope: { verifyOwnership: jest.Mock };
+
+  const reqInTenant = {
+    user: { userId: 'u1', access: { isMasterCeo: false } },
+  };
 
   beforeEach(async () => {
     service = createMockService();
+    institutionScope = {
+      verifyOwnership: jest.fn().mockResolvedValue(undefined),
+    };
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ReportArtifactController],
-      providers: [{ provide: ReportArtifactService, useValue: service }],
+      providers: [
+        { provide: ReportArtifactService, useValue: service },
+        { provide: InstitutionScopeGuard, useValue: institutionScope },
+      ],
     })
       .overrideGuard(AuthGuard)
       .useValue({ canActivate: () => true })
@@ -69,9 +84,36 @@ describe('ReportArtifactController', () => {
     expect(result).toHaveLength(1);
   });
 
-  it('gets artifact by ID', async () => {
-    const result = await controller.getById('art-1');
+  it('gets artifact by ID — verifies ownership via the artifact institutionId', async () => {
+    const result = await controller.getById('art-1', reqInTenant);
     expect(result.id).toBe('art-1');
+    expect(institutionScope.verifyOwnership).toHaveBeenCalledWith(
+      'inst-1',
+      'u1',
+      false,
+    );
+  });
+
+  it('propagates Forbidden when caller is not in the artifact institution (IDOR closure)', async () => {
+    institutionScope.verifyOwnership.mockRejectedValueOnce(
+      new ForbiddenException('not authorized for this institution'),
+    );
+    await expect(
+      controller.getById('art-1', {
+        user: { userId: 'u-other', access: { isMasterCeo: false } },
+      }),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('forwards master-CEO flag to verifyOwnership so platform admins can bypass', async () => {
+    await controller.getById('art-1', {
+      user: { userId: 'u-platform', access: { isMasterCeo: true } },
+    });
+    expect(institutionScope.verifyOwnership).toHaveBeenCalledWith(
+      'inst-1',
+      'u-platform',
+      true,
+    );
   });
 
   it('finds artifact by checksum', async () => {
