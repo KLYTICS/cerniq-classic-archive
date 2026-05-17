@@ -25,6 +25,7 @@
 // full-viewport console; here it renders inside cerniq's normal
 // page chrome.
 
+import { notFound } from "next/navigation";
 import {
   ApexAction,
   ApexActionGroup,
@@ -44,6 +45,10 @@ import type {
   TensionRegime,
   ThemePromotionState,
 } from "@/lib/apex/sovereign-contracts";
+import {
+  ApexSovereignNotFoundError,
+  requireApexSovereignAccess,
+} from "@/lib/apex/sovereign-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -749,7 +754,18 @@ const MOCK_PROMOTIONS: ReadonlyArray<ThemePromotionState> = [
   },
 ];
 
-export default function ApexSovereignPage() {
+export default async function ApexSovereignPage() {
+  // Phase 4 sovereign gate. DEMO mode → no-op (renders mocked data, current
+  // behavior). Protected mode (NEXT_PUBLIC_DEMO_MODE="false") → notFound() for
+  // every non-sovereign caller; route's existence is invisible to anyone
+  // outside APEX_SOVEREIGN_GITHUB_LOGINS.
+  try {
+    await requireApexSovereignAccess();
+  } catch (err) {
+    if (err instanceof ApexSovereignNotFoundError) notFound();
+    throw err;
+  }
+
   return (
     <ApexPageShell active="/apex/sovereign" maxWidth={1400}>
       <main style={{ display: "grid", gap: 16 }}>
