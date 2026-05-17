@@ -118,17 +118,17 @@ export const VENDOR_REGISTRY: ReadonlyArray<VendorEntry> = [
   {
     id: 'alpha-vantage',
     name: 'Alpha Vantage',
-    description: 'Intraday equity quotes + FX + technical indicators',
+    description:
+      'Intraday equity quotes + FX + technical indicators (RSI, MACD, etc.)',
     category: 'market-data',
-    status: 'planned',
+    status: 'production',
     compliancePosture: 'free-tier',
     integrationCostDays: 0.5,
     url: 'https://www.alphavantage.co',
+    providerPath: 'market-data/providers/alpha-vantage.provider.ts',
     envVars: ['ALPHA_VANTAGE_API_KEY'],
     prCooperativaRelevance:
-      'Intraday quote refresh for at-close monitoring (Yahoo gives end-of-day only).',
-    blockedBy:
-      'Awaiting prioritization; rate limits (25 req/day free) make it a fresh-quote fallback, not a primary feed.',
+      'Intraday quote refresh for at-close monitoring (Yahoo gives end-of-day only); real-time FX; technical indicators (RSI) for any equity holding. Free-tier rate limit (25 req/day per IP) keeps it as a fresh-quote fallback, not a primary feed.',
   },
   {
     id: 'polygon-io',
@@ -178,17 +178,17 @@ export const VENDOR_REGISTRY: ReadonlyArray<VendorEntry> = [
   {
     id: 'ecb-sdw',
     name: 'ECB Statistical Data Warehouse',
-    description: 'European Central Bank rates, EUR area macro indicators',
+    description:
+      'EUR-area sovereign yield curve, HICP inflation, ECB key rates, reference FX',
     category: 'macro-rates',
-    status: 'planned',
+    status: 'production',
     compliancePosture: 'public',
     integrationCostDays: 1.5,
-    url: 'https://sdw-wsrest.ecb.europa.eu',
+    url: 'https://data.ecb.europa.eu',
+    providerPath: 'market-data/providers/ecb-sdw.provider.ts',
     envVars: [],
     prCooperativaRelevance:
-      'EUR-area rates if any cooperativa carries Euro exposure (uncommon but supported).',
-    blockedBy:
-      'Awaiting prioritization; FRED covers DEXUSEU adequately for current needs.',
+      'EUR-area rate reference (AAA sovereign curve), HICP inflation reading, ECB reference FX — useful for any EUR exposure or cross-currency stress scenarios. Complements FRED on the USD side.',
   },
   {
     id: 'bloomberg-bpipe',
