@@ -60,6 +60,13 @@ describe('MarketDataService', () => {
   const mockTreasuryFiscalDataProvider = {
     getYieldCurve: jest.fn().mockResolvedValue(null),
   };
+  // AlphaVantageProvider — Yahoo quote fallback. Null defaults so the
+  // service's failover logic only activates when a specific test wants
+  // to exercise it (and so daily-budget fallback path isn't taken
+  // accidentally in unrelated tests).
+  const mockAlphaVantageProvider = {
+    getQuote: jest.fn().mockResolvedValue(null),
+  };
 
   beforeEach(() => {
     service = new MarketDataService(
@@ -67,6 +74,7 @@ describe('MarketDataService', () => {
       mockCoinGeckoProvider as any,
       mockFredProvider as any,
       mockTreasuryFiscalDataProvider as any,
+      mockAlphaVantageProvider as any,
       mockDataQualityService as any,
     );
     jest.clearAllMocks();
@@ -168,6 +176,56 @@ describe('MarketDataService', () => {
       mockYahooProvider.getQuote.mockResolvedValueOnce(null);
       const quote = await service.getQuote('AAPL');
       expect(quote.ticker).toBe('AAPL');
+    });
+  });
+
+  describe('Yahoo → Alpha Vantage quote-fallback ladder', () => {
+    it('falls back to Alpha Vantage when Yahoo returns null', async () => {
+      service.clearCaches();
+      mockYahooProvider.getQuote.mockResolvedValueOnce(null);
+      mockAlphaVantageProvider.getQuote.mockResolvedValueOnce({
+        ticker: 'IBM',
+        assetType: 'stock',
+        price: 181.45,
+        change: 1.15,
+        changePercent: 0.6378,
+        volume: 4567890,
+        high: 182.5,
+        low: 179.1,
+        open: 180.0,
+        previousClose: 180.3,
+        timestamp: new Date(),
+        provider: 'alpha-vantage',
+      });
+      const quote = await service.getQuote('IBM');
+      expect(quote.ticker).toBe('IBM');
+      expect(quote.price).toBe(181.45);
+      expect(mockYahooProvider.getQuote).toHaveBeenCalledWith('IBM');
+      expect(mockAlphaVantageProvider.getQuote).toHaveBeenCalledWith('IBM');
+    });
+
+    it('does NOT call Alpha Vantage when Yahoo succeeds (preserves budget)', async () => {
+      service.clearCaches();
+      mockAlphaVantageProvider.getQuote.mockClear();
+      await service.getQuote('AAPL');
+      expect(mockYahooProvider.getQuote).toHaveBeenCalledWith('AAPL');
+      expect(mockAlphaVantageProvider.getQuote).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when BOTH Yahoo and Alpha Vantage return null and no cache', async () => {
+      service.clearCaches();
+      mockYahooProvider.getQuote.mockResolvedValueOnce(null);
+      mockAlphaVantageProvider.getQuote.mockResolvedValueOnce(null);
+      await expect(service.getQuote('UNKNOWN')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('does NOT touch Alpha Vantage for crypto tickers (CoinGecko path)', async () => {
+      service.clearCaches();
+      mockAlphaVantageProvider.getQuote.mockClear();
+      await service.getQuote('BTC');
+      expect(mockAlphaVantageProvider.getQuote).not.toHaveBeenCalled();
     });
   });
 

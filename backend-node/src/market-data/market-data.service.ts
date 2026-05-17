@@ -4,6 +4,7 @@ import { YahooFinanceProvider } from './providers/yahoo-finance.provider';
 import { CoinGeckoProvider } from './providers/coingecko.provider';
 import { FredProvider } from './providers/fred.provider';
 import { TreasuryFiscalDataProvider } from './providers/treasury-fiscal-data.provider';
+import { AlphaVantageProvider } from './providers/alpha-vantage.provider';
 import {
   AssetType,
   FreshnessState,
@@ -123,6 +124,7 @@ export class MarketDataService {
     private readonly coinGeckoProvider: CoinGeckoProvider,
     private readonly fredProvider: FredProvider,
     private readonly treasuryFiscalDataProvider: TreasuryFiscalDataProvider,
+    private readonly alphaVantageProvider: AlphaVantageProvider,
     private readonly dataQualityService: DataQualityService,
   ) {}
 
@@ -400,12 +402,27 @@ export class MarketDataService {
       };
     }
 
-    return {
-      provider: 'yahoo-finance',
-      payload: await this.fetchWithTelemetry('yahoo-finance', () =>
-        this.yahooFinanceProvider.getQuote(ticker),
-      ),
-    };
+    // Stock quote ladder: Yahoo → Alpha Vantage → null (stale-cache decided by caller).
+    // Alpha Vantage is the fresh-quote fallback; its 25 req/day budget keeps it
+    // OK as a Yahoo-outage backstop but never the primary path.
+    const yahooQuote = await this.fetchWithTelemetry('yahoo-finance', () =>
+      this.yahooFinanceProvider.getQuote(ticker),
+    );
+    if (yahooQuote) {
+      return { provider: 'yahoo-finance', payload: yahooQuote };
+    }
+
+    const alphaQuote = await this.fetchWithTelemetry('alpha-vantage', () =>
+      this.alphaVantageProvider.getQuote(ticker),
+    );
+    if (alphaQuote) {
+      this.logger.warn(
+        `Yahoo unavailable for ${ticker}; served from Alpha Vantage fallback`,
+      );
+      return { provider: 'alpha-vantage', payload: alphaQuote };
+    }
+
+    return { provider: 'yahoo-finance', payload: null };
   }
 
   /**
