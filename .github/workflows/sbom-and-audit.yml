@@ -34,7 +34,7 @@ jobs:
       matrix:
         workspace: [backend-node, frontend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
@@ -83,7 +83,7 @@ jobs:
         workspace: [backend-node, frontend]
       fail-fast: false   # always run both workspaces so we get the full picture
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
