@@ -392,8 +392,10 @@ export class AlmAdvisorV2Service {
 
       for await (const event of stream) {
         if (event.type === 'message_start') {
+          // type-rationale: Anthropic SDK's MessageStreamEvent discriminated union narrows here to RawMessageStartEvent, but the `.message` property's type is not exported as a callable shape compatible with extractUsage's input. Cast to any to access `.message.usage` — extractUsage internally guards against nulls (Rule 1).
           initialUsage = extractUsage((event as any).message);
         } else if (event.type === 'message_delta') {
+          // type-rationale: Anthropic SDK's MessageDeltaEvent declares `.usage` as `MessageDeltaUsage` (output_tokens only), but at runtime the SDK sometimes emits it as `null` or with additional fields. Cast to any so the optional-chain access below survives both shapes — runtime guards (`typeof evUsage?.output_tokens === 'number'`) prevent silent-zero.
           const evUsage = (event as any).usage;
           if (typeof evUsage?.output_tokens === 'number') {
             finalOutputTokens = evUsage.output_tokens;
@@ -402,6 +404,7 @@ export class AlmAdvisorV2Service {
           event.type === 'content_block_delta' &&
           (event as any).delta?.text
         ) {
+          // type-rationale: Anthropic SDK's content_block_delta event narrows to RawContentBlockDeltaEvent here, but the `.delta` field's discriminated union (TextDelta | InputJSONDelta | ...) doesn't cleanly project to a single `.text` access without exhaustive narrowing. Cast to any so the chained `.delta.text` works for both text and tool-use variants — runtime guard above gates the yield, mirrors the existing two-event-cast pattern in this loop.
           yield (event as any).delta.text;
         }
       }
@@ -429,7 +432,8 @@ export class AlmAdvisorV2Service {
           : {
               costMissingReason:
                 'reason' in (costEstimate ?? {})
-                  ? (costEstimate as any).reason
+                  ? // type-rationale: estimateCostCents returns a discriminated union — either `{ cents, pricingVersion, model }` (priced) or `{ cents: null, reason, model }` (unknown-model fallback per Rule 1). The `'reason' in ...` narrow above proves we're in the fallback branch, but TS doesn't propagate that narrowing through the conditional spread. Cast to any to read `.reason` cleanly.
+                    (costEstimate as any).reason
                   : null,
             }),
       });
