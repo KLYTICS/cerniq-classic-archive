@@ -271,7 +271,11 @@ export class AlmController {
   @ApiResponse({ status: 201, description: 'Institution created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid institution data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async createInstitution(@Req() req: any, @Body() dto: CreateInstitutionDto) {
+  async createInstitution(
+    // type-rationale: NestJS Express Request shape varies with auth-strategy registration (Passport JWT vs. session vs. custom guard); we only read `user.{userId|id|sub}` plus `user.access.isMasterCeo` through optional-chaining, so over-typing a framework-injected mutable bag would force a maintenance-coupled local interface for ~3 field reads. Matches ncua.controller.ts:`@Req() req: any` pattern (baseline-3 era).
+    @Req() req: any,
+    @Body() dto: CreateInstitutionDto,
+  ) {
     // Body-IDOR closure (R3 v3 finding). DTO declares `workspaceId: string`;
     // the service does a raw `prisma.institution.create({ data: { workspaceId } })`
     // with no authz. Without this check any authenticated user could create
@@ -835,7 +839,11 @@ export class AlmController {
 
   @Post('yield-curve/custom')
   @UseGuards(AuthTenantGuard)
-  async saveCustomYieldCurve(@Req() req: any, @Body() dto: SaveYieldCurveDto) {
+  async saveCustomYieldCurve(
+    // type-rationale: see createInstitution's @Req() rationale — framework-injected mutable bag, narrow read surface (userId fallback + isMasterCeo), local interface would over-couple to NestJS auth-strategy choice.
+    @Req() req: any,
+    @Body() dto: SaveYieldCurveDto,
+  ) {
     // Body-IDOR closure (R3 v3 finding). DTO declares `institutionId`;
     // service `yieldCurve.saveCustomCurve(dto)` doesn't receive userId at
     // all — no path to authz inside the service. Closing at the controller
