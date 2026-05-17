@@ -73,8 +73,6 @@ function stripComments(content) {
 // time — when a file gets stamped, remove its entry here and the
 // stale-baseline detector flags this script for cleanup.
 const BASELINE_UNSTAMPED = {
-  'ai-advisor/ai-advisor.service.ts':
-    'blocked on peer IDOR-fix claim (sid=8f694e66); promote to stamped once that wave settles',
   'agents/runner/llm-bridge.service.ts':
     'agent runner core; stamp once LLMTurnResponse shape extended with promptVersion + usage fields (cascades to all agents)',
   'alm/alm-advisor.service.ts':
