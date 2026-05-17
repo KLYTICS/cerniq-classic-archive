@@ -119,6 +119,19 @@ paths = [
   '''^\.claude/''',
   '''^\.omx/''',
   '''^archive/''',
+  # Accidentally-committed nested repo clones (Cerniq-release/, Cerniq-main/,
+  # Cerniq-main-hotfix/, Cerniq-main-green/, Cerniq-main-merge-live/,
+  # Cerniq-export-local-green/, Cerniq-latest-main/). These trees contain
+  # `.next/` build artifacts with inlined runtime values from old branches.
+  # Build outputs should never have been tracked, but since they are, exclude
+  # them from scanning. PR-diff scans (which are what gates merges) are
+  # unaffected — these dirs are static historical residue, not edited.
+  '''^Cerniq-[a-z-]+/''',
+  # Next.js build artifacts — always regeneratable, contain inlined env values
+  # by design (NEXT_PUBLIC_* values are deliberately client-side). Build
+  # outputs should ideally be gitignored everywhere; allowlisting here is the
+  # belt-and-suspenders for repos with mixed tracking discipline.
+  '''(^|/)\.next/''',
   # Prisma migrations (timestamps look like secrets to some rules)
   '''prisma/migrations/''',
   # Lock files — secrets don't end up here
@@ -159,6 +172,49 @@ regexes = [
   # Example/placeholder values in docs
   '''price_\.\.\.''',                  # doc example
   '''sk-ant-api03-example''',
+
+  # Angle-bracket placeholders used pervasively in docs/examples. Never real
+  # credentials — they are literal `<placeholder>` strings rendered verbatim
+  # in docs (e.g. `postgresql://<user>@host`, `Bearer <api-key>`, `x-admin-key:
+  # <admin-key>`, `JWT_SECRET=<32+ chars>`).
+  '''<api[-_]?key>''',
+  '''<admin[-_]?key>''',
+  '''<token>''',
+  '''<user>''',
+  '''<password>''',
+  '''<32\+\s*chars>''',
+  '''<your[-_][a-z_-]+>''',
+  # Shell variable expansions in deployment docs and docker-compose. These are
+  # references to runtime env, never the actual credential. Broader than the
+  # existing `\$\{DATABASE_PASSWORD\}` allowlist so that any \$\{VAR\} or \$VAR
+  # in a docs `bash` block is treated as a reference, not a secret.
+  '''\$\{[A-Z][A-Z_0-9]*\}''',
+  '''postgresql://\.\.\.''',          # literal `postgresql://...` placeholder
+  # Test fixtures for the masking utility (mask.util.spec.ts) — obviously-fake
+  # `demo_key_*` values used to verify the masker function.
+  '''demo_key_[A-Za-z0-9_]+''',
+  # NestJS-stock boilerplate references in backend-node/README.md (CircleCI
+  # badge URLs from the upstream Nest scaffold — not credentials).
+  '''img\.shields\.io/circleci/build/github/nestjs''',
+  '''circleci\.com/gh/nestjs/''',
+
+  # Literal placeholder credentials in docs example DB URLs and config files.
+  # User/password are common placeholder words (user, cerniq, capexcycle paired
+  # with password, pass, cerniq, cerniq_dev, dev_password). Never real creds.
+  '''postgres(?:ql)?://(user|cerniq|capexcycle):(password|pass|cerniq|cerniq_dev|dev_password)@''',
+  # Documentation placeholder for admin-key + API-key in curl examples
+  '''YOUR_ADMIN_KEY''',
+  '''YOUR_API_KEY''',
+  '''YOUR_JWT_TOKEN''',
+  '''ck_live_YOUR_API_KEY''',
+  # E2E test secret in playwright.config.ts — mirrors existing
+  # `ci-(test|build)-secret-must-be-at-least-32-characters-long` pattern.
+  '''e2e-secret-must-be-at-least-32-characters-long''',
+  # mask.util.spec.ts fixture values (obviously-fake `abc123…` patterns
+  # used to verify the masking function — never real credentials).
+  '''sk_live_abc[A-Za-z0-9]+''',
+  '''abc123def456''',
+
   # Known test JWT (used in unit tests)
   '''eyJhbGciOiJIUzI1NiJ9\.eyJ0ZXN0IjoidGVzdCJ9''',
 ]
