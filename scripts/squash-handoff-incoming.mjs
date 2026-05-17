@@ -62,10 +62,21 @@ export function squash(handoffText, incomingFiles) {
     return { ok: true, newHandoffText: handoffText, prependedCount: 0 };
   }
 
-  const anchorIdx = handoffText.indexOf(SECTION_ANCHOR);
-  if (anchorIdx === -1) {
+  // Line-anchored match — a substring indexOf would also match in-text references
+  // to the anchor (e.g. a checkbox item that names "## 5. Recent landings" inside
+  // backticks). Without line anchoring, the squash inserts after the FIRST occurrence
+  // — which can be a paragraph mention rather than the actual heading. The `m` flag
+  // makes `^` and `$` line-anchors; `\s*$` tolerates trailing whitespace on the
+  // heading line.
+  const anchorRe = new RegExp(
+    `^${SECTION_ANCHOR.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`,
+    'm',
+  );
+  const anchorMatch = anchorRe.exec(handoffText);
+  if (!anchorMatch) {
     return { ok: false, error: `anchor "${SECTION_ANCHOR}" not found in handoff text` };
   }
+  const anchorIdx = anchorMatch.index;
 
   // Position after the anchor line + its trailing blank line.
   const afterAnchor = handoffText.indexOf('\n', anchorIdx);
@@ -232,6 +243,35 @@ function selfTest() {
       handoff: baseHandoff,
       incoming: [{ name: '2026-05-16-x.md', content: '- 2026-05-16 — **x.** body\n\n\n' }],
       expect: { ok: true, prependedCount: 1, noTripleNewlines: true },
+    },
+    {
+      // Regression-lock: real SESSION_HANDOFF.md has a Phase-4 checkbox that mentions
+      // "## 5. Recent landings" inside backticks. A substring indexOf would match THAT
+      // line and insert bullets in the wrong section. Line-anchored regex must match
+      // only the real heading. The MARKER line sits between the in-text reference and
+      // the actual heading — with the bug, the new bullet lands BEFORE MARKER (between
+      // checkbox and MARKER); after the fix, it lands AFTER MARKER (in real §5).
+      name: 'in-text anchor reference (inside checkbox backticks) must NOT match — line-anchored only',
+      handoff: [
+        'Header.',
+        '',
+        '## 4. Phase',
+        '',
+        '- [x] Append to `## 5. Recent landings` below — enforced by hook.',
+        '',
+        '## 4.5 MARKER between reference and real heading',
+        '',
+        '## 5. Recent landings',
+        '',
+        '- 2026-05-16 — **prior.** body — `path/to/file.ts`',
+        '',
+      ].join('\n'),
+      incoming: [{ name: '2026-05-16-newer.md', content: '- 2026-05-16 — **newer.** body — `x.ts`' }],
+      expect: {
+        ok: true,
+        prependedCount: 1,
+        ordering: ['Append to', 'MARKER', 'newer', 'prior'],
+      },
     },
   ];
 
