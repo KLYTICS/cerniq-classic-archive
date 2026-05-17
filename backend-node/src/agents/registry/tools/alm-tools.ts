@@ -362,31 +362,35 @@ export class AlmToolsFactory {
       name: 'runMonteCarlo',
       description:
         'Run a Monte Carlo NII simulation with N paths. Use when deterministic shocks show risk approaching policy limits and distribution tail-risk matters.',
+      // Schema clamps mirror MonteCarloService.runSimulation's internal
+      // clamp envelope so Zod rejects out-of-range values at the agent
+      // boundary (loud) rather than the service silently clamping them
+      // (quiet). Defaults are intentionally omitted on the Vasicek knobs
+      // — `undefined` lets the service fall through to its calibrated
+      // DEFAULT_PARAMS (Fed Funds Q4 2025, see monte-carlo.service.ts).
       input: z
         .object({
           paths: z.number().int().min(100).max(100_000).default(10_000),
+          quarters: z.number().int().min(1).max(120).optional(),
+          kappa: z.number().min(0).max(5).optional(),
+          theta: z.number().min(-0.05).max(0.3).optional(),
+          sigma: z.number().min(0.0001).max(0.1).optional(),
         })
         .strict(),
       output: ToolPayload,
       timeoutMs: 60_000,
       handler: async (input, ctx) => {
         const institutionId = this.requireInstitution(ctx);
-        // TODO(silent-arg-ignore): MonteCarloService.runSimulation expects
-        // a second argument of type `{ paths?, quarters?, kappa?, theta?,
-        // sigma? }`, but this call passes `input.paths` as a bare number.
-        // JS evaluates `(numericValue)?.paths` as undefined, so the
-        // default 10_000 paths is used regardless of caller input. The
-        // proper fix is `runSimulation(institutionId, { paths: input.paths })`
-        // — but we should also widen the tool's input schema to expose
-        // the other simulation knobs (quarters/kappa/theta/sigma) so the
-        // agent can drive the full surface. Restoring `as any` to keep
-        // the build green until that lands.
-        const data = await (this.monteCarlo as any).runSimulation(
-          institutionId,
-          input.paths,
-        );
+        const data = await this.monteCarlo.runSimulation(institutionId, {
+          paths: input.paths,
+          quarters: input.quarters,
+          kappa: input.kappa,
+          theta: input.theta,
+          sigma: input.sigma,
+        });
+        const horizon = input.quarters ? `, ${input.quarters}Q horizon` : '';
         return {
-          summary: `Monte Carlo simulation complete (${input.paths} paths).`,
+          summary: `Monte Carlo simulation complete (${input.paths} paths${horizon}).`,
           data,
         };
       },
