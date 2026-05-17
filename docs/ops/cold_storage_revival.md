@@ -13,10 +13,15 @@
 **Quick automated check first:**
 
 ```bash
-bash scripts/pre-deploy-smoke.sh
+npm run smoke:pre-deploy        # ~30s, ~45 checks
+npm run smoke:pre-deploy:test   # ~1s, self-test of the smoke's machinery
 ```
 
+(Equivalent to `bash scripts/pre-deploy-smoke.sh` / `... --self-test` for environments without npm; the npm forms are the canonical discovery path.)
+
 This runs ~45 local checks against the checkout (toolchain, type-check, schema validation, env-var hygiene, CI wiring, runbook presence) in about 30 seconds. If it exits 0, the codebase is ready to deploy *if* the infrastructure exists. If it exits 1, fix the failing checks before spending an hour on dashboards — the dashboard work is wasted if the code won't build.
+
+`smoke:pre-deploy` is also the first step of `npm run verify:local:critical` — that command runs the full lint+test+build gate chain, so if you've just run `verify:local:critical` and it passed, the pre-deploy gate is already green.
 
 After the smoke script passes, verify what was actually preserved in the cold-storage tear-down. The cold-storage memory from 2026-05-09 claims Railway was deleted, GitHub Actions disabled, Postgres dumped to `~/Desktop/spend-audit-2026-05-09/dumps/`. Some of this is now stale:
 
@@ -361,9 +366,11 @@ gh run watch
 Once §1–§6 are done, run the existing health script:
 
 ```bash
-cd /Users/money/Desktop/Cerniq
+cd /Users/money/Desktop/cerniq
 bash scripts/health-check.sh https://api.cerniq.io https://cerniq.io
 ```
+
+(The pre-deploy counterpart is `npm run smoke:pre-deploy` from §0; this `health-check.sh` is its post-deploy sibling and is not yet wired into `npm run`. If a future round wires it as `npm run smoke:post-deploy`, update this section.)
 
 All checks must PASS. If any fail, see `docs/ops/deployment_runbook.md` §7 "Common Issues and Fixes" — that runbook now applies in full.
 
