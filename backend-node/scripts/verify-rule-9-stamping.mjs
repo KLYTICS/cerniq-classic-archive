@@ -73,8 +73,6 @@ function stripComments(content) {
 // time — when a file gets stamped, remove its entry here and the
 // stale-baseline detector flags this script for cleanup.
 const BASELINE_UNSTAMPED = {
-  'agents/runner/llm-bridge.service.ts':
-    'agent runner core; stamp once LLMTurnResponse shape extended with promptVersion + usage fields (cascades to all agents)',
   'alm/alm-advisor.service.ts':
     'legacy advisor surface; retire OR migrate-then-stamp; check with peer wave before touching',
   'ai/ingest/nl-ingest.service.ts':
@@ -248,7 +246,11 @@ function selfTest() {
     {
       name: 'file matching BASELINE_UNSTAMPED → baselined',
       content: `await client.messages.create({});`,
-      rel: 'ai-advisor/ai-advisor.service.ts',
+      // Point at a still-baselined path; ai-advisor/ai-advisor.service.ts
+      // was previously used here but was stamped + removed from baseline
+      // in 9f5c6677 without updating this fixture (self-test isn't in
+      // npm run lint, so the staleness slipped through).
+      rel: 'alm/alm-advisor.service.ts',
       expected: 'baselined',
     },
     {
