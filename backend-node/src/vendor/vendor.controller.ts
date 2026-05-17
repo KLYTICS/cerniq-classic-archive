@@ -6,6 +6,10 @@ import {
   type VendorEntry,
   type VendorStatus,
 } from './registry';
+import {
+  VendorHealthService,
+  type VendorHealthSummary,
+} from './vendor-health.service';
 
 /**
  * VendorController — exposes the KLYTICS vendor registry as a read-only
@@ -19,6 +23,8 @@ import {
  */
 @Controller('api/vendors')
 export class VendorController {
+  constructor(private readonly vendorHealth: VendorHealthService) {}
+
   /**
    * Full registry as an array, in registry-declaration order. Frontend
    * groups + filters as needed.
@@ -51,5 +57,22 @@ export class VendorController {
       statusCounts: vendorStatusCounts(),
       byCategory: groupVendorsByCategory(),
     };
+  }
+
+  /**
+   * Runtime health probe — for each vendor, returns whether the vendor
+   * is configured + reachable + within latency budget. Probes are cheap
+   * (HEAD/short GET to public endpoints; env-only for rate-limited free
+   * APIs; isConfigured() only for paid-enterprise to avoid burning cost).
+   *
+   * GET /api/vendors/health
+   *
+   * No silent zeros: vendors without a probe endpoint return state
+   * NOT_PROBED with explicit message, not state=OK + latency=0.
+   */
+  // verify:auth-skip — public liveness summary; no credentials in payload
+  @Get('health')
+  async health(): Promise<VendorHealthSummary> {
+    return this.vendorHealth.getAllHealth();
   }
 }

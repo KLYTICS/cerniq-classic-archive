@@ -9,6 +9,7 @@ import {
   SymitarScaffold,
 } from './scaffolds';
 import { VendorController } from './vendor.controller';
+import { VendorHealthService } from './vendor-health.service';
 
 /**
  * VendorModule — the DI home for non-market-data vendor connectors.
@@ -44,6 +45,8 @@ import { VendorController } from './vendor.controller';
     SymitarScaffold,
     CossecScaffold,
     Ncua5300Scaffold,
+    // Runtime health observability
+    VendorHealthService,
   ],
   exports: [
     SECEdgarProvider,
@@ -53,6 +56,7 @@ import { VendorController } from './vendor.controller';
     SymitarScaffold,
     CossecScaffold,
     Ncua5300Scaffold,
+    VendorHealthService,
   ],
 })
 export class VendorModule {}
