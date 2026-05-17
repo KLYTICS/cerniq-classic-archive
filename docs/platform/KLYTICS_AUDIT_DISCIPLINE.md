@@ -351,6 +351,20 @@ Score (count of ✅ + 0.5×🟡, treating — as full credit):
 
 Each verifier supports `--self-test` (53/53 cases pass total), a `VERIFY_RULE_N_SKIP=1` emergency bypass, and a stale-baseline detector that surfaces entries no longer needed.
 
+### Running the per-product audit (CerniQ)
+
+The matrix above is the cross-product canon; for a one-command view of the **current** per-rule state on CerniQ, use the aggregator:
+
+```bash
+npm run audit:klytics             # full report — all 12 rules with PASS/PART/FAIL/MANUAL + score
+npm run audit:klytics:summary     # one-line score (e.g. "KLYTICS audit: 11 / 12 PASS")
+npm run audit:klytics:self-test   # verify the aggregator's own machinery (~1s, no working-tree side effects)
+```
+
+The aggregator runs the auto-verifiers (Rules 4, 6, 9, 11, 12) and reports the canon-doc status (✅ / 🟡 / ❌) for rules that don't have a verifier yet (Rules 1, 2, 3, 5, 7, 8, 10). Exit code: 0 if all auto-verifiers PASS; 1 if any FAIL. Per CLAUDE.md "done" point 3 (npm-run discoverability) and D24 ratchet point 4 (self-test); script at `scripts/audit-klytics.mjs`.
+
+The aggregator does **not** change a rule's matrix status. To upgrade ❌→🟡 or 🟡→✅, do the actual adoption work (per the rule's "Adoption checklist" above) and update the matrix in the same PR that lands the change.
+
 ---
 
 ## §4. Path Classification
