@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
+import { computePromptVersion } from '../../alm/analyst/prompt-version';
+import { extractUsage, estimateCostCents } from '../../alm/analyst/llm-usage';
 
 export interface RegulatoryImpact {
   severity: 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
@@ -8,6 +10,12 @@ export interface RegulatoryImpact {
   deadline: string | null;
   keyQuote: string | null;
 }
+
+// KLYTICS Rule 9 anchor — single source of truth for the model id used in
+// both the SDK call and the cost / prompt-fingerprint stamp.
+const IMPACT_EXTRACTOR_MODEL = 'claude-sonnet-4-20250514';
+const IMPACT_EXTRACTOR_SYSTEM_PROMPT =
+  'Eres un experto en regulación financiera de Puerto Rico. Responde SOLO con JSON válido.';
 
 @Injectable()
 export class ImpactExtractorService {
@@ -25,17 +33,48 @@ export class ImpactExtractorService {
       try {
         const Anthropic = (await import('@anthropic-ai/sdk')).default;
         const client = new Anthropic();
+        // KLYTICS Rule 9: fingerprint (model, systemPrompt) once before the
+        // call so the audit trail correlates the impact-extraction result
+        // with the exact prompt + model bundle.
+        const promptVersion = computePromptVersion({
+          model: IMPACT_EXTRACTOR_MODEL,
+          systemPrompt: IMPACT_EXTRACTOR_SYSTEM_PROMPT,
+        });
+        const startMs = Date.now();
         const response = await client.messages.create({
-          model: 'claude-sonnet-4-20250514',
+          model: IMPACT_EXTRACTOR_MODEL,
           max_tokens: 800,
-          system:
-            'Eres un experto en regulación financiera de Puerto Rico. Responde SOLO con JSON válido.',
+          system: IMPACT_EXTRACTOR_SYSTEM_PROMPT,
           messages: [
             {
               role: 'user',
               content: `Analiza esta regulación de ${pub.regulator}: "${pub.title}"\nTexto: ${pub.rawText.slice(0, 15000)}\n\nJSON schema: { "severity":"HIGH"|"MEDIUM"|"LOW", "requirements":string[], "affectedSubcategories":string[], "deadline":string|null, "keyQuote":string }`,
             },
           ],
+        });
+        // KLYTICS Rule 9: emit cost + usage stamp. Rule 1 compounds —
+        // null usage or unknown model → costCents:null with reason.
+        const usage = extractUsage(response);
+        const costEstimate = usage
+          ? estimateCostCents(IMPACT_EXTRACTOR_MODEL, usage)
+          : null;
+        this.logger.log({
+          event: 'rule-9-stamp',
+          surface: 'impact-extractor.extract',
+          publicationId,
+          model: IMPACT_EXTRACTOR_MODEL,
+          promptVersion,
+          usage,
+          costCents: costEstimate?.cents ?? null,
+          latencyMs: Date.now() - startMs,
+          ...(costEstimate && 'pricingVersion' in costEstimate
+            ? { pricingVersion: costEstimate.pricingVersion }
+            : {
+                costMissingReason:
+                  costEstimate && 'reason' in costEstimate
+                    ? costEstimate.reason
+                    : null,
+              }),
         });
         const json = JSON.parse(
           response.content[0].type === 'text' ? response.content[0].text : '{}',

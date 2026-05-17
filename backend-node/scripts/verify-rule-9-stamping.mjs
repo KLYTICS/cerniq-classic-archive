@@ -79,8 +79,6 @@ const BASELINE_UNSTAMPED = {
     'legacy advisor surface; retire OR migrate-then-stamp; check with peer wave before touching',
   'ai/ingest/nl-ingest.service.ts':
     'NL ingestion path; stamp once ingest pipeline lineage is wired into the analysis-run row',
-  'ai/regulatory/impact-extractor.service.ts':
-    'regulatory impact extraction; lower-priority path, stamp on next wave when regulatory pipeline is touched',
 };
 
 // ─── Walker ────────────────────────────────────────────────────────────
