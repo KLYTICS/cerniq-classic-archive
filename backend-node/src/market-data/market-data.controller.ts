@@ -269,4 +269,68 @@ export class MarketDataController {
     this.marketDataService.clearCaches();
     return { message: 'Caches cleared successfully' };
   }
+
+  /**
+   * US Treasury Constant-Maturity yield curve.
+   * GET /api/market-data/yield-curve
+   *
+   * Returns the full curve (1M → 30Y where available) plus an inversion flag.
+   * Public-data endpoint — no PII; FRED is a public Federal Reserve API.
+   * Returns 503 (with a structured body) when the upstream is unavailable
+   * so the ALM page can render an explicit DataGap rather than misleading
+   * zeros — KLYTICS Rule 1.
+   */
+  // verify:auth-skip — public macro data; no tenant-scoped fields in response
+  @Get('yield-curve')
+  async getYieldCurve() {
+    const curve = await this.marketDataService.getYieldCurve();
+    if (!curve) {
+      throw new HttpException(
+        {
+          __dataGap: true,
+          field: 'yieldCurve',
+          severity: 'WARNING',
+          reason: 'PROVIDER_UNAVAILABLE',
+          action:
+            'FRED upstream unavailable or FRED_API_KEY missing; retry shortly or check provider health at /api/market-data/health',
+          provider: 'fred',
+        },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    return curve;
+  }
+
+  /**
+   * Single FRED interest-rate series observation.
+   * GET /api/market-data/interest-rate/:seriesId
+   *
+   * Example seriesIds: DGS1, DGS2, DGS5, DGS10, DGS30, DGS1MO, DGS3MO.
+   */
+  // verify:auth-skip — public macro data
+  @Get('interest-rate/:seriesId')
+  async getInterestRate(@Param('seriesId') seriesId: string) {
+    if (!seriesId || !/^[A-Z0-9_]{2,20}$/.test(seriesId)) {
+      throw new HttpException(
+        'Invalid seriesId — expected uppercase alphanumerics + underscores, 2-20 chars',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const rate = await this.marketDataService.getInterestRate(seriesId);
+    if (!rate) {
+      throw new HttpException(
+        {
+          __dataGap: true,
+          field: 'interestRate',
+          severity: 'WARNING',
+          reason: 'NO_DATA',
+          action: `FRED has no recent observation for ${seriesId} or the upstream is unavailable; verify the series id at https://fred.stlouisfed.org/series/${seriesId}`,
+          provider: 'fred',
+          seriesId,
+        },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    return rate;
+  }
 }

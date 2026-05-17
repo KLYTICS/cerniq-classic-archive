@@ -45,11 +45,21 @@ describe('MarketDataService', () => {
   const mockDataQualityService = {
     recordMetric: jest.fn(),
   };
+  // FredProvider — null defaults so existing tests that don't exercise the
+  // macro surface stay unaffected. Macro-specific specs override per-test.
+  const mockFredProvider = {
+    getYieldCurve: jest.fn().mockResolvedValue(null),
+    getInterestRate: jest.fn().mockResolvedValue(null),
+    getEconomicIndicator: jest.fn().mockResolvedValue(null),
+    getFXRate: jest.fn().mockResolvedValue(null),
+    getLatestObservation: jest.fn().mockResolvedValue(null),
+  };
 
   beforeEach(() => {
     service = new MarketDataService(
       mockYahooProvider as any,
       mockCoinGeckoProvider as any,
+      mockFredProvider as any,
       mockDataQualityService as any,
     );
     jest.clearAllMocks();

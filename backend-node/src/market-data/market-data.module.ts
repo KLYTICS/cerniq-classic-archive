@@ -5,6 +5,7 @@ import { ChartsController } from './charts.controller';
 import { TechnicalIndicatorsService } from './technical-indicators.service';
 import { YahooFinanceProvider } from './providers/yahoo-finance.provider';
 import { CoinGeckoProvider } from './providers/coingecko.provider';
+import { FredProvider } from './providers/fred.provider';
 import { LlmModule } from '../llm/llm.module';
 import { DataQualityService } from '../common/data-quality.service';
 import { MarketStreamManagerService } from './market-stream-manager.service';
@@ -17,6 +18,7 @@ import { MarketStreamManagerService } from './market-stream-manager.service';
     TechnicalIndicatorsService,
     YahooFinanceProvider,
     CoinGeckoProvider,
+    FredProvider,
     DataQualityService,
     MarketStreamManagerService,
   ],
