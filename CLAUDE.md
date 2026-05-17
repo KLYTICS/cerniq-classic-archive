@@ -32,6 +32,7 @@ eslint
 → verify:rule-9-stamping                  (KLYTICS Rule 9 — LLM prompt + cost provenance)
 → verify:rule-11-any-rationale            (KLYTICS Rule 11 — type-rationale on `any`)
 → verify:rule-12-crypto-randomness        (KLYTICS Rule 12 — crypto-grade randomness in security paths)
+→ verify:vendor-registry                  (vendor registry consistency — providerPath files exist, scaffolds have blockedBy)
 → tsc --noEmit
 ```
 Plus `prisma validate`, `jest` (coverage floor 86/70/81/86 statements/branches/functions/lines), `nest build`.

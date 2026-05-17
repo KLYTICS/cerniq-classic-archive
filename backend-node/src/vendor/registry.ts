@@ -239,7 +239,7 @@ export const VENDOR_REGISTRY: ReadonlyArray<VendorEntry> = [
     compliancePosture: 'paid-enterprise',
     integrationCostDays: 7,
     url: 'https://indices.ice.com',
-    providerPath: 'vendor/macro-rates/ice-bofa.provider.ts',
+    providerPath: 'vendor/scaffolds.ts',
     envVars: ['ICE_BOFA_LICENSE_KEY'],
     prCooperativaRelevance:
       'Sector-specific spread benchmarks for any corporate bond holdings on the investment book.',
@@ -271,7 +271,7 @@ export const VENDOR_REGISTRY: ReadonlyArray<VendorEntry> = [
     compliancePosture: 'core-banking',
     integrationCostDays: 21,
     url: 'https://www.jackhenry.com/credit-unions/symitar',
-    providerPath: 'vendor/core-banking/symitar.provider.ts',
+    providerPath: 'vendor/scaffolds.ts',
     envVars: [
       'SYMITAR_HOST',
       'SYMITAR_USER',
@@ -309,7 +309,7 @@ export const VENDOR_REGISTRY: ReadonlyArray<VendorEntry> = [
     compliancePosture: 'regulator',
     integrationCostDays: 10,
     url: 'https://www.cossec.pr.gov',
-    providerPath: 'vendor/regulator/cossec.provider.ts',
+    providerPath: 'vendor/scaffolds.ts',
     envVars: [
       'COSSEC_PORTAL_USER',
       'COSSEC_PORTAL_PASSWORD',
@@ -330,7 +330,7 @@ export const VENDOR_REGISTRY: ReadonlyArray<VendorEntry> = [
     compliancePosture: 'regulator',
     integrationCostDays: 10,
     url: 'https://www.ncua.gov/regulation-supervision/regulatory-reporting',
-    providerPath: 'vendor/regulator/ncua-5300.provider.ts',
+    providerPath: 'vendor/scaffolds.ts',
     envVars: [
       'NCUA_CUOnline_USER',
       'NCUA_CUOnline_PASSWORD',
@@ -351,7 +351,6 @@ export const VENDOR_REGISTRY: ReadonlyArray<VendorEntry> = [
     compliancePosture: 'paid-enterprise',
     integrationCostDays: 14,
     url: 'https://verafin.com',
-    providerPath: 'vendor/aml-kyc/verafin.provider.ts',
     envVars: ['VERAFIN_HOST', 'VERAFIN_API_KEY', 'VERAFIN_INSTITUTION_ID'],
     prCooperativaRelevance:
       'BSA compliance — most cooperativas with $50M+ assets use Verafin. Integration unlocks SAR / CTR feed.',
