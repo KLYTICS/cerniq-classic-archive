@@ -26,6 +26,11 @@ on:
 jobs:
   a11y-sweep:
     runs-on: ubuntu-latest
+    # Dependabot lockfile bumps don't change rendered output, and this workflow's
+    # local-sweep path isn't wired for backend bootstrap (no npm ci / prisma
+    # generate / nest build — see frontend-e2e in ci-cd.yml for the working
+    # pattern). Skip Dependabot until a follow-up brings this to parity.
+    if: github.actor != 'dependabot[bot]'
     timeout-minutes: 15
     defaults:
       run:
