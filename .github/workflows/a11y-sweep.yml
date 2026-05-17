@@ -78,7 +78,7 @@ jobs:
 
       - name: Upload Playwright HTML report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: a11y-playwright-report
           path: frontend/playwright-report/
@@ -86,7 +86,7 @@ jobs:
 
       - name: Upload JSON + Markdown results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: a11y-results
           path: |
