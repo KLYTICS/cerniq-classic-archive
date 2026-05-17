@@ -39,7 +39,14 @@ export type DataGapReason =
   | 'STALE_SNAPSHOT'
   | 'CALCULATION_FAILED'
   | 'DEPENDENCY_REJECTED'
-  | 'KMV_INPUTS_INSUFFICIENT';
+  | 'KMV_INPUTS_INSUFFICIENT'
+  // Field exists in the response shape but its upstream integration has not
+  // yet been wired (e.g. alert pipeline, exam-prep scheduler). The field MUST
+  // be returned as `null`, never `[]`/`0`/`{}`. Distinct from MISSING_*
+  // reasons which mean "we tried to compute this for THIS institution and
+  // the inputs were not loaded yet"; UNWIRED_INTEGRATION means "no
+  // institution will ever populate this until the upstream system is built".
+  | 'UNWIRED_INTEGRATION';
 
 export interface DataGap {
   /**
