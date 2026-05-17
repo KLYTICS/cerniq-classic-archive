@@ -1,4 +1,4 @@
-// /apex/hub — Phase 2 (2026-05-16).
+// /apex/hub — Phase 3 (data layer coexistence wired, 2026-05-16).
 //
 // Apex's original /hub route is the "operator first-paint" view: one
 // dense panel that condenses MODE/RUNTIME state, proof posture, broker
@@ -7,17 +7,27 @@
 // (cockpit, war-room, journal) so they always have one coherent read
 // on "where the desk stands right now."
 //
-// Phase 2 wires the OperatorHubSummary view against a *mocked*
-// OperatorHubFirstPaintSummary. The shape is byte-equivalent to the
-// production contract — Phase 3 will swap the mocked snapshot for a
-// real Supabase-backed fetch under APEX_SUPABASE_URL / _ANON_KEY.
+// Phase 2 wired the OperatorHubSummary view against a *mocked*
+// OperatorHubFirstPaintSummary. Phase 3 adds the *data layer
+// coexistence* path: when `NEXT_PUBLIC_APEX_SUPABASE_URL` +
+// `NEXT_PUBLIC_APEX_SUPABASE_ANON_KEY` are configured, the fetcher
+// attempts to load a live snapshot; otherwise it falls back to the
+// mocked payload so the surface always renders.
+//
+// The fetcher itself currently returns `null` (reason
+// "deferred_to_phase_6") — composing OperatorHubFirstPaintSummary
+// requires porting 524 lines of aggregation logic from apex's
+// lib/operator-hub/first-paint.ts, which belongs alongside the 262
+// API handlers ported in Phase 6. The Phase 3 contribution is the
+// *contract* + *infrastructure*: env-var naming, fetcher signature,
+// graceful fallback, debug-attribute observability.
 //
 // The auxiliary ApexRouteGrid below previews the absorbed sub-surfaces
 // (cockpit / war-room / journal / sovereign / research / platform /
 // community). Each card currently routes to a Phase 5 placeholder; the
 // `data-tone` per card reflects the current operator posture from the
-// mocked snapshot so this page renders as a complete operator surface
-// even without live data.
+// active snapshot (live or mocked) so this page renders as a complete
+// operator surface even without live data.
 
 import {
   ApexPageShell,
@@ -31,6 +41,12 @@ import {
 } from "@/components/apex/apex-demo-ui";
 import { OperatorHubSummary } from "@/components/apex/operator-hub-summary";
 import type { OperatorHubFirstPaintSummary } from "@/lib/apex/operator-hub-contracts";
+import { fetchOperatorHubFirstPaint } from "@/lib/apex/operator-hub-fetcher";
+
+// Force dynamic rendering — the fetcher reads env state per request,
+// and once Phase 6 lands real Supabase queries, the snapshot will be
+// per-operator. Static generation would cache the wrong tenant's hub.
+export const dynamic = "force-dynamic";
 
 // Phase 2 mocked first-paint snapshot. This payload is shaped exactly
 // like a production OperatorHubFirstPaintSummary — the same fields the
@@ -176,80 +192,97 @@ const ABSORBED_ROUTES = [
   },
 ];
 
-export default function ApexHubPage() {
+export default async function ApexHubPage() {
+  const fetchResult = await fetchOperatorHubFirstPaint();
+  const snapshot = fetchResult.snapshot ?? MOCK_HUB_SNAPSHOT;
+  const usingLiveData = fetchResult.snapshot !== null;
+
   return (
     <ApexPageShell active="/apex/hub" maxWidth={1200}>
-      <ApexHero
-        eyebrow="APEX · OPERATOR HUB · PHASE 2"
-        title="Operator Hub"
-        copy={
-          <>
-            The decisive first-paint view for paper-simulation operators.
-            Renders against mocked data in Phase 2 — Phase 3 will wire the Apex
-            Supabase data layer behind the same first-paint shape.
-          </>
-        }
-        actions={
-          <ApexActionGroup>
-            <ApexAction href="/apex/cockpit" tone="success">
-              Open Cockpit
-            </ApexAction>
-            <ApexAction href="/apex/journal">Trade Journal</ApexAction>
-            <ApexAction href="/apex">Back to Start</ApexAction>
-          </ApexActionGroup>
-        }
-        aside={
-          <>
-            <div className="apex-eyebrow">DATA SOURCE</div>
-            <div style={{ marginTop: 8 }}>
-              <ApexStatusPill tone="warn">MOCKED · PHASE 2</ApexStatusPill>
-            </div>
-            <div style={{ marginTop: 16, fontSize: 12, lineHeight: 1.6 }}>
-              Snapshot shape matches{" "}
-              <strong>OperatorHubFirstPaintSummary</strong> exactly. Phase 3
-              swaps the static payload for a Supabase fetch under
-              <code style={{ marginLeft: 4 }}>APEX_SUPABASE_URL</code>; the view
-              layer requires zero changes.
-            </div>
-          </>
-        }
-      />
-
-      <OperatorHubSummary firstPaint={MOCK_HUB_SNAPSHOT} />
-
-      <ApexSection
-        eyebrow="ABSORBED SUB-SURFACES"
-        title="Seven decisive surfaces"
-        copy={
-          <>
-            Each Apex top-nav surface is preserved under <code>/apex/*</code>{" "}
-            inside cerniq. Phase 5 ports the flagship pages (cockpit, war-room,
-            sovereign, journal) one per commit; the remaining three (platform,
-            research, community) follow.
-          </>
-        }
+      <div
+        data-apex-data-source={usingLiveData ? "live" : "mocked"}
+        data-apex-fetch-reason={fetchResult.reason}
+        style={{ display: "contents" }}
       >
-        <ApexRouteGrid routes={ABSORBED_ROUTES} />
-      </ApexSection>
+        <ApexHero
+          eyebrow="APEX · OPERATOR HUB · PHASE 3"
+          title="Operator Hub"
+          copy={
+            <>
+              The decisive first-paint view for paper-simulation operators. Data
+              layer coexistence is wired — when{" "}
+              <code>NEXT_PUBLIC_APEX_SUPABASE_URL</code> is configured the
+              fetcher attempts a live snapshot, otherwise the surface gracefully
+              falls back to mocked data.
+            </>
+          }
+          actions={
+            <ApexActionGroup>
+              <ApexAction href="/apex/cockpit" tone="success">
+                Open Cockpit
+              </ApexAction>
+              <ApexAction href="/apex/journal">Trade Journal</ApexAction>
+              <ApexAction href="/apex">Back to Start</ApexAction>
+            </ApexActionGroup>
+          }
+          aside={
+            <>
+              <div className="apex-eyebrow">DATA SOURCE</div>
+              <div style={{ marginTop: 8 }}>
+                <ApexStatusPill tone={usingLiveData ? "success" : "warn"}>
+                  {usingLiveData ? "LIVE · APEX SUPABASE" : "MOCKED · FALLBACK"}
+                </ApexStatusPill>
+              </div>
+              <div style={{ marginTop: 16, fontSize: 12, lineHeight: 1.6 }}>
+                Fetch result:{" "}
+                <strong>
+                  <code>{fetchResult.reason}</code>
+                </strong>
+                . Snapshot shape matches{" "}
+                <strong>OperatorHubFirstPaintSummary</strong> exactly. Phase 6
+                will implement the live composition path (524 lines of
+                aggregation, currently mocked).
+              </div>
+            </>
+          }
+        />
 
-      <ApexSection
-        eyebrow="PHASE 2 NOTE"
-        title="What still uses Phase 1 surface"
-        copy={
-          <>
-            The other six absorbed routes (cockpit, war-room, journal,
-            sovereign, research, platform, community) render the Phase 1
-            scaffold until Phase 5 lands.
-          </>
-        }
-      >
-        <ApexEmptyState>
-          Phase 5 will port the original `/cockpit/page.tsx`,
-          `/war-room/[sessionId]/page.tsx`, `/sovereign/page.tsx`, and
-          `/journal/page.tsx` views — preserving their original form per the
-          absorption directive.
-        </ApexEmptyState>
-      </ApexSection>
+        <OperatorHubSummary firstPaint={snapshot} />
+
+        <ApexSection
+          eyebrow="ABSORBED SUB-SURFACES"
+          title="Seven decisive surfaces"
+          copy={
+            <>
+              Each Apex top-nav surface is preserved under <code>/apex/*</code>{" "}
+              inside cerniq. Phase 5 ports the flagship pages (cockpit,
+              war-room, sovereign, journal) one per commit; the remaining three
+              (platform, research, community) follow.
+            </>
+          }
+        >
+          <ApexRouteGrid routes={ABSORBED_ROUTES} />
+        </ApexSection>
+
+        <ApexSection
+          eyebrow="PHASE 2 NOTE"
+          title="What still uses Phase 1 surface"
+          copy={
+            <>
+              The other six absorbed routes (cockpit, war-room, journal,
+              sovereign, research, platform, community) render the Phase 1
+              scaffold until Phase 5 lands.
+            </>
+          }
+        >
+          <ApexEmptyState>
+            Phase 5 will port the original `/cockpit/page.tsx`,
+            `/war-room/[sessionId]/page.tsx`, `/sovereign/page.tsx`, and
+            `/journal/page.tsx` views — preserving their original form per the
+            absorption directive.
+          </ApexEmptyState>
+        </ApexSection>
+      </div>
     </ApexPageShell>
   );
 }
