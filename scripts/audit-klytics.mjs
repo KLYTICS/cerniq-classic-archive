@@ -34,12 +34,13 @@
 //   fixtures via --self-test. No working-tree side effects.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
+const CANON_DOC = resolve(REPO_ROOT, 'docs/platform/KLYTICS_AUDIT_DISCIPLINE.md');
 
 // Per-rule configuration. The canon doc owns the *normative* status (✅ / 🟡
 // / ❌); this table owns the *automation* binding. When a rule has no
@@ -76,6 +77,49 @@ const green  = (s) => color(s, '32');
 const red    = (s) => color(s, '31');
 const yellow = (s) => color(s, '33');
 const gray   = (s) => color(s, '90');
+
+// Parses the canon doc's §3 matrix table to extract the CerniQ column's
+// per-rule status, plus the "CerniQ: X/Y" score line. Returns {} on parse
+// failure so the aggregator stays usable if the canon doc moves. Drift
+// vs hardcoded RULES.canonStatus is reported as a warning, not a fail —
+// the aggregator's job is to report state, not enforce canon correctness.
+function parseCanon(docPath = CANON_DOC) {
+  const out = { rules: {}, score: null, error: null };
+  if (!existsSync(docPath)) {
+    out.error = `canon doc not found at ${docPath}`;
+    return out;
+  }
+  const text = readFileSync(docPath, 'utf8');
+  const lines = text.split('\n');
+
+  // Find the matrix header row. The canon header looks like:
+  //   | Rule | ComplyKit | AEGIS | CerniQ | Apex |
+  const headerIdx = lines.findIndex((l) => /^\|\s*Rule\s*\|/.test(l) && /CerniQ/.test(l));
+  if (headerIdx < 0) {
+    out.error = 'matrix header (| Rule | … | CerniQ | …) not found';
+  } else {
+    const headerCells = lines[headerIdx].split('|').map((c) => c.trim());
+    // headerCells has a leading empty cell from the leading `|`; find CerniQ's position.
+    const cerniqIdx = headerCells.findIndex((c) => c === 'CerniQ');
+    // Skip header (headerIdx) + separator (headerIdx+1); parse rows until blank or no leading `|`.
+    for (let i = headerIdx + 2; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.startsWith('|')) break;
+      const cells = line.split('|').map((c) => c.trim());
+      const m = /^(\d+)\.\s/.exec(cells[1] || '');
+      if (!m) continue;
+      const n = parseInt(m[1], 10);
+      const status = (cells[cerniqIdx] || '').trim();
+      if (n >= 1 && n <= 12 && status) out.rules[n] = status;
+    }
+  }
+
+  // Parse the "- **CerniQ**: X/Y" score line.
+  const m = /^- \*\*CerniQ\*\*:\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+)/m.exec(text);
+  if (m) out.score = { earned: parseFloat(m[1]), total: parseInt(m[2], 10) };
+
+  return out;
+}
 
 function runVerifier(rule) {
   if (rule.mode === 'manual') return { exitCode: null, stderr: '', durationMs: 0 };
@@ -158,7 +202,20 @@ function selfTest() {
     { earned: 4, total: 6 },
     scoreOf(fake));
 
-  // 6. RULES table integrity — every entry has required keys + n is 1-12 unique.
+  // 6. parseCanon — exercises the canon-doc reader against the actual doc on disk.
+  //    Self-test is a smoke-of-the-parser: ensures it locates the matrix + score
+  //    line in the current canon doc. Doesn't assert specific values (those
+  //    drift with rule adoption), but does assert non-empty results.
+  if (existsSync(CANON_DOC)) {
+    const c = parseCanon();
+    assert('parseCanon finds matrix rows for all 12 rules', true, Object.keys(c.rules).length === 12);
+    assert('parseCanon extracts a CerniQ score', true, c.score !== null && typeof c.score.earned === 'number' && typeof c.score.total === 'number');
+    assert('parseCanon CerniQ Rule 12 status is ✅', '✅', c.rules[12]);
+  } else {
+    assert('parseCanon (skipped — canon doc not present)', true, true);
+  }
+
+  // 7. RULES table integrity — every entry has required keys + n is 1-12 unique.
   const ns = new Set();
   for (const r of RULES) {
     assert(`Rule ${r.n} has name`,      true, typeof r.name === 'string' && r.name.length > 0);
@@ -210,10 +267,41 @@ function main() {
   const autoCount   = results.filter((r) => r.rule.mode === 'auto').length;
   const manualCount = results.filter((r) => r.rule.mode === 'manual').length;
 
+  // Canon-doc reconciliation. The aggregator's hardcoded RULES.canonStatus
+  // can drift from the canon doc over time; the canon doc's displayed
+  // score can drift from its own stated formula (the 2026-05-17 audit
+  // found a 10/11 vs 11/12 discrepancy for CerniQ — same shape applies
+  // to Apex). Reporting both numbers and any drift forces reconciliation
+  // at every review instead of letting either source silently age.
+  const canon = parseCanon();
+  const canonDrifts = [];
+  for (const rule of RULES) {
+    const parsed = canon.rules[rule.n];
+    if (parsed && parsed !== rule.canonStatus) {
+      canonDrifts.push({ n: rule.n, hardcoded: rule.canonStatus, doc: parsed });
+    }
+  }
+  const canonScoreStr = canon.score
+    ? `${Number.isInteger(canon.score.earned) ? canon.score.earned : canon.score.earned.toFixed(1)} / ${canon.score.total}`
+    : null;
+  const scoreDrift = canonScoreStr && canonScoreStr !== scoreStr;
+
   if (!summaryOnly) {
     console.log('--------------------------------------------');
     console.log(`  Auto-verified: ${autoCount}   Manual (canon-owned): ${manualCount}`);
-    console.log(`  Score: ${scoreStr}  ${anyAutoFail ? red('— FAIL') : green('— PASS')}`);
+    console.log(`  Score: ${scoreStr}  ${anyAutoFail ? red('— FAIL') : green('— PASS')}   (per stated formula in canon §3)`);
+    if (canonScoreStr) {
+      console.log(`  Canon doc displays: ${canonScoreStr}${scoreDrift ? yellow('  ⚠ drift from stated formula') : gray('  (matches)')}`);
+    } else if (canon.error) {
+      console.log(`  Canon doc score: ${gray('not parsed — ' + canon.error)}`);
+    }
+    if (canonDrifts.length > 0) {
+      console.log(`  ${yellow('⚠ Canon-status drift detected:')}`);
+      for (const d of canonDrifts) {
+        console.log(`      Rule ${d.n}: aggregator says ${d.hardcoded}, canon doc says ${d.doc}`);
+      }
+      console.log(gray('      Reconcile in RULES table (scripts/audit-klytics.mjs) OR update canon doc.'));
+    }
     console.log('--------------------------------------------');
     if (anyAutoFail) {
       console.log(`  ${red('AUDIT GATE: NOT READY')} — fix auto-verifier failures.`);
@@ -222,7 +310,8 @@ function main() {
     }
     console.log('');
   } else {
-    console.log(`KLYTICS audit: ${scoreStr} ${anyAutoFail ? 'FAIL' : 'PASS'}`);
+    const drift = scoreDrift ? ` (canon doc displays ${canonScoreStr} — drift)` : '';
+    console.log(`KLYTICS audit: ${scoreStr} ${anyAutoFail ? 'FAIL' : 'PASS'}${drift}`);
   }
 
   process.exit(anyAutoFail ? 1 : 0);
