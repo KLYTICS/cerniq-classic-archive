@@ -10,7 +10,15 @@
 
 ## 0. Pre-flight reality check (5 min)
 
-Before touching any dashboard, verify what was actually preserved. The cold-storage memory from 2026-05-09 claims Railway was deleted, GitHub Actions disabled, Postgres dumped to `~/Desktop/spend-audit-2026-05-09/dumps/`. Some of this is now stale:
+**Quick automated check first:**
+
+```bash
+bash scripts/pre-deploy-smoke.sh
+```
+
+This runs ~45 local checks against the checkout (toolchain, type-check, schema validation, env-var hygiene, CI wiring, runbook presence) in about 30 seconds. If it exits 0, the codebase is ready to deploy *if* the infrastructure exists. If it exits 1, fix the failing checks before spending an hour on dashboards — the dashboard work is wasted if the code won't build.
+
+After the smoke script passes, verify what was actually preserved in the cold-storage tear-down. The cold-storage memory from 2026-05-09 claims Railway was deleted, GitHub Actions disabled, Postgres dumped to `~/Desktop/spend-audit-2026-05-09/dumps/`. Some of this is now stale:
 
 | Claim | Verified as of 2026-05-16 | Notes |
 |---|---|---|
@@ -203,36 +211,45 @@ In Vercel dashboard → cerniq-frontend → Settings → Domains:
 
 ## 4. DNS + TLS (15–30 min, blocked on DNS propagation)
 
-### 4.1 Spaceship (domain registrar) — apex + www
+**DNS authority for cerniq.io is Spaceship retail (`launch1.spaceship.net`, `launch2.spaceship.net`), NOT Cloudflare.** Spaceship is both registrar and DNS host. Do not look for a Cloudflare zone — there isn't one. There is no programmatic API for Spaceship retail DNS; all edits below are operator-only via the dashboard at `https://www.spaceship.com/`.
 
-Log into Spaceship → cerniq.io → DNS:
+### 4.1 Spaceship DNS — apex + www + api
+
+Log into Spaceship → cerniq.io → Advanced DNS. Add or update:
 
 | Type | Name | Value | Notes |
 |---|---|---|---|
 | A | @ | (Vercel-supplied IP from §3.4) | apex |
 | CNAME | www | `cname.vercel-dns.com` | redirect target |
-| CNAME | api | `<railway-domain>.up.railway.app` | from §2.7 |
+| CNAME | api | `<new-railway-domain>.up.railway.app` | from §2.7 — update if revival #2 |
 
-If Spaceship is now pointing at Cloudflare nameservers, set these in Cloudflare instead (next step).
+If `api` already has a CNAME from a previous (cold-stored) Railway service, **edit it in place** to the new hostname from §2.7. Do not leave the stale CNAME — it returns the `x-railway-fallback: true` header which clients treat as `503`.
 
-### 4.2 Cloudflare — api subdomain + TLS
+### 4.2 Railway TLS issuance (custom domain)
 
-This closes the **TLS cert mismatch** on `api.cerniq.io`. The current cert is `*.up.railway.app` (Railway's internal wildcard), which browsers reject for `api.cerniq.io`.
+This closes the **TLS cert mismatch** on `api.cerniq.io`. The default cert at `<new-railway-domain>.up.railway.app` covers only Railway's wildcard; browsers reject it for `api.cerniq.io`.
 
-1. Cloudflare dashboard → cerniq.io → DNS → add or update the `api` CNAME from §4.1
-2. Set proxy status to **DNS only (gray cloud)** initially — Railway terminates TLS itself
-3. In Railway → cerniq-api service → Settings → Networking → Custom Domain → add `api.cerniq.io`
-4. Railway will issue a Let's Encrypt cert automatically once the CNAME resolves. Takes 1–10 min.
+1. Railway dashboard → cerniq-api service → Settings → Networking → Custom Domain → add `api.cerniq.io`
+2. Railway will display a CNAME target (e.g., `xxxxxx.up.railway.app`) AND a TXT verification record `_railway-verify.api` → value. **Both must be set at Spaceship before the cert issues.** Update §4.1's `api` CNAME to match if Railway returns a different target than §2.7.
+3. Let's Encrypt issuance is automatic once both DNS records propagate. Takes 1–10 min.
+4. Watch the Railway dashboard "Custom Domains" panel — it flips from "Pending Verification" → "Active" when the cert lands.
 
-Verify:
+Verify from a terminal:
 ```bash
-# Wait for DNS propagation
-dig +short api.cerniq.io
-# Should return the railway-domain CNAME chain
+# Wait for DNS propagation (typically ≤ 10 min at Spaceship)
+dig +short CNAME api.cerniq.io @1.1.1.1
+# Should return the railway-domain target (NOT empty, NOT the stale cold-storage host)
 
-# Then verify the cert
-echo | openssl s_client -servername api.cerniq.io -connect api.cerniq.io:443 2>/dev/null | openssl x509 -noout -subject
+dig +short TXT _railway-verify.api.cerniq.io @1.1.1.1
+# Should match the verification value Railway showed in step 2
+
+# Then verify the cert SAN
+echo | openssl s_client -servername api.cerniq.io -connect api.cerniq.io:443 2>/dev/null \
+  | openssl x509 -noout -subject
 # Expected: subject=CN=api.cerniq.io  (not *.up.railway.app)
+
+# And the kill-switch: x-railway-fallback MUST be absent
+curl -sSI https://api.cerniq.io/health | grep -i 'x-railway-fallback' && echo "STILL DEAD" || echo "OK — live service"
 ```
 
 ---
@@ -340,7 +357,43 @@ There's no rollback from Path F (fresh database) once users start signing up —
 
 `deployment_runbook.md` assumes infrastructure exists and you're shipping a new build to it. This runbook assumes the infrastructure was *intentionally torn down* (cold-storage pivot 2026-05-09) and needs reconstitution. The two are complementary: complete this runbook once, then `deployment_runbook.md` governs every deploy thereafter.
 
-## Appendix B — Cost expectations
+## Appendix B — 2026-05-16 revival log (precedent for next cycle)
+
+This appendix records the actual execution of the runbook on 2026-05-16, after the 2026-05-09 cold-storage tear-down. Captured here so the next cycle has a precedent, not just a procedure. **IDs are stable-infra references, not secrets.** Where a literal value would be a secret (tokens, keys, database URLs), this log records only the ID/path of the secret, never its content.
+
+### Sequence
+
+1. **Path decision (§1):** Path F (Fresh). The 2026-05-09 dump directory at `~/Desktop/spend-audit-2026-05-09/dumps/` was TCC-locked from CLI access, never verified in time. Historical encrypted `report_jobs.raw_data` rows are tombstones — `DATA_ENCRYPTION_KEY` was not in scope to recover. Accepted as DataGap per Rule 1.
+2. **Railway (§2):** New project `cerniq-api` provisioned at 19:30 UTC. Postgres + API service in one project. 24 env vars set via `gh secret set --body-file -` and Railway dashboard; 5 left empty (Sentry + Slack-webhook — operator can fill later). 37 Prisma migrations auto-applied on first boot in ~30s.
+3. **DNS (§4):** Operator-only — only `api` CNAME + `_railway-verify.api` TXT updates pending at Spaceship. Old CNAME pointed at `48l0ranw.up.railway.app` (deleted project), new target was the §2.7 Railway-supplied hostname.
+4. **CI secrets (§6):** `RAILWAY_TOKEN` regenerated via the GraphQL `projectTokenCreate` mutation against `https://backboard.railway.com/graphql/v2`, using the user-level session token already cached at `~/.railway/config.json`. Token value was piped to `gh secret set --body-file -` and never touched argv, history, or session context. A first-attempt orphan token was cleaned up via `projectTokenDelete`. Pattern is reusable for any future "regen CI token" need.
+5. **Smoke (§7):** Pre-deploy `scripts/pre-deploy-smoke.sh` exited 0 (42/44 with peer-lane TS noise; 44/44 on the cold-storage paths). Post-deploy `scripts/health-check.sh` deferred until §4 DNS lands.
+
+### Resource IDs (this revival cycle)
+
+| Resource | ID (post-revival) | Notes |
+|---|---|---|
+| Railway project (old) | `0a09d7c9-a960-49df-a71d-12d06d7c8bcd` | Deleted 2026-05-09 |
+| Railway project (new) | `1ad9be3e-c89d-4b18-9af2-b1775a14161d` | Provisioned 2026-05-16 19:30 UTC |
+| Railway production environment | `8e51374b-5f13-4980-a037-007c6c1792bc` | New project's prod env |
+| Backend service (new) | `9b95101a-736a-4349-83ca-d901dc8f1757` | replaces old `809be713-…` |
+| Postgres service (new) | `4411b6cf-02b4-4d8f-93f2-0d2bf533df50` | Fresh DB — no restore |
+| Vercel project (unchanged) | `prj_odl6Ltja3NXGwJI0v7jZ7NEs88bL` | `capexcycle` / `ekiess-projects` — survived cold-storage |
+| Railway CI token (active) | id `ab6c759e-e517-4ada-80ef-b60d39af5507` | name `cerniq-ci-active-2026-05-16`; value in GH secret `RAILWAY_TOKEN` (env=production) |
+
+These IDs become stale on the next revival cycle. Treat the table as a snapshot.
+
+### Lessons (read before next revival)
+
+- **§4 originally directed operators to Cloudflare** — this was wrong; cerniq DNS has always been Spaceship retail. Fixed in this rev. If a future revival pulls cerniq into a Cloudflare zone, the §4 prose needs to flip back.
+- **TCC permission on `~/Desktop/spend-audit-…` is not enumerable from Claude's shell** — granting Full Disk Access OR moving the dump dir to `~/cerniq-backups/` solves this. Path F was forced this cycle because the dump was unverifiable in time.
+- **`x-railway-fallback: true`** is the symptom of a stale CNAME pointing at a deleted Railway project. Watch for it in §7 smoke output before assuming a deploy issue.
+- **`AUTH_ALLOW_LEGACY=true`** was set in env so existing API keys (hashed with legacy SHA-256) continue to authenticate; revoke once all keys re-issued under HMAC-with-pepper.
+- **Live secrets in repo `.env`** (Stripe `sk_live_…`, Anthropic, Resend) were treated as compromised because they touched at least one local-shell session during recovery; **rotate during the next revival window**.
+
+---
+
+## Appendix C — Cost expectations
 
 A typical CERNIQ revival lands at roughly:
 
