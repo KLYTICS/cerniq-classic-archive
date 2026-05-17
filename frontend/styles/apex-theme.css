@@ -1,0 +1,98 @@
+/* Apex theme — Phase 1.0 scaffold (cerniq absorption per directive 2026-05-17).
+ *
+ * Ported verbatim from /Users/money/Desktop/apex/app/globals.css :root vars.
+ * Scoped to `.apex-shell` so they do NOT pollute cerniq's global CSS
+ * variables — apex aesthetics live only within /apex/* routes.
+ *
+ * "Preserve original form" directive: keep exact hex values, font stack,
+ * radius, and shadow tokens. Future phases (1.1+) will port the
+ * presentational components that consume these vars.
+ *
+ * Sources for the design tokens:
+ *   - apex/app/globals.css :root block (matte-black + cyan/teal accents)
+ *   - apex/components/apex-demo-ui.tsx (consumer site for these vars)
+ *
+ * Coexistence rule: cerniq's Tailwind v4 theme is unaffected — these
+ * vars are NOT registered as Tailwind colors. They're plain CSS
+ * properties consumed by inline styles + Apex class conventions
+ * (.apex-page, .apex-shell, .apex-top-nav, etc.).
+ */
+
+/* Font imports — Apex's exact stack. Self-hosted via Google Fonts so
+ * the visual identity ships even when offline-rebuilt; in Phase 1.1+
+ * we may swap to Next.js next/font for better LCP. */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700;800;900&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap");
+
+.apex-shell {
+  /* Surface colors */
+  --apex-bg: #030710;
+  --apex-bg-elevated: #06101a;
+  --apex-panel: #07111b;
+  --apex-panel-strong: #08131f;
+  --apex-border: #123046;
+  --apex-border-soft: rgba(103, 232, 249, 0.14);
+
+  /* Text */
+  --apex-text: #d7e9f7;
+  --apex-muted: #8fb4cf;
+  --apex-subtle: #54758b;
+
+  /* Semantic */
+  --apex-label: #4fc3f7;
+  --apex-success: #00ffb2;
+  --apex-warn: #ffd166;
+  --apex-critical: #ff8a80;
+
+  /* Geometry */
+  --apex-radius: 6px;
+  --apex-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+
+  /* Apply baseline shell styling so the sub-app's pages don't
+   * inherit cerniq's white-on-light defaults at the boundary. */
+  background: var(--apex-bg);
+  color: var(--apex-text);
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  min-height: 100vh;
+}
+
+/* Apex page shell — direct port of apex/components/apex-demo-ui.tsx
+ * usage. Subtle radial gradient + monospace baseline. */
+.apex-shell .apex-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      ellipse at top,
+      rgba(79, 195, 247, 0.04) 0%,
+      transparent 50%
+    ),
+    var(--apex-bg);
+  padding: 24px;
+}
+
+/* Headings use Orbitron for the fancy trading-glyph look. */
+.apex-shell h1,
+.apex-shell h2,
+.apex-shell h3 {
+  font-family: Orbitron, "IBM Plex Mono", monospace;
+  letter-spacing: 0.05em;
+  color: var(--apex-label);
+}
+
+/* Display-stat numerals use Rajdhani per Apex's MetricStrip convention. */
+.apex-shell .apex-metric-value {
+  font-family: Rajdhani, "IBM Plex Mono", monospace;
+  font-weight: 600;
+  color: var(--apex-text);
+}
+
+/* Body prose uses Inter for readability inside data-dense panels. */
+.apex-shell .apex-prose {
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
