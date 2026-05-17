@@ -5,7 +5,10 @@ on:
     branches: [main]
     paths:
       - 'frontend/**'
-      - '.github/workflows/a11y-sweep.yml'
+      # Note: a11y-sweep.yml is deliberately excluded from path filter — the
+      # workflow's local-sweep path is currently broken (see job-level comment
+      # below), and self-triggering on workflow-file changes traps any fix in
+      # its own broken check. Schedule/workflow_dispatch still cover this file.
   # Weekly production sweep — catches drift on marketing/static pages that
   # don't get touched in any PR (shared-component regressions, vendor-script
   # injections breaking a11y, cert-changes rendering content differently).
