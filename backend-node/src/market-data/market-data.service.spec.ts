@@ -54,12 +54,19 @@ describe('MarketDataService', () => {
     getFXRate: jest.fn().mockResolvedValue(null),
     getLatestObservation: jest.fn().mockResolvedValue(null),
   };
+  // TreasuryFiscalDataProvider — FRED yield-curve fallback. Null defaults
+  // so the service's failover logic only activates when a specific test
+  // wants to exercise it.
+  const mockTreasuryFiscalDataProvider = {
+    getYieldCurve: jest.fn().mockResolvedValue(null),
+  };
 
   beforeEach(() => {
     service = new MarketDataService(
       mockYahooProvider as any,
       mockCoinGeckoProvider as any,
       mockFredProvider as any,
+      mockTreasuryFiscalDataProvider as any,
       mockDataQualityService as any,
     );
     jest.clearAllMocks();

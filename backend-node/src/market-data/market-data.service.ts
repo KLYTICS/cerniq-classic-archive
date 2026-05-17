@@ -3,6 +3,7 @@ import { DataQualityService } from '../common/data-quality.service';
 import { YahooFinanceProvider } from './providers/yahoo-finance.provider';
 import { CoinGeckoProvider } from './providers/coingecko.provider';
 import { FredProvider } from './providers/fred.provider';
+import { TreasuryFiscalDataProvider } from './providers/treasury-fiscal-data.provider';
 import {
   AssetType,
   FreshnessState,
@@ -121,6 +122,7 @@ export class MarketDataService {
     private readonly yahooFinanceProvider: YahooFinanceProvider,
     private readonly coinGeckoProvider: CoinGeckoProvider,
     private readonly fredProvider: FredProvider,
+    private readonly treasuryFiscalDataProvider: TreasuryFiscalDataProvider,
     private readonly dataQualityService: DataQualityService,
   ) {}
 
@@ -715,6 +717,13 @@ export class MarketDataService {
   /**
    * US Treasury Constant-Maturity yield curve (the curve every ALM model
    * needs for duration / EVE / NII). Cached for 1h (FRED publishes daily).
+   *
+   * Multi-provider failover ladder:
+   *   1. Live cache (≤1h fresh) — return immediately.
+   *   2. FRED (primary; richest metadata, longest history).
+   *   3. Treasury Fiscal Data (fallback; same Treasury source, no auth).
+   *   4. Stale cache (<24h old) — last-resort graceful degrade with a warn.
+   *   5. null — UI surfaces a DataGap (Rule 1, never silent-zero).
    */
   async getYieldCurve(): Promise<YieldCurveDto | null> {
     const cacheKey = 'US_TREASURY_CMT';
@@ -722,16 +731,32 @@ export class MarketDataService {
     if (cached && Date.now() - cached.timestamp < this.YIELD_CURVE_CACHE_TTL) {
       return cached.data;
     }
-    const curve = await this.fetchWithTelemetry('fred', () =>
+
+    // Primary: FRED
+    let curve = await this.fetchWithTelemetry('fred', () =>
       this.fredProvider.getYieldCurve(),
     );
+
+    // Fallback: Treasury Fiscal Data — same underlying source (US Treasury
+    // Dept), different distribution endpoint. Used when FRED is down or
+    // FRED_API_KEY is missing. Logged at info so operators see the failover
+    // happen rather than discovering it via metrics.
+    if (!curve) {
+      this.logger.warn(
+        'FRED yield-curve unavailable; trying Treasury Fiscal Data fallback',
+      );
+      curve = await this.fetchWithTelemetry('treasury-fiscal-data', () =>
+        this.treasuryFiscalDataProvider.getYieldCurve(),
+      );
+    }
+
     if (!curve) {
       // Honor stale cache as a graceful fallback ONLY if the data is fresh
       // enough to still be meaningful (24h). Otherwise return null so the
       // UI surfaces a DataGap rather than misleading the user.
       if (cached && Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) {
         this.logger.warn(
-          'Yield-curve fetch failed; returning stale cache (<24h old)',
+          'Yield-curve fetch failed across all providers; returning stale cache (<24h old)',
         );
         return cached.data;
       }
