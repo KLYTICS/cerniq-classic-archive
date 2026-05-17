@@ -2,7 +2,7 @@
 
 **Status:** Operator-side prerequisite for `deployment_runbook.md`. Run this FIRST. The code lane (PR #61) is green and ready to merge, but the underlying infrastructure was cold-stored on **2026-05-09** as part of the portfolio spend-reduction pivot. Until steps 1–7 below are complete, `deploy-backend` and `deploy-frontend` CI jobs will either no-op or fail.
 
-**Audience:** You (Erwin), at a terminal with browser access to Railway / Vercel / Cloudflare / Spaceship dashboards. None of this is automatable from a CI job — it requires owner-level dashboard auth.
+**Audience:** You (Erwin), at a terminal with browser access to Railway / Vercel / Spaceship dashboards (and optionally Cloudflare, if R2 storage or WAF are reactivated — neither is required for the core revival). None of this is automatable from a CI job — it requires owner-level dashboard auth.
 
 **Time:** 60–90 min if dumps are recoverable, 2–4 hours if migrating from a fresh schema.
 
@@ -23,10 +23,10 @@ After the smoke script passes, verify what was actually preserved in the cold-st
 | Claim | Verified as of 2026-05-16 | Notes |
 |---|---|---|
 | Railway project deleted | Likely — no `~/.config/railway`, no local link, runbook refs project `0a09d7c9-a960-49df-a71d-12d06d7c8bcd` which is unreachable | Confirm by attempting `railway login` then `railway list` |
-| Vercel project deleted | Likely — `vercel ls` from frontend/ returns dead-link, but `cerniq.io` still serves cached edge build | Cached HTML survives; new deploys would 404 the integration |
+| Vercel project deleted | **No — likely survived.** The 2026-05-09 cold-storage tear-down did NOT delete Vercel. Check `.vercel/project.json` (root + `frontend/`) — if either exists, the project is alive. Per 2026-05-16 revival, prod is `capexcycle` (id `prj_odl6Ltja3NXGwJI0v7jZ7NEs88bL`) and `cerniq.io` still serves it. | Skip §3.1 recreate-from-scratch if the link exists; jump to §3.2 env-var refresh. |
 | GitHub Actions disabled | Stale — Actions are running (PR #61 had 22 green checks today) | Re-enabled at some point; verify in repo Settings → Actions |
 | Postgres dump at `~/Desktop/spend-audit-2026-05-09/dumps/` | **UNVERIFIED** — `~/Desktop/spend-audit-2026-05-09/` is permission-locked from CLI | Open in Finder to verify; if empty, see §3b |
-| TLS cert on `api.cerniq.io` | Mismatched — cert is `*.up.railway.app`, not `api.cerniq.io` | Will need re-issue at Cloudflare once new Railway service exists |
+| TLS cert on `api.cerniq.io` | Mismatched — cert is `*.up.railway.app`, not `api.cerniq.io` | Railway issues a new Let's Encrypt cert when `api.cerniq.io` is added as a Custom Domain on the service (see §4.2). No Cloudflare involved. |
 
 **Action:** Open `~/Desktop/spend-audit-2026-05-09/dumps/` in Finder right now. If there's a `.dump`, `.sql`, or `.sql.gz` file there, note the filename and size. If empty, you are on the fresh-schema path (§3b).
 
@@ -160,21 +160,35 @@ Do NOT proceed to §3 until `/health` returns 200.
 
 ---
 
-## 3. Vercel revival (10–20 min)
+## 3. Vercel revival (10–20 min — usually closer to 5)
 
-### 3.1 Authenticate and link
+### 3.0 Is Vercel actually deleted?
+
+In the 2026-05-09 cold-storage, Vercel was **NOT** torn down. Confirm before recreating:
 
 ```bash
-cd /Users/money/Desktop/Cerniq/frontend
-rm -rf .vercel   # clear stale project link from deleted project
+ls /Users/money/Desktop/cerniq/.vercel/project.json \
+   /Users/money/Desktop/cerniq/frontend/.vercel/project.json 2>/dev/null
+```
+
+If either exists, the project is live. As of 2026-05-16: production project is `capexcycle` (id `prj_odl6Ltja3NXGwJI0v7jZ7NEs88bL`) in org `ekiess-projects` (`team_Py4BFPdebTUCnwjLL7qXGIcW`). A second project `frontend` (id `prj_MdkT4rrUMnf5fn5TpHENOzFbHL6z`) exists at `frontend/.vercel/`; it's used for preview builds only.
+
+**If a link exists → skip §3.1, jump to §3.2 (env-var refresh + redeploy).**
+
+If both `.vercel/project.json` files are missing — i.e., a more thorough cold-storage in a future cycle — follow §3.1 to recreate.
+
+### 3.1 Authenticate and link (only if §3.0 confirmed deleted)
+
+```bash
+cd /Users/money/Desktop/cerniq/frontend
 vercel login
 vercel link --yes   # creates fresh .vercel/project.json
 ```
 
 When prompted:
 - Set up and deploy? **n** (we'll configure first)
-- Link to existing project? **n**
-- Project name: `cerniq-frontend` (or whatever the dashboard already shows)
+- Link to existing project? **y** if the org has an existing `capexcycle` project; otherwise **n**
+- Project name: `capexcycle` (the canonical 2026-05-16 prod name — use the existing name on revival, not a new one, so Vercel's GitHub App webhook continues to route deploys)
 - Directory: `./` (current = `frontend/`)
 
 ### 3.2 Set environment variables
@@ -198,11 +212,11 @@ vercel env add NEXT_PUBLIC_ALLOW_DEMO_MOCKS production
 vercel --prod
 ```
 
-Wait for the build (~2 min). Note the deployment URL (e.g., `cerniq-frontend-xxx.vercel.app`).
+Wait for the build (~2 min). Note the deployment URL (e.g., `capexcycle-xxx.vercel.app`).
 
 ### 3.4 Attach the production domain
 
-In Vercel dashboard → cerniq-frontend → Settings → Domains:
+In Vercel dashboard → `capexcycle` → Settings → Domains (skip this step if §3.0 confirmed the project survived — `cerniq.io` is already attached):
 1. Add `cerniq.io`
 2. Add `www.cerniq.io` (redirect to apex)
 3. Vercel will show the required DNS records — note them for §4
@@ -269,7 +283,7 @@ curl -sSI https://api.cerniq.io/health | grep -i 'x-railway-fallback' && echo "S
 
 If the Resend domain verification expired during cold-storage:
 1. Resend dashboard → Domains → cerniq.io
-2. If shown as "unverified", re-add the SPF / DKIM / DMARC TXT records via Cloudflare (per `docs/ops/resend_dns_setup.md`)
+2. If shown as "unverified", re-add the SPF / DKIM / DMARC TXT records **at Spaceship** (per `docs/ops/resend_dns_setup.md` — that doc is correct; only this runbook had it wrong).
 3. Click "Verify" — typically takes 5–15 min after DNS propagates
 
 ---
@@ -320,16 +334,18 @@ Manual end-to-end:
 
 ## 8. Hand back to Claude
 
-Once §7 is fully green, msg the cerniq Claude lane:
+Once §7 is fully green, broadcast to all active Claude sessions (the peers CLI does not support project-name targeting — `msg` takes `<sid-prefix|all>`):
 
 ```bash
-~/.claude/peers/bin/claude-peers msg cerniq "Cold-storage revival complete. \
+~/.claude/peers/bin/claude-peers msg all "Cold-storage revival complete. \
 Railway project=<new-id> service=<new-id>. \
-Vercel project=cerniq-frontend (live). \
+Vercel project=capexcycle (survived; relinked if needed). \
 api.cerniq.io cert OK. \
 All 7 smoke checks passed. \
-Ready for PR #61 merge + deploy."
+Ready for PR merge + deploy."
 ```
+
+For a durable handoff entry that future sessions will find via `git log` / SESSION_HANDOFF.md, use `claude-peers handoff --project cerniq --summary "..."` instead of (or in addition to) the broadcast.
 
 Claude will then:
 1. Wait for the 3 active peer write-sessions to settle
@@ -346,8 +362,8 @@ Claude will then:
 If any step fails and you want to bail:
 
 - **Before §3** (Railway only): `railway down --service cerniq-api` and delete the project from dashboard. Cost so far: ~$0 (Railway bills monthly, prorated).
-- **Before §4** (Railway + Vercel, but no DNS changes): same as above + `vercel projects rm cerniq-frontend --yes`. Cached `cerniq.io` build keeps serving via the old Vercel edge.
-- **After §4** (DNS changed): you have a window where `cerniq.io` may briefly 502 while DNS propagates back. Revert the Cloudflare records first, wait 5 min, then teardown Railway/Vercel. The cached edge build returns once DNS re-resolves.
+- **Before §4** (Railway + Vercel, but no DNS changes): same as above. **Do NOT** `vercel projects rm capexcycle` unless you are intentionally destroying the live frontend — `capexcycle` was preserved through 2026-05-09 cold-storage precisely because it serves `cerniq.io` from Vercel's edge cache and tearing it down loses that fallback.
+- **After §4** (DNS changed): you have a window where `cerniq.io` may briefly 502 while DNS propagates back. Revert the Spaceship records first (NOT Cloudflare — DNS authority is Spaceship retail per §4), wait 5 min, then teardown Railway. The cached Vercel edge build returns once DNS re-resolves.
 
 There's no rollback from Path F (fresh database) once users start signing up — you'd have to merge old + new data manually. That's the main reason to start Path R if there's any chance the dump is usable.
 
@@ -390,6 +406,7 @@ These IDs become stale on the next revival cycle. Treat the table as a snapshot.
 - **`x-railway-fallback: true`** is the symptom of a stale CNAME pointing at a deleted Railway project. Watch for it in §7 smoke output before assuming a deploy issue.
 - **`AUTH_ALLOW_LEGACY=true`** was set in env so existing API keys (hashed with legacy SHA-256) continue to authenticate; revoke once all keys re-issued under HMAC-with-pepper.
 - **Live secrets in repo `.env`** (Stripe `sk_live_…`, Anthropic, Resend) were treated as compromised because they touched at least one local-shell session during recovery; **rotate during the next revival window**.
+- **Round-2 audit caught what round-1 missed.** The first triage pass (`a69e44fa`) corrected §4 Cloudflare → Spaceship but did not sweep the rest of the doc for the same kind of drift. A second pass found: §0 + §3 wrongly claimed Vercel was deleted (it survived as `capexcycle`); §5.2 still pointed Resend DNS at Cloudflare; §8 hand-back used the wrong `claude-peers msg` syntax (`msg <project>` is not supported — only `msg <sid-prefix|all>`); §9 rollback named `cerniq-frontend` (wrong project) and "Cloudflare records" (wrong registrar). **Rule for next cycle:** when correcting one factual-drift bug in a runbook, grep the whole doc for the same noun (here: `Cloudflare`, `cerniq-frontend`, `deleted`) and audit every occurrence — not just the section you came in to fix.
 
 ---
 
@@ -401,7 +418,8 @@ A typical CERNIQ revival lands at roughly:
 |---|---|---|
 | Railway (API + Postgres + cron) | Hobby+ | $20–40 |
 | Vercel (Pro tier required for production domain) | Pro | $20 |
-| Cloudflare (DNS + R2 + WAF) | Free → Pro for WAF | $0–20 |
+| Spaceship (domain + DNS) | annual | ~$15–25/yr (≈$1–2/mo amortized) |
+| Cloudflare (R2 + WAF, optional — not used by core revival) | Free → Pro for WAF | $0–20 |
 | Stripe | Per-transaction | usage-based |
 | Resend | Free tier (3k/mo) → Pro | $0–20 |
 | Sentry | Free dev → Team | $0–26 |

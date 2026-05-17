@@ -130,11 +130,10 @@ if [[ "${1:-}" == "--self-test" ]]; then
   assert_eq "warn(WARN) leaves FAIL alone"  "0" "$(_delta_fail)"
   assert_eq "warn(WARN) records label"      "selftest-warn-warn" "${WARNED_LABELS[$((${#WARNED_LABELS[@]} - 1))]}"
 
-  # 5. Exit-code mapping — FAIL>0 must mean exit 1, regardless of WARN.
-  #    Verifies the contract documented in the header ("Exit codes" block).
-  if [[ "$FAIL" -gt 0 ]]; then
-    assert_eq "exit-mapping: FAIL>0 → exit=1" "1" "1"  # contract; the actual exit happens after the smoke body, not here.
-  fi
+  # The exit-code mapping itself (`if FAIL>0 then exit 1`) is direct line-
+  # of-code at the bottom of the script — no branching, no helper. A test
+  # here would either tautologically assert 1=1 or recurse into --self-test.
+  # Either way, no signal. Read the contract block in the header instead.
 
   echo "--------------------------------------------"
   if [[ "$T_FAIL" -eq 0 ]]; then
