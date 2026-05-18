@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-project
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -99,7 +99,7 @@ jobs:
     timeout-minutes: 10
     needs: [typecheck]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-project
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -128,7 +128,7 @@ jobs:
     timeout-minutes: 5
     needs: [typecheck]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-project
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -168,7 +168,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-project
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -191,7 +191,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Need full history so git diff against the base works
           fetch-depth: 0
@@ -211,7 +211,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -241,7 +241,7 @@ jobs:
       - session-freshness
     if: always()
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Generate ci-status.json
         run: bash scripts/ci/session-ci-report.sh
         env:
