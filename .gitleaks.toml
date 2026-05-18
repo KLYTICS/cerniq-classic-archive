@@ -200,15 +200,6 @@ regexes = [
   # Test fixtures for the masking utility (mask.util.spec.ts) — obviously-fake
   # `demo_key_*` values used to verify the masker function.
   '''demo_key_[A-Za-z0-9_]+''',
-  # Test stubs for provider specs (e.g. fred.provider.spec.ts, treasury-direct
-  # provider spec) — obviously-fake `test-key-<suffix>` values used to
-  # exercise call-time env reads without a real vendor API key. Pattern
-  # restricts to lowercase + digit + hyphen suffixes so it doesn't shadow
-  # mixed-case real-key patterns. Per-line `// gitleaks:allow` annotations
-  # exist for working-tree scans; this entry covers git-range PR scans
-  # (--log-opts) which examine historical commits where the annotation
-  # didn't yet exist (specifically: fred.provider.spec.ts:61 in 41c17e82).
-  '''test-key-[a-z0-9-]+''',
   # NestJS-stock boilerplate references in backend-node/README.md (CircleCI
   # badge URLs from the upstream Nest scaffold — not credentials).
   '''img\.shields\.io/circleci/build/github/nestjs''',
