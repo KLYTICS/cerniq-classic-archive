@@ -15,6 +15,7 @@ import {
   scoreBilingual,
   scoreFormatCompliance,
 } from './dimensions';
+import { adapterFor } from './adapters';
 
 export interface DimensionWeight {
   toolCoverage: number;
@@ -55,18 +56,32 @@ export function scoreAgentRun(
   trace: AuditStep[],
   expected: ExpectedFindings,
   weights: DimensionWeight = DEFAULT_WEIGHTS,
+  /**
+   * Optional agentId — when provided, the adapter registry remaps non-ALM
+   * output shapes (alerts[], sections{}, message+followups) into the
+   * common ScoreableOutput shape before scoring. If omitted, identity is
+   * used (current behaviour for callers that pre-shaped their output).
+   * See test/agent-evals/scoring/adapters.ts.
+   */
+  agentId?: string,
 ): CompositeScore {
   const weightSum = Object.values(weights).reduce((a, b) => a + b, 0);
   if (Math.abs(weightSum - 1.0) > 0.001) {
     throw new Error(`weights must sum to 1.0, got ${weightSum.toFixed(4)}`);
   }
 
+  // Adapter lookup is optional: when no agentId is supplied (or the agentId
+  // is unknown), `adapterFor` returns the ALM identity adapter — same
+  // behaviour as before this refactor, so callers that already pass
+  // ALM-shaped output keep working unchanged.
+  const scoreable = agentId ? adapterFor(agentId)(output) : output;
+
   const dims: Record<keyof DimensionWeight, DimensionResult> = {
     toolCoverage: scoreToolCoverage(trace, expected),
-    dollarQuantification: scoreDollarQuantification(output),
-    specificity: scoreSpecificity(output),
-    regulatoryRef: scoreRegulatoryRef(output),
-    bilingual: scoreBilingual(output, expected.requiresBilingual ?? false),
+    dollarQuantification: scoreDollarQuantification(scoreable),
+    specificity: scoreSpecificity(scoreable),
+    regulatoryRef: scoreRegulatoryRef(scoreable),
+    bilingual: scoreBilingual(scoreable, expected.requiresBilingual ?? false),
     formatCompliance: scoreFormatCompliance(output, expected.schemaValidator),
   };
 
