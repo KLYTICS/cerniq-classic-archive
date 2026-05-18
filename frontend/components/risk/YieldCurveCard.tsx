@@ -46,7 +46,7 @@ const TENOR_ORDER: Record<YieldCurvePoint['tenor'], number> = {
   '30Y': 30,
 };
 
-export function YieldCurveCard(): JSX.Element {
+export function YieldCurveCard() {
   const { state, refetch } = useYieldCurve();
 
   // Memoize chart data so recharts doesn't re-key the dataset on each render.
