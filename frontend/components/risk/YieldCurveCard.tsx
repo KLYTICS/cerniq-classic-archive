@@ -193,7 +193,10 @@ export function YieldCurveCard() {
                 }}
                 labelStyle={{ color: '#a1a1aa' }}
                 itemStyle={{ color: '#fef08a' }}
-                formatter={(v: number) => [`${v.toFixed(2)}%`, 'Yield']}
+                formatter={(v) => [
+                  typeof v === 'number' ? `${v.toFixed(2)}%` : '—',
+                  'Yield',
+                ]}
               />
               {curve.inverted && (
                 <ReferenceLine y={0} stroke="#52525b" strokeDasharray="2 2" />
