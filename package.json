@@ -24,6 +24,8 @@
     "session:list": "node scripts/session/list.mjs",
     "session:status": "node scripts/session/status.mjs",
     "session:handoff": "node scripts/session/handoff.mjs",
+    "session:doctor": "node scripts/session/doctor.mjs",
+    "session:doctor:self-test": "node scripts/session/doctor.mjs --self-test",
     "test:session": "node --test scripts/session/_lib.test.mjs",
     "audit:klytics": "node scripts/audit-klytics.mjs",
     "audit:klytics:summary": "node scripts/audit-klytics.mjs --summary",
