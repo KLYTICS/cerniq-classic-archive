@@ -28,16 +28,27 @@ eslint
 → verify:tenant-scope
 → verify:no-orphan-spec
 → verify:auth-coverage                    (auth-guard coverage strict)
+→ verify:body-trust                       (R3 v3 — controllers must not trust request body for ownership IDs)
+→ verify:userid-chain                     (R5 — req.user.userId > .id > .sub fallback order, strict at lint)
 → verify:rule-4-audit-immutable           (KLYTICS Rule 4 — audit_log* append-only)
 → verify:rule-9-stamping                  (KLYTICS Rule 9 — LLM prompt + cost provenance)
 → verify:rule-11-any-rationale            (KLYTICS Rule 11 — type-rationale on `any`)
 → verify:rule-12-crypto-randomness        (KLYTICS Rule 12 — crypto-grade randomness in security paths)
 → verify:vendor-registry                  (vendor registry consistency — providerPath files exist, scaffolds have blockedBy)
+→ verify:agent-smoke-endpoints            (agent-runs.controller.ts route prefix + 4 required sub-paths, drift guard for scripts/agent-smoke.sh)
 → tsc --noEmit
 ```
 Plus `prisma validate`, `jest` (coverage floor 86/70/81/86 statements/branches/functions/lines), `nest build`.
 
-The four KLYTICS rule verifiers live in `backend-node/scripts/verify-rule-*.mjs` and each supports `--self-test`. See `docs/platform/KLYTICS_AUDIT_DISCIPLINE.md` for normative rule text and per-rule adoption status (Rule 11 carries a 212-file chip-away baseline in `verify-rule-11-baseline.json`).
+The four KLYTICS rule verifiers live in `backend-node/scripts/verify-rule-*.mjs` and each supports `--self-test`. See `docs/platform/KLYTICS_AUDIT_DISCIPLINE.md` for normative rule text and per-rule adoption status (Rule 11 carries a 213-file chip-away baseline in `verify-rule-11-baseline.json`).
+
+**Agent quality gates** (separate from `npm run lint` — slow due to ts-node startup; meant for CI / pre-push, not pre-commit):
+```
+npm run agent-eval         # local scorecard against the 14 LLM-replay scripts
+npm run agent-eval:gate    # CI gate: fails on mean < 0.8 / overall drop ≥ 5pp / any per-case drop ≥ 5pp
+BLESS_REASON="..." npm run agent-eval:bless --agent <ID>  # update baseline after intentional improvement
+```
+Baselines at `backend-node/test/agent-evals/baselines/{alm_decision,cfo_copilot,committee_report,risk_monitor}.json`. Add a script: extend `backend-node/test/agent-evals/script-registry.ts` (explicit, not glob-discovered) + its paired golden case.
 
 **Frontend** — `cd frontend && npm run lint`:
 ```
