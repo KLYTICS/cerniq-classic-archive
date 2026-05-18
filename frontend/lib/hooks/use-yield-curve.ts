@@ -132,6 +132,12 @@ export function useYieldCurve(): UseYieldCurveResult {
   }, []);
 
   useEffect(() => {
+    // Canonical async data-fetch on mount. setState in fetchCurve happens
+    // after `await fetch(...)` microtask boundary, guarded by
+    // AbortController.signal.aborted — cascading-renders concern doesn't
+    // apply. Rule cannot see through async; data-fetch is the documented
+    // useEffect exception per react.dev "You Might Not Need an Effect".
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchCurve();
     return () => {
       abortRef.current?.abort();

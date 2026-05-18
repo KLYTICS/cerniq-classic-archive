@@ -108,6 +108,12 @@ export function useMacroData<T>(endpoint: string): UseMacroDataResult<T> {
   }, [endpoint]);
 
   useEffect(() => {
+    // Canonical async data-fetch on mount. setState in fetchData happens
+    // after `await fetch(...)` microtask boundary, guarded by
+    // AbortController.signal.aborted — cascading-renders concern doesn't
+    // apply. Rule cannot see through async; data-fetch is the documented
+    // useEffect exception per react.dev "You Might Not Need an Effect".
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
     return () => {
       abortRef.current?.abort();

@@ -15,7 +15,6 @@
  * seriesId footer, refresh button).
  */
 
-import type { JSX } from 'react';
 import type {
   MacroDataState,
   UseMacroDataResult,
