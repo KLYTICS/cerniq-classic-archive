@@ -58,7 +58,7 @@ describe('FredProvider', () => {
 
   beforeEach(() => {
     provider = new FredProvider();
-    process.env.FRED_API_KEY = 'test-key-abc123';
+    process.env.FRED_API_KEY = 'test-key-abc123'; // gitleaks:allow — test stub, not a real key
   });
 
   afterEach(() => {
