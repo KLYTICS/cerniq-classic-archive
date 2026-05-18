@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import HealthScoreWidget from './health-score-widget';
+import { axeRender } from '@/lib/test-utils/a11y';
 
 describe('HealthScoreWidget', () => {
   // ─── Score rendering ────────────────────────────────────────────────────────
@@ -163,5 +164,34 @@ describe('HealthScoreWidget', () => {
       'aria-label',
       'Puntaje de Salud: 35/100 - ALTO RIESGO',
     );
+  });
+
+  // ─── axe-core sweep ───────────────────────────────────────────────────────
+  // Component-level a11y ratchet. The Playwright route sweep (e2e/a11y-sweep/)
+  // catches issues that need real layout (contrast, target-size); this catches
+  // structural/ARIA/role/label issues at the unit level, fast, in vitest.
+
+  describe('axe-core sweep', () => {
+    it('full variant (English) has no a11y violations', async () => {
+      await axeRender(
+        <HealthScoreWidget score={72} confidence="HIGH" history={[60, 65, 70, 72]} />,
+      );
+    });
+
+    it('compact variant has no a11y violations', async () => {
+      await axeRender(<HealthScoreWidget score={45} variant="compact" />);
+    });
+
+    it('Spanish locale has no a11y violations', async () => {
+      await axeRender(
+        <HealthScoreWidget score={35} locale="es" confidence="LOW" />,
+      );
+    });
+
+    it('high-risk band (red) has no a11y violations', async () => {
+      // Important: the red-band color is conveyed by aria-label text, not
+      // by color alone. This test pins that contract.
+      await axeRender(<HealthScoreWidget score={20} confidence="LOW" />);
+    });
   });
 });
