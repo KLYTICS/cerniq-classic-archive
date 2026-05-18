@@ -167,6 +167,13 @@ regexes = [
   '''postgresql://USER:PASSWORD@HOST:5432/cerniq(\?sslmode=require)?''',
   '''ci-(test|build)-secret-must-be-at-least-32-characters-long''',
   '''ck_live_(test123|abcdef01)''',
+  # Test fixture placeholder values for provider specs. Real provider keys
+  # have provider-specific prefixes (sk_, AKIA, AIza, sk-ant-, re_); the
+  # `test-key-...` shape is unambiguously a fixture pattern. Inline
+  # `gitleaks:allow` annotation at fred.provider.spec.ts:61 (047c4b1a)
+  # silences current-state scans but full-history scan still trips at
+  # commit 41c17e82 — this regex closes the historical finding.
+  '''test-key-[a-z0-9-]+''',
   '''cerniq\.alm\.(recent|pinned)\.v1''',
   '''(stress|curve|peer|limit|alm|credit|rate|reg|capital|risk|pricing|report|liquidity|portfolio)\.[a-z0-9._-]+''',
   # Example/placeholder values in docs
