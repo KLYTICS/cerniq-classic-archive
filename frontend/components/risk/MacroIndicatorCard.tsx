@@ -53,7 +53,7 @@ export function MacroIndicatorCard<T extends BaseMacroPayload>({
   valueAccessor,
   valueSuffix = '',
   valueFormat = (v: number) => v.toFixed(2),
-}: MacroIndicatorCardProps<T>): JSX.Element {
+}: MacroIndicatorCardProps<T>) {
   const { state, refetch } = result;
   return (
     <section
@@ -98,7 +98,7 @@ function CardBody<T extends BaseMacroPayload>({
   valueAccessor,
   valueSuffix,
   valueFormat,
-}: CardBodyProps<T>): JSX.Element {
+}: CardBodyProps<T>) {
   if (state.state === 'idle' || state.state === 'loading') {
     return <div className="h-12 animate-pulse rounded bg-zinc-900" />;
   }

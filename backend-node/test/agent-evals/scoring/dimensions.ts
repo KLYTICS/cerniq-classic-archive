@@ -50,7 +50,12 @@ export function scoreToolCoverage(
   const coverageRatio = Math.min(calledCount / minRequired, 1);
   evidence.push(`${calledCount}/${minRequired} tool calls`);
 
-  if (expected.requiredTools) {
+  // Empty array is semantically "no required tools to check" — same as
+  // undefined. Prior code treated `[]` as truthy and then divided by zero,
+  // producing NaN that contaminated the composite score. Committee-report
+  // case 001 is the first golden with an explicit empty list and surfaced
+  // this latent bug.
+  if (expected.requiredTools && expected.requiredTools.length > 0) {
     const missing = expected.requiredTools.filter((t) => !toolNames.has(t));
     if (missing.length > 0) {
       evidence.push(`missing required: ${missing.join(', ')}`);

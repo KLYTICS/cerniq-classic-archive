@@ -46,7 +46,7 @@ const TENOR_ORDER: Record<YieldCurvePoint['tenor'], number> = {
   '30Y': 30,
 };
 
-export function YieldCurveCard(): JSX.Element {
+export function YieldCurveCard() {
   const { state, refetch } = useYieldCurve();
 
   // Memoize chart data so recharts doesn't re-key the dataset on each render.
@@ -193,7 +193,10 @@ export function YieldCurveCard(): JSX.Element {
                 }}
                 labelStyle={{ color: '#a1a1aa' }}
                 itemStyle={{ color: '#fef08a' }}
-                formatter={(v: number) => [`${v.toFixed(2)}%`, 'Yield']}
+                formatter={(v) => [
+                  typeof v === 'number' ? `${v.toFixed(2)}%` : '—',
+                  'Yield',
+                ]}
               />
               {curve.inverted && (
                 <ReferenceLine y={0} stroke="#52525b" strokeDasharray="2 2" />

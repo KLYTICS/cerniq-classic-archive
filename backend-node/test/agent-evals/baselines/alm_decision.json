@@ -1,7 +1,18 @@
 {
   "agentId": "ALM_DECISION",
-  "meanScore": 0.0,
-  "perCase": {},
-  "updatedAt": "2026-04-15T00:00:00.000Z",
-  "note": "Initial baseline — run `pnpm eval:baseline --agent alm_decision` after first verified green run. Do not update without human review per Vol3 §Layer 2 Consistency gate."
+  "meanScore": 0.917,
+  "perCase": {
+    "alm-001": 0.9,
+    "alm-002": 0.91,
+    "alm-003": 0.84,
+    "alm-004": 0.86,
+    "alm-005": 0.84,
+    "alm-006": 0.99,
+    "alm-007": 0.95,
+    "alm-008": 0.96,
+    "alm-009": 0.97,
+    "alm-010": 0.95
+  },
+  "updatedAt": "2026-05-17T23:06:15.385Z",
+  "note": "T6.b initial bless after per-agent scorer generalization (2026-05-17)"
 }

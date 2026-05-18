@@ -32,7 +32,7 @@ import {
   useInterestRate,
 } from '@/lib/hooks/use-macro-data';
 
-export default function MarketRatesPage(): JSX.Element {
+export default function MarketRatesPage() {
   // Hooks — call order matches the card grid below. Each is independent
   // (separate AbortController, separate cache), so a slow CPI fetch won't
   // delay the Fed Funds card.

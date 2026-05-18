@@ -86,7 +86,7 @@ const STATUS_STYLES: Record<VendorStatus, string> = {
   planned: 'border-zinc-700 bg-zinc-950 text-zinc-500',
 };
 
-export default function VendorStatusPage(): JSX.Element {
+export default function VendorStatusPage() {
   const [data, setData] = useState<ByCategoryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -175,7 +175,7 @@ function StatusSummary({
 }: {
   statusCounts: Record<VendorStatus, number>;
   total: number;
-}): JSX.Element {
+}) {
   return (
     <section
       aria-label="vendor status summary"
@@ -203,7 +203,7 @@ function CategorySection({
 }: {
   category: VendorCategory;
   vendors: VendorEntry[];
-}): JSX.Element {
+}) {
   return (
     <section aria-label={`${category} vendors`}>
       <h2 className="mb-2 text-xs uppercase tracking-wider text-zinc-500">
@@ -218,7 +218,7 @@ function CategorySection({
   );
 }
 
-function VendorCard({ vendor }: { vendor: VendorEntry }): JSX.Element {
+function VendorCard({ vendor }: { vendor: VendorEntry }) {
   return (
     <article
       className="rounded border border-zinc-800 bg-zinc-950 p-3"
