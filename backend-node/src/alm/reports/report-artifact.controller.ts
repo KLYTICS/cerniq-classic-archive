@@ -5,6 +5,7 @@ import {
   Param,
   Query,
   Body,
+  Req,
   Logger,
   UseGuards,
   BadRequestException,
@@ -30,7 +31,15 @@ import { ReportArtifactService } from './report-artifact.service';
 export class ReportArtifactController {
   private readonly logger = new Logger(ReportArtifactController.name);
 
-  constructor(private readonly artifactService: ReportArtifactService) {}
+  constructor(
+    private readonly artifactService: ReportArtifactService,
+    // type-rationale: InstitutionScopeGuard is the kernel ownership primitive
+    // exposing `verifyOwnership(institutionId, userId, isMasterCeo)`. Injected
+    // directly (not via @UseGuards) so the by-id route can fetch artifact
+    // first, then verify against its institutionId — the URL has no
+    // :institutionId param for the class-level guard to scope on.
+    private readonly institutionScope: InstitutionScopeGuard,
+  ) {}
 
   @Get('institution/:institutionId')
   @Roles('OWNER', 'ANALYST')
@@ -66,9 +75,33 @@ export class ReportArtifactController {
   @ApiOperation({ summary: 'Get artifact by ID' })
   @ApiParam({ name: 'id', description: 'Artifact UUID' })
   @ApiResponse({ status: 200, description: 'Artifact record' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — artifact not in caller institution',
+  })
   @ApiResponse({ status: 404, description: 'Not found' })
-  async getById(@Param('id') id: string) {
-    return this.artifactService.getById(id);
+  async getById(
+    @Param('id') id: string,
+    // type-rationale: NestJS Express Request shape varies with auth-strategy
+    // registration; narrow read surface (userId fallback + isMasterCeo) means a
+    // local interface would over-couple to the framework. Same pattern as
+    // alm.controller.ts createInstitution / saveScenario / saveCustomYieldCurve.
+    @Req() req: any,
+  ) {
+    // Fetch-then-verify pattern: the URL lacks :institutionId, so the
+    // class-level InstitutionScopeGuard has no tenancy key to scope on.
+    // We load the artifact, then verify the caller is in the artifact's
+    // institution. NotFoundException from the service surfaces uniformly
+    // as 404 to prevent cross-tenant existence enumeration via timing.
+    const artifact = await this.artifactService.getById(id);
+    const userId = req.user?.userId ?? req.user?.id ?? req.user?.sub;
+    const isMasterCeo = req.user?.access?.isMasterCeo === true;
+    await this.institutionScope.verifyOwnership(
+      artifact.institutionId,
+      userId,
+      isMasterCeo,
+    );
+    return artifact;
   }
 
   @Get('checksum/:checksum')

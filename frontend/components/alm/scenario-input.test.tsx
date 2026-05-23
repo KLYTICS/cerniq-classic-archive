@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ScenarioInput, { type ScenarioParams } from './scenario-input';
+import { axeRender } from '@/lib/test-utils/a11y';
 
 /* ── Helpers ────────────────────────────────────────────────────────────────── */
 
@@ -199,6 +200,39 @@ describe('ScenarioInput', () => {
 
       expect(onSave).toHaveBeenCalledTimes(1);
       expect(onSave.mock.calls[0][1]).toBe('My Test');
+    });
+  });
+
+  // ─── axe-core sweep ───────────────────────────────────────────────────────
+  // Slider-heavy form: this catches missing aria-labels, unlabeled buttons,
+  // and orphaned form controls that the route sweep would only spot if the
+  // dev server happens to be up.
+
+  describe('axe-core sweep', () => {
+    it('default form (English) has no a11y violations', async () => {
+      await axeRender(<ScenarioInput onRun={vi.fn()} onSave={vi.fn()} />);
+    });
+
+    it('Spanish locale has no a11y violations', async () => {
+      await axeRender(
+        <ScenarioInput onRun={vi.fn()} onSave={vi.fn()} locale="es" />,
+      );
+    });
+
+    it('with custom default values has no a11y violations', async () => {
+      await axeRender(
+        <ScenarioInput
+          onRun={vi.fn()}
+          onSave={vi.fn()}
+          defaultValues={{
+            rateShockBps: 200,
+            depositRunoffPct: 15,
+            prepaymentMultiplier: 1.5,
+            creditLossOverridePct: 2,
+            scenarioType: 'rate_shock_up',
+          }}
+        />,
+      );
     });
   });
 });

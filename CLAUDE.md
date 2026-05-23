@@ -28,15 +28,27 @@ eslint
 → verify:tenant-scope
 → verify:no-orphan-spec
 → verify:auth-coverage                    (auth-guard coverage strict)
+→ verify:body-trust                       (R3 v3 — controllers must not trust request body for ownership IDs)
+→ verify:userid-chain                     (R5 — req.user.userId > .id > .sub fallback order, strict at lint)
 → verify:rule-4-audit-immutable           (KLYTICS Rule 4 — audit_log* append-only)
 → verify:rule-9-stamping                  (KLYTICS Rule 9 — LLM prompt + cost provenance)
 → verify:rule-11-any-rationale            (KLYTICS Rule 11 — type-rationale on `any`)
 → verify:rule-12-crypto-randomness        (KLYTICS Rule 12 — crypto-grade randomness in security paths)
+→ verify:vendor-registry                  (vendor registry consistency — providerPath files exist, scaffolds have blockedBy)
+→ verify:agent-smoke-endpoints            (agent-runs.controller.ts route prefix + 4 required sub-paths, drift guard for scripts/agent-smoke.sh)
 → tsc --noEmit
 ```
 Plus `prisma validate`, `jest` (coverage floor 86/70/81/86 statements/branches/functions/lines), `nest build`.
 
-The four KLYTICS rule verifiers live in `backend-node/scripts/verify-rule-*.mjs` and each supports `--self-test`. See `docs/platform/KLYTICS_AUDIT_DISCIPLINE.md` for normative rule text and per-rule adoption status (Rule 11 carries a 212-file chip-away baseline in `verify-rule-11-baseline.json`).
+The four KLYTICS rule verifiers live in `backend-node/scripts/verify-rule-*.mjs` and each supports `--self-test`. See `docs/platform/KLYTICS_AUDIT_DISCIPLINE.md` for normative rule text and per-rule adoption status (Rule 11 carries a 213-file chip-away baseline in `verify-rule-11-baseline.json`).
+
+**Agent quality gates** (separate from `npm run lint` — slow due to ts-node startup; meant for CI / pre-push, not pre-commit):
+```
+npm run agent-eval         # local scorecard against the 14 LLM-replay scripts
+npm run agent-eval:gate    # CI gate: fails on mean < 0.8 / overall drop ≥ 5pp / any per-case drop ≥ 5pp
+BLESS_REASON="..." npm run agent-eval:bless --agent <ID>  # update baseline after intentional improvement
+```
+Baselines at `backend-node/test/agent-evals/baselines/{alm_decision,cfo_copilot,committee_report,risk_monitor}.json`. Add a script: extend `backend-node/test/agent-evals/script-registry.ts` (explicit, not glob-discovered) + its paired golden case.
 
 **Frontend** — `cd frontend && npm run lint`:
 ```
@@ -76,8 +88,11 @@ Examples:
 ## Branch + commit protocol
 
 - Work branches are named `claude/<topic>`; never commit directly to `main`.
-- Each landing appends a bullet to `docs/SESSION_HANDOFF.md` §5 (Recent landings). The landing-gate in `.husky/pre-commit` enforces this for `src/`, `app/`, `lib/`, `e2e/` changes.
-- Pre-existing landed work is the source of truth — read git log + SESSION_HANDOFF before assuming a feature is missing.
+- Each landing produces a §5 entry — written in EITHER of two ways:
+  1. **Incoming (RECOMMENDED in multi-peer sessions)**: create `docs/handoff-incoming/YYYY-MM-DD-<sha7>-<topic>.md` whose content is the full bullet text (starting with `- YYYY-MM-DD — **Title.**`). Unique filename per commit → zero contention with concurrent peers. Periodic squash: `node scripts/squash-handoff-incoming.mjs` (`--dry-run` to preview) merges them into §5 in batch. See `docs/handoff-incoming/README.md`.
+  2. **Direct**: append a bullet to `docs/SESSION_HANDOFF.md` §5 inline. Lower latency but high stage-race surface in busy sessions — prefer (1) when multiple peers are active.
+- Landing-gate in `.husky/pre-commit` (`scripts/ci/check-landing-entry.mjs`) accepts either form for `src/`, `app/`, `lib/`, `e2e/` changes. Bypass with `SKIP_LANDING=1` only for non-landing commits (hotfix, flake, WIP).
+- Pre-existing landed work is the source of truth — read git log + SESSION_HANDOFF + `docs/handoff-incoming/` before assuming a feature is missing.
 - Never silent zeros — see SESSION_HANDOFF D1 (gaps + partial reports, never `0` for missing data, never hard 422s).
 - Never raise a threshold without justification. Never disable a verifier. Never skip hooks without naming why.
 

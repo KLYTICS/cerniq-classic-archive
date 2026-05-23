@@ -1,0 +1,9 @@
+{
+  "agentId": "CFO_COPILOT",
+  "meanScore": 0.89,
+  "perCase": {
+    "copilot-001": 0.89
+  },
+  "updatedAt": "2026-05-17T23:06:15.387Z",
+  "note": "T6.b initial bless after per-agent scorer generalization (2026-05-17)"
+}

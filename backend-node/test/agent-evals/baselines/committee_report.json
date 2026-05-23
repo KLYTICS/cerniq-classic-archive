@@ -1,0 +1,9 @@
+{
+  "agentId": "COMMITTEE_REPORT",
+  "meanScore": 0.88,
+  "perCase": {
+    "committee-001": 0.88
+  },
+  "updatedAt": "2026-05-17T23:06:15.387Z",
+  "note": "T6.b initial bless after per-agent scorer generalization (2026-05-17)"
+}

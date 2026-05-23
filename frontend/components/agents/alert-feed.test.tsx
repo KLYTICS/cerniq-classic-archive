@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AlertFeed from './alert-feed';
 import type { AgentAlertRecord } from '@/types/agents';
+import { axeRender } from '@/lib/test-utils/a11y';
 
 // ─── Mock agents-api ────────────────────────────────────────────────────────
 
@@ -381,5 +382,43 @@ describe('AlertFeed', () => {
     });
 
     expect(screen.queryByTestId('alert-filter-bar')).not.toBeInTheDocument();
+  });
+
+  // ─── axe-core sweep ───────────────────────────────────────────────────────
+  // Mixed-severity feed with status dots, filter dropdowns, and ack buttons —
+  // the highest-density widget in the cockpit. Lock structural a11y now so
+  // visual refactors can't strip aria attributes silently.
+
+  describe('axe-core sweep', () => {
+    it('rendered feed (English) has no a11y violations', async () => {
+      await axeRender(<AlertFeed institutionId="inst-1" />);
+      await waitFor(() => {
+        expect(screen.getByTestId('alert-feed')).toBeInTheDocument();
+      });
+    });
+
+    it('Spanish locale has no a11y violations', async () => {
+      await axeRender(<AlertFeed institutionId="inst-1" locale="es" />);
+      await waitFor(() => {
+        expect(screen.getByTestId('alert-feed')).toBeInTheDocument();
+      });
+    });
+
+    it('empty state has no a11y violations', async () => {
+      listAlertsMock.mockResolvedValue([]);
+      await axeRender(<AlertFeed institutionId="inst-1" />);
+      await waitFor(() => {
+        expect(screen.getByTestId('alert-feed')).toBeInTheDocument();
+      });
+    });
+
+    it('feed without filters has no a11y violations', async () => {
+      await axeRender(
+        <AlertFeed institutionId="inst-1" showFilters={false} />,
+      );
+      await waitFor(() => {
+        expect(screen.getByTestId('alert-feed')).toBeInTheDocument();
+      });
+    });
   });
 });

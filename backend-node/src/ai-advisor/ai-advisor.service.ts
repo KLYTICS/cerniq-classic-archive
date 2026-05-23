@@ -5,12 +5,23 @@ import {
   ConversationHistoryService,
   ConversationMessage,
 } from './conversation-history.service';
+import { computePromptVersion } from '../alm/analyst/prompt-version';
+import {
+  extractUsage,
+  mergeUsage,
+  estimateCostCents,
+  type LLMUsage,
+} from '../alm/analyst/llm-usage';
 
 // ─── Configuration ──────────────────────────────────────────
 
 const AI_ADVISOR_MODEL = process.env.AI_ADVISOR_MODEL || 'claude-sonnet-4-6';
 
 const MAX_RESPONSE_TOKENS = 4096;
+
+// KLYTICS Rule 9 — temperature must participate in the prompt fingerprint so
+// any deliberate or accidental temperature drift is detectable in audit.
+const AI_ADVISOR_TEMPERATURE = 0.3;
 
 // ─── Interfaces ─────────────────────────────────────────────
 
@@ -181,11 +192,23 @@ export class AiAdvisorService {
       content: question,
     });
 
-    // 6. Call the LLM with tool-use enabled
+    // 6. Call the LLM with tool-use enabled.
+    // KLYTICS Rule 9: fingerprint (model, systemPrompt, tools, temperature)
+    // once before the loop so per-round usage rolls up under one prompt id.
+    const promptVersion = computePromptVersion({
+      model: AI_ADVISOR_MODEL,
+      systemPrompt,
+      tools: ADVISOR_TOOLS,
+      temperature: AI_ADVISOR_TEMPERATURE,
+    });
     const almModulesReferenced: string[] = [];
     let finalText = '';
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
+    // Four-class usage accumulator (input + output + cache_creation + cache_read);
+    // kept alongside the 2-class roll-up above so existing DB schema is unchanged
+    // and the four-class stamp is still emitted for audit.
+    let usage: LLMUsage | null = null;
 
     // Tool-use loop: the model may request tools before producing a final answer.
     let currentMessages: Anthropic.Messages.MessageParam[] = [...messages];
@@ -195,7 +218,7 @@ export class AiAdvisorService {
       const response = await this.client.messages.create({
         model: AI_ADVISOR_MODEL,
         max_tokens: MAX_RESPONSE_TOKENS,
-        temperature: 0.3,
+        temperature: AI_ADVISOR_TEMPERATURE,
         system: systemPrompt,
         tools: ADVISOR_TOOLS,
         messages: currentMessages,
@@ -203,6 +226,7 @@ export class AiAdvisorService {
 
       totalInputTokens += response.usage?.input_tokens ?? 0;
       totalOutputTokens += response.usage?.output_tokens ?? 0;
+      usage = mergeUsage(usage, extractUsage(response));
 
       // Process content blocks
       const assistantContent: Array<
@@ -276,6 +300,34 @@ export class AiAdvisorService {
       almModulesReferenced,
     });
 
+    // KLYTICS Rule 9: emit cost + prompt provenance once the tool-use loop
+    // settles. Cost is the integer-centi-cent estimate; null + reason when
+    // the model isn't in the pricing table (Rule 1 compounds — never silent-
+    // zero on cost when usage was observed).
+    const costEstimate = usage
+      ? estimateCostCents(AI_ADVISOR_MODEL, usage)
+      : null;
+    this.logger.log({
+      event: 'rule-9-stamp',
+      surface: 'ai-advisor.ask',
+      institutionId,
+      sessionId,
+      model: AI_ADVISOR_MODEL,
+      promptVersion,
+      usage,
+      costCents: costEstimate?.cents ?? null,
+      latencyMs,
+      toolRounds: almModulesReferenced.length,
+      ...(costEstimate && 'pricingVersion' in costEstimate
+        ? { pricingVersion: costEstimate.pricingVersion }
+        : {
+            costMissingReason:
+              costEstimate && 'reason' in costEstimate
+                ? costEstimate.reason
+                : null,
+          }),
+    });
+
     this.logger.log(
       `AI Advisor responded for ${institution.name} in ${latencyMs}ms (${tokenCount} tokens, ${almModulesReferenced.length} tools used)`,
     );
@@ -334,12 +386,22 @@ export class AiAdvisorService {
     const startMs = Date.now();
     let fullText = '';
     let totalTokens = 0;
+    let usage: LLMUsage | null = null;
     const almModulesReferenced: string[] = [];
+
+    // KLYTICS Rule 9: fingerprint before the stream so the audit trail can
+    // correlate the streamed completion with the exact prompt+model bundle.
+    const promptVersion = computePromptVersion({
+      model: AI_ADVISOR_MODEL,
+      systemPrompt,
+      tools: ADVISOR_TOOLS,
+      temperature: AI_ADVISOR_TEMPERATURE,
+    });
 
     const stream = this.client.messages.stream({
       model: AI_ADVISOR_MODEL,
       max_tokens: MAX_RESPONSE_TOKENS,
-      temperature: 0.3,
+      temperature: AI_ADVISOR_TEMPERATURE,
       system: systemPrompt,
       tools: ADVISOR_TOOLS,
       messages,
@@ -367,6 +429,7 @@ export class AiAdvisorService {
         totalTokens =
           (finalMsg.usage?.input_tokens ?? 0) +
           (finalMsg.usage?.output_tokens ?? 0);
+        usage = extractUsage(finalMsg);
       }
     }
 
@@ -388,6 +451,33 @@ export class AiAdvisorService {
       modelId: AI_ADVISOR_MODEL,
       latencyMs,
       almModulesReferenced,
+    });
+
+    // KLYTICS Rule 9: emit the cost + prompt provenance stamp on stream
+    // completion. Same shape as the `ask` path so log aggregation can join
+    // both surfaces on `event: 'rule-9-stamp'`.
+    const costEstimate = usage
+      ? estimateCostCents(AI_ADVISOR_MODEL, usage)
+      : null;
+    this.logger.log({
+      event: 'rule-9-stamp',
+      surface: 'ai-advisor.streamAsk',
+      institutionId,
+      sessionId,
+      model: AI_ADVISOR_MODEL,
+      promptVersion,
+      usage,
+      costCents: costEstimate?.cents ?? null,
+      latencyMs,
+      toolRounds: almModulesReferenced.length,
+      ...(costEstimate && 'pricingVersion' in costEstimate
+        ? { pricingVersion: costEstimate.pricingVersion }
+        : {
+            costMissingReason:
+              costEstimate && 'reason' in costEstimate
+                ? costEstimate.reason
+                : null,
+          }),
     });
 
     yield { type: 'done' };

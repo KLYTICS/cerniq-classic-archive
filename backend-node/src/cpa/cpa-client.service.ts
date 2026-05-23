@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CpaFirmService } from './cpa-firm.service';
+import { DataGap, dataGap } from '../alm/reports/data-gap';
 
 // ─── Interfaces ─────────────────────────────────────────────────
 
@@ -28,8 +29,15 @@ export interface CpaDashboardData {
   totalClients: number;
   totalAssetsUnderAdvisory: string; // Decimal serialized as string
   riskDistribution: { high: number; medium: number; low: number };
-  recentAlerts: any[];
-  upcomingExams: any[];
+  // `null` (not `[]`) when the upstream integration is unwired — see Rule 1
+  // in docs/platform/KLYTICS_AUDIT_DISCIPLINE.md. Each null field MUST be
+  // accompanied by a matching `UNWIRED_INTEGRATION` entry in `gaps`. The
+  // payload element type stays `unknown[]` until the alert/exam pipelines
+  // land their own DTOs; that keeps the present-day surface honest about
+  // "we will populate this someday" without leaking a guess at the shape.
+  recentAlerts: unknown[] | null;
+  upcomingExams: unknown[] | null;
+  gaps: DataGap[];
 }
 
 export interface BulkAddResult {
@@ -237,13 +245,30 @@ export class CpaClientService {
       }
     }
 
+    // recentAlerts + upcomingExams are surfaced as DataGap entries instead
+    // of silent empty arrays — see CpaDashboardData. When the alert pipeline
+    // (agent-trust + intelligence) and exam-prep scheduler land, drop the
+    // gap entry and populate the field. Until then, the UI renders these
+    // sections as "—" with the gap action as tooltip instead of "0 alerts".
     return {
       firmName: firm.name,
       totalClients: clients.length,
       totalAssetsUnderAdvisory: String(totalAssets),
       riskDistribution,
-      recentAlerts: [], // TODO: wire up agent alert integration
-      upcomingExams: [], // TODO: wire up exam-prep agent data
+      recentAlerts: null,
+      upcomingExams: null,
+      gaps: [
+        dataGap('dashboard.recentAlerts', 'UNWIRED_INTEGRATION', {
+          severity: 'WARNING',
+          action:
+            'Recent-alerts feed depends on the agent alert pipeline; not yet wired into the CPA dashboard.',
+        }),
+        dataGap('dashboard.upcomingExams', 'UNWIRED_INTEGRATION', {
+          severity: 'WARNING',
+          action:
+            'Upcoming-exams feed depends on the exam-prep agent; not yet wired into the CPA dashboard.',
+        }),
+      ],
     };
   }
 

@@ -56,10 +56,13 @@ export class ActionController {
   async dispatch(
     @Param('id') id: string,
     @Body() input: ActionInput,
-    @Req() req: Request & { user?: { id?: string; roles?: string[] } },
+    @Req()
+    req: Request & {
+      user?: { userId?: string; id?: string; sub?: string; roles?: string[] };
+    },
   ) {
     return this.registry.dispatch(id, input ?? {}, {
-      userId: req.user?.id,
+      userId: req.user?.userId ?? req.user?.id ?? req.user?.sub,
       userRoles: req.user?.roles,
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],

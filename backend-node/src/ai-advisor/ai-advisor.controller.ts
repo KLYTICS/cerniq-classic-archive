@@ -94,7 +94,8 @@ export class AiAdvisorController {
       throw new BadRequestException(parsed.error.issues);
     }
 
-    const userId: string = req.user?.id ?? req.user?.sub ?? 'anonymous';
+    const userId: string =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub ?? 'anonymous';
 
     return this.conversationHistory.listSessions(
       parsed.data.institutionId,

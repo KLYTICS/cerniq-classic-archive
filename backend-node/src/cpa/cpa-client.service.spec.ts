@@ -308,6 +308,36 @@ describe('CpaClientService', () => {
         NotFoundException,
       );
     });
+
+    it('emits UNWIRED_INTEGRATION gaps for unwired alert + exam-prep feeds (Rule 1 — no silent empty arrays)', async () => {
+      // Locks the convention: until the agent alert pipeline and exam-prep
+      // scheduler land, the dashboard MUST return `null` for those fields
+      // (not `[]`) AND emit a matching DataGap entry so the UI renders
+      // "DATA UNAVAILABLE" instead of "0 alerts" / "0 exams". A regulator
+      // reading "0 alerts" on a CPA dashboard would conclude there are no
+      // alerts to act on — the actual state is "the alert feed isn't built
+      // yet." That misreading is the exact failure mode KLYTICS Rule 1
+      // exists to prevent.
+      prisma.cpaFirm.findUnique.mockResolvedValue(baseFirm);
+      prisma.cpaClientRelationship.findMany.mockResolvedValue([]);
+
+      const dashboard = await service.getClientDashboard('firm-1');
+
+      expect(dashboard.recentAlerts).toBeNull();
+      expect(dashboard.upcomingExams).toBeNull();
+      expect(dashboard.gaps).toHaveLength(2);
+
+      const fields = dashboard.gaps.map((g) => g.field).sort();
+      expect(fields).toEqual([
+        'dashboard.recentAlerts',
+        'dashboard.upcomingExams',
+      ]);
+      for (const g of dashboard.gaps) {
+        expect(g.reason).toBe('UNWIRED_INTEGRATION');
+        expect(g.severity).toBe('WARNING');
+        expect(g.action).toBeTruthy();
+      }
+    });
   });
 
   // ─── bulkAddClients ───────────────────────────────────────────

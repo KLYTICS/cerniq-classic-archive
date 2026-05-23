@@ -39,6 +39,27 @@ describe('extractUsage', () => {
       cacheReadInputTokens: 0,
     });
   });
+
+  it('collapses null per-field usage to 0 (SDK emits null, not undefined)', () => {
+    // The Anthropic SDK types cache fields as `number | null`. Before
+    // AnthropicResponseUsage was widened to accept null, every
+    // extractUsage callsite that passed an SDK Message directly failed
+    // tsc — locked here so a future narrowing breaks loudly.
+    const u = extractUsage({
+      usage: {
+        input_tokens: 100,
+        output_tokens: 200,
+        cache_creation_input_tokens: null,
+        cache_read_input_tokens: null,
+      },
+    });
+    expect(u).toEqual({
+      inputTokens: 100,
+      outputTokens: 200,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+    });
+  });
 });
 
 describe('mergeUsage', () => {

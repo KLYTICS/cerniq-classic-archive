@@ -34,7 +34,11 @@ import { RunTieOutDto } from './dto/run-tie-out.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 
 interface AuthedRequest {
-  user?: { id: string };
+  // Canonical chain set by AuthGuard (auth.guard.ts:271 sets `userId`);
+  // `id`/`sub` retained for Passport-OAuth + legacy JWT-strategy paths.
+  // R5 verifier (verify-userid-chain.mjs) locks reads as
+  // `userId ?? id ?? sub ?? <sentinel>`.
+  user?: { userId?: string; id?: string; sub?: string };
 }
 
 @ApiTags('Close Cockpit')
@@ -93,7 +97,8 @@ export class CloseController {
     summary: 'CFO sign-off — locks the period if all gates clear',
   })
   async signOff(@Param('cycleId') cycleId: string, @Req() req: AuthedRequest) {
-    const userId = req.user?.id ?? 'system';
+    const userId =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub ?? 'system';
     return this.closeService.signOffCycle(cycleId, userId);
   }
 
@@ -107,7 +112,8 @@ export class CloseController {
     @Body() body: { reason: string },
     @Req() req: AuthedRequest,
   ) {
-    const userId = req.user?.id ?? 'system';
+    const userId =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub ?? 'system';
     return this.closeService.reopenCycle(cycleId, body.reason ?? '', userId);
   }
 
@@ -124,7 +130,8 @@ export class CloseController {
     @Body() dto: UpdateTaskDto,
     @Req() req: AuthedRequest,
   ) {
-    const userId = req.user?.id ?? 'system';
+    const userId =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub ?? 'system';
     return this.closeService.updateTask(cycleId, taskId, dto, userId);
   }
 
@@ -141,7 +148,8 @@ export class CloseController {
     @Body() body: { notes?: string },
     @Req() req: AuthedRequest,
   ) {
-    const userId = req.user?.id ?? 'system';
+    const userId =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub ?? 'system';
     return this.closeService.reviewReconciliation(
       cycleId,
       reconId,
@@ -157,7 +165,8 @@ export class CloseController {
     @Body() dto: RunTieOutDto,
     @Req() req: AuthedRequest,
   ) {
-    const userId = req.user?.id ?? 'system';
+    const userId =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub ?? 'system';
     return this.closeService.runTieOut(
       cycleId,
       dto.account,
@@ -178,7 +187,8 @@ export class CloseController {
     @Body() dto: PostJournalEntryDto,
     @Req() req: AuthedRequest,
   ) {
-    const userId = req.user?.id ?? 'system';
+    const userId =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub ?? 'system';
     return this.closeService.postJournalEntry(cycleId, dto, userId);
   }
 
@@ -193,7 +203,8 @@ export class CloseController {
     @Body() body: { reason: string },
     @Req() req: AuthedRequest,
   ) {
-    const userId = req.user?.id ?? 'system';
+    const userId =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub ?? 'system';
     return this.closeService.reverseJournalEntry(
       cycleId,
       jeId,
@@ -218,7 +229,8 @@ export class CloseController {
     },
     @Req() req: AuthedRequest,
   ) {
-    const userId = req.user?.id ?? 'system';
+    const userId =
+      req.user?.userId ?? req.user?.id ?? req.user?.sub ?? 'system';
     return this.closeService.runFlux(cycleId, body.rows, userId);
   }
 
@@ -347,7 +359,7 @@ export class CloseController {
     if (!file) {
       throw new BadRequestException('No CSV file provided');
     }
-    const userId = req.user?.id ?? null;
+    const userId = req.user?.userId ?? req.user?.id ?? req.user?.sub ?? null;
     const csvContent = file.buffer.toString('utf-8');
     const sourceLabel = `upload:${file.originalname}`;
     return this.glUpload.upload(orgId, csvContent, sourceLabel, userId);

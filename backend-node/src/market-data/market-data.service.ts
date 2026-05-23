@@ -2,6 +2,9 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DataQualityService } from '../common/data-quality.service';
 import { YahooFinanceProvider } from './providers/yahoo-finance.provider';
 import { CoinGeckoProvider } from './providers/coingecko.provider';
+import { FredProvider } from './providers/fred.provider';
+import { TreasuryFiscalDataProvider } from './providers/treasury-fiscal-data.provider';
+import { AlphaVantageProvider } from './providers/alpha-vantage.provider';
 import {
   AssetType,
   FreshnessState,
@@ -17,6 +20,12 @@ import {
   StreamStatusDto,
   TickerSearchResultDto,
 } from './dto/quote.dto';
+import {
+  EconomicIndicatorDto,
+  FXRateDto,
+  InterestRateDto,
+  YieldCurveDto,
+} from './dto/macro.dto';
 
 interface QuoteRequestOptions {
   maxCacheAgeMs?: number;
@@ -86,9 +95,36 @@ export class MarketDataService {
   >();
   private readonly NEWS_CACHE_TTL = 5 * 60 * 1000;
 
+  // Macro-data caches — yield curves + rate observations refresh on a daily
+  // FRED publication cadence; cache aggressively to stay inside the 120/min
+  // free-tier limit + keep ALM page renders snappy.
+  private yieldCurveCache = new Map<
+    string,
+    { data: YieldCurveDto; timestamp: number }
+  >();
+  private readonly YIELD_CURVE_CACHE_TTL = 60 * 60 * 1000; // 1h
+  private interestRateCache = new Map<
+    string,
+    { data: InterestRateDto; timestamp: number }
+  >();
+  private readonly INTEREST_RATE_CACHE_TTL = 60 * 60 * 1000; // 1h
+  private indicatorCache = new Map<
+    string,
+    { data: EconomicIndicatorDto; timestamp: number }
+  >();
+  private readonly INDICATOR_CACHE_TTL = 6 * 60 * 60 * 1000; // 6h (CPI/GDP move slow)
+  private fxRateCache = new Map<
+    string,
+    { data: FXRateDto; timestamp: number }
+  >();
+  private readonly FX_RATE_CACHE_TTL = 60 * 60 * 1000; // 1h
+
   constructor(
     private readonly yahooFinanceProvider: YahooFinanceProvider,
     private readonly coinGeckoProvider: CoinGeckoProvider,
+    private readonly fredProvider: FredProvider,
+    private readonly treasuryFiscalDataProvider: TreasuryFiscalDataProvider,
+    private readonly alphaVantageProvider: AlphaVantageProvider,
     private readonly dataQualityService: DataQualityService,
   ) {}
 
@@ -366,12 +402,27 @@ export class MarketDataService {
       };
     }
 
-    return {
-      provider: 'yahoo-finance',
-      payload: await this.fetchWithTelemetry('yahoo-finance', () =>
-        this.yahooFinanceProvider.getQuote(ticker),
-      ),
-    };
+    // Stock quote ladder: Yahoo → Alpha Vantage → null (stale-cache decided by caller).
+    // Alpha Vantage is the fresh-quote fallback; its 25 req/day budget keeps it
+    // OK as a Yahoo-outage backstop but never the primary path.
+    const yahooQuote = await this.fetchWithTelemetry('yahoo-finance', () =>
+      this.yahooFinanceProvider.getQuote(ticker),
+    );
+    if (yahooQuote) {
+      return { provider: 'yahoo-finance', payload: yahooQuote };
+    }
+
+    const alphaQuote = await this.fetchWithTelemetry('alpha-vantage', () =>
+      this.alphaVantageProvider.getQuote(ticker),
+    );
+    if (alphaQuote) {
+      this.logger.warn(
+        `Yahoo unavailable for ${ticker}; served from Alpha Vantage fallback`,
+      );
+      return { provider: 'alpha-vantage', payload: alphaQuote };
+    }
+
+    return { provider: 'yahoo-finance', payload: null };
   }
 
   /**
@@ -666,6 +717,141 @@ export class MarketDataService {
   }
 
   /**
+   * ─── Macro-data surface (FRED) ────────────────────────────────────────
+   *
+   * Yield curve, interest-rate observations, economic indicators, and FX
+   * pairs. All routed through `fetchWithTelemetry` so the provider-health
+   * tracker, circuit breaker, and provider-failure log apply uniformly with
+   * the securities-pricing path above.
+   *
+   * Each method returns a DataGap-aware DTO or `null`; `null` here means
+   * "we don't have the data right now, surface it as missing to the user"
+   * — never silent-zero per KLYTICS Rule 1. The cache key includes only
+   * stable inputs so callers can deduplicate without worrying about
+   * timestamp drift.
+   */
+
+  /**
+   * US Treasury Constant-Maturity yield curve (the curve every ALM model
+   * needs for duration / EVE / NII). Cached for 1h (FRED publishes daily).
+   *
+   * Multi-provider failover ladder:
+   *   1. Live cache (≤1h fresh) — return immediately.
+   *   2. FRED (primary; richest metadata, longest history).
+   *   3. Treasury Fiscal Data (fallback; same Treasury source, no auth).
+   *   4. Stale cache (<24h old) — last-resort graceful degrade with a warn.
+   *   5. null — UI surfaces a DataGap (Rule 1, never silent-zero).
+   */
+  async getYieldCurve(): Promise<YieldCurveDto | null> {
+    const cacheKey = 'US_TREASURY_CMT';
+    const cached = this.yieldCurveCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.YIELD_CURVE_CACHE_TTL) {
+      return cached.data;
+    }
+
+    // Primary: FRED
+    let curve = await this.fetchWithTelemetry('fred', () =>
+      this.fredProvider.getYieldCurve(),
+    );
+
+    // Fallback: Treasury Fiscal Data — same underlying source (US Treasury
+    // Dept), different distribution endpoint. Used when FRED is down or
+    // FRED_API_KEY is missing. Logged at info so operators see the failover
+    // happen rather than discovering it via metrics.
+    if (!curve) {
+      this.logger.warn(
+        'FRED yield-curve unavailable; trying Treasury Fiscal Data fallback',
+      );
+      curve = await this.fetchWithTelemetry('treasury-fiscal-data', () =>
+        this.treasuryFiscalDataProvider.getYieldCurve(),
+      );
+    }
+
+    if (!curve) {
+      // Honor stale cache as a graceful fallback ONLY if the data is fresh
+      // enough to still be meaningful (24h). Otherwise return null so the
+      // UI surfaces a DataGap rather than misleading the user.
+      if (cached && Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) {
+        this.logger.warn(
+          'Yield-curve fetch failed across all providers; returning stale cache (<24h old)',
+        );
+        return cached.data;
+      }
+      return null;
+    }
+    this.yieldCurveCache.set(cacheKey, { data: curve, timestamp: Date.now() });
+    return curve;
+  }
+
+  /**
+   * Latest observation for a named FRED series (e.g. 'DGS10', 'DGS2'). Use
+   * for single-rate references outside the full yield-curve composition.
+   */
+  async getInterestRate(seriesId: string): Promise<InterestRateDto | null> {
+    const cached = this.interestRateCache.get(seriesId);
+    if (
+      cached &&
+      Date.now() - cached.timestamp < this.INTEREST_RATE_CACHE_TTL
+    ) {
+      return cached.data;
+    }
+    const rate = await this.fetchWithTelemetry('fred', () =>
+      this.fredProvider.getInterestRate(seriesId),
+    );
+    if (!rate) return null;
+    this.interestRateCache.set(seriesId, { data: rate, timestamp: Date.now() });
+    return rate;
+  }
+
+  /**
+   * Generic economic indicator (CPI, unemployment, GDP). Units + frequency
+   * forwarded verbatim from FRED metadata when the caller supplies them;
+   * otherwise consumer-supplied hints stick to the DTO.
+   */
+  async getEconomicIndicator(
+    seriesId: string,
+    options: { units?: string; frequency?: string } = {},
+  ): Promise<EconomicIndicatorDto | null> {
+    const cacheKey = `${seriesId}::${options.units ?? ''}::${options.frequency ?? ''}`;
+    const cached = this.indicatorCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.INDICATOR_CACHE_TTL) {
+      return cached.data;
+    }
+    const indicator = await this.fetchWithTelemetry('fred', () =>
+      this.fredProvider.getEconomicIndicator(seriesId, options),
+    );
+    if (!indicator) return null;
+    this.indicatorCache.set(cacheKey, {
+      data: indicator,
+      timestamp: Date.now(),
+    });
+    return indicator;
+  }
+
+  /**
+   * FX rate via FRED's `DEX*` exchange-rate series. Caller passes the FRED
+   * series id and the base/quote currency codes (FRED's quoting convention
+   * varies by pair; the caller knows which side is which).
+   */
+  async getFXRate(
+    seriesId: string,
+    base: string,
+    quote: string,
+  ): Promise<FXRateDto | null> {
+    const cacheKey = `${seriesId}::${base}::${quote}`;
+    const cached = this.fxRateCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.FX_RATE_CACHE_TTL) {
+      return cached.data;
+    }
+    const rate = await this.fetchWithTelemetry('fred', () =>
+      this.fredProvider.getFXRate(seriesId, base, quote),
+    );
+    if (!rate) return null;
+    this.fxRateCache.set(cacheKey, { data: rate, timestamp: Date.now() });
+    return rate;
+  }
+
+  /**
    * Clear caches (useful for testing or forced refresh)
    */
   clearCaches(): void {
@@ -673,6 +859,10 @@ export class MarketDataService {
     this.fundamentalsCache.clear();
     this.instrumentCache.clear();
     this.newsCache.clear();
+    this.yieldCurveCache.clear();
+    this.interestRateCache.clear();
+    this.indicatorCache.clear();
+    this.fxRateCache.clear();
     this.logger.log('All caches cleared');
   }
 }

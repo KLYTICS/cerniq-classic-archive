@@ -28,12 +28,21 @@ export interface LLMUsage {
   cacheReadInputTokens: number;
 }
 
-/** Shape we read from the Anthropic SDK response. */
+/**
+ * Shape we read from the Anthropic SDK response. The SDK types cache
+ * fields as `number | null` (not `number | undefined`) — they emit
+ * explicit `null` when no caching occurred on a call. The `?? 0`
+ * defaults inside extractUsage collapse both null and undefined
+ * identically, so widening the type to accept null is a pure type
+ * fix with no runtime change. Without it, TS rejects the SDK's own
+ * Message shape at every extractUsage callsite (4 files at time of
+ * writing — warn-only pre-commit tsc let those errors accumulate).
+ */
 interface AnthropicResponseUsage {
-  input_tokens?: number;
-  output_tokens?: number;
-  cache_creation_input_tokens?: number;
-  cache_read_input_tokens?: number;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  cache_creation_input_tokens?: number | null;
+  cache_read_input_tokens?: number | null;
 }
 
 /**
@@ -83,7 +92,7 @@ export function mergeUsage(
 // is verifiable; "this was computed under whatever prices were in
 // effect" is not.
 
-export const LLM_PRICING_VERSION = '2026-05-15';
+export const LLM_PRICING_VERSION = '2026-05-16';
 
 interface ModelPricing {
   /** Centi-cents (0.01¢) per 1,000,000 input tokens. */
@@ -94,12 +103,21 @@ interface ModelPricing {
 }
 
 // $3.00 = 300 cents = 30_000 centi-cents
+// Anthropic uses uniform cache-pricing ratios across the family:
+// cache_creation = 1.25× input, cache_read = 0.10× input (see Sonnet
+// entry — $3.00 / $3.75 / $0.30). The Opus-4-6 entry mirrors that ratio.
 const PRICING: Record<string, ModelPricing> = {
   'claude-sonnet-4-20250514': {
     inputCentiCentsPerMillion: 30_000, // $3.00 / MTok
     outputCentiCentsPerMillion: 150_000, // $15.00 / MTok
-    cacheCreationCentiCentsPerMillion: 37_500, // $3.75 / MTok
-    cacheReadCentiCentsPerMillion: 3_000, // $0.30 / MTok
+    cacheCreationCentiCentsPerMillion: 37_500, // $3.75 / MTok (1.25× input)
+    cacheReadCentiCentsPerMillion: 3_000, // $0.30 / MTok (0.10× input)
+  },
+  'claude-opus-4-6': {
+    inputCentiCentsPerMillion: 150_000, // $15.00 / MTok
+    outputCentiCentsPerMillion: 750_000, // $75.00 / MTok
+    cacheCreationCentiCentsPerMillion: 187_500, // $18.75 / MTok (1.25× input)
+    cacheReadCentiCentsPerMillion: 15_000, // $1.50 / MTok (0.10× input)
   },
 };
 

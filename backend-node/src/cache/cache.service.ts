@@ -27,7 +27,7 @@ export class CacheService implements OnModuleInit {
       });
 
       this.redis.on('error', (err) => {
-        this.logger.error('Redis connection error:', err);
+        this.logger.error(`Redis connection error: ${err.message}`, err.stack);
       });
 
       // Test connection

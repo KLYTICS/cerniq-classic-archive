@@ -156,7 +156,8 @@ describe('AlmController — Core Revenue Path', () => {
         totalAssets: 250e6,
       };
       enterprise.createInstitution.mockResolvedValue({ id: 'i1', ...dto });
-      const r = await controller.createInstitution(dto as any);
+      const req = { user: { userId: 'u1', access: {} } };
+      const r = await controller.createInstitution(req as any, dto as any);
       expect(enterprise.createInstitution).toHaveBeenCalledWith(dto);
       expect(r.id).toBe('i1');
     });
@@ -165,9 +166,10 @@ describe('AlmController — Core Revenue Path', () => {
       enterprise.createInstitution.mockRejectedValue(
         new Error('Name required'),
       );
-      await expect(controller.createInstitution({} as any)).rejects.toThrow(
-        'Name required',
-      );
+      const req = { user: { userId: 'u1', access: {} } };
+      await expect(
+        controller.createInstitution(req as any, {} as any),
+      ).rejects.toThrow('Name required');
     });
   });
 
@@ -636,8 +638,9 @@ describe('AlmController — Core Revenue Path', () => {
   describe('POST /api/alm/yield-curve/custom', () => {
     it('saves custom yield curve', async () => {
       yieldCurve.saveCustomCurve.mockResolvedValue({ id: 'yc1' });
+      const req = { user: { userId: 'u1', access: {} } };
       const dto = { name: 'Custom Curve', institutionId: 'i1', tenors: [] };
-      const r = await controller.saveCustomYieldCurve(dto as any);
+      const r = await controller.saveCustomYieldCurve(req as any, dto as any);
       expect(r.id).toBe('yc1');
     });
   });

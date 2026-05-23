@@ -201,6 +201,58 @@ describe('AlmToolsFactory phantom-method regression locks', () => {
     expect(calcCalculate).not.toHaveBeenCalled();
   });
 
+  it('runMonteCarlo invokes MonteCarloService.runSimulation with an opts OBJECT (not a bare number) — wave-3 silent-arg-ignore lock', async () => {
+    // Defends against re-introduction of the wave-3 silent-arg-ignore bug.
+    // Pre-fix: `(this.monteCarlo as any).runSimulation(institutionId, input.paths)`
+    // — the service signature is `runSimulation(institutionId, opts?: {paths?, ...})`,
+    // so JS evaluated `(numericValue)?.paths` as undefined and the service
+    // silently used its 10_000 default regardless of caller intent. The fix
+    // drops the cast, passes a typed opts object, and widens the schema to
+    // expose the full Vasicek surface (quarters/kappa/theta/sigma).
+    const runSimulation = jest.fn().mockResolvedValue({ paths: 25_000 });
+    const factory = stubServices({ monteCarlo: { runSimulation } });
+    const tool = findTool('runMonteCarlo', factory);
+
+    await tool.handler(
+      { paths: 25_000, quarters: 40, kappa: 0.12, theta: 0.05, sigma: 0.02 },
+      makeCtx('inst-1'),
+    );
+
+    expect(runSimulation).toHaveBeenCalledWith('inst-1', {
+      paths: 25_000,
+      quarters: 40,
+      kappa: 0.12,
+      theta: 0.05,
+      sigma: 0.02,
+    });
+    // Critical: 2nd arg is an OBJECT, not a number. If a future regression
+    // reverts to `input.paths` (bare number), this assertion fails because
+    // `typeof 25_000 === 'number'` ≠ 'object'.
+    expect(typeof runSimulation.mock.calls[0][1]).toBe('object');
+  });
+
+  it('runMonteCarlo omits undefined Vasicek knobs so service defaults apply (back-compat lock)', async () => {
+    // Wave-3 schema widening must stay back-compat: a caller that passes
+    // only `paths` still works, and the opts object surfaces the other
+    // knobs as `undefined` so MonteCarloService falls through to its
+    // calibrated DEFAULT_PARAMS (Fed Funds Q4 2025). If a future schema
+    // change starts defaulting kappa/theta/sigma at the agent boundary,
+    // the service's calibration baseline gets shadowed silently.
+    const runSimulation = jest.fn().mockResolvedValue({});
+    const factory = stubServices({ monteCarlo: { runSimulation } });
+    const tool = findTool('runMonteCarlo', factory);
+
+    await tool.handler({ paths: 5_000 }, makeCtx('inst-1'));
+
+    expect(runSimulation).toHaveBeenCalledWith('inst-1', {
+      paths: 5_000,
+      quarters: undefined,
+      kappa: undefined,
+      theta: undefined,
+      sigma: undefined,
+    });
+  });
+
   it('requireInstitution helper throws when ctx.institutionId is null', async () => {
     // Defense for the upstream guard the 4 tools above all rely on. Without
     // this check, a null institutionId would propagate into the service

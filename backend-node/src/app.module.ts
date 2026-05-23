@@ -17,6 +17,7 @@ import { RequestLoggingMiddleware } from './common/middleware/request-logging.mi
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 import { CorrelationInterceptor } from './common/interceptors/correlation.interceptor';
 import { MarketDataModule } from './market-data/market-data.module';
+import { VendorModule } from './vendor/vendor.module';
 import { TickerModule } from './ticker/ticker.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 import { RiskModule } from './risk/risk.module';
@@ -136,6 +137,7 @@ import { ExitMetricsService } from './admin/exit-metrics.service';
     DataCryptoModule,
     CacheModule,
     MarketDataModule,
+    VendorModule,
     TickerModule,
     PortfolioModule,
     RiskModule,

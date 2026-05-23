@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma.service';
 import { EmailService } from './email.service';
+import { areBackgroundJobsDisabled } from '../common/scheduler/background-job-gate.util';
 
 /**
  * Email Sequence Processor — fires scheduled lifecycle emails.
@@ -30,6 +31,8 @@ export class EmailSequenceProcessor {
 
   @Cron('*/5 * * * *') // Every 5 minutes
   async processDueSequences() {
+    if (areBackgroundJobsDisabled()) return;
+
     const due = await this.prisma.emailSequence.findMany({
       where: {
         sentAt: null,

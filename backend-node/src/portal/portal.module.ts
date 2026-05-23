@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { ScheduleModule } from '@nestjs/schedule';
 import { PortalController } from './portal.controller';
 import { AlmModule } from '../alm/alm.module';
 import { EmailModule } from '../email/email.module';
@@ -20,7 +19,6 @@ import { DemoSeatEngagementService } from './demo-seat-engagement.service';
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '24h' },
     }),
-    ScheduleModule.forRoot(),
     AlmModule,
     EmailModule,
     BillingModule,

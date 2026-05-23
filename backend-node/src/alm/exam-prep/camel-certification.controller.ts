@@ -209,7 +209,7 @@ export class CAMELCertificationController {
       `Certifying CAMEL report: ${institutionId}, period=${period}, by=${body.certifiedBy}`,
     );
 
-    const userId = req.user?.id || req.user?.sub;
+    const userId = req.user?.userId ?? req.user?.id ?? req.user?.sub;
     const result = await this.certificationService.certify(
       institutionId,
       period,

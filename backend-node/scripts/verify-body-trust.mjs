@@ -108,6 +108,14 @@ const PARAMS_SOURCE_RE = /\b(?:params|req\.params|request\.params)\b/;
 const SCHEMA_DEF_RE =
   /^\s*(?:export\s+)?const\s+(\w+(?:Schema|Dto|Payload|Body|Request|Query))\s*=\s*z\.(?:object|union|discriminatedUnion|intersection)\s*\(/;
 
+// Class-validator DTO definition: `export class FooDto {` (or `class FooDto`).
+// NestJS's ValidationPipe applies decorator-based validation to these
+// classes when used as `@Body() body: FooDto` parameters. R3 v3 (2026-05-16)
+// extends detection to this idiom — the intelligence + alm controllers use
+// class-validator DTOs which R3 v1/v2 missed.
+const CLASS_DEF_RE =
+  /^\s*(?:export\s+)?class\s+(\w+(?:Dto|Request|Payload|Body|Input))\b/;
+
 // parseOrThrow call pattern (the canonical Zod-parse helper in this
 // codebase): `parseOrThrow(SchemaName, body)`. Captures schema name and
 // source argument (everything between the comma and closing paren).
@@ -153,6 +161,7 @@ export function findTenancyBearingSchemas(text) {
   const lines = text.split('\n');
   const found = new Set();
 
+  // Pass 1a: Zod schemas (`export const FooSchema = z.object({ ... })`).
   for (let i = 0; i < lines.length; i++) {
     const m = SCHEMA_DEF_RE.exec(lines[i]);
     if (!m) continue;
@@ -162,7 +171,45 @@ export function findTenancyBearingSchemas(text) {
       found.add(schemaName);
     }
   }
+
+  // Pass 1b: class-validator DTOs (`export class FooDto { @IsString()
+  // workspaceId: string; ... }`). NestJS's ValidationPipe handles these
+  // at runtime; R3 v3 detects them so the body-trust check covers the
+  // entire @Body() surface, not just the Zod-parsed subset.
+  for (let i = 0; i < lines.length; i++) {
+    const m = CLASS_DEF_RE.exec(lines[i]);
+    if (!m) continue;
+    const className = m[1];
+    const body = sliceClassBody(lines, i);
+    if (containsTenancyKey(body)) {
+      found.add(className);
+    }
+  }
   return found;
+}
+
+function sliceClassBody(lines, startIdx) {
+  // Walk forward from `class FooDto {` until brace-depth returns to 0.
+  // Tracks only `{` / `}` — decorator parens are intra-line and don't
+  // affect class scope.
+  let depth = 0;
+  let started = false;
+  const collected = [];
+  for (let i = startIdx; i < lines.length; i++) {
+    const line = lines[i];
+    for (let c = 0; c < line.length; c++) {
+      const ch = line[c];
+      if (ch === '{') {
+        depth++;
+        started = true;
+      } else if (ch === '}') {
+        depth--;
+      }
+    }
+    collected.push(line);
+    if (started && depth === 0) break;
+  }
+  return collected.join('\n');
 }
 
 function sliceSchemaBody(lines, startIdx) {
@@ -189,11 +236,21 @@ function sliceSchemaBody(lines, startIdx) {
 }
 
 function containsTenancyKey(schemaBody) {
-  // Look for `<tenancyKey>: z.` patterns. Avoid matching identifiers
-  // that happen to contain the key as a substring.
+  // Detect a top-level tenancy-key field declaration. Two idioms:
+  //   (a) Zod schema:        `institutionId: z.string()...`
+  //   (b) Class-validator /  `institutionId?: string` or `workspaceId: string`
+  //       plain interface    (often preceded by @IsString()/@IsUUID()/etc.
+  //                          on the prior line; we don't require it because
+  //                          NestJS's ValidationPipe is enabled globally —
+  //                          a plain-typed field is still a runtime payload
+  //                          attack surface).
+  // Word-boundary anchors prevent matching identifiers that happen to
+  // contain the key as a substring (e.g., `prevInstitutionId`).
   for (const key of TENANCY_KEYS) {
-    const re = new RegExp(`(^|\\s|\\{|,)${key}\\s*:\\s*z\\.`, 'm');
-    if (re.test(schemaBody)) return true;
+    const zodRe = new RegExp(`(^|\\s|\\{|,)${key}\\s*:\\s*z\\.`, 'm');
+    if (zodRe.test(schemaBody)) return true;
+    const tsRe = new RegExp(`(^|\\s|\\{|,)${key}[?!]?\\s*:\\s*string\\b`, 'm');
+    if (tsRe.test(schemaBody)) return true;
   }
   return false;
 }
@@ -393,20 +450,20 @@ function collectMethodBody(lines, startIdx) {
 }
 
 function findTenancyParseCall(bodyText, tenancyBearingSchemas) {
-  // Find all Zod-parse calls and return the first one whose schema is
-  // tenancy-bearing AND whose source argument is body/query/payload
-  // (not params). Three idioms are recognized:
+  // Find all Zod-parse calls AND typed @Body()/@MessageBody() params and
+  // return the first one whose schema/class is tenancy-bearing AND whose
+  // source argument is body/query/payload (not params). Four idioms:
   //   (a) `parseOrThrow(SchemaName, source)`  — controller convention
   //   (b) `SchemaName.safeParse(source)`      — WS gateway convention
   //   (c) `SchemaName.parse(source)`          — direct Zod parse
-  // All three resolve to the same authorization question: did we just
-  // accept a tenancy-bearing payload from an untrusted entry point?
-  const patterns = [
+  //   (d) `@Body() name: DtoClass`            — class-validator DTO (R3 v3)
+  //   (e) `@MessageBody() name: DtoClass`     — class-validator WS payload
+  const callPatterns = [
     /parseOrThrow\s*\(\s*(\w+(?:Schema|Dto|Payload|Body|Request|Query))\s*,\s*([^)]+)\)/g,
     /\b(\w+(?:Schema|Dto|Payload|Body|Request|Query))\.safeParse\s*\(\s*([^)]+)\)/g,
     /\b(\w+(?:Schema|Dto|Payload|Body|Request|Query))\.parse\s*\(\s*([^)]+)\)/g,
   ];
-  for (const pattern of patterns) {
+  for (const pattern of callPatterns) {
     for (const m of bodyText.matchAll(pattern)) {
       const schemaName = m[1];
       const source = m[2];
@@ -416,6 +473,17 @@ function findTenancyParseCall(bodyText, tenancyBearingSchemas) {
         return { schemaName, source };
       }
     }
+  }
+
+  // Idiom (d)/(e): typed @Body()/@MessageBody() param. No explicit parse
+  // call — NestJS's ValidationPipe handles it at runtime. The source IS
+  // the body/payload by construction (the decorator implies it).
+  const typedPattern =
+    /@(?:Body|MessageBody)\s*\(\s*\)\s+\w+\s*:\s*(\w+(?:Dto|Request|Payload|Body|Input))\b/g;
+  for (const m of bodyText.matchAll(typedPattern)) {
+    const className = m[1];
+    if (!tenancyBearingSchemas.has(className)) continue;
+    return { schemaName: className, source: '@Body() typed param' };
   }
   return null;
 }
@@ -619,6 +687,62 @@ export class AiAdvisorGateway {
     const data = AskPayloadSchema.parse(payload);
     await this.orgMembership.verifyMembership(data.organizationId, this.currentUserId, false);
     return this.advisor.ask(data);
+  }
+}`,
+      expectedViolations: 0,
+    },
+    // ─── R3 v3: class-validator DTO fixtures ─────────────────────────────
+    {
+      name: 'class-validator DTO + @Body() typed + NO auth gate — VIOLATION',
+      schemas: new Set(['IntelligenceAccountImportDto']),
+      controller: `
+@Controller('intelligence')
+export class IntelligenceController {
+  @Post('import')
+  async importAccounts(@Body() body: IntelligenceAccountImportDto) {
+    return this.intelligence.import(body);
+  }
+}`,
+      expectedViolations: 1,
+    },
+    {
+      name: 'class-validator DTO + @Body() typed + verifyWorkspaceOwnership — PASS',
+      schemas: new Set(['IntelligenceAccountImportDto']),
+      controller: `
+@Controller('intelligence')
+export class IntelligenceController {
+  @Post('import')
+  async importAccounts(@Body() body: IntelligenceAccountImportDto, @Req() req: any) {
+    await this.scope.verifyWorkspaceOwnership(body.workspaceId, req.user.userId, false);
+    return this.intelligence.import(body);
+  }
+}`,
+      expectedViolations: 0,
+    },
+    {
+      name: 'class-validator DTO + skip-comment with reason — PASS',
+      schemas: new Set(['IntelligenceAccountImportDto']),
+      controller: `
+@Controller('intelligence')
+@UseGuards(AdminKeyGuard)
+export class IntelligenceController {
+  // verify:body-trust-skip — admin-key endpoint; cross-tenant by design
+  @Post('import')
+  async importAccounts(@Body() body: IntelligenceAccountImportDto) {
+    return this.intelligence.import(body);
+  }
+}`,
+      expectedViolations: 0,
+    },
+    {
+      name: 'class-validator DTO with NO tenancy key — NOT flagged',
+      schemas: new Set(),
+      controller: `
+@Controller('options')
+export class OptionsController {
+  @Post('calc')
+  async calc(@Body() dto: CalculateGreeksDto) {
+    return this.svc.calc(dto);
   }
 }`,
       expectedViolations: 0,

@@ -22,6 +22,7 @@
 import type { GoldenCase, EvalResult } from './fixture-types';
 import type { AuditStep } from '../scoring/dimensions';
 import { scoreAgentRun, PASS_THRESHOLD } from '../scoring/weights';
+import { weightsFor } from '../scoring/adapters';
 import { loadScript } from './load-case';
 
 export interface OfflineEvalInput {
@@ -45,10 +46,18 @@ export function scoreOffline(input: OfflineEvalInput): EvalResult {
     .filter((s) => s.stepKind === 'TOOL_CALL' && s.toolName)
     .map((s) => s.toolName!);
 
+  // Per-agent weights + adapter. Each agent type optimises for different
+  // dimensions (CFO_COPILOT pins specificity at 45% with dollarQuantification
+  // at 0; COMMITTEE_REPORT pins regulatoryRef at 25%) and emits a different
+  // output shape (alerts[], sections{}, message+followups). Both lookups
+  // fall back to ALM_DECISION defaults when the agentId is unknown, so
+  // adding a new agent type doesn't break the framework.
   const composite = scoreAgentRun(
     actualOutput,
     auditTrace,
     goldenCase.expectedFindings,
+    weightsFor(goldenCase.agentId),
+    goldenCase.agentId,
   );
 
   const durationMs = Math.round(performance.now() - startMs);

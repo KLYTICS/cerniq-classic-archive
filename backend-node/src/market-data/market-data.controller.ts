@@ -269,4 +269,162 @@ export class MarketDataController {
     this.marketDataService.clearCaches();
     return { message: 'Caches cleared successfully' };
   }
+
+  /**
+   * US Treasury Constant-Maturity yield curve.
+   * GET /api/market-data/yield-curve
+   *
+   * Returns the full curve (1M → 30Y where available) plus an inversion flag.
+   * Public-data endpoint — no PII; FRED is a public Federal Reserve API.
+   * Returns 503 (with a structured body) when the upstream is unavailable
+   * so the ALM page can render an explicit DataGap rather than misleading
+   * zeros — KLYTICS Rule 1.
+   */
+  // verify:auth-skip — public macro data; no tenant-scoped fields in response
+  @Get('yield-curve')
+  async getYieldCurve() {
+    const curve = await this.marketDataService.getYieldCurve();
+    if (!curve) {
+      throw new HttpException(
+        {
+          __dataGap: true,
+          field: 'yieldCurve',
+          severity: 'WARNING',
+          reason: 'PROVIDER_UNAVAILABLE',
+          action:
+            'FRED upstream unavailable or FRED_API_KEY missing; retry shortly or check provider health at /api/market-data/health',
+          provider: 'fred',
+        },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    return curve;
+  }
+
+  /**
+   * Generic FRED economic indicator observation (CPI, unemployment, GDP).
+   * GET /api/market-data/economic-indicator/:seriesId
+   *
+   * Example seriesIds: CPIAUCSL (CPI), UNRATE (unemployment), GDP.
+   * Caller may pass `?units=X&frequency=Y` to label the units in the
+   * response; FRED itself doesn't return these in the observations
+   * endpoint and we don't make an extra metadata call.
+   */
+  // verify:auth-skip — public macro data
+  @Get('economic-indicator/:seriesId')
+  async getEconomicIndicator(
+    @Param('seriesId') seriesId: string,
+    @Query('units') units?: string,
+    @Query('frequency') frequency?: string,
+  ) {
+    if (!seriesId || !/^[A-Z0-9_]{2,30}$/.test(seriesId)) {
+      throw new HttpException(
+        'Invalid seriesId — expected uppercase alphanumerics + underscores, 2-30 chars',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const indicator = await this.marketDataService.getEconomicIndicator(
+      seriesId,
+      { units, frequency },
+    );
+    if (!indicator) {
+      throw new HttpException(
+        {
+          __dataGap: true,
+          field: 'economicIndicator',
+          severity: 'WARNING',
+          reason: 'NO_DATA',
+          action: `FRED has no recent observation for ${seriesId} or the upstream is unavailable; verify the series id at https://fred.stlouisfed.org/series/${seriesId}`,
+          provider: 'fred',
+          seriesId,
+        },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    return indicator;
+  }
+
+  /**
+   * FX rate from a FRED `DEX*` series.
+   * GET /api/market-data/fx-rate/:seriesId/:base/:quote
+   *
+   * Examples:
+   *   /api/market-data/fx-rate/DEXUSEU/USD/EUR
+   *   /api/market-data/fx-rate/DEXJPUS/JPY/USD
+   *
+   * FRED's quoting convention varies by pair (DEXUSEU is USD-to-EUR,
+   * DEXJPUS is JPY-to-USD) — the caller is responsible for the
+   * base/quote ordering. We validate both as ISO 4217-style 3-letter
+   * codes so a typo can't make the URL ambiguous.
+   */
+  // verify:auth-skip — public macro data
+  @Get('fx-rate/:seriesId/:base/:quote')
+  async getFXRate(
+    @Param('seriesId') seriesId: string,
+    @Param('base') base: string,
+    @Param('quote') quote: string,
+  ) {
+    if (!seriesId || !/^DEX[A-Z]{2,6}$/.test(seriesId)) {
+      throw new HttpException(
+        'Invalid seriesId — expected FRED DEX* exchange-rate series (e.g. DEXUSEU)',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (!/^[A-Z]{3}$/.test(base) || !/^[A-Z]{3}$/.test(quote)) {
+      throw new HttpException(
+        'Invalid base/quote — expected 3-letter ISO currency codes (e.g. USD, EUR)',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const fx = await this.marketDataService.getFXRate(seriesId, base, quote);
+    if (!fx) {
+      throw new HttpException(
+        {
+          __dataGap: true,
+          field: 'fxRate',
+          severity: 'WARNING',
+          reason: 'NO_DATA',
+          action: `FRED has no recent observation for ${seriesId} or the upstream is unavailable`,
+          provider: 'fred',
+          seriesId,
+        },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    return fx;
+  }
+
+  /**
+   * Single FRED interest-rate series observation.
+   * GET /api/market-data/interest-rate/:seriesId
+   *
+   * Example seriesIds: DGS1, DGS2, DGS5, DGS10, DGS30, DGS1MO, DGS3MO,
+   * DFF (Fed Funds), DPRIME (Prime Rate), SOFR, MORTGAGE30US.
+   */
+  // verify:auth-skip — public macro data
+  @Get('interest-rate/:seriesId')
+  async getInterestRate(@Param('seriesId') seriesId: string) {
+    if (!seriesId || !/^[A-Z0-9_]{2,20}$/.test(seriesId)) {
+      throw new HttpException(
+        'Invalid seriesId — expected uppercase alphanumerics + underscores, 2-20 chars',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const rate = await this.marketDataService.getInterestRate(seriesId);
+    if (!rate) {
+      throw new HttpException(
+        {
+          __dataGap: true,
+          field: 'interestRate',
+          severity: 'WARNING',
+          reason: 'NO_DATA',
+          action: `FRED has no recent observation for ${seriesId} or the upstream is unavailable; verify the series id at https://fred.stlouisfed.org/series/${seriesId}`,
+          provider: 'fred',
+          seriesId,
+        },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    return rate;
+  }
 }

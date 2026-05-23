@@ -1,11 +1,23 @@
 #!/usr/bin/env node
 // scripts/ci/check-landing-entry.mjs
 // Pre-commit landing-gate. Refuses commits that touch src/app/lib paths
-// without adding a same-day bullet under docs/SESSION_HANDOFF.md's
-// `## 5. Recent landings` section.
+// without an accompanying landing entry, in EITHER of two forms:
 //
-// Rationale — Phase 4 convention from SESSION_HANDOFF.md:
-//   "Each merged change appends to `## 5. Recent landings` below"
+//   (1) Direct: a new same-day bullet under docs/SESSION_HANDOFF.md's
+//       `## 5. Recent landings` section.
+//   (2) Incoming (RECOMMENDED for multi-peer sessions): a new staged
+//       file under docs/handoff-incoming/ — the file's content IS the
+//       bullet, and a periodic squash (scripts/squash-handoff-incoming.mjs)
+//       prepends them to §5 in batch.
+//
+// Why two forms — SESSION_HANDOFF.md is a structural hot-spot in this
+// repo. Every src commit by every peer is forced to touch it, producing
+// chronic stage-race absorption (4 races on 2026-05-16 alone). The
+// incoming pattern gives each peer a unique-named per-commit file with
+// zero contention surface; the squash merges them safely at session
+// boundaries. See [[feedback_shared_tree_git_coordination]] for the
+// failure mode catalog and CLAUDE.md "Branch + commit protocol" for the
+// convention.
 //
 // Skip with SKIP_LANDING=1 when the commit is genuinely non-landing
 // (docs-only, hotfix, test flake, WIP branch).
@@ -99,20 +111,36 @@ try {
 
 const stagedCount = countTodayBullets(stagedHandoff);
 const headCount = countTodayBullets(headHandoff);
-const addsNewLanding = stagedCount > headCount;
+const addsDirectLanding = stagedCount > headCount;
+
+// Form (2): any staged file under docs/handoff-incoming/ counts as a
+// landing. Convention is one file per commit at
+// docs/handoff-incoming/YYYY-MM-DD-<sha7>-<topic>.md whose content is
+// the full bullet text. Filter to .md files added/modified/renamed —
+// the diff-filter at the git query above is already ACMR.
+const addsIncomingLanding = staged.some(
+  (p) => p.startsWith('docs/handoff-incoming/') && p.endsWith('.md') && !p.endsWith('/README.md'),
+);
+
+const addsNewLanding = addsDirectLanding || addsIncomingLanding;
 
 if (!addsNewLanding) {
   const count = srcChanges.length;
   const shown = srcChanges.slice(0, 5);
   console.error('');
   console.error(
-    '\x1b[31mlanding-gate: refusing commit\x1b[0m — src/app/lib changes require a same-day entry in',
+    '\x1b[31mlanding-gate: refusing commit\x1b[0m — src/app/lib changes require a landing entry in ONE of:',
   );
   console.error(
-    `  \x1b[1mdocs/SESSION_HANDOFF.md\x1b[0m under \x1b[1m## 5. Recent landings\x1b[0m`,
+    `  (1) \x1b[1mdocs/SESSION_HANDOFF.md\x1b[0m under \x1b[1m## 5. Recent landings\x1b[0m (direct — high-contention)`,
+  );
+  console.error(
+    `  (2) \x1b[1mdocs/handoff-incoming/${today}-<sha7>-<topic>.md\x1b[0m (incoming — RECOMMENDED, zero contention)`,
   );
   console.error('');
   console.error(`  expected bullet: \x1b[36m- ${today} — **Your landing title.**\x1b[0m ...`);
+  console.error('');
+  console.error('\x1b[90m  Squash incoming → §5 with: node scripts/squash-handoff-incoming.mjs\x1b[0m');
   console.error('');
   console.error(`  ${count} staged src file(s):`);
   for (const p of shown) console.error(`    • ${p}`);

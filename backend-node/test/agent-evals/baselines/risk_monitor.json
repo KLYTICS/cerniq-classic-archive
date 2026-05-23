@@ -1,0 +1,10 @@
+{
+  "agentId": "RISK_MONITOR",
+  "meanScore": 0.93,
+  "perCase": {
+    "rm-001": 0.93,
+    "rm-002": 0.93
+  },
+  "updatedAt": "2026-05-17T23:06:15.388Z",
+  "note": "T6.b initial bless after per-agent scorer generalization (2026-05-17)"
+}
