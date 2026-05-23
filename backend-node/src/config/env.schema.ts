@@ -102,6 +102,12 @@ const envSchema = z
       .pipe(z.number().nonnegative().optional()),
 
     // ── Agent runtime (Wave-03) ──────────────────────────────────────
+    // Global kill switch for all cron-driven background jobs. Useful for
+    // non-customer-facing Micro Supabase deployments where idle queue polls
+    // and daily sweeps can deplete Disk I/O budget.
+    BACKGROUND_JOBS_DISABLED: z
+      .enum(['true', 'false', '1', '0', 'yes', 'no', 'on', 'off'])
+      .optional(),
     // Per-institution LLM worker concurrency. Defaults live in the queue
     // module; this just validates the override.
     AGENT_WORKER_CONCURRENCY: z

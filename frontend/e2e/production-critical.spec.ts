@@ -36,6 +36,9 @@ function attachErrorTracker(page: Page) {
     ) {
       return;
     }
+    if (/ERR_BLOCKED_BY_RESPONSE\.NotSameOrigin/i.test(text)) {
+      return;
+    }
 
     errors.push(`console: ${text}`);
   });

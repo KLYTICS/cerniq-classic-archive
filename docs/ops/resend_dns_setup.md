@@ -1,5 +1,11 @@
 # Resend — Domain Verification for cerniq.io
 
+> 2026-05-18 status: `cerniq.io` is not yet added in Resend. The current
+> Resend account/API state rejected adding another domain because the active
+> plan allows one domain and `cerniqtech.com` is already using that slot. Do
+> not guess DKIM records. Upgrade/free the Resend domain slot, add `cerniq.io`
+> in Resend, then paste the exact provider-generated records here.
+
 Goal: enable Resend to send authenticated email **from** `erwin@cerniq.io`,
 `noreply@cerniq.io`, and any other `@cerniq.io` address, passing SPF, DKIM,
 and DMARC checks so Gmail/Outlook deliver to inbox (not spam).
@@ -35,16 +41,23 @@ takes the subdomain only (drop `.cerniq.io` — they append it). The records:
 
 ### 2a. SPF (TXT on the root)
 
+`cerniq.io` has two planned authorized senders:
+
+- Google Workspace for inbox/reply mail.
+- Resend for backend transactional mail.
+
+There must be one apex SPF record, merged across both senders:
+
 | Field   | Value                                            |
 |---------|--------------------------------------------------|
 | Type    | TXT                                              |
 | Host    | `@`                                              |
-| Value   | `v=spf1 include:_spf.resend.com ~all`            |
+| Value   | `v=spf1 include:_spf.google.com include:_spf.resend.com -all` |
 | TTL     | 3600 (1 hour) — or 300 while testing             |
 
 > If you already have a root SPF record, **merge**, don't duplicate. SPF only
-> allows one record per domain. Example merge:
-> `v=spf1 include:_spf.resend.com include:_spf.google.com ~all`
+> allows one record per domain. Use `~all` temporarily only while inventorying
+> an unknown sender; fix the include list and return to `-all`.
 
 ### 2b. DKIM (TXT on resend._domainkey)
 
@@ -75,41 +88,46 @@ Resend generates a unique value; paste the one from their dashboard.
 
 ### 2d. DMARC (TXT on _dmarc)
 
-**Launch value — use this exact string:**
+**Launch value — monitoring first while Workspace and Resend are being wired:**
 
 | Field | Value                                                                                           |
 |-------|-------------------------------------------------------------------------------------------------|
 | Type  | TXT                                                                                             |
 | Host  | `_dmarc`                                                                                        |
-| Value | `v=DMARC1; p=quarantine; pct=100; rua=mailto:dmarc@cerniq.io; ruf=mailto:dmarc@cerniq.io; adkim=s; aspf=s; fo=1` |
+| Value | `v=DMARC1; p=none; rua=mailto:kiess@klytics.io; ruf=mailto:kiess@klytics.io; fo=1; aspf=s; adkim=s; pct=100;` |
 | TTL   | 3600                                                                                            |
 
 **Decoded:**
-- `p=quarantine` — failed mail lands in spam (not rejected outright — still recoverable if we forgot a sender)
+- `p=none` — monitor first while Google Workspace and Resend are both being introduced.
 - `pct=100` — applies policy to 100% of failing mail. We're a brand-new domain with no legacy senders, so no ramp needed.
-- `rua=mailto:dmarc@cerniq.io` — weekly XML aggregate reports from every major ISP
-- `ruf=mailto:dmarc@cerniq.io` — per-message forensic failure reports
+- `rua=mailto:kiess@klytics.io` — weekly XML aggregate reports from major ISPs
+- `ruf=mailto:kiess@klytics.io` — per-message forensic failure reports
 - `adkim=s` / `aspf=s` — **strict** alignment (exact domain match, not subdomain). Required for enterprise inbox placement.
 - `fo=1` — emit forensic reports when EITHER SPF or DKIM fails (catches misconfigs faster than the default `fo=0`)
 
-### Pre-requisite: the `dmarc@cerniq.io` mailbox MUST exist
+### Pre-requisite: external DMARC report authorization on klytics.io
 
-Before saving this record, create a real inbox or forwarder at `dmarc@cerniq.io`.
-If reports land in a black hole, DMARC is theater. Two options:
+Because `cerniq.io` reports to a mailbox at `klytics.io`, this TXT record must
+exist in Cloudflare for `klytics.io` before relying on external aggregate
+reports:
 
-1. **Resend inbound route** → forward `dmarc@cerniq.io` → `eskiessalfonso@gmail.com`. Simple, no parsing, noisy.
-2. **Free DMARC aggregator** (preferred — reports become a dashboard, not an inbox fire hose):
-   - https://dmarc.postmarkapp.com (10k messages/week free)
-   - https://www.dmarcanalyzer.com (50k messages/month free)
+```text
+cerniq.io._report._dmarc.klytics.io TXT "v=DMARC1"
+```
 
-If you go the aggregator route, change the `rua=mailto:` on the record above
-to the address they give you. Keep the record value in source-of-truth form in
-`docs/ops/resend_dns_setup.md` so the verifier script knows what to check.
+2026-05-18 status: added in Cloudflare and verified via public resolvers:
+
+```bash
+dig @1.1.1.1 +short cerniq.io._report._dmarc.klytics.io TXT
+# "v=DMARC1"
+```
+
+Without this authorization, some receivers will suppress reports even though
+the `_dmarc.cerniq.io` policy record exists.
 
 ### Ramp plan to `p=reject` (enterprise endpoint)
 
-**Day 1:** launch `p=quarantine` (the value above). We launch strict because
-we have zero legacy senders to break.
+**Day 1:** launch `p=none` with strict alignment and reporting.
 
 **Days 1-30:** check the DMARC aggregator dashboard weekly. Look for legitimate
 mail failing SPF or DKIM — it means a forgotten sender. Common culprits:
@@ -119,10 +137,11 @@ mail failing SPF or DKIM — it means a forgotten sender. Common culprits:
 
 Fix upstream senders as you find them. Zero days without a false-fail = raise.
 
-**Day 30+ (after 2 consecutive clean weeks):** upgrade to reject:
+**After 14 clean days:** ratchet to `p=quarantine; pct=25`, then
+`p=quarantine; pct=100`, then `p=reject` after two consecutive clean weeks.
 
 ```
-v=DMARC1; p=reject; pct=100; rua=mailto:dmarc@cerniq.io; adkim=s; aspf=s; fo=1
+v=DMARC1; p=reject; pct=100; rua=mailto:kiess@klytics.io; adkim=s; aspf=s; fo=1
 ```
 
 `p=reject` hard-bounces spoofed mail. Every major bank and fintech runs this;

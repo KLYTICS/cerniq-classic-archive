@@ -1,3 +1,5 @@
+import { areBackgroundJobsDisabled } from '../../common/scheduler/background-job-gate.util';
+
 // Single source of truth for interpreting AGENT_SCHEDULER_DISABLED.
 //
 // Two sites care about the value: (1) AgentSchedulerService gates its
@@ -15,6 +17,9 @@
 export function isSchedulerDisabled(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
+  if (areBackgroundJobsDisabled(env)) {
+    return true;
+  }
   const raw = env.AGENT_SCHEDULER_DISABLED;
   return raw === 'true' || raw === '1';
 }

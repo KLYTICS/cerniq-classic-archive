@@ -932,6 +932,8 @@ model ProspectInstitution {
   @@index([demoUserId])
   @@index([demoExpiresAt])
   @@index([demoConvertedAt])
+  @@index([demoUserId, demoExpiresAt, demoConvertedAt], map: "prospect_institutions_demo_user_expires_converted_idx")
+  @@index([demoProvisionedAt], map: "prospect_institutions_demo_provisioned_at_idx")
   @@map("prospect_institutions")
 }
 
@@ -1283,6 +1285,7 @@ model AnalysisRun {
 
   @@index([institutionId, createdAt])
   @@index([createdByUserId, createdAt])
+  @@index([createdAt], map: "analysis_runs_created_at_idx")
   @@index([status])
   @@map("analysis_runs")
 }
@@ -1429,6 +1432,8 @@ model ReportJob {
 
   @@index([userId, status])
   @@index([status])
+  @@index([status, createdAt], map: "report_jobs_status_created_at_idx")
+  @@index([status, processingStartedAt], map: "report_jobs_status_processing_started_at_idx")
   @@index([institutionId, status])
   @@index([createdAt])
   @@map("report_jobs")
@@ -1465,6 +1470,7 @@ model EmailSequence {
 
   @@index([userId, sequenceKey])
   @@index([scheduledAt, cancelled, sentAt])
+  @@index([cancelled, sentAt, scheduledAt], map: "email_sequences_cancelled_sent_at_scheduled_at_idx")
   @@map("email_sequences")
 }
 
@@ -1533,6 +1539,7 @@ model AuditLog {
   @@index([resource, resourceId])
   @@index([userId, createdAt])
   @@index([institutionId, createdAt])
+  @@index([createdAt], map: "audit_logs_created_at_idx")
   @@index([action])
   @@index([tenantId])
   @@map("audit_logs")

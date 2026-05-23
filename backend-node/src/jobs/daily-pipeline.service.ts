@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma.service';
 import { MarketDataService } from '../market-data/market-data.service';
 import { CacheService } from '../cache/cache.service';
 import { RiskService } from '../risk/risk.service';
+import { areBackgroundJobsDisabled } from '../common/scheduler/background-job-gate.util';
 
 const BATCH_SIZE = 10;
 
@@ -28,6 +29,8 @@ export class DailyPipelineService {
     timeZone: 'America/New_York',
   })
   async handleScheduledRun() {
+    if (areBackgroundJobsDisabled()) return;
+
     this.logger.log('Scheduled daily pipeline triggered');
     await this.runPipeline();
   }

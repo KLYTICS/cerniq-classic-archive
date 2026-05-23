@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma.service';
 import { EmailService } from '../email/email.service';
+import { areBackgroundJobsDisabled } from '../common/scheduler/background-job-gate.util';
 
 @Injectable()
 export class PipelineHealthMonitor {
@@ -14,6 +15,8 @@ export class PipelineHealthMonitor {
 
   @Cron('0 * * * *') // Every hour
   async checkStuckJobs() {
+    if (areBackgroundJobsDisabled()) return;
+
     const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
 
     const stuckJobs = await this.prisma.reportJob.findMany({
@@ -62,6 +65,8 @@ export class PipelineHealthMonitor {
 
   @Cron('0 12 * * *') // 8am AST (12:00 UTC)
   async dailyHealthReport() {
+    if (areBackgroundJobsDisabled()) return;
+
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 

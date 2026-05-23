@@ -2,7 +2,7 @@
 
 > **Classification:** Internal — Operations
 > **Owner:** Engineering
-> **Last Updated:** March 2026
+> **Last Updated:** May 18, 2026
 
 ---
 
@@ -24,6 +24,7 @@
 | PostgreSQL 15 | Railway | us-east-1 | Automated daily snapshots + WAL archiving |
 | Redis 7 | Railway | us-east-1 | AOF persistence (append-only file) |
 | Frontend (Next.js) | Vercel | Global edge | Git-based (redeploy from any commit) |
+| API custom domain | Railway + Spaceship DNS | Global edge | `api.cerniq.io CNAME lnybhd8b.up.railway.app.`; Railway-managed TLS |
 | Object Storage (PDFs) | Cloudflare R2 | Global | R2 built-in redundancy (3-AZ) |
 | Email | Resend | N/A | Stateless (no backup needed) |
 | Payments | Stripe | N/A | Stripe-managed (webhook replay available) |
@@ -96,7 +97,7 @@ railway run --service backend-node -- node -e "
 "
 
 # 5. Verify recovery
-curl -sf https://api.cerniq.io/health | python3 -m json.tool
+curl -sf https://api.cerniq.io/api/v1/health | python3 -m json.tool
 bash scripts/health-check.sh
 ```
 
@@ -145,7 +146,7 @@ railway logs --service backend-node | grep -i redis
 railway restart --service redis
 
 # 4. Verify cache is working
-curl -s https://api.cerniq.io/health | python3 -c "
+curl -s https://api.cerniq.io/api/v1/health | python3 -c "
 import sys,json; d=json.load(sys.stdin).get('data',{}); print('Cache:', d.get('services',{}).get('cache','?'))
 "
 ```

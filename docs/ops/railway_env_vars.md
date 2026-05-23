@@ -2,6 +2,23 @@
 
 All environment variables required for the CERNIQ NestJS backend (`cerniq-api`) deployed on Railway.
 
+## Current Production Railway Service
+
+Last verified: 2026-05-18.
+
+| Item | Value |
+|------|-------|
+| Project | `cerniq-api` (`1ad9be3e-c89d-4b18-9af2-b1775a14161d`) |
+| Environment | `production` (`8e51374b-5f13-4980-a037-007c6c1792bc`) |
+| Backend service | `cerniq-api-backend` (`9b95101a-736a-4349-83ca-d901dc8f1757`) |
+| Railway service URL | `cerniq-api-backend-production.up.railway.app` |
+| API custom domain | `api.cerniq.io` |
+| Required custom-domain CNAME | `api.cerniq.io CNAME lnybhd8b.up.railway.app.` |
+
+Do not change source references to `api.cerniq.io`; it is the stable API
+contract used by Vercel rewrites and CSP. Rotate only the DNS target when
+Railway issues a new custom-domain CNAME.
+
 ## Required Variables
 
 | Variable | Description | Example |

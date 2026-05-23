@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { IntelligenceService } from './intelligence.service';
+import { areBackgroundJobsDisabled } from '../common/scheduler/background-job-gate.util';
 
 @Injectable()
 export class IntelligenceSchedulerService {
@@ -10,6 +11,8 @@ export class IntelligenceSchedulerService {
 
   @Cron('0 12 * * *')
   async refreshStaleAccounts() {
+    if (areBackgroundJobsDisabled()) return;
+
     try {
       await this.intelligence.refreshAccounts({
         staleOnly: true,

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import * as Sentry from '@sentry/nestjs';
 import { DemoSeatService } from './demo-seat.service';
+import { areBackgroundJobsDisabled } from '../common/scheduler/background-job-gate.util';
 
 /**
  * Hourly sweep that expires demo-seat subscriptions past their TTL.
@@ -31,6 +32,8 @@ export class DemoSeatSweeper {
 
   @Cron('5 * * * *') // Every hour at minute 5
   async runHourly() {
+    if (areBackgroundJobsDisabled()) return;
+
     try {
       const result = await this.demoSeats.sweepExpired();
       if (result.expired > 0) {
@@ -77,6 +80,8 @@ export class DemoSeatSweeper {
    */
   @Cron('0 14 * * *') // Daily at 14:00 UTC
   async runDailyReminders() {
+    if (areBackgroundJobsDisabled()) return;
+
     try {
       const result = await this.demoSeats.sendExpiryReminders();
       if (result.sent > 0) {

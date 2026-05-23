@@ -252,7 +252,7 @@ All checks should show PASS. See `scripts/health-check.sh` for details.
 
 ```bash
 # 1. Backend health
-curl https://api.cerniq.io/health
+curl https://api.cerniq.io/api/v1/health
 # Expected: {"success":true,"data":{"status":"ok"|"degraded",...}}
 
 # 2. Backend readiness
@@ -432,6 +432,28 @@ For data corruption, restore from the most recent Railway backup:
 | Rate limited | Check Resend dashboard for quota/errors |
 | Spam folder | Check spam; add SPF/DKIM records for `cerniq.io` |
 
+### API Custom Domain / TLS Issues
+
+**Symptom:** `https://api.cerniq.io/api/v1/health` returns 404, shows
+`x-railway-fallback`, or presents a certificate for `*.up.railway.app`.
+
+| Cause | Fix |
+|-------|-----|
+| `api.cerniq.io` CNAME points at a deleted Railway target | In Spaceship, point `api.cerniq.io` to the current Railway custom-domain target. As of 2026-05-18 the valid target is `lnybhd8b.up.railway.app.` |
+| Railway verification TXT is stale | In Spaceship, update `_railway-verify.api.cerniq.io` to the current TXT value from Railway's custom-domain screen |
+| Cert issuance still pending | Wait 5-30 minutes after Railway sees the correct CNAME/TXT, then verify SAN includes `DNS:api.cerniq.io` |
+| Wrong health path | Use `/api/v1/health`; `/api/health` on `cerniq.io` is a frontend route and does not prove backend reachability |
+
+Verification:
+
+```bash
+dig +short api.cerniq.io CNAME
+curl -sS https://api.cerniq.io/api/v1/health
+curl -sS https://cerniq.io/api/v1/health
+echo | openssl s_client -servername api.cerniq.io -connect api.cerniq.io:443 2>/dev/null \
+  | openssl x509 -noout -subject -ext subjectAltName -dates
+```
+
 ---
 
 ## 8. Emergency Contacts
@@ -451,6 +473,7 @@ For data corruption, restore from the most recent Railway backup:
 
 | Date | Deployer | What Changed | Railway OK | Vercel OK | Notes |
 |------|----------|--------------|------------|-----------|-------|
+| 2026-05-18 | Codex | Re-pointed `api.cerniq.io` from dangling Railway target to `lnybhd8b.up.railway.app`; added `cerniq.io` CAA pins plus `klytics.io` CAA/report auth | Yes | Yes | Direct and Vercel-proxied `/api/v1/health` return `service: cerniq-api-v1`; cert SAN includes `api.cerniq.io` |
 | | | | | | |
 | | | | | | |
 | | | | | | |

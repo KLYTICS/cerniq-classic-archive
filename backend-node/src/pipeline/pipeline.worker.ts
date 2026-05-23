@@ -10,6 +10,7 @@ import { DataCryptoService } from '../crypto/data-crypto.service';
 import { PipelineGateway } from '../realtime/pipeline.gateway';
 import { ReportArtifactService } from '../alm/reports/report-artifact.service';
 import { ReportPreflightService } from '../alm/reports/report-preflight.service';
+import { areBackgroundJobsDisabled } from '../common/scheduler/background-job-gate.util';
 
 const PDFDocument = require('pdfkit');
 
@@ -36,6 +37,8 @@ export class PipelineWorker {
 
   @Cron('*/2 * * * *') // Every 2 minutes
   async processQueue() {
+    if (areBackgroundJobsDisabled()) return;
+
     let job: any;
     try {
       job = await this.prisma.reportJob.findFirst({
@@ -2728,6 +2731,8 @@ export class PipelineWorker {
   // ── Renewal Automation (MP-REV-01) ─────────────────────────────
   @Cron('0 12 * * *') // 8am AST (12:00 UTC) daily
   async renewalSequence() {
+    if (areBackgroundJobsDisabled()) return;
+
     try {
       const subscriptions = await this.prisma.subscription.findMany({
         where: {
@@ -2821,6 +2826,8 @@ export class PipelineWorker {
   // ── Churn Risk Detection ──────────────────────────────────────
   @Cron('0 13 * * *') // 9am AST (13:00 UTC) daily
   async churnRiskDetection() {
+    if (areBackgroundJobsDisabled()) return;
+
     try {
       const fortyFiveDaysAgo = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000);
 
@@ -2889,6 +2896,8 @@ export class PipelineWorker {
   // ── Weekly Revenue Report ─────────────────────────────────────
   @Cron('0 13 * * 1') // Monday 9am AST (13:00 UTC)
   async weeklyRevenueReport() {
+    if (areBackgroundJobsDisabled()) return;
+
     try {
       const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -2965,6 +2974,8 @@ export class PipelineWorker {
   // ── NPS Survey Trigger (MP-REV-02) ────────────────────────────
   @Cron('0 14 * * *') // 10am AST (14:00 UTC) daily
   async sendNPSSurveys() {
+    if (areBackgroundJobsDisabled()) return;
+
     try {
       // Find COMPLETE jobs from ~48 hours ago
       const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
@@ -3037,6 +3048,8 @@ export class PipelineWorker {
   // ── 90-Day Data Deletion (DPA compliance) ──────────────────────
   @Cron('0 2 * * *') // 2:00 AM daily
   async deleteExpiredData() {
+    if (areBackgroundJobsDisabled()) return;
+
     const cutoffDate = new Date();
     cutoffDate.setDate(
       cutoffDate.getDate() - PipelineWorker.DATA_RETENTION_DAYS,
@@ -3093,6 +3106,8 @@ export class PipelineWorker {
   // ── Stalled Job Detection ─────────────────────────────────────
   @Cron('*/5 * * * *') // Every 5 minutes
   async checkStalledJobs() {
+    if (areBackgroundJobsDisabled()) return;
+
     const stalledThreshold = new Date(
       Date.now() - PipelineWorker.STALLED_THRESHOLD_MS,
     );
@@ -3180,6 +3195,8 @@ export class PipelineWorker {
   // ── Compliance Deadline Reminders (MP-PROD-03) ──────────────────
   @Cron('0 11 * * *') // 7am AST (11:00 UTC) daily
   async sendDeadlineReminders() {
+    if (areBackgroundJobsDisabled()) return;
+
     try {
       const results =
         await this.complianceCalendar.getInstitutionsWithUpcomingDeadlines(30);

@@ -325,7 +325,7 @@ describe('PrismaService', () => {
       }
     });
 
-    it('uses default pool size of 20 when DATABASE_POOL_SIZE is not set', () => {
+    it('uses default pool size of 5 when DATABASE_POOL_SIZE is not set', () => {
       process.env.DATABASE_URL = 'postgresql://localhost:5432/testdb';
       delete process.env.DATABASE_POOL_SIZE;
       try {
@@ -333,7 +333,7 @@ describe('PrismaService', () => {
         const svc = new PrismaService();
         const stats = svc.getPoolStats();
         if (stats) {
-          expect(stats.maxSize).toBe(20);
+          expect(stats.maxSize).toBe(5);
         }
       } catch {
         expect(true).toBe(true);

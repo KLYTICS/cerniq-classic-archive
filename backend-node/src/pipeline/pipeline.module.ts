@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
 import { PipelineWorker } from './pipeline.worker';
 import { PipelineHealthMonitor } from './pipeline-health.monitor';
 import { PipelineController } from './pipeline.controller';
@@ -10,7 +9,7 @@ import { AlmModule } from '../alm/alm.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), EmailModule, AlmModule, RealtimeModule],
+  imports: [EmailModule, AlmModule, RealtimeModule],
   controllers: [PipelineController],
   providers: [
     PipelineWorker,

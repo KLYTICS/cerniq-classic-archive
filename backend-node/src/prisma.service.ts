@@ -44,7 +44,7 @@ export class PrismaService
   constructor() {
     const connectionString = process.env.DATABASE_URL;
     if (connectionString) {
-      const poolSize = parseInt(process.env.DATABASE_POOL_SIZE || '20', 10);
+      const poolSize = parseInt(process.env.DATABASE_POOL_SIZE || '5', 10);
       const pool = new pg.Pool({
         connectionString,
         max: poolSize,
