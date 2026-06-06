@@ -499,6 +499,97 @@ describe('StressTestingService', () => {
         expect(typeof result.totalImpactPct).toBe('number');
       }
     });
+
+    it('covers the full ±100/200/300bps parallel shock set', async () => {
+      const results = await service.runCOSSECScenarios('inst-1');
+      const parallelShifts = results
+        .filter((r) => r.scenario.type === 'parallel')
+        .map((r) => r.scenario.rateShiftBps)
+        .sort((a, b) => a - b);
+      expect(parallelShifts).toEqual([-300, -200, -100, 100, 200, 300]);
+    });
+
+    it('includes the three PR-specific scenarios (huracán, migración, turismo)', async () => {
+      const results = await service.runCOSSECScenarios('inst-1');
+      const prIds = results
+        .filter((r) => r.scenario.type === 'pr_specific')
+        .map((r) => r.scenario.id)
+        .sort();
+      expect(prIds).toEqual([
+        'pr_hurricane_stress',
+        'pr_migration_stress',
+        'pr_tourism_stress',
+      ]);
+      for (const r of results.filter(
+        (x) => x.scenario.type === 'pr_specific',
+      )) {
+        expect(r.scenario.nameEs.length).toBeGreaterThan(0);
+        expect(r.scenario.descriptionEs.length).toBeGreaterThan(0);
+      }
+    });
+  });
+
+  // ── NEV supervisory analysis ────────────────────────────────
+  describe('getNEVAnalysis', () => {
+    beforeEach(() => {
+      mockAlmEnterprise.calculateDurationGap = jest.fn().mockResolvedValue({
+        assetDuration: 3.2,
+        liabilityDuration: 1.1,
+        durationGap: 2.3,
+        riskProfile: 'asset-sensitive',
+        assetConvexity: 0.15,
+        liabilityConvexity: 0.05,
+        leverageAdjustedDurationGap: 2.3,
+      });
+      mockAlmEnterprise.getCOSSECCompliance = jest.fn().mockResolvedValue({
+        overallStatus: 'compliant',
+        summary: { totalAssets: 250, totalLiabilities: 220 },
+      });
+    });
+
+    it('computes the ±100/200/300bps NEV shock table', async () => {
+      const result = await service.getNEVAnalysis('inst-1');
+      expect(result.overallRating).not.toBe('data_unavailable');
+      expect(
+        result.shocks.map((s) => s.shockBps).sort((a, b) => a - b),
+      ).toEqual([-300, -200, -100, 100, 200, 300]);
+      expect(result.baseNEV).toBeCloseTo(30, 5);
+      expect(result.baseNEVRatio).toBeCloseTo(12, 1);
+    });
+
+    it('rising rates erode NEV for an asset-sensitive duration profile', async () => {
+      const result = await service.getNEVAnalysis('inst-1');
+      const up300 = result.shocks.find((s) => s.shockBps === 300)!;
+      const down300 = result.shocks.find((s) => s.shockBps === -300)!;
+      expect(up300.nev).toBeLessThan(result.baseNEV!);
+      expect(down300.nev).toBeGreaterThan(result.baseNEV!);
+    });
+
+    it('assigns NCUA supervisory-test risk bands with Spanish labels', async () => {
+      const result = await service.getNEVAnalysis('inst-1');
+      for (const s of result.shocks) {
+        expect(['low', 'moderate', 'high', 'extreme']).toContain(
+          s.riskBand.level,
+        );
+        expect(s.riskBand.labelEs).toMatch(/Riesgo/);
+      }
+      expect(result.worstCase).not.toBeNull();
+      expect(result.worstCase!.nevRatio).toBe(
+        Math.min(...result.shocks.map((s) => s.nevRatio)),
+      );
+    });
+
+    it('returns data_unavailable + CRITICAL gap on empty balance sheet (D1)', async () => {
+      mockAlmEnterprise.getCOSSECCompliance = jest.fn().mockResolvedValue({
+        overallStatus: 'data_unavailable',
+        summary: { totalAssets: 0, totalLiabilities: 0 },
+      });
+      const result = await service.getNEVAnalysis('inst-1');
+      expect(result.overallRating).toBe('data_unavailable');
+      expect(result.baseNEV).toBeNull();
+      expect(result.shocks).toEqual([]);
+      expect(result.gaps?.[0].severity).toBe('CRITICAL');
+    });
   });
 
   // ── regulatory scenario pass/fail assessment ───────────────

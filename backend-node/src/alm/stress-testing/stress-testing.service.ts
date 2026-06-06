@@ -51,6 +51,40 @@ export interface CustomScenarioResult {
 
 // ─── Result Interfaces ────────────────────────────────────────
 
+export interface NEVRiskBand {
+  level: 'low' | 'moderate' | 'high' | 'extreme';
+  label: string;
+  labelEs: string;
+}
+
+export interface NEVShockPoint {
+  shockBps: number;
+  nev: number; // $M post-shock net economic value
+  nevRatio: number; // % of post-shock asset value
+  nevChangePct: number; // % change vs base NEV
+  riskBand: NEVRiskBand;
+}
+
+/**
+ * NEV supervisory analysis result. `baseNEV`/`baseNEVRatio` are null when
+ * the balance sheet is empty (D1 — `overallRating: 'data_unavailable'`,
+ * never phantom zeros).
+ */
+export interface NEVAnalysisResult {
+  institutionId: string;
+  baseNEV: number | null;
+  baseNEVRatio: number | null;
+  shocks: NEVShockPoint[];
+  worstCase: NEVShockPoint | null;
+  overallRating: NEVRiskBand['level'] | 'data_unavailable';
+  gaps?: Array<{
+    field: string;
+    reason: string;
+    severity: 'CRITICAL' | 'WARNING';
+    action: string;
+  }>;
+}
+
 export interface MonteCarloParams {
   paths: number; // default 1000
   horizon: number; // months, default 12
@@ -524,6 +558,129 @@ export class StressTestingService {
         passFailStatus,
       };
     });
+  }
+
+  // ─── NEV (Net Economic Value) Analysis ────────────────────────
+
+  /**
+   * Formal NEV supervisory analysis (Layer 1, #3). Revalues the balance
+   * sheet under parallel shocks of ±100/200/300 bps using duration +
+   * convexity, and classifies each post-shock NEV ratio against the
+   * NCUA NEV Supervisory Test bands (COSSEC follows NCUA methodology):
+   *   > 7%  → low risk (bajo)
+   *   4–7%  → moderate (moderado)
+   *   2–4%  → high (alto)
+   *   < 2%  → extreme (extremo)
+   *
+   * D1: refuses to compute when the balance sheet is empty — returns a
+   * data_unavailable shell with a CRITICAL gap, never phantom zeros.
+   */
+  async getNEVAnalysis(institutionId: string): Promise<NEVAnalysisResult> {
+    this.logger.log(`NEV analysis for institution ${institutionId}`);
+
+    const [durationGap, cossec] = await Promise.all([
+      this.almEnterprise.calculateDurationGap(institutionId),
+      this.almEnterprise.getCOSSECCompliance(institutionId),
+    ]);
+
+    const totalAssets = cossec?.summary?.totalAssets ?? 0;
+    const totalLiabilities = cossec?.summary?.totalLiabilities ?? 0;
+
+    if (cossec.overallStatus === 'data_unavailable' || totalAssets <= 0) {
+      this.logger.warn({
+        event: 'nev_data_unavailable',
+        institutionId,
+        reason: 'EMPTY_BALANCE_SHEET',
+      });
+      return {
+        institutionId,
+        baseNEV: null,
+        baseNEVRatio: null,
+        shocks: [],
+        worstCase: null,
+        overallRating: 'data_unavailable',
+        gaps: [
+          {
+            field: 'nev.balanceSheet',
+            reason: 'EMPTY_BALANCE_SHEET',
+            severity: 'CRITICAL',
+            action:
+              'Cargue el balance (activos y pasivos) antes de ejecutar el análisis NEV. / Upload balance sheet items before running NEV analysis.',
+          },
+        ],
+      };
+    }
+
+    const baseNEV = totalAssets - totalLiabilities;
+    const baseNEVRatio =
+      totalAssets > 0 ? round((baseNEV / totalAssets) * 100, 2) : 0;
+
+    const shockSet = [-300, -200, -100, 100, 200, 300];
+    const shocks: NEVShockPoint[] = shockSet.map((shockBps) => {
+      const dr = shockBps / 10000;
+      const assetChange =
+        -durationGap.assetDuration * totalAssets * dr +
+        0.5 * (durationGap.assetConvexity ?? 0) * totalAssets * dr * dr;
+      const liabChange =
+        -durationGap.liabilityDuration * totalLiabilities * dr +
+        0.5 *
+          (durationGap.liabilityConvexity ?? 0) *
+          totalLiabilities *
+          dr *
+          dr;
+
+      const shockedAssets = totalAssets + assetChange;
+      const shockedLiabilities = totalLiabilities + liabChange;
+      const nev = shockedAssets - shockedLiabilities;
+      const nevRatio =
+        shockedAssets > 0 ? round((nev / shockedAssets) * 100, 2) : 0;
+      const nevChangePct =
+        baseNEV !== 0
+          ? round(((nev - baseNEV) / Math.abs(baseNEV)) * 100, 2)
+          : 0;
+
+      return {
+        shockBps,
+        nev: round(nev, 2),
+        nevRatio,
+        nevChangePct,
+        riskBand: this.nevRiskBand(nevRatio),
+      };
+    });
+
+    const worstCase = shocks.reduce((worst, s) =>
+      s.nevRatio < worst.nevRatio ? s : worst,
+    );
+
+    return {
+      institutionId,
+      baseNEV: round(baseNEV, 2),
+      baseNEVRatio,
+      shocks,
+      worstCase,
+      overallRating: worstCase.riskBand.level,
+    };
+  }
+
+  private nevRiskBand(nevRatio: number): NEVRiskBand {
+    if (nevRatio > 7) {
+      return { level: 'low', label: 'Low risk', labelEs: 'Riesgo bajo' };
+    }
+    if (nevRatio >= 4) {
+      return {
+        level: 'moderate',
+        label: 'Moderate risk',
+        labelEs: 'Riesgo moderado',
+      };
+    }
+    if (nevRatio >= 2) {
+      return { level: 'high', label: 'High risk', labelEs: 'Riesgo alto' };
+    }
+    return {
+      level: 'extreme',
+      label: 'Extreme risk',
+      labelEs: 'Riesgo extremo',
+    };
   }
 
   // ─── Scenario Builders ───────────────────────────────────────

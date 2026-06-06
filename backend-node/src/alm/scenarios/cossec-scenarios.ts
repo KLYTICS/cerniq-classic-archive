@@ -95,9 +95,35 @@ export const COSSEC_SCENARIOS: NamedScenario[] = [
     regulatoryBasis: 'COSSEC Enhanced Scenario Guidelines',
   },
   {
+    id: 'parallel_down_200',
+    name: 'Parallel -200bps',
+    nameEs: 'Paralelo -200pbs',
+    type: 'parallel',
+    rateShiftBps: -200,
+    depositShockPct: 0,
+    creditShockPct: 0,
+    description: 'Moderate rate decrease — margin compression test',
+    descriptionEs:
+      'Disminucion moderada de tasas — prueba de compresion de margen',
+    regulatoryBasis: 'COSSEC Standard Scenario Set',
+  },
+  {
+    id: 'parallel_down_300',
+    name: 'Parallel -300bps',
+    nameEs: 'Paralelo -300pbs',
+    type: 'parallel',
+    rateShiftBps: -300,
+    depositShockPct: 0,
+    creditShockPct: 0,
+    description: 'Severe rate decrease — zero-bound proximity test',
+    descriptionEs:
+      'Disminucion severa de tasas — prueba de cercania al limite cero',
+    regulatoryBasis: 'COSSEC Standard Scenario Set',
+  },
+  {
     id: 'pr_hurricane_stress',
-    name: 'PR Economic Stress',
-    nameEs: 'Estres Economico PR',
+    name: 'PR Hurricane Stress',
+    nameEs: 'Estres Huracan PR',
     type: 'pr_specific',
     rateShiftBps: 150,
     depositShockPct: -5,
@@ -107,5 +133,33 @@ export const COSSEC_SCENARIOS: NamedScenario[] = [
     descriptionEs:
       'Tasas +150pbs, depositos -5%, morosidad +2% — escenario huracan/desastre',
     regulatoryBasis: 'COSSEC Hurricane Preparedness Guidelines',
+  },
+  {
+    id: 'pr_migration_stress',
+    name: 'PR Population Migration Stress',
+    nameEs: 'Estres Migracion Poblacional PR',
+    type: 'pr_specific',
+    rateShiftBps: 0,
+    depositShockPct: -8,
+    creditShockPct: 1.5,
+    description:
+      'Deposits -8%, loan defaults +1.5% — sustained out-migration of working-age members (US Census PR trend)',
+    descriptionEs:
+      'Depositos -8%, morosidad +1.5% — emigracion sostenida de socios en edad laboral (tendencia Censo PR)',
+    regulatoryBasis: 'CERNIQ PR Scenario Library — Census Bureau PR estimates',
+  },
+  {
+    id: 'pr_tourism_stress',
+    name: 'PR Tourism Revenue Stress',
+    nameEs: 'Estres Ingresos Turismo PR',
+    type: 'pr_specific',
+    rateShiftBps: -50,
+    depositShockPct: -3,
+    creditShockPct: 2.5,
+    description:
+      'Rates -50bps, deposits -3%, defaults +2.5% concentrated in commercial — tourism revenue collapse (recessionary)',
+    descriptionEs:
+      'Tasas -50pbs, depositos -3%, morosidad +2.5% concentrada en comercial — caida de ingresos turisticos (recesion)',
+    regulatoryBasis: 'CERNIQ PR Scenario Library — tourism dependency analysis',
   },
 ];
