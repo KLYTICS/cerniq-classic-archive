@@ -43,7 +43,9 @@ export type DataGapReason =
   | 'NO_GEOGRAPHIC_DATA'
   | 'NO_BORROWER_DATA'
   | 'EWS_INPUTS_INSUFFICIENT'
-  | 'INDICATOR_NOT_WIRED';
+  | 'INDICATOR_NOT_WIRED'
+  | 'NO_LOAN_SEGMENTS'
+  | 'NO_COHORT_DATA';
 
 export interface DataGap {
   /**

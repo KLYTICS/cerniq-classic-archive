@@ -4,6 +4,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 import * as Sentry from '@sentry/nestjs';
 
 // ─── PD Logistic Regression Coefficients (calibrated on NCUA PR data) ──
@@ -78,18 +79,22 @@ export interface CreditRiskSegment {
 
 export interface CreditRiskPortfolio {
   segments: CreditRiskSegment[];
-  totalEAD: number;
-  totalEL: number;
-  totalUL: number;
-  totalEC: number;
-  portfolioElPct: number;
-  portfolioEcPct: number;
+  // Nullable per D1: with no loan segments there is nothing to model, so the
+  // engine returns null + a gap rather than PD/EL/EC on fabricated segments.
+  totalEAD: number | null;
+  totalEL: number | null;
+  totalUL: number | null;
+  totalEC: number | null;
+  portfolioElPct: number | null;
+  portfolioEcPct: number | null;
   capitalAdequacy: {
     actualCapital: number;
     requiredEconomicCapital: number;
     capitalSurplus: number;
     isAdequate: boolean;
-  };
+  } | null;
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -107,9 +112,13 @@ export class CreditRiskQuantService {
         where: { id: institutionId },
       });
 
-      const segments: CreditRiskSegment[] = (
-        loanSegments.length > 0 ? loanSegments : this.getDemoSegments()
-      ).map((seg: any) => {
+      // D1: no loan segments → nothing to model. Refuse rather than compute
+      // PD/EL/economic-capital on fabricated demo segments.
+      if (loanSegments.length === 0) {
+        return this.dataUnavailableResult();
+      }
+
+      const segments: CreditRiskSegment[] = loanSegments.map((seg: any) => {
         const segType = this.normalizeType(seg.segmentName);
         const coeffs =
           PD_COEFFICIENTS[segType] ?? PD_COEFFICIENTS.consumer_loans;
@@ -187,6 +196,19 @@ export class CreditRiskQuantService {
       const totalAssets = institution?.totalAssets ?? totalEAD;
       const equityEstimate = totalAssets * 0.09; // ~9% NWR
 
+      // D1: the capital-adequacy check leans on a 9% NWR proxy when the real
+      // total-assets figure is missing — disclose it rather than imply it.
+      const gaps: DataGap[] = [];
+      if (!institution?.totalAssets) {
+        gaps.push(
+          dataGap('creditRisk.capitalAdequacy', 'MISSING_TOTAL_ASSETS', {
+            severity: 'WARNING',
+            action:
+              'Total de activos no disponible — la adecuación de capital usa el EAD de la cartera como proxy y un patrimonio estimado del 9% (NWR).',
+          }),
+        );
+      }
+
       return {
         segments,
         totalEAD,
@@ -203,6 +225,8 @@ export class CreditRiskQuantService {
           capitalSurplus: Math.round((equityEstimate - totalEC) * 10) / 10,
           isAdequate: equityEstimate >= totalEC,
         },
+        status: 'ok',
+        gaps: gaps.length > 0 ? gaps : undefined,
       };
     } catch (error: any) {
       this.logger.error(`Computation failed: ${error.message}`, error.stack);
@@ -344,56 +368,28 @@ export class CreditRiskQuantService {
     return 'unsecured';
   }
 
-  private getDemoSegments() {
-    return [
-      {
-        segmentName: 'Consumer Loans',
-        balance: 85,
-        weightedAvgMaturity: 3.5,
-        historicalLossRate: 0.018,
-        lgd: 0.45,
-        qualitativeAdj: 0.002,
-      },
-      {
-        segmentName: 'Auto Loans',
-        balance: 62,
-        weightedAvgMaturity: 4.2,
-        historicalLossRate: 0.012,
-        lgd: 0.35,
-        qualitativeAdj: 0.001,
-      },
-      {
-        segmentName: 'Commercial RE',
-        balance: 120,
-        weightedAvgMaturity: 7.5,
-        historicalLossRate: 0.008,
-        lgd: 0.4,
-        qualitativeAdj: 0.003,
-      },
-      {
-        segmentName: 'Residential Mortgage',
-        balance: 95,
-        weightedAvgMaturity: 15.0,
-        historicalLossRate: 0.004,
-        lgd: 0.3,
-        qualitativeAdj: 0.001,
-      },
-      {
-        segmentName: 'Credit Cards',
-        balance: 28,
-        weightedAvgMaturity: 1.5,
-        historicalLossRate: 0.035,
-        lgd: 0.8,
-        qualitativeAdj: 0.005,
-      },
-      {
-        segmentName: 'Commercial & Industrial',
-        balance: 55,
-        weightedAvgMaturity: 5.0,
-        historicalLossRate: 0.015,
-        lgd: 0.5,
-        qualitativeAdj: 0.002,
-      },
-    ];
+  // D1 honest shell. Replaces the former getDemoSegments() fallback that
+  // produced real-looking PD/EL/economic-capital for an institution with no
+  // loan data at all.
+  private dataUnavailableResult(): CreditRiskPortfolio {
+    return {
+      segments: [],
+      totalEAD: null,
+      totalEL: null,
+      totalUL: null,
+      totalEC: null,
+      portfolioElPct: null,
+      portfolioEcPct: null,
+      capitalAdequacy: null,
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('creditRisk.loanSegments', 'NO_LOAN_SEGMENTS', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue los segmentos de préstamos (saldo, tasa de pérdida histórica, vencimiento) para calcular PD / LGD / pérdida esperada.',
+          context: { service: 'credit-risk-quant' },
+        }),
+      ],
+    };
   }
 }

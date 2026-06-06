@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -19,16 +20,20 @@ export interface WeibullParams {
 
 export interface VintageAllowanceResult {
   methodology: 'vintage';
-  totalBalance: number;
-  baseAllowance: number;
-  adverseAllowance: number;
-  severeAllowance: number;
+  // Nullable per D1: with no loan segments there is nothing to reserve against,
+  // so the engine returns null + a gap rather than an allowance on demo data.
+  totalBalance: number | null;
+  baseAllowance: number | null;
+  adverseAllowance: number | null;
+  severeAllowance: number | null;
   segmentBreakdown: Record<
     string,
     { base: number; adverse: number; severe: number; balance: number }
   >;
   cohortMatrix: CohortCell[];
   weibullParams: WeibullParams[];
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 // PR-specific qualitative factor adjustments
@@ -56,7 +61,9 @@ export class CECLVintageService {
       orderBy: [{ originationQtr: 'asc' }, { ageMonths: 'asc' }],
     });
 
-    if (cohorts.length === 0) return this.getDemoCohortMatrix();
+    // D1: no cohort history → return empty. Callers surface the gap; we do not
+    // fabricate a demo cohort matrix that reads as real loss experience.
+    if (cohorts.length === 0) return [];
 
     return cohorts.map((c: any) => ({
       originationQtr: c.originationQtr,
@@ -123,6 +130,25 @@ export class CECLVintageService {
       where: { institutionId },
     });
 
+    // D1: no loan segments → refuse rather than compute a CECL allowance on
+    // fabricated demo segments (the worse-than-silent-zero class).
+    if (loanSegments.length === 0) {
+      return this.dataUnavailableResult(cohorts);
+    }
+
+    const gaps: DataGap[] = [];
+    if (cohorts.length === 0) {
+      // Segments exist but no cohort history — the loss-emergence curve falls
+      // back to a documented default (Weibull k=1.5, λ=36); disclose it.
+      gaps.push(
+        dataGap('ceclVintage.cohorts', 'NO_COHORT_DATA', {
+          severity: 'WARNING',
+          action:
+            'Sin datos de cosechas (loan_cohorts) — se usó una curva de pérdida por defecto. Cargue el historial de cosechas para una estimación calibrada.',
+        }),
+      );
+    }
+
     // Group cohorts by loan type
     const byType = new Map<string, CohortCell[]>();
     for (const c of cohorts) {
@@ -144,9 +170,7 @@ export class CECLVintageService {
       totalSevere = 0,
       totalBalance = 0;
 
-    for (const seg of loanSegments.length > 0
-      ? loanSegments
-      : this.getDemoSegments()) {
+    for (const seg of loanSegments) {
       const weibull = weibullParams.find(
         (w) => w.loanType === this.normalizeLoanType(seg.segmentName),
       ) ?? { shape: 1.5, scale: 36, r2: 0, loanType: seg.segmentName };
@@ -212,6 +236,8 @@ export class CECLVintageService {
       segmentBreakdown,
       cohortMatrix: cohorts,
       weibullParams,
+      status: 'ok',
+      gaps: gaps.length > 0 ? gaps : undefined,
     };
   }
 
@@ -253,67 +279,30 @@ export class CECLVintageService {
     return 'consumer';
   }
 
-  private getDemoCohortMatrix(): CohortCell[] {
-    const qtrs = [
-      '2022Q1',
-      '2022Q2',
-      '2022Q3',
-      '2022Q4',
-      '2023Q1',
-      '2023Q2',
-      '2023Q3',
-      '2023Q4',
-    ];
-    const ages = [6, 12, 18, 24, 30, 36];
-    const cells: CohortCell[] = [];
-
-    for (const qtr of qtrs) {
-      const qIdx = qtrs.indexOf(qtr);
-      for (const age of ages) {
-        if (age > (qtrs.length - qIdx) * 6) continue;
-        const baseLoss = 0.002 * (age / 6); // increasing with age
-        const noise = Math.sin(qIdx * 3 + age) * 0.001;
-        cells.push({
-          originationQtr: qtr,
-          ageMonths: age,
-          cumulativeDefaultRate: Math.max(0, baseLoss + noise),
-          balance: 10 - age * 0.1 - qIdx * 0.2,
-        });
-      }
-    }
-    return cells;
-  }
-
-  private getDemoSegments() {
-    return [
-      {
-        segmentName: 'Consumer Loans',
-        balance: 85,
-        weightedAvgMaturity: 3.5,
-        lgd: 0.45,
-        qualitativeAdj: 0.002,
-      },
-      {
-        segmentName: 'Auto Loans',
-        balance: 62,
-        weightedAvgMaturity: 4.2,
-        lgd: 0.35,
-        qualitativeAdj: 0.001,
-      },
-      {
-        segmentName: 'Commercial RE',
-        balance: 120,
-        weightedAvgMaturity: 7.5,
-        lgd: 0.4,
-        qualitativeAdj: 0.003,
-      },
-      {
-        segmentName: 'Residential Mortgage',
-        balance: 95,
-        weightedAvgMaturity: 15.0,
-        lgd: 0.3,
-        qualitativeAdj: 0.001,
-      },
-    ];
+  // D1 honest shell. Replaces the former getDemoSegments()/getDemoCohortMatrix()
+  // fallbacks that produced a real-looking CECL allowance for an institution
+  // with no loan data.
+  private dataUnavailableResult(
+    cohortMatrix: CohortCell[] = [],
+  ): VintageAllowanceResult {
+    return {
+      methodology: 'vintage',
+      totalBalance: null,
+      baseAllowance: null,
+      adverseAllowance: null,
+      severeAllowance: null,
+      segmentBreakdown: {},
+      cohortMatrix,
+      weibullParams: [],
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('ceclVintage.loanSegments', 'NO_LOAN_SEGMENTS', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue los segmentos de préstamos para calcular la provisión CECL por cosechas (vintage).',
+          context: { service: 'cecl-vintage' },
+        }),
+      ],
+    };
   }
 }
