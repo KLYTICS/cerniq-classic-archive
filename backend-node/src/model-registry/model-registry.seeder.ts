@@ -484,6 +484,12 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     serviceFile: 'alm/asset-ews.service.ts',
     entryFunction: 'computeEWS',
     requiredInputs: ['financialIndicators'],
+    limitations: [
+      'Returns DATA_UNAVAILABLE on empty portfolio; no fabricated score (D1)',
+      '7 of 12 indicators (delinquency trend, LTV, DSCR, OREO growth, consumer 60d, allowance coverage, peer gap) are not yet wired — return null + WARNING gap, never a constant',
+      'Refuses to grade below 50% measured indicator weight; composite scores only over measured indicators (57/100)',
+      'Derived indicators are loss-rate proxies, not direct delinquency measurements',
+    ],
   },
 
   // ───────────────── PRICING / FTP ─────────────────

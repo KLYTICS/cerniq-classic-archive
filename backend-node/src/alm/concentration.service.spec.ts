@@ -20,21 +20,25 @@ describe('ConcentrationService', () => {
     expect(service).toBeDefined();
   });
 
-  // -- Demo fallback when no assets exist -------------------------
+  // -- D1: empty balance sheet → data_unavailable, never demo -----
 
-  it('returns demo analysis when total assets are zero', async () => {
+  it('returns a data_unavailable shell with a CRITICAL gap when the balance sheet is empty', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([]);
     prisma.concentrationLimit.findMany.mockResolvedValue([]);
 
     const result = await service.getConcentrationAnalysis('inst_123');
 
-    expect(result.exposures).toHaveLength(6);
-    expect(result.hhi).toBe(1850);
-    expect(result.hhiInterpretation).toBe('Moderate concentration');
-    expect(result.diversificationScore).toBe(82);
-    expect(result.breachCount).toBe(0);
-    expect(result.warningCount).toBe(2);
-    expect(result.totalAssets).toBe(445);
+    expect(result.status).toBe('data_unavailable');
+    expect(result.exposures).toEqual([]);
+    expect(result.hhi).toBeNull();
+    expect(result.hhiInterpretation).toBeNull();
+    expect(result.diversificationScore).toBeNull();
+    expect(result.totalAssets).toBeNull();
+    expect(
+      result.gaps?.some(
+        (g) => g.reason === 'EMPTY_BALANCE_SHEET' && g.severity === 'CRITICAL',
+      ),
+    ).toBe(true);
   });
 
   // -- HHI computation for equal sectors --------------------------
@@ -160,7 +164,7 @@ describe('ConcentrationService', () => {
 
   // -- Exposures sorted by utilization descending -----------------
 
-  it('sorts exposures by utilization percentage in descending order', async () => {
+  it('sorts evaluable exposures by utilization percentage in descending order', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
       { category: 'asset', subcategory: 'Consumer Loans', balance: 20 },
       { category: 'asset', subcategory: 'Auto Loans', balance: 14 },
@@ -171,9 +175,13 @@ describe('ConcentrationService', () => {
 
     const result = await service.getConcentrationAnalysis('inst_123');
 
-    for (let i = 1; i < result.exposures.length; i++) {
-      expect(result.exposures[i - 1].utilizationPct).toBeGreaterThanOrEqual(
-        result.exposures[i].utilizationPct,
+    // Only evaluable exposures carry a numeric utilization; data_unavailable
+    // (single_name) exposures sort to the bottom with null and are excluded.
+    const evaluable = result.exposures.filter((e) => e.utilizationPct !== null);
+    expect(evaluable.length).toBeGreaterThan(0);
+    for (let i = 1; i < evaluable.length; i++) {
+      expect(evaluable[i - 1].utilizationPct!).toBeGreaterThanOrEqual(
+        evaluable[i].utilizationPct!,
       );
     }
   });
@@ -215,14 +223,46 @@ describe('ConcentrationService', () => {
     expect(res!.status).toBe('breach');
   });
 
-  // ── Coverage: zero totalAssets returns demo ─────────────────
-  it('returns demo analysis when no assets', async () => {
-    prisma.balanceSheetItem.findMany.mockResolvedValue([]);
+  // ── D1: single-borrower limits can't be evaluated on aggregate data ──
+  it('marks single_name default limits data_unavailable with a WARNING gap', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', subcategory: 'Commercial RE', balance: 50 },
+      { category: 'asset', subcategory: 'Consumer Loans', balance: 50 },
+    ]);
     prisma.concentrationLimit.findMany.mockResolvedValue([]);
 
-    const result = await service.getConcentrationAnalysis('inst-empty');
-    expect(result.totalAssets).toBeGreaterThan(0); // demo defaults
-    expect(result.diversificationScore).toBeGreaterThanOrEqual(0);
+    const result = await service.getConcentrationAnalysis('inst-sn');
+    expect(result.status).toBe('ok');
+    const single = result.exposures.filter(
+      (e) => e.limitType === 'single_name',
+    );
+    expect(single.length).toBeGreaterThan(0);
+    single.forEach((e) => {
+      expect(e.status).toBe('data_unavailable');
+      expect(e.currentPct).toBeNull();
+      expect(e.utilizationPct).toBeNull();
+    });
+    expect(result.gaps?.some((g) => g.reason === 'NO_BORROWER_DATA')).toBe(
+      true,
+    );
+  });
+
+  // ── D1: geography limits can't be evaluated without municipio data ──
+  it('marks a custom geography limit data_unavailable with a WARNING gap', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', subcategory: 'Commercial RE', balance: 100 },
+    ]);
+    prisma.concentrationLimit.findMany.mockResolvedValue([
+      { limitName: 'San Juan', limitType: 'geography', maxPct: 0.4 },
+    ]);
+
+    const result = await service.getConcentrationAnalysis('inst-geo');
+    const geo = result.exposures.find((e) => e.limitType === 'geography');
+    expect(geo).toBeDefined();
+    expect(geo!.status).toBe('data_unavailable');
+    expect(result.gaps?.some((g) => g.reason === 'NO_GEOGRAPHIC_DATA')).toBe(
+      true,
+    );
   });
 
   // ── Coverage: HHI interpretation ────────────────────────────

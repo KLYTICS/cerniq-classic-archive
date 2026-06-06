@@ -16,76 +16,51 @@ describe('AssetEWSService', () => {
     expect(service).toBeDefined();
   });
 
-  it('should return demo result with correct shape when no data', async () => {
+  // ── D1: empty institution → data_unavailable, never a fabricated score ──
+  it('returns a DATA_UNAVAILABLE shell with a CRITICAL gap when there is no portfolio', async () => {
     const result = await service.computeEWS('inst-1');
-    expect(result).toHaveProperty('compositeScore');
-    expect(result).toHaveProperty('alertLevel');
-    expect(result).toHaveProperty('indicators');
-    expect(result).toHaveProperty('topDeteriorating');
-    expect(result).toHaveProperty('peerAlert');
-    expect(result).toHaveProperty('peerAlertEs');
-    expect(result).toHaveProperty('anomalyScore');
+
+    expect(result.status).toBe('data_unavailable');
+    expect(result.alertLevel).toBe('DATA_UNAVAILABLE');
+    expect(result.compositeScore).toBeNull();
+    expect(result.anomalyScore).toBeNull();
     expect(result.indicators).toHaveLength(12);
+    expect(result.indicators.every((i) => i.value === null)).toBe(true);
+    expect(
+      result.gaps?.some(
+        (g) => g.reason === 'EMPTY_BALANCE_SHEET' && g.severity === 'CRITICAL',
+      ),
+    ).toBe(true);
   });
 
-  it('should produce GREEN alert for healthy demo defaults', async () => {
-    const result = await service.computeEWS('inst-1');
-    // Demo defaults use avgLossRate=0.015, which produces mostly green indicators
-    expect(result.compositeScore).toBeGreaterThanOrEqual(50);
-    expect(['GREEN', 'YELLOW']).toContain(result.alertLevel);
+  // ── D1: balance sheet present but no loss history → still won't grade ──
+  it('refuses to grade (data_unavailable) when loan segments / loss history are missing', async () => {
+    prisma.balanceSheetItem.findMany.mockResolvedValue([
+      { category: 'asset', subcategory: 'commercial_loans', balance: 5000 },
+    ]);
+    prisma.loanSegment.findMany.mockResolvedValue([]); // no loss history
+
+    const result = await service.computeEWS('inst-no-loss');
+    expect(result.status).toBe('data_unavailable');
+    expect(result.compositeScore).toBeNull();
+    expect(
+      result.gaps?.some((g) => g.reason === 'EWS_INPUTS_INSUFFICIENT'),
+    ).toBe(true);
   });
 
-  it('should compute anomaly score between 0 and 1', async () => {
-    const result = await service.computeEWS('inst-1');
-    expect(result.anomalyScore).toBeGreaterThanOrEqual(0);
-    expect(result.anomalyScore).toBeLessThanOrEqual(1);
-  });
-
-  it('should produce bilingual peer alerts', async () => {
-    const result = await service.computeEWS('inst-1');
-    expect(typeof result.peerAlert).toBe('string');
-    expect(typeof result.peerAlertEs).toBe('string');
-    expect(result.peerAlert.length).toBeGreaterThan(0);
-    expect(result.peerAlertEs.length).toBeGreaterThan(0);
-  });
-
-  it('should have indicator weights summing to 100', async () => {
+  it('keeps the indicator catalogue stable (weights sum to 100) even when unavailable', async () => {
     const result = await service.computeEWS('inst-1');
     const totalWeight = result.indicators.reduce((s, i) => s + i.weight, 0);
     expect(totalWeight).toBe(100);
   });
 
-  // ── Coverage: with actual balance sheet data ──────────────────
-  it('computes EWS with real loan segments and balance sheet items', async () => {
+  // ── ok path: derived indicators measured, unwired ones disclosed ──
+  it('scores over measured indicators and discloses unwired ones with WARNING gaps', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      {
-        category: 'asset',
-        subcategory: 'commercial_loans',
-        balance: 5000,
-        rate: 0.06,
-        duration: 3,
-      },
-      {
-        category: 'asset',
-        subcategory: 'auto_loans',
-        balance: 3000,
-        rate: 0.05,
-        duration: 2,
-      },
-      {
-        category: 'asset',
-        subcategory: 'cash',
-        balance: 1000,
-        rate: 0.01,
-        duration: 0,
-      },
-      {
-        category: 'asset',
-        subcategory: 'securities',
-        balance: 2000,
-        rate: 0.03,
-        duration: 5,
-      },
+      { category: 'asset', subcategory: 'commercial_loans', balance: 5000 },
+      { category: 'asset', subcategory: 'auto_loans', balance: 3000 },
+      { category: 'asset', subcategory: 'cash', balance: 1000 },
+      { category: 'asset', subcategory: 'securities', balance: 2000 },
     ]);
     prisma.loanSegment.findMany.mockResolvedValue([
       { balance: 5000, historicalLossRate: 0.03 },
@@ -93,67 +68,74 @@ describe('AssetEWSService', () => {
     ]);
 
     const result = await service.computeEWS('inst-with-data');
-    expect(result.compositeScore).toBeGreaterThanOrEqual(0);
-    expect(result.compositeScore).toBeLessThanOrEqual(100);
+
+    expect(result.status).toBe('ok');
+    expect(result.compositeScore).not.toBeNull();
+    expect(result.compositeScore!).toBeGreaterThanOrEqual(0);
+    expect(result.compositeScore!).toBeLessThanOrEqual(100);
     expect(result.indicators).toHaveLength(12);
-    // With higher loss rates, some indicators should be yellow/red
-    const nonGreen = result.indicators.filter((i) => i.alertLevel !== 'green');
-    expect(nonGreen.length).toBeGreaterThanOrEqual(0);
+
+    // The 5 derived indicators carry numeric values; the 7 unwired are null.
+    const measured = result.indicators.filter((i) => i.value !== null);
+    expect(measured.map((i) => i.id).sort()).toEqual(
+      [
+        'chargeoff_rate',
+        'classified_ratio',
+        'delinquency_30d',
+        'delinquency_90d',
+        'npl_ratio',
+      ].sort(),
+    );
+    const unwired = result.indicators.filter((i) => i.value === null);
+    expect(unwired).toHaveLength(7);
+    unwired.forEach((i) => expect(i.alertLevel).toBe('data_unavailable'));
+
+    // Every unwired indicator is disclosed via an INDICATOR_NOT_WIRED gap.
+    const notWired = (result.gaps ?? []).filter(
+      (g) => g.reason === 'INDICATOR_NOT_WIRED',
+    );
+    expect(notWired).toHaveLength(7);
   });
 
-  // ── Coverage: RED/YELLOW alert levels ────────────────────────
-  it('produces RED alert and deteriorating indicators with high loss rates', async () => {
+  it('produces RED-leaning indicators and a lower composite with high loss rates', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      {
-        category: 'asset',
-        subcategory: 'commercial_loans',
-        balance: 10000,
-        rate: 0.08,
-        duration: 5,
-      },
+      { category: 'asset', subcategory: 'commercial_loans', balance: 10000 },
     ]);
     prisma.loanSegment.findMany.mockResolvedValue([
       { balance: 10000, historicalLossRate: 0.08 }, // very high loss rate
     ]);
 
     const result = await service.computeEWS('inst-high-loss');
-    // High loss rates should trigger red indicators and lower composite score
+    expect(result.status).toBe('ok');
     const redIndicators = result.indicators.filter(
       (i) => i.alertLevel === 'red',
     );
     expect(redIndicators.length).toBeGreaterThan(0);
-    // Top deteriorating should have entries
-    expect(result.topDeteriorating.length).toBeGreaterThanOrEqual(0);
-    // Anomaly score should be higher with red indicators
-    expect(result.anomalyScore).toBeGreaterThan(0.3);
+    expect(result.anomalyScore).not.toBeNull();
+    expect(result.anomalyScore!).toBeGreaterThan(0.3);
   });
 
-  // ── Coverage: peer alert when peer_delinquency_gap is not green ──
-  it('produces peer divergence alert with high loss rates', async () => {
+  // ── peer alert is honest about the unwired peer benchmark ──
+  it('reports the peer comparison as unavailable while the peer feed is unwired', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
-      {
-        category: 'asset',
-        subcategory: 'commercial_loans',
-        balance: 10000,
-        rate: 0.1,
-        duration: 5,
-      },
+      { category: 'asset', subcategory: 'commercial_loans', balance: 10000 },
     ]);
     prisma.loanSegment.findMany.mockResolvedValue([
-      { balance: 10000, historicalLossRate: 0.1 },
+      { balance: 10000, historicalLossRate: 0.03 },
     ]);
 
-    const result = await service.computeEWS('inst-peer-alert');
-    // With very high loss rates, peer_delinquency_gap may become yellow/red
-    expect(result.peerAlert).toBeDefined();
-    expect(result.peerAlertEs).toBeDefined();
+    const result = await service.computeEWS('inst-peer');
+    expect(result.peerAlert.toLowerCase()).toContain('unavailable');
+    expect(result.peerAlertEs.toLowerCase()).toContain('no disponible');
+    const peer = result.indicators.find((i) => i.id === 'peer_delinquency_gap');
+    expect(peer!.value).toBeNull();
   });
 
-  // ── Coverage: zero totalWeight path ────────────────────────────
-  it('returns demo default composite score when no items or segments', async () => {
-    prisma.balanceSheetItem.findMany.mockResolvedValue([]);
-    prisma.loanSegment.findMany.mockResolvedValue([]);
-    const result = await service.computeEWS('inst-empty');
-    expect(result.compositeScore).toBeGreaterThanOrEqual(0);
+  it('emits bilingual peer alert strings', async () => {
+    const result = await service.computeEWS('inst-1');
+    expect(typeof result.peerAlert).toBe('string');
+    expect(typeof result.peerAlertEs).toBe('string');
+    expect(result.peerAlert.length).toBeGreaterThan(0);
+    expect(result.peerAlertEs.length).toBeGreaterThan(0);
   });
 });

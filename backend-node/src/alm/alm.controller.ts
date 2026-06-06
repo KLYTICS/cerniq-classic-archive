@@ -405,6 +405,7 @@ export class AlmController {
   async downloadCossecReport(
     @Param('institutionId') institutionId: string,
     @Query('lang') lang: string,
+    // type-rationale: express @Res() passthrough — raw response for binary PDF streaming, matching the controller's other @Res handlers
     @Res() res: any,
   ) {
     this.logger.log(

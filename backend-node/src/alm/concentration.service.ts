@@ -3,7 +3,9 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
+import type { ConcentrationLimit } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 import * as Sentry from '@sentry/nestjs';
 
 // ─── Default Policy Limits ──────────────────────────────────
@@ -25,21 +27,28 @@ export interface ConcentrationExposure {
   limitName: string;
   limitType: string;
   maxPct: number;
-  currentPct: number;
-  currentBalance: number;
-  headroom: number; // maxPct - currentPct
-  status: 'compliant' | 'warning' | 'breach';
-  utilizationPct: number; // currentPct / maxPct
+  // Nullable per D1: a `single_name`/`geography` limit cannot be evaluated
+  // from aggregate balance-sheet data, so its measured fields are `null`
+  // (never 0, which would read as "no concentration / compliant").
+  currentPct: number | null;
+  currentBalance: number | null;
+  headroom: number | null; // maxPct - currentPct
+  status: 'compliant' | 'warning' | 'breach' | 'data_unavailable';
+  utilizationPct: number | null; // currentPct / maxPct
 }
 
 export interface ConcentrationAnalysis {
   exposures: ConcentrationExposure[];
-  hhi: number; // Herfindahl-Hirschman Index (0-10000)
-  hhiInterpretation: string;
-  diversificationScore: number; // 0-100
+  // Nullable per D1: with no asset data there is nothing to compute, so the
+  // engine returns `null` + a gap rather than fabricated demo numbers.
+  hhi: number | null; // Herfindahl-Hirschman Index (0-10000)
+  hhiInterpretation: string | null;
+  diversificationScore: number | null; // 0-100
   breachCount: number;
   warningCount: number;
-  totalAssets: number;
+  totalAssets: number | null;
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -65,8 +74,11 @@ export class ConcentrationService {
         0,
       );
 
+      // D1 (never silent zeros): with no asset data there is nothing to
+      // measure concentration against. Return an honest shell + CRITICAL gap
+      // instead of demo numbers a regulator would read as a real portfolio.
       if (totalAssets === 0) {
-        return this.getDemoAnalysis();
+        return this.dataUnavailableResult();
       }
 
       // Aggregate by subcategory
@@ -79,64 +91,95 @@ export class ConcentrationService {
         );
       }
 
-      // Build exposure list from custom limits or defaults
+      // Custom limits override defaults. Normalize both into one shape so the
+      // single evaluation loop handles either source identically.
+      const limits =
+        customLimits.length > 0
+          ? customLimits.map((l: ConcentrationLimit) => ({
+              limitName: l.limitName,
+              limitType: l.limitType,
+              maxPct: Number(l.maxPct),
+            }))
+          : Object.entries(DEFAULT_LIMITS).map(([limitName, config]) => ({
+              limitName,
+              limitType: config.type,
+              maxPct: config.maxPct,
+            }));
+
       const exposures: ConcentrationExposure[] = [];
+      const gaps: DataGap[] = [];
+      const usingCustom = customLimits.length > 0;
 
-      if (customLimits.length > 0) {
-        for (const limit of customLimits) {
-          const balance =
-            sectorBalances.get(this.normalizeSectorName(limit.limitName)) ?? 0;
-          const currentPct = totalAssets > 0 ? balance / totalAssets : 0;
-          const headroom = limit.maxPct - currentPct;
-          const utilization = limit.maxPct > 0 ? currentPct / limit.maxPct : 0;
-
+      for (const limit of limits) {
+        // D1: single-borrower and geographic limits cannot be evaluated from
+        // aggregate balance-sheet data — there is no loan-level or municipio
+        // detail in this schema (roadmap W2.0 supplies it). Reporting
+        // 'compliant' would be a FALSE PASS; surface a WARNING gap instead.
+        if (
+          limit.limitType === 'single_name' ||
+          limit.limitType === 'geography'
+        ) {
           exposures.push({
             limitName: limit.limitName,
             limitType: limit.limitType,
             maxPct: limit.maxPct,
-            currentPct,
-            currentBalance: balance,
-            headroom,
-            status:
-              currentPct > limit.maxPct
-                ? 'breach'
-                : utilization > 0.8
-                  ? 'warning'
-                  : 'compliant',
-            utilizationPct: utilization * 100,
+            currentPct: null,
+            currentBalance: null,
+            headroom: null,
+            status: 'data_unavailable',
+            utilizationPct: null,
           });
+          gaps.push(
+            dataGap(
+              `concentration.${limit.limitType}.${limit.limitName}`,
+              limit.limitType === 'geography'
+                ? 'NO_GEOGRAPHIC_DATA'
+                : 'NO_BORROWER_DATA',
+              {
+                severity: 'WARNING',
+                action:
+                  limit.limitType === 'geography'
+                    ? 'Cargue datos a nivel de préstamo con municipio para evaluar la concentración geográfica.'
+                    : 'Cargue datos a nivel de prestatario para evaluar la concentración por deudor único.',
+                context: { limitName: limit.limitName },
+              },
+            ),
+          );
+          continue;
         }
-      } else {
-        // Use defaults
-        for (const [name, config] of Object.entries(DEFAULT_LIMITS)) {
-          const balance =
-            sectorBalances.get(this.normalizeSectorName(name)) ?? 0;
-          const currentPct = totalAssets > 0 ? balance / totalAssets : 0;
-          const headroom = config.maxPct - currentPct;
-          const utilization =
-            config.maxPct > 0 ? currentPct / config.maxPct : 0;
 
-          if (balance > 0 || config.type === 'single_name') {
-            exposures.push({
-              limitName: name,
-              limitType: config.type,
-              maxPct: config.maxPct,
-              currentPct,
-              currentBalance: balance,
-              headroom,
-              status:
-                currentPct > config.maxPct
-                  ? 'breach'
-                  : utilization > 0.8
-                    ? 'warning'
-                    : 'compliant',
-              utilizationPct: utilization * 100,
-            });
-          }
+        const balance =
+          sectorBalances.get(this.normalizeSectorName(limit.limitName)) ?? 0;
+
+        // Default sector/product limits with no matching balance are omitted
+        // (there is no exposure to report). Custom limits are always shown so
+        // the user sees the limit they configured, even at 0%.
+        if (!usingCustom && balance === 0) {
+          continue;
         }
+
+        const currentPct = balance / totalAssets;
+        const headroom = limit.maxPct - currentPct;
+        const utilization = limit.maxPct > 0 ? currentPct / limit.maxPct : 0;
+
+        exposures.push({
+          limitName: limit.limitName,
+          limitType: limit.limitType,
+          maxPct: limit.maxPct,
+          currentPct,
+          currentBalance: balance,
+          headroom,
+          status:
+            currentPct > limit.maxPct
+              ? 'breach'
+              : utilization > 0.8
+                ? 'warning'
+                : 'compliant',
+          utilizationPct: utilization * 100,
+        });
       }
 
-      // HHI calculation
+      // HHI calculation (sector shares — independent of the limit exposures)
       const shares = Array.from(sectorBalances.values()).map(
         (b) => (b / totalAssets) * 100,
       );
@@ -150,8 +193,10 @@ export class ConcentrationService {
       const diversificationScore = Math.max(0, Math.min(100, 100 - hhi / 100));
 
       return {
+        // Sort by utilization desc; unevaluable (null) exposures sink to the
+        // bottom rather than corrupting the numeric comparison.
         exposures: exposures.sort(
-          (a, b) => b.utilizationPct - a.utilizationPct,
+          (a, b) => (b.utilizationPct ?? -1) - (a.utilizationPct ?? -1),
         ),
         hhi: Math.round(hhi),
         hhiInterpretation,
@@ -159,6 +204,8 @@ export class ConcentrationService {
         breachCount: exposures.filter((e) => e.status === 'breach').length,
         warningCount: exposures.filter((e) => e.status === 'warning').length,
         totalAssets,
+        status: 'ok',
+        gaps: gaps.length > 0 ? gaps : undefined,
       };
     } catch (error: any) {
       this.logger.error(`Computation failed: ${error.message}`, error.stack);
@@ -200,76 +247,27 @@ export class ConcentrationService {
       .trim();
   }
 
-  private getDemoAnalysis(): ConcentrationAnalysis {
+  // D1: the honest empty-data shell. Replaces the former getDemoAnalysis()
+  // fabrication (HHI 1850 / diversification 82 / $445M) that would have read
+  // as a real, moderately-diversified portfolio to a COSSEC examiner.
+  private dataUnavailableResult(): ConcentrationAnalysis {
     return {
-      exposures: [
-        {
-          limitName: 'Commercial RE',
-          limitType: 'sector',
-          maxPct: 0.3,
-          currentPct: 0.27,
-          currentBalance: 120,
-          headroom: 0.03,
-          status: 'warning',
-          utilizationPct: 90,
-        },
-        {
-          limitName: 'Residential Mortgage',
-          limitType: 'sector',
-          maxPct: 0.35,
-          currentPct: 0.21,
-          currentBalance: 95,
-          headroom: 0.14,
-          status: 'compliant',
-          utilizationPct: 60,
-        },
-        {
-          limitName: 'Consumer Loans',
-          limitType: 'sector',
-          maxPct: 0.25,
-          currentPct: 0.19,
-          currentBalance: 85,
-          headroom: 0.06,
-          status: 'compliant',
-          utilizationPct: 76,
-        },
-        {
-          limitName: 'Auto Loans',
-          limitType: 'sector',
-          maxPct: 0.15,
-          currentPct: 0.14,
-          currentBalance: 62,
-          headroom: 0.01,
-          status: 'warning',
-          utilizationPct: 93,
-        },
-        {
-          limitName: 'C&I Loans',
-          limitType: 'sector',
-          maxPct: 0.25,
-          currentPct: 0.12,
-          currentBalance: 55,
-          headroom: 0.13,
-          status: 'compliant',
-          utilizationPct: 48,
-        },
-        {
-          limitName: 'Credit Cards',
-          limitType: 'product',
-          maxPct: 0.1,
-          currentPct: 0.06,
-          currentBalance: 28,
-          headroom: 0.04,
-          status: 'compliant',
-          utilizationPct: 60,
-        },
-      ],
-      hhi: 1850,
-      hhiInterpretation: 'Moderate concentration',
-      diversificationScore: 82,
+      exposures: [],
+      hhi: null,
+      hhiInterpretation: null,
+      diversificationScore: null,
       breachCount: 0,
-      warningCount: 2,
-      totalAssets: 445,
+      warningCount: 0,
+      totalAssets: null,
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('concentration.balanceSheet', 'EMPTY_BALANCE_SHEET', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue el balance de situación (activos) para calcular la concentración de la cartera.',
+          context: { service: 'concentration' },
+        }),
+      ],
     };
   }
 }

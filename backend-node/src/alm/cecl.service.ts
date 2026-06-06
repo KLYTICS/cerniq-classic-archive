@@ -551,6 +551,7 @@ export class CECLService {
     }
 
     const segmentData: Array<EligibleSegment | null> = segments.map(
+      // type-rationale: raw Prisma loan-segment rows (Decimal fields) reshaped into EligibleSegment; field access only, numeric coercion handled downstream
       (s: any) => {
         const name: string = s.segmentName;
         const productType = matchProductType(name);
@@ -588,7 +589,7 @@ export class CECLService {
             field: `cecl.segments.${name}`,
             reason: 'COSSEC_INPUTS_INSUFFICIENT',
             severity: 'WARNING',
-            action: `Sin datos históricos de pérdida para "${name}" — se aplicó la calibración provisional del registro de productos (${registry!.nombre}). Cargue el historial de pérdidas de la cooperativa para una estimación definitiva.`,
+            action: `Sin datos históricos de pérdida para "${name}" — se aplicó la calibración provisional del registro de productos (${registry.nombre}). Cargue el historial de pérdidas de la cooperativa para una estimación definitiva.`,
           });
         }
 
