@@ -27,6 +27,7 @@ CerniQ is a bilingual ALM (Asset-Liability Management) platform for Puerto Rico 
 eslint
 → verify:tenant-scope
 → verify:no-orphan-spec
+→ verify:no-focused-tests                 (no it.only / .skip in committed specs — silent-green guard)
 → verify:d1-no-silent-fallback            (CerniQ D1 — never silent zeros; no getDemo* fallback in src/alm)
 → verify:no-silent-catch                  (CerniQ — no swallowed errors / empty catch in src/alm)
 → verify:auth-coverage                    (auth-guard coverage strict)
