@@ -1893,6 +1893,33 @@ class APIClient {
   }
 
   /**
+   * Download the push-button COSSEC regulatory compliance report as a PDF.
+   * Spanish-first (`lang` defaults to 'es' — the cooperativa examiner language).
+   * The backend renders even with data gaps (it never fabricates), so the
+   * caller may invoke this whenever an institution is selected.
+   */
+  async downloadCossecReport(
+    institutionId: string,
+    lang: string = 'es',
+  ): Promise<void> {
+    const response = await this.client.get(
+      `${NODE_API_URL}/api/alm/${institutionId}/cossec-report/pdf?lang=${lang === 'en' ? 'en' : 'es'}`,
+      { responseType: 'blob' },
+    );
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const disposition = response.headers['content-disposition'];
+    const filenameMatch = disposition?.match(/filename="?([^"]+)"?/);
+    a.download = filenameMatch?.[1] || `cossec-report-${institutionId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
    * Seed an institution for the onboarding / demo flow.
    *
    * Routing strategy (Phase 1 complete — 2026-04-14):
