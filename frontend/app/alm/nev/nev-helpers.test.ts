@@ -13,6 +13,10 @@ import {
   supervisoryShock,
   orderedShocks,
   anchorCellClass,
+  institutionFraming,
+  bandFootnote,
+  COOPERATIVA_FRAMING,
+  BANK_FRAMING,
   SUPERVISORY_SHOCK_BPS,
   type NevShockPoint,
 } from './nev-helpers';
@@ -189,5 +193,53 @@ describe('anchorCellClass', () => {
     expect(anchorCellClass(true)).toContain('font-semibold');
     expect(anchorCellClass(false)).not.toContain('bg-sky-50');
     expect(anchorCellClass(false)).toBe('text-xs text-slate-700');
+  });
+});
+
+describe('institutionFraming (cooperativa ⇄ banking)', () => {
+  it('leads with COSSEC/NEV for cooperativa + credit_union', () => {
+    expect(institutionFraming('cooperativa')).toBe(COOPERATIVA_FRAMING);
+    expect(institutionFraming('credit_union')).toBe(COOPERATIVA_FRAMING);
+    expect(COOPERATIVA_FRAMING.abbrEs).toBe('VEN');
+    expect(COOPERATIVA_FRAMING.abbrEn).toBe('NEV');
+    expect(COOPERATIVA_FRAMING.crossAbbrEs).toBe('EVE');
+    expect(COOPERATIVA_FRAMING.regimeEs).toContain('COSSEC');
+    expect(COOPERATIVA_FRAMING.crossRegime).toBe('Basel IRRBB');
+  });
+
+  it('leads with Basel IRRBB/EVE for bank, community_bank, family_office', () => {
+    expect(institutionFraming('bank')).toBe(BANK_FRAMING);
+    expect(institutionFraming('community_bank')).toBe(BANK_FRAMING);
+    expect(institutionFraming('family_office')).toBe(BANK_FRAMING);
+    expect(BANK_FRAMING.abbrEs).toBe('EVE');
+    expect(BANK_FRAMING.measureEn).toBe('Economic Value of Equity');
+    expect(BANK_FRAMING.crossAbbrEs).toBe('VEN');
+    expect(BANK_FRAMING.regimeEs).toContain('Basel IRRBB');
+    expect(BANK_FRAMING.crossRegime).toBe('COSSEC');
+  });
+
+  it('is case-insensitive and defaults unknown/absent → cooperativa', () => {
+    expect(institutionFraming('BANK')).toBe(BANK_FRAMING);
+    expect(institutionFraming('  Cooperativa ')).toBe(COOPERATIVA_FRAMING);
+    expect(institutionFraming('')).toBe(COOPERATIVA_FRAMING);
+    expect(institutionFraming(null)).toBe(COOPERATIVA_FRAMING);
+    expect(institutionFraming(undefined)).toBe(COOPERATIVA_FRAMING);
+    expect(institutionFraming('something_else')).toBe(COOPERATIVA_FRAMING);
+  });
+});
+
+describe('bandFootnote (accurate cross-regime disclosure)', () => {
+  it('cooperativa cites COSSEC in the institution vocabulary', () => {
+    expect(bandFootnote(COOPERATIVA_FRAMING, true)).toContain('VEN');
+    expect(bandFootnote(COOPERATIVA_FRAMING, true)).toContain('COSSEC CC-2025-01');
+    expect(bandFootnote(COOPERATIVA_FRAMING, false)).toContain('NEV');
+    expect(bandFootnote(COOPERATIVA_FRAMING, false)).toContain('COSSEC');
+  });
+
+  it('bank uses EVE and discloses the Basel IRRBB outlier-test equivalence', () => {
+    expect(bandFootnote(BANK_FRAMING, true)).toContain('EVE');
+    expect(bandFootnote(BANK_FRAMING, true)).toContain('Basel IRRBB');
+    expect(bandFootnote(BANK_FRAMING, true)).toContain('COSSEC CC-2025-01');
+    expect(bandFootnote(BANK_FRAMING, false)).toContain('supervisory outlier test');
   });
 });

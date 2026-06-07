@@ -3,6 +3,7 @@
 import { useMemo, type ReactNode } from 'react';
 
 import { useTranslation } from '@/lib/i18n';
+import { useALM } from '@/components/alm/ALMProvider';
 import { AlmPage } from '@/components/alm/AlmPage';
 import {
   MetricStrip,
@@ -27,17 +28,25 @@ import {
   orderedShocks,
   isSupervisoryAnchor,
   anchorCellClass,
+  institutionFraming,
+  bandFootnote,
   type NevAnalysisResult,
   type NevShockPoint,
   type SemaforoTone,
 } from './nev-helpers';
 
 /**
- * NEV (Net Economic Value / Valor Económico Neto) — the conclusion-first
- * supervisory view of the COSSEC CC-2025-01 interest-rate-risk test.
+ * NEV / EVE — the conclusion-first supervisory interest-rate-risk view.
  *
  * Wires the (previously backend-only) Layer 1 endpoint:
  *   - GET /api/alm/{id}/stress-test/nev
+ *
+ * Maps to BOTH the cooperativa (COSSEC) and banking (Basel IRRBB) worlds: the
+ * measure is NEV / Valor Económico Neto for a credit union and EVE / Economic
+ * Value of Equity for a bank — the same balance-sheet measure under two
+ * regimes. The page leads with the regime that matches the selected
+ * institution's type (`institutionFraming`) and shows the other as a
+ * cross-reference, so a Presidente Ejecutivo and a banker both read it natively.
  *
  * No `getDemo` fallback is supplied: a supervisory artifact must never render
  * fabricated risk. The backend returns `overallRating: 'data_unavailable'` +
@@ -78,7 +87,18 @@ function AnchorCell({
 
 function NevContent({ data }: { readonly data: NevAnalysisResult }) {
   const { locale } = useTranslation();
+  const { institution } = useALM();
   const es = locale === 'es';
+
+  // Type-aware supervisory framing: NEV/VEN/COSSEC for a cooperativa,
+  // EVE/Basel IRRBB for a bank, with the other regime as a cross-reference.
+  const framing = institutionFraming(institution?.type);
+  const abbr = es ? framing.abbrEs : framing.abbrEn;
+  const crossAbbr = es ? framing.crossAbbrEs : framing.crossAbbrEn;
+  const measure = es ? framing.measureEs : framing.measureEn;
+  const ratioLabel = es ? framing.ratioEs : framing.ratioEn;
+  const regime = es ? framing.regimeEs : framing.regimeEn;
+  const pb = es ? 'pb' : 'bps';
 
   const banner = overallBanner(data.overallRating);
   const anchor = useMemo(() => supervisoryShock(data.shocks), [data.shocks]);
@@ -98,31 +118,31 @@ function NevContent({ data }: { readonly data: NevAnalysisResult }) {
   const stripItems: readonly MetricStripItem[] = [
     {
       key: 'nev_ratio_300',
-      label: es ? 'Razón VEN @ +300pb' : 'NEV Ratio @ +300bps',
+      label: `${ratioLabel} @ +300${pb}`,
       value: anchor?.nevRatio ?? null,
       unit: '%',
     },
     {
       key: 'nev_sens_300',
-      label: es ? 'Sensibilidad @ +300pb' : 'Sensitivity @ +300bps',
+      label: `Δ${abbr} @ +300${pb}`,
       value: anchor ? Math.abs(anchor.nevChangePct) : null,
       unit: '%',
     },
     {
       key: 'base_nev',
-      label: es ? 'VEN Base' : 'Base NEV',
+      label: es ? `${abbr} Base` : `Base ${abbr}`,
       value: data.baseNEV,
       unit: 'USD_M',
     },
     {
       key: 'base_nev_ratio',
-      label: es ? 'Razón VEN Base' : 'Base NEV Ratio',
+      label: es ? `${ratioLabel} Base` : `Base ${ratioLabel}`,
       value: data.baseNEVRatio,
       unit: '%',
     },
     {
       key: 'worst_ratio',
-      label: es ? 'Peor Razón VEN' : 'Worst NEV Ratio',
+      label: es ? `Peor ${ratioLabel}` : `Worst ${ratioLabel}`,
       value: data.worstCase?.nevRatio ?? null,
       unit: '%',
     },
@@ -151,7 +171,7 @@ function NevContent({ data }: { readonly data: NevAnalysisResult }) {
     },
     {
       id: 'nev',
-      header: es ? 'Valor VEN' : 'NEV Value',
+      header: es ? `Valor ${abbr}` : `${abbr} Value`,
       kind: 'custom',
       align: 'text-right',
       accessor: (s) => s.nev,
@@ -163,7 +183,7 @@ function NevContent({ data }: { readonly data: NevAnalysisResult }) {
     },
     {
       id: 'ratio',
-      header: es ? 'Razón VEN' : 'NEV Ratio',
+      header: ratioLabel,
       kind: 'custom',
       align: 'text-right',
       accessor: (s) => s.nevRatio,
@@ -187,7 +207,7 @@ function NevContent({ data }: { readonly data: NevAnalysisResult }) {
     },
     {
       id: 'band',
-      header: es ? 'Banda VEN' : 'NEV Band',
+      header: es ? `Banda ${abbr}` : `${abbr} Band`,
       kind: 'custom',
       align: 'text-left',
       accessor: (s) => s.riskBand.level,
@@ -211,8 +231,8 @@ function NevContent({ data }: { readonly data: NevAnalysisResult }) {
   return (
     <>
       {/* Conclusion-first semáforo banner: the supervisory verdict (worse-of
-          NEV ratio + sensitivity at +300bps) a Presidente Ejecutivo reads in
-          one glance. */}
+          ratio + sensitivity at +300bps) a Presidente Ejecutivo or banker reads
+          in one glance, in their own regime's vocabulary. */}
       <section className={`rounded-xl border p-4 ${TONE_BG[banner.tone]}`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -222,11 +242,13 @@ function NevContent({ data }: { readonly data: NevAnalysisResult }) {
             />
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] opacity-70">
-                {es
-                  ? 'Valor Económico Neto (VEN) — Prueba Supervisora'
-                  : 'Net Economic Value (NEV) — Supervisory Test'}
+                {measure} ({abbr} ≡ {crossAbbr}) —{' '}
+                {es ? 'Prueba Supervisora' : 'Supervisory Test'}
               </p>
               <p className="text-lg font-bold">{es ? banner.es : banner.en}</p>
+              <p className="text-[10px] font-medium opacity-70">
+                {regime} · {es ? 'ref.' : 'ref.'} {framing.crossRegime}
+              </p>
             </div>
           </div>
           {anchor ? (
@@ -235,7 +257,7 @@ function NevContent({ data }: { readonly data: NevAnalysisResult }) {
                 {es ? 'Ancla +300pb' : '+300bps anchor'}
               </p>
               <p className="tabular-nums">
-                {es ? 'Razón VEN' : 'NEV ratio'} {formatPct(anchor.nevRatio)} ·{' '}
+                {es ? 'Razón' : 'Ratio'} {abbr} {formatPct(anchor.nevRatio)} ·{' '}
                 {es ? 'Sensib.' : 'Sens.'} {formatSensitivity(anchor.nevChangePct)}
               </p>
             </div>
@@ -243,8 +265,8 @@ function NevContent({ data }: { readonly data: NevAnalysisResult }) {
             <div className="max-w-xs text-right text-[11px] leading-tight opacity-80">
               <p>
                 {es
-                  ? 'Cargue el balance (activos y pasivos) y los segmentos para ejecutar la revaluación VEN.'
-                  : 'Load the balance sheet (assets and liabilities) and segments to run the NEV revaluation.'}
+                  ? `Cargue el balance (activos y pasivos) y los segmentos para ejecutar la revaluación ${abbr}.`
+                  : `Load the balance sheet (assets and liabilities) and segments to run the ${abbr} revaluation.`}
               </p>
             </div>
           )}
@@ -265,8 +287,8 @@ function NevContent({ data }: { readonly data: NevAnalysisResult }) {
       <section>
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
           {es
-            ? 'Escalera de Choques VEN (±100/200/300pb)'
-            : 'NEV Shock Ladder (±100/200/300bps)'}
+            ? `Escalera de Choques ${abbr} (±100/200/300pb)`
+            : `${abbr} Shock Ladder (±100/200/300bps)`}
         </p>
         {ladder.length > 0 ? (
           <>
@@ -277,16 +299,14 @@ function NevContent({ data }: { readonly data: NevAnalysisResult }) {
               rowKey={(s) => String(s.shockBps)}
             />
             <p className="mt-2 text-[10px] leading-snug text-slate-400">
-              {es
-                ? 'La banda por choque refleja la razón VEN; el veredicto supervisor (peor de razón y sensibilidad, COSSEC CC-2025-01) se ancla en +300pb — fila resaltada arriba.'
-                : 'Each shock band reflects the NEV ratio; the supervisory verdict (worse of ratio and sensitivity, COSSEC CC-2025-01) is anchored on +300bps — highlighted row above.'}
+              {bandFootnote(framing, es)}
             </p>
           </>
         ) : (
           <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
             {es
-              ? 'No hay escalera de choques — cargue el balance de situación y los segmentos para revaluar el VEN bajo ±100/200/300pb.'
-              : 'No shock ladder available — load the balance sheet and segments to revalue NEV under ±100/200/300bps.'}
+              ? `No hay escalera de choques — cargue el balance de situación y los segmentos para revaluar el ${abbr} bajo ±100/200/300pb.`
+              : `No shock ladder available — load the balance sheet and segments to revalue ${abbr} under ±100/200/300bps.`}
           </p>
         )}
       </section>

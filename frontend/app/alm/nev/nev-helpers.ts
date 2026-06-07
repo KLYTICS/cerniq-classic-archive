@@ -211,3 +211,109 @@ export function anchorCellClass(isAnchor: boolean): string {
     ? 'block -mx-3 -my-1.5 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-slate-900'
     : 'text-xs text-slate-700';
 }
+
+// ─── Institution framing (cooperativa ⇄ banking) ─────────────────────────────
+//
+// NEV (Net Economic Value / Valor Económico Neto) is the NCUA/COSSEC credit-
+// union term; EVE (Economic Value of Equity) is the Basel IRRBB bank term for
+// the SAME measure. The page leads with the regime that matches the selected
+// institution's type and shows the other as a cross-reference, so a cooperativa
+// Presidente Ejecutivo and a trained banker both read it natively. The
+// vocabulary adapts; the band thresholds the backend applies are COSSEC
+// CC-2025-01's — whose 15% sensitivity leg coincides with Basel IRRBB's
+// supervisory outlier test — and `bandFootnote` discloses that accurately.
+
+export type InstitutionKind = 'cooperativa' | 'bank';
+
+export interface NevFraming {
+  readonly kind: InstitutionKind;
+  /** Measure abbreviation (locale split: VEN/NEV vs EVE). */
+  readonly abbrEs: string;
+  readonly abbrEn: string;
+  /** Full measure name. */
+  readonly measureEs: string;
+  readonly measureEn: string;
+  /** The OTHER regime's abbreviation — shown as a cross-reference. */
+  readonly crossAbbrEs: string;
+  readonly crossAbbrEn: string;
+  /** Primary supervisory regime name. */
+  readonly regimeEs: string;
+  readonly regimeEn: string;
+  /** The other regime, for the cross-reference. */
+  readonly crossRegime: string;
+  /** Net-economic-value ratio label. */
+  readonly ratioEs: string;
+  readonly ratioEn: string;
+  /** Equity / net-worth term. */
+  readonly equityEs: string;
+  readonly equityEn: string;
+}
+
+export const COOPERATIVA_FRAMING: NevFraming = {
+  kind: 'cooperativa',
+  abbrEs: 'VEN',
+  abbrEn: 'NEV',
+  measureEs: 'Valor Económico Neto',
+  measureEn: 'Net Economic Value',
+  crossAbbrEs: 'EVE',
+  crossAbbrEn: 'EVE',
+  regimeEs: 'COSSEC CC-2025-01 / CAMEL-S',
+  regimeEn: 'COSSEC CC-2025-01 / CAMEL-S',
+  crossRegime: 'Basel IRRBB',
+  ratioEs: 'Razón VEN',
+  ratioEn: 'NEV Ratio',
+  equityEs: 'patrimonio',
+  equityEn: 'net worth',
+};
+
+export const BANK_FRAMING: NevFraming = {
+  kind: 'bank',
+  abbrEs: 'EVE',
+  abbrEn: 'EVE',
+  measureEs: 'Valor Económico del Patrimonio',
+  measureEn: 'Economic Value of Equity',
+  crossAbbrEs: 'VEN',
+  crossAbbrEn: 'NEV',
+  regimeEs: 'Basel IRRBB (BCBS 368)',
+  regimeEn: 'Basel IRRBB (BCBS 368)',
+  crossRegime: 'COSSEC',
+  ratioEs: 'Razón EVE',
+  ratioEn: 'EVE Ratio',
+  equityEs: 'capital',
+  equityEn: 'equity',
+};
+
+/**
+ * Resolve the supervisory framing from the institution `type` string exposed by
+ * `ALMProvider` (`'cooperativa' | 'credit_union' | 'bank' | 'family_office'`,
+ * case-insensitive). Banks and family offices think in EVE / Basel IRRBB terms;
+ * everything else (incl. an absent/unknown type) defaults to the cooperativa
+ * COSSEC framing — the platform's home regime and the basis of the backend's
+ * computed bands, so the default is never a mis-citation of fabricated risk.
+ */
+export function institutionFraming(type: string | null | undefined): NevFraming {
+  const t = (type ?? '').trim().toLowerCase();
+  if (t === 'bank' || t === 'community_bank' || t === 'family_office') {
+    return BANK_FRAMING;
+  }
+  return COOPERATIVA_FRAMING;
+}
+
+/**
+ * Accurate, regime-aware band-source footnote. Always discloses that the
+ * classification thresholds are COSSEC CC-2025-01's; for banking framing it also
+ * notes that the 15% sensitivity leg coincides with the Basel IRRBB supervisory
+ * outlier test — honest cross-regime equivalence, not a re-citation.
+ */
+export function bandFootnote(framing: NevFraming, es: boolean): string {
+  const abbr = es ? framing.abbrEs : framing.abbrEn;
+  const ratio = es ? framing.ratioEs : framing.ratioEn;
+  if (framing.kind === 'bank') {
+    return es
+      ? `La banda por choque refleja la ${ratio.toLowerCase()}; el veredicto (peor de razón y sensibilidad |Δ${abbr}|) se ancla en +300pb — fila resaltada. Umbrales COSSEC CC-2025-01; la sensibilidad |Δ${abbr}| de 15% coincide con la prueba de valor atípico supervisor de Basel IRRBB (BCBS 368).`
+      : `Each shock band reflects the ${ratio}; the verdict (worse of ratio and |Δ${abbr}| sensitivity) is anchored on +300bps — highlighted row. Thresholds per COSSEC CC-2025-01; the 15% |Δ${abbr}| sensitivity aligns with the Basel IRRBB (BCBS 368) supervisory outlier test.`;
+  }
+  return es
+    ? `La banda por choque refleja la ${ratio.toLowerCase()}; el veredicto supervisor (peor de razón ${abbr} y sensibilidad |Δ${abbr}|, COSSEC CC-2025-01 / CAMEL-S) se ancla en +300pb — fila resaltada.`
+    : `Each shock band reflects the ${ratio}; the supervisory verdict (worse of ${abbr} ratio and |Δ${abbr}| sensitivity, COSSEC CC-2025-01 / CAMEL-S) is anchored on +300bps — highlighted row.`;
+}
