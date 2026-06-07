@@ -577,16 +577,26 @@ describe('StressTestingService', () => {
       );
     });
 
-    it('classifies on the +300bps supervisory point, worse of ratio/sensitivity', async () => {
+    it('classifies overall on the +300bps point via the worse of ratio/sensitivity', async () => {
       const result = await service.getNEVAnalysis('inst-1');
       const up300 = result.shocks.find((s) => s.shockBps === 300)!;
-      // overallRating is the +300bps band (CC-2025-01), not the grid-wide worst ratio.
-      expect(result.overallRating).toBe(up300.riskBand.level);
-      // This asset-sensitive book sheds >25% of NEV at +300bps, so the
-      // sensitivity leg escalates it to 'high' even though the ~5.9% ratio
-      // alone would be 'moderate' — proving the two-dimensional test.
+      // Per-shock band is the NEV-ratio band ONLY (informational): the +300bps
+      // ratio is ~5.9% → 'moderate'.
+      expect(up300.riskBand.level).toBe('moderate');
+      // The overall supervisory verdict adds the sensitivity leg at +300bps:
+      // this asset-sensitive book sheds >25% of NEV, escalating it to 'high'
+      // even though the ratio alone is 'moderate' — the two-dimensional test.
       expect(Math.abs(up300.nevChangePct)).toBeGreaterThan(25);
-      expect(up300.riskBand.level).toBe('high');
+      expect(result.overallRating).toBe('high');
+    });
+
+    it('does not flag a favorable down-shock as risk (per-shock band is ratio-only)', async () => {
+      const result = await service.getNEVAnalysis('inst-1');
+      const down300 = result.shocks.find((s) => s.shockBps === -300)!;
+      // Rates fall → NEV rises for an asset-sensitive book; high NEV ratio must
+      // read 'low', NOT 'high' from a large favorable sensitivity swing.
+      expect(down300.nevChangePct).toBeGreaterThan(0);
+      expect(down300.riskBand.level).toBe('low');
     });
 
     it('returns data_unavailable + CRITICAL gap on empty balance sheet (D1)', async () => {

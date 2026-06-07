@@ -645,7 +645,11 @@ export class StressTestingService {
         nev: round(nev, 2),
         nevRatio,
         nevChangePct,
-        riskBand: this.nevRiskBand(nevRatio, Math.abs(nevChangePct)),
+        // Per-shock band is the NEV-ratio band ONLY (informational): a
+        // favorable down-shock with a large positive ΔNEV is not "risk".
+        // The sensitivity leg is a supervisory measure of the ADVERSE
+        // (+300bps) point and is applied to overallRating below, not here.
+        riskBand: this.nevRiskBand(nevRatio, 0),
       };
     });
 
@@ -658,6 +662,12 @@ export class StressTestingService {
     // grid is informational. Fall back to worst-case only if +300 is absent.
     const supervisoryPoint =
       shocks.find((s) => s.shockBps === 300) ?? worstCase;
+    // The supervisory verdict applies the full two-dimensional test (NEV
+    // ratio AND NEV sensitivity, worse of the two) at the +300bps point.
+    const overallRating = this.nevRiskBand(
+      supervisoryPoint.nevRatio,
+      Math.abs(supervisoryPoint.nevChangePct),
+    ).level;
 
     return {
       institutionId,
@@ -665,7 +675,7 @@ export class StressTestingService {
       baseNEVRatio,
       shocks,
       worstCase,
-      overallRating: supervisoryPoint.riskBand.level,
+      overallRating,
     };
   }
 

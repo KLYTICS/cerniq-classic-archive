@@ -24,6 +24,7 @@ import { join } from 'path';
 import { AlmService } from './alm.service';
 import { DurationService } from './duration.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
+import { StressTestingService } from './stress-testing/stress-testing.service';
 import { getFixture } from './data/fixtures';
 
 const GOLDEN_DIR = join(__dirname, '..', '..', 'test', 'golden');
@@ -154,6 +155,7 @@ function loadOrCapture(filename: string, actual: unknown): unknown {
 
 describe('Golden reconciliation: pr-cooperativa-demo', () => {
   let service: AlmEnterpriseService;
+  let stress: StressTestingService;
 
   beforeEach(() => {
     const prisma = makeFakePrismaFromFixture();
@@ -162,6 +164,7 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
       new AlmService(),
       new DurationService(),
     );
+    stress = new StressTestingService(prisma, service);
   });
 
   it('getCOSSECCompliance produces the canonical snapshot', async () => {
@@ -195,6 +198,12 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
       'pr-cooperativa-demo.nii-sensitivity.json',
       actual,
     );
+    expect(actual).toEqual(expected);
+  });
+
+  it('getNEVAnalysis produces the canonical snapshot', async () => {
+    const actual = normalize(await stress.getNEVAnalysis(INSTITUTION_ID));
+    const expected = loadOrCapture('pr-cooperativa-demo.nev.json', actual);
     expect(actual).toEqual(expected);
   });
 });
