@@ -1920,6 +1920,43 @@ class APIClient {
   }
 
   /**
+   * Download the multi-sheet ALM / COSSEC workbook for examiners.
+   *
+   * The backend (`GET /api/alm/{id}/export/excel`) streams an Excel workbook
+   * whose first sheet (index 0) is "Data Gaps" — D1-aligned, so the reviewer
+   * sees what is missing before any computed figure. The route emits the
+   * legacy XML-SpreadsheetML payload (`application/vnd.ms-excel`, `.xls`), so
+   * we mirror that MIME type and `.xls` fallback name rather than the OOXML
+   * `.xlsx` type — keeping the Blob honest about its actual bytes. When the
+   * server sets a `Content-Disposition` (it does), that filename wins.
+   *
+   * `lang` is accepted for parity with {@link downloadCossecReport} and to
+   * future-proof bilingual sheet labels; the current route ignores it.
+   */
+  async downloadAlmExcel(
+    institutionId: string,
+    lang: string = 'es',
+  ): Promise<void> {
+    const response = await this.client.get(
+      `${NODE_API_URL}/api/alm/${institutionId}/export/excel?lang=${lang === 'en' ? 'en' : 'es'}`,
+      { responseType: 'blob' },
+    );
+    const blob = new Blob([response.data], {
+      type: 'application/vnd.ms-excel',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const disposition = response.headers['content-disposition'];
+    const filenameMatch = disposition?.match(/filename="?([^"]+)"?/);
+    a.download = filenameMatch?.[1] || `cossec-workbook-${institutionId}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
    * Seed an institution for the onboarding / demo flow.
    *
    * Routing strategy (Phase 1 complete — 2026-04-14):
