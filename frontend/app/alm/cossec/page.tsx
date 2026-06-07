@@ -229,6 +229,7 @@ function CossecContent({ data }: { readonly data: CossecComplianceResult }) {
                 type="button"
                 onClick={handleDownload}
                 disabled={downloading || !selectedId}
+                aria-busy={downloading}
                 className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FileDown className="h-4 w-4" aria-hidden />
@@ -244,6 +245,7 @@ function CossecContent({ data }: { readonly data: CossecComplianceResult }) {
                 type="button"
                 onClick={handleExcelDownload}
                 disabled={excelDownloading || !selectedId}
+                aria-busy={excelDownloading}
                 className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FileSpreadsheet className="h-4 w-4" aria-hidden />

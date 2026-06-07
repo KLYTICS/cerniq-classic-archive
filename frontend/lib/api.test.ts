@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
 
 const mockAxiosInstance = {
@@ -580,6 +580,131 @@ describe('APIClient', () => {
     Object.defineProperty(window, 'location', {
       configurable: true,
       value: originalLocation,
+    });
+  });
+
+  // The examiner Excel workbook download. Locks the full contract: the route,
+  // the authenticated blob transport, the legacy ms-excel MIME (NOT OOXML —
+  // the backend streams XML SpreadsheetML), Content-Disposition precedence,
+  // the .xls fallback name, Spanish-first lang coercion, and the anchor
+  // create→click→revoke lifecycle. A regression here is a broken or
+  // mistyped download for a regulator-facing artifact.
+  describe('downloadAlmExcel (examiner Excel workbook)', () => {
+    const origCreateObjectURL = URL.createObjectURL;
+    const origRevokeObjectURL = URL.revokeObjectURL;
+    let clickSpy: ReturnType<typeof vi.fn>;
+    let anchor: {
+      href: string;
+      download: string;
+      click: ReturnType<typeof vi.fn>;
+    };
+    let appendChildSpy: ReturnType<typeof vi.spyOn>;
+    let removeChildSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      clickSpy = vi.fn();
+      anchor = { href: '', download: '', click: clickSpy };
+      vi.spyOn(document, 'createElement').mockReturnValue(
+        anchor as unknown as HTMLAnchorElement,
+      );
+      appendChildSpy = vi
+        .spyOn(document.body, 'appendChild')
+        .mockImplementation((node) => node);
+      removeChildSpy = vi
+        .spyOn(document.body, 'removeChild')
+        .mockImplementation((node) => node);
+      // jsdom does not implement these; stub then restore in afterEach.
+      URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+      URL.revokeObjectURL = vi.fn();
+    });
+
+    afterEach(() => {
+      URL.createObjectURL = origCreateObjectURL;
+      URL.revokeObjectURL = origRevokeObjectURL;
+    });
+
+    it('streams /export/excel as an application/vnd.ms-excel blob and honors Content-Disposition', async () => {
+      const { apiClient } = await import('./api');
+      const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock
+        .results[0].value;
+      mockInstance.get.mockResolvedValueOnce({
+        data: new Blob(['<?xml version="1.0"?>'], {
+          type: 'application/vnd.ms-excel',
+        }),
+        headers: {
+          'content-disposition':
+            'attachment; filename="cerniq-alm-report-abcd1234.xls"',
+        },
+      });
+
+      await apiClient.downloadAlmExcel('inst-1', 'es');
+
+      expect(mockInstance.get).toHaveBeenCalledWith(
+        expect.stringContaining('/api/alm/inst-1/export/excel?lang=es'),
+        expect.objectContaining({ responseType: 'blob' }),
+      );
+      const blobArg = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as Blob;
+      expect(blobArg.type).toBe('application/vnd.ms-excel');
+      expect(anchor.href).toBe('blob:mock-url');
+      expect(anchor.download).toBe('cerniq-alm-report-abcd1234.xls');
+      expect(appendChildSpy).toHaveBeenCalledWith(anchor);
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+      expect(removeChildSpy).toHaveBeenCalledWith(anchor);
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+    });
+
+    it('falls back to cossec-workbook-<id>.xls and defaults to Spanish when no header/lang given', async () => {
+      const { apiClient } = await import('./api');
+      const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock
+        .results[0].value;
+      mockInstance.get.mockResolvedValueOnce({
+        data: new Blob(['data']),
+        headers: {},
+      });
+
+      await apiClient.downloadAlmExcel('coop-9');
+
+      expect(mockInstance.get).toHaveBeenCalledWith(
+        expect.stringContaining('/export/excel?lang=es'),
+        expect.objectContaining({ responseType: 'blob' }),
+      );
+      expect(anchor.download).toBe('cossec-workbook-coop-9.xls');
+    });
+
+    it('coerces lang Spanish-first: en stays en, any other value becomes es', async () => {
+      const { apiClient } = await import('./api');
+      const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock
+        .results[0].value;
+      mockInstance.get.mockResolvedValue({
+        data: new Blob(['data']),
+        headers: {},
+      });
+
+      await apiClient.downloadAlmExcel('i', 'en');
+      expect(mockInstance.get).toHaveBeenLastCalledWith(
+        expect.stringContaining('/export/excel?lang=en'),
+        expect.objectContaining({ responseType: 'blob' }),
+      );
+
+      await apiClient.downloadAlmExcel('i', 'fr');
+      expect(mockInstance.get).toHaveBeenLastCalledWith(
+        expect.stringContaining('/export/excel?lang=es'),
+        expect.objectContaining({ responseType: 'blob' }),
+      );
+    });
+
+    it('propagates request failures so the UI surfaces them (no silent fallback, no phantom download)', async () => {
+      const { apiClient } = await import('./api');
+      const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock
+        .results[0].value;
+      mockInstance.get.mockRejectedValueOnce(new Error('500 export failed'));
+
+      await expect(apiClient.downloadAlmExcel('i', 'es')).rejects.toThrow(
+        '500 export failed',
+      );
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+      expect(clickSpy).not.toHaveBeenCalled();
     });
   });
 });
