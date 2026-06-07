@@ -268,8 +268,8 @@ export class CossecReportService {
       );
       out.push(
         `La liquidez es ${s.liquidityRatio.toFixed(1)}% de los activos — ${
-          s.liquidityRatio >= 15 ? 'cumple' : 'no alcanza'
-        } el mínimo regulatorio de 15%.`,
+          s.liquidityRatio >= 5 ? 'cumple' : 'no alcanza'
+        } el mínimo operacional de 5% (COSSEC CC-2021-02).`,
       );
       out.push(
         `Los préstamos representan ${s.loanToShareRatio.toFixed(0)}% de los depósitos de socios — ${
@@ -284,8 +284,8 @@ export class CossecReportService {
       );
       out.push(
         `Liquidity stands at ${s.liquidityRatio.toFixed(1)}% of assets — ${
-          s.liquidityRatio >= 15 ? 'meeting' : 'short of'
-        } the 15% regulatory minimum.`,
+          s.liquidityRatio >= 5 ? 'meeting' : 'short of'
+        } the 5% operational minimum (COSSEC CC-2021-02).`,
       );
       out.push(
         `Loans are ${s.loanToShareRatio.toFixed(0)}% of member deposits — ${

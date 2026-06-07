@@ -1079,7 +1079,9 @@ export class AlmEnterpriseService {
             `Indivisible capital (proxy: net worth) / Risk-weighted assets: ${round(capitalRatioRWA, 1)}%. Statutory minimum (Act 255 §6.02): 8%.`,
             `Capital indivisible (proxy: patrimonio) / Activos sujetos a riesgo: ${round(capitalRatioRWA, 1)}%. Mínimo estatutario (Ley 255 Art. 6.02): 8%.`,
             20,
-            b.capitalAdequacy,
+            // No sector percentile: the RWA-based statutory ratio is not
+            // comparable to the leverage-ratio (equity/total-assets) benchmark.
+            null,
             capitalRatioRWA,
             false,
           ),
@@ -1090,11 +1092,11 @@ export class AlmEnterpriseService {
         'Calidad de Activos (Est.)',
         0,
         '%',
-        '<= 5%',
+        '<= 3%',
         'lte',
         'pass',
-        'Non-performing loan data not available from current balance sheet. Assumed healthy.',
-        'Datos de morosidad no disponibles. Se asume buena calidad.',
+        'Non-performing loan data not available from current balance sheet. Assumed healthy. COSSEC satisfactory delinquency threshold: <= 3%.',
+        'Datos de morosidad no disponibles. Se asume buena calidad. Umbral COSSEC satisfactorio de morosidad: <= 3%.',
         15,
         b.assetQuality,
         0,
@@ -1105,28 +1107,24 @@ export class AlmEnterpriseService {
         ? this.cossecRatioUnavailable(
             3,
             'Liquidity Ratio',
-            'Razon de Liquidez',
+            'Razón de Liquidez',
             '%',
-            '>= 15%',
+            '>= 5%',
             'gte',
             'Liquidity ratio not computable — no asset-side balance loaded. See gaps manifest.',
-            'Razon de liquidez no calculable — no hay activos cargados. Ver datos pendientes.',
+            'Razón de liquidez no calculable — no hay activos cargados. Ver datos pendientes.',
           )
         : this.buildRatio(
             3,
             'Liquidity Ratio',
-            'Razon de Liquidez',
+            'Razón de Liquidez',
             liquidityRatio,
             '%',
-            '>= 15%',
+            '>= 5%',
             'gte',
-            liquidityRatio >= 20
-              ? 'pass'
-              : liquidityRatio >= 15
-                ? 'warning'
-                : 'fail',
-            `Liquid assets/Total assets: ${round(liquidityRatio, 1)}%. Minimum: 15%.`,
-            `Activos liquidos/Activos totales: ${round(liquidityRatio, 1)}%. Minimo: 15%.`,
+            liquidityRatio >= 5 ? 'pass' : 'fail',
+            `Liquid assets/Total assets: ${round(liquidityRatio, 1)}%. Operational minimum (CC-2021-02): 5%.`,
+            `Activos líquidos/Activos totales: ${round(liquidityRatio, 1)}%. Mínimo operacional (CC-2021-02): 5%.`,
             10,
             b.liquidity,
             liquidityRatio,
@@ -1137,17 +1135,17 @@ export class AlmEnterpriseService {
         ? this.cossecRatioUnavailable(
             4,
             'Loan-to-Deposit Ratio',
-            'Razon Prestamos/Depositos',
+            'Razón Préstamos/Depósitos',
             '%',
             '<= 80%',
             'lte',
             'Loan-to-deposit not computable — member deposits/shares not loaded. See gaps manifest.',
-            'Razon prestamos/depositos no calculable — faltan depositos/acciones de socios. Ver datos pendientes.',
+            'Razón préstamos/depósitos no calculable — faltan depósitos/acciones de socios. Ver datos pendientes.',
           )
         : this.buildRatio(
             4,
             'Loan-to-Deposit Ratio',
-            'Razon Prestamos/Depositos',
+            'Razón Préstamos/Depósitos',
             loanToShareRatio,
             '%',
             '<= 80%',
@@ -1158,7 +1156,7 @@ export class AlmEnterpriseService {
                 ? 'warning'
                 : 'fail',
             `Loans/Deposits: ${round(loanToShareRatio, 1)}%. Target: <=80%.`,
-            `Prestamos/Depositos: ${round(loanToShareRatio, 1)}%. Meta: <=80%.`,
+            `Préstamos/Depósitos: ${round(loanToShareRatio, 1)}%. Meta de gestión: <=80%.`,
             10,
             b.loanToDeposit,
             loanToShareRatio,
@@ -1185,7 +1183,7 @@ export class AlmEnterpriseService {
             ? 'warning'
             : 'fail',
         `NII risk rating: ${niiSensitivity.riskRating}. Base NII: $${niiSensitivity.baseNII.toFixed(1)}M.`,
-        `Clasificacion NII: ${niiSensitivity.riskRating}. NII base: $${niiSensitivity.baseNII.toFixed(1)}M.`,
+        `Clasificación NII: ${niiSensitivity.riskRating}. NII base: $${niiSensitivity.baseNII.toFixed(1)}M.`,
         10,
         null,
         0,
@@ -1195,7 +1193,7 @@ export class AlmEnterpriseService {
       this.buildRatio(
         6,
         'Duration Gap',
-        'Brecha de Duracion',
+        'Brecha de Duración',
         durationGap.durationGap,
         'yr',
         '-1yr to +3yr',
@@ -1206,7 +1204,7 @@ export class AlmEnterpriseService {
             ? 'warning'
             : 'fail',
         `Gap: ${durationGap.durationGap > 0 ? '+' : ''}${durationGap.durationGap.toFixed(2)}yr. Profile: ${durationGap.riskProfile}.`,
-        `Brecha: ${durationGap.durationGap > 0 ? '+' : ''}${durationGap.durationGap.toFixed(2)} anos. Perfil: ${durationGap.riskProfile}.`,
+        `Brecha: ${durationGap.durationGap > 0 ? '+' : ''}${durationGap.durationGap.toFixed(2)} años. Perfil: ${durationGap.riskProfile}.`,
         10,
         b.durationGap,
         Math.abs(durationGap.durationGap),
@@ -1237,7 +1235,7 @@ export class AlmEnterpriseService {
       this.buildRatio(
         8,
         'Concentration Risk',
-        'Riesgo de Concentracion',
+        'Riesgo de Concentración',
         largestSectorPct,
         '%',
         '<= 25%',
@@ -1248,7 +1246,7 @@ export class AlmEnterpriseService {
             ? 'warning'
             : 'fail',
         `Largest sector (${largestSectorName}): ${round(largestSectorPct, 1)}% of loans.`,
-        `Mayor sector (${largestSectorName}): ${round(largestSectorPct, 1)}% de prestamos.`,
+        `Mayor sector (${largestSectorName}): ${round(largestSectorPct, 1)}% de préstamos.`,
         5,
         b.concentrationRisk,
         largestSectorPct,
@@ -1333,24 +1331,27 @@ export class AlmEnterpriseService {
         ? this.cossecRatioUnavailable(
             12,
             'Net Interest Margin',
-            'Margen de Interes Neto',
+            'Margen de Interés Neto',
             '%',
-            '>= 2.5%',
+            'Benchmark (>= 2.5%)',
             'gte',
             'NIM not computable — no earning assets (loans/investments) loaded. See gaps manifest.',
-            'MNI no calculable — no hay activos productivos (prestamos/inversiones) cargados. Ver datos pendientes.',
+            'MNI no calculable — no hay activos productivos (préstamos/inversiones) cargados. Ver datos pendientes.',
           )
         : this.buildRatio(
             12,
             'Net Interest Margin',
-            'Margen de Interes Neto',
+            'Margen de Interés Neto',
             nim,
             '%',
-            '>= 2.5%',
+            'Benchmark (>= 2.5%)',
             'gte',
-            nim >= 2.5 ? 'pass' : nim >= 2.0 ? 'warning' : 'fail',
-            `NIM: ${round(nim, 2)}%. Threshold: >=2.5%. PR median: ${b.nim.median}%.`,
-            `MNI: ${round(nim, 2)}%. Umbral: >=2.5%. Mediana PR: ${b.nim.median}%.`,
+            // Bible §E / NIM: an institution-specific benchmark, NOT a hard
+            // COSSEC floor — significant deviation triggers review, never a
+            // pass/fail "NO CUMPLE". Below the benchmark = warning (review).
+            nim >= 2.5 ? 'pass' : 'warning',
+            `NIM: ${round(nim, 2)}%. COSSEC benchmark (significant deviation triggers review). PR median: ${b.nim.median}%.`,
+            `MNI: ${round(nim, 2)}%. Referencia COSSEC (desviación significativa requiere revisión). Mediana PR: ${b.nim.median}%.`,
             10,
             b.nim,
             nim,

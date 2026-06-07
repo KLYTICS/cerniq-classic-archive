@@ -89,7 +89,9 @@ const fixture = (
       liquidAssets: 33.5,
       capitalRatio: 12.3,
       loanToShareRatio: 80,
-      liquidityRatio: 13.4,
+      // Below the 5% operational minimum (CC-2021-02) so buildConclusions
+      // exercises the "no alcanza" branch under the corrected threshold.
+      liquidityRatio: 3.4,
       earningAssets: 200,
       interestIncome: 14,
       interestExpense: 4,
