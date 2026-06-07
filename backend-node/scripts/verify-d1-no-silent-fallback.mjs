@@ -25,7 +25,7 @@
 //   This gate strips comments, then flags any src/alm file that still
 //   references a `getDemo*` identifier in code and is not on the baseline.
 //   New fabrication paths are blocked at CI; the baseline is the chip-away
-//   ledger of the 16 services that still need the sweep.
+//   ledger of the 15 services that still need the sweep.
 //
 // HONEST SCOPE (this gate is not magic — D1 demands we say so):
 //   • It catches the established `getDemo*` naming anti-pattern in src/alm.
@@ -79,7 +79,7 @@ function stripComments(content) {
 //   ALLOW — a deliberately-named, honestly-labeled demo endpoint. Not a
 //           silent fallback; permanent. Documented so review knows it's OK.
 //
-// Locked 2026-06-07: 16 TODO + 2 ALLOW = 18 files. 0 unbaselined violations.
+// Locked 2026-06-07: 15 TODO + 2 ALLOW = 17 files. 0 unbaselined violations.
 const BASELINE = {
   // ── ALLOW: honest, explicitly-labeled demo endpoints (permanent) ──
   'alm/alm.service.ts':
@@ -88,8 +88,6 @@ const BASELINE = {
     'ALLOW — @Get("demo-balance-sheet") / @Get("demo-analysis") are explicit demo routes that never masquerade as a real institution.',
 
   // ── TODO: services that still fabricate on empty/insufficient input ──
-  'alm/deposit-decay.service.ts':
-    'TODO D1 — analyzeDecay() UNCONDITIONALLY returns getDemoDecay() (fabricates ~$12B of balances on every call). Highest priority.',
   'alm/cvar-optimizer.service.ts':
     'TODO D1 — optimize(): n===0 (no asset subcategories) → getDemoResult(alpha) fabricates weights/cvar/var.',
   'alm/nim-attribution.service.ts':
@@ -171,7 +169,9 @@ function main() {
   }
 
   if (!existsSync(ALM_ROOT)) {
-    console.error(`verify-d1-no-silent-fallback: src/alm not found at ${ALM_ROOT}`);
+    console.error(
+      `verify-d1-no-silent-fallback: src/alm not found at ${ALM_ROOT}`,
+    );
     process.exit(1);
   }
 
@@ -214,7 +214,9 @@ function main() {
     failed = true;
   }
   if (violations.length > 0) {
-    console.log('\n❌ New D1 fabrication path(s) — a getDemo* fallback in src/alm (BLOCKING):');
+    console.log(
+      '\n❌ New D1 fabrication path(s) — a getDemo* fallback in src/alm (BLOCKING):',
+    );
     for (const v of violations) {
       console.log(`  - ${v.rel}  [${v.hits.join(', ')}]`);
     }
@@ -272,8 +274,8 @@ function selfTest() {
     },
     {
       name: 'baselined TODO offender → baselined',
-      content: `return this.getDemoDecay();`,
-      rel: 'alm/deposit-decay.service.ts',
+      content: `return this.getDemoResult(alpha);`,
+      rel: 'alm/cvar-optimizer.service.ts',
       expected: 'baselined',
     },
     {
@@ -329,7 +331,9 @@ function selfTest() {
     pass++;
   } else {
     fail++;
-    console.log(`✗ baseline contains out-of-scope keys: ${outOfScope.join(', ')}`);
+    console.log(
+      `✗ baseline contains out-of-scope keys: ${outOfScope.join(', ')}`,
+    );
   }
 
   console.log(`self-test: ${pass}/${pass + fail} case(s) pass`);
