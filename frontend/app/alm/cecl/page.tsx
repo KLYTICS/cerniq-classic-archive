@@ -5,14 +5,30 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   AreaChart, Area, Cell,
 } from 'recharts';
-import { Calculator } from 'lucide-react';
+import { Calculator, Building2, AlertTriangle, RefreshCw } from 'lucide-react';
 
 import { useTranslation } from '@/lib/i18n';
 import { useALM } from '@/components/alm/ALMProvider';
 import { AlmPage } from '@/components/alm/AlmPage';
-import { useAlmEndpoint } from '@/hooks/useAlmEndpoint';
+import { AlmPageSkeleton } from '@/components/alm/AlmPageSkeleton';
+import { useAlmEndpoint, formatAlmError } from '@/hooks/useAlmEndpoint';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+
+import {
+  validateCooperativaCecl,
+  isCooperativaDataUnavailable,
+  mapClassificationRows,
+  buildCooperativaStripItems,
+  countGapSeverities,
+  sideLabel,
+  yesNoLabel,
+  PR_OVERLAY_DISCLOSURE,
+  COLD_START_NOTE,
+  type CooperativaCECLResult,
+  type ClassificationViewRow,
+} from './cecl-cooperativa-helpers';
 
 /**
  * CECL — migrated to the AlmPage shell.
@@ -67,20 +83,24 @@ interface CECLForecast {
   readonly totalProvision12M: number;
 }
 
-type Methodology = 'warm' | 'vintage' | 'pdlgd';
+type Methodology = 'warm' | 'vintage' | 'pdlgd' | 'cooperativa';
+/** The three generic CECL methods, sharing one response shape + demo factory. */
+type GenericMethodology = Exclude<Methodology, 'cooperativa'>;
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const METHOD_LABELS: Record<Methodology, { readonly en: string; readonly es: string }> = {
-  warm:    { en: 'WARM',    es: 'WARM' },
-  vintage: { en: 'Vintage', es: 'Cosecha' },
-  pdlgd:   { en: 'PD × LGD', es: 'PD × LGD' },
+  warm:        { en: 'WARM',          es: 'WARM' },
+  vintage:     { en: 'Vintage',       es: 'Cosecha' },
+  pdlgd:       { en: 'PD × LGD',      es: 'PD × LGD' },
+  cooperativa: { en: 'Cooperativa PR', es: 'Cooperativa PR' },
 };
 
 const METHOD_LONG: Record<Methodology, { readonly en: string; readonly es: string }> = {
-  warm:    { en: 'Weighted-Avg Remaining Life', es: 'Vida Remanente Ponderada' },
-  vintage: { en: 'Vintage / Cohort Analysis',   es: 'Análisis de Cosechas'   },
-  pdlgd:   { en: 'PD × LGD (Macro Scenarios)',  es: 'PD × LGD (Macro)'        },
+  warm:        { en: 'Weighted-Avg Remaining Life', es: 'Vida Remanente Ponderada' },
+  vintage:     { en: 'Vintage / Cohort Analysis',   es: 'Análisis de Cosechas'   },
+  pdlgd:       { en: 'PD × LGD (Macro Scenarios)',  es: 'PD × LGD (Macro)'        },
+  cooperativa: { en: 'PD×LGD — PR Macro Overlay',   es: 'PD×LGD — Recargo Macro PR' },
 };
 
 const SEGMENT_COLORS = ['#06b6d4', '#f59e0b', '#8b5cf6', '#10b981', '#ef4444', '#ec4899'] as const;
@@ -96,7 +116,7 @@ function validateCecl(raw: unknown): CECLSummary {
   return r as unknown as CECLSummary;
 }
 
-function getDemoSummary(method: Methodology): CECLSummary {
+function getDemoSummary(method: GenericMethodology): CECLSummary {
   const segments: CECLSegmentResult[] = [
     { segmentName: 'Consumer Loans',      balance: 85,  methodology: 'WARM', historicalLossRate: 0.018, qualitativeAdj: 0.002, adjustedLossRate: 0.020, expectedLoss: 5.95, allowanceRequired: 5.95, coverageRatio: 0.070 },
     { segmentName: 'Auto Loans',          balance: 62,  methodology: 'WARM', historicalLossRate: 0.012, qualitativeAdj: 0.001, adjustedLossRate: 0.013, expectedLoss: 3.39, allowanceRequired: 3.39, coverageRatio: 0.055 },
@@ -145,7 +165,7 @@ function getDemoForecast(): CECLForecast {
 
 interface ContentProps {
   readonly analysis: CECLSummary;
-  readonly methodology: Methodology;
+  readonly methodology: GenericMethodology;
 }
 
 interface SegmentRow extends CECLSegmentResult {
@@ -295,6 +315,218 @@ function CeclContent({ analysis, methodology }: ContentProps) {
   );
 }
 
+// ─── Cooperativa PR content (4th methodology) ───────────────────────────────
+//
+// PR-native CECL: wires GET /api/alm/{id}/cecl/cooperativa as a SECONDARY fetch
+// (mirroring the forecast pattern above) rather than the generic /cecl. The
+// response carries a productClassification[] the generic view lacks, so this
+// branch renders its own honest loading / error / data states. No `getDemo` is
+// supplied — D1: a PR-calibrated allowance is never fabricated.
+
+function EligibilityPill({
+  value,
+  es,
+}: {
+  readonly value: boolean | null;
+  readonly es: boolean;
+}) {
+  const dot =
+    value === true ? 'bg-emerald-500' : value === false ? 'bg-slate-400' : 'bg-slate-300';
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700">
+      <span className={`h-2 w-2 rounded-full ${dot}`} aria-hidden />
+      {yesNoLabel(value, es)}
+    </span>
+  );
+}
+
+function CooperativaCeclContent() {
+  const { locale } = useTranslation();
+  const { selectedId } = useALM();
+  const es = locale === 'es';
+
+  // Secondary endpoint on the same module: /api/alm/{id}/cecl/cooperativa.
+  const state = useAlmEndpoint<CooperativaCECLResult>('cecl', {
+    institutionId: selectedId,
+    validate: validateCooperativaCecl,
+    pathSuffix: '/cooperativa',
+  });
+
+  const data = state.status === 'success' ? state.data : null;
+
+  const stripItems = useMemo<readonly MetricStripItem[]>(
+    () => (data ? buildCooperativaStripItems(data, es) : []),
+    [data, es],
+  );
+  const classificationRows = useMemo<readonly ClassificationViewRow[]>(
+    () => (data ? mapClassificationRows(data.productClassification, es) : []),
+    [data, es],
+  );
+  const gapCounts = useMemo(() => countGapSeverities(data?.gaps), [data]);
+
+  const columns = useMemo<readonly DataTableColumn<ClassificationViewRow>[]>(
+    () => [
+      {
+        id: 'segment',
+        header: es ? 'Segmento' : 'Segment',
+        kind: 'custom',
+        accessor: (r) => r.segmentName,
+        render: (r) => (
+          <span className="text-xs font-medium text-slate-800">{r.segmentName}</span>
+        ),
+      },
+      {
+        id: 'product',
+        header: es ? 'Tipo de Producto' : 'Product Type',
+        kind: 'custom',
+        accessor: (r) => r.productLabel,
+        render: (r) => <span className="text-xs text-slate-700">{r.productLabel}</span>,
+      },
+      {
+        id: 'side',
+        header: es ? 'Lado' : 'Side',
+        kind: 'custom',
+        accessor: (r) => r.side,
+        render: (r) => <span className="text-xs text-slate-600">{sideLabel(r.side, es)}</span>,
+      },
+      {
+        id: 'eligible',
+        header: es ? '¿Elegible CECL?' : 'CECL-eligible?',
+        kind: 'custom',
+        accessor: (r) => yesNoLabel(r.ceclEligible, es),
+        render: (r) => <EligibilityPill value={r.ceclEligible} es={es} />,
+      },
+      {
+        id: 'defaults',
+        header: es ? '¿Defaults aplicados?' : 'Defaults applied?',
+        kind: 'custom',
+        accessor: (r) => yesNoLabel(r.defaultsApplied, es),
+        render: (r) => (
+          <span className="text-xs text-slate-600">{yesNoLabel(r.defaultsApplied, es)}</span>
+        ),
+      },
+    ],
+    [es],
+  );
+
+  if (state.status === 'idle' || state.status === 'loading') {
+    return (
+      <AlmPageSkeleton
+        label={es ? 'Cargando CECL Cooperativa PR' : 'Loading Cooperativa PR CECL'}
+      />
+    );
+  }
+
+  if (state.status === 'error') {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div
+          className="max-w-md rounded-xl border border-rose-200 bg-rose-50 p-6 text-center"
+          role="alert"
+        >
+          <AlertTriangle className="mx-auto h-10 w-10 text-rose-500" />
+          <p className="mt-3 text-sm font-semibold text-rose-900">
+            {es ? 'No se pudo cargar CECL Cooperativa PR' : 'Could not load Cooperativa PR CECL'}
+          </p>
+          <p className="mt-1 text-xs text-rose-700">{formatAlmError(state.error, locale)}</p>
+          <button
+            type="button"
+            onClick={state.retry}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            {es ? 'Reintentar' : 'Retry'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const unavailable = isCooperativaDataUnavailable(state.data);
+
+  return (
+    <>
+      {/* Methodology provenance + honest status chip. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">
+          <Building2 className="h-3.5 w-3.5" aria-hidden />
+          {es ? 'Metodología' : 'Methodology'}: {state.data.methodology}
+        </span>
+        {unavailable ? (
+          <span className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+            {es ? 'Datos insuficientes' : 'Insufficient data'}
+          </span>
+        ) : null}
+      </div>
+
+      {/* D1: enumerate every cold-start / unmatched-segment gap. */}
+      {state.data.gaps && state.data.gaps.length > 0 ? (
+        <DataGapBanner
+          gaps={state.data.gaps}
+          criticalCount={gapCounts.critical}
+          warningCount={gapCounts.warning}
+        />
+      ) : null}
+
+      {/* Allowance summary — `—` (never $0.0M) when data_unavailable. */}
+      <MetricStrip items={stripItems} locale={locale} density="compact" />
+
+      {/* Product classification against the PR cooperativa registry. */}
+      <section>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {es
+            ? 'Clasificación de Productos (Registro Cooperativa PR)'
+            : 'Product Classification (PR Cooperativa Registry)'}
+        </p>
+        {classificationRows.length > 0 ? (
+          <DataTable
+            rows={classificationRows}
+            columns={columns}
+            locale={locale}
+            rowKey={(r) => r.segmentName}
+          />
+        ) : (
+          <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
+            {es
+              ? 'No hay segmentos para clasificar — cargue el libro de préstamos de la cooperativa.'
+              : 'No segments to classify — load the cooperativa loan book.'}
+          </p>
+        )}
+      </section>
+
+      {/* Disclosed PR macro overlay — configuration, explicitly NOT data. */}
+      <section className="rounded-xl border border-amber-200 bg-amber-50/40 p-4">
+        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-700">
+          {es
+            ? 'Recargo Macro PR (configuración divulgada, no datos)'
+            : 'PR Macro Overlay (disclosed configuration, not data)'}
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          {PR_OVERLAY_DISCLOSURE.map((s) => (
+            <div
+              key={s.key}
+              className="rounded-lg border border-amber-200/70 bg-white px-3 py-2 text-center"
+            >
+              <p className="text-[10px] font-medium uppercase tracking-wide text-amber-600">
+                {es ? s.es : s.en}
+              </p>
+              <p className="mt-1 text-sm font-bold tabular-nums text-amber-900">
+                ×{s.pdMultiplier.toFixed(1)}
+              </p>
+              <p className="text-[10px] text-amber-500">
+                {es ? 'Peso' : 'Weight'} {s.weightPct}%
+              </p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-[11px] leading-relaxed text-amber-700">
+          {es ? COLD_START_NOTE.es : COLD_START_NOTE.en}
+        </p>
+      </section>
+    </>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function CECLPage() {
@@ -306,12 +538,13 @@ export default function CECLPage() {
       slug="cecl"
       iconTint="emerald"
       validate={validateCecl}
-      getDemo={() => getDemoSummary(methodology)}
+      getDemo={() => getDemoSummary(methodology === 'cooperativa' ? 'pdlgd' : methodology)}
       deps={[methodology]}
       controls={
         <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-0.5" role="radiogroup" aria-label={locale === 'es' ? 'Metodología' : 'Methodology'}>
           {(Object.keys(METHOD_LABELS) as Methodology[]).map((m) => {
             const active = methodology === m;
+            const MethodIcon = m === 'cooperativa' ? Building2 : Calculator;
             return (
               <button
                 key={m}
@@ -323,7 +556,7 @@ export default function CECLPage() {
                   active ? 'bg-emerald-100 text-emerald-800' : 'text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                <Calculator className="h-3 w-3" />
+                <MethodIcon className="h-3 w-3" />
                 {METHOD_LABELS[m][locale]}
               </button>
             );
@@ -331,7 +564,13 @@ export default function CECLPage() {
         </div>
       }
     >
-      {(analysis) => <CeclContent analysis={analysis} methodology={methodology} />}
+      {(analysis) =>
+        methodology === 'cooperativa' ? (
+          <CooperativaCeclContent />
+        ) : (
+          <CeclContent analysis={analysis} methodology={methodology} />
+        )
+      }
     </AlmPage>
   );
 }
