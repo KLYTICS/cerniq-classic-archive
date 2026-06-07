@@ -126,6 +126,15 @@ export interface COSSECComplianceResult {
     totalShares: number;
     liquidAssets: number;
     capitalRatio: number;
+    /**
+     * Statutory capital ratio (Ley 255-2002 Art. 6.02): net-worth proxy for the
+     * capital indivisible reserve ÷ risk-weighted assets ("activos sujetos a
+     * riesgo"). Optional — populated by the COSSEC path; a `cossec.capitalRatio.basis`
+     * gap discloses the proxy. This (not `capitalRatio`) is the statutory figure.
+     */
+    capitalRatioRWA?: number;
+    /** Risk-weighted assets used as the statutory capital-ratio denominator. */
+    riskWeightedAssets?: number;
     loanToShareRatio: number;
     liquidityRatio: number;
     earningAssets: number;
@@ -776,6 +785,31 @@ export class AlmEnterpriseService {
     };
   }
 
+  /**
+   * Statutory risk weight for a balance-sheet subcategory under Ley 255-2002
+   * Art. 6.02(d) — "activos sujetos a riesgo". Cash/equivalents 0%, investment
+   * securities 20% (agency default), 1st-lien residential mortgages 50%
+   * (Ley 185-2006 sets secondary-market-eligible loans to 0%, which the
+   * subcategory alone cannot distinguish — 50% is the conservative default,
+   * disclosed via gap), consumer 75%, commercial 100%, everything else 100%.
+   */
+  private cossecRiskWeight(subcategory: string): number {
+    switch (subcategory) {
+      case 'cash_equivalents':
+        return 0.0;
+      case 'investment_securities':
+        return 0.2;
+      case 'residential_mortgages':
+        return 0.5;
+      case 'consumer_loans':
+        return 0.75;
+      case 'commercial_loans':
+        return 1.0;
+      default:
+        return 1.0;
+    }
+  }
+
   async getCOSSECCompliance(
     institutionId: string,
   ): Promise<COSSECComplianceResult> {
@@ -858,6 +892,22 @@ export class AlmEnterpriseService {
 
     // ── Derived ratios ──
     const capitalRatio = totalAssets > 0 ? (equity / totalAssets) * 100 : 0;
+    // ── Statutory capital ratio (Ley 255-2002 Art. 6.02 / 7 L.P.R.A. §1366a) ──
+    // COSSEC's 8% minimum is measured against "activos sujetos a riesgo"
+    // (risk-weighted assets) with a "capital indivisible" reserve numerator —
+    // NOT equity/total-assets. We compute the RWA denominator from per-category
+    // statutory risk weights; the reserve composition is not on the uploaded
+    // balance sheet, so net worth (patrimonio) is a DISCLOSED numerator proxy
+    // (WARNING gap below), never a fabricated statutory figure (D1). The
+    // leverage view `capitalRatio` (equity/total-assets) is retained for trend
+    // and summary back-compat.
+    const riskWeightedAssets = assetItems.reduce(
+      (s: number, i: any) =>
+        s + Number(i.balance) * this.cossecRiskWeight(i.subcategory),
+      0,
+    );
+    const capitalRatioRWA =
+      riskWeightedAssets > 0 ? (equity / riskWeightedAssets) * 100 : 0;
     const loanToShareRatio =
       totalShares > 0 ? (totalLoans / totalShares) * 100 : 0;
     const liquidityRatio =
@@ -977,10 +1027,36 @@ export class AlmEnterpriseService {
       );
     }
 
+    // Statutory capital ratio is computable only when both sides are present
+    // and there is a non-zero risk-weighted-asset base.
+    const capitalRatioComputable =
+      !noLiabilitySide && !noAssetSide && riskWeightedAssets > 0;
+    if (capitalRatioComputable) {
+      // Always disclose the statutory-basis proxy (D1 honesty): the displayed
+      // figure uses net worth as a proxy for the capital indivisible reserve
+      // and default Art. 6.02(d) risk weights.
+      partialGaps.push(
+        dataGap('cossec.capitalRatio.basis', 'COSSEC_INPUTS_INSUFFICIENT', {
+          severity: 'WARNING',
+          action:
+            'Ley 255 Art. 6.02: el numerador estatutario es el capital indivisible (no el patrimonio total) y el denominador son los activos sujetos a riesgo. Se usó el patrimonio neto como proxy del numerador y pesos de riesgo por defecto (hipoteca 50%, consumo 75%, comercial 100%, efectivo 0%); cargue la composición de la reserva de capital indivisible para la cifra definitiva. / Act 255 §6.02: the statutory numerator is indivisible capital (not total equity) and the denominator is risk-weighted assets; net worth was used as a numerator proxy with default risk weights — provide the indivisible-capital reserve composition for the definitive figure.',
+        }),
+      );
+      if (capitalRatioRWA < 8) {
+        partialGaps.push(
+          dataGap('cossec.surplusAllocation', 'COSSEC_INPUTS_INSUFFICIENT', {
+            severity: 'WARNING',
+            action:
+              'Bajo el 8%: Ley 255 Art. 6.02 exige separar anualmente el mayor de 25% de las economías netas o 4% del ingreso neto de operaciones al capital indivisible, y mantener 35% de la reserva en activos líquidos. Estos sub-tests requieren datos de economías netas / ingreso neto no presentes en el balance. / Below 8%: Act 255 §6.02 requires annually allocating the greater of 25% of net earnings or 4% of net operating income to indivisible capital, and holding 35% of the reserve in liquid assets; these sub-tests need net-earnings inputs not present.',
+          }),
+        );
+      }
+    }
+
     // ── Build 12 COSSEC ratios ──
     const b = PR_COOP_BENCHMARKS.ratios;
     const ratios: CossecRatioResult[] = [
-      noLiabilitySide || noAssetSide
+      !capitalRatioComputable
         ? this.cossecRatioUnavailable(
             1,
             'Capital Adequacy',
@@ -988,23 +1064,23 @@ export class AlmEnterpriseService {
             '%',
             '>= 8%',
             'gte',
-            'Capital ratio not computable — the balance sheet is incomplete (a side is missing). See gaps manifest.',
-            'Razón de capital no calculable — el balance está incompleto (falta un lado). Ver datos pendientes.',
+            'Statutory capital ratio not computable — balance sheet incomplete or no risk-weighted assets. See gaps manifest.',
+            'Razón de capital estatutaria no calculable — balance incompleto o sin activos sujetos a riesgo. Ver datos pendientes.',
           )
         : this.buildRatio(
             1,
             'Capital Adequacy',
             'Suficiencia de Capital',
-            capitalRatio,
+            capitalRatioRWA,
             '%',
             '>= 8%',
             'gte',
-            capitalRatio >= 8 ? 'pass' : capitalRatio >= 6 ? 'warning' : 'fail',
-            `Equity/Assets: ${round(capitalRatio, 1)}%. Well-capitalized: 8%+.`,
-            `Capital/Activos: ${round(capitalRatio, 1)}%. Bien capitalizado: 8%+.`,
+            capitalRatioRWA >= 8 ? 'pass' : 'fail',
+            `Indivisible capital (proxy: net worth) / Risk-weighted assets: ${round(capitalRatioRWA, 1)}%. Statutory minimum (Act 255 §6.02): 8%.`,
+            `Capital indivisible (proxy: patrimonio) / Activos sujetos a riesgo: ${round(capitalRatioRWA, 1)}%. Mínimo estatutario (Ley 255 Art. 6.02): 8%.`,
             20,
             b.capitalAdequacy,
-            capitalRatio,
+            capitalRatioRWA,
             false,
           ),
 
@@ -1350,6 +1426,8 @@ export class AlmEnterpriseService {
         totalShares,
         liquidAssets,
         capitalRatio: round(capitalRatio, 2),
+        capitalRatioRWA: round(capitalRatioRWA, 2),
+        riskWeightedAssets: round(riskWeightedAssets, 2),
         loanToShareRatio: round(loanToShareRatio, 2),
         liquidityRatio: round(liquidityRatio, 2),
         earningAssets: round(earningAssets, 2),

@@ -141,8 +141,10 @@ describe('CossecReportService', () => {
     it('Spanish conclusions lead with the capital ratio verdict', () => {
       const svc = mkService(fixture('compliant'));
       const lines = svc.buildConclusions(fixture('compliant'), 'es');
-      expect(lines[0]).toContain('razón de capital es 12.3%');
+      expect(lines[0]).toContain('12.3%');
+      expect(lines[0]).toContain('activos sujetos a riesgo');
       expect(lines[0]).toContain('sobre el mínimo de 8%');
+      expect(lines[0]).toContain('Ley 255');
     });
 
     it('flags below-minimum liquidity in plain Spanish', () => {
@@ -161,8 +163,19 @@ describe('CossecReportService', () => {
     it('English variant mirrors the same verdicts', () => {
       const svc = mkService(fixture('compliant'));
       const lines = svc.buildConclusions(fixture('compliant'), 'en');
-      expect(lines[0]).toContain('capital ratio is 12.3%');
-      expect(lines[0]).toContain('above the 8% COSSEC minimum');
+      expect(lines[0]).toContain('12.3%');
+      expect(lines[0]).toContain('risk-weighted assets');
+      expect(lines[0]).toContain('above the 8% minimum');
+    });
+
+    it('prefers the statutory RWA ratio over the leverage ratio when present', () => {
+      const c = fixture('compliant');
+      // capitalRatioRWA (statutory) differs from capitalRatio (leverage) —
+      // the conclusion must lead with the statutory figure.
+      c.summary.capitalRatioRWA = 9.1;
+      const lines = mkService(c).buildConclusions(c, 'es');
+      expect(lines[0]).toContain('9.1%');
+      expect(lines[0]).not.toContain('12.3%');
     });
 
     it('data_unavailable yields only the missing-data conclusion', () => {

@@ -256,11 +256,15 @@ export class CossecReportService {
       return out;
     }
     const s = c.summary;
+    // Statutory capital ratio (Ley 255 Art. 6.02): capital indivisible (net-worth
+    // proxy) ÷ activos sujetos a riesgo. Falls back to the leverage ratio only if
+    // the RWA figure is absent. The proxy basis is disclosed in the gaps section.
+    const capRatio = s.capitalRatioRWA ?? s.capitalRatio;
     if (lang === 'es') {
       out.push(
-        `Su razón de capital es ${s.capitalRatio.toFixed(1)}% — ${
-          s.capitalRatio >= 8 ? 'sobre' : 'bajo'
-        } el mínimo de 8% que requiere COSSEC.`,
+        `Su capital (estimado con el patrimonio) es ${capRatio.toFixed(1)}% de los activos sujetos a riesgo — ${
+          capRatio >= 8 ? 'sobre' : 'bajo'
+        } el mínimo de 8% (Ley 255 Art. 6.02). Estimación — vea "Datos pendientes" para la base de cálculo.`,
       );
       out.push(
         `La liquidez es ${s.liquidityRatio.toFixed(1)}% de los activos — ${
@@ -274,9 +278,9 @@ export class CossecReportService {
       );
     } else {
       out.push(
-        `Your capital ratio is ${s.capitalRatio.toFixed(1)}% — ${
-          s.capitalRatio >= 8 ? 'above' : 'below'
-        } the 8% COSSEC minimum.`,
+        `Your capital (estimated from net worth) is ${capRatio.toFixed(1)}% of risk-weighted assets — ${
+          capRatio >= 8 ? 'above' : 'below'
+        } the 8% minimum (Act 255 §6.02). Estimate — see "Pending data" for the calculation basis.`,
       );
       out.push(
         `Liquidity stands at ${s.liquidityRatio.toFixed(1)}% of assets — ${

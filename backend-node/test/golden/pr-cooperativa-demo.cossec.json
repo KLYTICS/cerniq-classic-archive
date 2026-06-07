@@ -6,12 +6,12 @@
     {
       "name": "Capital Adequacy",
       "nameEs": "Suficiencia de Capital",
-      "value": 10,
+      "value": 18.62,
       "threshold": 8,
       "unit": "%",
       "status": "pass",
-      "description": "Equity/Assets: 10%. Well-capitalized: 8%+.",
-      "descriptionEs": "Capital/Activos: 10%. Bien capitalizado: 8%+."
+      "description": "Indivisible capital (proxy: net worth) / Risk-weighted assets: 18.6%. Statutory minimum (Act 255 §6.02): 8%.",
+      "descriptionEs": "Capital indivisible (proxy: patrimonio) / Activos sujetos a riesgo: 18.6%. Mínimo estatutario (Ley 255 Art. 6.02): 8%."
     },
     {
       "name": "Asset Quality (Est.)",
@@ -99,17 +99,17 @@
       "id": 1,
       "name": "Capital Adequacy",
       "nameEs": "Suficiencia de Capital",
-      "value": 10,
+      "value": 18.62,
       "unit": "%",
       "threshold": ">= 8%",
       "thresholdDirection": "gte",
       "status": "pass",
-      "description": "Equity/Assets: 10%. Well-capitalized: 8%+.",
-      "descriptionEs": "Capital/Activos: 10%. Bien capitalizado: 8%+.",
+      "description": "Indivisible capital (proxy: net worth) / Risk-weighted assets: 18.6%. Statutory minimum (Act 255 §6.02): 8%.",
+      "descriptionEs": "Capital indivisible (proxy: patrimonio) / Activos sujetos a riesgo: 18.6%. Mínimo estatutario (Ley 255 Art. 6.02): 8%.",
       "examReadinessContribution": 20,
       "sectorMedian": 9.2,
-      "percentileRank": "Above sector median",
-      "percentileRankEs": "Por encima de la mediana"
+      "percentileRank": "Top quartile",
+      "percentileRankEs": "Cuartil superior"
     },
     {
       "id": 2,
@@ -290,6 +290,14 @@
   ],
   "examReadinessScore": 65,
   "overallStatus": "non-compliant",
+  "gaps": [
+    {
+      "field": "cossec.capitalRatio.basis",
+      "reason": "COSSEC_INPUTS_INSUFFICIENT",
+      "severity": "WARNING",
+      "action": "Ley 255 Art. 6.02: el numerador estatutario es el capital indivisible (no el patrimonio total) y el denominador son los activos sujetos a riesgo. Se usó el patrimonio neto como proxy del numerador y pesos de riesgo por defecto (hipoteca 50%, consumo 75%, comercial 100%, efectivo 0%); cargue la composición de la reserva de capital indivisible para la cifra definitiva. / Act 255 §6.02: the statutory numerator is indivisible capital (not total equity) and the denominator is risk-weighted assets; net worth was used as a numerator proxy with default risk weights — provide the indivisible-capital reserve composition for the definitive figure."
+    }
+  ],
   "summary": {
     "totalAssets": 250,
     "totalLiabilities": 225,
@@ -298,6 +306,8 @@
     "totalShares": 195,
     "liquidAssets": 60,
     "capitalRatio": 10,
+    "capitalRatioRWA": 18.62,
+    "riskWeightedAssets": 134.25,
     "loanToShareRatio": 97.44,
     "liquidityRatio": 24,
     "earningAssets": 230,
