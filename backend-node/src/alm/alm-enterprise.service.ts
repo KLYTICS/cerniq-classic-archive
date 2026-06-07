@@ -126,6 +126,15 @@ export interface COSSECComplianceResult {
     totalShares: number;
     liquidAssets: number;
     capitalRatio: number;
+    /**
+     * Statutory capital ratio (Ley 255-2002 Art. 6.02): net-worth proxy for the
+     * capital indivisible reserve ÷ risk-weighted assets ("activos sujetos a
+     * riesgo"). Optional — populated by the COSSEC path; a `cossec.capitalRatio.basis`
+     * gap discloses the proxy. This (not `capitalRatio`) is the statutory figure.
+     */
+    capitalRatioRWA?: number;
+    /** Risk-weighted assets used as the statutory capital-ratio denominator. */
+    riskWeightedAssets?: number;
     loanToShareRatio: number;
     liquidityRatio: number;
     earningAssets: number;
@@ -741,6 +750,66 @@ export class AlmEnterpriseService {
     };
   }
 
+  /**
+   * D1 helper: a COSSEC ratio whose essential input is missing. Mirrors the
+   * ratio-9 (LCR) `data_unavailable` shape — `value: 0` is a sentinel, NOT a
+   * real number; the parent `gaps[]` carries the actionable manifest. A single
+   * `data_unavailable` ratio downgrades `overallStatus` to `data_unavailable`,
+   * which suppresses the conclusion sentences (never a phantom 0%/100% PASS).
+   */
+  private cossecRatioUnavailable(
+    id: number,
+    name: string,
+    nameEs: string,
+    unit: string,
+    threshold: string,
+    thresholdDirection: CossecRatioResult['thresholdDirection'],
+    description: string,
+    descriptionEs: string,
+  ): CossecRatioResult {
+    return {
+      id,
+      name,
+      nameEs,
+      value: 0,
+      unit,
+      threshold,
+      thresholdDirection,
+      status: 'data_unavailable',
+      description,
+      descriptionEs,
+      examReadinessContribution: 0,
+      sectorMedian: null,
+      percentileRank: null,
+      percentileRankEs: null,
+    };
+  }
+
+  /**
+   * Statutory risk weight for a balance-sheet subcategory under Ley 255-2002
+   * Art. 6.02(d) — "activos sujetos a riesgo". Cash/equivalents 0%, investment
+   * securities 20% (agency default), 1st-lien residential mortgages 50%
+   * (Ley 185-2006 sets secondary-market-eligible loans to 0%, which the
+   * subcategory alone cannot distinguish — 50% is the conservative default,
+   * disclosed via gap), consumer 75%, commercial 100%, everything else 100%.
+   */
+  private cossecRiskWeight(subcategory: string): number {
+    switch (subcategory) {
+      case 'cash_equivalents':
+        return 0.0;
+      case 'investment_securities':
+        return 0.2;
+      case 'residential_mortgages':
+        return 0.5;
+      case 'consumer_loans':
+        return 0.75;
+      case 'commercial_loans':
+        return 1.0;
+      default:
+        return 1.0;
+    }
+  }
+
   async getCOSSECCompliance(
     institutionId: string,
   ): Promise<COSSECComplianceResult> {
@@ -823,6 +892,22 @@ export class AlmEnterpriseService {
 
     // ── Derived ratios ──
     const capitalRatio = totalAssets > 0 ? (equity / totalAssets) * 100 : 0;
+    // ── Statutory capital ratio (Ley 255-2002 Art. 6.02 / 7 L.P.R.A. §1366a) ──
+    // COSSEC's 8% minimum is measured against "activos sujetos a riesgo"
+    // (risk-weighted assets) with a "capital indivisible" reserve numerator —
+    // NOT equity/total-assets. We compute the RWA denominator from per-category
+    // statutory risk weights; the reserve composition is not on the uploaded
+    // balance sheet, so net worth (patrimonio) is a DISCLOSED numerator proxy
+    // (WARNING gap below), never a fabricated statutory figure (D1). The
+    // leverage view `capitalRatio` (equity/total-assets) is retained for trend
+    // and summary back-compat.
+    const riskWeightedAssets = assetItems.reduce(
+      (s: number, i: { balance: number; subcategory: string }) =>
+        s + Number(i.balance) * this.cossecRiskWeight(i.subcategory),
+      0,
+    );
+    const capitalRatioRWA =
+      riskWeightedAssets > 0 ? (equity / riskWeightedAssets) * 100 : 0;
     const loanToShareRatio =
       totalShares > 0 ? (totalLoans / totalShares) * 100 : 0;
     const liquidityRatio =
@@ -890,25 +975,116 @@ export class AlmEnterpriseService {
       eveSensitivity = eve200 ? Math.abs(eve200.mveImpactPct) : 0;
     }
 
+    // ── D1: partial-balance-sheet detection ──
+    // The empty-balance-sheet guard above only fires when `items.length === 0`.
+    // A PARTIAL load (e.g. loans entered but member shares not yet, or only a
+    // liability side present) silently zeroes denominators, which previously
+    // rendered as 0%/100% PASS ratios on the regulator-bound COSSEC PDF — a
+    // textbook silent zero (D1). Each ratio whose essential input is absent is
+    // emitted as `data_unavailable` (mirroring the ratio-9/LCR pattern below)
+    // with a structured gap; a single such ratio downgrades `overallStatus`
+    // and short-circuits the conclusion sentences. Never a phantom 0/100% PASS.
+    const noAssetSide = assetItems.length === 0;
+    const noLiabilitySide = liabilityItems.length === 0;
+    const noShares = totalShares <= 0;
+    const noEarningAssets = earningAssets <= 0;
+    const partialGaps: DataGap[] = [];
+    if (noLiabilitySide || noAssetSide) {
+      partialGaps.push(
+        dataGap('cossec.capitalRatio', 'COSSEC_INPUTS_INSUFFICIENT', {
+          severity: 'CRITICAL',
+          action: noLiabilitySide
+            ? 'Cargue los pasivos (depósitos y acciones de socios) — sin el lado de pasivos el capital no es calculable. / Load liabilities (member deposits and shares); capital cannot be computed without the liability side.'
+            : 'Cargue los activos del balance antes de calcular la razón de capital. / Load balance-sheet assets before computing the capital ratio.',
+        }),
+      );
+    }
+    if (noAssetSide) {
+      partialGaps.push(
+        dataGap('cossec.liquidityRatio', 'COSSEC_INPUTS_INSUFFICIENT', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue los activos (efectivo e inversiones) para calcular la razón de liquidez. / Load assets (cash and investments) to compute the liquidity ratio.',
+        }),
+      );
+    }
+    if (noShares) {
+      partialGaps.push(
+        dataGap('cossec.loanToShareRatio', 'COSSEC_INPUTS_INSUFFICIENT', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue los depósitos y acciones de socios — la razón préstamos/depósitos no es calculable sin ellos. / Load member deposits and shares; the loan-to-deposit ratio cannot be computed without them.',
+        }),
+      );
+    }
+    if (noEarningAssets) {
+      partialGaps.push(
+        dataGap('cossec.nim', 'COSSEC_INPUTS_INSUFFICIENT', {
+          severity: 'WARNING',
+          action:
+            'Cargue los activos productivos (préstamos e inversiones) para calcular el margen de interés neto. / Load earning assets (loans and investments) to compute net interest margin.',
+        }),
+      );
+    }
+
+    // Statutory capital ratio is computable only when both sides are present
+    // and there is a non-zero risk-weighted-asset base.
+    const capitalRatioComputable =
+      !noLiabilitySide && !noAssetSide && riskWeightedAssets > 0;
+    if (capitalRatioComputable) {
+      // Always disclose the statutory-basis proxy (D1 honesty): the displayed
+      // figure uses net worth as a proxy for the capital indivisible reserve
+      // and default Art. 6.02(d) risk weights.
+      partialGaps.push(
+        dataGap('cossec.capitalRatio.basis', 'COSSEC_INPUTS_INSUFFICIENT', {
+          severity: 'WARNING',
+          action:
+            'Ley 255 Art. 6.02: el numerador estatutario es el capital indivisible (no el patrimonio total) y el denominador son los activos sujetos a riesgo. Se usó el patrimonio neto como proxy del numerador y pesos de riesgo por defecto (hipoteca 50%, consumo 75%, comercial 100%, efectivo 0%); cargue la composición de la reserva de capital indivisible para la cifra definitiva. / Act 255 §6.02: the statutory numerator is indivisible capital (not total equity) and the denominator is risk-weighted assets; net worth was used as a numerator proxy with default risk weights — provide the indivisible-capital reserve composition for the definitive figure.',
+        }),
+      );
+      if (capitalRatioRWA < 8) {
+        partialGaps.push(
+          dataGap('cossec.surplusAllocation', 'COSSEC_INPUTS_INSUFFICIENT', {
+            severity: 'WARNING',
+            action:
+              'Bajo el 8%: Ley 255 Art. 6.02 exige separar anualmente el mayor de 25% de las economías netas o 4% del ingreso neto de operaciones al capital indivisible, y mantener 35% de la reserva en activos líquidos. Estos sub-tests requieren datos de economías netas / ingreso neto no presentes en el balance. / Below 8%: Act 255 §6.02 requires annually allocating the greater of 25% of net earnings or 4% of net operating income to indivisible capital, and holding 35% of the reserve in liquid assets; these sub-tests need net-earnings inputs not present.',
+          }),
+        );
+      }
+    }
+
     // ── Build 12 COSSEC ratios ──
     const b = PR_COOP_BENCHMARKS.ratios;
     const ratios: CossecRatioResult[] = [
-      this.buildRatio(
-        1,
-        'Capital Adequacy',
-        'Suficiencia de Capital',
-        capitalRatio,
-        '%',
-        '>= 8%',
-        'gte',
-        capitalRatio >= 8 ? 'pass' : capitalRatio >= 6 ? 'warning' : 'fail',
-        `Equity/Assets: ${round(capitalRatio, 1)}%. Well-capitalized: 8%+.`,
-        `Capital/Activos: ${round(capitalRatio, 1)}%. Bien capitalizado: 8%+.`,
-        20,
-        b.capitalAdequacy,
-        capitalRatio,
-        false,
-      ),
+      !capitalRatioComputable
+        ? this.cossecRatioUnavailable(
+            1,
+            'Capital Adequacy',
+            'Suficiencia de Capital',
+            '%',
+            '>= 8%',
+            'gte',
+            'Statutory capital ratio not computable — balance sheet incomplete or no risk-weighted assets. See gaps manifest.',
+            'Razón de capital estatutaria no calculable — balance incompleto o sin activos sujetos a riesgo. Ver datos pendientes.',
+          )
+        : this.buildRatio(
+            1,
+            'Capital Adequacy',
+            'Suficiencia de Capital',
+            capitalRatioRWA,
+            '%',
+            '>= 8%',
+            'gte',
+            capitalRatioRWA >= 8 ? 'pass' : 'fail',
+            `Indivisible capital (proxy: net worth) / Risk-weighted assets: ${round(capitalRatioRWA, 1)}%. Statutory minimum (Act 255 §6.02): 8%.`,
+            `Capital indivisible (proxy: patrimonio) / Activos sujetos a riesgo: ${round(capitalRatioRWA, 1)}%. Mínimo estatutario (Ley 255 Art. 6.02): 8%.`,
+            20,
+            // No sector percentile: the RWA-based statutory ratio is not
+            // comparable to the leverage-ratio (equity/total-assets) benchmark.
+            null,
+            capitalRatioRWA,
+            false,
+          ),
 
       this.buildRatio(
         2,
@@ -916,58 +1092,76 @@ export class AlmEnterpriseService {
         'Calidad de Activos (Est.)',
         0,
         '%',
-        '<= 5%',
+        '<= 3%',
         'lte',
         'pass',
-        'Non-performing loan data not available from current balance sheet. Assumed healthy.',
-        'Datos de morosidad no disponibles. Se asume buena calidad.',
+        'Non-performing loan data not available from current balance sheet. Assumed healthy. COSSEC satisfactory delinquency threshold: <= 3%.',
+        'Datos de morosidad no disponibles. Se asume buena calidad. Umbral COSSEC satisfactorio de morosidad: <= 3%.',
         15,
         b.assetQuality,
         0,
         true,
       ),
 
-      this.buildRatio(
-        3,
-        'Liquidity Ratio',
-        'Razon de Liquidez',
-        liquidityRatio,
-        '%',
-        '>= 15%',
-        'gte',
-        liquidityRatio >= 20
-          ? 'pass'
-          : liquidityRatio >= 15
-            ? 'warning'
-            : 'fail',
-        `Liquid assets/Total assets: ${round(liquidityRatio, 1)}%. Minimum: 15%.`,
-        `Activos liquidos/Activos totales: ${round(liquidityRatio, 1)}%. Minimo: 15%.`,
-        10,
-        b.liquidity,
-        liquidityRatio,
-        false,
-      ),
+      noAssetSide
+        ? this.cossecRatioUnavailable(
+            3,
+            'Liquidity Ratio',
+            'Razón de Liquidez',
+            '%',
+            '>= 5%',
+            'gte',
+            'Liquidity ratio not computable — no asset-side balance loaded. See gaps manifest.',
+            'Razón de liquidez no calculable — no hay activos cargados. Ver datos pendientes.',
+          )
+        : this.buildRatio(
+            3,
+            'Liquidity Ratio',
+            'Razón de Liquidez',
+            liquidityRatio,
+            '%',
+            '>= 5%',
+            'gte',
+            liquidityRatio >= 5 ? 'pass' : 'fail',
+            `Liquid assets/Total assets: ${round(liquidityRatio, 1)}%. Operational minimum (CC-2021-02): 5%.`,
+            `Activos líquidos/Activos totales: ${round(liquidityRatio, 1)}%. Mínimo operacional (CC-2021-02): 5%.`,
+            10,
+            b.liquidity,
+            liquidityRatio,
+            false,
+          ),
 
-      this.buildRatio(
-        4,
-        'Loan-to-Deposit Ratio',
-        'Razon Prestamos/Depositos',
-        loanToShareRatio,
-        '%',
-        '<= 80%',
-        'lte',
-        loanToShareRatio <= 80
-          ? 'pass'
-          : loanToShareRatio <= 100
-            ? 'warning'
-            : 'fail',
-        `Loans/Deposits: ${round(loanToShareRatio, 1)}%. Target: <=80%.`,
-        `Prestamos/Depositos: ${round(loanToShareRatio, 1)}%. Meta: <=80%.`,
-        10,
-        b.loanToDeposit,
-        loanToShareRatio,
-        true,
-      ),
+      noShares
+        ? this.cossecRatioUnavailable(
+            4,
+            'Loan-to-Deposit Ratio',
+            'Razón Préstamos/Depósitos',
+            '%',
+            '<= 80%',
+            'lte',
+            'Loan-to-deposit not computable — member deposits/shares not loaded. See gaps manifest.',
+            'Razón préstamos/depósitos no calculable — faltan depósitos/acciones de socios. Ver datos pendientes.',
+          )
+        : this.buildRatio(
+            4,
+            'Loan-to-Deposit Ratio',
+            'Razón Préstamos/Depósitos',
+            loanToShareRatio,
+            '%',
+            '<= 80%',
+            'lte',
+            loanToShareRatio <= 80
+              ? 'pass'
+              : loanToShareRatio <= 100
+                ? 'warning'
+                : 'fail',
+            `Loans/Deposits: ${round(loanToShareRatio, 1)}%. Target: <=80%.`,
+            `Préstamos/Depósitos: ${round(loanToShareRatio, 1)}%. Meta de gestión: <=80%.`,
+            10,
+            b.loanToDeposit,
+            loanToShareRatio,
+            true,
+          ),
 
       this.buildRatio(
         5,
@@ -989,7 +1183,7 @@ export class AlmEnterpriseService {
             ? 'warning'
             : 'fail',
         `NII risk rating: ${niiSensitivity.riskRating}. Base NII: $${niiSensitivity.baseNII.toFixed(1)}M.`,
-        `Clasificacion NII: ${niiSensitivity.riskRating}. NII base: $${niiSensitivity.baseNII.toFixed(1)}M.`,
+        `Clasificación NII: ${niiSensitivity.riskRating}. NII base: $${niiSensitivity.baseNII.toFixed(1)}M.`,
         10,
         null,
         0,
@@ -999,7 +1193,7 @@ export class AlmEnterpriseService {
       this.buildRatio(
         6,
         'Duration Gap',
-        'Brecha de Duracion',
+        'Brecha de Duración',
         durationGap.durationGap,
         'yr',
         '-1yr to +3yr',
@@ -1010,7 +1204,7 @@ export class AlmEnterpriseService {
             ? 'warning'
             : 'fail',
         `Gap: ${durationGap.durationGap > 0 ? '+' : ''}${durationGap.durationGap.toFixed(2)}yr. Profile: ${durationGap.riskProfile}.`,
-        `Brecha: ${durationGap.durationGap > 0 ? '+' : ''}${durationGap.durationGap.toFixed(2)} anos. Perfil: ${durationGap.riskProfile}.`,
+        `Brecha: ${durationGap.durationGap > 0 ? '+' : ''}${durationGap.durationGap.toFixed(2)} años. Perfil: ${durationGap.riskProfile}.`,
         10,
         b.durationGap,
         Math.abs(durationGap.durationGap),
@@ -1041,7 +1235,7 @@ export class AlmEnterpriseService {
       this.buildRatio(
         8,
         'Concentration Risk',
-        'Riesgo de Concentracion',
+        'Riesgo de Concentración',
         largestSectorPct,
         '%',
         '<= 25%',
@@ -1052,7 +1246,7 @@ export class AlmEnterpriseService {
             ? 'warning'
             : 'fail',
         `Largest sector (${largestSectorName}): ${round(largestSectorPct, 1)}% of loans.`,
-        `Mayor sector (${largestSectorName}): ${round(largestSectorPct, 1)}% de prestamos.`,
+        `Mayor sector (${largestSectorName}): ${round(largestSectorPct, 1)}% de préstamos.`,
         5,
         b.concentrationRisk,
         largestSectorPct,
@@ -1133,22 +1327,36 @@ export class AlmEnterpriseService {
         true,
       ),
 
-      this.buildRatio(
-        12,
-        'Net Interest Margin',
-        'Margen de Interes Neto',
-        nim,
-        '%',
-        '>= 2.5%',
-        'gte',
-        nim >= 2.5 ? 'pass' : nim >= 2.0 ? 'warning' : 'fail',
-        `NIM: ${round(nim, 2)}%. Threshold: >=2.5%. PR median: ${b.nim.median}%.`,
-        `MNI: ${round(nim, 2)}%. Umbral: >=2.5%. Mediana PR: ${b.nim.median}%.`,
-        10,
-        b.nim,
-        nim,
-        false,
-      ),
+      noEarningAssets
+        ? this.cossecRatioUnavailable(
+            12,
+            'Net Interest Margin',
+            'Margen de Interés Neto',
+            '%',
+            'Benchmark (>= 2.5%)',
+            'gte',
+            'NIM not computable — no earning assets (loans/investments) loaded. See gaps manifest.',
+            'MNI no calculable — no hay activos productivos (préstamos/inversiones) cargados. Ver datos pendientes.',
+          )
+        : this.buildRatio(
+            12,
+            'Net Interest Margin',
+            'Margen de Interés Neto',
+            nim,
+            '%',
+            'Benchmark (>= 2.5%)',
+            'gte',
+            // Bible §E / NIM: an institution-specific benchmark, NOT a hard
+            // COSSEC floor — significant deviation triggers review, never a
+            // pass/fail "NO CUMPLE". Below the benchmark = warning (review).
+            nim >= 2.5 ? 'pass' : 'warning',
+            `NIM: ${round(nim, 2)}%. COSSEC benchmark (significant deviation triggers review). PR median: ${b.nim.median}%.`,
+            `MNI: ${round(nim, 2)}%. Referencia COSSEC (desviación significativa requiere revisión). Mediana PR: ${b.nim.median}%.`,
+            10,
+            b.nim,
+            nim,
+            false,
+          ),
     ];
 
     // Exam readiness: sum of weights for PASS ratios (max 100)
@@ -1200,7 +1408,7 @@ export class AlmEnterpriseService {
 
     // Aggregate gaps from sub-calculations (currently just LCR; future:
     // duration, NII, COSSEC-specific data shortfalls all flow through here).
-    const cossecGaps = mergeGaps(lcr.gaps);
+    const cossecGaps = mergeGaps(lcr.gaps, partialGaps);
 
     return {
       institutionName: institution.name,
@@ -1219,6 +1427,8 @@ export class AlmEnterpriseService {
         totalShares,
         liquidAssets,
         capitalRatio: round(capitalRatio, 2),
+        capitalRatioRWA: round(capitalRatioRWA, 2),
+        riskWeightedAssets: round(riskWeightedAssets, 2),
         loanToShareRatio: round(loanToShareRatio, 2),
         liquidityRatio: round(liquidityRatio, 2),
         earningAssets: round(earningAssets, 2),

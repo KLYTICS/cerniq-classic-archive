@@ -3,7 +3,7 @@ import { NIMOptimizerService } from './nim-optimizer.service';
 describe('NIMOptimizerService', () => {
   let service: NIMOptimizerService;
 
-  describe('with empty balance sheet (demo mode)', () => {
+  describe('with empty balance sheet (D1 data_unavailable)', () => {
     beforeEach(() => {
       const mockPrisma = {
         balanceSheetItem: { findMany: jest.fn().mockResolvedValue([]) },
@@ -11,15 +11,15 @@ describe('NIMOptimizerService', () => {
       service = new NIMOptimizerService(mockPrisma);
     });
 
-    it('should return demo result with currentNIM of 3.42', async () => {
+    it('returns data_unavailable with a CRITICAL gap (no fabricated NIM)', async () => {
       const result = await service.optimize('inst-1');
-      expect(result.currentNIM).toBeCloseTo(3.42, 2);
-      expect(result.projectedNIM).toBeCloseTo(3.68, 2);
-    });
-
-    it('nimGainBps should be positive in demo', async () => {
-      const result = await service.optimize('inst-1');
-      expect(result.nimGainBps).toBeCloseTo(26, 0);
+      expect(result.status).toBe('data_unavailable');
+      expect(result.currentNIM).toBeNull();
+      expect(result.projectedNIM).toBeNull();
+      expect(result.recommendations).toEqual([]);
+      expect(result.gaps?.some((g) => g.reason === 'EMPTY_BALANCE_SHEET')).toBe(
+        true,
+      );
     });
   });
 
@@ -54,7 +54,7 @@ describe('NIMOptimizerService', () => {
 
     it('projected NIM should be >= current NIM', async () => {
       const result = await service.optimize('inst-1');
-      expect(result.projectedNIM).toBeGreaterThanOrEqual(result.currentNIM);
+      expect(result.projectedNIM).toBeGreaterThanOrEqual(result.currentNIM!);
     });
 
     it('totalNIIGain should match sum of recommendation impacts', async () => {

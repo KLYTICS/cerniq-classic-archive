@@ -125,22 +125,26 @@ describe('AlmController — Core Revenue Path', () => {
     // two insertions. See SESSION_HANDOFF.md §3 for the controller cursor.
     args[0] = mockSvc(); // almService
     args[1] = enterprise;
-    args[2] = stressTesting;
-    args[3] = reportsService;
-    args[4] = mockSvc(); // reportPreflight (Phase 2 batch 4 — central preflight API)
-    args[5] = workspaceOnboarding;
-    args[6] = mockSvc(); // institutionSeed (Phase 1 — the new idempotent seeder)
-    args[7] = csvIngestion;
-    args[8] = analysisRuns;
-    args[9] = ingestionLogs;
-    args[10] = complianceCalendar;
-    args[11] = scenarioPersistence;
-    args[12] = yieldCurve;
-    args[13] = cecl;
-    args[14] = ftp;
-    args[15] = depositBeta;
-    args[16] = liquidityAdvanced;
-    args[17] = concentration;
+    // Layer 1 (2026-06-06): CossecReportService inserted at position 2
+    // (right after almEnterprise) — push-button COSSEC PDF generator.
+    // Every downstream slot shifted +1.
+    args[2] = mockSvc(); // cossecReport
+    args[3] = stressTesting;
+    args[4] = reportsService;
+    args[5] = mockSvc(); // reportPreflight (Phase 2 batch 4 — central preflight API)
+    args[6] = workspaceOnboarding;
+    args[7] = mockSvc(); // institutionSeed (Phase 1 — the new idempotent seeder)
+    args[8] = csvIngestion;
+    args[9] = analysisRuns;
+    args[10] = ingestionLogs;
+    args[11] = complianceCalendar;
+    args[12] = scenarioPersistence;
+    args[13] = yieldCurve;
+    args[14] = cecl;
+    args[15] = ftp;
+    args[16] = depositBeta;
+    args[17] = liquidityAdvanced;
+    args[18] = concentration;
     controller = new (AlmController as any)(...args);
   });
 

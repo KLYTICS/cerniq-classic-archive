@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -13,8 +14,8 @@ export interface OptimizationResult {
     deltaPct: number;
     rateImpact: number; // $ NII change from this reallocation
   }>;
-  projectedNIIGain: number;
-  projectedNIIGainPct: number;
+  projectedNIIGain: number | null;
+  projectedNIIGainPct: number | null;
   constraintSlacks: Array<{
     constraint: string;
     currentValue: number;
@@ -25,6 +26,8 @@ export interface OptimizationResult {
   aggressivenessLevel: 'conservative' | 'moderate' | 'aggressive';
   narrative: string;
   narrativeEs: string;
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 // Constraint limits
@@ -50,7 +53,9 @@ export class CapitalOptimizerService {
       where: { institutionId },
     });
 
-    if (items.length === 0) return this.getDemoResult(aggressiveness);
+    // D1: no balance sheet → refuse rather than fabricate a demo capital
+    // reallocation plan for an institution with no data.
+    if (items.length === 0) return this.dataUnavailableResult(aggressiveness);
 
     const assets = items.filter((i: any) => i.category === 'asset');
     const liabilities = items.filter((i: any) => i.category === 'liability');
@@ -239,68 +244,35 @@ export class CapitalOptimizerService {
       aggressivenessLevel: aggressiveness,
       narrative: narrativeEn,
       narrativeEs,
+      status: 'ok',
     };
   }
 
-  private getDemoResult(aggressiveness: string): OptimizationResult {
+  // D1 honest shell. Replaces the former getDemoResult() that fabricated a
+  // securities→consumer-loans reallocation plan (and a `as any` cast) for an
+  // institution with no balance sheet.
+  private dataUnavailableResult(
+    aggressiveness: 'conservative' | 'moderate' | 'aggressive',
+  ): OptimizationResult {
     return {
-      deltaAllocations: [
-        {
-          subcategory: 'securities',
-          category: 'asset',
-          currentBalance: 50,
-          suggestedBalance: 35,
-          deltaUSD: -15,
-          deltaPct: -3.4,
-          rateImpact: -0.63,
-        },
-        {
-          subcategory: 'consumer_loans',
-          category: 'asset',
-          currentBalance: 85,
-          suggestedBalance: 100,
-          deltaUSD: 15,
-          deltaPct: 3.4,
-          rateImpact: 1.08,
-        },
-      ],
-      projectedNIIGain: 0.45,
-      projectedNIIGainPct: 3.5,
-      constraintSlacks: [
-        {
-          constraint: 'LCR ≥ 100%',
-          currentValue: 115,
-          limit: 100,
-          slack: 15,
-          binding: false,
-        },
-        {
-          constraint: 'NSFR ≥ 100%',
-          currentValue: 108,
-          limit: 100,
-          slack: 8,
-          binding: false,
-        },
-        {
-          constraint: 'NWR ≥ 7%',
-          currentValue: 9.2,
-          limit: 7,
-          slack: 2.2,
-          binding: false,
-        },
-        {
-          constraint: 'Max reallocation ≤ 6%',
-          currentValue: 3.4,
-          limit: 6,
-          slack: 2.6,
-          binding: false,
-        },
-      ],
-      aggressivenessLevel: aggressiveness as any,
+      deltaAllocations: [],
+      projectedNIIGain: null,
+      projectedNIIGainPct: null,
+      constraintSlacks: [],
+      aggressivenessLevel: aggressiveness,
       narrative:
-        'Shift $15M from securities to consumer loans to gain $0.45M in annual NII (+3.5%).',
+        'Capital optimization unavailable — load the balance sheet to compute reallocation.',
       narrativeEs:
-        'Traslade $15M de valores a préstamos de consumo para ganar $0.45M en NII anual (+3.5%).',
+        'Optimización de capital no disponible — cargue el balance para calcular la reasignación.',
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('capitalOptimizer.balanceSheet', 'EMPTY_BALANCE_SHEET', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue los activos y pasivos del balance para optimizar la asignación de capital.',
+          context: { service: 'capital-optimizer' },
+        }),
+      ],
     };
   }
 }

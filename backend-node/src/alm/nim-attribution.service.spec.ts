@@ -101,8 +101,13 @@ describe('NIMAttributionService', () => {
 
     const result = await service.computeAttribution('inst_123');
 
-    expect(result.totalExplainedBps + result.residualBps).toBe(
+    // toBeCloseTo (not toBe) — the reconciliation identity holds, but `toBe`
+    // uses Object.is, which treats a floating -0 (e.g. explained + (-0)
+    // residual) as != +0 and flakes under the serial coverage run. 10 dp is
+    // effectively exact for a bps reconciliation.
+    expect(result.totalExplainedBps + result.residualBps).toBeCloseTo(
       result.nimDeltaBps,
+      10,
     );
   });
 

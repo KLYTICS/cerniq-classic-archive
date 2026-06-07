@@ -1,5 +1,5 @@
 /**
- * COSSEC (Corporacion para la Supervision y Seguro de Cooperativas)
+ * COSSEC (Corporación para la Supervisión y Seguro de Cooperativas)
  * Puerto Rico Cooperativa Regulatory Framework
  *
  * 12 ratios matching the getCOSSECCompliance() engine in alm-enterprise.service.ts.
@@ -26,23 +26,23 @@ const COSSEC_RATIOS: RegulatoryRatio[] = [
     name: 'Asset Quality (Est.)',
     nameEs: 'Calidad de Activos (Est.)',
     category: 'asset_quality',
-    threshold: '<= 5%',
+    threshold: '<= 3%',
     thresholdDirection: 'lte',
     weight: 15,
   },
   {
     id: 3,
     name: 'Liquidity Ratio',
-    nameEs: 'Razon de Liquidez',
+    nameEs: 'Razón de Liquidez',
     category: 'liquidity',
-    threshold: '>= 15%',
+    threshold: '>= 5%',
     thresholdDirection: 'gte',
     weight: 10,
   },
   {
     id: 4,
     name: 'Loan-to-Deposit Ratio',
-    nameEs: 'Razon Prestamos/Depositos',
+    nameEs: 'Razón Préstamos/Depósitos',
     category: 'liquidity',
     threshold: '<= 80%',
     thresholdDirection: 'lte',
@@ -60,7 +60,7 @@ const COSSEC_RATIOS: RegulatoryRatio[] = [
   {
     id: 6,
     name: 'Duration Gap',
-    nameEs: 'Brecha de Duracion',
+    nameEs: 'Brecha de Duración',
     category: 'sensitivity',
     threshold: '-1yr to +3yr',
     thresholdDirection: 'range',
@@ -78,7 +78,7 @@ const COSSEC_RATIOS: RegulatoryRatio[] = [
   {
     id: 8,
     name: 'Concentration Risk',
-    nameEs: 'Riesgo de Concentracion',
+    nameEs: 'Riesgo de Concentración',
     category: 'asset_quality',
     threshold: '<= 25%',
     thresholdDirection: 'lte',
@@ -114,9 +114,9 @@ const COSSEC_RATIOS: RegulatoryRatio[] = [
   {
     id: 12,
     name: 'Net Interest Margin',
-    nameEs: 'Margen de Interes Neto',
+    nameEs: 'Margen de Interés Neto',
     category: 'earnings',
-    threshold: '>= 2.5%',
+    threshold: 'Benchmark (>= 2.5%)',
     thresholdDirection: 'gte',
     weight: 10,
   },

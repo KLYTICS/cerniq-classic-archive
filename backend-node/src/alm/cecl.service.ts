@@ -1,5 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import {
+  COOPERATIVA_PRODUCT_REGISTRY,
+  PR_PD_MULTIPLIERS,
+  PR_SCENARIO_WEIGHTS,
+  matchProductType,
+  type CooperativaProductType,
+} from './cooperativa/product-registry';
+import type { DataGap } from './reports/data-gap';
 
 // ─── Macro Scenario Weights (FASB 326 guidance) ──────────────
 
@@ -335,6 +343,18 @@ export class CECLService {
       qualitativeAdj?: number;
       discountRate?: number;
     }>,
+    overlay?: {
+      /** Scenario PD multipliers (defaults to mainland CCAR). */
+      pdMultipliers?: Record<string, number>;
+      /** Scenario probability weights (defaults to FASB community 50/30/20). */
+      scenarioWeights?: {
+        baseline: number;
+        adverse: number;
+        severely_adverse: number;
+      };
+      /** Label appended to the methodology string for report provenance. */
+      overlayLabel?: string;
+    },
   ): CECLSummary {
     if (segments.length === 0 || segments.every((s) => !s.balance)) {
       this.logger.warn({
@@ -344,10 +364,15 @@ export class CECLService {
       });
       return this.dataUnavailableSummary('PDxLGD', 'no segments provided');
     }
+    const pdMultipliers = overlay?.pdMultipliers ?? PD_MULTIPLIERS;
+    const weights = overlay?.scenarioWeights ?? SCENARIO_WEIGHTS;
+    const methodologyLabel = overlay?.overlayLabel
+      ? `PD×LGD (${overlay.overlayLabel})`
+      : 'PD×LGD';
     const scenarioResults: Record<string, CECLSegmentResult[]> = {};
     const scenarioTotals: Record<string, number> = {};
 
-    for (const [scenario, pdMult] of Object.entries(PD_MULTIPLIERS)) {
+    for (const [scenario, pdMult] of Object.entries(pdMultipliers)) {
       const results: CECLSegmentResult[] = segments.map((rawSeg) => {
         const seg = this.validateSegment(rawSeg);
         const basePD = seg.historicalLossRate + seg.qualitativeAdj;
@@ -381,9 +406,9 @@ export class CECLService {
 
     // Weighted average across scenarios
     const weightedAllowance =
-      scenarioTotals.baseline * SCENARIO_WEIGHTS.baseline +
-      scenarioTotals.adverse * SCENARIO_WEIGHTS.adverse +
-      scenarioTotals.severely_adverse * SCENARIO_WEIGHTS.severely_adverse;
+      scenarioTotals.baseline * weights.baseline +
+      scenarioTotals.adverse * weights.adverse +
+      scenarioTotals.severely_adverse * weights.severely_adverse;
 
     // Use baseline segment breakdown with weighted allowance
     const baselineResults = scenarioResults.baseline;
@@ -393,7 +418,7 @@ export class CECLService {
     const baselineTotal = scenarioTotals.baseline || 1;
     const weightedResults = baselineResults.map((r) => ({
       ...r,
-      methodology: 'PD×LGD (Weighted)',
+      methodology: `${methodologyLabel} (Weighted)`,
       allowanceRequired:
         (r.allowanceRequired / baselineTotal) * weightedAllowance,
       coverageRatio:
@@ -408,7 +433,7 @@ export class CECLService {
       totalAllowance: weightedAllowance,
       weightedCoverageRatio:
         totalBalance > 0 ? weightedAllowance / totalBalance : 0,
-      methodology: 'PD×LGD',
+      methodology: methodologyLabel,
       segments: weightedResults,
       macroScenarioBreakdown: {
         baseline: scenarioTotals.baseline,
@@ -434,8 +459,8 @@ export class CECLService {
     // D1 (2026-04-07): the previous behavior fell back to DEMO segments
     // and produced a real-looking CECL allowance against fake data — a
     // worse failure mode than silent zero. Now we refuse and surface a
-    // CRITICAL gap. Demo segments are still available via getDemoSegments()
-    // for explicit demo paths, but never as a silent substitute.
+    // CRITICAL gap (the demo-segment helper has since been removed entirely,
+    // so there is no longer any path that substitutes fabricated segments).
     if (segments.length === 0) {
       this.logger.warn({
         event: 'cecl_data_unavailable',
@@ -466,6 +491,156 @@ export class CECLService {
       default:
         return this.calculateWARM(segmentData);
     }
+  }
+
+  // ─── Cooperativa CECL (PR-native, Layer 1) ─────────────────
+
+  /**
+   * Cooperativa-native CECL: classifies loan segments against the PR
+   * product registry, fills cold-start PD/LGD from registry defaults when
+   * the institution has no historical loss data (surfacing a WARNING gap
+   * per default applied — defaults are disclosed configuration, never
+   * silent substitutes, D1), and runs PD×LGD under the PR macro overlay
+   * (hurricane/migration-calibrated multipliers and weights).
+   */
+  async getCooperativaCECLAnalysis(institutionId: string): Promise<
+    CECLSummary & {
+      productClassification: Array<{
+        segmentName: string;
+        productType: CooperativaProductType | null;
+        nombre: string | null;
+        defaultsApplied: boolean;
+      }>;
+    }
+  > {
+    const segments = await this.prisma.loanSegment.findMany({
+      where: { institutionId },
+      orderBy: { balance: 'desc' },
+    });
+
+    if (segments.length === 0) {
+      this.logger.warn({
+        event: 'cecl_data_unavailable',
+        institutionId,
+        reason: 'NO_LOAN_SEGMENTS',
+      });
+      return {
+        ...this.dataUnavailableSummary(
+          'PD×LGD (PR)',
+          'institution has no loan segments configured',
+        ),
+        productClassification: [],
+      };
+    }
+
+    const gaps: DataGap[] = [];
+    const productClassification: Array<{
+      segmentName: string;
+      productType: CooperativaProductType | null;
+      nombre: string | null;
+      defaultsApplied: boolean;
+    }> = [];
+
+    interface EligibleSegment {
+      segmentName: string;
+      balance: number;
+      weightedAvgMaturity: number;
+      historicalLossRate: number;
+      lgd: number;
+      qualitativeAdj: number;
+    }
+
+    const segmentData: Array<EligibleSegment | null> = segments.map(
+      // type-rationale: raw Prisma loan-segment rows (Decimal fields) reshaped into EligibleSegment; field access only, numeric coercion handled downstream
+      (s: any) => {
+        const name: string = s.segmentName;
+        const productType = matchProductType(name);
+        const registry = productType
+          ? COOPERATIVA_PRODUCT_REGISTRY[productType]
+          : null;
+
+        if (!productType) {
+          gaps.push({
+            field: `cecl.segments.${name}`,
+            reason: 'COSSEC_INPUTS_INSUFFICIENT',
+            severity: 'WARNING',
+            action: `El segmento "${name}" no corresponde a ningún producto de cooperativa conocido. Clasifíquelo manualmente (préstamo personal, auto, hipoteca, comercial, garantía de acciones).`,
+          });
+        }
+
+        // Liability-side products (Club de Navidad, ahorros, CDs) never
+        // enter the allowance. Classify them but exclude from CECL math.
+        if (registry && !registry.ceclEligible) {
+          productClassification.push({
+            segmentName: name,
+            productType,
+            nombre: registry.nombre,
+            defaultsApplied: false,
+          });
+          return null;
+        }
+
+        const hasOwnLossRate = Number(s.historicalLossRate) > 0;
+        const hasOwnLgd = s.lgd != null && Number(s.lgd) > 0;
+        const defaultsApplied = !!registry && (!hasOwnLossRate || !hasOwnLgd);
+
+        if (defaultsApplied) {
+          gaps.push({
+            field: `cecl.segments.${name}`,
+            reason: 'COSSEC_INPUTS_INSUFFICIENT',
+            severity: 'WARNING',
+            action: `Sin datos históricos de pérdida para "${name}" — se aplicó la calibración provisional del registro de productos (${registry.nombre}). Cargue el historial de pérdidas de la cooperativa para una estimación definitiva.`,
+          });
+        }
+
+        productClassification.push({
+          segmentName: name,
+          productType,
+          nombre: registry?.nombre ?? null,
+          defaultsApplied,
+        });
+
+        return {
+          segmentName: name,
+          balance: Number(s.balance),
+          weightedAvgMaturity:
+            Number(s.weightedAvgMaturity) ||
+            registry?.defaultMaturityYears ||
+            0,
+          historicalLossRate: hasOwnLossRate
+            ? Number(s.historicalLossRate)
+            : (registry?.defaultAnnualPd ?? 0),
+          lgd: hasOwnLgd ? Number(s.lgd) : (registry?.defaultLgd ?? 0.5),
+          qualitativeAdj: Number(s.qualitativeAdj) || 0,
+        };
+      },
+    );
+
+    const eligible = segmentData.filter(
+      (s): s is EligibleSegment => s !== null,
+    );
+
+    if (eligible.length === 0 || eligible.every((s) => !s.balance)) {
+      return {
+        ...this.dataUnavailableSummary(
+          'PD×LGD (PR)',
+          'no CECL-eligible loan segments after classification',
+        ),
+        productClassification,
+      };
+    }
+
+    const summary = this.calculatePDxLGD(eligible, {
+      pdMultipliers: { ...PR_PD_MULTIPLIERS },
+      scenarioWeights: { ...PR_SCENARIO_WEIGHTS },
+      overlayLabel: 'PR',
+    });
+
+    return {
+      ...summary,
+      gaps: [...(summary.gaps ?? []), ...gaps],
+      productClassification,
+    };
   }
 
   // ─── 8-Quarter Forecast ────────────────────────────────────
@@ -547,66 +722,5 @@ export class CECLService {
     });
 
     return { imported: created.count, institutionId };
-  }
-
-  // ─── Demo Data ────────────────────────────────────────────
-
-  private getDemoSegments() {
-    return [
-      {
-        segmentName: 'Consumer Loans',
-        balance: 85,
-        weightedAvgRate: 0.072,
-        weightedAvgMaturity: 3.5,
-        historicalLossRate: 0.018,
-        lgd: 0.45,
-        qualitativeAdj: 0.002,
-      },
-      {
-        segmentName: 'Auto Loans',
-        balance: 62,
-        weightedAvgRate: 0.065,
-        weightedAvgMaturity: 4.2,
-        historicalLossRate: 0.012,
-        lgd: 0.35,
-        qualitativeAdj: 0.001,
-      },
-      {
-        segmentName: 'Commercial RE',
-        balance: 120,
-        weightedAvgRate: 0.058,
-        weightedAvgMaturity: 7.5,
-        historicalLossRate: 0.008,
-        lgd: 0.4,
-        qualitativeAdj: 0.003,
-      },
-      {
-        segmentName: 'Residential Mortgage',
-        balance: 95,
-        weightedAvgRate: 0.055,
-        weightedAvgMaturity: 15.0,
-        historicalLossRate: 0.004,
-        lgd: 0.3,
-        qualitativeAdj: 0.001,
-      },
-      {
-        segmentName: 'Credit Cards',
-        balance: 28,
-        weightedAvgRate: 0.145,
-        weightedAvgMaturity: 1.5,
-        historicalLossRate: 0.035,
-        lgd: 0.8,
-        qualitativeAdj: 0.005,
-      },
-      {
-        segmentName: 'Commercial & Industrial',
-        balance: 55,
-        weightedAvgRate: 0.068,
-        weightedAvgMaturity: 5.0,
-        historicalLossRate: 0.015,
-        lgd: 0.5,
-        qualitativeAdj: 0.002,
-      },
-    ];
   }
 }

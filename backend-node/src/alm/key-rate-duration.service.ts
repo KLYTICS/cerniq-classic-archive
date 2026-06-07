@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 import { YieldCurveService, TenorRate } from './yield-curve.service';
 
 // ─── Types ───────────────────────────────────────────────────
@@ -16,12 +17,14 @@ export interface KeyRateDurationResult {
 
 export interface PortfolioKRDResult {
   instruments: KeyRateDurationResult[];
-  portfolioModifiedDuration: number;
-  portfolioEffectiveDuration: number;
-  portfolioConvexity: number;
+  portfolioModifiedDuration: number | null;
+  portfolioEffectiveDuration: number | null;
+  portfolioConvexity: number | null;
   portfolioKRDs: Array<{ tenor: string; tenorYears: number; krd: number }>;
-  durationGap: number;
-  negativeConvexityExposure: number; // $ amount of instruments with negative convexity
+  durationGap: number | null;
+  negativeConvexityExposure: number | null; // $ amount of instruments with negative convexity
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 const KRD_TENORS = [
@@ -57,7 +60,9 @@ export class KeyRateDurationService {
       ? (saved.tenors as unknown as TenorRate[])
       : this.getDefaultCurve();
 
-    if (items.length === 0) return this.getDemoResult();
+    // D1: no balance-sheet instruments → refuse rather than fabricate a demo
+    // duration profile (durationGap 2.1, etc.) for an institution with no data.
+    if (items.length === 0) return this.dataUnavailableResult();
 
     const instruments: KeyRateDurationResult[] = [];
 
@@ -191,6 +196,7 @@ export class KeyRateDurationService {
             100,
         ) / 100,
       negativeConvexityExposure: Math.round(negConvExposure * 10) / 10,
+      status: 'ok',
     };
   }
 
@@ -232,19 +238,26 @@ export class KeyRateDurationService {
     ];
   }
 
-  private getDemoResult(): PortfolioKRDResult {
+  // D1 honest shell. Replaces the former getDemoResult() that fabricated a
+  // duration/convexity/KRD profile for an institution with no instruments.
+  private dataUnavailableResult(): PortfolioKRDResult {
     return {
       instruments: [],
-      portfolioModifiedDuration: 4.2,
-      portfolioEffectiveDuration: 3.8,
-      portfolioConvexity: -0.6,
-      portfolioKRDs: KRD_TENORS.map((t) => ({
-        tenor: t.label,
-        tenorYears: t.years,
-        krd: +((3.8 * Math.exp(-Math.abs(t.years - 5) * 0.3)) / 4).toFixed(3),
-      })),
-      durationGap: 2.1,
-      negativeConvexityExposure: 50,
+      portfolioModifiedDuration: null,
+      portfolioEffectiveDuration: null,
+      portfolioConvexity: null,
+      portfolioKRDs: [],
+      durationGap: null,
+      negativeConvexityExposure: null,
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('keyRateDuration.balanceSheet', 'EMPTY_BALANCE_SHEET', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue los instrumentos del balance para calcular las duraciones por tasa clave.',
+          context: { service: 'key-rate-duration' },
+        }),
+      ],
     };
   }
 }

@@ -46,18 +46,15 @@ describe('AlmAdvisorV2Service', () => {
   // ─── computeHealthScore ─────────────────────────────────
 
   describe('computeHealthScore', () => {
-    it('returns demo score when enterprise service throws', async () => {
+    it('returns a data_unavailable health score (not a fabricated healthy one) when the enterprise service throws', async () => {
       mockAlmEnterprise.getALMSummary.mockRejectedValue(new Error('fail'));
       const result = await service.computeHealthScore('inst-1');
-      expect(result).toEqual({
-        overall: 72,
-        capital: 16,
-        liquidity: 16,
-        rateRisk: 12,
-        credit: 14,
-        concentration: 14,
-        label: 'SATISFACTORY',
-      });
+      expect(result.dataUnavailable).toBe(true);
+      expect(result.label).toBe('UNSATISFACTORY');
+      expect(result.overall).toBe(0);
+      expect(result.gaps?.some((g) => g.reason === 'CALCULATION_FAILED')).toBe(
+        true,
+      );
     });
 
     it('calculates from summary data with all sub-scores', async () => {

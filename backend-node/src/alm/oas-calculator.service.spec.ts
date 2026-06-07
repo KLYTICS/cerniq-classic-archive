@@ -12,53 +12,18 @@ describe('OASCalculatorService', () => {
     service = new OASCalculatorService(mockPrisma, mockYieldCurve);
   });
 
-  it('should return demo portfolio when no items', async () => {
+  // ── D1: empty balance sheet → data_unavailable, never demo ──
+  // (The real OAS math is exercised by the "with real balance sheet data"
+  // block below; the former top-level tests only asserted static demo values.)
+  it('returns data_unavailable with a CRITICAL gap when no items', async () => {
     const result = await service.analyzePortfolio('inst-1');
-    expect(result.instruments.length).toBeGreaterThan(0);
-    expect(result.totalBalance).toBeGreaterThan(0);
-  });
-
-  it('portfolioOAS should be positive in demo', async () => {
-    const result = await service.analyzePortfolio('inst-1');
-    expect(result.portfolioOAS).toBeCloseTo(58.3, 1);
-  });
-
-  it('option cost should be non-negative for each instrument', async () => {
-    const result = await service.analyzePortfolio('inst-1');
-    for (const inst of result.instruments) {
-      expect(inst.optionCost).toBeGreaterThanOrEqual(0);
-    }
-  });
-
-  it('effective duration should be positive for demo instruments', async () => {
-    const result = await service.analyzePortfolio('inst-1');
-    for (const inst of result.instruments) {
-      expect(inst.effectiveDuration).toBeGreaterThan(0);
-    }
-  });
-
-  it('z-spread should be >= OAS for instruments with embedded options', async () => {
-    const result = await service.analyzePortfolio('inst-1');
-    for (const inst of result.instruments) {
-      expect(inst.zSpread).toBeGreaterThanOrEqual(inst.oas - 0.1);
-    }
-  });
-
-  it('totalBalance equals sum of instrument balances', async () => {
-    const result = await service.analyzePortfolio('inst-1');
-    const sumBalances = result.instruments.reduce((s, i) => s + i.balance, 0);
-    expect(result.totalBalance).toBe(sumBalances);
-  });
-
-  it('demo portfolio has 5 instruments', async () => {
-    const result = await service.analyzePortfolio('inst-1');
-    expect(result.instruments).toHaveLength(5);
-  });
-
-  it('portfolioEffDuration and portfolioEffConvexity are defined', async () => {
-    const result = await service.analyzePortfolio('inst-1');
-    expect(typeof result.portfolioEffDuration).toBe('number');
-    expect(typeof result.portfolioEffConvexity).toBe('number');
+    expect(result.status).toBe('data_unavailable');
+    expect(result.instruments).toEqual([]);
+    expect(result.portfolioOAS).toBeNull();
+    expect(result.totalBalance).toBeNull();
+    expect(result.gaps?.some((g) => g.reason === 'EMPTY_BALANCE_SHEET')).toBe(
+      true,
+    );
   });
 
   // ── With real balance sheet items ──────────────────────────

@@ -158,6 +158,24 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     requiredInputs: ['loanSegments', 'macroScenarios'],
   },
   {
+    modelKey: 'credit.cecl-cooperativa-pr',
+    displayName: 'CECL — Cooperativa PR Overlay',
+    description:
+      'PD×LGD CECL with PR product-registry classification (préstamos personales/auto/hipotecas/MBL/garantía de acciones) and the PR macro overlay (hurricane/migration-calibrated multipliers 2.1x/3.6x, weights 45/35/20 vs mainland CCAR).',
+    version: '1.0.0',
+    category: 'CREDIT_RISK',
+    riskTier: 'TIER_1',
+    status: 'APPROVED',
+    ownerName: OWNER,
+    serviceFile: 'alm/cecl.service.ts',
+    entryFunction: 'getCooperativaCECLAnalysis',
+    requiredInputs: ['loanSegments', 'productRegistry', 'prMacroOverlay'],
+    limitations: [
+      'Provisional PD/LGD cold-start defaults from the product registry when the institution has no historical loss data — disclosed via WARNING DataGap, never silently substituted (D1). Final calibration needs institution loss history or a COSSEC/NCUA PR pooled-loss dataset.',
+      'Returns data_unavailable when there are no CECL-eligible loan segments (D1).',
+    ],
+  },
+  {
     modelKey: 'credit.kmv-merton',
     displayName: 'KMV-Merton Structural Credit',
     description:
@@ -344,6 +362,23 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     requiredInputs: ['balanceSheetItems', 'rateScenarios'],
   },
   {
+    modelKey: 'stress.nev',
+    displayName: 'NEV Supervisory Test (COSSEC CC-2025-01)',
+    description:
+      'Net Economic Value supervisory analysis: ±100/200/300bps parallel shocks with duration+convexity revaluation, classified by the COSSEC CC-2025-01 / CAMEL-S two-dimensional bands (NEV ratio + sensitivity, worse of the two) on the +300bps supervisory point.',
+    version: '1.0.0',
+    category: 'STRESS_TEST',
+    riskTier: 'TIER_1',
+    status: 'APPROVED',
+    ownerName: OWNER,
+    serviceFile: 'alm/stress-testing/stress-testing.service.ts',
+    entryFunction: 'getNEVAnalysis',
+    requiredInputs: ['balanceSheetItems', 'durationGap'],
+    limitations: [
+      'Returns data_unavailable when the balance sheet is empty (D1). NCUA-derived methodology presented under COSSEC CC-2025-01; not a separately COSSEC-published numeric test.',
+    ],
+  },
+  {
     modelKey: 'stress.custom-scenario',
     displayName: 'Custom Scenario Engine',
     description:
@@ -484,6 +519,12 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     serviceFile: 'alm/asset-ews.service.ts',
     entryFunction: 'computeEWS',
     requiredInputs: ['financialIndicators'],
+    limitations: [
+      'Returns DATA_UNAVAILABLE on empty portfolio; no fabricated score (D1)',
+      '7 of 12 indicators (delinquency trend, LTV, DSCR, OREO growth, consumer 60d, allowance coverage, peer gap) are not yet wired — return null + WARNING gap, never a constant',
+      'Refuses to grade below 50% measured indicator weight; composite scores only over measured indicators (57/100)',
+      'Derived indicators are loss-rate proxies, not direct delinquency measurements',
+    ],
   },
 
   // ───────────────── PRICING / FTP ─────────────────

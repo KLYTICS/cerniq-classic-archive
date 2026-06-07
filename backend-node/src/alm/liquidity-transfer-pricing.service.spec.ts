@@ -15,15 +15,18 @@ describe('LiquidityTransferPricingService', () => {
     expect(service).toBeDefined();
   });
 
-  it('returns demo result when no balance sheet items exist', async () => {
+  it('returns data_unavailable when no balance sheet items exist', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([]);
     const result = await service.computeLTP('inst_1');
 
-    expect(result.segments.length).toBeGreaterThan(0);
-    expect(result.totalLiquidityCharge).toBeGreaterThan(0);
-    expect(result.totalLiquidityCredit).toBeGreaterThan(0);
-    expect(result.topConsumers.length).toBeGreaterThan(0);
-    expect(result.topProviders.length).toBeGreaterThan(0);
+    expect(result.status).toBe('data_unavailable');
+    expect(result.segments).toEqual([]);
+    expect(result.totalLiquidityCharge).toBeNull();
+    expect(result.netLTPTransfer).toBeNull();
+    expect(result.topConsumers).toEqual([]);
+    expect(result.gaps?.some((g) => g.reason === 'EMPTY_BALANCE_SHEET')).toBe(
+      true,
+    );
   });
 
   it('charges assets and credits liabilities for liquidity', async () => {
@@ -102,7 +105,7 @@ describe('LiquidityTransferPricingService', () => {
 
     const result = await service.computeLTP('inst_1');
     expect(result.netLTPTransfer).toBeCloseTo(
-      result.totalLiquidityCharge - result.totalLiquidityCredit,
+      result.totalLiquidityCharge! - result.totalLiquidityCredit!,
       2,
     );
   });

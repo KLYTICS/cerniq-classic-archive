@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 
 export interface RateRecommendation {
   product: string;
@@ -16,11 +17,13 @@ export interface RateRecommendation {
 }
 
 export interface NIMOptimizerResult {
-  currentNIM: number;
-  projectedNIM: number;
-  nimGainBps: number;
-  totalNIIGain: number;
+  currentNIM: number | null;
+  projectedNIM: number | null;
+  nimGainBps: number | null;
+  totalNIIGain: number | null;
   recommendations: RateRecommendation[];
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 const PEER_RATES: Record<string, number> = {
@@ -47,7 +50,9 @@ export class NIMOptimizerService {
     const items = await this.prisma.balanceSheetItem.findMany({
       where: { institutionId },
     });
-    if (items.length === 0) return this.getDemoResult();
+    // D1: no balance sheet → refuse rather than fabricate demo NIM
+    // recommendations for an institution with no rate data.
+    if (items.length === 0) return this.dataUnavailableResult();
 
     const assets = items.filter((i: any) => i.category === 'asset');
     const liabilities = items.filter((i: any) => i.category === 'liability');
@@ -141,42 +146,27 @@ export class NIMOptimizerService {
       nimGainBps: Math.round((projectedNIM - currentNIM) * 100),
       totalNIIGain: Math.round(totalNIIGain * 100) / 100,
       recommendations,
+      status: 'ok',
     };
   }
 
-  private getDemoResult(): NIMOptimizerResult {
+  // D1 honest shell. Replaces the former getDemoResult() that fabricated NIM
+  // optimization recommendations for an institution with no balance sheet.
+  private dataUnavailableResult(): NIMOptimizerResult {
     return {
-      currentNIM: 3.42,
-      projectedNIM: 3.68,
-      nimGainBps: 26,
-      totalNIIGain: 1.16,
-      recommendations: [
-        {
-          product: 'time deposits',
-          category: 'liability',
-          currentRate: 0.045,
-          peerMedianRate: 0.04,
-          suggestedRate: 0.04,
-          rateDeltaBps: -50,
-          direction: 'decrease',
-          niiImpact: 0.38,
-          volumeImpact: 'Low — CDs are rate-insensitive in short term',
-          rationale: 'CD rates 50bps above peer median.',
-          rationaleEs: 'Tasas CD 50bps por encima de mediana.',
-        },
-        {
-          product: 'consumer loans',
-          category: 'asset',
-          currentRate: 0.068,
-          peerMedianRate: 0.072,
-          suggestedRate: 0.072,
-          rateDeltaBps: 40,
-          direction: 'increase',
-          niiImpact: 0.34,
-          volumeImpact: 'Minimal — still competitive',
-          rationale: 'Consumer loan rates 40bps below market.',
-          rationaleEs: 'Tasas consumo 40bps bajo mercado.',
-        },
+      currentNIM: null,
+      projectedNIM: null,
+      nimGainBps: null,
+      totalNIIGain: null,
+      recommendations: [],
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('nimOptimizer.balanceSheet', 'EMPTY_BALANCE_SHEET', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue los activos y pasivos del balance para optimizar el margen de interés neto (NIM).',
+          context: { service: 'nim-optimizer' },
+        }),
       ],
     };
   }

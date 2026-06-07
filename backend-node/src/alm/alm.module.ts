@@ -11,6 +11,7 @@ import { ReportsService } from './reports/reports.service';
 import { ReportPreflightService } from './reports/report-preflight.service';
 import { ReportArtifactService } from './reports/report-artifact.service';
 import { ReportArtifactController } from './reports/report-artifact.controller';
+import { CossecReportService } from './reports/cossec-report.service';
 import { WorkspaceOnboardingService } from './workspace-onboarding.service';
 import { InstitutionSeedService } from './institution-seed.service';
 import { CSVIngestionService } from './csv-ingestion.service';
@@ -165,6 +166,7 @@ import { HJMModule } from './quant/hjm.module';
     ReportsService,
     ReportPreflightService,
     ReportArtifactService,
+    CossecReportService,
     WorkspaceOnboardingService,
     InstitutionSeedService,
     CSVIngestionService,
@@ -285,6 +287,7 @@ import { HJMModule } from './quant/hjm.module';
     ReportsService,
     ReportPreflightService,
     ReportArtifactService,
+    CossecReportService,
     WorkspaceOnboardingService,
     InstitutionSeedService,
     CSVIngestionService,

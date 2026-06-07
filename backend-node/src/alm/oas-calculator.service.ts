@@ -4,6 +4,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 import { YieldCurveService, TenorRate } from './yield-curve.service';
 import * as Sentry from '@sentry/nestjs';
 
@@ -25,11 +26,13 @@ export interface OASResult {
 
 export interface OASPortfolioResult {
   instruments: OASResult[];
-  portfolioOAS: number; // balance-weighted OAS
-  portfolioEffDuration: number;
-  portfolioEffConvexity: number;
-  totalOptionCost: number; // $ total option cost
-  totalBalance: number;
+  portfolioOAS: number | null; // balance-weighted OAS
+  portfolioEffDuration: number | null;
+  portfolioEffConvexity: number | null;
+  totalOptionCost: number | null; // $ total option cost
+  totalBalance: number | null;
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 // PSA Prepayment Speeds
@@ -61,7 +64,9 @@ export class OASCalculatorService {
         ? (saved.tenors as unknown as TenorRate[])
         : this.getDefaultCurve();
 
-      if (items.length === 0) return this.getDemoPortfolio();
+      // D1: no balance sheet → refuse rather than fabricate a demo OAS
+      // portfolio (FHLB callables, MBS pools) for an empty institution.
+      if (items.length === 0) return this.dataUnavailableResult();
 
       const instruments: OASResult[] = [];
 
@@ -146,6 +151,7 @@ export class OASCalculatorService {
         portfolioEffConvexity: Math.round(portfolioEffConvexity * 100) / 100,
         totalOptionCost: Math.round(totalOptionCost * 100) / 100,
         totalBalance,
+        status: 'ok',
       };
     } catch (error: any) {
       this.logger.error(`Computation failed: ${error.message}`, error.stack);
@@ -414,80 +420,26 @@ export class OASCalculatorService {
     ];
   }
 
-  private getDemoPortfolio(): OASPortfolioResult {
+  // D1 honest shell. Replaces the former getDemoPortfolio() that fabricated a
+  // 5-instrument OAS book (FHLB callables, MBS pools, PR muni) for an empty
+  // institution.
+  private dataUnavailableResult(): OASPortfolioResult {
     return {
-      instruments: [
-        {
-          instrumentId: 'd1',
-          instrumentName: 'FHLB Callable 5Y',
-          category: 'asset',
-          balance: 25,
-          nominalSpread: 45,
-          zSpread: 42,
-          oas: 28,
-          optionCost: 14,
-          effectiveDuration: 3.2,
-          effectiveConvexity: -0.8,
-          modifiedDuration: 4.5,
-        },
-        {
-          instrumentId: 'd2',
-          instrumentName: 'FNMA 30Y MBS Pool',
-          category: 'asset',
-          balance: 35,
-          nominalSpread: 120,
-          zSpread: 115,
-          oas: 65,
-          optionCost: 50,
-          effectiveDuration: 4.8,
-          effectiveConvexity: -2.4,
-          modifiedDuration: 8.2,
-        },
-        {
-          instrumentId: 'd3',
-          instrumentName: 'UST 10Y Note',
-          category: 'asset',
-          balance: 20,
-          nominalSpread: 0,
-          zSpread: 0,
-          oas: 0,
-          optionCost: 0,
-          effectiveDuration: 8.5,
-          effectiveConvexity: 0.9,
-          modifiedDuration: 8.5,
-        },
-        {
-          instrumentId: 'd4',
-          instrumentName: 'FHLMC 15Y MBS',
-          category: 'asset',
-          balance: 15,
-          nominalSpread: 85,
-          zSpread: 80,
-          oas: 52,
-          optionCost: 28,
-          effectiveDuration: 3.1,
-          effectiveConvexity: -1.5,
-          modifiedDuration: 5.8,
-        },
-        {
-          instrumentId: 'd5',
-          instrumentName: 'PR Muni GO Bond',
-          category: 'asset',
-          balance: 10,
-          nominalSpread: 250,
-          zSpread: 245,
-          oas: 240,
-          optionCost: 5,
-          effectiveDuration: 6.2,
-          effectiveConvexity: 0.5,
-          modifiedDuration: 6.5,
-        },
+      instruments: [],
+      portfolioOAS: null,
+      portfolioEffDuration: null,
+      portfolioEffConvexity: null,
+      totalOptionCost: null,
+      totalBalance: null,
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('oas.balanceSheet', 'EMPTY_BALANCE_SHEET', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue los instrumentos del balance para calcular el diferencial ajustado por opción (OAS).',
+          context: { service: 'oas-calculator' },
+        }),
       ],
-      portfolioOAS: 58.3,
-      portfolioEffDuration: 4.6,
-      portfolioEffConvexity: -1.1,
-      totalOptionCost: 2.85,
-      totalBalance: 105,
     };
   }
 }

@@ -41,6 +41,7 @@ import { ConcentrationService } from './concentration.service';
 import { NCUADataPullService } from './data-pull/ncua-data-pull.service';
 import { SampleReportFactoryService } from './sample-report-factory.service';
 import { AlmDocumentExportsService } from './alm-document-exports.service';
+import { CossecReportService } from './reports/cossec-report.service';
 // Phase IV services
 import { LiquidityStressPackService } from './liquidity-stress-pack.service';
 import { IRRPolicyService } from './irr-policy.service';
@@ -161,6 +162,7 @@ export class AlmController {
   constructor(
     private readonly almService: AlmService,
     private readonly almEnterprise: AlmEnterpriseService,
+    private readonly cossecReport: CossecReportService,
     private readonly stressTesting: StressTestingService,
     private readonly reportsService: ReportsService,
     private readonly reportPreflight: ReportPreflightService,
@@ -372,6 +374,53 @@ export class AlmController {
   async getCOSSECCompliance(@Param('institutionId') institutionId: string) {
     this.logger.log(`COSSEC compliance check for institution ${institutionId}`);
     return this.almEnterprise.getCOSSECCompliance(institutionId);
+  }
+
+  /**
+   * Push-button COSSEC regulatory report (Layer 1, #2 — the demo that
+   * closes). One GET → downloadable PDF with the 12-ratio compliance
+   * matrix, conclusion-first summary, and traffic-light statuses.
+   * Spanish-first: `lang` defaults to `es`; pass `lang=en` for English.
+   */
+  @Get(':institutionId/cossec-report/pdf')
+  @UseGuards(AuthTenantGuard)
+  @AuditAction('cossec_report_download')
+  @ApiOperation({
+    summary: 'Download the COSSEC regulatory compliance report as PDF',
+  })
+  @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
+  @ApiQuery({
+    name: 'lang',
+    required: false,
+    description: 'Report language (es default, en secondary)',
+    example: 'es',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'COSSEC compliance report PDF binary stream',
+    content: { 'application/pdf': {} },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Institution not found' })
+  async downloadCossecReport(
+    @Param('institutionId') institutionId: string,
+    @Query('lang') lang: string,
+    // type-rationale: express @Res() passthrough — raw response for binary PDF streaming, matching the controller's other @Res handlers
+    @Res() res: any,
+  ) {
+    this.logger.log(
+      `COSSEC report PDF requested for institution ${institutionId} (lang=${lang || 'es'})`,
+    );
+    const report = await this.cossecReport.generateCossecReportPdf(
+      institutionId,
+      lang === 'en' ? 'en' : 'es',
+    );
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${report.filename}"`,
+      'Content-Length': report.buffer.length,
+    });
+    res.end(report.buffer);
   }
 
   @Get(':institutionId/regulatory-compliance')
@@ -761,6 +810,21 @@ export class AlmController {
     return this.cecl.getCECLForecast(institutionId);
   }
 
+  /**
+   * Cooperativa-native CECL (Layer 1): segments auto-classified against
+   * the PR product registry (préstamos personales, auto, hipotecas, MBL,
+   * garantía de acciones), cold-start PD/LGD from documented PR defaults,
+   * PD×LGD under the PR macro overlay. Spanish-first gap messages.
+   */
+  @Get(':institutionId/cecl/cooperativa')
+  @UseGuards(AuthTenantGuard)
+  async getCooperativaCECL(@Param('institutionId') institutionId: string) {
+    this.logger.log(
+      `Cooperativa CECL (PR overlay) for institution ${institutionId}`,
+    );
+    return this.cecl.getCooperativaCECLAnalysis(institutionId);
+  }
+
   @Post('cecl/warm')
   @UseGuards(AuthTenantGuard)
   async runWARMCalculation(@Body() dto: WARMCalculationDto) {
@@ -976,6 +1040,26 @@ export class AlmController {
   ) {
     this.logger.log(`Stress test requested for institution ${institutionId}`);
     return this.stressTesting.runFullStressTest(institutionId, params);
+  }
+
+  /**
+   * Formal NEV (Net Economic Value / Valor Económico Neto) supervisory
+   * analysis: ±100/200/300bps parallel shocks, duration+convexity
+   * revaluation, classified per the COSSEC CC-2025-01 / CAMEL-S two-
+   * dimensional bands (NEV ratio + sensitivity) on the +300bps point.
+   */
+  @Get(':institutionId/stress-test/nev')
+  @UseGuards(AuthTenantGuard)
+  @ApiOperation({
+    summary:
+      'NEV supervisory analysis (±100/200/300bps), COSSEC CC-2025-01 / CAMEL-S risk bands',
+  })
+  @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
+  @ApiResponse({ status: 200, description: 'NEV shock table + risk rating' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getNEVAnalysis(@Param('institutionId') institutionId: string) {
+    this.logger.log(`NEV analysis requested for institution ${institutionId}`);
+    return this.stressTesting.getNEVAnalysis(institutionId);
   }
 
   @Post(':institutionId/stress/custom')

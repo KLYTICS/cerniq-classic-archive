@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 
 // Black-Litterman (1992) — Goldman Sachs Asset Management model
 // Blends market equilibrium with investor views via Bayesian posterior
@@ -24,9 +25,11 @@ export interface BLResult {
     posteriorReturn: number;
     shift: number;
   }>;
-  portfolioExpectedReturn: number;
-  portfolioRisk: number;
-  sharpeRatio: number;
+  portfolioExpectedReturn: number | null;
+  portfolioRisk: number | null;
+  sharpeRatio: number | null;
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -54,9 +57,13 @@ export class BlackLittermanService {
     }
 
     const assetNames = Array.from(bySub.keys());
-    const n = assetNames.length || 6;
 
-    if (n === 0) return this.getDemoResult();
+    // D1: no asset universe → nothing to optimize. Refuse rather than run the
+    // optimizer on empty matrices or fabricate a demo allocation. (The prior
+    // `n = length || 6` guard was unreachable — n could never be 0.)
+    if (assetNames.length === 0) return this.dataUnavailableResult();
+
+    const n = assetNames.length;
 
     // Market cap weights (balance-weighted)
     const totalBalance = Array.from(bySub.values()).reduce(
@@ -110,6 +117,7 @@ export class BlackLittermanService {
         portfolioRisk: +Math.sqrt(portVar).toFixed(4),
         sharpeRatio:
           portVar > 0 ? +(portRet / Math.sqrt(portVar)).toFixed(4) : 0,
+        status: 'ok',
       };
     }
 
@@ -178,6 +186,7 @@ export class BlackLittermanService {
       portfolioExpectedReturn: +portRet.toFixed(4),
       portfolioRisk: +Math.sqrt(portVar).toFixed(4),
       sharpeRatio: portVar > 0 ? +(portRet / Math.sqrt(portVar)).toFixed(4) : 0,
+      status: 'ok',
     };
   }
 
@@ -250,23 +259,27 @@ export class BlackLittermanService {
     return aug.map((row) => row.slice(n));
   }
 
-  private getDemoResult(): BLResult {
+  // D1 honest shell. Replaces the former getDemoResult() that fabricated a
+  // 6-asset equilibrium/posterior allocation for an institution with no assets.
+  private dataUnavailableResult(): BLResult {
     return {
-      equilibriumReturns: [0.048, 0.042, 0.065, 0.058, 0.072, 0.015],
-      posteriorReturns: [0.048, 0.042, 0.065, 0.058, 0.072, 0.015],
-      optimalWeights: [0.1, 0.2, 0.25, 0.15, 0.2, 0.1],
-      assetNames: [
-        'cash',
-        'securities',
-        'residential_mortgage',
-        'commercial_re',
-        'consumer_loans',
-        'savings',
-      ],
+      equilibriumReturns: [],
+      posteriorReturns: [],
+      optimalWeights: [],
+      assetNames: [],
       viewContributions: [],
-      portfolioExpectedReturn: 0.052,
-      portfolioRisk: 0.045,
-      sharpeRatio: 1.15,
+      portfolioExpectedReturn: null,
+      portfolioRisk: null,
+      sharpeRatio: null,
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('blackLitterman.assets', 'EMPTY_BALANCE_SHEET', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue los activos del balance para construir el universo de inversión y optimizar la cartera.',
+          context: { service: 'black-litterman' },
+        }),
+      ],
     };
   }
 }

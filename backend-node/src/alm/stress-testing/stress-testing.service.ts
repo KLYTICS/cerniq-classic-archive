@@ -51,6 +51,40 @@ export interface CustomScenarioResult {
 
 // ─── Result Interfaces ────────────────────────────────────────
 
+export interface NEVRiskBand {
+  level: 'low' | 'moderate' | 'high';
+  label: string;
+  labelEs: string;
+}
+
+export interface NEVShockPoint {
+  shockBps: number;
+  nev: number; // $M post-shock net economic value
+  nevRatio: number; // % of post-shock asset value
+  nevChangePct: number; // % change vs base NEV
+  riskBand: NEVRiskBand;
+}
+
+/**
+ * NEV supervisory analysis result. `baseNEV`/`baseNEVRatio` are null when
+ * the balance sheet is empty (D1 — `overallRating: 'data_unavailable'`,
+ * never phantom zeros).
+ */
+export interface NEVAnalysisResult {
+  institutionId: string;
+  baseNEV: number | null;
+  baseNEVRatio: number | null;
+  shocks: NEVShockPoint[];
+  worstCase: NEVShockPoint | null;
+  overallRating: NEVRiskBand['level'] | 'data_unavailable';
+  gaps?: Array<{
+    field: string;
+    reason: string;
+    severity: 'CRITICAL' | 'WARNING';
+    action: string;
+  }>;
+}
+
 export interface MonteCarloParams {
   paths: number; // default 1000
   horizon: number; // months, default 12
@@ -524,6 +558,148 @@ export class StressTestingService {
         passFailStatus,
       };
     });
+  }
+
+  // ─── NEV (Net Economic Value) Analysis ────────────────────────
+
+  /**
+   * Formal NEV supervisory analysis (Layer 1, #3). Revalues the balance
+   * sheet under parallel shocks of ±100/200/300 bps using duration +
+   * convexity. Classification follows the COSSEC CC-2025-01 stress-testing
+   * framework / CAMEL-S sensitivity bands (Vol10 §NEV), a NCUA-derived but
+   * COSSEC-published methodology — a TWO-dimensional test on the +300bps
+   * supervisory point, taking the worse of:
+   *   NEV ratio:        > 6% low · 4–6% moderate · < 4% high
+   *   NEV sensitivity:  < 15% low · 15–25% moderate · > 25% high  (|Δ NEV|)
+   * (No "extreme" band — COSSEC/NCUA retired it; < 4% is High.)
+   *
+   * D1: refuses to compute when the balance sheet is empty — returns a
+   * data_unavailable shell with a CRITICAL gap, never phantom zeros.
+   */
+  async getNEVAnalysis(institutionId: string): Promise<NEVAnalysisResult> {
+    this.logger.log(`NEV analysis for institution ${institutionId}`);
+
+    const [durationGap, cossec] = await Promise.all([
+      this.almEnterprise.calculateDurationGap(institutionId),
+      this.almEnterprise.getCOSSECCompliance(institutionId),
+    ]);
+
+    const totalAssets = cossec?.summary?.totalAssets ?? 0;
+    const totalLiabilities = cossec?.summary?.totalLiabilities ?? 0;
+
+    if (cossec.overallStatus === 'data_unavailable' || totalAssets <= 0) {
+      this.logger.warn({
+        event: 'nev_data_unavailable',
+        institutionId,
+        reason: 'EMPTY_BALANCE_SHEET',
+      });
+      return {
+        institutionId,
+        baseNEV: null,
+        baseNEVRatio: null,
+        shocks: [],
+        worstCase: null,
+        overallRating: 'data_unavailable',
+        gaps: [
+          {
+            field: 'nev.balanceSheet',
+            reason: 'EMPTY_BALANCE_SHEET',
+            severity: 'CRITICAL',
+            action:
+              'Cargue el balance (activos y pasivos) antes de ejecutar el análisis NEV. / Upload balance sheet items before running NEV analysis.',
+          },
+        ],
+      };
+    }
+
+    const baseNEV = totalAssets - totalLiabilities;
+    const baseNEVRatio =
+      totalAssets > 0 ? round((baseNEV / totalAssets) * 100, 2) : 0;
+
+    const shockSet = [-300, -200, -100, 100, 200, 300];
+    const shocks: NEVShockPoint[] = shockSet.map((shockBps) => {
+      const dr = shockBps / 10000;
+      const assetChange =
+        -durationGap.assetDuration * totalAssets * dr +
+        0.5 * (durationGap.assetConvexity ?? 0) * totalAssets * dr * dr;
+      const liabChange =
+        -durationGap.liabilityDuration * totalLiabilities * dr +
+        0.5 *
+          (durationGap.liabilityConvexity ?? 0) *
+          totalLiabilities *
+          dr *
+          dr;
+
+      const shockedAssets = totalAssets + assetChange;
+      const shockedLiabilities = totalLiabilities + liabChange;
+      const nev = shockedAssets - shockedLiabilities;
+      const nevRatio =
+        shockedAssets > 0 ? round((nev / shockedAssets) * 100, 2) : 0;
+      const nevChangePct =
+        baseNEV !== 0
+          ? round(((nev - baseNEV) / Math.abs(baseNEV)) * 100, 2)
+          : 0;
+
+      return {
+        shockBps,
+        nev: round(nev, 2),
+        nevRatio,
+        nevChangePct,
+        // Per-shock band is the NEV-ratio band ONLY (informational): a
+        // favorable down-shock with a large positive ΔNEV is not "risk".
+        // The sensitivity leg is a supervisory measure of the ADVERSE
+        // (+300bps) point and is applied to overallRating below, not here.
+        riskBand: this.nevRiskBand(nevRatio, 0),
+      };
+    });
+
+    const worstCase = shocks.reduce((worst, s) =>
+      s.nevRatio < worst.nevRatio ? s : worst,
+    );
+
+    // COSSEC CC-2025-01 anchors the supervisory classification on the
+    // instantaneous +300bps parallel shock specifically; the rest of the
+    // grid is informational. Fall back to worst-case only if +300 is absent.
+    const supervisoryPoint =
+      shocks.find((s) => s.shockBps === 300) ?? worstCase;
+    // The supervisory verdict applies the full two-dimensional test (NEV
+    // ratio AND NEV sensitivity, worse of the two) at the +300bps point.
+    const overallRating = this.nevRiskBand(
+      supervisoryPoint.nevRatio,
+      Math.abs(supervisoryPoint.nevChangePct),
+    ).level;
+
+    return {
+      institutionId,
+      baseNEV: round(baseNEV, 2),
+      baseNEVRatio,
+      shocks,
+      worstCase,
+      overallRating,
+    };
+  }
+
+  /**
+   * COSSEC CC-2025-01 / CAMEL-S two-dimensional NEV band (Vol10 §NEV): the
+   * worse of the post-shock NEV-ratio band (>6 low · 4–6 moderate · <4 high)
+   * and the NEV-sensitivity band (<15 low · 15–25 moderate · >25 high). No
+   * "extreme" tier — COSSEC/NCUA retired it; sub-4% / >25% sensitivity is High.
+   */
+  private nevRiskBand(nevRatio: number, sensitivityPct: number): NEVRiskBand {
+    const ratioRank = nevRatio > 6 ? 0 : nevRatio >= 4 ? 1 : 2;
+    const sensRank = sensitivityPct < 15 ? 0 : sensitivityPct <= 25 ? 1 : 2;
+    const rank = Math.max(ratioRank, sensRank);
+    if (rank === 0) {
+      return { level: 'low', label: 'Low risk', labelEs: 'Riesgo bajo' };
+    }
+    if (rank === 1) {
+      return {
+        level: 'moderate',
+        label: 'Moderate risk',
+        labelEs: 'Riesgo moderado',
+      };
+    }
+    return { level: 'high', label: 'High risk', labelEs: 'Riesgo alto' };
   }
 
   // ─── Scenario Builders ───────────────────────────────────────

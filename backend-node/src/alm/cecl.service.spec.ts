@@ -394,6 +394,152 @@ describe('CECLService', () => {
     });
   });
 
+  // ── getCooperativaCECLAnalysis (Layer 1, PR overlay) ───────
+  describe('getCooperativaCECLAnalysis', () => {
+    const mkService = (segments: any[]) => {
+      const mockPrisma = {
+        loanSegment: {
+          findMany: jest.fn().mockResolvedValue(segments),
+          createMany: jest.fn(),
+          deleteMany: jest.fn(),
+        },
+      } as any;
+      return new CECLService(mockPrisma);
+    };
+
+    const prSegments = [
+      {
+        segmentName: 'Préstamos personales',
+        balance: 80_000_000,
+        weightedAvgRate: 0.09,
+        weightedAvgMaturity: 3.5,
+        historicalLossRate: 0.022,
+        lgd: 0.6,
+        qualitativeAdj: 0,
+      },
+      {
+        segmentName: 'Hipotecas',
+        balance: 120_000_000,
+        weightedAvgRate: 0.055,
+        weightedAvgMaturity: 18,
+        historicalLossRate: 0.008,
+        lgd: 0.3,
+        qualitativeAdj: 0,
+      },
+    ];
+
+    it('returns data_unavailable + CRITICAL gap when institution has no segments', async () => {
+      const service = mkService([]);
+      const result = await service.getCooperativaCECLAnalysis('inst-1');
+      expect(result.overallStatus).toBe('data_unavailable');
+      expect(result.productClassification).toEqual([]);
+      expect(result.gaps?.[0].severity).toBe('CRITICAL');
+    });
+
+    it('classifies Spanish segment names against the product registry', async () => {
+      const service = mkService(prSegments);
+      const result = await service.getCooperativaCECLAnalysis('inst-1');
+      expect(result.overallStatus).toBe('computed');
+      const types = result.productClassification.map((c) => c.productType);
+      expect(types).toContain('PRESTAMO_PERSONAL');
+      expect(types).toContain('HIPOTECA');
+    });
+
+    it('applies the PR overlay label to methodology for report provenance', async () => {
+      const service = mkService(prSegments);
+      const result = await service.getCooperativaCECLAnalysis('inst-1');
+      expect(result.methodology).toBe('PD×LGD (PR)');
+      expect(result.segments[0].methodology).toContain('PR');
+    });
+
+    it('produces a HIGHER weighted allowance than mainland CCAR overlay (PR multipliers are harsher)', async () => {
+      const service = mkService(prSegments);
+      const pr = await service.getCooperativaCECLAnalysis('inst-1');
+      const mainland = service.calculatePDxLGD(
+        prSegments.map((s) => ({
+          segmentName: s.segmentName,
+          balance: s.balance,
+          weightedAvgMaturity: s.weightedAvgMaturity,
+          historicalLossRate: s.historicalLossRate,
+          lgd: s.lgd,
+          qualitativeAdj: s.qualitativeAdj,
+        })),
+      );
+      expect(pr.totalAllowance).toBeGreaterThan(mainland.totalAllowance);
+    });
+
+    it('excludes liability-side products (Club de Navidad) from the allowance but classifies them', async () => {
+      const service = mkService([
+        ...prSegments,
+        {
+          segmentName: 'Club de Navidad',
+          balance: 5_000_000,
+          weightedAvgRate: 0.01,
+          weightedAvgMaturity: 1,
+          historicalLossRate: 0,
+          lgd: 0,
+          qualitativeAdj: 0,
+        },
+      ]);
+      const result = await service.getCooperativaCECLAnalysis('inst-1');
+      const club = result.productClassification.find(
+        (c) => c.productType === 'CLUB_NAVIDAD',
+      );
+      expect(club).toBeDefined();
+      expect(
+        result.segments.find((s) => s.segmentName === 'Club de Navidad'),
+      ).toBeUndefined();
+      // totalBalance only counts CECL-eligible loans
+      expect(result.totalBalance).toBeCloseTo(200_000_000, -2);
+    });
+
+    it('fills cold-start PD/LGD from registry defaults and surfaces a WARNING gap (D1 disclosure)', async () => {
+      const service = mkService([
+        {
+          segmentName: 'Préstamos de auto',
+          balance: 40_000_000,
+          weightedAvgRate: 0.07,
+          weightedAvgMaturity: 0, // missing
+          historicalLossRate: 0, // missing
+          lgd: 0, // missing
+          qualitativeAdj: 0,
+        },
+      ]);
+      const result = await service.getCooperativaCECLAnalysis('inst-1');
+      expect(result.overallStatus).toBe('computed');
+      expect(result.totalAllowance).toBeGreaterThan(0);
+      const cls = result.productClassification[0];
+      expect(cls.productType).toBe('PRESTAMO_AUTO');
+      expect(cls.defaultsApplied).toBe(true);
+      const warning = result.gaps?.find((g) => g.severity === 'WARNING');
+      expect(warning).toBeDefined();
+      expect(warning!.action).toContain('calibración provisional');
+    });
+
+    it('flags unclassifiable segments with a WARNING gap instead of guessing', async () => {
+      const service = mkService([
+        ...prSegments,
+        {
+          segmentName: 'Derivados exóticos',
+          balance: 1_000_000,
+          weightedAvgRate: 0.05,
+          weightedAvgMaturity: 2,
+          historicalLossRate: 0.01,
+          lgd: 0.5,
+          qualitativeAdj: 0,
+        },
+      ]);
+      const result = await service.getCooperativaCECLAnalysis('inst-1');
+      const unknown = result.productClassification.find(
+        (c) => c.segmentName === 'Derivados exóticos',
+      );
+      expect(unknown?.productType).toBeNull();
+      expect(
+        result.gaps?.some((g) => g.field.includes('Derivados exóticos')),
+      ).toBe(true);
+    });
+  });
+
   // ── getCECLForecast ────────────────────────────────────────
   describe('getCECLForecast', () => {
     it('returns 8 quarterly projections', async () => {
