@@ -86,6 +86,17 @@ function makeMockDurationService() {
       portfolio: null,
       eveSensitivity: [],
     }),
+    // Used by calculateDurationGap when items.length > 0 (the partial-BS path).
+    calculatePortfolioMetrics: jest.fn().mockReturnValue({
+      assetDuration: 2.5,
+      liabilityDuration: 1.2,
+      assetConvexity: 0.1,
+      liabilityConvexity: 0.05,
+      leverageAdjustedDurationGap: 1.3,
+    }),
+    calculateEVESensitivity: jest
+      .fn()
+      .mockReturnValue([{ shockBps: 200, eveChangePct: -5 }]),
   } as any;
 }
 
@@ -148,6 +159,56 @@ describe('Report accuracy — empty institution contract (D1)', () => {
       // know not to render these as real values.
       expect(result.summary.totalAssets).toBe(0);
       expect(result.summary.capitalRatio).toBe(0);
+    });
+
+    // D1 partial-data contract: a PARTIAL balance sheet (e.g. loans loaded but
+    // member deposits/shares not yet — a normal mid-intake state) must NOT
+    // produce phantom 0%/100% PASS ratios. The empty-BS guard only catches
+    // `items.length === 0`; this asserts the per-ratio data_unavailable path.
+    it('refuses to render phantom PASS ratios on a partial balance sheet (loans, no deposits)', async () => {
+      prisma.balanceSheetItem.findMany.mockResolvedValue([
+        {
+          category: 'asset',
+          subcategory: 'consumer_loans',
+          name: 'Consumer',
+          balance: 100,
+          rate: 0.07,
+          duration: 3,
+          rateType: 'fixed',
+        },
+        {
+          category: 'asset',
+          subcategory: 'residential_mortgages',
+          name: 'Mortgages',
+          balance: 50,
+          rate: 0.05,
+          duration: 15,
+          rateType: 'fixed',
+        },
+      ]);
+
+      const result = await service.getCOSSECCompliance('inst-partial');
+
+      // The array stays length-12, but the input-starved ratios are honest.
+      expect(result.ratios).toHaveLength(12);
+      const loanToDeposit = result.ratios.find((r) => r.id === 4)!;
+      const capital = result.ratios.find((r) => r.id === 1)!;
+      // The smoking gun: loan-to-deposit with no deposits must NOT read 0%/PASS.
+      expect(loanToDeposit.status).toBe('data_unavailable');
+      expect(loanToDeposit.status).not.toBe('pass');
+      // Capital with no liability side must NOT read a fabricated 100%/PASS.
+      expect(capital.status).toBe('data_unavailable');
+
+      // A single data_unavailable ratio downgrades the whole report — the PDF
+      // banner can never read CUMPLE while a core ratio is silently missing.
+      expect(result.overallStatus).toBe('data_unavailable');
+
+      // The gap manifest names the missing inputs (Spanish-first action text).
+      const reasons = (result.gaps ?? []).map((g) => g.reason);
+      expect(reasons).toContain('COSSEC_INPUTS_INSUFFICIENT');
+      const fields = (result.gaps ?? []).map((g) => g.field);
+      expect(fields).toContain('cossec.loanToShareRatio');
+      expect(fields).toContain('cossec.capitalRatio');
     });
   });
 

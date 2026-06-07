@@ -741,6 +741,41 @@ export class AlmEnterpriseService {
     };
   }
 
+  /**
+   * D1 helper: a COSSEC ratio whose essential input is missing. Mirrors the
+   * ratio-9 (LCR) `data_unavailable` shape — `value: 0` is a sentinel, NOT a
+   * real number; the parent `gaps[]` carries the actionable manifest. A single
+   * `data_unavailable` ratio downgrades `overallStatus` to `data_unavailable`,
+   * which suppresses the conclusion sentences (never a phantom 0%/100% PASS).
+   */
+  private cossecRatioUnavailable(
+    id: number,
+    name: string,
+    nameEs: string,
+    unit: string,
+    threshold: string,
+    thresholdDirection: CossecRatioResult['thresholdDirection'],
+    description: string,
+    descriptionEs: string,
+  ): CossecRatioResult {
+    return {
+      id,
+      name,
+      nameEs,
+      value: 0,
+      unit,
+      threshold,
+      thresholdDirection,
+      status: 'data_unavailable',
+      description,
+      descriptionEs,
+      examReadinessContribution: 0,
+      sectorMedian: null,
+      percentileRank: null,
+      percentileRankEs: null,
+    };
+  }
+
   async getCOSSECCompliance(
     institutionId: string,
   ): Promise<COSSECComplianceResult> {
@@ -890,25 +925,88 @@ export class AlmEnterpriseService {
       eveSensitivity = eve200 ? Math.abs(eve200.mveImpactPct) : 0;
     }
 
+    // ── D1: partial-balance-sheet detection ──
+    // The empty-balance-sheet guard above only fires when `items.length === 0`.
+    // A PARTIAL load (e.g. loans entered but member shares not yet, or only a
+    // liability side present) silently zeroes denominators, which previously
+    // rendered as 0%/100% PASS ratios on the regulator-bound COSSEC PDF — a
+    // textbook silent zero (D1). Each ratio whose essential input is absent is
+    // emitted as `data_unavailable` (mirroring the ratio-9/LCR pattern below)
+    // with a structured gap; a single such ratio downgrades `overallStatus`
+    // and short-circuits the conclusion sentences. Never a phantom 0/100% PASS.
+    const noAssetSide = assetItems.length === 0;
+    const noLiabilitySide = liabilityItems.length === 0;
+    const noShares = totalShares <= 0;
+    const noEarningAssets = earningAssets <= 0;
+    const partialGaps: DataGap[] = [];
+    if (noLiabilitySide || noAssetSide) {
+      partialGaps.push(
+        dataGap('cossec.capitalRatio', 'COSSEC_INPUTS_INSUFFICIENT', {
+          severity: 'CRITICAL',
+          action: noLiabilitySide
+            ? 'Cargue los pasivos (depósitos y acciones de socios) — sin el lado de pasivos el capital no es calculable. / Load liabilities (member deposits and shares); capital cannot be computed without the liability side.'
+            : 'Cargue los activos del balance antes de calcular la razón de capital. / Load balance-sheet assets before computing the capital ratio.',
+        }),
+      );
+    }
+    if (noAssetSide) {
+      partialGaps.push(
+        dataGap('cossec.liquidityRatio', 'COSSEC_INPUTS_INSUFFICIENT', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue los activos (efectivo e inversiones) para calcular la razón de liquidez. / Load assets (cash and investments) to compute the liquidity ratio.',
+        }),
+      );
+    }
+    if (noShares) {
+      partialGaps.push(
+        dataGap('cossec.loanToShareRatio', 'COSSEC_INPUTS_INSUFFICIENT', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue los depósitos y acciones de socios — la razón préstamos/depósitos no es calculable sin ellos. / Load member deposits and shares; the loan-to-deposit ratio cannot be computed without them.',
+        }),
+      );
+    }
+    if (noEarningAssets) {
+      partialGaps.push(
+        dataGap('cossec.nim', 'COSSEC_INPUTS_INSUFFICIENT', {
+          severity: 'WARNING',
+          action:
+            'Cargue los activos productivos (préstamos e inversiones) para calcular el margen de interés neto. / Load earning assets (loans and investments) to compute net interest margin.',
+        }),
+      );
+    }
+
     // ── Build 12 COSSEC ratios ──
     const b = PR_COOP_BENCHMARKS.ratios;
     const ratios: CossecRatioResult[] = [
-      this.buildRatio(
-        1,
-        'Capital Adequacy',
-        'Suficiencia de Capital',
-        capitalRatio,
-        '%',
-        '>= 8%',
-        'gte',
-        capitalRatio >= 8 ? 'pass' : capitalRatio >= 6 ? 'warning' : 'fail',
-        `Equity/Assets: ${round(capitalRatio, 1)}%. Well-capitalized: 8%+.`,
-        `Capital/Activos: ${round(capitalRatio, 1)}%. Bien capitalizado: 8%+.`,
-        20,
-        b.capitalAdequacy,
-        capitalRatio,
-        false,
-      ),
+      noLiabilitySide || noAssetSide
+        ? this.cossecRatioUnavailable(
+            1,
+            'Capital Adequacy',
+            'Suficiencia de Capital',
+            '%',
+            '>= 8%',
+            'gte',
+            'Capital ratio not computable — the balance sheet is incomplete (a side is missing). See gaps manifest.',
+            'Razón de capital no calculable — el balance está incompleto (falta un lado). Ver datos pendientes.',
+          )
+        : this.buildRatio(
+            1,
+            'Capital Adequacy',
+            'Suficiencia de Capital',
+            capitalRatio,
+            '%',
+            '>= 8%',
+            'gte',
+            capitalRatio >= 8 ? 'pass' : capitalRatio >= 6 ? 'warning' : 'fail',
+            `Equity/Assets: ${round(capitalRatio, 1)}%. Well-capitalized: 8%+.`,
+            `Capital/Activos: ${round(capitalRatio, 1)}%. Bien capitalizado: 8%+.`,
+            20,
+            b.capitalAdequacy,
+            capitalRatio,
+            false,
+          ),
 
       this.buildRatio(
         2,
@@ -927,47 +1025,69 @@ export class AlmEnterpriseService {
         true,
       ),
 
-      this.buildRatio(
-        3,
-        'Liquidity Ratio',
-        'Razon de Liquidez',
-        liquidityRatio,
-        '%',
-        '>= 15%',
-        'gte',
-        liquidityRatio >= 20
-          ? 'pass'
-          : liquidityRatio >= 15
-            ? 'warning'
-            : 'fail',
-        `Liquid assets/Total assets: ${round(liquidityRatio, 1)}%. Minimum: 15%.`,
-        `Activos liquidos/Activos totales: ${round(liquidityRatio, 1)}%. Minimo: 15%.`,
-        10,
-        b.liquidity,
-        liquidityRatio,
-        false,
-      ),
+      noAssetSide
+        ? this.cossecRatioUnavailable(
+            3,
+            'Liquidity Ratio',
+            'Razon de Liquidez',
+            '%',
+            '>= 15%',
+            'gte',
+            'Liquidity ratio not computable — no asset-side balance loaded. See gaps manifest.',
+            'Razon de liquidez no calculable — no hay activos cargados. Ver datos pendientes.',
+          )
+        : this.buildRatio(
+            3,
+            'Liquidity Ratio',
+            'Razon de Liquidez',
+            liquidityRatio,
+            '%',
+            '>= 15%',
+            'gte',
+            liquidityRatio >= 20
+              ? 'pass'
+              : liquidityRatio >= 15
+                ? 'warning'
+                : 'fail',
+            `Liquid assets/Total assets: ${round(liquidityRatio, 1)}%. Minimum: 15%.`,
+            `Activos liquidos/Activos totales: ${round(liquidityRatio, 1)}%. Minimo: 15%.`,
+            10,
+            b.liquidity,
+            liquidityRatio,
+            false,
+          ),
 
-      this.buildRatio(
-        4,
-        'Loan-to-Deposit Ratio',
-        'Razon Prestamos/Depositos',
-        loanToShareRatio,
-        '%',
-        '<= 80%',
-        'lte',
-        loanToShareRatio <= 80
-          ? 'pass'
-          : loanToShareRatio <= 100
-            ? 'warning'
-            : 'fail',
-        `Loans/Deposits: ${round(loanToShareRatio, 1)}%. Target: <=80%.`,
-        `Prestamos/Depositos: ${round(loanToShareRatio, 1)}%. Meta: <=80%.`,
-        10,
-        b.loanToDeposit,
-        loanToShareRatio,
-        true,
-      ),
+      noShares
+        ? this.cossecRatioUnavailable(
+            4,
+            'Loan-to-Deposit Ratio',
+            'Razon Prestamos/Depositos',
+            '%',
+            '<= 80%',
+            'lte',
+            'Loan-to-deposit not computable — member deposits/shares not loaded. See gaps manifest.',
+            'Razon prestamos/depositos no calculable — faltan depositos/acciones de socios. Ver datos pendientes.',
+          )
+        : this.buildRatio(
+            4,
+            'Loan-to-Deposit Ratio',
+            'Razon Prestamos/Depositos',
+            loanToShareRatio,
+            '%',
+            '<= 80%',
+            'lte',
+            loanToShareRatio <= 80
+              ? 'pass'
+              : loanToShareRatio <= 100
+                ? 'warning'
+                : 'fail',
+            `Loans/Deposits: ${round(loanToShareRatio, 1)}%. Target: <=80%.`,
+            `Prestamos/Depositos: ${round(loanToShareRatio, 1)}%. Meta: <=80%.`,
+            10,
+            b.loanToDeposit,
+            loanToShareRatio,
+            true,
+          ),
 
       this.buildRatio(
         5,
@@ -1133,22 +1253,33 @@ export class AlmEnterpriseService {
         true,
       ),
 
-      this.buildRatio(
-        12,
-        'Net Interest Margin',
-        'Margen de Interes Neto',
-        nim,
-        '%',
-        '>= 2.5%',
-        'gte',
-        nim >= 2.5 ? 'pass' : nim >= 2.0 ? 'warning' : 'fail',
-        `NIM: ${round(nim, 2)}%. Threshold: >=2.5%. PR median: ${b.nim.median}%.`,
-        `MNI: ${round(nim, 2)}%. Umbral: >=2.5%. Mediana PR: ${b.nim.median}%.`,
-        10,
-        b.nim,
-        nim,
-        false,
-      ),
+      noEarningAssets
+        ? this.cossecRatioUnavailable(
+            12,
+            'Net Interest Margin',
+            'Margen de Interes Neto',
+            '%',
+            '>= 2.5%',
+            'gte',
+            'NIM not computable — no earning assets (loans/investments) loaded. See gaps manifest.',
+            'MNI no calculable — no hay activos productivos (prestamos/inversiones) cargados. Ver datos pendientes.',
+          )
+        : this.buildRatio(
+            12,
+            'Net Interest Margin',
+            'Margen de Interes Neto',
+            nim,
+            '%',
+            '>= 2.5%',
+            'gte',
+            nim >= 2.5 ? 'pass' : nim >= 2.0 ? 'warning' : 'fail',
+            `NIM: ${round(nim, 2)}%. Threshold: >=2.5%. PR median: ${b.nim.median}%.`,
+            `MNI: ${round(nim, 2)}%. Umbral: >=2.5%. Mediana PR: ${b.nim.median}%.`,
+            10,
+            b.nim,
+            nim,
+            false,
+          ),
     ];
 
     // Exam readiness: sum of weights for PASS ratios (max 100)
@@ -1200,7 +1331,7 @@ export class AlmEnterpriseService {
 
     // Aggregate gaps from sub-calculations (currently just LCR; future:
     // duration, NII, COSSEC-specific data shortfalls all flow through here).
-    const cossecGaps = mergeGaps(lcr.gaps);
+    const cossecGaps = mergeGaps(lcr.gaps, partialGaps);
 
     return {
       institutionName: institution.name,

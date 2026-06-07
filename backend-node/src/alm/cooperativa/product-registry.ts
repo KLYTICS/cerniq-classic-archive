@@ -226,7 +226,7 @@ const MATCHERS: Array<{ type: CooperativaProductType; pattern: RegExp }> = [
   {
     type: 'PRESTAMO_GARANTIA_ACCIONES',
     pattern:
-      /(garant[ií]a de acciones|share[\s-]?secured|garantizad[oa]s? por acciones)/i,
+      /(garant[ií]a de acciones|share[\s-]?secured|garantizad[oa]s? (con|por|mediante) acciones|colateral(izad[oa]s?)? (de|con) acciones|respaldad[oa]s? (con|por) acciones|pignoraci[óo]n de acciones|sobre acciones)/i,
   },
   {
     type: 'CLUB_NAVIDAD',
@@ -259,10 +259,24 @@ const MATCHERS: Array<{ type: CooperativaProductType; pattern: RegExp }> = [
   },
 ];
 
+/**
+ * Loan-side tokens. A segment naming BOTH a loan and shares ("acciones"/
+ * "shares") is a share-secured LOAN (asset), never a share-savings account
+ * (liability) — e.g. "Préstamo garantizado con acciones", "colateral de
+ * acciones". Without this disambiguation the broad CUENTA_AHORRO "acciones"
+ * token would capture such names and the loan would be silently dropped from
+ * the CECL allowance and misclassified on the COSSEC filing (a D1 violation).
+ */
+const LOAN_TOKEN = /(pr[ée]stamo|loan|cr[ée]dito|financ)/i;
+
 export function matchProductType(
   segmentName: string,
 ): CooperativaProductType | null {
   if (!segmentName) return null;
+  // Disambiguation guard (see LOAN_TOKEN): loan + shares ⇒ share-secured loan.
+  if (LOAN_TOKEN.test(segmentName) && /(acci[óo]n|share)/i.test(segmentName)) {
+    return 'PRESTAMO_GARANTIA_ACCIONES';
+  }
   for (const { type, pattern } of MATCHERS) {
     if (pattern.test(segmentName)) return type;
   }

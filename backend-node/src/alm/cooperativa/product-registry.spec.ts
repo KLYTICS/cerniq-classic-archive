@@ -130,5 +130,29 @@ describe('CooperativaProductRegistry', () => {
         'PRESTAMO_GARANTIA_ACCIONES',
       );
     });
+
+    // Regression: a loan named with a non-canonical preposition ("con"/"de
+    // colateral"/"sobre") must NOT fall through to the broad CUENTA_AHORRO
+    // "acciones" token and be silently dropped from the CECL allowance (D1).
+    it.each([
+      'Préstamos garantizados con acciones del socio',
+      'Préstamo con colateral de acciones',
+      'Préstamo colateralizado con acciones',
+      'Préstamos sobre acciones del socio',
+      'Préstamo respaldado por acciones',
+      'Loan secured by member shares',
+    ])(
+      'classifies share-secured variant "%s" as the loan, not a deposit',
+      (name) => {
+        expect(matchProductType(name)).toBe('PRESTAMO_GARANTIA_ACCIONES');
+      },
+    );
+
+    it('keeps genuine share-savings accounts as CUENTA_AHORRO (no loan token)', () => {
+      expect(matchProductType('Cuentas de ahorro de acciones')).toBe(
+        'CUENTA_AHORRO',
+      );
+      expect(matchProductType('Share savings accounts')).toBe('CUENTA_AHORRO');
+    });
   });
 });
