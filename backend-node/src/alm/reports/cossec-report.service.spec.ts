@@ -51,18 +51,18 @@ const fixture = (
               2.1,
               'pass',
             ),
-            mkRatio(3, 'Liquidity Ratio', 'Razon de Liquidez', 13.4, 'fail'),
+            mkRatio(3, 'Liquidity Ratio', 'Razón de Liquidez', 13.4, 'fail'),
             mkRatio(
               4,
               'Loan-to-Deposit Ratio',
-              'Razon Prestamos/Depositos',
+              'Razón Préstamos/Depósitos',
               86,
               'warning',
             ),
             mkRatio(
               12,
               'Net Interest Margin',
-              'Margen de Interes Neto',
+              'Margen de Interés Neto',
               3.1,
               'pass',
             ),
@@ -159,7 +159,7 @@ describe('CossecReportService', () => {
     it('names failing ratios in the attention line', () => {
       const svc = mkService(fixture('compliant'));
       const lines = svc.buildConclusions(fixture('compliant'), 'es');
-      expect(lines.some((l) => l.includes('Razon de Liquidez'))).toBe(true);
+      expect(lines.some((l) => l.includes('Razón de Liquidez'))).toBe(true);
     });
 
     it('English variant mirrors the same verdicts', () => {

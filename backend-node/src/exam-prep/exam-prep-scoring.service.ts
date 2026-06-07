@@ -39,7 +39,7 @@ export const THRESHOLDS: Record<string, ThresholdSpec> = {
     failAbove: 4.5,
     unit: 'years',
     name: 'Duration Gap',
-    nameEs: 'Brecha de Duracion',
+    nameEs: 'Brecha de Duración',
   },
   NII_SENSITIVITY: {
     passMax: 20,
@@ -55,7 +55,7 @@ export const THRESHOLDS: Record<string, ThresholdSpec> = {
     failBelow: -30,
     unit: '%',
     name: 'EVE Change',
-    nameEs: 'Cambio en Valor Economico',
+    nameEs: 'Cambio en Valor Económico',
   },
   LCR: {
     passMin: 100,
@@ -63,7 +63,7 @@ export const THRESHOLDS: Record<string, ThresholdSpec> = {
     failBelow: 90,
     unit: '%',
     name: 'Liquidity Coverage Ratio',
-    nameEs: 'Razon de Cobertura de Liquidez',
+    nameEs: 'Razón de Cobertura de Liquidez',
   },
   NET_WORTH: {
     passMin: 10,
@@ -71,7 +71,7 @@ export const THRESHOLDS: Record<string, ThresholdSpec> = {
     failBelow: 7,
     unit: '%',
     name: 'Net Worth Ratio',
-    nameEs: 'Razon de Patrimonio',
+    nameEs: 'Razón de Patrimonio',
   },
   CAPITAL: {
     passMin: 7,
@@ -79,7 +79,7 @@ export const THRESHOLDS: Record<string, ThresholdSpec> = {
     failBelow: 5,
     unit: '%',
     name: 'Capital Ratio',
-    nameEs: 'Razon de Capital',
+    nameEs: 'Razón de Capital',
   },
 };
 
@@ -400,14 +400,14 @@ export class ExamPrepScoringService {
   } {
     const labels: Record<string, { label: string; labelEs: string }> = {
       ALM_POLICY: { label: 'ALM Policy', labelEs: 'Politica ALM' },
-      DURATION_GAP: { label: 'Duration Gap', labelEs: 'Brecha de Duracion' },
+      DURATION_GAP: { label: 'Duration Gap', labelEs: 'Brecha de Duración' },
       NII_SENSITIVITY: {
         label: 'NII Sensitivity',
         labelEs: 'Sensibilidad de Ingreso Neto',
       },
       EVE: {
         label: 'Economic Value of Equity',
-        labelEs: 'Valor Economico del Patrimonio',
+        labelEs: 'Valor Económico del Patrimonio',
       },
       LIQUIDITY: { label: 'Liquidity', labelEs: 'Liquidez' },
       CAPITAL_ADEQUACY: {
