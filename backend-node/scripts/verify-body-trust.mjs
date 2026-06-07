@@ -36,16 +36,23 @@
  * URL path params (`parseOrThrow(Schema, params)`) are NOT flagged —
  * that surface is covered by `verify-institution-scope-guard.mjs`.
  *
- * **Phase A (this commit) — REPORT-ONLY.** Exits 0 even on violations.
- * `--strict` flag flips to exit 1 for opt-in CI. Phase B will add
- * skip-comment sweep across documented exceptions. Phase C wires
- * `--strict` into `npm run lint` between `verify:auth-coverage` and
- * the KLYTICS rule verifiers.
+ * **CI behavior — FAIL-CLOSED.** `npm run lint` invokes this script with
+ * `--strict` (see package.json `verify:body-trust`, wired between
+ * `verify:auth-coverage` and the KLYTICS rule verifiers), so ANY
+ * body-IDOR violation fails the build with `exit 1`. This gate blocks CI
+ * today. (Currently reports 0 violations.)
+ *
+ * Bare invocation WITHOUT `--strict` is report-only — it scans and prints
+ * but exits 0 even on violations, for local exploration/triage. The
+ * phased rollout that this framing once described is complete: Phase A
+ * landed report-only, Phase B added the skip-comment sweep across
+ * documented exceptions, and Phase C wired `--strict` into `npm run lint`
+ * (done — see above).
  *
  * Flags:
- *   (none)        scan + report; ALWAYS exits 0 in Phase A
+ *   (none)        scan + report; exits 0 even on violations (local triage)
  *   --quiet       suppress per-violation detail; final summary only
- *   --strict      exit 1 if any violations found (for early opt-in CI)
+ *   --strict      exit 1 if any violations found — used by `npm run lint`
  *   --self-test   exercise the rule against in-memory fixture cases
  *
  * Skip the script entirely with VERIFY_BODY_TRUST_SKIP=1.
@@ -741,8 +748,10 @@ if (allViolations.length > 0) {
     );
   }
   console.error(summary);
-  // PHASE A: report-only. Exit 0 so this script can land before the
-  // skip-comment sweep. `--strict` flips to exit 1 for opt-in CI.
+  // Fail-closed under `--strict` — exit 1 on any violation. This is how
+  // `npm run lint` runs the script (package.json `verify:body-trust`),
+  // so violations block CI. Bare invocation (no `--strict`) is report-only:
+  // exit 0 even on violations, for local exploration/triage.
   process.exit(STRICT ? 1 : 0);
 }
 

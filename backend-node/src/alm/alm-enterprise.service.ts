@@ -1053,6 +1053,15 @@ export class AlmEnterpriseService {
       }
     }
 
+    // Worst absolute % NII change across the rate-shock scenarios — the actual
+    // measured figure for the NII-sensitivity ratio (RC-1: replaces a synthetic
+    // 0-100 score that did not match its own "%" threshold).
+    const niiWorstPct = niiSensitivity.scenarios.length
+      ? Math.max(
+          ...niiSensitivity.scenarios.map((s) => Math.abs(s.niImpactPct)),
+        )
+      : 0;
+
     // ── Build 12 COSSEC ratios ──
     const b = PR_COOP_BENCHMARKS.ratios;
     const ratios: CossecRatioResult[] = [
@@ -1167,27 +1176,17 @@ export class AlmEnterpriseService {
         5,
         'NII Sensitivity',
         'Sensibilidad NII',
-        niiSensitivity.riskRating === 'low'
-          ? 100
-          : niiSensitivity.riskRating === 'moderate'
-            ? 70
-            : niiSensitivity.riskRating === 'high'
-              ? 40
-              : 15,
-        'score',
-        '<= 15% per 100bps',
-        'info',
-        niiSensitivity.riskRating === 'low'
-          ? 'pass'
-          : niiSensitivity.riskRating === 'moderate'
-            ? 'warning'
-            : 'fail',
-        `NII risk rating: ${niiSensitivity.riskRating}. Base NII: $${niiSensitivity.baseNII.toFixed(1)}M.`,
-        `Clasificación NII: ${niiSensitivity.riskRating}. NII base: $${niiSensitivity.baseNII.toFixed(1)}M.`,
+        round(niiWorstPct, 1),
+        '%',
+        '<= 20%',
+        'lte',
+        niiWorstPct <= 10 ? 'pass' : niiWorstPct <= 20 ? 'warning' : 'fail',
+        `Worst NII change across rate shocks: ${round(niiWorstPct, 1)}% (rating: ${niiSensitivity.riskRating}). COSSEC CC-2020-03: <=10% low, 10-20% moderate, >20% high. Base NII: $${niiSensitivity.baseNII.toFixed(1)}M.`,
+        `Peor cambio de NII bajo shocks de tasa: ${round(niiWorstPct, 1)}% (clasificación: ${niiSensitivity.riskRating}). COSSEC CC-2020-03: <=10% bajo, 10-20% moderado, >20% alto. NII base: $${niiSensitivity.baseNII.toFixed(1)}M.`,
         10,
         null,
         0,
-        false,
+        true,
       ),
 
       this.buildRatio(

@@ -48,6 +48,31 @@ export interface InstitutionFixture {
    * to `reportingDate` if omitted.
    */
   liquidity: InstitutionFixtureLiquidity;
+
+  /**
+   * Optional loan segments for cooperativa CECL (PD×LGD). Consumed by
+   * `getCooperativaCECLAnalysis` (and the golden-reconciliation snapshot) — the
+   * seed pipeline does NOT seed these (it only replaces `items` + `liquidity`),
+   * so they are inert for non-CECL fixtures.
+   */
+  loanSegments?: InstitutionFixtureLoanSegment[];
+}
+
+export interface InstitutionFixtureLoanSegment {
+  /** Display name — must match a registry matcher (see `matchProductType`). */
+  segmentName: string;
+  /** Outstanding balance in millions, in the institution's reporting currency. */
+  balance: number;
+  /** Weighted average coupon as a decimal (0.065 = 6.5%). */
+  weightedAvgRate: number;
+  /** Weighted average remaining maturity in years. */
+  weightedAvgMaturity: number;
+  /** Annualized historical loss rate as a decimal (0.012 = 1.2%); 0 ⇒ use registry default. */
+  historicalLossRate: number;
+  /** Loss given default (0.0–1.0). */
+  lgd: number;
+  /** +/- qualitative adjustment to the loss rate (decimal). */
+  qualitativeAdj: number;
 }
 
 export interface InstitutionFixtureItem {

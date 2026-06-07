@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { FileDown } from 'lucide-react';
+import { FileDown, FileSpreadsheet } from 'lucide-react';
 
 import { useTranslation } from '@/lib/i18n';
 import { useALM } from '@/components/alm/ALMProvider';
@@ -64,6 +64,10 @@ function CossecContent({ data }: { readonly data: CossecComplianceResult }) {
 
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [excelDownloading, setExcelDownloading] = useState(false);
+  const [excelDownloadError, setExcelDownloadError] = useState<string | null>(
+    null,
+  );
 
   const banner = overallBanner(data.overallStatus);
   const counts = useMemo(
@@ -94,6 +98,23 @@ function CossecContent({ data }: { readonly data: CossecComplianceResult }) {
       );
     } finally {
       setDownloading(false);
+    }
+  }
+
+  async function handleExcelDownload() {
+    if (!selectedId) return;
+    setExcelDownloading(true);
+    setExcelDownloadError(null);
+    try {
+      await apiClient.downloadAlmExcel(selectedId, es ? 'es' : 'en');
+    } catch {
+      setExcelDownloadError(
+        es
+          ? 'No se pudo generar el libro Excel. Intente de nuevo.'
+          : 'Could not generate the Excel workbook. Please try again.',
+      );
+    } finally {
+      setExcelDownloading(false);
     }
   }
 
@@ -203,24 +224,48 @@ function CossecContent({ data }: { readonly data: CossecComplianceResult }) {
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <button
-              type="button"
-              onClick={handleDownload}
-              disabled={downloading || !selectedId}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <FileDown className="h-4 w-4" aria-hidden />
-              {downloading
-                ? es
-                  ? 'Generando…'
-                  : 'Generating…'
-                : es
-                  ? 'Descargar Informe COSSEC (PDF)'
-                  : 'Download COSSEC Report (PDF)'}
-            </button>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleDownload}
+                disabled={downloading || !selectedId}
+                aria-busy={downloading}
+                className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FileDown className="h-4 w-4" aria-hidden />
+                {downloading
+                  ? es
+                    ? 'Generando…'
+                    : 'Generating…'
+                  : es
+                    ? 'Descargar Informe COSSEC (PDF)'
+                    : 'Download COSSEC Report (PDF)'}
+              </button>
+              <button
+                type="button"
+                onClick={handleExcelDownload}
+                disabled={excelDownloading || !selectedId}
+                aria-busy={excelDownloading}
+                className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FileSpreadsheet className="h-4 w-4" aria-hidden />
+                {excelDownloading
+                  ? es
+                    ? 'Generando…'
+                    : 'Generating…'
+                  : es
+                    ? 'Descargar Excel (.xls)'
+                    : 'Download Excel (.xls)'}
+              </button>
+            </div>
             {downloadError ? (
               <p className="text-[11px] text-rose-600" role="alert">
                 {downloadError}
+              </p>
+            ) : null}
+            {excelDownloadError ? (
+              <p className="text-[11px] text-rose-600" role="alert">
+                {excelDownloadError}
               </p>
             ) : null}
           </div>

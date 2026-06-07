@@ -48,18 +48,23 @@
  *   On violations, per-route detail is logged (file:line + the route's
  *   effective path + why it's not satisfied).
  *
- * **Phase A (this commit) — REPORT-ONLY.** The script exits 0 even when
- * violations are present. This lets the script land without an audit
- * sweep that would touch every legitimate public controller in one
- * commit. Phase B (separate commit) adds `// verify:auth-skip` comments
- * to the documented public routes per `docs/security/AUTH_COVERAGE_AUDIT.md`.
- * Phase C flips to fail-closed (`exit 1` on violations) and wires into
- * `npm run lint`.
+ * **CI behavior — FAIL-CLOSED.** `npm run lint` invokes this script with
+ * `--strict` (see package.json `verify:auth-coverage`), so ANY violation
+ * fails the build with `exit 1`. This auth-coverage gate blocks CI today.
+ * (Currently reports 0 violations.)
+ *
+ * Bare invocation WITHOUT `--strict` is report-only — it scans and prints
+ * but exits 0 even on violations, for local exploration/triage that
+ * shouldn't fail your shell. The phased rollout that this framing once
+ * described is complete: Phase A landed report-only, Phase B added
+ * `// verify:auth-skip` comments to the documented public routes per
+ * `docs/security/AUTH_COVERAGE_AUDIT.md`, and Phase C wired `--strict`
+ * into `npm run lint` (done — see above).
  *
  * Flags:
- *   (none)        scan + report; ALWAYS exits 0 in Phase A
+ *   (none)        scan + report; exits 0 even on violations (local triage)
  *   --quiet       suppress per-violation detail; final summary only
- *   --strict      exit 1 if any violations found (for early opt-in CI)
+ *   --strict      exit 1 if any violations found — used by `npm run lint`
  *   --self-test   exercise the rule against in-memory fixture cases
  */
 
@@ -548,9 +553,10 @@ if (allViolations.length > 0) {
     console.error('comments before this script flips to fail-closed.');
   }
   console.error(summary);
-  // PHASE A: report-only. Exit 0 so this script can land before the
-  // public-route skip-comment sweep. `--strict` flag flips to exit 1 for
-  // early opt-in CI.
+  // Fail-closed under `--strict` — exit 1 on any violation. This is how
+  // `npm run lint` runs the script (package.json `verify:auth-coverage`),
+  // so violations block CI. Bare invocation (no `--strict`) is report-only:
+  // exit 0 even on violations, for local exploration/triage.
   process.exit(STRICT ? 1 : 0);
 }
 
