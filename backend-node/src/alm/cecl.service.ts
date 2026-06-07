@@ -569,12 +569,36 @@ export class CECLService {
           ? COOPERATIVA_PRODUCT_REGISTRY[productType]
           : null;
 
+        const hasOwnLossRate = Number(s.historicalLossRate) > 0;
+        const hasOwnLgd = s.lgd != null && Number(s.lgd) > 0;
+
         if (!productType) {
+          // Unclassified. With no own loss history it is NOT estimable: a null
+          // registry would feed PD=0 → $0 allowance while the balance stays in
+          // the coverage denominator, silently UNDERSTATING coverage (D1).
+          // Exclude it from BOTH the allowance and the denominator and disclose
+          // the excluded balance. Keep it only if it carries its own loss rate.
+          if (!hasOwnLossRate) {
+            gaps.push({
+              field: `cecl.segments.${name}`,
+              reason: 'COSSEC_INPUTS_INSUFFICIENT',
+              severity: 'WARNING',
+              action: `El segmento "${name}" ($${(Number(s.balance) / 1_000_000).toFixed(1)}M) no corresponde a ningún producto conocido y no tiene historial de pérdida — se EXCLUYÓ del cálculo de provisión y cobertura para no subestimarlas. Clasifíquelo (préstamo personal, auto, hipoteca, comercial, garantía de acciones) o cargue su tasa de pérdida histórica. / Unclassified segment with no own loss history — EXCLUDED from the allowance and coverage so neither is understated.`,
+            });
+            productClassification.push({
+              segmentName: name,
+              productType: null,
+              nombre: null,
+              defaultsApplied: false,
+            });
+            return null;
+          }
+          // Unclassified but it has its own loss rate → estimable from own data.
           gaps.push({
             field: `cecl.segments.${name}`,
             reason: 'COSSEC_INPUTS_INSUFFICIENT',
             severity: 'WARNING',
-            action: `El segmento "${name}" no corresponde a ningún producto de cooperativa conocido. Clasifíquelo manualmente (préstamo personal, auto, hipoteca, comercial, garantía de acciones).`,
+            action: `El segmento "${name}" no corresponde a ningún producto de cooperativa conocido; se usó su historial de pérdida propio. Clasifíquelo manualmente (préstamo personal, auto, hipoteca, comercial, garantía de acciones) para aplicar la calibración del registro.`,
           });
         }
 
@@ -590,8 +614,6 @@ export class CECLService {
           return null;
         }
 
-        const hasOwnLossRate = Number(s.historicalLossRate) > 0;
-        const hasOwnLgd = s.lgd != null && Number(s.lgd) > 0;
         const defaultsApplied = !!registry && (!hasOwnLossRate || !hasOwnLgd);
 
         if (defaultsApplied) {

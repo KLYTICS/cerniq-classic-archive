@@ -465,6 +465,40 @@ describe('CECLService', () => {
       );
     });
 
+    it('excludes an unclassified, data-less segment from allowance + coverage and discloses it (D1)', async () => {
+      const service = mkService([
+        ...prSegments,
+        {
+          segmentName: 'Derivados exóticos', // matchProductType -> null
+          balance: 50_000_000,
+          weightedAvgRate: 0.04,
+          weightedAvgMaturity: 5,
+          historicalLossRate: 0, // no own loss history -> not estimable
+          lgd: 0,
+          qualitativeAdj: 0,
+        },
+      ]);
+      const result = await service.getCooperativaCECLAnalysis('inst-1');
+      // Denominator is the 2 classified segments ($200M), NOT $250M — the
+      // unclassified data-less balance is excluded, so coverage is not diluted.
+      expect(result.totalBalance).toBeCloseTo(200_000_000, -2);
+      // Excluded, but disclosed (never silently dropped).
+      expect(
+        result.gaps?.some(
+          (g) =>
+            g.field === 'cecl.segments.Derivados exóticos' &&
+            /EXCLU/.test(g.action ?? ''),
+        ),
+      ).toBe(true);
+      // Still visible in the classification table (productType null).
+      expect(
+        result.productClassification.some(
+          (c) =>
+            c.segmentName === 'Derivados exóticos' && c.productType === null,
+        ),
+      ).toBe(true);
+    });
+
     it('produces a HIGHER weighted allowance than mainland CCAR overlay (PR multipliers are harsher)', async () => {
       const service = mkService(prSegments);
       const pr = await service.getCooperativaCECLAnalysis('inst-1');
