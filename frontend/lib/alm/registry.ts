@@ -78,7 +78,7 @@ export type AlmModuleSlug =
   | 'forward-sim' | 'margin-compression' | 'income-vol' | 'pnl-attribution' | 'daily-pnl' | 'economic-capital'
   | 'risk-appetite' | 'wac-wam' | 'swap-valuation'
   // regulatory
-  | 'cossec' | 'exam-prep' | 'irr-policy' | 'alerts' | 'camel-forecast' | 'form-5300' | 'board-report' | 'rbc2' | 'compliance'
+  | 'cossec' | 'nev' | 'exam-prep' | 'irr-policy' | 'alerts' | 'camel-forecast' | 'form-5300' | 'board-report' | 'rbc2' | 'compliance'
   | 'regulatory-deadlines' | 'regulatory-monitor' | 'data-quality'
   // intelligence
   | 'peer-analytics' | 'peer-benchmarking' | 'climate-risk' | 'macro-regime' | 'stress-v2' | 'stress-test'
@@ -195,6 +195,7 @@ export const ALM_MODULES: readonly AlmModule[] = [
 
   // ─ Regulatory & Exam ────────────────────────────────────────────────────────
   { slug: 'cossec',                href: '/alm/cossec',                category: 'regulatory', tier: 'core',     status: 'ga', icon: ShieldCheck,   name: { en: 'COSSEC Report',      es: 'Informe COSSEC'          }, description: { en: '12-ratio compliance semáforo + push-button examiner PDF', es: 'Semáforo de 12 razones + informe PDF para examinador'  }, regulatoryRefs: ['COSSEC'], endpoint: '/api/alm/{id}/cossec-compliance' },
+  { slug: 'nev',                   href: '/alm/nev',                   category: 'regulatory', tier: 'core',     status: 'ga', icon: Gauge,         name: { en: 'NEV Supervisory Test', es: 'Prueba VEN Supervisora'   }, description: { en: 'NEV ±100/200/300bps revaluation + COSSEC CC-2025-01 risk bands', es: 'Revaluación VEN ±100/200/300pb + bandas COSSEC CC-2025-01' }, regulatoryRefs: ['COSSEC CC-2025-01'], endpoint: '/api/alm/{id}/stress-test/nev' },
   { slug: 'exam-prep',             href: '/alm/exam-prep',             category: 'regulatory', tier: 'core',     status: 'ga', icon: Shield,        name: { en: 'Exam Prep',          es: 'Prep Examen'             }, description: { en: 'COSSEC/NCUA exam readiness, CAMEL auto-scorer',          es: 'Preparación examen COSSEC/NCUA, CAMEL auto'            }, regulatoryRefs: ['COSSEC', 'NCUA'] },
   { slug: 'irr-policy',            href: '/alm/irr-policy',            category: 'regulatory', tier: 'core',     status: 'ga', icon: AlertOctagon,  name: { en: 'IRR Policy Monitor', es: 'Monitor Política IRR'    }, description: { en: 'EVE/NII/DurationGap limits, WATCH/WARNING/BREACH',       es: 'Límites EVE/NII/Duración, monitoreo brechas'           } },
   { slug: 'alerts',                href: '/alm/alerts',                category: 'regulatory', tier: 'core',     status: 'ga', icon: Activity,      name: { en: 'Regulatory Alerts',  es: 'Alertas Regulatorias'    }, description: { en: 'Automated regulatory publication scanning',              es: 'Escaneo automático publicaciones regulatorias'         }, endpoint: '/api/alm/{id}/alerts' },
