@@ -424,7 +424,7 @@ function CooperativaCeclContent() {
           className="max-w-md rounded-xl border border-rose-200 bg-rose-50 p-6 text-center"
           role="alert"
         >
-          <AlertTriangle className="mx-auto h-10 w-10 text-rose-500" />
+          <AlertTriangle className="mx-auto h-10 w-10 text-rose-500" aria-hidden />
           <p className="mt-3 text-sm font-semibold text-rose-900">
             {es ? 'No se pudo cargar CECL Cooperativa PR' : 'Could not load Cooperativa PR CECL'}
           </p>
