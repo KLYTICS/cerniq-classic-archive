@@ -111,5 +111,52 @@
     "cashInflows": 0,
     "lcr": 117.9,
     "nsfr": 109.0
-  }
+  },
+  "loanSegments": [
+    {
+      "segmentName": "Préstamos Personales",
+      "balance": 40,
+      "weightedAvgRate": 0.092,
+      "weightedAvgMaturity": 3.5,
+      "historicalLossRate": 0.022,
+      "lgd": 0.6,
+      "qualitativeAdj": 0.002
+    },
+    {
+      "segmentName": "Préstamos de Auto",
+      "balance": 35,
+      "weightedAvgRate": 0.068,
+      "weightedAvgMaturity": 4.5,
+      "historicalLossRate": 0.012,
+      "lgd": 0.45,
+      "qualitativeAdj": 0.001
+    },
+    {
+      "segmentName": "Hipotecas Residenciales",
+      "balance": 90,
+      "weightedAvgRate": 0.055,
+      "weightedAvgMaturity": 18,
+      "historicalLossRate": 0.008,
+      "lgd": 0.35,
+      "qualitativeAdj": 0
+    },
+    {
+      "segmentName": "Préstamos Comerciales (MBL)",
+      "balance": 25,
+      "weightedAvgRate": 0.071,
+      "weightedAvgMaturity": 6,
+      "historicalLossRate": 0.015,
+      "lgd": 0.45,
+      "qualitativeAdj": 0.003
+    },
+    {
+      "segmentName": "Préstamos con Garantía de Acciones",
+      "balance": 10,
+      "weightedAvgRate": 0.06,
+      "weightedAvgMaturity": 2,
+      "historicalLossRate": 0.003,
+      "lgd": 0.05,
+      "qualitativeAdj": 0
+    }
+  ]
 }

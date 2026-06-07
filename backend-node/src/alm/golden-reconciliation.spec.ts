@@ -25,6 +25,7 @@ import { AlmService } from './alm.service';
 import { DurationService } from './duration.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
+import { CECLService } from './cecl.service';
 import { getFixture } from './data/fixtures';
 
 const GOLDEN_DIR = join(__dirname, '..', '..', 'test', 'golden');
@@ -82,7 +83,25 @@ function makeFakePrismaFromFixture(): any {
     nsfr: fixture.liquidity.nsfr,
   };
 
+  const loanSegments = (fixture.loanSegments ?? []).map((s, idx) => ({
+    id: `seg-${idx + 1}`,
+    institutionId: INSTITUTION_ID,
+    segmentName: s.segmentName,
+    balance: s.balance,
+    weightedAvgRate: s.weightedAvgRate,
+    weightedAvgMaturity: s.weightedAvgMaturity,
+    historicalLossRate: s.historicalLossRate,
+    lgd: s.lgd,
+    qualitativeAdj: s.qualitativeAdj,
+    asOfDate: new Date(fixture.reportingDate),
+    createdAt: new Date('2026-01-31T00:00:00Z'),
+    updatedAt: new Date('2026-01-31T00:00:00Z'),
+  }));
+
   return {
+    loanSegment: {
+      findMany: jest.fn(async () => loanSegments),
+    },
     institution: {
       findUnique: jest.fn(async () => institutionRow),
     },
@@ -156,6 +175,7 @@ function loadOrCapture(filename: string, actual: unknown): unknown {
 describe('Golden reconciliation: pr-cooperativa-demo', () => {
   let service: AlmEnterpriseService;
   let stress: StressTestingService;
+  let cecl: CECLService;
 
   beforeEach(() => {
     const prisma = makeFakePrismaFromFixture();
@@ -165,6 +185,7 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
       new DurationService(),
     );
     stress = new StressTestingService(prisma, service);
+    cecl = new CECLService(prisma);
   });
 
   it('getCOSSECCompliance produces the canonical snapshot', async () => {
@@ -204,6 +225,14 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
   it('getNEVAnalysis produces the canonical snapshot', async () => {
     const actual = normalize(await stress.getNEVAnalysis(INSTITUTION_ID));
     const expected = loadOrCapture('pr-cooperativa-demo.nev.json', actual);
+    expect(actual).toEqual(expected);
+  });
+
+  it('getCooperativaCECLAnalysis produces the canonical snapshot', async () => {
+    const actual = normalize(
+      await cecl.getCooperativaCECLAnalysis(INSTITUTION_ID),
+    );
+    const expected = loadOrCapture('pr-cooperativa-demo.cecl.json', actual);
     expect(actual).toEqual(expected);
   });
 });
