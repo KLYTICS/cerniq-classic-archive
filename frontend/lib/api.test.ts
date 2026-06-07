@@ -583,39 +583,69 @@ describe('APIClient', () => {
     });
   });
 
-  // The examiner Excel workbook download. Locks the full contract: the route,
-  // the authenticated blob transport, the legacy ms-excel MIME (NOT OOXML —
-  // the backend streams XML SpreadsheetML), Content-Disposition precedence,
-  // the .xls fallback name, Spanish-first lang coercion, and the anchor
-  // create→click→revoke lifecycle. A regression here is a broken or
-  // mistyped download for a regulator-facing artifact.
-  describe('downloadAlmExcel (examiner Excel workbook)', () => {
+  // ── Blob download family (examiner-facing artifacts) ──────────────────────
+  // Reusable scaffold for the api.ts authenticated blob downloads. Locks the
+  // contract of each regulator-facing artifact: route + responseType:'blob',
+  // the Blob MIME (pdf vs the legacy XML-SpreadsheetML application/vnd.ms-excel
+  // — NOT OOXML .xlsx), Content-Disposition filename precedence, the hardcoded
+  // fallback name, lang handling, and the create→href→append→click→remove→
+  // revoke lifecycle. jsdom implements none of URL.createObjectURL /
+  // revokeObjectURL, so a single installCapture() stubs them (plus the
+  // synthesized <a>) once for every method. A regression here is a broken,
+  // empty, or mistyped download of a regulator-facing artifact.
+  describe('blob download family (examiner artifacts)', () => {
+    type ApiClient = typeof import('./api').apiClient;
+    type DownloadCapture = {
+      anchor: { href: string; download: string; click: ReturnType<typeof vi.fn> };
+      click: ReturnType<typeof vi.fn>;
+      appendChild: ReturnType<typeof vi.spyOn>;
+      removeChild: ReturnType<typeof vi.spyOn>;
+    };
+
     const origCreateObjectURL = URL.createObjectURL;
     const origRevokeObjectURL = URL.revokeObjectURL;
-    let clickSpy: ReturnType<typeof vi.fn>;
-    let anchor: {
-      href: string;
-      download: string;
-      click: ReturnType<typeof vi.fn>;
-    };
-    let appendChildSpy: ReturnType<typeof vi.spyOn>;
-    let removeChildSpy: ReturnType<typeof vi.spyOn>;
+    let cap: DownloadCapture;
 
-    beforeEach(() => {
-      clickSpy = vi.fn();
-      anchor = { href: '', download: '', click: clickSpy };
+    function installCapture(): DownloadCapture {
+      const click = vi.fn();
+      const anchor = { href: '', download: '', click };
       vi.spyOn(document, 'createElement').mockReturnValue(
         anchor as unknown as HTMLAnchorElement,
       );
-      appendChildSpy = vi
+      const appendChild = vi
         .spyOn(document.body, 'appendChild')
         .mockImplementation((node) => node);
-      removeChildSpy = vi
+      const removeChild = vi
         .spyOn(document.body, 'removeChild')
         .mockImplementation((node) => node);
-      // jsdom does not implement these; stub then restore in afterEach.
       URL.createObjectURL = vi.fn(() => 'blob:mock-url');
       URL.revokeObjectURL = vi.fn();
+      return { anchor, click, appendChild, removeChild };
+    }
+
+    async function loadClient() {
+      const { apiClient } = await import('./api');
+      const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock
+        .results[0].value;
+      return { apiClient, mockInstance };
+    }
+
+    // Shared assertion: a successful download wrapped `mime` and saved as
+    // `filename`, and ran the complete object-URL lifecycle exactly once.
+    function expectDownloaded(mime: string, filename: string) {
+      const blobArg = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as Blob;
+      expect(blobArg.type).toBe(mime);
+      expect(cap.anchor.href).toBe('blob:mock-url');
+      expect(cap.anchor.download).toBe(filename);
+      expect(cap.appendChild).toHaveBeenCalledWith(cap.anchor);
+      expect(cap.click).toHaveBeenCalledTimes(1);
+      expect(cap.removeChild).toHaveBeenCalledWith(cap.anchor);
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+    }
+
+    beforeEach(() => {
+      cap = installCapture();
     });
 
     afterEach(() => {
@@ -623,63 +653,88 @@ describe('APIClient', () => {
       URL.revokeObjectURL = origRevokeObjectURL;
     });
 
-    it('streams /export/excel as an application/vnd.ms-excel blob and honors Content-Disposition', async () => {
-      const { apiClient } = await import('./api');
-      const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock
-        .results[0].value;
-      mockInstance.get.mockResolvedValueOnce({
-        data: new Blob(['<?xml version="1.0"?>'], {
-          type: 'application/vnd.ms-excel',
-        }),
-        headers: {
-          'content-disposition':
-            'attachment; filename="cerniq-alm-report-abcd1234.xls"',
-        },
-      });
+    // One row per regulator-facing artifact. `mime`/`fallback` are the
+    // per-method invariants the scaffold guards across the family.
+    const FAMILY = [
+      {
+        label: 'downloadALMReport (full ALM PDF)',
+        urlPart: '/api/alm/inst-1/report?lang=',
+        mime: 'application/pdf',
+        cdName: 'alm-2025q4.pdf',
+        fallback: 'alm-report-inst-1.pdf',
+        invoke: (c: ApiClient, lang?: string) =>
+          c.downloadALMReport('inst-1', lang),
+      },
+      {
+        label: 'downloadCossecReport (COSSEC PDF)',
+        urlPart: '/api/alm/inst-1/cossec-report/pdf?lang=',
+        mime: 'application/pdf',
+        cdName: 'cossec-2025q4.pdf',
+        fallback: 'cossec-report-inst-1.pdf',
+        invoke: (c: ApiClient, lang?: string) =>
+          c.downloadCossecReport('inst-1', lang),
+      },
+      {
+        label: 'downloadAlmExcel (COSSEC workbook .xls)',
+        urlPart: '/api/alm/inst-1/export/excel?lang=',
+        mime: 'application/vnd.ms-excel',
+        cdName: 'cerniq-alm-report-abcd1234.xls',
+        fallback: 'cossec-workbook-inst-1.xls',
+        invoke: (c: ApiClient, lang?: string) =>
+          c.downloadAlmExcel('inst-1', lang),
+      },
+    ];
 
-      await apiClient.downloadAlmExcel('inst-1', 'es');
+    describe.each(FAMILY)(
+      '$label',
+      ({ urlPart, mime, cdName, fallback, invoke }) => {
+        it('streams a blob with the right MIME, honors Content-Disposition, runs the anchor lifecycle', async () => {
+          const { apiClient, mockInstance } = await loadClient();
+          mockInstance.get.mockResolvedValueOnce({
+            data: new Blob(['payload'], { type: mime }),
+            headers: {
+              'content-disposition': `attachment; filename="${cdName}"`,
+            },
+          });
 
-      expect(mockInstance.get).toHaveBeenCalledWith(
-        expect.stringContaining('/api/alm/inst-1/export/excel?lang=es'),
-        expect.objectContaining({ responseType: 'blob' }),
-      );
-      const blobArg = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock
-        .calls[0][0] as Blob;
-      expect(blobArg.type).toBe('application/vnd.ms-excel');
-      expect(anchor.href).toBe('blob:mock-url');
-      expect(anchor.download).toBe('cerniq-alm-report-abcd1234.xls');
-      expect(appendChildSpy).toHaveBeenCalledWith(anchor);
-      expect(clickSpy).toHaveBeenCalledTimes(1);
-      expect(removeChildSpy).toHaveBeenCalledWith(anchor);
-      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
-    });
+          await invoke(apiClient, 'es');
 
-    it('falls back to cossec-workbook-<id>.xls and defaults to Spanish when no header/lang given', async () => {
-      const { apiClient } = await import('./api');
-      const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock
-        .results[0].value;
-      mockInstance.get.mockResolvedValueOnce({
-        data: new Blob(['data']),
-        headers: {},
-      });
+          expect(mockInstance.get).toHaveBeenCalledWith(
+            expect.stringContaining(urlPart),
+            expect.objectContaining({ responseType: 'blob' }),
+          );
+          expectDownloaded(mime, cdName);
+        });
 
-      await apiClient.downloadAlmExcel('coop-9');
+        it('falls back to the hardcoded filename when no Content-Disposition is present', async () => {
+          const { apiClient, mockInstance } = await loadClient();
+          mockInstance.get.mockResolvedValueOnce({
+            data: new Blob(['payload'], { type: mime }),
+            headers: {},
+          });
 
-      expect(mockInstance.get).toHaveBeenCalledWith(
-        expect.stringContaining('/export/excel?lang=es'),
-        expect.objectContaining({ responseType: 'blob' }),
-      );
-      expect(anchor.download).toBe('cossec-workbook-coop-9.xls');
-    });
+          await invoke(apiClient, 'es');
 
-    it('coerces lang Spanish-first: en stays en, any other value becomes es', async () => {
-      const { apiClient } = await import('./api');
-      const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock
-        .results[0].value;
-      mockInstance.get.mockResolvedValue({
-        data: new Blob(['data']),
-        headers: {},
-      });
+          expect(cap.anchor.download).toBe(fallback);
+        });
+
+        it('propagates request failures with no phantom download (D1 no-silent-fallback)', async () => {
+          const { apiClient, mockInstance } = await loadClient();
+          mockInstance.get.mockRejectedValueOnce(new Error('export failed'));
+
+          await expect(invoke(apiClient, 'es')).rejects.toThrow(
+            'export failed',
+          );
+          expect(URL.createObjectURL).not.toHaveBeenCalled();
+          expect(cap.click).not.toHaveBeenCalled();
+        });
+      },
+    );
+
+    // Language handling diverges by method — assert it explicitly.
+    it('coerces lang Spanish-first for the COSSEC artifacts (en stays en, any other → es)', async () => {
+      const { apiClient, mockInstance } = await loadClient();
+      mockInstance.get.mockResolvedValue({ data: new Blob(['x']), headers: {} });
 
       await apiClient.downloadAlmExcel('i', 'en');
       expect(mockInstance.get).toHaveBeenLastCalledWith(
@@ -692,19 +747,29 @@ describe('APIClient', () => {
         expect.stringContaining('/export/excel?lang=es'),
         expect.objectContaining({ responseType: 'blob' }),
       );
+
+      await apiClient.downloadCossecReport('i', 'fr');
+      expect(mockInstance.get).toHaveBeenLastCalledWith(
+        expect.stringContaining('/cossec-report/pdf?lang=es'),
+        expect.objectContaining({ responseType: 'blob' }),
+      );
     });
 
-    it('propagates request failures so the UI surfaces them (no silent fallback, no phantom download)', async () => {
-      const { apiClient } = await import('./api');
-      const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock
-        .results[0].value;
-      mockInstance.get.mockRejectedValueOnce(new Error('500 export failed'));
+    it('applies the right default language per artifact (Excel/COSSEC → es, full ALM report → en)', async () => {
+      const { apiClient, mockInstance } = await loadClient();
+      mockInstance.get.mockResolvedValue({ data: new Blob(['x']), headers: {} });
 
-      await expect(apiClient.downloadAlmExcel('i', 'es')).rejects.toThrow(
-        '500 export failed',
+      await apiClient.downloadAlmExcel('i');
+      expect(mockInstance.get).toHaveBeenLastCalledWith(
+        expect.stringContaining('/export/excel?lang=es'),
+        expect.objectContaining({ responseType: 'blob' }),
       );
-      expect(URL.createObjectURL).not.toHaveBeenCalled();
-      expect(clickSpy).not.toHaveBeenCalled();
+
+      await apiClient.downloadALMReport('i');
+      expect(mockInstance.get).toHaveBeenLastCalledWith(
+        expect.stringContaining('/report?lang=en'),
+        expect.objectContaining({ responseType: 'blob' }),
+      );
     });
   });
 });
